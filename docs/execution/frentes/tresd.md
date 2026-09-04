@@ -71,6 +71,113 @@ npm run check:cad                       # antes de cerrar
 
 ## Bitácora
 
+### 2026-09-04 · SHELL: vaciar un sólido convexo, y SOLIDEDIT Cuerpo·Vaciar (entrega 4/5)
+
+`solids-edit.ts` lo declaraba con todas sus letras: *«Cuerpo · Estampar y Vaciar
+(SHELL): sin operación de kernel … Vaciar pide desfasar TODAS las caras a la vez
+hacia dentro resolviendo sus intersecciones; ninguna de las dos existe en
+`lib/brep/`»*. Vaciar es lo que convierte una caja en un **recipiente**, y hasta
+esta entrega el kernel no sabía hacerlo.
+
+**NUEVO** `apps/web/src/lib/brep/shell.ts` (640 líneas): `shellBody(body, thickness)`.
+
+1. **Desfasar el plano de cada cara** hacia dentro el espesor pedido: `n·x = d`
+   pasa a `n·x = d − t`, con `n` la normal SALIENTE.
+2. **Recalcular cada vértice** como intersección de los planos desfasados de sus
+   caras incidentes. Es el paso que hace honesto el resultado: mover cada
+   vértice a lo largo de «su» normal —el atajo que se escribe primero— sacaría
+   la esquina de una caja de los tres planos a la vez. Con **tres** planos el
+   punto es único y sale por Cramer (exacto); con **cuatro o más** —el ápice de
+   una pirámide, el de un cono facetado— por mínimos cuadrados sobre las
+   ecuaciones normales, y **entonces se comprueba el residuo**: si los planos
+   desfasados de ese vértice no concurren, el interior tendría que partirlo en
+   varios, es decir, OTRA topología, y eso se rechaza nombrándolo.
+3. La **topología se conserva tal cual** —mismas caras, mismos lazos, mismos
+   índices de vértice; sólo cambian las coordenadas—, así que el interior lo
+   cose el mismo `buildBody` con los mismos `FaceSpec` y nace válido.
+4. El hueco sale de **`booleanDifference(exterior, interior)`**, camino ya
+   probado en este árbol.
+
+**Sólo convexos, y la convexidad se COMPRUEBA de verdad** con `edgeDihedralAngle`
+sobre TODAS las aristas, con el convenio que ya usaba el chaflán (diedro interior
+< π convexo, > π cóncavo). En un rincón entrante los planos desfasados se cruzan
+del lado equivocado y el «interior» se sale del sólido; vaciar un cóncavo pide
+offset con RECORTE, que es otro algoritmo. Un cóncavo se rechaza nombrando su
+peor arista y su ángulo.
+
+**El límite del espesor se CALCULA, no se busca a tientas.** El vértice desfasado
+es una función afín del espesor —`p(t) = base − t·rate`, porque resolver
+`A·p = d − t·1` es resolver `A·base = d` y `A·rate = 1` y restar—, así que la
+holgura de cada par (vértice, cara) es afín en `t` y el mayor espesor admisible
+es `mín s₀/(1 − n·rate)` sobre los pares con pendiente positiva. Exacto, sin una
+sola bisección. En una caja de 100 sale **50**: la mitad de su espesor mínimo.
+
+**NUEVO** `shell.spec.ts` (89 comprobaciones). Las cifras:
+
+| caso | espesor | volumen | cáscaras | Euler |
+| --- | --- | --- | --- | --- |
+| caja 100³ | 10 | **488 000** = 10⁶ − 80³ | **2** | V=36 E=76 F=44 χ=4 S=2 G=0 |
+| prisma de 48 lados (R=50, h=100) | 5 | resta de los dos prismas, **Δ relativo 1.4e-16** | **2** | 96 vértices, todos exactos |
+| pirámide cuadrada 100×100×120 | 8 | V·(1 − ((r−t)/r)³) con r = 100/3 | **2** | 4 exactos + **1 por mínimos cuadrados** (el ápice) |
+| tetraedro (planos oblicuos) | r/4 | el tetraedro semejante de razón (r−t)/r, Δ < 1e-12 | **2** | r = 1/√3, 4 vértices exactos |
+| caja 100³ | 50 | rechazado: «se come la pieza», admite menos de 50 | — | sin escritura |
+| L de dos cajas (cóncava) | 5 | rechazado: 2 aristas a 270°, «todavía no está disponible» | — | sin escritura |
+| pirámide 100×**60**×120 | 5 | rechazado: los 4 planos del ápice no concurren | — | sin escritura |
+| unión fragmentada de dos cajas | 10 | rechazado, y **nombra el remedio**: cUerpo Limpiar | — | sin escritura |
+| la misma, tras `mergeCoplanarFaces` | 10 | **568 000** = 200·100·50 − 180·80·30 | **2** | válido |
+
+El último par es el que ata esta entrega con la 3/5: un cuerpo **convexo pero
+fragmentado** (la unión de dos cajas contiguas, que es una caja de 200×100×50 con
+20 caras) tiene cuatro vértices en T que tocan sólo DOS planos distintos. Un
+vértice así no es una esquina y desfasar no dice adónde debe ir: se rechaza
+**nombrando la orden que lo arregla**, que existe en este mismo árbol.
+
+**MODIFICADO** `lib/brep/index.ts`: exporta `shellBody`, `offsetInnerBody`,
+`shellLimit`, `maxShellThickness`, `bodyConvexity` y sus tipos. Su lista de «LO
+QUE NO HAY» gana tres renglones con lo que de verdad queda fuera: el cóncavo, la
+cáscara ABIERTA y el vértice de cuatro planos que no concurren.
+
+**MODIFICADO** `solids-edit-branches.ts` (403 → 541 líneas): `shellSolid`. Y aquí
+está la decisión que lo separa de `cleanBody`: **no se hornea nada del exterior**.
+El árbol original sobrevive intacto y sólo se le añaden DOS nodos —un `brep` con
+el interior y un `subtract` que lo resta—, así que el sólido se sigue editando
+por su rama de siempre: cambiar el 100 de la caja en propiedades reconstruye la
+pieza y el hueco se resta de la caja nueva. El interior sí es geometría
+explícita, porque no es la receta de nada: es el desfase de una topología
+concreta.
+
+El cuerpo se evalúa **sin su colocación** (`placement`). No es un detalle: el
+nodo `brep` del interior vive en el sistema de los nodos y la colocación se
+aplica después al árbol entero; calcularlo sobre el cuerpo ya colocado aplicaría
+la colocación dos veces y el hueco aparecería desplazado del sólido que lo
+contiene.
+
+**MODIFICADO** `solids-edit.ts` (380 → 417 líneas): sólo el diálogo. La rama
+Cuerpo pasa de «Separar, Limpiar, Comprobar, Salir» a «Separar, **Vaciar**,
+Limpiar, Comprobar, Salir», y su renglón de ausencias baja de dos nombres a uno
+(«Estampar todavía no»). PICKFIRST en Vaciar **no ejecuta**: adelanta al espesor,
+porque designar no es toda la orden cuando falta el número que decide la pared.
+
+**MODIFICADO** `solids-edit.spec.ts` (303 → 409 líneas, 81 → 119 comprobaciones).
+
+Cierre: `npm run typecheck` verde (8 workspaces),
+`npm run check:command-integrity` verde (274 comandos · 0 éxitos falsos),
+`node scripts/cad/check-monolith-budget.mjs` verde, `check:no-industrial-domain`
+verde (2 204 fuentes), `check:lint-budget` verde (487 avisos de 492) y `eslint`
+limpio sobre los seis archivos tocados. `npx tsx src/lib/brep/shell.spec.ts` da
+**89** aserciones verdes y `solids-edit.spec.ts` **119** comprobaciones. La suite
+entera del web: **578/578 specs verdes**.
+
+**Observación, y no es de este frente:** `npm run check:cad` sale en ROJO en esta
+rama por `check:dwg-evidence` —el artefacto `docs/cad/evidence/` no coincide con
+lo que sostiene `packages/dwg-codec/` (7 bundles admitidos y 2 capacidades
+promovidas en el disco contra 0 y 0 en el árbol)—. **Comprobado que es
+PREEXISTENTE**: con esta entrega guardada en `git stash`, sobre el árbol limpio,
+`npm run check:dwg-evidence` sigue saliendo con código 1. Ni `packages/dwg-codec/`
+ni `docs/cad/evidence/` están en el diff de esta entrega, y los dos flags DWG
+siguen apagados. Se deja anotado para que el coordinador no lo lea como daño de
+esta ventana.
+
 ### 2026-09-04 · Fusión de caras coplanarias, y SOLIDEDIT Cuerpo·Limpiar (entrega 3/5)
 
 El índice de `lib/brep/` confesaba por escrito un hueco: «Fusión de caras
@@ -271,6 +378,43 @@ intacto.
 
 ## «Todavía no»
 
+### 2026-09-04 · La cáscara ABIERTA de SHELL
+
+`SOLIDEDIT Cuerpo Vaciar` deja el recipiente **cerrado**. La cáscara abierta de
+AutoCAD —vaciar retirando las caras designadas, que es lo que deja la caja sin
+tapa— no está: pide quitar caras del exterior y coser el interior con el
+exterior por el borde del hueco, es decir, cirugía topológica, no una resta
+booleana. Se declara **en el propio prompt del espesor** («vaciar retirando las
+caras designadas todavía no»), donde lo lee quien esperaba designarlas, y no en
+un aviso posterior.
+
+### 2026-09-04 · Vaciar un cuerpo CÓNCAVO, y el vértice que no concurre
+
+Dos límites de `shellBody`, los dos comprobados y los dos con su motivo:
+
+- **Cóncavo.** Desfasar los planos de un cuerpo cóncavo hacia dentro no da un
+  cuerpo interior: en un rincón entrante los planos se cruzan del lado
+  equivocado. La forma correcta es el offset con RECORTE —decidir qué trozo de
+  cada plano desfasado sobrevive—, y eso es otro algoritmo, no un parche. La
+  convexidad se mide con `edgeDihedralAngle` sobre todas las aristas y el
+  rechazo nombra la peor y su ángulo.
+- **Vértice de cuatro planos o más que no concurren al desfasarlos.** El ápice
+  de una pirámide de base rectangular: sus dos parejas de caras laterales tienen
+  inclinaciones distintas, así que no hay punto equidistante de las cuatro.
+  Vaciarlo pediría partir el vértice en varios, es decir, cambiar la topología, y
+  este desfase la conserva. Se detecta por el residuo del sistema y se rechaza.
+
+Y uno más, que no es un límite sino un **encadenamiento**: un cuerpo convexo pero
+FRAGMENTADO (el que deja una booleana) tiene vértices en T que tocan sólo dos
+planos distintos. No son esquinas. El rechazo nombra `SOLIDEDIT cUerpo Limpiar`,
+que los funde, y tras esa orden Vaciar funciona — medido en la spec.
+
+### 2026-09-04 · Vaciar hacia FUERA
+
+AutoCAD admite un espesor negativo en SHELL para engordar la pieza. Aquí se
+rechaza: el desfase saldría, pero el sólido resultante sería el engordado menos
+el original, y eso es otra orden con otro nombre y otro prompt, no un signo.
+
 ### 2026-09-04 · Cerrar un ANILLO al fundir coplanarias
 
 `mergeCoplanarFaces` funde pares que comparten **una** cadena contigua de
@@ -348,6 +492,13 @@ aparece en dos ramas por el mismo motivo:
 **Actualización 2026-09-04 (entrega 3/5):** `Cuerpo · Limpiar` YA NO está en esta
 tabla. Existe, tiene kernel (`mergeCoplanarFaces`) y tiene spec. Las ausentes
 bajan de ocho operaciones a **siete** y de nueve renglones a **ocho**.
+
+**Actualización 2026-09-04 (entrega 4/5):** `Cuerpo · Vaciar` tampoco está ya.
+Existe, tiene kernel (`shellBody`) y tiene spec, sobre cuerpos convexos y
+declarando en el prompt lo que no cubre. Las ausentes bajan a **seis**
+operaciones y **siete** renglones: Cara·Mover, Cara·Girar, Cara·Inclinar,
+Cara·Borrar, Color (dos renglones, una razón) y Cuerpo·Estampar. Se le suma un
+MODO ausente —la cáscara abierta de Vaciar—, declarado en su propio prompt.
 
 ### 2026-09-04 · El resumen de la paleta se quedó corto
 

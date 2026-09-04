@@ -3,13 +3,14 @@
  * (Ola C, 2026-09-02 · tres ramas más, 2026-09-04)
  */
 import { strict as assert } from "node:assert";
-import { planarBodyVolume } from "../../../brep";
+import { bodyIsClosed, connectedComponentCount, planarBodyVolume } from "../../../brep";
 import { cadFaceRefFromBody } from "../../pick3d/solid-face-ref";
 import { solid3dBody } from "../../solid3d-build";
 import type { CadEntity } from "../../cad-document";
 import type { CadSolid3dEntity } from "../../cad-entities-v5";
 import type { CadCommandContext, CadCommandInput } from "../command-types";
 import { CAD_SOLIDEDIT_COMMANDS, __testables } from "./solids-edit";
+import { __branchTestables } from "./solids-edit-branches";
 
 let checks = 0;
 const ok = (condition: boolean, message: string) => {
@@ -91,14 +92,15 @@ function topFacePick(solid: CadSolid3dEntity): CadCommandInput {
   ok(face.options.join(",") === "Extruir,Desfasar,Copiar,Salir", "la rama Cara ofrece las tres que existen");
   ok(/Mover, Girar, Inclinar, Borrar y Color todavía no/.test(face.prompts[1]), "y nombra una por una las cinco de Cara que no");
   const body = drive([keyword("cUerpo")]);
-  ok(body.options.join(",") === "Separar,Limpiar,Comprobar,Salir", "la rama Cuerpo anuncia Separar, Limpiar y Comprobar");
-  ok(/Estampar y Vaciar todavía no/.test(body.prompts[1]), "y nombra las dos de Cuerpo que no");
+  ok(body.options.join(",") === "Separar,Vaciar,Limpiar,Comprobar,Salir", `la rama Cuerpo anuncia Separar, Vaciar, Limpiar y Comprobar (dio ${body.options.join(",")})`);
+  ok(/Estampar todavía no/.test(body.prompts[1]), "y nombra la única de Cuerpo que no");
+  ok(!/Vaciar todavía no/.test(body.prompts[1]), "Vaciar ya no está entre las ausentes: se ofrece");
   const edge = drive([keyword("Arista")]);
   ok(edge.options.join(",") === "Copiar,Salir", "la rama Arista ya es una rama: ofrece Copiar");
   ok(/Color todavía no/.test(edge.prompts[1]), "y nombra la de Arista que no");
   // Las ausentes se NOMBRAN en el renglón del prompt, nunca como opción: una
   // palabra clave que responde «todavía no» es una opción que no hace nada.
-  const ausentes = ["Mover", "Girar", "Inclinar", "Borrar", "Color", "Estampar", "Vaciar"];
+  const ausentes = ["Mover", "Girar", "Inclinar", "Borrar", "Color", "Estampar"];
   const ofrecidas = [...face.options, ...edge.options, ...body.options];
   ok(ausentes.every((nombre) => !ofrecidas.includes(nombre)), "ninguna ausente se ofrece como palabra clave");
   ok(descriptor.kind === "modify" && descriptor.mutates === true, "es una orden de modificación");
@@ -300,4 +302,108 @@ function topFacePick(solid: CadSolid3dEntity): CadCommandInput {
   ok(/Designe el sólido que limpiar/.test(drive([keyword("cUerpo"), keyword("Limpiar")]).prompts[2]), "y el prompt nombra la operación");
 }
 
-console.log(`solids-edit: ${checks} comprobaciones sobre SOLIDEDIT (siete ramas construidas, siete declaradas ausentes)`);
+/* ── Cuerpo · Vaciar: el recipiente, y el árbol del exterior intacto ─────── */
+{
+  // Un CUBO de 100: la cifra de papel del kernel. Vaciado 10 deja 488 000.
+  const cubo = box("cubo", 0, 100, 100);
+  ok(near(volumeOf(cubo), 1_000_000), "el cubo de partida mide 1 000 000");
+
+  const vaciado = drive(
+    [keyword("cUerpo"), keyword("Vaciar"), { kind: "selection", entityIds: ["cubo"] }, enter, distance(10)],
+    [cubo],
+  );
+  ok(vaciado.result?.kind === "document", `Vaciar escribe: ${vaciado.result?.kind === "message" ? vaciado.result.text : ""}`);
+  if (vaciado.result?.kind === "document") {
+    const inserts = vaciado.result.commands.filter((entry) => entry.type === "insert");
+    ok(inserts.length === 1, `exactamente UN insert (fueron ${inserts.length})`);
+    ok(vaciado.result.commands.some((entry) => entry.type === "delete" && entry.entityId === "cubo"), "y un borrado previo del mismo id");
+    const insert = inserts[0];
+    if (insert.type === "insert" && insert.entity.type === "solid3d") {
+      const hueco = insert.entity as CadSolid3dEntity;
+      ok(hueco.id === "cubo", "el sólido conserva su id: las cotas que lo apuntaban lo siguen apuntando");
+      ok(hueco.layer === cubo.layer, "y su capa");
+      const raiz = hueco.nodes.find((node) => node.id === hueco.root);
+      ok(raiz?.op === "subtract", `el árbol TERMINA en un subtract (terminó en ${raiz?.op})`);
+      ok(raiz?.op === "subtract" && raiz.operands.length === 2 && raiz.operands[0] === cubo.root, "que resta el interior AL árbol de siempre");
+      ok(hueco.nodes.some((node) => node.id === "cubo-caja" && node.op === "box"), "y ese árbol sobrevive INTACTO: la caja sigue ahí, reeditable");
+      const interior = hueco.nodes.find((node) => node.op === "brep");
+      ok(interior !== undefined, "el interior entra como nodo brep (geometría explícita)");
+      ok(interior?.op === "brep" && interior.points.length === 8 && interior.faces.length === 6, "con los 8 puntos y las 6 caras del cubo interior");
+      ok(hueco.nodes.length === cubo.nodes.length + 2, "el árbol crece exactamente DOS nodos");
+
+      const cuerpo = solid3dBody(hueco);
+      ok(near(volumeOf(hueco), 1_000_000 - 512_000), `queda 10⁶ − 80³ = 488 000 (dio ${volumeOf(hueco)})`);
+      ok(bodyIsClosed(cuerpo), "el sólido vaciado está cerrado");
+      ok(connectedComponentCount(cuerpo) === 2, `y tiene DOS cáscaras (dio ${connectedComponentCount(cuerpo)})`);
+      ok(cuerpo.faces.length === 44 && cuerpo.edges.length === 76 && cuerpo.vertices.length === 36, `V=36 E=76 F=44 (dio ${cuerpo.vertices.length}/${cuerpo.edges.length}/${cuerpo.faces.length})`);
+    }
+    const aviso = vaciado.result.notice ?? "";
+    ok(/pared de/.test(aviso), `el aviso nombra el espesor — «${aviso}»`);
+    ok(/volumen pasa de/.test(aviso), "y cuánto material queda");
+    ok(/árbol del exterior sigue intacto/.test(aviso), "y que el sólido se sigue editando por su rama de siempre");
+  }
+
+  // El prompt del espesor declara la cáscara ABIERTA como todavía no.
+  const preguntando = drive([keyword("cUerpo"), keyword("Vaciar"), { kind: "selection", entityIds: ["cubo"] }, enter], [cubo]);
+  ok(/espesor de la pared/.test(preguntando.prompts[preguntando.prompts.length - 1]), "tras designar pide el espesor");
+  ok(
+    /retirando las caras designadas todavía no/.test(preguntando.prompts[preguntando.prompts.length - 1]),
+    `y ahí mismo declara ausente la cáscara abierta — «${preguntando.prompts[preguntando.prompts.length - 1]}»`,
+  );
+  ok(/Designe el sólido que vaciar/.test(drive([keyword("cUerpo"), keyword("Vaciar")]).prompts[2]), "y antes nombra lo que va a designar");
+  ok(/sólo cuerpos convexos/.test(drive([keyword("cUerpo"), keyword("Vaciar")]).prompts[2]), "diciendo ya el límite");
+
+  // PICKFIRST: designado antes, Vaciar salta directo al espesor (no ejecuta:
+  // falta el número que decide la pared).
+  const previa = drive([keyword("cUerpo"), keyword("Vaciar")], [box("cubo", 0, 100, 100)], ["cubo"]);
+  ok(previa.result === undefined, "con designación previa Vaciar no ejecuta todavía");
+  ok(/espesor de la pared/.test(previa.prompts[previa.prompts.length - 1]), "sino que pide el espesor directamente");
+
+  // El espesor que se come la pieza: se rechaza con su motivo y sin escribir.
+  const demasiado = drive(
+    [keyword("cUerpo"), keyword("Vaciar"), { kind: "selection", entityIds: ["cubo"] }, enter, distance(50)],
+    [box("cubo", 0, 100, 100)],
+  );
+  ok(demasiado.result?.kind === "message", "un espesor de 50 en un cubo de 100 NO escribe");
+  ok(demasiado.result?.kind === "message" && /se come la pieza/.test(demasiado.result.text), `y dice por qué — «${demasiado.result?.kind === "message" ? demasiado.result.text : ""}»`);
+  ok(demasiado.result?.kind === "message" && /50/.test(demasiado.result.text), "nombrando el número que sí admitía");
+  const cero = drive([keyword("cUerpo"), keyword("Vaciar"), { kind: "selection", entityIds: ["cubo"] }, enter, distance(0)], [box("cubo", 0, 100, 100)]);
+  ok(cero.result?.kind === "message" && /distancia positiva/.test(cero.result.text), "un espesor cero tampoco escribe");
+  const sinEspesor = drive([keyword("cUerpo"), keyword("Vaciar"), { kind: "selection", entityIds: ["cubo"] }, enter, enter], [box("cubo", 0, 100, 100)]);
+  ok(sinEspesor.result?.kind === "message" && /necesita el espesor/.test(sinEspesor.result.text), "y un Intro sin número lo dice");
+
+  // El cóncavo: una L de dos cajas unidas. Se rechaza NOMBRÁNDOLO.
+  const ele: CadSolid3dEntity = {
+    id: "ele",
+    type: "solid3d",
+    layer: "0",
+    root: "union",
+    nodes: [
+      { id: "baja", op: "box", min: { x: 0, y: 0, z: 0 }, max: { x: 100, y: 100, z: 50 } },
+      { id: "alta", op: "box", min: { x: 0, y: 0, z: 50 }, max: { x: 50, y: 100, z: 100 } },
+      { id: "union", op: "union", operands: ["baja", "alta"] },
+    ],
+  };
+  const concavo = drive([keyword("cUerpo"), keyword("Vaciar"), { kind: "selection", entityIds: ["ele"] }, enter, distance(5)], [ele]);
+  ok(concavo.result?.kind === "message", "vaciar una L NO escribe");
+  ok(concavo.result?.kind === "message" && /CÓNCAVO/.test(concavo.result.text), "y lo rechaza nombrando la concavidad");
+  ok(
+    concavo.result?.kind === "message" && /todavía no está disponible/.test(concavo.result.text),
+    `con el motivo completo — «${concavo.result?.kind === "message" ? concavo.result.text : ""}»`,
+  );
+
+  const line = { id: "l", type: "line", layer: "0", start: { x: 0, y: 0, z: 0 }, end: { x: 1, y: 0, z: 0 } } as CadEntity;
+  const nada = drive([keyword("cUerpo"), keyword("Vaciar"), { kind: "selection", entityIds: ["l"] }, enter, distance(5)], [line]);
+  ok(nada.result?.kind === "message" && /no hay ningún SOLID3D/.test(nada.result.text), "sin sólido designado, Vaciar responde con su motivo");
+}
+
+/* ── Las piezas sueltas de la rama ────────────────────────────────────────── */
+{
+  const { freeNodeId } = __branchTestables;
+  const nodos = [{ id: "interior", op: "box", min: { x: 0, y: 0, z: 0 }, max: { x: 1, y: 1, z: 1 } }] as CadSolid3dEntity["nodes"];
+  ok(freeNodeId(nodos, "vaciado") === "vaciado", "un id libre se usa tal cual");
+  ok(freeNodeId(nodos, "interior") === "interior2", "y uno ocupado se numera: vaciar dos veces es legítimo");
+  ok(freeNodeId([...nodos, { ...nodos[0], id: "interior2" }], "interior") === "interior3", "hasta encontrar hueco");
+}
+
+console.log(`solids-edit: ${checks} comprobaciones sobre SOLIDEDIT (ocho ramas construidas, seis declaradas ausentes)`);

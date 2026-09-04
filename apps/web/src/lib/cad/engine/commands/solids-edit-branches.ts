@@ -83,9 +83,42 @@
  * Si no hay nada que fundir, la orden lo dice y NO toca el documento: reescribir
  * un sólido idéntico gastaría un paso de deshacer y, peor, cambiaría su árbol
  * paramétrico por geometría explícita a cambio de nada.
+ *
+ * ## Cuerpo · Vaciar (2026-09-04)
+ *
+ * Vaciar es lo que convierte una caja en un RECIPIENTE, y hasta hoy no existía
+ * ni en el kernel. `shellBody` construye el cuerpo interior desfasando el plano
+ * de cada cara hacia dentro el espesor pedido y recalculando cada vértice como
+ * intersección de los planos de sus caras incidentes; el hueco sale de
+ * `booleanDifference(exterior, interior)`. El porqué de cada paso está en
+ * `lib/brep/shell.ts`, junto al código que lo cumple.
+ *
+ * Lo que se decide AQUÍ es cómo entra al documento, y es lo contrario de
+ * Limpiar: **no se hornea nada del exterior**. El árbol original sobrevive
+ * intacto y sólo se le añaden DOS nodos —un `brep` con el interior y un
+ * `subtract` que lo resta—, así que el sólido sigue siendo reeditable por su
+ * rama de siempre: cambiar el 100 de la caja en propiedades reconstruye la
+ * pieza, y el hueco se resta de la caja nueva.
+ *
+ * El interior sí es geometría explícita, y no hay alternativa honesta: no es la
+ * receta de nada: es el desfase de una topología concreta. A cambio, es lo
+ * ÚNICO que se hornea, y su tamaño no es una sorpresa: tiene EXACTAMENTE los
+ * mismos vértices que el exterior, porque el desfase conserva la topología. Un
+ * sólido de 96 vértices escribe 96 puntos, no una malla. El techo del servidor
+ * —200 000 puntos por cuerpo, el motivo por el que `push` no hornea— queda muy
+ * lejos de cualquier cuerpo que se pueda vaciar a mano.
+ *
+ * El cuerpo se evalúa SIN su colocación (`placement`). No es un detalle: el
+ * nodo `brep` del interior vive en el sistema de los nodos, y la colocación se
+ * aplica después al árbol entero. Calcular el interior sobre el cuerpo ya
+ * colocado y meterlo como nodo aplicaría la colocación DOS veces, y el hueco
+ * aparecería desplazado del sólido que lo contiene.
+ *
+ * Los dos rechazos —cóncavo y espesor que se come la pieza— llegan del kernel
+ * con su motivo escrito y se dicen tal cual, sin tocar el documento.
  */
 import type { CadPoint3 } from "../../cad-document";
-import type { CadSolid3dEntity, CadSolidFaceRef } from "../../cad-entities-v5";
+import type { CadSolid3dEntity, CadSolidFaceRef, CadSolidNode } from "../../cad-entities-v5";
 import type { CadEntityCommand } from "../../entity-commands";
 import {
   BREP_TOLERANCE,
@@ -99,6 +132,7 @@ import {
   loopPoints,
   mergeCoplanarFaces,
   meshVolume,
+  shellBody,
   tessellateBody,
   type BrepBody,
   type CoplanarMergeReport,
@@ -400,5 +434,108 @@ export function cleanBody<S>(state: S, solids: readonly CadSolid3dEntity[]): Cad
   return solidBatch(state, commands, "SOLIDEDIT Cuerpo Limpiar", notes.join("\n"));
 }
 
+/**
+ * Un id de nodo libre en el árbol.
+ *
+ * Los nodos nuevos NO pueden pisar a los que ya están: dos nodos con el mismo
+ * id hacen que `validateSolidTree` denuncie el duplicado —y si no lo hiciera,
+ * el árbol tomaría el operando equivocado sin dar ningún error—. Y un árbol
+ * puede traer ya un `interior` de un vaciado anterior, porque vaciar dos veces
+ * es legítimo: la segunda pared se resta de la primera.
+ */
+function freeNodeId(nodes: readonly CadSolidNode[], base: string): string {
+  if (!nodes.some((node) => node.id === base)) return base;
+  for (let index = 2; ; index += 1) {
+    const candidate = `${base}${index}`;
+    if (!nodes.some((node) => node.id === candidate)) return candidate;
+  }
+}
+
+/**
+ * El cuerpo del sólido SIN su colocación: el sistema en que viven sus nodos.
+ *
+ * `solid3dBody` devuelve el cuerpo YA colocado, que es lo que quiere quien
+ * dibuja o mide. Aquí hace falta lo otro: el interior va a entrar como nodo del
+ * árbol, y la colocación se aplica al árbol entero después. Con el cuerpo
+ * colocado, el hueco llevaría la colocación aplicada dos veces.
+ */
+function unplacedBody(solid: CadSolid3dEntity): BrepBody {
+  if (!solid.placement) return solid3dBody(solid);
+  const bare: CadSolid3dEntity = { ...solid };
+  delete bare.placement;
+  return solid3dBody(bare);
+}
+
+/**
+ * Cuerpo · Vaciar: la pared de espesor constante, sobre cuerpos CONVEXOS.
+ *
+ * El sólido se valida antes de escribirse —`finishedSolid` evalúa el árbol
+ * entero, incluido el `subtract` nuevo, y pasa los invariantes— y sólo entonces
+ * se emite el par borrar/insertar que lo sustituye conservando su id.
+ */
+export function shellSolid<S>(
+  state: S,
+  solids: readonly CadSolid3dEntity[],
+  thickness: number,
+): CadCommandStep<S> {
+  if (solids.length === 0)
+    return solidMessage(
+      state,
+      "SOLIDEDIT Cuerpo Vaciar necesita un sólido designado; no hay ningún SOLID3D entre lo designado.",
+    );
+  if (!Number.isFinite(thickness) || !(thickness > 0))
+    return solidMessage(state, "El espesor de la pared tiene que ser una distancia positiva: se vacía hacia dentro.");
+
+  const commands: CadEntityCommand[] = [];
+  const notes: string[] = [];
+  for (const solid of solids) {
+    let body: BrepBody;
+    try {
+      body = unplacedBody(solid);
+    } catch (error) {
+      notes.push(`${solid.id}: no se pudo evaluar — ${error instanceof Error ? error.message : String(error)}`);
+      continue;
+    }
+
+    const shelled = shellBody(body, thickness);
+    if (!shelled.ok) {
+      // El kernel ya redactó el motivo (cóncavo, espesor que se come la pieza,
+      // vértice que no es esquina). Repetirlo con otras palabras aquí sólo
+      // conseguiría que las dos versiones se desincronizaran.
+      notes.push(`${solid.id}: ${shelled.reason}`);
+      continue;
+    }
+
+    const interiorId = freeNodeId(solid.nodes, "interior");
+    const interiorNode = bodyToSolidNode(shelled.report.interior, interiorId);
+    const rootId = freeNodeId([...solid.nodes, interiorNode], "vaciado");
+    const hollow: CadSolid3dEntity = {
+      ...solid,
+      nodes: [...solid.nodes, interiorNode, { id: rootId, op: "subtract", operands: [solid.root, interiorId] }],
+      root: rootId,
+    };
+
+    const checked = finishedSolid(hollow, {
+      state,
+      label: "SOLIDEDIT Cuerpo Vaciar",
+      before: [{ type: "delete", entityId: solid.id }],
+    });
+    if (checked.result?.kind !== "document") return checked;
+    commands.push(...checked.result.commands);
+
+    notes.push(
+      `${solid.id}: vaciado con pared de ${formatMagnitude(thickness)}; el volumen pasa de ` +
+        `${formatMagnitude(Math.abs(shelled.report.volume.outer))} a ${formatMagnitude(Math.abs(shelled.report.volume.shell))} ` +
+        `y el hueco mide ${formatMagnitude(Math.abs(shelled.report.volume.inner))}. ` +
+        `Dos cáscaras y ${shelled.report.faces.shell} caras. El árbol del exterior sigue intacto: sólo se le añaden ` +
+        `el interior y la resta, así que el sólido se sigue editando por su rama de siempre. ` +
+        `Este cuerpo admitía hasta ${formatMagnitude(shelled.report.maxThickness)} de espesor.`,
+    );
+  }
+
+  if (commands.length === 0) return solidMessage(state, notes.join("\n"));
+  return solidBatch(state, commands, "SOLIDEDIT Cuerpo Vaciar", notes.join("\n"));
+}
+
 /** Para la spec: las piezas que no pasan por el diálogo. */
-export const __branchTestables = { pointTag, linearStep };
+export const __branchTestables = { pointTag, linearStep, freeNodeId, unplacedBody };

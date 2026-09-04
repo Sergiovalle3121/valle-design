@@ -29,6 +29,11 @@
  *     fragmentadas y hornea el resultado como nodo `brep`. Dice cuántas caras y
  *     cuántas aristas retira, y que la historia paramétrica se pierde. Si no
  *     hay nada que fundir, lo dice y NO toca el documento.
+ *   - Cuerpo · Vaciar: deja una pared del espesor pedido. El interior entra
+ *     como nodo `brep` y se resta con un nodo `subtract`, de modo que el árbol
+ *     del exterior sobrevive INTACTO y el sólido se sigue editando por su rama
+ *     de siempre. Sólo sobre cuerpos convexos, y la convexidad se comprueba
+ *     arista por arista.
  *
  * Las operaciones se construyen en `solids-edit-branches.ts`; este módulo es
  * el DIÁLOGO —qué se pregunta, en qué orden y qué se rechaza—.
@@ -43,14 +48,15 @@
  *   - Color, tanto de cara como de arista: el esquema no guarda un atributo
  *     por cara ni por arista, y el color de una entidad es de la entidad
  *     entera.
- *   - Cuerpo · Estampar y Vaciar (SHELL): sin operación de kernel. Estampar
- *     pide imprimir una curva del dibujo sobre una cara —partirla por una
- *     arista nueva—, y Vaciar pide desfasar TODAS las caras a la vez hacia
- *     dentro resolviendo sus intersecciones; ninguna de las dos existe en
- *     `lib/brep/`.
+ *   - Cuerpo · Estampar: pide imprimir una curva del dibujo sobre una cara
+ *     —partirla por una arista nueva—, y esa cirugía no existe en `lib/brep/`.
+ *   - La cáscara ABIERTA de Vaciar: retirar las caras designadas para que el
+ *     recipiente quede sin tapa. Vaciar entra cerrado, y el prompt del espesor
+ *     lo dice ahí mismo. Quitar caras pide coser el interior con el exterior
+ *     por el borde del hueco: otra vez cirugía topológica, no una resta.
  *
- * Son siete operaciones distintas —ocho renglones, porque Color aparece en dos
- * ramas por el mismo motivo—. Ninguna se insinúa como próxima.
+ * Son seis operaciones distintas más un modo —siete renglones, porque Color
+ * aparece en dos ramas por el mismo motivo—. Ninguna se insinúa como próxima.
  *
  * La orden termina tras UNA operación en vez de volver al menú de la rama:
  * es el único punto en que se aparta del diálogo de AutoCAD, y se prefiere a
@@ -73,7 +79,7 @@ import {
   type CadCommandDescriptor,
   type CadCommandStep,
 } from "../command-types";
-import { cleanBody, copyEdges, copyFace, offsetFace, type SolidEditFacePick } from "./solids-edit-branches";
+import { cleanBody, copyEdges, copyFace, offsetFace, shellSolid, type SolidEditFacePick } from "./solids-edit-branches";
 import { withPushedFace } from "./solids-push-face";
 import { finishedSolid, formatMagnitude, selectedSolids, solidBatch, solidCancelled, solidMessage } from "./solids-support";
 
@@ -87,6 +93,7 @@ const COPY = { keyword: "Copiar", shortcut: "C" } as const;
 const SEPARATE = { keyword: "Separar", shortcut: "P" } as const;
 const CHECK = { keyword: "Comprobar", shortcut: "C" } as const;
 const CLEAN = { keyword: "Limpiar", shortcut: "L" } as const;
+const SHELL = { keyword: "Vaciar", shortcut: "V" } as const;
 
 /**
  * Los renglones que nombran lo ausente.
@@ -98,19 +105,34 @@ const CLEAN = { keyword: "Limpiar", shortcut: "L" } as const;
  */
 const FACE_PROMPT = "Introduzca una opción de edición de caras; Mover, Girar, Inclinar, Borrar y Color todavía no";
 const EDGE_PROMPT = "Introduzca una opción de edición de aristas; Color todavía no";
-const BODY_PROMPT = "Introduzca una opción de edición de cuerpos; Estampar y Vaciar todavía no";
+const BODY_PROMPT = "Introduzca una opción de edición de cuerpos; Estampar todavía no";
+
+/**
+ * El renglón del espesor. Nombra ahí mismo el modo que NO entra: la cáscara
+ * abierta de AutoCAD, la que deja el recipiente sin tapa. Va en el prompt donde
+ * se pide el espesor y no en un aviso posterior, porque quien esperaba designar
+ * las caras que retirar tiene que saberlo ANTES de teclear un número.
+ */
+const SHELL_PROMPT =
+  "Precise el espesor de la pared (positivo, hacia dentro); vaciar retirando las caras designadas todavía no";
 
 type Branch = "root" | "face" | "edge" | "body";
-type Action = "none" | "extrude" | "offset" | "copyFace" | "copyEdges" | "check" | "separate" | "clean";
+type Action = "none" | "extrude" | "offset" | "copyFace" | "copyEdges" | "check" | "separate" | "clean" | "shell";
 
 export interface SolidEditState {
   branch: Branch;
   action: Action;
   selection: readonly string[];
   face: SolidEditFacePick | null;
+  /**
+   * La designación ya está cerrada y falta la magnitud. Sólo Vaciar la usa: es
+   * la única rama de Cuerpo que pide un número DESPUÉS de designar, y sin este
+   * bit el Intro que cierra la designación se confundiría con el que la ejecuta.
+   */
+  sized: boolean;
 }
 
-const EMPTY: SolidEditState = { branch: "root", action: "none", selection: [], face: null };
+const EMPTY: SolidEditState = { branch: "root", action: "none", selection: [], face: null, sized: false };
 
 /** Cómo se llama la cara en cada rama, para no preguntar tres veces lo mismo. */
 const FACE_PICK_PROMPT: Record<string, string> = {
@@ -124,6 +146,7 @@ const BODY_PICK_PROMPT: Record<string, string> = {
   check: "Designe el sólido que comprobar",
   separate: "Designe el sólido que separar",
   clean: "Designe el sólido que limpiar (funde las caras coplanarias y hornea el resultado)",
+  shell: "Designe el sólido que vaciar (sólo cuerpos convexos)",
 };
 
 function solidEditStep(state: SolidEditState): CadCommandStep<SolidEditState> {
@@ -176,9 +199,11 @@ function solidEditStep(state: SolidEditState): CadCommandStep<SolidEditState> {
   if (state.action === "none")
     return {
       state,
-      prompt: { message: BODY_PROMPT, options: [SEPARATE, CLEAN, CHECK, EXIT], defaultOption: EXIT.keyword },
+      prompt: { message: BODY_PROMPT, options: [SEPARATE, SHELL, CLEAN, CHECK, EXIT], defaultOption: EXIT.keyword },
       accepts: CAD_ACCEPT_KEYWORD,
     };
+  if (state.action === "shell" && state.sized)
+    return { state, prompt: { message: SHELL_PROMPT, options: [] }, accepts: CAD_ACCEPT_DISTANCE | CAD_ACCEPT_POINT };
   return {
     state,
     prompt: { message: BODY_PICK_PROMPT[state.action] ?? "Designe el sólido", options: [] },
@@ -364,11 +389,23 @@ const solidEditCommand: CadCommandDescriptor<SolidEditState> = {
         return state.selection.length > 0
           ? cleanBody({ ...state, action: "clean" }, selectedSolids(context, state.selection))
           : solidEditStep({ ...state, action: "clean" });
+      // PICKFIRST en Vaciar no ejecuta: adelanta al espesor. Designar no es
+      // toda la orden aquí, porque falta el número que decide la pared.
+      if (input.kind === "keyword" && input.keyword === SHELL.keyword)
+        return solidEditStep({ ...state, action: "shell", sized: state.selection.length > 0 });
+      return solidEditStep(state);
+    }
+    if (state.action === "shell" && state.sized) {
+      if (input.kind === "distance") return shellSolid(state, selectedSolids(context, state.selection), input.value);
+      if (input.kind === "point")
+        return shellSolid(state, selectedSolids(context, state.selection), Math.hypot(input.point.x, input.point.y));
+      if (input.kind === "enter") return solidMessage(state, "SOLIDEDIT Cuerpo Vaciar necesita el espesor de la pared.");
       return solidEditStep(state);
     }
     if (input.kind === "selection") return solidEditStep({ ...state, selection: input.entityIds });
     if (input.kind === "entityPick") return solidEditStep({ ...state, selection: [...new Set([...state.selection, input.entityId])] });
     if (input.kind !== "enter") return solidEditStep(state);
+    if (state.action === "shell") return solidEditStep({ ...state, sized: true });
     if (state.action === "clean") return cleanBody(state, selectedSolids(context, state.selection));
     return state.action === "check" ? checkBody(state, context) : separateBody(state, context);
   },

@@ -46,6 +46,20 @@
  *     mitades en C. El sólido es correcto y de género 1; sólo está a medio
  *     fundir, y el informe lo dice.
  *   · Transformadas generales de cuerpos: sólo hay traslación.
+ *   · Vaciar un cuerpo CÓNCAVO. `shellBody` desfasa el plano de cada cara hacia
+ *     dentro y recalcula los vértices como intersección de los planos de sus
+ *     caras; en un rincón entrante esos planos se cruzan del lado equivocado y
+ *     el «interior» se sale del sólido. Vaciar un cóncavo pide offset con
+ *     RECORTE —decidir qué trozo de cada plano desfasado sobrevive—, que es
+ *     otro algoritmo. Se comprueba con `edgeDihedralAngle` sobre todas las
+ *     aristas y se rechaza nombrando la peor.
+ *   · La cáscara ABIERTA: vaciar retirando las caras designadas, que es lo que
+ *     convierte la caja en una caja sin tapa. Pide quitar caras del exterior y
+ *     coser interior con exterior por el borde del hueco: cirugía topológica,
+ *     no una resta booleana.
+ *   · Vaciar un cuerpo cuyo vértice toca CUATRO planos o más que no concurren
+ *     al desfasarlos (el ápice de una pirámide de base rectangular). Partir el
+ *     vértice en varios cambiaría la topología, y este desfase la conserva.
  */
 
 export {
@@ -166,6 +180,19 @@ export {
   type CanonicalPlane,
   type CoplanarMergeReport,
 } from "./coplanar-merge";
+
+export {
+  shellBody,
+  offsetInnerBody,
+  shellLimit,
+  maxShellThickness,
+  bodyConvexity,
+  type ShellOptions,
+  type ShellResult,
+  type ShellReport,
+  type ShellLimit,
+  type ConvexityReport,
+} from "./shell";
 
 export {
   validateBody,
