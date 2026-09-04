@@ -75,6 +75,18 @@ function hatchContains(entity: CadHatchEntity, point: CadPoint2): boolean {
  * `hatch-entity-adapter.spec.ts`, que la compara contra el tier real.
  */
 const CAD_HATCH_LOD_OUTLINE_ONLY_MAX_SEGMENTS = 8;
+/**
+ * Presupuesto EXACTO del escalón medio del LOD (`CAD_RENDER_LOD_SEGMENTS[1]`).
+ *
+ * Los guiones se colapsan SÓLO en ese escalón, no «por debajo de un umbral».
+ * La diferencia importa: el valor por defecto del renderizador es 96, y no
+ * significa «escalón medio», significa «nadie pidió LOD, dame el dibujo de
+ * verdad» — lo usan el trazado de bloques y las pruebas que comparan patrones.
+ * Un umbral `< 128` se lo tragaba y volvía indistinguibles dos de los ocho
+ * patrones, que es exactamente el defecto que `hatch-pattern-table.spec.ts`
+ * existe para cazar. Lo cazó.
+ */
+const CAD_HATCH_LOD_MEDIUM_SEGMENTS = 32;
 
 const hatchRenderer: CadEntityRenderer<CadHatchEntity> = {
   // `segments` no llegaba a usarse: el patrón costaba lo mismo en un sombreado
@@ -114,7 +126,14 @@ const hatchRenderer: CadEntityRenderer<CadHatchEntity> = {
     // Las familias, trazos y puntos del patrón salen de la tabla
     // (`hatch-pattern-table.ts`): antes cualquier nombre que no fuera CROSS
     // dibujaba el rayado de ANSI31 (medido: ocho patrones, un mismo sha1).
-    const { strokes } = cadHatchPatternStrokes(boundaries, entity, spacing);
+    // Los guiones sólo se dibujan cuando se pueden VER. Por debajo del tier de
+    // detalle el hatch mide como mucho `CAD_RENDER_LOD_MEDIUM_MAX_PX` (320 px)
+    // de lado a lado, y ahí el guión mediano de un AR-CONC mide 0,27 px:
+    // medido, no estimado. Ver la cabecera de `cadHatchPatternStrokes`.
+    const collapseDashes = segments <= CAD_HATCH_LOD_MEDIUM_SEGMENTS;
+    const { strokes } = cadHatchPatternStrokes(boundaries, entity, spacing, {
+      collapseDashes,
+    });
     return [
       ...outlines,
       ...strokes.map((segment) => ({ points: [segment.a, segment.b], closed: false })),

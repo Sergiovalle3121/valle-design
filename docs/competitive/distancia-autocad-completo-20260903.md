@@ -1366,3 +1366,89 @@ que ni siquiera va dentro, y un aviso falso enseña a ignorar los verdaderos. La
 puerta va donde están las hojas de verdad, en el anfitrión, y pide además decidir
 cómo se dice que sí sin un prompt de comando. **Todavía no**, con el sitio ya
 localizado.
+
+## Ola 10 — rendimiento y escala: dónde estaba el tiempo de verdad (2026-09-04)
+
+### Lo medido antes de tocar nada, y lo que descartó
+
+El SLO que falla es `architecture@100k`: 25,3 s hasta el detalle y 8,57 fps
+contra ≤5 s y ≥30 fps. La rúbrica tiene además un punto esperando por el kernel
+WebAssembly, que existe con paridad numérica verde y **no lo importa nadie**
+fuera de `lib/cad/wasm` — el patrón de «motor sin puerta» que más ha rendido en
+esta campaña.
+
+Medida la mezcla de entidades de cada corpus a 100.000:
+
+| corpus | curvas | mezcla |
+| --- | ---: | --- |
+| **architecture** (el que falla) | **0 %** | insert 34k · polyline 18k · dimension 17k · hatch 14k · mtext 10k |
+| mechanical | 70 % | arc 38k · spline 14k · ellipse 10k · circle 8k |
+| cartography | 0 % | polyline 92k |
+| text-hostile | 0 % | line 60k · mtext 20k |
+
+**El kernel de curvas no habría movido el número que falla ni un milisegundo**:
+`architecture` no tiene ni una curva. Habría sido una ola entera para ganar un
+punto de rúbrica y cero rendimiento. Queda escrito porque la tentación era real
+y la medición es lo único que la desarmó.
+
+### Dónde está el tiempo: el sombreado, y no por lo que parecía
+
+Contando puntos y caminos —no cronometrando: en una máquina compartida el reloj
+mide a los vecinos— sobre `architecture@20k`, con el escalón medio del LOD:
+
+- **el sombreado era el 99,8 % de todos los puntos teselados**: 2.800 sombreados
+  producían 36,1 millones de caminos y 72,3 millones de puntos. Todo lo demás
+  junto: 0,2 %.
+- un solo `AR-CONC` sobre un contorno de **cuatro vértices** producía **24.004
+  trazos**.
+
+Y esos 24.004 no eran líneas: eran **guiones**. Mediana 0,543 unidades de dibujo
+sobre una diagonal de 652. El suelo `diagonal/256` que ya existía acota las
+LÍNEAS del patrón; nadie acotaba los guiones a lo largo de cada línea.
+
+A 320 px aparentes —el tope del escalón medio, el sombreado más grande que llega
+ahí— ese guión mediano mide **0,27 px**. A 100 px mide 0,083 px.
+
+### El arreglo, y lo que NO es
+
+Por debajo del escalón de detalle se dibuja la línea entera en vez de sus
+guiones. Es el mismo criterio que el producto ya acepta para las curvas —la
+flecha de la cuerda por debajo del píxel— aplicado a lo LARGO de la línea en vez
+de a través de ella.
+
+**No se toca el espaciado entre líneas.** Ensancharlo sí cambia el dibujo; se
+intentó en una ola anterior y el golden 47 lo cazó con razón. Aquí las líneas
+son las mismas, en el mismo sitio y con el mismo espaciado: sólo se dejan de
+partir donde la partición no se puede ver.
+
+| escalón | puntos antes | puntos después |
+| --- | ---: | ---: |
+| 0 · ≤24 px | 122.000 | **122.000** (igual) |
+| 1 · ≤320 px | 72.493.044 | **1.800.388** (40×) |
+| por defecto (96) | 72.617.844 | **72.617.844** (igual) |
+| 2 · detalle | 72.680.244 | **72.680.244** (igual) |
+
+El trazado a papel no cambia: `hatch-publish-strokes.ts` llama sin la opción, y
+un plano impreso conserva sus guiones.
+
+### El primer intento estaba mal, y lo cazó una prueba de la casa
+
+El umbral inicial era «por debajo de 128 segmentos». Se tragaba el valor **por
+defecto** del renderizador, que es 96 y no significa «escalón medio» sino «nadie
+pidió LOD, dame el dibujo de verdad» —lo usan el trazado de bloques y las
+pruebas que comparan patrones—. Con él, **dos de los ocho patrones se volvían
+indistinguibles**, que es justamente el defecto que `hatch-pattern-table.spec.ts`
+existe para cazar: un plano que no distingue concreto de mampostería no dice lo
+que significa. Lo cazó en la primera corrida.
+
+El umbral ahora es el valor EXACTO del escalón medio (32), no un «por debajo
+de». La diferencia entre un umbral y un escalón es la diferencia entre que la
+prueba pase por suerte y que pase por lo que dice.
+
+### Lo que esta ola NO puede medir aquí
+
+Los segundos y los fps de `architecture@100k` piden una máquina sin vecinos.
+Este contenedor no la es, así que esta ola no publica un tiempo: publica el
+TRABAJO que el producto se impone a sí mismo, que sale igual en cualquier
+máquina y es lo que se puede trinquetear (`hatch-lod-volume.spec.ts`). El
+tiempo lo dirá el trabajo de rendimiento en CI. **Todavía no.**
