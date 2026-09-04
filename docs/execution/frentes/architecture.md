@@ -68,8 +68,65 @@ npm run check:cad                       # antes de cerrar
 
 ## Bitácora
 
-_(sin entradas todavía)_
+### R0 · Reconocimiento del territorio (2026-09-04)
+
+Antes de escribir una línea se midió qué de la cola YA existe. Tres de los seis
+puntos estaban construidos, entero o a medias, y darlos por ausentes habría sido
+el error caro:
+
+- **Cortes y alzados que se actualizan: YA ESTÁ, y bien.** `layout/solview-associativity.ts`
+  no usa un `dirty` que se marca (falla abierto y en silencio): guarda la HUELLA
+  de lo que alimentó la vista y la recalcula al preguntar, así que una edición
+  por una ruta imprevista ensucia igual. `layout/soldraw.ts` la redibuja y ADOPTA
+  el trazo que el usuario retocó en vez de pisarlo. Y `solview-model.ts` toma el
+  MURO como fuente (`cadSolviewIsSourceEntity`: `wall` y `solid3d`), extruyendo
+  su contorno ya unido. El punto 3 de la cola está hecho; además vive fuera de mi
+  territorio (`lib/cad/layout/`), así que ni se toca.
+- **Cuadro de áreas: existe con área a ejes y área ÚTIL** (`bim-schedule.ts`,
+  `CadRoomAreaRow.clearArea`), con el nombre del local leído del rótulo y el uso
+  del clasificador de `architecture.ts`. Falta el área CONSTRUIDA, que es la que
+  pide la licencia. La mitad de «espacios/zonas con etiqueta» ya está.
+- **Escaleras y cubiertas: existen, con su límite escrito.** STAIR es recta de un
+  tramo (Blondel + reglamento, se niega fuera de norma con el número); ROOF hace
+  cuatro, dos y un agua pero SÓLO sobre rectángulos; SLAB acepta contornos con
+  interiores vía REGION. Lo que falta es exactamente lo que ESCALERA (Ola E) ya
+  declara «todavía no»: varios tramos, cubierta sobre polígono, hueco tecleado.
+- **Muro compuesto multicapa: NO existe.** `wall-materials.ts` es una paleta
+  CERRADA de cinco acabados de UNA capa (`concrete|brick|drywall|wood|stucco`)
+  y sólo pinta color en el visor 3D. Ni estilos, ni capas, ni prioridad de
+  limpieza. Punto 1 de la cola, virgen.
+- **Fases e IFC: NO existen.** De fases sólo hay la plantilla de arranque
+  `planta-de-demolicion` (capas, no fases). De IFC, cero — y ver «Todavía no».
+
+Lo que impone el entorno, medido aquí: los specs de `apps/web` corren con `tsx`
+en segundos (`architecture-stair.spec.ts` 3,1 s / 78 comprobaciones;
+`bim-schedule.spec.ts` 0,9 s / 57). `check:command-integrity` sale verde con
+**290 comandos**. Los goldens de navegador **no se pueden correr**: no hay
+navegadores de Playwright instalados (`~/.cache/ms-playwright` no existe) y la
+descarga no pasa la política de egreso. Todo lo que se cierre aquí se cierra con
+spec de nodo y gates, y el golden se declara pendiente en vez de insinuarse.
+
+Consecuencia de diseño para toda la cola: el esquema del documento canónico está
+prohibido (R2), así que **ninguna entrega añade campo persistido**. Lo compuesto
+se deriva de `material`, que ya se persiste; el área construida se deriva del
+grafo de ejes; la escalera de varios tramos se descompone en planta + sólidos
+como ya hacen STAIR, ROOF y SLAB.
 
 ## «Todavía no»
 
-_(sin entradas todavía)_
+- **IFC 4 de exportación (punto 6 de la cola) — 2026-09-04.** No se abre en esta
+  sesión y la razón no es de tiempo: `IDENTITY.md` dice con todas sus letras que
+  el producto **no es BIM** y que «no hay IFC», y `bim-claim-boundary.spec.ts` es
+  el candado ejecutable de esa frase. Escribir un exportador IFC contradice un
+  archivo compartido que sólo el titular cambia (R2). Va como petición
+  P-architecture-02, no como código. Añadido: la evidencia que el punto pedía
+  —un lector IFC de terceros como binario— tampoco se puede conseguir aquí (la
+  red sólo alcanza GitHub), así que aunque se escribiera, la verificación
+  independiente seguiría siendo «todavía no».
+- **Fases existente / demolición / nuevo (punto 4) — 2026-09-04.** Sin campo
+  persistido de fase, la única representación honesta es por CAPA, y el estándar
+  de capas (`lib/cad/standards/mexican-layers.ts`) está fuera de mi territorio.
+  Queda fuera de esta cola en vez de entregarse a medias.
+- **Golden de navegador de lo que se entregue — 2026-09-04.** No hay navegador
+  en este entorno. Las entregas se cierran con spec de nodo y `check:cad`; el
+  golden queda pendiente de la ventana de integración.
