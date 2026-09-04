@@ -1228,3 +1228,30 @@ cero silencioso en una tabla de superficies es un error que se imprime.
 
 Lo que no hay: `DATALINK` —enlace a hoja de cálculo—, que es traer datos de
 fuera y pide decisiones que no son de este motor.
+
+### Corrección de la medición de arranque: eran 6 de 36, no 4
+
+La medición con la que abrí esta ola sondeaba `CAD_COMMAND_REGISTRY_V2`, el
+registro **nativo**. El estudio no usa ése: usa un registro **compuesto** —los
+nativos primero y, si allí no está, lo que aporten las rutinas `.lsp` y la
+consola LISP—, y en él ya existían `APPLOAD` (con su alias `AP` de acad.pgp) y
+`LISPCON` (con alias `VLIDE` y `LSP`).
+
+Lo descubrí de la peor manera posible y de la mejor: añadí un `APPLOAD` nativo
+—«nadie puede teclearlo», decía mi medición— y **rompí el que ya funcionaba**.
+Un nativo gana siempre sobre lo que aporta la biblioteca, así que el mío tapó al
+bueno: abría la consola pero ya no pedía el selector de fichero. `lisp-enchufe.spec.ts`
+lo cazó en la misma corrida, con su nombre: *«APPLOAD la abre»*, falso.
+
+El slice se revirtió entero. Queda escrito por tres motivos:
+
+1. **La cifra correcta es 6 de 36**, no 4. Las que existían y no vi: `APPLOAD`
+   y `VLIDE`.
+2. **La lección de método**: sondear el registro equivocado produce una carencia
+   inventada, y una carencia inventada produce trabajo que rompe cosas. Cuando
+   este informe diga «no existe», el sondeo tiene que ser contra el registro que
+   el usuario toca.
+3. **Lo que sí salvó el día fue una prueba ajena.** No la mía: la del subsistema
+   LISP, escrita en otra ola, que afirma lo que APPLOAD hace de verdad. Es el
+   argumento entero a favor de que cada capacidad tenga una prueba que la
+   nombre.
