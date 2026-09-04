@@ -30,6 +30,11 @@
  * que sí se garantiza en las cinco unidades es que catálogo y medida a mano
  * dan la misma entidad y, por tanto, la misma fila, sea cual sea esa fila.
  */
+// Las implementaciones de los comandos llegan a demanda en el navegador
+// (`engine/lazy-commands.ts`). Un `.spec.ts` se carga como CommonJS y no puede
+// esperarlas con `await`, así que las trae de golpe con este import estático.
+import "@/lib/cad/engine/all-commands";
+
 import { strict as assert } from "node:assert";
 import {
   CAD_OPENING_DEFAULT_TYPE,
