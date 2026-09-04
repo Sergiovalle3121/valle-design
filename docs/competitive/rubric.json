@@ -1100,7 +1100,7 @@
       "group": "core",
       "name": "Bloques y atributos",
       "points": 9,
-      "gap": "BEDIT no existe: el alias BE cuelga (es uno de los 2 alias sin resolver de la tabla acad.pgp). Sin editor de bloques en sitio, redefinir un bloque exige explotar y volver a definir. Ola 3 (2026-09-03): `ATTSYNC` entra al registro y cierra el agujero de redefinir un bloque y que las referencias que ya estaban se queden desfasadas —conserva lo escrito, añade lo nuevo, retira la etiqueta huérfana y fija el atributo constante, con la geometría recalculada desde la definición—. Siguen en «todavía no» BEDIT en sitio y los bloques dinámicos, y siguen ausentes BATTMAN, ATTDISP, MINSERT, ATTEXT, COUNT, XOPEN y REFEDIT.",
+      "gap": "BEDIT no existe: el alias BE cuelga (es uno de los 2 alias sin resolver de la tabla acad.pgp). Sin editor de bloques en sitio, redefinir un bloque exige explotar y volver a definir. Ola 3 (2026-09-03): `ATTSYNC` entra al registro y cierra el agujero de redefinir un bloque y que las referencias que ya estaban se queden desfasadas —conserva lo escrito, añade lo nuevo, retira la etiqueta huérfana y fija el atributo constante, con la geometría recalculada desde la definición—. Ola 7 (2026-09-03): BEDIT deja de ser una puerta al panel — con una referencia designada o seleccionada abre la definición EN SITIO sobre su punto de inserción (REFEDIT/REFSET/REFCLOSE por debajo), conservando los ATRIBUTOS que explotar perdía; con un nombre, con Intro, sobre un bloque sin geometría o sobre una referencia GIRADA o ESCALADA sigue abriendo el panel Y DICE POR QUÉ. Editar en sitio una referencia girada o escalada sigue en «todavía no». Siguen ausentes y siguen ausentes BATTMAN, ATTDISP, MINSERT, ATTEXT, COUNT, XOPEN y REFEDIT. Ola 7 (2026-09-03): los bloques dinámicos DEJAN de estar en «todavía no». El motor (`dynamic-blocks.ts`) existía desde antes y no lo importaba ni un comando: ahora BLOQUEDIN los coloca preguntando cada parámetro con su rango y sus medidas comerciales, BLOQUEDINSET cambia uno sobre la instancia YA colocada sin moverla ni volver a insertarla —mismo id, misma inserción, otra definición materializada— y BLOQUEDINDEF vuelve dinámico un bloque DEL USUARIO declarando el parámetro como una línea marcada DENTRO de su definición (sin campo nuevo en el formato: viaja al DXF y se apaga por capa). El comportamiento anotativo entra por la misma puerta: la marca de nivel declara 3 mm de papel y BLOQUEDIN se los sella al INSERT. Lo que NO hay, y por eso la fila no llega a su tope: edición por GRIP (el parámetro se cambia por orden, no arrastrando), estados de visibilidad, tablas de consulta, y en las familias del usuario sólo se admite el parámetro LINEAL con acción de estirar — girar y reflejar geometría cualquiera se rechaza POR SU NOMBRE con el motivo, en vez de torcer el dibujo.",
       "criteria": [
         {
           "id": "blocks.library",
@@ -1192,12 +1192,28 @@
           "id": "blocks.bedit",
           "points": 1,
           "text": "Editor de bloques EN SITIO (BEDIT como editor real, no como puerta al panel)",
-          "costDays": 4,
+          "costDays": 0,
           "rationale": "El criterio anterior decía «BLOCK, INSERT, WBLOCK y BEDIT tecleables» y la evidencia nunca miraba BEDIT: el registro no lo tiene y BE es uno de los 2 alias colgantes de la tabla. El punto de BEDIT se separa y falla hasta que exista.",
           "evidence": [
             {
-              "kind": "todaviaNo",
-              "reason": "BEDIT v1 es la puerta tecleable al panel de bloques (honesta y útil); el editor en sitio con edición de la definición dentro del lienzo todavía no existe. Diseño esbozado en el backlog P1."
+              "kind": "command",
+              "name": "BEDIT"
+            },
+            {
+              "kind": "command",
+              "name": "REFEDIT"
+            },
+            {
+              "kind": "command",
+              "name": "REFCLOSE"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/blocks-edit.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/reference-edit.spec.ts"
             }
           ]
         },
@@ -1205,11 +1221,35 @@
           "id": "blocks.dynamic",
           "points": 1,
           "text": "Bloques dinámicos (parámetros y acciones de AutoCAD) y comportamiento anotativo",
-          "costDays": 12,
+          "costDays": 0,
           "evidence": [
             {
-              "kind": "todaviaNo",
-              "reason": "No hay bloques dinámicos como tales (parámetros/acciones editables por grip). Contarlos era inflar la fila; están en la cola de reserva de las campañas."
+              "kind": "command",
+              "name": "BLOQUEDIN"
+            },
+            {
+              "kind": "command",
+              "name": "BLOQUEDINSET"
+            },
+            {
+              "kind": "command",
+              "name": "BLOQUEDINDEF"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/blocks/user-dynamic-family.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/dynamic-block.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/dynamic-blocks.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/96-cad-bloque-dinamico.spec.ts"
             }
           ]
         }

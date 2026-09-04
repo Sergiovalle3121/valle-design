@@ -1,25 +1,36 @@
 /**
- * BEDIT — la puerta tecleable a editar una definición de bloque.
+ * BEDIT — editar una definición de bloque. Desde la Ola 7, EN SITIO.
  *
- * ## Qué es esta v1, dicho sin adornos
+ * ## Qué era la v1 y por qué cambia
  *
- * AutoCAD abre un editor in situ. Aquí ese editor no existe; lo que SÍ existe
- * es el flujo completo por otras puertas: el panel de bloques del editor
- * enseña las definiciones y BLOCK con el mismo nombre REDEFINE —los INSERT se
- * actualizan solos, con versión propagada—. BEDIT v1 entrega ese flujo desde
- * el teclado: resuelve qué bloque se quiere editar (el INSERT designado o el
- * nombre tecleado) y pide al anfitrión abrir el panel con ese nombre en
- * `params.block`. Si el espacio de trabajo no tiene el panel, el comando lo
- * dice y nombra la alternativa, nunca se traga la orden.
+ * La v1 (Ola 3) era una puerta honesta: `BE` era un alias de `acad.pgp` que
+ * ningún comando reclamaba —teclearlo respondía «comando desconocido»— y BEDIT
+ * lo reclamó abriendo el panel de bloques con el nombre resuelto. Servía, y la
+ * rúbrica lo decía en su sitio: *«BEDIT v1 es la puerta tecleable al panel; el
+ * editor en sitio todavía no existe.»*
  *
- * ## Por qué esto y no esperar al editor in situ
+ * Ya existe. `blocks/reference-edit.ts` saca la geometría de la definición al
+ * dibujo, encima de la referencia, y la devuelve conservando los atributos. Así
+ * que BEDIT hace lo que hace en AutoCAD: **si hay una referencia** —designada o
+ * seleccionada de antemano— abre esa referencia EN SITIO.
  *
- * `BE` era uno de los dos alias de `acad.pgp` que la tabla declaraba y ningún
- * comando reclamaba: teclearlo respondía «comando desconocido». Entre un error
- * seco y una puerta honesta al flujo que ya funciona, la puerta gana — y el
- * inventario de alias sin resolver baja a cero de verdad, no de mentira.
+ * ## Cuándo sigue abriendo el panel, y por qué
+ *
+ * - Con un NOMBRE tecleado o con Intro: no hay ninguna referencia concreta que
+ *   anclar en el dibujo, y colocar la geometría «en algún sitio» sería inventar
+ *   un punto de trabajo que el usuario no eligió.
+ * - Con una referencia GIRADA o ESCALADA: devolver geometría girada no es
+ *   trasladarla (ver `reference-edit.ts`), y editarla en sitio la torcería.
+ * - Con un bloque SIN geometría: no hay nada que sacar.
+ *
+ * En los tres casos se abre el panel Y SE DICE POR QUÉ, en vez de dejar al
+ * usuario preguntándose por qué esta vez fue distinto.
  */
 import type { CadEntity } from "../../cad-document";
+import {
+  cadRefeditOpenCommands,
+  cadRefeditSession,
+} from "../../blocks/reference-edit";
 import {
   CAD_ACCEPT_ENTITY_PICK,
   CAD_ACCEPT_TEXT,
@@ -38,7 +49,67 @@ const UNAVAILABLE =
   "El panel de bloques no está montado en este espacio de trabajo. La redefinición sigue " +
   "disponible: BLOCK con el mismo nombre redefine la definición y los INSERT se actualizan solos.";
 
-function openPanel(block: string | null): CadCommandStep<BeditState> {
+/**
+ * Abre la referencia EN SITIO, o devuelve el motivo por el que no se puede.
+ *
+ * El motivo no es un error: es lo que se le añade al texto del panel para que
+ * el usuario sepa por qué esta vez se abrió el panel y no el dibujo.
+ */
+function openInPlace(
+  entity: Extract<CadEntity, { type: "insert" }>,
+  context: CadCommandContext,
+): CadCommandStep<BeditState> | { reason: string } {
+  const blocks = context.blocks?.();
+  if (!blocks) return { reason: "este anfitrión no expone las definiciones" };
+  const definition = blocks.find((block) => block.id === entity.block || block.name === entity.block);
+  if (!definition) return { reason: `la definición de «${entity.block}» no está en el dibujo` };
+  if (definition.entities.length === 0)
+    return { reason: `«${definition.name}» no tiene geometría que sacar al dibujo` };
+
+  const escala = entity.scale ?? { x: 1, y: 1, z: 1 };
+  if ((entity.rotation ?? 0) !== 0 || escala.x !== 1 || escala.y !== 1)
+    return {
+      reason:
+        `esta referencia está girada ${Math.round(entity.rotation ?? 0)}° o escalada ` +
+        `(${escala.x}×${escala.y}), y en sitio sólo se edita a escala 1 y sin giro`,
+    };
+
+  const document = {
+    entities: context.entityIds
+      .map((id) => context.entity?.(id))
+      .filter((item): item is CadEntity => !!item),
+  };
+  const { session, conflict } = cadRefeditSession(document);
+  if (conflict.length > 0)
+    return { reason: `hay ediciones abiertas de ${conflict.join(" y ")}; ciérrelas con REFCLOSE` };
+  if (session)
+    return {
+      reason: `ya hay una edición abierta de «${session.blockId}»; ciérrela con REFCLOSE`,
+    };
+
+  const commands = cadRefeditOpenCommands({
+    definition,
+    referenceId: entity.id,
+    base: { x: entity.insertion.x, y: entity.insertion.y },
+    newEntityId: context.newEntityId,
+  });
+  return {
+    state: { asked: true },
+    prompt: { message: "", options: [] },
+    accepts: 0,
+    result: {
+      kind: "document",
+      commands,
+      label: "BEDIT",
+      notice:
+        `BEDIT: «${definition.name}» abierto EN SITIO con ${commands.length} objeto(s) sobre la ` +
+        "referencia. Edítelos con las órdenes de siempre, añada lo nuevo con REFSET y termine con " +
+        "REFCLOSE (Guardar o Descartar).",
+    },
+  };
+}
+
+function openPanel(block: string | null, reason?: string): CadCommandStep<BeditState> {
   return {
     state: { asked: true },
     prompt: { message: "", options: [] },
@@ -50,7 +121,9 @@ function openPanel(block: string | null): CadCommandStep<BeditState> {
         ...(block ? { params: { block } } : {}),
         unavailable: UNAVAILABLE,
       },
-      text: block ? `Abriendo el panel de bloques con «${block}».` : "Abriendo el panel de bloques.",
+      text:
+        (block ? `Abriendo el panel de bloques con «${block}»` : "Abriendo el panel de bloques") +
+        (reason ? `: ${reason}.` : "."),
     },
   };
 }
@@ -78,12 +151,17 @@ const beditCommand: CadCommandDescriptor<BeditState> = {
   transparent: false,
   selection: "optional",
   repeatable: false,
-  // v1 no escribe el documento: abre el panel. Escribir va por BLOCK.
-  mutates: false,
+  // Desde la Ola 7 SÍ escribe: abrir en sitio saca la geometría del bloque al
+  // dibujo, y eso es un paso de deshacer. Con un nombre o con Intro sigue
+  // abriendo el panel, que no escribe nada.
+  mutates: true,
   cursor: "pick",
   begin: (context) => {
     const insert = selectedInsert(context);
-    if (insert) return openPanel(insert.block);
+    if (insert) {
+      const sitio = openInPlace(insert, context);
+      return "reason" in sitio ? openPanel(insert.block, sitio.reason) : sitio;
+    }
     return {
       state: { asked: true },
       prompt: {
@@ -103,7 +181,8 @@ const beditCommand: CadCommandDescriptor<BeditState> = {
       if (!entity) return refuse("el objeto designado ya no existe.");
       if (entity.type !== "insert")
         return refuse(`${entity.type.toUpperCase()} no es una referencia de bloque (INSERT).`);
-      return openPanel(entity.block);
+      const sitio = openInPlace(entity, context);
+      return "reason" in sitio ? openPanel(entity.block, sitio.reason) : sitio;
     }
     if (input.kind !== "text") return refuse("BEDIT esperaba un nombre de bloque.");
     const name = input.value.trim();

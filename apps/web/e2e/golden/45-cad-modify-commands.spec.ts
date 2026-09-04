@@ -25,11 +25,17 @@ import type { CadDocument } from '../../src/lib/cad/cad-document';
  *   · ARRAY parte de la selección del editor, que se hace con la paleta de
  *     selección profesional.
  *
- * Lo que este golden NO puede probar todavía: los comandos que exigen designar
- * con el ratón (LENGTHEN, JOIN, EXPLODE, PEDIT, MATCHPROP) siguen fuera de
- * alcance porque el puntero no está enrutado al motor. Es la frontera que ya
- * documenta `Layout3DEditor.tsx`, y aquí se comprueba al menos que sus nombres
- * resuelven y piden lo que tienen que pedir.
+ * Lo que este golden no recorre: los comandos que designan con el ratón
+ * (LENGTHEN, JOIN, EXPLODE, PEDIT, MATCHPROP). Aquí se comprueba que sus
+ * nombres resuelven y piden lo que tienen que pedir.
+ *
+ * NOTA (2026-09-03): este encabezado decía que esos comandos «siguen fuera de
+ * alcance porque el puntero no está enrutado al motor». Eso ya NO es cierto y
+ * se corrige aquí en vez de dejarlo envejecer: `viewport/pointer-router.ts`
+ * resuelve el clic como `entityPick` cuando el paso lo acepta, y el golden 61
+ * lo recorre con el ratón —hasta el punto de tener que evitar clavar un origen
+ * de cota sobre una línea, justo porque el clic designaría la entidad—. Lo que
+ * falta para recorrerlos aquí es escribir el recorrido, no una capacidad.
  */
 function seedDocument(): CadDocument {
   return {

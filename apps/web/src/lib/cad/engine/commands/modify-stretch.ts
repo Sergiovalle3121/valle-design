@@ -37,6 +37,7 @@ import {
   type CadLengthenMode,
 } from "../../curve-edit";
 import type { CadNativeEntity } from "../../entity-runtime";
+import { cadStretchAnchorPoint } from "../../stretch-anchor";
 import {
   CAD_ACCEPT_DISTANCE,
   CAD_ACCEPT_ENTITY_PICK,
@@ -72,26 +73,6 @@ function inside(window: Window, point: { x: number; y: number }): boolean {
   );
 }
 
-/**
- * El punto de anclaje de lo que no se puede estirar por partes.
- *
- * `null` para lo que sí (línea, polilínea, spline), porque esos se tratan
- * vértice a vértice.
- */
-function anchorOf(entity: CadEntity): CadPoint2 | null {
-  if (entity.type === "line" || entity.type === "polyline" || entity.type === "spline") return null;
-  if (entity.type === "circle" || entity.type === "arc" || entity.type === "ellipse")
-    return { x: entity.center.x, y: entity.center.y };
-  if (entity.type === "mtext" || entity.type === "insert")
-    return { x: entity.insertion.x, y: entity.insertion.y };
-  if (entity.type === "dimension") return { x: entity.a.x, y: entity.a.y };
-  if (entity.type === "mleader") return { x: entity.textPosition.x, y: entity.textPosition.y };
-  if (entity.type === "hatch") return entity.boundaries[0]?.[0] ?? null;
-  if (entity.type === "text" || entity.type === "box" || entity.type === "station")
-    return { x: entity.x, y: entity.y };
-  return null;
-}
-
 function shifted(point: CadPoint3, offset: CadPoint2): CadPoint3 {
   return { x: point.x + offset.x, y: point.y + offset.y, z: point.z };
 }
@@ -108,7 +89,7 @@ function stretchEntityCommand(
   window: Window,
   offset: CadPoint2,
 ): CadEntityCommand | null {
-  const anchor = anchorOf(entity);
+  const anchor = cadStretchAnchorPoint(entity);
   if (anchor)
     return inside(window, anchor)
       ? { type: "transform", entityId: entity.id, transform: { translation: offset } }

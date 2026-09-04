@@ -946,3 +946,134 @@ propia. **DESTINO pasa de 230/271 (84,9 %) a 231/271 (85,2 %).** HOY sigue en
 - **Choques contra estructura**: no hay detección de interferencias.
 - **Formato ISOGEN**: la hoja es del documento, no un fichero en el formato de
   esa herramienta.
+
+## Nota fechada — Ola 7 (2026-09-03): los bloques dinámicos existían y nadie podía alcanzarlos
+
+Medido antes de tocar nada: HOY 175/197 (88,8 %), DESTINO 231/271 (85,2 %).
+
+### La medición que no se hace con una sonda de nombres
+
+Sondeando dieciocho nombres de la familia de bloques dinámicos de AutoCAD
+—BEDIT, BSAVE, BCLOSE, BPARAMETER, BACTION, BACTIONTOOL, BVSTATE, BGRIPSET,
+BAUTHORPALETTE, BCONSTRUCTION, BTESTBLOCK, BLOOKUPTABLE, BCOUNT, BCYCLEORDER,
+PARAMETERS, ATTIPEDIT, BASSOCIATE, BREPLACE— contra el registro: **2 de 18**, y
+una de las dos (PARAMETERS) es la de restricciones paramétricas, que es otra
+cosa.
+
+Pero el hallazgo grande fue otro:
+
+```
+grep -rl "dynamic-blocks|CadDynamicBlockFamily" src
+→ dynamic-blocks.ts, dynamic-blocks.spec.ts, onboarding/tour-accuracy.spec.ts
+```
+
+`src/lib/cad/dynamic-blocks.ts` —683 líneas, dos familias, su spec verde— **no
+lo importaba ni un comando ni un panel**. El motor estaba escrito, probado y sin
+puerta. Una capacidad que nadie puede alcanzar no es una capacidad: es código, y
+la rúbrica hacía bien en no otorgar la fila.
+
+### Tres puertas, y después la que importa
+
+`BLOQUEDIN` coloca, `BLOQUEDINSET` cambia un parámetro de la instancia ya
+colocada y `BLOQUEDINLIST` dice qué hay. Pero eso sólo daba acceso a **nuestras**
+dos familias. Un bloque dinámico de AutoCAD es lo contrario: es el bloque DEL
+DESPACHO, con los parámetros que el despacho le pone.
+
+`BLOQUEDINDEF` cierra eso. El parámetro se escribe **dentro de la definición,
+como una línea marcada**: es lo que se ve en el editor de bloques de AutoCAD
+—el parámetro se dibuja— y aquí además viaja al DXF como una línea normal, en
+una capa que se puede apagar. Sin un campo nuevo en el formato persistido.
+
+La línea dice dos cosas a la vez, y ninguna hay que inventarla: **de dónde a
+dónde** (base, dirección y medida de referencia) y **qué mueve** (lo que quede
+más allá de su punto medio). No hace falta que nadie dibuje además un marco de
+estirado.
+
+### Lo que un despacho gana, en una frase
+
+Una mesa de 1.200 con cuatro patas deja de ser cinco bloques casi iguales. Se
+estira a 1.800 y **las patas de la izquierda no se mueven, las de la derecha
+acompañan, y el círculo de la pata sigue siendo un círculo** — no una elipse,
+que es lo que sale de escalar el bloque entero.
+
+### Cambiar un parámetro NO es borrar y volver a insertar
+
+Es la propiedad que el golden 96 fija sobre el documento del servidor: tras
+cambiar el claro de la puerta de 900 a 1.000, la entidad tiene **el mismo id y
+la misma inserción**, apunta a otra definición materializada, y el barrido de la
+hoja mide 1.000. Sigue habiendo UNA puerta, no dos.
+
+### La rúbrica
+
+`blocks.dynamic` deja «todavía no». **HOY pasa de 175/197 (88,8 %) a 176/197
+(89,3 %)** —es la cifra de cliente, la que mide el trabajo diario— y **DESTINO
+de 231/271 (85,2 %) a 232/271 (85,6 %)**.
+
+### Lo que esta ola NO cerró, y por qué
+
+- **Edición por GRIP**: el parámetro se cambia por orden, no arrastrando un
+  tirador. El puntero todavía no está enrutado al motor —lo dice
+  `Layout3DEditor.tsx` y lo mide el golden 45—, y por eso `BLOQUEDINSET` trabaja
+  sobre la SELECCIÓN del editor: una orden que pidiera designar con el ratón
+  sería una orden que nadie puede terminar en el navegador.
+- **Estados de visibilidad y tablas de consulta**: no existen.
+- **En las familias del USUARIO, sólo el parámetro lineal con acción de
+  estirar.** Girar y reflejar geometría cualquiera —arcos, textos, sombreados—
+  se puede hacer bien o se puede hacer «casi», y «casi» en un bloque que alguien
+  imprime y construye no vale. Se rechazan POR SU NOMBRE, con el motivo.
+
+## Nota fechada — Ola 7, segunda parte (2026-09-03): editar un bloque sin explotarlo
+
+Medido antes de tocar nada: HOY 176/197 (89,3 %), DESTINO 232/271 (85,6 %).
+
+### El gesto más caro de un dibujo con biblioteca propia
+
+La fila `blocks` lo decía: *«Sin editor de bloques en sitio, redefinir un bloque
+exige explotar y volver a definir.»* Y explotar **pierde los atributos**: el
+`TAG` de cada referencia se va y hay que rellenarlo a mano, marca por marca.
+Corregir el detalle de una puerta o ajustar el símbolo de un cajetín es un gesto
+diario, y hasta hoy costaba eso.
+
+### REFEDIT, REFSET y REFCLOSE — y esta vez los nombres SÍ son los de AutoCAD
+
+Cuando el gesto es el mismo, el nombre tiene que ser el mismo: es memoria
+muscular de veinte años. `REFEDIT` saca la geometría de la definición **encima
+de la referencia designada** —no en el origen del mundo—, marcada en
+`context.metadata`; se edita con las órdenes de siempre, porque el editor de un
+bloque tiene que ser el editor y no uno más pequeño con la mitad de las
+herramientas; `REFSET` añade lo que se dibujó nuevo o retira lo que sobra; y
+`REFCLOSE` guarda en la definición —devolviendo la geometría a coordenadas del
+bloque— o descarta sin tocarla.
+
+Los atributos se conservan: es exactamente lo que explotar perdía.
+
+### Dos sesiones a la vez se niegan
+
+Guardar con dos ediciones abiertas mezclaría la geometría de dos bloques. Se
+dice cuáles están abiertas y se pide cerrar una, en vez de resolverlo adivinando.
+
+### La rúbrica NO se mueve, y es correcto
+
+El criterio pide **«BEDIT como editor real, no como puerta al panel»**, y BEDIT
+sigue abriendo el panel. La capacidad de editar en sitio existe hoy bajo los
+nombres que AutoCAD usa para ella, pero otorgar el punto sería medir otra cosa
+de la que se pidió. Queda escrito en el `todavía no` de la fila, con lo que falta:
+que BEDIT sea ese editor, y editar en sitio una referencia **girada o escalada**
+—que hoy se niega por su nombre, porque devolver geometría girada no es
+trasladarla y hacerlo «casi» deja un bloque de biblioteca torcido para siempre—.
+
+### Y BEDIT deja de ser una puerta
+
+La misma nota de arriba decía que el criterio no se otorgaba porque pedía *«BEDIT
+como editor real, no como puerta al panel»*. Ahora lo es: con una referencia
+designada o seleccionada, **BEDIT abre la definición en sitio** sobre su punto de
+inserción; con un nombre, con Intro, sobre un bloque sin geometría o sobre una
+referencia girada o escalada sigue abriendo el panel **y dice por qué**, en vez
+de dejar al usuario preguntándose por qué esta vez fue distinto.
+
+`blocks.bedit` se otorga. La fila `blocks` llega así a su tope de capacidad y
+queda en **8/9 reteniendo 1 pt** por la misma regla que otras veintiocho: toda su
+evidencia es propia. Las cifras totales no se mueven —HOY 176/197 (89,3 %),
+DESTINO 232/271 (85,6 %)— porque el punto ganado es exactamente el que la
+retención descuenta. Se dice así, con el mecanismo a la vista, en vez de anunciar
+una subida que la rúbrica no concede.
