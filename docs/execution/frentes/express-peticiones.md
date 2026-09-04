@@ -177,3 +177,121 @@ petición todavía es un hueco reservado, no un descuido.
   cierran el alcance con ratón; `apps/web/src/lib/cad/engine/command-summaries.spec.ts` cierra el
   contrato fail-closed de los resúmenes.
 - **Estado:** pendiente
+
+### P-express-04 · Petición de anfitrión `compare-fetch` para COMPARE sin biblioteca precargada
+
+- **Archivos:**
+  - `apps/web/src/lib/cad/engine/host-requests.ts` (unión `CadHostRequest`)
+  - `apps/web/src/components/cad/command-line/session-catalogs.ts` (manejador)
+- **Por qué:** cola 2. `COMPARE` ya está construido y probado
+  (`engine/commands/compare-drawings.ts` y su spec) y compara **sin salir del motor**
+  cuando `context.xrefCatalog()` trae el activo CON su `snapshot`. Sin biblioteca —o con el
+  activo listado pero sin contenido— la orden hoy declara el límite en vez de comparar. Es el
+  mismo agujero que `XATTACH` tenía antes de la Ola 2 y se cierra igual: el motor dice QUÉ
+  dibujo quiere, el anfitrión lo trae. Traer el contenido de un activo es I/O y este motor es
+  síncrono y puro.
+- **Cambio exacto:**
+
+  1. En `host-requests.ts`, junto a `{ kind: "xref-attach" }`:
+
+     ```ts
+       /**
+        * Trae OTRO dibujo del inquilino para compararlo con el abierto.
+        *
+        * Es el mismo reparto que `xref-attach` y por la misma razón: el motor
+        * decide qué comparar, el anfitrión lo descarga. La diferencia es que
+        * aquí NO se proyecta nada en el documento — el dibujo traído se compara
+        * y se tira, y lo único que se escribe son las nubes de revisión.
+        */
+       | {
+           kind: "compare-fetch";
+           /** Lo que el usuario tecleó: id del activo o su nombre. */
+           assetId: string;
+           /** Revisión pedida; `UNIVERSAL` es la vigente. */
+           revision: string;
+           /** Qué hacer al recibirlo: marcar con nubes o sólo informar. */
+           mode: "clouds" | "report";
+         }
+     ```
+
+  2. En `session-catalogs.ts`, el manejador descarga el activo con la misma vía que el panel de
+     referencias externas y **reentra** en la orden por la puerta de texto, exactamente como
+     hace `xref-attach`: al volver, el activo ya está en `xrefCatalog()` CON su `snapshot`, y
+     `COMPARE` sigue solo desde el paso de «¿nubes o informe?». No hace falta ninguna función
+     nueva del lado del motor: `cadCompareDocuments` y `cadCompareRevisionClouds` ya trabajan
+     sobre `CadDocument`.
+
+  3. En `engine/commands/compare-drawings.ts` (territorio del frente, se aplica aquí en cuanto
+     exista la unión): la rama `noContent(entry)` y la rama `NO_CATALOG` pasan a devolver
+     `{ kind: "host", request: { kind: "compare-fetch", … }, label: "COMPARE" }` en vez del
+     mensaje que declara el límite. El mensaje se conserva como respuesta cuando el anfitrión
+     no atiende la petición.
+
+- **Cómo se comprueba:** `apps/web/src/lib/cad/engine/commands/compare-drawings.spec.ts`
+  (sección 4) hoy exige que las dos ramas DIGAN por qué no pueden comparar; con la petición
+  aplicada la spec exige la petición de anfitrión con su `assetId`, su `revision` y su `mode`,
+  y conserva el mensaje como la respuesta al anfitrión ausente.
+- **Estado:** pendiente
+
+### P-express-05 · Registrar COMPARE
+
+- **Archivos:** `apps/web/src/lib/cad/engine/index.ts`, `engine/command-summaries.ts`,
+  `engine/alias-table.ts`, `apps/web/src/lib/cad/ribbon.ts`,
+  `docs/cad/evidence/ui-command-reach.json`
+- **Por qué:** cola 2. La orden está construida y probada
+  (`engine/commands/compare-drawings.ts`, 46 comprobaciones), pero los cuatro archivos del
+  registro están fuera del territorio del frente. Hasta que se aplique, el registro sigue en
+  274 y, por la regla 1 de cimientos, COMPARE **no cuenta como implementado**.
+- **Cambio exacto:**
+
+  1. `engine/index.ts`: junto a los demás imports de `./commands/…`,
+
+     ```ts
+     import { CAD_COMPARE_COMMANDS } from "./commands/compare-drawings";
+     ```
+
+     y en la lista de descriptores, junto a `...CAD_XREF_COMMANDS`,
+
+     ```ts
+       ...CAD_COMPARE_COMMANDS,
+     ```
+
+     Es UN descriptor y arrastra `lib/cad/compare-documents.ts` y
+     `lib/cad/compare-revision-clouds.ts` por importación.
+
+  2. `engine/command-summaries.ts`: una entrada, en el orden alfabético del objeto.
+
+     ```ts
+       COMPARE: "Compara el dibujo abierto con otro dibujo del inquilino y marca las diferencias con nubes de revisión.",
+     ```
+
+  3. `engine/alias-table.ts`: los dos alias que ya declara el descriptor, en el bloque de
+     gestión junto a `AUDITORIA`/`PURGAR`.
+
+     ```ts
+       COMPARAR: "COMPARE",
+       DWGCOMPARE: "COMPARE",
+     ```
+
+  4. `lib/cad/ribbon.ts`: sin esto COMPARE aparece igual (cae en el panel de reposo de
+     «Administrar», que es la pestaña de su `kind`), pero disperso. Dos patrones lo dejan donde
+     AutoCAD lo pone —su pestaña Colaborar no existe aquí; Administrar es la equivalente—:
+
+     - en `CAD_TAB_NAME_PATTERNS`, dentro del patrón de la pestaña `administrar`, añadir
+       `|COMPARE` a la alternancia;
+     - en `CAD_PANEL_NAME_PATTERNS`, una línea nueva antes de la de `Utilidades`:
+
+       ```ts
+         [/^COMPARE$/, "Comparar"],
+       ```
+
+  5. `docs/cad/evidence/ui-command-reach.json`: **no se edita**, se regenera con
+     `node scripts/cad/ui-command-reach.mjs --write`. Con COMPARE registrado la cifra pasa de
+     274/274 a 275/275 (y a 285/285 si P-express-03 se aplica en la misma ventana).
+
+- **Cómo se comprueba:** `npm run check:command-integrity` da veredicto sobre COMPARE —termina
+  con efecto verificado cuando hay biblioteca con contenido, y declara su límite cuando no la
+  hay, sin «hecho» vacío—; `node scripts/cad/check-ribbon-coverage.mjs` y
+  `node scripts/cad/ui-command-reach.mjs --check` cierran el alcance con ratón;
+  `apps/web/src/lib/cad/engine/command-summaries.spec.ts` cierra el contrato fail-closed.
+- **Estado:** pendiente

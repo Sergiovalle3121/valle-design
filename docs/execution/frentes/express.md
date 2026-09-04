@@ -189,6 +189,79 @@ Gates sobre el árbol: `npm run typecheck` (8/8), `eslint` de los seis archivos 
 (registrar las diez), ambas con el diseño completo en `express-peticiones.md`.
 
 
+### C3 · COMPARE entre dos archivos cualesquiera, con nubes de revisión (2026-09-04)
+
+**Lo que había.** El reconocimiento (C1) lo dejó medido: `diffCadSnapshots` compara dos HASHES de
+instantáneas del MISMO dibujo y contesta `changed: true|false`. No había diff de entidades, no
+había nubes de revisión y no había forma de comparar dos archivos. Greenfield entero, y entero
+dentro de `compare*`.
+
+**Lo que hay ahora.** Tres módulos y su orden:
+
+| Archivo | Qué es |
+| --- | --- |
+| `lib/cad/compare-documents.ts` (495) | El diff. Empareja por id y, lo que quede suelto, por firma geométrica normalizada; clasifica en añadido, borrado, modificado e igual, y separa el cambio de GEOMETRÍA del de PROPIEDAD |
+| `lib/cad/compare-revision-clouds.ts` (391) | Agrupa las diferencias por vecindad, calcula la envolvente de cada grupo y emite la nube con `revcloudVertices` en tres capas dedicadas |
+| `engine/commands/compare-drawings.ts` (302) | La orden `COMPARE`, que toma el segundo dibujo por su identificador de activo igual que XATTACH |
+
+**Las cinco decisiones que este entregable tomó, y por qué.**
+
+1. **Dos pasadas de emparejamiento.** Un dibujo que pasó por un DXF de ida y vuelta trae los
+   mismos objetos con ids nuevos: sin la segunda pasada daría «todo borrado y todo añadido»,
+   que es literalmente cierto mirando los ids e inútil mirando el plano.
+2. **Rejilla, no representante.** La firma redondea a rejilla de tolerancia en vez de agrupar
+   por representante como hace OVERKILL. El representante depende del ORDEN en que llegan las
+   entidades, y comparando dos documentos eso significa parejas distintas en cada pasada. La
+   rejilla tiene frontera y su frontera produce una diferencia DE MÁS, que se ve.
+3. **La partición es exhaustiva.** Seis propiedades con nombre —capa, color, tipo de línea,
+   grosor, estilo y texto— y TODO lo demás en la firma geométrica. Un campo que no estuviera en
+   ninguna de las dos mitades cambiaría sin que el diff lo viese.
+4. **El cuadre es `añadidos + borrados + 2·(modificados + iguales)`,** no la suma llana: una
+   entidad modificada ocupa un sitio en cada documento. Sumando llanamente, comparar un dibujo
+   de 10 objetos consigo mismo daría 10 frente a 20 y parecería que faltan diez.
+5. **El calco de colores es el de DWG Compare, con una salvedad escrita.** Verde lo que sólo
+   está en el dibujo abierto, rojo lo que sólo está en el comparado — de ahí que la orden pase
+   el dibujo ajeno como BASE. La tercera capa NO es el gris de AutoCAD: el gris marca lo
+   idéntico y lo idéntico no lleva nube; la entidad que existe en los dos lados y cambió no
+   tiene equivalente allí (AutoCAD la parte en una verde y una roja) y va en amarillo.
+
+**Evidencia medida, no adjetivos.**
+
+```
+cd apps/web
+npx tsx src/lib/cad/compare-documents.spec.ts               → 65 comprobaciones
+npx tsx src/lib/cad/compare-revision-clouds.spec.ts         → 68 comprobaciones
+npx tsx src/lib/cad/engine/commands/compare-drawings.spec.ts → 46 comprobaciones
+```
+
+Con anclas absolutas y pieza por pieza, no con recuentos:
+
+- el par de documentos del diff lleva **una línea añadida, un círculo borrado, un muro movido
+  250 mm y un texto que sólo cambia de capa**, más una línea dibujada al revés con otro id que
+  tiene que salir IGUAL; cada una se comprueba por separado y el cuadre cierra en 10 = 10;
+- las nubes: dos añadidos que distan 200 unidades comparten nube y el que dista 19 000 tiene la
+  suya; la nube CONTIENE la envolvente de lo suyo (`minX = −250`, `maxX = 1750` sobre un grupo
+  ceñido de 0 a 1500) y **no** la de la vecina; el círculo borrado se solapa con las líneas
+  nuevas y aun así cada uno va a su capa;
+- cada vértice lleva `|bulge| = REVCLOUD_BULGE = 0,5` y signo negativo (el contorno se recorre
+  antihorario, donde el positivo combaría hacia dentro);
+- las tres capas salen con `#00ff00`, `#ff0000` y `#ffff00`, y sólo las de las clases que hubo:
+  sin borrados no se crea la capa de borrados;
+- el lote pasa por `executeCadEntityCommandBatch` y sube la versión **una** vez: un Ctrl+Z
+  devuelve el dibujo sin nubes y sin capas;
+- comparar un dibujo consigo mismo devuelve un MENSAJE, deja el documento como el mismo objeto
+  (`meta.version` intacta), no crea ninguna capa y lo dice con esas palabras.
+
+Gates sobre el árbol: `npm run typecheck` (8/8), `eslint` de los seis archivos sin avisos,
+`check:monolith-budget` (ninguno pasa de 800), `check:lint-budget` (488/492, sin cambio),
+`check:no-industrial-domain`, `check:conventions`, `check:ribbon-coverage`,
+`ui-command-reach` (274/274) y `check:command-integrity` (274, sin cambio: COMPARE todavía no
+está registrada).
+
+**Peticiones abiertas:** `P-express-04` (petición de anfitrión `compare-fetch`) y `P-express-05`
+(registrar COMPARE), las dos con el diseño completo en `express-peticiones.md`.
+
+
 ## «Todavía no»
 
 ### El PDF, al 2026-09-04
@@ -209,3 +282,21 @@ Gates sobre el árbol: `npm run typecheck` (8/8), `eslint` de los seis archivos 
   importarlos es trabajo, no una petición de tres líneas).
 - **PDFIMPORT entra a tamaño de papel y lo dice.** No hay ajuste por dos puntos como el de
   `PDFSCALE`: para geometría ya importada se usa `SCALE`. El aviso lo declara.
+
+### COMPARE, al 2026-09-04
+
+- **No está registrada.** `COMPARE` existe y pasa su spec, pero `engine/index.ts`,
+  `command-summaries.ts`, `alias-table.ts` y `ribbon.ts` están fuera de mi territorio: hasta
+  que se aplique `P-express-05`, el registro sigue en 274 y `ui-command-reach` en 274/274. Por
+  la regla 1 de cimientos, mientras tanto **COMPARE no cuenta como implementada**, y así se
+  declara.
+- **Sólo compara contra la biblioteca ya cargada.** Con `context.xrefCatalog()` y contenido
+  cargado, la orden compara entera sin salir del motor. Sin biblioteca —o con el activo listado
+  y sin contenido— DECLARA el límite y no compara; cerrar ese camino necesita la petición de
+  anfitrión `compare-fetch` (`P-express-04`), que vive en `engine/host-requests.ts`.
+- **La nube es siempre un RECTÁNGULO festoneado.** AutoCAD también nubla por envolvente, así que
+  no hay pérdida frente a él, pero una nube que siguiera el contorno real de un grupo disperso
+  marcaría menos plano en blanco. Está sin hacer, no descartado.
+- **No se comparan las TABLAS del documento.** El diff es de entidades: una capa renombrada, un
+  estilo de cota retocado o un bloque redefinido no aparecen como diferencia salvo que muevan
+  alguna entidad. Es el mismo alcance que DWG Compare, y se dice.
