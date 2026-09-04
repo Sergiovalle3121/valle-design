@@ -60,7 +60,9 @@ import {
 import {
   CadLineBatchBuilder,
   cadDrawOrderDepth,
+  cadLineBatchBlockFor,
   cadLineStyleKey,
+  cadTileLineBatches,
   type CadLineBatch,
   type CadLineStyle,
 } from "./line-batch";
@@ -164,8 +166,14 @@ export interface CadRenderViewUpdate {
 }
 
 interface ResidentTile {
-  /** Constructor por cubo de estilo, vivo entre trozos del mismo tile. */
-  builders: Map<string, { style: CadLineStyle; builder: CadLineBatchBuilder }>;
+  /**
+   * Constructores por cubo de estilo, vivos entre trozos del mismo tile. Son
+   * una LISTA —bloques de `CAD_LINE_BATCH_BLOCK_SEGMENTS`— y no uno solo: el
+   * tile se llena a trozos y no sabe su total, así que un constructor único
+   * crecería por duplicación y cada duplicación copia todo lo ya escrito. Ver
+   * la cabecera de la constante: lleva la medida y el precio.
+   */
+  builders: Map<string, { style: CadLineStyle; builders: CadLineBatchBuilder[] }>;
   /** Entidades del tile pendientes de materializar, y por dónde va. */
   pending: readonly string[];
   cursor: number;
@@ -563,10 +571,14 @@ export class CadRenderPipeline {
       const key = cadLineStyleKey(style);
       let bucket = resident.builders.get(key);
       if (!bucket) {
-        bucket = { style, builder: new CadLineBatchBuilder(Math.max(256, tessellation.segmentCount)) };
+        bucket = {
+          style,
+          builders: [new CadLineBatchBuilder(Math.max(256, tessellation.segmentCount))],
+        };
         resident.builders.set(key, bucket);
       }
-      resident.instances += bucket.builder.push({ tessellation, style, depth });
+      const builder = cadLineBatchBlockFor(bucket.builders, tessellation.segmentCount);
+      resident.instances += builder.push({ tessellation, style, depth });
       // Escribir instancias es lo único que invalida los lotes derivados.
       resident.batches = null;
       cadRenderStage("batchPush", batchStarted);
@@ -635,25 +647,12 @@ export class CadRenderPipeline {
     this.offThread.request(tileId, batch, hooks, this.origin);
   }
 
-  /**
-   * Lotes de un tile. La clave lleva el TILE por delante del cubo de estilo: un
-   * lote es (tile × estilo), no sólo estilo. Sin el prefijo, dos tiles con el
-   * mismo color se pisaban en el mapa de mallas del consumidor y sólo
-   * sobrevivía el último — 48 lotes acababan siendo 3 objetos de escena y el
-   * resto del dibujo desaparecía. Lo cazó el spec de la escena.
-   */
+  /** Lotes de un tile, memorizados. La regla de la clave vive con los lotes. */
   private residentBatches(tileId: CadTileId, resident: ResidentTile): CadLineBatch[] {
     if (resident.batches) return resident.batches;
     // `build()` devuelve VISTAS de los arrays del constructor, así que derivar
-    // los lotes tras cada trozo cuesta O(cubos de estilo), no O(instancias).
-    resident.batches = [...resident.builders.entries()]
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([styleKey, bucket]) => ({
-        bucketKey: `${tileId}#${styleKey}`,
-        style: bucket.style,
-        ...bucket.builder.build(),
-      }))
-      .filter((batch) => batch.instanceCount > 0);
+    // los lotes tras cada trozo cuesta O(bloques), no O(instancias).
+    resident.batches = cadTileLineBatches(tileId, resident.builders);
     return resident.batches;
   }
 
@@ -756,7 +755,9 @@ export class CadRenderPipeline {
     for (const tileId of this.visibleTiles) {
       const tile = this.resident.get(tileId);
       if (!tile) continue;
-      batches += tile.builders.size;
+      // Un lote es un BLOQUE, no un cubo: contar cubos diría 1 donde
+      // `visibleBatches()` devuelve 10.
+      for (const bucket of tile.builders.values()) batches += bucket.builders.length;
       instances += tile.instances;
       for (const request of tile.textRequests) glyphRequests += request.text.length;
     }

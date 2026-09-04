@@ -41,14 +41,20 @@
       "margenRelativo": 0.0607
     },
     "batchPush": {
-      "ms": 732.068,
+      "ms": 646.534,
       "medidoMs": {
-        "min": 608.418,
-        "mediana": 646.341,
-        "max": 694.145
+        "min": 414.091,
+        "mediana": 521.356,
+        "max": 539.243
       },
-      "dispersionRelativa": 0.1326,
-      "margenRelativo": 0.1326
+      "dispersionRelativa": 0.2401,
+      "margenRelativo": 0.2401,
+      "cargaAlCalibrar": [
+        0.78,
+        0.84,
+        1.29
+      ],
+      "porQueSoloEstaBajo": "Techo recalculado el 2026-09-04 con la MISMA fórmula del fichero sobre la evidencia republicada ese día: max(mediana × (1 + margen), peor corrida × 1,05) = 646.534 ms, desde 732.068. Baja porque el empaquetado cambió —bucle reescrito y cubos por BLOQUES en vez de por duplicación; la ganancia del bucle está medida aparte en docs/cad/evidence/batchpush-empaquetado-100k.json—, no porque la máquina estuviera más tranquila. Las demás etapas NO se recalcularon a propósito: esta corrida se midió con carga ~1 sobre cuatro hilos y las suyas están calibradas con carga 3,5–3,9; apretarlas a la máquina en silencio dejaría el trinquete en rojo cada vez que el vecino trabaja, por etapas que esta entrega no tocó. Quien quiera apretarlas ejecuta --bajar en una máquina de verdad tranquila y se hace cargo de esa decisión."
     },
     "spatialIndex": {
       "ms": 999.104,

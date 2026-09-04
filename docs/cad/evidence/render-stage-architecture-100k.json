@@ -3,8 +3,8 @@
   "schemaVersion": 1,
   "benchmarkId": "valle-design-cad-render-stage-profile-mix-v1",
   "publication": {
-    "publicationId": "20260904T111846Z-a0c94206",
-    "publishedAt": "2026-09-04T11:20:03.159Z",
+    "publicationId": "20260904T123656Z-35515a83",
+    "publishedAt": "2026-09-04T12:38:05.792Z",
     "publisher": "scripts/perf/etapas-100k-medir.mjs",
     "invocation": "node scripts/perf/etapas-100k-medir.mjs",
     "corridas": 3,
@@ -13,8 +13,8 @@
       "comparisonWithinThisSession"
     ]
   },
-  "startedAt": "2026-09-04T11:18:46.213Z",
-  "finishedAt": "2026-09-04T11:20:03.159Z",
+  "startedAt": "2026-09-04T12:36:56.806Z",
+  "finishedAt": "2026-09-04T12:38:05.792Z",
   "note": "Medido con la instrumentación de render-stage-profile.ts ENCENDIDA: dos relojes por punto de medida. Sirve para REPARTIR el coste entre etapas y para que ese reparto tenga techo (scripts/perf/etapas-100k-budget.json), no para compararlo con líneas base de otra instrumentación. No mide el camino ANTERIOR, ni GPU, ni cuadros de navegador, ni FPS.",
   "environment": {
     "node": "v22.22.2",
@@ -25,7 +25,7 @@
     "logicalCpuCount": 4,
     "totalMemoryBytes": 16856092672,
     "heapLimitBytes": 8640266240,
-    "loadavg1mAlEmpezar": 3.51,
+    "loadavg1mAlEmpezar": 2.16,
     "gpu": false,
     "browser": false,
     "measurementKind": "cpu-node",
@@ -231,47 +231,47 @@
     "escenario": "sync · sin reconciliar · reloj real · presupuesto adaptativo",
     "etapas": {
       "tessellate": {
-        "min": 3768.844,
-        "mediana": 3818.924,
-        "max": 4000.715,
-        "dispersionRelativa": 0.0607
+        "min": 3368.127,
+        "mediana": 3566.856,
+        "max": 3734.589,
+        "dispersionRelativa": 0.1027
       },
       "batchPush": {
-        "min": 608.418,
-        "mediana": 646.341,
-        "max": 694.145,
-        "dispersionRelativa": 0.1326
+        "min": 414.091,
+        "mediana": 521.356,
+        "max": 539.243,
+        "dispersionRelativa": 0.2401
       },
       "spatialIndex": {
-        "min": 744.111,
-        "mediana": 745.012,
-        "max": 951.528,
-        "dispersionRelativa": 0.2784
+        "min": 693.169,
+        "mediana": 729.118,
+        "max": 744.192,
+        "dispersionRelativa": 0.07
       },
       "insertExpand": {
-        "min": 0.47,
-        "mediana": 0.632,
-        "max": 0.663,
-        "dispersionRelativa": 0.3054
+        "min": 0.506,
+        "mediana": 0.515,
+        "max": 0.528,
+        "dispersionRelativa": 0.0427
       },
       "tileEnqueue": {
-        "min": 4.145,
-        "mediana": 5.097,
-        "max": 5.207,
-        "dispersionRelativa": 0.2084
+        "min": 4.2,
+        "mediana": 4.461,
+        "max": 4.468,
+        "dispersionRelativa": 0.0601
       }
     },
     "stageTotalMs": {
-      "min": 5156.502,
-      "mediana": 5422.28,
-      "max": 5501.841,
-      "dispersionRelativa": 0.0637
+      "min": 4630.318,
+      "mediana": 4848.567,
+      "max": 4922.492,
+      "dispersionRelativa": 0.0603
     },
     "firstDetailMs": {
-      "min": 1011.463,
-      "mediana": 1060.979,
-      "max": 1081.809,
-      "dispersionRelativa": 0.0663
+      "min": 955.186,
+      "mediana": 966.962,
+      "max": 1054.835,
+      "dispersionRelativa": 0.1031
     },
     "segmentsAtRest": {
       "min": 2199624,
@@ -291,10 +291,10 @@
   },
   "corridas": [
     {
-      "runId": "20260904T111851Z-23eea755",
-      "startedAt": "2026-09-04T11:18:51.790Z",
-      "finishedAt": "2026-09-04T11:19:14.671Z",
-      "loadavg1m": 3.88,
+      "runId": "20260904T123701Z-b2a5b43e",
+      "startedAt": "2026-09-04T12:37:02.091Z",
+      "finishedAt": "2026-09-04T12:37:22.281Z",
+      "loadavg1m": 0.78,
       "node": "v22.22.2",
       "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
       "runs": [
@@ -303,25 +303,25 @@
           "scenarioLabel": "sync · sin reconciliar · reloj real · presupuesto adaptativo",
           "fixedFrameBudget": false,
           "reconciled": false,
-          "firstDetailMs": 1011.463,
-          "framesToFirstDetail": 166,
-          "zoomSettleMs": 3773.751,
-          "framesToZoomSettle": 84,
+          "firstDetailMs": 1054.835,
+          "framesToFirstDetail": 171,
+          "zoomSettleMs": 3453.783,
+          "framesToZoomSettle": 83,
           "visibleAtRest": 414,
           "detailedAtRest": 414,
           "segmentsAtRest": 2199624,
           "stages": {
             "ms": {
-              "tessellate": 3768.844,
-              "batchPush": 608.418,
-              "textRequest": 27.248,
-              "viewDiff": 1.303,
-              "tileEnqueue": 5.207,
+              "tessellate": 3566.856,
+              "batchPush": 521.356,
+              "textRequest": 25.065,
+              "viewDiff": 1.205,
+              "tileEnqueue": 4.461,
               "offThreadCollect": 0,
               "offThreadSeed": 0,
               "visibleBatches": 0,
-              "spatialIndex": 745.012,
-              "insertExpand": 0.47
+              "spatialIndex": 729.118,
+              "insertExpand": 0.506
             },
             "calls": {
               "tessellate": 91175,
@@ -341,10 +341,10 @@
               "offThreadEntities": 0
             }
           },
-          "stageTotalMs": 5156.502,
+          "stageTotalMs": 4848.567,
           "modelledFrameMs": 0,
           "modelledWallClockMs": 0,
-          "lastFrameBudgetMs": 5.003,
+          "lastFrameBudgetMs": 4,
           "postMessageSerializeMs": 0,
           "postMessageDeserializeMs": 0,
           "offThreadTessellateMs": 0,
@@ -357,25 +357,369 @@
           "scenarioLabel": "sync · reconcilia · reloj real · presupuesto adaptativo",
           "fixedFrameBudget": false,
           "reconciled": true,
-          "firstDetailMs": 1206.807,
-          "framesToFirstDetail": 159,
-          "zoomSettleMs": 3578.025,
-          "framesToZoomSettle": 81,
+          "firstDetailMs": 1071.793,
+          "framesToFirstDetail": 156,
+          "zoomSettleMs": 3206.912,
+          "framesToZoomSettle": 79,
           "visibleAtRest": 414,
           "detailedAtRest": 414,
           "segmentsAtRest": 2199624,
           "stages": {
             "ms": {
-              "tessellate": 3585.087,
-              "batchPush": 680.772,
-              "textRequest": 20.849,
-              "viewDiff": 0.752,
-              "tileEnqueue": 4.302,
+              "tessellate": 3270.404,
+              "batchPush": 517.536,
+              "textRequest": 20.107,
+              "viewDiff": 0.809,
+              "tileEnqueue": 4.532,
               "offThreadCollect": 0,
               "offThreadSeed": 0,
-              "visibleBatches": 45.809,
-              "spatialIndex": 779.976,
-              "insertExpand": 0.755
+              "visibleBatches": 28.204,
+              "spatialIndex": 725.341,
+              "insertExpand": 0.778
+            },
+            "calls": {
+              "tessellate": 91175,
+              "batchPush": 91175,
+              "textRequest": 10131,
+              "viewDiff": 2,
+              "tileEnqueue": 429,
+              "offThreadCollect": 0,
+              "offThreadSeed": 0,
+              "visibleBatches": 235,
+              "spatialIndex": 1,
+              "insertExpand": 6
+            },
+            "counters": {
+              "chunks": 429,
+              "offThreadBatches": 0,
+              "offThreadEntities": 0
+            }
+          },
+          "stageTotalMs": 4567.711,
+          "modelledFrameMs": 0,
+          "modelledWallClockMs": 0,
+          "lastFrameBudgetMs": 4.507,
+          "postMessageSerializeMs": 0,
+          "postMessageDeserializeMs": 0,
+          "offThreadTessellateMs": 0,
+          "postMessageBatches": 0,
+          "postMessageEntities": 0,
+          "postMessageWireBytes": 0
+        },
+        {
+          "label": "offthread",
+          "scenarioLabel": "offthread · reconcilia · reloj real · presupuesto adaptativo",
+          "fixedFrameBudget": false,
+          "reconciled": true,
+          "firstDetailMs": 1904.34,
+          "framesToFirstDetail": 217,
+          "zoomSettleMs": 6686.62,
+          "framesToZoomSettle": 4,
+          "visibleAtRest": 414,
+          "detailedAtRest": 414,
+          "segmentsAtRest": 2199624,
+          "stages": {
+            "ms": {
+              "tessellate": 209.253,
+              "batchPush": 437.082,
+              "textRequest": 24.451,
+              "viewDiff": 0.771,
+              "tileEnqueue": 8.464,
+              "offThreadCollect": 173.23,
+              "offThreadSeed": 2139.732,
+              "visibleBatches": 23.864,
+              "spatialIndex": 717.177,
+              "insertExpand": 0.608
+            },
+            "calls": {
+              "tessellate": 91175,
+              "batchPush": 91175,
+              "textRequest": 10131,
+              "viewDiff": 2,
+              "tileEnqueue": 762,
+              "offThreadCollect": 333,
+              "offThreadSeed": 57395,
+              "visibleBatches": 221,
+              "spatialIndex": 1,
+              "insertExpand": 6
+            },
+            "counters": {
+              "chunks": 762,
+              "offThreadBatches": 333,
+              "offThreadEntities": 57395
+            }
+          },
+          "stageTotalMs": 3734.632,
+          "modelledFrameMs": 0,
+          "modelledWallClockMs": 0,
+          "lastFrameBudgetMs": 250,
+          "postMessageSerializeMs": 116.523,
+          "postMessageDeserializeMs": 153.857,
+          "offThreadTessellateMs": 4594.649,
+          "postMessageBatches": 333,
+          "postMessageEntities": 57395,
+          "postMessageWireBytes": 17326452
+        }
+      ]
+    },
+    {
+      "runId": "20260904T123722Z-7d743ccb",
+      "startedAt": "2026-09-04T12:37:23.303Z",
+      "finishedAt": "2026-09-04T12:37:42.933Z",
+      "loadavg1m": 0.84,
+      "node": "v22.22.2",
+      "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+      "runs": [
+        {
+          "label": "sync",
+          "scenarioLabel": "sync · sin reconciliar · reloj real · presupuesto adaptativo",
+          "fixedFrameBudget": false,
+          "reconciled": false,
+          "firstDetailMs": 955.186,
+          "framesToFirstDetail": 168,
+          "zoomSettleMs": 3331.728,
+          "framesToZoomSettle": 84,
+          "visibleAtRest": 414,
+          "detailedAtRest": 414,
+          "segmentsAtRest": 2199624,
+          "stages": {
+            "ms": {
+              "tessellate": 3368.127,
+              "batchPush": 539.243,
+              "textRequest": 23.937,
+              "viewDiff": 1.127,
+              "tileEnqueue": 4.2,
+              "offThreadCollect": 0,
+              "offThreadSeed": 0,
+              "visibleBatches": 0,
+              "spatialIndex": 693.169,
+              "insertExpand": 0.515
+            },
+            "calls": {
+              "tessellate": 91175,
+              "batchPush": 91175,
+              "textRequest": 10131,
+              "viewDiff": 2,
+              "tileEnqueue": 429,
+              "offThreadCollect": 0,
+              "offThreadSeed": 0,
+              "visibleBatches": 0,
+              "spatialIndex": 1,
+              "insertExpand": 3
+            },
+            "counters": {
+              "chunks": 429,
+              "offThreadBatches": 0,
+              "offThreadEntities": 0
+            }
+          },
+          "stageTotalMs": 4630.318,
+          "modelledFrameMs": 0,
+          "modelledWallClockMs": 0,
+          "lastFrameBudgetMs": 4,
+          "postMessageSerializeMs": 0,
+          "postMessageDeserializeMs": 0,
+          "offThreadTessellateMs": 0,
+          "postMessageBatches": 0,
+          "postMessageEntities": 0,
+          "postMessageWireBytes": 0
+        },
+        {
+          "label": "sync",
+          "scenarioLabel": "sync · reconcilia · reloj real · presupuesto adaptativo",
+          "fixedFrameBudget": false,
+          "reconciled": true,
+          "firstDetailMs": 946.262,
+          "framesToFirstDetail": 156,
+          "zoomSettleMs": 3053.178,
+          "framesToZoomSettle": 79,
+          "visibleAtRest": 414,
+          "detailedAtRest": 414,
+          "segmentsAtRest": 2199624,
+          "stages": {
+            "ms": {
+              "tessellate": 3191.578,
+              "batchPush": 394.697,
+              "textRequest": 16.412,
+              "viewDiff": 0.844,
+              "tileEnqueue": 4.197,
+              "offThreadCollect": 0,
+              "offThreadSeed": 0,
+              "visibleBatches": 20.992,
+              "spatialIndex": 639.788,
+              "insertExpand": 0.72
+            },
+            "calls": {
+              "tessellate": 91175,
+              "batchPush": 91175,
+              "textRequest": 10131,
+              "viewDiff": 2,
+              "tileEnqueue": 429,
+              "offThreadCollect": 0,
+              "offThreadSeed": 0,
+              "visibleBatches": 235,
+              "spatialIndex": 1,
+              "insertExpand": 6
+            },
+            "counters": {
+              "chunks": 429,
+              "offThreadBatches": 0,
+              "offThreadEntities": 0
+            }
+          },
+          "stageTotalMs": 4269.228,
+          "modelledFrameMs": 0,
+          "modelledWallClockMs": 0,
+          "lastFrameBudgetMs": 4,
+          "postMessageSerializeMs": 0,
+          "postMessageDeserializeMs": 0,
+          "offThreadTessellateMs": 0,
+          "postMessageBatches": 0,
+          "postMessageEntities": 0,
+          "postMessageWireBytes": 0
+        },
+        {
+          "label": "offthread",
+          "scenarioLabel": "offthread · reconcilia · reloj real · presupuesto adaptativo",
+          "fixedFrameBudget": false,
+          "reconciled": true,
+          "firstDetailMs": 1656.827,
+          "framesToFirstDetail": 189,
+          "zoomSettleMs": 7078.047,
+          "framesToZoomSettle": 6,
+          "visibleAtRest": 414,
+          "detailedAtRest": 414,
+          "segmentsAtRest": 2199624,
+          "stages": {
+            "ms": {
+              "tessellate": 193.38,
+              "batchPush": 985.529,
+              "textRequest": 21.462,
+              "viewDiff": 0.614,
+              "tileEnqueue": 7.645,
+              "offThreadCollect": 152,
+              "offThreadSeed": 1904.221,
+              "visibleBatches": 16.132,
+              "spatialIndex": 645.338,
+              "insertExpand": 0.56
+            },
+            "calls": {
+              "tessellate": 91175,
+              "batchPush": 91175,
+              "textRequest": 10131,
+              "viewDiff": 2,
+              "tileEnqueue": 762,
+              "offThreadCollect": 333,
+              "offThreadSeed": 57395,
+              "visibleBatches": 195,
+              "spatialIndex": 1,
+              "insertExpand": 6
+            },
+            "counters": {
+              "chunks": 762,
+              "offThreadBatches": 333,
+              "offThreadEntities": 57395
+            }
+          },
+          "stageTotalMs": 3926.881,
+          "modelledFrameMs": 0,
+          "modelledWallClockMs": 0,
+          "lastFrameBudgetMs": 184.813,
+          "postMessageSerializeMs": 104.826,
+          "postMessageDeserializeMs": 160.88,
+          "offThreadTessellateMs": 4596.932,
+          "postMessageBatches": 333,
+          "postMessageEntities": 57395,
+          "postMessageWireBytes": 17326452
+        }
+      ]
+    },
+    {
+      "runId": "20260904T123743Z-4437d0bb",
+      "startedAt": "2026-09-04T12:37:43.825Z",
+      "finishedAt": "2026-09-04T12:38:05.292Z",
+      "loadavg1m": 1.29,
+      "node": "v22.22.2",
+      "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+      "runs": [
+        {
+          "label": "sync",
+          "scenarioLabel": "sync · sin reconciliar · reloj real · presupuesto adaptativo",
+          "fixedFrameBudget": false,
+          "reconciled": false,
+          "firstDetailMs": 966.962,
+          "framesToFirstDetail": 165,
+          "zoomSettleMs": 3576.053,
+          "framesToZoomSettle": 82,
+          "visibleAtRest": 414,
+          "detailedAtRest": 414,
+          "segmentsAtRest": 2199624,
+          "stages": {
+            "ms": {
+              "tessellate": 3734.589,
+              "batchPush": 414.091,
+              "textRequest": 23.503,
+              "viewDiff": 1.121,
+              "tileEnqueue": 4.468,
+              "offThreadCollect": 0,
+              "offThreadSeed": 0,
+              "visibleBatches": 0,
+              "spatialIndex": 744.192,
+              "insertExpand": 0.528
+            },
+            "calls": {
+              "tessellate": 91175,
+              "batchPush": 91175,
+              "textRequest": 10131,
+              "viewDiff": 2,
+              "tileEnqueue": 429,
+              "offThreadCollect": 0,
+              "offThreadSeed": 0,
+              "visibleBatches": 0,
+              "spatialIndex": 1,
+              "insertExpand": 3
+            },
+            "counters": {
+              "chunks": 429,
+              "offThreadBatches": 0,
+              "offThreadEntities": 0
+            }
+          },
+          "stageTotalMs": 4922.492,
+          "modelledFrameMs": 0,
+          "modelledWallClockMs": 0,
+          "lastFrameBudgetMs": 4,
+          "postMessageSerializeMs": 0,
+          "postMessageDeserializeMs": 0,
+          "offThreadTessellateMs": 0,
+          "postMessageBatches": 0,
+          "postMessageEntities": 0,
+          "postMessageWireBytes": 0
+        },
+        {
+          "label": "sync",
+          "scenarioLabel": "sync · reconcilia · reloj real · presupuesto adaptativo",
+          "fixedFrameBudget": false,
+          "reconciled": true,
+          "firstDetailMs": 1090.778,
+          "framesToFirstDetail": 158,
+          "zoomSettleMs": 3436.893,
+          "framesToZoomSettle": 82,
+          "visibleAtRest": 414,
+          "detailedAtRest": 414,
+          "segmentsAtRest": 2199624,
+          "stages": {
+            "ms": {
+              "tessellate": 3279.067,
+              "batchPush": 772.789,
+              "textRequest": 19.023,
+              "viewDiff": 0.746,
+              "tileEnqueue": 6.368,
+              "offThreadCollect": 0,
+              "offThreadSeed": 0,
+              "visibleBatches": 23.735,
+              "spatialIndex": 725.39,
+              "insertExpand": 0.682
             },
             "calls": {
               "tessellate": 91175,
@@ -395,10 +739,10 @@
               "offThreadEntities": 0
             }
           },
-          "stageTotalMs": 5118.302,
+          "stageTotalMs": 4827.8,
           "modelledFrameMs": 0,
           "modelledWallClockMs": 0,
-          "lastFrameBudgetMs": 4.478,
+          "lastFrameBudgetMs": 4.669,
           "postMessageSerializeMs": 0,
           "postMessageDeserializeMs": 0,
           "offThreadTessellateMs": 0,
@@ -411,428 +755,84 @@
           "scenarioLabel": "offthread · reconcilia · reloj real · presupuesto adaptativo",
           "fixedFrameBudget": false,
           "reconciled": true,
-          "firstDetailMs": 2038.449,
-          "framesToFirstDetail": 227,
-          "zoomSettleMs": 8326.688,
-          "framesToZoomSettle": 5,
+          "firstDetailMs": 1939.692,
+          "framesToFirstDetail": 216,
+          "zoomSettleMs": 7606.432,
+          "framesToZoomSettle": 4,
           "visibleAtRest": 414,
           "detailedAtRest": 414,
           "segmentsAtRest": 2199624,
           "stages": {
             "ms": {
-              "tessellate": 251.04,
-              "batchPush": 948.261,
-              "textRequest": 25.944,
-              "viewDiff": 0.701,
-              "tileEnqueue": 9.403,
-              "offThreadCollect": 182.629,
-              "offThreadSeed": 2105.162,
-              "visibleBatches": 25.259,
-              "spatialIndex": 753.073,
-              "insertExpand": 0.484
+              "tessellate": 233.426,
+              "batchPush": 497.748,
+              "textRequest": 17.028,
+              "viewDiff": 0.647,
+              "tileEnqueue": 8.028,
+              "offThreadCollect": 180.766,
+              "offThreadSeed": 2044.661,
+              "visibleBatches": 25.821,
+              "spatialIndex": 703.854,
+              "insertExpand": 0.566
             },
             "calls": {
               "tessellate": 91175,
               "batchPush": 91175,
               "textRequest": 10131,
               "viewDiff": 2,
-              "tileEnqueue": 763,
-              "offThreadCollect": 334,
-              "offThreadSeed": 57534,
-              "visibleBatches": 232,
+              "tileEnqueue": 762,
+              "offThreadCollect": 333,
+              "offThreadSeed": 57395,
+              "visibleBatches": 220,
               "spatialIndex": 1,
               "insertExpand": 6
             },
             "counters": {
-              "chunks": 763,
-              "offThreadBatches": 334,
-              "offThreadEntities": 57534
+              "chunks": 762,
+              "offThreadBatches": 333,
+              "offThreadEntities": 57395
             }
           },
-          "stageTotalMs": 4301.956,
+          "stageTotalMs": 3712.545,
           "modelledFrameMs": 0,
           "modelledWallClockMs": 0,
           "lastFrameBudgetMs": 250,
-          "postMessageSerializeMs": 117.611,
-          "postMessageDeserializeMs": 175.603,
-          "offThreadTessellateMs": 5718.677,
-          "postMessageBatches": 334,
-          "postMessageEntities": 57534,
-          "postMessageWireBytes": 17368107
-        }
-      ]
-    },
-    {
-      "runId": "20260904T111915Z-c042e678",
-      "startedAt": "2026-09-04T11:19:15.704Z",
-      "finishedAt": "2026-09-04T11:19:38.828Z",
-      "loadavg1m": 3.46,
-      "node": "v22.22.2",
-      "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
-      "runs": [
-        {
-          "label": "sync",
-          "scenarioLabel": "sync · sin reconciliar · reloj real · presupuesto adaptativo",
-          "fixedFrameBudget": false,
-          "reconciled": false,
-          "firstDetailMs": 1060.979,
-          "framesToFirstDetail": 169,
-          "zoomSettleMs": 4010.344,
-          "framesToZoomSettle": 84,
-          "visibleAtRest": 414,
-          "detailedAtRest": 414,
-          "segmentsAtRest": 2199624,
-          "stages": {
-            "ms": {
-              "tessellate": 4000.715,
-              "batchPush": 646.341,
-              "textRequest": 24.141,
-              "viewDiff": 1.212,
-              "tileEnqueue": 5.097,
-              "offThreadCollect": 0,
-              "offThreadSeed": 0,
-              "visibleBatches": 0,
-              "spatialIndex": 744.111,
-              "insertExpand": 0.663
-            },
-            "calls": {
-              "tessellate": 91175,
-              "batchPush": 91175,
-              "textRequest": 10131,
-              "viewDiff": 2,
-              "tileEnqueue": 429,
-              "offThreadCollect": 0,
-              "offThreadSeed": 0,
-              "visibleBatches": 0,
-              "spatialIndex": 1,
-              "insertExpand": 3
-            },
-            "counters": {
-              "chunks": 429,
-              "offThreadBatches": 0,
-              "offThreadEntities": 0
-            }
-          },
-          "stageTotalMs": 5422.28,
-          "modelledFrameMs": 0,
-          "modelledWallClockMs": 0,
-          "lastFrameBudgetMs": 4.394,
-          "postMessageSerializeMs": 0,
-          "postMessageDeserializeMs": 0,
-          "offThreadTessellateMs": 0,
-          "postMessageBatches": 0,
-          "postMessageEntities": 0,
-          "postMessageWireBytes": 0
-        },
-        {
-          "label": "sync",
-          "scenarioLabel": "sync · reconcilia · reloj real · presupuesto adaptativo",
-          "fixedFrameBudget": false,
-          "reconciled": true,
-          "firstDetailMs": 1204.946,
-          "framesToFirstDetail": 153,
-          "zoomSettleMs": 3873.352,
-          "framesToZoomSettle": 81,
-          "visibleAtRest": 414,
-          "detailedAtRest": 414,
-          "segmentsAtRest": 2199624,
-          "stages": {
-            "ms": {
-              "tessellate": 3571.407,
-              "batchPush": 979.992,
-              "textRequest": 19.42,
-              "viewDiff": 0.95,
-              "tileEnqueue": 4.671,
-              "offThreadCollect": 0,
-              "offThreadSeed": 0,
-              "visibleBatches": 31.036,
-              "spatialIndex": 776.924,
-              "insertExpand": 0.7
-            },
-            "calls": {
-              "tessellate": 91175,
-              "batchPush": 91175,
-              "textRequest": 10131,
-              "viewDiff": 2,
-              "tileEnqueue": 429,
-              "offThreadCollect": 0,
-              "offThreadSeed": 0,
-              "visibleBatches": 234,
-              "spatialIndex": 1,
-              "insertExpand": 6
-            },
-            "counters": {
-              "chunks": 429,
-              "offThreadBatches": 0,
-              "offThreadEntities": 0
-            }
-          },
-          "stageTotalMs": 5385.1,
-          "modelledFrameMs": 0,
-          "modelledWallClockMs": 0,
-          "lastFrameBudgetMs": 4.761,
-          "postMessageSerializeMs": 0,
-          "postMessageDeserializeMs": 0,
-          "offThreadTessellateMs": 0,
-          "postMessageBatches": 0,
-          "postMessageEntities": 0,
-          "postMessageWireBytes": 0
-        },
-        {
-          "label": "offthread",
-          "scenarioLabel": "offthread · reconcilia · reloj real · presupuesto adaptativo",
-          "fixedFrameBudget": false,
-          "reconciled": true,
-          "firstDetailMs": 1813.716,
-          "framesToFirstDetail": 204,
-          "zoomSettleMs": 8183.402,
-          "framesToZoomSettle": 5,
-          "visibleAtRest": 414,
-          "detailedAtRest": 414,
-          "segmentsAtRest": 2199624,
-          "stages": {
-            "ms": {
-              "tessellate": 243.806,
-              "batchPush": 832.943,
-              "textRequest": 22.131,
-              "viewDiff": 0.666,
-              "tileEnqueue": 8.785,
-              "offThreadCollect": 162.558,
-              "offThreadSeed": 2035.54,
-              "visibleBatches": 23.013,
-              "spatialIndex": 756.674,
-              "insertExpand": 0.453
-            },
-            "calls": {
-              "tessellate": 91175,
-              "batchPush": 91175,
-              "textRequest": 10131,
-              "viewDiff": 2,
-              "tileEnqueue": 763,
-              "offThreadCollect": 334,
-              "offThreadSeed": 57547,
-              "visibleBatches": 209,
-              "spatialIndex": 1,
-              "insertExpand": 6
-            },
-            "counters": {
-              "chunks": 763,
-              "offThreadBatches": 334,
-              "offThreadEntities": 57547
-            }
-          },
-          "stageTotalMs": 4086.569,
-          "modelledFrameMs": 0,
-          "modelledWallClockMs": 0,
-          "lastFrameBudgetMs": 250,
-          "postMessageSerializeMs": 107.052,
-          "postMessageDeserializeMs": 171.173,
-          "offThreadTessellateMs": 5716.11,
-          "postMessageBatches": 334,
-          "postMessageEntities": 57547,
-          "postMessageWireBytes": 17372203
-        }
-      ]
-    },
-    {
-      "runId": "20260904T111939Z-c61e9452",
-      "startedAt": "2026-09-04T11:19:39.845Z",
-      "finishedAt": "2026-09-04T11:20:02.582Z",
-      "loadavg1m": 3.71,
-      "node": "v22.22.2",
-      "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
-      "runs": [
-        {
-          "label": "sync",
-          "scenarioLabel": "sync · sin reconciliar · reloj real · presupuesto adaptativo",
-          "fixedFrameBudget": false,
-          "reconciled": false,
-          "firstDetailMs": 1081.809,
-          "framesToFirstDetail": 168,
-          "zoomSettleMs": 3877.726,
-          "framesToZoomSettle": 83,
-          "visibleAtRest": 414,
-          "detailedAtRest": 414,
-          "segmentsAtRest": 2199624,
-          "stages": {
-            "ms": {
-              "tessellate": 3818.924,
-              "batchPush": 694.145,
-              "textRequest": 31.174,
-              "viewDiff": 1.293,
-              "tileEnqueue": 4.145,
-              "offThreadCollect": 0,
-              "offThreadSeed": 0,
-              "visibleBatches": 0,
-              "spatialIndex": 951.528,
-              "insertExpand": 0.632
-            },
-            "calls": {
-              "tessellate": 91175,
-              "batchPush": 91175,
-              "textRequest": 10131,
-              "viewDiff": 2,
-              "tileEnqueue": 429,
-              "offThreadCollect": 0,
-              "offThreadSeed": 0,
-              "visibleBatches": 0,
-              "spatialIndex": 1,
-              "insertExpand": 3
-            },
-            "counters": {
-              "chunks": 429,
-              "offThreadBatches": 0,
-              "offThreadEntities": 0
-            }
-          },
-          "stageTotalMs": 5501.841,
-          "modelledFrameMs": 0,
-          "modelledWallClockMs": 0,
-          "lastFrameBudgetMs": 4.155,
-          "postMessageSerializeMs": 0,
-          "postMessageDeserializeMs": 0,
-          "offThreadTessellateMs": 0,
-          "postMessageBatches": 0,
-          "postMessageEntities": 0,
-          "postMessageWireBytes": 0
-        },
-        {
-          "label": "sync",
-          "scenarioLabel": "sync · reconcilia · reloj real · presupuesto adaptativo",
-          "fixedFrameBudget": false,
-          "reconciled": true,
-          "firstDetailMs": 1213.671,
-          "framesToFirstDetail": 161,
-          "zoomSettleMs": 3783.152,
-          "framesToZoomSettle": 81,
-          "visibleAtRest": 414,
-          "detailedAtRest": 414,
-          "segmentsAtRest": 2199624,
-          "stages": {
-            "ms": {
-              "tessellate": 3783.721,
-              "batchPush": 653.785,
-              "textRequest": 20.96,
-              "viewDiff": 0.807,
-              "tileEnqueue": 4.285,
-              "offThreadCollect": 0,
-              "offThreadSeed": 0,
-              "visibleBatches": 53.442,
-              "spatialIndex": 760.264,
-              "insertExpand": 0.823
-            },
-            "calls": {
-              "tessellate": 91175,
-              "batchPush": 91175,
-              "textRequest": 10131,
-              "viewDiff": 2,
-              "tileEnqueue": 429,
-              "offThreadCollect": 0,
-              "offThreadSeed": 0,
-              "visibleBatches": 242,
-              "spatialIndex": 1,
-              "insertExpand": 6
-            },
-            "counters": {
-              "chunks": 429,
-              "offThreadBatches": 0,
-              "offThreadEntities": 0
-            }
-          },
-          "stageTotalMs": 5278.087,
-          "modelledFrameMs": 0,
-          "modelledWallClockMs": 0,
-          "lastFrameBudgetMs": 4.78,
-          "postMessageSerializeMs": 0,
-          "postMessageDeserializeMs": 0,
-          "offThreadTessellateMs": 0,
-          "postMessageBatches": 0,
-          "postMessageEntities": 0,
-          "postMessageWireBytes": 0
-        },
-        {
-          "label": "offthread",
-          "scenarioLabel": "offthread · reconcilia · reloj real · presupuesto adaptativo",
-          "fixedFrameBudget": false,
-          "reconciled": true,
-          "firstDetailMs": 2083.218,
-          "framesToFirstDetail": 229,
-          "zoomSettleMs": 7411.218,
-          "framesToZoomSettle": 5,
-          "visibleAtRest": 414,
-          "detailedAtRest": 414,
-          "segmentsAtRest": 2199624,
-          "stages": {
-            "ms": {
-              "tessellate": 245.33,
-              "batchPush": 1177.436,
-              "textRequest": 21.571,
-              "viewDiff": 0.8,
-              "tileEnqueue": 9.442,
-              "offThreadCollect": 183.023,
-              "offThreadSeed": 2258.204,
-              "visibleBatches": 37.612,
-              "spatialIndex": 798.605,
-              "insertExpand": 0.569
-            },
-            "calls": {
-              "tessellate": 91175,
-              "batchPush": 91175,
-              "textRequest": 10131,
-              "viewDiff": 2,
-              "tileEnqueue": 763,
-              "offThreadCollect": 334,
-              "offThreadSeed": 57424,
-              "visibleBatches": 234,
-              "spatialIndex": 1,
-              "insertExpand": 6
-            },
-            "counters": {
-              "chunks": 763,
-              "offThreadBatches": 334,
-              "offThreadEntities": 57424
-            }
-          },
-          "stageTotalMs": 4732.592,
-          "modelledFrameMs": 0,
-          "modelledWallClockMs": 0,
-          "lastFrameBudgetMs": 240.245,
-          "postMessageSerializeMs": 115.105,
-          "postMessageDeserializeMs": 165.97,
-          "offThreadTessellateMs": 4490.283,
-          "postMessageBatches": 334,
-          "postMessageEntities": 57424,
-          "postMessageWireBytes": 17335069
+          "postMessageSerializeMs": 110.214,
+          "postMessageDeserializeMs": 166.135,
+          "offThreadTessellateMs": 5551.079,
+          "postMessageBatches": 333,
+          "postMessageEntities": 57395,
+          "postMessageWireBytes": 17326452
         }
       ]
     }
   ],
-  "runsSource": "corridas[2] · 20260904T111939Z-c61e9452 · la PEOR por stageTotalMs del escenario juzgado",
+  "runsSource": "corridas[2] · 20260904T123743Z-4437d0bb · la PEOR por stageTotalMs del escenario juzgado",
   "runs": [
     {
       "label": "sync",
       "scenarioLabel": "sync · sin reconciliar · reloj real · presupuesto adaptativo",
       "fixedFrameBudget": false,
       "reconciled": false,
-      "firstDetailMs": 1081.809,
-      "framesToFirstDetail": 168,
-      "zoomSettleMs": 3877.726,
-      "framesToZoomSettle": 83,
+      "firstDetailMs": 966.962,
+      "framesToFirstDetail": 165,
+      "zoomSettleMs": 3576.053,
+      "framesToZoomSettle": 82,
       "visibleAtRest": 414,
       "detailedAtRest": 414,
       "segmentsAtRest": 2199624,
       "stages": {
         "ms": {
-          "tessellate": 3818.924,
-          "batchPush": 694.145,
-          "textRequest": 31.174,
-          "viewDiff": 1.293,
-          "tileEnqueue": 4.145,
+          "tessellate": 3734.589,
+          "batchPush": 414.091,
+          "textRequest": 23.503,
+          "viewDiff": 1.121,
+          "tileEnqueue": 4.468,
           "offThreadCollect": 0,
           "offThreadSeed": 0,
           "visibleBatches": 0,
-          "spatialIndex": 951.528,
-          "insertExpand": 0.632
+          "spatialIndex": 744.192,
+          "insertExpand": 0.528
         },
         "calls": {
           "tessellate": 91175,
@@ -852,10 +852,10 @@
           "offThreadEntities": 0
         }
       },
-      "stageTotalMs": 5501.841,
+      "stageTotalMs": 4922.492,
       "modelledFrameMs": 0,
       "modelledWallClockMs": 0,
-      "lastFrameBudgetMs": 4.155,
+      "lastFrameBudgetMs": 4,
       "postMessageSerializeMs": 0,
       "postMessageDeserializeMs": 0,
       "offThreadTessellateMs": 0,
@@ -868,25 +868,25 @@
       "scenarioLabel": "sync · reconcilia · reloj real · presupuesto adaptativo",
       "fixedFrameBudget": false,
       "reconciled": true,
-      "firstDetailMs": 1213.671,
-      "framesToFirstDetail": 161,
-      "zoomSettleMs": 3783.152,
-      "framesToZoomSettle": 81,
+      "firstDetailMs": 1090.778,
+      "framesToFirstDetail": 158,
+      "zoomSettleMs": 3436.893,
+      "framesToZoomSettle": 82,
       "visibleAtRest": 414,
       "detailedAtRest": 414,
       "segmentsAtRest": 2199624,
       "stages": {
         "ms": {
-          "tessellate": 3783.721,
-          "batchPush": 653.785,
-          "textRequest": 20.96,
-          "viewDiff": 0.807,
-          "tileEnqueue": 4.285,
+          "tessellate": 3279.067,
+          "batchPush": 772.789,
+          "textRequest": 19.023,
+          "viewDiff": 0.746,
+          "tileEnqueue": 6.368,
           "offThreadCollect": 0,
           "offThreadSeed": 0,
-          "visibleBatches": 53.442,
-          "spatialIndex": 760.264,
-          "insertExpand": 0.823
+          "visibleBatches": 23.735,
+          "spatialIndex": 725.39,
+          "insertExpand": 0.682
         },
         "calls": {
           "tessellate": 91175,
@@ -896,7 +896,7 @@
           "tileEnqueue": 429,
           "offThreadCollect": 0,
           "offThreadSeed": 0,
-          "visibleBatches": 242,
+          "visibleBatches": 240,
           "spatialIndex": 1,
           "insertExpand": 6
         },
@@ -906,10 +906,10 @@
           "offThreadEntities": 0
         }
       },
-      "stageTotalMs": 5278.087,
+      "stageTotalMs": 4827.8,
       "modelledFrameMs": 0,
       "modelledWallClockMs": 0,
-      "lastFrameBudgetMs": 4.78,
+      "lastFrameBudgetMs": 4.669,
       "postMessageSerializeMs": 0,
       "postMessageDeserializeMs": 0,
       "offThreadTessellateMs": 0,
@@ -922,54 +922,54 @@
       "scenarioLabel": "offthread · reconcilia · reloj real · presupuesto adaptativo",
       "fixedFrameBudget": false,
       "reconciled": true,
-      "firstDetailMs": 2083.218,
-      "framesToFirstDetail": 229,
-      "zoomSettleMs": 7411.218,
-      "framesToZoomSettle": 5,
+      "firstDetailMs": 1939.692,
+      "framesToFirstDetail": 216,
+      "zoomSettleMs": 7606.432,
+      "framesToZoomSettle": 4,
       "visibleAtRest": 414,
       "detailedAtRest": 414,
       "segmentsAtRest": 2199624,
       "stages": {
         "ms": {
-          "tessellate": 245.33,
-          "batchPush": 1177.436,
-          "textRequest": 21.571,
-          "viewDiff": 0.8,
-          "tileEnqueue": 9.442,
-          "offThreadCollect": 183.023,
-          "offThreadSeed": 2258.204,
-          "visibleBatches": 37.612,
-          "spatialIndex": 798.605,
-          "insertExpand": 0.569
+          "tessellate": 233.426,
+          "batchPush": 497.748,
+          "textRequest": 17.028,
+          "viewDiff": 0.647,
+          "tileEnqueue": 8.028,
+          "offThreadCollect": 180.766,
+          "offThreadSeed": 2044.661,
+          "visibleBatches": 25.821,
+          "spatialIndex": 703.854,
+          "insertExpand": 0.566
         },
         "calls": {
           "tessellate": 91175,
           "batchPush": 91175,
           "textRequest": 10131,
           "viewDiff": 2,
-          "tileEnqueue": 763,
-          "offThreadCollect": 334,
-          "offThreadSeed": 57424,
-          "visibleBatches": 234,
+          "tileEnqueue": 762,
+          "offThreadCollect": 333,
+          "offThreadSeed": 57395,
+          "visibleBatches": 220,
           "spatialIndex": 1,
           "insertExpand": 6
         },
         "counters": {
-          "chunks": 763,
-          "offThreadBatches": 334,
-          "offThreadEntities": 57424
+          "chunks": 762,
+          "offThreadBatches": 333,
+          "offThreadEntities": 57395
         }
       },
-      "stageTotalMs": 4732.592,
+      "stageTotalMs": 3712.545,
       "modelledFrameMs": 0,
       "modelledWallClockMs": 0,
-      "lastFrameBudgetMs": 240.245,
-      "postMessageSerializeMs": 115.105,
-      "postMessageDeserializeMs": 165.97,
-      "offThreadTessellateMs": 4490.283,
-      "postMessageBatches": 334,
-      "postMessageEntities": 57424,
-      "postMessageWireBytes": 17335069
+      "lastFrameBudgetMs": 250,
+      "postMessageSerializeMs": 110.214,
+      "postMessageDeserializeMs": 166.135,
+      "offThreadTessellateMs": 5551.079,
+      "postMessageBatches": 333,
+      "postMessageEntities": 57395,
+      "postMessageWireBytes": 17326452
     }
   ],
   "comparisonWithinThisSession": {
@@ -1020,28 +1020,28 @@
     "etapas": {
       "tessellate": {
         "agostoMs": 477.828,
-        "hoyMedianaMs": 3818.924,
-        "cociente": 7.992
+        "hoyMedianaMs": 3566.856,
+        "cociente": 7.465
       },
       "batchPush": {
         "agostoMs": 155.034,
-        "hoyMedianaMs": 646.341,
-        "cociente": 4.169
+        "hoyMedianaMs": 521.356,
+        "cociente": 3.363
       },
       "spatialIndex": {
         "agostoMs": 666.29,
-        "hoyMedianaMs": 745.012,
-        "cociente": 1.118
+        "hoyMedianaMs": 729.118,
+        "cociente": 1.094
       },
       "insertExpand": {
         "agostoMs": 0.464,
-        "hoyMedianaMs": 0.632,
-        "cociente": 1.362
+        "hoyMedianaMs": 0.515,
+        "cociente": 1.11
       },
       "tileEnqueue": {
         "agostoMs": 0.902,
-        "hoyMedianaMs": 5.097,
-        "cociente": 5.651
+        "hoyMedianaMs": 4.461,
+        "cociente": 4.946
       }
     },
     "segmentsAtRest": {

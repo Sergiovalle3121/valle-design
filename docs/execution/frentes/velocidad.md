@@ -403,3 +403,107 @@ que se presenta como meta sería peor que no tener techo.
   el perfilador mide —`sync · reconcilia` y `offthread`— se publican enteros en cada corrida pero
   no se juzgan: `offthread` paga `offThreadSeed`, que en este contenedor sin hilos libres mide el
   planificador de Node más que el producto.
+
+### 2026-09-04 · Cola 1 · Bajar la subida por lotes: el bucle de empaquetado y la reserva de sus cubos
+
+Qué existe ahora que antes no: `batchPush` —el segundo cuello que el perfil señalaba— baja de
+**646,3 ms a 521,4 ms de mediana** en `architecture@100k`, con la geometría comprobada **bit a
+bit** contra el empaquetado anterior sobre 1.167.126 instancias del corpus del producto, y el
+techo del trinquete baja detrás: **732,068 → 646,534 ms**.
+
+**Lo primero fue medir dónde se va la etapa, porque la respuesta no era la esperada.**
+Instrumentando el constructor durante una corrida del perfilador: 91.175 empaquetados,
+**2.600.624 segmentos repartidos en 2.413.213 CAMINOS**, de los cuales **2.346.349 (el 97,2 %)
+son caminos abiertos de dos puntos**. El coste de esta etapa no está en el segmento sino en el
+camino: a un segmento por camino, todo lo que se hace «una vez por camino» se paga una vez por
+segmento. Y no es casualidad del corpus — es la otra cara de P-velocidad-06: un sombreado emite
+una línea del patrón por camino y en la parada de zoom son ~13.790 por entidad.
+
+**MODIFICADO `apps/web/src/lib/cad/render/line-batch.ts`:**
+
+- **El bucle de `push` reescrito**, con las tres decisiones que la forma medida justifica: los
+  cuatro arrays y el cursor en LOCALES (escribir por `this.start[…]` son diez cargas de campo por
+  segmento que V8 no puede hundir); el vértice final de un segmento **arrastrado** como inicial
+  del siguiente, lo que deja el `%` fuera —sólo existía para el segmento de cierre, que ahora se
+  escribe aparte—; y **atajo del camino de dos puntos**, sin bucle interior, sin fase acumulada y
+  sin cierre. Medido en la sonda pareada sobre el corpus del producto, máquina en silencio
+  (loadavg 0,83): **91,4 → 78,5 ns por segmento, ×1,164**. Bajo carga la diferencia crece hasta
+  ×1,72 porque el bucle viejo sufre más la contención, y por eso lo que se publica es el suelo.
+- **`reserve(segments)` público** y `buildCadLineBatches` reservando **una vez por lote**: cuenta
+  los segmentos de cada cubo en una primera pasada —reutilizando la clave, que es una cadena por
+  entidad y hacerla dos veces se comería lo ahorrado— y reserva el total exacto. Ese camino pasa
+  de ~N segmentos copiados y ~2N reservados a N reservados y **cero copiados**.
+- **`CAD_LINE_BATCH_BLOCK_SEGMENTS` (65.536)**, que es la respuesta al caso que sí está en el
+  camino caliente y que la reserva exacta no puede resolver: el pipeline llena sus cubos a trozos
+  y no sabe el total hasta haber teselado el tile entero.
+
+**MODIFICADO `apps/web/src/lib/cad/render/pipeline.ts`:** cada cubo de estilo de un tile pasa de
+un constructor a una **lista de bloques**. El bloque lleno se cierra y se abre otro reservado de
+una vez con su tamaño entero, así que **lo ya escrito no se vuelve a copiar nunca**. Contadores
+sobre la misma corrida: las duplicaciones copiaban **120,8 MB** y reservaban **274,7 MB** para
+104 MB de contenido; con bloques copian **12,6 MB** (×9,6 menos) y reservan **130,6 MB** (×2,1
+menos), a cambio de 37 constructores más en toda la vista. Medido con un A/B pareado a nivel de
+proceso, alternando las dos políticas: **×1,19 en el suelo y ×1,25 en la mediana pareada**.
+
+Y una consecuencia que conviene decir: `pipeline.ts` estaba a **797 líneas de las 800** que el
+presupuesto de monolito permite a un archivo sin asignación, así que el cambio no cabía. No se
+tocó `scripts/cad/monolith-budget.json` —ese fichero sólo baja—: se movieron a `line-batch.ts` la
+**política de bloques** (`cadLineBatchBlockFor`) y el **armado de los lotes de un tile**
+(`cadTileLineBatches`), que es donde pertenecían desde el principio. Quién decide cuándo un cubo
+deja de duplicarse es lo mismo que decide cómo crece un constructor, y la regla de la clave de un
+lote pertenece a los lotes. `pipeline.ts` queda en 798 líneas.
+
+Un cubo con varios bloques emite un lote por bloque: el primero conserva la clave de siempre y
+los siguientes llevan su número detrás (`…#estilo@2`), porque la escena indexa sus mallas por esa
+clave. Un cubo de 665.000 segmentos pasa de una llamada de dibujo a diez, cada una un
+`drawElementsInstanced` de 65.536 instancias — frente a las 100.000 llamadas del pipeline
+anterior, no es una cifra que se discuta. `stats().batches` ahora cuenta bloques y no cubos,
+que es lo que `visibleBatches()` devuelve de verdad.
+
+**La condición sin la cual nada de esto se publica: PARIDAD BIT A BIT.**
+
+- `line-batch.spec.ts` (+7 comprobaciones, 24 en total) lleva el **bucle anterior escrito a mano**
+  —no importado, para que reescribir el módulo no reescriba también la referencia— y compara las
+  cuatro salidas elemento a elemento con `Object.is`, más una huella FNV-1a de la secuencia
+  entera. Corpus determinista con las formas que el perfilado encontró y las que no: caminos de
+  dos puntos, polilíneas largas, cerrados, un punto suelto y un camino vacío (que se omiten),
+  coordenadas de 280.000 unidades con incrementos de 0,05 y segmentos degenerados. Y comprueba que
+  **85.041 segmentos repartidos en dos bloques dan los mismos bytes** que un cubo de una pieza.
+  Comprobado que MUERDE: quitar el segmento de cierre, desviar la longitud en 1e-7 y encadenar los
+  bloques al revés tumban el spec, cada uno por su aserción.
+- `scripts/perf/batchpush-empaquetado-probe.mts` (nuevo) lo comprueba sobre **el corpus del
+  producto**: **0 descuadres sobre 1.167.126 instancias**, huella `1d5cc389` idéntica, y sale 1 si
+  hay uno solo. Publica `docs/cad/evidence/batchpush-empaquetado-100k.json`.
+
+**Y lo que NO se hizo, con su medida al lado.** `Math.hypot` sigue donde estaba. Sustituirla por
+`Math.sqrt(dx*dx + dy*dy)` es **×16,3 más rápida** (41,0 ns contra 2,5) y son ~37 de los 78,5 ns
+por segmento del bucle, casi la mitad. No se hace porque los dos resultados **difieren en el
+último bit del double el 35,3 % de las veces** (medido sobre 3.000.000 de pares de float32), y esa
+diferencia entra en la fase de guionado acumulada. Que en float32 coincidan siempre en las
+muestras probadas no es prueba: el propio spec de paridad de esta entrega **pasa en verde con la
+sustitución puesta**, lo que demuestra que es un riesgo que no se puede probar ausente, no uno que
+se haya medido ausente.
+
+#### Todavía no (2026-09-04)
+
+- **La reserva EXACTA del pipeline sigue sin existir.** Los bloques acotan la copia a 12,6 MB pero
+  no la eliminan: el primer bloque de cada cubo sigue duplicándose desde 256 hasta tamaño de
+  bloque. Reservar el total exige conocerlo, y el tile sólo lo conoce cuando ya ha teselado todo
+  lo que contiene; estimarlo desde las entidades que le quedan sobreestima ×12 en el caso medido
+  (8,4 M de segmentos proyectados contra 665.000 reales) y multiplicado por los ~2.000 cubos de
+  una vista es memoria que un CAD en el navegador no tiene.
+- **`batchPush` es ahora el 10,8 % del reparto y `tessellate` el 73,6 %.** Esta entrega no toca el
+  cuello principal: los 2,4 millones de caminos que el empaquetado recorre los emite el LOD del
+  sombreado, que es **P-velocidad-06** y no es territorio de este frente. Con ese defecto
+  resuelto, esta etapa cae sola: son ~78,5 ns por segmento sobre los segmentos que haya.
+- **Sólo se bajó el techo de `batchPush`.** Las otras cuatro etapas siguen con los techos
+  calibrados bajo carga 3,5–3,9; la corrida republicada hoy se midió con carga 0,78–1,29 y
+  apretarlas a esa marca dejaría el trinquete en rojo cada vez que el vecino trabaja, por etapas
+  que esta entrega no tocó. El fichero lo dice en `porQueSoloEstaBajo`.
+- **La sonda pareada no tiene comando propio** (`package.json` es R2): se invoca a mano. Diseño
+  completo en **P-velocidad-07**.
+- **La sonda reproduce el flujo, no el planificador.** Empaqueta 1.167.126 segmentos —las 90.000
+  entidades de la vista inicial más las 236 que la parada de zoom cambia de escalón—, no los
+  2.600.624 que el pipeline empaqueta contando relevos de octava y trozos. La forma es la misma
+  (93,3 % de caminos de dos puntos contra 97,2 %) y la paridad vale igual; el reloj de la etapa
+  entera se sigue midiendo donde se medía.

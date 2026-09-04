@@ -239,3 +239,36 @@ Formato de cada petición:
   `tessellate` ×7,99 y `segmentsAtRest` ×144,24, y bajan solos conforme la deuda se pague.
   Mientras tanto el trinquete impide que empeore más.
 - **Estado:** pendiente
+
+### P-velocidad-07 · Dar comando propio a la sonda pareada del empaquetado
+
+- **Archivo:** `package.json` (raíz) — archivo compartido, R2.
+- **Por qué:** entrega 5 de la cola 1. `scripts/perf/batchpush-empaquetado-probe.mts` es lo único
+  que puede decidir si un cambio en el bucle de `line-batch.ts` gana o pierde en esta máquina: el
+  perfilador por etapa reparte `batchPush` entre 414 y 539 ms sobre el MISMO árbol (dispersión del
+  24 %), así que una ganancia del 16 % no se distingue del vecino. La sonda corre las dos
+  versiones alternadas en el mismo proceso y publica el suelo, y además comprueba la **paridad bit
+  a bit** sobre el corpus del producto: sale 1 si el empaquetado mueve un solo valor. Invocarla a
+  mano con una ruta de siete segmentos garantiza que no se invoque.
+- **Cambio exacto:** añadir a `scripts` de `package.json` (raíz):
+
+  ```json
+  "perf:batchpush": "cd apps/web && npx tsx ../../scripts/perf/batchpush-empaquetado-probe.mts --pasadas 9 --output ../../docs/cad/evidence/batchpush-empaquetado-100k.json"
+  ```
+
+  **No se encadena a ningún gate y no debe encadenarse.** Mide, y su resultado depende de la carga
+  de la máquina: es el comando que se invoca a mano cuando se toca el empaquetado, igual que
+  `perf:etapas-100k` (P-velocidad-05). El `cd apps/web` no es adorno: la sonda importa módulos de
+  `src/` y necesita el `tsx` de ese workspace, que es como se invocan las demás sondas del frente.
+- **Lo que NO se pide:** un `check:batchpush` que juzgue el artefacto. Todavía no existe la regla
+  aparte —la sonda comprueba su propia paridad y se niega a publicar si falla, que es la mitad
+  que importa—, y publicar un verificador de relojes sobre una máquina compartida sería un gate
+  intermitente. Si algún día se quiere, la separación es la misma que en
+  `check-etapas-100k.mjs`: regla en un fichero, productor en otro.
+- **Cómo se comprueba:** `npm run perf:batchpush` imprime el flujo (90.236 empaquetados, 981.724
+  caminos, 93,3 % de dos puntos), los tres relojes, la ganancia en el suelo y
+  `paridad: 0 descuadres sobre 1.167.126 instancias`, publica el artefacto y termina en 0. Para
+  ver que MUERDE, sin tocar nada versionado: cambiar `Math.hypot(x1 - x0, y1 - y0)` del atajo de
+  dos puntos de `line-batch.ts` por `Math.hypot(x1 - x0, y1 - y0) * 1.0000001` y volver a
+  invocarlo — sale 1, cita los primeros descuadres y **no publica**.
+- **Estado:** pendiente
