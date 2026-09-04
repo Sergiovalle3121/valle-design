@@ -33,15 +33,22 @@ Formato de cada petición:
   por
 
   ```ts
-  SOLIDEDIT: "Edición de sólidos: extruir, desfasar o copiar una cara, copiar las aristas, comprobar un cuerpo o separar una unión.",
+  SOLIDEDIT: "Edición de sólidos: extruir, desfasar o copiar una cara, copiar las aristas, comprobar, separar o limpiar un cuerpo.",
   ```
 
   Nada más de ese archivo. No hay comando nuevo, así que ni el registro, ni la
   cinta, ni `docs/cad/evidence/ui-command-reach.json` cambian.
+
+  **Actualizado el 2026-09-04 (entrega 3/5).** El renglón pedido incluye ahora
+  `Cuerpo · Limpiar`, que existe desde esa entrega: funde las caras coplanarias
+  del sólido designado y hornea el resultado. La versión anterior de esta
+  petición pedía un texto que ya se quedó corto otra vez; **este** es el
+  definitivo de la ventana.
 - **Cómo se comprueba:** `npm run check:command-integrity` (SOLIDEDIT sigue en
   «informa», ni ROJO ni no-concluyente) y
   `cd apps/web && npx tsx src/lib/cad/engine/commands/solids-edit.spec.ts`
-  (60 comprobaciones, las seis ramas construidas y las ocho declaradas ausentes).
+  (81 comprobaciones, las siete ramas construidas y las siete declaradas
+  ausentes).
 - **Estado:** pendiente
 
 ### P-tresd-02 · `CAD_ACCEPT_EDGE_PICK`: designar UNA arista
@@ -131,4 +138,32 @@ Formato de cada petición:
   con el volumen de cada modo contra papel y la corrección de faceta en número)
   y `npm run check:command-integrity`. No hay comando nuevo: ni el registro, ni
   la cinta, ni `docs/cad/evidence/ui-command-reach.json` cambian.
+- **Estado:** pendiente
+
+### P-tresd-04 · La ESCALERA declara ausente un SOLIDEDIT que ya tiene siete ramas
+- **Archivo:** `docs/parity/ESCALERA.md` (archivo compartido prohibido: lo aplica
+  sólo el coordinador).
+- **Por qué:** entrega 3 de la cola. Desde el 2026-09-04 `SOLIDEDIT` tiene siete
+  ramas construidas —Cara·Extruir, Cara·Desfasar, Cara·Copiar, Arista·Copiar,
+  Cuerpo·Comprobar, Cuerpo·Separar y Cuerpo·Limpiar— y siete operaciones
+  declaradas ausentes con su motivo. El renglón de la ESCALERA describe el
+  estado anterior. Es evidencia que envejeció; el criterio de la casa es que lo
+  que gana su evidencia se dice, y lo que no, se declara con su cifra.
+- **Cambio exacto:** en la celda de SOLIDEDIT, sustituir la descripción actual
+  por
+
+  ```
+  Siete ramas construidas y con spec (81 comprobaciones en `solids-edit.spec.ts`, 2026-09-04): Cara·Extruir, Cara·Desfasar, Cara·Copiar, Arista·Copiar, Cuerpo·Comprobar, Cuerpo·Separar y Cuerpo·Limpiar (fusión de caras coplanarias: la unión de dos cajas contiguas pasa de 20 caras y 30 aristas a 6 y 12, con el volumen intacto). Siguen fuera, nombradas una por una en el prompt de su rama: Cara·Mover, Girar, Inclinar y Borrar (piden recomponer las caras adyacentes), Color de cara y de arista (el esquema no guarda atributos por cara ni por arista) y Cuerpo·Estampar y Vaciar (sin operación de kernel). Designar UNA arista suelta sigue fuera: `CAD_ACCEPT_EDGE_PICK` no existe (P-tresd-02).
+  ```
+
+  Si la ESCALERA lleva además un renglón para la fusión de caras coplanarias del
+  kernel, debe pasar de ausente a presente con esta cifra: `mergeCoplanarFaces`
+  en `apps/web/src/lib/brep/coplanar-merge.ts`, 76 comprobaciones en
+  `coplanar-merge.spec.ts`; queda fuera cerrar un ANILLO (dos cadenas
+  compartidas), medido: una placa agujereada baja de 36 caras a 12 y no a 10.
+- **Cómo se comprueba:** `cd apps/web && npx tsx
+  src/lib/brep/coplanar-merge.spec.ts` (76 comprobaciones) y `npx tsx
+  src/lib/cad/engine/commands/solids-edit.spec.ts` (81). No hay comando nuevo:
+  ni el registro, ni la cinta, ni `docs/cad/evidence/ui-command-reach.json`
+  cambian.
 - **Estado:** pendiente

@@ -38,8 +38,13 @@
  *     sobre caras planas y rechazan las curvas con un mensaje explícito.
  *   · Transición esférica donde se encuentran dos redondeos en un vértice.
  *   · Redondeo de radio variable, y redondeo de aristas cóncavas.
- *   · Fusión de caras coplanarias tras una booleana: el resultado es correcto
- *     pero queda fragmentado en triángulos.
+ *   · Cerrar un ANILLO al fundir caras coplanarias: `mergeCoplanarFaces` funde
+ *     pares que comparten UNA cadena contigua de aristas, y descarta —contando
+ *     el descarte— los que se tocan por dos cadenas separadas o por un lazo
+ *     interior. Medido: una placa de 100×100×20 con agujero pasante baja de 36
+ *     caras a 12 en vez de a las 10 canónicas, porque cada tapa se queda en dos
+ *     mitades en C. El sólido es correcto y de género 1; sólo está a medio
+ *     fundir, y el informe lo dice.
  *   · Transformadas generales de cuerpos: sólo hay traslación.
  */
 
@@ -154,6 +159,13 @@ export {
 } from "./topology";
 
 export { BodyBuilder, buildBody, reverseBody, bodyToFaceSpecs, assignShells, type FaceSpec } from "./body-builder";
+
+export {
+  mergeCoplanarFaces,
+  canonicalPlane,
+  type CanonicalPlane,
+  type CoplanarMergeReport,
+} from "./coplanar-merge";
 
 export {
   validateBody,

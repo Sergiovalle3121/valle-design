@@ -60,6 +60,29 @@
  * `engine/command-types.ts`, que está fuera del territorio de este frente. La
  * rama copia por tanto TODAS las aristas del sólido designado, y lo anuncia en
  * su prompt en vez de dejar creer que hubo una designación fina.
+ *
+ * ## Cuerpo · Limpiar (2026-09-04)
+ *
+ * Funde las caras coplanarias del sólido designado con `mergeCoplanarFaces` del
+ * kernel. Una booleana de este kernel deja el resultado CORRECTO pero
+ * fragmentado: la unión de dos cajas contiguas de 100×100×50 llega con 20 caras
+ * y 30 aristas sobre seis planos, cuando el sólido es una caja de 200×100×50
+ * con 6 y 12. Eso encarece el STEP exportado, parte la designación de caras en
+ * trozos —designar «la tapa» designa un triángulo— y multiplica los segmentos
+ * que proyectan FLATSHOT y SOLPROF.
+ *
+ * El resultado se HORNEA como nodo `brep`: geometría explícita, que es lo que
+ * el esquema 5 declara para «un cuerpo que no se puede describir como receta de
+ * nada». No hay alternativa honesta: el árbol de construcción dice «unión de
+ * dos cajas» y el cuerpo fundido ya no es eso. Por lo mismo el aviso lo DICE —
+ * la historia paramétrica se pierde— en vez de dejar que se descubra al abrir
+ * el sólido y encontrarlo sin sus nodos. La colocación (`placement`) viaja ya
+ * aplicada en los puntos, porque `solid3dBody` la aplica antes de devolver el
+ * cuerpo; el sólido horneado no la lleva y queda exactamente donde estaba.
+ *
+ * Si no hay nada que fundir, la orden lo dice y NO toca el documento: reescribir
+ * un sólido idéntico gastaría un paso de deshacer y, peor, cambiaría su árbol
+ * paramétrico por geometría explícita a cambio de nada.
  */
 import type { CadPoint3 } from "../../cad-document";
 import type { CadSolid3dEntity, CadSolidFaceRef } from "../../cad-entities-v5";
@@ -74,13 +97,15 @@ import {
   faceOuterLoop,
   halfEdgeSegment,
   loopPoints,
+  mergeCoplanarFaces,
   meshVolume,
   tessellateBody,
   type BrepBody,
+  type CoplanarMergeReport,
   type Vec3,
 } from "../../../brep";
 import { cadResolveFaceRef } from "../../pick3d/solid-face-ref";
-import { solid3dBody } from "../../solid3d-build";
+import { bodyToSolidNode, solid3dBody } from "../../solid3d-build";
 import type { CadCommandContext, CadCommandStep } from "../command-types";
 import { withPushedFace } from "./solids-push-face";
 import { finishedSolid, formatMagnitude, solidBatch, solidMessage } from "./solids-support";
@@ -301,6 +326,78 @@ export function copyEdges<S>(
 
   if (commands.length === 0) return solidMessage(state, notes.join("\n"));
   return solidBatch(state, commands, "SOLIDEDIT Arista Copiar", notes.join("\n"));
+}
+
+/**
+ * Cuerpo · Limpiar: funde las caras coplanarias y hornea el resultado.
+ *
+ * El sólido se valida ANTES de escribirse —`finishedSolid` evalúa el árbol y
+ * pasa los invariantes— y sólo entonces se emite el `replace`. Un `replace`
+ * conserva el id, que es lo que hace falta para que las cotas, los bloques y la
+ * designación que apuntaban al sólido sigan apuntando al mismo.
+ */
+export function cleanBody<S>(state: S, solids: readonly CadSolid3dEntity[]): CadCommandStep<S> {
+  if (solids.length === 0)
+    return solidMessage(
+      state,
+      "SOLIDEDIT Cuerpo Limpiar necesita un sólido designado; no hay ningún SOLID3D entre lo designado.",
+    );
+
+  const commands: CadEntityCommand[] = [];
+  const notes: string[] = [];
+  for (const solid of solids) {
+    let body: BrepBody;
+    try {
+      body = solid3dBody(solid);
+    } catch (error) {
+      notes.push(`${solid.id}: no se pudo evaluar — ${error instanceof Error ? error.message : String(error)}`);
+      continue;
+    }
+
+    let merged: CoplanarMergeReport;
+    try {
+      merged = mergeCoplanarFaces(body);
+    } catch (error) {
+      // El kernel prefiere lanzar a devolver un cuerpo dudoso. Aquí eso se
+      // traduce en no tocar el documento y decir por qué.
+      notes.push(`${solid.id}: la fusión de caras coplanarias no pudo completarse — ${error instanceof Error ? error.message : String(error)}`);
+      continue;
+    }
+
+    if (!merged.changed) {
+      notes.push(
+        `${solid.id}: no hay nada que limpiar; sus ${merged.faces.before} caras sobre ${merged.planes} plano(s) ya son las mínimas de su geometría.`,
+      );
+      continue;
+    }
+
+    const node = bodyToSolidNode(merged.body, "limpiado");
+    const cleaned: CadSolid3dEntity = {
+      id: solid.id,
+      type: "solid3d",
+      nodes: [node],
+      root: node.id,
+      layer: solid.layer,
+      ...(solid.name ? { name: solid.name } : {}),
+    };
+    const checked = finishedSolid(cleaned, { state, label: "SOLIDEDIT Cuerpo Limpiar" });
+    if (checked.result?.kind !== "document") return checked;
+    commands.push({ type: "replace", entityId: solid.id, entity: cleaned });
+
+    const parcial =
+      merged.rejected > 0
+        ? " Algunas caras coplanarias se tocan por dos cadenas separadas y fundirlas cerraría un anillo: se dejaron como estaban."
+        : "";
+    notes.push(
+      `${solid.id}: retiradas ${merged.faces.before - merged.faces.after} cara(s) y ` +
+        `${merged.edges.before - merged.edges.after} arista(s) — de ${merged.faces.before} a ${merged.faces.after} caras y ` +
+        `de ${merged.edges.before} a ${merged.edges.after} aristas sobre ${merged.planes} plano(s).` +
+        ` El sólido queda como geometría explícita: la historia paramétrica se pierde.${parcial}`,
+    );
+  }
+
+  if (commands.length === 0) return solidMessage(state, notes.join("\n"));
+  return solidBatch(state, commands, "SOLIDEDIT Cuerpo Limpiar", notes.join("\n"));
 }
 
 /** Para la spec: las piezas que no pasan por el diálogo. */

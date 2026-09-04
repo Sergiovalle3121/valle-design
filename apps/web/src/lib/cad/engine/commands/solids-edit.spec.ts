@@ -91,14 +91,14 @@ function topFacePick(solid: CadSolid3dEntity): CadCommandInput {
   ok(face.options.join(",") === "Extruir,Desfasar,Copiar,Salir", "la rama Cara ofrece las tres que existen");
   ok(/Mover, Girar, Inclinar, Borrar y Color todavía no/.test(face.prompts[1]), "y nombra una por una las cinco de Cara que no");
   const body = drive([keyword("cUerpo")]);
-  ok(body.options.join(",") === "Separar,Comprobar,Salir", "la rama Cuerpo anuncia Separar y Comprobar");
-  ok(/Estampar, Vaciar y Limpiar todavía no/.test(body.prompts[1]), "y nombra las tres de Cuerpo que no");
+  ok(body.options.join(",") === "Separar,Limpiar,Comprobar,Salir", "la rama Cuerpo anuncia Separar, Limpiar y Comprobar");
+  ok(/Estampar y Vaciar todavía no/.test(body.prompts[1]), "y nombra las dos de Cuerpo que no");
   const edge = drive([keyword("Arista")]);
   ok(edge.options.join(",") === "Copiar,Salir", "la rama Arista ya es una rama: ofrece Copiar");
   ok(/Color todavía no/.test(edge.prompts[1]), "y nombra la de Arista que no");
   // Las ausentes se NOMBRAN en el renglón del prompt, nunca como opción: una
   // palabra clave que responde «todavía no» es una opción que no hace nada.
-  const ausentes = ["Mover", "Girar", "Inclinar", "Borrar", "Color", "Estampar", "Vaciar", "Limpiar"];
+  const ausentes = ["Mover", "Girar", "Inclinar", "Borrar", "Color", "Estampar", "Vaciar"];
   const ofrecidas = [...face.options, ...edge.options, ...body.options];
   ok(ausentes.every((nombre) => !ofrecidas.includes(nombre)), "ninguna ausente se ofrece como palabra clave");
   ok(descriptor.kind === "modify" && descriptor.mutates === true, "es una orden de modificación");
@@ -249,4 +249,55 @@ function topFacePick(solid: CadSolid3dEntity): CadCommandInput {
   ok(__testables.subtree(apart.nodes, "a-caja").map((node) => node.id).join(",") === "a-caja", "el subárbol de un operando es sólo su nodo");
 }
 
-console.log(`solids-edit: ${checks} comprobaciones sobre SOLIDEDIT (seis ramas construidas, ocho declaradas ausentes)`);
+/* ── Cuerpo · Limpiar: fundir las coplanarias y hornear ──────────────────── */
+{
+  // La unión de dos cajas de 100×100×50 CONTIGUAS: el caso que el índice del
+  // kernel señalaba como fragmentado, medido aquí antes de tocarlo.
+  const contiguas = union("union", 100);
+  const fragmentado = solid3dBody(contiguas);
+  ok(fragmentado.faces.length === 20, `la unión contigua llega con 20 caras (fueron ${fragmentado.faces.length})`);
+  ok(fragmentado.edges.length === 30, `y con 30 aristas (fueron ${fragmentado.edges.length})`);
+
+  const limpiado = drive(
+    [keyword("cUerpo"), keyword("Limpiar"), { kind: "selection", entityIds: ["union"] }, enter],
+    [contiguas],
+  );
+  ok(limpiado.result?.kind === "document", "Limpiar escribe en el documento");
+  if (limpiado.result?.kind === "document") {
+    ok(limpiado.result.commands.length === 1, "una sola orden: el sólido se sustituye, no se duplica");
+    const orden = limpiado.result.commands[0];
+    ok(orden.type === "replace" && orden.entityId === "union", "un replace que CONSERVA el id");
+    const resultante = (orden as { entity: CadSolid3dEntity }).entity;
+    ok(resultante.nodes.length === 1 && resultante.nodes[0].op === "brep", "horneado: un único nodo de geometría explícita");
+    const nodo = resultante.nodes[0];
+    ok(nodo.op === "brep" && nodo.faces.length === 6, `el nodo brep lleva 6 caras (fueron ${nodo.op === "brep" ? nodo.faces.length : -1})`);
+    ok(nodo.op === "brep" && nodo.points.length === 8, `y 8 puntos (fueron ${nodo.op === "brep" ? nodo.points.length : -1})`);
+    const cuerpo = solid3dBody(resultante);
+    ok(cuerpo.faces.length === 6 && cuerpo.edges.length === 12, `evaluado da 6 caras y 12 aristas (fueron ${cuerpo.faces.length}/${cuerpo.edges.length})`);
+    ok(near(volumeOf(resultante), 1_000_000), "y el volumen no se ha movido: 200 × 100 × 50");
+    ok(resultante.layer === contiguas.layer, "la capa se conserva");
+    const aviso = limpiado.result.notice ?? "";
+    ok(/de 20 a 6 caras/.test(aviso), `el aviso nombra el recuento de caras — «${aviso}»`);
+    ok(/de 30 a 12 aristas/.test(aviso), "y el de aristas");
+    ok(/retiradas 14 cara\(s\) y 18 arista\(s\)/.test(aviso), "dice cuántas retira, no sólo el antes y el después");
+    ok(/historia paramétrica se pierde/.test(aviso), "y avisa de que el árbol paramétrico se pierde");
+  }
+
+  // Una caja sola no tiene caras coplanarias adyacentes: no se toca el documento.
+  const sola = box("caja");
+  const nada = drive([keyword("cUerpo"), keyword("Limpiar"), { kind: "selection", entityIds: ["caja"] }, enter], [sola]);
+  ok(nada.result?.kind === "message", "sobre una caja sola Limpiar NO escribe: responde con un mensaje");
+  ok(nada.result?.kind === "message" && /no hay nada que limpiar/.test(nada.result.text), `y lo dice así — «${nada.result?.kind === "message" ? nada.result.text : ""}»`);
+  ok(nada.result?.kind === "message" && /6 caras sobre 6 plano/.test(nada.result.text), "con las cifras que lo justifican");
+
+  // PICKFIRST: con el sólido ya designado, la palabra clave es toda la orden.
+  const previa = drive([keyword("cUerpo"), keyword("Limpiar")], [union("union", 100)], ["union"]);
+  ok(previa.result?.kind === "document", "PICKFIRST: designado antes, Limpiar no vuelve a preguntar");
+
+  // Sin nada designado, la rama lo dice en vez de escribir.
+  const vacio = drive([keyword("cUerpo"), keyword("Limpiar"), enter], []);
+  ok(vacio.result?.kind === "message" && /necesita un sólido designado/.test(vacio.result.text), "sin designación, Limpiar pide el sólido");
+  ok(/Designe el sólido que limpiar/.test(drive([keyword("cUerpo"), keyword("Limpiar")]).prompts[2]), "y el prompt nombra la operación");
+}
+
+console.log(`solids-edit: ${checks} comprobaciones sobre SOLIDEDIT (siete ramas construidas, siete declaradas ausentes)`);

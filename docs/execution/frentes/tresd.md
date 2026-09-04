@@ -71,6 +71,102 @@ npm run check:cad                       # antes de cerrar
 
 ## Bitácora
 
+### 2026-09-04 · Fusión de caras coplanarias, y SOLIDEDIT Cuerpo·Limpiar (entrega 3/5)
+
+El índice de `lib/brep/` confesaba por escrito un hueco: «Fusión de caras
+coplanarias tras una booleana: el resultado es correcto pero queda fragmentado
+en triángulos». Estaba medido en este árbol: la unión de dos cajas de
+100×100×50 **contiguas** devolvía **20 caras y 30 aristas** repartidas sobre
+**seis** planos, cuando el sólido resultante es una caja de 200×100×50 con 6 y
+12. Eso se paga en el STEP exportado, en la designación de caras —designar «la
+tapa» designaba un triángulo— y en los segmentos que proyectan FLATSHOT y
+SOLPROF.
+
+**NUEVO** `apps/web/src/lib/brep/coplanar-merge.ts` (508 líneas, la mitad de ellas el porqué):
+`mergeCoplanarFaces(body, tolerance)` en cuatro pasos.
+
+1. **Agrupar por plano canónico**: normal unitaria SALIENTE más distancia con
+   signo. La normal NO se canonicaliza a un semiespacio: dos caras sobre el
+   mismo plano geométrico con normales opuestas son los dos lados de una pared
+   delgada y fundirlas sería inventar material. La rejilla cuantizada registra
+   cada grupo en sus 81 celdas (3⁴: tres componentes y la distancia) por el
+   mismo motivo por el que `BodyBuilder` mira las 27 vecinas al soldar
+   vértices: una clave redondeada parte en dos los valores que caen a ambos
+   lados de un borde de celda. La pertenencia se decide con la tolerancia de
+   verdad contra el representante, no con la clave.
+2. **Fundir pares adyacentes** cuyas aristas compartidas formen UNA cadena
+   contigua en el lazo exterior de las dos, iterando hasta punto fijo. Los lazos
+   interiores viajan tal cual como agujeros de la cara fundida. Una fusión que
+   dejaría un lazo exterior no simple —o que iría por un lazo interior, o por
+   dos cadenas separadas— se DESCARTA y se cuenta.
+3. **Disolver los vértices de grado dos**: fundir cuatro triángulos en un
+   rectángulo deja puntos a mitad de un lado, y un vértice de grado dos no es
+   legal en un sólido cerrado. Sin este paso el resultado tendría 6 caras y
+   **16** aristas en vez de 6 y 12, y `validateBody` lo denunciaría. Sólo se
+   disuelve el que cae ESTRICTAMENTE entre sus dos vecinos y sólo si la arista
+   sustituta no existía ya (sería dejar de ser una variedad).
+4. **Reconstruir** con `buildBody`, que es quien caza cualquier incoherencia. Se
+   prefiere lanzar a devolver un cuerpo dudoso.
+
+Cuando no hay nada que fundir devuelve el MISMO objeto (`changed: false`), para
+que quien la llama pueda decir «no hay nada que limpiar» sin tocar el documento.
+
+**NUEVO** `coplanar-merge.spec.ts` (248 líneas, 76 comprobaciones). Las cifras exactas:
+
+| caso | caras | aristas | vértices | volumen |
+| --- | --- | --- | --- | --- |
+| unión de dos cajas contiguas | 20 → **6** | 30 → **12** | 12 → **8** | 1 000 000 → 1 000 000 (idéntico bit a bit) |
+| cilindro de 48 lados | 50 → **50** | 144 → 144 | 96 → 96 | sin tocar (`changed: false`) |
+| sólido hueco (caja − caja interior) | 44 → **12** | 76 → **24** | 36 → **16** | 875 000, **S = 2** conservado |
+| placa partida con agujero pasante | 14 → **10** | — | — | R = 2, χ = 0, **G = 1** |
+| L de tres cajas | 28 → **8** | 42 → **18** | — | 1 500 000 |
+| tres cajas en fila | 28 → **6** | 42 → **12** | 16 → **8** | 3 000 |
+
+`validateBody(requireClosed, requirePlanarFaces, expectedGenus, expectedShells)`
+verde en todos. Fundir dos veces no encuentra nada: la operación es idempotente.
+
+**MODIFICADO** `solids-edit-branches.ts` (307 → 403 líneas): `cleanBody`. Evalúa
+el sólido designado, funde, y hornea el resultado como nodo `brep` —geometría
+explícita, que es lo que el esquema 5 declara para «un cuerpo que no se puede
+describir como receta de nada»—. Se emite un `replace` que CONSERVA el id, para
+que las cotas y la designación que apuntaban al sólido sigan apuntando al mismo.
+La colocación viaja ya aplicada en los puntos (`solid3dBody` la aplica antes de
+devolver el cuerpo), así que el sólido horneado queda exactamente donde estaba.
+
+**MODIFICADO** `solids-edit.ts` (359 → 380 líneas): la rama Cuerpo pasa de
+`Separar, Comprobar, Salir` a `Separar, Limpiar, Comprobar, Salir`, y su renglón
+de ausencias baja de tres nombres a dos («Estampar y Vaciar todavía no»).
+
+**MODIFICADO** `solids-edit.spec.ts` (252 → 303 líneas, 60 → **81**
+comprobaciones).
+
+**MODIFICADO** `lib/brep/index.ts`: exporta `mergeCoplanarFaces`,
+`canonicalPlane` y sus tipos, y su lista de «lo que no hay» sustituye el renglón
+de la fusión coplanaria por lo que de verdad queda fuera (cerrar un anillo), con
+su coste medido.
+
+**MODIFICADO** `solids-modify.ts`: la cabecera de FILLETEDGE/CHAMFEREDGE decía
+«sin fusión de caras coplanarias»; ahora nombra el remedio y explica por qué NO
+se aplica sola (hornearía el árbol paramétrico sin que nadie lo pidiera).
+
+Evidencia: `cd apps/web && npx tsx src/lib/brep/coplanar-merge.spec.ts` → 76
+comprobaciones verdes. `npx tsx src/lib/cad/engine/commands/solids-edit.spec.ts`
+→ 81 comprobaciones. `npm run typecheck` → 8/8. `npm run
+check:command-integrity` → OK, 274 comandos, SOLIDEDIT sigue en «informa».
+
+No se tocó el registro, ni la cinta, ni el esquema, ni ningún archivo compartido.
+
+**Gate ajeno en rojo, medido y NO causado aquí.** `npm run check:dwg-evidence`
+falla en este árbol *antes* de esta ventana: comprobado guardando los cambios
+(`git stash`) y volviéndolo a correr sobre el árbol limpio, con el mismo fallo
+(`el artefacto del disco coincide con lo que el árbol sostiene hoy` — la
+`declaracion` de `dwg-decoder-matrix` habla de capacidades promovidas y el
+generador dice cero bundles admitidos). Es territorio del frente DWG y de un
+archivo de evidencia que este frente no toca; queda dicho para que la
+integración no lo atribuya a esta entrega. Todo lo demás de `check:cad`
+—identidad, presupuesto de monolito (2478 archivos), trinquete de lint (488 de
+492), cinta (274 comandos), alcance con el ratón— sale verde.
+
 ### 2026-09-04 · Los modos de las primitivas (entrega 2/5)
 
 La cabecera de `solids-primitives.ts` declaraba ausentes, uno por uno, los modos
@@ -175,6 +271,35 @@ intacto.
 
 ## «Todavía no»
 
+### 2026-09-04 · Cerrar un ANILLO al fundir coplanarias
+
+`mergeCoplanarFaces` funde pares que comparten **una** cadena contigua de
+aristas. Cuando dos caras coplanarias se tocan por **dos** cadenas separadas
+—las dos mitades en C de la tapa de una placa agujereada— fundirlas produciría
+una cara con un lazo interior NUEVO, y decidir cuál de los dos lazos resultantes
+es el exterior pide un criterio que este paso no tiene todavía. Se descarta, se
+CUENTA, y el aviso de `SOLIDEDIT Cuerpo Limpiar` lo dice.
+
+Medido: una placa de 100×100×20 con agujero pasante de 40×40 baja de **36 caras
+a 12**, no a las **10** canónicas, porque cada tapa se queda en dos mitades en C.
+El sólido resultante es correcto —volumen 168 000, género 1, `validateBody`
+verde—; sólo está a medio fundir. Está escrito en la cabecera de
+`coplanar-merge.ts`, en la lista de «lo que no hay» de `lib/brep/index.ts` y
+probado como caso propio en `coplanar-merge.spec.ts`.
+
+Lo mismo con la fusión **por un lazo interior** (una cara que rellena el agujero
+de otra): se detecta y se descarta en vez de forzarse.
+
+### 2026-09-04 · Limpiar HORNEA: la historia paramétrica se pierde
+
+`SOLIDEDIT Cuerpo Limpiar` sustituye el árbol del sólido por un único nodo
+`brep`. No hay alternativa honesta —el árbol decía «unión de dos cajas» y el
+cuerpo fundido ya no es eso—, pero es una pérdida real y la orden la ANUNCIA en
+su aviso en vez de dejar que se descubra al reabrir el sólido. Por el mismo
+motivo la fusión **no** se aplica sola tras cada booleana ni dentro de
+FILLETEDGE: una orden que además borrase el árbol sin que nadie lo pidiera haría
+dos cosas.
+
 ### 2026-09-04 · Ttr de CYLINDER y CONE, y los submodos del arco
 
 **Ttr** (tangente-tangente-radio) sigue fuera y el prompt no lo anuncia. Motivo:
@@ -218,10 +343,16 @@ aparece en dos ramas por el mismo motivo:
 | --------------------------------------- | ------------------------------------------------------------- |
 | Cara · Mover, Girar, Inclinar, Borrar   | piden recomponer las caras adyacentes; el kernel no rehace una cara movida |
 | Color (de cara y de arista)             | el esquema no guarda un atributo por cara ni por arista       |
-| Cuerpo · Estampar, Vaciar (SHELL), Limpiar | sin operación de kernel                                    |
+| Cuerpo · Estampar y Vaciar (SHELL)      | sin operación de kernel: Estampar pide partir una cara por una curva del dibujo, Vaciar pide desfasar todas las caras a la vez resolviendo sus intersecciones |
+
+**Actualización 2026-09-04 (entrega 3/5):** `Cuerpo · Limpiar` YA NO está en esta
+tabla. Existe, tiene kernel (`mergeCoplanarFaces`) y tiene spec. Las ausentes
+bajan de ocho operaciones a **siete** y de nueve renglones a **ocho**.
 
 ### 2026-09-04 · El resumen de la paleta se quedó corto
 
 `engine/command-summaries.ts:248` sigue describiendo el SOLIDEDIT de tres ramas.
 Es archivo fuera de territorio; pedido en `tresd-peticiones.md` (**P-tresd-01**)
-con el renglón exacto de sustitución.
+con el renglón exacto de sustitución. Con la entrega 3/5 el renglón pedido cambia
+otra vez —ahora son siete ramas, con Limpiar—: **P-tresd-01** queda actualizado
+con el texto definitivo.

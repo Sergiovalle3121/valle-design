@@ -25,6 +25,10 @@
  *   - Cuerpo · Separar: un sólido cuya raíz es una UNIÓN de cuerpos que no se
  *     tocan se parte en un sólido por operando, cada uno con su subárbol. Si
  *     los operandos interfieren no hay nada que separar, y se dice.
+ *   - Cuerpo · Limpiar: funde las caras coplanarias que una booleana dejó
+ *     fragmentadas y hornea el resultado como nodo `brep`. Dice cuántas caras y
+ *     cuántas aristas retira, y que la historia paramétrica se pierde. Si no
+ *     hay nada que fundir, lo dice y NO toca el documento.
  *
  * Las operaciones se construyen en `solids-edit-branches.ts`; este módulo es
  * el DIÁLOGO —qué se pregunta, en qué orden y qué se rechaza—.
@@ -39,9 +43,13 @@
  *   - Color, tanto de cara como de arista: el esquema no guarda un atributo
  *     por cara ni por arista, y el color de una entidad es de la entidad
  *     entera.
- *   - Cuerpo · Estampar, Vaciar (SHELL) y Limpiar: sin operación de kernel.
+ *   - Cuerpo · Estampar y Vaciar (SHELL): sin operación de kernel. Estampar
+ *     pide imprimir una curva del dibujo sobre una cara —partirla por una
+ *     arista nueva—, y Vaciar pide desfasar TODAS las caras a la vez hacia
+ *     dentro resolviendo sus intersecciones; ninguna de las dos existe en
+ *     `lib/brep/`.
  *
- * Son ocho operaciones distintas —nueve renglones, porque Color aparece en dos
+ * Son siete operaciones distintas —ocho renglones, porque Color aparece en dos
  * ramas por el mismo motivo—. Ninguna se insinúa como próxima.
  *
  * La orden termina tras UNA operación en vez de volver al menú de la rama:
@@ -65,7 +73,7 @@ import {
   type CadCommandDescriptor,
   type CadCommandStep,
 } from "../command-types";
-import { copyEdges, copyFace, offsetFace, type SolidEditFacePick } from "./solids-edit-branches";
+import { cleanBody, copyEdges, copyFace, offsetFace, type SolidEditFacePick } from "./solids-edit-branches";
 import { withPushedFace } from "./solids-push-face";
 import { finishedSolid, formatMagnitude, selectedSolids, solidBatch, solidCancelled, solidMessage } from "./solids-support";
 
@@ -78,6 +86,7 @@ const OFFSET = { keyword: "Desfasar", shortcut: "D" } as const;
 const COPY = { keyword: "Copiar", shortcut: "C" } as const;
 const SEPARATE = { keyword: "Separar", shortcut: "P" } as const;
 const CHECK = { keyword: "Comprobar", shortcut: "C" } as const;
+const CLEAN = { keyword: "Limpiar", shortcut: "L" } as const;
 
 /**
  * Los renglones que nombran lo ausente.
@@ -89,10 +98,10 @@ const CHECK = { keyword: "Comprobar", shortcut: "C" } as const;
  */
 const FACE_PROMPT = "Introduzca una opción de edición de caras; Mover, Girar, Inclinar, Borrar y Color todavía no";
 const EDGE_PROMPT = "Introduzca una opción de edición de aristas; Color todavía no";
-const BODY_PROMPT = "Introduzca una opción de edición de cuerpos; Estampar, Vaciar y Limpiar todavía no";
+const BODY_PROMPT = "Introduzca una opción de edición de cuerpos; Estampar y Vaciar todavía no";
 
 type Branch = "root" | "face" | "edge" | "body";
-type Action = "none" | "extrude" | "offset" | "copyFace" | "copyEdges" | "check" | "separate";
+type Action = "none" | "extrude" | "offset" | "copyFace" | "copyEdges" | "check" | "separate" | "clean";
 
 export interface SolidEditState {
   branch: Branch;
@@ -108,6 +117,13 @@ const FACE_PICK_PROMPT: Record<string, string> = {
   extrude: "Designe la cara que extruir",
   offset: "Designe la cara que desfasar",
   copyFace: "Designe la cara que copiar",
+};
+
+/** Lo mismo en la rama de cuerpos: cada operación nombra lo que va a hacer. */
+const BODY_PICK_PROMPT: Record<string, string> = {
+  check: "Designe el sólido que comprobar",
+  separate: "Designe el sólido que separar",
+  clean: "Designe el sólido que limpiar (funde las caras coplanarias y hornea el resultado)",
 };
 
 function solidEditStep(state: SolidEditState): CadCommandStep<SolidEditState> {
@@ -160,12 +176,12 @@ function solidEditStep(state: SolidEditState): CadCommandStep<SolidEditState> {
   if (state.action === "none")
     return {
       state,
-      prompt: { message: BODY_PROMPT, options: [SEPARATE, CHECK, EXIT], defaultOption: EXIT.keyword },
+      prompt: { message: BODY_PROMPT, options: [SEPARATE, CLEAN, CHECK, EXIT], defaultOption: EXIT.keyword },
       accepts: CAD_ACCEPT_KEYWORD,
     };
   return {
     state,
-    prompt: { message: state.action === "check" ? "Designe el sólido que comprobar" : "Designe el sólido que separar", options: [] },
+    prompt: { message: BODY_PICK_PROMPT[state.action] ?? "Designe el sólido", options: [] },
     accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
   };
 }
@@ -344,11 +360,16 @@ const solidEditCommand: CadCommandDescriptor<SolidEditState> = {
         return state.selection.length > 0 ? checkBody({ ...state, action: "check" }, context) : solidEditStep({ ...state, action: "check" });
       if (input.kind === "keyword" && input.keyword === SEPARATE.keyword)
         return state.selection.length > 0 ? separateBody({ ...state, action: "separate" }, context) : solidEditStep({ ...state, action: "separate" });
+      if (input.kind === "keyword" && input.keyword === CLEAN.keyword)
+        return state.selection.length > 0
+          ? cleanBody({ ...state, action: "clean" }, selectedSolids(context, state.selection))
+          : solidEditStep({ ...state, action: "clean" });
       return solidEditStep(state);
     }
     if (input.kind === "selection") return solidEditStep({ ...state, selection: input.entityIds });
     if (input.kind === "entityPick") return solidEditStep({ ...state, selection: [...new Set([...state.selection, input.entityId])] });
     if (input.kind !== "enter") return solidEditStep(state);
+    if (state.action === "clean") return cleanBody(state, selectedSolids(context, state.selection));
     return state.action === "check" ? checkBody(state, context) : separateBody(state, context);
   },
 };
