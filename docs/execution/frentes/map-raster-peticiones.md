@@ -14,6 +14,34 @@ Formato de cada petición:
 - **Estado:** pendiente | aplicada | rechazada (<motivo>)
 ```
 
+## Ventana de integración 2 · 2026-09-04 (aplicada por el coordinador)
+
+Diez de las doce se aplicaron; las dos que tocan `docs/competitive/rubric.json`
+(P-06 y P-12) quedan PENDIENTES a propósito: un criterio abierto lo otorga quien
+lo evalúa, no quien lo construye ni quien lo integra.
+
+Las peticiones se escribieron ANTES del refactor del registro perezoso y
+describen un `engine/index.ts` con 106 `import` estáticos de `./commands/*`. Ese
+archivo ya no es así: los METADATOS son estáticos y viven en
+`engine/command-manifest.ts`, **generado** por
+`scripts/cad/build-command-manifest.mjs`, y las implementaciones llegan a demanda
+por `engine/lazy-commands.ts`. Se aplicó la INTENCIÓN de P-01 y P-07 —que las
+tres órdenes se puedan teclear— con el mecanismo de hoy: un thunk literal por
+módulo en `lazy-commands.ts` y el manifiesto regenerado con `--write`. El
+manifiesto y `all-commands.ts` no se editan a mano.
+
+Y dos cosas que las peticiones no podían saber, porque son posteriores:
+
+- **Los iconos fallan cerrado.** `components/cad/ribbon/command-icons.ts` exige un
+  dibujo por comando registrado (`command-icons.spec.ts`), así que registrar sin
+  icono habría dejado el gate en rojo. VECTORIZE, COGO y CUADROCONSTRUCCION
+  llevan el suyo.
+- **El resumen de la paleta corta en 110 caracteres.** Los tres textos que
+  proponían P-03 y P-09 miden 156, 142 y 186: se acortaron sin soltar lo que la
+  fila afirma. El detalle, en cada petición.
+
+Los tres gates que cuentan comandos cuadran entre sí en 294 (antes 291).
+
 ## Peticiones
 
 ### P-map-raster-01 · Registrar VECTORIZE en el registro de comandos
@@ -44,7 +72,11 @@ Formato de cada petición:
 - **Cómo se comprueba:** `npx tsx src/lib/cad/engine/commands/vectorize-raster.spec.ts` sigue en
   verde, y `CAD_COMMAND_REGISTRY_V2.get("VECTORIZE")` deja de ser `undefined`.
   `npm run check:command-integrity` tiene que seguir verde: ver P-map-raster-05.
-- **Estado:** pendiente
+- **Estado:** aplicada (2026-09-04, ventana 2) con el MECANISMO DE HOY, no con el diseño
+  escrito: `engine/index.ts` ya no lleva imports de comandos. Se añadió el thunk
+  `"commands/vectorize-raster"` a `CAD_COMMAND_MODULE_LOADERS` (`engine/lazy-commands.ts`)
+  y se regeneró el manifiesto con `node scripts/cad/build-command-manifest.mjs --write`
+  (`command-manifest.ts` y `all-commands.ts` son GENERADOS). Registro: 291 → 294.
 
 ### P-map-raster-02 · Los alias de VECTORIZE en la tabla de entrada
 
@@ -65,7 +97,9 @@ Formato de cada petición:
   `resolveCadCommandAlias("vectorizar", known)` devuelven `"VECTORIZE"` una vez registrado
   (P-map-raster-01). La comprobación entra en `vectorize-raster.spec.ts` en la ventana de
   integración; hoy no está porque afirmaría algo que todavía no es cierto.
-- **Estado:** pendiente
+- **Estado:** aplicada (2026-09-04, ventana 2). `VEC` y `VECTORIZAR` en `alias-table.ts`, y
+  la comprobación entró en `vectorize-raster.spec.ts` §11: `resolveCadCommandAlias("vec", known)`
+  y `("vectorizar", known)` devuelven `"VECTORIZE"`. La spec pasó de 98 a 101 comprobaciones.
 
 ### P-map-raster-03 · El resumen de VECTORIZE
 
@@ -84,7 +118,11 @@ Formato de cada petición:
   anterior, basta con sustituir esa línea.
 
 - **Cómo se comprueba:** `npx tsx src/lib/cad/engine/command-summaries.spec.ts`.
-- **Estado:** pendiente
+- **Estado:** aplicada (2026-09-04, ventana 2) con el texto ACORTADO. El resumen escrito aquí
+  mide 156 caracteres y `command-summaries.spec.ts` corta en 110 («no cabe en una línea de
+  paleta»), así que se registró: «Convierte un escaneo adjunto en geometría: polilíneas por
+  umbral y los rótulos trazados como TEXT.» (98). Dice lo mismo —geometría Y rótulos— sin
+  mentir por omisión, que era el motivo de la actualización del 2º entregable.
 
 ### P-map-raster-04 · VECTORIZE en la cinta
 
@@ -100,7 +138,10 @@ Formato de cada petición:
      `…|IMAGE|IMAGEATTACH|IMAGECLIP|IMAGEADJUST|VECTORIZE|PDFATTACH|…`
 - **Cómo se comprueba:** `node scripts/cad/check-ribbon-coverage.mjs` y
   `node scripts/cad/ui-command-reach.mjs`.
-- **Estado:** pendiente
+- **Estado:** aplicada (2026-09-04, ventana 2), las dos expresiones tal cual. Además hizo falta
+  algo que la petición no sabía: `components/cad/ribbon/command-icons.ts` FALLA CERRADO desde
+  la campaña de la cinta —un comando registrado sin icono rompe `command-icons.spec.ts`— así
+  que VECTORIZE lleva `ScanSearch` (lupa sobre el escaneo: no adjunta la imagen, la lee).
 
 ### P-map-raster-05 · Declarar VECTORIZE como no-concluyente en la sonda de integridad, si lo es
 
@@ -119,7 +160,10 @@ Formato de cada petición:
   ```
 
 - **Cómo se comprueba:** `npm run check:command-integrity`.
-- **Estado:** pendiente
+- **Estado:** cerrada como INNECESARIA (2026-09-04, ventana 2). Se corrió el gate primero, como
+  pedía la petición: la sonda SÍ lleva VECTORIZE a término (verdicto no-ROJO) y el archivo no
+  se tocó. Declararlo habría hecho fallar el gate por la dirección contraria: «está exento pero
+  la sonda ya lo lleva a término — retire la exención».
 
 ### P-map-raster-06 · La fila de vectorización de la rúbrica, cuando haya evidencia
 
@@ -154,7 +198,11 @@ Formato de cada petición:
   - Lo que TODAVÍA NO hace, declarado en el propio aviso del comando: arcos, círculos y
     sombreados. Y del texto: manuscrito, tipografías de contorno relleno, letras que se tocan,
     más de 3° de inclinación y MTEXT.
-- **Estado:** pendiente
+- **Estado:** PENDIENTE — la decide el coordinador. La rúbrica no la toca ni el frente ni la
+  ventana de integración: un criterio ABIERTO lo otorga quien lo evalúa. Lo que la ventana SÍ
+  cambió es el hecho que la fila cita: hasta hoy VECTORIZE no se podía teclear y por fix-or-hide
+  no contaba; desde hoy está en el registro (294), en la cinta y en la paleta, con alias.
+  `docs/competitive/rubric.json` sigue diciendo «No hay vectorización», que ya no es cierto.
 
 ### P-map-raster-07 · Registrar COGO y CUADROCONSTRUCCION en el registro de comandos
 
@@ -185,7 +233,9 @@ Formato de cada petición:
 - **Cómo se comprueba:** `npx tsx src/lib/cad/engine/commands/geo-cogo.spec.ts` sigue en verde y
   `CAD_COMMAND_REGISTRY_V2.get("COGO")` deja de ser `undefined`. Arrastra P-08, P-09 y P-10:
   aplicar sólo ésta deja `command-summaries.spec.ts` y `check:ribbon-coverage` en rojo.
-- **Estado:** pendiente
+- **Estado:** aplicada (2026-09-04, ventana 2) con el MECANISMO DE HOY: thunk
+  `"commands/geo-cogo"` en `engine/lazy-commands.ts` y manifiesto regenerado. COGO y
+  CUADROCONSTRUCCION están en `CAD_COMMAND_REGISTRY_V2`.
 
 ### P-map-raster-08 · Los alias de COGO y CUADROCONSTRUCCION en la tabla de entrada
 
@@ -212,7 +262,9 @@ Formato de cada petición:
   `resolveCadCommandAlias("cuadro", known)` devuelve `"CUADROCONSTRUCCION"` una vez registrados
   (P-07). La comprobación entra en `engine/commands/geo-cogo.spec.ts` en la ventana de
   integración; hoy no está porque afirmaría algo que todavía no es cierto.
-- **Estado:** pendiente
+- **Estado:** aplicada (2026-09-04, ventana 2), las siete líneas tal cual. La comprobación
+  entró en `engine/commands/geo-cogo.spec.ts` §10: «poligonal» y «rumbos» resuelven a COGO,
+  «cuadro» y «cogotable» a CUADROCONSTRUCCION. La spec pasó de 86 a 92 comprobaciones.
 
 ### P-map-raster-09 · Los resúmenes de COGO y CUADROCONSTRUCCION
 
@@ -228,7 +280,10 @@ Formato de cada petición:
   ```
 
 - **Cómo se comprueba:** `npx tsx src/lib/cad/engine/command-summaries.spec.ts`.
-- **Estado:** pendiente
+- **Estado:** aplicada (2026-09-04, ventana 2) con los textos ACORTADOS a 110 caracteres, el
+  corte de `command-summaries.spec.ts`. COGO quedó en 103 (se soltó «tecleados o pegados») y
+  CUADROCONSTRUCCION en 105 (se soltó la coletilla del UTM, que el propio comando declara en
+  su plan y en su aviso).
 
 ### P-map-raster-10 · COGO y CUADROCONSTRUCCION en la cinta
 
@@ -245,7 +300,10 @@ Formato de cada petición:
      `[/^(GEOGRAPHICLOCATION|MAPIMPORT|COGO|CUADROCONSTRUCCION)$/, "Ubicación"]`.
 - **Cómo se comprueba:** `node scripts/cad/check-ribbon-coverage.mjs` y
   `node scripts/cad/ui-command-reach.mjs`.
-- **Estado:** pendiente
+- **Estado:** aplicada (2026-09-04, ventana 2), las dos expresiones tal cual. Y sus iconos, que
+  la petición no podía saber que hacían falta: COGO lleva `LandPlot` (el lindero del predio) y
+  CUADROCONSTRUCCION `FileSpreadsheet` (la lámina que se protocoliza, distinta de la TABLE
+  genérica).
 
 ### P-map-raster-11 · Declarar COGO y CUADROCONSTRUCCION en la sonda de integridad, si toca
 
@@ -265,7 +323,11 @@ Formato de cada petición:
   ```
 
 - **Cómo se comprueba:** `npm run check:command-integrity`.
-- **Estado:** pendiente
+- **Estado:** aplicada A MEDIAS, que es lo que el gate permite (2026-09-04, ventana 2). Se corrió
+  primero: COGO sale no-concluyente y se declaró con su razón; CUADROCONSTRUCCION NO —la sonda
+  lo lleva a término—, y declararlo habría hecho fallar el gate («está exento pero la sonda ya
+  lo lleva a término»). `docs/cad/evidence/command-integrity.json` se regeneró con `--write`:
+  294 comandos, 9 exentos, 0 éxitos falsos.
 
 ### P-map-raster-12 · La evidencia de COGO para la fila de Map 3D de la rúbrica
 
@@ -297,4 +359,5 @@ Formato de cada petición:
     proyección ni la reducción al nivel del mar (distancia de cuadrícula ≠ distancia en el
     terreno), no compensa por mínimos cuadrados y no publica lados en ARCO con su radio y su
     desarrollo — una polilínea con `bulge` se rechaza diciéndolo.
-- **Estado:** pendiente
+- **Estado:** PENDIENTE — la decide el coordinador. El frente no proponía cambio y la ventana
+  tampoco lo hace: la rúbrica no se toca aquí. La evidencia de arriba queda para el evaluador.
