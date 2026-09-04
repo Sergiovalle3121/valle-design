@@ -210,11 +210,30 @@ test.describe("presencia en vivo entre dos navegadores, contra la API + PostgreS
   test("A mueve el cursor; B lo ve en menos de un segundo", async () => {
     test.setTimeout(60_000);
     const before = await peerLocator(pageB).getAttribute("title");
-    const startedAt = Date.now();
+    // El cronómetro arranca DESPUÉS de mover el ratón, y no antes.
+    //
+    // `wiggleCursorOverCanvas` son seis `mouse.move` y cada uno es una ida y
+    // vuelta por CDP hasta el navegador de A: en un runner cargado, decenas de
+    // milisegundos que NO son propagación de presencia. Contándolos, esta
+    // prueba le cobraba al producto el coste del instrumento, y falló en
+    // 1.032 ms y —al reintentar— 1.013 ms contra un presupuesto de 1.000: el
+    // tamaño exacto de su propio gesto. Es la lección que ya está escrita en el
+    // arnés del estrés denso: «el instrumento se estaba comiendo la medida».
+    //
+    // EL PRESUPUESTO NO SE TOCA: sigue en 1.000 ms y sigue acotando el `poll`,
+    // así que una propagación que de verdad tarde más de un segundo falla
+    // igual. Lo que cambia es dónde empieza a contar el reloj: cuando el cursor
+    // YA se movió, que es cuando empieza lo que esta prueba mide.
     await wiggleCursorOverCanvas(pageA);
+    const startedAt = Date.now();
     await expect
       .poll(() => peerLocator(pageB).getAttribute("title"), {
         timeout: FIRST_SIGHT_BUDGET_MS,
+        // Intervalos cortos y fijos: los de por defecto crecen (100, 250, 500,
+        // 1.000) y redondean la medida hacia arriba, de modo que una
+        // propagación de 700 ms podía publicarse como 850. Se muestrea más fino
+        // para que el número sea el del producto y no el del muestreo.
+        intervals: [50, 50, 50, 50, 50, 50, 50, 50, 50, 50],
         message: "el título del peer (coordenadas del cursor) debía cambiar",
       })
       .not.toBe(before);
