@@ -126,6 +126,86 @@ por la petición de anfitrión `clipboard`. `PASTESPEC` no existe, y lo copiado 
 territorio aunque la cola los toque. Todo lo que necesiten va a `express-peticiones.md` con
 el diseño completo.
 
+### C2 · El PDF alcanzable (2026-09-04)
+
+**Lo que había.** El reconocimiento (C1) lo dejó medido: `lib/cad/pdf/` era un motor terminado
+—`importCadPdf`, `readCadPdfPageList`, `cadPdfAttachCommands`, recorte, desvanecido, escalado a
+distancia conocida, cambio de página, informe de pérdidas, gate `check:pdf-corpus`— sin ningún
+comando que lo alcanzara. Este entregable es el importador que faltaba, no motor nuevo: **ni una
+línea de geometría de PDF se ha escrito ni se ha tocado**.
+
+**Lo que hay ahora.** Diez órdenes construidas y probadas:
+
+| Orden | Qué hace |
+| --- | --- |
+| `PDFATTACH` | Adjunta una página como sustrato: página, inserción, escala y bloqueo |
+| `PDFIMPORT` | Vectores a entidades, con el informe de pérdidas antes y después de escribir |
+| `PDFCLIP` | Recorte rectangular o poligonal, y su eliminación |
+| `PDFADJUST` | Desvanecido 0–100 y bloqueo de la capa |
+| `PDFPAGE` | Cambia de página leyendo la lista del propio dibujo |
+| `PDFSCALE` | Escala a medida conocida por dos puntos |
+| `PDFDETACH` / `PDFUNLOAD` / `PDFRELOAD` | La ceremonia del xref |
+| `PDFLIST` | El gestor: archivo, página, tamaño, escala, estado y recorte |
+
+Archivos: `lib/cad/pdf/pdf-attach-payload.ts` (+ spec), `engine/commands/pdf-underlay-commands.ts`,
+`pdf-underlay-edit-commands.ts`, `pdf-underlay-support.ts` (+ spec de las diez órdenes). El sobre
+del archivo es el reparto de `image-attach-payload.ts` con UNA diferencia deliberada: **no declara
+páginas ni tamaños**, porque el lector de PDF vive dentro del motor y los deduce él. Un sobre que
+declarase «3 páginas» y un lector que encontrase 2 dejarían al usuario eligiendo una página
+inexistente.
+
+Se partió en tres archivos por el presupuesto de 800 líneas de `check:monolith-budget` (el archivo
+único daba 1 069). Quedan en 452 / 559 / 192.
+
+**Evidencia medida, no adjetivos.**
+
+```
+cd apps/web
+npx tsx src/lib/cad/pdf/pdf-attach-payload.spec.ts          → 28 comprobaciones
+npx tsx src/lib/cad/engine/commands/pdf-underlay-commands.spec.ts → 118 comprobaciones
+```
+
+Cada descriptor arranca con un PDF REAL de `cadPdfCorpus()` y su lote se APLICA con
+`executeCadEntityCommandBatch`, como hace `pdf-underlay.spec.ts`. Con anclas absolutas:
+
+- una lámina Carta a tamaño de papel queda de **215,9 × 279,4 mm** en el dibujo;
+- `PDFSCALE` sobre dos puntos que distan 100 unidades y en la realidad miden **5 m** deja la
+  lámina en **10 795** (factor 50), y el primer punto designado no se mueve;
+- `PDFCLIP` de media lámina cae en **306 × 396 PUNTOS de página**;
+- `PDFIMPORT` de `scanned-image-only` falla con el nombre del archivo y remite a `PDFATTACH`
+  («calca encima»), y el dibujo no cambia;
+- el informe de pérdidas viaja en el aviso: `text-glyph-indices` publica «1 cosa(s) NO entraron»
+  y el detalle de los índices de glifo, y `optional-content-groups` declara la capa apagada.
+
+Un defecto que la spec cierra y que no se veía: desvanecer y (des)bloquear SUSTITUYEN la entidad
+entera, así que construir la segunda orden sobre el documento viejo devolvía el desvanecido a 0
+sin avisar. `PDFADJUST` compone la segunda sobre el resultado de la primera, y la spec lo exige.
+
+Gates sobre el árbol: `npm run typecheck` (8/8), `eslint` de los seis archivos sin avisos,
+`check:monolith-budget`, `check:pdf-corpus`, `check:lint-budget`, `check:no-industrial-domain`,
+`check:command-integrity` (274, sin cambio: todavía no están registradas).
+
+**Peticiones abiertas:** `P-express-01` (canal `pdf-file` del anfitrión) y `P-express-03`
+(registrar las diez), ambas con el diseño completo en `express-peticiones.md`.
+
+
 ## «Todavía no»
 
-_(sin entradas todavía)_
+### El PDF, al 2026-09-04
+
+- **No están registradas.** Las diez órdenes existen y pasan sus specs, pero `engine/index.ts`,
+  `command-summaries.ts`, `alias-table.ts` y `ribbon.ts` están fuera de mi territorio: hasta que
+  se aplique `P-express-03`, el registro sigue en 274 y `ui-command-reach` en 274/274. Por la
+  regla 1 de cimientos, mientras tanto **PDF sigue sin contar como implementado**, y así se
+  declara.
+- **El selector de archivo no abre.** `PDFATTACH`/`PDFIMPORT` con la opción `Archivo` declaran el
+  límite con esas palabras; el archivo entra por la puerta de texto del anfitrión. Se cierra con
+  `P-express-01`, que son diez líneas fuera y cuatro dentro.
+- **El sustrato no tiene referencia a objeto propia.** La cola pide «PDF como underlay con
+  snap». `snap-engine.ts` está fuera de mi territorio y el sustrato entra como entidad `image`,
+  así que hoy se calca a ojo sobre la lámina: no hay punto final ni intersección del trazo del
+  PDF. Es lo que falta de verdad de la cola 4 después de esto, y necesita su propio diseño (los
+  trazos de la página existen —`scanCadPdfContent` los da— pero llevarlos al motor de snaps sin
+  importarlos es trabajo, no una petición de tres líneas).
+- **PDFIMPORT entra a tamaño de papel y lo dice.** No hay ajuste por dos puntos como el de
+  `PDFSCALE`: para geometría ya importada se usa `SCALE`. El aviso lo declara.
