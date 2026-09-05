@@ -9,7 +9,9 @@
     "docs/cad/corpus/manifest.json": "Diecinueve DXF de dos bibliotecas MIT (bjnortier/dxf y gdsestimating/dxf-parser) con sus licencias descargadas y hasheadas. Material que este proyecto NO escribió.",
     "docs/cad/evidence/dxf-corpus-terceros-matrix.json": "Cuarenta filas por entidad sobre esos diecinueve archivos, con el veredicto de DOS oráculos ajenos (dxf-parser y ezdxf 1.4.4). Los números los ponen ellos; nosotros ponemos la tabla.",
     "apps/web/src/lib/cad/verification/terceros-jornada.spec.ts": "La jornada entera sobre bjnortier-dxf/floorplan.dxf: 3.065 magnitudes comparadas una a una contra ezdxf sobre los mismos bytes, y la relectura de lo exportado con dxf-parser. Sin los dos lectores ajenos, este spec no afirma nada.",
-    "apps/web/src/lib/cad/verification/z-frontiers.spec.ts": "Cada frontera de la cota se cierra leyendo el DXF con dxf-parser, un lector de terceros que no conoce las convenciones del producto. El propio texto del criterio ya lo dice: «lector de terceros como oráculo»."
+    "apps/web/src/lib/cad/verification/z-frontiers.spec.ts": "Cada frontera de la cota se cierra leyendo el DXF con dxf-parser, un lector de terceros que no conoce las convenciones del producto. El propio texto del criterio ya lo dice: «lector de terceros como oráculo».",
+    "apps/web/src/lib/cad/verification/oraculos-externos.spec.ts": "524 magnitudes del sólido —163 vértices con sus coordenadas, 311 longitudes de arista y los recuentos de la parte 21— comparadas contra lo que steputils 0.1 (MIT) leyó en el STEP que exportamos. Sin ese lector ajeno, este spec no afirma nada del 3D.",
+    "docs/cad/corpus/oraculos/steputils-0.1.json": "La lectura congelada de steputils 0.1 sobre los cinco sólidos exportados, anclada al sha256 de esos bytes. Los números los pone él; nosotros ponemos el ancla que impide que sigan pareciendo evidencia cuando el exportador cambie."
   },
   "loQueNoEsIndependiente": {
     "apps/web/src/lib/cad/verification/oracle.ts": "Oráculo por fuerza bruta escrito por este proyecto. Verifica de verdad (fórmula cerrada contra muestreo), y por eso mismo es la tentación: marcarlo independiente convertiría «lo comprobamos aparte» en «lo comprobó otro».",
@@ -25,28 +27,28 @@
   "hallazgo": "La ÚNICA marca `independent: true` del lado DXF de la rúbrica de hoy está en dxf.corpus-external y apunta a docs/cad/evidence/dxf-external-corpus-matrix.json, cuyo propio encabezado dice `corpusSintetico: true`. Hoy no infla la cuenta porque ese criterio no se concede (falta la firma humana de derechos), pero el día que la firma llegue sin P-evidencia-04 concedería 2 pt de «independencia» a un corpus que generó este proyecto. P-evidencia-04 sustituye esa entrada por el corpus real.",
   "medido": {
     "antes": {
-      "total": "238/271",
-      "porcentaje": 87.8,
+      "total": "239/271",
+      "porcentaje": 88.2,
       "alcanceHoy": "180/197",
-      "puntosConEvidenciaIndependiente": 15,
-      "filasConTope": 26
+      "puntosConEvidenciaIndependiente": 16,
+      "filasConTope": 25
     },
     "despuesDeAplicarLosParchesDeEsteCenso": {
-      "total": "238/271",
-      "porcentaje": 87.8,
+      "total": "239/271",
+      "porcentaje": 88.2,
       "alcanceHoy": "180/197",
-      "puntosConEvidenciaIndependiente": 15,
-      "filasConTope": 26
+      "puntosConEvidenciaIndependiente": 16,
+      "filasConTope": 25
     },
     "comoSeMidio": "Clonando la rúbrica en memoria, aplicándole los parches de las filas `servible_hoy` y volviendo a llamar a scoreRubric() con el mismo contexto. docs/competitive/rubric.json NO se toca: es archivo compartido y lo aplica el coordinador."
   },
   "resumen": {
-    "filasConTope": 26,
-    "puntosRetenidos": 26,
+    "filasConTope": 25,
+    "puntosRetenidos": 25,
     "porVeredicto": {
       "servible_hoy": 0,
       "bloqueado_por_defecto_medido": 5,
-      "el_corpus_de_hoy_no_lo_alcanza": 15,
+      "el_corpus_de_hoy_no_lo_alcanza": 14,
       "no_lo_sirve_material_ajeno": 6
     }
   },
@@ -796,62 +798,6 @@
       "loQueDiceElTestigo": "Nada: hoy el criterio se sostiene en que el fichero del adaptador existe.",
       "limiteDelParche": null,
       "loQueFaltaria": "Correr el adaptador contra un MinIO real (AGPL, imagen pública) y publicar qué guardó y qué devolvió. MinIO es software ajeno juzgando nuestro cliente, que es la definición del oráculo externo.",
-      "peticion": null,
-      "parche": null
-    },
-    {
-      "id": "brep",
-      "grupo": "frontier",
-      "alcance": "destino",
-      "nombre": "Modelo 3D y sólidos B-rep FACETADO",
-      "puntos": 7,
-      "otorgadosAntesDelTope": 7,
-      "conElTope": 6,
-      "criteriosOtorgados": [
-        {
-          "id": "brep.topology",
-          "puntos": 1,
-          "clasesDeEvidencia": [
-            "file",
-            "spec"
-          ]
-        },
-        {
-          "id": "brep.operations",
-          "puntos": 2,
-          "clasesDeEvidencia": [
-            "spec"
-          ]
-        },
-        {
-          "id": "brep.surfaces",
-          "puntos": 1,
-          "clasesDeEvidencia": [
-            "spec"
-          ]
-        },
-        {
-          "id": "brep.interop",
-          "puntos": 1,
-          "clasesDeEvidencia": [
-            "file",
-            "spec"
-          ]
-        },
-        {
-          "id": "brep.wired",
-          "puntos": 2,
-          "clasesDeEvidencia": [
-            "imported"
-          ]
-        }
-      ],
-      "candidato": "brep.interop",
-      "porQueEseCandidato": "STEP e IGES son formatos normalizados con lectores ajenos maduros; es el único criterio de la fila que sale del proyecto.",
-      "veredicto": "el_corpus_de_hoy_no_lo_alcanza",
-      "loQueDiceElTestigo": "Nada sobre STEP. Conviene anotar un testigo que ya corre y que ninguna fila cita: `verification/glb-scale.spec.ts` mide un muro DENTRO del GLB exportado con el `GLTFLoader` de three.js, que es de terceros. Ningún criterio de la rúbrica menciona GLB, así que ese testimonio no tiene dónde entrar sin cambiar la forma de la fila — y cambiar la forma de una fila no es un parche de evidencia.",
-      "limiteDelParche": null,
-      "loQueFaltaria": "Un lector STEP de terceros (`steputils` o pythonocc en PyPI, o FreeCAD por línea de comandos) que abra lo que exportamos y diga qué encuentra. Y decir a la vez la verdad de ADR-0016: el sólido es FACETADO, así que lo que el lector ajeno confirmará es la faceta, no la superficie que la generó.",
       "peticion": null,
       "parche": null
     },

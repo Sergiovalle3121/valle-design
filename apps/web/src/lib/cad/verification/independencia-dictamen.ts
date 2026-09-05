@@ -106,6 +106,10 @@ export type Dictamen = {
  * de `scoreRubric` sobre el árbol de hoy.
  * ══════════════════════════════════════════════════════════════════════════ */
 export const DICTAMENES: Record<string, Dictamen> = {
+  /* `brep` se retiró el 2026-09-05, por servido: el tercer oráculo (steputils,
+   * rescatado del entregable 6 de F11) le dio el testigo que esta misma entrada
+   * pedía por su nombre, y su fila dejó de retener el punto — 238/271 → 239/271.
+   * Su razonamiento vive en P-evidencia-05 y en la evidencia de `brep.interop`. */
   /* ── CINCO DICTÁMENES RETIRADOS EL 2026-09-05, POR SERVIDOS ─────────────
    * `draw-2d`, `foreign-work`, `blocks`, `modeling3d` y `growth` tenían aquí su
    * dictamen «servible_hoy» con su parche escrito y medido. El coordinador los
@@ -287,32 +291,6 @@ export const DICTAMENES: Record<string, Dictamen> = {
       "Correr el adaptador contra un MinIO real (AGPL, imagen pública) y publicar qué guardó y qué devolvió. MinIO es software ajeno juzgando nuestro cliente, que es la definición del oráculo externo.",
   },
 
-  brep: {
-    candidato: "brep.interop",
-    porQueEseCandidato:
-      "STEP e IGES son formatos normalizados con lectores ajenos maduros; es el único criterio de la fila que sale del proyecto.",
-    veredicto: "servible_hoy",
-    loQueDiceElTestigo:
-      "El 2026-09-05 apareció el testigo que esta misma entrada pedía por su nombre. `steputils` 0.1 (MIT, PyPI) —un analizador de la parte 21 que no comparte una línea con `step-export.ts`— lee los cinco sólidos que exportamos y CUENTA lo mismo que el kernel: 163 vértices uno a uno con sus coordenadas, 311 longitudes de arista, y los VERTEX_POINT / EDGE_CURVE / ORIENTED_EDGE / ADVANCED_FACE / CLOSED_SHELL / MANIFOLD_SOLID_BREP de cada fichero. Y con SUS números, no con los nuestros, sale la característica de Euler-Poincaré de los cinco: género 0 en la caja y el tetraedro, género 1 en la caja con agujero pasante, en el tubo de revolución y en la placa nacida de una booleana. Hasta ese día el único lector que había leído nuestro STEP era el nuestro.",
-    limiteDelParche:
-      "Tres límites, y ninguno se tapa. (1) El criterio se llama «STEP e IGES en los dos sentidos» y el oráculo sólo cubre STEP: para IGES no se encontró lector ajeno con licencia admisible, así que esa mitad sigue sin testigo. (2) `steputils` es un ANALIZADOR, no un kernel: confirma que el fichero es parte 21 válida y que su topología cierra, no que un CAD mecánico comercial reconstruya el sólido — el que lo haría, `pythonocc-core`, es LGPL y CORPUS_POLICY.md lo prohíbe. (3) ADR-0016 sigue en pie: el sólido es FACETADO, así que lo que el lector ajeno confirma es la faceta, no la superficie que la generó.",
-    parche: {
-      criterio: "brep.interop",
-      operacion: "anadir",
-      evidencia: [
-        {
-          kind: "spec",
-          path: "apps/web/src/lib/cad/verification/oraculos-externos.spec.ts",
-          independent: true,
-        },
-        {
-          kind: "file",
-          path: "docs/cad/corpus/oraculos/steputils-0.1.json",
-          independent: true,
-        },
-      ],
-    },
-  },
 
   wasm: {
     candidato: "wasm.toolchain",

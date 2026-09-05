@@ -2714,6 +2714,16 @@
             {
               "kind": "spec",
               "path": "apps/web/src/lib/brep/interop.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/verification/oraculos-externos.spec.ts",
+              "independent": true
+            },
+            {
+              "kind": "file",
+              "path": "docs/cad/corpus/oraculos/steputils-0.1.json",
+              "independent": true
             }
           ]
         },

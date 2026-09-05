@@ -10,20 +10,23 @@ coordinador. Corte de partida `25898dc6`; cierre en `main` con las ventanas 1 y 
 
 | | al arrancar | al cerrar |
 |---|---:|---:|
-| Rúbrica, alcance DESTINO | 232/271 (85.6 %) | **238/271 (87.8 %)** |
+| Rúbrica, alcance DESTINO | 232/271 (85.6 %) | **239/271 (88.2 %)** |
 | Rúbrica, alcance de HOY | 176/197 (89.3 %) | **180/197 (91.4 %)** |
-| Puntos con evidencia **INDEPENDIENTE** | 5 | **15** |
-| Filas que retienen 1 pt por evidencia propia | 29 | **26** |
-| **Filas que llegan a su tope** | **0** | **5** |
+| Puntos con evidencia **INDEPENDIENTE** | 5 | **16** |
+| Filas que retienen 1 pt por evidencia propia | 29 | **25** |
+| **Filas que llegan a su tope** | **0** | **6** |
 | Specs del árbol | 576 | **623** |
 | Comandos en el registro | 274 (el encargo decía 243) | **294** |
 | Comandos alcanzables con el ratón | 274/274 | **294/294** |
 | Éxitos falsos | 0 | **0** |
 | Goldens de navegador | 87 | **103** |
 
-Las cinco filas que llegan a su tope, por primera vez desde que existe la rúbrica:
-Dibujo 2D y precisión · Trabajo ajeno · Bloques y atributos · Modelado 3D
-(primitivas, SOLIDEDIT y la cota) · Capacidad de crecer.
+Las seis filas que llegan a su tope, por primera vez desde que existe la rúbrica:
+Dibujo 2D y precisión · Trabajo ajeno · Bloques y atributos · Modelo 3D y sólidos
+B-rep · Modelado 3D (primitivas, SOLIDEDIT y la cota) · Capacidad de crecer.
+
+Y una cifra que dice lo mismo por otro lado: `check:cad-math` pasó de **4 806 a
+5 421 casos numéricos verificados contra oráculo independiente**, 0 desviaciones.
 
 ### Tres cifras del encargo que estaban mal, y se corrigen
 
@@ -95,6 +98,17 @@ no sólo se le dejara sitio. Ninguno se tocó para pasar.
    primera hora. La premisa encogió las colas de F1 y F11.
 6. **El coordinador comiteó dos veces el trabajo en vuelo de un agente**, que tuvo
    que verificar después que su contenido había sobrevivido.
+7. **El coordinador borró los once árboles de trabajo mientras un agente todavía
+   cerraba.** F11 estaba corriendo su verificación final cuando su árbol
+   desapareció debajo: perdió su bitácora de cierre, dos peticiones nuevas sin
+   commitear, y su sexto entregable quedó COLGADO en el almacén de objetos —
+   commiteado a las 01:41:11, cuatro minutos después de que el coordinador
+   integrara el frente a las 01:36:55. El propio agente lo rescató a un parche
+   antes de que un `git gc` pudiera podarlo, y de ahí se recuperó por cherry-pick.
+   Con él, `check:cad-math` sube de 4 806 a 5 421 casos y la rúbrica de 238 a 239.
+   **Casi se pierde un punto y 615 casos numéricos por limpiar antes de tiempo.**
+   La regla que faltaba: no se retira el andamio hasta que el último agente ha
+   dicho que terminó.
 
 ### Cuatro engaños de esta máquina, para el siguiente
 
