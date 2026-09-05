@@ -359,6 +359,32 @@ export function dxfPatchEntity(entity: CadNativeEntity, value: LispValue): CadNa
         ...(endParameter === null ? {} : { endParameter }),
       };
     }
+    /**
+     * El TEXT de una línea. Estaba cayendo en el `default` de abajo, y ahí
+     * pasaban dos cosas malas a la vez: un `(1 . "NUEVO")` se aceptaba y NO se
+     * aplicaba —la rutina daba por renombrado un rótulo que seguía igual, el
+     * «éxito sin efecto» de manual— y un `(10 …)` para moverlo se rechazaba con
+     * un motivo que no era el suyo («su geometría lleva asociatividad»), cuando
+     * un TEXT no lleva ninguna. Se atiende aquí, con los mismos códigos que
+     * emite `from-entity`, para que el viaje `entget` → `subst` → `entmod`
+     * —el gesto con el que se renumera una fila de ejes— llegue al documento.
+     */
+    case "text": {
+      const text = dxfText(entries, 1);
+      const height = dxfNumber(entries, 40);
+      const rotation = dxfNumber(entries, 50);
+      const style = dxfText(entries, 7);
+      const position = dxfPointAt(entries, 10);
+      return {
+        ...patched,
+        ...(position === null ? {} : { x: position.x, y: position.y }),
+        ...(text === null ? {} : { text }),
+        ...(height === null ? {} : { height }),
+        ...(rotation === null ? {} : { rotation }),
+        ...(style === null ? {} : { style }),
+      };
+    }
+
     case "mtext": {
       const text = dxfText(entries, 1);
       const height = dxfNumber(entries, 40);

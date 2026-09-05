@@ -31,6 +31,7 @@
  */
 import type { CadDocument, CadEntity, CadLayerDef } from "../cad/cad-document";
 import type { CadEntityCommand } from "../cad/entity-commands";
+import type { CadVariableAccess } from "../cad/system-variables";
 
 export interface LispHostServices {
   /** Documento de trabajo. Sólo lectura para el intérprete. */
@@ -48,4 +49,31 @@ export interface LispHostServices {
    * conduce la sesión cierre UN solo paso de deshacer.
    */
   apply(commands: readonly CadEntityCommand[], label: string): void;
+  /**
+   * La tabla de variables de sistema del producto (`lib/cad/system-variables`),
+   * la MISMA que escriben SETVAR, UNITS, COLOR, LTSCALE y OSNAP.
+   *
+   * ## Por qué entra por el puerto y no por un almacén propio
+   *
+   * `getvar` y `setvar` tenían aquí su propia verdad: `getvar` sabía contestar
+   * CLAYER e INSUNITS y `setvar` lanzaba SIEMPRE. El resultado medido es que el
+   * prólogo con el que empieza media biblioteca de despacho —`(setq old (getvar
+   * "CMDECHO")) (setvar "CMDECHO" 0)`— mataba la rutina ajena en la línea 2. Un
+   * almacén propio del intérprete lo habría arreglado a medias y habría creado
+   * la peor versión del problema: dos tablas con el mismo nombre que se
+   * contradicen, y un `SETVAR OSMODE` tecleado que la rutina no ve.
+   *
+   * Así que no hay tabla nueva: se consulta la del producto, con sus reglas
+   * —las `readOnly` rechazan la escritura, `coerceCadSystemVariable` valida
+   * rango y enumerado, y lo que no está en la tabla no existe—.
+   *
+   * ## Por qué es OPCIONAL
+   *
+   * Porque es una capacidad AÑADIDA a un puerto que ya tenía implementadores
+   * fuera de este subsistema. Quien no la ofrece sigue compilando y sigue
+   * teniendo el comportamiento de antes —CLAYER e INSUNITS leídos del
+   * documento, y `setvar` que se niega diciéndolo—, que es un límite declarado
+   * y no un valor inventado.
+   */
+  variables?(): CadVariableAccess;
 }

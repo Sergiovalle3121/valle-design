@@ -32,6 +32,7 @@ import {
   str,
   toArray,
   truthy,
+  type LispCallContext,
   type LispEval,
   type LispValue,
 } from "../values";
@@ -274,4 +275,109 @@ export function installLists(table: BuiltinTable): void {
     }
     return list(source);
   });
+
+  /**
+   * `vl-list*` construye una lista cuyo ÚLTIMO argumento es la COLA, no un
+   * elemento. `(vl-list* 1 2 '(3 4))` es `(1 2 3 4)` y `(vl-list* 1 2)` es el
+   * par punteado `(1 . 2)`. Es como se arma un par de códigos DXF a partir de
+   * piezas calculadas, y confundirla con `list` produce `(1 2 (3 4))`: una
+   * lista de tres elementos donde la rutina espera cuatro.
+   */
+  defsubr(table, "vl-list*", 1, null, (args, ctx) => {
+    ctx.charge(args.length);
+    return list(args.slice(0, -1), args[args.length - 1]);
+  });
+
+  defgen(table, "vl-remove-if-not", 2, 2, function* (args, ctx): LispEval {
+    const fn = wantFunction(args[0]);
+    const kept: LispValue[] = [];
+    for (const item of toArray(wantList(args[1]))) {
+      const value = yield* ctx.apply(fn, [item]);
+      if (truthy(value)) kept.push(item);
+    }
+    ctx.charge(kept.length);
+    return list(kept);
+  });
+
+  /**
+   * `vl-member-if` devuelve la COLA desde el primer elemento que cumple, igual
+   * que `member` devuelve la cola desde la coincidencia — no `T`, y no el
+   * elemento. La rutina que busca el primer par de una lista de asociación que
+   * cumpla algo sigue leyendo desde ahí con `cdr`.
+   */
+  defgen(table, "vl-member-if", 2, 2, function* (args, ctx): LispEval {
+    return yield* memberIf(args, ctx, true);
+  });
+
+  defgen(table, "vl-member-if-not", 2, 2, function* (args, ctx): LispEval {
+    return yield* memberIf(args, ctx, false);
+  });
+
+  /**
+   * `vl-sort-i` ordena y devuelve los ÍNDICES, no los elementos. Existe por una
+   * razón concreta: con los índices se puede reordenar OTRA lista en paralelo
+   * —los nombres de capa por su área, las etiquetas por la coordenada de su
+   * eje—, que con la lista ya ordenada sería imposible.
+   *
+   * A diferencia de `vl-sort`, conserva los repetidos: hay un índice por cada
+   * elemento de la lista de entrada, siempre.
+   *
+   * La ordenación es la misma mezcla iterativa que `vl-sort`, y por el mismo
+   * motivo: el comparador es código LISP y puede SUSPENDERSE, así que
+   * `Array.prototype.sort` —que no sabe ceder el control— no sirve.
+   */
+  defgen(table, "vl-sort-i", 2, 2, function* (args, ctx): LispEval {
+    const items = toArray(wantList(args[0]));
+    const fn = wantFunction(args[1]);
+    ctx.charge(items.length);
+    let width = 1;
+    let source = items.map((_unused, index) => index);
+    let target = new Array<number>(items.length);
+    while (width < source.length) {
+      for (let start = 0; start < source.length; start += width * 2) {
+        let left = start;
+        const middle = Math.min(start + width, source.length);
+        let right = middle;
+        const end = Math.min(start + width * 2, source.length);
+        for (let out = start; out < end; out += 1) {
+          // Se pregunta al revés —«¿va el de la derecha ANTES?»— para que los
+          // elementos que el comparador considera iguales conserven su orden
+          // de entrada. Es lo que hace utilizable el resultado: si `vl-sort-i`
+          // barajara los empatados, reordenar en paralelo la lista de nombres
+          // por la de áreas emparejaría cada nombre con el área de otro en
+          // cuanto dos áreas coincidieran.
+          const takeLeft =
+            left < middle &&
+            (right >= end ||
+              !truthy(yield* ctx.apply(fn, [items[source[right]], items[source[left]]])));
+          target[out] = takeLeft ? source[left++] : source[right++];
+        }
+      }
+      [source, target] = [target, source];
+      width *= 2;
+    }
+    return list(source.map((index) => int(index)));
+  });
+}
+
+/**
+ * El cuerpo compartido de `vl-member-if` y `vl-member-if-not`. Se recorre la
+ * CADENA DE CELDAS y no un array copiado porque lo que se devuelve es un nodo
+ * de la lista original: copiarla devolvería una cola equivalente pero distinta,
+ * y `(eq (vl-member-if p l) (cdr l))` dejaría de ser cierto donde el original
+ * dice que lo es.
+ */
+function* memberIf(
+  args: readonly LispValue[],
+  ctx: LispCallContext,
+  wanted: boolean,
+): LispEval {
+  const fn = wantFunction(args[0]);
+  let node = wantList(args[1]);
+  while (node.t === "cons") {
+    const value = yield* ctx.apply(fn, [node.car]);
+    if (truthy(value) === wanted) return node;
+    node = node.cdr;
+  }
+  return NIL;
 }

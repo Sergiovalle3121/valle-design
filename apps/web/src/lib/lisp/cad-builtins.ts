@@ -18,7 +18,10 @@ import { installDialogs } from "./builtins/dialogs";
 import { installEntityFunctions } from "./builtins/entities";
 import { installInteraction } from "./builtins/interaction";
 import { installLoader } from "./builtins/loader";
+import { installOsnap } from "./builtins/osnap";
 import { installSelectionFunctions } from "./builtins/selection";
+import { installTableFunctions } from "./builtins/tables";
+import { installVlax } from "./builtins/vlax";
 import { createCoreLispBuiltins } from "./core-builtins";
 import type { LispValue } from "./values";
 
@@ -27,6 +30,17 @@ export function createCadLispBuiltins(): Map<string, LispValue> {
   installEntityFunctions(table);
   installSelectionFunctions(table);
   installInteraction(table);
+  // Las tablas de símbolos (`tblsearch`, `tblnext`, `tblobjname`): leen las
+  // capas del documento y devuelven el MISMO registro que `entget` sobre el
+  // nombre que reparte `tblobjname`.
+  installTableFunctions(table);
+  // `osnap` conduce el motor de captura del producto —el mismo que imana el
+  // cursor—, no una geometría propia.
+  installOsnap(table);
+  // El puente Visual LISP. Va en la tabla CAD y no en el núcleo porque un
+  // objeto VLA ES una entidad del dibujo: sin documento no hay nada que
+  // envolver, igual que no lo hay para `entget`.
+  installVlax(table);
   installDialogs(table);
   // Las consultas BIM: leen el modelo y devuelven los MISMOS números que enseña
   // el producto. Sin ellas, «cuadro de áreas» sería una rutina que funciona en

@@ -213,9 +213,11 @@ pedir_cajetin : dialog {
   const registry = new CadPluginRegistry();
   eq(
     registry.register({
+      manifiesto: 1,
       id: "acme-tools",
       name: "ACME Tools",
       version: "1.0.0",
+      permisos: ["comandos:registro", "ui:panel"],
       commands: [asCadCommand(stubCommand("HITO", ["HT"]))],
       panels: [{ id: "acme-panel", title: "ACME", placement: "right", component: "AcmePanel" }],
     }),
@@ -239,9 +241,11 @@ pedir_cajetin : dialog {
   // Pisar un comando del producto se RECHAZA al registrar.
   const collision = new CadPluginRegistry();
   const problems = collision.register({
+    manifiesto: 1,
     id: "malo",
     name: "Malo",
     version: "1",
+    permisos: ["comandos:registro"],
     commands: [asCadCommand(stubCommand("LINE"))],
   });
   eq(problems.length, 1, "registrar LINE da un problema");
@@ -250,29 +254,31 @@ pedir_cajetin : dialog {
 
   // Un alias que choca con el producto también.
   const aliasClash = new CadPluginRegistry();
-  ok(aliasClash.register({ id: "otro", name: "O", version: "1", commands: [asCadCommand(stubCommand("MICMD", ["L"]))] }).length > 0,
+  ok(aliasClash.register({ manifiesto: 1, id: "otro", name: "O", version: "1", permisos: ["comandos:registro"], commands: [asCadCommand(stubCommand("MICMD", ["L"]))] }).length > 0,
     "un alias que choca con el del producto también se rechaza");
 
   // Dos plugins con el mismo comando: gana quien llegó primero, y el segundo lo
   // sabe en vez de quedarse sin saltar.
-  const second = registry.register({ id: "otra-casa", name: "Otra", version: "1", commands: [asCadCommand(stubCommand("HITO"))] });
+  const second = registry.register({ manifiesto: 1, id: "otra-casa", name: "Otra", version: "1", permisos: ["comandos:registro"], commands: [asCadCommand(stubCommand("HITO"))] });
   eq(second.length, 1, "el segundo plugin con el mismo comando se rechaza");
   ok(second[0].problem.includes("acme-tools"), "nombrando a quién lo tenía");
 
   // Un plugin no entra A MEDIAS: tres comandos con uno malo no registra ninguno.
   const partial = new CadPluginRegistry();
   partial.register({
+    manifiesto: 1,
     id: "medias",
     name: "Medias",
     version: "1",
+    permisos: ["comandos:registro"],
     commands: [asCadCommand(stubCommand("BUENO1")), asCadCommand(stubCommand("LINE")), asCadCommand(stubCommand("BUENO2"))],
   });
   eq(partial.composed().get("BUENO1"), undefined, "ningún comando del plugin rechazado queda suelto");
 
   // Identificadores y nombres inadmisibles.
   const naming = new CadPluginRegistry();
-  ok(naming.register({ id: "MAYÚSCULAS", name: "x", version: "1" }).length > 0, "el id se valida");
-  ok(naming.register({ id: "minusculas", name: "x", version: "1", commands: [asCadCommand(stubCommand("minusculas"))] }).length > 0,
+  ok(naming.register({ manifiesto: 1, id: "MAYÚSCULAS", name: "x", version: "1", permisos: [] }).length > 0, "el id se valida");
+  ok(naming.register({ manifiesto: 1, id: "minusculas", name: "x", version: "1", permisos: ["comandos:registro"], commands: [asCadCommand(stubCommand("minusculas"))] }).length > 0,
     "el nombre de comando se valida");
 
   // Y quitar el plugin lo quita entero.
@@ -329,7 +335,16 @@ pedir_cajetin : dialog {
     lossManifest: [], publications: [],
   };
   const plugins = new CadPluginRegistry();
-  plugins.register({ id: "acme-tools", name: "ACME", version: "1", commands: [asCadCommand(markerCommand())] });
+  plugins.register({
+    manifiesto: 1,
+    id: "acme-tools",
+    name: "ACME",
+    version: "1",
+    // `documento:escritura` porque su comando DIBUJA: desde la entrega 4, el
+    // lote de un comando de plugin no se aplica sin ese permiso declarado.
+    permisos: ["comandos:registro", "documento:escritura"],
+    commands: [asCadCommand(markerCommand())],
+  });
 
   let serial = 0;
   const host = new CadDocumentLispHost(document, {
@@ -370,7 +385,13 @@ pedir_cajetin : dialog {
     lossManifest: [], publications: [],
   };
   const host = new CadDocumentLispHost(document, { newEntityId: () => "plugin-1" });
-  const api = createPluginDocumentApi(host, "acme-tools");
+  const api = createPluginDocumentApi(host, {
+    manifiesto: 1,
+    id: "acme-tools",
+    name: "ACME",
+    version: "1",
+    permisos: ["documento:lectura", "documento:escritura"],
+  });
 
   const entity: CadEntity = {
     id: api.newEntityId(),

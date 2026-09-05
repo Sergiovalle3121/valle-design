@@ -1,0 +1,517 @@
+{
+  "oraculo": "B",
+  "generadoPor": "python3 docs/cad/corpus/oraculos/censo-ezdxf.py",
+  "herramienta": {
+    "nombre": "ezdxf",
+    "version": "1.4.4",
+    "lenguaje": "Python 3.11",
+    "autor": "Manfred Moitzi",
+    "licencia": "MIT",
+    "origen": "PyPI (pip install ezdxf==1.4.4)",
+    "instaladoEl": "2026-09-04",
+    "sha256Rueda": "7f75a4f2924ebdda0f5b2779ff2135ba92de2596c95a8fa9b1d9ebcabea1be41",
+    "porQueCuentaComoIndependiente": "Otro autor, otra lengua y otro camino: ezdxf no comparte una linea de codigo con este proyecto ni con el oraculo A, y ve entidades que el oraculo A no emite (HATCH, LEADER, VIEWPORT, estilos de cota). El oraculo A, en cambio, SI comparte motor con el lector de produccion (apps/web/src/lib/cad/dxf-import.ts importa dxf-parser): por eso hacen falta los dos y no basta con el primero."
+  },
+  "advertencia": "NO ESTA INSTALADA EN CI. Esta lectura se hizo una vez, en la maquina declarada, y se congela aqui. El spec que la consume vuelve a correrla solo si la herramienta esta presente; cuando no esta, declara la ausencia en vez de fingir la medicion, igual que el repositorio ya hace con ODA File Converter.",
+  "correccion": "2026-09-04: la primera version de este censo publico un unico `archivoEntero` que contaba DOS VECES cada entidad de espacio modelo, porque `doc.blocks` incluye los bloques `*Model_Space` y `*Paper_Space`. `lines.dxf` aparecia con 22 lineas cuando tiene 11. Corregido separando los cuatro ambitos; `archivoEntero` es ahora la suma de los tres, cada entidad una sola vez.",
+  "ambitos": {
+    "espacioModelo": "El dibujo. Es el ambito por defecto de la matriz de fidelidad.",
+    "espacioPapel": "Las hojas de plano. El lector de Valle las EXCLUYE a proposito (dxf-model-space-scope.ts): aqui sirven para explicar una ausencia, no para exigirla.",
+    "definicionesDeBloque": "Lo que vive dentro de un bloque, contado una vez.",
+    "archivoEntero": "espacioModelo + espacioPapel + definicionesDeBloque, sin repeticiones."
+  },
+  "loQueNoAcredita": "ezdxf no es AutoCAD. Que un archivo lo atraviese acredita interoperabilidad con una segunda implementacion independiente, no compatibilidad con AutoCAD.",
+  "resumen": {
+    "archivos": 19,
+    "leidos": 17,
+    "rechazados": 2,
+    "dialectos": [
+      "AC1009",
+      "AC1018",
+      "AC1021",
+      "AC1024",
+      "AC1027"
+    ],
+    "tiposVistos": [
+      "ARC",
+      "ATTDEF",
+      "CIRCLE",
+      "DIMENSION",
+      "ELLIPSE",
+      "HATCH",
+      "INSERT",
+      "LEADER",
+      "LINE",
+      "LWPOLYLINE",
+      "MTEXT",
+      "POINT",
+      "POLYLINE",
+      "SOLID",
+      "SPLINE",
+      "TEXT",
+      "VIEWPORT"
+    ]
+  },
+  "archivos": [
+    {
+      "id": "bjnortier-dxf/blocks1",
+      "sha256Archivo": "ba33677808f6a534d64a5898803649caca30eccb543092e3e5a102043b9d1c2e",
+      "leido": true,
+      "dialecto": "AC1021",
+      "version": "R2007",
+      "capasDeclaradas": 2,
+      "tiposDeLinea": 27,
+      "estilosDeCota": 1,
+      "bloquesDefinidos": 1,
+      "espacioModelo": {
+        "INSERT": 2
+      },
+      "espacioPapel": {},
+      "definicionesDeBloque": {
+        "CIRCLE": 1,
+        "LINE": 4
+      },
+      "archivoEntero": {
+        "CIRCLE": 1,
+        "INSERT": 2,
+        "LINE": 4
+      }
+    },
+    {
+      "id": "bjnortier-dxf/blocks2",
+      "sha256Archivo": "5d847d833dd444fbe8a85def5881a4f9055e47d06c41ca009c9e40784e92f91f",
+      "leido": true,
+      "dialecto": "AC1021",
+      "version": "R2007",
+      "capasDeclaradas": 4,
+      "tiposDeLinea": 27,
+      "estilosDeCota": 1,
+      "bloquesDefinidos": 3,
+      "espacioModelo": {
+        "INSERT": 1,
+        "LINE": 1,
+        "LWPOLYLINE": 1,
+        "MTEXT": 1
+      },
+      "espacioPapel": {},
+      "definicionesDeBloque": {
+        "ARC": 1,
+        "ELLIPSE": 1,
+        "INSERT": 2,
+        "LINE": 7,
+        "MTEXT": 2
+      },
+      "archivoEntero": {
+        "ARC": 1,
+        "ELLIPSE": 1,
+        "INSERT": 3,
+        "LINE": 8,
+        "LWPOLYLINE": 1,
+        "MTEXT": 3
+      }
+    },
+    {
+      "id": "bjnortier-dxf/dimensions",
+      "sha256Archivo": "513d44f4b2febdf2d2e27016c400cc774f0a364620b34730eaaece5cd6f15d77",
+      "leido": true,
+      "dialecto": "AC1021",
+      "version": "R2007",
+      "capasDeclaradas": 2,
+      "tiposDeLinea": 27,
+      "estilosDeCota": 1,
+      "bloquesDefinidos": 2,
+      "espacioModelo": {
+        "CIRCLE": 1,
+        "DIMENSION": 2,
+        "LINE": 4
+      },
+      "espacioPapel": {},
+      "definicionesDeBloque": {
+        "LINE": 4,
+        "MTEXT": 2,
+        "SOLID": 3
+      },
+      "archivoEntero": {
+        "CIRCLE": 1,
+        "DIMENSION": 2,
+        "LINE": 8,
+        "MTEXT": 2,
+        "SOLID": 3
+      }
+    },
+    {
+      "id": "bjnortier-dxf/empty",
+      "sha256Archivo": "56b9bc2de32b24c7ca3e29071d8cf6c7f9c27df1c936948d48c891ac8fd92c58",
+      "leido": true,
+      "dialecto": "AC1027",
+      "version": "R2013",
+      "capasDeclaradas": 4,
+      "tiposDeLinea": 54,
+      "estilosDeCota": 2,
+      "bloquesDefinidos": 75,
+      "espacioModelo": {},
+      "espacioPapel": {
+        "VIEWPORT": 2
+      },
+      "definicionesDeBloque": {
+        "ARC": 14,
+        "CIRCLE": 9,
+        "DIMENSION": 44,
+        "ELLIPSE": 3,
+        "HATCH": 2,
+        "INSERT": 2,
+        "LEADER": 3,
+        "LINE": 12,
+        "LWPOLYLINE": 3,
+        "MTEXT": 3,
+        "POINT": 20,
+        "SPLINE": 6
+      },
+      "archivoEntero": {
+        "ARC": 14,
+        "CIRCLE": 9,
+        "DIMENSION": 44,
+        "ELLIPSE": 3,
+        "HATCH": 2,
+        "INSERT": 2,
+        "LEADER": 3,
+        "LINE": 12,
+        "LWPOLYLINE": 3,
+        "MTEXT": 3,
+        "POINT": 20,
+        "SPLINE": 6,
+        "VIEWPORT": 2
+      }
+    },
+    {
+      "id": "bjnortier-dxf/entities",
+      "sha256Archivo": "fa0b296dc6c060ce8d79c61dd6461c9e1523a15ae33cdc650175ee8b9270d1d8",
+      "leido": true,
+      "dialecto": "AC1024",
+      "version": "R2010",
+      "capasDeclaradas": 4,
+      "tiposDeLinea": 21,
+      "estilosDeCota": 2,
+      "bloquesDefinidos": 75,
+      "espacioModelo": {
+        "INSERT": 29,
+        "LINE": 29,
+        "LWPOLYLINE": 29,
+        "MTEXT": 29
+      },
+      "espacioPapel": {},
+      "definicionesDeBloque": {
+        "ARC": 22,
+        "CIRCLE": 9,
+        "DIMENSION": 44,
+        "ELLIPSE": 3,
+        "HATCH": 2,
+        "INSERT": 2,
+        "LEADER": 3,
+        "LINE": 125,
+        "LWPOLYLINE": 3,
+        "MTEXT": 47,
+        "POINT": 152,
+        "SOLID": 68,
+        "SPLINE": 6
+      },
+      "archivoEntero": {
+        "ARC": 22,
+        "CIRCLE": 9,
+        "DIMENSION": 44,
+        "ELLIPSE": 3,
+        "HATCH": 2,
+        "INSERT": 31,
+        "LEADER": 3,
+        "LINE": 154,
+        "LWPOLYLINE": 32,
+        "MTEXT": 76,
+        "POINT": 152,
+        "SOLID": 68,
+        "SPLINE": 6
+      }
+    },
+    {
+      "id": "bjnortier-dxf/floorplan",
+      "sha256Archivo": "6d761ecb1ab59664425eb1dcc6837a12611536c8e03e3f7855951a76786d159c",
+      "leido": true,
+      "dialecto": "AC1018",
+      "version": "R2004",
+      "capasDeclaradas": 24,
+      "tiposDeLinea": 26,
+      "estilosDeCota": 16,
+      "bloquesDefinidos": 145,
+      "espacioModelo": {
+        "ARC": 20,
+        "CIRCLE": 9,
+        "DIMENSION": 63,
+        "HATCH": 13,
+        "INSERT": 10,
+        "LEADER": 6,
+        "LINE": 624,
+        "LWPOLYLINE": 124,
+        "MTEXT": 9,
+        "TEXT": 89
+      },
+      "espacioPapel": {
+        "VIEWPORT": 3
+      },
+      "definicionesDeBloque": {
+        "ARC": 60,
+        "ATTDEF": 2,
+        "CIRCLE": 23,
+        "DIMENSION": 63,
+        "HATCH": 13,
+        "INSERT": 275,
+        "LEADER": 6,
+        "LINE": 1365,
+        "LWPOLYLINE": 278,
+        "MTEXT": 135,
+        "POINT": 378,
+        "TEXT": 80
+      },
+      "archivoEntero": {
+        "ARC": 80,
+        "ATTDEF": 2,
+        "CIRCLE": 32,
+        "DIMENSION": 126,
+        "HATCH": 26,
+        "INSERT": 285,
+        "LEADER": 12,
+        "LINE": 1989,
+        "LWPOLYLINE": 402,
+        "MTEXT": 144,
+        "POINT": 378,
+        "TEXT": 169,
+        "VIEWPORT": 3
+      }
+    },
+    {
+      "id": "bjnortier-dxf/hatches",
+      "sha256Archivo": "e67becc4b026231d656a4b506b90d533a3fcdfb14e3003762edd4a9e40b7e6d3",
+      "leido": true,
+      "dialecto": "AC1021",
+      "version": "R2007",
+      "capasDeclaradas": 2,
+      "tiposDeLinea": 27,
+      "estilosDeCota": 1,
+      "bloquesDefinidos": 0,
+      "espacioModelo": {
+        "HATCH": 1,
+        "LINE": 4
+      },
+      "espacioPapel": {},
+      "definicionesDeBloque": {},
+      "archivoEntero": {
+        "HATCH": 1,
+        "LINE": 4
+      }
+    },
+    {
+      "id": "bjnortier-dxf/layers",
+      "sha256Archivo": "860c3085c10b754d75fd903747f78a0e52c69b94ac77f23bdb018bec41b860ff",
+      "leido": true,
+      "dialecto": "AC1021",
+      "version": "R2007",
+      "capasDeclaradas": 4,
+      "tiposDeLinea": 27,
+      "estilosDeCota": 1,
+      "bloquesDefinidos": 0,
+      "espacioModelo": {
+        "CIRCLE": 1,
+        "LINE": 8
+      },
+      "espacioPapel": {},
+      "definicionesDeBloque": {},
+      "archivoEntero": {
+        "CIRCLE": 1,
+        "LINE": 8
+      }
+    },
+    {
+      "id": "bjnortier-dxf/lines",
+      "sha256Archivo": "052d8246dcf762c4100a4df8a68bed1964da5d1ee087a86af9996c7b6c6e6a30",
+      "leido": true,
+      "dialecto": "AC1021",
+      "version": "R2007",
+      "capasDeclaradas": 2,
+      "tiposDeLinea": 27,
+      "estilosDeCota": 1,
+      "bloquesDefinidos": 0,
+      "espacioModelo": {
+        "LINE": 11
+      },
+      "espacioPapel": {},
+      "definicionesDeBloque": {},
+      "archivoEntero": {
+        "LINE": 11
+      }
+    },
+    {
+      "id": "bjnortier-dxf/lwpolylines",
+      "sha256Archivo": "cbc8fbf3016fd7b580f3a077092c63d1903728111f283e9907c774ce94e7a3e4",
+      "leido": true,
+      "dialecto": "AC1021",
+      "version": "R2007",
+      "capasDeclaradas": 2,
+      "tiposDeLinea": 27,
+      "estilosDeCota": 1,
+      "bloquesDefinidos": 0,
+      "espacioModelo": {
+        "LWPOLYLINE": 2
+      },
+      "espacioPapel": {},
+      "definicionesDeBloque": {},
+      "archivoEntero": {
+        "LWPOLYLINE": 2
+      }
+    },
+    {
+      "id": "bjnortier-dxf/points",
+      "sha256Archivo": "5f0397697996b75078994e0fe95bb12a87864f68f49c14018194611edb30944f",
+      "leido": true,
+      "dialecto": "AC1021",
+      "version": "R2007",
+      "capasDeclaradas": 2,
+      "tiposDeLinea": 27,
+      "estilosDeCota": 1,
+      "bloquesDefinidos": 0,
+      "espacioModelo": {
+        "POINT": 2
+      },
+      "espacioPapel": {},
+      "definicionesDeBloque": {},
+      "archivoEntero": {
+        "POINT": 2
+      }
+    },
+    {
+      "id": "bjnortier-dxf/polylines",
+      "sha256Archivo": "af6d2781d7961e531c34e27c7d0f8a4c4b885e579cdcbcd5e5a41766074851a0",
+      "leido": true,
+      "dialecto": "AC1018",
+      "version": "R2004",
+      "capasDeclaradas": 3,
+      "tiposDeLinea": 3,
+      "estilosDeCota": 1,
+      "bloquesDefinidos": 0,
+      "espacioModelo": {
+        "POLYLINE": 2
+      },
+      "espacioPapel": {},
+      "definicionesDeBloque": {},
+      "archivoEntero": {
+        "POLYLINE": 2
+      }
+    },
+    {
+      "id": "bjnortier-dxf/splines",
+      "sha256Archivo": "9f672526c3e6b35c60ed958650a5c35fe3ee4f8df76d1f8b25b31f2f6d293406",
+      "leido": true,
+      "dialecto": "AC1021",
+      "version": "R2007",
+      "capasDeclaradas": 2,
+      "tiposDeLinea": 27,
+      "estilosDeCota": 1,
+      "bloquesDefinidos": 0,
+      "espacioModelo": {
+        "SPLINE": 2
+      },
+      "espacioPapel": {},
+      "definicionesDeBloque": {},
+      "archivoEntero": {
+        "SPLINE": 2
+      }
+    },
+    {
+      "id": "bjnortier-dxf/texts",
+      "sha256Archivo": "6c585c0093c1a19180faa58b6977bc48ddb47899d2800bf38807cbca3018416d",
+      "leido": true,
+      "dialecto": "AC1021",
+      "version": "R2007",
+      "capasDeclaradas": 2,
+      "tiposDeLinea": 27,
+      "estilosDeCota": 1,
+      "bloquesDefinidos": 0,
+      "espacioModelo": {
+        "MTEXT": 2
+      },
+      "espacioPapel": {},
+      "definicionesDeBloque": {},
+      "archivoEntero": {
+        "MTEXT": 2
+      }
+    },
+    {
+      "id": "gdsestimating-dxf-parser/blocks",
+      "sha256Archivo": "53a5ed8bc6be044c5e97d4ff6a90597e68a9bd73b6de871006a0a9608f53f71a",
+      "leido": false,
+      "error": "AttributeError: 'NoneType' object has no attribute 'get_xlist'",
+      "porQueImporta": "Una biblioteca madura de terceros RECHAZA este archivo. Lo que el lector de Valle haga con el mismo archivo se juzga sabiendo esto."
+    },
+    {
+      "id": "gdsestimating-dxf-parser/ellipse",
+      "sha256Archivo": "bc056b36d4c7e26cc0687827e50261699092af433dc5f985d4be8fe378ab74a9",
+      "leido": true,
+      "dialecto": "AC1009",
+      "version": "R12",
+      "capasDeclaradas": 2,
+      "tiposDeLinea": 3,
+      "estilosDeCota": 1,
+      "bloquesDefinidos": 0,
+      "espacioModelo": {
+        "ELLIPSE": 2
+      },
+      "espacioPapel": {},
+      "definicionesDeBloque": {},
+      "archivoEntero": {
+        "ELLIPSE": 2
+      }
+    },
+    {
+      "id": "gdsestimating-dxf-parser/polylines",
+      "sha256Archivo": "ba4f2d4d74d6b418b469f510d30cdc486c3c15d37b7da5ff6718b317591c4af9",
+      "leido": true,
+      "dialecto": "AC1009",
+      "version": "R12",
+      "capasDeclaradas": 2,
+      "tiposDeLinea": 3,
+      "estilosDeCota": 1,
+      "bloquesDefinidos": 0,
+      "espacioModelo": {
+        "POLYLINE": 12
+      },
+      "espacioPapel": {},
+      "definicionesDeBloque": {},
+      "archivoEntero": {
+        "POLYLINE": 12
+      }
+    },
+    {
+      "id": "gdsestimating-dxf-parser/splines",
+      "sha256Archivo": "9aad052d8bba7443abdb1cbee1bad4b4630148fb1496893bd8754344801edb67",
+      "leido": true,
+      "dialecto": "AC1009",
+      "version": "R12",
+      "capasDeclaradas": 2,
+      "tiposDeLinea": 3,
+      "estilosDeCota": 1,
+      "bloquesDefinidos": 0,
+      "espacioModelo": {
+        "SPLINE": 2
+      },
+      "espacioPapel": {},
+      "definicionesDeBloque": {},
+      "archivoEntero": {
+        "SPLINE": 2
+      }
+    },
+    {
+      "id": "gdsestimating-dxf-parser/tables",
+      "sha256Archivo": "00f182a7d8b14988d3e6a7a76f00642d5c6aed33e558cb67a21bdb716750e299",
+      "leido": false,
+      "error": "DXFTypeError: name has to be a string, got <class 'NoneType'>",
+      "porQueImporta": "Una biblioteca madura de terceros RECHAZA este archivo. Lo que el lector de Valle haga con el mismo archivo se juzga sabiendo esto."
+    }
+  ]
+}

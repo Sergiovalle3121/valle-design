@@ -36,6 +36,7 @@
  */
 import type { CadDocument } from "../cad/cad-document";
 import type { CadEntityCommand } from "../cad/entity-commands";
+import type { CadVariableAccess } from "../cad/system-variables";
 import type { LispBudgetLimits } from "./budget";
 import { CAD_LISP_BUILTINS } from "./cad-builtins";
 import { CadDocumentLispHost } from "./document-host";
@@ -77,6 +78,13 @@ export interface InteractiveLispOptions {
   limits?: LispBudgetLimits;
   now?: () => number;
   /**
+   * La tabla de variables de sistema DE LA SESIÓN del editor. Quien no la
+   * presta recibe una propia, sembrada con el documento y que vive lo que vive
+   * la ejecución: `(getvar "OSMODE")` no vería entonces lo que el dibujante
+   * configuró con OSNAP. Ver `CadLispHostOptions.variables`.
+   */
+  variables?: CadVariableAccess;
+  /**
    * Pizarra de la sesión: por aquí entran el registro de comandos compuesto y
    * el lector de la biblioteca que usa `load`. Va como `unknown` porque el
    * evaluador no debe conocer ninguno de los dos.
@@ -110,6 +118,7 @@ export class InteractiveLispRun {
     this.host = new CadDocumentLispHost(options.document, {
       activeLayer: options.activeLayer,
       newEntityId: options.newEntityId,
+      ...(options.variables ? { variables: options.variables } : {}),
     });
     this.session = new LispSession({
       builtins: CAD_LISP_BUILTINS,

@@ -73,6 +73,14 @@ export function printLisp(value: LispValue, readable = true): string {
       return `<Entity name: ${value.id}>`;
     case "pickset":
       return `<Selection set: ${value.serial}>`;
+    // AutoCAD escribe `#<VLA-OBJECT IAcadLine 000000002e...>`: la interfaz COM y
+    // la dirección del puntero. Aquí no hay ni una ni otra —el objeto es el
+    // handle de la entidad, resuelto contra el documento en cada acceso—, así
+    // que se imprime el handle. Inventar un `IAcadLine` obligaría al impresor a
+    // ir a buscar la entidad, y el impresor no tiene anfitrión: es el módulo que
+    // no depende de nada, y eso es lo que evita el ciclo de inicialización.
+    case "vla-object":
+      return `#<VLA-OBJECT ${value.id}>`;
     case "subr":
       return `<Subr: ${value.name}>`;
     case "closure":

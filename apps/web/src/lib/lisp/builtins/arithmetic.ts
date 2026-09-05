@@ -15,7 +15,7 @@
  * que se propagaría hasta convertirse en coordenadas no finitas y las
  * rechazaría `migrateCadDocument` mucho más lejos del sitio del problema.
  */
-import { badArgumentType, divideByZero } from "../errors";
+import { LispError, badArgumentType, divideByZero } from "../errors";
 import { printLisp } from "../printer";
 import {
   NIL,
@@ -209,6 +209,108 @@ export function installArithmetic(table: BuiltinTable): void {
       return bool(true);
     });
 
+
+  // --- aritmética BIT A BIT: las máscaras de OSMODE ---------------------------
+  //
+  // No es una rareza académica: es cómo se apaga una referencia a objetos sin
+  // pisar las demás, y aparece literalmente en el prólogo de media biblioteca
+  // de despacho —
+  //
+  //     (setvar "OSMODE" (logand (getvar "OSMODE") (~ 33)))   ; sin FIN ni INT
+  //     (setvar "OSMODE" (logior (getvar "OSMODE") 512))      ; y con CERcano
+  //
+  // Faltando estas cinco, esa línea muere y con ella la rutina entera, dos
+  // renglones antes de dibujar.
+  //
+  // Todas trabajan sobre 32 BITS CON SIGNO, como los enteros de AutoLISP: por
+  // eso `(lsh 1 31)` vale -2147483648 y no 2147483648, y `(~ 0)` vale -1.
+
+  defsubr(table, "logand", 1, null, (args) => {
+    let mask = wantInt(args[0]) | 0;
+    for (let index = 1; index < args.length; index += 1) mask &= wantInt(args[index]) | 0;
+    return int(mask);
+  });
+
+  defsubr(table, "logior", 1, null, (args) => {
+    let mask = wantInt(args[0]) | 0;
+    for (let index = 1; index < args.length; index += 1) mask |= wantInt(args[index]) | 0;
+    return int(mask);
+  });
+
+  /**
+   * `(~ n)` es el complemento a uno: `(~ 33)` vale -34, que en 32 bits es la
+   * máscara con TODO encendido menos los bits 1 y 32. Se escribe así en las
+   * rutinas y por eso el símbolo `~` tiene que ser una función y no un adorno.
+   */
+  defsubr(table, "~", 1, 1, (args) => int(~(wantInt(args[0]) | 0)));
+
+  /**
+   * `(lsh entero bits)` desplaza a la izquierda con `bits` positivo y a la
+   * derecha con negativo. El desplazamiento a la derecha es LÓGICO —entran
+   * ceros por arriba, también en un negativo— igual que en AutoLISP.
+   *
+   * Un desplazamiento de 32 o más da 0. JavaScript no lo haría solo: enmascara
+   * la cuenta a cinco bits, así que `1 << 32` vale 1 en vez de 0, que es
+   * exactamente el tipo de diferencia que convierte una máscara en otra sin
+   * fallar por ningún lado.
+   */
+  defsubr(table, "lsh", 2, 2, (args) => {
+    const value = wantInt(args[0]) | 0;
+    const bits = wantInt(args[1]);
+    if (bits === 0) return int(value);
+    if (Math.abs(bits) >= 32) return int(0);
+    return int(bits > 0 ? value << bits : (value >>> -bits) | 0);
+  });
+
+  /**
+   * `(boole función a b …)`: la operación booleana bit a bit GENERAL.
+   *
+   * La `función` es una tabla de verdad de cuatro bits, no un código de
+   * operación arbitrario. Para cada posición, los bits de los dos operandos
+   * eligen uno de los cuatro bits de la tabla:
+   *
+   *     a=1 b=1 → bit 0      a=1 b=0 → bit 1
+   *     a=0 b=1 → bit 2      a=0 b=0 → bit 3
+   *
+   * De ahí salen los códigos que trae escrita cualquier rutina: 1 es Y, 6 es O
+   * exclusiva, 7 es O, 8 es NI. Implementarlo como un `switch` sobre esos
+   * cuatro habría dejado sin contestar las otras doce funciones —incluidas
+   * `(boole 4 a b)`, que es «b y no a», usada para apagar bits— y lo habría
+   * hecho fallando por «función desconocida» en una rutina correcta.
+   *
+   * Con más de dos enteros se aplica en cadena, de izquierda a derecha. Con
+   * uno solo se rechaza por aridad en vez de inventar qué significa aplicar una
+   * tabla de dos operandos a uno: el resultado dependería de cuál se supone que
+   * es el otro, y ninguna respuesta sería la del original.
+   */
+  defsubr(table, "boole", 3, null, (args) => {
+    const fn = wantInt(args[0]);
+    if (fn < 0 || fn > 15)
+      throw new LispError(
+        `bad argument value: boole: la función ${fn} no existe. Es una tabla de verdad de ` +
+          `cuatro bits, así que va de 0 a 15 (1 es Y, 6 es O exclusiva, 7 es O, 8 es NI).`,
+      );
+    let accumulated = wantInt(args[1]) | 0;
+    for (let index = 2; index < args.length; index += 1)
+      accumulated = booleStep(fn, accumulated, wantInt(args[index]) | 0);
+    return int(accumulated);
+  });
+
   defsubr(table, "zerop", 1, 1, (args) => bool(isNumber(args[0]) && args[0].v === 0));
   defsubr(table, "minusp", 1, 1, (args) => bool(isNumber(args[0]) && args[0].v < 0));
+}
+
+/**
+ * Un paso de `boole`: la tabla de verdad aplicada a dos enteros de 32 bits.
+ * Se construye por máscaras en vez de bit a bit porque la alternativa —un
+ * bucle de treinta y dos vueltas por cada par— convertiría una máscara de
+ * OSMODE en trabajo medible dentro de un `while` de rutina.
+ */
+function booleStep(fn: number, a: number, b: number): number {
+  let result = 0;
+  if ((fn & 1) !== 0) result |= a & b;
+  if ((fn & 2) !== 0) result |= a & ~b;
+  if ((fn & 4) !== 0) result |= ~a & b;
+  if ((fn & 8) !== 0) result |= ~a & ~b;
+  return result | 0;
 }

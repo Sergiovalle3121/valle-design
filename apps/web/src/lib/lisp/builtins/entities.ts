@@ -27,12 +27,18 @@
  */
 import type { CadEntityCommand } from "../../cad/entity-commands";
 import { CAD_ENTITY_REGISTRY } from "../../cad/entity-runtime";
+import { measureCadMText } from "../../cad/mtext-layout";
+import { dxfEntries, dxfNumber, dxfText } from "../dxf/codes";
 import { cadEntityToDxf } from "../dxf/from-entity";
+import { findLayerRecord, layerIdFromEname, layerRecordDxf } from "../dxf/layer-record";
 import { dxfPatchEntity, dxfToNewEntity } from "../dxf/to-entity";
 import { LispError } from "../errors";
 import {
   NIL,
   ename,
+  list,
+  pointValue,
+  real,
   str,
   type LispCallContext,
   type LispEval,
@@ -78,7 +84,21 @@ export function installEntityFunctions(table: BuiltinTable): void {
    */
   defsubr(table, "entget", 1, 2, (args, ctx) => {
     const host = requireHost(ctx, "entget");
-    const entity = host.entity(wantEname(args[0], "entget"));
+    const id = wantEname(args[0], "entget");
+    // Un nombre de la TABLA DE SÍMBOLOS —el que devuelve `tblobjname`— no
+    // apunta al espacio modelo. Se atiende aquí porque en AutoCAD `entget` lee
+    // igual una entidad que un registro de capa, y porque devolver nil habría
+    // convertido a `tblobjname` en un valor bonito e inservible.
+    const layerId = layerIdFromEname(id);
+    if (layerId !== null) {
+      const layer = findLayerRecord(host.layers(), layerId);
+      // La capa se borró entre el `tblobjname` y el `entget`: nil, igual que
+      // una entidad que ya no está.
+      if (!layer) return NIL;
+      ctx.charge(12);
+      return layerRecordDxf(layer, true);
+    }
+    const entity = host.entity(id);
     if (!entity) return NIL;
     const dxf = cadEntityToDxf(entity);
     if (!dxf) return NIL;
@@ -96,6 +116,7 @@ export function installEntityFunctions(table: BuiltinTable): void {
           "que es lo que devuelve entget.",
       );
     const id = first.cdr.id;
+    refuseSymbolTable("entmod", id);
     const entity = liveEntity(host, id, "entmod");
     if (!CAD_ENTITY_REGISTRY.supports(entity))
       throw new LispError(`entmod: ${id} no es una entidad nativa y no se puede modificar por DXF.`);
@@ -120,6 +141,7 @@ export function installEntityFunctions(table: BuiltinTable): void {
   defsubr(table, "entdel", 1, 1, (args, ctx) => {
     const host = requireHost(ctx, "entdel");
     const id = wantEname(args[0], "entdel");
+    refuseSymbolTable("entdel", id);
     if (!host.entity(id))
       throw new LispError(
         `entdel: ${id} ya no está en el dibujo. A diferencia de AutoCAD, aquí entdel no ` +
@@ -178,6 +200,57 @@ export function installEntityFunctions(table: BuiltinTable): void {
   });
 
   /**
+   * `(textbox datos)` → `((x-mín y-mín 0.0) (x-máx y-máx 0.0))`: la caja que
+   * ocupa un rótulo, EN SU PROPIO sistema de coordenadas y con el origen en su
+   * punto de inserción.
+   *
+   * Es la función con la que se dibuja un recuadro alrededor de un texto, se
+   * centra una etiqueta en una casilla de cajetín o se reparte una columna de
+   * cotas sin que se toquen. Sin ella, esas rutinas estiman el ancho
+   * multiplicando la altura por el número de letras, que sale mal en cuanto el
+   * texto lleva una eme o una i.
+   *
+   * ## Se MIDE con el mismo medidor que dibuja
+   *
+   * El ancho sale de `measureCadMText`, que es el que usan el adaptador de TEXT
+   * y el sprite que se pinta en pantalla. Estimarlo aquí habría hecho que el
+   * recuadro que dibuja la rutina y el texto que dibuja el editor discreparan
+   * en un plano impreso, que es donde se ve.
+   *
+   * ## Dos límites declarados
+   *
+   * 1. La caja es la de la MAQUETA —línea base a línea base—, no el contorno de
+   *    los trazos: no baja por debajo de cero para el rabo de una «g». AutoCAD
+   *    sí lo hace en algunas tipografías, y quien centre verticalmente notará
+   *    la diferencia de una fracción de la altura.
+   * 2. La rotación NO entra, y es lo correcto: la caja se pide en el sistema
+   *    del texto, así que un rótulo girado devuelve la misma que sin girar. La
+   *    rutina que quiera el contorno en coordenadas del mundo gira los dos
+   *    puntos ella misma, que es lo que hacen las rutinas reales.
+   *
+   * Acepta lo mismo que el original: la lista de `entget` —de la que se lee el
+   * `(1 . texto)` y el `(40 . altura)`— o una lista escrita a mano con esos dos
+   * códigos. Un dato sin texto devuelve nil, como AutoLISP ante algo que no es
+   * un rótulo.
+   */
+  defsubr(table, "textbox", 1, 1, (args, ctx) => {
+    const entries = dxfEntries(wantList(args[0]));
+    const text = dxfText(entries, 1);
+    if (text === null) return NIL;
+    // La altura por defecto es la de la variable TEXTSIZE del producto cuando
+    // el dato no la trae; sin tabla a mano, la del propio documento no se
+    // adivina: se usa 1.0, que es la unidad y no un tamaño inventado.
+    const height = dxfNumber(entries, 40) ?? 1;
+    const lines = text.split(/\r?\n/);
+    const width = Math.max(0, ...lines.map((line) => measureCadMText(line, height)));
+    ctx.charge(lines.length + 4);
+    return list([
+      pointValue({ x: 0, y: 0, z: 0 }),
+      list([real(width), real(height * lines.length), real(0)]),
+    ]);
+  });
+
+  /**
    * `entupd` regenera la pantalla tras un `entmod`. Aquí es un no-op honesto:
    * el anfitrión repinta desde el documento en cuanto éste cambia, así que no
    * hay nada que forzar. Existe porque las rutinas la llaman siempre, y que
@@ -187,4 +260,28 @@ export function installEntityFunctions(table: BuiltinTable): void {
   defgen(table, "entupd", 1, 1, function* (args): LispEval {
     return args[0];
   });
+}
+
+/**
+ * La tabla de símbolos NO se escribe por `entmod` ni por `entdel`.
+ *
+ * En AutoCAD sí se puede, y aquí no: crear, renombrar o borrar una capa produce
+ * comandos canónicos de capa (`{type: "layer"}`), y la única ruta que los
+ * produce es el comando `-LAYER`. Dejar que `entmod` construyera uno a partir
+ * de una lista de códigos habría abierto una segunda puerta a la tabla de capas
+ * —con su propia validación, su propio nombre de paso de deshacer y su propia
+ * idea de qué es un color— justo al lado de la que ya existe.
+ *
+ * Se dice con la alternativa escrita, que es lo que convierte un «no» en una
+ * instrucción.
+ */
+function refuseSymbolTable(caller: string, id: string): void {
+  const layerId = layerIdFromEname(id);
+  if (layerId === null) return;
+  throw new LispError(
+    `${caller}: "${layerId}" es un registro de la tabla de capas, y las tablas de símbolos no ` +
+      `se modifican por ${caller} en esta versión. La capa se crea, se pone actual, se apaga o ` +
+      `se bloquea con (command "-LAYER" …), que es la ruta que produce los comandos canónicos ` +
+      `de capa y un solo paso de deshacer.`,
+  );
 }

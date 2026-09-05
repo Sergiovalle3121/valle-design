@@ -94,6 +94,39 @@ export interface LispPickset {
   readonly index: Set<string>;
 }
 
+/**
+ * Objeto VLA: la mitad «moderna» de AutoLISP vista desde aquí.
+ *
+ * En AutoCAD, `(vlax-ename->vla-object e)` devuelve un puntero a un objeto COM
+ * vivo, y ese puntero ES el objeto: guarda estado, hay que soltarlo
+ * (`vlax-release-object`) y sobrevive a que la entidad se borre, momento en el
+ * que cualquier acceso revienta con un error de automatización.
+ *
+ * Aquí no hay COM ni puntero. Lo que lleva dentro es el HANDLE de la entidad
+ * —el mismo id canónico que lleva un `ename`— y CADA acceso lo resuelve contra
+ * el documento del anfitrión. Las consecuencias son tres, y las tres son
+ * mejores que la alternativa:
+ *
+ *  1. No hay puntero colgante. Un objeto guardado en una variable de la rutina
+ *     mientras otra parte borra la entidad no apunta a memoria liberada:
+ *     `vlax-erased-p` contesta T y `vla-get-*` dice que la entidad ya no está.
+ *  2. No hay estado que sincronizar. El objeto no cachea la capa ni el radio,
+ *     así que no puede discrepar del documento — que es la avería clásica del
+ *     puente COM cuando la rutina modifica por las dos vías a la vez.
+ *  3. `vlax-release-object` no tiene nada que liberar, y por eso es un no-op
+ *     honesto y no una promesa.
+ *
+ * Es un tipo APARTE de `ename` a propósito, aunque los dos lleven el mismo id:
+ * `(type obj)` tiene que decir VLA-OBJECT, `vlax-vla-object->ename` tiene que
+ * significar algo, y una rutina que pase un objeto donde se espera un nombre de
+ * entidad merece leer el error en vez de que funcione por accidente.
+ */
+export interface LispVlaObject {
+  readonly t: "vla-object";
+  /** El id canónico de la entidad. Opaco, igual que el de `ename`. */
+  readonly id: string;
+}
+
 /** Resultado de `vl-catch-all-apply` cuando la llamada falló. */
 export interface LispCatchError {
   readonly t: "catch-error";
@@ -134,6 +167,7 @@ export type LispValue =
   | LispCons
   | LispEname
   | LispPickset
+  | LispVlaObject
   | LispCatchError
   | LispSubr
   | LispClosure;
@@ -272,6 +306,15 @@ export function ename(id: string): LispEname {
   return { t: "ename", id };
 }
 
+/**
+ * Envuelve una entidad como objeto VLA. No comprueba que exista: igual que un
+ * `ename`, el objeto puede sobrevivir a la entidad, y decirlo es justo el
+ * trabajo de `vlax-erased-p`.
+ */
+export function vlaObject(id: string): LispVlaObject {
+  return { t: "vla-object", id };
+}
+
 export function pickset(serial: number, ids: Iterable<string>): LispPickset {
   const index = new Set(ids);
   return { t: "pickset", serial, ids: [...index], index };
@@ -378,6 +421,12 @@ export function eq(a: LispValue, b: LispValue): boolean {
       return a.v === (b as LispString).v;
     case "ename":
       return a.id === (b as LispEname).id;
+    case "vla-object":
+      // Dos `vlax-ename->vla-object` sobre la misma entidad dan el mismo
+      // objeto, como en AutoCAD —donde el puntero COM se reutiliza—, y por eso
+      // `(eq o1 o2)` es cierto. Se compara por id porque el id ES el objeto:
+      // aquí no hay puntero que comparar.
+      return a.id === (b as LispVlaObject).id;
     default:
       return false;
   }
@@ -439,6 +488,8 @@ export function typeName(value: LispValue): string {
       return "ENAME";
     case "pickset":
       return "PICKSET";
+    case "vla-object":
+      return "VLA-OBJECT";
     case "subr":
       return "SUBR";
     case "closure":

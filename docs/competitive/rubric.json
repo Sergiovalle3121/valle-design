@@ -78,6 +78,11 @@
             {
               "kind": "spec",
               "path": "apps/web/src/lib/cad/primitives.spec.ts"
+            },
+            {
+              "kind": "file",
+              "path": "docs/cad/evidence/dxf-corpus-terceros-matrix.json",
+              "independent": true
             }
           ]
         },
@@ -588,6 +593,15 @@
             {
               "kind": "golden",
               "path": "apps/web/e2e/golden/76-cad-trabajo-ajeno.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/verification/terceros-jornada.spec.ts",
+              "independent": true
+            },
+            {
+              "kind": "file",
+              "path": "docs/cad/evidence/jornada-plano-ajeno.json"
             }
           ]
         }
@@ -1153,6 +1167,16 @@
             {
               "kind": "spec",
               "path": "apps/web/src/lib/cad/dxf-block-document.spec.ts"
+            },
+            {
+              "kind": "file",
+              "path": "docs/cad/evidence/dxf-corpus-terceros-matrix.json",
+              "independent": true
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/verification/terceros-jornada.spec.ts",
+              "independent": true
             }
           ]
         },
@@ -2690,6 +2714,16 @@
             {
               "kind": "spec",
               "path": "apps/web/src/lib/brep/interop.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/verification/oraculos-externos.spec.ts",
+              "independent": true
+            },
+            {
+              "kind": "file",
+              "path": "docs/cad/corpus/oraculos/steputils-0.1.json",
+              "independent": true
             }
           ]
         },
@@ -2787,7 +2821,8 @@
           "evidence": [
             {
               "kind": "spec",
-              "path": "apps/web/src/lib/cad/verification/z-frontiers.spec.ts"
+              "path": "apps/web/src/lib/cad/verification/z-frontiers.spec.ts",
+              "independent": true
             },
             {
               "kind": "spec",
@@ -3144,6 +3179,11 @@
               "path": "scripts/dwg/corpus-consumer.mjs",
               "pattern": "mirrorEnv",
               "min": 1
+            },
+            {
+              "kind": "file",
+              "path": "docs/cad/corpus/manifest.json",
+              "independent": true
             }
           ]
         }

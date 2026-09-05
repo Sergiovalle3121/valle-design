@@ -1,0 +1,1928 @@
+{
+  "$comentario": "GENERADO. No se edita a mano: se regenera con el comando de `generadoPor` y el spec que lo genera falla si el fichero no coincide con la tabla viva del intérprete.",
+  "generadoPor": "cd apps/web && npx tsx src/lib/lisp/cobertura.spec.ts --update",
+  "fuente": "apps/web/src/lib/lisp/cad-builtins.ts · CAD_LISP_BUILTINS",
+  "columnas": {
+    "implementada": "Hace su trabajo dentro del alcance del producto y no tiene una frontera propia que declarar. No significa «idéntica a AutoCAD en todo caso extremo»: significa que no hay un límite conocido que quien porte una rutina necesite saber de antemano.",
+    "limite": "Existe y funciona, con una frontera ESCRITA que cambia un resultado y hay que conocer antes de portar la rutina, no después de imprimir el plano.",
+    "todaviaNo": "Existe en la tabla y se NIEGA nombrando qué falta y por qué. No es «nunca»: es lo que hoy no está. Un «no function definition» no distingue entre una errata y una carencia; esto sí."
+  },
+  "recuento": {
+    "total": 258,
+    "implementada": 188,
+    "limite": 40,
+    "todaviaNo": 30,
+    "nucleo": 161,
+    "cad": 97,
+    "constantes": 2,
+    "extensionesDelProducto": 3
+  },
+  "funciones": [
+    {
+      "nombre": "*",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "+",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "-",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "/",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "/=",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "1+",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "1-",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "<",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "<=",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "=",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": ">",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": ">=",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "ABS",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "ACTION_TILE",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "el diálogo es de UN VIAJE: se entrega el árbol con sus valores iniciales, el anfitrión lo pinta y contesta con los valores finales y el control que lo cerró. Cubre el diálogo que de verdad escriben las rutinas —pedir cuatro datos y aceptar— y no la validación en vivo ni los campos que se habilitan según otro. Sólo los controles que el analizador DCL sabe pintar; los demás se nombran al cargar. Mientras el editor no lo pinte, el anfitrión lo trata como CANCELADO, que es un camino que las rutinas ya manejan."
+    },
+    {
+      "nombre": "ALERT",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "ANGLE",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "ANGTOS",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "APPEND",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "APPLY",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "ASCII",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "ASSOC",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "ATAN",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "ATOF",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "ATOI",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "ATOM",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "BOOLE",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "BOUNDP",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "CAAAR",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "CAADR",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "CAAR",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "CADAR",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "CADDR",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "CADR",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "CAR",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "CDAAR",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "CDADR",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "CDAR",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "CDDAR",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "CDDDR",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "CDDR",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "CDR",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "CHR",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "CLOSE",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "E/S de ficheros",
+      "motivo": "La E/S de ficheros abre rutas del disco del usuario, y una rutina corre aquí dentro del sandbox del intérprete, sin sistema de ficheros al que llegar. Devolver un descriptor falso sería peor que negarse: `write-line` diría que escribió y no habría escrito nada, y la rutina daría por generado un fichero de medición que no existe. Para leer y escribir datos del dibujo están `entget`/`entmod`, y para guardar código, la biblioteca de rutinas del estudio (`load`)."
+    },
+    {
+      "nombre": "COMMAND",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "conduce los comandos del registro del motor y termina la máquina de estados dentro de la misma llamada: no deja un comando ACTIVO esperando a que el usuario pinche, que es lo que hace `(command \"LINEA\")` con argumentos de menos en AutoCAD. Una entidad pasada como argumento se designa por el centro de su contorno (véase `entsel`), así que TRIM y FILLET —que distinguen qué lado se designó— no se conducen bien por aquí. El texto que el comando devuelve todavía no se imprime en la línea de comandos."
+    },
+    {
+      "nombre": "CONS",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "COS",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "DISTANCE",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "DONE_DIALOG",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "el diálogo es de UN VIAJE: se entrega el árbol con sus valores iniciales, el anfitrión lo pinta y contesta con los valores finales y el control que lo cerró. Cubre el diálogo que de verdad escriben las rutinas —pedir cuatro datos y aceptar— y no la validación en vivo ni los campos que se habilitan según otro. Sólo los controles que el analizador DCL sabe pintar; los demás se nombran al cargar. Mientras el editor no lo pinte, el anfitrión lo trata como CANCELADO, que es un camino que las rutinas ya manejan."
+    },
+    {
+      "nombre": "ENTDEL",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "borra por el historial, así que se deshace con Ctrl+Z como cualquier otra cosa — y por eso NO resucita: sobre una entidad ya borrada da error en vez de devolverla, que es lo que hace AutoCAD dentro de la sesión. Recuperarla exigiría una papelera paralela al historial, es decir un segundo modelo de deshacer. Tampoco borra registros de la tabla de símbolos."
+    },
+    {
+      "nombre": "ENTGET",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "ENTHANDLE",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "sólo hablan de los handles que traen las entidades IMPORTADAS de un fichero. La geometría nacida aquí no tiene handle y contestan nil, en vez de derivar uno del identificador interno: eso sería inventar una identidad estable que el fichero no tiene y que cambiaría al volver a importar."
+    },
+    {
+      "nombre": "ENTLAST",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "ENTMAKE",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "construye enteros los tipos que el traductor DXF sabe crear sin perder estado (LINE, CIRCLE, ARC, LWPOLYLINE, POLYLINE, ELLIPSE, SPLINE, MTEXT, INSERT). HATCH, DIMENSION y MULTILEADER llevan asociatividad que la lista DXF no transporta y se rechazan NOMBRANDO el tipo, en vez de crear a medias una entidad que se dibuja bien y se rompe al regenerar. Un bloque se INSERTA pero no se DEFINE: el vocabulario canónico de mutación no tiene esa orden y el subsistema no se la salta."
+    },
+    {
+      "nombre": "ENTMOD",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "parte de la entidad que ya existe y aplica encima los códigos que el traductor reconoce, así que lo que no sabe leer SOBREVIVE intacto. No cambia el tipo (código 0) porque hay cotas y sombreados que referencian la entidad por su identidad, y no escribe la tabla de símbolos: un registro de capa se rechaza nombrando `-LAYER`, que es la única ruta que produce comandos canónicos de capa."
+    },
+    {
+      "nombre": "ENTNEXT",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "ENTSEL",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "devuelve `(<nombre> <punto>)` y el punto es el CENTRO de la caja envolvente de la entidad, no el del clic: el anfitrión contesta a una designación con nombres de entidad, no con coordenadas. Lo que dependa de QUÉ LADO se designó —el trozo que recorta TRIM, la mitad de un arco— saldrá del lado del centro. Omitir el punto habría sido peor: `(cadr (entsel))` daría nil y la rutina dibujaría en el origen sin quejarse."
+    },
+    {
+      "nombre": "ENTUPD",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "es un no-op que devuelve su argumento: el anfitrión repinta desde el documento en cuanto éste cambia, así que no hay regeneración que forzar. Existe porque las rutinas la llaman siempre y que faltara sería un «no function definition» en mitad de una rutina que funciona."
+    },
+    {
+      "nombre": "EQ",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "EQUAL",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "EVAL",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "EXIT",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "EXP",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "EXPT",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "FIX",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "FLOAT",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "GCD",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "GETANGLE",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "GETCORNER",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "GETDIST",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "GETENV",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "devuelve siempre nil. Aquí no hay variables de entorno del sistema operativo que leer, y el sandbox del intérprete no alcanza el proceso; contestar una cadena inventada dejaría a la rutina construyendo rutas de un disco que no existe."
+    },
+    {
+      "nombre": "GETFILED",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "cuadro de archivos del sistema",
+      "motivo": "`getfiled` abre el cuadro de archivos del sistema y devuelve una ruta del disco del usuario, que es justo lo que el sandbox del intérprete no alcanza. La variable FILEDIA sigue en la tabla porque es estado del dibujo que las rutinas guardan y restauran, no la promesa de un explorador de ficheros."
+    },
+    {
+      "nombre": "GETINT",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "GETKWORD",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "GETPOINT",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "GETREAL",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "GETSTRING",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "GETVAR",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "lee la tabla de variables de sistema DEL PRODUCTO, la misma que escriben SETVAR, UNITS, COLOR, LTSCALE y OSNAP tecleados. Lo que no está en esa tabla no se inventa: se rechaza con el mismo mensaje que al escribir, a propósito, para que quien se equivoque de nombre no busque dos defectos donde hay uno."
+    },
+    {
+      "nombre": "GET_TILE",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "el diálogo es de UN VIAJE: se entrega el árbol con sus valores iniciales, el anfitrión lo pinta y contesta con los valores finales y el control que lo cerró. Cubre el diálogo que de verdad escriben las rutinas —pedir cuatro datos y aceptar— y no la validación en vivo ni los campos que se habilitan según otro. Sólo los controles que el analizador DCL sabe pintar; los demás se nombran al cargar. Mientras el editor no lo pinte, el anfitrión lo trata como CANCELADO, que es un camino que las rutinas ya manejan."
+    },
+    {
+      "nombre": "HANDENT",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "sólo hablan de los handles que traen las entidades IMPORTADAS de un fichero. La geometría nacida aquí no tiene handle y contestan nil, en vez de derivar uno del identificador interno: eso sería inventar una identidad estable que el fichero no tiene y que cambiaría al volver a importar."
+    },
+    {
+      "nombre": "INITGET",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "INTERS",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "ITOA",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "LAST",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "LENGTH",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "LIST",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "LISTP",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "LOAD",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "lee de la biblioteca de rutinas del estudio que monta el anfitrión, no del disco: el intérprete no alcanza el sistema de ficheros. Sin biblioteca montada lo DICE, en vez de devolver nil fingiendo que el fichero no existe, que son dos cosas distintas para quien depura. Un ciclo de cargas se corta nombrando el ciclo entero, no agotando el presupuesto."
+    },
+    {
+      "nombre": "LOAD_DIALOG",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "el diálogo es de UN VIAJE: se entrega el árbol con sus valores iniciales, el anfitrión lo pinta y contesta con los valores finales y el control que lo cerró. Cubre el diálogo que de verdad escriben las rutinas —pedir cuatro datos y aceptar— y no la validación en vivo ni los campos que se habilitan según otro. Sólo los controles que el analizador DCL sabe pintar; los demás se nombran al cargar. Mientras el editor no lo pinte, el anfitrión lo trata como CANCELADO, que es un camino que las rutinas ya manejan."
+    },
+    {
+      "nombre": "LOG",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "LOGAND",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "LOGIOR",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "LSH",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "MAPCAR",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "MAX",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "MEMBER",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "MIN",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "MINUSP",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "NENTSEL",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "designación anidada",
+      "motivo": "`nentsel` designa DENTRO de un bloque y devuelve, además de la entidad anidada, la matriz de transformación del anidamiento. Este producto no expone la geometría interior de un INSERT como entidades designables, así que la matriz no existiría y devolver el INSERT entero sería contestar otra cosa a la pregunta que se hizo. Para designar la referencia completa está `entsel`."
+    },
+    {
+      "nombre": "NEW_DIALOG",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "el diálogo es de UN VIAJE: se entrega el árbol con sus valores iniciales, el anfitrión lo pinta y contesta con los valores finales y el control que lo cerró. Cubre el diálogo que de verdad escriben las rutinas —pedir cuatro datos y aceptar— y no la validación en vivo ni los campos que se habilitan según otro. Sólo los controles que el analizador DCL sabe pintar; los demás se nombran al cargar. Mientras el editor no lo pinte, el anfitrión lo trata como CANCELADO, que es un camino que las rutinas ya manejan."
+    },
+    {
+      "nombre": "NOT",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "NTH",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "NULL",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "NUMBERP",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "OPEN",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "E/S de ficheros",
+      "motivo": "La E/S de ficheros abre rutas del disco del usuario, y una rutina corre aquí dentro del sandbox del intérprete, sin sistema de ficheros al que llegar. Devolver un descriptor falso sería peor que negarse: `write-line` diría que escribió y no habría escrito nada, y la rutina daría por generado un fichero de medición que no existe. Para leer y escribir datos del dibujo están `entget`/`entmod`, y para guardar código, la biblioteca de rutinas del estudio (`load`)."
+    },
+    {
+      "nombre": "OSNAP",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "no tiene APERTURA porque una rutina corre sin ventana y la apertura de AutoCAD se mide en píxeles: busca en TODO el dibujo y gana el punto notable más cercano de los modos pedidos. La consecuencia declarada es que no devuelve nil por «estar lejos», sino cuando los modos pedidos no tienen ningún candidato. Divergencia heredada del adaptador de LINE: «cen» sobre una línea contesta su punto medio, cosa que AutoCAD no hace."
+    },
+    {
+      "nombre": "PI",
+      "tabla": "nucleo",
+      "clase": "constante",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "POLAR",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "PRIN1",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "PRINC",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "PRINT",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "PROMPT",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "QUIT",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "READ",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "READ-CHAR",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "E/S de ficheros",
+      "motivo": "La E/S de ficheros abre rutas del disco del usuario, y una rutina corre aquí dentro del sandbox del intérprete, sin sistema de ficheros al que llegar. Devolver un descriptor falso sería peor que negarse: `write-line` diría que escribió y no habría escrito nada, y la rutina daría por generado un fichero de medición que no existe. Para leer y escribir datos del dibujo están `entget`/`entmod`, y para guardar código, la biblioteca de rutinas del estudio (`load`)."
+    },
+    {
+      "nombre": "READ-LINE",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "E/S de ficheros",
+      "motivo": "La E/S de ficheros abre rutas del disco del usuario, y una rutina corre aquí dentro del sandbox del intérprete, sin sistema de ficheros al que llegar. Devolver un descriptor falso sería peor que negarse: `write-line` diría que escribió y no habría escrito nada, y la rutina daría por generado un fichero de medición que no existe. Para leer y escribir datos del dibujo están `entget`/`entmod`, y para guardar código, la biblioteca de rutinas del estudio (`load`)."
+    },
+    {
+      "nombre": "REM",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "REVERSE",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "RTOS",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "SETVAR",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "escribe la misma tabla, con sus tres reglas: las de sólo lectura (AREA, PERIMETER, los ejes del SCU) rechazan la escritura, el rango y el enumerado se validan diciendo la razón, y lo que no está en la tabla no se crea. Las variables NO persisten en el documento —el documento canónico no tiene sección donde guardarlas— y `INSUNITS` cambia la tabla de la sesión, no la cabecera del dibujo."
+    },
+    {
+      "nombre": "SET_TILE",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "el diálogo es de UN VIAJE: se entrega el árbol con sus valores iniciales, el anfitrión lo pinta y contesta con los valores finales y el control que lo cerró. Cubre el diálogo que de verdad escriben las rutinas —pedir cuatro datos y aceptar— y no la validación en vivo ni los campos que se habilitan según otro. Sólo los controles que el analizador DCL sabe pintar; los demás se nombran al cargar. Mientras el editor no lo pinte, el anfitrión lo trata como CANCELADO, que es un camino que las rutinas ya manejan."
+    },
+    {
+      "nombre": "SIN",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "SQRT",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "SSADD",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "SSDEL",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "SSGET",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "designa por conjunción de pares del filtro; los operadores lógicos `(-4 . \"<OR\")` se RECHAZAN diciéndolo, porque aplicar el resto como conjunción devolvería un conjunto plausible y equivocado. Los modos admitidos son X, A, L, W y C más la designación interactiva sin modo: los de valla (F), polígono (WP, CP) y anterior (P) se niegan nombrando el modo pedido."
+    },
+    {
+      "nombre": "SSLENGTH",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "SSMEMB",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "SSNAME",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "START_DIALOG",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "el diálogo es de UN VIAJE: se entrega el árbol con sus valores iniciales, el anfitrión lo pinta y contesta con los valores finales y el control que lo cerró. Cubre el diálogo que de verdad escriben las rutinas —pedir cuatro datos y aceptar— y no la validación en vivo ni los campos que se habilitan según otro. Sólo los controles que el analizador DCL sabe pintar; los demás se nombran al cargar. Mientras el editor no lo pinte, el anfitrión lo trata como CANCELADO, que es un camino que las rutinas ya manejan."
+    },
+    {
+      "nombre": "STRCASE",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "STRCAT",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "STRINGP",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "STRLEN",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "SUBST",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "SUBSTR",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "T",
+      "tabla": "nucleo",
+      "clase": "constante",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "TBLNEXT",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "sólo la tabla LAYER. BLOCK, STYLE, LTYPE, DIMSTYLE, UCS, VIEW y VPORT existen en el documento con otra forma —o no existen— y contestar una lista aproximada por cada una sería inventarse la tabla de símbolos de otro producto; se rechazan nombrando la tabla pedida, que es lo que permite al autor decidir qué hacer."
+    },
+    {
+      "nombre": "TBLOBJNAME",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "sólo la tabla LAYER. BLOCK, STYLE, LTYPE, DIMSTYLE, UCS, VIEW y VPORT existen en el documento con otra forma —o no existen— y contestar una lista aproximada por cada una sería inventarse la tabla de símbolos de otro producto; se rechazan nombrando la tabla pedida, que es lo que permite al autor decidir qué hacer."
+    },
+    {
+      "nombre": "TBLSEARCH",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "sólo la tabla LAYER. BLOCK, STYLE, LTYPE, DIMSTYLE, UCS, VIEW y VPORT existen en el documento con otra forma —o no existen— y contestar una lista aproximada por cada una sería inventarse la tabla de símbolos de otro producto; se rechazan nombrando la tabla pedida, que es lo que permite al autor decidir qué hacer."
+    },
+    {
+      "nombre": "TERPRI",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "TEXTBOX",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "TRANS",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "sólo admite la identidad —el mismo sistema de origen y de destino— porque el documento canónico todavía no modela SCU ni SCP. Cuando difieren se RECHAZA en vez de devolver el punto sin transformar, que es la forma silenciosa de colocar geometría en el sitio equivocado."
+    },
+    {
+      "nombre": "TYPE",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "UNLOAD_DIALOG",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "el diálogo es de UN VIAJE: se entrega el árbol con sus valores iniciales, el anfitrión lo pinta y contesta con los valores finales y el control que lo cerró. Cubre el diálogo que de verdad escriben las rutinas —pedir cuatro datos y aceptar— y no la validación en vivo ni los campos que se habilitan según otro. Sólo los controles que el analizador DCL sabe pintar; los demás se nombran al cargar. Mientras el editor no lo pinte, el anfitrión lo trata como CANCELADO, que es un camino que las rutinas ya manejan."
+    },
+    {
+      "nombre": "VD-AREAS",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "valle",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VD-CARPINTERIA",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "valle",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VD-MUROS",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "valle",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-CATCH-ALL-APPLY",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-CATCH-ALL-ERROR-MESSAGE",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-CATCH-ALL-ERROR-P",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-CONSP",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-EVERY",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-FILENAME-BASE",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-FILENAME-DIRECTORY",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-FILENAME-EXTENSION",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-LIST*",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-LIST->STRING",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-LOAD-COM",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "es un no-op que devuelve nil, igual que en AutoCAD moderno, donde la extensión ya está cargada. No promete ActiveX —quien llame después al lado de aplicación recibe su negativa con el motivo—: promete no matar en la línea 1 a la rutina que copia esa línea por costumbre y luego no usa COM para nada."
+    },
+    {
+      "nombre": "VL-MEMBER-IF",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-MEMBER-IF-NOT",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-POSITION",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-PRIN1-TO-STRING",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-PRINC-TO-STRING",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-REMOVE",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-REMOVE-IF",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-REMOVE-IF-NOT",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-SOME",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-SORT",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-SORT-I",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-STRING->LIST",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-STRING-ELT",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-STRING-LEFT-TRIM",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-STRING-MISMATCH",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-STRING-POSITION",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-STRING-RIGHT-TRIM",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-STRING-SEARCH",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-STRING-SUBST",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-STRING-TRIM",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-SYMBOL-NAME",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-SYMBOL-VALUE",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VL-SYMBOLP",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLA-GET-AREA",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLA-GET-CENTER",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLA-GET-CLOSED",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLA-GET-COLOR",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLA-GET-COORDINATES",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLA-GET-ENDPOINT",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLA-GET-HEIGHT",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLA-GET-INSERTIONPOINT",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLA-GET-LAYER",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLA-GET-LENGTH",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLA-GET-LINETYPE",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLA-GET-LINETYPESCALE",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLA-GET-RADIUS",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLA-GET-STARTPOINT",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLA-GET-TEXTSTRING",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLA-PUT-AREA",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "no se escribe, y se dice al intentarlo: el área es el RESULTADO de la geometría, no un dato que se guarde: escribirla obligaría a decidir qué vértice mover para que cuadre. Se cambia moviendo la geometría (vla-put-Coordinates, vla-put-Radius) o con los comandos de edición."
+    },
+    {
+      "nombre": "VLA-PUT-CENTER",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLA-PUT-CLOSED",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "escribe sólo en las entidades de tipo polyline; en los demás tipos que la LEEN se niega porque cerrar una SPLINE cambia su vector de nudos y su continuidad en la unión, no una bandera: el traductor DXF de este producto no transporta esa regeneración. Se cierra con (command \"EDITPOL\" …)."
+    },
+    {
+      "nombre": "VLA-PUT-COLOR",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLA-PUT-COORDINATES",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLA-PUT-ENDPOINT",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "escribe sólo en las entidades de tipo line; en los demás tipos que la LEEN se niega porque el punto final de un arco es consecuencia de su centro, su radio y su ángulo final. Véase vla-put-StartPoint."
+    },
+    {
+      "nombre": "VLA-PUT-HEIGHT",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLA-PUT-INSERTIONPOINT",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLA-PUT-LAYER",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLA-PUT-LENGTH",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "no se escribe, y se dice al intentarlo: la longitud es el resultado de la geometría. Un tramo se alarga con vla-put-EndPoint o con (command \"ALARGA\" …)."
+    },
+    {
+      "nombre": "VLA-PUT-LINETYPE",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLA-PUT-LINETYPESCALE",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLA-PUT-RADIUS",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLA-PUT-STARTPOINT",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "escribe sólo en las entidades de tipo line; en los demás tipos que la LEEN se niega porque el punto de arranque de un arco es CONSECUENCIA de su centro, su radio y su ángulo inicial; moverlo a mano dejaría el arco sin definir. Se cambia con vla-put-Center, vla-put-Radius o con (command \"ARCO\" …)."
+    },
+    {
+      "nombre": "VLA-PUT-TEXTSTRING",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLAX-3D-POINT",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLAX-CREATE-OBJECT",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "objeto de APLICACIÓN de ActiveX",
+      "motivo": "El objeto de APLICACIÓN de ActiveX (`AcadApplication`, su `Documents`, su `Preferences`, su línea de comandos COM) es una interfaz de Windows con el ejecutable de AutoCAD, y aquí no hay ni Windows ni ese ejecutable: esto corre en el navegador. Devolver un objeto que acepta `vlax-put-property` y no cambia nada sería un «éxito sin efecto» de manual. Lo que SÍ hay es el puente de entidades entero: (vlax-ename->vla-object e) da un objeto VLA de verdad, con vla-get-*/vla-put-*, vlax-get/vlax-put y vlax-curve-*, y su escritura entra en el historial como cualquier otra. Para conducir el programa está (command …); para lo que el lenguaje no alcanza, el SDK de plugins en JavaScript."
+    },
+    {
+      "nombre": "VLAX-CURVE-GETAREA",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLAX-CURVE-GETCLOSESTPOINTTO",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLAX-CURVE-GETDISTATPARAM",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "parametrización interna de curvas",
+      "motivo": "La parametrización interna de una curva —el índice de tramo de una polilínea, el nudo de una NURBS— no la publica este producto, y traducirla a una distancia sería inventarse una correspondencia que la rutina usaría para colocar geometría. Para recorrer una curva por LONGITUD, que es como se reparten marcas en un plano, están vlax-curve-getPointAtDist, vlax-curve-getDistAtPoint y vlax-curve-getClosestPointTo, que sí miden sobre la geometría del producto."
+    },
+    {
+      "nombre": "VLAX-CURVE-GETDISTATPOINT",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLAX-CURVE-GETENDPOINT",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLAX-CURVE-GETFIRSTDERIV",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "parametrización interna de curvas",
+      "motivo": "La parametrización interna de una curva —el índice de tramo de una polilínea, el nudo de una NURBS— no la publica este producto, y traducirla a una distancia sería inventarse una correspondencia que la rutina usaría para colocar geometría. Para recorrer una curva por LONGITUD, que es como se reparten marcas en un plano, están vlax-curve-getPointAtDist, vlax-curve-getDistAtPoint y vlax-curve-getClosestPointTo, que sí miden sobre la geometría del producto."
+    },
+    {
+      "nombre": "VLAX-CURVE-GETPARAMATDIST",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "parametrización interna de curvas",
+      "motivo": "La parametrización interna de una curva —el índice de tramo de una polilínea, el nudo de una NURBS— no la publica este producto, y traducirla a una distancia sería inventarse una correspondencia que la rutina usaría para colocar geometría. Para recorrer una curva por LONGITUD, que es como se reparten marcas en un plano, están vlax-curve-getPointAtDist, vlax-curve-getDistAtPoint y vlax-curve-getClosestPointTo, que sí miden sobre la geometría del producto."
+    },
+    {
+      "nombre": "VLAX-CURVE-GETPARAMATPOINT",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "parametrización interna de curvas",
+      "motivo": "La parametrización interna de una curva —el índice de tramo de una polilínea, el nudo de una NURBS— no la publica este producto, y traducirla a una distancia sería inventarse una correspondencia que la rutina usaría para colocar geometría. Para recorrer una curva por LONGITUD, que es como se reparten marcas en un plano, están vlax-curve-getPointAtDist, vlax-curve-getDistAtPoint y vlax-curve-getClosestPointTo, que sí miden sobre la geometría del producto."
+    },
+    {
+      "nombre": "VLAX-CURVE-GETPOINTATDIST",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLAX-CURVE-GETPOINTATPARAM",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "parametrización interna de curvas",
+      "motivo": "La parametrización interna de una curva —el índice de tramo de una polilínea, el nudo de una NURBS— no la publica este producto, y traducirla a una distancia sería inventarse una correspondencia que la rutina usaría para colocar geometría. Para recorrer una curva por LONGITUD, que es como se reparten marcas en un plano, están vlax-curve-getPointAtDist, vlax-curve-getDistAtPoint y vlax-curve-getClosestPointTo, que sí miden sobre la geometría del producto."
+    },
+    {
+      "nombre": "VLAX-CURVE-GETSECONDDERIV",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "parametrización interna de curvas",
+      "motivo": "La parametrización interna de una curva —el índice de tramo de una polilínea, el nudo de una NURBS— no la publica este producto, y traducirla a una distancia sería inventarse una correspondencia que la rutina usaría para colocar geometría. Para recorrer una curva por LONGITUD, que es como se reparten marcas en un plano, están vlax-curve-getPointAtDist, vlax-curve-getDistAtPoint y vlax-curve-getClosestPointTo, que sí miden sobre la geometría del producto."
+    },
+    {
+      "nombre": "VLAX-CURVE-GETSTARTPOINT",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLAX-CURVE-ISCLOSED",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLAX-ENAME->VLA-OBJECT",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLAX-ERASED-P",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLAX-GET",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "hablan de las propiedades de la tabla del puente (Layer, Color, Linetype, LinetypeScale, TextString, Height, InsertionPoint, StartPoint, EndPoint, Center, Radius, Closed, Coordinates, Area, Length). Una propiedad que no esté en ella se niega nombrándola, en vez de aceptar la escritura y no aplicarla."
+    },
+    {
+      "nombre": "VLAX-GET-ACAD-OBJECT",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "objeto de APLICACIÓN de ActiveX",
+      "motivo": "El objeto de APLICACIÓN de ActiveX (`AcadApplication`, su `Documents`, su `Preferences`, su línea de comandos COM) es una interfaz de Windows con el ejecutable de AutoCAD, y aquí no hay ni Windows ni ese ejecutable: esto corre en el navegador. Devolver un objeto que acepta `vlax-put-property` y no cambia nada sería un «éxito sin efecto» de manual. Lo que SÍ hay es el puente de entidades entero: (vlax-ename->vla-object e) da un objeto VLA de verdad, con vla-get-*/vla-put-*, vlax-get/vlax-put y vlax-curve-*, y su escritura entra en el historial como cualquier otra. Para conducir el programa está (command …); para lo que el lenguaje no alcanza, el SDK de plugins en JavaScript."
+    },
+    {
+      "nombre": "VLAX-GET-OR-CREATE-OBJECT",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "objeto de APLICACIÓN de ActiveX",
+      "motivo": "El objeto de APLICACIÓN de ActiveX (`AcadApplication`, su `Documents`, su `Preferences`, su línea de comandos COM) es una interfaz de Windows con el ejecutable de AutoCAD, y aquí no hay ni Windows ni ese ejecutable: esto corre en el navegador. Devolver un objeto que acepta `vlax-put-property` y no cambia nada sería un «éxito sin efecto» de manual. Lo que SÍ hay es el puente de entidades entero: (vlax-ename->vla-object e) da un objeto VLA de verdad, con vla-get-*/vla-put-*, vlax-get/vlax-put y vlax-curve-*, y su escritura entra en el historial como cualquier otra. Para conducir el programa está (command …); para lo que el lenguaje no alcanza, el SDK de plugins en JavaScript."
+    },
+    {
+      "nombre": "VLAX-GET-PROPERTY",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "hablan de las propiedades de la tabla del puente (Layer, Color, Linetype, LinetypeScale, TextString, Height, InsertionPoint, StartPoint, EndPoint, Center, Radius, Closed, Coordinates, Area, Length). Una propiedad que no esté en ella se niega nombrándola, en vez de aceptar la escritura y no aplicarla."
+    },
+    {
+      "nombre": "VLAX-IMPORT-TYPE-LIBRARY",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "objeto de APLICACIÓN de ActiveX",
+      "motivo": "El objeto de APLICACIÓN de ActiveX (`AcadApplication`, su `Documents`, su `Preferences`, su línea de comandos COM) es una interfaz de Windows con el ejecutable de AutoCAD, y aquí no hay ni Windows ni ese ejecutable: esto corre en el navegador. Devolver un objeto que acepta `vlax-put-property` y no cambia nada sería un «éxito sin efecto» de manual. Lo que SÍ hay es el puente de entidades entero: (vlax-ename->vla-object e) da un objeto VLA de verdad, con vla-get-*/vla-put-*, vlax-get/vlax-put y vlax-curve-*, y su escritura entra en el historial como cualquier otra. Para conducir el programa está (command …); para lo que el lenguaje no alcanza, el SDK de plugins en JavaScript."
+    },
+    {
+      "nombre": "VLAX-INVOKE",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "objeto de APLICACIÓN de ActiveX",
+      "motivo": "El objeto de APLICACIÓN de ActiveX (`AcadApplication`, su `Documents`, su `Preferences`, su línea de comandos COM) es una interfaz de Windows con el ejecutable de AutoCAD, y aquí no hay ni Windows ni ese ejecutable: esto corre en el navegador. Devolver un objeto que acepta `vlax-put-property` y no cambia nada sería un «éxito sin efecto» de manual. Lo que SÍ hay es el puente de entidades entero: (vlax-ename->vla-object e) da un objeto VLA de verdad, con vla-get-*/vla-put-*, vlax-get/vlax-put y vlax-curve-*, y su escritura entra en el historial como cualquier otra. Para conducir el programa está (command …); para lo que el lenguaje no alcanza, el SDK de plugins en JavaScript."
+    },
+    {
+      "nombre": "VLAX-INVOKE-METHOD",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "objeto de APLICACIÓN de ActiveX",
+      "motivo": "El objeto de APLICACIÓN de ActiveX (`AcadApplication`, su `Documents`, su `Preferences`, su línea de comandos COM) es una interfaz de Windows con el ejecutable de AutoCAD, y aquí no hay ni Windows ni ese ejecutable: esto corre en el navegador. Devolver un objeto que acepta `vlax-put-property` y no cambia nada sería un «éxito sin efecto» de manual. Lo que SÍ hay es el puente de entidades entero: (vlax-ename->vla-object e) da un objeto VLA de verdad, con vla-get-*/vla-put-*, vlax-get/vlax-put y vlax-curve-*, y su escritura entra en el historial como cualquier otra. Para conducir el programa está (command …); para lo que el lenguaje no alcanza, el SDK de plugins en JavaScript."
+    },
+    {
+      "nombre": "VLAX-METHOD-APPLICABLE-P",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "objeto de APLICACIÓN de ActiveX",
+      "motivo": "El objeto de APLICACIÓN de ActiveX (`AcadApplication`, su `Documents`, su `Preferences`, su línea de comandos COM) es una interfaz de Windows con el ejecutable de AutoCAD, y aquí no hay ni Windows ni ese ejecutable: esto corre en el navegador. Devolver un objeto que acepta `vlax-put-property` y no cambia nada sería un «éxito sin efecto» de manual. Lo que SÍ hay es el puente de entidades entero: (vlax-ename->vla-object e) da un objeto VLA de verdad, con vla-get-*/vla-put-*, vlax-get/vlax-put y vlax-curve-*, y su escritura entra en el historial como cualquier otra. Para conducir el programa está (command …); para lo que el lenguaje no alcanza, el SDK de plugins en JavaScript."
+    },
+    {
+      "nombre": "VLAX-OBJECT-P",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLAX-PROPERTY-AVAILABLE-P",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "hablan de las propiedades de la tabla del puente (Layer, Color, Linetype, LinetypeScale, TextString, Height, InsertionPoint, StartPoint, EndPoint, Center, Radius, Closed, Coordinates, Area, Length). Una propiedad que no esté en ella se niega nombrándola, en vez de aceptar la escritura y no aplicarla."
+    },
+    {
+      "nombre": "VLAX-PUT",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "hablan de las propiedades de la tabla del puente (Layer, Color, Linetype, LinetypeScale, TextString, Height, InsertionPoint, StartPoint, EndPoint, Center, Radius, Closed, Coordinates, Area, Length). Una propiedad que no esté en ella se niega nombrándola, en vez de aceptar la escritura y no aplicarla."
+    },
+    {
+      "nombre": "VLAX-PUT-PROPERTY",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "hablan de las propiedades de la tabla del puente (Layer, Color, Linetype, LinetypeScale, TextString, Height, InsertionPoint, StartPoint, EndPoint, Center, Radius, Closed, Coordinates, Area, Length). Una propiedad que no esté en ella se niega nombrándola, en vez de aceptar la escritura y no aplicarla."
+    },
+    {
+      "nombre": "VLAX-RELEASE-OBJECT",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "es un no-op HONESTO: un objeto VLA de aquí está respaldado por el handle de la entidad y se resuelve contra el documento en cada acceso, así que no hay puntero COM que liberar ni estado que pueda discrepar. Se acepta porque toda rutina de ActiveX la llama al terminar."
+    },
+    {
+      "nombre": "VLAX-SAFEARRAY->LIST",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "son la IDENTIDAD. Aquí una propiedad de punto ya llega como lista LISP, sin variante ni safearray de por medio; existen para que `(vlax-safearray->list (vlax-variant-value (vlax-get-property o 'StartPoint)))` —la línea con la que está escrita media biblioteca publicada— corra sin tocarla."
+    },
+    {
+      "nombre": "VLAX-VARIANT-VALUE",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "limite",
+      "limite": "son la IDENTIDAD. Aquí una propiedad de punto ya llega como lista LISP, sin variante ni safearray de por medio; existen para que `(vlax-safearray->list (vlax-variant-value (vlax-get-property o 'StartPoint)))` —la línea con la que está escrita media biblioteca publicada— corra sin tocarla."
+    },
+    {
+      "nombre": "VLAX-VLA-OBJECT->ENAME",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "VLR-ACDB-REACTOR",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "reactores",
+      "motivo": "Un reactor `vlr-*` engancha código de la rutina a los eventos del editor —cada objeto que se crea, cada comando que empieza— y lo ejecuta DENTRO del ciclo de edición. Aquí una rutina corre con presupuesto medido y con una sola salida de escritura; un reactor la convertiría en código residente que puede reentrar en el comando que lo despertó, y ni el presupuesto ni el paso único de deshacer sobrevivirían a eso. No se finge con un registro que nunca dispara: eso dejaría a la rutina creyendo que su comprobación de norma está vigilando el dibujo. Para reaccionar a los cambios está el SDK de plugins del estudio, que sí tiene eventos con su propio ciclo de vida."
+    },
+    {
+      "nombre": "VLR-COMMAND-REACTOR",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "reactores",
+      "motivo": "Un reactor `vlr-*` engancha código de la rutina a los eventos del editor —cada objeto que se crea, cada comando que empieza— y lo ejecuta DENTRO del ciclo de edición. Aquí una rutina corre con presupuesto medido y con una sola salida de escritura; un reactor la convertiría en código residente que puede reentrar en el comando que lo despertó, y ni el presupuesto ni el paso único de deshacer sobrevivirían a eso. No se finge con un registro que nunca dispara: eso dejaría a la rutina creyendo que su comprobación de norma está vigilando el dibujo. Para reaccionar a los cambios está el SDK de plugins del estudio, que sí tiene eventos con su propio ciclo de vida."
+    },
+    {
+      "nombre": "VLR-DWG-REACTOR",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "reactores",
+      "motivo": "Un reactor `vlr-*` engancha código de la rutina a los eventos del editor —cada objeto que se crea, cada comando que empieza— y lo ejecuta DENTRO del ciclo de edición. Aquí una rutina corre con presupuesto medido y con una sola salida de escritura; un reactor la convertiría en código residente que puede reentrar en el comando que lo despertó, y ni el presupuesto ni el paso único de deshacer sobrevivirían a eso. No se finge con un registro que nunca dispara: eso dejaría a la rutina creyendo que su comprobación de norma está vigilando el dibujo. Para reaccionar a los cambios está el SDK de plugins del estudio, que sí tiene eventos con su propio ciclo de vida."
+    },
+    {
+      "nombre": "VLR-EDITOR-REACTOR",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "reactores",
+      "motivo": "Un reactor `vlr-*` engancha código de la rutina a los eventos del editor —cada objeto que se crea, cada comando que empieza— y lo ejecuta DENTRO del ciclo de edición. Aquí una rutina corre con presupuesto medido y con una sola salida de escritura; un reactor la convertiría en código residente que puede reentrar en el comando que lo despertó, y ni el presupuesto ni el paso único de deshacer sobrevivirían a eso. No se finge con un registro que nunca dispara: eso dejaría a la rutina creyendo que su comprobación de norma está vigilando el dibujo. Para reaccionar a los cambios está el SDK de plugins del estudio, que sí tiene eventos con su propio ciclo de vida."
+    },
+    {
+      "nombre": "VLR-LISP-REACTOR",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "reactores",
+      "motivo": "Un reactor `vlr-*` engancha código de la rutina a los eventos del editor —cada objeto que se crea, cada comando que empieza— y lo ejecuta DENTRO del ciclo de edición. Aquí una rutina corre con presupuesto medido y con una sola salida de escritura; un reactor la convertiría en código residente que puede reentrar en el comando que lo despertó, y ni el presupuesto ni el paso único de deshacer sobrevivirían a eso. No se finge con un registro que nunca dispara: eso dejaría a la rutina creyendo que su comprobación de norma está vigilando el dibujo. Para reaccionar a los cambios está el SDK de plugins del estudio, que sí tiene eventos con su propio ciclo de vida."
+    },
+    {
+      "nombre": "VLR-OBJECT-REACTOR",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "reactores",
+      "motivo": "Un reactor `vlr-*` engancha código de la rutina a los eventos del editor —cada objeto que se crea, cada comando que empieza— y lo ejecuta DENTRO del ciclo de edición. Aquí una rutina corre con presupuesto medido y con una sola salida de escritura; un reactor la convertiría en código residente que puede reentrar en el comando que lo despertó, y ni el presupuesto ni el paso único de deshacer sobrevivirían a eso. No se finge con un registro que nunca dispara: eso dejaría a la rutina creyendo que su comprobación de norma está vigilando el dibujo. Para reaccionar a los cambios está el SDK de plugins del estudio, que sí tiene eventos con su propio ciclo de vida."
+    },
+    {
+      "nombre": "VLR-REACTORS",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "reactores",
+      "motivo": "Un reactor `vlr-*` engancha código de la rutina a los eventos del editor —cada objeto que se crea, cada comando que empieza— y lo ejecuta DENTRO del ciclo de edición. Aquí una rutina corre con presupuesto medido y con una sola salida de escritura; un reactor la convertiría en código residente que puede reentrar en el comando que lo despertó, y ni el presupuesto ni el paso único de deshacer sobrevivirían a eso. No se finge con un registro que nunca dispara: eso dejaría a la rutina creyendo que su comprobación de norma está vigilando el dibujo. Para reaccionar a los cambios está el SDK de plugins del estudio, que sí tiene eventos con su propio ciclo de vida."
+    },
+    {
+      "nombre": "VLR-REMOVE",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "reactores",
+      "motivo": "Un reactor `vlr-*` engancha código de la rutina a los eventos del editor —cada objeto que se crea, cada comando que empieza— y lo ejecuta DENTRO del ciclo de edición. Aquí una rutina corre con presupuesto medido y con una sola salida de escritura; un reactor la convertiría en código residente que puede reentrar en el comando que lo despertó, y ni el presupuesto ni el paso único de deshacer sobrevivirían a eso. No se finge con un registro que nunca dispara: eso dejaría a la rutina creyendo que su comprobación de norma está vigilando el dibujo. Para reaccionar a los cambios está el SDK de plugins del estudio, que sí tiene eventos con su propio ciclo de vida."
+    },
+    {
+      "nombre": "VLR-REMOVE-ALL",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "reactores",
+      "motivo": "Un reactor `vlr-*` engancha código de la rutina a los eventos del editor —cada objeto que se crea, cada comando que empieza— y lo ejecuta DENTRO del ciclo de edición. Aquí una rutina corre con presupuesto medido y con una sola salida de escritura; un reactor la convertiría en código residente que puede reentrar en el comando que lo despertó, y ni el presupuesto ni el paso único de deshacer sobrevivirían a eso. No se finge con un registro que nunca dispara: eso dejaría a la rutina creyendo que su comprobación de norma está vigilando el dibujo. Para reaccionar a los cambios está el SDK de plugins del estudio, que sí tiene eventos con su propio ciclo de vida."
+    },
+    {
+      "nombre": "WCMATCH",
+      "tabla": "cad",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "WRITE-CHAR",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "E/S de ficheros",
+      "motivo": "La E/S de ficheros abre rutas del disco del usuario, y una rutina corre aquí dentro del sandbox del intérprete, sin sistema de ficheros al que llegar. Devolver un descriptor falso sería peor que negarse: `write-line` diría que escribió y no habría escrito nada, y la rutina daría por generado un fichero de medición que no existe. Para leer y escribir datos del dibujo están `entget`/`entmod`, y para guardar código, la biblioteca de rutinas del estudio (`load`)."
+    },
+    {
+      "nombre": "WRITE-LINE",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "todaviaNo",
+      "familia": "E/S de ficheros",
+      "motivo": "La E/S de ficheros abre rutas del disco del usuario, y una rutina corre aquí dentro del sandbox del intérprete, sin sistema de ficheros al que llegar. Devolver un descriptor falso sería peor que negarse: `write-line` diría que escribió y no habría escrito nada, y la rutina daría por generado un fichero de medición que no existe. Para leer y escribir datos del dibujo están `entget`/`entmod`, y para guardar código, la biblioteca de rutinas del estudio (`load`)."
+    },
+    {
+      "nombre": "ZEROP",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    },
+    {
+      "nombre": "~",
+      "tabla": "nucleo",
+      "clase": "funcion",
+      "origen": "autolisp",
+      "estado": "implementada"
+    }
+  ]
+}

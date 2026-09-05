@@ -271,15 +271,33 @@ function run(source: string, entities: CadEntity[] = [], answers: LispResponse[]
   checks += 2;
 }
 
-// --- getvar y setvar: sólo lo que se puede responder con certeza ----------------------------------------
+// --- getvar y setvar: la tabla del producto, con sus reglas ---------------------------------------------
+//
+// Aquí había dos aserciones que fijaban una carencia: que `OSMODE` «no existía»
+// y que `setvar` rechazaba SIEMPRE. Las dos se SUSTITUYEN —no se borran— por
+// las fuertes, que es lo que hay que exigir ahora que `getvar`/`setvar`
+// consultan `CAD_SYSTEM_VARIABLES`: la variable conocida se escribe y se vuelve
+// a leer; la desconocida y la de sólo lectura siguen rechazadas, diciendo por
+// qué. La prueba se vuelve más exigente, no menos.
 {
   assert.equal(run('(getvar "CLAYER")').text, '"0"', "CLAYER responde la capa activa");
   assert.equal(run('(getvar "INSUNITS")').text, "4", "INSUNITS responde 4 (milímetros)");
-  const invented = run('(getvar "OSMODE")');
-  assert.ok(!invented.ok, "una variable que no existe no se inventa");
-  const written = run('(setvar "CMDECHO" 0)');
-  assert.ok(!written.ok, "setvar se rechaza en vez de aceptar y no aplicar");
-  checks += 4;
+  assert.equal(run('(getvar "OSMODE")').text, "0", "OSMODE está en la tabla y responde su valor");
+  assert.equal(
+    run('(progn (setvar "CMDECHO" 0) (getvar "CMDECHO"))').text,
+    "0",
+    "lo que setvar escribe es lo que getvar lee",
+  );
+  const invented = run('(getvar "PELLIPSE")');
+  assert.ok(!invented.ok, "una variable que no está en la tabla no se inventa");
+  assert.ok(
+    invented.text.includes("no existe en este producto"),
+    `y se dice por qué: ${invented.text}`,
+  );
+  const readOnly = run('(setvar "AREA" 5)');
+  assert.ok(!readOnly.ok, "una variable de sólo lectura rechaza la escritura, como en AutoCAD");
+  assert.ok(readOnly.text.includes("sólo lectura"), `diciendo el motivo: ${readOnly.text}`);
+  checks += 8;
 }
 
 // --- tblsearch sobre la tabla de capas -------------------------------------------------------------------

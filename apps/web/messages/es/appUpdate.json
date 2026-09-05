@@ -1,0 +1,6 @@
+{
+  "title": "Hay una versión nueva",
+  "body": "%PRODUCT_DESIGN% se actualizó por detrás. Nada se recarga mientras dibujas, así que recarga cuando llegues a un punto bueno.",
+  "reloadAction": "Recargar ahora",
+  "dismissAction": "Ahora no"
+}

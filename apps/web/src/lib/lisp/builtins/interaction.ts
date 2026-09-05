@@ -50,6 +50,13 @@ import {
   type CadCommandStep,
 } from "../../cad/engine";
 import { CAD_ENTITY_REGISTRY } from "../../cad/entity-runtime";
+import {
+  cadSystemVariableDef,
+  type CadSystemVariableDef,
+  type CadSystemVariableValue,
+  type CadVariableAccess,
+} from "../../cad/system-variables";
+import { insunitsOfDocument } from "../document-host";
 import { LispError } from "../errors";
 import { printLisp } from "../printer";
 import {
@@ -63,6 +70,7 @@ import {
   type LispHostServices,
   type LispValue,
 } from "../values";
+import { pluginGrantOf, type PluginCommandGrant } from "../plugins/api";
 import { requireHost } from "./entities";
 import { defgen, defsubr, wantString, type BuiltinTable } from "./define";
 
@@ -259,62 +267,119 @@ export function installInteraction(table: BuiltinTable): void {
     return NIL;
   });
 
+  /**
+   * `getvar` lee la TABLA DEL PRODUCTO, la misma que teclea GETVAR.
+   *
+   * Antes contestaba sólo CLAYER e INSUNITS. Lo que eso costaba se midió: el
+   * prólogo con el que empieza media biblioteca de despacho —`(setq old (getvar
+   * "CMDECHO"))`— moría en la primera línea, así que la rutina ajena no llegaba
+   * ni a preguntar. Ahora responde las ~55 de la tabla, con su tipo: `int` para
+   * las enteras, `real` para las reales y cadena para las de texto, que es lo
+   * que la rutina va a comparar y a devolver en el epílogo.
+   *
+   * Lo que NO cambia: una variable que no está en la tabla sigue lanzando. Que
+   * `(getvar "PELLIPSE")` conteste 0 porque suena a booleana sería inventarse
+   * el estado de una función que no existe.
+   */
   defsubr(table, "getvar", 1, 1, (args, ctx) => {
     const host = requireHost(ctx, "getvar");
-    const variable = wantString(args[0]).v.toUpperCase();
-    // Sólo las variables que el documento canónico sabe responder con certeza.
-    // Inventar el resto —`OSMODE`, `CMDECHO`— devolvería un valor plausible que
-    // la rutina guardaría y restauraría, creyendo que controla algo.
-    if (variable === "CLAYER") return str(host.activeLayer());
-    if (variable === "INSUNITS") return int(insunitsOf(host));
-    throw new LispError(
-      `getvar: la variable de sistema "${variable}" no existe en este producto. ` +
-        `Sólo están CLAYER e INSUNITS; las demás no se inventan.`,
-    );
+    const name = wantString(args[0]).v.trim().toUpperCase();
+    const access = host.variables?.();
+    // Anfitrión que no expone la tabla: el comportamiento de siempre, ni más ni
+    // menos. Contestar valores de fábrica en su lugar sería devolverle a la
+    // rutina un estado que nadie guarda.
+    if (!access) {
+      if (name === "CLAYER") return str(host.activeLayer());
+      if (name === "INSUNITS") return int(insunitsOfDocument(host.document()));
+      throw unknownVariable("getvar", name);
+    }
+    const def = cadSystemVariableDef(name);
+    if (!def) throw unknownVariable("getvar", name);
+    return variableValue(def, access.get(def.name) ?? def.default);
   });
 
-  defsubr(table, "setvar", 2, 2, (args) => {
-    throw new LispError(
-      `setvar: no hay variables de sistema escribibles. Se rechaza en vez de aceptar ` +
-        `"${wantString(args[0]).v}" y no aplicarlo, que dejaría a la rutina creyendo que ` +
-        `configuró el dibujo.`,
-    );
+  /**
+   * `setvar` ESCRIBE en esa misma tabla, con sus tres reglas intactas.
+   *
+   *  1. Las de sólo lectura (AREA, PERIMETER, DISTANCE, los ejes del SCU) se
+   *     niegan, como en AutoCAD: el resultado de la última medición no es un
+   *     dato que se teclee.
+   *  2. `coerceCadSystemVariable` valida tipo, rango y enumerado, y devuelve la
+   *     RAZÓN. `(setvar "LUNITS" 9)` dice qué admite LUNITS.
+   *  3. Lo que no está en la tabla no se crea. Una tabla que crece con lo que
+   *     la rutina teclee es una tabla que no significa nada.
+   *
+   * Devuelve el valor escrito —ya convertido—, que es lo que hace AutoLISP y lo
+   * que espera `(setvar "CMDECHO" (setvar "CMDECHO" 0))`.
+   */
+  defsubr(table, "setvar", 2, 2, (args, ctx) => {
+    const host = requireHost(ctx, "setvar");
+    const name = wantString(args[0]).v.trim().toUpperCase();
+    const access = host.variables?.();
+    if (!access)
+      throw new LispError(
+        `setvar: este anfitrión no expone la tabla de variables de sistema, así que ` +
+          `"${name}" no se puede escribir. Se rechaza en vez de aceptarlo y no aplicarlo, ` +
+          `que dejaría a la rutina creyendo que configuró el dibujo.`,
+      );
+    const def = cadSystemVariableDef(name);
+    if (!def) throw unknownVariable("setvar", name);
+    const outcome = access.set(def.name, variableArgument(args[1], def));
+    if (!outcome.ok) throw new LispError(`setvar: ${outcome.reason}`);
+    return variableValue(def, outcome.value);
   });
 
-  defsubr(table, "tblsearch", 2, 2, (args, ctx) => {
-    const host = requireHost(ctx, "tblsearch");
-    const tableName = wantString(args[0]).v.toUpperCase();
-    if (tableName !== "LAYER")
-      throw new LispError(`tblsearch: sólo está implementada la tabla LAYER, no ${tableName}.`);
-    const wanted = wantString(args[1]).v;
-    const layer = host.layers().find((candidate) => candidate.name === wanted || candidate.id === wanted);
-    if (!layer) return NIL;
-    ctx.charge(6);
-    return {
-      t: "cons",
-      car: { t: "cons", car: int(0), cdr: str("LAYER") },
-      cdr: {
-        t: "cons",
-        car: { t: "cons", car: int(2), cdr: str(layer.name) },
-        cdr: {
-          t: "cons",
-          // Bit 1: congelada. Bit 4: bloqueada. Es la codificación del código 70
-          // en la tabla de capas del DXF, y las rutinas de comprobación de norma
-          // la leen así.
-          car: { t: "cons", car: int(70), cdr: int((layer.visible ? 0 : 1) | (layer.locked ? 4 : 0)) },
-          cdr: NIL,
-        },
-      },
-    };
-  });
+  /**
+   * `tblsearch`, `tblnext` y `tblobjname` viven ahora en `tables.ts`, juntas:
+   * las tres leen la MISMA tabla de símbolos y tenerlas separadas hacía que
+   * enriquecer el registro de capa —el color, el bit de congelada— se hiciera
+   * en un sitio y se olvidara en el otro.
+   */
 
   defsubr(table, "getenv", 1, 1, () => NIL);
 }
 
-function insunitsOf(host: LispHostServices): number {
-  // Códigos INSUNITS del DXF: 1 pulgadas, 4 milímetros, 5 centímetros, 6 metros.
-  const unit = host.document().meta.unit;
-  return unit === "in" ? 1 : unit === "cm" ? 5 : unit === "m" ? 6 : 4;
+/**
+ * El error de una variable que no está en la tabla. Es el MISMO para `getvar` y
+ * `setvar` a propósito: una rutina que se equivoca de nombre tiene que leer lo
+ * mismo lea o escriba, o el autor busca dos defectos donde hay uno.
+ */
+function unknownVariable(caller: string, name: string): LispError {
+  return new LispError(
+    `${caller}: la variable de sistema "${name}" no existe en este producto. ` +
+      `La tabla es la de SETVAR y GETVAR; las que no están no se inventan.`,
+  );
+}
+
+/** El valor de la tabla, con el tipo LISP que la rutina espera comparar. */
+function variableValue(def: CadSystemVariableDef, raw: CadSystemVariableValue): LispValue {
+  if (def.kind === "string") return str(String(raw));
+  const parsed = typeof raw === "number" ? raw : Number.parseFloat(raw);
+  const numeric = Number.isFinite(parsed) ? parsed : Number(def.default);
+  return def.kind === "int" ? int(Math.trunc(numeric)) : real(numeric);
+}
+
+/**
+ * El argumento de `setvar`, traducido a lo que la tabla admite.
+ *
+ * Un número entra tal cual en las numéricas y una cadena también —`(setvar
+ * "OSMODE" "33")` es como está escrita mucha rutina vieja, y la tabla sabe
+ * convertirla—. Lo que se rechaza aquí, antes de llegar a la tabla, es meter un
+ * número en una variable de TEXTO: `(setvar "CLAYER" 3)` no es la capa «3», es
+ * un descuido, y la tabla lo aceptaría convirtiéndolo a "3".
+ */
+function variableArgument(value: LispValue, def: CadSystemVariableDef): CadSystemVariableValue {
+  if (value.t === "int" || value.t === "real") {
+    if (def.kind === "string")
+      throw new LispError(
+        `bad argument type: setvar: ${def.name} es de texto y recibió el número ${value.v}.`,
+      );
+    return value.v;
+  }
+  if (value.t === "str") return value.v;
+  throw new LispError(
+    `bad argument type: setvar: no sé usar ${printLisp(value)} como valor de ${def.name}.`,
+  );
 }
 
 /** `Si` acepta `S`, `SI`, `si`: las mayúsculas de la palabra son el atajo. */
@@ -345,17 +410,30 @@ function finishGet(
 // ---------------------------------------------------------------------------
 
 function commandContext(host: LispHostServices, selection: readonly string[]): CadCommandContext {
+  const variables = host.variables?.();
   return {
     entityIds: host.entityIds(),
     entity: (entityId) => host.entity(entityId),
     selection,
     activeLayer: host.activeLayer(),
+    // La tabla de capas del documento. Sin ella, `-LAYER` no encontraba
+    // ninguna capa: `(command "-LAYER" "D" "MUROS" "")` contestaba «No existe
+    // la capa "MUROS"» teniéndola delante, y `(command "-LAYER" "N" …)` volvía
+    // a crear una que ya estaba. Un comando que decide sobre un dato que nadie
+    // le pasa decide mal siempre.
+    layers: () => host.layers(),
     // El motor pide una vista porque los comandos de encuadre la necesitan. Una
     // llamada desde LISP no tiene ventana; se entrega una vista neutra y los
     // comandos de VISTA (`ZOOM`, `PAN`) no producen un resultado significativo
     // por esta ruta. Están declarados `mutates: false`, así que no pueden
     // estropear el dibujo — sencillamente no encuadran nada.
     view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+    // La tabla del ANFITRIÓN, no una recién fabricada. Es lo que hace que
+    // `(command "DIST" …)` imprima en las unidades que el dibujo tiene puestas
+    // y que `(command "SETVAR" "OSMODE" 33)` lo vea después `(getvar "OSMODE")`.
+    // Sin esto, cada `command` configuraba una tabla de usar y tirar que moría
+    // con la llamada: el caso de manual de «éxito sin efecto».
+    ...(variables ? { variables } : {}),
     newEntityId: () => host.newEntityId(),
   };
 }
@@ -425,11 +503,18 @@ function toCommandInput(
 /**
  * Punto de designación de una entidad. Se usa el centro de su caja envolvente,
  * que es donde pincharía alguien que quisiera «esta entidad» sin más intención.
+ *
+ * Lo comparte `entsel` (`selection.ts`), y con el mismo límite escrito: el
+ * punto que devuelve NO es el del clic del usuario. El anfitrión contesta a una
+ * designación con nombres de entidad, no con coordenadas, así que aquí se
+ * calcula el centro; una rutina que use ese punto para decidir QUÉ LADO se
+ * designó —el trozo de línea que recorta TRIM, la mitad de un círculo— tomará
+ * una decisión que el usuario no tomó.
  * Los comandos que distinguen QUÉ LADO se designó —TRIM, FILLET— no se pueden
  * conducir bien así, y por eso `command` con un ename sobre esos comandos es un
  * uso desaconsejado: se documenta aquí en vez de fingir precisión.
  */
-function pickPointOf(host: LispHostServices, entityId: string): CadPoint2 {
+export function pickPointOf(host: LispHostServices, entityId: string): CadPoint2 {
   const entity = host.entity(entityId);
   if (!entity || !CAD_ENTITY_REGISTRY.supports(entity)) return { x: 0, y: 0 };
   const bounds = CAD_ENTITY_REGISTRY.adapter(entity).bounds.bounds(entity, host.document());
@@ -506,6 +591,70 @@ export function runCommand(
     );
 
   const result = step.result;
-  if (result.kind === "document" && result.commands.length > 0)
-    host.apply(result.commands, `LISP ${descriptor.name}`);
+  /**
+   * ¿De quién es este comando? Si vino de un plugin, su lote NO se aplica en
+   * nombre del LISP: se aplica en nombre del plugin, con su permiso comprobado
+   * y su etiqueta en el historial.
+   *
+   * Sin esta comprobación, un plugin sin `documento:escritura` habría
+   * registrado un comando que dibuja y habría dibujado —la API de documento le
+   * cierra la puerta, pero el motor de comandos es otra puerta— y los permisos
+   * habrían quedado en un adorno de la mitad de la superficie.
+   */
+  const grant = pluginGrantOf(registry, descriptor.name);
+  if (result.kind === "document" && result.commands.length > 0) {
+    if (grant) grant.permisos.exigir("documento:escritura", `ejecutar ${descriptor.name}`);
+    host.apply(result.commands, undoLabelFor(grant, descriptor.name));
+  }
+  if (result.kind === "variables") {
+    // La tabla de sesión también es escritura: `CLAYER` decide en qué capa nace
+    // lo siguiente que se dibuje, y `OSMODE` dónde engancha el cursor del
+    // dibujante. Un plugin de sólo lectura que pudiera cambiarlas estaría
+    // escribiendo en el dibujo por el camino largo.
+    if (grant) grant.permisos.exigir("documento:escritura", `ejecutar ${descriptor.name}`);
+    applyVariables(host, descriptor.name, result);
+  }
+}
+
+/**
+ * La etiqueta del paso de deshacer. `LISP LINE` cuando el comando es del
+ * producto; `plugin:marco-lamina MARCOLAMINA` cuando lo trajo un plugin — el
+ * mismo prefijo que pone `createPluginDocumentApi`, para que el historial se
+ * lea igual venga el cambio por donde venga.
+ */
+function undoLabelFor(grant: PluginCommandGrant | undefined, commandName: string): string {
+  return grant ? `plugin:${grant.pluginId} ${commandName}` : `LISP ${commandName}`;
+}
+
+/**
+ * Aplica el efecto de las órdenes que CONFIGURAN en vez de dibujar.
+ *
+ * `runCommand` aplicaba sólo `result.kind === "document"`, y por eso `(command
+ * "SETVAR" …)`, `(command "UNITS" …)`, COLOR, LTSCALE y LWEIGHT devolvían nil
+ * sin hacer nada: la rutina creía haber configurado el dibujo y no había
+ * configurado nada. Es exactamente el «éxito sin efecto» que la regla 2 de la
+ * casa prohíbe, y se cierra aquí escribiendo en la tabla del anfitrión.
+ *
+ * `system` distingue quién escribe: las consultas —AREA, DIST, LIST— PUBLICAN
+ * su resultado y por eso pueden tocar las de sólo lectura; lo que teclea la
+ * rutina va por `set` y se topa con la misma negativa que en AutoCAD.
+ */
+function applyVariables(
+  host: LispHostServices,
+  commandName: string,
+  result: { patch: Readonly<Record<string, CadSystemVariableValue>>; system?: boolean },
+): void {
+  const access: CadVariableAccess | undefined = host.variables?.();
+  const names = Object.keys(result.patch);
+  if (names.length === 0) return;
+  if (!access)
+    throw new LispError(
+      `command: "${commandName}" configura variables de sistema (${names.join(", ")}) y este ` +
+        `anfitrión no expone la tabla. Se dice, en vez de devolver nil como si se hubiera aplicado.`,
+    );
+  for (const [name, value] of Object.entries(result.patch)) {
+    const outcome = result.system ? access.publish(name, value) : access.set(name, value);
+    if (!outcome.ok)
+      throw new LispError(`command: "${commandName}" no pudo escribir ${name}: ${outcome.reason}`);
+  }
 }

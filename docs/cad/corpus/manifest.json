@@ -1,0 +1,220 @@
+{
+  "esquemaVersion": "1.0.0",
+  "politica": "docs/cad/corpus/README.md",
+  "actualizado": "2026-09-04",
+  "verificadoPor": "apps/web/src/lib/cad/verification/dxf-corpus-terceros.spec.ts",
+  "derechos": {
+    "dictamenAutomatico": "Cada fuente publica una licencia MIT que cubre el repositorio entero, incluidos sus ficheros de prueba. El texto de esa licencia está descargado, hasheado y versionado aquí; el aviso de copyright viaja con él, que es la única condición que MIT impone.",
+    "firmaHumana": {
+      "firmadoPor": "",
+      "firmadoEl": "",
+      "nota": "TODAVÍA NO. El dictamen de derechos automático está completo y hasheado; falta la firma del titular, que es lo que la rúbrica exige como evidencia manual."
+    },
+    "loQueNoSeAfirma": "Que estos archivos los guardó AutoCAD. Son ficheros de prueba de dos bibliotecas libres: acreditan interoperabilidad con material que este proyecto no escribió, no compatibilidad con AutoCAD."
+  },
+  "fuentes": [
+    {
+      "id": "bjnortier-dxf",
+      "repositorio": "https://github.com/bjnortier/dxf",
+      "descripcion": "Lector DXF para node/navegador, en JavaScript. Sus ficheros de prueba son dibujos DXF completos.",
+      "ref": "master",
+      "descargadoEl": "2026-09-04",
+      "licencia": "MIT",
+      "titular": "Ben Nortier",
+      "avisoCopyright": "Copyright (c) 2014-2018 Ben Nortier",
+      "licenciaUrl": "https://raw.githubusercontent.com/bjnortier/dxf/master/LICENSE",
+      "licenciaArchivo": "licencias/bjnortier-dxf-MIT.txt",
+      "redistribucion": "Permitida. MIT autoriza copiar, publicar y distribuir conservando el aviso de copyright, que viaja en licenciaArchivo.",
+      "modificacion": "Permitida por la licencia. Aquí NO se ejerce: los bytes se conservan intactos y el sha256 lo demuestra.",
+      "licenciaSha256": "edbc580030586a54bc2ee7736be27fc20a66df80d0751e7450e8b47a35937f22"
+    },
+    {
+      "id": "gdsestimating-dxf-parser",
+      "repositorio": "https://github.com/gdsestimating/dxf-parser",
+      "descripcion": "Lector DXF en JavaScript. Es además el oráculo A de este corpus: la misma biblioteca es dependencia declarada de apps/web.",
+      "ref": "master",
+      "descargadoEl": "2026-09-04",
+      "licencia": "MIT",
+      "titular": "GDS Storefront Estimating",
+      "avisoCopyright": "Copyright (c) 2015 GDS Storefront Estimating",
+      "licenciaUrl": "https://raw.githubusercontent.com/gdsestimating/dxf-parser/master/LICENSE",
+      "licenciaArchivo": "licencias/gdsestimating-dxf-parser-MIT.txt",
+      "redistribucion": "Permitida. MIT autoriza copiar, publicar y distribuir conservando el aviso de copyright, que viaja en licenciaArchivo.",
+      "modificacion": "Permitida por la licencia. Aquí NO se ejerce: los bytes se conservan intactos y el sha256 lo demuestra.",
+      "licenciaSha256": "b9fdd72619cea18548304541f16373c51377af655e9f89bfdc6cc3eab419fe2c"
+    }
+  ],
+  "archivos": [
+    {
+      "id": "bjnortier-dxf/blocks1",
+      "fuente": "bjnortier-dxf",
+      "ruta": "terceros/bjnortier-dxf/blocks1.dxf",
+      "urlOrigen": "https://raw.githubusercontent.com/bjnortier/dxf/master/test/resources/blocks1.dxf",
+      "sha256": "ba33677808f6a534d64a5898803649caca30eccb543092e3e5a102043b9d1c2e",
+      "bytes": 17124,
+      "porQue": "INSERT de un bloque simple: la referencia por nombre y su transformación."
+    },
+    {
+      "id": "bjnortier-dxf/blocks2",
+      "fuente": "bjnortier-dxf",
+      "ruta": "terceros/bjnortier-dxf/blocks2.dxf",
+      "urlOrigen": "https://raw.githubusercontent.com/bjnortier/dxf/master/test/resources/blocks2.dxf",
+      "sha256": "5d847d833dd444fbe8a85def5881a4f9055e47d06c41ca009c9e40784e92f91f",
+      "bytes": 20507,
+      "porQue": "INSERT anidado con ELLIPSE y ARC dentro: bloque dentro de bloque, donde se pierde la transformación acumulada."
+    },
+    {
+      "id": "bjnortier-dxf/dimensions",
+      "fuente": "bjnortier-dxf",
+      "ruta": "terceros/bjnortier-dxf/dimensions.dxf",
+      "urlOrigen": "https://raw.githubusercontent.com/bjnortier/dxf/master/test/resources/dimensions.dxf",
+      "sha256": "513d44f4b2febdf2d2e27016c400cc774f0a364620b34730eaaece5cd6f15d77",
+      "bytes": 18956,
+      "porQue": "DIMENSION de otro programa, con su bloque de dibujo. Es la entidad que prueba si una cota ajena llega acotando."
+    },
+    {
+      "id": "bjnortier-dxf/empty",
+      "fuente": "bjnortier-dxf",
+      "ruta": "terceros/bjnortier-dxf/empty.dxf",
+      "urlOrigen": "https://raw.githubusercontent.com/bjnortier/dxf/master/test/resources/empty.dxf",
+      "sha256": "56b9bc2de32b24c7ca3e29071d8cf6c7f9c27df1c936948d48c891ac8fd92c58",
+      "bytes": 188564,
+      "porQue": "Espacio modelo VACÍO con una tabla de bloques llena, en dialecto R2013. Un archivo que parece vacío y no lo está."
+    },
+    {
+      "id": "bjnortier-dxf/entities",
+      "fuente": "bjnortier-dxf",
+      "ruta": "terceros/bjnortier-dxf/entities.dxf",
+      "urlOrigen": "https://raw.githubusercontent.com/bjnortier/dxf/master/test/resources/entities.dxf",
+      "sha256": "fa0b296dc6c060ce8d79c61dd6461c9e1523a15ae33cdc650175ee8b9270d1d8",
+      "bytes": 194947,
+      "porQue": "Trece tipos en un solo archivo del dialecto R2010. Es el barrido ancho del corpus."
+    },
+    {
+      "id": "bjnortier-dxf/floorplan",
+      "fuente": "bjnortier-dxf",
+      "ruta": "terceros/bjnortier-dxf/floorplan.dxf",
+      "urlOrigen": "https://raw.githubusercontent.com/bjnortier/dxf/master/test/resources/floorplan.dxf",
+      "sha256": "6d761ecb1ab59664425eb1dcc6837a12611536c8e03e3f7855951a76786d159c",
+      "bytes": 1117143,
+      "porQue": "Un plano de planta de verdad: 624 líneas, 124 polilíneas, 63 cotas, 24 capas y 16 estilos de cota. Es el único material de este corpus que se parece a lo que manda un despacho."
+    },
+    {
+      "id": "bjnortier-dxf/hatches",
+      "fuente": "bjnortier-dxf",
+      "ruta": "terceros/bjnortier-dxf/hatches.dxf",
+      "urlOrigen": "https://raw.githubusercontent.com/bjnortier/dxf/master/test/resources/hatches.dxf",
+      "sha256": "e67becc4b026231d656a4b506b90d533a3fcdfb14e3003762edd4a9e40b7e6d3",
+      "bytes": 16594,
+      "porQue": "HATCH real de un tercero. El oráculo A no ve HATCH; este archivo es la razón de que haya un oráculo B."
+    },
+    {
+      "id": "bjnortier-dxf/layers",
+      "fuente": "bjnortier-dxf",
+      "ruta": "terceros/bjnortier-dxf/layers.dxf",
+      "urlOrigen": "https://raw.githubusercontent.com/bjnortier/dxf/master/test/resources/layers.dxf",
+      "sha256": "860c3085c10b754d75fd903747f78a0e52c69b94ac77f23bdb018bec41b860ff",
+      "bytes": 17048,
+      "porQue": "Cuatro capas declaradas en la tabla LAYER y entidades repartidas entre ellas: separa «capa usada» de «capa declarada»."
+    },
+    {
+      "id": "bjnortier-dxf/lines",
+      "fuente": "bjnortier-dxf",
+      "ruta": "terceros/bjnortier-dxf/lines.dxf",
+      "urlOrigen": "https://raw.githubusercontent.com/bjnortier/dxf/master/test/resources/lines.dxf",
+      "sha256": "052d8246dcf762c4100a4df8a68bed1964da5d1ee087a86af9996c7b6c6e6a30",
+      "bytes": 17195,
+      "porQue": "El caso más simple que existe: once LINE y nada más. Si esto no cuadra, ningún otro veredicto vale."
+    },
+    {
+      "id": "bjnortier-dxf/lwpolylines",
+      "fuente": "bjnortier-dxf",
+      "ruta": "terceros/bjnortier-dxf/lwpolylines.dxf",
+      "urlOrigen": "https://raw.githubusercontent.com/bjnortier/dxf/master/test/resources/lwpolylines.dxf",
+      "sha256": "cbc8fbf3016fd7b580f3a077092c63d1903728111f283e9907c774ce94e7a3e4",
+      "bytes": 16235,
+      "porQue": "LWPOLYLINE con bulge: el arco dentro de la polilínea es donde se rompe la geometría al convertir."
+    },
+    {
+      "id": "bjnortier-dxf/points",
+      "fuente": "bjnortier-dxf",
+      "ruta": "terceros/bjnortier-dxf/points.dxf",
+      "urlOrigen": "https://raw.githubusercontent.com/bjnortier/dxf/master/test/resources/points.dxf",
+      "sha256": "5f0397697996b75078994e0fe95bb12a87864f68f49c14018194611edb30944f",
+      "bytes": 15954,
+      "porQue": "POINT suelto, la entidad que más veces se pierde en silencio porque no se ve al dibujar."
+    },
+    {
+      "id": "bjnortier-dxf/polylines",
+      "fuente": "bjnortier-dxf",
+      "ruta": "terceros/bjnortier-dxf/polylines.dxf",
+      "urlOrigen": "https://raw.githubusercontent.com/bjnortier/dxf/master/test/resources/polylines.dxf",
+      "sha256": "af6d2781d7961e531c34e27c7d0f8a4c4b885e579cdcbcd5e5a41766074851a0",
+      "bytes": 167837,
+      "porQue": "POLYLINE + VERTEX, el dialecto viejo que sigue llegando de despachos que exportan R12."
+    },
+    {
+      "id": "bjnortier-dxf/splines",
+      "fuente": "bjnortier-dxf",
+      "ruta": "terceros/bjnortier-dxf/splines.dxf",
+      "urlOrigen": "https://raw.githubusercontent.com/bjnortier/dxf/master/test/resources/splines.dxf",
+      "sha256": "9f672526c3e6b35c60ed958650a5c35fe3ee4f8df76d1f8b25b31f2f6d293406",
+      "bytes": 16576,
+      "porQue": "SPLINE con nodos: comprueba que los knots viajan y no se aproximan a segmentos."
+    },
+    {
+      "id": "bjnortier-dxf/texts",
+      "fuente": "bjnortier-dxf",
+      "ruta": "terceros/bjnortier-dxf/texts.dxf",
+      "urlOrigen": "https://raw.githubusercontent.com/bjnortier/dxf/master/test/resources/texts.dxf",
+      "sha256": "6c585c0093c1a19180faa58b6977bc48ddb47899d2800bf38807cbca3018416d",
+      "bytes": 16528,
+      "porQue": "MTEXT con formato: el texto es lo primero que un cliente nota si se pierde."
+    },
+    {
+      "id": "gdsestimating-dxf-parser/blocks",
+      "fuente": "gdsestimating-dxf-parser",
+      "ruta": "terceros/gdsestimating-dxf-parser/blocks.dxf",
+      "urlOrigen": "https://raw.githubusercontent.com/gdsestimating/dxf-parser/master/test/data/blocks.dxf",
+      "sha256": "53a5ed8bc6be044c5e97d4ff6a90597e68a9bd73b6de871006a0a9608f53f71a",
+      "bytes": 733713,
+      "porQue": "Archivo grande y MAL FORMADO: ezdxf (oráculo B) lo rechaza y el lector de Valle lo abre. Está aquí precisamente por eso."
+    },
+    {
+      "id": "gdsestimating-dxf-parser/ellipse",
+      "fuente": "gdsestimating-dxf-parser",
+      "ruta": "terceros/gdsestimating-dxf-parser/ellipse.dxf",
+      "urlOrigen": "https://raw.githubusercontent.com/gdsestimating/dxf-parser/master/test/data/ellipse.dxf",
+      "sha256": "bc056b36d4c7e26cc0687827e50261699092af433dc5f985d4be8fe378ab74a9",
+      "bytes": 392,
+      "porQue": "ELLIPSE en dialecto R12, donde la elipse se escribe distinta que en R2000."
+    },
+    {
+      "id": "gdsestimating-dxf-parser/polylines",
+      "fuente": "gdsestimating-dxf-parser",
+      "ruta": "terceros/gdsestimating-dxf-parser/polylines.dxf",
+      "urlOrigen": "https://raw.githubusercontent.com/gdsestimating/dxf-parser/master/test/data/polylines.dxf",
+      "sha256": "ba4f2d4d74d6b418b469f510d30cdc486c3c15d37b7da5ff6718b317591c4af9",
+      "bytes": 27471,
+      "porQue": "Doce POLYLINE R12 con 316 vértices: volumen de vértices en el dialecto viejo."
+    },
+    {
+      "id": "gdsestimating-dxf-parser/splines",
+      "fuente": "gdsestimating-dxf-parser",
+      "ruta": "terceros/gdsestimating-dxf-parser/splines.dxf",
+      "urlOrigen": "https://raw.githubusercontent.com/gdsestimating/dxf-parser/master/test/data/splines.dxf",
+      "sha256": "9aad052d8bba7443abdb1cbee1bad4b4630148fb1496893bd8754344801edb67",
+      "bytes": 2649,
+      "porQue": "SPLINE en R12, el caso que más discrepancias produce entre lectores."
+    },
+    {
+      "id": "gdsestimating-dxf-parser/tables",
+      "fuente": "gdsestimating-dxf-parser",
+      "ruta": "terceros/gdsestimating-dxf-parser/tables.dxf",
+      "urlOrigen": "https://raw.githubusercontent.com/gdsestimating/dxf-parser/master/test/data/tables.dxf",
+      "sha256": "00f182a7d8b14988d3e6a7a76f00642d5c6aed33e558cb67a21bdb716750e299",
+      "bytes": 6856,
+      "porQue": "Sólo secciones TABLES: capas, tipos de línea y estilos de cota SIN una sola entidad. Prueba que la convención del remitente se lee aunque no haya dibujo."
+    }
+  ]
+}

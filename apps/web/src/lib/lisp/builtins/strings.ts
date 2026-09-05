@@ -23,15 +23,17 @@
  * que impone AutoLISP para la entrada.
  */
 import { formatLength, type UnitSystem } from "../../cad/unit-format";
-import { badArgumentType } from "../errors";
+import { LispError, badArgumentType } from "../errors";
 import { printLisp } from "../printer";
 import { readLispForms } from "../reader";
 import {
   NIL,
   int,
+  list,
   real,
   str,
   sym,
+  type LispValue,
 } from "../values";
 import {
   chargedString,
@@ -236,6 +238,11 @@ export function installStrings(table: BuiltinTable): void {
       : value.t === "cons" ? "LIST"
       : value.t === "ename" ? "ENAME"
       : value.t === "pickset" ? "PICKSET"
+      // El puente Visual LISP: `(type (vlax-ename->vla-object e))` tiene que
+      // decir VLA-OBJECT, que es lo que comprueba media rutina antes de llamar
+      // a `vla-get-*`. Sin esta rama caía en el «STR» de abajo y la rutina
+      // seguía creyendo que tenía una cadena.
+      : value.t === "vla-object" ? "VLA-OBJECT"
       : value.t === "subr" ? "SUBR"
       : value.t === "closure" ? "USUBR"
       : "STR",
@@ -256,14 +263,12 @@ export function installStrings(table: BuiltinTable): void {
   });
 
   defsubr(table, "vl-string-trim", 2, 2, (args, ctx) => {
-    const chars = new Set(wantString(args[0]).v);
-    let text = wantString(args[1]).v;
-    let start = 0;
-    let end = text.length;
-    while (start < end && chars.has(text[start])) start += 1;
-    while (end > start && chars.has(text[end - 1])) end -= 1;
-    text = text.slice(start, end);
-    return str(chargedString(ctx, text));
+    const chars = wantString(args[0]).v;
+    const text = wantString(args[1]).v;
+    // Recorta por los dos lados con la MISMA cuenta que las dos de un solo
+    // lado: el segundo argumento es un conjunto de caracteres, no una
+    // subcadena, y las tres tienen que interpretarlo igual.
+    return str(chargedString(ctx, trimSide(chars, trimSide(chars, text, "left"), "right")));
   });
 
   defsubr(table, "vl-string-subst", 3, 3, (args, ctx) => {
@@ -276,4 +281,114 @@ export function installStrings(table: BuiltinTable): void {
     const text = source.slice(0, index) + replacement + source.slice(index + target.length);
     return str(chargedString(ctx, text));
   });
+
+  // --- la familia de cadenas que usa una rutina descargada ---------------------
+  //
+  // Las seis de aquí abajo son las que aparecen en la primera pantalla de casi
+  // cualquier `.lsp` de internet: parten un nombre de capa, recortan el relleno
+  // de un campo de cajetín y comparan dos prefijos. Faltando una sola, la
+  // rutina muere con «no function definition» antes de dibujar nada.
+
+  /**
+   * `vl-string->list` devuelve los CÓDIGOS, no los caracteres: es el inverso
+   * exacto de `vl-list->string`, que ya estaba. Se recorre por unidades de
+   * código UTF-16 —no por puntos de código— para que `strlen`, `substr`,
+   * `ascii` y esta función cuenten TODAS lo mismo. Contar distinto aquí haría
+   * que `(vl-list->string (vl-string->list s))` no devolviera `s`.
+   */
+  defsubr(table, "vl-string->list", 1, 1, (args, ctx) => {
+    const text = wantString(args[0]).v;
+    ctx.charge(text.length);
+    const codes: LispValue[] = [];
+    for (let index = 0; index < text.length; index += 1) codes.push(int(text.charCodeAt(index)));
+    return list(codes);
+  });
+
+  defsubr(table, "vl-string-left-trim", 2, 2, (args, ctx) =>
+    str(chargedString(ctx, trimSide(wantString(args[0]).v, wantString(args[1]).v, "left"))));
+
+  defsubr(table, "vl-string-right-trim", 2, 2, (args, ctx) =>
+    str(chargedString(ctx, trimSide(wantString(args[0]).v, wantString(args[1]).v, "right"))));
+
+  /**
+   * `(vl-string-position código cadena [desde [desde-el-final]])`.
+   *
+   * El primer argumento es un CÓDIGO de carácter, no una cadena de un carácter:
+   * `(vl-string-position 44 "a,b")` es 1 y `(vl-string-position "," "a,b")` es
+   * un error de tipo. Es la firma del original, y confundirla es el motivo por
+   * el que una rutina portada parte mal una lista separada por comas.
+   */
+  defsubr(table, "vl-string-position", 2, 4, (args) => {
+    const code = wantInt(args[0]);
+    const text = wantString(args[1]).v;
+    const from = args.length > 2 && args[2].t !== "nil" ? Math.max(0, wantInt(args[2])) : 0;
+    const fromEnd = args.length > 3 && args[3].t !== "nil";
+    const needle = String.fromCharCode(code);
+    const index = fromEnd ? text.lastIndexOf(needle) : text.indexOf(needle, from);
+    // Buscando desde el final, una coincidencia ANTES del arranque no cuenta:
+    // el argumento `desde` sigue acotando la ventana de búsqueda.
+    if (index < 0 || index < from) return NIL;
+    return int(index);
+  });
+
+  /**
+   * `(vl-string-elt cadena índice)` cuenta desde CERO —al revés que `substr`,
+   * que cuenta desde uno— y devuelve el código del carácter. Fuera de rango es
+   * un error, no nil: quien indexa una cadena por fuera tiene un defecto de
+   * cuenta, y devolverle nil lo convertiría en un `strcat` con nil diez líneas
+   * más abajo.
+   */
+  defsubr(table, "vl-string-elt", 2, 2, (args) => {
+    const text = wantString(args[0]).v;
+    const index = wantInt(args[1]);
+    if (index < 0 || index >= text.length)
+      throw new LispError(
+        `bad argument value: vl-string-elt: el índice ${index} se sale de una cadena de ` +
+          `${text.length} caracteres (se cuenta desde 0).`,
+      );
+    return int(text.charCodeAt(index));
+  });
+
+  /**
+   * `(vl-string-mismatch a b [pos-a [pos-b [ignorar-mayúsculas]]])` devuelve
+   * CUÁNTOS caracteres coinciden desde el arranque, no dónde difieren. Es la
+   * función con la que una rutina decide si dos nombres de capa comparten
+   * prefijo —`(= 6 (vl-string-mismatch "MUROS-CARGA" "MUROS-TABIQUE"))`— y
+   * devolver la posición de la diferencia en vez del recuento daría el mismo
+   * número en el caso fácil y otro en cuanto los arranques no sean 0.
+   */
+  defsubr(table, "vl-string-mismatch", 2, 5, (args) => {
+    let first = wantString(args[0]).v;
+    let second = wantString(args[1]).v;
+    const startFirst = args.length > 2 && args[2].t !== "nil" ? Math.max(0, wantInt(args[2])) : 0;
+    const startSecond = args.length > 3 && args[3].t !== "nil" ? Math.max(0, wantInt(args[3])) : 0;
+    if (args.length > 4 && args[4].t !== "nil") {
+      first = first.toUpperCase();
+      second = second.toUpperCase();
+    }
+    let count = 0;
+    while (
+      startFirst + count < first.length &&
+      startSecond + count < second.length &&
+      first[startFirst + count] === second[startSecond + count]
+    )
+      count += 1;
+    return int(count);
+  });
+}
+
+/**
+ * El recorte por un lado. `vl-string-trim` —que ya estaba— recorta por los dos,
+ * y las tres comparten esta cuenta para que el conjunto de caracteres se
+ * interprete igual en las tres: es un CONJUNTO de caracteres sueltos, no una
+ * subcadena. `(vl-string-left-trim "ab" "banana")` recorta la b, la a y la n
+ * no, y devuelve "nana".
+ */
+function trimSide(chars: string, text: string, side: "left" | "right"): string {
+  const set = new Set(chars);
+  let start = 0;
+  let end = text.length;
+  if (side === "left") while (start < end && set.has(text[start])) start += 1;
+  else while (end > start && set.has(text[end - 1])) end -= 1;
+  return text.slice(start, end);
 }

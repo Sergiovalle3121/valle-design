@@ -22,6 +22,7 @@
  */
 import type { CadDocument } from "../cad/cad-document";
 import type { CadEntityCommand } from "../cad/entity-commands";
+import type { CadVariableAccess } from "../cad/system-variables";
 import type { LispBudgetLimits } from "./budget";
 import { CAD_LISP_BUILTINS } from "./cad-builtins";
 import { CadDocumentLispHost } from "./document-host";
@@ -41,6 +42,13 @@ export interface LispRoutineRequest {
   newEntityId?: () => string;
   limits?: LispBudgetLimits;
   now?: () => number;
+  /**
+   * La tabla de variables de sistema DE LA SESIÓN del editor, prestada. Sin
+   * ella la rutina configura una tabla propia que muere con la ejecución: el
+   * `(setvar "OSMODE" 0)` de su prólogo no apagaría lo que el dibujante tiene
+   * puesto, ni su epílogo lo devolvería. Ver `CadLispHostOptions.variables`.
+   */
+  variables?: CadVariableAccess;
 }
 
 export interface LispRoutineResult {
@@ -76,6 +84,7 @@ export function runLispRoutine(request: LispRoutineRequest): LispRoutineResult {
   const host = new CadDocumentLispHost(request.document, {
     activeLayer: request.activeLayer,
     newEntityId: request.newEntityId,
+    ...(request.variables ? { variables: request.variables } : {}),
   });
   const session = new LispSession({
     builtins: CAD_LISP_BUILTINS,

@@ -1,0 +1,535 @@
+{
+ "esquemaVersion": "1.0.0",
+ "actualizado": "2026-09-05",
+ "generadoPor": "las cuatro suites terceros-capas / terceros-bloques / terceros-texto / terceros-cota-sombreado de apps/web/src/lib/cad/verification/",
+ "verificadoPor": "las mismas cuatro: cada una recalcula SU renglón y hace deepStrictEqual contra el que está aquí",
+ "regenerar": "cd apps/web && VALLE_ESCRIBIR_TERCEROS=1 npx tsx src/lib/cad/verification/terceros-capas.spec.ts (y una por cada una de las otras tres)",
+ "queEs": "Cuatro capacidades del producto —capas, bloques, texto con formato, y cota y sombreado— afirmadas cada una sobre el fichero DXF ajeno más pequeño que las atestigua. No es una matriz de fidelidad: eso es dxf-corpus-terceros-matrix.json y cuenta entidades. Esto mira PROPIEDADES, que es donde una pérdida no se ve contando.",
+ "corpusSintetico": false,
+ "porQueUnFicheroPequenoPorFila": "El plano grande (floorplan.dxf) prueba que el producto aguanta 1109 entidades y ya tiene su jornada. Lo que no prueba es de quién es cada defecto: en un dibujo de 1,1 MB una capa mal pintada se pierde entre otras veintitrés. Un fichero de nueve entidades con tres capas se lee entero a ojo, y por eso lo que falla en él no se puede discutir.",
+ "oraculos": {
+  "A": {
+   "que": "dxf-parser (MIT, GDS Storefront Estimating), dependencia declarada de apps/web",
+   "corre": "en CI, sobre estos mismos bytes, en cada corrida",
+   "limite": "COMPARTE MOTOR con el lector: dxf-import.ts lo importa. Contra él no se mide si el análisis es correcto —los dos se equivocan igual, y en blocks2.dxf se equivocan igual literalmente—. Sirve para saber qué ve y qué no ve un lector tolerante."
+  },
+  "B": {
+   "que": "ezdxf 1.4.4 (MIT, Manfred Moitzi): otro autor, otra lengua, ni una línea en común",
+   "corre": "fuera de CI. Su lectura llega congelada en docs/cad/corpus/oraculos/medidas-cuatro-filas-ezdxf.json y anclada al sha256 de los bytes medidos",
+   "limite": "Tampoco es AutoCAD, y normaliza: añade la capa `Defpoints` y una tabla LTYPE de fábrica que el fichero no escribe. Confundir su tabla con la del fichero sería acusar al lector de perder algo que nadie mandó."
+  }
+ },
+ "vocabularioDeVeredictos": {
+  "servible_hoy": "Hay testigo ajeno, verifica, y dice que SÍ sobre lo que la fila afirma.",
+  "bloqueado_por_defecto_medido": "Hay testigo ajeno y dice que NO. Lo que falta tiene número de petición."
+ },
+ "loQueNoAcredita": "Compatibilidad con AutoCAD. Estos siete ficheros son material de prueba de la biblioteca MIT bjnortier/dxf; acreditan interoperabilidad con material que este proyecto no escribió, que es otra cosa y menos.",
+ "renglones": [
+  {
+   "fila": "layers",
+   "filasDeLaRubrica": [
+    "layers"
+   ],
+   "spec": "apps/web/src/lib/cad/verification/terceros-capas.spec.ts",
+   "archivosAjenos": [
+    {
+     "id": "bjnortier-dxf/layers",
+     "sha256": "860c3085c10b754d75fd903747f78a0e52c69b94ac77f23bdb018bec41b860ff",
+     "bytes": 17048,
+     "dialecto": "AC1021"
+    },
+    {
+     "id": "bjnortier-dxf/floorplan",
+     "sha256": "6d761ecb1ab59664425eb1dcc6837a12611536c8e03e3f7855951a76786d159c",
+     "bytes": 1117143,
+     "dialecto": "AC1018"
+    }
+   ],
+   "loQueAfirmaLaFila": "Capas y propiedades: que el mapa de capas de un DXF ajeno —nombre, color, tipo de línea, grosor, apagada, congelada— llega al documento y vuelve al fichero.",
+   "loQueDicenLosOraculos": {
+    "capasEnElFichero": 3,
+    "capasSegunElOraculoB": 4,
+    "porQueCuatro": "ezdxf añade `Defpoints` al construir su documento; esa capa no la escribió el remitente",
+    "capasVistasPorLasEntidades": {
+     "0": 4,
+     "dashedred": 4,
+     "solidblue1mm": 1
+    },
+    "tiposDeLineaEnLaTablaLTYPE": 27,
+    "losDosOraculosCoincidenEnLaTabla": true,
+    "coloresDeclarados": [
+     {
+      "capa": "0",
+      "aci": 7,
+      "color": "#ffffff"
+     },
+     {
+      "capa": "dashedred",
+      "aci": 1,
+      "color": "#ff0000"
+     },
+     {
+      "capa": "solidblue1mm",
+      "aci": 5,
+      "color": "#0000ff"
+     }
+    ]
+   },
+   "loQueHaceElLector": {
+    "capasQueTrae": [
+     "0",
+     "dashedred",
+     "solidblue1mm"
+    ],
+    "tipoDeLinea": "intacto en las tres",
+    "grosor": "convertido de centésimas de milímetro a milímetros, con −3 → −1 («por defecto»); correcto en las tres",
+    "encendidoYBloqueo": "como en el fichero",
+    "color": [
+     {
+      "capa": "0",
+      "loQueMandaron": "#ffffff",
+      "loQueSale": "#ffffff",
+      "sobrevive": true
+     },
+     {
+      "capa": "dashedred",
+      "loQueMandaron": "#ff0000",
+      "loQueSale": "#ff5252",
+      "sobrevive": false
+     },
+     {
+      "capa": "solidblue1mm",
+      "loQueMandaron": "#0000ff",
+      "loQueSale": "#4fc3f7",
+      "sobrevive": false
+     }
+    ],
+    "colorEnElFicheroQueDevolvemos": [
+     {
+      "capa": "0",
+      "aci": 7
+     },
+     {
+      "capa": "dashedred",
+      "aci": 7
+     },
+     {
+      "capa": "solidblue1mm",
+      "aci": 7
+     }
+    ],
+    "avisosEmitidos": 0,
+    "titularDelInforme": "Entró completo: 9 entidad(es) y 0 bloque(s), sin pérdidas."
+   },
+   "hallazgos": [
+    {
+     "id": "color-de-capa-descartado",
+     "que": "El color de la capa del remitente no se lee (el importador reparte una paleta de cinco por posición alfabética y descarta el código 62) y no se escribe (el exportador pone `62 7` en todas). El informe dice «Entró completo, sin pérdidas». En floorplan.dxf, con 24 capas, se ve en las dos direcciones: 4 índices ACI que el remitente usó en varias capas salen de colores distintos, y los 5 colores de la paleta juntan cada uno capas de índices distintos.",
+     "silencioso": true,
+     "peticion": "P-evidencia-12"
+    },
+    {
+     "id": "lo-que-si-viaja",
+     "que": "Tipo de línea, grosor (con su conversión de unidades), encendido, bloqueo y congelado llegan intactos en las tres capas, y el tipo de línea vuelve al fichero. La fila no está rota entera: está rota en una propiedad.",
+     "silencioso": false,
+     "peticion": null
+    }
+   ],
+   "veredicto": "bloqueado_por_defecto_medido",
+   "porQueEseVeredicto": "Un testigo ajeno mide que el color de la capa se pierde en los dos sentidos sin un solo aviso. Conceder el tope de «Capas y propiedades» encima de una pérdida silenciosa medida es el caso exacto que la regla del corte inventó para impedir. Sale de aquí con P-evidencia-12, no antes.",
+   "loQueNoSeMide": "Los 256 índices ACI: sólo se afirman los cuatro que estos dos ficheros usan (1, 4, 5 y 7). Tampoco se mide el color por ENTIDAD (código 62 en la entidad, no en la capa), ni la transparencia, ni el estilo de trazado; ningún fichero del corpus los trae con variedad suficiente."
+  },
+  {
+   "fila": "blocks",
+   "filasDeLaRubrica": [
+    "blocks"
+   ],
+   "spec": "apps/web/src/lib/cad/verification/terceros-bloques.spec.ts",
+   "archivosAjenos": [
+    {
+     "id": "bjnortier-dxf/blocks1",
+     "sha256": "ba33677808f6a534d64a5898803649caca30eccb543092e3e5a102043b9d1c2e",
+     "bytes": 17124,
+     "dialecto": "AC1021"
+    },
+    {
+     "id": "bjnortier-dxf/blocks2",
+     "sha256": "5d847d833dd444fbe8a85def5881a4f9055e47d06c41ca009c9e40784e92f91f",
+     "bytes": 20507,
+     "dialecto": "AC1021"
+    },
+    {
+     "id": "bjnortier-dxf/floorplan",
+     "sha256": "6d761ecb1ab59664425eb1dcc6837a12611536c8e03e3f7855951a76786d159c",
+     "bytes": 1117143,
+     "dialecto": "AC1018"
+    }
+   ],
+   "loQueAfirmaLaFila": "Bloques y atributos: que una definición de bloque ajena y sus inserciones —incluidas las anidadas— llegan al documento como bloques editables y no como geometría suelta.",
+   "loQueDicenLosOraculos": {
+    "blocks1": {
+     "bloques": [
+      "a"
+     ],
+     "contenido": {
+      "LINE": 4,
+      "CIRCLE": 1
+     },
+     "inserciones": [
+      {
+       "en": [
+        31.213203435596,
+        75.355339059327
+       ],
+       "escala": [
+        1,
+        1
+       ],
+       "rotacion": 45
+      },
+      {
+       "en": [
+        66.921304299025,
+        59.342556659764
+       ],
+       "escala": [
+        2,
+        1
+       ],
+       "rotacion": 15
+      }
+     ]
+    },
+    "blocks2": {
+     "loQueVeElOraculoB": {
+      "espacioModelo": {
+       "INSERT": 1,
+       "LINE": 1,
+       "LWPOLYLINE": 1,
+       "MTEXT": 1
+      },
+      "bloques": [
+       "block01",
+       "block02",
+       "block_insert"
+      ]
+     },
+     "loQueHaceElOraculoA": "String '2' cannot be cast to Boolean type",
+     "porQueNoSirveElAcuerdoDeAYElLector": "dxf-import.ts importa dxf-parser: comparten la máquina de analizar",
+     "transformacionAcumulada": {
+      "escala": 1,
+      "dx": 175,
+      "dy": 25
+     }
+    }
+   },
+   "loQueHaceElLector": {
+    "blocks1": {
+     "bloquesTraidos": 1,
+     "contenidoDelBloque": {
+      "line": 4,
+      "circle": 1
+     },
+     "inserciones": 2,
+     "degradacionDeclarada": "anisotropic_insert (1): escala no uniforme sobre geometría circular, radio por el promedio"
+    },
+    "blocks2": {
+     "resultado": "RECHAZA EL FICHERO ENTERO",
+     "mensaje": "El DXF está corrupto o no es un DXF de texto válido.",
+     "causaMedida": "$XCLIPFRAME = 2 en la cabecera; dxf-parser sólo admite 0 y 1 en los códigos 290-299",
+     "conEseParUnicoNormalizadoEnMemoria": {
+      "entidades": 6,
+      "bloques": 3,
+      "avisos": 0,
+      "anidamientoIntacto": true,
+      "arcoYElipseIntactos": true
+     },
+     "textoQueSeSaleDeSuBloque": [
+      {
+       "texto": "block01",
+       "donde": "block01",
+       "saleEn": [
+        40,
+        80
+       ],
+       "deberiaCaerEn": [
+        215,
+        105
+       ]
+      },
+      {
+       "texto": "block02",
+       "donde": "block02",
+       "saleEn": [
+        35.71712,
+        24.90368
+       ],
+       "deberiaCaerEn": [
+        210.71712,
+        49.90368
+       ]
+      }
+     ]
+    },
+    "floorplan": {
+     "mtextQueElRemitentePusoEnEspacioModelo": 9,
+     "mtextEnTodoElFichero": 144,
+     "mtextQueElLectorEntregaComoEspacioModelo": 144,
+     "rotulosQueCambianDeDueno": 135
+    }
+   },
+   "hallazgos": [
+    {
+     "id": "fichero-ajeno-rechazado-por-una-variable-de-cabecera",
+     "que": "El lector rechaza blocks2.dxf entero con «El DXF está corrupto o no es un DXF de texto válido.» — una acusación al fichero que es falsa: ezdxf lo abre sin una queja. La causa medida es un solo par de la cabecera, `$XCLIPFRAME` = 2, valor legítimo desde AutoCAD 2010. Normalizado ESE par en una copia en memoria, el fichero entra completo: 6 entidades, 3 bloques, 0 avisos.",
+     "silencioso": false,
+     "peticion": "P-evidencia-13"
+    },
+    {
+     "id": "mtext-que-se-sale-de-su-bloque",
+     "que": "Con el fichero ya legible, dos de los tres MTEXT que el lector entrega a espacio modelo viven en realidad DENTRO de `block01` y `block02`. Salen con las coordenadas locales del bloque, sin la transformación acumulada: caen 175 mm a la izquierda y 25 mm abajo de donde el remitente los puso, y además siguen dentro del bloque, así que el rótulo se dibuja dos veces. Ningún aviso lo menciona. El tamaño del problema lo pone el plano grande: el remitente puso 9 MTEXT en el espacio modelo de floorplan.dxf y el lector entrega 144, así que 135 rótulos cambian de dueño en silencio.",
+     "silencioso": true,
+     "peticion": "P-evidencia-11"
+    },
+    {
+     "id": "lo-que-si-viaja",
+     "que": "La definición del bloque llega íntegra (cuatro líneas y un círculo medidos uno a uno), las dos inserciones con su punto, escala y rotación, el anidamiento de dos niveles, y el ARC y la ELLIPSE de dentro con sus ángulos y parámetros convertidos de radianes a grados. La escala no uniforme entra peor y se DECLARA degradada.",
+     "silencioso": false,
+     "peticion": null
+    }
+   ],
+   "veredicto": "servible_hoy",
+   "porQueEseVeredicto": "Sobre blocks1.dxf el testigo ajeno dice que sí, entidad por entidad, y la única degradación va declarada. Lo de blocks2.dxf es una pérdida DECLARADA, no silenciosa: el lector se niega en voz alta. Y el objeto propio de esta fila —la definición del bloque, su contenido, el anidamiento y la transformación de cada escalón— llega intacto y medido incluso en el fichero que hay que normalizar para abrir. La fuga de MTEXT es silenciosa y grande (135 rótulos en el plano ajeno), pero su objeto es el TEXTO: es lo que bloquea las filas `mtext` y `dimensions`, y ahí es donde se cobra. Lo que no se puede es afirmar esta fila sin publicar a la vez las dos cosas: que un fichero ajeno legítimo de cada diecinueve no se abre, y que el texto de dentro de los bloques se sale.",
+   "loQueNoSeMide": "DÓNDE acaban dibujados los 135 rótulos que se salen de sus bloques en el plano ajeno: medirlo exige componer la transformación acumulada de los 17 bloques, y esta suite sólo la compone para el anidado de dos niveles de blocks2.dxf, donde cabe a ojo. Lo que aquí se afirma es el ÁMBITO, no el desplazamiento. Los ATRIBUTOS del bloque (ATTDEF/ATTRIB): ninguno de los diecinueve ficheros ajenos trae un bloque con atributos, así que la mitad del nombre de la fila no la atestigua nadie de fuera. Tampoco los bloques dinámicos, ni el espacio papel, ni el contenido de un bloque tras exportarlo."
+  },
+  {
+   "fila": "mtext",
+   "filasDeLaRubrica": [
+    "mtext"
+   ],
+   "spec": "apps/web/src/lib/cad/verification/terceros-texto.spec.ts",
+   "archivosAjenos": [
+    {
+     "id": "bjnortier-dxf/texts",
+     "sha256": "6c585c0093c1a19180faa58b6977bc48ddb47899d2800bf38807cbca3018416d",
+     "bytes": 16528,
+     "dialecto": "AC1021"
+    },
+    {
+     "id": "bjnortier-dxf/floorplan",
+     "sha256": "6d761ecb1ab59664425eb1dcc6837a12611536c8e03e3f7855951a76786d159c",
+     "bytes": 1117143,
+     "dialecto": "AC1018"
+    }
+   ],
+   "loQueAfirmaLaFila": "MTEXT y texto: que un texto con formato ajeno llega con su altura, su ancho, su anclaje y su estilo, y vuelve al fichero en los dos sentidos.",
+   "loQueDicenLosOraculos": {
+    "losTresCuentanDos": true,
+    "mtext": [
+     {
+      "texto": "ISO TEXT",
+      "insercion": [
+       0,
+       20
+      ],
+      "altura": 20,
+      "ancho": 121.666662426624,
+      "anclaje": 1,
+      "estilo": "iso"
+     },
+     {
+      "texto": "UNICODE TEXT",
+      "insercion": [
+       0,
+       100
+      ],
+      "altura": 30,
+      "ancho": 282.5,
+      "anclaje": 7,
+      "estilo": "unicode"
+     }
+    ],
+    "estilosDeTexto": [
+     "Standard",
+     "iso",
+     "unicode"
+    ],
+    "cadenasConCodigosDeControlEnElPlanoAjeno": 129
+   },
+   "loQueHaceElLector": {
+    "ida": [
+     {
+      "texto": "ISO TEXT",
+      "altura": 20,
+      "ancho": 121.666662426624,
+      "anclaje": "top-left",
+      "estilo": "iso"
+     },
+     {
+      "texto": "UNICODE TEXT",
+      "altura": 30,
+      "ancho": 282.5,
+      "anclaje": "bottom-left",
+      "estilo": "unicode"
+     }
+    ],
+    "anclajesDistinguidos": [
+     "top-left",
+     "bottom-left"
+    ],
+    "textoEnriquecido": {
+     "cadenasAjenasResueltas": 129,
+     "conApilado": 8,
+     "conCambioDeAltura": 8,
+     "tramosResueltos": 147,
+     "limite": "la CADENA es ajena; el intérprete (mtext-codes.ts) es nuestro. Esto acredita que entendemos lo que otro escribió, no que lo dibujemos como AutoCAD."
+    },
+    "vuelta": {
+     "dialectoDeclarado": "AC1015",
+     "mtextEscritos": 2,
+     "textoConservado": true,
+     "marcadorAcDbEntity": false,
+     "marcadorAcDbMText": false
+    }
+   },
+   "hallazgos": [
+    {
+     "id": "mtext-exportado-sin-marcadores-de-subclase",
+     "que": "Lo que exportamos declara AC1015 y escribe los MTEXT sin `100 AcDbEntity` ni `100 AcDbMText`, obligatorios en ese dialecto. El oráculo A lo abre porque es tolerante; el oráculo B lo rechaza («missing 'AcDbMText' subclass»). Aquí se reproduce sobre dos entidades el mismo defecto que la jornada midió sobre 1101.",
+     "silencioso": false,
+     "peticion": "P-evidencia-07"
+    },
+    {
+     "id": "lo-que-si-viaja",
+     "que": "La ida está bien y medida entera: texto, punto de inserción, altura, ancho, rotación, interlineado, anclaje y estilo de los dos MTEXT, con los dos anclajes en esquinas opuestas para que un valor por defecto no pudiera colar. Y el intérprete resuelve las 129 cadenas con códigos del plano ajeno en 147 tramos, ocho de ellas con apilado de fracción y cambio de altura a mitad de cadena.",
+     "silencioso": false,
+     "peticion": null
+    }
+   ],
+   "veredicto": "bloqueado_por_defecto_medido",
+   "porQueEseVeredicto": "El criterio de esta fila dice «en los dos sentidos», y hoy un lector estricto ajeno sólo puede recorrer uno. Marcarla independiente sería cobrar «viaja en los dos sentidos» con un programa que no es nuestro diciendo que no vuelve. Sale de aquí con P-evidencia-07.",
+   "loQueNoSeMide": "Las columnas, la máscara de fondo, el color por tramo y las fuentes SHX de trazo: ninguna de las dos entidades de texts.dxf las trae. El plano ajeno sí trae sustitución de fuente (`\\F archquik.shx` → Arial) y esa sustitución no se afirma aquí. Tampoco se mide el dibujo: que el apilado se ENTIENDA no dice que se pinte como AutoCAD lo pinta."
+  },
+  {
+   "fila": "dimensions-hatch",
+   "filasDeLaRubrica": [
+    "dimensions",
+    "hatch"
+   ],
+   "spec": "apps/web/src/lib/cad/verification/terceros-cota-sombreado.spec.ts",
+   "archivosAjenos": [
+    {
+     "id": "bjnortier-dxf/dimensions",
+     "sha256": "513d44f4b2febdf2d2e27016c400cc774f0a364620b34730eaaece5cd6f15d77",
+     "bytes": 18956,
+     "dialecto": "AC1021"
+    },
+    {
+     "id": "bjnortier-dxf/hatches",
+     "sha256": "e67becc4b026231d656a4b506b90d533a3fcdfb14e3003762edd4a9e40b7e6d3",
+     "bytes": 16594,
+     "dialecto": "AC1021"
+    }
+   ],
+   "loQueAfirmaLaFila": "Cotas asociativas y HATCH asociativo: que una cota de otro programa llega con su medida y que un sombreado ajeno llega con su relleno.",
+   "loQueDicenLosOraculos": {
+    "cotas": [
+     {
+      "medida": 80,
+      "puntoDeTexto": [
+       50,
+       21.875
+      ],
+      "bloqueDeDibujo": "*D1",
+      "textoDelUsuario": ""
+     },
+     {
+      "medida": 30,
+      "puntoDeTexto": [
+       35,
+       71.875
+      ],
+      "bloqueDeDibujo": "*D2",
+      "textoDelUsuario": ""
+     }
+    ],
+    "dondeViveElRotuloDeLaCota": "dentro del bloque de dibujo (*D1, *D2), no en espacio modelo",
+    "sombreado": {
+     "patron": "gost_non-metal",
+     "contorno": "ruta de aristas, no polilínea",
+     "aristas": 4,
+     "todasRectas": true,
+     "verticesEquivalentes": 4
+    },
+    "elOraculoANoVeElHatch": true
+   },
+   "loQueHaceElLector": {
+    "cotas": {
+     "traidas": 2,
+     "medidasRecalculadas": [
+      {
+       "tipo": "lineal",
+       "medidaDelOraculo": 80,
+       "medidaNuestra": 80
+      },
+      {
+       "tipo": "radial",
+       "medidaDelOraculo": 30,
+       "medidaNuestra": 30
+      }
+     ],
+     "degradacionDeclarada": "foreign_dimension_detached (2): entran vivas pero desligadas del dibujo",
+     "rotulosDuplicados": [
+      {
+       "texto": "80.0000",
+       "bloqueDeDibujo": "*D1",
+       "en": [
+        50,
+        21.875
+       ]
+      },
+      {
+       "texto": "30.0000",
+       "bloqueDeDibujo": "*D2",
+       "en": [
+        35,
+        71.875
+       ]
+      }
+     ]
+    },
+    "sombreado": {
+     "loVe": true,
+     "loImporta": false,
+     "codigo": "hatch_unsupported_boundary",
+     "fidelidad": "lost",
+     "motivo": "sólo se reconstruyen los contornos escritos como POLILÍNEA (bit 2 del código 92); éste viene como ruta de aristas",
+     "lineasDelContornoQueSiEntran": 4
+    }
+   },
+   "hallazgos": [
+    {
+     "id": "rotulo-de-cota-escrito-dos-veces",
+     "que": "El lector resuelve la cota por sus puntos y vuelve a dibujar su rótulo, que es lo correcto. Pero además saca el MTEXT de dentro del bloque de dibujo y lo entrega como entidad suelta de espacio modelo, en el mismo punto y con la misma altura: el número queda escrito dos veces, uno encima del otro. Nueve entidades donde el remitente puso siete. Ningún aviso lo menciona.",
+     "silencioso": true,
+     "peticion": "P-evidencia-11"
+    },
+    {
+     "id": "contorno-de-aristas-rectas-descartado",
+     "que": "El sombreado se pierde porque su contorno viene como ruta de ARISTAS y sólo se reconstruyen las polilíneas. Las cuatro aristas son rectas: el oráculo publica sus cuatro vértices ya calculados, y son el mismo cuadrado que las cuatro LINE que sí entran. La pérdida se DECLARA —eso está bien— pero es evitable.",
+     "silencioso": false,
+     "peticion": "P-evidencia-14"
+    },
+    {
+     "id": "lo-que-si-viaja",
+     "que": "Las dos cotas ajenas llegan con sus puntos de definición, su punto de texto y su desplazamiento, y el producto RECALCULA sus dos medidas (80 y 30) dando los mismos números que ezdxf. La degradación de asociatividad va declarada con su código y su estado en la entidad.",
+     "silencioso": false,
+     "peticion": null
+    }
+   ],
+   "veredicto": "bloqueado_por_defecto_medido",
+   "porQueEseVeredicto": "Las dos filas tienen testigo ajeno y las dos oyen un no. `hatch`: el sombreado ajeno no entra, y además lo que exportamos no lo abre un lector estricto (P-evidencia-07). `dimensions`: la medida viaja bien, pero cada cota ajena llega con su número escrito dos veces y en silencio, que es una pérdida de fidelidad sobre el objeto propio de la fila. Conceder el tope encima de un defecto silencioso medido es lo que la regla del corte impide, y esta suite lo aplica a su propia fila.",
+   "loQueNoSeMide": "La ASOCIATIVIDAD de verdad: ninguna de las dos cotas ajenas entra asociada, así que «cota que sigue midiendo al mover el muro» no lo atestigua este material. Del sombreado no se mide el patrón dibujado ni las islas: el único HATCH ajeno del corpus tiene un contorno y ninguna isla. Tampoco se mide el espacio papel."
+  }
+ ]
+}

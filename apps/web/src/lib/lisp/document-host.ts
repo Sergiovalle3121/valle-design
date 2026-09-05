@@ -33,6 +33,10 @@ import {
   executeCadEntityCommandBatch,
   type CadEntityCommand,
 } from "../cad/entity-commands";
+import {
+  createCadVariableAccess,
+  type CadVariableAccess,
+} from "../cad/system-variables";
 import type { LispHostServices } from "./host";
 
 export interface CadLispHostOptions {
@@ -46,6 +50,18 @@ export interface CadLispHostOptions {
   newEntityId?: () => string;
   /** Tope de escrituras por sesión. Véase abajo. */
   maxCommands?: number;
+  /**
+   * La tabla de variables de sistema DE LA SESIÓN, prestada por el editor.
+   *
+   * Es la misma que escriben SETVAR, UNITS y OSNAP tecleados, y por eso se
+   * presta en vez de fabricarse: con dos tablas, `(getvar "OSMODE")` no vería
+   * el `OSNAP` que el dibujante acaba de configurar, y el `(setvar "OSMODE" 0)`
+   * de una rutina no apagaría nada de lo que él tiene puesto. Quien no la
+   * presta —las specs, y cualquier anfitrión que todavía no la tenga a mano—
+   * recibe una tabla propia sembrada con el documento; entonces las variables
+   * viven lo que vive la ejecución, que es un límite, no una mentira.
+   */
+  variables?: CadVariableAccess;
 }
 
 /**
@@ -63,6 +79,7 @@ export class CadDocumentLispHost implements LispHostServices {
   private readonly batch: CadEntityCommand[] = [];
   private readonly labels: string[] = [];
   private readonly maxCommands: number;
+  private readonly systemVariables: CadVariableAccess;
   private serial = 0;
 
   constructor(
@@ -72,6 +89,16 @@ export class CadDocumentLispHost implements LispHostServices {
     this.working = document;
     this.index = new Map(document.entities.map((entity) => [entity.id, entity]));
     this.maxCommands = options.maxCommands ?? DEFAULT_MAX_COMMANDS;
+    // La tabla propia nace SEMBRADA con lo que el documento ya dice: la capa
+    // activa en `CLAYER` y la unidad del dibujo en `INSUNITS`. Sembrarla con
+    // los valores de fábrica habría hecho que `(getvar "CLAYER")` contestara
+    // «0» estando el dibujante en MUROS — que es peor que no contestar.
+    this.systemVariables =
+      options.variables ??
+      createCadVariableAccess({
+        CLAYER: options.activeLayer ?? "0",
+        INSUNITS: insunitsOfDocument(document),
+      });
   }
 
   document(): CadDocument {
@@ -95,8 +122,23 @@ export class CadDocumentLispHost implements LispHostServices {
     return this.working.layers;
   }
 
+  /**
+   * La capa de los objetos nuevos ES `CLAYER`, no un campo aparte.
+   *
+   * Que lo sean el mismo dato es lo que hace que `(setvar "CLAYER" "MUROS")`
+   * tenga efecto de verdad: la entidad siguiente nace en MUROS. Con dos sitios
+   * donde guardarlo, esa escritura habría sido un «éxito sin efecto» de manual
+   * —la tabla diría MUROS y el `entmake` seguiría dibujando en «0»—, que es
+   * justo lo que la regla 2 de la casa prohíbe.
+   */
   activeLayer(): string {
+    const clayer = this.systemVariables.get("CLAYER");
+    if (typeof clayer === "string" && clayer !== "") return clayer;
     return this.options.activeLayer ?? "0";
+  }
+
+  variables(): CadVariableAccess {
+    return this.systemVariables;
   }
 
   newEntityId(): string {
@@ -133,4 +175,22 @@ export class CadDocumentLispHost implements LispHostServices {
   get appliedLabels(): readonly string[] {
     return this.labels;
   }
+}
+
+/**
+ * `meta.unit` → código INSUNITS del DXF.
+ *
+ * La unidad del dibujo la lleva la cabecera del documento, y la tabla de
+ * variables la publica bajo el nombre con el que la pregunta una rutina traída
+ * de fuera. Vive aquí —al lado de quien siembra la tabla— para que el mapeo
+ * exista UNA vez: escrito en dos sitios, el día que alguien añada los pies
+ * quedaría medio producto contestando 4.
+ */
+export function insunitsOfDocument(document: CadDocument): number {
+  const unit = document.meta.unit;
+  if (unit === "in") return 1;
+  if (unit === "ft") return 2;
+  if (unit === "cm") return 5;
+  if (unit === "m") return 6;
+  return 4;
 }

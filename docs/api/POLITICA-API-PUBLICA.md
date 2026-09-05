@@ -1,6 +1,13 @@
 # Política de la API pública
 
-La API HTTP `/v1` (79 operaciones OpenAPI, SDK generado) existe y funciona.
+La API HTTP `/v1` existe y funciona, con su contrato OpenAPI y su SDK
+generado. Cuántas operaciones tiene NO se escribe aquí: lo cuenta
+`apps/web/src/app/docs/api/operations.generated.json`, que se genera del
+contrato y lo vigila su propia spec. La cifra que vivía en esta línea decía
+«79 operaciones» —que es el número de RUTAS, no de operaciones— y el documento
+de al lado decía otra distinta: exactamente lo que pasa cuando una cifra se
+teclea en dos sitios.
+
 Lo que NO existía era la declaración de cuáles operaciones son un CONTRATO con
 terceros y cuáles son plomería interna del producto. Esta política lo declara,
 ANTES de que la primera integración de un cliente congele por accidente una
@@ -39,13 +46,30 @@ plugins JS del estudio. Su contrato ya existe en código
 (`apps/web/src/lib/lisp/plugins/api.ts`) y ESTA política lo declara formato
 estable v1:
 
-- Un plugin es `{ id, name, version, commands?, panels? }`; `id` en
-  minúsculas-con-guiones, comandos `MAYÚSCULAS[A-Z0-9-]`.
-- Tres garantías del anfitrión, congeladas: (1) los comandos de plugin son
+- Un plugin es
+  `{ manifiesto, id, name, version, permisos, commands?, panels? }`; `id` en
+  minúsculas-con-guiones, comandos `MAYÚSCULAS[A-Z0-9-]`. `manifiesto` y
+  `permisos` son OBLIGATORIOS y `permisos` puede ser la lista vacía pero no
+  puede faltar: un permiso que se puede omitir se omite, y un registro que lea
+  «no lo declaró» como «puede todo» convierte el manifiesto en documentación.
+- Los permisos del manifiesto v1 son cuatro y su fuente es
+  `apps/web/src/lib/lisp/plugins/permissions.ts` (`PLUGIN_PERMISSIONS`):
+  `documento:lectura`, `documento:escritura`, `comandos:registro` y
+  `ui:panel`. La frase que se le enseña al usuario para cada uno vive junto a
+  ellos en `PLUGIN_PERMISSION_MEANING`, no aquí.
+- Cuatro garantías del anfitrión, congeladas: (1) los comandos de plugin son
   `CadCommandDescriptor` corrientes — máquina de estados pura, mismo registro
   compuesto; (2) un plugin NUNCA pisa un nombre del producto (rechazo al
   alta, todo-o-nada); (3) la escritura sale sólo por
-  `apply(CadEntityCommand[])` — no hay acceso al documento mutable.
+  `apply(CadEntityCommand[])` — no hay acceso al documento mutable; (4) esa
+  escritura exige `documento:escritura` por las DOS puertas por las que un
+  plugin alcanza el dibujo — la API de documento y el lote de un comando de
+  plugin despachado desde LISP —, y el rechazo NO es capturable con
+  `vl-catch-all-apply`, igual que el corte por presupuesto.
+- Lo que estos permisos acotan es el DOCUMENTO, no la página: no hay worker ni
+  iframe, así que `ui:panel` no impide que el componente que el anfitrión monte
+  toque el DOM. El aislamiento real es «todavía no», con su motivo en
+  `docs/api/EXTENSIBILIDAD.md`.
 - Cambios a este formato siguen las mismas reglas de arriba (aditivo libre;
   romper exige versión de manifiesto nueva con lectura de la vieja).
 

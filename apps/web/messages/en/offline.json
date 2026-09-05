@@ -1,0 +1,30 @@
+{
+  "metaTitle": "Offline",
+  "metaDescription": "The browser has no network. %PRODUCT_DESIGN% keeps drawing locally and holds a recovery draft; anything that needs the server waits until the connection comes back.",
+  "badge": "No connection",
+  "eyebrow": "Session status",
+  "title": "You are offline",
+  "intro": "%PRODUCT_DESIGN% served this screen from your own machine. Nothing is lost: the editor runs entirely in the browser and keeps a local draft while the connection is away.",
+  "worksTitle": "What still works",
+  "works": {
+    "drawTitle": "Drawing, dimensioning and modeling",
+    "drawBody": "The 2D engine and the faceted 3D modeler never ask the server to trace a line, resolve an object snap or push a face.",
+    "journalTitle": "The local recovery journal",
+    "journalBody": "Every tab writes to its own lane and keeps its last {checkpoints} checkpoints. A draft is still offered for {days} days after it was written.",
+    "retryTitle": "The retry when the network returns",
+    "retryBody": "As soon as the browser is back online the pending save fires by itself. Nobody has to remember to press Save."
+  },
+  "blockedTitle": "What cannot happen without a network",
+  "blocked": {
+    "saveTitle": "Saving to the server",
+    "saveBody": "The write fails and the drawing stays marked with pending changes. There is a single save queue, so nothing is duplicated once it goes through.",
+    "blocksTitle": "The team block library",
+    "blocksBody": "The block catalog lives on the server. Blocks already inserted in this drawing can still be placed and edited.",
+    "reviewTitle": "Review links",
+    "reviewBody": "Opening, creating or closing a review session needs the server, and the reviewer on the other end sees nothing until the connection comes back."
+  },
+  "warningTitle": "Where the draft actually lives",
+  "warningBody": "In this browser and this profile, not in your account. Opening the same drawing on another machine will not find it, and clearing the site data deletes it.",
+  "boardAction": "Back to the dashboard",
+  "studioAction": "Open the studio"
+}

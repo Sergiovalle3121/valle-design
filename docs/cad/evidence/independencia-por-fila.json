@@ -1,0 +1,1263 @@
+{
+  "generadoPor": "apps/web/src/lib/cad/verification/independencia-rubrica.spec.ts",
+  "verificadoPor": "el mismo spec: recalcula el censo desde scripts/cad/rubric.mjs y hace deepStrictEqual contra este archivo",
+  "regenerar": "cd apps/web && VALLE_ESCRIBIR_CENSO=1 npx tsx src/lib/cad/verification/independencia-rubrica.spec.ts",
+  "queEs": "Las filas de la rúbrica competitiva que hoy retienen 1 pt por carecer de evidencia independiente, con el criterio candidato de cada una y el parche exacto cuando lo hay. No están escritas a mano: salen de scoreRubric() sobre el árbol de hoy (regla 4 de la campaña de cimientos).",
+  "reglaDelTope": "scripts/cad/rubric.mjs resta 1 pt a una fila cuando earned === points y independentEarned === 0. El punto vuelve con UNA sola evidencia `independent: true` que verifique, en cualquiera de sus criterios ya concedidos.",
+  "loQueEsteCensoNoHace": "Marcar `independent: true` sobre evidencia que fabricó este proyecto. El oráculo por fuerza bruta de verification/oracle.ts verifica de verdad y lo escribimos nosotros: marcarlo convertiría «lo comprobamos aparte» en «lo comprobó otro», que es justo lo que la regla del corte del 2026-08-22 impide.",
+  "fuentesIndependientesAdmitidas": {
+    "docs/cad/corpus/manifest.json": "Diecinueve DXF de dos bibliotecas MIT (bjnortier/dxf y gdsestimating/dxf-parser) con sus licencias descargadas y hasheadas. Material que este proyecto NO escribió.",
+    "docs/cad/evidence/dxf-corpus-terceros-matrix.json": "Cuarenta filas por entidad sobre esos diecinueve archivos, con el veredicto de DOS oráculos ajenos (dxf-parser y ezdxf 1.4.4). Los números los ponen ellos; nosotros ponemos la tabla.",
+    "apps/web/src/lib/cad/verification/terceros-jornada.spec.ts": "La jornada entera sobre bjnortier-dxf/floorplan.dxf: 3.065 magnitudes comparadas una a una contra ezdxf sobre los mismos bytes, y la relectura de lo exportado con dxf-parser. Sin los dos lectores ajenos, este spec no afirma nada.",
+    "apps/web/src/lib/cad/verification/z-frontiers.spec.ts": "Cada frontera de la cota se cierra leyendo el DXF con dxf-parser, un lector de terceros que no conoce las convenciones del producto. El propio texto del criterio ya lo dice: «lector de terceros como oráculo».",
+    "apps/web/src/lib/cad/verification/oraculos-externos.spec.ts": "524 magnitudes del sólido —163 vértices con sus coordenadas, 311 longitudes de arista y los recuentos de la parte 21— comparadas contra lo que steputils 0.1 (MIT) leyó en el STEP que exportamos. Sin ese lector ajeno, este spec no afirma nada del 3D.",
+    "docs/cad/corpus/oraculos/steputils-0.1.json": "La lectura congelada de steputils 0.1 sobre los cinco sólidos exportados, anclada al sha256 de esos bytes. Los números los pone él; nosotros ponemos el ancla que impide que sigan pareciendo evidencia cuando el exportador cambie."
+  },
+  "loQueNoEsIndependiente": {
+    "apps/web/src/lib/cad/verification/oracle.ts": "Oráculo por fuerza bruta escrito por este proyecto. Verifica de verdad (fórmula cerrada contra muestreo), y por eso mismo es la tentación: marcarlo independiente convertiría «lo comprobamos aparte» en «lo comprobó otro».",
+    "docs/cad/evidence/dxf-external-corpus-matrix.json": "Su primera línea dice `corpusSintetico: true`: los archivos los genera `dxf-external-corpus.ts` para IMITAR dialectos ajenos. Imitar un dialecto no es haberlo recibido. Hoy está marcado `independent: true` en `dxf.corpus-external` y es la única marca de independencia del lado DXF; P-evidencia-04 la sustituye por el corpus real.",
+    "apps/web/src/lib/cad/verification/prueba-de-despacho.spec.ts": "El «plano ajeno» de esa prueba lo siembra la propia prueba (`planta-mal-empatada.ts`). Es una buena prueba y no es material de terceros."
+  },
+  "vocabularioDeVeredictos": {
+    "servible_hoy": "Hay un testigo ajeno en el árbol, ya verifica, y dice que SÍ sobre el criterio candidato. El parche va escrito y su efecto está medido.",
+    "bloqueado_por_defecto_medido": "Hay un testigo ajeno en el árbol y dice que NO. El punto vuelve cuando el defecto se arregle; la petición que lo arregla va con nombre.",
+    "el_corpus_de_hoy_no_lo_alcanza": "El material ajeno del árbol no llega hasta aquí. Lo que sí llegaría está nombrado y es alcanzable: PyPI, npm y crates.io responden.",
+    "no_lo_sirve_material_ajeno": "Ningún fichero de terceros puede atestiguar esto. Falta la tercera pata de la regla: un usuario real."
+  },
+  "hallazgo": "La ÚNICA marca `independent: true` del lado DXF de la rúbrica de hoy está en dxf.corpus-external y apunta a docs/cad/evidence/dxf-external-corpus-matrix.json, cuyo propio encabezado dice `corpusSintetico: true`. Hoy no infla la cuenta porque ese criterio no se concede (falta la firma humana de derechos), pero el día que la firma llegue sin P-evidencia-04 concedería 2 pt de «independencia» a un corpus que generó este proyecto. P-evidencia-04 sustituye esa entrada por el corpus real.",
+  "medido": {
+    "antes": {
+      "total": "239/271",
+      "porcentaje": 88.2,
+      "alcanceHoy": "180/197",
+      "puntosConEvidenciaIndependiente": 16,
+      "filasConTope": 25
+    },
+    "despuesDeAplicarLosParchesDeEsteCenso": {
+      "total": "239/271",
+      "porcentaje": 88.2,
+      "alcanceHoy": "180/197",
+      "puntosConEvidenciaIndependiente": 16,
+      "filasConTope": 25
+    },
+    "comoSeMidio": "Clonando la rúbrica en memoria, aplicándole los parches de las filas `servible_hoy` y volviendo a llamar a scoreRubric() con el mismo contexto. docs/competitive/rubric.json NO se toca: es archivo compartido y lo aplica el coordinador."
+  },
+  "resumen": {
+    "filasConTope": 25,
+    "puntosRetenidos": 25,
+    "porVeredicto": {
+      "servible_hoy": 0,
+      "bloqueado_por_defecto_medido": 5,
+      "el_corpus_de_hoy_no_lo_alcanza": 14,
+      "no_lo_sirve_material_ajeno": 6
+    }
+  },
+  "filas": [
+    {
+      "id": "dimensions",
+      "grupo": "core",
+      "alcance": "hoy",
+      "nombre": "Cotas asociativas",
+      "puntos": 12,
+      "otorgadosAntesDelTope": 12,
+      "conElTope": 11,
+      "criteriosOtorgados": [
+        {
+          "id": "dimensions.entity",
+          "puntos": 3,
+          "clasesDeEvidencia": [
+            "file",
+            "golden",
+            "spec"
+          ]
+        },
+        {
+          "id": "dimensions.format",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "file",
+            "spec"
+          ]
+        },
+        {
+          "id": "dimensions.dxf",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "spec"
+          ]
+        },
+        {
+          "id": "dimensions.commands",
+          "puntos": 3,
+          "clasesDeEvidencia": [
+            "alias",
+            "command"
+          ]
+        },
+        {
+          "id": "dimensions.style",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "alias",
+            "command",
+            "file",
+            "spec"
+          ]
+        }
+      ],
+      "candidato": "dimensions.dxf",
+      "porQueEseCandidato": "Es el criterio de ida y vuelta por DXF, y la ida y vuelta de las 63 cotas del plano ajeno está medida a los dos lados con lectores que no son nuestros.",
+      "veredicto": "bloqueado_por_defecto_medido",
+      "loQueDiceElTestigo": "La MEDIDA viaja bien y está medida dos veces: ezdxf lee 63 DIMENSION en el plano ajeno y da sus 63 medidas, nuestro lector trae las 63, el exportador las escribe y dxf-parser las reencuentra en el código 42 dentro de 1,5e-6 por segmento; sobre dimensions.dxf, ezdxf mide 80 y 30 y el producto recalcula 80 y 30. Pero el mismo testigo dice que cada cota ajena llega con su número escrito dos veces: nueve entidades donde ezdxf cuenta siete, porque el MTEXT del bloque de dibujo (*D1, *D2) sale además como entidad suelta en el punto del rótulo. Sin un aviso.",
+      "limiteDelParche": null,
+      "loQueFaltaria": "Aplicar P-evidencia-11 (dar sección al escaneo crudo de MTEXT, para que un MTEXT de dentro de un BLOCK deje de salir a espacio modelo). Cuando eso entre, el parche vuelve a ser el de ayer —`terceros-jornada.spec.ts` como evidencia `independent: true` en `dimensions.dxf`— y hay que sumarle `terceros-cota-sombreado.spec.ts`. La otra mitad del límite sigue en pie y no la arregla nadie: la XDATA propietaria (AXOS_DIM) que el criterio nombra no la atestigua ningún fichero ajeno, porque no puede traerla.",
+      "peticion": "P-evidencia-11",
+      "parche": null
+    },
+    {
+      "id": "hatch",
+      "grupo": "core",
+      "alcance": "hoy",
+      "nombre": "HATCH asociativo",
+      "puntos": 12,
+      "otorgadosAntesDelTope": 12,
+      "conElTope": 11,
+      "criteriosOtorgados": [
+        {
+          "id": "hatch.engine",
+          "puntos": 3,
+          "clasesDeEvidencia": [
+            "file",
+            "golden",
+            "spec"
+          ]
+        },
+        {
+          "id": "hatch.dxf",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "spec"
+          ]
+        },
+        {
+          "id": "hatch.command",
+          "puntos": 3,
+          "clasesDeEvidencia": [
+            "alias",
+            "command"
+          ]
+        },
+        {
+          "id": "hatch.islands",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "spec"
+          ]
+        },
+        {
+          "id": "hatch.pattern-table",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "spec"
+          ]
+        }
+      ],
+      "candidato": "hatch.dxf",
+      "porQueEseCandidato": "Es el criterio de ida y vuelta de HATCH, y es justo el que el segundo oráculo destapó roto.",
+      "veredicto": "bloqueado_por_defecto_medido",
+      "loQueDiceElTestigo": "La ida está bien: los 26 sombreados de floorplan.dxf entran intactos y ezdxf cuenta los mismos 26. La vuelta NO: `ezdxf` 1.4.4 revienta al abrir lo que exportamos (`IndexError` en `polygon.py:81`) porque nuestros HATCH salen sin `100 AcDbEntity` ni `100 AcDbHatch` aunque la cabecera declare AC1015, dialecto donde esos marcadores son obligatorios. Ni en modo `recover` lo abre.",
+      "limiteDelParche": null,
+      "loQueFaltaria": "Aplicar P-evidencia-07 (dos pares de códigos en `dxf-export-hatch.ts`). El arreglo está PROBADO antes de pedirlo: parcheando 170 entidades sobre el texto ya exportado, ezdxf abre el fichero entero y audita cero errores. Cuando eso entre, este parche pasa a `servible_hoy` con `terceros-jornada.spec.ts`.",
+      "peticion": "P-evidencia-07",
+      "parche": null
+    },
+    {
+      "id": "mtext",
+      "grupo": "core",
+      "alcance": "hoy",
+      "nombre": "MTEXT y texto",
+      "puntos": 9,
+      "otorgadosAntesDelTope": 9,
+      "conElTope": 8,
+      "criteriosOtorgados": [
+        {
+          "id": "mtext.entity",
+          "puntos": 3,
+          "clasesDeEvidencia": [
+            "file",
+            "golden",
+            "spec"
+          ]
+        },
+        {
+          "id": "mtext.dxf",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "grep"
+          ]
+        },
+        {
+          "id": "mtext.commands",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "alias",
+            "command"
+          ]
+        },
+        {
+          "id": "mtext.rich",
+          "puntos": 1,
+          "clasesDeEvidencia": [
+            "spec"
+          ]
+        },
+        {
+          "id": "mtext.stroke-fonts",
+          "puntos": 1,
+          "clasesDeEvidencia": [
+            "grep",
+            "imported",
+            "spec"
+          ]
+        }
+      ],
+      "candidato": "mtext.dxf",
+      "porQueEseCandidato": "Su texto dice «en los dos sentidos», y hoy un lector estricto sólo puede recorrer uno.",
+      "veredicto": "bloqueado_por_defecto_medido",
+      "loQueDiceElTestigo": "Los 144 MTEXT de floorplan.dxf entran intactos y los dos oráculos cuentan 144; MTEXT es además el tipo mejor cubierto del corpus, intacto en siete archivos de las dos fuentes. Pero `ezdxf` rechaza nuestro fichero exportado con «missing 'AcDbMText' subclass in MTEXT(#None)». El oráculo A no lo veía porque es tolerante: hizo falta el segundo.",
+      "limiteDelParche": null,
+      "loQueFaltaria": "Aplicar P-evidencia-07 (los mismos dos pares de códigos, en `dxf-export.ts`). Marcar hoy este criterio independiente sería cobrar «viaja en los dos sentidos» con un lector ajeno diciendo que no viaja de vuelta.",
+      "peticion": "P-evidencia-07",
+      "parche": null
+    },
+    {
+      "id": "layers",
+      "grupo": "core",
+      "alcance": "hoy",
+      "nombre": "Capas y propiedades",
+      "puntos": 10,
+      "otorgadosAntesDelTope": 10,
+      "conElTope": 9,
+      "criteriosOtorgados": [
+        {
+          "id": "layers.canonical",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "file",
+            "golden",
+            "spec"
+          ]
+        },
+        {
+          "id": "layers.manager",
+          "puntos": 1,
+          "clasesDeEvidencia": [
+            "file",
+            "golden",
+            "spec"
+          ]
+        },
+        {
+          "id": "layers.frozen",
+          "puntos": 1,
+          "clasesDeEvidencia": [
+            "grep"
+          ]
+        },
+        {
+          "id": "layers.properties",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "file",
+            "golden",
+            "spec"
+          ]
+        },
+        {
+          "id": "layers.linetype",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "file",
+            "spec"
+          ]
+        },
+        {
+          "id": "layers.commands",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "alias",
+            "command"
+          ]
+        }
+      ],
+      "candidato": "layers.canonical",
+      "porQueEseCandidato": "Es el criterio del mapa DXF de capas, y la jornada midió ese mapa sobre una tabla LAYER ajena de 24 entradas.",
+      "veredicto": "bloqueado_por_defecto_medido",
+      "loQueDiceElTestigo": "Son DOS defectos, y el segundo se midió el 2026-09-05 y es peor. (1) La poda: 24 capas declaradas en el plano ajeno, 17 en el documento, 23 en el fichero que devolvemos; no vuelven `Defpoints` ni `View Port`, las dos con causa conocida y daño cero al dibujo, pero ningún aviso lo menciona. (2) EL COLOR: el importador reparte una paleta de cinco por posición alfabética y descarta el código 62 —que ya viene leído en `colorIndex`—, y el exportador escribe `62 7` en todas, así que el dibujo del remitente vuelve MONOCROMO. Sobre las 24 capas de floorplan.dxf, 4 índices ACI que el remitente usó en varias capas salen de colores distintos y los 5 colores de la paleta juntan cada uno capas de índices distintos. El informe dice «Entró completo, sin pérdidas».",
+      "limiteDelParche": null,
+      "loQueFaltaria": "Aplicar P-evidencia-12 (usar `colorIndex` con `aciToHex`, que ya está en el árbol, y rellenar `color` al exportar; el viaje ACI→hex→ACI está PROBADO sobre los doce índices que este corpus usa) y P-evidencia-09 (el aviso `layer_table_pruned`). Conceder hoy el tope de «Capas y propiedades» con dos pérdidas silenciosas medidas encima —una de ellas el color entero del dibujo— sería el caso exacto que la regla del corte inventó para impedir.",
+      "peticion": "P-evidencia-12",
+      "parche": null
+    },
+    {
+      "id": "layouts",
+      "grupo": "core",
+      "alcance": "hoy",
+      "nombre": "Layouts, viewports y publicación",
+      "puntos": 10,
+      "otorgadosAntesDelTope": 10,
+      "conElTope": 9,
+      "criteriosOtorgados": [
+        {
+          "id": "layouts.paper-space",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "file",
+            "golden",
+            "spec"
+          ]
+        },
+        {
+          "id": "layouts.plot-sheet",
+          "puntos": 1,
+          "clasesDeEvidencia": [
+            "file",
+            "spec"
+          ]
+        },
+        {
+          "id": "layouts.publications",
+          "puntos": 1,
+          "clasesDeEvidencia": [
+            "file",
+            "imported"
+          ]
+        },
+        {
+          "id": "layouts.commands",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "alias",
+            "command",
+            "golden"
+          ]
+        },
+        {
+          "id": "layouts.fidelity",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "jsonValue",
+            "metric"
+          ]
+        },
+        {
+          "id": "layouts.pagesetup-viewport",
+          "puntos": 1,
+          "clasesDeEvidencia": [
+            "metric"
+          ]
+        },
+        {
+          "id": "layouts.hatch-pattern-pdf",
+          "puntos": 1,
+          "clasesDeEvidencia": [
+            "spec"
+          ]
+        }
+      ],
+      "candidato": "layouts.fidelity",
+      "porQueEseCandidato": "Es el único criterio de la fila cuya verdad vive en BYTES que otro programa puede leer: los del PDF publicado.",
+      "veredicto": "el_corpus_de_hoy_no_lo_alcanza",
+      "loQueDiceElTestigo": "Del lado DXF el corpus dice que no: las 3 VIEWPORT de floorplan.dxf constan como pérdida declarada, porque el lector excluye el espacio papel a propósito. La fidelidad de ploteo, en cambio, la mide hoy `plot-fidelity-slo.json`, que escribimos nosotros leyendo un PDF que también escribimos nosotros.",
+      "limiteDelParche": null,
+      "loQueFaltaria": "Un lector de PDF de terceros (`pypdf` o `pdfminer.six` en PyPI, o `mutool` de MuPDF) que abra los bytes publicados y mida la escala por su cuenta. Es alcanzable —el reconocimiento comprobó que PyPI responde y bajó ezdxf por ese camino— y el patrón ya existe en este frente: oráculo congelado con su sha256, como el censo de ezdxf.",
+      "peticion": null,
+      "parche": null
+    },
+    {
+      "id": "persistence",
+      "grupo": "core",
+      "alcance": "hoy",
+      "nombre": "Guardado CAS, autosave, historia y versiones",
+      "puntos": 8,
+      "otorgadosAntesDelTope": 8,
+      "conElTope": 7,
+      "criteriosOtorgados": [
+        {
+          "id": "persistence.cas",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "file",
+            "spec"
+          ]
+        },
+        {
+          "id": "persistence.recovery",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "file",
+            "golden",
+            "spec"
+          ]
+        },
+        {
+          "id": "persistence.real-e2e",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "golden"
+          ]
+        },
+        {
+          "id": "persistence.offline",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "file",
+            "golden",
+            "metric",
+            "spec"
+          ]
+        }
+      ],
+      "candidato": "persistence.real-e2e",
+      "porQueEseCandidato": "Es el criterio que ya sale del laboratorio (API y PostgreSQL de verdad); si algo de esta fila puede volverse independiente, empieza ahí.",
+      "veredicto": "no_lo_sirve_material_ajeno",
+      "loQueDiceElTestigo": "Nada, y no hay fichero que pueda decir algo: un DXF de terceros no atestigua una cola de un solo escritor ni un 409 resuelto.",
+      "limiteDelParche": null,
+      "loQueFaltaria": "La tercera pata de la regla del corte: un usuario real. Un documento de un despacho, guardado por una persona en una sesión que no montamos nosotros, con su historia de versiones. PostgreSQL es software ajeno pero no es un oráculo: no opina sobre si el CAS hizo lo correcto.",
+      "peticion": null,
+      "parche": null
+    },
+    {
+      "id": "command-line",
+      "grupo": "pro",
+      "alcance": "hoy",
+      "nombre": "Línea de comandos, alias y scripting",
+      "puntos": 12,
+      "otorgadosAntesDelTope": 12,
+      "conElTope": 11,
+      "criteriosOtorgados": [
+        {
+          "id": "command-line.registry",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "file",
+            "imported",
+            "spec"
+          ]
+        },
+        {
+          "id": "command-line.alias-table",
+          "puntos": 1,
+          "clasesDeEvidencia": [
+            "file",
+            "grep"
+          ]
+        },
+        {
+          "id": "command-line.ui",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "file",
+            "golden",
+            "spec"
+          ]
+        },
+        {
+          "id": "command-line.engine",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "file",
+            "spec"
+          ]
+        },
+        {
+          "id": "command-line.alias-coverage",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "alias"
+          ]
+        },
+        {
+          "id": "command-line.alias-complete",
+          "puntos": 1,
+          "clasesDeEvidencia": [
+            "alias"
+          ]
+        },
+        {
+          "id": "command-line.scripting",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "command",
+            "spec"
+          ]
+        }
+      ],
+      "candidato": "command-line.alias-table",
+      "porQueEseCandidato": "Es el único criterio de la fila cuya verdad la fija un documento de fuera: la tabla acad.pgp.",
+      "veredicto": "el_corpus_de_hoy_no_lo_alcanza",
+      "loQueDiceElTestigo": "Nada: el corpus es de dibujos, no de configuración. La tabla de alias se compara hoy contra una copia que vive en el propio repositorio.",
+      "limiteDelParche": null,
+      "loQueFaltaria": "La autoridad de acad.pgp es Autodesk y el fichero viaja con AutoCAD: redistribuirlo es una decisión de derechos que no es de este frente. El camino limpio es un tercero libre que publique la misma tabla (LibreCAD y BricsCAD documentan sus equivalencias) y citarlo con su licencia, igual que se hizo con las dos MIT del corpus DXF.",
+      "peticion": null,
+      "parche": null
+    },
+    {
+      "id": "annotation-extras",
+      "grupo": "pro",
+      "alcance": "hoy",
+      "nombre": "MLEADER y tablas",
+      "puntos": 5,
+      "otorgadosAntesDelTope": 5,
+      "conElTope": 4,
+      "criteriosOtorgados": [
+        {
+          "id": "annotation-extras.mleader",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "file",
+            "golden",
+            "spec"
+          ]
+        },
+        {
+          "id": "annotation-extras.table",
+          "puntos": 1,
+          "clasesDeEvidencia": [
+            "command"
+          ]
+        },
+        {
+          "id": "annotation-extras.styles",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "command"
+          ]
+        }
+      ],
+      "candidato": "annotation-extras.mleader",
+      "porQueEseCandidato": "Es el criterio con entidad y asociatividad; el resto de la fila son comandos tecleables, que ningún fichero ajeno puede atestiguar.",
+      "veredicto": "el_corpus_de_hoy_no_lo_alcanza",
+      "loQueDiceElTestigo": "Lo que el corpus dice de las directrices es lo contrario de lo que haría falta: las 6 LEADER de floorplan.dxf constan como pérdida DECLARADA —el lector no las trae— y ninguno de los diecinueve archivos trae MLEADER ni ACAD_TABLE.",
+      "limiteDelParche": null,
+      "loQueFaltaria": "Primero la capacidad (importar LEADER), y sólo después el testigo. Un corpus ajeno con MLEADER exige ficheros guardados por un programa que los escriba, y las dos bibliotecas MIT del corpus no los tienen entre sus ficheros de prueba.",
+      "peticion": null,
+      "parche": null
+    },
+    {
+      "id": "xrefs",
+      "grupo": "pro",
+      "alcance": "hoy",
+      "nombre": "Xrefs",
+      "puntos": 6,
+      "otorgadosAntesDelTope": 6,
+      "conElTope": 5,
+      "criteriosOtorgados": [
+        {
+          "id": "xrefs.document",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "file",
+            "golden",
+            "spec"
+          ]
+        },
+        {
+          "id": "xrefs.resolution",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "spec"
+          ]
+        },
+        {
+          "id": "xrefs.commands",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "command",
+            "golden",
+            "spec"
+          ]
+        }
+      ],
+      "candidato": "xrefs.resolution",
+      "porQueEseCandidato": "Resolver una referencia externa exige el fichero que la contiene Y el fichero al que apunta; eso es lo que un corpus ajeno tendría que traer.",
+      "veredicto": "el_corpus_de_hoy_no_lo_alcanza",
+      "loQueDiceElTestigo": "floorplan.dxf declara cuatro capas con prefijo de xref, así que el plano ajeno SÍ nació con referencias externas — pero llegó solo. Sin los dibujos referenciados no hay nada que resolver.",
+      "limiteDelParche": null,
+      "loQueFaltaria": "Un conjunto ajeno completo: el dibujo y sus referencias. Ninguna de las dos bibliotecas MIT publica uno; el procedimiento de donación existe (`docs/DONACIONES.md` del repositorio de conformidad) y el donante no.",
+      "peticion": null,
+      "parche": null
+    },
+    {
+      "id": "review",
+      "grupo": "pro",
+      "alcance": "hoy",
+      "nombre": "Compare, comentarios y enlaces de revisión",
+      "puntos": 5,
+      "otorgadosAntesDelTope": 5,
+      "conElTope": 4,
+      "criteriosOtorgados": [
+        {
+          "id": "review.links",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "file",
+            "golden"
+          ]
+        },
+        {
+          "id": "review.comments",
+          "puntos": 1,
+          "clasesDeEvidencia": [
+            "file"
+          ]
+        },
+        {
+          "id": "review.concurrency",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "jsonValue"
+          ]
+        }
+      ],
+      "candidato": "review.concurrency",
+      "porQueEseCandidato": "Es el criterio que mide carga concurrente, lo más cercano a varias personas de verdad.",
+      "veredicto": "no_lo_sirve_material_ajeno",
+      "loQueDiceElTestigo": "Nada: los concurrentes de `review-concurrency.json` los simulamos nosotros.",
+      "limiteDelParche": null,
+      "loQueFaltaria": "Personas. Dos revisores ajenos sobre un enlace real, con su rastro. Es la fila donde el «usuario real» de la regla no tiene sustituto técnico.",
+      "peticion": null,
+      "parche": null
+    },
+    {
+      "id": "json-import",
+      "grupo": "pro",
+      "alcance": "hoy",
+      "nombre": "Importación de JSON canónico",
+      "puntos": 4,
+      "otorgadosAntesDelTope": 4,
+      "conElTope": 3,
+      "criteriosOtorgados": [
+        {
+          "id": "json-import.worker",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "file",
+            "spec"
+          ]
+        },
+        {
+          "id": "json-import.transport",
+          "puntos": 1,
+          "clasesDeEvidencia": [
+            "file",
+            "spec"
+          ]
+        },
+        {
+          "id": "json-import.fuzzing",
+          "puntos": 1,
+          "clasesDeEvidencia": [
+            "golden"
+          ]
+        }
+      ],
+      "candidato": "json-import.fuzzing",
+      "porQueEseCandidato": "Es el único criterio de la fila donde un tercero puede aportar algo: el formato canónico JSON lo definimos nosotros, así que por construcción nadie ajeno escribe uno.",
+      "veredicto": "el_corpus_de_hoy_no_lo_alcanza",
+      "loQueDiceElTestigo": "Nada, y no por descuido: un documento canónico de terceros no puede existir mientras el esquema sea nuestro. El corpus hostil de hoy lo genera la propia suite.",
+      "limiteDelParche": null,
+      "loQueFaltaria": "Un fuzzer de terceros (radamsa, o `atheris`/`hypothesis` en PyPI) que mute los documentos y decida él qué entradas probar. La independencia posible aquí no es del MATERIAL sino del generador.",
+      "peticion": null,
+      "parche": null
+    },
+    {
+      "id": "api-sdk",
+      "grupo": "ext",
+      "alcance": "destino",
+      "nombre": "API y SDK de automatización",
+      "puntos": 7,
+      "otorgadosAntesDelTope": 7,
+      "conElTope": 6,
+      "criteriosOtorgados": [
+        {
+          "id": "api-sdk.contract",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "file"
+          ]
+        },
+        {
+          "id": "api-sdk.generated",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "file"
+          ]
+        },
+        {
+          "id": "api-sdk.client",
+          "puntos": 1,
+          "clasesDeEvidencia": [
+            "file",
+            "imported"
+          ]
+        },
+        {
+          "id": "api-sdk.public",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "file",
+            "jsonValue",
+            "metric"
+          ]
+        }
+      ],
+      "candidato": "api-sdk.contract",
+      "porQueEseCandidato": "Un contrato OpenAPI es exactamente la clase de cosa que un tercero puede juzgar sin saber nada del producto.",
+      "veredicto": "el_corpus_de_hoy_no_lo_alcanza",
+      "loQueDiceElTestigo": "Nada: hoy el contrato lo valida `scripts/cad/check-design-contract.mjs`, que es nuestro, contra el SDK que generamos nosotros desde el mismo YAML.",
+      "limiteDelParche": null,
+      "loQueFaltaria": "Un validador de OpenAPI de terceros sobre `design-api.v1.yaml` (`openapi-spec-validator` en PyPI, o Redocly/Spectral en npm), congelando su dictamen como artefacto igual que el censo de ezdxf. Alcanzable hoy: los tres registros responden.",
+      "peticion": null,
+      "parche": null
+    },
+    {
+      "id": "events",
+      "grupo": "ext",
+      "alcance": "destino",
+      "nombre": "Eventos e integración asíncrona",
+      "puntos": 4,
+      "otorgadosAntesDelTope": 4,
+      "conElTope": 3,
+      "criteriosOtorgados": [
+        {
+          "id": "events.outbox",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "file"
+          ]
+        },
+        {
+          "id": "events.contract",
+          "puntos": 1,
+          "clasesDeEvidencia": [
+            "file"
+          ]
+        },
+        {
+          "id": "events.operational",
+          "puntos": 1,
+          "clasesDeEvidencia": [
+            "file"
+          ]
+        }
+      ],
+      "candidato": "events.operational",
+      "porQueEseCandidato": "Es el criterio que habla de un receptor, y un receptor ajeno es precisamente lo que lo haría independiente.",
+      "veredicto": "el_corpus_de_hoy_no_lo_alcanza",
+      "loQueDiceElTestigo": "Nada: `webhook-replay-audit.json` lo produce este proyecto, con el emisor y el receptor de este proyecto a los dos lados del cable.",
+      "limiteDelParche": null,
+      "loQueFaltaria": "Verificar la firma `X-Valle-Signature` con una implementación de HMAC ajena (la de la librería estándar de Python, por ejemplo) sobre `timestamp + \".\" + rawBody` capturado, y congelar ese dictamen. Es el mismo patrón del oráculo B y cuesta poco.",
+      "peticion": null,
+      "parche": null
+    },
+    {
+      "id": "object-storage",
+      "grupo": "ext",
+      "alcance": "destino",
+      "nombre": "Almacenamiento de objetos",
+      "puntos": 3,
+      "otorgadosAntesDelTope": 3,
+      "conElTope": 2,
+      "criteriosOtorgados": [
+        {
+          "id": "object-storage.port",
+          "puntos": 1,
+          "clasesDeEvidencia": [
+            "file"
+          ]
+        },
+        {
+          "id": "object-storage.bytea",
+          "puntos": 1,
+          "clasesDeEvidencia": [
+            "file"
+          ]
+        },
+        {
+          "id": "object-storage.s3",
+          "puntos": 1,
+          "clasesDeEvidencia": [
+            "file"
+          ]
+        }
+      ],
+      "candidato": "object-storage.s3",
+      "porQueEseCandidato": "El adaptador S3 habla con un servidor que no es nuestro; ése es el testigo.",
+      "veredicto": "el_corpus_de_hoy_no_lo_alcanza",
+      "loQueDiceElTestigo": "Nada: hoy el criterio se sostiene en que el fichero del adaptador existe.",
+      "limiteDelParche": null,
+      "loQueFaltaria": "Correr el adaptador contra un MinIO real (AGPL, imagen pública) y publicar qué guardó y qué devolvió. MinIO es software ajeno juzgando nuestro cliente, que es la definición del oráculo externo.",
+      "peticion": null,
+      "parche": null
+    },
+    {
+      "id": "wasm",
+      "grupo": "frontier",
+      "alcance": "destino",
+      "nombre": "Kernel Rust/WASM",
+      "puntos": 2,
+      "otorgadosAntesDelTope": 2,
+      "conElTope": 1,
+      "criteriosOtorgados": [
+        {
+          "id": "wasm.gate",
+          "puntos": 1,
+          "clasesDeEvidencia": [
+            "file"
+          ]
+        },
+        {
+          "id": "wasm.toolchain",
+          "puntos": 1,
+          "clasesDeEvidencia": [
+            "imported",
+            "jsonValue"
+          ]
+        }
+      ],
+      "candidato": "wasm.toolchain",
+      "porQueEseCandidato": "La paridad numérica es una comparación de números; un tercero puede emitir los de referencia.",
+      "veredicto": "el_corpus_de_hoy_no_lo_alcanza",
+      "loQueDiceElTestigo": "Nada de fuera. Y la lección de fondo ya está aprendida dentro: `curve-kernel-parity.spec.ts` dice con todas sus letras que comparar los dos motores entre sí «dice si se parecen, nunca cuál tiene razón», y por eso los hace caer a los dos sobre una referencia analítica cerrada. Lo que queda es que esa referencia también la escribimos aquí.",
+      "limiteDelParche": null,
+      "loQueFaltaria": "Un tercero de precisión arbitraria (`mpmath` en PyPI) que emita los valores de referencia de las mismas operaciones. No falta el método —está bien resuelto—: falta que el que calcule sea otro.",
+      "peticion": null,
+      "parche": null
+    },
+    {
+      "id": "geo",
+      "grupo": "frontier",
+      "alcance": "destino",
+      "nombre": "Nubes de puntos, raster georreferenciado y GIS",
+      "puntos": 3,
+      "otorgadosAntesDelTope": 3,
+      "conElTope": 2,
+      "criteriosOtorgados": [
+        {
+          "id": "geo.formats",
+          "puntos": 1,
+          "clasesDeEvidencia": [
+            "file",
+            "imported"
+          ]
+        },
+        {
+          "id": "geo.crs",
+          "puntos": 1,
+          "clasesDeEvidencia": [
+            "file",
+            "spec"
+          ]
+        },
+        {
+          "id": "geo.scale",
+          "puntos": 1,
+          "clasesDeEvidencia": [
+            "jsonValue",
+            "metric"
+          ]
+        }
+      ],
+      "candidato": "geo.crs",
+      "porQueEseCandidato": "La reproyección tiene una autoridad externa incontestable —PROJ y el registro EPSG— y es la fila donde más barato sale usarla.",
+      "veredicto": "el_corpus_de_hoy_no_lo_alcanza",
+      "loQueDiceElTestigo": "Nada de fuera, y conviene ser justo con lo que hay: `crs.spec.ts` NO se compara consigo misma. Contrasta la serie de Krüger contra dos caminos que no la usan —cuadratura de Gauss-Legendre de 24 nodos sobre el arco de meridiano, y la transversa de Mercator de Snyder (USGS Professional Paper 1395)—. Es la misma clase de honestidad que `verification/oracle.ts`, y tiene el mismo límite: quien calcula las dos veces somos nosotros.",
+      "limiteDelParche": null,
+      "loQueFaltaria": "`pyproj` (que envuelve PROJ, la implementación de referencia del mundo GIS) transformando el mismo juego de puntos, congelado como artefacto con su versión. Es el candidato más barato y más sólido de las veinticinco filas que no se sirven hoy: la fórmula ya está contrastada por dentro, sólo falta que el que la ejecute sea otro.",
+      "peticion": null,
+      "parche": null
+    },
+    {
+      "id": "integrity",
+      "grupo": "truth",
+      "alcance": "hoy",
+      "nombre": "Integridad: el producto hace lo que dice",
+      "puntos": 13,
+      "otorgadosAntesDelTope": 13,
+      "conElTope": 12,
+      "criteriosOtorgados": [
+        {
+          "id": "integrity.commands",
+          "puntos": 5,
+          "clasesDeEvidencia": [
+            "file",
+            "jsonValue",
+            "metric"
+          ]
+        },
+        {
+          "id": "integrity.honest-rejection",
+          "puntos": 1,
+          "clasesDeEvidencia": [
+            "file",
+            "spec"
+          ]
+        },
+        {
+          "id": "integrity.no-silent-loss",
+          "puntos": 4,
+          "clasesDeEvidencia": [
+            "grep",
+            "spec"
+          ]
+        },
+        {
+          "id": "integrity.honest-limits",
+          "puntos": 3,
+          "clasesDeEvidencia": [
+            "grep"
+          ]
+        }
+      ],
+      "candidato": "integrity.no-silent-loss",
+      "porQueEseCandidato": "«Ninguna pérdida es silenciosa» es la afirmación que la matriz mide de frente: `perdidosEnSilencio` es su cifra de cabecera.",
+      "veredicto": "bloqueado_por_defecto_medido",
+      "loQueDiceElTestigo": "La matriz mide 0 pérdidas en silencio en 40 filas de 19 archivos ajenos con dos oráculos: todo lo que no llega, se avisa. Pero su ámbito son los TIPOS DE ENTIDAD, y fuera de ese ámbito ya van TRES pérdidas silenciosas medidas sobre material ajeno: siete capas declaradas de la tabla LAYER que no llegan al documento (P-evidencia-09), el COLOR de todas las capas del remitente, que ni se lee ni se escribe (P-evidencia-12), y el MTEXT de dentro de un bloque, que sale a espacio modelo sin la transformación acumulada y duplica el rótulo de cada cota ajena (P-evidencia-11). Ninguna la nombra un aviso.",
+      "limiteDelParche": null,
+      "loQueFaltaria": "Aplicar P-evidencia-09. La cifra de cabecera de la matriz es buena y este frente la firma; conceder con ella el tope de la fila que se llama «Integridad: el producto hace lo que dice», mientras el propio frente publica una pérdida silenciosa medida, sería la contradicción más cara del censo.",
+      "peticion": "P-evidencia-09",
+      "parche": null
+    },
+    {
+      "id": "recognition",
+      "grupo": "recog",
+      "alcance": "hoy",
+      "nombre": "Reconocimiento en pantalla",
+      "puntos": 14,
+      "otorgadosAntesDelTope": 14,
+      "conElTope": 13,
+      "criteriosOtorgados": [
+        {
+          "id": "recognition.text-visible",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "golden",
+            "spec"
+          ]
+        },
+        {
+          "id": "recognition.ribbon-order",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "golden",
+            "spec"
+          ]
+        },
+        {
+          "id": "recognition.keys-to-command-line",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "golden",
+            "spec"
+          ]
+        },
+        {
+          "id": "recognition.no-alias-collisions",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "spec"
+          ]
+        },
+        {
+          "id": "recognition.drag-selects",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "golden",
+            "spec"
+          ]
+        },
+        {
+          "id": "recognition.nothing-covers",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "golden"
+          ]
+        },
+        {
+          "id": "recognition.linetype-shape",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "spec"
+          ]
+        }
+      ],
+      "candidato": "recognition.ribbon-order",
+      "porQueEseCandidato": "«Reconocimiento» es, literalmente, que alguien de fuera reconozca la herramienta; el orden de la cinta es su afirmación más comprobable.",
+      "veredicto": "no_lo_sirve_material_ajeno",
+      "loQueDiceElTestigo": "Nada: los goldens comprueban que la cinta es la que decidimos, no que a un dibujante venido de AutoCAD le resulte reconocible.",
+      "limiteDelParche": null,
+      "loQueFaltaria": "Un dibujante que no sea de aquí, sentado delante, con lo que encontró y lo que no. Ningún fichero sustituye eso, y es la fila más grande del censo (14 pt) que lo necesita.",
+      "peticion": null,
+      "parche": null
+    },
+    {
+      "id": "toolset-architecture",
+      "grupo": "toolsets",
+      "alcance": "destino",
+      "nombre": "Toolset Architecture",
+      "puntos": 4,
+      "otorgadosAntesDelTope": 4,
+      "conElTope": 3,
+      "criteriosOtorgados": [
+        {
+          "id": "toolset-architecture.envolvente",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "command",
+            "golden"
+          ]
+        },
+        {
+          "id": "toolset-architecture.interiores",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "command",
+            "golden",
+            "spec"
+          ]
+        }
+      ],
+      "candidato": "toolset-architecture.envolvente",
+      "porQueEseCandidato": "WALL, DOOR y WINDOW son entidades paramétricas nuestras; el testigo tendría que ser alguien que dibuje con ellas.",
+      "veredicto": "no_lo_sirve_material_ajeno",
+      "loQueDiceElTestigo": "floorplan.dxf es una planta arquitectónica ajena de verdad, y precisamente por eso sirve para lo que sirve y no para esto: sus muros son líneas, no muros. Un DXF no puede traer un muro paramétrico.",
+      "limiteDelParche": null,
+      "loQueFaltaria": "Un arquitecto levantando una planta con WALL/DOOR/WINDOW y su cuadro de superficies, y el cuadro contrastado contra la medición de otro. Sin persona, no hay testigo.",
+      "peticion": null,
+      "parche": null
+    },
+    {
+      "id": "toolset-mep",
+      "grupo": "toolsets",
+      "alcance": "destino",
+      "nombre": "Toolset MEP (mitad 2D)",
+      "puntos": 4,
+      "otorgadosAntesDelTope": 4,
+      "conElTope": 3,
+      "criteriosOtorgados": [
+        {
+          "id": "toolset-mep.trazado",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "command",
+            "golden",
+            "spec"
+          ]
+        },
+        {
+          "id": "toolset-mep.tablas",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "command",
+            "golden",
+            "spec"
+          ]
+        }
+      ],
+      "candidato": "toolset-mep.trazado",
+      "porQueEseCandidato": "Mismo caso que Architecture: las entidades son nuestras.",
+      "veredicto": "no_lo_sirve_material_ajeno",
+      "loQueDiceElTestigo": "Nada. Ninguno de los diecinueve archivos ajenos trae instalaciones, y aunque las trajera llegarían como líneas y bloques.",
+      "limiteDelParche": null,
+      "loQueFaltaria": "Un proyectista de instalaciones y su plano, con las longitudes de la tabla contrastadas contra su presupuesto.",
+      "peticion": null,
+      "parche": null
+    },
+    {
+      "id": "toolset-map3d",
+      "grupo": "toolsets",
+      "alcance": "destino",
+      "nombre": "Toolset Map 3D",
+      "puntos": 4,
+      "otorgadosAntesDelTope": 4,
+      "conElTope": 3,
+      "criteriosOtorgados": [
+        {
+          "id": "toolset-map3d.georreferencia",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "command",
+            "golden",
+            "spec"
+          ]
+        },
+        {
+          "id": "toolset-map3d.datos",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "command",
+            "golden",
+            "spec"
+          ]
+        }
+      ],
+      "candidato": "toolset-map3d.georreferencia",
+      "porQueEseCandidato": "Es la fila de toolsets con la autoridad externa más clara: EPSG y PROJ.",
+      "veredicto": "el_corpus_de_hoy_no_lo_alcanza",
+      "loQueDiceElTestigo": "Nada todavía, pero aquí sí hay material ajeno al alcance y es abundante: datos GIS públicos (Natural Earth es dominio público; INEGI publica marcos geoestadísticos) más `pyproj` como juez de la transformación.",
+      "limiteDelParche": null,
+      "loQueFaltaria": "Importar un shapefile público real y comprobar las coordenadas transformadas contra PROJ. Comparte oráculo con la fila `geo`, así que el mismo trabajo sirve para las dos.",
+      "peticion": null,
+      "parche": null
+    },
+    {
+      "id": "toolset-raster",
+      "grupo": "toolsets",
+      "alcance": "destino",
+      "nombre": "Toolset Raster Design (mitad útil)",
+      "puntos": 4,
+      "otorgadosAntesDelTope": 4,
+      "conElTope": 3,
+      "criteriosOtorgados": [
+        {
+          "id": "toolset-raster.imagen",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "command",
+            "golden",
+            "spec"
+          ]
+        },
+        {
+          "id": "toolset-raster.vectorizacion",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "command",
+            "file",
+            "spec"
+          ]
+        }
+      ],
+      "candidato": "toolset-raster.vectorizacion",
+      "porQueEseCandidato": "La vectorización parte de una imagen, y una imagen ajena sí se puede conseguir con derechos limpios.",
+      "veredicto": "el_corpus_de_hoy_no_lo_alcanza",
+      "loQueDiceElTestigo": "Nada: el escaneo que vectoriza la suite lo genera la suite. Es la misma situación que tenía el corpus DXF antes del primer entregable de este frente.",
+      "limiteDelParche": null,
+      "loQueFaltaria": "Un plano escaneado de dominio público (los levantamientos HABS/HAER de la Library of Congress lo son) con su geometría conocida, y el resultado de la vectorización contrastado contra ella. Es el toolset más barato de volver independiente.",
+      "peticion": null,
+      "parche": null
+    },
+    {
+      "id": "toolset-mechanical",
+      "grupo": "toolsets",
+      "alcance": "destino",
+      "nombre": "Toolset Mechanical",
+      "puntos": 4,
+      "otorgadosAntesDelTope": 4,
+      "conElTope": 3,
+      "criteriosOtorgados": [
+        {
+          "id": "toolset-mechanical.normalizados",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "command",
+            "golden",
+            "spec"
+          ]
+        },
+        {
+          "id": "toolset-mechanical.cotas",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "command",
+            "golden",
+            "spec"
+          ]
+        }
+      ],
+      "candidato": "toolset-mechanical.normalizados",
+      "porQueEseCandidato": "Una biblioteca de tornillería normalizada se puede contrastar contra la norma, que es de fuera.",
+      "veredicto": "el_corpus_de_hoy_no_lo_alcanza",
+      "loQueDiceElTestigo": "Nada: las medidas de la biblioteca las escribimos nosotros.",
+      "limiteDelParche": null,
+      "loQueFaltaria": "Contrastar las cotas contra una fuente ajena de las tablas. El texto de ISO y DIN es de pago y no se redistribuye —eso es una decisión de derechos, no técnica—, pero existe material libre equivalente (el banco de tornillería del taller Fasteners de FreeCAD, LGPL) que sí se puede citar y hashear como se hizo con las dos licencias MIT del corpus.",
+      "peticion": null,
+      "parche": null
+    },
+    {
+      "id": "toolset-electrical",
+      "grupo": "toolsets",
+      "alcance": "destino",
+      "nombre": "Toolset Electrical",
+      "puntos": 4,
+      "otorgadosAntesDelTope": 4,
+      "conElTope": 3,
+      "criteriosOtorgados": [
+        {
+          "id": "toolset-electrical.esquemas",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "file",
+            "golden",
+            "spec"
+          ]
+        },
+        {
+          "id": "toolset-electrical.informes",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "file",
+            "golden",
+            "spec"
+          ]
+        }
+      ],
+      "candidato": "toolset-electrical.informes",
+      "porQueEseCandidato": "La revisión contra la NOM es la única afirmación de la fila cuya verdad la fija un documento externo.",
+      "veredicto": "el_corpus_de_hoy_no_lo_alcanza",
+      "loQueDiceElTestigo": "Nada: los límites contra los que revisamos el cuadro de cargas están escritos en nuestro código.",
+      "limiteDelParche": null,
+      "loQueFaltaria": "Anclar cada límite a su artículo de la NOM-001-SEDE publicada en el DOF —cita y fecha, no copia del texto, que es de la Secretaría— y que un electricista contraste un cuadro de cargas real. La primera mitad se puede hacer sin permiso de nadie; la segunda necesita persona.",
+      "peticion": null,
+      "parche": null
+    },
+    {
+      "id": "toolset-plant3d",
+      "grupo": "toolsets",
+      "alcance": "destino",
+      "nombre": "Toolset Plant 3D",
+      "puntos": 4,
+      "otorgadosAntesDelTope": 4,
+      "conElTope": 3,
+      "criteriosOtorgados": [
+        {
+          "id": "toolset-plant3d.pid",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "file",
+            "golden",
+            "spec"
+          ]
+        },
+        {
+          "id": "toolset-plant3d.tuberia",
+          "puntos": 2,
+          "clasesDeEvidencia": [
+            "file",
+            "golden",
+            "spec"
+          ]
+        }
+      ],
+      "candidato": "toolset-plant3d.pid",
+      "porQueEseCandidato": "Un P&ID ajeno con su lista de líneas sería el testigo perfecto, y son documentos que existen.",
+      "veredicto": "no_lo_sirve_material_ajeno",
+      "loQueDiceElTestigo": "Nada: el catálogo de equipos y la numeración de líneas salen de nuestro dibujo y se comprueban contra nuestras reglas.",
+      "limiteDelParche": null,
+      "loQueFaltaria": "Un P&ID de una planta real con su lista de líneas emitida por otro programa, para contrastar numeración y etiquetas. Es material industrial y casi siempre confidencial: la barrera aquí no es técnica.",
+      "peticion": null,
+      "parche": null
+    }
+  ]
+}
