@@ -1,0 +1,6 @@
+{
+  "title": "A new version is ready",
+  "body": "%PRODUCT_DESIGN% updated in the background. Nothing reloads while you are drawing, so reload when you reach a good point.",
+  "reloadAction": "Reload now",
+  "dismissAction": "Not now"
+}

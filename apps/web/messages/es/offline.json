@@ -1,0 +1,30 @@
+{
+  "metaTitle": "Sin conexión",
+  "metaDescription": "El navegador se quedó sin red. %PRODUCT_DESIGN% sigue dibujando en local y conserva un borrador de recuperación; lo que exige servidor espera a que vuelva la conexión.",
+  "badge": "Sin conexión",
+  "eyebrow": "Estado de la sesión",
+  "title": "No hay red",
+  "intro": "%PRODUCT_DESIGN% sirvió esta pantalla desde tu propio equipo. No se perdió nada: el editor corre entero en el navegador y conserva un borrador local mientras vuelve la conexión.",
+  "worksTitle": "Lo que sigue funcionando",
+  "works": {
+    "drawTitle": "Dibujar, acotar y modelar",
+    "drawBody": "El motor 2D y el modelador 3D facetado no le preguntan al servidor para trazar una línea, resolver una referencia a objeto ni empujar una cara.",
+    "journalTitle": "El journal local de recuperación",
+    "journalBody": "Cada pestaña escribe en su propio carril y conserva sus últimos {checkpoints} checkpoints. Un borrador se sigue ofreciendo {days} días después de escribirse.",
+    "retryTitle": "El reintento cuando vuelve la red",
+    "retryBody": "En cuanto el navegador recupera la conexión, el guardado pendiente sale solo. Nadie tiene que acordarse de presionar Guardar."
+  },
+  "blockedTitle": "Lo que no se puede hacer sin red",
+  "blocked": {
+    "saveTitle": "Guardar en el servidor",
+    "saveBody": "La escritura falla y el dibujo queda marcado con cambios pendientes. Hay una sola cola de guardado, así que nada se duplica cuando por fin pase.",
+    "blocksTitle": "La biblioteca de bloques del equipo",
+    "blocksBody": "El catálogo de bloques vive en el servidor. Los bloques que ya están dentro de este dibujo se siguen insertando y editando.",
+    "reviewTitle": "Los enlaces de revisión",
+    "reviewBody": "Abrir, crear o cerrar una sesión de revisión exige servidor, y quien revisa del otro lado no ve nada hasta que vuelva la conexión."
+  },
+  "warningTitle": "Dónde vive de verdad el borrador",
+  "warningBody": "En este navegador y este perfil, no en tu cuenta. Abrir el mismo dibujo en otro equipo no lo encuentra, y limpiar los datos del sitio lo borra.",
+  "boardAction": "Volver al tablero",
+  "studioAction": "Abrir el estudio"
+}
