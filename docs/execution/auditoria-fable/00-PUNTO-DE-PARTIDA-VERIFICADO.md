@@ -86,19 +86,46 @@ los 59 casos contra el navegador real y el build de producción el 2026-09-05:
   47 passed (11.0m)
 ```
 
-**De los 28 ficheros, 17 están ENTEROS EN VERDE y 11 siguen rojos con 12 casos.** Tres de
-los 17 son `arnes` —nunca reprodujeron un defecto—, así que **14 defectos confirmados de
-la auditoría de cliente ya están cerrados y sus pruebas siguen fuera de la suite,
-defendiendo nada.**
+**Pero ese 12/47 no es el recuento bueno, y por qué no lo es importa más que la cifra.**
+Cuatro pruebas llevan `test.fail()`, y con esa marca Playwright INVIERTE el veredicto: si
+falla, la cuenta como **pasada** («falla como se esperaba»); si pasa, la cuenta como
+**fallida** («Expected to fail, but passed»). O sea que la marca puede esconder un defecto
+vivo dentro de los verdes y disfrazar de rojo un defecto ya cerrado. Las cuatro, leídas
+una a una:
 
-Fable NO tiene que arreglar estos catorce. Tiene que **graduarlos**: moverlos a
-`e2e/golden/`, quitarlos del manifiesto y bajar el techo de 28 a 11. Es trabajo mecánico,
-sin riesgo, y convierte catorce pruebas mudas en catorce defensas activas.
+| prueba con `test.fail()` | cómo salió | qué significa de verdad |
+|---|---|---|
+| `tresd.spec.ts:344` (marca en :348) | «Expected to fail, but passed» | **defecto CERRADO**, la marca está vieja |
+| `imprimir.spec.ts:436` (marca en :438) | «Expected to fail, but passed» | **defecto CERRADO**, la marca está vieja |
+| `acotar.spec.ts:505` (marca en :525) | dentro de los 47 «pasados» | **defecto VIVO**, escondido en verde |
+| `refutacion-palabra-imprimir.spec.ts:126` (marca en :137) | dentro de los 47 | **defecto VIVO**, escondido en verde |
+
+**Recuento corregido: 10 casos con defecto vivo y 45 realmente verdes.** Y el cambio no es
+sólo aritmético: **`tresd.spec.ts` era la cabecera de `bloquea_el_trabajo` y hoy pasa
+entera.** Dibujar en la fachada con el ratón y que el trazo se quede en la fachada
+**funciona**.
+
+**De los 28 ficheros, 17 están enteros en verde y 11 llevan defecto vivo** — pero la
+composición no es la que dice el manifiesto: `imprimir` y `tresd` ENTRAN en verde en
+cuanto se les quita la marca vieja, y `acotar` y `refutacion-palabra-imprimir` SALEN,
+porque su marca tapaba un fallo. Tres de los 17 son `arnes` y nunca reprodujeron un
+defecto, así que **catorce defectos confirmados de aquella auditoría ya están cerrados y
+sus pruebas siguen fuera de la suite, defendiendo nada.**
+
+Fable NO tiene que arreglar esos catorce. Tiene que **graduarlos**: quitar las marcas
+`test.fail()` viejas, moverlos a `e2e/golden/`, sacarlos del manifiesto y bajar el techo
+de 28 a 11. Es trabajo mecánico, sin riesgo, y convierte catorce pruebas mudas en catorce
+defensas activas.
+
+**Lección que conviene no perder:** el reportero `line` mete las «fallas esperadas» dentro
+de `passed` y no las distingue en el resumen. Un `test.fail()` que nadie revisa es un
+defecto vivo con aspecto de verde. Al graduar, la regla es mirar cada marca, no la cifra.
 
 | Ya verdes → **graduar** | Impacto que declaraba |
 |---|---|
+| `tresd.spec.ts` | **bloquea_el_trabajo** — dibujar en la fachada con el ratón **sí** funciona (quitar la marca de :348) |
+| `imprimir.spec.ts` | molesta_mucho — imprimir, cambiar escala y reimprimir **ya** no envenena el guardado (quitar la marca de :438) |
 | `capas.spec.ts` | molesta_mucho — los tipos de línea **sí** se dibujan y se imprimen |
-| `acotar.spec.ts` | molesta_mucho — la cota **sí** sigue al tabique cuando se mueve |
 | `refutacion-plot-extension.spec.ts` | molesta_mucho — «PLOT → Extensión → Trazar» **sí** traza |
 | `refutacion-mis-bloques.spec.ts` | molesta_mucho — «Mis bloques» **sí** está vivo |
 | `refutacion-cara-visible.spec.ts` | molesta_mucho — la cara que se mira **sí** se resalta |
@@ -107,19 +134,23 @@ sin riesgo, y convierte catorce pruebas mudas en catorce defensas activas.
 | `equipo.spec.ts`, `refutacion-equipo-sin-proyecto.spec.ts` | molesta_poco |
 | `refutacion-linea-comandos-opacidad.spec.ts`, `refutacion-linea-comandos-tapa.spec.ts` | molesta_poco |
 | `refutacion-mensaje-anclado.spec.ts`, `refutacion-mensaje-directo.spec.ts` | molesta_poco |
-| `refutacion-palabra-imprimir.spec.ts` | molesta_poco |
 | `00-arranque.spec.ts`, `planta.spec.ts`, `precision.spec.ts` | `arnes` — no graduar: ya guardan lo que funciona |
 
-### Los 12 casos que SIGUEN rojos, en cuatro racimos
+### Los 10 casos con defecto VIVO, en cuatro racimos
 
-No son doce problemas: son **cuatro**, y cada racimo se arregla de una vez. Ese es el
+No son diez problemas: son **cuatro**, y cada racimo se arregla de una vez. Ese es el
 orden de la cola.
 
 **Racimo A · El SCU no dibuja donde miras — `bloquea_el_trabajo`, y va primero.**
-`tresd.spec.ts:344` y `refutacion-scu-raton.spec.ts:65`. Con el SCU apoyado en la
-fachada, el punto del ratón sale del plano del SUELO y no del plano de trabajo: el trazo
-se va al suelo sin decir nada. Es el único racimo que impide *usar* el 3D para dibujar, y
-por eso encabeza todo lo demás de esta cola.
+**Un solo caso vivo: `refutacion-scu-raton.spec.ts:65`.** Su hermano `tresd.spec.ts:344`
+—dibujar en la fachada con el ratón— **ya pasa**, así que el racimo es mucho más estrecho
+de lo que parecía: no es que el 3D no se pueda usar para dibujar, es que **un camino
+concreto pierde la cota**. El aserto lo dice sin margen: `punto 1 no puede quedar aplanado
+a cota 0`, `Expected: > 1 / Received: 0`, con el SCU apoyado en la fachada y `LINE` lanzada
+**desde la paleta**. La `y` cae bien en la fachada; la `z` sale 0. Sigue siendo el primero
+de la cola porque su impacto declarado es `bloquea_el_trabajo` y porque una cota que se
+aplana en silencio es la peor clase de defecto, pero el objetivo es una ruta, no un
+subsistema.
 
 **Y aquí hay que corregir al informe del 2026-09-01, que decía «sólo `LINE` se declara
 espacial».** Hoy no es cierto y creérselo mandaría a Fable a construir lo que ya existe.
@@ -191,12 +222,23 @@ los BYTES exportados de todo dibujo con anotaciones, así que entra con la suite
 goldens entera detrás, no como parche de dos líneas. Es trabajo de una sesión que pueda
 correr los gates, que es justo la que viene.
 
-**Racimo D · Los dos sueltos.**
-`imprimir.spec.ts:436` — imprimir, cambiar la escala y volver a imprimir. Ojo: la
-contraprueba aislada `refutacion-plot-extension.spec.ts` **pasa**, así que lo que falla ya
-no es trazar por extensión, sino el **segundo** trazado tras cambiar la escala.
-`refutacion-panel-bloques-designar.spec.ts:136` — con el panel de bloques abierto se
-designa y se redefine, pero **la redefinición no llega al documento guardado**.
+**Racimo D · Los tres sueltos, y dos venían escondidos en verde.**
+
+- `refutacion-panel-bloques-designar.spec.ts:136` — con el panel de bloques abierto se
+  designa y se redefine, pero **la redefinición no llega al documento guardado**. El
+  aserto es limpio: «redefinir tiene que subir la versión», `Expected: 2 / Received: 1`.
+- `acotar.spec.ts:505` — **acotar un tabique dibujado como polilínea, y moverlo.** Estaba
+  dentro de los 47 «pasados» por su `test.fail()` de :525. La cota no sigue al objeto:
+  se queda acotando el aire con la misma pinta de estar viva. Ojo a la vecindad, que es
+  buena señal: `acotar.spec.ts:279` —la cota que **sí** sigue al objeto— pasa sin marca.
+  Lo que falla es el caso de la **polilínea**, no acotar.
+- `refutacion-palabra-imprimir.spec.ts:126` — **pulsar la entrada «Imprimir / Exportar»
+  de la paleta no saca el plano.** También escondido en verde por su marca de :137. Con
+  `refutacion-plot-extension` en verde, el defecto no está en trazar: está en esa entrada
+  de la paleta.
+
+Y sale del racimo `imprimir.spec.ts:436`: **ya pasa**. Imprimir, cambiar la escala y
+volver a imprimir dejó de envenenar el token CAS del guardado.
 
 ### Cómo se corren (verificado hoy)
 
