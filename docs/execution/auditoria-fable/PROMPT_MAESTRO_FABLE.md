@@ -1746,8 +1746,10 @@ Cada una costó tiempo real aquí. No son hipótesis.
   alta sin mirar la respuesta muere tres líneas después con un **404** del arnés
   de correo que no acusa a nadie. Ya tumbó el fragmento 4/4 con un diff de sólo
   markdown. **Usa `registrarCuenta` (`e2e/fixtures/first-party.ts`)**, que afirma
-  el 202 y espera lo que el 429 pide. Quedan ocho llamadas crudas a
-  `/v1/auth/register` en `e2e/real/`: convertirlas es trabajo mecánico de
+  el 202 y espera lo que el 429 pide. Las tres suites que disparaban el alta a
+  ciegas ya están convertidas; quedan **seis** llamadas crudas en `e2e/real/`
+  que sí afirman el 202 —ante un 429 fallan en voz alta y señalando al
+  registro—, así que convertirlas es mejora, no arreglo: trabajo mecánico de
   `BACKLOG.md`. **El tope no se relaja.**
 - **Los gates se corren sobre el árbol QUIETO (committeado).** Un gate a media
   edición produce rojos falsos que cuestan más que esperar.
