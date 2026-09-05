@@ -16167,7 +16167,7 @@ export default function Layout3DEditor({
                 `CadDraftToolbar` sólo aparece para `tool === "wall"` o
                 `isCadDrawTool(tool)` — el puñado de herramientas que también
                 tienen equivalente en la paleta vieja. La cinta despacha los
-                192 comandos del registro por su nombre
+                comandos del registro por su nombre
                 (`commandEngineRef.current.invoke`), así que un comando
                 encadenable invocado DESDE LA CINTA (p. ej. LINE, PLINE) deja
                 `engineCommand` activo sin que `tool` cambie nunca, y sin este

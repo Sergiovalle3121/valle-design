@@ -84,7 +84,7 @@ const nextConfig: NextConfig = {
    *
    * El compilador memoiza solo, lo que sobre un editor con 140 `useState` y
    * 128 `useCallback` a mano suena a la mejora obvia. La evaluación medida
-   * está en `docs/execution/CAMPANA_FRONTEND_20260829.md`; el veredicto vive
+   * está en `docs/history/execution/CAMPANA_FRONTEND_20260829.md`; el veredicto vive
    * ahí y no en un comentario, para que quien lo encienda vea los números
    * antes que la opinión.
    *

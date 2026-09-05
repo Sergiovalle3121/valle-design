@@ -123,7 +123,7 @@ export const DICTAMENES: Record<string, Dictamen> = {
    * Tenía razón, y por eso se retiran en vez de relajar la aserción.
    *
    * El razonamiento no se pierde: vive entero en
-   * `docs/execution/frentes/evidencia-peticiones.md` (P-evidencia-05, con el
+   * `docs/history/execution/frentes-superar-20260904/evidencia-peticiones.md` (P-evidencia-05, con el
    * testigo y el límite de cada parche) y en las entradas `independent: true`
    * que ahora lleva la rúbrica.
    */
@@ -144,7 +144,7 @@ export const DICTAMENES: Record<string, Dictamen> = {
    *
    * El razonamiento no se pierde: vive en las suites de terceros, que pasaron
    * de afirmar cada defecto a guardar que no vuelva, y en
-   * `docs/execution/frentes/evidencia-peticiones.md`.
+   * `docs/history/execution/frentes-superar-20260904/evidencia-peticiones.md`.
    */
 
 

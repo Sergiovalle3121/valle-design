@@ -215,10 +215,11 @@ es un rojo.
    nueva: retiene 1 punto hasta tener oráculo externo, material de terceros o
    usuario real).
 2. **Ningún comando responde éxito sin efecto verificado.**
-   `check:command-integrity` ejecuta los ~192 comandos del registro real y
-   prohíbe el «hecho» vacío y el silencio ante entrada sustantiva. Un comando
-   nuevo o termina con efecto, o declara su límite («no está disponible en
-   esta versión»), o se exenta con razón escrita en
+   `check:command-integrity` ejecuta **todos** los comandos del registro real
+   —el gate imprime cuántos son; no se copia esa cifra aquí, que es justo lo
+   que prohíbe la regla 4— y veta el «hecho» vacío y el silencio ante entrada
+   sustantiva. Un comando nuevo o termina con efecto, o declara su límite
+   («no está disponible en esta versión»), o se exenta con razón escrita en
    `scripts/cad/command-integrity-exemptions.json`.
 3. **Ninguna capacidad se anuncia sin evidencia del límite.** Toda afirmación
    pública lleva su frontera al lado (README «Límites declarados»,

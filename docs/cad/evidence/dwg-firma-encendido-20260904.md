@@ -155,7 +155,7 @@ perfil se mueve con una ampliación de ADR, no con una edición de este document
 
 Lo que **no** viaja, dicho antes de que un cliente lo descubra. Ninguno de estos es
 un «nunca»: son «todavía no» con su motivo, y la bitácora del frente
-(`docs/execution/frentes/dwg.md`) lleva cada uno con su fecha y su condición de
+(`docs/history/execution/frentes-superar-20260904/dwg.md`) lleva cada uno con su fecha y su condición de
 reapertura.
 
 - **Sin exportación de cota.** `dimension` se lee completa y el perfil de importación
@@ -444,7 +444,7 @@ respaldados, el encendido es este cambio y ningún otro:
 6. La ADR: una sección nueva en `docs/adr/0009-dwg-promotion-package.md` que **enlaza
    esta página** en vez de repetir sus cifras. Ese injerto lo aplica el coordinador —
    `docs/adr/` no es territorio de este frente; el diseño completo está en
-   `docs/execution/frentes/dwg-peticiones.md`.
+   `docs/history/execution/frentes-superar-20260904/dwg-peticiones.md`.
 
 Y lo que ese commit **no** hace: no declara disponibilidad general, no afirma
 compatibilidad con AutoCAD real, y no cierra `legalReviewCleared`.

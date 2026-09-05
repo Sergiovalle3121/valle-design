@@ -16,7 +16,7 @@
       }
     },
     "assert": {
-      "//": "Los umbrales salen de lo MEDIDO EN EL RUNNER con margen, no de un numero redondo. La tabla completa esta en docs/execution/CAMPANA_FRONTEND_20260829.md, seccion 1.5, y la publica en cada corrida el job `resumen-lighthouse`.",
+      "//": "Los umbrales salen de lo MEDIDO EN EL RUNNER con margen, no de un numero redondo. La tabla completa esta en docs/history/execution/CAMPANA_FRONTEND_20260829.md, seccion 1.5, y la publica en cada corrida el job `resumen-lighthouse`.",
       "assertions": {
         "categories:performance": [
           "error",

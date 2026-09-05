@@ -117,5 +117,5 @@ Las capturas del estudio siguen diciendo **«AXOS-CAD-STUDIO»** y conservan las
 herramientas «Aisle», «Zone» y «Equipment». No es un descuido de esta campaña:
 es vocabulario del producto industrial del que salió este editor, y lo está
 retirando la **campaña de identidad** que corrió en paralelo
-(`docs/execution/CAMPANA_IDENTIDAD_20260822.md`). Cuando termine, las capturas se
+(`docs/history/execution/CAMPANA_IDENTIDAD_20260822.md`). Cuando termine, las capturas se
 regeneran con un comando — para eso son un script y no un recorte.

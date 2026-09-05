@@ -40,7 +40,7 @@ export type PersistedCadDocument = Record<string, unknown>;
  * y se guardara después, recibía un 400 sin que nada estuviera roto.
  * Encontrado y corregido dos veces, de forma independiente y por vías
  * distintas: durante la campaña 3D-M1 (ver
- * `docs/execution/CAMPANA_3D_M1_20260824.md` para la evidencia completa) y
+ * `docs/history/execution/CAMPANA_3D_M1_20260824.md` para la evidencia completa) y
  * durante el cierre M1 de DWG, ahí por un E2E real (API + Postgres, no
  * mockeado) al guardar un documento importado — el techo desactualizado no
  * era específico de DWG, afectaba cualquier guardado.

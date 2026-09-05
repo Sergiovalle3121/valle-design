@@ -43,7 +43,7 @@ spaces, historial, manifiesto de pérdidas. Reglas que no se negocian:
 
 ## El motor de comandos
 
-`lib/cad/engine/`: ~192 comandos estilo AutoCAD como máquinas de estado PURAS
+`lib/cad/engine/`: los comandos estilo AutoCAD como máquinas de estado PURAS
 (entra un punto/palabra/selección, sale el siguiente prompt y, al final, el
 lote). No tocan React ni THREE: el ANFITRIÓN (`components/cad/command-line/`)
 aplica lotes, atiende peticiones (trazar, exportar, cambiar de espacio) y

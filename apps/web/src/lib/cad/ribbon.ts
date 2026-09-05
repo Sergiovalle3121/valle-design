@@ -2,8 +2,9 @@
  * LA CINTA, GENERADA DEL REGISTRO — no una lista escrita a mano.
  *
  * `CAD_COMMAND_DESCRIPTORS` (`engine/index.ts`) es la única fuente de verdad
- * de los ~192 comandos reales: la paleta Ctrl+K, la línea de comandos y ahora
- * la cinta leen todas de ahí. Una lista paralela de botones se desincroniza
+ * de los comandos reales: la paleta Ctrl+K, la línea de comandos y ahora la
+ * cinta leen todas de ahí. Cuántos son lo dice el registro, y por eso no se
+ * escribe aquí: este comentario llegó a decir «~192» cuando ya eran 294. Una lista paralela de botones se desincroniza
  * el primer día que alguien añade un comando y no toca cuatro archivos a la
  * vez; este módulo en cambio es una FUNCIÓN sobre el registro — un comando
  * nuevo aparece en su pestaña sin que nadie edite este archivo.

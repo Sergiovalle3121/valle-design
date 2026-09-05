@@ -32,7 +32,7 @@ pero ningún código fuera de `apps/web/src/lib/lisp/` importa todavía ese
 registro. Por la regla de la casa —un subsistema sin importador fuera de sí
 mismo no está implementado— eso significa que **hoy no hay forma de que un
 tercero instale un plugin**. El diseño del cableado que falta está escrito
-entero en `docs/execution/frentes/ext-peticiones.md`.
+entero en `docs/history/execution/frentes-superar-20260904/ext-peticiones.md`.
 
 Las otras dos superficies del producto —la API HTTP y los webhooks— viven en
 `docs/api/POLITICA-API-PUBLICA.md` y en `docs/cad/third-party-extension-policy.md`.

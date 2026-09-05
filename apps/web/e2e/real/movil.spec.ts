@@ -25,12 +25,13 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { API_ORIGIN, BASE_URL } from "../fixtures/constants";
 import {
-  E2E_PASSWORD,
   apiPost,
   apiPut,
   capturedToken,
   csrfHeaders,
+  E2E_PASSWORD,
   latestCapturedEmail,
+  registrarCuenta,
 } from "../fixtures/first-party";
 
 /** iPhone 14: el tamaño más común al que llega un enlace por WhatsApp. */
@@ -195,6 +196,11 @@ test.describe("Con la sesión abierta, en un teléfono", () => {
   const email = `movil-${runId}@example.test`;
 
   test.beforeAll(async ({ browser, browserName }) => {
+    // El alta puede tener que esperar a que la ventana del tope por IP deje
+    // sitio (ver `registrarCuenta`); el gancho hereda los 60 s del fichero de
+    // configuración y sin este techo moriría por tiempo en vez de por el
+    // defecto que se está evitando.
+    test.setTimeout(180_000);
     // Mismo reparto que arriba: Firefox rechaza isMobile en newContext.
     context = await browser.newContext({
       baseURL: BASE_URL,
@@ -202,9 +208,7 @@ test.describe("Con la sesión abierta, en un teléfono", () => {
     });
     page = await context.newPage();
 
-    await context.request.post(`${API_ORIGIN}/v1/auth/register`, {
-      data: { email, password: E2E_PASSWORD, displayName: "Desde el móvil" },
-    });
+    await registrarCuenta(context.request, email, "Desde el móvil");
     const mensaje = await latestCapturedEmail(context.request, email);
     await context.request.post(`${API_ORIGIN}/v1/auth/verify-email`, {
       data: { token: capturedToken(mensaje) },

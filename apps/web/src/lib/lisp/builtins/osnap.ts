@@ -56,7 +56,7 @@
  * —filtrar el candidato en este módulo dejaría al cursor del editor imantando
  * una cosa y a la rutina otra, que es la divergencia peor— y el adaptador está
  * fuera de este territorio: la corrección va escrita como petición P-ext-02 en
- * `docs/execution/frentes/ext-peticiones.md`. Mientras tanto, esto engancha
+ * `docs/history/execution/frentes-superar-20260904/ext-peticiones.md`. Mientras tanto, esto engancha
  * EXACTAMENTE lo que engancha el ratón, que es la promesa que sí se puede
  * sostener.
  */

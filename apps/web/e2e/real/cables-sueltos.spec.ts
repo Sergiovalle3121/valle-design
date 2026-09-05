@@ -56,6 +56,7 @@ import {
   capturedToken,
   csrfHeaders,
   latestCapturedEmail,
+  registrarCuenta,
 } from "../fixtures/first-party";
 
 test.describe.configure({ mode: "serial" });
@@ -364,12 +365,15 @@ test.describe("Cables sueltos: cada control visible produce su efecto", () => {
   const email = `cables-${runId}@example.test`;
 
   test.beforeAll(async ({ browser }) => {
+    // El alta puede tener que esperar a que la ventana del tope por IP deje
+    // sitio (ver `registrarCuenta`), y el gancho hereda los 60 s del fichero
+    // de configuración: sin este techo, esperar lo que el 429 pide mataría el
+    // gancho por tiempo en vez de por el defecto que se está evitando.
+    test.setTimeout(180_000);
     context = await browser.newContext({ baseURL: BASE_URL });
     page = await context.newPage();
 
-    await context.request.post(`${API_ORIGIN}/v1/auth/register`, {
-      data: { email, password: E2E_PASSWORD, displayName: "Barrido" },
-    });
+    await registrarCuenta(context.request, email, "Barrido");
     const message = await latestCapturedEmail(context.request, email);
     await context.request.post(`${API_ORIGIN}/v1/auth/verify-email`, {
       data: { token: capturedToken(message) },

@@ -208,7 +208,7 @@ alta antes de que alguien empiece: **el SDK de plugins todavía no está cablead
 al editor**, así que hoy se puede escribir un plugin y probarlo, pero no
 instalarlo desde fuera del producto. Está declarado así en
 `docs/api/EXTENSIBILIDAD.md` y el diseño de lo que falta, en
-`docs/execution/frentes/ext-peticiones.md`.
+`docs/history/execution/frentes-superar-20260904/ext-peticiones.md`.
 
 ### ObjectARX → no hay traducción
 

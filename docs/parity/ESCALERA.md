@@ -1,7 +1,7 @@
 # La escalera de paridad
 
 Escrito 2026-08-27, campaña Paridad (OLA 2). Generado desde
-`docs/execution/CAMPANA_PARIDAD_20260827.md` — la ola 0/1 de esa misma
+`docs/history/execution/CAMPANA_PARIDAD_20260827.md` — la ola 0/1 de esa misma
 campaña cerró tres defectos de confianza reales (ángulos DWG, fuga de
 espacio papel DXF, escala GLB) y construyó dos gates de regresión nuevos.
 Ese trabajo es el material con el que esta escalera está hecha: cada

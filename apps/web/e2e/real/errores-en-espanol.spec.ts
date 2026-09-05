@@ -35,13 +35,14 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { API_ORIGIN, BASE_URL } from "../fixtures/constants";
 import {
-  E2E_PASSWORD,
   apiGet,
   apiPost,
   apiPut,
   capturedToken,
   csrfHeaders,
+  E2E_PASSWORD,
   latestCapturedEmail,
+  registrarCuenta,
 } from "../fixtures/first-party";
 
 test.describe.configure({ mode: "serial" });
@@ -190,12 +191,14 @@ test.describe("Los errores hablan español humano", () => {
   }
 
   test.beforeAll(async ({ browser }) => {
+    // Igual que en el resto de `e2e/real`: el alta puede tener que esperar a
+    // que la ventana del tope por IP deje sitio (ver `registrarCuenta`), y el
+    // gancho hereda los 60 s del fichero de configuración.
+    test.setTimeout(180_000);
     context = await browser.newContext({ baseURL: BASE_URL });
     page = await context.newPage();
 
-    await context.request.post(`${API_ORIGIN}/v1/auth/register`, {
-      data: { email, password: E2E_PASSWORD, displayName: "Errores" },
-    });
+    await registrarCuenta(context.request, email, "Errores");
     const mensaje = await latestCapturedEmail(context.request, email);
     await context.request.post(`${API_ORIGIN}/v1/auth/verify-email`, {
       data: { token: capturedToken(mensaje) },

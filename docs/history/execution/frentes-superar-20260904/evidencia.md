@@ -1,7 +1,7 @@
 # F11 · Evidencia independiente
 
 > Frente de la campaña «Superar a AutoCAD completo» (2026-09-04).
-> Coordinador: `docs/execution/CAMPANA_SUPERAR_20260904.md`.
+> Coordinador: `docs/history/execution/CAMPANA_SUPERAR_20260904.md`.
 > Mapa de brechas: `docs/competitive/distancia-autocad-completo-20260903.md`.
 
 ## Territorio exclusivo
@@ -30,7 +30,7 @@ NO tocas código de producto. Un archivo sin licencia clara no entra: el corpus 
 ## Las reglas que no se negocian
 
 - **R1 Territorio.** Sólo modificas los directorios de arriba. Si necesitas algo fuera,
-  NO lo tocas: lo escribes en `docs/execution/frentes/evidencia-peticiones.md` y el coordinador
+  NO lo tocas: lo escribes en `docs/history/execution/frentes-superar-20260904/evidencia-peticiones.md` y el coordinador
   lo aplica en la ventana de integración.
 - **R2 Archivos compartidos, sólo el coordinador.** `package.json`, `turbo.json`,
   `.github/workflows/*`, `docs/competitive/rubric.json`, `scripts/cad/monolith-budget.json`,
@@ -372,7 +372,7 @@ con la nota de por qué cambió.
 
 **Lo que NO se hizo.** No se tocó `docs/competitive/rubric.json` (compartido), ni ningún archivo
 de producción: los cuatro arreglos van escritos enteros y probados en
-`docs/execution/frentes/evidencia-peticiones.md`.
+`docs/history/execution/frentes-superar-20260904/evidencia-peticiones.md`.
 
 **Cifras.** `check:cad-math` pasa de 4286 a **4806** casos y de 17 a **21** suites.
 `npm run typecheck` y `npm run check:cad` en verde.
