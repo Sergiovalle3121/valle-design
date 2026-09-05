@@ -227,6 +227,14 @@ correr los gates, que es justo la que viene.
 - `refutacion-panel-bloques-designar.spec.ts:136` — con el panel de bloques abierto se
   designa y se redefine, pero **la redefinición no llega al documento guardado**. El
   aserto es limpio: «redefinir tiene que subir la versión», `Expected: 2 / Received: 1`.
+  **Y hay una asimetría que señala sola por dónde mirar:** de los cuatro botones del
+  panel, `replace`, `explode` y `purge` pasan todos por el mismo `commitBlockMutation`
+  (`Layout3DEditor.tsx:5379`, `:5390`, `:5399`), y **sólo `redefineProfessionalBlock`
+  (`:5369`) no lo usa** — conduce la línea de comandos a mano con
+  `engine.invoke("BLOCK"); engine.submit(nombre); engine.submit("S")`. Que la primitiva
+  de abajo está sana lo prueba una spec que hoy pasa:
+  `block-edit-session.spec.ts:77` afirma que `redefineCadBlock` sube la versión a 2. Con
+  lo cual el defecto vive en ese puente, no en el dominio.
 - `acotar.spec.ts:505` — **acotar un tabique dibujado como polilínea, y moverlo.** Estaba
   dentro de los 47 «pasados» por su `test.fail()` de :525. La cota no sigue al objeto:
   se queda acotando el aire con la misma pinta de estar viva. Ojo a la vecindad, que es
