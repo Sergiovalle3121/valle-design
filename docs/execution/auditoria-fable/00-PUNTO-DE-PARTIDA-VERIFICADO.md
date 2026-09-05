@@ -121,6 +121,29 @@ fachada, el punto del ratón sale del plano del SUELO y no del plano de trabajo:
 se va al suelo sin decir nada. Es el único racimo que impide *usar* el 3D para dibujar, y
 por eso encabeza todo lo demás de esta cola.
 
+**Y aquí hay que corregir al informe del 2026-09-01, que decía «sólo `LINE` se declara
+espacial».** Hoy no es cierto y creérselo mandaría a Fable a construir lo que ya existe.
+Leído en el árbol de hoy:
+
+- **La cadena puntero → plano de trabajo está cableada de punta a punta**, y con su
+  razonamiento escrito: `command-engine-host.ts:451` (`get workPlane`, que devuelve el SCU
+  activo sólo si está inclinado, por coste en cada `pointermove`),
+  `Layout3DEditor.tsx:6451` (lo lee y lo pasa), `pointer-work-plane.ts:117`
+  (`cadPointerWorldFromRay`, que corta contra ese plano) y `view-controller.ts:610`
+  (`screenToWorld`, con su parámetro `plane`).
+- **En `command-manifest.ts`: de 294 comandos, 9 se declaran `spatial: true`** —`LINE`,
+  `PLINE`, `RECTANG`, `PIPE`, `PIDROUTE`, `FLATSHOT`, `SOLPROF`, `SOLVIEW`, `UCS`— y
+  **13 más `spatial: "elevation"`**. `RECTANG` entre ellos: el rectángulo en la fachada
+  **sí** está declarado.
+
+Eso cambia la tarea por completo. **No hay que arquitecturar un sistema de planos de
+trabajo: hay que depurar el que ya existe**, con dos pruebas que reproducen el fallo en
+el navegador y cinco funciones con nombre por donde empezar. Lo que sí queda como hueco
+de verdad, y es el grande, son los **272 comandos de 294 que no declaran nada**: bajo un
+SCU inclinado, casi toda la cinta sigue sin poder dibujar sobre el plano de trabajo. Esa
+es la medida honesta del racimo, y es trabajo de declaración y prueba, no de
+arquitectura.
+
 **Racimo B · El pinzamiento se come el clic — `molesta_mucho`.**
 `modificar.spec.ts:470`, `refutacion-pinzamiento.spec.ts:220`, `refutacion-trim.spec.ts:296`.
 El clic con el que se designa se pierde si cae sobre un pinzamiento, y eso rompe OFFSET y
