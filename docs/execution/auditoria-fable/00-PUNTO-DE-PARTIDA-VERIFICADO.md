@@ -149,6 +149,25 @@ arquitectura.
 El clic con el que se designa se pierde si cae sobre un pinzamiento, y eso rompe OFFSET y
 TRIM. Un defecto, tres pruebas.
 
+**También localizado.** Los asertos son inequívocos: `Expected length: 1 / Received
+length: 0` en `modificar`, y `Expected 3 / Received 2` en `refutacion-pinzamiento` con su
+propio mensaje —«mismo píxel y misma distancia que A»—, o sea el mismo comando y el mismo
+objeto, cambiando sólo si el píxel cae sobre un pinzamiento. En `Layout3DEditor.tsx` el
+controlador de pinzamientos tiene **derecho de tanteo sobre el clic en tres sitios, y
+ninguno pregunta si hay un comando esperando un punto**:
+
+- **:6793** `if (nativeGripController.handlePointerDown(e)) return;`
+- **:6926** `if (top.gripId && nativeGripController.start(top.id, top.gripId, e)) return;`
+- **:7319** `if (nativeGripController.handlePointerUp(e)) return;`
+
+La pregunta que falta ya está respondida a un `get` de distancia:
+`CadCommandEngineHost.accepts` (`command-engine-host.ts:424`) devuelve la máscara del paso
+activo y **0 en reposo**, y su propio comentario dice para qué existe: «es lo que permite
+al enrutador del puntero decidir si un clic es un PUNTO o una ENTIDAD sin conocer el
+comando». El estudio la consulta **una sola vez en todo el fichero** (`:8514`, para
+designar caras) y no en la rama del pinzamiento. Arrastrar un pinzamiento debe seguir
+ganando en reposo; con un comando pidiendo punto, el clic es del comando.
+
 **Racimo C · La capa se pierde al exportar — `molesta_mucho`.**
 `intercambio.spec.ts:257`, `refutacion-texto-capa.spec.ts:45`,
 `refutacion-notas-solo-text.spec.ts:119` (dos casos: sólo TEXT, y TEXT + MTEXT) y
