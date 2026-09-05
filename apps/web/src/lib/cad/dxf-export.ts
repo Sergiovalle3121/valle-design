@@ -483,7 +483,15 @@ function pushMText(lines: string[], layer: string, text: CadDxfExportMText): boo
     content = `\\p${code};${content}`;
   }
   pushPair(lines, 0, "MTEXT");
+  // R2000 —el dialecto que declara nuestra cabecera— exige los marcadores de
+  // subclase, y `pushEntityHead` de dxf-write-schema4.ts ya los escribe para los
+  // tipos nuevos. Sin ellos un lector estricto no sabe dónde empieza AcDbMText:
+  // `ezdxf` 1.4.4 rompe con «missing 'AcDbMText' subclass» y no abre el fichero
+  // entero, ni en modo recover. Medido sobre floorplan.dxf en
+  // verification/terceros-jornada.spec.ts; el oráculo tolerante no lo veía.
+  pushPair(lines, 100, "AcDbEntity");
   pushPair(lines, 8, layer);
+  pushPair(lines, 100, "AcDbMText");
   pushPoint(lines, text.insertion);
   pushPair(lines, 40, fmt(text.height ?? 120));
   pushPair(lines, 41, fmt(text.width ?? (text.height ?? 120) * 20));

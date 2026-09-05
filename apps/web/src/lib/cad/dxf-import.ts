@@ -12,7 +12,13 @@ import type { CadDxfSchema4Kind, CadDxfSchema4Payload } from "./dxf-schema4";
 // La lectura de pares crudos y los parsers de las anotaciones semánticas viven
 // en sus propios módulos: este archivo está en su asignación de tamaño y los
 // tipos del esquema 4 necesitaban sitio.
-import { num, pt, rawDxfPairs } from "./dxf-read-core";
+import {
+  dxfPairsInEntitiesSection,
+  normalizeDxfHeaderBooleans,
+  num,
+  pt,
+  rawDxfPairs,
+} from "./dxf-read-core";
 import { conCotaDeclarada, conExtrusionCruda, enElMundo } from "./dxf-import-cota";
 import {
   decodeComponent,
@@ -815,11 +821,18 @@ export function parseRawDxfHatches(text: string): {
   warnings: CadDxfImportWarning[];
 } {
   const pairs = rawDxfPairs(text);
+  // El mismo ámbito que el escaneo hermano de MTEXT, y por el mismo motivo.
+  // Aquí el cambio es PREVENTIVO y conviene decirlo así: ningún fichero del
+  // corpus ajeno trae un HATCH dentro de un bloque, así que no corrige un
+  // defecto medido — se pide por simetría, para que el día que llegue uno no
+  // salga al espacio modelo con las coordenadas del bloque.
+  const inEntities = dxfPairsInEntitiesSection(pairs);
   const hatches: CadDxfHatch[] = [];
   const warnings: CadDxfImportWarning[] = [];
   let scannedHatches = 0;
   for (let start = 0; start < pairs.length && scannedHatches < MAX_DXF_ENTITIES; start += 1) {
     if (pairs[start].code !== 0 || pairs[start].value.toUpperCase() !== "HATCH") continue;
+    if (!inEntities[start]) continue;
     scannedHatches += 1;
     let end = start + 1;
     while (end < pairs.length && pairs[end].code !== 0) end += 1;
@@ -855,7 +868,37 @@ export function parseRawDxfHatches(text: string): {
       const nextPath = entityPairs.findIndex((pair, index) => index > cursor && pair.code === 92);
       const pathEnd = nextPath >= 0 ? nextPath : entityPairs.length;
       if ((pathFlags & 2) === 0) {
-        unsupportedEdgePath = true;
+        // RUTA DE ARISTAS (el bit 2 dice «polilínea»; sin él, el contorno viene
+        // arista a arista). Si TODAS son rectas —código 72 igual a 1— el
+        // contorno es un polígono y sus vértices son el inicio de cada arista:
+        // no hace falta saber de curvas para reconstruirlo.
+        //
+        // Medido sobre `bjnortier-dxf/hatches.dxf`: su contorno son cuatro
+        // aristas rectas, un cuadrado de 100 × 100, y se descartaba entero. El
+        // detalle que lo hacía incómodo es que las cuatro LINE que el remitente
+        // dibujó ENCIMA del sombreado sí entraban, y son exactamente el mismo
+        // cuadrado: el documento tenía la forma y no tenía el relleno.
+        //
+        // Un contorno con arcos, elipses o splines sigue sin entrar y se sigue
+        // declarando igual que hasta hoy. Esto no tesela curvas: deja de tirar
+        // los polígonos.
+        const aristas: CadDxfPoint[] = [];
+        let todasRectas = true;
+        for (let index = cursor + 1; index < pathEnd; index += 1) {
+          const pair = entityPairs[index];
+          if (pair.code === 72 && Number(pair.value) !== 1) {
+            todasRectas = false;
+            break;
+          }
+          if (pair.code === 10) {
+            const px = num(pair.value);
+            const siguiente = entityPairs[index + 1];
+            const py = siguiente?.code === 20 ? num(siguiente.value) : null;
+            if (px !== null && py !== null) aristas.push({ x: px, y: py });
+          }
+        }
+        if (todasRectas && aristas.length >= 3) boundaries.push(aristas);
+        else unsupportedEdgePath = true;
         cursor = pathEnd - 1;
         continue;
       }
@@ -930,9 +973,24 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
     ...auditDxfLinetypeReferences(properties),
     ...foreign.warnings,
   ];
+  // Un valor de cabecera que este analizador no entiende no puede tumbar el
+  // archivo entero: `$XCLIPFRAME 2` es legítimo desde AutoCAD 2010 y era lo
+  // único que impedía leer un fichero que `ezdxf` abre sin una queja. Se
+  // normaliza sólo para el analizador —los escaneos crudos siguen viendo el
+  // texto original— y se AVISA, porque una normalización callada sería cambiar
+  // un defecto por otro más difícil de ver.
+  const saneado = normalizeDxfHeaderBooleans(text);
+  if (saneado.normalized > 0)
+    warnings.push({
+      code: "header_boolean_out_of_range",
+      entityType: "HEADER",
+      message:
+        `${saneado.normalized} variable(s) de cabecera traían un valor de bandera fuera de {0,1} ` +
+        "(legítimo en el formato desde AutoCAD 2010) y se leyeron como activadas. El dibujo no cambia.",
+    });
   let parsed: any;
   try {
-    parsed = new (DxfParser as any)().parseSync(text);
+    parsed = new (DxfParser as any)().parseSync(saneado.text);
   } catch {
     return {
       primitives: [],
@@ -1102,6 +1160,50 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
   // DECLARADAS viajan aparte en `layerDefinitions`: son dos preguntas
   // distintas y fundirlas cambiaría el recuento de todos los ficheros ya
   // medidos sin que nadie lo hubiera pedido.
+  //
+  // LAS COTAS FANTASMA. Las DIMENSION no las mapea `mapDxfEntityToPrimitive`
+  // —no son una primitiva— sino el camino SEMÁNTICO, que ya las trajo en
+  // `semanticDimensions`. El aviso del mapa era, para cada una de ellas, una
+  // pérdida que no ocurrió: sobre el plano ajeno el informe le decía al
+  // arquitecto que sus 63 cotas NO entraron y le aconsejaba «pide al remitente
+  // que las explote a líneas y arcos», dos filas antes de contarlas como cotas
+  // vivas. Seguir ese consejo le habría hecho perder cotas que ya tenía.
+  //
+  // Se descuenta UNA por cota efectivamente recuperada, nunca en bloque: una
+  // DIMENSION que el camino semántico no consiguiera leer sigue siendo una
+  // pérdida real y tiene que seguir avisándose.
+  // LAS CAPAS DECLARADAS QUE NADIE USA. La lista de capas se construye a partir
+  // de las que las entidades USAN, así que una capa que el fichero declara y
+  // ninguna entidad pisa no llega al documento. El dibujo no cambia —nada se
+  // pinta en ellas— pero sí la paleta que ve el arquitecto y la tabla del
+  // fichero que se le devuelve al remitente. Medido sobre floorplan.dxf: la
+  // tabla LAYER declara 24, al documento llegan 17, y hasta hoy ningún aviso lo
+  // mencionaba: el arquitecto no podía dibujar en `TEMP` sin volver a crearla y
+  // no tenía dónde enterarse. Se avisa AQUÍ y no al construir el documento
+  // porque de aquí salen los dos canales —el informe que se lee y el manifiesto
+  // de pérdidas que se guarda—, y una pérdida que sólo llega a uno es media.
+  const capasDeclaradasSinUsar = properties.layers
+    .map((entry) => entry.name)
+    .filter((name) => name !== "0" && !layers.has(name));
+  // UNO POR CAPA, no uno por fichero: el informe agrupa por código y CUENTA los
+  // avisos, así que un aviso único que dijera «7» en su texto habría salido
+  // como «1 capa» en la tabla. Cada capa nombrada por su nombre, además, es lo
+  // que deja al arquitecto volver a crear la suya.
+  for (const nombre of capasDeclaradasSinUsar)
+    warnings.push({
+      code: "layer_table_pruned",
+      entityType: "LAYER",
+      layer: nombre,
+      message: `La capa «${nombre}» está declarada en el archivo y no la usa ninguna entidad: no llega al documento.`,
+    });
+
+  let cotasRecuperadas = semanticDimensions.length;
+  const avisosSinCotasFantasma = warnings.filter((warning) => {
+    if (warning.code !== "unsupported_entity" || warning.entityType !== "DIMENSION") return true;
+    if (cotasRecuperadas <= 0) return true;
+    cotasRecuperadas -= 1;
+    return false;
+  });
   return {
     primitives, primitiveSources, hatches: rawHatchResult.hatches, mtexts: rawMTexts,
     semanticDimensions, mleaders, blocks, inserts,
@@ -1109,6 +1211,6 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
     linetypes: properties.linetypes, layerDefinitions: properties.layers,
     ...(Object.keys(properties.dimensionStyles).length ? { dimensionStyles: properties.dimensionStyles } : {}),
     ...(properties.linetypeScale !== undefined ? { linetypeScale: properties.linetypeScale } : {}),
-    warnings, layers: [...layers].sort(),
+    warnings: avisosSinCotasFantasma, layers: [...layers].sort(),
   };
 }

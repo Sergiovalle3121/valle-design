@@ -14,6 +14,7 @@ import {
   cadDxfSemanticDimensionsToNativeEntities,
 } from "./dxf-cad-document";
 import { importDxfPrimitives } from "./dxf-import";
+import { aciToHex } from "./plot/aci-palette";
 import {
   buildCadDxfImportReport,
   type CadDxfImportReport,
@@ -175,7 +176,17 @@ function importCanonicalJson(content: string): DocumentImportReport {
 function importDxfDocument(content: string): DocumentImportReport {
   const imported = importDxfPrimitives(content);
   if (imported.warnings.some((warning) => warning.code === "parse_failed")) {
-    throw new Error("El DXF está corrupto o no es un DXF de texto válido.");
+    // NO se dice «corrupto». Hay ficheros perfectamente válidos que este lector
+    // no sabe analizar todavía, y llamarlos corruptos manda al arquitecto a
+    // pedirle a su cliente que arregle un archivo que no está roto. El caso que
+    // lo destapó —`$XCLIPFRAME 2`, legítimo desde AutoCAD 2010, sobre un
+    // fichero que `ezdxf` abre sin una queja— ya se normaliza antes de
+    // analizar; el mensaje se corrige igual, porque el siguiente caso llegará y
+    // acusar al remitente es peor que no abrir el archivo.
+    throw new Error(
+      "Este lector no pudo analizar el DXF. Puede que el archivo esté dañado, " +
+        "o que use algo que todavía no soportamos. Escríbenos y lo miramos.",
+    );
   }
 
   const scoped = scopeDxfImportToModelSpace(imported);
@@ -417,16 +428,30 @@ function buildLayers(
   names: string[],
   definitions: readonly {
     name: string;
+    colorIndex?: number;
     linetype?: string;
     lineweight?: number;
     frozen?: boolean;
   }[] = [],
 ): CadLayerDef[] {
+  // La paleta sigue siendo el RESPALDO: una capa que el fichero no colorea, o
+  // que no está en su tabla, necesita un color y éste es tan bueno como otro.
+  // Lo que cambia es que deja de PISAR el que sí venía. Hasta hoy el código 62
+  // se leía en `dxf-read-properties.ts`, viajaba hasta aquí dentro de
+  // `colorIndex` y se tiraba: el color de cada capa se repartía por POSICIÓN
+  // ALFABÉTICA. Sobre las 24 capas de floorplan.dxf eso salía mal en las dos
+  // direcciones a la vez —cuatro índices del remitente repartidos en colores
+  // distintos, y cada color de la paleta juntando capas de índices distintos—
+  // y el fichero de vuelta salía monocromo mientras el informe decía «entró
+  // completo, sin pérdidas».
   const palette = ["#ffffff", "#ff5252", "#4fc3f7", "#ffd54f", "#81c784"];
   const declared = new Map(definitions.map((entry) => [entry.name, entry]));
   const unique = [...new Set(["0", ...names])].sort();
   return unique.map((name, index) => {
     const entry = declared.get(name);
+    // El código 62 NEGATIVO no es un color negativo: es la capa apagada, y su
+    // color es el valor absoluto. El signo lo lee `visible`.
+    const aci = entry?.colorIndex === undefined ? undefined : Math.abs(entry.colorIndex);
     // −3 (DEFAULT en el fichero) se guarda como −1, que es lo que la paleta de
     // capas llama «por defecto». No es lo mismo que 0: cero es un grosor real.
     const lineweight =
@@ -438,8 +463,11 @@ function buildLayers(
     return {
       id: name,
       name,
-      color: palette[index % palette.length],
-      visible: true,
+      color:
+        aci !== undefined && aci > 0 && aci < 256
+          ? aciToHex(aci)
+          : palette[index % palette.length],
+      visible: entry?.colorIndex === undefined ? true : entry.colorIndex >= 0,
       locked: false,
       ...(entry?.linetype ? { linetype: entry.linetype } : {}),
       ...(lineweight !== undefined ? { lineweight } : {}),
