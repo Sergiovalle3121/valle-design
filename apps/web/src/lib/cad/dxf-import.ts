@@ -12,15 +12,12 @@ import type { CadDxfSchema4Kind, CadDxfSchema4Payload } from "./dxf-schema4";
 // La lectura de pares crudos y los parsers de las anotaciones semánticas viven
 // en sus propios módulos: este archivo está en su asignación de tamaño y los
 // tipos del esquema 4 necesitaban sitio.
-import {
-  countDxfEntitiesOutsideEntitiesSection,
-  dxfPairsInEntitiesSection,
-  normalizeDxfHeaderBooleans,
-  num,
-  pt,
-  rawDxfPairs,
-} from "./dxf-read-core";
+// El ámbito de sección y el recuento de lo huérfano se fueron con sus dueños:
+// `dxf-read-hatch.ts` y `dxf-import-declaraciones.ts`. Aquí sólo queda lo que
+// este archivo usa de verdad.
+import { normalizeDxfHeaderBooleans, num, pt, rawDxfPairs } from "./dxf-read-core";
 import { conCotaDeclarada, conExtrusionCruda, enElMundo } from "./dxf-import-cota";
+import { declaraLoQueNoLlegaAlDocumento } from "./dxf-import-declaraciones";
 import {
   decodeComponent,
   insertSignature,
@@ -52,6 +49,11 @@ import type { CadEntityPresentation } from "./cad-document";
 // el código 70 familia a familia, y esa tabla es una pieza coherente por su
 // cuenta que además declara lo que NO sabe rehacer.
 import { parseRawDxfForeignDimensions } from "./dxf-read-foreign-dimensions";
+// El escaneo crudo de HATCH salió a `dxf-read-hatch.ts` cuando este archivo
+// volvió a superar su asignación: es la pieza hermana del de MTEXT, que ya
+// vivía fuera. Se REEXPORTA para que ningún consumidor cambie de import.
+import { parseRawDxfHatches } from "./dxf-read-hatch";
+export { parseRawDxfHatches };
 export { parseRawDxfMTexts, parseRawDxfSemanticDimensions, parseRawDxfSemanticMleaders };
 
 export type CadDxfPrimitiveKind =
@@ -817,139 +819,6 @@ function semanticBlocks(
 }
 
 
-export function parseRawDxfHatches(text: string): {
-  hatches: CadDxfHatch[];
-  warnings: CadDxfImportWarning[];
-} {
-  const pairs = rawDxfPairs(text);
-  // El mismo ámbito que el escaneo hermano de MTEXT, y por el mismo motivo.
-  // Aquí el cambio es PREVENTIVO y conviene decirlo así: ningún fichero del
-  // corpus ajeno trae un HATCH dentro de un bloque, así que no corrige un
-  // defecto medido — se pide por simetría, para que el día que llegue uno no
-  // salga al espacio modelo con las coordenadas del bloque.
-  const inEntities = dxfPairsInEntitiesSection(pairs);
-  const hatches: CadDxfHatch[] = [];
-  const warnings: CadDxfImportWarning[] = [];
-  let scannedHatches = 0;
-  for (let start = 0; start < pairs.length && scannedHatches < MAX_DXF_ENTITIES; start += 1) {
-    if (pairs[start].code !== 0 || pairs[start].value.toUpperCase() !== "HATCH") continue;
-    if (!inEntities[start]) continue;
-    scannedHatches += 1;
-    let end = start + 1;
-    while (end < pairs.length && pairs[end].code !== 0) end += 1;
-    const entityPairs = pairs.slice(start + 1, end);
-    const first = (code: number) => entityPairs.find((pair) => pair.code === code)?.value;
-    const layer = first(8) || DEFAULT_LAYER;
-    const pattern = first(2) || "SOLID";
-    const solid = Number(first(70) ?? 0) === 1 || pattern.toUpperCase() === "SOLID";
-    const scale = num(first(41));
-    const angle = num(first(52));
-    const islandCode = Number(first(75) ?? 0);
-    const islandStyle: CadDxfHatch["islandStyle"] = islandCode === 1 ? "outer" : islandCode === 2 ? "ignore" : "normal";
-    const seedCountIndex = entityPairs.findIndex((pair) => pair.code === 98);
-    const seedX = seedCountIndex >= 0
-      ? num(entityPairs.find((pair, index) => index > seedCountIndex && pair.code === 10)?.value)
-      : null;
-    const seedY = seedCountIndex >= 0
-      ? num(entityPairs.find((pair, index) => index > seedCountIndex && pair.code === 20)?.value)
-      : null;
-    const patternOriginX = num(first(43));
-    const patternOriginY = num(first(44));
-    const origin = seedX !== null && seedY !== null
-      ? { x: seedX, y: seedY }
-      : patternOriginX !== null && patternOriginY !== null
-        ? { x: patternOriginX, y: patternOriginY }
-        : undefined;
-    const paperSpace = first(67) === "1";
-    const boundaries: CadDxfPoint[][] = [];
-    let unsupportedEdgePath = false;
-    for (let cursor = 0; cursor < entityPairs.length; cursor += 1) {
-      if (entityPairs[cursor].code !== 92) continue;
-      const pathFlags = Number(entityPairs[cursor].value) || 0;
-      const nextPath = entityPairs.findIndex((pair, index) => index > cursor && pair.code === 92);
-      const pathEnd = nextPath >= 0 ? nextPath : entityPairs.length;
-      if ((pathFlags & 2) === 0) {
-        // RUTA DE ARISTAS (el bit 2 dice «polilínea»; sin él, el contorno viene
-        // arista a arista). Si TODAS son rectas —código 72 igual a 1— el
-        // contorno es un polígono y sus vértices son el inicio de cada arista:
-        // no hace falta saber de curvas para reconstruirlo.
-        //
-        // Medido sobre `bjnortier-dxf/hatches.dxf`: su contorno son cuatro
-        // aristas rectas, un cuadrado de 100 × 100, y se descartaba entero. El
-        // detalle que lo hacía incómodo es que las cuatro LINE que el remitente
-        // dibujó ENCIMA del sombreado sí entraban, y son exactamente el mismo
-        // cuadrado: el documento tenía la forma y no tenía el relleno.
-        //
-        // Un contorno con arcos, elipses o splines sigue sin entrar y se sigue
-        // declarando igual que hasta hoy. Esto no tesela curvas: deja de tirar
-        // los polígonos.
-        const aristas: CadDxfPoint[] = [];
-        let todasRectas = true;
-        for (let index = cursor + 1; index < pathEnd; index += 1) {
-          const pair = entityPairs[index];
-          if (pair.code === 72 && Number(pair.value) !== 1) {
-            todasRectas = false;
-            break;
-          }
-          if (pair.code === 10) {
-            const px = num(pair.value);
-            const siguiente = entityPairs[index + 1];
-            const py = siguiente?.code === 20 ? num(siguiente.value) : null;
-            if (px !== null && py !== null) aristas.push({ x: px, y: py });
-          }
-        }
-        if (todasRectas && aristas.length >= 3) boundaries.push(aristas);
-        else unsupportedEdgePath = true;
-        cursor = pathEnd - 1;
-        continue;
-      }
-      const countIndex = entityPairs.findIndex((pair, index) => index > cursor && index < pathEnd && pair.code === 93);
-      const vertexCount = countIndex >= 0 ? Number(entityPairs[countIndex].value) : 0;
-      const boundary: CadDxfPoint[] = [];
-      let pendingX: number | null = null;
-      for (let index = countIndex + 1; index < pathEnd && boundary.length < vertexCount; index += 1) {
-        const pair = entityPairs[index];
-        if (pair.code === 10) pendingX = num(pair.value);
-        else if (pair.code === 20 && pendingX !== null) {
-          const y = num(pair.value);
-          if (y !== null) boundary.push({ x: pendingX, y });
-          pendingX = null;
-        }
-      }
-      if (boundary.length >= 3) boundaries.push(boundary);
-      cursor = pathEnd - 1;
-    }
-    if (boundaries.length) {
-      hatches.push({
-        layer,
-        pattern,
-        solid,
-        boundaries,
-        ...(scale !== null && scale > 0 ? { scale } : {}),
-        ...(angle !== null ? { angle } : {}),
-        ...(origin ? { origin } : {}),
-        islandStyle,
-        ...(paperSpace ? { paperSpace } : {}),
-      });
-      if (unsupportedEdgePath)
-        warnings.push({
-          code: "hatch_edge_path_partial",
-          message: "HATCH conserva sus contornos poligonales; un contorno curvo no soportado fue omitido.",
-          entityType: "HATCH",
-          layer,
-        });
-    } else {
-      warnings.push({
-        code: "hatch_unsupported_boundary",
-        message: "HATCH sin contorno poligonal compatible; no se importó el relleno.",
-        entityType: "HATCH",
-        layer,
-      });
-    }
-    start = end - 1;
-  }
-  return { hatches, warnings };
-}
 
 export function importDxfPrimitives(text: string): CadDxfImportResult {
   const rawHatchResult = parseRawDxfHatches(text);
@@ -1173,82 +1042,13 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
   // Se descuenta UNA por cota efectivamente recuperada, nunca en bloque: una
   // DIMENSION que el camino semántico no consiguiera leer sigue siendo una
   // pérdida real y tiene que seguir avisándose.
-  // LO QUE VIVE DENTRO DE UNA DEFINICIÓN DE BLOQUE Y YA NO SALE SUELTO.
-  //
-  // Los escaneos crudos de MTEXT y HATCH tienen ámbito desde P-evidencia-11:
-  // sólo recogen lo que está en `ENTITIES`. Eso corrigió un defecto real —lo de
-  // dentro de un BLOCK salía a espacio modelo con las coordenadas locales del
-  // bloque, sin la transformación del INSERT que lo trae— pero dejó de traer
-  // entidades que el fichero SÍ tiene, y una entidad que está en el fichero y
-  // no en el documento no puede quedarse sin que nadie lo diga. El techo de
-  // pérdidas silenciosas del corpus ajeno es cero y cazó esto a la primera
-  // corrida: cinco tipos en cuatro ficheros.
-  //
-  // Lo que el aviso dice es lo que se puede afirmar sin adivinar: están en una
-  // definición de bloque, y de ahí se dibujan a través del INSERT que las trae.
-  // Si ningún INSERT alcanza ese bloque no formaban parte del dibujo —medido
-  // por alcanzabilidad transitiva en `verification/terceros-jornada.spec.ts`
-  // sobre floorplan.dxf: 135 MTEXT y 13 HATCH en bloques que nadie inserta—,
-  // pero siguen estando en el archivo del remitente y por eso se nombran.
-  // ALCANZABILIDAD, transitiva desde espacio modelo. Un bloque que algún INSERT
-  // trae dibuja su contenido, así que lo de dentro no falta y no se avisa; lo
-  // que vive en una definición que NADIE inserta está en el archivo del
-  // remitente y no en el documento, y eso sí hay que decirlo.
-  const bloquePorNombre = new Map(blocks.map((bloque) => [bloque.name, bloque]));
-  const alcanzables = new Set<string>();
-  // Las raíces son los INSERT del dibujo Y los bloques de dibujo de las cotas
-  // (`*D1`, `*D2`…), que no los trae ningún INSERT sino la propia DIMENSION.
-  // Su rótulo llega al dibujo porque la cota lo recalcula, así que tampoco
-  // falta: sin esta segunda raíz el aviso acusaría de pérdida a cada cota.
-  const porVisitar = [
-    ...inserts.map((insert) => insert.block),
-    ...semanticDimensions.map((cota) => cota.blockName).filter((nombre) => nombre.length > 0),
-  ];
-  while (porVisitar.length > 0) {
-    const nombre = porVisitar.pop()!;
-    if (alcanzables.has(nombre)) continue;
-    alcanzables.add(nombre);
-    for (const anidado of bloquePorNombre.get(nombre)?.inserts ?? []) porVisitar.push(anidado.block);
-  }
-  const huerfanas = countDxfEntitiesOutsideEntitiesSection(
-    rawDxfPairs(text),
-    ["MTEXT", "HATCH"],
-    alcanzables,
+  // Lo que el fichero trae y el documento no, sin que ninguna entidad haya
+  // fallado en convertirse: los rótulos y sombreados de bloques que nada
+  // inserta, y las capas declaradas que ninguna entidad usa. Viven en su
+  // módulo; el porqué de cada uno está allí.
+  warnings.push(
+    ...declaraLoQueNoLlegaAlDocumento(text, blocks, inserts, semanticDimensions, properties.layers, layers),
   );
-  for (const [tipo, cuantas] of Object.entries(huerfanas))
-    for (let i = 0; i < cuantas; i += 1)
-      warnings.push({
-        code: "entity_in_block_definition",
-        entityType: tipo,
-        message:
-          `Un ${tipo} vive dentro de una definición de bloque que ningún INSERT del dibujo trae: ` +
-          "está en el archivo y no llega al documento.",
-      });
-
-  // LAS CAPAS DECLARADAS QUE NADIE USA. La lista de capas se construye a partir
-  // de las que las entidades USAN, así que una capa que el fichero declara y
-  // ninguna entidad pisa no llega al documento. El dibujo no cambia —nada se
-  // pinta en ellas— pero sí la paleta que ve el arquitecto y la tabla del
-  // fichero que se le devuelve al remitente. Medido sobre floorplan.dxf: la
-  // tabla LAYER declara 24, al documento llegan 17, y hasta hoy ningún aviso lo
-  // mencionaba: el arquitecto no podía dibujar en `TEMP` sin volver a crearla y
-  // no tenía dónde enterarse. Se avisa AQUÍ y no al construir el documento
-  // porque de aquí salen los dos canales —el informe que se lee y el manifiesto
-  // de pérdidas que se guarda—, y una pérdida que sólo llega a uno es media.
-  const capasDeclaradasSinUsar = properties.layers
-    .map((entry) => entry.name)
-    .filter((name) => name !== "0" && !layers.has(name));
-  // UNO POR CAPA, no uno por fichero: el informe agrupa por código y CUENTA los
-  // avisos, así que un aviso único que dijera «7» en su texto habría salido
-  // como «1 capa» en la tabla. Cada capa nombrada por su nombre, además, es lo
-  // que deja al arquitecto volver a crear la suya.
-  for (const nombre of capasDeclaradasSinUsar)
-    warnings.push({
-      code: "layer_table_pruned",
-      entityType: "LAYER",
-      layer: nombre,
-      message: `La capa «${nombre}» está declarada en el archivo y no la usa ninguna entidad: no llega al documento.`,
-    });
 
   let cotasRecuperadas = semanticDimensions.length;
   const avisosSinCotasFantasma = warnings.filter((warning) => {
