@@ -59,6 +59,7 @@
         "linetype_complejo": 1,
         "foreign_dimension_detached": 63,
         "unsupported_entity": 9,
+        "entity_in_block_definition": 85,
         "layer_table_pruned": 7
       },
       "cotasDeclaradasPerdidasQueSiEntraron": 0

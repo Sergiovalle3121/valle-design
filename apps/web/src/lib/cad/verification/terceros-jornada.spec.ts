@@ -294,11 +294,57 @@ let contradiccion = 0;
   //     tabla LAYER que ninguna entidad usa y que no llegan al documento. No
   //     falta nada del dibujo; falta su definición si el archivo vuelve al
   //     remitente, y hasta hoy no lo decía nadie (P-evidencia-09).
+  //   · `entity_in_block_definition` aparece con 85. Es la contrapartida
+  //     obligatoria de darle ámbito a los escaneos crudos: 72 MTEXT y 13 HATCH
+  //     viven en definiciones de bloque que NADA de este dibujo inserta —ni un
+  //     INSERT ni una cota—, así que no se dibujaban y no llegan al documento.
+  //     El techo de pérdidas silenciosas del corpus ajeno es cero y cazó esto a
+  //     la primera corrida; el aviso es lo que lo devuelve a cero. La cifra
+  //     coincide con la que da `ezdxf` calculando la alcanzabilidad por su
+  //     cuenta, que es la única razón para creérsela.
   eq(
     avisos,
-    { linetype_complejo: 1, foreign_dimension_detached: 63, unsupported_entity: 9, layer_table_pruned: 7 },
+    {
+      linetype_complejo: 1,
+      foreign_dimension_detached: 63,
+      unsupported_entity: 9,
+      layer_table_pruned: 7,
+      entity_in_block_definition: 85,
+    },
     "los avisos del lector, contados",
   );
+  // Y su cuenta se contrasta con la del oráculo, calculada por OTRO camino. El
+  // censo del corpus publica `definicionesDeBloque`: lo que vive dentro de un
+  // BLOCK sin contar el espacio modelo (135 MTEXT y 13 HATCH aquí; el fichero
+  // entero tiene 144 y 26, que es la suma). De ahí se descuentan los 63 rótulos
+  // de los bloques de dibujo de las cotas, que la propia cota rehace y por eso
+  // no se avisan. Un número que sólo sabe dar el lector no es evidencia de nada.
+  {
+    const censo = (
+      JSON.parse(fs.readFileSync(path.join(CORPUS, "oraculos/ezdxf-1.4.4.json"), "utf8")) as {
+        archivos: Array<{
+          id: string;
+          espacioModelo: Record<string, number>;
+          definicionesDeBloque: Record<string, number>;
+          archivoEntero: Record<string, number>;
+        }>;
+      }
+    ).archivos.find((archivo) => archivo.id === "bjnortier-dxf/floorplan")!;
+    ok(censo !== undefined, "el censo del corpus tiene que traer floorplan.dxf");
+    // El censo separa los dos ámbitos y la suma tiene que cerrar; sin esta
+    // comprobación, leer `definicionesDeBloque` sería suponer qué cuenta.
+    for (const tipo of ["MTEXT", "HATCH"])
+      eq(
+        (censo.definicionesDeBloque[tipo] ?? 0) + (censo.espacioModelo[tipo] ?? 0),
+        censo.archivoEntero[tipo] ?? 0,
+        `${tipo}: los dos ámbitos del censo suman el fichero entero`,
+      );
+    eq(
+      avisos.entity_in_block_definition,
+      (censo.definicionesDeBloque.MTEXT ?? 0) - 63 + (censo.definicionesDeBloque.HATCH ?? 0),
+      "y su cuenta cuadra con la del oráculo: lo que vive en definiciones de bloque, menos los 63 rótulos de cota",
+    );
+  }
   const declaradasPerdidas = abierto.dxfReport?.rows.find((fila) => fila.code === "unsupported_entity");
   ok(declaradasPerdidas !== undefined, "el informe tiene que traer la fila de lo no soportado");
   ok(

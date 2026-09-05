@@ -182,7 +182,15 @@ export function cadDocumentDxfLayerDefinitions(
     // (10, 50, 90, 130, 170, 210, 255) son los duplicados de la propia paleta
     // ACI —1/10, 2/50 … 7/255 son el MISMO RGB—, así que cambia el número del
     // índice y no el color que ve nadie.
-    color: layer.visible === false ? -hexToAci(layer.color) : hexToAci(layer.color),
+    // `CadLayerDef.color` es obligatorio en el tipo y NO siempre está en tiempo
+    // de ejecución: hay suites que arman capas parciales, y una de ellas tumbó
+    // la exportación entera con «color.trim is not a function» en cuanto este
+    // campo empezó a leerse. Una capa sin color no es motivo para no exportar
+    // el dibujo: se omite el override y el escritor cae a su respaldo (`62 7`),
+    // que es lo que hacía para todas hasta hoy.
+    ...(typeof layer.color === "string" && layer.color.length > 0
+      ? { color: layer.visible === false ? -hexToAci(layer.color) : hexToAci(layer.color) }
+      : {}),
     ...(layer.linetype ? { linetype: layer.linetype } : {}),
     // El grosor cruza aquí su frontera de unidades: la paleta de capas guarda
     // MILÍMETROS con −1 por «por defecto» y el fichero pide CENTÉSIMAS con −3.

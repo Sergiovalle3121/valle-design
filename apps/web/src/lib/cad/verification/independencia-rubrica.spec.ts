@@ -70,7 +70,7 @@ const CENSO = path.join(RAIZ, "docs/cad/evidence/independencia-por-fila.json");
  * la regla del corte prohíbe: significaría que una fila perdió su evidencia
  * independiente y que lo estamos aceptando.
  */
-const TECHO_FILAS_CON_TOPE = 31;
+const TECHO_FILAS_CON_TOPE = 20;
 
 /* ══════════════════════════════════════════════════════════════════════════
  * EL MOTOR: lo que sale de la rúbrica, no de aquí

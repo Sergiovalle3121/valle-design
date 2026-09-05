@@ -441,7 +441,7 @@ Estas filas sólo tienen la tercera, y decirlo es más honesto que inventarles u
   de `degradaA: "2 entidad(es) con una incidencia todavía sin describir (flattened_to_ground)."` a
   la frase nueva, y el artefacto se regenera para decirlo. Además `npm test` sobre
   `dxf-import-report.spec.ts` sigue verde: la regla es aditiva y ningún caso existente la toca.
-- **Estado:** pendiente — no bloquea nada de este frente; es un defecto de superficie de usuario
+- **Estado:** APLICADA el 2026-09-05 por el coordinador, con su medición rehecha y las suites de terceros pasadas de registrar el defecto a guardar que no vuelve. Ver `docs/execution/FASE4_TESTIGO_AJENO_20260905.md`. Estado anterior: pendiente — no bloquea nada de este frente; es un defecto de superficie de usuario
   que la matriz destapó al pasar por delante.
 
 ### P-evidencia-07 · Lo que exportamos no lo abre `ezdxf`: MTEXT y HATCH salen sin marcador de subclase
@@ -531,7 +531,7 @@ Estas filas sólo tienen la tercera, y decirlo es más honesto que inventarles u
   `tiposQueNoAbre` baja de `["HATCH","MTEXT"]` a `[]`, y el techo
   `TECHO_TIPOS_QUE_EL_ORACULO_B_NO_ABRE` del spec se puede vaciar. El artefacto se regenera con
   `VALLE_ESCRIBIR_JORNADA=1`.
-- **Estado:** pendiente — es el defecto más caro de los tres que destapó la jornada: hoy,
+- **Estado:** APLICADA el 2026-09-05 por el coordinador, con su medición rehecha y las suites de terceros pasadas de registrar el defecto a guardar que no vuelve. Ver `docs/execution/FASE4_TESTIGO_AJENO_20260905.md`. Estado anterior: pendiente — es el defecto más caro de los tres que destapó la jornada: hoy,
   cualquier programa estricto que reciba un DXF nuestro con sombreados o textos de párrafo
   **no lo abre**.
 
@@ -586,7 +586,7 @@ Estas filas sólo tienen la tercera, y decirlo es más honesto que inventarles u
   `VALLE_ESCRIBIR_JORNADA=1` y `docs/cad/evidence/jornada-plano-ajeno.json` deja de publicar la
   contradicción. Además `npm test` sobre `dxf-import.spec.ts` y `dxf-import-report.spec.ts`:
   ningún caso existente cuenta DIMENSION entre lo no soportado, así que el cambio es aditivo.
-- **Estado:** pendiente
+- **Estado:** APLICADA el 2026-09-05 por el coordinador, con su medición rehecha y las suites de terceros pasadas de registrar el defecto a guardar que no vuelve. Ver `docs/execution/FASE4_TESTIGO_AJENO_20260905.md`. Estado anterior: pendiente
 
 ### P-evidencia-09 · Siete capas de la tabla LAYER no llegan al documento y nadie lo dice
 - **Archivos:** `apps/web/src/lib/cad/document-import.ts` (`importDxfDocument`) y
@@ -653,7 +653,7 @@ Estas filas sólo tienen la tercera, y decirlo es más honesto que inventarles u
   — el acto 1 afirma hoy que **ningún** aviso nombra la tabla de capas
   (`lossManifest.some(p => /capa/i.test(p.code)) === false`). Al aplicar el cambio esa
   afirmación se invierte a `true` en el spec y el artefacto se regenera.
-- **Estado:** pendiente — el menor de los tres; se pide por el silencio, no por el número.
+- **Estado:** APLICADA el 2026-09-05 por el coordinador, con su medición rehecha y las suites de terceros pasadas de registrar el defecto a guardar que no vuelve. Ver `docs/execution/FASE4_TESTIGO_AJENO_20260905.md`. Estado anterior: pendiente — el menor de los tres; se pide por el silencio, no por el número.
 
 ### P-evidencia-10 · La fila `foreign-work` llega a 6/6: la medición está hecha
 - **Archivo:** `docs/competitive/rubric.json` (archivo compartido, R2) — es la primera entrada
@@ -786,7 +786,7 @@ Estas filas sólo tienen la tercera, y decirlo es más honesto que inventarles u
   — hoy afirma que hay **2** rótulos duplicados (`TECHO_ROTULOS_DUPLICADOS`) y que el lector trae
   **9** entidades donde el oráculo cuenta 7. Al aplicar el cambio, las dos cifras bajan a 0 y 7 y
   el techo se baja en el spec. Igual en `terceros-bloques.spec.ts` con los dos MTEXT fugados.
-- **Estado:** pendiente — es el más caro de los cuatro en consecuencias visibles y el más claro
+- **Estado:** APLICADA el 2026-09-05 por el coordinador, con su medición rehecha y las suites de terceros pasadas de registrar el defecto a guardar que no vuelve. Ver `docs/execution/FASE4_TESTIGO_AJENO_20260905.md`. Estado anterior: pendiente — es el más caro de los cuatro en consecuencias visibles y el más claro
   en diagnóstico.
 
 ### P-evidencia-12 · El color de capa del remitente se descarta y se sustituye por una paleta de cinco
@@ -869,7 +869,7 @@ Estas filas sólo tienen la tercera, y decirlo es más honesto que inventarles u
   — hoy afirma `PISO_COLORES_QUE_SOBREVIVEN = 0` y que el fichero exportado sale con `62 7` en
   las tres capas. Al aplicar el cambio, el piso sube a 3, la afirmación del `62 7` se invierte, y
   las dos cifras de colisión de `floorplan.dxf` (4 y 5) bajan a 0.
-- **Estado:** pendiente — es el hallazgo con más superficie visible de este entregable.
+- **Estado:** APLICADA el 2026-09-05 por el coordinador, con su medición rehecha y las suites de terceros pasadas de registrar el defecto a guardar que no vuelve. Ver `docs/execution/FASE4_TESTIGO_AJENO_20260905.md`. Estado anterior: pendiente — es el hallazgo con más superficie visible de este entregable.
 
 ### P-evidencia-13 · Un DXF válido se rechaza entero por `$XCLIPFRAME`, con un mensaje que culpa al remitente
 - **Archivo:** `apps/web/src/lib/cad/document-import.ts` (`importDxfDocument`, la línea del
@@ -926,7 +926,7 @@ Estas filas sólo tienen la tercera, y decirlo es más honesto que inventarles u
   `TECHO_FICHEROS_RECHAZADOS = ["bjnortier-dxf/blocks2"]`. Con el cambio barato, la primera
   afirmación se cambia por la del mensaje nuevo; con el completo, el techo queda vacío y la suite
   deja de necesitar la copia en memoria.
-- **Estado:** pendiente — el cambio barato es una línea y quita una acusación falsa al usuario.
+- **Estado:** APLICADA el 2026-09-05 por el coordinador, con su medición rehecha y las suites de terceros pasadas de registrar el defecto a guardar que no vuelve. Ver `docs/execution/FASE4_TESTIGO_AJENO_20260905.md`. Estado anterior: pendiente — el cambio barato es una línea y quita una acusación falsa al usuario.
 
 ### P-evidencia-14 · Un contorno de HATCH de cuatro aristas RECTAS se descarta por «no poligonal»
 - **Archivo:** `apps/web/src/lib/cad/dxf-import.ts` (el escaneo crudo de HATCH, el bloque
@@ -977,4 +977,4 @@ Estas filas sólo tienen la tercera, y decirlo es más honesto que inventarles u
   — hoy afirma `TECHO_SOMBREADOS_PERDIDOS = 1` y que el contorno descartado y las cuatro líneas
   importadas son el mismo cuadrado. Al aplicar el cambio, el techo baja a 0, el sombreado entra
   con sus cuatro vértices y la comparación de claves pasa a hacerse contra el HATCH importado.
-- **Estado:** pendiente.
+- **Estado:** APLICADA el 2026-09-05 por el coordinador, con su medición rehecha y las suites de terceros pasadas de registrar el defecto a guardar que no vuelve. Ver `docs/execution/FASE4_TESTIGO_AJENO_20260905.md`. Estado anterior: pendiente.
