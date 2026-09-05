@@ -76,7 +76,7 @@ Bitácora del coordinador. Si un contexto se compacta, este archivo se relee pri
 - `npm ci` reproducible; `npm run typecheck` verde; suite completa lanzada como línea base.
 - Once árboles de trabajo creados desde `25898dc6`, con `node_modules` por hardlink.
 - Rúbrica medida y sus criterios abiertos repartidos por frente (tabla de arriba).
-- Escritos este archivo, los once `docs/execution/frentes/<frente>.md` y sus
+- Escritos este archivo, los once `docs/history/execution/frentes-superar-20260904/<frente>.md` y sus
   `-peticiones.md`, y commiteados en `646b969` — el corte del que nacen las once ramas.
 
 ### Tandas (R8, ajustado al techo de dos agentes)

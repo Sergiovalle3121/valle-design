@@ -479,7 +479,7 @@ ante operación sin marca. **Estimación:** medio día.
 
 - **Qué pasa:** medido con Lighthouse en el contenedor de desarrollo, máquina en
   reposo, mediana de tres corridas (ver la tabla completa en
-  `docs/execution/CAMPANA_FRONTEND_20260829.md`, sección 1.5): en **móvil** la
+  `docs/history/execution/CAMPANA_FRONTEND_20260829.md`, sección 1.5): en **móvil** la
   portada da **73** de rendimiento con un **LCP de 8,9 s**. Escritorio da 93. La
   diferencia no es misteriosa y no está en el JavaScript.
 - **El desglose de bytes de la portada** (misma corrida, `/`, emulado móvil):
@@ -577,7 +577,7 @@ boundary. **Cerrado 2026-08-27 (campaña Paridad, OLA 0.3/1.1):** el tope
 300 de `selectNative` y el tope 200 de `selectCadLayerObjects` —los que
 mentían al usuario (designaban menos de lo que el mensaje anunciaba)—
 se ELIMINARON, no se declararon; ver
-`docs/execution/CAMPANA_PARIDAD_20260827.md` y
+`docs/history/execution/CAMPANA_PARIDAD_20260827.md` y
 `e2e/golden/59-cad-selection-no-truncation.spec.ts` (350 coincidencias,
 QSELECT y "Sel" de capa, prueba negativa real). Quedan abiertos los tres
 topes de snap/boundary de arriba, que son técnicos (coste de cómputo),

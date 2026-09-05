@@ -1,7 +1,7 @@
 # F4 · Express y universal
 
 > Frente de la campaña «Superar a AutoCAD completo» (2026-09-04).
-> Coordinador: `docs/execution/CAMPANA_SUPERAR_20260904.md`.
+> Coordinador: `docs/history/execution/CAMPANA_SUPERAR_20260904.md`.
 > Mapa de brechas: `docs/competitive/distancia-autocad-completo-20260903.md`.
 
 ## Territorio exclusivo
@@ -37,7 +37,7 @@ Un comando que no es alcanzable con ratón no cuenta: la campaña mantiene 243/2
 ## Las reglas que no se negocian
 
 - **R1 Territorio.** Sólo modificas los directorios de arriba. Si necesitas algo fuera,
-  NO lo tocas: lo escribes en `docs/execution/frentes/express-peticiones.md` y el coordinador
+  NO lo tocas: lo escribes en `docs/history/execution/frentes-superar-20260904/express-peticiones.md` y el coordinador
   lo aplica en la ventana de integración.
 - **R2 Archivos compartidos, sólo el coordinador.** `package.json`, `turbo.json`,
   `.github/workflows/*`, `docs/competitive/rubric.json`, `scripts/cad/monolith-budget.json`,

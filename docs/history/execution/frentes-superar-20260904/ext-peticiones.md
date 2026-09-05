@@ -239,7 +239,7 @@ Formato de cada petición:
   tercero (no hay instalación, ni firma, ni procedencia), no hay aislamiento del DOM —un
   plugin corre en el mismo hilo que el editor— y `documento:lectura` no se hace cumplir
   DENTRO de un comando de plugin, porque el contexto se lo construye el motor. Los tres
-  límites están medidos y escritos en `docs/execution/frentes/ext.md`, sección «Todavía no».
+  límites están medidos y escritos en `docs/history/execution/frentes-superar-20260904/ext.md`, sección «Todavía no».
 - **Cómo se comprueba:**
   1. `cd apps/web && npx tsx src/lib/lisp/plugins-permisos.spec.ts` — sigue en 124, no lo
      toca este cambio.
