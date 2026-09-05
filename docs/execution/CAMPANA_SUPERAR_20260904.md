@@ -191,3 +191,48 @@ producir.
   alcance. Se deja sin aplicar y sin insinuar.
 - **PIDCLASH, PIDSOLID y MEPRISER en la cinta** (P-mep-plant-02): la propia petición
   lo condiciona a «si el titular quiere órdenes propias». No se inventa la respuesta.
+
+---
+
+## Fase 4 (2026-09-05) · La lista de tareas la escribió el censo, no yo
+
+Las tres ventanas están en `main`. Lo que vino después no lo eligió el
+coordinador: lo dictó `docs/cad/evidence/independencia-por-fila.json`, que la
+campaña dejó escrito **en máquina** con el parche exacto de cada fila. Cinco de
+las veinticinco decían «hay un testigo ajeno en el árbol y dice que no», y
+nombraban la petición que lo arreglaba. Se aplicaron las ocho peticiones
+pendientes del frente de evidencia.
+
+Resultado: **239 → 244/271 (90 %)**, evidencia independiente 16 → 28 pt, filas
+en su tope 6 → 11, y la categoría «bloqueado por un defecto medido» pasa de
+cinco filas a **cero**. El informe entero está en
+`docs/execution/FASE4_TESTIGO_AJENO_20260905.md`.
+
+### Lo que esta fase me enseñó a mí
+
+**Un acuerdo puede ser dos errores del mismo lado.** La matriz comparaba MTEXT y
+HATCH contra el oráculo en el ámbito «archivo entero» y los dos números
+cuadraban. Cuadraban porque el lector contaba el fichero entero (no sabía
+distinguir) y el censo se leía de `archivoEntero`, que recorre `doc.blocks` e
+incluye `*Model_Space` más los bloques que nadie inserta. Al arreglar un solo
+lado, la igualdad se rompió y se vio. **No hay forma de detectar esto mirando:
+sólo arreglando uno de los dos lados.** La regla que queda: cuando dos medidas
+coinciden, preguntar si comparten el error, no sólo si comparten el resultado.
+
+**El gate cazó mi defecto antes que yo.** Darle ámbito a los escaneos crudos
+introdujo cinco pérdidas silenciosas nuevas. El techo del corpus ajeno es cero y
+se puso rojo en la primera corrida. Emití el aviso que faltaba; el techo no se
+tocó. Es la primera vez en esta campaña que un gate me para a mí y no a un
+frente, y funcionó igual.
+
+**Una petición escrita con rigor puede tener un dato mal, y hay que medirlo
+igual.** P-evidencia-12 decía que los doce índices ACI del corpus vuelven
+idénticos: el corpus usa catorce y uno no vuelve. P-evidencia-11 decía que
+ningún fichero trae HATCH dentro de un bloque: `floorplan.dxf` trae trece. Las
+dos peticiones eran buenas y las dos habrían pasado sin comprobar. Aplicar una
+petición no es ejecutarla: es volver a medir lo que afirma.
+
+**La premisa falsa que corregí ayer se cobró hoy.** «La red sólo alcanza GitHub»
+era mía y era falsa. Con `ezdxf` instalado, la medición congelada del oráculo se
+regeneró: lee 5/5 ficheros donde antes leía 3. Sin eso, esta fase no habría
+podido cerrar ninguna de las cinco filas.

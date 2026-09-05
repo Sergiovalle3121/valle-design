@@ -236,6 +236,47 @@ const WARNING_RULES: Readonly<Record<string, WarningRule>> = {
       `${count} entidad(es) de espacio PAPEL (cajetín, marco, hojas) no entraron: este importador trae ` +
       "SOLO espacio modelo — el archivo de origen sigue teniendo sus hojas intactas.",
   },
+  // No es `lost`: no falta NADA del dibujo, porque en estas capas no había nada
+  // pintado. Falta su definición si el archivo vuelve al remitente, y ésa es la
+  // diferencia entre «degraded» y «lost» en esta tabla. Sin esta fila, el
+  // arquitecto veía una paleta de 17 capas donde su cliente tenía 24 y no había
+  // dónde enterarse.
+  // Sólo se emite para lo HUÉRFANO: lo que vive en una definición de bloque que
+  // ningún INSERT del dibujo —ni ninguna cota, que trae el suyo— alcanza. Lo
+  // que sí se inserta llega dibujado desde su bloque y no se avisa, porque un
+  // aviso que sale en todo dibujo normal no informa de nada.
+  //
+  // No es `lost` y hay que razonarlo: no falta nada de lo que se VEÍA, porque
+  // nada de esto se dibujaba. Es `degraded` porque el archivo del remitente lo
+  // trae y el que le devuelvas no lo va a traer.
+  entity_in_block_definition: {
+    fidelity: "degraded",
+    detail: (count, types) =>
+      `${count} entidad(es) (${TYPES(types)}) viven dentro de definiciones de bloque que nada del ` +
+      "dibujo inserta, así que no se dibujaban y no llegan al documento. No falta nada de lo que " +
+      "veías; sí faltará en el archivo si se lo devuelves al remitente.",
+  },
+  layer_table_pruned: {
+    fidelity: "degraded",
+    detail: (count) =>
+      `${count} capa(s) del archivo se quedaron fuera del documento porque ninguna entidad ` +
+      "las usa. No falta nada del dibujo: falta la definición de esas capas si devuelves el " +
+      "archivo al remitente.",
+  },
+  // La spline venía fuera del plano del suelo —en un plano inclinado, elevada,
+  // o con cota en textos e inserciones— y entra aplanada. El código lo emitía
+  // `dxf-import-cota.ts` desde la Ola C y esta tabla no lo tenía, así que el
+  // informe caía al comodín: «una incidencia todavía sin describir», y encima
+  // clasificada como `lost` por el valor por defecto. Las dos cosas mal a la
+  // vez, porque la geometría SÍ entró.
+  flattened_to_ground: {
+    fidelity: "degraded",
+    detail: (count, types) =>
+      `${count} entidad(es) (${TYPES(types)}) venían fuera del plano del suelo —en un plano ` +
+      "inclinado, elevadas sobre su plano, o con cota en textos e inserciones— y entran " +
+      "aplanadas contra el suelo: cambian de sitio y pueden cambiar de longitud. El documento " +
+      "todavía no guarda un plano inclinado.",
+  },
 };
 
 /** Avisos agrupados por código, con los tipos DXF que los provocaron. */

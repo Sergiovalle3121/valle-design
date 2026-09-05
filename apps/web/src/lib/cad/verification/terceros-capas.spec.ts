@@ -38,23 +38,29 @@ import {
  * entidades USAN, con lo que la tabla declare de cada una. En este fichero eso
  * da la respuesta correcta; el caso donde no la da ya está medido y pedido.
  *
- * ─── LO QUE ESTA SUITE DESTAPÓ, Y NO SE ESCONDE ────────────────────────────
+ * ─── LO QUE ESTA SUITE DESTAPÓ, Y QUE YA ESTÁ ARREGLADO ────────────────────
  *
- * El COLOR de la capa del remitente no llega, y nadie lo dice. `document-import`
- * asigna el color por POSICIÓN ALFABÉTICA sobre una paleta de cinco
- * (`#ffffff`, `#ff5252`, `#4fc3f7`, `#ffd54f`, `#81c784`) y descarta el código
- * 62 del fichero; el exportador, a su vez, escribe `62 7` para todas. En
- * `layers.dxf` la rotación cae de forma que el resultado PARECE bien —rojo
- * donde había rojo—, y ése es justo el peligro. En `floorplan.dxf`, con
- * veinticuatro capas, se ve el error en las dos direcciones a la vez: tres
- * capas que el remitente pintó IGUAL (ACI 4) salen de tres colores, y cuatro
- * que pintó DISTINTO salen del mismo. El informe de importación dice «Entró
- * completo, sin pérdidas».
+ * Esta suite nació midiendo un defecto: el COLOR de la capa del remitente no
+ * llegaba, y nadie lo decía. `document-import` asignaba el color por POSICIÓN
+ * ALFABÉTICA sobre una paleta de cinco y descartaba el código 62 del fichero
+ * —que ya venía leído—; el exportador, a su vez, escribía `62 7` para todas.
+ * En `layers.dxf` la rotación caía de forma que el resultado PARECÍA bien
+ * —rojo donde había rojo—, y ése era justo el peligro. En `floorplan.dxf`, con
+ * veinticuatro capas, se veía el error en las dos direcciones a la vez: tres
+ * capas que el remitente pintó IGUAL (ACI 4) salían de tres colores, y cuatro
+ * que pintó DISTINTO salían del mismo. El informe decía «Entró completo, sin
+ * pérdidas» encima de todo eso.
  *
- * Es una pérdida SILENCIOSA de propiedad. No contradice el techo de cero
- * pérdidas silenciosas de `dxf-corpus-terceros-matrix.json`: aquel cuenta
- * ENTIDADES y esto es una PROPIEDAD, un ámbito que aquella matriz no mira. Va
- * como P-evidencia-12, con el diseño completo escrito.
+ * **P-evidencia-12 entró el 2026-09-05** y la suite cambió de oficio: donde
+ * afirmaba el defecto, ahora afirma que el color del remitente sobrevive el
+ * viaje entero y que el fichero que devolvemos lleva sus índices. Las mismas
+ * cifras que medían el daño —los índices que se abrían y los colores que se
+ * juntaban— siguen aquí puestas a CERO, que es como se impide que vuelva.
+ *
+ * Lo que el arreglo NO da, y se dice: siete de los 255 índices no vuelven con
+ * su número (10, 50, 90, 130, 170, 210 y 255). Son los duplicados de la propia
+ * paleta ACI —1/10, 2/50 … 7/255 son el mismo RGB—, así que cambia el número
+ * del índice y no el color que ve nadie. Medido sobre los 255, no supuesto.
  */
 
 const AJENO = abreAjeno("layers");
@@ -62,15 +68,20 @@ const PLANO = abreAjeno("floorplan");
 const ESPEC = "apps/web/src/lib/cad/verification/terceros-capas.spec.ts";
 
 /**
- * TECHO: capas del fichero cuyo color sobrevive el viaje. Sólo puede SUBIR.
+ * PISO: capas del fichero cuyo color sobrevive el viaje. Sólo puede SUBIR.
  *
- * Es el único techo de esta suite que se declara al revés que los demás, y por
- * una razón: hoy vale cero, y un techo que sólo puede bajar desde cero no dice
- * nada. Cuando P-evidencia-12 entre, esta cifra sube a 3 y el spec lo exige.
+ * Es el único umbral de esta suite que se declara al revés que los demás, y por
+ * una razón: valía cero, y un techo que sólo puede bajar desde cero no dice
+ * nada. Con P-evidencia-12 dentro son las TRES capas del fichero, y el spec lo
+ * exige; bajar de aquí es devolverle al remitente un plano que él no mandó.
  */
-const PISO_COLORES_QUE_SOBREVIVEN = 0;
+const PISO_COLORES_QUE_SOBREVIVEN = 3;
 
-/** La paleta de cinco que el importador reparte por posición alfabética. */
+/**
+ * La paleta de cinco que el importador repartía por posición alfabética. Sigue
+ * en el árbol como RESPALDO —una capa sin código 62 necesita algún color— y
+ * sigue nombrada aquí para poder afirmar que ya no PISA al que sí venía.
+ */
 const PALETA = ["#ffffff", "#ff5252", "#4fc3f7", "#ffd54f", "#81c784"] as const;
 
 /**
@@ -193,7 +204,7 @@ const colores: Array<{ capa: string; aciDelFichero: number; realDeEseAci: string
     eqMagnitud(capa.visible, !b.apagada, `${capa.name}: encendida como en el fichero`);
     eqMagnitud(capa.locked, b.bloqueada, `${capa.name}: sin bloquear, como en el fichero`);
     eqMagnitud(capa.frozen ?? false, b.congelada, `${capa.name}: sin congelar, como en el fichero`);
-    // COLOR: aquí es donde se rompe.
+    // COLOR: aquí es donde se rompía, y donde ahora se guarda.
     const real = ACI_REAL[b.color];
     ok(real !== undefined, `${capa.name}: el índice ACI ${b.color} no está en la tabla declarada de esta suite`);
     colores.push({
@@ -204,22 +215,31 @@ const colores: Array<{ capa: string; aciDelFichero: number; realDeEseAci: string
       sobrevive: capa.color.toLowerCase() === real,
     });
   }
-  // La afirmación se hace por posición en la paleta, que es lo que demuestra
-  // que el color NO se lee: sale del orden alfabético del nombre.
-  for (const [indice, capa] of capasDelLector.entries())
+  // La afirmación se hace contra el ÍNDICE DEL FICHERO, que es lo que demuestra
+  // que el color se lee: ya no sale del orden alfabético del nombre.
+  for (const fila of colores)
     eq(
-      capa.color,
-      PALETA[indice % PALETA.length],
-      `${capa.name}: el color que da el lector es el ${indice}º de la paleta, no el del fichero`,
+      fila.queDaElLector.toLowerCase(),
+      fila.realDeEseAci,
+      `${fila.capa}: el lector da el color del índice ACI ${fila.aciDelFichero} que puso el remitente`,
     );
   const sobreviven = colores.filter((fila) => fila.sobrevive).length;
-  // Sólo `0` (ACI 7 → blanco) coincide, y por casualidad: es el primero de la
-  // paleta y el blanco del índice a la vez.
-  eq(sobreviven, 1, "de las tres capas sólo el color de `0` coincide, y coincide por casualidad");
+  eq(sobreviven, 3, "las tres capas conservan el color que mandó el remitente");
   eq(
-    colores.filter((fila) => fila.capa !== "0" && fila.sobrevive).length,
+    sobreviven,
     PISO_COLORES_QUE_SOBREVIVEN,
-    "ninguna capa con color propio conserva su color. Este piso sólo puede SUBIR: cuando entre P-evidencia-12 vale 3.",
+    "el piso de colores que sobreviven. Sólo puede SUBIR: bajarlo es devolver un plano que el remitente no mandó.",
+  );
+  // Y la contraprueba de que el arreglo no es «otra paleta»: si el color
+  // saliera todavía de la posición alfabética, las tres coincidirían con la
+  // paleta de respaldo. `dashedred` (ACI 1) es la que lo delata — la paleta le
+  // daba `#ff5252` y el fichero dice `#ff0000`, dos rojos distintos.
+  const porPosicion = capasDelLector.filter(
+    (capa, indice) => capa.color === PALETA[indice % PALETA.length],
+  );
+  ok(
+    porPosicion.length < capasDelLector.length,
+    "el color ya no sale de la posición alfabética sobre la paleta de respaldo",
   );
 }
 
@@ -245,35 +265,42 @@ const colision = { igualesQueSeSeparan: 0, distintasQueSeJuntan: 0, capasDelPlan
   }
   for (const nuestros of porAci.values()) if (nuestros.size > 1) colision.igualesQueSeSeparan += 1;
   for (const acis of porColorNuestro.values()) if (acis.size > 1) colision.distintasQueSeJuntan += 1;
-  ok(
-    colision.igualesQueSeSeparan > 0,
-    "hay índices ACI que el remitente usó en varias capas y que salen de colores distintos",
-  );
-  ok(
-    colision.distintasQueSeJuntan > 0,
-    "hay colores nuestros que juntan capas que el remitente pintó de índices distintos",
-  );
   eq(colision.capasDelPlano, 17, "el plano ajeno llega con diecisiete capas (la poda de la tabla es P-evidencia-09)");
-  eq(colision.igualesQueSeSeparan, 4, "cuatro índices ACI del plano se abren en varios colores nuestros");
-  eq(colision.distintasQueSeJuntan, 5, "los cinco colores de la paleta juntan cada uno capas de índices distintos");
+  // Las dos cifras que medían el daño, ahora en cero. Se quedan escritas —en
+  // vez de borrar la sección— porque un cero afirmado sobre veinticuatro capas
+  // ajenas es lo que impide que el defecto vuelva sin que nadie se entere.
+  eq(
+    colision.igualesQueSeSeparan,
+    0,
+    "ningún índice ACI del plano se abre ya en varios colores nuestros (medía 4 antes de P-evidencia-12)",
+  );
+  eq(
+    colision.distintasQueSeJuntan,
+    0,
+    "ningún color nuestro junta ya capas que el remitente pintó de índices distintos (medía 5 antes)",
+  );
 }
 
-// --- 5. y el informe no lo menciona ----------------------------------------
+// --- 5. y ahora el informe puede decirlo sin mentir ------------------------
 {
   eq(informe.warnings, [], "el lector no emite ni un aviso sobre layers.dxf");
   eq(informe.dxfReport?.hasLosses, false, "el informe declara que no hubo pérdidas");
   ok(
     /sin pérdidas/u.test(informe.dxfReport?.headline ?? ""),
-    "el titular del informe dice literalmente «sin pérdidas» mientras el color de las tres capas se quedó por el camino",
+    "el titular del informe dice literalmente «sin pérdidas»",
   );
+  // Esta afirmación es la que cambió de significado sin cambiar de letra. Antes
+  // el informe callaba una pérdida que esta misma suite medía dos secciones más
+  // arriba; hoy calla porque no hay ninguna. Un informe que no habla del color
+  // sólo es honesto si el color llega, y las secciones 3, 4 y 6 lo exigen.
   const codigos = (informe.dxfReport?.rows ?? []).map((fila) => fila.code);
   ok(
     !codigos.some((codigo) => /color/u.test(codigo)),
-    "no hay ninguna fila del informe que hable del color: la pérdida es silenciosa, que es la categoría peor",
+    "no hay ninguna fila del informe que hable del color, y ya no hace falta que la haya",
   );
 }
 
-// --- 6. y la vuelta tampoco lo arregla -------------------------------------
+// --- 6. y la vuelta lo devuelve con sus colores ----------------------------
 const escritos: Array<{ capa: string; aciEscrito: number }> = [];
 {
   const salida = exportCadDocumentDxf(documento).content;
@@ -294,11 +321,19 @@ const escritos: Array<{ capa: string; aciEscrito: number }> = [];
     medidaB.capasEnElFichero,
     "y con los nombres del remitente",
   );
+  // El viaje entero, índice a índice: lo que el remitente escribió en su tabla
+  // es lo que sale en la nuestra. Es la mitad de vuelta de P-evidencia-12, y
+  // sin ella el arreglo del importador se quedaría dentro del navegador.
+  const aciDelFichero = new Map(medidaB.capasSegunElOraculo.map((capa) => [capa.nombre, capa.color]));
   for (const fila of escritos)
-    eq(fila.aciEscrito, 7, `${fila.capa}: sale escrita con color 7 (blanco), sea cual fuera el que llegó`);
+    eqMagnitud(
+      fila.aciEscrito,
+      aciDelFichero.get(fila.capa),
+      `${fila.capa}: vuelve al fichero con el índice ACI que el remitente le puso`,
+    );
   ok(
-    new Set(escritos.map((fila) => fila.aciEscrito)).size === 1,
-    "el dibujo que devolvemos es MONOCROMO por tabla de capas, y el remitente lo mandó en tres colores",
+    new Set(escritos.map((fila) => fila.aciEscrito)).size === 3,
+    "el dibujo que devolvemos sale en los tres colores en que llegó; antes salía monocromo por tabla de capas",
   );
   // El resto de la tabla sí vuelve bien, y decirlo importa tanto como lo otro.
   ok(salida.includes("DASHED2"), "el tipo de línea del remitente sí vuelve en la tabla LAYER");
@@ -369,23 +404,29 @@ publicaRenglon({
     {
       id: "color-de-capa-descartado",
       que:
-        "El color de la capa del remitente no se lee (el importador reparte una paleta de cinco por posición alfabética y descarta el código 62) y no se escribe (el exportador pone `62 7` en todas). El informe dice «Entró completo, sin pérdidas». En floorplan.dxf, con 24 capas, se ve en las dos direcciones: " +
-        `${colision.igualesQueSeSeparan} índices ACI que el remitente usó en varias capas salen de colores distintos, y los ${colision.distintasQueSeJuntan} colores de la paleta juntan cada uno capas de índices distintos.`,
-      silencioso: true,
-      peticion: "P-evidencia-12",
+        "ARREGLADO el 2026-09-05 (P-evidencia-12). El importador leía el código 62 y lo tiraba —repartía una paleta de cinco por posición alfabética— y el exportador escribía `62 7` en todas, así que el plano volvía monocromo mientras el informe decía «Entró completo, sin pérdidas». Hoy `buildLayers` usa el `colorIndex` que ya viajaba y `cadDocumentDxfLayerDefinitions` lo devuelve. Las tres capas de layers.dxf conservan su color y vuelven con su índice; sobre las 24 de floorplan.dxf, los índices que se abrían en varios colores y los colores que juntaban índices distintos están los dos en CERO (medían 4 y 5).",
+      silencioso: false,
+      peticion: null,
+    },
+    {
+      id: "indices-aci-duplicados-que-no-vuelven-con-su-numero",
+      que:
+        "Lo que el arreglo NO da, medido sobre los 255 índices: siete (10, 50, 90, 130, 170, 210, 255) vuelven con OTRO número. Son los duplicados de la propia paleta ACI —1/10, 2/50 … 7/255 son el mismo RGB—, así que el color que ve el remitente es idéntico y lo que cambia es la etiqueta. Ninguna capa de este corpus lo sufre; se declara porque se midió, no porque haya pasado.",
+      silencioso: false,
+      peticion: null,
     },
     {
       id: "lo-que-si-viaja",
-      que: "Tipo de línea, grosor (con su conversión de unidades), encendido, bloqueo y congelado llegan intactos en las tres capas, y el tipo de línea vuelve al fichero. La fila no está rota entera: está rota en una propiedad.",
+      que: "Tipo de línea, grosor (con su conversión de unidades), encendido, bloqueo y congelado llegan intactos en las tres capas, y el tipo de línea vuelve al fichero. Con el color dentro, la fila viaja entera en las dos direcciones.",
       silencioso: false,
       peticion: null,
     },
   ],
-  veredicto: "bloqueado_por_defecto_medido",
+  veredicto: "servible_hoy",
   porQueEseVeredicto:
-    "Un testigo ajeno mide que el color de la capa se pierde en los dos sentidos sin un solo aviso. Conceder el tope de «Capas y propiedades» encima de una pérdida silenciosa medida es el caso exacto que la regla del corte inventó para impedir. Sale de aquí con P-evidencia-12, no antes.",
+    "El testigo ajeno que bloqueaba esta fila medía una pérdida silenciosa de propiedad —el color de la capa, en los dos sentidos— y ese defecto está arreglado y guardado por esta misma suite: las tres capas conservan su color, vuelven al fichero con su índice, y las dos cifras de colisión sobre veinticuatro capas ajenas están en cero. El mapa de capas del remitente llega y vuelve.",
   loQueNoSeMide:
-    "Los 256 índices ACI: sólo se afirman los cuatro que estos dos ficheros usan (1, 4, 5 y 7). Tampoco se mide el color por ENTIDAD (código 62 en la entidad, no en la capa), ni la transparencia, ni el estilo de trazado; ningún fichero del corpus los trae con variedad suficiente.",
+    "Los 256 índices ACI: sólo se afirman contra material ajeno los cuatro que estos dos ficheros usan (1, 4, 5 y 7); la ida y vuelta de los 255 se midió aparte y está en el hallazgo de los duplicados. Tampoco se mide el color por ENTIDAD (código 62 en la entidad, no en la capa), ni la transparencia, ni el estilo de trazado; ningún fichero del corpus los trae con variedad suficiente.",
 });
 
 console.log(
@@ -393,6 +434,7 @@ console.log(
     `contrastados contra ezdxf 1.4.4 sobre ${AJENO.bytes} y ${PLANO.bytes} bytes que no escribimos`,
 );
 console.log(
-  "  · TODAVÍA NO (2026-09-05): el color de la capa del remitente se pierde en los dos sentidos y en silencio " +
-    `(${colision.igualesQueSeSeparan} índices que se abren y ${colision.distintasQueSeJuntan} colores que se juntan en floorplan.dxf). P-evidencia-12.`,
+  `  · el color del remitente sobrevive el viaje entero: ${PISO_COLORES_QUE_SOBREVIVEN}/3 capas conservan el suyo y ` +
+    `vuelven al fichero con su índice ACI; sobre las ${colision.capasDelPlano} capas del plano grande, ` +
+    `${colision.igualesQueSeSeparan} índices que se abren y ${colision.distintasQueSeJuntan} colores que se juntan (medían 4 y 5 antes de P-evidencia-12).`,
 );

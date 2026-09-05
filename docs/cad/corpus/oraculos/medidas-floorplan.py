@@ -278,39 +278,59 @@ PREAMBULO = {"5", "8", "6", "62", "48", "67", "370", "410", "420", "440", "330",
 
 
 def parche_subclases(texto):
-    """Inserta `100 AcDbEntity` y `100 AcDb<Tipo>` en MTEXT y HATCH.
+    """Inserta `100 AcDbEntity` y `100 AcDb<Tipo>` en MTEXT y HATCH que no los traigan.
 
-    No toca el producto: opera sobre el texto ya exportado. Es la mitad
-    medible de la peticion P-evidencia-07 — si tras esto `ezdxf` abre el
-    archivo, el arreglo propuesto es exactamente ese y no una conjetura.
+    No toca el producto: opera sobre el texto ya exportado. Era la mitad
+    medible de la peticion P-evidencia-07 — si tras esto `ezdxf` abria el
+    archivo, el arreglo propuesto era exactamente ese y no una conjetura.
+
+    P-evidencia-07 ENTRO el 2026-09-05 y el producto ya escribe los dos
+    marcadores, asi que este experimento se queda como CONTROL: cuenta cuantas
+    entidades hubo que parchear, y el numero correcto es ahora cero. Saltarse
+    las que ya los traen no es cortesia — sin eso el parche los DUPLICA y
+    rompe el archivo, que fue exactamente lo que paso la primera vez que se
+    corrio este script despues del arreglo.
     """
     lineas = texto.split("\n")
     pares = [(lineas[i].strip(), lineas[i + 1] if i + 1 < len(lineas) else "") for i in range(0, len(lineas) - 1, 2)]
     salida = []
     i = 0
     parcheadas = 0
+    yaLosTraian = 0
     while i < len(pares):
         codigo, valor = pares[i]
         salida.append((codigo, valor))
         if codigo == "0" and valor.strip() in SUBCLASES:
+            tipo = valor.strip()
+            # ¿Los trae ya? Se mira el preambulo de ESTA entidad, hasta el
+            # siguiente `0`, sin consumirlo: si el marcador esta, no se toca.
+            j = i + 1
+            preambulo = []
+            while j < len(pares) and pares[j][0] != "0":
+                preambulo.append(pares[j])
+                j += 1
+            if any(c == "100" and v.strip() == SUBCLASES[tipo] for c, v in preambulo):
+                yaLosTraian += 1
+                i += 1
+                continue
             salida.append(("100", "AcDbEntity"))
             i += 1
             while i < len(pares) and pares[i][0] in PREAMBULO:
                 salida.append(pares[i])
                 i += 1
-            salida.append(("100", SUBCLASES[valor.strip()]))
+            salida.append(("100", SUBCLASES[tipo]))
             parcheadas += 1
             continue
         i += 1
-    return "\n".join(f"{c}\n{v}" for c, v in salida) + "\n", parcheadas
+    return "\n".join(f"{c}\n{v}" for c, v in salida) + "\n", parcheadas, yaLosTraian
 
 
 TMP = pathlib.Path(tempfile.gettempdir())
 EXPORTADOS = [
     ("jornada-completa", "El plano ajeno abierto, movido, ampliado y exportado entero."),
     ("jornada-sin-mtext-ni-hatch", "Lo mismo sin los dos tipos que el oraculo B rechaza."),
-    ("jornada-solo-mtext", "Solo los 144 MTEXT, para aislar el fallo."),
-    ("jornada-solo-hatch", "Solo los 26 HATCH, para aislar el fallo."),
+    ("jornada-solo-mtext", "Solo los MTEXT de espacio modelo, para aislar el fallo."),
+    ("jornada-solo-hatch", "Solo los HATCH de espacio modelo, para aislar el fallo."),
 ]
 
 archivos = [medida_de_archivo(PLANO, "origen/floorplan.dxf")]
@@ -329,9 +349,16 @@ for nombre, porQue in EXPORTADOS:
 experimento = None
 completa = TMP / "valle-jornada-completa.dxf"
 if completa.exists():
-    texto, parcheadas = parche_subclases(completa.read_text(encoding="utf8"))
+    texto, parcheadas, yaLosTraian = parche_subclases(completa.read_text(encoding="utf8"))
     fila = {
         "entidadesParcheadas": parcheadas,
+        "entidadesQueYaLosTraian": yaLosTraian,
+        "queSignifica": (
+            "Este experimento existia para PROBAR P-evidencia-07 antes de pedirla: parcheaba los "
+            "marcadores de subclase sobre el texto ya exportado y volvia a leerlo. Desde que el "
+            "producto los escribe (2026-09-05) es un CONTROL, y su lectura correcta es "
+            "entidadesParcheadas = 0 con entidadesQueYaLosTraian = todas."
+        ),
         "sha256Origen": hashlib.sha256(completa.read_bytes()).hexdigest(),
     }
     try:

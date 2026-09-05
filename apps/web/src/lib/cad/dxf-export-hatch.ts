@@ -35,7 +35,12 @@ export function pushHatch(lines: string[], layer: string, hatch: CadDxfExportHat
   const origin = hatch.origin ?? boundaries[0]?.[0] ?? { x: 0, y: 0 };
   const islandStyle = hatch.islandStyle === "outer" ? 1 : hatch.islandStyle === "ignore" ? 2 : 0;
   pushPair(lines, 0, "HATCH");
+  // Mismo motivo que en MTEXT: sin `100 AcDbHatch`, `ezdxf` ni siquiera da un
+  // error de estructura — revienta con IndexError en polygon.py, que es peor,
+  // porque se lleva por delante el fichero entero y no dice de quién es la culpa.
+  pushPair(lines, 100, "AcDbEntity");
   pushPair(lines, 8, layer);
+  pushPair(lines, 100, "AcDbHatch");
   pushPoint(lines, { x: 0, y: 0 }); // punto de elevación (siempre 0 en 2D)
   pushPair(lines, 210, "0");
   pushPair(lines, 220, "0");

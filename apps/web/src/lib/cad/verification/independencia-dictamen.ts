@@ -127,79 +127,30 @@ export const DICTAMENES: Record<string, Dictamen> = {
    * testigo y el límite de cada parche) y en las entradas `independent: true`
    * que ahora lleva la rúbrica.
    */
-  /* ── Las seis que se pueden servir hoy ───────────────────────────────── */
+  /* ── LAS CINCO QUE SALIERON EL 2026-09-05 ────────────────────────────────
+   *
+   * `dimensions`, `hatch`, `mtext`, `layers` e `integrity` tenían aquí su
+   * dictamen con veredicto `bloqueado_por_defecto_medido`: un testigo ajeno
+   * decía que NO sobre el criterio candidato de cada una, y ninguna podía
+   * cobrar su punto encima de un defecto silencioso medido.
+   *
+   * Los cinco defectos están arreglados —los marcadores de subclase que
+   * impedían que nadie abriera lo que exportamos, el color de capa que volvía
+   * monocromo el plano del remitente, el rótulo de cota escrito dos veces, las
+   * siete capas podadas sin aviso y las 63 cotas declaradas perdidas que sí
+   * entraban— y las cinco filas llegan a su tope con evidencia `independent`
+   * en la rúbrica. Salen de aquí porque este censo describe las filas que
+   * TODAVÍA retienen su punto, y el spec lo exige por los dos lados.
+   *
+   * El razonamiento no se pierde: vive en las suites de terceros, que pasaron
+   * de afirmar cada defecto a guardar que no vuelva, y en
+   * `docs/execution/frentes/evidencia-peticiones.md`.
+   */
 
-  dimensions: {
-    candidato: "dimensions.dxf",
-    porQueEseCandidato:
-      "Es el criterio de ida y vuelta por DXF, y la ida y vuelta de las 63 cotas del plano ajeno está medida a los dos lados con lectores que no son nuestros.",
-    // CAMBIÓ EL 2026-09-05, y el cambio va explicado porque baja el total que
-    // este mismo censo publicó ayer. La jornada midió que las 63 medidas de
-    // cota sobreviven el viaje, y eso sigue siendo verdad. Lo que no sabía es
-    // lo que destapó `terceros-cota-sombreado.spec.ts` sobre un fichero de dos
-    // cotas: cada cota ajena llega con su rótulo escrito DOS VECES —el que la
-    // cota dibuja sola y el MTEXT que el lector saca del bloque de dibujo, en
-    // el mismo punto y con la misma altura— y ningún aviso lo menciona.
-    //
-    // Conceder el tope de «Cotas asociativas» encima de un defecto silencioso
-    // medido sobre el objeto propio de la fila es exactamente lo que este censo
-    // le negó a `layers` y a `integrity`. Aplicárselo a unas filas y no a otras
-    // sería peor que no tener regla.
-    veredicto: "bloqueado_por_defecto_medido",
-    loQueDiceElTestigo:
-      "La MEDIDA viaja bien y está medida dos veces: ezdxf lee 63 DIMENSION en el plano ajeno y da sus 63 medidas, nuestro lector trae las 63, el exportador las escribe y dxf-parser las reencuentra en el código 42 dentro de 1,5e-6 por segmento; sobre dimensions.dxf, ezdxf mide 80 y 30 y el producto recalcula 80 y 30. Pero el mismo testigo dice que cada cota ajena llega con su número escrito dos veces: nueve entidades donde ezdxf cuenta siete, porque el MTEXT del bloque de dibujo (*D1, *D2) sale además como entidad suelta en el punto del rótulo. Sin un aviso.",
-    loQueFaltaria:
-      "Aplicar P-evidencia-11 (dar sección al escaneo crudo de MTEXT, para que un MTEXT de dentro de un BLOCK deje de salir a espacio modelo). Cuando eso entre, el parche vuelve a ser el de ayer —`terceros-jornada.spec.ts` como evidencia `independent: true` en `dimensions.dxf`— y hay que sumarle `terceros-cota-sombreado.spec.ts`. La otra mitad del límite sigue en pie y no la arregla nadie: la XDATA propietaria (AXOS_DIM) que el criterio nombra no la atestigua ningún fichero ajeno, porque no puede traerla.",
-    peticion: "P-evidencia-11",
-  },
 
-  hatch: {
-    candidato: "hatch.dxf",
-    porQueEseCandidato:
-      "Es el criterio de ida y vuelta de HATCH, y es justo el que el segundo oráculo destapó roto.",
-    veredicto: "bloqueado_por_defecto_medido",
-    loQueDiceElTestigo:
-      "La ida está bien: los 26 sombreados de floorplan.dxf entran intactos y ezdxf cuenta los mismos 26. La vuelta NO: `ezdxf` 1.4.4 revienta al abrir lo que exportamos (`IndexError` en `polygon.py:81`) porque nuestros HATCH salen sin `100 AcDbEntity` ni `100 AcDbHatch` aunque la cabecera declare AC1015, dialecto donde esos marcadores son obligatorios. Ni en modo `recover` lo abre.",
-    loQueFaltaria:
-      "Aplicar P-evidencia-07 (dos pares de códigos en `dxf-export-hatch.ts`). El arreglo está PROBADO antes de pedirlo: parcheando 170 entidades sobre el texto ya exportado, ezdxf abre el fichero entero y audita cero errores. Cuando eso entre, este parche pasa a `servible_hoy` con `terceros-jornada.spec.ts`.",
-    peticion: "P-evidencia-07",
-  },
 
-  mtext: {
-    candidato: "mtext.dxf",
-    porQueEseCandidato:
-      "Su texto dice «en los dos sentidos», y hoy un lector estricto sólo puede recorrer uno.",
-    veredicto: "bloqueado_por_defecto_medido",
-    loQueDiceElTestigo:
-      "Los 144 MTEXT de floorplan.dxf entran intactos y los dos oráculos cuentan 144; MTEXT es además el tipo mejor cubierto del corpus, intacto en siete archivos de las dos fuentes. Pero `ezdxf` rechaza nuestro fichero exportado con «missing 'AcDbMText' subclass in MTEXT(#None)». El oráculo A no lo veía porque es tolerante: hizo falta el segundo.",
-    loQueFaltaria:
-      "Aplicar P-evidencia-07 (los mismos dos pares de códigos, en `dxf-export.ts`). Marcar hoy este criterio independiente sería cobrar «viaja en los dos sentidos» con un lector ajeno diciendo que no viaja de vuelta.",
-    peticion: "P-evidencia-07",
-  },
 
-  layers: {
-    candidato: "layers.canonical",
-    porQueEseCandidato:
-      "Es el criterio del mapa DXF de capas, y la jornada midió ese mapa sobre una tabla LAYER ajena de 24 entradas.",
-    veredicto: "bloqueado_por_defecto_medido",
-    loQueDiceElTestigo:
-      "Son DOS defectos, y el segundo se midió el 2026-09-05 y es peor. (1) La poda: 24 capas declaradas en el plano ajeno, 17 en el documento, 23 en el fichero que devolvemos; no vuelven `Defpoints` ni `View Port`, las dos con causa conocida y daño cero al dibujo, pero ningún aviso lo menciona. (2) EL COLOR: el importador reparte una paleta de cinco por posición alfabética y descarta el código 62 —que ya viene leído en `colorIndex`—, y el exportador escribe `62 7` en todas, así que el dibujo del remitente vuelve MONOCROMO. Sobre las 24 capas de floorplan.dxf, 4 índices ACI que el remitente usó en varias capas salen de colores distintos y los 5 colores de la paleta juntan cada uno capas de índices distintos. El informe dice «Entró completo, sin pérdidas».",
-    loQueFaltaria:
-      "Aplicar P-evidencia-12 (usar `colorIndex` con `aciToHex`, que ya está en el árbol, y rellenar `color` al exportar; el viaje ACI→hex→ACI está PROBADO sobre los doce índices que este corpus usa) y P-evidencia-09 (el aviso `layer_table_pruned`). Conceder hoy el tope de «Capas y propiedades» con dos pérdidas silenciosas medidas encima —una de ellas el color entero del dibujo— sería el caso exacto que la regla del corte inventó para impedir.",
-    peticion: "P-evidencia-12",
-  },
 
-  integrity: {
-    candidato: "integrity.no-silent-loss",
-    porQueEseCandidato:
-      "«Ninguna pérdida es silenciosa» es la afirmación que la matriz mide de frente: `perdidosEnSilencio` es su cifra de cabecera.",
-    veredicto: "bloqueado_por_defecto_medido",
-    loQueDiceElTestigo:
-      "La matriz mide 0 pérdidas en silencio en 40 filas de 19 archivos ajenos con dos oráculos: todo lo que no llega, se avisa. Pero su ámbito son los TIPOS DE ENTIDAD, y fuera de ese ámbito ya van TRES pérdidas silenciosas medidas sobre material ajeno: siete capas declaradas de la tabla LAYER que no llegan al documento (P-evidencia-09), el COLOR de todas las capas del remitente, que ni se lee ni se escribe (P-evidencia-12), y el MTEXT de dentro de un bloque, que sale a espacio modelo sin la transformación acumulada y duplica el rótulo de cada cota ajena (P-evidencia-11). Ninguna la nombra un aviso.",
-    loQueFaltaria:
-      "Aplicar P-evidencia-09. La cifra de cabecera de la matriz es buena y este frente la firma; conceder con ella el tope de la fila que se llama «Integridad: el producto hace lo que dice», mientras el propio frente publica una pérdida silenciosa medida, sería la contradicción más cara del censo.",
-    peticion: "P-evidencia-09",
-  },
 
   layouts: {
     candidato: "layouts.fidelity",

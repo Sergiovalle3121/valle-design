@@ -40,16 +40,16 @@
   "actos": {
     "abrir": {
       "puerta": "importDocumentText — la misma que usa el estudio al soltar un fichero",
-      "entidades": 1109,
+      "entidades": 961,
       "bloques": 17,
       "porTipo": {
         "arc": 20,
         "circle": 9,
         "dimension": 63,
-        "hatch": 26,
+        "hatch": 13,
         "insert": 10,
         "line": 624,
-        "mtext": 144,
+        "mtext": 9,
         "polyline": 124,
         "text": 89
       },
@@ -58,9 +58,11 @@
       "avisos": {
         "linetype_complejo": 1,
         "foreign_dimension_detached": 63,
-        "unsupported_entity": 72
+        "unsupported_entity": 9,
+        "entity_in_block_definition": 85,
+        "layer_table_pruned": 7
       },
-      "cotasDeclaradasPerdidasQueSiEntraron": 63
+      "cotasDeclaradasPerdidasQueSiEntraron": 0
     },
     "medir": {
       "contra": "ezdxf sobre LOS MISMOS BYTES, por clave geométrica y comparación por bolsa",
@@ -119,7 +121,7 @@
           "y": 220.632868238436
         },
         "loDictaElOraculo": "la esquina inferior izquierda que midió ezdxf, para no medirnos a nosotros mismos",
-        "entidadesTocadas": 1109,
+        "entidadesTocadas": 961,
         "anchoTrasMover": 866.1524292261,
         "altoTrasMover": 572
       },
@@ -131,13 +133,13 @@
         "tipo": "circle",
         "cuantas": 9
       },
-      "entidadesAlFinal": 1101
+      "entidadesAlFinal": 953
     },
     "exportar": {
       "puerta": "exportCadDocumentDxf — el mismo que entrega DXFOUT",
-      "entidades": 1101,
-      "bytes": 421860,
-      "sha256": "06596418e7bf817cd2ceee033ec04aeaaacfa18899bc6283a1bf58353e79cfbe",
+      "entidades": 953,
+      "bytes": 398102,
+      "sha256": "ad3990fcb1c9e7b491441c42c0d1165bd4035e383d49bd0299b85ee52d4e8bbc",
       "perdidasDeclaradas": 0,
       "dialectoQueEscribimos": "AC1015 (R2000)",
       "notaDelDialecto": "El plano ajeno es AC1018 (R2004) y sale como AC1015 (R2000). Es una versión ANTERIOR, declarada en la cabecera: ningún lector se lleva una sorpresa, pero el fichero devuelto ya no es del dialecto en el que llegó.",
@@ -150,11 +152,11 @@
         "DIMENSION": 63,
         "INSERT": 10,
         "LINE": 625,
-        "MTEXT": 144,
+        "MTEXT": 9,
         "POLYLINE": 124,
         "TEXT": 89
       },
-      "hatchInvisible": "el oráculo A no trae manejador de HATCH: sus 26 sombreados no los cuenta nadie en esta banda",
+      "hatchInvisible": "el oráculo A no trae manejador de HATCH: sus 13 sombreados de espacio modelo no los cuenta nadie en esta banda",
       "tablaDeCapas": {
         "enElPlanoAjeno": 24,
         "enElDocumento": 17,
@@ -174,12 +176,9 @@
       "razonDeLaTolerancia": "fmt() escribe seis decimales; una coordenada trasladada se redondea a la millonésima, así que una longitud con dos extremos redondeados se mueve hasta 1,42e-6 por segmento."
     },
     "releerConOraculoB": {
-      "abreElFicheroCompleto": false,
+      "abreElFicheroCompleto": true,
       "porQueNo": "MTEXT y HATCH salen sin sus marcadores de subclase (100 AcDbEntity, 100 AcDbMText / 100 AcDbHatch) aunque la cabecera declare AC1015, donde son obligatorios. ezdxf revienta al cargarlos, incluso en modo `recover`.",
-      "tiposQueNoAbre": [
-        "HATCH",
-        "MTEXT"
-      ],
+      "tiposQueNoAbre": [],
       "loQueSiAbre": {
         "ARC": 20,
         "DIMENSION": 63,
@@ -192,16 +191,17 @@
         "errores": 0,
         "correcciones": 5
       },
-      "conElParcheDeSubclases": {
-        "entidadesParcheadas": 170,
+      "elControlDelParche": {
+        "entidadesParcheadas": 0,
+        "entidadesQueYaLosTraian": 22,
         "abre": true,
         "porTipo": {
           "ARC": 20,
           "DIMENSION": 63,
-          "HATCH": 26,
+          "HATCH": 13,
           "INSERT": 10,
           "LINE": 625,
-          "MTEXT": 144,
+          "MTEXT": 9,
           "POLYLINE": 124,
           "TEXT": 89
         },
@@ -209,19 +209,20 @@
           "errores": 0,
           "correcciones": 5
         },
-        "deQuienEsElArreglo": "P-evidencia-07 — pedido con este experimento como prueba, no a ciegas"
+        "deQuienEsElArreglo": "P-evidencia-07 — pedido con este experimento como prueba y no a ciegas; entró el 2026-09-05, así que el experimento pasó a ser el control que lo guarda: 0 entidades que parchear"
       }
     }
   },
-  "loQueLaJornadaDestapo": [
-    "P-evidencia-07 · ezdxf no abre lo que exportamos: MTEXT y HATCH sin marcador de subclase. Probado que con los marcadores insertados sí abre las 1101 entidades y audita cero errores.",
-    "P-evidencia-08 · el informe de importación declara PERDIDAS 63 cotas que SÍ entraron: el mapa de primitivas emite unsupported_entity por cada DIMENSION mientras el camino semántico las importa.",
-    "P-evidencia-09 · el documento se queda con 17 de las 24 capas del fichero y el que devolvemos declara 23 (las de dentro de los bloques vuelven a escribirse): de las suyas no vuelven `Defpoints` y `View Port`, y ningún aviso menciona nada de esto. No cambia el dibujo; el silencio sí importa."
+  "loQueLaJornadaDestapoYQueYaEstaArreglado": [
+    "P-evidencia-07 · ezdxf NO abría lo que exportamos: MTEXT y HATCH salían sin marcador de subclase, y la biblioteca reventaba antes de leer el fichero, ni en modo recover. Arreglado el 2026-09-05: abre el fichero entero con cero errores de auditoría, y el control del parche dice que ya no hay ninguna entidad que parchear.",
+    "P-evidencia-08 · el informe de importación declaraba PERDIDAS 63 cotas que SÍ entraron —el mapa de primitivas emitía unsupported_entity por cada DIMENSION mientras el camino semántico las importaba— y aconsejaba pedir al remitente que las explotase, que le habría hecho perder cotas vivas. Arreglado: las pérdidas declaradas bajan de 72 a las 9 reales (6 LEADER, 3 VIEWPORT).",
+    "P-evidencia-09 · el documento se queda con 17 de las 24 capas del fichero, y ningún aviso lo mencionaba. Arreglado: `layer_table_pruned` nombra las siete, una por una. No cambia el dibujo; el silencio sí importaba.",
+    "P-evidencia-11 · los escaneos crudos de MTEXT y HATCH no sabían en qué sección estaban y sacaban a espacio modelo lo que vive dentro de un BLOCK, con las coordenadas locales del bloque: 135 rótulos y 13 sombreados de este plano, todos en definiciones que ningún INSERT alcanza. Arreglado: el censo del lector coincide ahora con el del oráculo, tipo a tipo."
   ],
   "loQueNoSeMide": [
     "El espacio papel: el lector lo excluye a propósito y este plano tiene un Layout1 con 3 VIEWPORT.",
     "El contenido de los 17 bloques: se comparan las inserciones, no lo que hay dentro de cada uno.",
-    "Los 6 LEADER y los 9 MTEXT de espacio modelo que el oráculo B cuenta: el lector devuelve MTEXT sin dueño (144 en todo el archivo), así que no hay ámbito comparable para ellos.",
+    "Los 6 LEADER: el lector no los soporta y lo declara, así que no hay ámbito comparable para ellos. Los 9 MTEXT de espacio modelo SÍ se comparan ya: desde P-evidencia-11 los dos lados hablan del mismo ámbito, que es lo que hacía falta para poder compararlos.",
     "El aspecto: que un número sea correcto no dice que el plano se vea igual."
   ],
   "loQueNoAcredita": "Ni ezdxf ni dxf-parser son AutoCAD. Esta jornada acredita que un plano ajeno de 1,1 MB entra, se mide igual que en una implementación independiente, se modifica, se exporta y lo vuelve a leer otro programa. No acredita compatibilidad con AutoCAD, que sólo la acredita AutoCAD.",

@@ -36,7 +36,8 @@ import {
   releerConOraculoA,
   releerConOraculoB,
 } from "./terceros-jornada-relectura";
-import { aplica, conduce, contexto, designa, intro, punto } from "./terceros-jornada-comandos";
+import { DECLARACIONES_DE_LA_JORNADA } from "./terceros-jornada-declaraciones";
+import { modificaElPlanoAjeno } from "./terceros-jornada-modificacion";
 
 /**
  * LA JORNADA COMPLETA SOBRE EL PLANO DE OTRO.
@@ -137,25 +138,27 @@ const TOL_ESCRITURA_POR_SEGMENTO = 1.5e-6;
 /**
  * TECHO: tipos que el oráculo B NO consigue abrir en lo que escribimos.
  *
- * Medido, no elegido, y sólo puede BAJAR. Hoy son dos, y por la misma causa
- * (marcadores de subclase que no emitimos). El día que se emitan, esta lista
- * se queda vacía y este spec lo exige. Subirla sería declarar que escribimos
- * un tipo más que nadie más puede leer.
+ * Medido, no elegido, y sólo puede BAJAR. Eran dos —HATCH y MTEXT, por la misma
+ * causa: los marcadores de subclase que no emitíamos— y está VACÍO desde el
+ * 2026-09-05, cuando P-evidencia-07 los escribió. Subirlo sería declarar que
+ * escribimos un tipo más que nadie más puede leer.
  */
-const TECHO_TIPOS_QUE_EL_ORACULO_B_NO_ABRE = ["HATCH", "MTEXT"] as const;
+const TECHO_TIPOS_QUE_EL_ORACULO_B_NO_ABRE: readonly string[] = [];
 
 /**
  * TECHO: entidades que el informe de importación declara PERDIDAS y que sí
  * entraron.
  *
- * Son las 63 DIMENSION: el mapa de primitivas emite `unsupported_entity` por
- * cada una mientras el camino semántico las importa, así que el informe le
- * dice al arquitecto «72 entidad(es) de tipo DIMENSION, LEADER, VIEWPORT no
- * entraron» y dos filas más abajo «63 cotas entran vivas». Las dos frases no
- * pueden ser verdad a la vez. Está pedido en P-evidencia-08; el techo sólo
- * puede bajar, y cuando llegue a cero esta constante se borra.
+ * Eran las 63 DIMENSION: el mapa de primitivas emitía `unsupported_entity` por
+ * cada una mientras el camino semántico las importaba, así que el informe le
+ * decía al arquitecto «72 entidad(es) de tipo DIMENSION, LEADER, VIEWPORT no
+ * entraron» —y le aconsejaba pedir que las explotasen, que le habría hecho
+ * perder cotas vivas— dos filas antes de contarlas como cotas vivas. Las dos
+ * frases no podían ser verdad a la vez. P-evidencia-08 lo arregló el
+ * 2026-09-05 y el techo está en CERO: la constante se queda para que el día
+ * que vuelva a subir haya algo que se ponga rojo.
  */
-const TECHO_DECLARADAS_PERDIDAS_PERO_ENTRARON = 63;
+const TECHO_DECLARADAS_PERDIDAS_PERO_ENTRARON = 0;
 
 /* ══════════════════════════════════════════════════════════════════════════
    ENTRADAS: EL PLANO AJENO Y LA MEDICIÓN CONGELADA DEL ORÁCULO B
@@ -202,21 +205,45 @@ const porTipo = (documento: CadDocument) => {
   return cuenta;
 };
 
+/**
+ * El censo de lo que entra, y las dos cifras que cambiaron el 2026-09-05.
+ *
+ * `hatch` era 26 y `mtext` 144. Los dos escaneos crudos recorrían el fichero
+ * entero sin saber en qué sección estaban, así que sacaban a espacio modelo lo
+ * que vive dentro de una definición de BLOCK, con las coordenadas locales del
+ * bloque. P-evidencia-11 les dio la sección, y ahora coinciden con lo que
+ * `ezdxf` ve en el espacio modelo de este mismo fichero: 13 y 9.
+ *
+ * Lo que dejó de entrar no era del dibujo, y está comprobado por
+ * ALCANZABILIDAD TRANSITIVA, no por confianza: los 135 MTEXT y los 13 HATCH
+ * restantes viven en definiciones que ningún INSERT alcanza desde espacio
+ * modelo en ningún nivel. El bloque que contiene los 13 sombreados
+ * (`A$C198F7789`) no lo inserta nadie.
+ */
 const CENSO_AL_ABRIR = {
   arc: 20,
   circle: 9,
   dimension: 63,
-  hatch: 26,
+  hatch: 13,
   insert: 10,
   line: 624,
-  mtext: 144,
+  mtext: 9,
   polyline: 124,
   text: 89,
 } as const;
 
 {
   eq(porTipo(documentoAbierto), { ...CENSO_AL_ABRIR }, "el censo de lo que entró, tipo a tipo");
-  eq(abierto.importedEntityCount, 1109, "1109 entidades en el documento");
+  // Y el censo del ESPACIO MODELO coincide, tipo a tipo, con el del oráculo
+  // sobre los mismos bytes. Antes no coincidía en HATCH ni en MTEXT y nadie lo
+  // notaba, porque el oráculo se consultaba contando `doc.blocks` —que incluye
+  // `*Model_Space`— y los dos contaban de más por el mismo sitio.
+  eq(
+    { hatch: CENSO_AL_ABRIR.hatch, mtext: CENSO_AL_ABRIR.mtext },
+    { hatch: oraculoOrigen!.espacioModelo!.HATCH, mtext: oraculoOrigen!.espacioModelo!.MTEXT },
+    "los sombreados y los textos de párrafo que entran son los que ezdxf ve en ESPACIO MODELO",
+  );
+  eq(abierto.importedEntityCount, 961, "961 entidades en el documento: las 1109 de antes menos los 135 MTEXT y los 13 HATCH que viven en bloques que nadie inserta");
   eq(abierto.importedBlockCount, 17, "y 17 bloques con su definición");
   eq(abierto.format, "dxf", "entró por el camino DXF");
   // El dialecto del fichero lo dice el oráculo, no nosotros.
@@ -254,15 +281,84 @@ for (const aviso of abierto.warnings) avisos[aviso.code] = (avisos[aviso.code] ?
 let contradiccion = 0;
 
 {
-  eq(avisos, { linetype_complejo: 1, foreign_dimension_detached: 63, unsupported_entity: 72 }, "los avisos del lector, contados");
-  // El informe que ve el arquitecto dice que 72 entidades «no entraron», y 63
-  // de ellas son las cotas que sí entraron y que el mismo informe cuenta como
-  // vivas dos filas más abajo. El techo sólo puede bajar.
+  // Dos cifras de este censo cambiaron el 2026-09-05, y las dos por una
+  // petición de este mismo frente:
+  //
+  //   · `unsupported_entity` baja de 72 a 9. Las 63 que sobraban eran las cotas
+  //     que SÍ entraban por el camino semántico mientras el mapa de primitivas
+  //     —que no las conoce— emitía un aviso por cada una. El informe le decía
+  //     al arquitecto que sus cotas no entraron, y le aconsejaba pedir al
+  //     remitente que las explotase a líneas y arcos, dos filas antes de
+  //     contarlas como cotas vivas. Las 9 que quedan son pérdida real: 6 LEADER
+  //     y 3 VIEWPORT (P-evidencia-08).
+  //   · `layer_table_pruned` aparece con 7. Son las capas declaradas en la
+  //     tabla LAYER que ninguna entidad usa y que no llegan al documento. No
+  //     falta nada del dibujo; falta su definición si el archivo vuelve al
+  //     remitente, y hasta hoy no lo decía nadie (P-evidencia-09).
+  //   · `entity_in_block_definition` aparece con 85. Es la contrapartida
+  //     obligatoria de darle ámbito a los escaneos crudos: 72 MTEXT y 13 HATCH
+  //     viven en definiciones de bloque que NADA de este dibujo inserta —ni un
+  //     INSERT ni una cota—, así que no se dibujaban y no llegan al documento.
+  //     El techo de pérdidas silenciosas del corpus ajeno es cero y cazó esto a
+  //     la primera corrida; el aviso es lo que lo devuelve a cero. La cifra
+  //     coincide con la que da `ezdxf` calculando la alcanzabilidad por su
+  //     cuenta, que es la única razón para creérsela.
+  eq(
+    avisos,
+    {
+      linetype_complejo: 1,
+      foreign_dimension_detached: 63,
+      unsupported_entity: 9,
+      layer_table_pruned: 7,
+      entity_in_block_definition: 85,
+    },
+    "los avisos del lector, contados",
+  );
+  // Y su cuenta se contrasta con la del oráculo, calculada por OTRO camino. El
+  // censo del corpus publica `definicionesDeBloque`: lo que vive dentro de un
+  // BLOCK sin contar el espacio modelo (135 MTEXT y 13 HATCH aquí; el fichero
+  // entero tiene 144 y 26, que es la suma). De ahí se descuentan los 63 rótulos
+  // de los bloques de dibujo de las cotas, que la propia cota rehace y por eso
+  // no se avisan. Un número que sólo sabe dar el lector no es evidencia de nada.
+  {
+    const censo = (
+      JSON.parse(fs.readFileSync(path.join(CORPUS, "oraculos/ezdxf-1.4.4.json"), "utf8")) as {
+        archivos: Array<{
+          id: string;
+          espacioModelo: Record<string, number>;
+          definicionesDeBloque: Record<string, number>;
+          archivoEntero: Record<string, number>;
+        }>;
+      }
+    ).archivos.find((archivo) => archivo.id === "bjnortier-dxf/floorplan")!;
+    ok(censo !== undefined, "el censo del corpus tiene que traer floorplan.dxf");
+    // El censo separa los dos ámbitos y la suma tiene que cerrar; sin esta
+    // comprobación, leer `definicionesDeBloque` sería suponer qué cuenta.
+    for (const tipo of ["MTEXT", "HATCH"])
+      eq(
+        (censo.definicionesDeBloque[tipo] ?? 0) + (censo.espacioModelo[tipo] ?? 0),
+        censo.archivoEntero[tipo] ?? 0,
+        `${tipo}: los dos ámbitos del censo suman el fichero entero`,
+      );
+    eq(
+      avisos.entity_in_block_definition,
+      (censo.definicionesDeBloque.MTEXT ?? 0) - 63 + (censo.definicionesDeBloque.HATCH ?? 0),
+      "y su cuenta cuadra con la del oráculo: lo que vive en definiciones de bloque, menos los 63 rótulos de cota",
+    );
+  }
   const declaradasPerdidas = abierto.dxfReport?.rows.find((fila) => fila.code === "unsupported_entity");
   ok(declaradasPerdidas !== undefined, "el informe tiene que traer la fila de lo no soportado");
   ok(
-    /DIMENSION/u.test(declaradasPerdidas!.detail) && declaradasPerdidas!.fidelity === "lost",
-    "y hoy nombra DIMENSION entre lo que se perdió",
+    !/DIMENSION/u.test(declaradasPerdidas!.detail),
+    `el informe ya NO nombra DIMENSION entre lo que se perdió: «${declaradasPerdidas!.detail.slice(0, 90)}…»`,
+  );
+  ok(
+    /LEADER/u.test(declaradasPerdidas!.detail) && /VIEWPORT/u.test(declaradasPerdidas!.detail),
+    "y sí nombra LEADER y VIEWPORT, que son las nueve pérdidas de verdad",
+  );
+  ok(
+    abierto.dxfReport?.rows.some((fila) => fila.code === "layer_table_pruned" && fila.fidelity === "degraded") === true,
+    "y la poda de la tabla de capas tiene su fila, clasificada como degradada: no falta dibujo, falta la definición de esas capas",
   );
   // La contradicción, MEDIDA: cuántos avisos de «DIMENSION no soportada» hay al
   // mismo tiempo que cotas efectivamente importadas. No vale contar las cotas
@@ -428,101 +524,27 @@ const peores = {
    ACTO 3 — MODIFICAR EL PLANO AJENO CON LOS COMANDOS DEL PRODUCTO
    ══════════════════════════════════════════════════════════════════════════ */
 
-/**
- * El destino del movimiento lo dicta el ORÁCULO, no el producto: llevar la
- * esquina inferior izquierda del plano al origen es lo primero que hace quien
- * recibe un plano dibujado lejos del cero, y el vector sale de la extensión
- * que midió ezdxf. Si el producto se hubiera medido a sí mismo para decidir
- * cuánto mover, la comprobación de después no probaría nada.
- */
-const DESPLAZAMIENTO = {
-  x: -oraculoOrigen!.extension!.minX,
-  y: -oraculoOrigen!.extension!.minY,
-};
-const ANCHO = oraculoOrigen!.extension!.maxX - oraculoOrigen!.extension!.minX;
-const ALTO = oraculoOrigen!.extension!.maxY - oraculoOrigen!.extension!.minY;
-
-/** La línea que el revisor añade. 3-4-5 en papel: mide 500 EXACTO. */
-const NUEVA_LINEA = { desde: { x: 0, y: 0 }, hasta: { x: 300, y: 400 }, longitud: 500 };
-const CAPA_REVISION = "VALLE-REVISION";
-
-let documento = documentoAbierto;
-
-{
-  // — MOVE: las 1109 entidades, de una vez —
-  const ids = documento.entities.map((entidad) => entidad.id);
-  const movido = conduce(
-    "MOVE",
-    [designa(ids), punto(0, 0), punto(DESPLAZAMIENTO.x, DESPLAZAMIENTO.y)],
-    contexto(documento, ids),
-  );
-  assert.ok(movido?.kind === "document", "MOVE tenía que escribir");
-  contador.comprobaciones += 1;
-  eq(movido.commands.length, 1109, "MOVE toca las 1109 entidades, no una selección parcial");
-  eq(
-    movido.commands.every((comando) => comando.type === "transform"),
-    true,
-    "y mover es transformar: ni borra ni recrea, que perdería los identificadores",
-  );
-  documento = aplica(documento, movido, "MOVE");
-  eq(documento.entities.length, 1109, "tras mover siguen siendo 1109");
-}
-
-{
-  // — LO QUE UNA TRASLACIÓN NO PUEDE CAMBIAR —
-  // Las 624 longitudes vuelven a compararse contra el oráculo. Es la
-  // comprobación que delata una transformación que «casi» es rígida.
-  const longitudes = deTipo(documento, "line").map((linea) => longitudDe(linea, "línea movida"));
-  const suyas = oraculoOrigen!.lineas!.porGeometria.map((fila) => fila[1]);
-  const peor = comparaOrdenado("longitud de línea tras MOVE", longitudes, suyas, TOL_ORACULO);
-  ok(peor <= TOL_ORACULO, `una traslación no cambia una longitud (peor desviación ${peor})`);
-  // Y la esquina del plano queda EN el origen, con el ancho y el alto intactos.
-  const xs = deTipo(documento, "line").flatMap((linea) => [linea.start.x, linea.end.x]);
-  const ys = deTipo(documento, "line").flatMap((linea) => [linea.start.y, linea.end.y]);
-  for (const poli of deTipo(documento, "polyline"))
-    for (const vertice of poli.vertices) {
-      xs.push(vertice.x);
-      ys.push(vertice.y);
-    }
-  cerca(Math.min(...xs), 0, TOL_ORACULO, "la esquina izquierda del plano queda en x = 0");
-  cerca(Math.min(...ys), 0, TOL_ORACULO, "y la inferior en y = 0");
-  cerca(Math.max(...xs), ANCHO, TOL_ORACULO, "el ancho del plano no cambia al moverlo");
-  cerca(Math.max(...ys), ALTO, TOL_ORACULO, "ni el alto");
-}
-
-{
-  // — LINE: el trazo que añade quien revisa —
-  // La capa nueva se añade al documento porque lo que esta jornada verifica es
-  // el camino de la GEOMETRÍA; la orden CAPA tiene su propia suite.
-  documento = {
-    ...documento,
-    layers: [
-      ...documento.layers,
-      { id: CAPA_REVISION, name: CAPA_REVISION, color: "#ff0000", visible: true, locked: false },
-    ],
-  };
-  const dibujada = conduce(
-    "LINE",
-    [punto(NUEVA_LINEA.desde.x, NUEVA_LINEA.desde.y), punto(NUEVA_LINEA.hasta.x, NUEVA_LINEA.hasta.y), intro],
-    contexto(documento, [], CAPA_REVISION),
-  );
-  documento = aplica(documento, dibujada, "LINE");
-  const nueva = documento.entities.find((entidad) => entidad.id.startsWith("jornada"));
-  assert.ok(nueva?.type === "line", "la línea nueva tiene que estar en el documento");
-  contador.comprobaciones += 1;
-  eq(nueva.layer, CAPA_REVISION, "en la capa del revisor, no en la del plano ajeno");
-  cerca(longitudDe(nueva, "línea nueva"), NUEVA_LINEA.longitud, 1e-12, "y mide 500: el 3-4-5 de siempre");
-  eq(documento.entities.length, 1110, "1109 del plano ajeno más la del revisor");
-}
-
-{
-  // — ERASE: una modificación que se comprueba por AUSENCIA —
-  const circulos = deTipo(documento, "circle").map((circulo) => circulo.id);
-  eq(circulos.length, 9, "los nueve círculos del plano ajeno siguen ahí antes de borrarlos");
-  documento = aplica(documento, conduce("ERASE", [designa(circulos), intro], contexto(documento, circulos)), "ERASE");
-  eq(deTipo(documento, "circle").length, 0, "y ya no queda ninguno");
-  eq(documento.entities.length, 1101, "1110 − 9");
-}
+const {
+  documento: documentoModificado,
+  DESPLAZAMIENTO,
+  ANCHO,
+  ALTO,
+  NUEVA_LINEA,
+  CAPA_REVISION,
+} = modificaElPlanoAjeno({
+  documentoAbierto,
+  extension: oraculoOrigen!.extension!,
+  longitudesDelOraculo: oraculoOrigen!.lineas!.porGeometria.map((fila) => fila[1]),
+  contador,
+  TOL_ORACULO,
+  ok,
+  eq,
+  cerca,
+  comparaOrdenado,
+  deTipo,
+  longitudDe,
+});
+const documento = documentoModificado;
 
 /* ══════════════════════════════════════════════════════════════════════════
    ACTO 4 — EXPORTAR CON EL EXPORTADOR DE PRODUCCIÓN
@@ -548,7 +570,7 @@ const escribe = (nombre: string, filtro?: (entidad: CadEntity) => boolean) => {
 
 {
   eq(exportado.losses.length, 0, "el exportador no declara ni una pérdida sobre este documento");
-  eq(exportado.entityCount, 1101, "y escribe las 1101 entidades que tiene el documento");
+  eq(exportado.entityCount, 953, "y escribe las 953 entidades que tiene el documento");
   ok(exportado.content.startsWith("0\nSECTION"), "el fichero empieza por una sección DXF");
   ok(exportado.content.includes(CAPA_REVISION), "y la capa del revisor viaja en el fichero");
 
@@ -629,7 +651,7 @@ const jornada = {
   actos: {
     abrir: {
       puerta: "importDocumentText — la misma que usa el estudio al soltar un fichero",
-      entidades: 1109,
+      entidades: 961,
       bloques: 17,
       porTipo: { ...CENSO_AL_ABRIR },
       capasQueLlegan: documentoAbierto.layers.length,
@@ -661,13 +683,13 @@ const jornada = {
       move: {
         vector: DESPLAZAMIENTO,
         loDictaElOraculo: "la esquina inferior izquierda que midió ezdxf, para no medirnos a nosotros mismos",
-        entidadesTocadas: 1109,
+        entidadesTocadas: 961,
         anchoTrasMover: ANCHO,
         altoTrasMover: ALTO,
       },
       line: { capa: CAPA_REVISION, longitud: NUEVA_LINEA.longitud },
       erase: { tipo: "circle", cuantas: 9 },
-      entidadesAlFinal: 1101,
+      entidadesAlFinal: 953,
     },
     exportar: {
       puerta: "exportCadDocumentDxf — el mismo que entrega DXFOUT",
@@ -689,7 +711,7 @@ const jornada = {
     releerConOraculoA: {
       abre: true,
       porTipo: { ...CENSO_RELEIDO_A },
-      hatchInvisible: "el oráculo A no trae manejador de HATCH: sus 26 sombreados no los cuenta nadie en esta banda",
+      hatchInvisible: "el oráculo A no trae manejador de HATCH: sus 13 sombreados de espacio modelo no los cuenta nadie en esta banda",
       tablaDeCapas: {
         enElPlanoAjeno: 24,
         enElDocumento: documentoAbierto.layers.length,
@@ -722,37 +744,19 @@ const jornada = {
       tiposQueNoAbre: [...tiposQueNoAbre].sort(),
       loQueSiAbre: lecturasB.find((lectura) => lectura.etiqueta === "jornada-sin-mtext-ni-hatch")!.espacioModelo,
       erroresDeAuditoria: lecturasB.find((lectura) => lectura.etiqueta === "jornada-sin-mtext-ni-hatch")!.auditoria,
-      conElParcheDeSubclases: {
+      elControlDelParche: {
         entidadesParcheadas: medidas.experimentoSubclases!.entidadesParcheadas,
+        entidadesQueYaLosTraian: medidas.experimentoSubclases!.entidadesQueYaLosTraian,
         abre: medidas.experimentoSubclases!.leido,
         porTipo: medidas.experimentoSubclases!.espacioModelo,
         auditoria: medidas.experimentoSubclases!.auditoria,
-        deQuienEsElArreglo: "P-evidencia-07 — pedido con este experimento como prueba, no a ciegas",
+        deQuienEsElArreglo:
+          "P-evidencia-07 — pedido con este experimento como prueba y no a ciegas; entró el 2026-09-05, " +
+          "así que el experimento pasó a ser el control que lo guarda: 0 entidades que parchear",
       },
     },
   },
-  loQueLaJornadaDestapo: [
-    "P-evidencia-07 · ezdxf no abre lo que exportamos: MTEXT y HATCH sin marcador de subclase. " +
-      "Probado que con los marcadores insertados sí abre las 1101 entidades y audita cero errores.",
-    `P-evidencia-08 · el informe de importación declara PERDIDAS ${TECHO_DECLARADAS_PERDIDAS_PERO_ENTRARON} ` +
-      "cotas que SÍ entraron: el mapa de primitivas emite unsupported_entity por cada DIMENSION " +
-      "mientras el camino semántico las importa.",
-    "P-evidencia-09 · el documento se queda con 17 de las 24 capas del fichero y el que devolvemos " +
-      "declara 23 (las de dentro de los bloques vuelven a escribirse): de las suyas no vuelven " +
-      "`Defpoints` y `View Port`, y ningún aviso menciona nada de esto. No cambia el dibujo; el " +
-      "silencio sí importa.",
-  ],
-  loQueNoSeMide: [
-    "El espacio papel: el lector lo excluye a propósito y este plano tiene un Layout1 con 3 VIEWPORT.",
-    "El contenido de los 17 bloques: se comparan las inserciones, no lo que hay dentro de cada uno.",
-    "Los 6 LEADER y los 9 MTEXT de espacio modelo que el oráculo B cuenta: el lector devuelve MTEXT " +
-      "sin dueño (144 en todo el archivo), así que no hay ámbito comparable para ellos.",
-    "El aspecto: que un número sea correcto no dice que el plano se vea igual.",
-  ],
-  loQueNoAcredita:
-    "Ni ezdxf ni dxf-parser son AutoCAD. Esta jornada acredita que un plano ajeno de 1,1 MB entra, se " +
-    "mide igual que en una implementación independiente, se modifica, se exporta y lo vuelve a leer " +
-    "otro programa. No acredita compatibilidad con AutoCAD, que sólo la acredita AutoCAD.",
+  ...DECLARACIONES_DE_LA_JORNADA,
   magnitudesComparadasContraUnOraculo: contador.magnitudes,
 };
 
@@ -778,7 +782,7 @@ if (process.env.VALLE_ESCRIBIR_JORNADA === "1") {
 
 console.log(
   `terceros-jornada: ${contador.comprobaciones} comprobaciones · el plano ajeno floorplan.dxf (R2004, 1,1 MB, ` +
-    `1109 entidades) abierto por el lector de producción; 624 longitudes, 9+20 radios, 124 polilíneas ` +
+    `961 entidades de espacio modelo) abierto por el lector de producción; 624 longitudes, 9+20 radios, 124 polilíneas ` +
     `y 63 medidas de cota idénticas a las de ezdxf sobre los mismos bytes (±${TOL_ORACULO}); movido, ` +
     `ampliado y recortado con MOVE/LINE/ERASE; exportado con el exportador de producción y releído`,
 );
@@ -791,7 +795,6 @@ console.log(
     `(±${TOL_ESCRITURA_POR_SEGMENTO} por segmento, que es lo que valen seis decimales)`,
 );
 console.log(
-  "  · TODAVÍA NO (2026-09-04): ezdxf NO abre lo que exportamos — MTEXT y HATCH salen sin marcador " +
-    "de subclase; sí abre los otros siete tipos con cero errores de auditoría, y con el parche " +
-    "probado abre el fichero entero (P-evidencia-07).",
+  "  · ezdxf abre el fichero que exportamos ENTERO, con sus MTEXT y sus HATCH dentro y cero errores " +
+    "de auditoría; hasta el 2026-09-05 no lo abría de ninguna manera, ni en modo recover (P-evidencia-07).",
 );

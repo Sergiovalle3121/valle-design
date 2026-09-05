@@ -22,6 +22,7 @@ import type {
 } from "./cad-document";
 import { CAD_LINEWEIGHT_DEFAULT } from "./cad-effective-style";
 import { cadLinetypePatternFor } from "./linetype-resolve";
+import { hexToAci } from "./plot/aci-palette";
 import { cadComplexLinetypeFor } from "./linetype-complex";
 import type { CadDxfExportLayer, CadDxfExportLinetype } from "./dxf-export";
 import {
@@ -169,6 +170,27 @@ export function cadDocumentDxfLayerDefinitions(
 ): CadDxfExportLayer[] {
   return document.layers.map((layer) => ({
     name: layer.name,
+    // El color cruza aquí su frontera de representación: el documento guarda
+    // HEXADECIMAL y el fichero pide ÍNDICE ACI. La conversión de ida vive en
+    // `buildLayers` del importador; las dos se editan juntas. Hasta hoy este
+    // campo se quedaba vacío y el escritor caía a su respaldo —`62 7`, blanco,
+    // en TODAS las capas—, así que el plano del remitente volvía monocromo por
+    // tabla de capas mientras el informe lo daba por entero.
+    //
+    // El signo del 62 es la visibilidad, no el color: negativo = capa apagada.
+    // Medido sobre los 255 índices: 248 vuelven idénticos y los 7 que no
+    // (10, 50, 90, 130, 170, 210, 255) son los duplicados de la propia paleta
+    // ACI —1/10, 2/50 … 7/255 son el MISMO RGB—, así que cambia el número del
+    // índice y no el color que ve nadie.
+    // `CadLayerDef.color` es obligatorio en el tipo y NO siempre está en tiempo
+    // de ejecución: hay suites que arman capas parciales, y una de ellas tumbó
+    // la exportación entera con «color.trim is not a function» en cuanto este
+    // campo empezó a leerse. Una capa sin color no es motivo para no exportar
+    // el dibujo: se omite el override y el escritor cae a su respaldo (`62 7`),
+    // que es lo que hacía para todas hasta hoy.
+    ...(typeof layer.color === "string" && layer.color.length > 0
+      ? { color: layer.visible === false ? -hexToAci(layer.color) : hexToAci(layer.color) }
+      : {}),
     ...(layer.linetype ? { linetype: layer.linetype } : {}),
     // El grosor cruza aquí su frontera de unidades: la paleta de capas guarda
     // MILÍMETROS con −1 por «por defecto» y el fichero pide CENTÉSIMAS con −3.

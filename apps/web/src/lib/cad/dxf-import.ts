@@ -12,8 +12,12 @@ import type { CadDxfSchema4Kind, CadDxfSchema4Payload } from "./dxf-schema4";
 // La lectura de pares crudos y los parsers de las anotaciones semánticas viven
 // en sus propios módulos: este archivo está en su asignación de tamaño y los
 // tipos del esquema 4 necesitaban sitio.
-import { num, pt, rawDxfPairs } from "./dxf-read-core";
+// El ámbito de sección y el recuento de lo huérfano se fueron con sus dueños:
+// `dxf-read-hatch.ts` y `dxf-import-declaraciones.ts`. Aquí sólo queda lo que
+// este archivo usa de verdad.
+import { normalizeDxfHeaderBooleans, num, pt, rawDxfPairs } from "./dxf-read-core";
 import { conCotaDeclarada, conExtrusionCruda, enElMundo } from "./dxf-import-cota";
+import { declaraLoQueNoLlegaAlDocumento } from "./dxf-import-declaraciones";
 import {
   decodeComponent,
   insertSignature,
@@ -45,6 +49,11 @@ import type { CadEntityPresentation } from "./cad-document";
 // el código 70 familia a familia, y esa tabla es una pieza coherente por su
 // cuenta que además declara lo que NO sabe rehacer.
 import { parseRawDxfForeignDimensions } from "./dxf-read-foreign-dimensions";
+// El escaneo crudo de HATCH salió a `dxf-read-hatch.ts` cuando este archivo
+// volvió a superar su asignación: es la pieza hermana del de MTEXT, que ya
+// vivía fuera. Se REEXPORTA para que ningún consumidor cambie de import.
+import { parseRawDxfHatches } from "./dxf-read-hatch";
+export { parseRawDxfHatches };
 export { parseRawDxfMTexts, parseRawDxfSemanticDimensions, parseRawDxfSemanticMleaders };
 
 export type CadDxfPrimitiveKind =
@@ -810,102 +819,6 @@ function semanticBlocks(
 }
 
 
-export function parseRawDxfHatches(text: string): {
-  hatches: CadDxfHatch[];
-  warnings: CadDxfImportWarning[];
-} {
-  const pairs = rawDxfPairs(text);
-  const hatches: CadDxfHatch[] = [];
-  const warnings: CadDxfImportWarning[] = [];
-  let scannedHatches = 0;
-  for (let start = 0; start < pairs.length && scannedHatches < MAX_DXF_ENTITIES; start += 1) {
-    if (pairs[start].code !== 0 || pairs[start].value.toUpperCase() !== "HATCH") continue;
-    scannedHatches += 1;
-    let end = start + 1;
-    while (end < pairs.length && pairs[end].code !== 0) end += 1;
-    const entityPairs = pairs.slice(start + 1, end);
-    const first = (code: number) => entityPairs.find((pair) => pair.code === code)?.value;
-    const layer = first(8) || DEFAULT_LAYER;
-    const pattern = first(2) || "SOLID";
-    const solid = Number(first(70) ?? 0) === 1 || pattern.toUpperCase() === "SOLID";
-    const scale = num(first(41));
-    const angle = num(first(52));
-    const islandCode = Number(first(75) ?? 0);
-    const islandStyle: CadDxfHatch["islandStyle"] = islandCode === 1 ? "outer" : islandCode === 2 ? "ignore" : "normal";
-    const seedCountIndex = entityPairs.findIndex((pair) => pair.code === 98);
-    const seedX = seedCountIndex >= 0
-      ? num(entityPairs.find((pair, index) => index > seedCountIndex && pair.code === 10)?.value)
-      : null;
-    const seedY = seedCountIndex >= 0
-      ? num(entityPairs.find((pair, index) => index > seedCountIndex && pair.code === 20)?.value)
-      : null;
-    const patternOriginX = num(first(43));
-    const patternOriginY = num(first(44));
-    const origin = seedX !== null && seedY !== null
-      ? { x: seedX, y: seedY }
-      : patternOriginX !== null && patternOriginY !== null
-        ? { x: patternOriginX, y: patternOriginY }
-        : undefined;
-    const paperSpace = first(67) === "1";
-    const boundaries: CadDxfPoint[][] = [];
-    let unsupportedEdgePath = false;
-    for (let cursor = 0; cursor < entityPairs.length; cursor += 1) {
-      if (entityPairs[cursor].code !== 92) continue;
-      const pathFlags = Number(entityPairs[cursor].value) || 0;
-      const nextPath = entityPairs.findIndex((pair, index) => index > cursor && pair.code === 92);
-      const pathEnd = nextPath >= 0 ? nextPath : entityPairs.length;
-      if ((pathFlags & 2) === 0) {
-        unsupportedEdgePath = true;
-        cursor = pathEnd - 1;
-        continue;
-      }
-      const countIndex = entityPairs.findIndex((pair, index) => index > cursor && index < pathEnd && pair.code === 93);
-      const vertexCount = countIndex >= 0 ? Number(entityPairs[countIndex].value) : 0;
-      const boundary: CadDxfPoint[] = [];
-      let pendingX: number | null = null;
-      for (let index = countIndex + 1; index < pathEnd && boundary.length < vertexCount; index += 1) {
-        const pair = entityPairs[index];
-        if (pair.code === 10) pendingX = num(pair.value);
-        else if (pair.code === 20 && pendingX !== null) {
-          const y = num(pair.value);
-          if (y !== null) boundary.push({ x: pendingX, y });
-          pendingX = null;
-        }
-      }
-      if (boundary.length >= 3) boundaries.push(boundary);
-      cursor = pathEnd - 1;
-    }
-    if (boundaries.length) {
-      hatches.push({
-        layer,
-        pattern,
-        solid,
-        boundaries,
-        ...(scale !== null && scale > 0 ? { scale } : {}),
-        ...(angle !== null ? { angle } : {}),
-        ...(origin ? { origin } : {}),
-        islandStyle,
-        ...(paperSpace ? { paperSpace } : {}),
-      });
-      if (unsupportedEdgePath)
-        warnings.push({
-          code: "hatch_edge_path_partial",
-          message: "HATCH conserva sus contornos poligonales; un contorno curvo no soportado fue omitido.",
-          entityType: "HATCH",
-          layer,
-        });
-    } else {
-      warnings.push({
-        code: "hatch_unsupported_boundary",
-        message: "HATCH sin contorno poligonal compatible; no se importó el relleno.",
-        entityType: "HATCH",
-        layer,
-      });
-    }
-    start = end - 1;
-  }
-  return { hatches, warnings };
-}
 
 export function importDxfPrimitives(text: string): CadDxfImportResult {
   const rawHatchResult = parseRawDxfHatches(text);
@@ -930,9 +843,24 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
     ...auditDxfLinetypeReferences(properties),
     ...foreign.warnings,
   ];
+  // Un valor de cabecera que este analizador no entiende no puede tumbar el
+  // archivo entero: `$XCLIPFRAME 2` es legítimo desde AutoCAD 2010 y era lo
+  // único que impedía leer un fichero que `ezdxf` abre sin una queja. Se
+  // normaliza sólo para el analizador —los escaneos crudos siguen viendo el
+  // texto original— y se AVISA, porque una normalización callada sería cambiar
+  // un defecto por otro más difícil de ver.
+  const saneado = normalizeDxfHeaderBooleans(text);
+  if (saneado.normalized > 0)
+    warnings.push({
+      code: "header_boolean_out_of_range",
+      entityType: "HEADER",
+      message:
+        `${saneado.normalized} variable(s) de cabecera traían un valor de bandera fuera de {0,1} ` +
+        "(legítimo en el formato desde AutoCAD 2010) y se leyeron como activadas. El dibujo no cambia.",
+    });
   let parsed: any;
   try {
-    parsed = new (DxfParser as any)().parseSync(text);
+    parsed = new (DxfParser as any)().parseSync(saneado.text);
   } catch {
     return {
       primitives: [],
@@ -1102,6 +1030,33 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
   // DECLARADAS viajan aparte en `layerDefinitions`: son dos preguntas
   // distintas y fundirlas cambiaría el recuento de todos los ficheros ya
   // medidos sin que nadie lo hubiera pedido.
+  //
+  // LAS COTAS FANTASMA. Las DIMENSION no las mapea `mapDxfEntityToPrimitive`
+  // —no son una primitiva— sino el camino SEMÁNTICO, que ya las trajo en
+  // `semanticDimensions`. El aviso del mapa era, para cada una de ellas, una
+  // pérdida que no ocurrió: sobre el plano ajeno el informe le decía al
+  // arquitecto que sus 63 cotas NO entraron y le aconsejaba «pide al remitente
+  // que las explote a líneas y arcos», dos filas antes de contarlas como cotas
+  // vivas. Seguir ese consejo le habría hecho perder cotas que ya tenía.
+  //
+  // Se descuenta UNA por cota efectivamente recuperada, nunca en bloque: una
+  // DIMENSION que el camino semántico no consiguiera leer sigue siendo una
+  // pérdida real y tiene que seguir avisándose.
+  // Lo que el fichero trae y el documento no, sin que ninguna entidad haya
+  // fallado en convertirse: los rótulos y sombreados de bloques que nada
+  // inserta, y las capas declaradas que ninguna entidad usa. Viven en su
+  // módulo; el porqué de cada uno está allí.
+  warnings.push(
+    ...declaraLoQueNoLlegaAlDocumento(text, blocks, inserts, semanticDimensions, properties.layers, layers),
+  );
+
+  let cotasRecuperadas = semanticDimensions.length;
+  const avisosSinCotasFantasma = warnings.filter((warning) => {
+    if (warning.code !== "unsupported_entity" || warning.entityType !== "DIMENSION") return true;
+    if (cotasRecuperadas <= 0) return true;
+    cotasRecuperadas -= 1;
+    return false;
+  });
   return {
     primitives, primitiveSources, hatches: rawHatchResult.hatches, mtexts: rawMTexts,
     semanticDimensions, mleaders, blocks, inserts,
@@ -1109,6 +1064,6 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
     linetypes: properties.linetypes, layerDefinitions: properties.layers,
     ...(Object.keys(properties.dimensionStyles).length ? { dimensionStyles: properties.dimensionStyles } : {}),
     ...(properties.linetypeScale !== undefined ? { linetypeScale: properties.linetypeScale } : {}),
-    warnings, layers: [...layers].sort(),
+    warnings: avisosSinCotasFantasma, layers: [...layers].sort(),
   };
 }

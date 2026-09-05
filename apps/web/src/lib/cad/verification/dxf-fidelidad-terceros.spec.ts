@@ -77,13 +77,8 @@ const MATRIZ = path.join(RAIZ, "docs/cad/evidence/dxf-corpus-terceros-matrix.jso
  */
 const TECHO_PERDIDOS_EN_SILENCIO = 0;
 
-/**
- * Tipos cuyo ámbito comparable es el ARCHIVO ENTERO, y no el espacio modelo.
- *
- * Ver la nota de arriba: el lector los devuelve sin dueño. La lista es corta a
- * propósito; crecerla es admitir una limitación nueva y hay que escribirla.
- */
-const AMBITO_ARCHIVO_ENTERO = new Set(["MTEXT", "HATCH"]);
+/** Ver `dxf-fidelidad-ambito.ts`: por qué esta lista está vacía y qué enseñó. */
+const AMBITO_ARCHIVO_ENTERO = new Set<string>();
 
 /**
  * Puntos ciegos del oráculo A. No es una suposición: el spec los DEMUESTRA
@@ -604,10 +599,22 @@ const comprometida = JSON.parse(fs.readFileSync(MATRIZ, "utf8"));
       "en el corpus y tiene que seguir siendo cierto",
   );
   const rechazaA = recalculada.archivos.filter((archivo) => !archivo.oraculoA.leido);
+  // El lector IMPORTA `dxf-parser`, así que durante toda la campaña anterior
+  // caían juntos y esta suite lo afirmaba. Desde P-evidencia-13 ya no: el
+  // lector normaliza los booleanos de cabecera fuera de rango antes de
+  // entregarle el texto —`$XCLIPFRAME` vale 0, 1 o 2 desde AutoCAD 2010 y la
+  // biblioteca sólo admite 0 y 1— y abre `blocks2.dxf`, que el motor compartido
+  // sigue rechazando sobre el texto crudo. Eso NO es que la asimetría se haya
+  // perdido: es que el lector dejó de heredar un defecto de su dependencia, y
+  // que siga cayendo el motor por debajo es la prueba de dónde estaba.
   ok(
-    rechazaA.length > 0 && rechazaA.every((archivo) => !archivo.lector.legible),
-    "el motor compartido (dxf-parser) y el lector de producción caen juntos, como corresponde a " +
-      "dos capas del mismo camino: si uno rechazara y el otro no, el diagnóstico sería otro",
+    rechazaA.length > 0,
+    "si el oráculo A lo leyera todo, no estaría midiendo nada difícil",
+  );
+  ok(
+    rechazaA.every((archivo) => archivo.lector.legible),
+    "el lector de producción abre lo que el motor compartido rechaza: es lo que compró P-evidencia-13, " +
+      "y si volviera a caer con él sería que la normalización de cabecera se perdió",
   );
   for (const archivo of rechazaA) {
     const b = porIdB.get(archivo.id)!;
@@ -645,17 +652,39 @@ const comprometida = JSON.parse(fs.readFileSync(MATRIZ, "utf8"));
         `${fila!.lector}; se esperaban ${cuantos} en las tres bandas`,
     );
   }
-  // HATCH es la fila que justifica el oráculo B entero: el A no la ve, el B
-  // cuenta 13 en modelo y 13 en bloques, y el lector devuelve los 26.
+  // HATCH es la fila que justifica el oráculo B entero —el A no la ve— y además
+  // la que enseñó cómo se detecta un acuerdo falso. Hasta el 2026-09-05 el
+  // oráculo decía 26 y el lector 26, y los dos estaban contando lo mismo MAL:
+  // el fichero tiene 13 sombreados en espacio modelo y otros 13 en una
+  // definición de bloque (`A$C198F7789`) que ningún INSERT alcanza en ningún
+  // nivel. El lector los sacaba todos a espacio modelo y el censo se leía de
+  // `archivoEntero`, que recorre `doc.blocks` e incluye `*Model_Space`. Se
+  // notó al arreglar UNO de los dos lados; mientras los dos estuvieron mal por
+  // el mismo sitio, la igualdad parecía una verificación.
   const hatch = planta.filas.find((fila) => fila.tipo === "HATCH")!;
   ok(
-    hatch.ambito === "archivo-entero" && hatch.sinOpinionA === "punto-ciego",
+    hatch.ambito === "espacio-modelo" && hatch.sinOpinionA === "punto-ciego",
     "la fila de HATCH de floorplan.dxf tiene que declarar su ámbito y el silencio del oráculo A",
   );
-  ok(
-    hatch.oraculoB === 26 && hatch.lector === 26 && hatch.veredicto === "intacto",
-    `floorplan.dxf · HATCH: oráculo B ${hatch.oraculoB}, lector ${hatch.lector} (${hatch.veredicto})`,
-  );
+  const mtext = planta.filas.find((fila) => fila.tipo === "MTEXT")!;
+  for (const fila of [hatch, mtext])
+    ok(
+      fila.oraculoB === fila.lector,
+      `floorplan.dxf · ${fila.tipo}: oráculo B ${fila.oraculoB}, lector ${fila.lector} — el espacio modelo tiene que coincidir`,
+    );
+  ok(hatch.lector === 13 && mtext.lector === 9, `floorplan.dxf: HATCH ${hatch.lector}, MTEXT ${mtext.lector}`);
+  // Y las dos salen DEGRADADAS aunque el recuento cuadre, que es lo correcto
+  // por el criterio de esta matriz: llegaron todas las de espacio modelo, y
+  // además hay un aviso del lector que nombra el tipo. El aviso es
+  // `entity_in_block_definition`, y habla de las 85 que viven en definiciones
+  // que nada del dibujo inserta (72 MTEXT + 13 HATCH). No se dibujaban, así que
+  // no falta nada de lo que se veía; faltarán en el archivo que se devuelva, y
+  // por eso se dicen. Llamarlas «intactas» sería tapar esa mitad.
+  for (const fila of [hatch, mtext])
+    ok(
+      fila.veredicto === "degradado" && /definiciones de bloque/u.test(fila.degradaA ?? ""),
+      `floorplan.dxf · ${fila.tipo}: ${fila.veredicto} — «${String(fila.degradaA ?? "").slice(0, 70)}»`,
+    );
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

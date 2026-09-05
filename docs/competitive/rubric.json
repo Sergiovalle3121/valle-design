@@ -612,7 +612,7 @@
       "group": "core",
       "name": "Cotas asociativas",
       "points": 12,
-      "gap": "(2026-08-21) Los DIM* teclean, DIMSTYLE cubre el núcleo de ~30 DIMVARs con Aplicar/Comparar y la tabla viaja por DXF. Falta que el ESQUEMA de entidad exprese los campos aún sólo-de-tabla (DIMTXT, colores, grosores, TAD/JUST) para que gobiernen el render por cota, y el golden de navegador del ciclo completo.",
+      "gap": "(2026-08-21) Los DIM* teclean, DIMSTYLE cubre el núcleo de ~30 DIMVARs con Aplicar/Comparar y la tabla viaja por DXF. Falta que el ESQUEMA de entidad exprese los campos aún sólo-de-tabla (DIMTXT, colores, grosores, TAD/JUST) para que gobiernen el render por cota, y el golden de navegador del ciclo completo. Ola de superación (2026-09-05): la ida y vuelta se atestigua ya con material ajeno. Sobre `bjnortier-dxf/dimensions.dxf` y las 63 cotas de `floorplan.dxf`, ezdxf 1.4.4 mide y el producto recalcula las mismas medidas, y cada cota llega con su número escrito UNA vez — hasta ese día el rótulo del bloque de dibujo (*D1, *D2) salía además como MTEXT suelto encima, en silencio. Sigue sin atestiguarlo nadie de fuera la XDATA propietaria AXOS_DIM: ningún fichero ajeno puede traerla.",
       "criteria": [
         {
           "id": "dimensions.entity",
@@ -667,6 +667,16 @@
             {
               "kind": "spec",
               "path": "apps/web/src/lib/cad/dxf-xdata-golden.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/verification/terceros-jornada.spec.ts",
+              "independent": true
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/verification/terceros-cota-sombreado.spec.ts",
+              "independent": true
             }
           ]
         },
@@ -750,7 +760,7 @@
       "group": "core",
       "name": "HATCH asociativo",
       "points": 12,
-      "gap": "H y BH resuelven; desde el 2026-09-02 el nombre del patrón se consulta contra una tabla propia (medido antes: ocho nombres, un mismo trazado). Faltan los patrones cargados de un .pat del despacho.",
+      "gap": "H y BH resuelven; desde el 2026-09-02 el nombre del patrón se consulta contra una tabla propia (medido antes: ocho nombres, un mismo trazado). Faltan los patrones cargados de un .pat del despacho. Ola de superación (2026-09-05): los sombreados de un plano ajeno entran y VUELVEN. ezdxf abre el fichero que exportamos —antes reventaba con IndexError porque los HATCH salían sin `100 AcDbHatch`— y un contorno de aristas todas rectas ya no se descarta por «no poligonal». Un contorno con arcos o splines sigue sin entrar y se sigue declarando.",
       "criteria": [
         {
           "id": "hatch.engine",
@@ -785,6 +795,16 @@
             {
               "kind": "spec",
               "path": "apps/web/src/lib/cad/dxf-hatch.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/verification/terceros-cota-sombreado.spec.ts",
+              "independent": true
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/verification/terceros-jornada.spec.ts",
+              "independent": true
             }
           ]
         },
@@ -848,7 +868,7 @@
       "group": "core",
       "name": "MTEXT y texto",
       "points": 9,
-      "gap": "Ola 2 (2026-09-03): las cinco .shx comunes —txt, simplex, romans, isocp, monotxt— YA no se sustituyen: se dibujan con los trazos Hershey (dominio público del gobierno de EE. UU.) en el visor, en la lámina y en el PDF, medido sobre los bytes del archivo. Lo que sigue en «todavía no»: las anchuras son las de Hershey y no las del binario .shx (metricsDiffer: true, declarado rótulo a rótulo en el informe de fuentes); no se interpreta el formato .shx; un rótulo con máscara de fondo se queda como texto porque el PDF de trazado dibuja todo camino con «S» y perder la máscara sería peor que perder el trazo; y la maqueta sigue midiendo con los valores de la ENTIDAD, no del tramo, con el espaciado entre caracteres y las sangrías sin interpretar.",
+      "gap": "Ola 2 (2026-09-03): las cinco .shx comunes —txt, simplex, romans, isocp, monotxt— YA no se sustituyen: se dibujan con los trazos Hershey (dominio público del gobierno de EE. UU.) en el visor, en la lámina y en el PDF, medido sobre los bytes del archivo. Lo que sigue en «todavía no»: las anchuras son las de Hershey y no las del binario .shx (metricsDiffer: true, declarado rótulo a rótulo en el informe de fuentes); no se interpreta el formato .shx; un rótulo con máscara de fondo se queda como texto porque el PDF de trazado dibuja todo camino con «S» y perder la máscara sería peor que perder el trazo; y la maqueta sigue midiendo con los valores de la ENTIDAD, no del tramo, con el espaciado entre caracteres y las sangrías sin interpretar. Ola de superación (2026-09-05): los dos sentidos los recorre ya un lector estricto ajeno. La ida está medida entidad por entidad contra ezdxf; la vuelta la abre ezdxf con cero errores de auditoría desde que todo MTEXT que escribimos lleva `100 AcDbEntity` y `100 AcDbMText` — antes rechazaba el fichero entero, ni en modo recover.",
       "criteria": [
         {
           "id": "mtext.entity",
@@ -885,6 +905,15 @@
               "kind": "grep",
               "path": "apps/web/src/lib/cad/dxf-import.ts",
               "pattern": "MTEXT"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/verification/terceros-texto.spec.ts",
+              "independent": true
+            },
+            {
+              "kind": "file",
+              "path": "docs/cad/evidence/independencia-terceros.json"
             }
           ]
         },
@@ -970,7 +999,7 @@
       "group": "core",
       "name": "Capas y propiedades",
       "points": 10,
-      "gap": "Cerrado en la Ola 2 de capas: `frozen` vive en CadLayerDef (esquema 9) con viaje DXF del bit 1 del código 70 en ambas direcciones, LAYERSTATE persiste en el documento y la familia LAY*/VPLAYER es tecleable.",
+      "gap": "Cerrado en la Ola 2 de capas: `frozen` vive en CadLayerDef (esquema 9) con viaje DXF del bit 1 del código 70 en ambas direcciones, LAYERSTATE persiste en el documento y la familia LAY*/VPLAYER es tecleable. Ola de superación (2026-09-05): el color de capa del remitente sobrevive el viaje, medido sobre 24 capas ajenas. Hasta ese día el código 62 se leía y se tiraba —el color salía por posición alfabética sobre una paleta de cinco— y el fichero volvía con `62 7` en todas: el plano del remitente regresaba MONOCROMO mientras el informe decía «entró completo, sin pérdidas». Siete de los 255 índices ACI vuelven con otro número; son los duplicados de la propia paleta (1/10, 2/50 … 7/255, el mismo RGB), así que cambia la etiqueta y no el color.",
       "criteria": [
         {
           "id": "layers.canonical",
@@ -989,6 +1018,11 @@
             {
               "kind": "golden",
               "path": "apps/web/e2e/golden/24-cad-canonical-layers.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/verification/terceros-capas.spec.ts",
+              "independent": true
             }
           ]
         },
@@ -2949,7 +2983,7 @@
       "name": "Integridad: el producto hace lo que dice",
       "points": 13,
       "scope": "hoy",
-      "gap": "La fila que más pesa comercialmente: un «hecho» falso rompe la confianza en todo lo demás. Meta permanente: cero éxitos falsos y cero pérdidas silenciosas.",
+      "gap": "La fila que más pesa comercialmente: un «hecho» falso rompe la confianza en todo lo demás. Meta permanente: cero éxitos falsos y cero pérdidas silenciosas. Ola de superación (2026-09-05): la afirmación se mide ya sobre 35 filas de 19 archivos que este proyecto no escribió, con dos oráculos externos, y da CERO pérdidas silenciosas. La cifra vale por lo que costó: al dar ámbito a los escaneos crudos aparecieron cinco pérdidas nuevas sin aviso, el techo las cazó a la primera corrida y se emitió el aviso que faltaba en vez de subir el techo. Fuera del ámbito de los tipos de entidad quedaban tres pérdidas silenciosas medidas —el color de capa, siete capas de la tabla LAYER y el rótulo duplicado de cada cota— y las tres están arregladas y declaradas.",
       "criteria": [
         {
           "id": "integrity.commands",
@@ -3020,6 +3054,15 @@
               "path": "apps/web/src/components/cad/command-line/plot-host.ts",
               "pattern": "omitida",
               "min": 1
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/verification/dxf-fidelidad-terceros.spec.ts",
+              "independent": true
+            },
+            {
+              "kind": "file",
+              "path": "docs/cad/evidence/dxf-corpus-terceros-matrix.json"
             }
           ]
         },

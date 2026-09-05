@@ -18,7 +18,7 @@ import type {
   CadDxfSemanticDimension,
   CadDxfSemanticMleader,
 } from "./dxf-import";
-import { num, rawDxfPairs } from "./dxf-read-core";
+import { dxfPairsInEntitiesSection, num, rawDxfPairs } from "./dxf-read-core";
 import type { CadDimensionToleranceMode } from "./dimension-tolerance";
 
 const MAX_DXF_ENTITIES = 50000;
@@ -290,9 +290,15 @@ export function decodeMTextContent(value: string): Pick<CadDxfMText, "text" | "f
 
 export function parseRawDxfMTexts(text: string): CadDxfMText[] {
   const pairs = rawDxfPairs(text);
+  // Sólo el MTEXT de la sección ENTITIES es una entidad de espacio modelo. El
+  // de dentro de un BLOCK lo trae su INSERT, con la transformación acumulada
+  // que a este nivel no existe; sacarlo aquí lo ponía en el sitio equivocado y
+  // lo duplicaba. El porqué, con las cifras medidas, en `dxf-read-core.ts`.
+  const inEntities = dxfPairsInEntitiesSection(pairs);
   const result: CadDxfMText[] = [];
   for (let start = 0; start < pairs.length && result.length < MAX_DXF_ENTITIES; start += 1) {
     if (pairs[start].code !== 0 || pairs[start].value.toUpperCase() !== "MTEXT") continue;
+    if (!inEntities[start]) continue;
     let end = start + 1;
     while (end < pairs.length && pairs[end].code !== 0) end += 1;
     const entityPairs = pairs.slice(start + 1, end);
