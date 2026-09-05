@@ -24,6 +24,8 @@ import { installControl } from "./builtins/control";
 import { installLists } from "./builtins/lists";
 import { installPredicates } from "./builtins/predicates";
 import { installStrings } from "./builtins/strings";
+import { installUnavailable } from "./builtins/unavailable";
+import { installVl } from "./builtins/vl";
 import type { BuiltinTable } from "./builtins/define";
 import { T, real, type LispValue } from "./values";
 
@@ -46,6 +48,13 @@ export function createCoreLispBuiltins(): Map<string, LispValue> {
   installStrings(table);
   installPredicates(table);
   installControl(table);
+  // `vl-load-com`, los símbolos y los nombres de fichero: manipulación de
+  // cadenas y de la tabla de símbolos, sin documento de por medio.
+  installVl(table);
+  // Lo que NO está, con su motivo. Va en el núcleo porque el motivo no depende
+  // de que haya un dibujo abierto: quien valide un `.lsp` sin documento tiene
+  // que leer exactamente lo mismo que quien lo ejecute.
+  installUnavailable(table);
   return table;
 }
 

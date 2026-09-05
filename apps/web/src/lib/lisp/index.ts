@@ -66,6 +66,14 @@
  *   en el módulo correspondiente y su spec.
  * - Una rutina puede INSERTAR un bloque pero no DEFINIRLO: el vocabulario
  *   canónico de mutación no tiene esa orden y el subsistema no se lo salta.
+ * - El SDK de plugins (`plugins/api.ts`) tiene ya su manifiesto v1 con permisos
+ *   que se hacen cumplir, su ciclo de vida y dos ejemplos reales
+ *   (`plugins/examples/`), pero NADIE fuera de `lib/lisp/` lo importa todavía:
+ *   por la regla 1 de la casa, eso significa que no está implementado. Lo que
+ *   falta es el cableado al estudio —cargar el plugin, componer el registro,
+ *   montar sus paneles— y está escrito entero como petición P-ext-03 en
+ *   `docs/execution/frentes/ext-peticiones.md`, porque `components/cad/`
+ *   está fuera del territorio de este subsistema.
  */
 export { DEFAULT_LISP_BUDGET, LispMeter, type LispBudgetLimits } from "./budget";
 export { CAD_LISP_BUILTINS, createCadLispBuiltins } from "./cad-builtins";
@@ -114,10 +122,43 @@ export { parseDcl, type DclDialog } from "./dcl/parser";
 export {
   CadPluginRegistry,
   createPluginDocumentApi,
+  pluginGrantOf,
   type CadPlugin,
+  type PluginActivationContext,
+  type PluginAwareCommandRegistry,
+  type PluginCommandGrant,
   type PluginDocumentApi,
+  type PluginDocumentApiOptions,
+  type PluginHostEnvironment,
+  type PluginLifecycleState,
+  type PluginManifestVersion,
   type PluginPanel,
+  type PluginPanelPlacement,
+  type PluginRegistrationProblem,
 } from "./plugins/api";
+export {
+  PLUGIN_PERMISSIONS,
+  PLUGIN_PERMISSION_MEANING,
+  PluginPermissionError,
+  PluginPermissions,
+  isPluginPermission,
+  unknownPluginPermissions,
+  type PluginPermission,
+} from "./plugins/permissions";
+/**
+ * Los dos plugins de EJEMPLO. Se exportan desde la puerta principal a
+ * propósito: son la plantilla del desarrollador, y una plantilla que hay que ir
+ * a buscar a un subdirectorio por su ruta no la encuentra nadie. También son
+ * los sujetos de `plugins-permisos.spec.ts`, que es lo que impide que envejezcan
+ * en silencio cuando la API cambie.
+ */
+export { MARCO_LAMINA_PLUGIN } from "./plugins/examples/marco-lamina";
+export {
+  RECUENTO_CAPAS_PLUGIN,
+  recuentoPorCapa,
+  textoDelRecuento,
+  type RecuentoDeCapa,
+} from "./plugins/examples/recuento-capas";
 export { COMMAND_REGISTRY as LISP_COMMAND_REGISTRY_SLOT } from "./builtins/interaction";
 export type {
   LispDialogTile,

@@ -22,6 +22,14 @@
  * editor: así el LISP selecciona EXACTAMENTE lo mismo que seleccionaría el
  * ratón, y no una aproximación por caja envolvente.
  *
+ * ## `entsel` designa UNA, y vive aquí
+ *
+ * `entsel` no es «un `ssget` de uno»: devuelve un PAR —nombre y punto—, y su
+ * punto tiene un límite declarado que se lee en su propio comentario. Está en
+ * este módulo porque comparte con `ssget` la única petición de designación que
+ * el anfitrión atiende; tenerla en otro sitio habría invitado a abrir una
+ * segunda.
+ *
  * ## Los operadores lógicos se rechazan diciéndolo
  *
  * `(-4 . "<OR")` y compañía construyen filtros con árbol booleano. No están
@@ -39,8 +47,10 @@ import {
   bool,
   ename,
   int,
+  list,
   pickset,
   pointOf,
+  pointValue,
   toArray,
   type LispCallContext,
   type LispEval,
@@ -49,6 +59,7 @@ import {
 } from "../values";
 import { wcmatch } from "../wcmatch";
 import { requireHost } from "./entities";
+import { pickPointOf } from "./interaction";
 import { defgen, defsubr, wantInt, wantString, type BuiltinTable } from "./define";
 import type { CadEntity } from "../../cad/cad-document";
 
@@ -198,6 +209,51 @@ export function installSelectionFunctions(table: BuiltinTable): void {
       `ssget: el modo "${mode}" no está implementado. Admitidos: X, A, L, W, C, ` +
         `y la designación interactiva sin modo.`,
     );
+  });
+
+  /**
+   * `(entsel [mensaje])` designa UNA entidad y devuelve `(<nombre> <punto>)`.
+   *
+   * Es la puerta por la que empieza una rutina de edición —«designe el objeto a
+   * modificar»— y por la que sigue: `(car (entsel))` va a `entget`, y `(cadr
+   * (entsel))` es el punto que la rutina usa para decidir por dónde cortar.
+   *
+   * ## El punto es el CENTRO del contorno, no el clic. Está declarado
+   *
+   * El anfitrión contesta a una designación con nombres de entidad, no con
+   * coordenadas: la línea de comandos entrega lo que el usuario designó, y el
+   * punto exacto del ratón no viaja por ese canal. Así que el segundo elemento
+   * es el centro de la caja envolvente —el mismo `pickPointOf` que usa
+   * `command` para conducir un comando con una entidad—, y eso tiene una
+   * consecuencia que quien porte una rutina tiene que saber: lo que dependa de
+   * QUÉ LADO se designó (el trozo que TRIM recorta, la mitad de un arco) saldrá
+   * del lado del centro, no del lado del clic.
+   *
+   * Devolver sólo el nombre y omitir el punto habría sido peor: `(cadr (entsel))`
+   * daría nil, y la rutina dibujaría en el origen sin quejarse.
+   *
+   * Un Esc devuelve nil, que es lo que comprueba `(if (setq e (entsel)) …)`.
+   */
+  defgen(table, "entsel", 0, 1, function* (args, ctx): LispEval {
+    const host = requireHost(ctx, "entsel");
+    const message = args.length > 0 && args[0].t === "str" ? args[0].v : "Designe un objeto";
+    const response = yield { kind: "prompt-selection", message };
+    if (response.kind === "cancel") return NIL;
+    // El anfitrión puede contestar con un nombre suelto o con una lista de
+    // ellos —es la misma petición que atiende `ssget` sin modo—. `entsel`
+    // designa UNO: se toma el primero y se ignora el resto, como AutoCAD.
+    const picked =
+      response.value.t === "ename"
+        ? response.value
+        : toArray(response.value).find((item) => item.t === "ename");
+    if (!picked || picked.t !== "ename") return NIL;
+    if (!host.entity(picked.id))
+      throw new LispError(
+        `entsel: se designó ${picked.id}, que ya no está en el dibujo.`,
+      );
+    ctx.charge(4);
+    const point = pickPointOf(host, picked.id);
+    return list([picked, pointValue(point)]);
   });
 
   defsubr(table, "sslength", 1, 1, (args) => int(wantPickset(args[0], "sslength").ids.length));
