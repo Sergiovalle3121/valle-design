@@ -377,7 +377,118 @@ de producción: los cuatro arreglos van escritos enteros y probados en
 **Cifras.** `check:cad-math` pasa de 4286 a **4806** casos y de 17 a **21** suites.
 `npm run typecheck` y `npm run check:cad` en verde.
 
+### 2026-09-05 · Entregable 6: los oráculos externos, los que se cablearon y los que no
+
+**Qué se construyó.** El punto 2 de la cola pedía «oráculos binarios adicionales (dwg2dxf,
+lectores IFC/STEP de terceros) instalados y cableados; si el entorno no los sostiene, se declara
+con el intento y el motivo». Esto es las dos mitades, y la primera resultó más grande de lo que
+la cola suponía:
+
+- `docs/cad/corpus/oraculos/HERRAMIENTAS.md` — el **registro**, con el rigor que `docs/TOOLS.md`
+  del repositorio de conformidad exige para ODA File Converter: nombre, versión, papel, autor,
+  licencia con su texto descargado y hasheado, origen, `sha256` de la rueda, tamaño, fecha y
+  estado de los términos **tal y como se observaron**. Y la segunda mitad, que importa igual: lo
+  que se intentó y no entró, con su comando y su salida real.
+- `docs/cad/evidence/oraculos-externos-disponibilidad.json` — el censo ejecutable: siete
+  candidatos, veintiún binarios, cinco intentos con su salida literal.
+- `apps/web/src/lib/cad/verification/oraculos-externos.spec.ts` (615 comprobaciones, 524
+  magnitudes) + `oraculos-externos-registro.ts` — el arnés, con el mismo reparto que el censo de
+  la rúbrica: el juicio en un módulo, la comprobación en otro.
+- `docs/cad/corpus/oraculos/censo-steputils.py` + `steputils-0.1.json` — el **tercer oráculo**.
+- `docs/cad/corpus/oraculos/licencias/` — los textos MIT de las dos herramientas, hasheados.
+- `censo-ezdxf.py` acepta ahora `--destino`, y no por comodidad: sin él, reejecutar el censo
+  sobrescribiría el artefacto contra el que compara y la comparación sería una tautología
+  siempre verde.
+
+**LA REGLA DE UNA SOLA DIRECCIÓN, que es lo que hace útil al censo.** El spec vuelve a sondear la
+máquina en cada corrida y falla **asimétricamente**: una herramienta **admisible** declarada
+ausente que **aparece** pone la suite en rojo —un oráculo disponible y no usado es evidencia que
+se está dejando en la mesa—; una declarada presente que falta **no** la pone, porque `ezdxf` y
+`steputils` no están en CI a propósito y su lectura viaja congelada y anclada por `sha256`.
+Cuando no están, se **declara** la ausencia en vez de fingir la medición, igual que el
+repositorio ya hace con ODA File Converter. Probado en negativo con cuatro corridas: un
+`ODAFileConverter` falso en el `PATH` la pone roja con su mensaje; un `dwg2dxf` falso **no**,
+porque la GPL ya lo excluye y su aparición no crea obligación ninguna; sin `python3` en el
+`PATH` los dos oráculos se declaran ausentes y el recuento **no se mueve** (591 y 524, iguales
+con Python y sin él); y `VALLE_ORACULO_EZDXF=1` sin la herramienta revienta con el motivo escrito.
+
+**LO QUE SE CABLEÓ, Y NO ESTABA PREVISTO: un tercer oráculo, para el 3D.** El reconocimiento
+había desmentido que PyPI no respondiera, y eso abrió una puerta que la cola daba por cerrada. El
+producto **sí** tiene superficie STEP (`apps/web/src/lib/brep/step-export.ts`, AP203/AP214, más
+`iges.ts`), y su ida y vuelta la comprobaba `interop.spec.ts` escribiendo y leyendo con el mismo
+código de casa. `steputils` 0.1 (MIT, PyPI) es un analizador de la parte 21 que no comparte una
+línea con el nuestro, y **cuenta lo mismo que el kernel** en los cinco sólidos: 163 vértices uno a
+uno con sus coordenadas (tolerancia 1e-9, que es exactamente el ancho del redondeo que el oráculo
+declara), 311 longitudes de arista, y los `VERTEX_POINT` / `EDGE_CURVE` / `ORIENTED_EDGE` /
+`ADVANCED_FACE` / `CLOSED_SHELL` / `MANIFOLD_SOLID_BREP` de cada fichero. Con **sus** números sale
+la característica de Euler-Poincaré de los cinco: género 0 en la caja y el tetraedro, género 1 en
+la caja con agujero pasante, en el tubo de revolución y en la placa nacida de una booleana. Hasta
+hoy el único lector que había leído nuestro STEP era el nuestro.
+
+**LO QUE ESO LE DIO AL CENSO DE LA RÚBRICA, medido.** La fila `brep` estaba en
+`el_corpus_de_hoy_no_lo_alcanza` y su propia entrada pedía, por su nombre, «un lector STEP de
+terceros (`steputils` o pythonocc en PyPI)». Sube a `servible_hoy`: **233/271 → 239/271** en vez
+de 238, alcance de hoy 176/197 → **181/197**, pt independientes 5 → **16**, filas con tope 31 →
+**25**, seis parches en vez de cinco. Medido sobre una copia EN MEMORIA; el archivo compartido no
+se tocó. Regenerado `independencia-por-fila.json` y ampliada P-evidencia-05 con el bloque de
+`brep` y sus tres límites.
+
+**LO QUE NO SE CABLEÓ, con el intento y el motivo.**
+
+1. **LibreDWG / `dwg2dxf`: descartada por LICENCIA, no por falta de intento.** `apt-cache search
+   libredwg` vuelve vacía; `apt-get update` no alcanza `archive.ubuntu.com` (conexión fallida) ni
+   las PPA (403 del proxy). Pero el motivo que **cierra** la cola no es la red: LibreDWG es
+   GPL-3.0 y `CORPUS_POLICY.md` prohíbe GPL «sin excepción y sin discusión». Aunque el binario
+   llegara mañana, no entraría. La petición de la cola no queda pendiente: queda **cerrada con
+   motivo**. Lo que sigue abierto es tener un segundo validador de DWG, y tendría que ser otro
+   binario con otra licencia.
+2. **ODA File Converter: ausente, y su ausencia es de una persona.** `curl` a
+   `opendesign.com/guestfiles/oda_file_converter` devuelve `CONNECT tunnel failed, response 403`;
+   y aunque la URL respondiera, la descarga exige registro y **aceptación de términos por una
+   persona**. Un agente no acepta términos en nombre de nadie. Es admisible, así que su aparición
+   en la máquina sí pondría la suite en rojo.
+3. **Lectores IFC: descartados dos veces.** `ifcopenshell` es **LGPL** (clasificador publicado en
+   PyPI, consultado hoy) y además **no hay superficie de producto** contra la que sería oráculo:
+   Valle Design no emite ni consume IFC y no lo pretende. Un oráculo sin superficie no es un
+   pendiente, es una confusión de alcance.
+4. **Lectores STEP con kernel: `pythonocc-core`, LGPL.** Es la razón por la que el oráculo C es un
+   analizador y no un kernel, y por la que su artefacto dice que **no** acredita que un CAD
+   mecánico comercial reconstruya el sólido.
+
+**Un hecho que corrige a la cola.** La cola daba por sentado que los lectores IFC/STEP no tenían
+superficie de producto. Para IFC es cierto; **para STEP no lo era** — hay exportador e importador
+completos en `lib/brep/`. Se escribe aquí para que no se vuelva a suponer, que es la misma razón
+por la que se escribió el reconocimiento del 2026-09-04.
+
+**Lo que NO se hizo.** No se tocó `docs/competitive/rubric.json` (compartido) ni ningún archivo de
+producción. El oráculo C **lee**; su código ni se consulta ni se copia.
+
+**Cifras.** `check:cad-math` pasa de 4806 a **5421** casos y de 21 a **22** suites.
+`npm run typecheck` en verde.
+
 ## «Todavía no»
+
+- **2026-09-05 · IGES no lo atestigua nadie de fuera.** El criterio `brep.interop` se llama «STEP
+  e IGES en los dos sentidos» y el oráculo C sólo cubre STEP: no se encontró lector de IGES con
+  licencia admisible al alcance. Media fila sigue sin testigo, y el parche de P-evidencia-05 lo
+  dice en su límite en vez de callarlo.
+- **2026-09-05 · El oráculo C es un analizador, no un kernel.** Confirma que el fichero es parte
+  21 válida y que su topología cierra por Euler-Poincaré; **no** confirma que un CAD mecánico
+  comercial reconstruya el sólido. El que lo haría —`pythonocc-core`, que envuelve OpenCASCADE—
+  es LGPL y `CORPUS_POLICY.md` lo prohíbe. La afirmación se publica como lo que es.
+- **2026-09-05 · Los oráculos B y C son del MISMO AUTOR.** `ezdxf` y `steputils` los escribió
+  Manfred Moitzi. Contra el producto son testigos independientes los dos; **entre ellos no**, y
+  un fallo de criterio compartido por el autor los afectaría a la vez. Se eligió `steputils`
+  porque las alternativas al alcance son LGPL, no porque fuera la mejor imaginable.
+- **2026-09-05 · Un segundo validador de DWG sigue sin existir, y ya no es «pendiente de
+  intentar».** `DWG_REQUIRED_INDEPENDENT_VALIDATIONS` pide dos y hay uno (ODA, que aquí tampoco
+  está). LibreDWG queda descartada por GPL de forma definitiva; hace falta **otro** binario, con
+  otra licencia, llegado de fuera y compilado en una máquina que no sea la de implementación
+  (ADR-0007). Registrado con su motivo en `HERRAMIENTAS.md`.
+- **2026-09-05 · El censo de disponibilidad mide el `PATH`, no el disco.** `command -v` no ve una
+  herramienta instalada fuera de la ruta del proceso, y en Windows el sondeo entero saldría en
+  blanco. Está escrito en `loQueNoSeSondea` del artefacto: es una limitación declarada, no un
+  descuido.
 
 - **2026-09-04 · `check:dwg-evidence` sigue en rojo en esta máquina, y no es de este frente.**
   `scripts/dwg/dwg-evidence.spec.mjs` falla porque `VALLE_DWG_CORPUS_MIRROR` no apunta a ningún

@@ -29,6 +29,10 @@ export const FUENTES_INDEPENDIENTES: Record<string, string> = {
     "La jornada entera sobre bjnortier-dxf/floorplan.dxf: 3.065 magnitudes comparadas una a una contra ezdxf sobre los mismos bytes, y la relectura de lo exportado con dxf-parser. Sin los dos lectores ajenos, este spec no afirma nada.",
   "apps/web/src/lib/cad/verification/z-frontiers.spec.ts":
     "Cada frontera de la cota se cierra leyendo el DXF con dxf-parser, un lector de terceros que no conoce las convenciones del producto. El propio texto del criterio ya lo dice: «lector de terceros como oráculo».",
+  "apps/web/src/lib/cad/verification/oraculos-externos.spec.ts":
+    "524 magnitudes del sólido —163 vértices con sus coordenadas, 311 longitudes de arista y los recuentos de la parte 21— comparadas contra lo que steputils 0.1 (MIT) leyó en el STEP que exportamos. Sin ese lector ajeno, este spec no afirma nada del 3D.",
+  "docs/cad/corpus/oraculos/steputils-0.1.json":
+    "La lectura congelada de steputils 0.1 sobre los cinco sólidos exportados, anclada al sha256 de esos bytes. Los números los pone él; nosotros ponemos el ancla que impide que sigan pareciendo evidencia cuando el exportador cambie.",
 };
 
 /**
@@ -287,11 +291,27 @@ export const DICTAMENES: Record<string, Dictamen> = {
     candidato: "brep.interop",
     porQueEseCandidato:
       "STEP e IGES son formatos normalizados con lectores ajenos maduros; es el único criterio de la fila que sale del proyecto.",
-    veredicto: "el_corpus_de_hoy_no_lo_alcanza",
+    veredicto: "servible_hoy",
     loQueDiceElTestigo:
-      "Nada sobre STEP. Conviene anotar un testigo que ya corre y que ninguna fila cita: `verification/glb-scale.spec.ts` mide un muro DENTRO del GLB exportado con el `GLTFLoader` de three.js, que es de terceros. Ningún criterio de la rúbrica menciona GLB, así que ese testimonio no tiene dónde entrar sin cambiar la forma de la fila — y cambiar la forma de una fila no es un parche de evidencia.",
-    loQueFaltaria:
-      "Un lector STEP de terceros (`steputils` o pythonocc en PyPI, o FreeCAD por línea de comandos) que abra lo que exportamos y diga qué encuentra. Y decir a la vez la verdad de ADR-0016: el sólido es FACETADO, así que lo que el lector ajeno confirmará es la faceta, no la superficie que la generó.",
+      "El 2026-09-05 apareció el testigo que esta misma entrada pedía por su nombre. `steputils` 0.1 (MIT, PyPI) —un analizador de la parte 21 que no comparte una línea con `step-export.ts`— lee los cinco sólidos que exportamos y CUENTA lo mismo que el kernel: 163 vértices uno a uno con sus coordenadas, 311 longitudes de arista, y los VERTEX_POINT / EDGE_CURVE / ORIENTED_EDGE / ADVANCED_FACE / CLOSED_SHELL / MANIFOLD_SOLID_BREP de cada fichero. Y con SUS números, no con los nuestros, sale la característica de Euler-Poincaré de los cinco: género 0 en la caja y el tetraedro, género 1 en la caja con agujero pasante, en el tubo de revolución y en la placa nacida de una booleana. Hasta ese día el único lector que había leído nuestro STEP era el nuestro.",
+    limiteDelParche:
+      "Tres límites, y ninguno se tapa. (1) El criterio se llama «STEP e IGES en los dos sentidos» y el oráculo sólo cubre STEP: para IGES no se encontró lector ajeno con licencia admisible, así que esa mitad sigue sin testigo. (2) `steputils` es un ANALIZADOR, no un kernel: confirma que el fichero es parte 21 válida y que su topología cierra, no que un CAD mecánico comercial reconstruya el sólido — el que lo haría, `pythonocc-core`, es LGPL y CORPUS_POLICY.md lo prohíbe. (3) ADR-0016 sigue en pie: el sólido es FACETADO, así que lo que el lector ajeno confirma es la faceta, no la superficie que la generó.",
+    parche: {
+      criterio: "brep.interop",
+      operacion: "anadir",
+      evidencia: [
+        {
+          kind: "spec",
+          path: "apps/web/src/lib/cad/verification/oraculos-externos.spec.ts",
+          independent: true,
+        },
+        {
+          kind: "file",
+          path: "docs/cad/corpus/oraculos/steputils-0.1.json",
+          independent: true,
+        },
+      ],
+    },
   },
 
   wasm: {

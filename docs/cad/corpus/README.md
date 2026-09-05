@@ -53,9 +53,23 @@ dentro de un repositorio libre— **no entra**, aunque el repositorio que lo
 aloja sí sea libre. Lo rechazado se anota en `EXCLUIDOS.md` con su motivo: el
 corpus prefiere estar vacío a estar sucio.
 
-## Los dos oráculos
+## Los tres oráculos
 
-El corpus se lee dos veces, con lectores que no son de este proyecto:
+El corpus se lee dos veces, con lectores que no son de este proyecto — y desde
+el 2026-09-05 hay un tercero que no lee el corpus sino **lo que el modelador 3D
+exporta**. Los tres están registrados con nombre, versión, licencia, autor,
+origen, `sha256` de la rueda y estado de los términos en
+[`oraculos/HERRAMIENTAS.md`](oraculos/HERRAMIENTAS.md), con el mismo rigor que
+`docs/TOOLS.md` del repositorio de conformidad exige para ODA File Converter. Ese
+registro trae además **lo que se intentó y no entró**, con su comando y su salida
+real: LibreDWG (descartada por GPL, no por falta de intento), ODA File Converter
+(descarga que sólo puede aceptar una persona), IfcOpenShell y pythonocc-core
+(LGPL). El censo ejecutable vive en
+`docs/cad/evidence/oraculos-externos-disponibilidad.json` y lo vigila
+`apps/web/src/lib/cad/verification/oraculos-externos.spec.ts`, que **vuelve a
+sondear la máquina en cada corrida**: una herramienta admisible declarada ausente
+que aparece pone la suite en rojo, porque un oráculo disponible y no usado es
+evidencia que se está dejando en la mesa.
 
 - **Oráculo A — `dxf-parser`** (MIT, GDS Storefront Estimating). Ya es
   dependencia declarada de `apps/web`, así que corre en CI en cada corrida.
@@ -98,6 +112,26 @@ El oráculo B tiene dos artefactos, y responden preguntas distintas:
   Cada medición queda anclada al `sha256` de los bytes medidos; el spec
   comprueba ese hash antes de creérsela.
 
+- **Oráculo C — `steputils` 0.1** (MIT, Manfred Moitzi), analizador de la parte
+  21 (ISO 10303-21). No lee el corpus ajeno: lee **el STEP que exporta
+  `apps/web/src/lib/brep/step-export.ts`**, que hasta el 2026-09-05 sólo había
+  leído nuestro propio importador. Cuenta lo mismo que el kernel en los cinco
+  sólidos —163 vértices con sus coordenadas, 311 longitudes de arista y los
+  recuentos de entidad— y con **sus** números sale la característica de
+  Euler-Poincaré de los cinco. Su artefacto es `oraculos/steputils-0.1.json`,
+  anclado al `sha256` de los bytes exportados, y se regenera con el spec primero
+  y el script después:
+
+  ```sh
+  cd apps/web && npx tsx src/lib/cad/verification/oraculos-externos.spec.ts
+  cd ../.. && python3 docs/cad/corpus/oraculos/censo-steputils.py
+  ```
+
+  Sus dos límites, escritos donde se usan: es del **mismo autor que `ezdxf`**
+  (contra el oráculo B no es testigo independiente; contra el producto sí), y es
+  un **analizador, no un kernel** — el que reconstruiría el sólido,
+  `pythonocc-core`, es LGPL y `CORPUS_POLICY.md` lo prohíbe.
+
 El límite del oráculo A hay que decirlo entero, porque cambia lo que su
 coincidencia demuestra: **`apps/web/src/lib/cad/dxf-import.ts` importa
 `dxf-parser`**, así que el oráculo A comparte MOTOR DE ANÁLISIS con el lector
@@ -128,7 +162,7 @@ para ampliarlo. Cada entrada de `manifest.json` lleva su `urlOrigen`, y el
 
 ## Qué lo verifica
 
-Ocho suites, y responden preguntas distintas a propósito. Las ocho corren
+Nueve suites, y responden preguntas distintas a propósito. Las nueve corren
 con `npm test` y con `npm run check:cad-math`.
 
 - `apps/web/src/lib/cad/verification/dxf-corpus-terceros.spec.ts` — **la puerta
@@ -193,3 +227,14 @@ con `npm test` y con `npm run check:cad-math`.
   estructurales sobre la rúbrica, no medidas del dibujo contra un oráculo
   externo. Se regenera con
   `cd apps/web && VALLE_ESCRIBIR_CENSO=1 npx tsx src/lib/cad/verification/independencia-rubrica.spec.ts`.
+- `apps/web/src/lib/cad/verification/oraculos-externos.spec.ts` — **el censo de
+  los oráculos**. Sondea la máquina en cada corrida (siete candidatos y
+  veintiún binarios), afirma la regla de una sola dirección, exige que el
+  `sha256` de cada rueda y de cada licencia cuadre en los tres sitios donde está
+  escrito, y **vuelve a correr los dos censos congelados cuando la herramienta
+  está presente**, comparándolos byte a byte. Cuando no está, declara la
+  ausencia. Sus 524 magnitudes del sólido salen del artefacto congelado, así que
+  la cifra es la misma con Python instalado y sin él: una cifra que dependa del
+  entorno es el defecto que `check:cad-math` se escribió para no tener. Se
+  regenera con
+  `cd apps/web && VALLE_ESCRIBIR_ORACULOS=1 npx tsx src/lib/cad/verification/oraculos-externos.spec.ts`.

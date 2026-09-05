@@ -9,6 +9,15 @@ correr este script exige `pip install ezdxf==1.4.4` y es lo único que puede
 cambiar el JSON.
 
 Uso:  python3 docs/cad/corpus/oraculos/censo-ezdxf.py   (escribe ezdxf-1.4.4.json)
+      python3 .../censo-ezdxf.py --destino RUTA          (escribe donde se le diga)
+
+`--destino` existe por UNA razon y conviene que quede escrita: el arnes
+(`oraculos-externos.spec.ts`) vuelve a correr este censo cuando la herramienta
+esta presente y COMPARA su salida byte a byte contra el artefacto congelado del
+arbol. Si el script solo supiera escribir en su sitio, esa comparacion seria una
+tautologia — habria sobrescrito el fichero contra el que compara y siempre
+saldria verde. Con `--destino` el censo se recalcula en un temporal y el arbol no
+se toca: la diferencia, cuando la haya, sale como diferencia.
 
 ── Los cuatro ámbitos, y por qué son cuatro ────────────────────────────────
 
@@ -39,6 +48,8 @@ from ezdxf.lldxf.const import acad_release
 RAIZ = pathlib.Path(__file__).resolve().parents[4]
 CORPUS = RAIZ / "docs/cad/corpus"
 DESTINO = pathlib.Path(__file__).with_name("ezdxf-1.4.4.json")
+if "--destino" in sys.argv:
+    DESTINO = pathlib.Path(sys.argv[sys.argv.index("--destino") + 1]).resolve()
 
 ESPERADA = "1.4.4"
 if ezdxf.__version__ != ESPERADA:

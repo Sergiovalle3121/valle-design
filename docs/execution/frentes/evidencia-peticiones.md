@@ -171,28 +171,34 @@ Formato de cada petición:
 > asociativas» con un defecto silencioso encima, que es lo que este mismo censo le negó a
 > `layers` y a `integrity`. Las cifras de abajo son las de hoy, recalculadas por el spec.
 
-De las 31 filas, **5 se pueden servir hoy** con material que ya está en el
-árbol y que ya verifica. Las otras 26 no, y el censo dice por qué cada una, con este
+> **AMPLIADO EL 2026-09-05 (tarde).** La fila `brep` sube de
+> `el_corpus_de_hoy_no_lo_alcanza` a **`servible_hoy`**, y es el censo cobrándose su propia
+> nota: aquella entrada pedía, por su nombre, «un lector STEP de terceros (`steputils` o
+> pythonocc en PyPI)». El quinto entregable lo cableó. Son **6** servibles y **239/271**.
+> Las cifras de abajo son las de hoy, recalculadas por el spec.
+
+De las 31 filas, **6 se pueden servir hoy** con material que ya está en el
+árbol y que ya verifica. Las otras 25 no, y el censo dice por qué cada una, con este
 vocabulario:
 
 | Veredicto | Filas | Qué significa |
 | --- | --- | --- |
-| `servible_hoy` | 5 | Hay un testigo ajeno en el árbol y dice que SÍ. Parche abajo. |
+| `servible_hoy` | 6 | Hay un testigo ajeno en el árbol y dice que SÍ. Parche abajo. |
 | `bloqueado_por_defecto_medido` | 5 | Hay un testigo ajeno en el árbol y dice que **NO**. |
-| `el_corpus_de_hoy_no_lo_alcanza` | 15 | El material ajeno del árbol no llega; lo que sí llegaría va nombrado. |
+| `el_corpus_de_hoy_no_lo_alcanza` | 14 | El material ajeno del árbol no llega; lo que sí llegaría va nombrado. |
 | `no_lo_sirve_material_ajeno` | 6 | Ningún fichero de terceros puede atestiguarlo: falta un usuario real. |
 
 **El efecto, MEDIDO sobre una copia en memoria** (el archivo compartido no se tocó: el spec clona
-la rúbrica, le aplica estos cinco parches y vuelve a llamar a `scoreRubric()`):
+la rúbrica, le aplica estos seis parches y vuelve a llamar a `scoreRubric()`):
 
 | | antes | después |
 |---|---|---|
-| TOTAL | 233/271 (86 %) | **238/271 (87.8 %)** |
-| ALCANCE DE HOY | 176/197 | **180/197** |
-| pt con evidencia independiente | 5 | **15** |
-| filas que retienen 1 pt | 31 | **26** |
+| TOTAL | 233/271 (86 %) | **239/271 (88.2 %)** |
+| ALCANCE DE HOY | 176/197 | **181/197** |
+| pt con evidencia independiente | 5 | **16** |
+| filas que retienen 1 pt | 31 | **25** |
 
-#### Los cinco parches, uno por fila
+#### Los seis parches, uno por fila
 
 #### draw-2d · Dibujo 2D y precisión — 15/16 → 16
 
@@ -273,6 +279,29 @@ sobre su propio objeto.** El parche vuelve —tal cual estaba, más
 - **Qué dice el testigo:** Los dos oráculos cuentan 10 INSERT en floorplan.dxf, el lector trae 10 y dxf-parser reencuentra 10 en lo que exportamos; ezdxf abre ese fichero y no audita ni un error sobre ellos. La matriz añade el caso incómodo: blocks1.dxf entra DEGRADADO —un bloque con escala distinta en X y en Y sobre geometría circular sale con círculos del radio promedio— y lo declara.
 - **Hasta dónde llega y hasta dónde no:** blocks2.dxf, uno de los diecinueve, no lo analiza nuestro lector en absoluto (`parse_failed`): sus INSERT, LINE y LWPOLYLINE constan como pérdida DECLARADA, no silenciosa. El parche no tapa eso; la matriz lo publica. **Desde el 2026-09-05 la causa está medida y es una sola**: `$XCLIPFRAME` = 2 en la cabecera, valor legítimo desde AutoCAD 2010 que `dxf-parser` no admite —y el lector comparte ese analizador—. Normalizado ese par en memoria, el fichero entra completo con su anidado de dos niveles, su ARC y su ELLIPSE (P-evidencia-13, con el arreglo probado).
 
+#### brep · Modelo 3D y sólidos B-rep FACETADO — 6/7 → 7
+
+- **Criterio:** `brep.interop` — se añaden al final de su array `evidence`:
+
+  ```json
+  [
+    {
+      "kind": "spec",
+      "path": "apps/web/src/lib/cad/verification/oraculos-externos.spec.ts",
+      "independent": true
+    },
+    {
+      "kind": "file",
+      "path": "docs/cad/corpus/oraculos/steputils-0.1.json",
+      "independent": true
+    }
+  ]
+  ```
+
+- **Por qué ese criterio:** STEP e IGES son formatos normalizados con lectores ajenos maduros; es el único criterio de la fila que sale del proyecto.
+- **Qué dice el testigo:** `steputils` 0.1 (MIT, PyPI, Manfred Moitzi) —un analizador de la parte 21 que no comparte una línea con `step-export.ts`— lee los cinco sólidos que exportamos y **cuenta lo mismo que el kernel**: 163 vértices uno a uno con sus coordenadas, 311 longitudes de arista, y los `VERTEX_POINT` / `EDGE_CURVE` / `ORIENTED_EDGE` / `ADVANCED_FACE` / `CLOSED_SHELL` / `MANIFOLD_SOLID_BREP` de cada fichero. Con **sus** números, no con los nuestros, sale la característica de Euler-Poincaré de los cinco: género 0 en la caja y el tetraedro, género 1 en la caja con agujero pasante, en el tubo de revolución y en la placa nacida de una booleana. Hasta el 2026-09-05 el único lector que había leído nuestro STEP era el nuestro.
+- **Hasta dónde llega y hasta dónde no:** Tres límites, ninguno tapado. (1) El criterio se llama «STEP e IGES en los dos sentidos» y el oráculo sólo cubre **STEP**: para IGES no se encontró lector ajeno con licencia admisible. (2) `steputils` es un **analizador, no un kernel**: confirma que el fichero es parte 21 válida y que su topología cierra, no que un CAD mecánico comercial reconstruya el sólido — el que lo haría, `pythonocc-core`, es LGPL y `CORPUS_POLICY.md` lo prohíbe. (3) ADR-0016 sigue en pie: el sólido es **facetado**, así que lo que el lector ajeno confirma es la faceta, no la superficie que la generó.
+
 #### modeling3d · Modelado 3D: primitivas, SOLIDEDIT y la cota — 4/5 → 5
 
 - **Criterio:** `modeling3d.z-roundtrip` — NO se añade evidencia: se le pone `"independent": true` a la entrada que YA está.
@@ -322,7 +351,7 @@ inventó para impedir; lo que se hace es escribir qué dijo y apuntar a la petic
 | `layers` | 9/10 | `layers.canonical` | Aplicar P-evidencia-09 (el aviso `layer_table_pruned` en `document-import.ts` y su fila en `WARNING_RULES`). Conceder hoy el tope de «Capas y propiedades» con una poda medida y silenciosa encima sería el caso exacto que la regla del corte inventó para impedir. |
 | `integrity` | 12/13 | `integrity.no-silent-loss` | Aplicar P-evidencia-09. La cifra de cabecera de la matriz es buena y este frente la firma; conceder con ella el tope de la fila que se llama «Integridad: el producto hace lo que dice», mientras el propio frente publica una pérdida silenciosa medida, sería la contradicción más cara del censo. |
 
-#### Las que el material ajeno del árbol no alcanza (15)
+#### Las que el material ajeno del árbol no alcanza (14)
 
 Ninguna se queda sin salida escrita. El reconocimiento de este frente desmintió la suposición de
 que los registros públicos no respondían —`pip3 download ezdxf` bajó 5,8 MB—, así que estos
@@ -338,7 +367,6 @@ caminos son alcanzables hoy; lo que falta es el trabajo, no el permiso.
 | `api-sdk` | 6/7 | `api-sdk.contract` | Un validador de OpenAPI de terceros sobre `design-api.v1.yaml` (`openapi-spec-validator` en PyPI, o Redocly/Spectral en npm), congelando su dictamen como artefacto igual que el censo de ezdxf. Alcanzable hoy: los tres registros responden. |
 | `events` | 3/4 | `events.operational` | Verificar la firma `X-Valle-Signature` con una implementación de HMAC ajena (la de la librería estándar de Python, por ejemplo) sobre `timestamp + "." + rawBody` capturado, y congelar ese dictamen. Es el mismo patrón del oráculo B y cuesta poco. |
 | `object-storage` | 2/3 | `object-storage.s3` | Correr el adaptador contra un MinIO real (AGPL, imagen pública) y publicar qué guardó y qué devolvió. MinIO es software ajeno juzgando nuestro cliente, que es la definición del oráculo externo. |
-| `brep` | 6/7 | `brep.interop` | Un lector STEP de terceros (`steputils` o pythonocc en PyPI, o FreeCAD por línea de comandos) que abra lo que exportamos y diga qué encuentra. Y decir a la vez la verdad de ADR-0016: el sólido es FACETADO, así que lo que el lector ajeno confirmará es la faceta, no la superficie que la generó. |
 | `wasm` | 1/2 | `wasm.toolchain` | Un tercero de precisión arbitraria (`mpmath` en PyPI) que emita los valores de referencia de las mismas operaciones. No falta el método —está bien resuelto—: falta que el que calcule sea otro. |
 | `geo` | 2/3 | `geo.crs` | `pyproj` (que envuelve PROJ, la implementación de referencia del mundo GIS) transformando el mismo juego de puntos, congelado como artefacto con su versión. Es el candidato más barato y más sólido de las veinticinco filas que no se sirven hoy: la fórmula ya está contrastada por dentro, sólo falta que el que la ejecute sea otro. |
 | `toolset-map3d` | 3/4 | `toolset-map3d.georreferencia` | Importar un shapefile público real y comprobar las coordenadas transformadas contra PROJ. Comparte oráculo con la fila `geo`, así que el mismo trabajo sirve para las dos. |
