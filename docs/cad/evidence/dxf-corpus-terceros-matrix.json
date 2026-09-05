@@ -1,0 +1,944 @@
+{
+  "generadoPor": "cd apps/web && VALLE_ESCRIBIR_MATRIZ=1 npx tsx src/lib/cad/verification/dxf-fidelidad-terceros.spec.ts",
+  "verificadoPor": "apps/web/src/lib/cad/verification/dxf-fidelidad-terceros.spec.ts",
+  "corpusSintetico": false,
+  "corpus": {
+    "manifiesto": "docs/cad/corpus/manifest.json",
+    "archivos": 19,
+    "fuentes": 2
+  },
+  "loQueNoAcredita": "Ninguno de estos archivos lo guardó AutoCAD ni salió de un despacho: son ficheros de prueba de dos bibliotecas libres. Acreditan interoperabilidad con material que este proyecto no escribió, NO compatibilidad con AutoCAD, y ninguna afirmación derivada de aquí puede decirlo.",
+  "oraculos": {
+    "A": {
+      "herramienta": "dxf-parser (MIT, GDS Storefront Estimating)",
+      "corre": "en CI, en cada corrida: es dependencia declarada de apps/web",
+      "limite": "COMPARTE MOTOR con el lector de producción (apps/web/src/lib/cad/dxf-import.ts lo importa). Contra el oráculo A no se mide el análisis del archivo, se mide la conversión a entidades canónicas, que sí es código propio.",
+      "puntosCiegos": [
+        "HATCH",
+        "LEADER",
+        "VIEWPORT"
+      ],
+      "porQueEsePuntoCiego": "dxf-parser no trae manejador para esos tipos (node_modules/dxf-parser/dist/entities/), así que sobre ellos no opina: no dice cero, no dice nada. Por eso hay un oráculo B."
+    },
+    "B": {
+      "herramienta": "ezdxf 1.4.4 (MIT, Manfred Moitzi)",
+      "corre": "NO está en CI: su censo se congela en docs/cad/corpus/oraculos/ezdxf-1.4.4.json",
+      "porQueEsIndependiente": "Otro autor, otra lengua, ninguna línea en común con este proyecto ni con el oráculo A."
+    }
+  },
+  "loQueNoSeMide": "Dos ámbitos quedan FUERA del veredicto, y decirlo importa más que la cifra que sí está. (1) El ESPACIO PAPEL: el lector lo excluye a propósito (dxf-model-space-scope.ts) y lo declara como pérdida al usuario; el oráculo B sí lo censa, y esta matriz lo publica por archivo en `espacioPapelSegunOraculoB` sin juzgarlo. (2) Lo que vive DENTRO de una definición de bloque: llega al documento con el bloque entero, no como entidades sueltas, así que contarlo como entidad sería contarlo dos veces. Las dos ausencias son elecciones escritas, no huecos.",
+  "ambitosDeConteo": {
+    "espacio-modelo": "El ámbito por defecto. El lector devuelve las primitivas con su origen y su espacio, así que el conteo comparable filtra primitiveSources === \"entity\" y descarta el espacio papel.",
+    "archivo-entero": "Sólo MTEXT y HATCH. El lector los devuelve en result.mtexts y result.hatches SIN DUEÑO: no dice si venían del espacio modelo, del papel o de dentro de un bloque. Es una limitación real del lector y por eso se declara; el ámbito no se eligió porque cuadre."
+  },
+  "criterios": {
+    "intacto": "Llegaron tantos ejemplares como declara el oráculo y con su naturaleza: un ARC vuelve arco, un HATCH vuelve sombreado. Se mide contra el resultado del lector real, no contra una lista escrita a mano.",
+    "degradado": "Llegó, pero convertido en otra cosa, en menor número, o con un aviso del propio lector que lo nombra. `degradaA` dice exactamente en qué, porque «degradado» a secas no permite decidir si el plano sigue sirviendo.",
+    "perdido_declarado": "No llegó ningún ejemplar Y el lector emitió un aviso que nombra ese tipo (o declaró el archivo ilegible entero). Es una limitación conocida: el remitente puede explotar la entidad y reenviar.",
+    "perdido_en_silencio": "No llegó ningún ejemplar y NINGÚN aviso lo menciona. Es el caso peligroso: el usuario cree que tiene el plano completo. Todo lo que aparezca aquí es deuda del lector, no una limitación asumida."
+  },
+  "resumen": {
+    "archivos": 19,
+    "filas": 40,
+    "intactos": 29,
+    "degradados": 4,
+    "perdidosDeclarados": 7,
+    "perdidosEnSilencio": 0,
+    "archivosQueAbre": {
+      "oraculoA": 18,
+      "oraculoB": 17,
+      "lector": 18
+    },
+    "filasConLosDosOraculos": 30,
+    "discrepanciasEntreOraculos": 0
+  },
+  "archivos": [
+    {
+      "id": "bjnortier-dxf/blocks1",
+      "fuente": "bjnortier-dxf",
+      "sha256": "ba33677808f6a534d64a5898803649caca30eccb543092e3e5a102043b9d1c2e",
+      "bytes": 17124,
+      "dialecto": "AC1021 (R2007)",
+      "oraculoA": {
+        "leido": true
+      },
+      "oraculoB": {
+        "leido": true
+      },
+      "lector": {
+        "legible": true,
+        "capas": 1,
+        "avisos": {
+          "anisotropic_insert": 1
+        }
+      },
+      "filas": [
+        {
+          "tipo": "INSERT",
+          "ambito": "espacio-modelo",
+          "oraculoA": 2,
+          "oraculoB": 2,
+          "declarados": 2,
+          "consenso": true,
+          "lector": 2,
+          "avisosDelTipo": [
+            "anisotropic_insert"
+          ],
+          "veredicto": "degradado",
+          "degradaA": "1 bloque(s) llegan con escala distinta en X y en Y sobre geometría circular: los círculos deberían salir elípticos y entran como círculos del radio promedio."
+        }
+      ]
+    },
+    {
+      "id": "bjnortier-dxf/blocks2",
+      "fuente": "bjnortier-dxf",
+      "sha256": "5d847d833dd444fbe8a85def5881a4f9055e47d06c41ca009c9e40784e92f91f",
+      "bytes": 20507,
+      "dialecto": "AC1021 (R2007)",
+      "oraculoA": {
+        "leido": false,
+        "error": "String '2' cannot be cast to Boolean type"
+      },
+      "oraculoB": {
+        "leido": true
+      },
+      "lector": {
+        "legible": false,
+        "capas": 2,
+        "avisos": {
+          "parse_failed": 1
+        }
+      },
+      "filas": [
+        {
+          "tipo": "INSERT",
+          "ambito": "espacio-modelo",
+          "oraculoA": null,
+          "oraculoB": 1,
+          "declarados": 1,
+          "consenso": null,
+          "lector": 0,
+          "avisosDelTipo": [],
+          "veredicto": "perdido_declarado",
+          "sinOpinionA": "archivo-rechazado"
+        },
+        {
+          "tipo": "LINE",
+          "ambito": "espacio-modelo",
+          "oraculoA": null,
+          "oraculoB": 1,
+          "declarados": 1,
+          "consenso": null,
+          "lector": 0,
+          "avisosDelTipo": [],
+          "veredicto": "perdido_declarado",
+          "sinOpinionA": "archivo-rechazado"
+        },
+        {
+          "tipo": "LWPOLYLINE",
+          "ambito": "espacio-modelo",
+          "oraculoA": null,
+          "oraculoB": 1,
+          "declarados": 1,
+          "consenso": null,
+          "lector": 0,
+          "avisosDelTipo": [],
+          "veredicto": "perdido_declarado",
+          "sinOpinionA": "archivo-rechazado"
+        },
+        {
+          "tipo": "MTEXT",
+          "ambito": "archivo-entero",
+          "oraculoA": null,
+          "oraculoB": 3,
+          "declarados": 3,
+          "consenso": null,
+          "lector": 3,
+          "avisosDelTipo": [],
+          "veredicto": "intacto",
+          "sinOpinionA": "archivo-rechazado"
+        }
+      ]
+    },
+    {
+      "id": "bjnortier-dxf/dimensions",
+      "fuente": "bjnortier-dxf",
+      "sha256": "513d44f4b2febdf2d2e27016c400cc774f0a364620b34730eaaece5cd6f15d77",
+      "bytes": 18956,
+      "dialecto": "AC1021 (R2007)",
+      "oraculoA": {
+        "leido": true
+      },
+      "oraculoB": {
+        "leido": true
+      },
+      "lector": {
+        "legible": true,
+        "capas": 1,
+        "avisos": {
+          "foreign_dimension_detached": 2
+        }
+      },
+      "filas": [
+        {
+          "tipo": "CIRCLE",
+          "ambito": "espacio-modelo",
+          "oraculoA": 1,
+          "oraculoB": 1,
+          "declarados": 1,
+          "consenso": true,
+          "lector": 1,
+          "avisosDelTipo": [],
+          "veredicto": "intacto"
+        },
+        {
+          "tipo": "DIMENSION",
+          "ambito": "espacio-modelo",
+          "oraculoA": 2,
+          "oraculoB": 2,
+          "declarados": 2,
+          "consenso": true,
+          "lector": 2,
+          "avisosDelTipo": [
+            "foreign_dimension_detached"
+          ],
+          "veredicto": "degradado",
+          "degradaA": "2 cota(s) de otro programa entran VIVAS —vuelven a medir sus propios puntos y su número se recalcula— pero DESLIGADAS del dibujo: mover el muro que acotan ya no las cambia. El archivo asocia por identificadores internos que no existen en este documento."
+        },
+        {
+          "tipo": "LINE",
+          "ambito": "espacio-modelo",
+          "oraculoA": 4,
+          "oraculoB": 4,
+          "declarados": 4,
+          "consenso": true,
+          "lector": 4,
+          "avisosDelTipo": [],
+          "veredicto": "intacto"
+        },
+        {
+          "tipo": "MTEXT",
+          "ambito": "archivo-entero",
+          "oraculoA": 2,
+          "oraculoB": 2,
+          "declarados": 2,
+          "consenso": true,
+          "lector": 2,
+          "avisosDelTipo": [],
+          "veredicto": "intacto"
+        }
+      ]
+    },
+    {
+      "id": "bjnortier-dxf/empty",
+      "fuente": "bjnortier-dxf",
+      "sha256": "56b9bc2de32b24c7ca3e29071d8cf6c7f9c27df1c936948d48c891ac8fd92c58",
+      "bytes": 188564,
+      "dialecto": "AC1027 (R2013)",
+      "oraculoA": {
+        "leido": true
+      },
+      "oraculoB": {
+        "leido": true
+      },
+      "lector": {
+        "legible": true,
+        "capas": 1,
+        "avisos": {
+          "hatch_unsupported_boundary": 2,
+          "unsupported_entity": 65
+        }
+      },
+      "filas": [
+        {
+          "tipo": "HATCH",
+          "ambito": "archivo-entero",
+          "oraculoA": null,
+          "oraculoB": 2,
+          "declarados": 2,
+          "consenso": null,
+          "lector": 0,
+          "avisosDelTipo": [
+            "hatch_unsupported_boundary"
+          ],
+          "veredicto": "perdido_declarado",
+          "sinOpinionA": "punto-ciego"
+        },
+        {
+          "tipo": "MTEXT",
+          "ambito": "archivo-entero",
+          "oraculoA": 3,
+          "oraculoB": 3,
+          "declarados": 3,
+          "consenso": true,
+          "lector": 3,
+          "avisosDelTipo": [],
+          "veredicto": "intacto"
+        }
+      ],
+      "espacioPapelSegunOraculoB": {
+        "VIEWPORT": 2
+      }
+    },
+    {
+      "id": "bjnortier-dxf/entities",
+      "fuente": "bjnortier-dxf",
+      "sha256": "fa0b296dc6c060ce8d79c61dd6461c9e1523a15ae33cdc650175ee8b9270d1d8",
+      "bytes": 194947,
+      "dialecto": "AC1024 (R2010)",
+      "oraculoA": {
+        "leido": true
+      },
+      "oraculoB": {
+        "leido": true
+      },
+      "lector": {
+        "legible": true,
+        "capas": 2,
+        "avisos": {
+          "hatch_unsupported_boundary": 2,
+          "unsupported_entity": 128
+        }
+      },
+      "filas": [
+        {
+          "tipo": "HATCH",
+          "ambito": "archivo-entero",
+          "oraculoA": null,
+          "oraculoB": 2,
+          "declarados": 2,
+          "consenso": null,
+          "lector": 0,
+          "avisosDelTipo": [
+            "hatch_unsupported_boundary"
+          ],
+          "veredicto": "perdido_declarado",
+          "sinOpinionA": "punto-ciego"
+        },
+        {
+          "tipo": "INSERT",
+          "ambito": "espacio-modelo",
+          "oraculoA": 29,
+          "oraculoB": 29,
+          "declarados": 29,
+          "consenso": true,
+          "lector": 29,
+          "avisosDelTipo": [],
+          "veredicto": "intacto"
+        },
+        {
+          "tipo": "LINE",
+          "ambito": "espacio-modelo",
+          "oraculoA": 29,
+          "oraculoB": 29,
+          "declarados": 29,
+          "consenso": true,
+          "lector": 29,
+          "avisosDelTipo": [],
+          "veredicto": "intacto"
+        },
+        {
+          "tipo": "LWPOLYLINE",
+          "ambito": "espacio-modelo",
+          "oraculoA": 29,
+          "oraculoB": 29,
+          "declarados": 29,
+          "consenso": true,
+          "lector": 29,
+          "avisosDelTipo": [],
+          "veredicto": "intacto"
+        },
+        {
+          "tipo": "MTEXT",
+          "ambito": "archivo-entero",
+          "oraculoA": 76,
+          "oraculoB": 76,
+          "declarados": 76,
+          "consenso": true,
+          "lector": 76,
+          "avisosDelTipo": [],
+          "veredicto": "intacto"
+        }
+      ]
+    },
+    {
+      "id": "bjnortier-dxf/floorplan",
+      "fuente": "bjnortier-dxf",
+      "sha256": "6d761ecb1ab59664425eb1dcc6837a12611536c8e03e3f7855951a76786d159c",
+      "bytes": 1117143,
+      "dialecto": "AC1018 (R2004)",
+      "oraculoA": {
+        "leido": true
+      },
+      "oraculoB": {
+        "leido": true
+      },
+      "lector": {
+        "legible": true,
+        "capas": 17,
+        "avisos": {
+          "linetype_complejo": 1,
+          "foreign_dimension_detached": 63,
+          "unsupported_entity": 72
+        }
+      },
+      "filas": [
+        {
+          "tipo": "ARC",
+          "ambito": "espacio-modelo",
+          "oraculoA": 20,
+          "oraculoB": 20,
+          "declarados": 20,
+          "consenso": true,
+          "lector": 20,
+          "avisosDelTipo": [],
+          "veredicto": "intacto"
+        },
+        {
+          "tipo": "CIRCLE",
+          "ambito": "espacio-modelo",
+          "oraculoA": 9,
+          "oraculoB": 9,
+          "declarados": 9,
+          "consenso": true,
+          "lector": 9,
+          "avisosDelTipo": [],
+          "veredicto": "intacto"
+        },
+        {
+          "tipo": "DIMENSION",
+          "ambito": "espacio-modelo",
+          "oraculoA": 63,
+          "oraculoB": 63,
+          "declarados": 63,
+          "consenso": true,
+          "lector": 63,
+          "avisosDelTipo": [
+            "foreign_dimension_detached",
+            "unsupported_entity"
+          ],
+          "veredicto": "degradado",
+          "degradaA": "63 cota(s) de otro programa entran VIVAS —vuelven a medir sus propios puntos y su número se recalcula— pero DESLIGADAS del dibujo: mover el muro que acotan ya no las cambia. El archivo asocia por identificadores internos que no existen en este documento. · 72 entidad(es) de tipo DIMENSION, LEADER, VIEWPORT no tienen equivalente en el dibujo y NO entraron. Si hacen falta, pide al remitente que las explote a líneas y arcos antes de exportar."
+        },
+        {
+          "tipo": "HATCH",
+          "ambito": "archivo-entero",
+          "oraculoA": null,
+          "oraculoB": 26,
+          "declarados": 26,
+          "consenso": null,
+          "lector": 26,
+          "avisosDelTipo": [],
+          "veredicto": "intacto",
+          "sinOpinionA": "punto-ciego"
+        },
+        {
+          "tipo": "INSERT",
+          "ambito": "espacio-modelo",
+          "oraculoA": 10,
+          "oraculoB": 10,
+          "declarados": 10,
+          "consenso": true,
+          "lector": 10,
+          "avisosDelTipo": [],
+          "veredicto": "intacto"
+        },
+        {
+          "tipo": "LEADER",
+          "ambito": "espacio-modelo",
+          "oraculoA": null,
+          "oraculoB": 6,
+          "declarados": 6,
+          "consenso": null,
+          "lector": 0,
+          "avisosDelTipo": [
+            "unsupported_entity"
+          ],
+          "veredicto": "perdido_declarado",
+          "sinOpinionA": "punto-ciego"
+        },
+        {
+          "tipo": "LINE",
+          "ambito": "espacio-modelo",
+          "oraculoA": 624,
+          "oraculoB": 624,
+          "declarados": 624,
+          "consenso": true,
+          "lector": 624,
+          "avisosDelTipo": [],
+          "veredicto": "intacto"
+        },
+        {
+          "tipo": "LWPOLYLINE",
+          "ambito": "espacio-modelo",
+          "oraculoA": 124,
+          "oraculoB": 124,
+          "declarados": 124,
+          "consenso": true,
+          "lector": 124,
+          "avisosDelTipo": [],
+          "veredicto": "intacto"
+        },
+        {
+          "tipo": "MTEXT",
+          "ambito": "archivo-entero",
+          "oraculoA": 144,
+          "oraculoB": 144,
+          "declarados": 144,
+          "consenso": true,
+          "lector": 144,
+          "avisosDelTipo": [],
+          "veredicto": "intacto"
+        },
+        {
+          "tipo": "TEXT",
+          "ambito": "espacio-modelo",
+          "oraculoA": 89,
+          "oraculoB": 89,
+          "declarados": 89,
+          "consenso": true,
+          "lector": 89,
+          "avisosDelTipo": [],
+          "veredicto": "intacto"
+        }
+      ],
+      "espacioPapelSegunOraculoB": {
+        "VIEWPORT": 3
+      }
+    },
+    {
+      "id": "bjnortier-dxf/hatches",
+      "fuente": "bjnortier-dxf",
+      "sha256": "e67becc4b026231d656a4b506b90d533a3fcdfb14e3003762edd4a9e40b7e6d3",
+      "bytes": 16594,
+      "dialecto": "AC1021 (R2007)",
+      "oraculoA": {
+        "leido": true
+      },
+      "oraculoB": {
+        "leido": true
+      },
+      "lector": {
+        "legible": true,
+        "capas": 1,
+        "avisos": {
+          "hatch_unsupported_boundary": 1
+        }
+      },
+      "filas": [
+        {
+          "tipo": "HATCH",
+          "ambito": "archivo-entero",
+          "oraculoA": null,
+          "oraculoB": 1,
+          "declarados": 1,
+          "consenso": null,
+          "lector": 0,
+          "avisosDelTipo": [
+            "hatch_unsupported_boundary"
+          ],
+          "veredicto": "perdido_declarado",
+          "sinOpinionA": "punto-ciego"
+        },
+        {
+          "tipo": "LINE",
+          "ambito": "espacio-modelo",
+          "oraculoA": 4,
+          "oraculoB": 4,
+          "declarados": 4,
+          "consenso": true,
+          "lector": 4,
+          "avisosDelTipo": [],
+          "veredicto": "intacto"
+        }
+      ]
+    },
+    {
+      "id": "bjnortier-dxf/layers",
+      "fuente": "bjnortier-dxf",
+      "sha256": "860c3085c10b754d75fd903747f78a0e52c69b94ac77f23bdb018bec41b860ff",
+      "bytes": 17048,
+      "dialecto": "AC1021 (R2007)",
+      "oraculoA": {
+        "leido": true
+      },
+      "oraculoB": {
+        "leido": true
+      },
+      "lector": {
+        "legible": true,
+        "capas": 3,
+        "avisos": {}
+      },
+      "filas": [
+        {
+          "tipo": "CIRCLE",
+          "ambito": "espacio-modelo",
+          "oraculoA": 1,
+          "oraculoB": 1,
+          "declarados": 1,
+          "consenso": true,
+          "lector": 1,
+          "avisosDelTipo": [],
+          "veredicto": "intacto"
+        },
+        {
+          "tipo": "LINE",
+          "ambito": "espacio-modelo",
+          "oraculoA": 8,
+          "oraculoB": 8,
+          "declarados": 8,
+          "consenso": true,
+          "lector": 8,
+          "avisosDelTipo": [],
+          "veredicto": "intacto"
+        }
+      ]
+    },
+    {
+      "id": "bjnortier-dxf/lines",
+      "fuente": "bjnortier-dxf",
+      "sha256": "052d8246dcf762c4100a4df8a68bed1964da5d1ee087a86af9996c7b6c6e6a30",
+      "bytes": 17195,
+      "dialecto": "AC1021 (R2007)",
+      "oraculoA": {
+        "leido": true
+      },
+      "oraculoB": {
+        "leido": true
+      },
+      "lector": {
+        "legible": true,
+        "capas": 1,
+        "avisos": {}
+      },
+      "filas": [
+        {
+          "tipo": "LINE",
+          "ambito": "espacio-modelo",
+          "oraculoA": 11,
+          "oraculoB": 11,
+          "declarados": 11,
+          "consenso": true,
+          "lector": 11,
+          "avisosDelTipo": [],
+          "veredicto": "intacto"
+        }
+      ]
+    },
+    {
+      "id": "bjnortier-dxf/lwpolylines",
+      "fuente": "bjnortier-dxf",
+      "sha256": "cbc8fbf3016fd7b580f3a077092c63d1903728111f283e9907c774ce94e7a3e4",
+      "bytes": 16235,
+      "dialecto": "AC1021 (R2007)",
+      "oraculoA": {
+        "leido": true
+      },
+      "oraculoB": {
+        "leido": true
+      },
+      "lector": {
+        "legible": true,
+        "capas": 1,
+        "avisos": {}
+      },
+      "filas": [
+        {
+          "tipo": "LWPOLYLINE",
+          "ambito": "espacio-modelo",
+          "oraculoA": 2,
+          "oraculoB": 2,
+          "declarados": 2,
+          "consenso": true,
+          "lector": 2,
+          "avisosDelTipo": [],
+          "veredicto": "intacto"
+        }
+      ]
+    },
+    {
+      "id": "bjnortier-dxf/points",
+      "fuente": "bjnortier-dxf",
+      "sha256": "5f0397697996b75078994e0fe95bb12a87864f68f49c14018194611edb30944f",
+      "bytes": 15954,
+      "dialecto": "AC1021 (R2007)",
+      "oraculoA": {
+        "leido": true
+      },
+      "oraculoB": {
+        "leido": true
+      },
+      "lector": {
+        "legible": true,
+        "capas": 1,
+        "avisos": {}
+      },
+      "filas": [
+        {
+          "tipo": "POINT",
+          "ambito": "espacio-modelo",
+          "oraculoA": 2,
+          "oraculoB": 2,
+          "declarados": 2,
+          "consenso": true,
+          "lector": 2,
+          "avisosDelTipo": [],
+          "veredicto": "intacto"
+        }
+      ]
+    },
+    {
+      "id": "bjnortier-dxf/polylines",
+      "fuente": "bjnortier-dxf",
+      "sha256": "af6d2781d7961e531c34e27c7d0f8a4c4b885e579cdcbcd5e5a41766074851a0",
+      "bytes": 167837,
+      "dialecto": "AC1018 (R2004)",
+      "oraculoA": {
+        "leido": true
+      },
+      "oraculoB": {
+        "leido": true
+      },
+      "lector": {
+        "legible": true,
+        "capas": 1,
+        "avisos": {}
+      },
+      "filas": [
+        {
+          "tipo": "POLYLINE",
+          "ambito": "espacio-modelo",
+          "oraculoA": 2,
+          "oraculoB": 2,
+          "declarados": 2,
+          "consenso": true,
+          "lector": 2,
+          "avisosDelTipo": [],
+          "veredicto": "intacto"
+        }
+      ]
+    },
+    {
+      "id": "bjnortier-dxf/splines",
+      "fuente": "bjnortier-dxf",
+      "sha256": "9f672526c3e6b35c60ed958650a5c35fe3ee4f8df76d1f8b25b31f2f6d293406",
+      "bytes": 16576,
+      "dialecto": "AC1021 (R2007)",
+      "oraculoA": {
+        "leido": true
+      },
+      "oraculoB": {
+        "leido": true
+      },
+      "lector": {
+        "legible": true,
+        "capas": 1,
+        "avisos": {
+          "flattened_to_ground": 2
+        }
+      },
+      "filas": [
+        {
+          "tipo": "SPLINE",
+          "ambito": "espacio-modelo",
+          "oraculoA": 2,
+          "oraculoB": 2,
+          "declarados": 2,
+          "consenso": true,
+          "lector": 2,
+          "avisosDelTipo": [
+            "flattened_to_ground"
+          ],
+          "veredicto": "degradado",
+          "degradaA": "2 entidad(es) con una incidencia todavía sin describir (flattened_to_ground)."
+        }
+      ]
+    },
+    {
+      "id": "bjnortier-dxf/texts",
+      "fuente": "bjnortier-dxf",
+      "sha256": "6c585c0093c1a19180faa58b6977bc48ddb47899d2800bf38807cbca3018416d",
+      "bytes": 16528,
+      "dialecto": "AC1021 (R2007)",
+      "oraculoA": {
+        "leido": true
+      },
+      "oraculoB": {
+        "leido": true
+      },
+      "lector": {
+        "legible": true,
+        "capas": 1,
+        "avisos": {}
+      },
+      "filas": [
+        {
+          "tipo": "MTEXT",
+          "ambito": "archivo-entero",
+          "oraculoA": 2,
+          "oraculoB": 2,
+          "declarados": 2,
+          "consenso": true,
+          "lector": 2,
+          "avisosDelTipo": [],
+          "veredicto": "intacto"
+        }
+      ]
+    },
+    {
+      "id": "gdsestimating-dxf-parser/blocks",
+      "fuente": "gdsestimating-dxf-parser",
+      "sha256": "53a5ed8bc6be044c5e97d4ff6a90597e68a9bd73b6de871006a0a9608f53f71a",
+      "bytes": 733713,
+      "dialecto": "no declarado por el oráculo B",
+      "oraculoA": {
+        "leido": true
+      },
+      "oraculoB": {
+        "leido": false,
+        "error": "AttributeError: 'NoneType' object has no attribute 'get_xlist'"
+      },
+      "lector": {
+        "legible": true,
+        "capas": 7,
+        "avisos": {
+          "hatch_unsupported_boundary": 3,
+          "linetype_sin_definicion": 1,
+          "unsupported_entity": 1
+        }
+      },
+      "filas": [
+        {
+          "tipo": "MTEXT",
+          "ambito": "archivo-entero",
+          "oraculoA": 293,
+          "oraculoB": null,
+          "declarados": 293,
+          "consenso": null,
+          "lector": 293,
+          "avisosDelTipo": [],
+          "veredicto": "intacto",
+          "sinOpinionB": "archivo-rechazado"
+        }
+      ],
+      "lectorSinOraculo": {
+        "HATCH": 19
+      }
+    },
+    {
+      "id": "gdsestimating-dxf-parser/ellipse",
+      "fuente": "gdsestimating-dxf-parser",
+      "sha256": "bc056b36d4c7e26cc0687827e50261699092af433dc5f985d4be8fe378ab74a9",
+      "bytes": 392,
+      "dialecto": "AC1009 (R12)",
+      "oraculoA": {
+        "leido": true
+      },
+      "oraculoB": {
+        "leido": true
+      },
+      "lector": {
+        "legible": true,
+        "capas": 1,
+        "avisos": {}
+      },
+      "filas": [
+        {
+          "tipo": "ELLIPSE",
+          "ambito": "espacio-modelo",
+          "oraculoA": 2,
+          "oraculoB": 2,
+          "declarados": 2,
+          "consenso": true,
+          "lector": 2,
+          "avisosDelTipo": [],
+          "veredicto": "intacto"
+        }
+      ]
+    },
+    {
+      "id": "gdsestimating-dxf-parser/polylines",
+      "fuente": "gdsestimating-dxf-parser",
+      "sha256": "ba4f2d4d74d6b418b469f510d30cdc486c3c15d37b7da5ff6718b317591c4af9",
+      "bytes": 27471,
+      "dialecto": "AC1009 (R12)",
+      "oraculoA": {
+        "leido": true
+      },
+      "oraculoB": {
+        "leido": true
+      },
+      "lector": {
+        "legible": true,
+        "capas": 1,
+        "avisos": {}
+      },
+      "filas": [
+        {
+          "tipo": "POLYLINE",
+          "ambito": "espacio-modelo",
+          "oraculoA": 12,
+          "oraculoB": 12,
+          "declarados": 12,
+          "consenso": true,
+          "lector": 12,
+          "avisosDelTipo": [],
+          "veredicto": "intacto"
+        }
+      ]
+    },
+    {
+      "id": "gdsestimating-dxf-parser/splines",
+      "fuente": "gdsestimating-dxf-parser",
+      "sha256": "9aad052d8bba7443abdb1cbee1bad4b4630148fb1496893bd8754344801edb67",
+      "bytes": 2649,
+      "dialecto": "AC1009 (R12)",
+      "oraculoA": {
+        "leido": true
+      },
+      "oraculoB": {
+        "leido": true
+      },
+      "lector": {
+        "legible": true,
+        "capas": 1,
+        "avisos": {}
+      },
+      "filas": [
+        {
+          "tipo": "SPLINE",
+          "ambito": "espacio-modelo",
+          "oraculoA": 2,
+          "oraculoB": 2,
+          "declarados": 2,
+          "consenso": true,
+          "lector": 2,
+          "avisosDelTipo": [],
+          "veredicto": "intacto"
+        }
+      ]
+    },
+    {
+      "id": "gdsestimating-dxf-parser/tables",
+      "fuente": "gdsestimating-dxf-parser",
+      "sha256": "00f182a7d8b14988d3e6a7a76f00642d5c6aed33e558cb67a21bdb716750e299",
+      "bytes": 6856,
+      "dialecto": "no declarado por el oráculo B",
+      "oraculoA": {
+        "leido": true
+      },
+      "oraculoB": {
+        "leido": false,
+        "error": "DXFTypeError: name has to be a string, got <class 'NoneType'>"
+      },
+      "lector": {
+        "legible": true,
+        "capas": 0,
+        "avisos": {}
+      },
+      "filas": [],
+      "nota": "Ningún oráculo declara una sola entidad comparable en este archivo, así que no hay fila que juzgar. Se conserva en la matriz porque su ausencia de contenido es el dato."
+    }
+  ]
+}

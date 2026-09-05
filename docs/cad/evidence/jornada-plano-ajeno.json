@@ -1,0 +1,229 @@
+{
+  "generadoPor": "cd apps/web && VALLE_ESCRIBIR_JORNADA=1 npx tsx src/lib/cad/verification/terceros-jornada.spec.ts",
+  "verificadoPor": "apps/web/src/lib/cad/verification/terceros-jornada.spec.ts",
+  "queEs": "La jornada entera sobre el plano de OTRO: abrir, medir contra un oráculo externo, modificar, exportar y releer. No hay ni un número fijado por una corrida anterior del producto.",
+  "plano": {
+    "id": "bjnortier-dxf/floorplan",
+    "fuente": "bjnortier/dxf (MIT) — fichero de prueba de la biblioteca, no escrito por este proyecto",
+    "sha256": "6d761ecb1ab59664425eb1dcc6837a12611536c8e03e3f7855951a76786d159c",
+    "bytes": 1117143,
+    "dialecto": "AC1018",
+    "version": "R2004",
+    "capasEnTabla": 24,
+    "estilosDeCota": 16,
+    "tiposDeLinea": 26,
+    "espacioModeloSegunOraculoB": {
+      "ARC": 20,
+      "CIRCLE": 9,
+      "DIMENSION": 63,
+      "HATCH": 13,
+      "INSERT": 10,
+      "LEADER": 6,
+      "LINE": 624,
+      "LWPOLYLINE": 124,
+      "MTEXT": 9,
+      "TEXT": 89
+    }
+  },
+  "oraculos": {
+    "A": {
+      "herramienta": "dxf-parser (MIT)",
+      "corre": "en cada corrida de CI: es dependencia declarada de apps/web",
+      "limite": "COMPARTE MOTOR con el lector (dxf-import.ts lo importa). Sirve para juzgar lo que ESCRIBIMOS, no para juzgar cómo leemos. Y no ve HATCH: no trae manejador."
+    },
+    "B": {
+      "herramienta": "ezdxf 1.4.4 (MIT)",
+      "corre": "fuera de CI; su medición se congela en docs/cad/corpus/oraculos/medidas-floorplan-ezdxf.json",
+      "limite": "No es AutoCAD. Acredita interoperabilidad con una segunda implementación, no compatibilidad."
+    }
+  },
+  "actos": {
+    "abrir": {
+      "puerta": "importDocumentText — la misma que usa el estudio al soltar un fichero",
+      "entidades": 1109,
+      "bloques": 17,
+      "porTipo": {
+        "arc": 20,
+        "circle": 9,
+        "dimension": 63,
+        "hatch": 26,
+        "insert": 10,
+        "line": 624,
+        "mtext": 144,
+        "polyline": 124,
+        "text": 89
+      },
+      "capasQueLlegan": 17,
+      "capasEnTabla": 24,
+      "avisos": {
+        "linetype_complejo": 1,
+        "foreign_dimension_detached": 63,
+        "unsupported_entity": 72
+      },
+      "cotasDeclaradasPerdidasQueSiEntraron": 63
+    },
+    "medir": {
+      "contra": "ezdxf sobre LOS MISMOS BYTES, por clave geométrica y comparación por bolsa",
+      "familias": [
+        {
+          "magnitud": "longitud de línea",
+          "entidades": 624,
+          "desviacionMenorQue": 1e-12
+        },
+        {
+          "magnitud": "radio de círculo",
+          "entidades": 9,
+          "desviacionMenorQue": 1e-13
+        },
+        {
+          "magnitud": "radio de arco",
+          "entidades": 20,
+          "desviacionMenorQue": 1e-12
+        },
+        {
+          "magnitud": "longitud de arco",
+          "entidades": 20,
+          "desviacionMenorQue": 1e-12
+        },
+        {
+          "magnitud": "longitud de polilínea",
+          "entidades": 124,
+          "desviacionMenorQue": 1e-12
+        },
+        {
+          "magnitud": "medida de cota",
+          "entidades": 63,
+          "desviacionMenorQue": 1e-12
+        },
+        {
+          "magnitud": "extensión del dibujo",
+          "entidades": 4,
+          "desviacionMenorQue": 1e-12
+        }
+      ],
+      "tolerancia": 1e-9,
+      "razonDeLaTolerancia": "Las dos lecturas parten del mismo ASCII, así que el mismo decimal da el mismo doble; lo que queda es el orden de las operaciones y los doce decimales del artefacto (5e-13).",
+      "longitudTotalDeLineas": 18120.082421577223,
+      "longitudTotalDePolilineas": 20844.841682808965
+    },
+    "modificar": {
+      "ordenes": [
+        "MOVE",
+        "LINE",
+        "ERASE"
+      ],
+      "conducidasPor": "CAD_COMMAND_REGISTRY_V2 — los descriptores del producto, paso a paso",
+      "move": {
+        "vector": {
+          "x": 684.062148396235,
+          "y": 220.632868238436
+        },
+        "loDictaElOraculo": "la esquina inferior izquierda que midió ezdxf, para no medirnos a nosotros mismos",
+        "entidadesTocadas": 1109,
+        "anchoTrasMover": 866.1524292261,
+        "altoTrasMover": 572
+      },
+      "line": {
+        "capa": "VALLE-REVISION",
+        "longitud": 500
+      },
+      "erase": {
+        "tipo": "circle",
+        "cuantas": 9
+      },
+      "entidadesAlFinal": 1101
+    },
+    "exportar": {
+      "puerta": "exportCadDocumentDxf — el mismo que entrega DXFOUT",
+      "entidades": 1101,
+      "bytes": 421860,
+      "sha256": "06596418e7bf817cd2ceee033ec04aeaaacfa18899bc6283a1bf58353e79cfbe",
+      "perdidasDeclaradas": 0,
+      "dialectoQueEscribimos": "AC1015 (R2000)",
+      "notaDelDialecto": "El plano ajeno es AC1018 (R2004) y sale como AC1015 (R2000). Es una versión ANTERIOR, declarada en la cabecera: ningún lector se lleva una sorpresa, pero el fichero devuelto ya no es del dialecto en el que llegó.",
+      "notaDeLaPolilinea": "Las 124 LWPOLYLINE del plano ajeno salen como POLYLINE (la pesada, con sus VERTEX). Es DXF válido y los dos oráculos las leen con la misma longitud y los mismos vértices, pero no es la misma entidad que llegó: ocupa más y es de un dialecto más viejo. El documento canónico no distingue las dos, así que hoy no hay dónde recordar cuál era."
+    },
+    "releerConOraculoA": {
+      "abre": true,
+      "porTipo": {
+        "ARC": 20,
+        "DIMENSION": 63,
+        "INSERT": 10,
+        "LINE": 625,
+        "MTEXT": 144,
+        "POLYLINE": 124,
+        "TEXT": 89
+      },
+      "hatchInvisible": "el oráculo A no trae manejador de HATCH: sus 26 sombreados no los cuenta nadie en esta banda",
+      "tablaDeCapas": {
+        "enElPlanoAjeno": 24,
+        "enElDocumento": 17,
+        "enElFicheroQueDevolvemos": 23,
+        "queNoVuelven": [
+          "Defpoints",
+          "View Port"
+        ],
+        "porQue": "El documento se queda con las 17 capas que usa el espacio modelo, pero el exportador escribe además las que usan las entidades dentro de los bloques: el plano que vuelve al remitente conserva 22 de sus 24 capas más la del revisor. `Defpoints` no vuelve porque sus 378 entidades viven dentro de bloques y no entraron; `View Port` porque sólo la usa el espacio papel, que el lector excluye a propósito. Ninguna cambia el dibujo; lo que falta es el aviso que lo diga (P-evidencia-09)."
+      },
+      "desviacionContraElPlanoAjenoMenorQue": 0.000001,
+      "desviacionContraElDocumentoMenorQue": 0.000001,
+      "radiosDeArcoMenorQue": 0.000001,
+      "polilineasMenorQue": 0.000001,
+      "cotasMenorQue": 0.000001,
+      "tolerancia": 0.0000015,
+      "razonDeLaTolerancia": "fmt() escribe seis decimales; una coordenada trasladada se redondea a la millonésima, así que una longitud con dos extremos redondeados se mueve hasta 1,42e-6 por segmento."
+    },
+    "releerConOraculoB": {
+      "abreElFicheroCompleto": false,
+      "porQueNo": "MTEXT y HATCH salen sin sus marcadores de subclase (100 AcDbEntity, 100 AcDbMText / 100 AcDbHatch) aunque la cabecera declare AC1015, donde son obligatorios. ezdxf revienta al cargarlos, incluso en modo `recover`.",
+      "tiposQueNoAbre": [
+        "HATCH",
+        "MTEXT"
+      ],
+      "loQueSiAbre": {
+        "ARC": 20,
+        "DIMENSION": 63,
+        "INSERT": 10,
+        "LINE": 625,
+        "POLYLINE": 124,
+        "TEXT": 89
+      },
+      "erroresDeAuditoria": {
+        "errores": 0,
+        "correcciones": 5
+      },
+      "conElParcheDeSubclases": {
+        "entidadesParcheadas": 170,
+        "abre": true,
+        "porTipo": {
+          "ARC": 20,
+          "DIMENSION": 63,
+          "HATCH": 26,
+          "INSERT": 10,
+          "LINE": 625,
+          "MTEXT": 144,
+          "POLYLINE": 124,
+          "TEXT": 89
+        },
+        "auditoria": {
+          "errores": 0,
+          "correcciones": 5
+        },
+        "deQuienEsElArreglo": "P-evidencia-07 — pedido con este experimento como prueba, no a ciegas"
+      }
+    }
+  },
+  "loQueLaJornadaDestapo": [
+    "P-evidencia-07 · ezdxf no abre lo que exportamos: MTEXT y HATCH sin marcador de subclase. Probado que con los marcadores insertados sí abre las 1101 entidades y audita cero errores.",
+    "P-evidencia-08 · el informe de importación declara PERDIDAS 63 cotas que SÍ entraron: el mapa de primitivas emite unsupported_entity por cada DIMENSION mientras el camino semántico las importa.",
+    "P-evidencia-09 · el documento se queda con 17 de las 24 capas del fichero y el que devolvemos declara 23 (las de dentro de los bloques vuelven a escribirse): de las suyas no vuelven `Defpoints` y `View Port`, y ningún aviso menciona nada de esto. No cambia el dibujo; el silencio sí importa."
+  ],
+  "loQueNoSeMide": [
+    "El espacio papel: el lector lo excluye a propósito y este plano tiene un Layout1 con 3 VIEWPORT.",
+    "El contenido de los 17 bloques: se comparan las inserciones, no lo que hay dentro de cada uno.",
+    "Los 6 LEADER y los 9 MTEXT de espacio modelo que el oráculo B cuenta: el lector devuelve MTEXT sin dueño (144 en todo el archivo), así que no hay ámbito comparable para ellos.",
+    "El aspecto: que un número sea correcto no dice que el plano se vea igual."
+  ],
+  "loQueNoAcredita": "Ni ezdxf ni dxf-parser son AutoCAD. Esta jornada acredita que un plano ajeno de 1,1 MB entra, se mide igual que en una implementación independiente, se modifica, se exporta y lo vuelve a leer otro programa. No acredita compatibilidad con AutoCAD, que sólo la acredita AutoCAD.",
+  "magnitudesComparadasContraUnOraculo": 3065
+}

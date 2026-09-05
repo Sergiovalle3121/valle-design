@@ -1,0 +1,1128 @@
+{
+ "oraculo": "B",
+ "herramienta": "ezdxf 1.4.4 (MIT, Manfred Moitzi)",
+ "generadoPor": "docs/cad/corpus/oraculos/medidas-cuatro-filas.py",
+ "verificadoPor": "las cuatro suites terceros-*.spec.ts de apps/web/src/lib/cad/verification/, cada una anclada al sha256 de los bytes que se midieron aqui",
+ "porQueCongelado": "ezdxf es Python y no esta en CI. Congelar la lectura y anclarla al sha256 es lo que impide que un spec siga creyendose una medida que ya no habla de esos bytes: cuando el hash no cuadra, el spec se pone en rojo en vez de pasar.",
+ "loQueNoAcredita": "Que estos ficheros los guardo AutoCAD. Son ficheros de prueba de la biblioteca MIT bjnortier/dxf: acreditan interoperabilidad con material que este proyecto no escribio, no compatibilidad con AutoCAD.",
+ "archivos": {
+  "bjnortier-dxf/layers": {
+   "ruta": "terceros/bjnortier-dxf/layers.dxf",
+   "sha256": "860c3085c10b754d75fd903747f78a0e52c69b94ac77f23bdb018bec41b860ff",
+   "bytes": 17048,
+   "dialecto": "AC1021",
+   "version": "R2007",
+   "capasEnElFichero": [
+    "0",
+    "dashedred",
+    "solidblue1mm"
+   ],
+   "capasSegunElOraculo": [
+    {
+     "nombre": "0",
+     "color": 7,
+     "tipoDeLinea": "CONTINUOUS",
+     "grosor": 0,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    },
+    {
+     "nombre": "Defpoints",
+     "color": 7,
+     "tipoDeLinea": "Continuous",
+     "grosor": -3,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    },
+    {
+     "nombre": "dashedred",
+     "color": 1,
+     "tipoDeLinea": "DASHED2",
+     "grosor": -3,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    },
+    {
+     "nombre": "solidblue1mm",
+     "color": 5,
+     "tipoDeLinea": "CONTINUOUS",
+     "grosor": 100,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    }
+   ],
+   "tiposDeLineaSegunElOraculo": [
+    "BORDER",
+    "BORDER2",
+    "BORDERTINY",
+    "BORDERX2",
+    "ByBlock",
+    "ByLayer",
+    "CENTER",
+    "CENTER2",
+    "CENTERTINY",
+    "CENTERX2",
+    "Continuous",
+    "DASHDOT",
+    "DASHDOT2",
+    "DASHDOTTINY",
+    "DASHDOTX2",
+    "DASHED",
+    "DASHED2",
+    "DASHEDTINY",
+    "DASHEDX2",
+    "DIVIDE",
+    "DIVIDE2",
+    "DIVIDETINY",
+    "DIVIDEX2",
+    "DOT",
+    "DOT2",
+    "DOTTINY",
+    "DOTX2"
+   ],
+   "capasVistasPorEntidad": {
+    "0": 4,
+    "dashedred": 4,
+    "solidblue1mm": 1
+   },
+   "lineas": [
+    {
+     "capa": "0",
+     "de": [
+      0.0,
+      0.0
+     ],
+     "a": [
+      100.0,
+      0.0
+     ]
+    },
+    {
+     "capa": "0",
+     "de": [
+      0.0,
+      100.0
+     ],
+     "a": [
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "capa": "0",
+     "de": [
+      100.0,
+      0.0
+     ],
+     "a": [
+      100.0,
+      100.0
+     ]
+    },
+    {
+     "capa": "0",
+     "de": [
+      100.0,
+      100.0
+     ],
+     "a": [
+      0.0,
+      100.0
+     ]
+    },
+    {
+     "capa": "dashedred",
+     "de": [
+      10.0,
+      10.0
+     ],
+     "a": [
+      90.0,
+      10.0
+     ]
+    },
+    {
+     "capa": "dashedred",
+     "de": [
+      10.0,
+      90.0
+     ],
+     "a": [
+      10.0,
+      10.0
+     ]
+    },
+    {
+     "capa": "dashedred",
+     "de": [
+      90.0,
+      10.0
+     ],
+     "a": [
+      90.0,
+      90.0
+     ]
+    },
+    {
+     "capa": "dashedred",
+     "de": [
+      90.0,
+      90.0
+     ],
+     "a": [
+      10.0,
+      90.0
+     ]
+    }
+   ],
+   "circulos": [
+    {
+     "capa": "solidblue1mm",
+     "centro": [
+      50.0,
+      50.0
+     ],
+     "radio": 30.0
+    }
+   ]
+  },
+  "bjnortier-dxf/blocks1": {
+   "ruta": "terceros/bjnortier-dxf/blocks1.dxf",
+   "sha256": "ba33677808f6a534d64a5898803649caca30eccb543092e3e5a102043b9d1c2e",
+   "bytes": 17124,
+   "dialecto": "AC1021",
+   "version": "R2007",
+   "capasEnElFichero": [
+    "0"
+   ],
+   "bloquesDefinidos": [
+    "a"
+   ],
+   "contenidoDeBloques": {
+    "a": {
+     "censo": {
+      "CIRCLE": 1,
+      "LINE": 4
+     },
+     "lineas": [
+      {
+       "de": [
+        -30.0,
+        -30.0
+       ],
+       "a": [
+        30.0,
+        -30.0
+       ]
+      },
+      {
+       "de": [
+        30.0,
+        -30.0
+       ],
+       "a": [
+        30.0,
+        30.0
+       ]
+      },
+      {
+       "de": [
+        30.0,
+        30.0
+       ],
+       "a": [
+        -30.0,
+        30.0
+       ]
+      },
+      {
+       "de": [
+        -30.0,
+        30.0
+       ],
+       "a": [
+        -30.0,
+        -30.0
+       ]
+      }
+     ],
+     "circulos": [
+      {
+       "centro": [
+        0.0,
+        0.0
+       ],
+       "radio": 20.0
+      }
+     ]
+    }
+   },
+   "inserts": [
+    {
+     "bloque": "a",
+     "capa": "0",
+     "insercion": [
+      31.213203435596,
+      75.355339059327
+     ],
+     "escalaX": 1.0,
+     "escalaY": 1.0,
+     "escalaZ": 0.0,
+     "rotacionGrados": 45.0
+    },
+    {
+     "bloque": "a",
+     "capa": "0",
+     "insercion": [
+      66.921304299025,
+      59.342556659764
+     ],
+     "escalaX": 2.0,
+     "escalaY": 1.0,
+     "escalaZ": 0.0,
+     "rotacionGrados": 15.0
+    }
+   ]
+  },
+  "bjnortier-dxf/blocks2": {
+   "ruta": "terceros/bjnortier-dxf/blocks2.dxf",
+   "sha256": "5d847d833dd444fbe8a85def5881a4f9055e47d06c41ca009c9e40784e92f91f",
+   "bytes": 20507,
+   "dialecto": "AC1021",
+   "version": "R2007",
+   "capasEnElFichero": [
+    "0",
+    "Defpoints",
+    "boxes",
+    "entities"
+   ],
+   "capasSegunElOraculo": [
+    "0",
+    "Defpoints",
+    "boxes",
+    "entities"
+   ],
+   "espacioModelo": {
+    "INSERT": 1,
+    "LINE": 1,
+    "LWPOLYLINE": 1,
+    "MTEXT": 1
+   },
+   "bloquesDefinidos": [
+    "block01",
+    "block02",
+    "block_insert"
+   ],
+   "contenidoDeBloques": {
+    "block_insert": {
+     "censo": {
+      "INSERT": 2
+     },
+     "inserts": [
+      {
+       "bloque": "block01",
+       "capa": "0",
+       "insercion": [
+        0.0,
+        0.0
+       ],
+       "escalaX": 2.0,
+       "escalaY": 2.0,
+       "escalaZ": 0.0,
+       "rotacionGrados": 0.0
+      },
+      {
+       "bloque": "block02",
+       "capa": "0",
+       "insercion": [
+        0.0,
+        0.0
+       ],
+       "escalaX": 2.0,
+       "escalaY": 2.0,
+       "escalaZ": 0.0,
+       "rotacionGrados": 0.0
+      }
+     ]
+    },
+    "block01": {
+     "censo": {
+      "ARC": 1,
+      "LINE": 4,
+      "MTEXT": 1
+     },
+     "lineas": [
+      {
+       "de": [
+        20.0,
+        90.0
+       ],
+       "a": [
+        90.0,
+        90.0
+       ]
+      },
+      {
+       "de": [
+        30.0,
+        60.0
+       ],
+       "a": [
+        90.0,
+        60.0
+       ]
+      },
+      {
+       "de": [
+        90.0,
+        60.0
+       ],
+       "a": [
+        90.0,
+        90.0
+       ]
+      },
+      {
+       "de": [
+        30.0,
+        80.0
+       ],
+       "a": [
+        30.0,
+        60.0
+       ]
+      }
+     ],
+     "arcos": [
+      {
+       "centro": [
+        20.0,
+        80.0
+       ],
+       "radio": 10.0,
+       "anguloInicialGrados": 90.0,
+       "anguloFinalGrados": 0.0
+      }
+     ],
+     "mtext": [
+      {
+       "texto": "block01",
+       "capa": "0",
+       "insercion": [
+        40.0,
+        80.0
+       ],
+       "altura": 10.0,
+       "ancho": 44.444444444445,
+       "puntoDeAnclaje": 1,
+       "estilo": "textstyle1",
+       "rotacionGrados": 0.0,
+       "factorDeInterlineado": 1.0,
+       "estiloDeInterlineado": 1
+      }
+     ]
+    },
+    "block02": {
+     "censo": {
+      "ELLIPSE": 1,
+      "LINE": 3,
+      "MTEXT": 1
+     },
+     "lineas": [
+      {
+       "de": [
+        30.0,
+        30.0
+       ],
+       "a": [
+        90.0,
+        30.0
+       ]
+      },
+      {
+       "de": [
+        90.0,
+        30.0
+       ],
+       "a": [
+        90.0,
+        10.0
+       ]
+      },
+      {
+       "de": [
+        90.0,
+        10.0
+       ],
+       "a": [
+        30.0,
+        10.0
+       ]
+      }
+     ],
+     "elipses": [
+      {
+       "centro": [
+        30.0,
+        20.0
+       ],
+       "ejeMayor": [
+        20.0,
+        0.0
+       ],
+       "razon": 0.5,
+       "parametroInicialRadianes": 1.570796326795,
+       "parametroFinalRadianes": 4.712388980385
+      }
+     ],
+     "mtext": [
+      {
+       "texto": "block02",
+       "capa": "0",
+       "insercion": [
+        35.71712,
+        24.90368
+       ],
+       "altura": 10.0,
+       "ancho": 46.666666666667,
+       "puntoDeAnclaje": 1,
+       "estilo": "textstyle2",
+       "rotacionGrados": 0.0,
+       "factorDeInterlineado": 1.0,
+       "estiloDeInterlineado": 1
+      }
+     ]
+    }
+   },
+   "insertsDeEspacioModelo": [
+    {
+     "bloque": "block_insert",
+     "capa": "entities",
+     "insercion": [
+      175.0,
+      25.0
+     ],
+     "escalaX": 0.5,
+     "escalaY": 0.5,
+     "escalaZ": 0.0,
+     "rotacionGrados": 0.0
+    }
+   ],
+   "mtextDeEspacioModelo": [
+    {
+     "texto": "block insert",
+     "capa": "boxes",
+     "insercion": [
+      170.0,
+      150.0
+     ],
+     "altura": 8.0,
+     "ancho": 62.888893003187,
+     "puntoDeAnclaje": 1,
+     "estilo": "textstyle20",
+     "rotacionGrados": 0.0,
+     "factorDeInterlineado": 1.0,
+     "estiloDeInterlineado": 1
+    }
+   ],
+   "porQueNoSeAplana": "Los tres INSERT declaran escala Z = 0 (codigo 43). ezdxf LEE el fichero entero sin una queja, pero `virtual_entities()` normaliza el sistema del INSERT y divide entre cero. La composicion la hace el spec con los escalones de arriba."
+  },
+  "bjnortier-dxf/texts": {
+   "ruta": "terceros/bjnortier-dxf/texts.dxf",
+   "sha256": "6c585c0093c1a19180faa58b6977bc48ddb47899d2800bf38807cbca3018416d",
+   "bytes": 16528,
+   "dialecto": "AC1021",
+   "version": "R2007",
+   "capasEnElFichero": [
+    "0"
+   ],
+   "mtext": [
+    {
+     "texto": "ISO TEXT",
+     "capa": "0",
+     "insercion": [
+      0.0,
+      20.0
+     ],
+     "altura": 20.0,
+     "ancho": 121.666662426624,
+     "puntoDeAnclaje": 1,
+     "estilo": "iso",
+     "rotacionGrados": 0.0,
+     "factorDeInterlineado": 1.0,
+     "estiloDeInterlineado": 2
+    },
+    {
+     "texto": "UNICODE TEXT",
+     "capa": "0",
+     "insercion": [
+      0.0,
+      100.0
+     ],
+     "altura": 30.0,
+     "ancho": 282.5,
+     "puntoDeAnclaje": 7,
+     "estilo": "unicode",
+     "rotacionGrados": 0.0,
+     "factorDeInterlineado": 1.0,
+     "estiloDeInterlineado": 2
+    }
+   ],
+   "estilosDeTexto": [
+    "Standard",
+    "iso",
+    "unicode"
+   ]
+  },
+  "bjnortier-dxf/dimensions": {
+   "ruta": "terceros/bjnortier-dxf/dimensions.dxf",
+   "sha256": "513d44f4b2febdf2d2e27016c400cc774f0a364620b34730eaaece5cd6f15d77",
+   "bytes": 18956,
+   "dialecto": "AC1021",
+   "version": "R2007",
+   "capasEnElFichero": [
+    "0"
+   ],
+   "espacioModelo": {
+    "CIRCLE": 1,
+    "DIMENSION": 2,
+    "LINE": 4
+   },
+   "cotas": [
+    {
+     "tipoBruto": 32,
+     "medida": 80.0,
+     "textoDelUsuario": "",
+     "puntoDeTexto": [
+      50.0,
+      21.875
+     ],
+     "estilo": "Standard",
+     "capa": "0",
+     "bloqueDeDibujo": "*D1",
+     "defpoint": [
+      90.0,
+      20.0
+     ],
+     "defpoint2": [
+      10.0,
+      10.0
+     ],
+     "defpoint3": [
+      90.0,
+      10.0
+     ]
+    },
+    {
+     "tipoBruto": 36,
+     "medida": 30.0,
+     "textoDelUsuario": "",
+     "puntoDeTexto": [
+      35.0,
+      71.875
+     ],
+     "estilo": "Standard",
+     "capa": "0",
+     "bloqueDeDibujo": "*D2",
+     "defpoint": [
+      50.0,
+      70.0
+     ],
+     "defpoint2": null,
+     "defpoint3": null
+    }
+   ],
+   "bloquesDeDibujo": {
+    "*D1": {
+     "censo": {
+      "LINE": 3,
+      "MTEXT": 1,
+      "SOLID": 2
+     },
+     "lineas": [
+      {
+       "de": [
+        10.0,
+        20.0
+       ],
+       "a": [
+        90.0,
+        20.0
+       ]
+      },
+      {
+       "de": [
+        10.0,
+        10.625
+       ],
+       "a": [
+        10.0,
+        21.25
+       ]
+      },
+      {
+       "de": [
+        90.0,
+        10.625
+       ],
+       "a": [
+        90.0,
+        21.25
+       ]
+      }
+     ],
+     "mtext": [
+      {
+       "texto": "80.0000",
+       "capa": "0",
+       "insercion": [
+        50.0,
+        21.875
+       ],
+       "altura": 2.5,
+       "ancho": 11.666666666667,
+       "puntoDeAnclaje": 5,
+       "estilo": "standard",
+       "rotacionGrados": 0.0,
+       "factorDeInterlineado": 1.0,
+       "estiloDeInterlineado": 2
+      }
+     ]
+    },
+    "*D2": {
+     "censo": {
+      "LINE": 1,
+      "MTEXT": 1,
+      "SOLID": 1
+     },
+     "lineas": [
+      {
+       "de": [
+        50.0,
+        70.0
+       ],
+       "a": [
+        20.0,
+        70.0
+       ]
+      }
+     ],
+     "mtext": [
+      {
+       "texto": "30.0000",
+       "capa": "0",
+       "insercion": [
+        35.0,
+        71.875
+       ],
+       "altura": 2.5,
+       "ancho": 11.666666666667,
+       "puntoDeAnclaje": 5,
+       "estilo": "standard",
+       "rotacionGrados": 360.0,
+       "factorDeInterlineado": 1.0,
+       "estiloDeInterlineado": 2
+      }
+     ]
+    }
+   },
+   "loQueEsoSignifica": "El texto de la cota NO esta en espacio modelo: vive dentro del bloque de dibujo (`*D1`, `*D2`) que el programa de origen genero para pintarla. Un lector que resuelva la cota por sus puntos vuelve a dibujar ese texto por su cuenta; sacar ademas el MTEXT del bloque lo pinta dos veces."
+  },
+  "bjnortier-dxf/hatches": {
+   "ruta": "terceros/bjnortier-dxf/hatches.dxf",
+   "sha256": "e67becc4b026231d656a4b506b90d533a3fcdfb14e3003762edd4a9e40b7e6d3",
+   "bytes": 16594,
+   "dialecto": "AC1021",
+   "version": "R2007",
+   "capasEnElFichero": [
+    "0"
+   ],
+   "espacioModelo": {
+    "HATCH": 1,
+    "LINE": 4
+   },
+   "sombreados": [
+    {
+     "patron": "gost_non-metal",
+     "relleneSolido": false,
+     "asociativo": false,
+     "estiloDeIsla": 0,
+     "capa": "0",
+     "escalaDelPatron": 1.0,
+     "anguloDelPatron": 0.0,
+     "contornos": [
+      {
+       "clase": "EdgePath",
+       "banderas": 0,
+       "esPolilinea": false,
+       "aristas": [
+        {
+         "clase": "LineEdge",
+         "de": [
+          0.0,
+          100.0
+         ],
+         "a": [
+          0.0,
+          0.0
+         ]
+        },
+        {
+         "clase": "LineEdge",
+         "de": [
+          0.0,
+          0.0
+         ],
+         "a": [
+          100.0,
+          0.0
+         ]
+        },
+        {
+         "clase": "LineEdge",
+         "de": [
+          100.0,
+          0.0
+         ],
+         "a": [
+          100.0,
+          100.0
+         ]
+        },
+        {
+         "clase": "LineEdge",
+         "de": [
+          100.0,
+          100.0
+         ],
+         "a": [
+          0.0,
+          100.0
+         ]
+        }
+       ],
+       "verticesEquivalentes": [
+        [
+         0.0,
+         100.0
+        ],
+        [
+         0.0,
+         0.0
+        ],
+        [
+         100.0,
+         0.0
+        ],
+        [
+         100.0,
+         100.0
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "lineas": [
+    {
+     "de": [
+      0.0,
+      100.0
+     ],
+     "a": [
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "de": [
+      0.0,
+      0.0
+     ],
+     "a": [
+      100.0,
+      0.0
+     ]
+    },
+    {
+     "de": [
+      100.0,
+      0.0
+     ],
+     "a": [
+      100.0,
+      100.0
+     ]
+    },
+    {
+     "de": [
+      100.0,
+      100.0
+     ],
+     "a": [
+      0.0,
+      100.0
+     ]
+    }
+   ]
+  },
+  "bjnortier-dxf/floorplan": {
+   "ruta": "terceros/bjnortier-dxf/floorplan.dxf",
+   "sha256": "6d761ecb1ab59664425eb1dcc6837a12611536c8e03e3f7855951a76786d159c",
+   "bytes": 1117143,
+   "dialecto": "AC1018",
+   "version": "R2004",
+   "capasEnElFichero": [
+    "0",
+    "A-DIMS-1",
+    "A-NOTE",
+    "A-TEXT",
+    "ANNTEXT",
+    "Defpoints",
+    "TEMP",
+    "View Port",
+    "xref-Bishop-Overland-08$0$A-CASE-1",
+    "xref-Bishop-Overland-08$0$A-FIXTURE",
+    "xref-Bishop-Overland-08$0$A-FOOTPRINT",
+    "xref-Bishop-Overland-08$0$A-GARAGE-DOOR",
+    "xref-Bishop-Overland-08$0$A-HEADER",
+    "xref-Bishop-Overland-08$0$A-OPENING",
+    "xref-Bishop-Overland-08$0$A-WALL",
+    "xref-Bishop-Overland-08$0$FF-JOISTS",
+    "xref-Bishop-Overland-08$0$R-BEAM",
+    "xref-Bishop-Overland-08$0$R-OVERBUILD",
+    "xref-Bishop-Overland-08$0$R-OVERHANG",
+    "xref-Bishop-Overland-08$0$R-TRUSS",
+    "xref-Bishop-Overland-08$0$S-FOOTER",
+    "xref-Bishop-Overland-08$0$S-SLAB",
+    "xref-Bishop-Overland-08$0$S-STEM-WALL",
+    "xref-Bishop-Overland-08$0$TEMP"
+   ],
+   "capasSegunElOraculo": [
+    {
+     "nombre": "0",
+     "color": 7,
+     "tipoDeLinea": "Continuous",
+     "grosor": -3,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    },
+    {
+     "nombre": "A-DIMS-1",
+     "color": 152,
+     "tipoDeLinea": "Continuous",
+     "grosor": -3,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    },
+    {
+     "nombre": "A-NOTE",
+     "color": 4,
+     "tipoDeLinea": "Continuous",
+     "grosor": -3,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    },
+    {
+     "nombre": "A-TEXT",
+     "color": 4,
+     "tipoDeLinea": "Continuous",
+     "grosor": -3,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    },
+    {
+     "nombre": "ANNTEXT",
+     "color": 4,
+     "tipoDeLinea": "Continuous",
+     "grosor": -3,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    },
+    {
+     "nombre": "Defpoints",
+     "color": 7,
+     "tipoDeLinea": "Continuous",
+     "grosor": -3,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    },
+    {
+     "nombre": "TEMP",
+     "color": 95,
+     "tipoDeLinea": "Continuous",
+     "grosor": -3,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    },
+    {
+     "nombre": "View Port",
+     "color": 7,
+     "tipoDeLinea": "Continuous",
+     "grosor": -3,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    },
+    {
+     "nombre": "xref-Bishop-Overland-08$0$A-CASE-1",
+     "color": 3,
+     "tipoDeLinea": "Continuous",
+     "grosor": -3,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    },
+    {
+     "nombre": "xref-Bishop-Overland-08$0$A-FIXTURE",
+     "color": 3,
+     "tipoDeLinea": "Continuous",
+     "grosor": -3,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    },
+    {
+     "nombre": "xref-Bishop-Overland-08$0$A-FOOTPRINT",
+     "color": 5,
+     "tipoDeLinea": "Continuous",
+     "grosor": -3,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    },
+    {
+     "nombre": "xref-Bishop-Overland-08$0$A-GARAGE-DOOR",
+     "color": 1,
+     "tipoDeLinea": "xref-Bishop-Overland-08$0$DASHED2",
+     "grosor": -3,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    },
+    {
+     "nombre": "xref-Bishop-Overland-08$0$A-HEADER",
+     "color": 30,
+     "tipoDeLinea": "Continuous",
+     "grosor": -3,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    },
+    {
+     "nombre": "xref-Bishop-Overland-08$0$A-OPENING",
+     "color": 1,
+     "tipoDeLinea": "Continuous",
+     "grosor": -3,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    },
+    {
+     "nombre": "xref-Bishop-Overland-08$0$A-WALL",
+     "color": 54,
+     "tipoDeLinea": "Continuous",
+     "grosor": -3,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    },
+    {
+     "nombre": "xref-Bishop-Overland-08$0$FF-JOISTS",
+     "color": 30,
+     "tipoDeLinea": "Continuous",
+     "grosor": -3,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    },
+    {
+     "nombre": "xref-Bishop-Overland-08$0$R-BEAM",
+     "color": 1,
+     "tipoDeLinea": "xref-Bishop-Overland-08$0$CENTER2",
+     "grosor": -3,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    },
+    {
+     "nombre": "xref-Bishop-Overland-08$0$R-OVERBUILD",
+     "color": 1,
+     "tipoDeLinea": "xref-Bishop-Overland-08$0$CENTER",
+     "grosor": -3,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    },
+    {
+     "nombre": "xref-Bishop-Overland-08$0$R-OVERHANG",
+     "color": 5,
+     "tipoDeLinea": "Continuous",
+     "grosor": -3,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    },
+    {
+     "nombre": "xref-Bishop-Overland-08$0$R-TRUSS",
+     "color": 203,
+     "tipoDeLinea": "Continuous",
+     "grosor": -3,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    },
+    {
+     "nombre": "xref-Bishop-Overland-08$0$S-FOOTER",
+     "color": 9,
+     "tipoDeLinea": "xref-Bishop-Overland-08$0$DASHED2",
+     "grosor": -3,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    },
+    {
+     "nombre": "xref-Bishop-Overland-08$0$S-SLAB",
+     "color": 9,
+     "tipoDeLinea": "Continuous",
+     "grosor": -3,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    },
+    {
+     "nombre": "xref-Bishop-Overland-08$0$S-STEM-WALL",
+     "color": 8,
+     "tipoDeLinea": "Continuous",
+     "grosor": -3,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    },
+    {
+     "nombre": "xref-Bishop-Overland-08$0$TEMP",
+     "color": 95,
+     "tipoDeLinea": "Continuous",
+     "grosor": -3,
+     "apagada": false,
+     "congelada": false,
+     "bloqueada": false
+    }
+   ],
+   "mtextEnEspacioModelo": 9,
+   "mtextEnTodoElFichero": 144,
+   "porQueSoloLaTabla": "La geometria de este plano la mide `medidas-floorplan.py`; aqui solo hace falta su tabla LAYER, que es la unica del corpus con capas suficientes para medir si el color del remitente sobrevive."
+  }
+ }
+}
