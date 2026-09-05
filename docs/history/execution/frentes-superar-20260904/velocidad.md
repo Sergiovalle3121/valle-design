@@ -1,7 +1,7 @@
 # F2 · Velocidad sentida
 
 > Frente de la campaña «Superar a AutoCAD completo» (2026-09-04).
-> Coordinador: `docs/execution/CAMPANA_SUPERAR_20260904.md`.
+> Coordinador: `docs/history/execution/CAMPANA_SUPERAR_20260904.md`.
 > Mapa de brechas: `docs/competitive/distancia-autocad-completo-20260903.md`.
 
 ## Territorio exclusivo
@@ -35,7 +35,7 @@ Prohibido relajar el SLO. Si la cifra no llega, se declara la cifra real y el si
 ## Las reglas que no se negocian
 
 - **R1 Territorio.** Sólo modificas los directorios de arriba. Si necesitas algo fuera,
-  NO lo tocas: lo escribes en `docs/execution/frentes/velocidad-peticiones.md` y el coordinador
+  NO lo tocas: lo escribes en `docs/history/execution/frentes-superar-20260904/velocidad-peticiones.md` y el coordinador
   lo aplica en la ventana de integración.
 - **R2 Archivos compartidos, sólo el coordinador.** `package.json`, `turbo.json`,
   `.github/workflows/*`, `docs/competitive/rubric.json`, `scripts/cad/monolith-budget.json`,
@@ -169,7 +169,7 @@ entorno (`VALLE_DWG_CORPUS_MIRROR` sin definir en este contenedor, justo el fall
 avisa `AGENTS.md`) y la matriz competitiva está desactualizada desde `ff82c85`, el commit
 ANTERIOR de este mismo frente. `git diff HEAD~1 --name-only` de esta entrega no toca ni un
 archivo DWG ni la matriz. Ver **P-velocidad-02** y **P-velocidad-03** en
-`docs/execution/frentes/velocidad-peticiones.md`: regenerar la matriz cae fuera del territorio
+`docs/history/execution/frentes-superar-20260904/velocidad-peticiones.md`: regenerar la matriz cae fuera del territorio
 (R1) y regenerar la evidencia DWG desde aquí la bajaría de 7 bundles a 0, que sería relajar un
 gate (R6).
 
@@ -246,7 +246,7 @@ de diseño con su propia paridad que probar. No entra aquí; queda declarado en 
 comprobó cambiando `environment.gpu` a `true` en una copia: FALLA citando `gpu`—, pero hoy hay que
 invocarlos a mano porque encadenarlos exige tocar `package.json`, que es archivo compartido (R2).
 El diseño completo, con el punto exacto de la cadena de `check:cad` y el porqué del orden, está en
-`docs/execution/frentes/velocidad-peticiones.md` como **P-velocidad-01**. Hasta que el coordinador
+`docs/history/execution/frentes-superar-20260904/velocidad-peticiones.md` como **P-velocidad-01**. Hasta que el coordinador
 lo aplique, este artefacto se comprueba a mano.
 
 ### 2026-09-04 · Cierre del frente: el árbol entra en VERDE de typecheck y ROJO de `check:cad`
@@ -547,7 +547,7 @@ sostiene hoy`: el artefacto versionado declara 7 bundles admitidos y regenerado 
 porque `VALLE_DWG_CORPUS_MIRROR` está SIN DEFINIR en este contenedor. Comprobado que es ajeno:
 `git diff --name-only 646b969..HEAD` no toca ni un archivo DWG (las 26 rutas del frente están
 todas en `apps/web/src/lib/cad/render/`, `apps/web/e2e/performance/`, `scripts/perf/`,
-`docs/cad/evidence/*100k*` y `docs/execution/frentes/`). No se regeneró: bajar la evidencia DWG
+`docs/cad/evidence/*100k*` y `docs/history/execution/frentes-superar-20260904/`). No se regeneró: bajar la evidencia DWG
 publicada de 7 bundles a 0 sería relajar un gate (R6). Es **P-velocidad-03**.
 Verificado también que el frente no tocó **ningún** archivo compartido prohibido: ni
 `package.json`, ni `turbo.json`, ni `.github/workflows/*`, ni `rubric.json`, ni

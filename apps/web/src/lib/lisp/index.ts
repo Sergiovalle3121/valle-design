@@ -72,7 +72,7 @@
  *   por la regla 1 de la casa, eso significa que no está implementado. Lo que
  *   falta es el cableado al estudio —cargar el plugin, componer el registro,
  *   montar sus paneles— y está escrito entero como petición P-ext-03 en
- *   `docs/execution/frentes/ext-peticiones.md`, porque `components/cad/`
+ *   `docs/history/execution/frentes-superar-20260904/ext-peticiones.md`, porque `components/cad/`
  *   está fuera del territorio de este subsistema.
  */
 export { DEFAULT_LISP_BUDGET, LispMeter, type LispBudgetLimits } from "./budget";

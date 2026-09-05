@@ -42,7 +42,7 @@
  *    es una comprobación que no se hace.
  *  · Una orden NUEVA obliga a tocar `ribbon.ts` y `docs/cad/evidence/
  *    ui-command-reach.json`, los dos fuera del territorio de este frente
- *    (`docs/execution/frentes/mep-plant-peticiones.md`, P-mep-plant-02). El
+ *    (`docs/history/execution/frentes-superar-20260904/mep-plant-peticiones.md`, P-mep-plant-02). El
  *    diseño de `PIDCLASH` está escrito ahí por si el titular la quiere; sin
  *    ella la capacidad entrega igual, que es la condición para no fingir.
  *

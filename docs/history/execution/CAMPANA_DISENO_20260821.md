@@ -476,7 +476,7 @@ seis cosas).
 **Gates:** `typecheck` ✅ · `build` ✅ · `lint` ✅ 0 errores · `test` ✅ 387/387.
 
 **AVISO — SESIÓN PARALELA.** A mitad de esta ola, otra sesión («CAMPAÑA DE
-IDENTIDAD», `docs/execution/CAMPANA_IDENTIDAD_20260822.md`) renombró
+IDENTIDAD», `docs/history/execution/CAMPANA_IDENTIDAD_20260822.md`) renombró
 `components/line-engineering/` a `components/cad/` EN EL MISMO ÁRBOL DE TRABAJO.
 El servidor de desarrollo se quedó con el grafo de módulos a medias y falló con
 un `Module not found` que no era mío. Comprobado que el renombrado quedó

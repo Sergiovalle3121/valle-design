@@ -82,7 +82,7 @@ punta, porque el código de F6 ya se integró en `34a159c` y estaba verde.
 ## Peticiones
 
 ### P-mep-plant-01 · Aclarar que `plant-*` y `mep-schedule-table` son de F6
-- **Archivo:** `docs/execution/frentes/mep-plant.md` (sección «Territorio exclusivo»)
+- **Archivo:** `docs/history/execution/frentes-superar-20260904/mep-plant.md` (sección «Territorio exclusivo»)
 - **Por qué:** el glob de la ficha dice
   `apps/web/src/lib/cad/engine/commands/pipe*|duct*|cable*|mep*|pid*`, pero las órdenes
   PIDROUTE, PIDMTO, PIDISO, PIDLINE, PIDLIST, PIDEQUIP y PIDEQUIPLIST viven en archivos
