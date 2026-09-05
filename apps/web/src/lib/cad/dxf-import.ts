@@ -13,6 +13,7 @@ import type { CadDxfSchema4Kind, CadDxfSchema4Payload } from "./dxf-schema4";
 // en sus propios módulos: este archivo está en su asignación de tamaño y los
 // tipos del esquema 4 necesitaban sitio.
 import {
+  countDxfEntitiesOutsideEntitiesSection,
   dxfPairsInEntitiesSection,
   normalizeDxfHeaderBooleans,
   num,
@@ -1172,6 +1173,58 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
   // Se descuenta UNA por cota efectivamente recuperada, nunca en bloque: una
   // DIMENSION que el camino semántico no consiguiera leer sigue siendo una
   // pérdida real y tiene que seguir avisándose.
+  // LO QUE VIVE DENTRO DE UNA DEFINICIÓN DE BLOQUE Y YA NO SALE SUELTO.
+  //
+  // Los escaneos crudos de MTEXT y HATCH tienen ámbito desde P-evidencia-11:
+  // sólo recogen lo que está en `ENTITIES`. Eso corrigió un defecto real —lo de
+  // dentro de un BLOCK salía a espacio modelo con las coordenadas locales del
+  // bloque, sin la transformación del INSERT que lo trae— pero dejó de traer
+  // entidades que el fichero SÍ tiene, y una entidad que está en el fichero y
+  // no en el documento no puede quedarse sin que nadie lo diga. El techo de
+  // pérdidas silenciosas del corpus ajeno es cero y cazó esto a la primera
+  // corrida: cinco tipos en cuatro ficheros.
+  //
+  // Lo que el aviso dice es lo que se puede afirmar sin adivinar: están en una
+  // definición de bloque, y de ahí se dibujan a través del INSERT que las trae.
+  // Si ningún INSERT alcanza ese bloque no formaban parte del dibujo —medido
+  // por alcanzabilidad transitiva en `verification/terceros-jornada.spec.ts`
+  // sobre floorplan.dxf: 135 MTEXT y 13 HATCH en bloques que nadie inserta—,
+  // pero siguen estando en el archivo del remitente y por eso se nombran.
+  // ALCANZABILIDAD, transitiva desde espacio modelo. Un bloque que algún INSERT
+  // trae dibuja su contenido, así que lo de dentro no falta y no se avisa; lo
+  // que vive en una definición que NADIE inserta está en el archivo del
+  // remitente y no en el documento, y eso sí hay que decirlo.
+  const bloquePorNombre = new Map(blocks.map((bloque) => [bloque.name, bloque]));
+  const alcanzables = new Set<string>();
+  // Las raíces son los INSERT del dibujo Y los bloques de dibujo de las cotas
+  // (`*D1`, `*D2`…), que no los trae ningún INSERT sino la propia DIMENSION.
+  // Su rótulo llega al dibujo porque la cota lo recalcula, así que tampoco
+  // falta: sin esta segunda raíz el aviso acusaría de pérdida a cada cota.
+  const porVisitar = [
+    ...inserts.map((insert) => insert.block),
+    ...semanticDimensions.map((cota) => cota.blockName).filter((nombre) => nombre.length > 0),
+  ];
+  while (porVisitar.length > 0) {
+    const nombre = porVisitar.pop()!;
+    if (alcanzables.has(nombre)) continue;
+    alcanzables.add(nombre);
+    for (const anidado of bloquePorNombre.get(nombre)?.inserts ?? []) porVisitar.push(anidado.block);
+  }
+  const huerfanas = countDxfEntitiesOutsideEntitiesSection(
+    rawDxfPairs(text),
+    ["MTEXT", "HATCH"],
+    alcanzables,
+  );
+  for (const [tipo, cuantas] of Object.entries(huerfanas))
+    for (let i = 0; i < cuantas; i += 1)
+      warnings.push({
+        code: "entity_in_block_definition",
+        entityType: tipo,
+        message:
+          `Un ${tipo} vive dentro de una definición de bloque que ningún INSERT del dibujo trae: ` +
+          "está en el archivo y no llega al documento.",
+      });
+
   // LAS CAPAS DECLARADAS QUE NADIE USA. La lista de capas se construye a partir
   // de las que las entidades USAN, así que una capa que el fichero declara y
   // ninguna entidad pisa no llega al documento. El dibujo no cambia —nada se

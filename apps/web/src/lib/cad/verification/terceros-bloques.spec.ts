@@ -60,9 +60,11 @@ const ESPEC = "apps/web/src/lib/cad/verification/terceros-bloques.spec.ts";
 
 /**
  * TECHO: ficheros de estas cuatro filas que el lector RECHAZA entero.
- * Sólo puede bajar. Hoy es uno, y su causa está medida y probada.
+ * Sólo puede bajar. Está VACÍO desde el 2026-09-05: era uno —`blocks2.dxf`, por
+ * `$XCLIPFRAME 2`— y P-evidencia-13 lo abrió. Volver a llenarlo es un fichero
+ * ajeno más que dejamos de leer, y hace falta decir cuál y por qué.
  */
-const TECHO_FICHEROS_RECHAZADOS = ["bjnortier-dxf/blocks2"];
+const TECHO_FICHEROS_RECHAZADOS: string[] = [];
 
 /**
  * Tolerancia de las magnitudes de bloque, y su razón.
@@ -164,51 +166,70 @@ const inserts = informeUno.document.entities.filter((entidad) => entidad.type ==
   ok(informeUno.dxfReport?.hasLosses === true, "y el informe no dice «entró completo»");
 }
 
-// === blocks2.dxf: el caso que no ============================================
-let mensajeDelLector = "";
+// === blocks2.dxf: el caso que ya SÍ =========================================
+//
+// Esta sección nació midiendo un rechazo. `importDocumentText` levantaba «El DXF
+// está corrupto o no es un DXF de texto válido» sobre un fichero que `ezdxf`
+// abre sin una queja y que publica una biblioteca MIT como material de prueba;
+// el mensaje acusaba al remitente de algo que no hizo, y el arquitecto que lo
+// leía reenviaba el archivo a su cliente para que «se lo arreglase».
+//
+// La causa era UNA: `$XCLIPFRAME` con valor 2, legítimo desde AutoCAD 2010.
+// `dxf-parser` convierte los códigos 290–299 a booleano y sólo acepta 0 y 1.
+// P-evidencia-13 normaliza esos valores antes de analizar —y lo AVISA—, así que
+// desde el 2026-09-05 el fichero entra. Lo que la suite afirma ahora es que
+// entra, que sigue siendo el mismo defecto de `dxf-parser` el que lo tumbaba, y
+// que la normalización no es silenciosa.
+const informeDos = importDocumentText("blocks2.dxf", DOS.texto);
+{
+  eq(informeDos.importedEntityCount, 4, "el lector abre blocks2.dxf y trae sus cuatro entidades de espacio modelo");
+  eq(informeDos.importedBlockCount, 3, "y las tres definiciones de bloque");
+  // El oráculo B, que no comparte motor con nadie de aquí, dice lo mismo del
+  // espacio modelo: cuatro entidades. La quinta que el lector entregaba antes
+  // era el MTEXT de dentro de `block01`, sacado a espacio modelo con las
+  // coordenadas del bloque (P-evidencia-11).
+  eqMagnitud(bDos.espacioModelo, { INSERT: 1, LINE: 1, LWPOLYLINE: 1, MTEXT: 1 }, "el oráculo B lee el espacio modelo entero");
+  eqMagnitud(bDos.bloquesDefinidos, ["block01", "block02", "block_insert"], "y las tres definiciones de bloque");
+  eq(
+    informeDos.importedEntityCount,
+    Object.values(bDos.espacioModelo as Record<string, number>).reduce((suma, n) => suma + n, 0),
+    "el lector y el oráculo B cuentan el MISMO espacio modelo, entidad por entidad",
+  );
+  eq(TECHO_FICHEROS_RECHAZADOS, [], "el techo de ficheros rechazados sólo puede bajar");
+}
+
+// --- que el arreglo es el que decimos, y que NO es silencioso ---------------
 let mensajeDelOraculoA = "";
 {
-  try {
-    importDocumentText("blocks2.dxf", DOS.texto);
-    ok(false, "el lector abrió blocks2.dxf: si esto pasa, P-evidencia-13 entró y hay que bajar el techo");
-  } catch (error) {
-    mensajeDelLector = (error as Error).message;
-  }
+  // El oráculo A sigue cayendo sobre el texto CRUDO. Eso importa: demuestra que
+  // el defecto sigue estando donde se dijo —en la conversión a booleano de
+  // `dxf-parser`, que el lector IMPORTA— y que lo que cambió es que el lector
+  // normaliza antes de entregárselo, no que el fichero fuera otro.
   try {
     new DxfParser().parseSync(DOS.texto);
-    ok(false, "el oráculo A abrió blocks2.dxf; el diagnóstico de esta suite ya no vale");
+    ok(false, "el oráculo A abrió el texto crudo de blocks2.dxf; el diagnóstico de esta suite ya no vale");
   } catch (error) {
     mensajeDelOraculoA = (error as Error).message;
   }
   ok(
-    /corrupto|no es un DXF/u.test(mensajeDelLector),
-    `el lector culpa al fichero: «${mensajeDelLector}». El fichero está bien: ezdxf lo abre entero.`,
+    /cannot be cast to Boolean/u.test(mensajeDelOraculoA),
+    `el oráculo A cae por donde se dijo: «${mensajeDelOraculoA}»`,
   );
   ok(
-    /cannot be cast to Boolean/u.test(mensajeDelOraculoA),
-    `el oráculo A cae por el mismo sitio: «${mensajeDelOraculoA}». Comparte motor con el lector, así que su acuerdo no vale como testigo.`,
+    informeDos.warnings.some((aviso) => aviso.code === "header_boolean_out_of_range"),
+    "y el lector DECLARA que normalizó una variable de cabecera: una normalización callada sería cambiar un defecto por otro más difícil de ver",
   );
-  // El oráculo B, que no comparte nada, dice que el fichero está bien.
-  eqMagnitud(bDos.espacioModelo, { INSERT: 1, LINE: 1, LWPOLYLINE: 1, MTEXT: 1 }, "el oráculo B lee el espacio modelo entero");
-  eqMagnitud(bDos.bloquesDefinidos, ["block01", "block02", "block_insert"], "y las tres definiciones de bloque");
-  eq(TECHO_FICHEROS_RECHAZADOS, ["bjnortier-dxf/blocks2"], "el techo de ficheros rechazados sólo puede bajar");
-}
-
-// --- la causa, probada sobre una copia EN MEMORIA ---------------------------
-const normalizado = DOS.texto.replace(/(\$XCLIPFRAME\r?\n\s*290\r?\n\s*)2(\r?\n)/u, "$11$2");
-const informeDos = (() => {
+  // Normalizar a mano y dejar que lo haga el lector dan el mismo documento. Sin
+  // esto, «lo arreglamos» podría querer decir «lo leemos de otra manera».
+  const normalizado = DOS.texto.replace(/(\$XCLIPFRAME\r?\n\s*290\r?\n\s*)2(\r?\n)/u, "$11$2");
   ok(normalizado !== DOS.texto, "la copia en memoria cambió exactamente el par de $XCLIPFRAME");
   ok(
     normalizado.length === DOS.texto.length,
     "y no cambió nada más: la copia mide lo mismo que el original, un dígito por otro",
   );
-  return importDocumentText("blocks2.dxf", normalizado);
-})();
-{
-  eq(informeDos.importedEntityCount, 6, "con `$XCLIPFRAME` normalizado entran las seis entidades");
-  eq(informeDos.importedBlockCount, 3, "y las tres definiciones de bloque");
-  eq(informeDos.warnings, [], "sin un solo aviso: el fichero no tenía nada más que objetar");
-  eq(informeDos.dxfReport?.hasLosses, false, "y sin pérdidas declaradas");
+  const aMano = importDocumentText("blocks2.dxf", normalizado);
+  eq(aMano.importedEntityCount, informeDos.importedEntityCount, "normalizar a mano da las mismas entidades que hace el lector");
+  eq(aMano.importedBlockCount, informeDos.importedBlockCount, "y los mismos bloques");
 }
 
 // --- el árbol anidado, escalón por escalón ---------------------------------
@@ -341,43 +362,58 @@ const aterrizaje: Array<{ que: string; enElBloque: number[]; acumulado: number[]
   );
 }
 
-// --- el segundo defecto medido: el texto sale del bloque -------------------
-const fugados: Array<{ texto: string; donde: string; saleEn: number[]; deberiaCaerEn: number[] }> = [];
+// --- el segundo defecto medido, y por dónde salió --------------------------
+const fugados: Array<{ texto: string; donde: string; saleEn: number[]; caeEn: number[] }> = [];
 {
   const mtext = documentoDos.entities.filter((entidad) => entidad.type === "mtext") as unknown as Array<{
     text: string;
     insertion: { x: number; y: number };
     layer?: string;
   }>;
-  eq(mtext.length, 3, "el lector entrega TRES MTEXT en espacio modelo");
-  eq(bDos.mtextDeEspacioModelo.length, 1, "y el oráculo B ve UNO solo en espacio modelo");
-  // Los otros dos viven dentro de `block01` y `block02`. Salen a espacio modelo
-  // con las coordenadas LOCALES del bloque, o sea sin la transformación
-  // acumulada: es literalmente la traslación (175, 25) que falta.
+  // Hasta el 2026-09-05 el lector entregaba TRES. Los dos de más vivían dentro
+  // de `block01` y `block02` y salían a espacio modelo con las coordenadas
+  // LOCALES del bloque —sin la traslación (175, 25) ni la escala del INSERT que
+  // los trae—, así que se dibujaban 175 mm a la izquierda y 25 mm abajo, y
+  // además dos veces, porque seguían dentro del bloque. P-evidencia-11 le dio
+  // al escaneo crudo la sección en la que está.
+  eq(mtext.length, 1, "el lector entrega UN MTEXT de espacio modelo, el que el remitente puso ahí");
+  eq(bDos.mtextDeEspacioModelo.length, 1, "y el oráculo B ve exactamente el mismo");
+  eqMagnitud(
+    mtext[0].text,
+    bDos.mtextDeEspacioModelo[0].texto,
+    "y es el mismo texto que leyó el oráculo B, no otro que coincida en número",
+  );
+
+  // Lo que hace que esto sea un arreglo y no una desaparición: el rótulo sigue
+  // DENTRO de su bloque, que es de donde tiene que salir dibujado, y el lector
+  // conserva vivo el INSERT que lo trae con su transformación. Se comprueba
+  // dónde CAE cada uno compuesta esa transformación, que es el sitio en el que
+  // el remitente lo puso.
+  const porNombre = new Map(documentoDos.blocks.map((bloque) => [bloque.name, bloque]));
   for (const nombre of ["block01", "block02"]) {
     const dentro = bDos.contenidoDeBloques[nombre].mtext![0];
-    const suelto = mtext.find((entidad) => entidad.text === dentro.texto);
-    ok(suelto !== undefined, `el MTEXT «${dentro.texto}» de ${nombre} sale suelto a espacio modelo`);
-    cerca(suelto!.insertion.x, dentro.insercion[0], TOL, `${dentro.texto}: sale en la X LOCAL del bloque`);
-    cerca(suelto!.insertion.y, dentro.insercion[1], TOL, `${dentro.texto}: sale en la Y LOCAL del bloque`);
+    ok(
+      !mtext.some((entidad) => entidad.text === dentro.texto),
+      `el MTEXT «${dentro.texto}» de ${nombre} ya NO sale suelto a espacio modelo`,
+    );
+    ok(
+      porNombre.get(nombre)!.entities.some((entidad) => entidad.type === "text"),
+      `${nombre} conserva su rótulo DENTRO: es de ahí de donde se dibuja, con la transformación de su INSERT`,
+    );
     fugados.push({
       texto: dentro.texto,
       donde: nombre,
       saleEn: dentro.insercion,
-      deberiaCaerEn: [
+      caeEn: [
         dentro.insercion[0] * acumulada.escala + acumulada.dx,
         dentro.insercion[1] * acumulada.escala + acumulada.dy,
       ],
     });
   }
-  // Y además siguen dentro del bloque, así que el rótulo se dibuja dos veces.
-  const porNombre = new Map(documentoDos.blocks.map((bloque) => [bloque.name, bloque]));
-  for (const nombre of ["block01", "block02"])
-    ok(
-      porNombre.get(nombre)!.entities.some((entidad) => entidad.type === "text"),
-      `${nombre} conserva su rótulo dentro: el texto está dos veces, dentro del bloque y suelto`,
-    );
-  eq(informeDos.warnings, [], "y no hay ni un aviso que lo mencione");
+  ok(
+    informeDos.warnings.every((aviso) => aviso.code !== "unsupported_entity"),
+    "y nada de esto se declara como pérdida, porque no se pierde nada: cambia de sitio, del espacio modelo al bloque que lo trae",
+  );
 }
 
 // --- la misma fuga, contada en el plano grande ------------------------------
@@ -395,19 +431,18 @@ const fugaEnElPlano = { enEspacioModeloDelRemitente: 0, enTodoElFichero: 0, queE
   eqMagnitud(bPlano.mtextEnTodoElFichero, 144, "y 144 en el fichero entero");
   eq(
     fugaEnElPlano.queEntregaElLector,
-    fugaEnElPlano.enTodoElFichero,
-    "el lector entrega los 144 como entidades de espacio modelo, no los nueve que el remitente puso ahí",
+    fugaEnElPlano.enEspacioModeloDelRemitente,
+    "el lector entrega los NUEVE que el remitente puso en espacio modelo, no los 144 del fichero entero",
   );
-  // La cifra que importa, y que hasta hoy no estaba puesta en ningún sitio.
+  // La cifra que medía el daño, ahora en cero. Se queda escrita —en vez de
+  // borrar la sección— porque 135 rótulos de un plano de despacho cambiando de
+  // dueño sin que nadie avise es exactamente lo que no puede volver a pasar sin
+  // que algo se ponga rojo.
   eq(
-    fugaEnElPlano.enTodoElFichero - fugaEnElPlano.enEspacioModeloDelRemitente,
-    135,
-    "135 rótulos que viven dentro de bloques salen a espacio modelo con las coordenadas de su bloque",
+    fugaEnElPlano.queEntregaElLector - fugaEnElPlano.enEspacioModeloDelRemitente,
+    0,
+    "ningún rótulo de dentro de un bloque sale ya a espacio modelo (eran 135 antes de P-evidencia-11)",
   );
-  // Lo que esta suite NO afirma sobre esos 135: dónde acaban dibujados. Medir
-  // el desplazamiento de cada uno exige la transformación acumulada de los 17
-  // bloques del plano, y eso es la jornada, no esta suite. Lo que aquí se
-  // afirma es el ÁMBITO: 135 entidades cambian de dueño sin que nadie avise.
 }
 
 // --- el renglón del artefacto compartido -----------------------------------
@@ -447,40 +482,39 @@ publicaRenglon({
       degradacionDeclarada: "anisotropic_insert (1): escala no uniforme sobre geometría circular, radio por el promedio",
     },
     blocks2: {
-      resultado: "RECHAZA EL FICHERO ENTERO",
-      mensaje: mensajeDelLector,
-      causaMedida: "$XCLIPFRAME = 2 en la cabecera; dxf-parser sólo admite 0 y 1 en los códigos 290-299",
-      conEseParUnicoNormalizadoEnMemoria: {
-        entidades: 6,
+      resultado: "ABRE EL FICHERO ENTERO",
+      causaQueLoImpedia: "$XCLIPFRAME = 2 en la cabecera; dxf-parser sólo admite 0 y 1 en los códigos 290-299",
+      comoSeResolvio: "los códigos 290-299 fuera de rango se normalizan antes de analizar, y se declara con `header_boolean_out_of_range`",
+      conLaCabeceraYaNormalizadaPorElLector: {
+        entidades: 4,
         bloques: 3,
-        avisos: 0,
+        normalizacionDeclarada: "header_boolean_out_of_range",
         anidamientoIntacto: true,
         arcoYElipseIntactos: true,
       },
-      textoQueSeSaleDeSuBloque: fugados,
+      textoQueSeQuedaEnSuBloque: fugados,
     },
     floorplan: {
       mtextQueElRemitentePusoEnEspacioModelo: fugaEnElPlano.enEspacioModeloDelRemitente,
       mtextEnTodoElFichero: fugaEnElPlano.enTodoElFichero,
       mtextQueElLectorEntregaComoEspacioModelo: fugaEnElPlano.queEntregaElLector,
-      rotulosQueCambianDeDueno: fugaEnElPlano.enTodoElFichero - fugaEnElPlano.enEspacioModeloDelRemitente,
+      rotulosQueCambianDeDueno: fugaEnElPlano.queEntregaElLector - fugaEnElPlano.enEspacioModeloDelRemitente,
     },
   },
   hallazgos: [
     {
       id: "fichero-ajeno-rechazado-por-una-variable-de-cabecera",
       que:
-        `El lector rechaza blocks2.dxf entero con «${mensajeDelLector}» — una acusación al fichero que es falsa: ezdxf lo abre sin una queja. ` +
-        "La causa medida es un solo par de la cabecera, `$XCLIPFRAME` = 2, valor legítimo desde AutoCAD 2010. Normalizado ESE par en una copia en memoria, el fichero entra completo: 6 entidades, 3 bloques, 0 avisos.",
+        "ARREGLADO el 2026-09-05 (P-evidencia-13). El lector rechazaba blocks2.dxf entero con «El DXF está corrupto o no es un DXF de texto válido» — una acusación al remitente que era falsa: ezdxf lo abre sin una queja y lo publica una biblioteca MIT como material de prueba. La causa medida era un solo par de la cabecera, `$XCLIPFRAME` = 2, legítimo desde AutoCAD 2010, que `dxf-parser` no sabe convertir a booleano. Hoy los códigos 290-299 fuera de rango se normalizan antes de analizar y se DECLARAN (`header_boolean_out_of_range`): el fichero entra con sus 4 entidades de espacio modelo y sus 3 bloques. El oráculo A sigue cayendo sobre el texto crudo, que es la prueba de que el defecto estaba donde se dijo.",
       silencioso: false,
-      peticion: "P-evidencia-13",
+      peticion: null,
     },
     {
       id: "mtext-que-se-sale-de-su-bloque",
       que:
-        "Con el fichero ya legible, dos de los tres MTEXT que el lector entrega a espacio modelo viven en realidad DENTRO de `block01` y `block02`. Salen con las coordenadas locales del bloque, sin la transformación acumulada: caen 175 mm a la izquierda y 25 mm abajo de donde el remitente los puso, y además siguen dentro del bloque, así que el rótulo se dibuja dos veces. Ningún aviso lo menciona. El tamaño del problema lo pone el plano grande: el remitente puso 9 MTEXT en el espacio modelo de floorplan.dxf y el lector entrega 144, así que 135 rótulos cambian de dueño en silencio.",
-      silencioso: true,
-      peticion: "P-evidencia-11",
+        "ARREGLADO el 2026-09-05 (P-evidencia-11). Dos de los tres MTEXT que el lector entregaba a espacio modelo vivían DENTRO de `block01` y `block02` y salían con las coordenadas locales del bloque, sin la transformación acumulada: caían 175 mm a la izquierda y 25 mm abajo de donde el remitente los puso, y además seguían dentro del bloque, así que el rótulo se dibujaba dos veces. El escaneo crudo no sabía en qué sección estaba. Hoy el lector entrega UNO, el mismo que ve el oráculo B, y los rótulos se dibujan desde su bloque con la transformación de su INSERT. En el plano grande la cifra era 135 rótulos cambiando de dueño en silencio; ahora es 0.",
+      silencioso: false,
+      peticion: null,
     },
     {
       id: "lo-que-si-viaja",
@@ -492,7 +526,7 @@ publicaRenglon({
   ],
   veredicto: "servible_hoy",
   porQueEseVeredicto:
-    "Sobre blocks1.dxf el testigo ajeno dice que sí, entidad por entidad, y la única degradación va declarada. Lo de blocks2.dxf es una pérdida DECLARADA, no silenciosa: el lector se niega en voz alta. Y el objeto propio de esta fila —la definición del bloque, su contenido, el anidamiento y la transformación de cada escalón— llega intacto y medido incluso en el fichero que hay que normalizar para abrir. La fuga de MTEXT es silenciosa y grande (135 rótulos en el plano ajeno), pero su objeto es el TEXTO: es lo que bloquea las filas `mtext` y `dimensions`, y ahí es donde se cobra. Lo que no se puede es afirmar esta fila sin publicar a la vez las dos cosas: que un fichero ajeno legítimo de cada diecinueve no se abre, y que el texto de dentro de los bloques se sale.",
+    "Sobre blocks1.dxf el testigo ajeno dice que sí, entidad por entidad, y la única degradación va declarada. Los dos defectos que esta suite publicaba están arreglados y guardados por ella misma: los diecinueve ficheros del corpus se abren —el techo de rechazados está vacío— y ningún rótulo de dentro de un bloque sale ya a espacio modelo. El objeto propio de la fila —la definición del bloque, su contenido, el anidamiento y la transformación de cada escalón— llega intacto y medido contra un programa que no es éste.",
   loQueNoSeMide:
     "DÓNDE acaban dibujados los 135 rótulos que se salen de sus bloques en el plano ajeno: medirlo exige componer la transformación acumulada de los 17 bloques, y esta suite sólo la compone para el anidado de dos niveles de blocks2.dxf, donde cabe a ojo. Lo que aquí se afirma es el ÁMBITO, no el desplazamiento. Los ATRIBUTOS del bloque (ATTDEF/ATTRIB): ninguno de los diecinueve ficheros ajenos trae un bloque con atributos, así que la mitad del nombre de la fila no la atestigua nadie de fuera. Tampoco los bloques dinámicos, ni el espacio papel, ni el contenido de un bloque tras exportarlo.",
 });
@@ -502,6 +536,6 @@ console.log(
     "contrastados contra ezdxf 1.4.4 sobre dos ficheros de bloques que no escribimos",
 );
 console.log(
-  "  · TODAVÍA NO (2026-09-05): blocks2.dxf se rechaza entero por `$XCLIPFRAME` = 2 (P-evidencia-13); y el texto de " +
-    `dentro de los bloques se sale a espacio modelo sin la transformación acumulada — ${fugaEnElPlano.enTodoElFichero - fugaEnElPlano.enEspacioModeloDelRemitente} rótulos en el plano ajeno (P-evidencia-11).`,
+  `  · los ${TECHO_FICHEROS_RECHAZADOS.length === 0 ? "diecinueve" : "?"} ficheros del corpus se abren (blocks2.dxf entró con P-evidencia-13, declarando la normalización) ` +
+    `y ${fugaEnElPlano.queEntregaElLector - fugaEnElPlano.enEspacioModeloDelRemitente} rótulos de dentro de bloques salen a espacio modelo, de los 135 que salían antes de P-evidencia-11.`,
 );

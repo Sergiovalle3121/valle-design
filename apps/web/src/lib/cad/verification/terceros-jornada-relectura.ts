@@ -53,7 +53,7 @@ export const CENSO_RELEIDO_A = {
   DIMENSION: 63,
   INSERT: 10,
   LINE: 625,
-  MTEXT: 144,
+  MTEXT: 9,
   POLYLINE: 124,
   TEXT: 89,
 } as const;
@@ -342,7 +342,28 @@ const tiposQueNoAbre: string[] = [];
   );
   eq(sinLosDos.auditoria?.errores, 0, "sin un solo error de auditoría");
 
-  // El experimento del parche: la petición P-evidencia-07 no propone a ciegas.
+  // EL FICHERO ENTERO, con MTEXT y HATCH dentro. Ésta es la afirmación que
+  // P-evidencia-07 compró: hasta el 2026-09-05 el oráculo B no abría esto ni en
+  // modo recover —«missing 'AcDbMText' subclass», y un IndexError en polygon.py
+  // para el HATCH— porque los dos escritores no emitían los marcadores de
+  // subclase que AC1015 exige. Hoy lo abre entero.
+  const completa = lecturasB.find((lectura) => lectura.etiqueta === "jornada-completa")!;
+  ok(
+    completa.abre,
+    `el oráculo B no abre el fichero completo (${completa.error ?? "sin error"}): es la afirmación central de la jornada`,
+  );
+  eq(
+    completa.espacioModelo,
+    { ARC: 20, DIMENSION: 63, HATCH: 13, INSERT: 10, LINE: 625, MTEXT: 9, POLYLINE: 124, TEXT: 89 },
+    "y cuenta en él exactamente lo que escribimos, sombreados y textos de párrafo incluidos",
+  );
+  eq(completa.auditoria?.errores, 0, "sin un solo error de auditoría sobre el fichero entero");
+
+  // El experimento del parche, ahora como CONTROL. Existía para probar
+  // P-evidencia-07 antes de pedirla: insertaba los marcadores sobre el texto ya
+  // exportado y volvía a leerlo. Desde que el producto los escribe, lo que
+  // tiene que decir es que no hubo NADA que parchear — y esa cifra en cero es
+  // la que impide que el arreglo se caiga sin que nadie se entere.
   const experimento = medidas.experimentoSubclases;
   ok(experimento !== null, "el artefacto del oráculo B tiene que traer el experimento del parche");
   eq(
@@ -350,12 +371,17 @@ const tiposQueNoAbre: string[] = [];
     shaExportado,
     "el parche se probó sobre ESTOS bytes exportados, no sobre otros",
   );
-  eq(experimento!.leido, true, "con los marcadores de subclase insertados, el oráculo B SÍ abre el fichero");
-  eq(experimento!.entidadesParcheadas, 170, "y hubo que tocar 170 entidades: los 144 MTEXT y los 26 HATCH");
+  eq(experimento!.leido, true, "el oráculo B abre el fichero");
+  eq(experimento!.entidadesParcheadas, 0, "y no hubo que parchear ninguna entidad: los marcadores ya los escribe el producto");
+  eq(
+    experimento!.entidadesQueYaLosTraian,
+    22,
+    "las 22 entidades de tipo MTEXT y HATCH del fichero exportado los traen ya (9 + 13)",
+  );
   eq(
     experimento!.espacioModelo,
-    { ARC: 20, DIMENSION: 63, HATCH: 26, INSERT: 10, LINE: 625, MTEXT: 144, POLYLINE: 124, TEXT: 89 },
-    "y entonces cuenta las 1101 entidades del documento, sombreados incluidos",
+    { ARC: 20, DIMENSION: 63, HATCH: 13, INSERT: 10, LINE: 625, MTEXT: 9, POLYLINE: 124, TEXT: 89 },
+    "y el control cuenta lo mismo que la lectura directa",
   );
   eq(experimento!.auditoria?.errores, 0, "y las audita sin un error");
 }

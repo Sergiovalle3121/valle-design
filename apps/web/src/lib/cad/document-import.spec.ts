@@ -63,9 +63,17 @@ assert.throws(
     ),
   /clave insegura/i,
 );
+// Los DOS fracasos distintos, cada uno con su mensaje. «esto no es DXF» no
+// tiene ni una sección, así que se le dice que mire qué archivo eligió; un
+// texto CON estructura de DXF que el analizador no digiere es fallo NUESTRO y
+// no se le llama «corrupto» al remitente (ver `document-import.ts`).
 assert.throws(
   () => importDocumentText("broken.dxf", "esto no es DXF"),
-  /corrupto|válido/i,
+  /no parece un DXF/i,
+);
+assert.throws(
+  () => importDocumentText("raro.dxf", "0\nSECTION\n2\nHEADER\n9\n$ACADVER\n"),
+  /no pudo analizar el DXF/i,
 );
 assert.throws(() => validateImportFile("drawing.dwg", 100), /no soportado/i);
 assert.throws(

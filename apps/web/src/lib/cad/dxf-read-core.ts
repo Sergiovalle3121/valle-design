@@ -105,6 +105,55 @@ export function normalizeDxfHeaderBooleans(text: string): {
   return normalized === 0 ? { text, normalized } : { text: lines.join("\n"), normalized };
 }
 
+/**
+ * CUÁNTAS entidades de estos tipos viven FUERA de la sección `ENTITIES`.
+ *
+ * Es la contrapartida obligatoria de `dxfPairsInEntitiesSection`: darle ámbito
+ * al escaneo crudo hizo que dejaran de entrar cosas que antes entraban —mal
+ * colocadas, pero entraban—, y una entidad que el fichero trae y el documento
+ * no puede quedarse sin que nadie lo diga. El techo de pérdidas silenciosas de
+ * `dxf-corpus-terceros-matrix.json` es cero, y lo cazó a la primera.
+ */
+export function countDxfEntitiesOutsideEntitiesSection(
+  pairs: readonly RawDxfPair[],
+  types: readonly string[],
+  /**
+   * Bloques cuyo contenido SÍ llega al dibujo por su INSERT. Lo que viva en
+   * ellos no se cuenta: no falta, se dibuja desde el bloque que lo trae. Sin
+   * este filtro el aviso saltaría en todo dibujo normal —cualquier rótulo
+   * dentro de un bloque insertado— y un aviso que sale siempre no informa de
+   * nada. Se cuenta sólo lo que está en el fichero y NO llega a ninguna parte.
+   */
+  reachableBlocks: ReadonlySet<string> = new Set(),
+): Record<string, number> {
+  const inEntities = dxfPairsInEntitiesSection(pairs);
+  const wanted = new Set(types.map((type) => type.toUpperCase()));
+  const counts: Record<string, number> = {};
+  let currentBlock: string | null = null;
+  for (let index = 0; index < pairs.length; index += 1) {
+    if (pairs[index].code !== 0) continue;
+    const type = pairs[index].value.toUpperCase();
+    if (type === "BLOCK") {
+      currentBlock = null;
+      // El nombre del bloque es su código 2, dentro del preámbulo del BLOCK.
+      for (let j = index + 1; j < pairs.length && pairs[j].code !== 0; j += 1)
+        if (pairs[j].code === 2) {
+          currentBlock = pairs[j].value.trim();
+          break;
+        }
+      continue;
+    }
+    if (type === "ENDBLK") {
+      currentBlock = null;
+      continue;
+    }
+    if (inEntities[index] || !wanted.has(type)) continue;
+    if (currentBlock !== null && reachableBlocks.has(currentBlock)) continue;
+    counts[type] = (counts[type] ?? 0) + 1;
+  }
+  return counts;
+}
+
 export const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : null);
 
 export const pt = (v: any): CadDxfPoint | null => {

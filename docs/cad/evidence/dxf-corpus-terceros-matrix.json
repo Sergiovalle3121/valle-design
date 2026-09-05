@@ -39,17 +39,17 @@
   },
   "resumen": {
     "archivos": 19,
-    "filas": 40,
-    "intactos": 29,
-    "degradados": 4,
-    "perdidosDeclarados": 7,
+    "filas": 35,
+    "intactos": 27,
+    "degradados": 7,
+    "perdidosDeclarados": 1,
     "perdidosEnSilencio": 0,
     "archivosQueAbre": {
       "oraculoA": 18,
       "oraculoB": 17,
-      "lector": 18
+      "lector": 19
     },
-    "filasConLosDosOraculos": 30,
+    "filasConLosDosOraculos": 28,
     "discrepanciasEntreOraculos": 0
   },
   "archivos": [
@@ -103,10 +103,11 @@
         "leido": true
       },
       "lector": {
-        "legible": false,
+        "legible": true,
         "capas": 2,
         "avisos": {
-          "parse_failed": 1
+          "header_boolean_out_of_range": 1,
+          "layer_table_pruned": 2
         }
       },
       "filas": [
@@ -117,9 +118,9 @@
           "oraculoB": 1,
           "declarados": 1,
           "consenso": null,
-          "lector": 0,
+          "lector": 1,
           "avisosDelTipo": [],
-          "veredicto": "perdido_declarado",
+          "veredicto": "intacto",
           "sinOpinionA": "archivo-rechazado"
         },
         {
@@ -129,9 +130,9 @@
           "oraculoB": 1,
           "declarados": 1,
           "consenso": null,
-          "lector": 0,
+          "lector": 1,
           "avisosDelTipo": [],
-          "veredicto": "perdido_declarado",
+          "veredicto": "intacto",
           "sinOpinionA": "archivo-rechazado"
         },
         {
@@ -141,19 +142,19 @@
           "oraculoB": 1,
           "declarados": 1,
           "consenso": null,
-          "lector": 0,
+          "lector": 1,
           "avisosDelTipo": [],
-          "veredicto": "perdido_declarado",
+          "veredicto": "intacto",
           "sinOpinionA": "archivo-rechazado"
         },
         {
           "tipo": "MTEXT",
-          "ambito": "archivo-entero",
+          "ambito": "espacio-modelo",
           "oraculoA": null,
-          "oraculoB": 3,
-          "declarados": 3,
+          "oraculoB": 1,
+          "declarados": 1,
           "consenso": null,
-          "lector": 3,
+          "lector": 1,
           "avisosDelTipo": [],
           "veredicto": "intacto",
           "sinOpinionA": "archivo-rechazado"
@@ -215,17 +216,6 @@
           "lector": 4,
           "avisosDelTipo": [],
           "veredicto": "intacto"
-        },
-        {
-          "tipo": "MTEXT",
-          "ambito": "archivo-entero",
-          "oraculoA": 2,
-          "oraculoB": 2,
-          "declarados": 2,
-          "consenso": true,
-          "lector": 2,
-          "avisosDelTipo": [],
-          "veredicto": "intacto"
         }
       ]
     },
@@ -243,42 +233,18 @@
       },
       "lector": {
         "legible": true,
-        "capas": 1,
+        "capas": 0,
         "avisos": {
-          "hatch_unsupported_boundary": 2,
-          "unsupported_entity": 65
+          "unsupported_entity": 65,
+          "entity_in_block_definition": 5,
+          "layer_table_pruned": 3
         }
       },
-      "filas": [
-        {
-          "tipo": "HATCH",
-          "ambito": "archivo-entero",
-          "oraculoA": null,
-          "oraculoB": 2,
-          "declarados": 2,
-          "consenso": null,
-          "lector": 0,
-          "avisosDelTipo": [
-            "hatch_unsupported_boundary"
-          ],
-          "veredicto": "perdido_declarado",
-          "sinOpinionA": "punto-ciego"
-        },
-        {
-          "tipo": "MTEXT",
-          "ambito": "archivo-entero",
-          "oraculoA": 3,
-          "oraculoB": 3,
-          "declarados": 3,
-          "consenso": true,
-          "lector": 3,
-          "avisosDelTipo": [],
-          "veredicto": "intacto"
-        }
-      ],
+      "filas": [],
       "espacioPapelSegunOraculoB": {
         "VIEWPORT": 2
-      }
+      },
+      "nota": "Ningún oráculo declara una sola entidad comparable en este archivo, así que no hay fila que juzgar. Se conserva en la matriz porque su ausencia de contenido es el dato."
     },
     {
       "id": "bjnortier-dxf/entities",
@@ -296,25 +262,12 @@
         "legible": true,
         "capas": 2,
         "avisos": {
-          "hatch_unsupported_boundary": 2,
-          "unsupported_entity": 128
+          "unsupported_entity": 128,
+          "entity_in_block_definition": 44,
+          "layer_table_pruned": 2
         }
       },
       "filas": [
-        {
-          "tipo": "HATCH",
-          "ambito": "archivo-entero",
-          "oraculoA": null,
-          "oraculoB": 2,
-          "declarados": 2,
-          "consenso": null,
-          "lector": 0,
-          "avisosDelTipo": [
-            "hatch_unsupported_boundary"
-          ],
-          "veredicto": "perdido_declarado",
-          "sinOpinionA": "punto-ciego"
-        },
         {
           "tipo": "INSERT",
           "ambito": "espacio-modelo",
@@ -350,14 +303,17 @@
         },
         {
           "tipo": "MTEXT",
-          "ambito": "archivo-entero",
-          "oraculoA": 76,
-          "oraculoB": 76,
-          "declarados": 76,
+          "ambito": "espacio-modelo",
+          "oraculoA": 29,
+          "oraculoB": 29,
+          "declarados": 29,
           "consenso": true,
-          "lector": 76,
-          "avisosDelTipo": [],
-          "veredicto": "intacto"
+          "lector": 29,
+          "avisosDelTipo": [
+            "entity_in_block_definition"
+          ],
+          "veredicto": "degradado",
+          "degradaA": "44 entidad(es) (MTEXT) viven dentro de definiciones de bloque que nada del dibujo inserta, así que no se dibujaban y no llegan al documento. No falta nada de lo que veías; sí faltará en el archivo si se lo devuelves al remitente."
         }
       ]
     },
@@ -379,7 +335,9 @@
         "avisos": {
           "linetype_complejo": 1,
           "foreign_dimension_detached": 63,
-          "unsupported_entity": 72
+          "unsupported_entity": 9,
+          "entity_in_block_definition": 85,
+          "layer_table_pruned": 7
         }
       },
       "filas": [
@@ -414,23 +372,25 @@
           "consenso": true,
           "lector": 63,
           "avisosDelTipo": [
-            "foreign_dimension_detached",
-            "unsupported_entity"
+            "foreign_dimension_detached"
           ],
           "veredicto": "degradado",
-          "degradaA": "63 cota(s) de otro programa entran VIVAS —vuelven a medir sus propios puntos y su número se recalcula— pero DESLIGADAS del dibujo: mover el muro que acotan ya no las cambia. El archivo asocia por identificadores internos que no existen en este documento. · 72 entidad(es) de tipo DIMENSION, LEADER, VIEWPORT no tienen equivalente en el dibujo y NO entraron. Si hacen falta, pide al remitente que las explote a líneas y arcos antes de exportar."
+          "degradaA": "63 cota(s) de otro programa entran VIVAS —vuelven a medir sus propios puntos y su número se recalcula— pero DESLIGADAS del dibujo: mover el muro que acotan ya no las cambia. El archivo asocia por identificadores internos que no existen en este documento."
         },
         {
           "tipo": "HATCH",
-          "ambito": "archivo-entero",
+          "ambito": "espacio-modelo",
           "oraculoA": null,
-          "oraculoB": 26,
-          "declarados": 26,
+          "oraculoB": 13,
+          "declarados": 13,
           "consenso": null,
-          "lector": 26,
-          "avisosDelTipo": [],
-          "veredicto": "intacto",
-          "sinOpinionA": "punto-ciego"
+          "lector": 13,
+          "avisosDelTipo": [
+            "entity_in_block_definition"
+          ],
+          "veredicto": "degradado",
+          "sinOpinionA": "punto-ciego",
+          "degradaA": "85 entidad(es) (HATCH, MTEXT) viven dentro de definiciones de bloque que nada del dibujo inserta, así que no se dibujaban y no llegan al documento. No falta nada de lo que veías; sí faltará en el archivo si se lo devuelves al remitente."
         },
         {
           "tipo": "INSERT",
@@ -481,14 +441,17 @@
         },
         {
           "tipo": "MTEXT",
-          "ambito": "archivo-entero",
-          "oraculoA": 144,
-          "oraculoB": 144,
-          "declarados": 144,
+          "ambito": "espacio-modelo",
+          "oraculoA": 9,
+          "oraculoB": 9,
+          "declarados": 9,
           "consenso": true,
-          "lector": 144,
-          "avisosDelTipo": [],
-          "veredicto": "intacto"
+          "lector": 9,
+          "avisosDelTipo": [
+            "entity_in_block_definition"
+          ],
+          "veredicto": "degradado",
+          "degradaA": "85 entidad(es) (HATCH, MTEXT) viven dentro de definiciones de bloque que nada del dibujo inserta, así que no se dibujaban y no llegan al documento. No falta nada de lo que veías; sí faltará en el archivo si se lo devuelves al remitente."
         },
         {
           "tipo": "TEXT",
@@ -521,23 +484,19 @@
       "lector": {
         "legible": true,
         "capas": 1,
-        "avisos": {
-          "hatch_unsupported_boundary": 1
-        }
+        "avisos": {}
       },
       "filas": [
         {
           "tipo": "HATCH",
-          "ambito": "archivo-entero",
+          "ambito": "espacio-modelo",
           "oraculoA": null,
           "oraculoB": 1,
           "declarados": 1,
           "consenso": null,
-          "lector": 0,
-          "avisosDelTipo": [
-            "hatch_unsupported_boundary"
-          ],
-          "veredicto": "perdido_declarado",
+          "lector": 1,
+          "avisosDelTipo": [],
+          "veredicto": "intacto",
           "sinOpinionA": "punto-ciego"
         },
         {
@@ -751,7 +710,7 @@
             "flattened_to_ground"
           ],
           "veredicto": "degradado",
-          "degradaA": "2 entidad(es) con una incidencia todavía sin describir (flattened_to_ground)."
+          "degradaA": "2 entidad(es) (SPLINE) venían fuera del plano del suelo —en un plano inclinado, elevadas sobre su plano, o con cota en textos e inserciones— y entran aplanadas contra el suelo: cambian de sitio y pueden cambiar de longitud. El documento todavía no guarda un plano inclinado."
         }
       ]
     },
@@ -775,7 +734,7 @@
       "filas": [
         {
           "tipo": "MTEXT",
-          "ambito": "archivo-entero",
+          "ambito": "espacio-modelo",
           "oraculoA": 2,
           "oraculoB": 2,
           "declarados": 2,
@@ -801,30 +760,15 @@
       },
       "lector": {
         "legible": true,
-        "capas": 7,
+        "capas": 0,
         "avisos": {
-          "hatch_unsupported_boundary": 3,
           "linetype_sin_definicion": 1,
-          "unsupported_entity": 1
+          "unsupported_entity": 1,
+          "entity_in_block_definition": 315
         }
       },
-      "filas": [
-        {
-          "tipo": "MTEXT",
-          "ambito": "archivo-entero",
-          "oraculoA": 293,
-          "oraculoB": null,
-          "declarados": 293,
-          "consenso": null,
-          "lector": 293,
-          "avisosDelTipo": [],
-          "veredicto": "intacto",
-          "sinOpinionB": "archivo-rechazado"
-        }
-      ],
-      "lectorSinOraculo": {
-        "HATCH": 19
-      }
+      "filas": [],
+      "nota": "Ningún oráculo declara una sola entidad comparable en este archivo, así que no hay fila que juzgar. Se conserva en la matriz porque su ausencia de contenido es el dato."
     },
     {
       "id": "gdsestimating-dxf-parser/ellipse",
@@ -935,7 +879,9 @@
       "lector": {
         "legible": true,
         "capas": 0,
-        "avisos": {}
+        "avisos": {
+          "layer_table_pruned": 1
+        }
       },
       "filas": [],
       "nota": "Ningún oráculo declara una sola entidad comparable en este archivo, así que no hay fila que juzgar. Se conserva en la matriz porque su ausencia de contenido es el dato."

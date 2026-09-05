@@ -77,6 +77,8 @@ export interface ArtefactoMedidas {
   herramienta: { nombre: string; version: string };
   experimentoSubclases: {
     entidadesParcheadas: number;
+    /** Las que ya los traían. Desde P-evidencia-07 son todas y la anterior es 0. */
+    entidadesQueYaLosTraian: number;
     sha256Origen: string;
     leido: boolean;
     espacioModelo?: Record<string, number>;

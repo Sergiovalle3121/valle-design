@@ -176,16 +176,26 @@ function importCanonicalJson(content: string): DocumentImportReport {
 function importDxfDocument(content: string): DocumentImportReport {
   const imported = importDxfPrimitives(content);
   if (imported.warnings.some((warning) => warning.code === "parse_failed")) {
-    // NO se dice «corrupto». Hay ficheros perfectamente válidos que este lector
-    // no sabe analizar todavía, y llamarlos corruptos manda al arquitecto a
-    // pedirle a su cliente que arregle un archivo que no está roto. El caso que
-    // lo destapó —`$XCLIPFRAME 2`, legítimo desde AutoCAD 2010, sobre un
-    // fichero que `ezdxf` abre sin una queja— ya se normaliza antes de
-    // analizar; el mensaje se corrige igual, porque el siguiente caso llegará y
-    // acusar al remitente es peor que no abrir el archivo.
+    // DOS FRACASOS DISTINTOS, DOS MENSAJES. Hasta hoy los dos salían como «El
+    // DXF está corrupto o no es un DXF de texto válido», y esa frase acusaba al
+    // remitente de algo que muchas veces no había hecho: el caso que lo destapó
+    // es `blocks2.dxf`, material de prueba de una biblioteca MIT que `ezdxf`
+    // abre sin una queja, rechazado entero por traer `$XCLIPFRAME 2` —legítimo
+    // desde AutoCAD 2010—. El arquitecto que lee «corrupto» reenvía el archivo
+    // a su cliente para que «se lo arregle».
+    //
+    // Lo que sí se puede distinguir sin adivinar es si el texto tiene la
+    // ESTRUCTURA de un DXF. Un archivo sin una sola `0/SECTION` no es un DXF
+    // que no sepamos leer: es otra cosa con la extensión cambiada, y decirlo
+    // manda al usuario a mirar qué archivo eligió en vez de a molestar a nadie.
+    // Cuando la estructura sí está, el fracaso es NUESTRO y así se dice.
+    const pareceDxf = /(^|\n)\s*0\s*\r?\n\s*SECTION\s*(\r?\n|$)/u.test(content);
     throw new Error(
-      "Este lector no pudo analizar el DXF. Puede que el archivo esté dañado, " +
-        "o que use algo que todavía no soportamos. Escríbenos y lo miramos.",
+      pareceDxf
+        ? "Este lector no pudo analizar el DXF. Puede que el archivo esté dañado, " +
+          "o que use algo que todavía no soportamos. Escríbenos y lo miramos."
+        : "Este archivo no parece un DXF de texto: no tiene ninguna sección " +
+          "(`0/SECTION`). Comprueba que es el archivo que querías abrir.",
     );
   }
 

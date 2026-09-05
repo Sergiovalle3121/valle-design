@@ -55,10 +55,19 @@ const COTAS = abreAjeno("dimensions");
 const SOMBRA = abreAjeno("hatches");
 const ESPEC = "apps/web/src/lib/cad/verification/terceros-cota-sombreado.spec.ts";
 
-/** TECHO: sombreados ajenos que no entran. Sólo puede bajar. */
-const TECHO_SOMBREADOS_PERDIDOS = 1;
-/** TECHO: rótulos de cota duplicados por fichero. Sólo puede bajar. */
-const TECHO_ROTULOS_DUPLICADOS = 2;
+/**
+ * TECHO: sombreados ajenos que no entran. Sólo puede bajar. Está en CERO desde
+ * el 2026-09-05: era uno —el contorno de cuatro aristas rectas de hatches.dxf,
+ * descartado por «no poligonal»— y P-evidencia-14 lo reconstruye.
+ */
+const TECHO_SOMBREADOS_PERDIDOS = 0;
+/**
+ * TECHO: rótulos de cota duplicados por fichero. Sólo puede bajar. Está en CERO
+ * desde el 2026-09-05: eran dos —el MTEXT del bloque de dibujo de cada cota,
+ * sacado a espacio modelo encima del número que la propia cota recalcula— y
+ * P-evidencia-11 le dio al escaneo crudo la sección en la que está.
+ */
+const TECHO_ROTULOS_DUPLICADOS = 0;
 
 const TOL = 1e-9;
 
@@ -162,7 +171,11 @@ const duplicados: Array<{ texto: string; bloqueDeDibujo: string; en: number[] }>
   for (const nombre of bloques)
     eqMagnitud(bCotas.bloquesDeDibujo[nombre].censo.MTEXT, 1, `${nombre}: un rótulo dentro del bloque de dibujo`);
 
-  // Y sin embargo el lector entrega dos MTEXT sueltos.
+  // Y el lector ya no entrega ninguno suelto. Hasta el 2026-09-05 sacaba a
+  // espacio modelo el MTEXT de dentro del bloque de dibujo de cada cota, en el
+  // mismo punto y con la misma altura con que la propia cota recalcula y dibuja
+  // su número: el rótulo quedaba escrito DOS VECES, uno encima del otro, y
+  // ningún aviso lo mencionaba. Nueve entidades donde el oráculo contaba siete.
   const sueltos = informeCotas.document.entities.filter((entidad) => entidad.type === "mtext") as unknown as Array<{
     text: string;
     insertion: { x: number; y: number };
@@ -170,42 +183,39 @@ const duplicados: Array<{ texto: string; bloqueDeDibujo: string; en: number[] }>
     width: number;
     alignment: string;
   }>;
-  eq(sueltos.length, 2, "el lector entrega DOS MTEXT de espacio modelo que el remitente no puso ahí");
-  eq(informeCotas.importedEntityCount, 9, "nueve entidades donde el oráculo cuenta siete");
+  eq(sueltos.length, 0, "el lector no entrega ningún MTEXT de espacio modelo que el remitente no pusiera ahí");
+  eq(informeCotas.importedEntityCount, 7, "siete entidades, las mismas que cuenta el oráculo");
+  eqMagnitud(
+    informeCotas.importedEntityCount,
+    Object.values(bCotas.espacioModelo as Record<string, number>).reduce((suma, n) => suma + n, 0),
+    "el lector y el oráculo B cuentan el mismo espacio modelo",
+  );
 
-  for (const nombre of bloques) {
-    const dentro = bCotas.bloquesDeDibujo[nombre].mtext![0];
-    const suelto = sueltos.find((entidad) => entidad.text === dentro.texto);
-    ok(suelto !== undefined, `el rótulo «${dentro.texto}» de ${nombre} sale suelto a espacio modelo`);
-    contador.magnitudes += 1;
-    cerca(suelto!.insertion.x, dentro.insercion[0], TOL, `${dentro.texto}: en la misma X que dentro del bloque`);
-    cerca(suelto!.insertion.y, dentro.insercion[1], TOL, `${dentro.texto}: en la misma Y`);
-    cerca(suelto!.height, dentro.altura, TOL, `${dentro.texto}: con la misma altura`);
-    duplicados.push({ texto: dentro.texto, bloqueDeDibujo: nombre, en: dentro.insercion });
-  }
-
-  // Y la cota YA dibuja su propio rótulo en ese mismo punto: el número queda
-  // escrito dos veces, uno encima del otro.
+  // La comprobación que impide que vuelva: para cada cota, el punto donde ELLA
+  // dibuja su rótulo no puede tener además un MTEXT suelto con ese número.
   const nuestras = informeCotas.document.entities.filter((entidad) => entidad.type === "dimension") as unknown as CadDimensionEntity[];
   for (const cota of nuestras) {
     const geo = buildCadDimensionGeometry(cota)!;
-    const encima = duplicados.find(
-      (fila) => Math.abs(fila.en[0] - geo.textAnchor.x) < 1e-6 && Math.abs(fila.en[1] - geo.textAnchor.y) < 1e-6,
+    const encima = sueltos.find(
+      (fila) => Math.abs(fila.insertion.x - geo.textAnchor.x) < 1e-6 && Math.abs(fila.insertion.y - geo.textAnchor.y) < 1e-6,
     );
     ok(
-      encima !== undefined,
-      `la cota dibuja su rótulo en (${geo.textAnchor.x}, ${geo.textAnchor.y}) y ahí mismo hay un MTEXT suelto con el número`,
-    );
-    ok(
-      encima!.texto.startsWith(String(geo.measurement)),
-      `y el MTEXT suelto dice «${encima!.texto}», que es la medida que la cota acaba de recalcular`,
+      encima === undefined,
+      `la cota dibuja su rótulo en (${geo.textAnchor.x}, ${geo.textAnchor.y}) y ahí NO hay ningún MTEXT suelto repitiendo el número`,
     );
   }
-  eq(duplicados.length, TECHO_ROTULOS_DUPLICADOS, "el techo de rótulos duplicados sólo puede bajar");
-  ok(
-    !informeCotas.warnings.some((aviso) => /mtext|bloque|rótulo/iu.test(aviso.message)),
-    "y ningún aviso lo menciona: la duplicación es SILENCIOSA",
-  );
+  // Y el rótulo del remitente sigue existiendo donde tiene que existir: dentro
+  // del bloque de dibujo que el oráculo B ve. No se ha borrado nada; ha dejado
+  // de salir dos veces.
+  for (const nombre of bloques) {
+    const dentro = bCotas.bloquesDeDibujo[nombre].mtext![0];
+    ok(
+      !sueltos.some((entidad) => entidad.text === dentro.texto),
+      `el rótulo «${dentro.texto}» de ${nombre} ya no sale suelto a espacio modelo`,
+    );
+    duplicados.push({ texto: dentro.texto, bloqueDeDibujo: nombre, en: dentro.insercion });
+  }
+  eq(sueltos.length, TECHO_ROTULOS_DUPLICADOS, "el techo de rótulos duplicados sólo puede bajar");
 }
 
 // ============================ SOMBREADO ======================================
@@ -234,27 +244,31 @@ const sombreado = { patron: "", aristas: 0, todasRectas: false, verticesEquivale
   ok(sombreado.todasRectas, "y las cuatro son RECTAS: un contorno así es un polígono, no una curva");
   eq(sombreado.verticesEquivalentes, 4, "cuyos vértices el oráculo publica ya calculados");
 
-  // Lo que hace el lector: ve el sombreado (lo lee por su cuenta sobre los
-  // pares crudos, que es como no depende del oráculo A) y lo DECLARA perdido.
-  eq(informeSombra.importedEntityCount, 4, "el lector trae las cuatro líneas");
-  eqMagnitud(porTipo(informeSombra.document.entities), { line: 4 }, "y ningún sombreado");
+  // Lo que hace el lector. Hasta el 2026-09-05 veía el sombreado —lo lee por su
+  // cuenta sobre los pares crudos, que es como no depende del oráculo A— y lo
+  // DECLARABA perdido con `hatch_unsupported_boundary`, porque sólo sabía
+  // reconstruir contornos escritos como polilínea. El detalle que lo hacía
+  // incómodo: las cuatro LINE que el remitente dibujó ENCIMA sí entraban, y son
+  // exactamente el mismo cuadrado, así que el documento tenía la forma y no
+  // tenía el relleno. P-evidencia-14 reconstruye el contorno cuando todas sus
+  // aristas son rectas, que es cuando es un polígono.
+  eq(informeSombra.importedEntityCount, 5, "el lector trae las cuatro líneas Y el sombreado");
+  eqMagnitud(porTipo(informeSombra.document.entities), { hatch: 1, line: 4 }, "el sombreado entra, con su patrón");
   const avisos = informeSombra.warnings.filter((aviso) => aviso.code === "hatch_unsupported_boundary");
-  eq(avisos.length, TECHO_SOMBREADOS_PERDIDOS, "declara UN sombreado no importado; el techo sólo puede bajar");
-  const fila = (informeSombra.dxfReport?.rows ?? []).find((fila) => fila.code === "hatch_unsupported_boundary");
-  ok(fila?.fidelity === "lost", "y lo clasifica como PERDIDO, con su fila en el informe");
-  eq(fila?.count, 1, "una unidad perdida, contada");
-  ok(informeSombra.dxfReport?.hasLosses === true, "el informe no dice «entró completo»");
-  // La pérdida es DECLARADA, y eso es la mitad buena. La otra mitad es que el
-  // contorno era cuatro rectas: reconstruirlo es unir los extremos.
+  eq(avisos.length, TECHO_SOMBREADOS_PERDIDOS, "no declara ningún sombreado perdido; el techo sólo puede bajar");
+  ok(informeSombra.dxfReport?.hasLosses === false, "y el informe puede decir «entró completo» sin mentir");
   ok(
     sombreado.todasRectas,
-    "el contorno que se descarta por «no poligonal» son cuatro segmentos rectos, o sea un polígono",
+    "el contorno son cuatro segmentos rectos, o sea un polígono: por eso se puede reconstruir sin saber de curvas",
   );
 
-  // Las cuatro líneas que el remitente dibujó encima del sombreado sí entran,
-  // y con la misma geometría que el contorno perdido.
+  // La comprobación que ata el arreglo al testigo: el contorno que el lector
+  // reconstruyó, las cuatro aristas que midió el oráculo B y las cuatro líneas
+  // que el remitente dibujó encima tienen que ser el MISMO cuadrado, arista por
+  // arista. Antes esta comparación se hacía contra el contorno DESCARTADO.
   const clavesB = new Set(bSombra.lineas.map((linea) => claveSegmentoB(linea.de, linea.a)));
   for (const entidad of informeSombra.document.entities) {
+    if (entidad.type !== "line") continue;
     const linea = entidad as unknown as { start: { x: number; y: number }; end: { x: number; y: number } };
     const clave = claveSegmentoB([linea.start.x, linea.start.y], [linea.end.x, linea.end.y]);
     ok(clavesB.has(clave), `la línea ${clave} no está en lo que midió el oráculo B`);
@@ -266,7 +280,22 @@ const sombreado = { patron: "", aristas: 0, todasRectas: false, verticesEquivale
   eqMagnitud(
     [...clavesContorno].sort(),
     [...clavesB].sort(),
-    "el contorno perdido y las cuatro líneas que sí entran son el MISMO cuadrado: lo que falta es el relleno, no la forma",
+    "el contorno del oráculo y las cuatro líneas son el MISMO cuadrado",
+  );
+  const nuestroHatch = informeSombra.document.entities.find((entidad) => entidad.type === "hatch") as unknown as {
+    boundaries: Array<Array<{ x: number; y: number }>>;
+  };
+  const anillo = nuestroHatch.boundaries[0];
+  eq(anillo.length, 4, "el sombreado entra con sus cuatro vértices");
+  const clavesNuestras = new Set(
+    anillo.map((punto, indice) =>
+      claveSegmentoB([punto.x, punto.y], [anillo[(indice + 1) % anillo.length].x, anillo[(indice + 1) % anillo.length].y]),
+    ),
+  );
+  eqMagnitud(
+    [...clavesNuestras].sort(),
+    [...clavesB].sort(),
+    "y el cuadrado que reconstruye el lector es, arista por arista, el que midió el oráculo B",
   );
 }
 
@@ -318,16 +347,16 @@ publicaRenglon({
     {
       id: "rotulo-de-cota-escrito-dos-veces",
       que:
-        "El lector resuelve la cota por sus puntos y vuelve a dibujar su rótulo, que es lo correcto. Pero además saca el MTEXT de dentro del bloque de dibujo y lo entrega como entidad suelta de espacio modelo, en el mismo punto y con la misma altura: el número queda escrito dos veces, uno encima del otro. Nueve entidades donde el remitente puso siete. Ningún aviso lo menciona.",
-      silencioso: true,
-      peticion: "P-evidencia-11",
+        "ARREGLADO el 2026-09-05 (P-evidencia-11). El lector resuelve la cota por sus puntos y vuelve a dibujar su rótulo, que es lo correcto; pero además sacaba el MTEXT de dentro del bloque de dibujo (*D1, *D2) y lo entregaba como entidad suelta de espacio modelo, en el mismo punto y con la misma altura, así que el número quedaba escrito dos veces, uno encima del otro. Nueve entidades donde el remitente puso siete, y ningún aviso lo mencionaba. Hoy el escaneo crudo sabe en qué sección está: el lector entrega SIETE, las mismas que cuenta el oráculo, y ningún punto de rótulo tiene un MTEXT suelto encima.",
+      silencioso: false,
+      peticion: null,
     },
     {
       id: "contorno-de-aristas-rectas-descartado",
       que:
-        "El sombreado se pierde porque su contorno viene como ruta de ARISTAS y sólo se reconstruyen las polilíneas. Las cuatro aristas son rectas: el oráculo publica sus cuatro vértices ya calculados, y son el mismo cuadrado que las cuatro LINE que sí entran. La pérdida se DECLARA —eso está bien— pero es evitable.",
+        "ARREGLADO el 2026-09-05 (P-evidencia-14). El sombreado se perdía porque su contorno viene como ruta de ARISTAS y sólo se reconstruían las polilíneas; la pérdida se declaraba —eso estaba bien— pero era evitable, porque las cuatro aristas son rectas y eso es un polígono. Las cuatro LINE que el remitente dibujó encima sí entraban, así que el documento tenía la forma y no el relleno. Hoy el sombreado entra con sus cuatro vértices, y son arista por arista el mismo cuadrado que midió el oráculo. Un contorno con arcos o splines sigue sin entrar, y se sigue declarando.",
       silencioso: false,
-      peticion: "P-evidencia-14",
+      peticion: null,
     },
     {
       id: "lo-que-si-viaja",
@@ -337,9 +366,9 @@ publicaRenglon({
       peticion: null,
     },
   ],
-  veredicto: "bloqueado_por_defecto_medido",
+  veredicto: "servible_hoy",
   porQueEseVeredicto:
-    "Las dos filas tienen testigo ajeno y las dos oyen un no. `hatch`: el sombreado ajeno no entra, y además lo que exportamos no lo abre un lector estricto (P-evidencia-07). `dimensions`: la medida viaja bien, pero cada cota ajena llega con su número escrito dos veces y en silencio, que es una pérdida de fidelidad sobre el objeto propio de la fila. Conceder el tope encima de un defecto silencioso medido es lo que la regla del corte impide, y esta suite lo aplica a su propia fila.",
+    "Las dos filas tenían testigo ajeno y las dos oían un no; los tres defectos que lo causaban están arreglados y guardados por esta misma suite. `hatch`: el sombreado ajeno entra con su contorno reconstruido y el que exportamos lo abre ya un lector estricto (P-evidencia-07: ezdxf lee el fichero entero con cero errores de auditoría). `dimensions`: la medida viajaba bien y ahora además cada cota llega con su número escrito UNA vez. Lo que sigue sin atestiguar nadie de fuera está en `loQueNoSeMide`, no en un defecto.",
   loQueNoSeMide:
     "La ASOCIATIVIDAD de verdad: ninguna de las dos cotas ajenas entra asociada, así que «cota que sigue midiendo al mover el muro» no lo atestigua este material. Del sombreado no se mide el patrón dibujado ni las islas: el único HATCH ajeno del corpus tiene un contorno y ninguna isla. Tampoco se mide el espacio papel.",
 });
@@ -349,6 +378,6 @@ console.log(
     "contrastados contra ezdxf 1.4.4 sobre una cota y un sombreado que no escribimos",
 );
 console.log(
-  "  · TODAVÍA NO (2026-09-05): cada cota ajena llega con su rótulo duplicado y en silencio (P-evidencia-11), " +
-    "y el sombreado de contorno por aristas se descarta entero aunque sus cuatro aristas sean rectas (P-evidencia-14).",
+  `  · la cota ajena llega con su número escrito UNA vez (${TECHO_ROTULOS_DUPLICADOS} rótulos duplicados, eran 2) ` +
+    `y el sombreado de contorno por aristas entra con sus cuatro vértices (${TECHO_SOMBREADOS_PERDIDOS} sombreados perdidos, era 1).`,
 );

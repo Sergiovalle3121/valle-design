@@ -75,7 +75,12 @@ export const CAD_IMPORT_OUTCOMES = {
   "migracion-no-finito": /non-finite numeric values/i,
   "migracion-ids": /entity ids must be non-empty and unique/i,
   "limite-cliente": /exceeds the 20 MB client limit/i,
-  "dxf-corrupto": /DXF (corrupto|no válido)|no es un DXF/i,
+  // El nombre de la clase era, él mismo, la acusación: un DXF que este lector
+  // no sabe analizar no está «corrupto». Son DOS puertas y cada una tiene la
+  // suya, porque llevan al usuario a acciones distintas — mirar qué archivo
+  // eligió, o escribirnos a nosotros.
+  "dxf-no-es-un-dxf": /no parece un DXF|no es un DXF/i,
+  "dxf-no-analizable": /no pudo analizar el DXF|DXF (corrupto|no válido)/i,
   "pila-del-motor": /call stack|too much recursion|stack size/i,
 } as const;
 
@@ -355,7 +360,7 @@ export function hostileCorpus(options: { includeHuge?: boolean } = {}): HostileC
       id: "dxf-que-no-lo-es",
       fileName: "plano.dxf",
       content: "esto no es DXF",
-      expect: "dxf-corrupto",
+      expect: "dxf-no-es-un-dxf",
       why: "La otra rama del despachador. Entra por la misma puerta y debe fallar tipada igual.",
     },
   ];

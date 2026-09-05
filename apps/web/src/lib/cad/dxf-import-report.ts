@@ -241,6 +241,21 @@ const WARNING_RULES: Readonly<Record<string, WarningRule>> = {
   // diferencia entre «degraded» y «lost» en esta tabla. Sin esta fila, el
   // arquitecto veía una paleta de 17 capas donde su cliente tenía 24 y no había
   // dónde enterarse.
+  // Sólo se emite para lo HUÉRFANO: lo que vive en una definición de bloque que
+  // ningún INSERT del dibujo —ni ninguna cota, que trae el suyo— alcanza. Lo
+  // que sí se inserta llega dibujado desde su bloque y no se avisa, porque un
+  // aviso que sale en todo dibujo normal no informa de nada.
+  //
+  // No es `lost` y hay que razonarlo: no falta nada de lo que se VEÍA, porque
+  // nada de esto se dibujaba. Es `degraded` porque el archivo del remitente lo
+  // trae y el que le devuelvas no lo va a traer.
+  entity_in_block_definition: {
+    fidelity: "degraded",
+    detail: (count, types) =>
+      `${count} entidad(es) (${TYPES(types)}) viven dentro de definiciones de bloque que nada del ` +
+      "dibujo inserta, así que no se dibujaban y no llegan al documento. No falta nada de lo que " +
+      "veías; sí faltará en el archivo si se lo devuelves al remitente.",
+  },
   layer_table_pruned: {
     fidelity: "degraded",
     detail: (count) =>

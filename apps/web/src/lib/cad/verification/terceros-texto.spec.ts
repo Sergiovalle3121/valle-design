@@ -2,6 +2,7 @@ import DxfParser from "dxf-parser";
 import { importDocumentText } from "../document-import";
 import { exportCadDocumentDxf } from "../dxf-document-export";
 import { cadMTextHasCodes, parseCadMText } from "../mtext-codes";
+import { decodeMTextContent } from "../dxf-read-annotations";
 import {
   abreAjeno,
   cerca,
@@ -51,9 +52,11 @@ const ESPEC = "apps/web/src/lib/cad/verification/terceros-texto.spec.ts";
 
 /**
  * TECHO: marcadores de subclase que faltan en lo que exportamos.
- * Sólo puede bajar. Cuando P-evidencia-07 entre, esta lista queda vacía.
+ * Sólo puede bajar. Está VACÍO desde el 2026-09-05: eran los dos, y sin ellos
+ * `ezdxf` no abría el fichero —«missing 'AcDbMText' subclass»— ni en modo
+ * recover. P-evidencia-07 los escribe.
  */
-const TECHO_MARCADORES_QUE_FALTAN = ["AcDbEntity", "AcDbMText"];
+const TECHO_MARCADORES_QUE_FALTAN: string[] = [];
 
 /** Tolerancia de las magnitudes de texto; misma razón que en las otras suites. */
 const TOL = 1e-9;
@@ -169,10 +172,41 @@ const enriquecido = { cadenasAjenas: 0, conApilado: 0, conCambioDeAltura: 0, tra
 
   // Los que sí los traen están en el plano ajeno. La cadena es de otro; el
   // intérprete es nuestro, y eso va escrito en el renglón.
-  const delPlano = importDocumentText("floorplan.dxf", PLANO.texto).document.entities.filter(
-    (entidad) => entidad.type === "mtext",
-  ) as unknown as Array<{ text: string; height: number }>;
-  const conCodigos = delPlano.filter((entidad) => cadMTextHasCodes(entidad.text));
+  //
+  // Las cadenas se sacan del FICHERO, no del documento, y hay que decir por
+  // qué: desde P-evidencia-11 el lector sólo entrega a espacio modelo los nueve
+  // MTEXT que el remitente puso ahí —los otros 135 viven en definiciones de
+  // bloque que nada inserta—, y eso es correcto para el DIBUJO. Pero lo que
+  // esta sección mide no es el ámbito: es el INTÉRPRETE de códigos de control
+  // sobre cadenas que no escribimos, y una cadena escrita por otro sigue
+  // siéndolo esté donde esté en el fichero. Tomarlas del documento habría
+  // reducido el material ajeno de 129 cadenas a un puñado sin que nadie
+  // arreglara ni rompiera nada del intérprete.
+  const cadenasDelFichero: string[] = [];
+  {
+    const lineas = PLANO.texto.split(/\r?\n/u).map((linea) => linea.trim());
+    for (let i = 0; i + 1 < lineas.length; i += 2)
+      if (lineas[i] === "0" && lineas[i + 1] === "MTEXT") {
+        let cadena = "";
+        for (let j = i + 2; j + 1 < lineas.length && lineas[j] !== "0"; j += 2)
+          if (lineas[j] === "1" || lineas[j] === "3") cadena += lineas[j + 1];
+        if (cadena) cadenasDelFichero.push(cadena);
+      }
+  }
+  eqMagnitud(
+    cadenasDelFichero.length,
+    (PLANO.b as unknown as { mtextEnTodoElFichero: number }).mtextEnTodoElFichero,
+    "el escaneo crudo de esta suite encuentra los mismos MTEXT que contó el oráculo B en el fichero entero",
+  );
+  // Y se pasan por el MISMO decodificador que usa el lector antes de guardar el
+  // texto de la entidad. Sin ese paso se estaría midiendo el intérprete sobre
+  // una entrada que el producto nunca le da, y las cifras dejarían de ser
+  // comparables con las de ayer: 134 cadenas crudas traen códigos, 129 los
+  // conservan después de decodificar, y ésa es la que el intérprete ve.
+  const conCodigos = cadenasDelFichero
+    .map((texto) => decodeMTextContent(texto).text)
+    .filter((texto) => cadMTextHasCodes(texto))
+    .map((texto) => ({ text: texto }));
   enriquecido.cadenasAjenas = conCodigos.length;
   ok(conCodigos.length > 0, "el plano ajeno trae cadenas MTEXT con códigos de control");
   for (const entidad of conCodigos) {
@@ -215,21 +249,26 @@ const exportado = { tieneEntidad: false, tieneMText: false, dialecto: "", mtextE
   // Los textos vuelven: el contenido no se pierde.
   for (const b of medidaB.mtext)
     ok(salida.includes(b.texto), `el texto «${b.texto}» está en el fichero que devolvemos`);
-  // Los marcadores de subclase, no. AC1015 los exige y no están.
+  // Y los marcadores de subclase, que AC1015 exige, ahora están. Hasta el
+  // 2026-09-05 no los escribía nadie y `ezdxf` no abría el fichero entero:
+  // «missing 'AcDbMText' subclass in MTEXT(#None)», ni en modo recover. El
+  // oráculo A no lo veía porque es tolerante; hizo falta el segundo.
+  exportado.tieneEntidad = true;
+  exportado.tieneMText = true;
   for (const inicio of inicios) {
     const trozo = bloques.slice(inicio, inicio + 40).join("\n");
-    if (/100\nAcDbEntity/u.test(trozo)) exportado.tieneEntidad = true;
-    if (/100\nAcDbMText/u.test(trozo)) exportado.tieneMText = true;
+    if (!/100\nAcDbEntity/u.test(trozo)) exportado.tieneEntidad = false;
+    if (!/100\nAcDbMText/u.test(trozo)) exportado.tieneMText = false;
   }
-  eq(exportado.tieneEntidad, false, "ningún MTEXT exportado lleva `100 AcDbEntity`");
-  eq(exportado.tieneMText, false, "ningún MTEXT exportado lleva `100 AcDbMText`");
+  eq(exportado.tieneEntidad, true, "TODO MTEXT exportado lleva `100 AcDbEntity`");
+  eq(exportado.tieneMText, true, "TODO MTEXT exportado lleva `100 AcDbMText`");
   eq(
     TECHO_MARCADORES_QUE_FALTAN,
-    ["AcDbEntity", "AcDbMText"],
-    "el techo de marcadores que faltan sólo puede bajar; con P-evidencia-07 queda vacío",
+    [],
+    "el techo de marcadores que faltan sólo puede bajar; volver a llenarlo es dejar de poder abrir lo que escribimos",
   );
-  // El oráculo A sí lo abre, porque es tolerante. Que lo abra NO acredita nada:
-  // es exactamente el motivo de que hiciera falta un segundo oráculo.
+  // El oráculo A sí lo abría ya, porque es tolerante. Que lo abra NO acredita
+  // nada: es exactamente el motivo de que hiciera falta un segundo oráculo.
   const releido = new DxfParser().parseSync(salida) as { entities: Array<{ type: string; text?: string }> } | null;
   eqMagnitud(
     (releido?.entities ?? []).filter((entidad) => entidad.type === "MTEXT").length,
@@ -284,9 +323,9 @@ publicaRenglon({
     {
       id: "mtext-exportado-sin-marcadores-de-subclase",
       que:
-        "Lo que exportamos declara AC1015 y escribe los MTEXT sin `100 AcDbEntity` ni `100 AcDbMText`, obligatorios en ese dialecto. El oráculo A lo abre porque es tolerante; el oráculo B lo rechaza («missing 'AcDbMText' subclass»). Aquí se reproduce sobre dos entidades el mismo defecto que la jornada midió sobre 1101.",
+        "ARREGLADO el 2026-09-05 (P-evidencia-07). Lo que exportamos declara AC1015 y escribía los MTEXT sin `100 AcDbEntity` ni `100 AcDbMText`, obligatorios en ese dialecto: el oráculo A lo abría porque es tolerante y el oráculo B lo rechazaba entero con «missing 'AcDbMText' subclass», ni en modo recover. Hoy los dos marcadores están en todos los MTEXT que escribimos, y sobre el plano grande `ezdxf` abre el fichero exportado completo —1101 entidades, 0 errores de auditoría—. El techo de marcadores que faltan está vacío.",
       silencioso: false,
-      peticion: "P-evidencia-07",
+      peticion: null,
     },
     {
       id: "lo-que-si-viaja",
@@ -296,11 +335,11 @@ publicaRenglon({
       peticion: null,
     },
   ],
-  veredicto: "bloqueado_por_defecto_medido",
+  veredicto: "servible_hoy",
   porQueEseVeredicto:
-    "El criterio de esta fila dice «en los dos sentidos», y hoy un lector estricto ajeno sólo puede recorrer uno. Marcarla independiente sería cobrar «viaja en los dos sentidos» con un programa que no es nuestro diciendo que no vuelve. Sale de aquí con P-evidencia-07.",
+    "El criterio de esta fila dice «en los dos sentidos», y hoy los dos se recorren con un lector estricto que no es nuestro: la ida está medida entidad por entidad contra ezdxf, y la vuelta la abre ezdxf sin un error de auditoría desde que los marcadores de subclase se escriben. Lo que sigue sin atestiguar nadie de fuera está en `loQueNoSeMide`, no en un defecto abierto.",
   loQueNoSeMide:
-    "Las columnas, la máscara de fondo, el color por tramo y las fuentes SHX de trazo: ninguna de las dos entidades de texts.dxf las trae. El plano ajeno sí trae sustitución de fuente (`\\F archquik.shx` → Arial) y esa sustitución no se afirma aquí. Tampoco se mide el dibujo: que el apilado se ENTIENDA no dice que se pinte como AutoCAD lo pinta.",
+    "Las columnas, la máscara de fondo, el color por tramo y las fuentes SHX de trazo: ninguna de las dos entidades de texts.dxf las trae. El plano ajeno sí trae sustitución de fuente (`\\F archquik.shx` → Arial) y esa sustitución no se afirma aquí. Tampoco se mide el dibujo: que el apilado se ENTIENDA no dice que se pinte como AutoCAD lo pinta. Y las 129 cadenas con códigos se leen del FICHERO, no del documento: son material ajeno para el intérprete vivan donde vivan, pero 135 de los 144 MTEXT de ese plano están en definiciones de bloque que nada inserta, así que no son entidades del dibujo y esta suite no afirma que lo sean.",
 });
 
 console.log(
@@ -308,6 +347,7 @@ console.log(
     "contrastados contra ezdxf 1.4.4 y dxf-parser sobre texto que no escribimos",
 );
 console.log(
-  "  · TODAVÍA NO (2026-09-05): la ida está medida entera y la VUELTA no la abre un lector estricto — " +
-    "MTEXT sale sin `100 AcDbEntity` ni `100 AcDbMText` con la cabecera declarando AC1015. P-evidencia-07.",
+  "  · los dos sentidos se recorren con un lector estricto ajeno: la ida medida entera, y la vuelta " +
+    "abierta por ezdxf desde que todo MTEXT que escribimos lleva `100 AcDbEntity` y `100 AcDbMText` " +
+    "(P-evidencia-07; hasta el 2026-09-05 no abría el fichero de ninguna manera).",
 );
