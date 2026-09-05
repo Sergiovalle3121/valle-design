@@ -157,6 +157,21 @@ TRIM. Un defecto, tres pruebas.
 lleva**: es un claim sin evidencia en la propia interfaz, que es justo lo que esta casa
 prohíbe. Cinco casos, un defecto de fondo.
 
+**Y el defecto de fondo está localizado.** El aserto exacto que falla es
+`Expected: "NOTAS" / Received: "Text"`. La capa no se pierde en el exportador: se tira al
+CONSTRUIR la carga de exportación, en dos sitios de `Layout3DEditor.tsx` que escriben
+`layer: "Text"` literal y descartan el `ann.layer` que la anotación sí trae —**:12635** y
+**:12823**—. Que es un descarte y no una ausencia lo prueba el adaptador vecino:
+`cad-document-legacy-adapter.ts:200` hace `an.layer ?? "Text"`, o sea conserva la capa
+cuando la hay. Y la línea de justo encima del primer sitio, la de las cotas, ya usa
+`layerLabel("measurements")` en vez de una constante: el patrón correcto está a tres
+líneas del defectuoso.
+
+**Aviso antes de tocarlo, y por eso no se arregló aquí:** cambiar esas dos líneas cambia
+los BYTES exportados de todo dibujo con anotaciones, así que entra con la suite de
+goldens entera detrás, no como parche de dos líneas. Es trabajo de una sesión que pueda
+correr los gates, que es justo la que viene.
+
 **Racimo D · Los dos sueltos.**
 `imprimir.spec.ts:436` — imprimir, cambiar la escala y volver a imprimir. Ojo: la
 contraprueba aislada `refutacion-plot-extension.spec.ts` **pasa**, así que lo que falla ya
