@@ -1,18 +1,22 @@
 import assert from "node:assert/strict";
 import {
   CAD_DRAW_ORDER_DEPTH_RANGE,
+  CAD_LINE_BATCH_BLOCK_SEGMENTS,
   CAD_LINETYPE_MAX_ELEMENTS,
   CAD_LINETYPE_SLOTS,
   CadLineBatchBuilder,
   buildCadLineBatches,
   cadDrawOrderDepth,
+  cadLineBatchBlockFor,
   cadLineBatchStats,
   cadLineStyleKey,
   cadLineVertexWorldPosition,
   cadLinetypeCoverage,
+  cadTileLineBatches,
   packCadColor,
   packCadLinetypeUniforms,
   unpackCadColor,
+  type CadLineBatchItem,
   type CadLineStyle,
 } from "./line-batch";
 import {
@@ -345,6 +349,339 @@ assert.ok(
 );
 ok(true, "el shader escribe la profundidad, no redeclara `position` y recorre los tramos del tipo de línea con tope constante");
 
+// ---------------------------------------------------------------------------
+// PARIDAD BIT A BIT DEL EMPAQUETADO, que es la condición sin la cual la
+// reescritura del bucle de `push` no es una optimización sino un defecto.
+//
+// El bucle ANTERIOR vive aquí escrito a mano —no importado, para que reescribir
+// el de producción no reescriba también la referencia— y las cuatro salidas se
+// comparan elemento a elemento con `Object.is`, que distingue 0 de −0 y no deja
+// pasar dos NaN como «iguales». Encima va una huella FNV-1a de la secuencia
+// entera: dos empaquetados pueden coincidir posición a posición en una muestra
+// y repartir distinto en otra, y la huella cierra esa puerta.
+// ---------------------------------------------------------------------------
+function empaquetarComoAntes(items: readonly CadLineBatchItem[]): {
+  start: number[];
+  end: number[];
+  style: number[];
+  arc: number[];
+  count: number;
+} {
+  const start: number[] = [];
+  const end: number[] = [];
+  const styleOut: number[] = [];
+  const arc: number[] = [];
+  let count = 0;
+  for (const item of items) {
+    const packedColor = packCadColor(item.style.color);
+    const halfWidthPx = Math.max(0, item.style.halfWidthPx);
+    const linetypeIndex = Math.max(
+      0,
+      Math.min(CAD_LINETYPE_SLOTS - 1, Math.floor(item.style.linetypeIndex)),
+    );
+    for (const path of item.tessellation.paths) {
+      const points = path.xy.length / 2;
+      if (points < 2) continue;
+      const segments = points - 1 + (path.closed ? 1 : 0);
+      let phase = 0;
+      for (let index = 0; index < segments; index += 1) {
+        const from = index * 2;
+        const to = ((index + 1) % points) * 2;
+        const x0 = path.xy[from];
+        const y0 = path.xy[from + 1];
+        const x1 = path.xy[to];
+        const y1 = path.xy[to + 1];
+        const length = Math.hypot(x1 - x0, y1 - y0);
+        // El original escribía en un Float32Array; para comparar bit a bit hay
+        // que redondear igual, o la referencia sería más precisa que lo medido.
+        start.push(Math.fround(x0), Math.fround(y0));
+        end.push(Math.fround(x1), Math.fround(y1));
+        styleOut.push(
+          Math.fround(packedColor),
+          Math.fround(halfWidthPx),
+          Math.fround(linetypeIndex),
+          Math.fround(item.depth),
+        );
+        arc.push(Math.fround(phase), Math.fround(length));
+        phase += length;
+        count += 1;
+      }
+    }
+  }
+  return { start, end, style: styleOut, arc, count };
+}
+
+/** Huella FNV-1a de 32 bits sobre los BYTES de un array tipado. */
+function huella(...arrays: readonly Float32Array[]): string {
+  let hash = 0x811c9dc5;
+  for (const array of arrays) {
+    const bytes = new Uint8Array(array.buffer, array.byteOffset, array.byteLength);
+    for (let index = 0; index < bytes.length; index += 1) {
+      hash ^= bytes[index];
+      hash = Math.imul(hash, 0x01000193) >>> 0;
+    }
+  }
+  return hash.toString(16).padStart(8, "0");
+}
+
+/**
+ * Corpus determinista con las FORMAS que el perfilado encontró en
+ * architecture@100k, más las que no aparecen ahí pero el formato admite:
+ * caminos abiertos de dos puntos (el 97,2 % de lo medido), polilíneas largas,
+ * caminos cerrados, entidades con muchos caminos, un camino de un solo punto y
+ * uno vacío —que se omiten—, coordenadas grandes con incrementos diminutos y
+ * segmentos degenerados de longitud cero.
+ */
+function corpusDeFormas(): CadLineBatchItem[] {
+  let semilla = 20260904;
+  const azar = (): number => {
+    semilla = (semilla * 1103515245 + 12345) & 0x7fffffff;
+    return semilla / 0x7fffffff;
+  };
+  const items: CadLineBatchItem[] = [];
+  const capas = ["0", "MUROS", "COTAS", "SOMBREADO"];
+  for (let entidad = 0; entidad < 240; entidad += 1) {
+    const paths: { xy: Float32Array; closed: boolean }[] = [];
+    // Un «sombreado»: muchos caminos abiertos de dos puntos, que es la forma
+    // que domina la etapa y la que estrena el atajo.
+    const lineas = 1 + Math.floor(azar() * 40);
+    for (let linea = 0; linea < lineas; linea += 1) {
+      const x = azar() * 280_000;
+      const y = azar() * 280_000;
+      paths.push({
+        xy: new Float32Array([x, y, x + azar() * 120 - 60, y + azar() * 120 - 60]),
+        closed: false,
+      });
+    }
+    // Una polilínea larga, abierta o cerrada según la entidad.
+    const puntos = 2 + Math.floor(azar() * 30);
+    const xy = new Float32Array(puntos * 2);
+    let cursorX = azar() * 280_000;
+    let cursorY = azar() * 280_000;
+    for (let punto = 0; punto < puntos; punto += 1) {
+      xy[punto * 2] = cursorX;
+      xy[punto * 2 + 1] = cursorY;
+      // Incrementos diminutos sobre coordenadas grandes: es donde el float32
+      // pierde bits y donde una fase acumulada mal sumada se nota.
+      cursorX += azar() * 0.05;
+      cursorY += azar() * 0.05;
+    }
+    paths.push({ xy, closed: entidad % 3 === 0 });
+    // Un triángulo cerrado exacto y un segmento degenerado de longitud cero.
+    paths.push({ xy: new Float32Array([0, 0, 10, 0, 10, 10]), closed: true });
+    paths.push({ xy: new Float32Array([7, 7, 7, 7]), closed: false });
+    // Lo que se OMITE: un punto suelto y un camino vacío.
+    paths.push({ xy: new Float32Array([1, 2]), closed: true });
+    paths.push({ xy: new Float32Array([]), closed: false });
+    let segmentCount = 0;
+    let pointCount = 0;
+    for (const path of paths) {
+      const puntosDelCamino = path.xy.length / 2;
+      pointCount += puntosDelCamino;
+      if (puntosDelCamino < 2) continue;
+      segmentCount += puntosDelCamino - 1 + (path.closed ? 1 : 0);
+    }
+    items.push({
+      tessellation: { paths, pointCount, segmentCount },
+      style: style({
+        layer: capas[entidad % capas.length],
+        color: [0x60a5fa, 0xff0000, 0x00ff00][entidad % 3],
+        halfWidthPx: [0.5, 1, 2.5][entidad % 3],
+        linetypeIndex: entidad % 4,
+      }),
+      depth: cadDrawOrderDepth(entidad, 240),
+    });
+  }
+  return items;
+}
+
+const formas = corpusDeFormas();
+const referencia = empaquetarComoAntes(formas);
+const medido = new CadLineBatchBuilder(64);
+let escritos = 0;
+for (const item of formas) escritos += medido.push(item);
+const empaquetado = medido.build();
+assert.equal(escritos, referencia.count, "el número de segmentos escritos no cambió");
+assert.equal(empaquetado.instanceCount, referencia.count);
+let descuadres = 0;
+const comparar = (nombre: string, actual: Float32Array, esperado: readonly number[]): void => {
+  assert.equal(actual.length, esperado.length, `${nombre}: longitud distinta`);
+  for (let index = 0; index < esperado.length; index += 1) {
+    if (!Object.is(actual[index], esperado[index])) {
+      descuadres += 1;
+      if (descuadres <= 3)
+        console.error(`${nombre}[${index}]: ${actual[index]} !== ${esperado[index]}`);
+    }
+  }
+};
+comparar("instanceStart", empaquetado.instanceStart, referencia.start);
+comparar("instanceEnd", empaquetado.instanceEnd, referencia.end);
+comparar("instanceStyle", empaquetado.instanceStyle, referencia.style);
+comparar("instanceArc", empaquetado.instanceArc, referencia.arc);
+assert.equal(descuadres, 0, `${descuadres} valores difieren del empaquetado anterior`);
+ok(
+  true,
+  `${referencia.count} segmentos empaquetados BIT A BIT como el bucle anterior sobre ${formas.length} entidades y ${formas.reduce((total, item) => total + item.tessellation.paths.length, 0)} caminos`,
+);
+
+// La huella cierra la puerta que la comparación posición a posición deja
+// abierta: se calcula sobre los BYTES de las cuatro salidas juntas.
+const huellaMedida = huella(
+  empaquetado.instanceStart,
+  empaquetado.instanceEnd,
+  empaquetado.instanceStyle,
+  empaquetado.instanceArc,
+);
+const huellaReferencia = huella(
+  new Float32Array(referencia.start),
+  new Float32Array(referencia.end),
+  new Float32Array(referencia.style),
+  new Float32Array(referencia.arc),
+);
+assert.equal(huellaMedida, huellaReferencia, "la huella de la secuencia entera debe coincidir");
+ok(true, `huella FNV-1a de las cuatro salidas: ${huellaMedida}, la misma que la del bucle anterior`);
+
+// RESERVAR NO CAMBIA LO ESCRITO. Es la otra mitad de la entrega: si reservar de
+// una vez moviera un flotante, la reserva sería un defecto y no un ahorro.
+const reservado = new CadLineBatchBuilder(64);
+reservado.reserve(referencia.count);
+assert.ok(
+  reservado.capacity >= referencia.count,
+  `reserve(${referencia.count}) debe dejar capacidad para todo el lote, dejó ${reservado.capacity}`,
+);
+const capacidadReservada = reservado.capacity;
+for (const item of formas) reservado.push(item);
+const conReserva = reservado.build();
+assert.equal(
+  reservado.capacity,
+  capacidadReservada,
+  "con el lote reservado de una vez no debe quedar ni una duplicación",
+);
+assert.equal(
+  huella(
+    conReserva.instanceStart,
+    conReserva.instanceEnd,
+    conReserva.instanceStyle,
+    conReserva.instanceArc,
+  ),
+  huellaMedida,
+  "reservar de una vez tiene que producir exactamente los mismos bytes que crecer",
+);
+assert.equal(reservado.capacity, capacidadReservada);
+assert.equal(reservado.instanceCount, medido.instanceCount);
+ok(true, `reservar el lote entero (${capacidadReservada} segmentos) escribe los mismos bytes y no crece ni una vez`);
+
+// `reserve` no encoge nunca y aguanta la basura sin romper el lote.
+const noEncoge = new CadLineBatchBuilder(512);
+noEncoge.reserve(4);
+assert.equal(noEncoge.capacity, 512, "reservar menos de lo que hay no encoge");
+noEncoge.reserve(Number.NaN);
+noEncoge.reserve(-7);
+noEncoge.reserve(0);
+assert.equal(noEncoge.capacity, 512, "NaN, negativo y cero no tocan la capacidad");
+noEncoge.reserve(700);
+assert.ok(noEncoge.capacity >= 700, "y reservar más sí crece");
+ok(true, "reserve() sólo crece, y NaN, negativo o cero no la mueven");
+
+// `buildCadLineBatches` reserva UNA VEZ POR LOTE con el total exacto: el búfer
+// que queda debajo mide lo que el cubo pedía, no el doble de la duplicación.
+const porLote = buildCadLineBatches(formas);
+for (const lote of porLote) {
+  const capacidad = lote.instanceStart.buffer.byteLength / (2 * 4);
+  assert.ok(
+    capacidad >= lote.instanceCount,
+    `el cubo ${lote.bucketKey} no cabe en su propio búfer`,
+  );
+  assert.ok(
+    capacidad === Math.max(64, lote.instanceCount),
+    `el cubo ${lote.bucketKey} reservó ${capacidad} para ${lote.instanceCount} segmentos: eso es una duplicación que la primera pasada tenía que haber evitado`,
+  );
+}
+const totalPorLote = porLote.reduce((total, lote) => total + lote.instanceCount, 0);
+assert.equal(totalPorLote, referencia.count, "agrupar por cubo no puede perder segmentos");
+ok(
+  true,
+  `buildCadLineBatches reserva el total exacto de cada uno de sus ${porLote.length} cubos (${totalPorLote} segmentos) sin una sola duplicación`,
+);
+
+// ---------------------------------------------------------------------------
+// BLOQUES. Un cubo que se llena a trozos —el caso del pipeline, que no sabe el
+// total de un tile hasta haberlo teselado entero— encadena bloques en vez de
+// duplicar. La condición es la misma de siempre: los bloques CONCATENADOS
+// tienen que dar exactamente los mismos bytes que un solo cubo reservado.
+// ---------------------------------------------------------------------------
+const muchas: CadLineBatchItem[] = [];
+for (let vuelta = 0; vuelta < 9; vuelta += 1) muchas.push(...formas);
+const totalMuchas = muchas.reduce(
+  (total, item) => total + item.tessellation.segmentCount,
+  0,
+);
+assert.ok(
+  totalMuchas > CAD_LINE_BATCH_BLOCK_SEGMENTS,
+  `el corpus del spec (${totalMuchas} segmentos) tiene que pasar del bloque o no probaría el encadenado`,
+);
+const deUnaPieza = new CadLineBatchBuilder(totalMuchas);
+for (const item of muchas) deUnaPieza.push(item);
+const bloques = [new CadLineBatchBuilder(64)];
+for (const item of muchas)
+  cadLineBatchBlockFor(bloques, item.tessellation.segmentCount).push(item);
+assert.ok(bloques.length > 1, `un corpus de ${totalMuchas} segmentos tiene que abrir más de un bloque`);
+const concatenado = bloques.map((bloque) => bloque.build());
+assert.equal(
+  concatenado.reduce((total, parte) => total + parte.instanceCount, 0),
+  deUnaPieza.instanceCount,
+  "encadenar bloques no puede perder ni inventar instancias",
+);
+const juntar = (campo: "instanceStart" | "instanceEnd" | "instanceStyle" | "instanceArc"): Float32Array => {
+  const total = concatenado.reduce((suma, parte) => suma + parte[campo].length, 0);
+  const salida = new Float32Array(total);
+  let cursor = 0;
+  for (const parte of concatenado) {
+    salida.set(parte[campo], cursor);
+    cursor += parte[campo].length;
+  }
+  return salida;
+};
+const enteroDeUnaPieza = deUnaPieza.build();
+assert.equal(
+  huella(juntar("instanceStart"), juntar("instanceEnd"), juntar("instanceStyle"), juntar("instanceArc")),
+  huella(
+    enteroDeUnaPieza.instanceStart,
+    enteroDeUnaPieza.instanceEnd,
+    enteroDeUnaPieza.instanceStyle,
+    enteroDeUnaPieza.instanceArc,
+  ),
+  "los bloques concatenados tienen que dar los mismos bytes que el cubo de una pieza",
+);
+// Ningún bloque salvo el último puede quedar a medias sin razón, y ninguno
+// puede pasarse de tamaño de bloque salvo por una entidad más grande que él.
+for (let indice = 0; indice + 1 < bloques.length; indice += 1)
+  assert.ok(
+    bloques[indice].capacity >= CAD_LINE_BATCH_BLOCK_SEGMENTS,
+    `el bloque ${indice} se cerró con capacidad ${bloques[indice].capacity}: sólo se cierra al llegar al tamaño de bloque`,
+  );
+ok(
+  true,
+  `${totalMuchas} segmentos en ${bloques.length} bloques dan los mismos bytes que un cubo de una pieza`,
+);
+
+// La clave de un lote lleva el tile delante, y el segundo bloque su número.
+const lotesDeTile = cadTileLineBatches(
+  "t:3:4:5",
+  new Map([
+    ["0|6333946|1|0", { style: style(), builders: bloques }],
+  ]),
+);
+assert.equal(lotesDeTile.length, bloques.length, "un lote por bloque");
+assert.equal(lotesDeTile[0].bucketKey, "t:3:4:5#0|6333946|1|0", "el primer bloque conserva la clave de siempre");
+assert.equal(lotesDeTile[1].bucketKey, "t:3:4:5#0|6333946|1|0@1", "el segundo lleva su número detrás");
+assert.equal(
+  new Set(lotesDeTile.map((lote) => lote.bucketKey)).size,
+  lotesDeTile.length,
+  "dos lotes con la misma clave se pisan en el mapa de mallas del consumidor",
+);
+ok(true, `cadTileLineBatches emite ${lotesDeTile.length} lotes con claves propias, la primera sin sufijo`);
+
 console.log(
-  `line-batch: ${checks} comprobaciones verdes — orden de dibujo resoluble a 100k (paso ${consecutiveStep.toExponential(2)} NDC), grosor invariante al zoom en 5 órdenes de magnitud, ${stats.instances} instancias agrupadas en ${stats.batches} lotes, CENTER con sus cuatro tramos (${CAD_LINETYPE_SLOTS} ranuras × ${CAD_LINETYPE_MAX_ELEMENTS}).`,
+  `line-batch: ${checks} comprobaciones verdes — orden de dibujo resoluble a 100k (paso ${consecutiveStep.toExponential(2)} NDC), grosor invariante al zoom en 5 órdenes de magnitud, ${stats.instances} instancias agrupadas en ${stats.batches} lotes, CENTER con sus cuatro tramos (${CAD_LINETYPE_SLOTS} ranuras × ${CAD_LINETYPE_MAX_ELEMENTS}), y ${referencia.count} segmentos empaquetados BIT A BIT como antes (huella ${huellaMedida}), ${totalMuchas} en ${bloques.length} bloques con los mismos bytes.`,
 );

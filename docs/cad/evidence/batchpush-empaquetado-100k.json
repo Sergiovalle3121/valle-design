@@ -1,0 +1,74 @@
+{
+  "$schema": "urn:valle-design:schema:cad-batchpush-packing-evidence:v1",
+  "schemaVersion": 1,
+  "benchmarkId": "valle-design-cad-batchpush-empaquetado-v1",
+  "publication": {
+    "publicationId": "20260904T124133Z-eef580fa",
+    "publishedAt": "2026-09-04T12:41:33.952Z",
+    "publisher": "scripts/perf/batchpush-empaquetado-probe.mts",
+    "invocation": "npx tsx ../../scripts/perf/batchpush-empaquetado-probe.mts --pasadas 9 --output ../../docs/cad/evidence/batchpush-empaquetado-100k.json"
+  },
+  "note": "Mide SÓLO el bucle de empaquetado de line-batch.ts sobre el flujo del corpus del producto, con las dos versiones alternadas en el mismo proceso y contra arrays ya reservados. NO es la etapa batchPush completa —esa la mide scripts/perf/etapas-100k-medir.mjs dentro del pipeline, con su teselado, su clave de cubo y su política de reserva— ni GPU, ni navegador, ni fotogramas.",
+  "environment": {
+    "node": "v22.22.2",
+    "v8": "12.4.254.21-node.39",
+    "platform": "linux",
+    "architecture": "x64",
+    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+    "logicalCpuCount": 4,
+    "totalMemoryBytes": 16856092672,
+    "loadavg1mAlEmpezar": 0.83,
+    "gpu": false,
+    "browser": false,
+    "measurementKind": "cpu-node",
+    "declaredMachine": "Intel(R) Xeon(R) Processor @ 2.80GHz (4 hilos lógicos), 15,7 GB de RAM, Linux 6.18.44-fc-v24 (x64), Node v22.22.2. SIN GPU y SIN navegador: esto es CPU de Node y mide UN BUCLE, no fotogramas. Contenedor cloud compartido: por eso se publica el SUELO de las pasadas y no su media."
+  },
+  "mix": "architecture",
+  "entities": 100000,
+  "pasadas": 9,
+  "corpus": {
+    "documentSha256": "2029d760018bf27073de4aa6d0794b270f2795f72599a22a6bd6e11d468a3480",
+    "manifestSha256": "2029d760018bf27073de4aa6d0794b270f2795f72599a22a6bd6e11d468a3480",
+    "matchesManifest": true
+  },
+  "flujo": {
+    "empaquetados": 90236,
+    "entidadesVistaInicial": 90000,
+    "entidadesParadaDeZoom": 236,
+    "caminos": 981724,
+    "caminosDeDosPuntos": 915590,
+    "segmentos": 1167126,
+    "instancias": 1167126
+  },
+  "msAntes": {
+    "suelo": 106.663,
+    "mediana": 122.202,
+    "max": 145.113
+  },
+  "msAhora": {
+    "suelo": 91.638,
+    "mediana": 100.052,
+    "max": 119.07
+  },
+  "msCreciendoPorCubo": {
+    "suelo": 172.204,
+    "mediana": 181.989,
+    "max": 223.346
+  },
+  "gananciaEnElSuelo": 1.164,
+  "costeDeLaReservaPorTrazo": 80.566,
+  "nsPorSegmentoAntes": 91.39,
+  "nsPorSegmentoAhora": 78.516,
+  "paridad": {
+    "descuadres": 0,
+    "huellaAntes": "1d5cc389",
+    "huellaAhora": "1d5cc389",
+    "coinciden": true
+  },
+  "medicion": {
+    "gpu": false,
+    "browser": false,
+    "measurementKind": "cpu-node",
+    "node": "v22.22.2"
+  }
+}

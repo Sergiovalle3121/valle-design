@@ -124,7 +124,7 @@ porque el instrumento no tenía ni una fila para el reconocimiento.
 > Editarla a mano es reintroducir el defecto que motivó el script: la prosa
 > manual envejeció dos veces y en las dos direcciones.
 
-**Puntuación (rúbrica 2026-09-03.1).** **Alcance de HOY: 176/197 (89.3 %)** — el flujo diario de dibujo 2D técnico, la cifra que se enseña a un cliente. **Alcance de DESTINO: 232/271 (85.6 %)** — AutoCAD completo con sus verticales, la cifra que mide el camino; lo excluido de hoy es «todavía no», nunca «nunca». 5 pt provienen de evidencia INDEPENDIENTE y 227 pt sólo de evidencia propia; 29 fila(s) retienen 1 pt hasta tener evidencia independiente. 0 de 36 filas están en su tope. Una fila sólo llega a su tope cuando TODOS sus criterios verifican, incluidos los que nombran gaps documentados; un gap conocido se declara como criterio que falla, no como nota al pie.
+**Puntuación (rúbrica 2026-09-03.1).** **Alcance de HOY: 176/197 (89.3 %)** — el flujo diario de dibujo 2D técnico, la cifra que se enseña a un cliente. **Alcance de DESTINO: 233/271 (86 %)** — AutoCAD completo con sus verticales, la cifra que mide el camino; lo excluido de hoy es «todavía no», nunca «nunca». 5 pt provienen de evidencia INDEPENDIENTE y 228 pt sólo de evidencia propia; 31 fila(s) retienen 1 pt hasta tener evidencia independiente. 0 de 36 filas están en su tope. Una fila sólo llega a su tope cuando TODOS sus criterios verifican, incluidos los que nombran gaps documentados; un gap conocido se declara como criterio que falla, no como nota al pie.
 
 ### Núcleo del plano entregable — 106/118
 
@@ -169,7 +169,7 @@ porque el instrumento no tenía ni una fila para el reconocimiento.
 | Import/export DWG | 6/7 | Parcial | Decisión de arquitectura publicada sobre DWG y el laboratorio clean-room; Decoder productivo con corpus independiente y matriz de entidades; Exportación DWG con round-trip verificado por lector externo | Integración en runtime con gates legal, de seguridad y de fidelidad superados (1 pt) |
 | Modelo 3D y sólidos B-rep FACETADO | 6/7 | Parcial | Topología, tolerancia e invariantes verificadas; Extrusión, barrido, booleanas y redondeo con specs; NURBS, superficies y teselado; STEP e IGES en los dos sentidos; El editor lo usa: algo fuera de lib/brep lo importa | Nada pendiente: todos los criterios declarados verifican |
 | Modelado 3D: primitivas, SOLIDEDIT y la cota | 4/5 | Parcial | BOX, WEDGE, CYLINDER, CONE, SPHERE, TORUS, PYRAMID y POLYSOLID tecleables, como UN nodo reeditable cada una, con el volumen medido en papel; SOLIDEDIT con Cara Extruir (nodo push), Cuerpo Comprobar y Cuerpo Separar, y sus otras once ramas declaradas en el propio diálogo; La cota cruza todas las fronteras: PLINE y RECTANG dibujan en el plano del SCU inclinado, CIRCLE y ARC en la planta elevada, y el DXF conserva 30/31, elevación, polilínea 3D y SCU reflejado (lector de terceros como oráculo) | Nada pendiente: todos los criterios declarados verifican |
-| Kernel Rust/WASM | 1/2 | Parcial | Puerta de entrada publicada con condición de activación explícita | Kernel WASM con paridad numérica verde Y enchufado: alguien fuera de lib/cad/wasm lo importa (regla 6) (1 pt) |
+| Kernel Rust/WASM | 1/2 | Parcial | Puerta de entrada publicada con condición de activación explícita; Kernel WASM con paridad numérica verde Y enchufado: alguien fuera de lib/cad/wasm lo importa (regla 6) | Nada pendiente: todos los criterios declarados verifican |
 | Nubes de puntos, raster georreferenciado y GIS | 2/3 | Parcial | LAS/LAZ, GeoTIFF o SHP leídos en el runtime: el importador de documentos usa lib/geo de verdad; Sistemas de referencia y reproyección, con spec; Índices espaciales y pruebas a escala real: el nivel mayor del artefacto indexa millones de puntos con presupuesto de bytes por punto | Nada pendiente: todos los criterios declarados verifican |
 
 ### Integridad y capacidad de crecer — 19/21
@@ -185,14 +185,14 @@ porque el instrumento no tenía ni una fila para el reconocimiento.
 | --- | ---: | --- | --- | --- |
 | Reconocimiento en pantalla | 13/14 | Parcial | TEXT, la etiqueta de la cota, el texto de la directriz y las celdas de la tabla se dibujan en el espacio modelo (atlas de texto: ≥56 glifos rasterizados en el golden); La cinta abre en Inicio con Dibujo · Modificar · Anotación · Capas · Bloque · Propiedades, LINE es el primer botón y existe la pestaña Paramétrico; Teclear con el lienzo enfocado escribe en la línea de comandos sin pulsarla, Intro devuelve el foco y Espacio vale por Intro; Ninguna letra suelta del lienzo roba un alias de una letra de acad.pgp (M, E, O, P, Z, A, B, F, G, V, W, S, X): la letra suelta es de la línea de comandos; Arrastrar sobre el fondo designa por ventana (izq→der) o cruce (der→izq), el botón central encuadra y dos dedos siguen encuadrando; Ningún panel tapa el área de dibujo ni un control: cada punto de una rejilla del lienzo responde <canvas> y cada control recibe su clic; Un eje en capa CENTER se ve, se imprime y se exporta con su forma completa (trazo largo · hueco · trazo corto · hueco): la ranura llega al lote, el PDF lleva el operador d con esos milímetros y el DXF escribe el patrón de fábrica | Nada pendiente: todos los criterios declarados verifican |
 
-### Los siete toolsets de AutoCAD — 20/28
+### Los siete toolsets de AutoCAD — 21/28
 
 | Categoría | Puntos | Estado | Qué verifica hoy | Qué falta exactamente |
 | --- | ---: | --- | --- | --- |
 | Toolset Architecture | 3/4 | Parcial | WALL, DOOR y WINDOW son tecleables y alojan huecos en el muro; Escaleras, techos y cubiertas paramétricos, y tablas de superficies y carpintería que salen en la lámina | Nada pendiente: todos los criterios declarados verifican |
 | Toolset MEP (mitad 2D) | 3/4 | Parcial | Conductos, tuberías y bandejas de cables en planta con uniones y símbolos; Tablas de equipos y longitudes que salen en la lámina | Nada pendiente: todos los criterios declarados verifican |
 | Toolset Map 3D | 3/4 | Parcial | Sistema de coordenadas del dibujo (EPSG) y transformación entre sistemas; Importar capas GIS (SHP/GeoJSON) como objetos con atributos | Nada pendiente: todos los criterios declarados verifican |
-| Toolset Raster Design (mitad útil) | 2/4 | Parcial | Insertar, recortar por polígono y ajustar (brillo/contraste/transparencia) un plano escaneado | Vectorizar líneas y textos de un escaneo a entidades (2 pt) |
+| Toolset Raster Design (mitad útil) | 3/4 | Parcial | Insertar, recortar por polígono y ajustar (brillo/contraste/transparencia) un plano escaneado; Vectorizar líneas y textos de un escaneo a entidades | Nada pendiente: todos los criterios declarados verifican |
 | Toolset Mechanical | 3/4 | Parcial | Biblioteca de tornillería y perfiles normalizados insertables; Cotas de fabricación con tolerancias y símbolos de acabado | Nada pendiente: todos los criterios declarados verifican |
 | Toolset Electrical | 3/4 | Parcial | Esquemas eléctricos: símbolos normalizados, numeración de conductores y etiquetado de componentes, todo derivado del dibujo; Informes: listado de conductores, cuadro de cargas en el dibujo y revisión contra la NOM | Nada pendiente: todos los criterios declarados verifican |
 | Toolset Plant 3D | 3/4 | Parcial | Diagramas P&ID: catálogo de equipos etiquetados y líneas numeradas, todo derivado del dibujo; Tubería 3D por especificación e isométricos | Nada pendiente: todos los criterios declarados verifican |
@@ -209,8 +209,6 @@ declarados. Reproducible con `node scripts/cad/rubric.mjs --priorities`.
 | 3 | 1 | 8 | Rendimiento 10k/100k | La mezcla architecture@100k cumple el mismo SLO: detalle completo ≤5 s y paneo ≥30 fps p95 |
 | 4 | 1 | 20 | Import/export DWG | Integración en runtime con gates legal, de seguridad y de fidelidad superados |
 | 5 | 2 | 60 | Automatización: AutoLISP y plugins JS | Puente .NET/VBA para rutinas heredadas de despacho |
-| 6 | 1 | 30 | Kernel Rust/WASM | Kernel WASM con paridad numérica verde Y enchufado: alguien fuera de lib/cad/wasm lo importa (regla 6) |
-| 7 | 2 | ? | Toolset Raster Design (mitad útil) | Vectorizar líneas y textos de un escaneo a entidades |
 
 <!-- rubric:end -->
 

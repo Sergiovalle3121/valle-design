@@ -33,7 +33,7 @@ function fmt(value: number, decimals = 2): string {
 
 const WALL_HEADERS = ["Capa", "Espesor (mm)", "Cant.", "Longitud (m)", "Área paramento (m²)", "Volumen (m³)"];
 const OPENING_HEADERS = ["Marca", "Tipo", "Ancho (mm)", "Alto (mm)", "Antepecho (mm)", "Cant."];
-const ROOM_HEADERS = ["Local", "Uso", "Área a ejes (m²)", "Área útil (m²)", "Perímetro (m)"];
+const ROOM_HEADERS = ["Local", "Uso", "Área a ejes (m²)", "Área útil (m²)", "Área construida (m²)", "Perímetro (m)"];
 
 function wallRowValues(row: CadWallQuantityRow): string[] {
   return [
@@ -58,6 +58,7 @@ function roomRowValues(row: CadRoomAreaRow): string[] {
     row.use ?? "—",
     fmt(row.axisArea / 1_000_000, 2),
     row.clearArea === undefined ? "—" : fmt(row.clearArea / 1_000_000, 2),
+    row.builtArea === undefined ? "—" : fmt(row.builtArea / 1_000_000, 2),
     fmt(row.perimeter / 1000, 2),
   ];
 }
@@ -152,7 +153,7 @@ export function buildCadRoomScheduleTable(
   newEntityId: () => string,
 ): CadTableEntity {
   return scheduleTable(
-    "Cuadro de superficies — áreas a ejes de muro; área útil con los lados metidos medio grosor",
+    "Cuadro de superficies — a ejes de muro; útil con los lados metidos medio grosor; construida a cara exterior del muro perimetral",
     ROOM_HEADERS,
     schedule.rooms.map(roomRowValues),
     insertion,

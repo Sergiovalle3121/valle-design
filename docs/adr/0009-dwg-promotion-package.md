@@ -135,6 +135,7 @@ comparación campo a campo del DXF regenerado.
 | Mapping al documento canónico | ✅ en laboratorio; adaptador de producto en la integración |
 | Importación real + CI/E2E | ☐ en la integración |
 | Operación (telemetría, rollback) | ☐ en la integración (flag por tenant) |
+| Paquete de firma del encendido | ✅ `docs/cad/evidence/dwg-firma-encendido-20260904.md`, verificado por `scripts/dwg/check-firma-package.mjs` |
 
 ## 6. Qué firma el dueño
 
@@ -608,3 +609,45 @@ sigue siendo del titular. No admite la ola 3, que sigue sin admitir. No amplía
 el perfil: el 3D heredado sigue llegando al producto como objeto opaco en
 `unsupportedEntities`, con su pérdida `dwg_3d_wireframe_preserved_opaque`
 declarada, exactamente igual que antes de esta adenda.
+
+## 10. PROPUESTA — encendido de `DWG_IMPORT_FLAG` y `DWG_EXPORT_FLAG` — 2026-09-04 — SIN FIRMAR
+
+El frente F1 de la campaña «Superar a AutoCAD completo» dejó redactado el paquete
+que esta sección necesitaba: **`docs/cad/evidence/dwg-firma-encendido-20260904.md`**.
+Esta sección lo INCORPORA POR REFERENCIA y no copia una sola de sus cifras — están
+todas en bloques generados desde los artefactos de evidencia, y
+`node scripts/dwg/check-firma-package.mjs` falla si alguna se queda atrás. Una tabla
+duplicada aquí envejecería en silencio, que es exactamente el defecto que esa página
+existe para no cometer.
+
+Qué contiene ese paquete, y dónde:
+
+| Lo que esta ADR necesita | Sección del paquete |
+| --- | --- |
+| Qué se encendería y por qué la bandera no basta | §1 |
+| Las dos mediciones sobre material ajeno, con su corpus fijado | §2 |
+| Matriz de soporte por clase: lectura, perfil de producto, escritura, anclaje | §3 |
+| Límites declarados (cota, directriz, TABLE, familia moderna, xrefs, hoja) | §4 |
+| Riesgos legales y de seguridad, con el gate que cubre cada uno | §5 |
+| El segundo oráculo: qué se intentó, qué lo impidió y qué haría falta | §6 |
+| Los pasos exactos del titular, con la lista de casos derivada del arnés | §7 |
+| Dónde está hoy el oráculo externo | §8 |
+| El commit del encendido, paso por paso | §9 |
+
+**Lo que esta propuesta pide firmar**, si el titular decide hacerlo DESPUÉS de correr
+§7 del paquete en su máquina y de que `npm run check:dwg-oraculo` diga que la
+evidencia ya alcanza:
+
+1. **Autorizar** el encendido de las dos banderas con el alcance de la matriz de §3
+   del paquete y los límites de §4, con rollout por organización y nunca activación
+   global.
+2. **Aceptar** que sigue habiendo UN solo oráculo externo. La política pide dos
+   (`DWG_REQUIRED_INDEPENDENT_VALIDATIONS`), y §6 del paquete declara por qué el
+   segundo no se pudo cablear y qué haría falta. `independentValidations` no llega a
+   su umbral sin él.
+3. **Mantener** `legalReviewCleared` en `false` hasta el dictamen externo, como ya
+   decidió §6-bis.2. Encender las banderas no lo mueve.
+
+**Lo que NO autoriza:** disponibilidad general, afirmación de compatibilidad con
+AutoCAD real, escritura de la familia moderna, ni tratar el perfil de escritura como
+equivalente al de lectura.

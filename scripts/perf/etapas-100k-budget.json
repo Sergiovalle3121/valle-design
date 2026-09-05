@@ -1,0 +1,124 @@
+{
+  "descripcion": "Techos por etapa del reparto de architecture@100k, en milisegundos de CPU de Node. SÓLO BAJAN: los sube a mano quien pueda explicar en el commit por qué el producto vale más lento.",
+  "alcance": {
+    "mezcla": "architecture",
+    "entidades": 100000,
+    "corpusSha256": "2029d760018bf27073de4aa6d0794b270f2795f72599a22a6bd6e11d468a3480",
+    "escenario": "sync · sin reconciliar · reloj real · presupuesto adaptativo",
+    "porQueEseEscenario": "Es el que aísla el coste de CPU del pipeline sin mezclarlo con la cadencia de pantalla inyectada, y es el mismo con el que se midió el ×6,75 de agosto: los dos números se comparan sin traducción."
+  },
+  "condiciones": {
+    "medidor": "scripts/perf/etapas-100k-medir.mjs",
+    "juez": "scripts/perf/check-etapas-100k.mjs",
+    "evidencia": "docs/cad/evidence/render-stage-architecture-100k.json",
+    "que": "Reparto por etapa de abrir architecture@100k y hacer el recorrido de paneo y zoom de scenario.ts, con la instrumentación de render-stage-profile.ts encendida. CPU de Node: sin GPU, sin navegador, sin fotogramas.",
+    "maquina": "Intel(R) Xeon(R) Processor @ 2.80GHz (4 hilos lógicos), 15,7 GB de RAM, Linux 6.18.44-fc-v24 (x64), Node v22.22.2. SIN GPU y SIN navegador: esto es CPU de Node, no fotogramas — no se compara número a número con docs/cad/evidence/browser-slo-100k.json. Corrida 2026-09-04 con scripts/perf/etapas-100k-medir.mjs. Contenedor cloud de la sesión (Claude Code on the web) con hasta dos agentes trabajando a la vez sobre los mismos cuatro hilos: por eso cada corrida publica su loadavg1m y el techo lleva el margen de la dispersión observada",
+    "corridas": 3,
+    "corridasMinimas": 3,
+    "cargaAlCalibrar": [
+      3.88,
+      3.46,
+      3.71
+    ],
+    "margen": "techo = MEDIANA × (1 + margen), nunca por debajo de la PEOR corrida × 1,05. El margen de cada etapa es su propia dispersión relativa (max−min)/mediana, acotada entre 5 % y 75 %: el ruido de cada etapa es suyo y un margen único elegido a mano sería cárcel para la ruidosa y barra libre para la estable. La base es la mediana y no el máximo para que una corrida con un vecino ruidoso no cobre dos veces. No es holgura para crecer: una subida real se come el margen y falla en la siguiente corrida.",
+    "trinquete": "`--bajar` sólo BAJA. Subir un techo exige editar este fichero a mano y explicarlo en el commit; así una regresión no se «arregla» ejecutando el actualizador."
+  },
+  "invariantes": {
+    "detailedAtRest": 414,
+    "visibleAtRest": 414,
+    "callsTessellateMax": 91175,
+    "porQue": "Un reloj baja también cuando se dibuja menos. Estas tres cifras son el candado contra «más rápido porque dibuja menos»: las dos primeras las decide el escenario y el índice de visibilidad, no el LOD."
+  },
+  "etapas": {
+    "tessellate": {
+      "ms": 4200.751,
+      "medidoMs": {
+        "min": 3768.844,
+        "mediana": 3818.924,
+        "max": 4000.715
+      },
+      "dispersionRelativa": 0.0607,
+      "margenRelativo": 0.0607
+    },
+    "batchPush": {
+      "ms": 646.534,
+      "medidoMs": {
+        "min": 414.091,
+        "mediana": 521.356,
+        "max": 539.243
+      },
+      "dispersionRelativa": 0.2401,
+      "margenRelativo": 0.2401,
+      "cargaAlCalibrar": [
+        0.78,
+        0.84,
+        1.29
+      ],
+      "porQueSoloEstaBajo": "Techo recalculado el 2026-09-04 con la MISMA fórmula del fichero sobre la evidencia republicada ese día: max(mediana × (1 + margen), peor corrida × 1,05) = 646.534 ms, desde 732.068. Baja porque el empaquetado cambió —bucle reescrito y cubos por BLOQUES en vez de por duplicación; la ganancia del bucle está medida aparte en docs/cad/evidence/batchpush-empaquetado-100k.json—, no porque la máquina estuviera más tranquila. Las demás etapas NO se recalcularon a propósito: esta corrida se midió con carga ~1 sobre cuatro hilos y las suyas están calibradas con carga 3,5–3,9; apretarlas a la máquina en silencio dejaría el trinquete en rojo cada vez que el vecino trabaja, por etapas que esta entrega no tocó. Quien quiera apretarlas ejecuta --bajar en una máquina de verdad tranquila y se hace cargo de esa decisión."
+    },
+    "spatialIndex": {
+      "ms": 999.104,
+      "medidoMs": {
+        "min": 744.111,
+        "mediana": 745.012,
+        "max": 951.528
+      },
+      "dispersionRelativa": 0.2784,
+      "margenRelativo": 0.2784
+    },
+    "insertExpand": {
+      "ms": 0.825,
+      "medidoMs": {
+        "min": 0.47,
+        "mediana": 0.632,
+        "max": 0.663
+      },
+      "dispersionRelativa": 0.3054,
+      "margenRelativo": 0.3054
+    },
+    "tileEnqueue": {
+      "ms": 6.159,
+      "medidoMs": {
+        "min": 4.145,
+        "mediana": 5.097,
+        "max": 5.207
+      },
+      "dispersionRelativa": 0.2084,
+      "margenRelativo": 0.2084
+    }
+  },
+  "totales": {
+    "stageTotalMs": {
+      "ms": 5776.933,
+      "medidoMs": {
+        "min": 5156.502,
+        "mediana": 5422.28,
+        "max": 5501.841
+      },
+      "dispersionRelativa": 0.0637,
+      "margenRelativo": 0.0637
+    },
+    "segmentsAtRest": {
+      "instancias": 2309605,
+      "medido": {
+        "min": 2199624,
+        "mediana": 2199624,
+        "max": 2199624
+      },
+      "dispersionRelativa": 0,
+      "margenRelativo": 0.05
+    }
+  },
+  "deuda": {
+    "que": "Estos techos NO son la meta: son lo que esta máquina mide hoy. El reparto de 2026-08-31 (PR #139, el del ×6,75) medía menos en las etapas de abajo, sobre el mismo corpus y el mismo escenario. Mientras el cociente sea > 1, el techo es deuda reconocida, y bajarlo es trabajo pendiente, no una regresión de nadie.",
+    "referencia": "docs/cad/evidence/render-stage-architecture-100k.json · comparisonWithinThisSession.afterThisPr",
+    "cocientesContraAgosto": {
+      "tessellate": 7.992,
+      "batchPush": 4.169,
+      "spatialIndex": 1.118,
+      "insertExpand": 1.362,
+      "tileEnqueue": 5.651
+    },
+    "segmentsAtRestContraAgosto": 144.24
+  }
+}

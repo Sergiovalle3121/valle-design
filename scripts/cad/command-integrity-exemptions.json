@@ -3,6 +3,7 @@
   "noConcluyentes": {
     "ATTEDIT": "pide atributos de una inserción concreta; el documento de sonda no lleva bloque con atributos. Spec: blocks.spec.ts",
     "CHAMFEREDGE": "es la variante 3D por aristas: exige designar aristas de un sólido que la sonda 2D no fabrica. Spec: solids-modify.spec.ts",
+    "COGO": "pide un punto y luego TEXTO con un rumbo y una distancia («N 45°30'20\" E 25.40»); el auto-respondedor no lo fabrica. Spec: engine/commands/geo-cogo.spec.ts, que lo conduce hasta escribir la polilínea de 6 vértices y su versión compensada.",
     "FILLETEDGE": "misma razón que CHAMFEREDGE. Spec: solids-modify.spec.ts",
     "FLATSHOT": "necesita un sólido 3D que aplanar; la sonda es 2D. Spec: solids-flatshot.spec.ts",
     "SCALE": "su prompt de factor acepta punto y referencia; el auto-respondedor entra en el ciclo de referencia y lo cancela. Spec: modify-transform.spec.ts",

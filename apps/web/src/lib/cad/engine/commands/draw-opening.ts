@@ -18,9 +18,36 @@
  * ## Los valores por defecto se atan a la unidad del documento
  *
  * Igual que WALL: una puerta de 900 × 2.100 sólo significa algo en milímetros.
- * La conversión vive aquí y no en la entidad porque el documento persiste
+ * La conversión es la de `cadFromMillimetres` —la MISMA tabla que WALL, STAIR,
+ * ROOF y SLAB— y se hace aquí y no en la entidad porque el documento persiste
  * NÚMEROS en su unidad, no milímetros.
+ *
+ * ## `Tipo`: el catálogo, no tres números
+ *
+ * Un despacho no pide «900 × 2.100»: pide «una P-090». `Tipo` ofrece el
+ * catálogo cerrado de `architecture-openings-catalog.ts` y escribe sus medidas
+ * en la receta; el default de cada orden ES una entrada de ese catálogo, así
+ * que la puerta que sale sin tocar nada y la que sale eligiendo `P-090` son la
+ * misma hasta el último dígito. Un tipo que no existe se niega nombrando los
+ * que sí —nunca coloca el hueco por defecto en silencio— y teclear una medida
+ * a mano después de elegir un tipo DESHACE la etiqueta: un hueco de 850 no se
+ * llama P-090 aunque se llegara a él desde P-090.
+ *
+ * Lo que el catálogo NO hace es persistir: la entidad guarda sus tres medidas
+ * y nada más, igual que antes. La marca del cuadro de carpintería se deriva de
+ * ellas (`openingMark`), así que no hay ninguna clave guardada que pueda
+ * contradecir a la geometría.
  */
+import {
+  CAD_OPENING_DEFAULT_TYPE,
+  cadOpeningType,
+  cadOpeningTypeLabel,
+  cadOpeningTypeRefusal,
+  cadOpeningTypeSize,
+  cadOpeningTypes,
+  type CadOpeningType,
+  type CadOpeningTypeKey,
+} from "../../architecture-openings-catalog";
 import type { CadOpeningKind } from "../../cad-entities-v7";
 import type { CadEntityCommand } from "../../entity-commands";
 import type { CadNativeEntity } from "../../entity-runtime";
@@ -29,6 +56,7 @@ import {
   CAD_ACCEPT_DISTANCE,
   CAD_ACCEPT_ENTITY_PICK,
   CAD_ACCEPT_KEYWORD,
+  CAD_ACCEPT_TEXT,
   asCadCommand,
   type CadAnyCommandDescriptor,
   type CadCommandContext,
@@ -40,22 +68,24 @@ const HEIGHT = { keyword: "alTura", shortcut: "T" } as const;
 const SILL = { keyword: "antePecho", shortcut: "P" } as const;
 const SIDE = { keyword: "Lado", shortcut: "L" } as const;
 const HINGE = { keyword: "Bisagra", shortcut: "B" } as const;
+// El atajo del tipo es la I y no la T: la T ya es la de `alTura`, y dos
+// opciones con el mismo atajo no se resuelven —`matchCadKeyword` devuelve null
+// ante el empate y la tecla deja de servir para las DOS—.
+const TYPE = { keyword: "TIpo", shortcut: "I" } as const;
 
-/** Milímetros que vale UNA unidad del documento. */
-const MM_PER_UNIT: Record<string, number> = { mm: 1, cm: 10, m: 1000, in: 25.4, ft: 304.8 };
-
-function inUnit(millimetres: number, unit: string | undefined): number {
-  return millimetres / (MM_PER_UNIT[unit ?? "mm"] ?? 1);
-}
-
-/** Hueco de paso de 900 × 2.100 y ventana de 1.200 × 1.200 con antepecho 900. */
+/**
+ * Hueco de paso P-090 (900 × 2.100) y ventana V-120x120 con antepecho 900.
+ *
+ * Los números no se escriben aquí: son los de la entrada del catálogo que cada
+ * orden trae por defecto. Así el hueco que sale sin tocar `Tipo` es
+ * exactamente uno del catálogo, y no un tamaño paralelo que un día se separe
+ * de él.
+ */
 export function defaultOpeningSize(
   kind: CadOpeningKind,
   unit: string | undefined,
 ): { width: number; height: number; sill: number } {
-  return kind === "door"
-    ? { width: inUnit(900, unit), height: inUnit(2_100, unit), sill: 0 }
-    : { width: inUnit(1_200, unit), height: inUnit(1_200, unit), sill: inUnit(900, unit) };
+  return cadOpeningTypeSize(CAD_OPENING_DEFAULT_TYPE[kind], unit);
 }
 
 interface OpeningState {
@@ -65,7 +95,14 @@ interface OpeningState {
   sill: number;
   swing: "left" | "right";
   hinge: "start" | "end";
-  pending: "none" | "width" | "height" | "sill";
+  pending: "none" | "width" | "height" | "sill" | "type";
+  /**
+   * El tipo del catálogo vigente, o `null` si las medidas se teclearon a
+   * mano. NO viaja a la entidad —el documento no gana un campo—: sólo sirve
+   * para que el prompt diga qué se está colocando, y se pone a `null` en
+   * cuanto una medida deja de ser la del tipo.
+   */
+  typeKey: CadOpeningTypeKey | null;
   /** Lo último que se dijo, para que el usuario lea por qué no se colocó. */
   notice: string;
 }
@@ -81,7 +118,48 @@ function noun(kind: CadOpeningKind): string {
   return kind === "door" ? "la puerta" : "la ventana";
 }
 
+/**
+ * Escribe en la receta las medidas de una entrada del catálogo.
+ *
+ * Es el ÚNICO sitio por el que un tipo entra en la orden —lo usan igual el
+ * arranque (que parte del tipo por defecto) y `Tipo`—, de modo que elegir del
+ * catálogo y no elegir nada recorren el mismo camino y no pueden discrepar.
+ */
+function fromType(
+  state: OpeningState,
+  type: CadOpeningType,
+  context: CadCommandContext,
+  notice: string,
+): OpeningState {
+  const size = cadOpeningTypeSize(type, context.unit);
+  return {
+    ...state,
+    width: size.width,
+    height: size.height,
+    sill: size.sill,
+    pending: "none",
+    typeKey: type.key,
+    notice,
+  };
+}
+
 function openingStep(state: OpeningState): CadCommandStep<OpeningState> {
+  if (state.pending === "type")
+    return {
+      state,
+      prompt: {
+        message: `${state.notice}Precise el tipo de ${noun(state.kind)}`,
+        // Cada clave es su propio atajo: `P-090` se teclea entero, que es como
+        // se pide en obra, y ninguna letra suelta puede elegir la puerta
+        // equivocada.
+        options: cadOpeningTypes(state.kind).map((type) => ({ keyword: type.key, shortcut: type.key })),
+      },
+      // Acepta TEXTO además de palabra clave a propósito: sin él, un tipo que
+      // no existe moriría en el analizador con un «Entrada no válida» genérico
+      // y el usuario no sabría cuáles existen. Con él, el rechazo lo escribe
+      // el catálogo, con la lista delante.
+      accepts: CAD_ACCEPT_KEYWORD | CAD_ACCEPT_TEXT,
+    };
   if (state.pending !== "none") {
     const current =
       state.pending === "width" ? state.width : state.pending === "height" ? state.height : state.sill;
@@ -97,11 +175,16 @@ function openingStep(state: OpeningState): CadCommandStep<OpeningState> {
       accepts: CAD_ACCEPT_DISTANCE,
     };
   }
-  const options = state.kind === "door" ? [WIDTH, HEIGHT, SILL, SIDE, HINGE] : [WIDTH, HEIGHT, SILL];
+  const options = state.kind === "door" ? [TYPE, WIDTH, HEIGHT, SILL, SIDE, HINGE] : [TYPE, WIDTH, HEIGHT, SILL];
   return {
     state,
     prompt: {
-      message: `${state.notice}Designe el muro donde alojar ${noun(state.kind)}`,
+      // El prompt dice QUÉ se va a colocar, y deja de decirlo en cuanto las
+      // medidas dejan de ser las de un tipo: un renglón que siguiera diciendo
+      // «P-090» sobre una puerta de 850 sería la mentira más barata de todas.
+      message:
+        `${state.notice}Designe el muro donde alojar ${noun(state.kind)}` +
+        (state.typeKey ? ` ${state.typeKey}` : ""),
       options,
     },
     accepts: CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_KEYWORD,
@@ -134,21 +217,45 @@ function openingCommand(
     mutates: true,
     cursor: "crosshair",
     begin(context) {
-      const size = defaultOpeningSize(kind, context.unit);
-      return openingStep({
-        kind,
-        width: size.width,
-        height: size.height,
-        sill: size.sill,
-        swing: "left",
-        hinge: "start",
-        pending: "none",
-        notice: "",
-      });
+      // Las tres medidas las escribe `fromType` acto seguido con las del tipo
+      // por defecto; los ceros de aquí no llegan a verse nunca. Se arranca así
+      // —y no con `defaultOpeningSize`— para que el arranque y `Tipo` entren
+      // por la MISMA puerta y no puedan discrepar.
+      return openingStep(fromType(
+        {
+          kind,
+          width: 0,
+          height: 0,
+          sill: 0,
+          swing: "left",
+          hinge: "start",
+          pending: "none",
+          typeKey: null,
+          notice: "",
+        },
+        CAD_OPENING_DEFAULT_TYPE[kind],
+        context,
+        "",
+      ));
     },
     step(state, input, context) {
       if (input.kind === "cancel" || input.kind === "enter")
         return messageStep(state, "Colocación cancelada.");
+
+      if (state.pending === "type") {
+        // La palabra clave y el texto llegan por caminos distintos del
+        // analizador y se resuelven por el MISMO sitio: teclear `P-090`,
+        // `p-090` o la marca `P-090x210` no pueden dar tres resultados.
+        const raw =
+          input.kind === "keyword" ? input.keyword : input.kind === "text" ? input.value : null;
+        if (raw === null) return openingStep(state);
+        const type = cadOpeningType(raw, state.kind);
+        // Se queda EN el prompt del tipo: un tipo que no existe no devuelve al
+        // paso de designar, donde el siguiente clic colocaría el hueco por
+        // defecto como si nada hubiera pasado.
+        if (!type) return openingStep({ ...state, notice: `${cadOpeningTypeRefusal(raw, state.kind)} ` });
+        return openingStep(fromType(state, type, context, `Tipo ${cadOpeningTypeLabel(type)}. `));
+      }
 
       if (state.pending !== "none") {
         if (input.kind !== "distance") return openingStep(state);
@@ -165,12 +272,20 @@ function openingCommand(
           height: state.pending === "height" ? value : state.height,
           sill: state.pending === "sill" ? value : state.sill,
           pending: "none",
+          // Una medida tecleada a mano deja el hueco fuera del catálogo: la
+          // etiqueta se retira en vez de seguir diciendo «P-090» sobre una
+          // puerta de 850. La marca del cuadro se calcula de las medidas, así
+          // que la tabla ya diría P-085x210; lo que se corrige aquí es que el
+          // prompt no mienta mientras tanto.
+          typeKey: null,
           notice: "",
         });
       }
 
       if (input.kind === "keyword") {
         const keyword = input.keyword.toLowerCase();
+        if (keyword === TYPE.keyword.toLowerCase())
+          return openingStep({ ...state, pending: "type", notice: "" });
         if (keyword === WIDTH.keyword.toLowerCase())
           return openingStep({ ...state, pending: "width", notice: "" });
         if (keyword === HEIGHT.keyword.toLowerCase())

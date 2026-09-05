@@ -10,7 +10,7 @@
  * vía `cadTemplateSvgSize`): la retícula de tarjetas no se mueve un píxel
  * cuando llegan los planos — CLS 0 por construcción.
  */
-import { cadTemplateSvgSize } from "@/lib/cad/template-render";
+import { cadTemplateSvgSize } from "@/lib/cad/template-svg-size";
 
 export function PlanRender({
   id,

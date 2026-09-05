@@ -150,11 +150,24 @@ test.describe("CAD dense editing stress · 100k", () => {
           logicalCpuCount: cpus.length,
           totalMemoryBytes: os.totalmem(),
           freeMemoryBytesNow: os.freemem(),
+          // La máquina la declara quien la conoce.
+          //
+          // Este texto se escribió en el portátil donde nació el spec y decía
+          // «CON CARGA VECINA: otros agentes trabajando en el mismo equipo».
+          // Eso era cierto AQUÍ y es falso en la máquina del titular, y una
+          // evidencia que describe otra máquina es peor que una sin describir.
+          // Cuando `scripts/perf/slo-navegador.mjs` lanza la corrida pasa la
+          // máquina ya compuesta —CPU, hilos, RAM, sistema, navegador y
+          // rasterizador de WebGL— por CAD_PERF_DECLARED_MACHINE; sin runner
+          // se compone lo que se puede ver desde dentro y se dice cuál es su
+          // límite, sin inventar el entorno.
           declaredMachine:
+            process.env.CAD_PERF_DECLARED_MACHINE?.trim() ||
             `${cpus[0]?.model?.trim() ?? "CPU desconocida"} (${cpus.length} hilos lógicos), ` +
-            `${(os.totalmem() / 1024 ** 3).toFixed(1)} GB de RAM, ${os.type()} ${os.release()}, ` +
-            "portátil de desarrollo CON CARGA VECINA: otros agentes trabajando en el mismo equipo " +
-            "durante la medición. Ninguna cifra de este archivo es un presupuesto.",
+              `${(os.totalmem() / 1024 ** 3).toFixed(1)} GB de RAM, ${os.type()} ${os.release()}. ` +
+              "Corrida SIN el runner de GPU real, así que no consta ni el navegador ni el " +
+              "rasterizador ni si la máquina tenía carga vecina. Ninguna cifra de este archivo " +
+              "es un presupuesto.",
         },
         method: {
           repeats: REPEATS,

@@ -16,6 +16,22 @@
  * que es exactamente la dirección a la que va la descomposición: un controlador
  * imperativo con suscripción, y componentes que leen lo que necesitan. Cumplir
  * la regla y avanzar la arquitectura resultan ser la misma cosa.
+ *
+ * ## La costura de la carga a demanda (2026-09-04)
+ *
+ * Los METADATOS de los 291 comandos están desde el primer instante
+ * (`engine/command-manifest.ts`); la máquina de estados `begin`/`step` llega por
+ * `import()` cuando se usa (`engine/lazy-commands.ts`). Esa espera se resuelve
+ * en UN solo sitio: `dispatch`, por donde ya pasaban invocar, teclear, repetir y
+ * la orden encadenada de ADDSELECTED. Si la acción arranca un comando cuya
+ * implementación falta, se pide el módulo, se ENCOLA lo que llegue entretanto y
+ * se re-despacha en orden; `busy` responde que sí mientras tanto, para que el
+ * enrutador del puntero no mande el clic siguiente a la máquina heredada.
+ *
+ * Encolar no es un lujo: `runCadScript` empuja los renglones de un `.scr` de
+ * golpe, y despachar el segundo antes de que arranque el primero metería la
+ * entrada de uno en otro. Quien empuja de golpe además llama a `warmCommands`
+ * antes, para que su lectura final de `busy` diga la verdad.
  */
 import {
   EMPTY_CAD_COMMAND_ENGINE,
@@ -25,6 +41,12 @@ import {
   type CadCommandEngineState,
   type CadCommandRegistry,
 } from "@/lib/cad/engine/command-engine";
+import {
+  CAD_COMMAND_REGISTRY_V2,
+  cadCommandNeedsImplementation,
+  cadWarmAllCommands,
+  loadCadCommand,
+} from "@/lib/cad/engine";
 import type {
   CadCommandContext,
   CadCommandDocumentView,
@@ -159,6 +181,15 @@ export class CadCommandEngineHost {
   private readonly macros = new Map<string, CadActionRecording>();
   /** Mientras se repite un macro NO se graba: si no, grabaría su propia copia. */
   private replaying = false;
+  /**
+   * Carga de implementación en vuelo, o `null`. Mientras vive, `dispatch`
+   * encola en vez de reducir y `busy` responde que sí.
+   */
+  private cargando: Promise<void> | null = null;
+  /** Acciones que llegaron mientras se cargaba, en el orden en que llegaron. */
+  private cola: CadCommandAction[] = [];
+  /** Ya se calentó el registro entero por una rutina LISP. */
+  private lispCalentado = false;
 
   /**
    * El portapapeles de geometría (Ola D, 2026-09-02). Por defecto el de la
@@ -378,7 +409,11 @@ export class CadCommandEngineHost {
   }
 
   get busy(): boolean {
-    return this.state.active !== null;
+    // Mientras se trae la implementación de una orden el motor NO está libre:
+    // decir que sí dejaría que el enrutador del puntero mandase el siguiente
+    // clic a la máquina heredada, y que un guión diera por terminado un comando
+    // que todavía no ha arrancado.
+    return this.state.active !== null || this.cargando !== null;
   }
 
   /**
@@ -505,7 +540,128 @@ export class CadCommandEngineHost {
     }
   }
 
+  /**
+   * Nombre del comando que ESTA acción arrancaría, o `null` si no arranca uno.
+   *
+   * Es la costura de la carga a demanda, y va aquí porque `dispatch` es la
+   * ÚNICA puerta por la que pasan invocar, teclear, repetir y encadenar
+   * (`chain-command` vuelve a entrar por aquí). Los METADATOS de los 291
+   * comandos están desde el primer instante (`engine/command-manifest.ts`); lo
+   * que llega a demanda es la máquina de estados `begin`/`step`.
+   */
+  private nombreQueArranca(action: CadCommandAction): string | null {
+    if (action.kind === "invoke") return action.command;
+    // Con un comando en curso, Espacio y Enter significan «acepta», no arranque.
+    if (action.kind === "repeat") return this.state.active ? null : this.state.lastRepeatable;
+    if (action.kind !== "token") return null;
+    const bruto = action.value.trim();
+    // El apóstrofo es la única forma de abrir un comando ENCIMA de otro.
+    const transparente = bruto.startsWith("'");
+    if (this.state.active && !transparente) return null;
+    return transparente ? bruto.slice(1) : bruto;
+  }
+
+  /**
+   * Qué hay que traer antes de reducir: el nombre de un comando del motor, la
+   * marca `"lisp"`, o `null` si no falta nada.
+   *
+   * `"lisp"` existe por una razón concreta: una rutina `.lsp` llama a comandos
+   * nativos con `(command "TRIM" …)` y su evaluador es SÍNCRONO —no puede
+   * esperar a un `import()` a mitad de una expresión—. Así que invocar una
+   * rutina calienta el registro entero UNA vez. Lo paga quien carga rutinas,
+   * no quien abre un plano.
+   */
+  private cargaPendiente(action: CadCommandAction): string | "lisp" | null {
+    const nombre = this.nombreQueArranca(action);
+    if (!nombre) return null;
+    // Se pregunta al registro de ESTE anfitrión, no al del producto: un spec
+    // del motor monta el suyo con descriptores de verdad y no tiene nada que
+    // esperar. `cadCommandNeedsImplementation` sólo dice que sí ante un
+    // descriptor perezoso al que todavía le falta su módulo.
+    const descriptor = this.registry.get(nombre);
+    if (!descriptor) return null;
+    if (cadCommandNeedsImplementation(descriptor)) return descriptor.name;
+    if (this.lispCalentado) return null;
+    // Está y no es del motor: es una rutina `.lsp`, y su evaluador es síncrono.
+    return CAD_COMMAND_REGISTRY_V2.get(nombre) ? null : "lisp";
+  }
+
+  /**
+   * Trae por adelantado lo que estos nombres van a necesitar.
+   *
+   * La usa quien empuja renglones DE GOLPE —un `.scr` y la repetición de un
+   * macro—, que lee `busy` al terminar para saber si el guión quedó a medias:
+   * esa lectura sólo dice la verdad si las implementaciones ya están.
+   */
+  async warmCommands(names: Iterable<string>): Promise<void> {
+    const pendientes = new Set<string>();
+    let lisp = false;
+    for (const bruto of names) {
+      const nombre = (bruto.trim().split(/\s+/)[0] ?? "").replace(/^'/, "");
+      if (!nombre) continue;
+      const descriptor = this.registry.get(nombre);
+      if (!descriptor) continue;
+      if (cadCommandNeedsImplementation(descriptor)) pendientes.add(descriptor.name);
+      else if (!this.lispCalentado && !CAD_COMMAND_REGISTRY_V2.get(nombre)) lisp = true;
+    }
+    try {
+      if (lisp) await this.calentarTodo();
+      else await Promise.all([...pendientes].map((nombre) => loadCadCommand(nombre)));
+    } catch (causa) {
+      // No se relanza: quien llama sigue y el guión se ejecuta igual. Lo que no
+      // cargó lo dirá cada orden al llegarle el turno, con su nombre delante,
+      // en vez de tragarse el guión entero en silencio.
+      this.note(
+        `No se pudo traer parte del registro de comandos ` +
+          `(${causa instanceof Error ? causa.message : String(causa)}). ` +
+          "Las órdenes que falten lo dirán al ejecutarse.",
+        "error",
+      );
+    }
+  }
+
+  private async calentarTodo(): Promise<void> {
+    await cadWarmAllCommands();
+    this.lispCalentado = true;
+  }
+
   private dispatch(action: CadCommandAction): void {
+    // Con una carga en vuelo, TODO se encola: empujar el renglón siguiente
+    // sobre un comando que aún no arrancó metería la entrada de uno en otro,
+    // que es exactamente lo que `runCadScript` se niega a hacer cuando falla
+    // una línea.
+    if (this.cargando) {
+      this.cola.push(action);
+      return;
+    }
+    const pendiente = this.cargaPendiente(action);
+    if (pendiente) {
+      this.cola.push(action);
+      this.cargando = (pendiente === "lisp" ? this.calentarTodo() : loadCadCommand(pendiente))
+        .then(
+          () => undefined,
+          (causa) => {
+            // FALLO EN VOZ ALTA, nunca un «Hecho» vacío: es la regla 2 de la
+            // campaña de cimientos, y el mismo trato que le da el editor al
+            // intérprete de frases cuando no ha llegado.
+            this.cola = [];
+            this.log(
+              `${pendiente === "lisp" ? "El registro de comandos" : pendiente} no se pudo cargar ` +
+                `(${causa instanceof Error ? causa.message : String(causa)}). ` +
+                "Vuelva a intentarlo; si insiste, recargue el plano.",
+              "error",
+            );
+          },
+        )
+        .then(() => {
+          this.cargando = null;
+          const encoladas = this.cola;
+          this.cola = [];
+          for (const encolada of encoladas) this.dispatch(encolada);
+          this.publish();
+        });
+      return;
+    }
     if (this.recorder.recording && !this.replaying) {
       const event = this.recorderEvent(action, this.state.active !== null);
       if (event) this.recorder = cadActionRecorderReduce(this.recorder, event);

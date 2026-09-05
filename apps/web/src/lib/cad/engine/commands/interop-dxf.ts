@@ -54,6 +54,7 @@ import {
   exportCadDocumentDxf,
   type CadDxfDocumentExportSource,
 } from "../../dxf-document-export";
+import type { CadDxfExportOptions } from "../../dxf-export";
 import { importDxfPrimitives } from "../../dxf-import";
 import {
   buildCadDxfImportReport,
@@ -344,10 +345,12 @@ export interface CadDxfExportPlan {
 export function planCadDxfExport(
   document: CadDxfDocumentExportSource,
   scope?: (entityId: string) => boolean,
+  options?: CadDxfExportOptions,
 ): CadDxfExportPlan {
   return exportCadDocumentDxf(
     document,
     scope ? (entity: CadEntity) => scope(entity.id) : undefined,
+    options,
   );
 }
 
@@ -437,9 +440,19 @@ const dxfOutCommand: CadCommandDescriptor<DxfOutState> = {
     const fileName = /\.dxf$/i.test(typed) ? typed : typed ? `${typed}.dxf` : DEFAULT_DXF_FILE_NAME;
 
     const selected = new Set(context.selection);
+    // El FORMATO de las longitudes es del dibujo y lo tiene la sesión, no el
+    // documento: `LUNITS` y `LUPREC` viven en las variables vivas. Quien
+    // exporta es quien las compone (P-express-09); sin este par, un plano
+    // dejado en pies y pulgadas se abre en decimal en el otro extremo.
     const plan = planCadDxfExport(
       { ...view, layers: view.layers },
       state.scope === "selection" ? (id) => selected.has(id) : undefined,
+      {
+        lengthUnits: {
+          lunits: Number(context.variables?.get("LUNITS") ?? 2),
+          luprec: Number(context.variables?.get("LUPREC") ?? 4),
+        },
+      },
     );
     // Fallo cerrado: un DXF sin una sola entidad se abre en cualquier visor y
     // parece un plano vacío. Es indistinguible de haber perdido el trabajo.

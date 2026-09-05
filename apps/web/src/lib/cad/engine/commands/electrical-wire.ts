@@ -24,6 +24,21 @@
  * Se calcula del dibujo (`wire-numbering.ts`) y se dice en el renglón. Dejarlo
  * teclear sería devolver el problema que la orden existe para quitar: dos
  * personas del mismo despacho escribiendo «14» en el mismo circuito.
+ *
+ * ## Lo que AEWIRELIST añadió después: DE/A y los sueltos
+ *
+ * Una lista de conductores numerados contesta «cuáles hay». La pregunta que un
+ * electricista hace con el plano en la mano es otra: «éste, ¿de dónde sale y a
+ * dónde llega?». `wire-connections.ts` la contesta cruzando los extremos del
+ * recorrido con los componentes etiquetados, y de paso caza el defecto que la
+ * pantalla esconde —el conductor que parece llegar al motor y termina a dos
+ * centímetros—, que es la cuenta de SUELTOS del renglón.
+ *
+ * Esa sección va al FINAL del renglón y no toca su arranque: el arranque es lo
+ * que lee quien tecleó la orden, y es también lo que la sonda de integridad
+ * ve. Y viaja siempre con su criterio y su tolerancia, porque una conexión
+ * deducida por cercanía no es una conexión declarada y el renglón no puede
+ * insinuar que lo sea.
  */
 import type { CadPoint2 } from "../../cad-document";
 import type { CadEntityCommand } from "../../entity-commands";
@@ -35,6 +50,12 @@ import {
   cadWireMetadata,
   cadWiresOf,
 } from "../../electrical/wire-numbering";
+import {
+  cadFormatLooseEnd,
+  cadFormatWireConnection,
+  cadWireConnectionReport,
+  cadWireLinkCriterion,
+} from "../../electrical/wire-connections";
 import {
   CAD_ACCEPT_POINT,
   CAD_ACCEPT_TEXT,
@@ -223,6 +244,79 @@ const wireCommand: CadCommandDescriptor<WireState> = {
 // AEWIRELIST
 // ---------------------------------------------------------------------------
 
+/** Cuántos de/a caben en el renglón antes de volverse ilegible. */
+const DE_A_VISIBLES = 6;
+/** Y cuántos sueltos se detallan; el resto se cuenta. */
+const SUELTOS_VISIBLES = 3;
+
+/**
+ * La sección DE/A del renglón: de qué componente a qué componente va cada
+ * conductor, cuántos tienen un extremo suelto, y con qué criterio se dedujo.
+ *
+ * Va DETRÁS de la lista de conductores, de los repetidos y de las marcas
+ * ilegibles, por la misma razón por la que los renglones de la NOM van detrás
+ * del resumen del circuito: lo primero que lee quien teclea la orden es lo que
+ * pidió, y lo que se le añade no le puede empujar el dato de arriba fuera de
+ * la vista. También es lo que deja intacto el arranque del mensaje.
+ *
+ * Y el criterio viaja con el resultado, siempre. Una conexión deducida por
+ * cercanía no es una conexión declarada: si el renglón la enseñara sin decir de
+ * qué está hecha, el dibujante la leería como un dato del proyecto y este
+ * módulo habría empeorado el plano en vez de mejorarlo.
+ */
+function deA(
+  view: Parameters<typeof cadWireConnectionReport>[0],
+  unit: string | undefined,
+): string[] {
+  const reporte = cadWireConnectionReport(view, { unit });
+  const partes: string[] = [];
+
+  if (reporte.devices === 0) {
+    // Callar aquí sería lo peor: una lista de conductores «todos sueltos»
+    // significaría un plano mal dibujado cuando lo que pasa es que nadie
+    // etiquetó los componentes todavía. Se dice cuál de las dos cosas es.
+    partes.push(
+      "DE/A: no hay ningún componente etiquetado en el dibujo, así que no se puede decir a qué llega ningún conductor — etiquételos con AETAG",
+    );
+    return partes;
+  }
+
+  const muestra = reporte.connections.slice(0, DE_A_VISIBLES).map(cadFormatWireConnection);
+  const resto = reporte.connections.length - muestra.length;
+  partes.push(
+    `DE/A: ${muestra.join("; ")}${resto > 0 ? `; y ${resto} más` : ""}`,
+  );
+
+  if (reporte.loose.length === 0)
+    partes.push(
+      `SUELTOS: ninguno · los ${reporte.connections.length} conductor(es) rematan en un componente`,
+    );
+  else {
+    const detalle = reporte.loose
+      .slice(0, SUELTOS_VISIBLES)
+      .flatMap((conexion) =>
+        [conexion.from, conexion.to]
+          .filter((extremo) => extremo.tag === null)
+          .map((extremo) => cadFormatLooseEnd(conexion, extremo, unit)),
+      )
+      .join("; ");
+    const mas = reporte.loose.length - Math.min(reporte.loose.length, SUELTOS_VISIBLES);
+    partes.push(
+      `SUELTOS: ${reporte.loose.length} de ${reporte.connections.length} conductor(es) · ${detalle}${mas > 0 ? `; y ${mas} más` : ""}`,
+    );
+  }
+
+  if (reporte.withoutRun.length > 0)
+    partes.push(
+      `${reporte.withoutRun.length} marcado(s) como conductor sin recorrido que medir: ${reporte.withoutRun
+        .slice(0, 3)
+        .join(", ")}`,
+    );
+
+  partes.push(cadWireLinkCriterion(unit));
+  return partes;
+}
+
 const wireListCommand: CadCommandDescriptor<never> = {
   name: "AEWIRELIST",
   aliases: ["LISTACONDUCTORES"],
@@ -266,6 +360,7 @@ const wireListCommand: CadCommandDescriptor<never> = {
           .map((defecto) => `${defecto.entityId} ${defecto.reason}`)
           .join("; ")}`,
       );
+    partes.push(...deA(view, context.unit));
     return say(`AEWIRELIST — ${partes.join(" · ")}.`);
   },
   step: (state) => ({

@@ -3262,6 +3262,50 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "VALLE-DESIGN-SUPERAR-AUTOCAD-20260904",
+      "date": "2026-09-04",
+      "initiative": "Campaña «Superar a AutoCAD completo» (encargo escrito del titular, 2026-09-04), con su mapa de brechas contra AutoCAD 2027 y sus siete toolsets. Una entrada por campaña, ampliada ventana a ventana. · C0 — CORTE INICIAL. Medido ANTES de tocar nada, sobre 25898dc6: `npm run typecheck` 8/8 tareas en 52 s y `npm test` 576/576 specs verdes en 7/7 tareas; rúbrica 232/271 (85.6 %) en alcance DESTINO y 176/197 (89.3 %) en alcance HOY, con 5 pt de evidencia independiente y 29 filas —no 25, como decía el encargo— reteniendo 1 pt por carecer de evidencia ajena. Los criterios ABIERTOS son siete y suman 10 pt: estrés de edición densa a 100k, architecture@100k a SLO y kernel WASM enchufado (los tres del frente de velocidad); corpus DXF de terceros autorizado (evidencia independiente); vectorización de escaneos (Raster Design); la integración DWG en runtime, que NO se toca porque depende de la firma del titular; y el puente .NET/VBA, declarado imposible. Los 29 puntos restantes hasta los 39 del encargo no son criterios abiertos sino filas que retienen su último punto por evidencia propia, y sólo suben con material ajeno. · DOS LÍMITES DEL ENTORNO, ANOTADOS EN VEZ DE FINGIDOS: la máquina tiene 4 CPU, así que el techo de agentes concurrentes es dos y los once frentes avanzan en tres tandas (F1-F4, F5-F8, F9-F11) con ventana de integración entre ellas —R8 se cumple en su intención, no en su cifra—; y la política de egreso sólo deja pasar GitHub (raw.githubusercontent.com responde 200, la web general 403), así que el corpus ajeno y los oráculos binarios sólo pueden venir de ahí, y lo que no se pueda instalar se declara con el intento y el motivo en lugar de etiquetarse como hecho. · PROTOCOLO ESCRITO ANTES DE ABRIR UN SOLO FRENTE, porque este repositorio ya vivió lo contrario (claves JSON duplicadas que apagaron tres gates, 74 ramas huérfanas, dos sesiones pintando el mismo archivo): once árboles de trabajo `git worktree` con rama propia desde el mismo corte, territorio exclusivo por frente, archivos compartidos reservados al coordinador —rúbrica, ESCALERA, presupuestos, CI, esquema del documento canónico— y un archivo de peticiones por frente para lo que caiga fuera de su territorio. · VENTANA DE INTEGRACIÓN 1 (F1 DWG, F2 velocidad, F3 3D, F4 express). Integrados uno a uno con la suite completa DESPUÉS DE CADA UNO: 576/576 al abrir, 593/593 al cerrar. 28 agentes, 0 errores. Aplicadas 19 de 23 peticiones de archivos compartidos. · TRES CIFRAS DEL ENCARGO QUE ESTABAN MAL Y QUEDAN CORREGIDAS: los «243 comandos, 243 alcanzables» eran 274 al cortar la rama y hoy son 291, todos alcanzables con el ratón y con 0 éxitos falsos; las «25 filas que retienen 1 pt» eran 29; y las «39 brechas» son en realidad 10 pt de criterios abiertos más 29 filas que retienen su último punto por evidencia propia, que ninguna campaña cierra porque las cierra material ajeno. · UN CRITERIO ABIERTO CERRADO SIN QUE LA PUNTUACIÓN SE MUEVA: el kernel WASM quedó enchufado y su criterio VERIFICA, pero la fila sigue en 1/2 y el total en 232/271 porque su último punto lo retiene la falta de evidencia independiente. Es exactamente lo que una rúbrica honesta debe poder mostrar. · DOS TRINQUETES QUE SE ESTABAN AGOTANDO EN SILENCIO, encontrados al perseguir un CI rojo y corregidos sin tocar un solo umbral: (a) `/plantillas` medía 362,5 KB contra un techo de 356,5; midiendo los dos lados por separado resultó que main solo daba 355,1 y la rama sola 355,0 sobre un corte común de 347,6 —ninguno agotó la holgura solo—, y la causa real llevaba ahí desde el PR #127: la tarjeta del explorador pedía tres constantes y una división desde un módulo que arrastra `CAD_ENTITY_REGISTRY`, así que una página pública de miniaturas viajaba con el registro de entidades dentro. Extraído a `template-svg-size.ts`: 285,6 KB en 19 chunks, y el techo APRETADO de 356,5 a 294,2. (b) `Layout3DEditor.tsx` quedó a UNA línea de su asignación (18.453 de 18.454) y se deja escrito para que el siguiente extraiga antes de añadir. · UNA REGRESIÓN PROPIA CAZADA POR UN GOLDEN ANTERIOR A LA CAMPAÑA: al aceptar pies y pulgadas por teclado, `assumeInches` viajaba a TODA coordenada y `LUNITS` 3 o 4 lo enciende, así que en un dibujo en milímetros teclear `42` pasó a valer 1066,8 y el punto se iba a otro sitio en silencio. El golden 46 lo cazó; el golden no se tocó, se arregló el código, y la guarda deja `assumeInches` viajando sólo con marcas imperiales. · TRES CORRECCIONES A AFIRMACIONES DE LOS PROPIOS FRENTES, hechas por ellos o por el coordinador: F1 retiró tres afirmaciones suyas sobre un `check:cad` en rojo tras medirlas y documentó por qué se engañó (corrió `git stash -u` con el árbol ya limpio); el grupo A desmintió con una sonda que las cinco Express Tools «mutan con efecto verificado» —cuatro declaran su límite—; y el coordinador concluyó «el rojo de E2E no es de este PR» mirando un fragmento de tres, cuando dos de ellos eran regresiones propias. Las tres quedan escritas donde se cometieron. · LÍMITE QUE NO SE MOVIÓ: ningún lector ajeno ha abierto un archivo del writer DWG; `externalOracleVerified` sigue en false con 4 de 24 casos respaldados, y las dos banderas siguen apagadas, comprobado en el código y no en el texto.",
+      "branch": "claude/superar-autocad-coordinator-lwl3ul (coordinador) con once ramas campana/superar/<frente> que se integran en ella y nunca se publican por separado",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate, encargo escrito «PROMPT MAESTRO — CAMPAÑA MULTI-SESIÓN «SUPERAR A AUTOCAD COMPLETO»» (2026-09-04) y su mapa «Valle Design contra AutoCAD completo — el mapa de brechas restantes», con sus reglas no negociables: territorios exclusivos, archivos compartidos sólo del coordinador, prohibido relajar gates, umbrales, goldens o presupuestos, prohibido tocar identificadores persistidos, fix-or-hide, ningún claim sin evidencia, y las banderas DWG apagadas hasta que él las firme.",
+      "firstPartyInputs": [
+        "El árbol completo en 25898dc6 y su suite: `npm run typecheck` y `npm test` corridos antes de crear el primer árbol de trabajo.",
+        "`docs/competitive/rubric.json` evaluado por `scripts/cad/rubric.mjs` con dependencias instaladas, del que salen las cifras del corte y la lista de criterios abiertos.",
+        "`docs/competitive/distancia-autocad-completo-20260903.md` y `docs/parity/ESCALERA.md` como estado declarado previo.",
+        "`AGENTS.md` e `IDENTITY.md` como reglas de la casa entregadas a cada frente.",
+        "Los logs de CI de las corridas 33880325982, 33884902506, 33891336919 y 33900325917, leídos entero a entero para separar cuatro rojos por causa.",
+        "docs/governance/assisted-development-log.json, entrada de la Ola 0, como prueba escrita de que `llamada-webrtc-real #4` ya constaba intermitente en main antes de esta campaña."
+      ],
+      "externalSources": [
+        "Ninguna en el corte inicial: C0 no consultó material ajeno. Las fuentes que los frentes usen se registran en su propia ventana, y el corpus ajeno sólo puede venir de GitHub con licencia clara y procedencia escrita."
+      ],
+      "externalImplementationConsulted": "Ninguna en el corte inicial.",
+      "derivedAreas": [
+        "docs/execution/CAMPANA_SUPERAR_20260904.md (bitácora del coordinador: corte medido, límites del entorno, tandas)",
+        "docs/execution/frentes/*.md (once fichas de frente con territorio, cola y cierre)",
+        "docs/execution/frentes/*-peticiones.md (once buzones para lo que cae fuera del territorio o en archivo compartido)",
+        "apps/web/src/lib/cad/template-svg-size.ts (nuevo: saca el registro de entidades de /plantillas)",
+        "apps/web/src/lib/brep/index.ts (shell y coplanar-merge fuera del barril, con el motivo medido)",
+        "apps/web/src/lib/cad/precision-input.ts y engine/input-pipeline.ts (la guarda de assumeInches)",
+        "apps/web/src/lib/cad/engine/{index,command-summaries,alias-table}.ts y ribbon.ts (16 órdenes nuevas)",
+        "scripts/perf/bundle-budget.json (dos techos BAJADOS con --write; ninguno subido)",
+        "docs/parity/ESCALERA.md (sección de la ventana 1 con sus «todavía no» fechados)",
+        "docs/adr/0009-dwg-promotion-package.md (§10, PROPUESTA sin firmar, con las banderas apagadas)"
+      ],
+      "fixtures": "Ninguno con datos ajenos en el corte inicial.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Línea base medida y escrita antes de abrir un frente: typecheck 8/8 en 52 s y 576/576 specs verdes sobre 25898dc6, con la rúbrica en 232/271. Esa cifra es la vara: tras integrar cada frente se vuelve a correr la suite completa, y el frente que la baje se revierte en vez de negociarse. · Ventana 1: 593/593 specs, typecheck 8/8, check:cad completo verde con VALLE_DWG_CORPUS_MIRROR, 291 comandos con 0 éxitos falsos y 291 de 291 alcanzables con el ratón, y ninguna ruta por encima de su presupuesto de bytes. Ningún umbral, golden ni presupuesto se relajó para llegar ahí: los dos techos que se tocaron BAJARON."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

@@ -27,6 +27,11 @@
  *   nada de snaps.
  */
 import { parseCoordinate, type Point } from "../precision-input";
+import {
+  cadTextLooksImperial,
+  parseCadLengthInDrawingUnits,
+  type CadDrawingUnit,
+} from "../units-imperial";
 import type { SnapType } from "../snap-engine";
 import {
   isCadUcsPlanar,
@@ -102,6 +107,14 @@ export interface CadTokenContext {
    * pone la acotación del plano que el dibujante tiene delante.
    */
   ucs?: CadNamedUcs;
+  /**
+   * Unidad del documento. `10'-6"` son 3200.4 en un dibujo en milímetros y
+   * 126 en uno en pulgadas. Sin declararla se supone la pulgada, que es lo
+   * que AutoCAD hace cuando el dibujo no dice su unidad.
+   */
+  drawingUnit?: CadDrawingUnit;
+  /** Si un número DESNUDO se lee en pulgadas (`LUNITS` 3 o 4). */
+  assumeInches?: boolean;
 }
 
 /**
@@ -111,8 +124,6 @@ export interface CadTokenContext {
  * estructurista— sin tener que restituir el SCU universal y volver.
  */
 const WORLD_COORDINATE_PREFIX = "*";
-
-const NUMBER = /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i;
 
 function accepts(mask: CadInputMask | undefined, flag: number): boolean {
   return ((mask ?? 0) & flag) !== 0;
@@ -166,8 +177,22 @@ export function resolveCadToken(raw: string, context: CadTokenContext): CadResol
   }
 
   // 5. Número suelto: distancia, o entrada directa sobre la dirección actual.
-  if (NUMBER.test(token)) {
-    const value = Number(token);
+  // La distancia se lee con el analizador de longitudes, no con `Number`:
+  // `3000` y `10'-6"` son las dos formas de teclear la misma distancia, y
+  // la segunda es la única que un despacho americano usa.
+  // Un número DESNUDO son unidades de dibujo, siempre: `assumeInches` sólo
+  // viaja cuando el texto lleva marcas imperiales, donde ya sobra. Sin la
+  // guarda, `LUNITS` 3 o 4 convertía cada distancia tecleada —`42` valía
+  // 1066.8 en un dibujo en milímetros— y el golden 46 lo cazó. El motivo
+  // largo está en `precision-input.ts`, junto a la misma guarda.
+  const typedLength = parseCadLengthInDrawingUnits(token, {
+    drawingUnit: context.drawingUnit ?? "in",
+    ...(context.assumeInches !== undefined && cadTextLooksImperial(token)
+      ? { assumeInches: context.assumeInches }
+      : {}),
+  });
+  if (typedLength.ok) {
+    const value = typedLength.value;
     if (accepts(context.accepts, CAD_ACCEPT_DISTANCE))
       return { kind: "input", input: { kind: "distance", value } };
     if (accepts(context.accepts, CAD_ACCEPT_POINT) && context.lastPoint && context.cursor) {
@@ -200,7 +225,11 @@ export function resolveCadToken(raw: string, context: CadTokenContext): CadResol
     // medido sobre los ejes del sistema de trabajo, y sumarlo en coordenadas
     // del mundo giraría el incremento respecto de lo que se acaba de teclear.
     const last = ucs && context.lastPoint ? worldToUcs(context.lastPoint, ucs) : context.lastPoint;
-    const parsed = parseCoordinate(body, { last: last ?? null });
+    const parsed = parseCoordinate(body, {
+      last: last ?? null,
+      ...(context.drawingUnit ? { drawingUnit: context.drawingUnit } : {}),
+      ...(context.assumeInches ? { assumeInches: true } : {}),
+    });
     if (parsed.ok) {
       const point = ucs ? ucsToWorld(parsed.point, ucs) : parsed.point;
       return { kind: "input", input: { kind: "point", point, source: "typed" } };

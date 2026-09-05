@@ -6,6 +6,11 @@ import { cadCommandEngineReduce, EMPTY_CAD_COMMAND_ENGINE } from "./command-engi
 import type { CadCommandContext } from "./command-types";
 import { cadCurrentPresentation, cadWithCurrentPresentation } from "./current-presentation";
 
+// Las implementaciones de los comandos llegan a demanda en el navegador
+// (`engine/lazy-commands.ts`). Un `.spec.ts` se carga como CommonJS y no puede
+// esperarlas con `await`, así que las trae de golpe con este import estático.
+import "@/lib/cad/engine/all-commands";
+
 /**
  * CECOLOR, CELTYPE y CELWEIGHT llegan a lo que se DIBUJA (Ola D, 2026-09-02).
  *

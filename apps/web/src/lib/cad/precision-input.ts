@@ -4,6 +4,12 @@
  * Pure geometry helpers used by the command registry and by the line-engineering
  * editor. Coordinates are expressed in the active layout footprint unit.
  */
+import {
+  cadTextLooksImperial,
+  parseCadLengthInDrawingUnits,
+  type CadDrawingUnit,
+} from "./units-imperial";
+
 export interface Point {
   x: number;
   y: number;
@@ -15,6 +21,14 @@ export type CoordMode =
 export interface ParseContext {
   last?: Point | null;
   lockedAngleDeg?: number | null;
+  /**
+   * Unidad del documento. `10'-6"` son 3200.4 en un dibujo en milímetros y
+   * 126 en uno en pulgadas. Sin declararla se supone la pulgada, que es lo
+   * que AutoCAD hace cuando el dibujo no dice su unidad.
+   */
+  drawingUnit?: CadDrawingUnit;
+  /** Si un número DESNUDO se lee en pulgadas (`LUNITS` 3 o 4). */
+  assumeInches?: boolean;
 }
 
 export type ParseResult =
@@ -42,7 +56,45 @@ export function polarPoint(origin: Point, dist: number, deg: number): Point {
   };
 }
 
-function num(s: string): number | null {
+/**
+ * Borrar TODOS los espacios rompe las fracciones, y las rompe en silencio:
+ * `1'-6 1/2"` queda `1'-61/2"`, que también se lee —`61/2` es una fracción
+ * impropia legal— y da 42.5" en vez de 18.5". Un número equivocado que
+ * nadie ve es peor que un rechazo. Se colapsan los espacios a uno y se
+ * quitan sólo los que rodean a los separadores estructurales, que es lo
+ * único que el borrado conseguía de útil (`1 , 2`, `30 < 45`, `@ 10,20`).
+ */
+function normalizeCoordinateInput(raw: string): string {
+  return raw.trim().replace(/\s+/gu, " ").replace(/\s*([,<@*])\s*/gu, "$1");
+}
+
+/**
+ * Una LONGITUD tecleada, en unidades de dibujo. Acepta pies y pulgadas.
+ *
+ * UN NÚMERO DESNUDO SON UNIDADES DE DIBUJO, SIEMPRE. `assumeInches` sólo se
+ * reenvía cuando el texto LLEVA marcas imperiales, donde además es
+ * irrelevante porque las marcas ya dicen la unidad. Sin esa guarda, encender
+ * `LUNITS` 3 o 4 reinterpretaba toda coordenada tecleada: en un dibujo en
+ * milímetros, `42` pasaba a valer 1066.8 —medido— y el punto se iba a otro
+ * sitio. Lo cazó el golden 46, que mide 0,0 → 42,0 con unidades
+ * arquitectónicas y espera `3'-6"`; ese golden es anterior a esta campaña y
+ * codifica el contrato: cambiar el FORMATO en que se escribe una medida no
+ * cambia lo que significa un número al teclearlo.
+ */
+function num(s: string, ctx: ParseContext = {}): number | null {
+  const parsed = parseCadLengthInDrawingUnits(s, {
+    // Sin unidad declarada, una unidad de dibujo es una pulgada: es la
+    // suposición de AutoCAD y deja `6"` valiendo 6, no 152.4.
+    drawingUnit: ctx.drawingUnit ?? "in",
+    ...(ctx.assumeInches !== undefined && cadTextLooksImperial(s)
+      ? { assumeInches: ctx.assumeInches }
+      : {}),
+  });
+  return parsed.ok ? parsed.value : null;
+}
+
+/** Un ÁNGULO tecleado. En grados, y por tanto sin unidades de dibujo. */
+function angleNum(s: string): number | null {
   if (s.trim() === "") return null;
   const n = Number(s.trim());
   return Number.isFinite(n) ? n : null;
@@ -52,7 +104,7 @@ export function parseCoordinate(
   raw: string,
   ctx: ParseContext = {},
 ): ParseResult {
-  const input = raw.trim().replace(/\s+/g, "");
+  const input = normalizeCoordinateInput(raw);
   if (input === "") return { ok: false, error: "Vacío" };
 
   const relative = input.startsWith("@");
@@ -60,8 +112,11 @@ export function parseCoordinate(
 
   if (body.includes("<")) {
     const [dStr, aStr] = body.split("<");
-    const d = num(dStr);
-    const a = num(aStr);
+    const d = num(dStr, ctx);
+    // El ángulo NO pasa por el analizador de longitudes: `30<45` son treinta
+    // unidades a cuarenta y cinco GRADOS, y convertir el 45 a unidades de
+    // dibujo giraría la línea.
+    const a = angleNum(aStr);
     if (d === null || a === null)
       return { ok: false, error: "Polar inválido (usa dist<áng, ej. 30<45)" };
     if (relative) {
@@ -85,12 +140,12 @@ export function parseCoordinate(
 
   if (body.includes(",")) {
     const [xStr, yStr, zStr, ...rest] = body.split(",");
-    const x = num(xStr);
-    const y = num(yStr);
+    const x = num(xStr, ctx);
+    const y = num(yStr, ctx);
     // La tercera componente es la COTA (Ola C, 2026-09-02): `0,0,3000` es el
     // pilar de tres metros y `@0,0,3000` sube desde el último punto. Antes se
     // ignoraba en silencio y el punto caía al suelo.
-    const z = zStr === undefined ? null : num(zStr);
+    const z = zStr === undefined ? null : num(zStr, ctx);
     if (x === null || y === null || (zStr !== undefined && z === null) || rest.length > 0)
       return { ok: false, error: "Coordenada inválida (usa x,y o x,y,z)" };
     if (relative) {
@@ -109,7 +164,7 @@ export function parseCoordinate(
     return { ok: true, point: { x, y, ...(z !== null ? { z } : {}) }, mode: "absolute" };
   }
 
-  const d = num(body);
+  const d = num(body, ctx);
   if (d !== null) {
     if (
       ctx.last &&
@@ -129,6 +184,16 @@ export function parseCoordinate(
     };
   }
 
+  // Cuando el texto SÍ parecía una medida imperial, el rechazo dice por qué en
+  // vez de quedarse mudo: `1'2'` no es «no se pudo interpretar», es una medida
+  // con dos marcas de pie.
+  if (cadTextLooksImperial(body)) {
+    const measured = parseCadLengthInDrawingUnits(body, {
+      drawingUnit: ctx.drawingUnit ?? "in",
+      ...(ctx.assumeInches === undefined ? {} : { assumeInches: ctx.assumeInches }),
+    });
+    if (!measured.ok) return { ok: false, error: measured.error };
+  }
   return { ok: false, error: "No se pudo interpretar la entrada" };
 }
 

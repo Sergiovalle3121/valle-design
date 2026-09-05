@@ -28,6 +28,11 @@ import type { CadCommandContext } from "@/lib/cad/engine/command-types";
 import { executeCadEntityCommandBatch } from "@/lib/cad/entity-commands";
 import { createCadLispAttachment } from "./use-lisp";
 
+// Las implementaciones de los comandos llegan a demanda en el navegador
+// (`engine/lazy-commands.ts`). Un `.spec.ts` se carga como CommonJS y no puede
+// esperarlas con `await`, así que las trae de golpe con este import estático.
+import "@/lib/cad/engine/all-commands";
+
 let checks = 0;
 function ok(condition: unknown, message: string): void {
   assert.ok(condition, message);

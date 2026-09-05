@@ -207,6 +207,8 @@ test("un objeto ACIS se proyecta opaco, con su nombre de clase real como sourceT
         attributes: undefined,
         vertices: undefined,
         sequenceEndHandle: undefined,
+        // El espacio que el archivo declara; este registro es de model space.
+        space: "model" as const,
       },
     ],
     insunits: 4,

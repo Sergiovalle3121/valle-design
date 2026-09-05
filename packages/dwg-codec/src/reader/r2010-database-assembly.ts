@@ -108,6 +108,7 @@ import {
   locateR2010StringStream,
   readR2010ObjectName,
 } from "./r2010-string-stream.js";
+import { spaceOfEntityMode } from "./database-assembly-records.js";
 import type {
   Ac1015DatabaseBlock,
   Ac1015DatabaseEntityRecord,
@@ -382,6 +383,10 @@ export function assembleR2010Database(
       attributes: undefined,
       vertices: undefined,
       sequenceEndHandle: undefined,
+      // El espacio que el archivo declara, REPORTADO desde el 2026-09-04: el
+      // camino R2010+ usa el mismo criterio de modo que el AC1015, así que
+      // comparte la función en vez de repetir los dos números aquí.
+      space: spaceOfEntityMode(shape.entityMode),
     };
     // El puntero al BLOCK_RECORD de un INSERT es el PRIMER handle posterior a
     // la cabeza común — la misma posición que el gemelo AC1015 lee justo tras

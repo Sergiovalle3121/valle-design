@@ -128,11 +128,27 @@ test("DATAEXTRACTION Superficies y carPintería insertan los dos cuadros con el 
 
   const superficies = tables.find((table) => table.insertion.y === 4_000);
   expect(superficies, "el cuadro de superficies está en (9000, 4000)").toBeTruthy();
-  expect(cellTexts(superficies!, 1)).toEqual(["Local", "Uso", "Área a ejes (m²)", "Área útil (m²)", "Perímetro (m)"]);
+  expect(cellTexts(superficies!, 1)).toEqual(["Local", "Uso", "Área a ejes (m²)", "Área útil (m²)", "Área construida (m²)", "Perímetro (m)"]);
   // De mayor a menor área: la recámara (4 × 4 = 16 m²) y el baño (2 × 4 = 8 m²),
   // cada uno con el nombre de su rótulo y el uso que el clasificador reconoce.
   expect(cellTexts(superficies!, 2).slice(0, 3)).toEqual(["RECÁMARA", "Recámara", "16.00"]);
   expect(cellTexts(superficies!, 3).slice(0, 3)).toEqual(["BAÑO", "Baño", "8.00"]);
+
+  // La columna «construida» se comprueba, no sólo se le deja sitio en la cabecera.
+  // Una columna que nadie aserta es una columna que puede salir vacía sin que el
+  // golden se entere, y la campaña añadió ésta porque una licencia se calcula
+  // sobre la construida. Aquí NO se fijan sus cifras —las fija su spec unitario,
+  // que mide un local de 4 × 3 con muros de 200: útil 10.64, construida 13.44— y
+  // sí la invariante que ningún cambio de números puede romper sin estar mal:
+  // el muro perimetral cuenta por fuera en la construida y se descuenta en la
+  // útil, así que construida > a ejes > útil, en los dos locales.
+  for (const fila of [2, 3]) {
+    const celdas = cellTexts(superficies!, fila);
+    const [ejes, util, construida] = [celdas[2], celdas[3], celdas[4]].map(Number);
+    expect(Number.isFinite(util) && Number.isFinite(construida), `fila ${fila} sin cifras: ${JSON.stringify(celdas)}`).toBe(true);
+    expect(construida, `construida debe pasar de la de ejes en la fila ${fila}: ${JSON.stringify(celdas)}`).toBeGreaterThan(ejes);
+    expect(util, `útil debe quedar por debajo de la de ejes en la fila ${fila}: ${JSON.stringify(celdas)}`).toBeLessThan(ejes);
+  }
 
   const carpinteria = tables.find((table) => table.insertion.y === 1_000);
   expect(carpinteria, "el cuadro de carpintería está en (9000, 1000)").toBeTruthy();

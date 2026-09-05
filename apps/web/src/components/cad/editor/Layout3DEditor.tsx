@@ -172,6 +172,11 @@ import {
   cadSnapSceneAddEntities,
   cadSnapSceneFromBoxes,
 } from "@/lib/cad/snap-scene";
+// El parser de PDF entraba por AQUÍ además de por el registro de comandos; ahora
+// llega por `pdf/lazy.ts` si el plano trae sustrato. Ver su cabecera.
+import { cadEntityCarriesPdfUnderlay } from "@/lib/cad/pdf/underlay-key";
+import { cadPdfSnapIfLoaded, loadCadPdfSnap } from "@/lib/cad/pdf/lazy";
+import type { CadPdfSnapGeometryResult } from "@/lib/cad/pdf/pdf-snap-geometry";
 import { detectCadFormat } from "@/components/cad/interop/cad-format-detect";
 import type { PlotLayout } from "@/components/cad/plot/plot-scale";
 import { createHistoryItem as createCadHistoryItem } from "@/lib/cad/commands/history";
@@ -1889,6 +1894,17 @@ export default function Layout3DEditor({
     null,
   );
   const loadedCadDocumentRef = useRef<CadDocument | null>(null);
+  /**
+   * La geometría enganchable de cada sustrato de PDF, ya extraída.
+   *
+   * La clave es la firma de la LÁMINA —colocación, vectores, tamaño, recorte y
+   * estado—, no el id: así, mover el sustrato con PDFSCALE o recortarlo con
+   * PDFCLIP invalida la entrada por sí solo, sin que nadie tenga que acordarse
+   * de vaciarla desde el manejador de esas órdenes.
+   */
+  const pdfSnapGeometryRef = useRef(
+    new Map<string, { firma: string; geometria: CadPdfSnapGeometryResult }>(),
+  );
   const nativeSelectionIdsRef = useRef<string[]>([]);
   const professionalSelectionRef =
     useRef<CadSelectionState>(EMPTY_CAD_SELECTION);
@@ -2789,6 +2805,9 @@ export default function Layout3DEditor({
           })),
         );
         setPublicationRecords([...loadedCadDocumentRef.current.publications]);
+        // El parser se adelanta si el documento trae sustrato de verdad.
+        if (loadedCadDocumentRef.current.entities.some(cadEntityCarriesPdfUnderlay))
+          void loadCadPdfSnap();
         // El canje del review link NO vive aquí: ver el efecto de montaje
         // `redeemReviewLink`. Colgarlo de esta rama lo ataba a que el
         // documento canónico cargara, y un invitado que llega con un enlace
@@ -6507,6 +6526,52 @@ export default function Layout3DEditor({
           nativeCandidates,
           anchor ?? { x: wx, y: wy },
         );
+        // El sustrato de PDF: se calca encima, así que sus esquinas y sus
+        // puntos medios tienen que imantar igual que los de una polilínea del
+        // documento. Un sustrato descargado no aporta nada y lo declara él
+        // mismo.
+        const documentoVivo = loadedCadDocumentRef.current;
+        const memoriaPdf = pdfSnapGeometryRef.current;
+        // PDFDETACH deja la entrada huérfana. Si el mapa tiene más entradas que
+        // sustratos, se vacía entero: es un mapa de unidades, no de miles, y
+        // vaciarlo cuesta menos que llevar la cuenta desde cada manejador. El
+        // recuento sólo se paga cuando ya hay algo que retirar.
+        if (memoriaPdf.size > 0) {
+          let laminas = 0;
+          for (const e of documentoVivo?.entities ?? [])
+            if (e.type === "image") laminas += 1;
+          if (memoriaPdf.size > laminas) memoriaPdf.clear();
+        }
+        const pdf = cadPdfSnapIfLoaded();
+        for (const entidad of documentoVivo?.entities ?? []) {
+          if (entidad.type !== "image") continue;
+          // Sin ficha no hay sustrato. Con ficha y sin parser se pide una vez y
+          // se sale: hasta que llegue, el sustrato no imanta y el resto sí.
+          if (!cadEntityCarriesPdfUnderlay(entidad)) continue;
+          if (!pdf) { void loadCadPdfSnap(); break; }
+          const ficha = pdf.cadPdfUnderlayOf(entidad);
+          if (!ficha || ficha.status !== "loaded") continue;
+          const bytes = pdf.cadPdfBytesFromDataUri(ficha.uri);
+          // Una ruta que no es `data:` —`tenant-asset://`, el día que haya
+          // almacén— se salta: resolverla es petición de anfitrión (P-express-01)
+          // y leerla aquí metería una espera en el camino del ratón.
+          if (!bytes) continue;
+          const firma = JSON.stringify([
+            entidad.insertion, entidad.uVector, entidad.vVector, entidad.size,
+            entidad.clipBoundary ?? null, entidad.showImage !== false, ficha.page,
+          ]);
+          const guardado = memoriaPdf.get(entidad.id);
+          const geometria =
+            guardado?.firma === firma
+              ? guardado.geometria
+              : pdf.cadPdfSnapGeometry(documentoVivo!, entidad.id, bytes);
+          if (guardado?.firma !== firma)
+            memoriaPdf.set(entidad.id, { firma, geometria });
+          // La ventana por cursor no es adorno: `resolveOsnap` cruza los tramos
+          // entre sí buscando intersecciones, que es O(n²), y una lámina de
+          // arquitectura tiene miles.
+          pdf.cadPdfSnapSceneAdd(scene, geometria, { cursor: { x: wx, y: wy }, radius: tol * 8 });
+        }
         const hit = resolveOsnap({ x: wx, y: wy }, scene, {
           tolerance: tol,
           from: anchor,

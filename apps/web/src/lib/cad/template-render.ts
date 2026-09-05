@@ -24,12 +24,15 @@ import {
 } from "./collab/plan-projection";
 import { themeSurface, type ThemeName } from "../design/theme-colors";
 import type { CadTemplateDocumentResult } from "./template-document";
+// Las constantes de la lámina y el cálculo del tamaño viven en su propio módulo
+// para que las tarjetas del explorador puedan pedirlos SIN arrastrar
+// `plan-projection` y, con él, el registro de entidades entero. El porqué,
+// medido en bytes, está escrito en `template-svg-size.ts`. Se consumen desde
+// aquí para que el tamaño que declara la tarjeta y el que pinta el SVG no
+// puedan separarse.
+import { PLAN_MARGIN_PX, SVG_WIDTH, TITLE_BLOCK_PX } from "./template-svg-size";
 
-const SVG_WIDTH = 1200;
-/** Alto del cajetín en px del SVG. */
-const TITLE_BLOCK_PX = 76;
-/** Margen del plano dentro del lienzo. */
-const PLAN_MARGIN_PX = 36;
+export { cadTemplateSvgSize } from "./template-svg-size";
 
 function escapeXml(value: string): string {
   return value
@@ -170,21 +173,4 @@ export function renderCadTemplateSvg(
 /** Entidades de texto del documento (para la ficha de la plantilla). */
 export function cadTemplateNotes(entities: readonly CadEntity[]): string[] {
   return entities.flatMap((entity) => (entity.type === "text" ? [entity.text] : []));
-}
-
-/**
- * Dimensiones del SVG SIN construir el documento: la misma aritmética que usa
- * `renderCadTemplateSvg`. Existe para que las tarjetas declaren width/height
- * exactos (CLS 0) sin pagar una construcción de documento por tarjeta.
- */
-export function cadTemplateSvgSize(
-  footprintW: number,
-  footprintH: number,
-  width = SVG_WIDTH,
-): { width: number; height: number } {
-  const scale = (width - PLAN_MARGIN_PX * 2) / footprintW;
-  return {
-    width,
-    height: Math.round(footprintH * scale + PLAN_MARGIN_PX * 2 + TITLE_BLOCK_PX),
-  };
 }

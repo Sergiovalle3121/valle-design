@@ -3367,7 +3367,7 @@
       "scope": "destino",
       "name": "Toolset MEP (mitad 2D)",
       "points": 4,
-      "gap": "La mitad 2D existe como contenido sobre el mismo motor (Ola F, 2026-09-02): PIPE por servicio con su tipo de línea con texto, DUCT y CABLETRAY a doble línea con esquinas a inglete, MEPSYMBOL con ocho bloques y el cuadro de instalaciones en la lámina. La mitad 3D —ruteo con colisiones, diámetros por especificación— queda fuera y se dice en ESCALERA.",
+      "gap": "La mitad 2D existe como contenido sobre el mismo motor (Ola F, 2026-09-02): PIPE por servicio con su tipo de línea con texto, DUCT y CABLETRAY a doble línea con esquinas a inglete, MEPSYMBOL con ocho bloques y el cuadro de instalaciones en la lámina. La cota está en las tres órdenes desde la ventana 2 de la campaña (2026-09-04): «Elevación» mete el montante en su sitio, cada vértice lleva su z, el cuadro mide en TRES dimensiones —un montante de 2 m sumaba cero metros— y las corridas se miden contra muros, huecos y sólidos del propio dibujo por distancia exacta. Queda fuera el diámetro por especificación —el catálogo es del proyecto y no se transcribe ninguno— y el canto del ducto, que el formato no guarda: la holgura vertical de un ducto es la de su ancho, y se dice.",
       "criteria": [
         {
           "id": "toolset-mep.trazado",
@@ -3406,6 +3406,10 @@
             {
               "kind": "golden",
               "path": "apps/web/e2e/golden/81-cad-instalaciones.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/plant/clash.spec.ts"
             }
           ]
         },
@@ -3548,8 +3552,39 @@
           "costDays": null,
           "evidence": [
             {
-              "kind": "todaviaNo",
-              "reason": "No hay vectorización."
+              "kind": "command",
+              "name": "VECTORIZE"
+            },
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/raster-decode.ts",
+              "minLines": 400
+            },
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/raster-vectorize.ts",
+              "minLines": 400
+            },
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/raster-text-recognize.ts",
+              "minLines": 400
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/raster-decode.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/raster-vectorize.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/raster-text-recognize.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/vectorize-raster.spec.ts"
             }
           ]
         }
@@ -3701,7 +3736,7 @@
       "scope": "destino",
       "name": "Toolset Plant 3D",
       "points": 4,
-      "gap": "EN ALCANCE desde la Ola 6 (2026-09-03): el titular retiró la marca de «fuera de alcance». Lo que hay: el número de línea (6\"-P-1001-CS150) con su correlativo sacado del dibujo; un catálogo de SEIS equipos dibujados desde primitivas que nacen CON su etiqueta; la lista de líneas con el METRADO medido sobre el plano —que un P&ID de AutoCAD no puede dar porque no está a escala—; el RUTEO EN 3D con cota, donde cambiar de elevación mete el montante solo y la especificación viaja con la ruta; los accesorios DEDUCIDOS de la geometría (codo, te y reducción), que no se desincronizan porque no se guardan; la lista de materiales sacada del modelo; y el ISOMÉTRICO con las longitudes verdaderas rotuladas, su norte, su cuadro de materiales y su HOJA con ventana, todo en un paso de deshacer. Lo que NO hay, y por eso la fila retiene su punto: catálogo de fabricante (espesor, diámetro exterior, peso, clave de compra y precio: están en normas y catálogos con dueño y no se transcribe ninguno), sólido de tubería con su diámetro real en el visor 3D —la ruta es el eje—, detección de choques contra estructura, y salida en el formato de ISOGEN. Toda la evidencia es propia.",
+      "gap": "EN ALCANCE desde la Ola 6 (2026-09-03): el titular retiró la marca de «fuera de alcance». Lo que hay: el número de línea (6\"-P-1001-CS150) con su correlativo sacado del dibujo; un catálogo de SEIS equipos dibujados desde primitivas que nacen CON su etiqueta; la lista de líneas con el METRADO medido sobre el plano —que un P&ID de AutoCAD no puede dar porque no está a escala—; el RUTEO EN 3D con cota, donde cambiar de elevación mete el montante solo y la especificación viaja con la ruta; los accesorios DEDUCIDOS de la geometría (codo, te y reducción), que no se desincronizan porque no se guardan; la lista de materiales sacada del modelo; y el ISOMÉTRICO con las longitudes verdaderas rotuladas, su norte, su cuadro de materiales y su HOJA con ventana, todo en un paso de deshacer. Lo que NO hay, y por eso la fila retiene su punto: catálogo de fabricante (espesor, diámetro exterior, peso, clave de compra y precio: están en normas y catálogos con dueño y no se transcribe ninguno), salida en el formato de ISOGEN (propietario, sin especificación pública ni oráculo con el que comprobar una salida) y catálogo de fabricante. El sólido FACETADO de la tubería sale de la ruta con su diámetro NOMINAL y se ve en el visor 3D como cualquier solid3d; el diámetro EXTERIOR sigue sin salir —una 6\" mide más de 152,4 mm por fuera— y el catálogo del proyecto que lo daría NO existe todavía. Los choques contra muros, huecos y sólidos del propio dibujo se miden por distancia exacta segmento-caja, con la holgura OPTIMISTA que deja modelar el tubo macizo, sin grosor de pared ni aislamiento. Toda la evidencia es propia.",
       "criteria": [
         {
           "id": "toolset-plant3d.pid",
@@ -3760,6 +3795,14 @@
             {
               "kind": "file",
               "path": "apps/web/src/lib/cad/plant/pipe-mto.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/plant/clash.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/plant/pipe-solid.spec.ts"
             }
           ]
         }

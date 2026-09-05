@@ -11,9 +11,24 @@
  *
  * Devuelve arrays tipados TRANSFERIBLES: el resultado no se copia al volver, se
  * cede. Copiar un millón de flotantes por lote anularía la ganancia entera.
+ *
+ * ## Aquí es donde el kernel de curvas se enchufa al producto
+ *
+ * El teselado de arcos, círculos, elipses y splines lo hace
+ * `curve-kernel-tessellation.ts` por LOTES contra `lib/cad/wasm`; el resto sigue
+ * saliendo del registro de adaptadores. Y el BINARIO se calienta desde aquí, no
+ * desde el hilo principal, por dos razones: este es el hilo donde el teselado se
+ * paga de verdad en el navegador, y bajarlo aquí no le roba ni un cuadro al que
+ * atiende el ratón. Mientras la descarga viaja, el motor JavaScript sirve los
+ * lotes —misma geometría, más despacio—, que es la degradación que el fallback
+ * cerrado del kernel promete.
  */
-import { CAD_ENTITY_REGISTRY, type CadNativeEntity } from "../entity-runtime";
+import type { CadNativeEntity } from "../entity-runtime";
 import type { CadDocument } from "../cad-document";
+import {
+  tessellateCadEntitiesWithCurveKernel,
+  warmCadRenderCurveKernel,
+} from "./curve-kernel-tessellation";
 import { CAD_RENDER_ORIGIN_ZERO, type CadRenderOrigin } from "./render-origin";
 
 export interface CadTessellateWorkerRequest {
@@ -45,6 +60,13 @@ export interface CadTessellateWorkerResponse {
  * `Worker` no existe (Node, navegadores sin módulos en worker). Tener UNA
  * implementación evita que el camino de reserva se desvíe en silencio del
  * principal, que es como aparecen los fallos que sólo pasan en producción.
+ *
+ * Desde el cableado del kernel el cuerpo vive en
+ * `curve-kernel-tessellation.ts`: la firma, el orden de los resultados y la
+ * regla de omisión son los mismos, y con el motor por defecto —el de
+ * JavaScript— las coordenadas son las MISMAS, no unas parecidas. Esta función
+ * se queda como puerta porque es la que media docena de módulos y specs
+ * importan, y porque un `postMessage` no tiene dónde poner un kernel.
  */
 export function tessellateCadEntityBatch(
   entities: readonly CadNativeEntity[],
@@ -52,36 +74,12 @@ export function tessellateCadEntityBatch(
   document?: CadDocument,
   origin: CadRenderOrigin = CAD_RENDER_ORIGIN_ZERO,
 ): { results: CadTessellatedEntityPayload[]; transfer: ArrayBufferLike[] } {
-  const results: CadTessellatedEntityPayload[] = [];
-  const transfer: ArrayBufferLike[] = [];
-  for (let index = 0; index < entities.length; index += 1) {
-    const entity = entities[index];
-    if (!CAD_ENTITY_REGISTRY.supports(entity)) continue;
-    const paths: Float32Array[] = [];
-    const closed: boolean[] = [];
-    for (const path of CAD_ENTITY_REGISTRY.adapter(entity).renderer.paths(
-      entity,
-      Math.max(2, Math.floor(segments[index] ?? 32)),
-      document,
-    )) {
-      if (path.points.length < 2) continue;
-      const xy = new Float32Array(path.points.length * 2);
-      for (let point = 0; point < path.points.length; point += 1) {
-        // Misma resta, mismo motivo que `tessellateCadEntity` en
-        // `tessellation-cache.ts`: ANTES de tocar el Float32Array, en JS
-        // doubles. Las dos implementaciones son independientes (el worker no
-        // puede importar la del hilo principal) y tienen que restar el MISMO
-        // origen o el camino síncrono y el de worker divergirían en dónde
-        // aparece cada entidad.
-        xy[point * 2] = path.points[point].x - origin.x;
-        xy[point * 2 + 1] = path.points[point].y - origin.y;
-      }
-      paths.push(xy);
-      closed.push(path.closed);
-      transfer.push(xy.buffer);
-    }
-    results.push({ entityId: entity.id, paths, closed });
-  }
+  const { results, transfer } = tessellateCadEntitiesWithCurveKernel(
+    entities,
+    segments,
+    document,
+    origin,
+  );
   return { results, transfer };
 }
 
@@ -100,6 +98,11 @@ if (
   typeof workerScope.postMessage === "function" &&
   workerScope.document === undefined
 ) {
+  // Calentar el binario, sin esperarlo. El `catch` está por si el entorno ni
+  // siquiera tiene `fetch`: `warmCadRenderCurveKernel` ya devuelve el motor
+  // JavaScript ante cualquier fallo de red, así que llegar aquí significa que
+  // el worker no puede bajar NADA — y aun así tiene que seguir teselando.
+  void warmCadRenderCurveKernel().catch(() => undefined);
   workerScope.onmessage = (event) => {
     const request = event.data;
     try {

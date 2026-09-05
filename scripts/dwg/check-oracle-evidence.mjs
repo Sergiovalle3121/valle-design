@@ -40,7 +40,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { CASES } from "./oda-roundtrip-cases.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -69,11 +69,50 @@ const w = (line) => process.stdout.write(`${line}\n`);
  * público. Se deriva de `CASES` en vez de listarse aquí porque una lista
  * gemela se quedaría atrás en silencio la próxima vez que el writer aprenda
  * una clase — que es exactamente lo que le pasó a la evidencia.
+ *
+ * SE EXPORTA a propósito. El paquete de firma del encendido
+ * (`check-firma-package.mjs`) tiene que enumerar los mismos casos que este
+ * gate exige, y una segunda derivación —aunque hoy diera el mismo resultado—
+ * es la cifra viviendo en dos lugares que la regla 4 de la campaña prohíbe.
+ * Aquí está la única.
  */
-const esperados = CASES.flatMap((c) => [c.name, `${c.name}-publico`]);
+export function casosExigidos() {
+  return CASES.flatMap((c) => [c.name, `${c.name}-publico`]);
+}
+
+/**
+ * Cuánto de lo exigido respalda un reporte del oráculo, y qué falta con su
+ * motivo. Devuelve datos, no texto: quien llama decide cómo los enseña.
+ *
+ * Un caso cuenta sólo si el conversor AJENO lo convirtió Y la comparación
+ * campo a campo coincidió. Convertirlo sin cotejarlo no prueba nada: el
+ * conversor podría estar escribiendo un DXF vacío.
+ */
+export function coberturaDelOraculo(reporte) {
+  const casos = Array.isArray(reporte?.casos) ? reporte.casos : [];
+  const porNombre = new Map(casos.map((c) => [c.nombre, c]));
+
+  const aprobado = (nombre) => {
+    const c = porNombre.get(nombre);
+    if (!c) return { cubierto: false, motivo: "no está en el reporte" };
+    if (c.oraculo?.convertido !== true)
+      return { cubierto: false, motivo: "el oráculo no lo convirtió" };
+    if (c.comparacion?.coincide !== true)
+      return { cubierto: false, motivo: "la comparación campo a campo no coincide" };
+    return { cubierto: true };
+  };
+
+  const esperados = casosExigidos();
+  const faltan = [];
+  for (const nombre of esperados) {
+    const r = aprobado(nombre);
+    if (!r.cubierto) faltan.push({ nombre, motivo: r.motivo });
+  }
+  return { esperados, faltan, cubiertos: esperados.length - faltan.length };
+}
 
 /** El valor que declara el producto, leído del fuente sin ejecutarlo. */
-function leerBooleanoDelProducto() {
+export function leerBooleanoDelProducto() {
   const src = fs.readFileSync(FLAG_FILE, "utf8");
   const match = src.match(/externalOracleVerified:\s*(true|false)/);
   if (!match) {
@@ -100,25 +139,7 @@ function main() {
   }
 
   const reporte = JSON.parse(fs.readFileSync(EVIDENCE, "utf8"));
-  const casos = Array.isArray(reporte.casos) ? reporte.casos : [];
-  const porNombre = new Map(casos.map((c) => [c.nombre, c]));
-
-  const aprobado = (nombre) => {
-    const c = porNombre.get(nombre);
-    if (!c) return { cubierto: false, motivo: "no está en el reporte" };
-    if (c.oraculo?.convertido !== true)
-      return { cubierto: false, motivo: "el oráculo no lo convirtió" };
-    if (c.comparacion?.coincide !== true)
-      return { cubierto: false, motivo: "la comparación campo a campo no coincide" };
-    return { cubierto: true };
-  };
-
-  const faltan = [];
-  for (const nombre of esperados) {
-    const r = aprobado(nombre);
-    if (!r.cubierto) faltan.push(`${nombre} (${r.motivo})`);
-  }
-  const cubiertos = esperados.length - faltan.length;
+  const { esperados, faltan, cubiertos } = coberturaDelOraculo(reporte);
 
   w(`check-oracle-evidence: evidencia de ${path.relative(REPO_ROOT, EVIDENCE)}`);
   w(`  generada            : ${reporte.generadoEn ?? "(sin fecha)"}`);
@@ -128,7 +149,7 @@ function main() {
 
   if (faltan.length > 0) {
     w(`  SIN RESPALDO (${faltan.length}):`);
-    for (const f of faltan) w(`    - ${f}`);
+    for (const f of faltan) w(`    - ${f.nombre} (${f.motivo})`);
   }
 
   // SOBREAFIRMAR ES IMPOSIBLE: si el producto dice que sí y la evidencia no lo
@@ -173,4 +194,9 @@ function main() {
   w("  ✔ El producto afirma lo que la evidencia sostiene.");
 }
 
-main();
+// Corre como gate sólo cuando se le invoca directamente: importarlo para
+// reutilizar `casosExigidos` no debe ejecutar nada ni escribir en stdout.
+const invocadoDirectamente =
+  process.argv[1] !== undefined &&
+  pathToFileURL(process.argv[1]).href === import.meta.url;
+if (invocadoDirectamente) main();

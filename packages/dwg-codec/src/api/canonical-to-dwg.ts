@@ -4,13 +4,14 @@
  * de monolito. Es una unidad con sentido propio: la traducción de vuelta, con
  * sus pérdidas simétricas a las de la ida.
  */
-import type { DwgPoint3 } from "../model/entity-geometry.js";
+import type { DwgAttribEntity, DwgPoint3 } from "../model/entity-geometry.js";
 import type {
   CanonicalCadDocumentJson,
   CanonicalLossEntry,
   CanonicalToDwgEntity,
   CanonicalToDwgResult,
 } from "./canonical.js";
+import { canonicalPaperSpaceProjection } from "./canonical-paper.js";
 import {
   ANCLAJES_MEDIDOS,
   ANCLAJE_POR_ALINEACION,
@@ -37,6 +38,161 @@ const BLOQUEADAS_POR_EL_CANONICO: Readonly<Record<string, string>> = Object.free
     'El documento canónico no modela la directriz (LEADER) en absoluto: no hay nada que proyectar al writer. El decodificador sí la lee, así que la pérdida es de la ida al canónico, no de la lectura del archivo.',
 });
 
+
+/**
+ * La definición de trama que la entidad canónica trae, o `undefined` si no
+ * trae una utilizable.
+ *
+ * POR QUÉ SE VALIDA AQUÍ Y NO SE CONFÍA. `CanonicalCadDocumentJson.entities`
+ * es `Record<string, unknown>`: cualquiera puede poner cualquier cosa en
+ * `patternDefinition`. Una línea a medias no daría un patrón feo — daría un
+ * recuento que no cuadra con lo que sigue, y el cuerpo entero se
+ * desincroniza. Se acepta la forma COMPLETA o ninguna.
+ *
+ * Los ángulos vienen en RADIANES, como todos los del canónico. Es lo que el
+ * archivo lleva: el ANSI31 de los dos sombreados con trama del corpus
+ * admitido guarda 0.7853981633974483 en la línea de definición, y el DXF del
+ * oráculo del mismo bundle escribe 53 = 45.0 para esa misma línea.
+ */
+function canonicalHatchPattern(value: unknown):
+  | {
+      angle: number;
+      scale: number;
+      double: boolean;
+      lines: readonly {
+        angle: number;
+        basePoint: { x: number; y: number };
+        offset: { x: number; y: number };
+        dashes: readonly number[];
+      }[];
+    }
+  | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  const source = value as {
+    angle?: unknown;
+    scale?: unknown;
+    double?: unknown;
+    lines?: unknown;
+  };
+  if (
+    !Number.isFinite(source.angle) ||
+    !Number.isFinite(source.scale) ||
+    typeof source.double !== "boolean" ||
+    !Array.isArray(source.lines) ||
+    source.lines.length === 0
+  ) {
+    return undefined;
+  }
+  const lines = [];
+  for (const raw of source.lines as unknown[]) {
+    const line = raw as {
+      angle?: unknown;
+      basePoint?: { x?: unknown; y?: unknown };
+      offset?: { x?: unknown; y?: unknown };
+      dashes?: unknown;
+    };
+    const point = (candidate: { x?: unknown; y?: unknown } | undefined) =>
+      candidate !== undefined &&
+      Number.isFinite(candidate.x) &&
+      Number.isFinite(candidate.y)
+        ? Object.freeze({ x: Number(candidate.x), y: Number(candidate.y) })
+        : undefined;
+    const basePoint = point(line.basePoint);
+    const offset = point(line.offset);
+    const dashes = Array.isArray(line.dashes) ? (line.dashes as unknown[]) : [];
+    if (
+      !Number.isFinite(line.angle) ||
+      basePoint === undefined ||
+      offset === undefined ||
+      dashes.some((dash) => !Number.isFinite(dash))
+    ) {
+      return undefined;
+    }
+    lines.push(
+      Object.freeze({
+        angle: Number(line.angle),
+        basePoint,
+        offset,
+        dashes: Object.freeze(dashes.map((dash) => Number(dash))),
+      }),
+    );
+  }
+  return {
+    angle: Number(source.angle),
+    scale: Number(source.scale),
+    double: source.double,
+    lines: Object.freeze(lines),
+  };
+}
+
+/**
+ * Los ATTRIB de un INSERT a partir de `positionedAttributes` del canónico.
+ *
+ * POR QUÉ SE VALIDA Y NO SE CONFÍA, igual que la trama del HATCH: la entidad
+ * canónica es `Record<string, unknown>`, y un atributo a medias no daría un
+ * rótulo feo — daría un ATTRIB con un campo ausente y el cuerpo del archivo
+ * desincronizado desde ese bit. Se acepta el atributo COMPLETO o ninguno; el
+ * que no cumple se salta y quien llama declara la diferencia de recuento.
+ *
+ * LO QUE NO VIAJA Y POR QUÉ. Las banderas del atributo se escriben a 0 y la
+ * longitud de campo también: el hecho registrado da su DISPOSICIÓN (RC y BS
+ * en esa posición) pero no su semántica, y los cinco ATTRIB del corpus
+ * admitido las traen a cero, así que no hay nada medido que permita traducir
+ * «invisible» a un número. Escribir un 1 «porque suele ser invisible» sería
+ * inventar una semántica, que es justo lo que este laboratorio no hace.
+ */
+function canonicalPositionedAttributes(value: unknown): readonly DwgAttribEntity[] {
+  if (!Array.isArray(value)) return [];
+  const attributes: DwgAttribEntity[] = [];
+  for (const raw of value as unknown[]) {
+    const source = raw as {
+      tag?: unknown;
+      value?: unknown;
+      insertion?: { x?: unknown; y?: unknown; z?: unknown };
+      height?: unknown;
+      rotation?: unknown;
+    };
+    const tag = typeof source.tag === "string" ? source.tag : "";
+    const insertion = source.insertion;
+    if (
+      tag.length === 0 ||
+      insertion === undefined ||
+      !Number.isFinite(insertion.x) ||
+      !Number.isFinite(insertion.y)
+    ) {
+      continue;
+    }
+    const height = Number(source.height ?? 0);
+    const rotation = Number(source.rotation ?? 0);
+    if (!(height > 0) || !Number.isFinite(rotation)) continue;
+    const bytes = (text: string): readonly number[] =>
+      Object.freeze([...text].map((c) => c.charCodeAt(0) & 0xff));
+    attributes.push(
+      Object.freeze({
+        kind: "attrib" as const,
+        insertion: Object.freeze({ x: Number(insertion.x), y: Number(insertion.y) }),
+        elevation: undefined,
+        alignment: undefined,
+        thickness: 0,
+        extrusion: Object.freeze({ x: 0, y: 0, z: 1 }),
+        obliqueAngle: undefined,
+        rotation: rotation === 0 ? undefined : rotation,
+        height,
+        widthFactor: undefined,
+        valueBytes: bytes(
+          typeof source.value === "string" ? source.value : String(source.value ?? ""),
+        ),
+        generation: undefined,
+        horizontalAlignment: undefined,
+        verticalAlignment: undefined,
+        tagBytes: bytes(tag),
+        fieldLength: 0,
+        attributeFlags: 0,
+      }),
+    );
+  }
+  return Object.freeze(attributes);
+}
 
 export function canonicalDocumentToDwgEntities(
   document: CanonicalCadDocumentJson,
@@ -236,21 +392,79 @@ export function canonicalDocumentToDwgEntities(
         });
         break;
       }
-      case "insert":
+      // EL RÓTULO VIAJA CON SU BLOQUE (2026-09-04). Hasta este corte todo
+      // INSERT salía con `attributesFollow: false` y el cuadro de rótulo se
+      // exportaba MUDO: el bloque llegaba, su texto no. Los ATTRIB salen de
+      // `positionedAttributes`, que YA trae la geometría de cada etiqueta.
+      case "insert": {
+        const posicionados = raw["positionedAttributes"];
+        const atributos = canonicalPositionedAttributes(posicionados);
+        const declarados = Array.isArray(posicionados) ? posicionados.length : 0;
+        if (declarados > atributos.length) {
+          losses.push({
+            code: "insert-attribute-incomplete",
+            entityId: id,
+            sourceType: "insert",
+            detail: `El INSERT "${id}" declara ${declarados} atributo(s) con geometría y sólo ${atributos.length} traen los cuatro campos que el archivo pide (etiqueta, valor, inserción y altura positiva): los incompletos no se escriben, porque un ATTRIB a medias desincroniza el cuerpo entero.`,
+            severity: "warning",
+          });
+        }
+        // Lo que el ATTRIB del formato lleva y el canónico NO puede traducir
+        // todavía: la bandera de invisible y la alineación del texto. No es
+        // una carencia del canónico —las trae— sino de la MEDICIÓN: los cinco
+        // ATTRIB del corpus admitido traen banderas y alineación a cero, así
+        // que no hay con qué comprobar la traducción. Se declara.
+        if (
+          Array.isArray(posicionados) &&
+          posicionados.some((attribute) => {
+            const a = attribute as { invisible?: unknown; alignment?: unknown };
+            return a?.invisible === true || typeof a?.alignment === "string";
+          })
+        ) {
+          losses.push({
+            code: "attrib-flags-not-measured",
+            entityId: id,
+            sourceType: "insert",
+            detail: `Algún atributo del INSERT "${id}" pide ser invisible o llevar alineación; el archivo guarda las dos cosas en códigos cuya SEMÁNTICA no está medida contra ningún archivo ajeno (los cinco ATTRIB del corpus admitido los traen a cero), así que se escriben visibles y sin alineación en vez de adivinar el número.`,
+            severity: "info",
+          });
+        }
+        // UN MAPA PLANO SIN SU GEMELO POSICIONADO NO SE DIBUJA AL AZAR. El
+        // mapa dice qué vale cada etiqueta pero no dónde va; deducir la
+        // posición desde la definición del bloque pondría el texto en un
+        // sitio distinto del que el usuario ve en pantalla, que es el defecto
+        // que el exportador DXF ya documenta. Se declara la pérdida.
+        const planos = raw["attributes"];
+        if (
+          atributos.length === 0 &&
+          typeof planos === "object" &&
+          planos !== null &&
+          Object.keys(planos as Record<string, unknown>).length > 0
+        ) {
+          losses.push({
+            code: "insert-attributes-without-geometry",
+            entityId: id,
+            sourceType: "insert",
+            detail: `El INSERT "${id}" trae ${Object.keys(planos as Record<string, unknown>).length} atributo(s) en el mapa plano pero ninguno con geometría (\`positionedAttributes\`): el mapa dice qué vale cada etiqueta y no dónde se dibuja, así que el bloque se escribe sin su rótulo en vez de colocar el texto en un sitio inventado.`,
+            severity: "warning",
+          });
+        }
         entities.push({
           canonicalId: id,
           layerName,
           blockName: String(raw["block"] ?? ""),
+          ...(atributos.length === 0 ? {} : { attributes: atributos }),
           entity: Object.freeze({
             kind: "insert" as const,
             position: canonicalPoint(raw["insertion"]),
             scale: canonicalPoint(raw["scale"] ?? { x: 1, y: 1, z: 1 }),
             rotation: Number(raw["rotation"] ?? 0),
             extrusion: defaultExtrusion,
-            attributesFollow: false,
+            attributesFollow: atributos.length > 0,
           }),
         });
         break;
+      }
       // ELLIPSE (2026-09-01). El writer interno la emitía desde hace olas
       // —`emitEllipse` es espejo campo a campo de `decodeEllipse`— pero ESTE
       // camino, el público, la mandaba al `default` de abajo y la declaraba
@@ -288,20 +502,27 @@ export function canonicalDocumentToDwgEntities(
         });
         break;
       }
-      // HATCH DE RELLENO SÓLIDO (2026-09-01). Sólo el sólido, y por una razón
-      // de formato, no de pereza: el cuerpo de un HATCH con patrón lleva
-      // después de los contornos un bloque —ángulo, escala, doble trama y las
-      // líneas de definición con sus trazos— que el sólido no tiene y que NO
-      // se deduce de los contornos. El canónico transporta el NOMBRE del
-      // patrón, no su geometría, así que escribir uno con patrón exigiría
-      // inventársela. Se declara y no se emite.
+      // HATCH, SÓLIDO Y DE PATRÓN (2026-09-04). El sólido viaja desde el
+      // 2026-09-01. El de patrón lleva, después de los contornos, un bloque
+      // que el sólido no tiene —ángulo, escala, doble trama y las líneas de
+      // definición con sus trazos— y ese bloque SIGUE sin deducirse de los
+      // contornos: lo que cambió es que ahora puede VIAJAR con la entidad
+      // canónica, en `patternDefinition`, resuelto por quien sí tiene una
+      // tabla de patrones propia (el producto: `hatch-pattern-table.ts`).
+      // Este módulo no puede resolverlo por su cuenta —el laboratorio no
+      // importa el producto, ADR-0007— así que hace lo único honesto: si la
+      // definición llegó, la escribe; si no llegó, la declara.
       case "hatch": {
-        if (raw["solid"] !== true) {
+        const solid = raw["solid"] === true;
+        const pattern = solid
+          ? undefined
+          : canonicalHatchPattern(raw["patternDefinition"]);
+        if (!solid && pattern === undefined) {
           losses.push({
-            code: "hatch-pattern-not-writable",
+            code: "hatch-pattern-definition-missing",
             entityId: id,
             sourceType: "hatch",
-            detail: `El sombreado "${String(raw["pattern"] ?? "")}" no es de relleno sólido: el documento canónico lleva el NOMBRE del patrón pero no su definición (ángulo, escala y líneas con sus trazos), y esa definición no se deduce de los contornos. Se declara en vez de inventarla.`,
+            detail: `El sombreado "${String(raw["pattern"] ?? "")}" no es de relleno sólido y la entidad canónica no trae la definición de su trama (ángulo, escala y líneas con sus trazos): ese bloque no se deduce de los contornos, así que se declara en vez de inventar una trama que el archivo diría tuya.`,
             severity: "warning",
           });
           break;
@@ -371,15 +592,22 @@ export function canonicalDocumentToDwgEntities(
                 (c) => c.charCodeAt(0) & 0xff,
               ),
             ),
-            solidFill: true,
+            solidFill: solid,
             associative: false,
             paths: Object.freeze(paths),
             style: 0,
+            // TIPO DE PATRÓN: el canónico no lo transporta y se escribe 0,
+            // como el estilo — ya declarado en `hatch-authoring-defaults`. Se
+            // deja igual para el sólido y para el de trama a propósito: los
+            // dos archivos reales del corpus llevan 1 y nosotros escribimos
+            // 0, y esa diferencia se REGISTRA en la bitácora en vez de
+            // corregirse a ojo, porque qué hace un lector ajeno con ese
+            // número no lo dice ningún hecho medido todavía (ADR-0007).
             patternType: 0,
-            angle: undefined,
-            scaleOrSpacing: undefined,
-            doubleHatch: undefined,
-            definitionLines: undefined,
+            angle: pattern?.angle,
+            scaleOrSpacing: pattern?.scale,
+            doubleHatch: pattern?.double,
+            definitionLines: pattern?.lines,
             pixelSize: undefined,
             seedPoints: Object.freeze([]),
           }),
@@ -410,5 +638,25 @@ export function canonicalDocumentToDwgEntities(
   }
 
   const layerNames = [...new Set(document.layers.map((l) => l.name || l.id))];
-  return { entities, layerNames, lossManifest: losses };
+  // ---- LA HOJA (2026-09-04) --------------------------------------------
+  // El reparto por espacio se hace AQUÍ, sobre las entidades ya traducidas, y
+  // no dentro del `switch`: qué espacio ocupa una entidad no depende de su
+  // clase —una línea de cajetín y una del modelo se traducen igual—, sino de
+  // en qué lista de la hoja aparece su id. Meterlo en cada `case` habría
+  // repetido la misma pregunta trece veces.
+  const hoja = canonicalPaperSpaceProjection(document.paperSpaces ?? []);
+  for (const loss of hoja.losses) losses.push(loss);
+  const conEspacio =
+    hoja.paperEntityIds.size === 0
+      ? entities
+      : entities.map((item) =>
+          hoja.paperEntityIds.has(item.canonicalId)
+            ? { ...item, space: "paper" as const }
+            : item,
+        );
+  return {
+    entities: [...conEspacio, ...hoja.viewports],
+    layerNames,
+    lossManifest: losses,
+  };
 }

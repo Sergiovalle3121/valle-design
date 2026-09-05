@@ -51,6 +51,7 @@ import type { CadImageDefinition } from "../cad-entities-v4";
 import type { CadEntityCommand } from "../entity-commands";
 import type { CadNativeEntity } from "../entity-runtime";
 import { cadPointInsideBoundary, cadXclipRectangle, type CadXclip } from "../xref/xclip";
+import { CAD_PDF_UNDERLAY_METADATA_KEY } from "./underlay-key";
 
 type CadImageEntity = Extract<CadEntity, { type: "image" }>;
 
@@ -59,8 +60,10 @@ type CadPdfDocument = Pick<CadDocument, "entities" | "layers" | "imageDefinition
 /** Milímetros por punto PostScript: el sustrato a tamaño de papel. */
 export const CAD_PDF_UNDERLAY_MM_PER_POINT = 25.4 / 72;
 
-/** Clave de metadatos donde vive la ficha del sustrato. */
-export const CAD_PDF_UNDERLAY_METADATA_KEY = "cad:pdf-underlay";
+// La clave se define en `underlay-key.ts`, un módulo de veinte líneas que el
+// editor puede importar sin traerse el parser entero (ver su cabecera). Se
+// reexporta desde aquí para que quien ya la importaba siga haciéndolo igual.
+export { CAD_PDF_UNDERLAY_METADATA_KEY } from "./underlay-key";
 
 const safe = (value: string) =>
   value.trim().replace(/[^a-z0-9_.:-]+/gi, "-").slice(0, 96) || "pdf";

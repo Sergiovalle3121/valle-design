@@ -18,6 +18,11 @@ import type { CadCommandContext } from "../command-types";
 import { CAD_COMMAND_REGISTRY_V2 } from "../index";
 import { CAD_VIEWPORT_CLIP_METADATA } from "../../layout/viewport-operations";
 
+// Las implementaciones de los comandos llegan a demanda en el navegador
+// (`engine/lazy-commands.ts`). Un `.spec.ts` se carga como CommonJS y no puede
+// esperarlas con `await`, así que las trae de golpe con este import estático.
+import "@/lib/cad/engine/all-commands";
+
 const registry = CAD_COMMAND_REGISTRY_V2;
 
 function emptyDocument(paperSpaces: CadPaperSpace[] = []): CadDocument {

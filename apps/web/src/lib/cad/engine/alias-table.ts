@@ -39,6 +39,7 @@ export const CAD_COMMAND_ALIASES: Readonly<Record<string, string>> = {
   BO: "BOUNDARY",
   REG: "REGION",
   WIPE: "WIPEOUT",
+  ROTURA: "BREAKLINE",
   DIV: "DIVIDE",
   ME: "MEASURE",
   // BIM. `WA` es el alias histórico de WALLADD en AutoCAD Architecture, y
@@ -76,6 +77,17 @@ export const CAD_COMMAND_ALIASES: Readonly<Record<string, string>> = {
   MAPCSASSIGN: "GEOGRAPHICLOCATION",
   GEORREFERENCIAR: "GEOGRAPHICLOCATION",
   IMPORTARGIS: "MAPIMPORT",
+  // Map 3D (Ola I): la topografía. `CUADRO` es como se pide la lámina en un
+  // despacho mexicano, y `RUMBOS` es la memoria muscular de quien teclea la
+  // libreta de campo. Los descriptores ya declaran casi todos, pero el
+  // pipeline de entrada resuelve por ESTA tabla (medido en la Ola E con DX).
+  POLIGONAL: "COGO",
+  RUMBOS: "COGO",
+  MAPCOGO: "COGO",
+  CUADRO: "CUADROCONSTRUCCION",
+  CUADRODECONSTRUCCION: "CUADROCONSTRUCCION",
+  COGOTABLE: "CUADROCONSTRUCCION",
+  MAPCOGOTABLE: "CUADROCONSTRUCCION",
   // Raster (Ola H): los alias de acad.pgp y la memoria muscular en español.
   // `IM` estaba sólo en el descriptor de IMAGE y el pipeline consulta ESTA
   // tabla (medido en la Ola E con DX): tecleado no llegaba.
@@ -86,6 +98,23 @@ export const CAD_COMMAND_ALIASES: Readonly<Record<string, string>> = {
   ADJUNTARIMAGEN: "IMAGEATTACH",
   RECORTARIMAGEN: "IMAGECLIP",
   AJUSTARIMAGEN: "IMAGEADJUST",
+  // Raster (Ola I): la vectorización del escaneo. `VEC` es la abreviatura y
+  // `VECTORIZAR` la memoria muscular en español.
+  VEC: "VECTORIZE",
+  VECTORIZAR: "VECTORIZE",
+  // PDF: el sustrato que se calca y la importación de vectores. Mismos alias
+  // en español que ya declaran los descriptores; el pipeline de entrada
+  // resuelve por ESTA tabla, no por el descriptor.
+  ADJUNTARPDF: "PDFATTACH",
+  IMPORTARPDF: "PDFIMPORT",
+  RECORTARPDF: "PDFCLIP",
+  AJUSTARPDF: "PDFADJUST",
+  PAGINAPDF: "PDFPAGE",
+  ESCALARPDF: "PDFSCALE",
+  DESADJUNTARPDF: "PDFDETACH",
+  DESCARGARPDF: "PDFUNLOAD",
+  RECARGARPDF: "PDFRELOAD",
+  LISTARPDF: "PDFLIST",
   // Mechanical (Ola I): los nombres AM* de AutoCAD Mechanical y la memoria
   // muscular en español.
   AMCONTENTLIB: "STDPART",
@@ -139,6 +168,7 @@ export const CAD_COMMAND_ALIASES: Readonly<Record<string, string>> = {
   G: "GROUP",
   UNG: "UNGROUP",
   DR: "DRAWORDER",
+  APLASTAR: "FLATTEN",
 
   // --- anotación ------------------------------------------------------------
   T: "MTEXT",
@@ -163,6 +193,8 @@ export const CAD_COMMAND_ALIASES: Readonly<Record<string, string>> = {
   TS: "TABLESTYLE",
   LE: "LEADER",
   TOL: "TOLERANCE",
+  NUMTEXTO: "TCOUNT",
+  TEXTOAMTEXTO: "TXT2MTXT",
 
   // --- bloques y referencias ------------------------------------------------
   B: "BLOCK",
@@ -181,6 +213,7 @@ export const CAD_COMMAND_ALIASES: Readonly<Record<string, string>> = {
 
   // --- capas y propiedades --------------------------------------------------
   LA: "LAYER",
+  CAPABORRAR: "LAYDEL",
   LT: "LINETYPE",
   LTS: "LTSCALE",
   LW: "LWEIGHT",
@@ -221,6 +254,12 @@ export const CAD_COMMAND_ALIASES: Readonly<Record<string, string>> = {
   PRINT: "PLOT",
   PLO: "PLOT",
   PSET: "PAGESETUP",
+
+  // --- gestión --------------------------------------------------------------
+  // `DWGCOMPARE` es el nombre con el que AutoCAD 2019+ compara dos dibujos;
+  // `COMPARAR`, la memoria muscular en español.
+  COMPARAR: "COMPARE",
+  DWGCOMPARE: "COMPARE",
 
   // --- interoperabilidad ----------------------------------------------------
   EXP: "EXPORT",

@@ -57,6 +57,13 @@ export type CadDxfExportUnit = "mm" | "m";
 export interface CadDxfExportOptions {
   units?: CadDxfExportUnit;
   fileComment?: string;
+  /**
+   * Cómo se ESCRIBEN las longitudes en el dibujo: `$LUNITS` (1 científico,
+   * 2 decimal, 3 ingeniería, 4 arquitectónico, 5 fraccionario) y `$LUPREC`
+   * (decimales, o exponente del denominador en los fraccionarios). Sin
+   * ellas, el ajuste arquitectónico del dibujo no sobrevive al fichero.
+   */
+  lengthUnits?: { lunits: number; luprec: number };
 }
 export interface CadDxfExportLayer {
   name: string;
@@ -272,6 +279,15 @@ function pushHeader(
   pushPair(lines, 1, "AC1015");
   pushPair(lines, 9, "$INSUNITS");
   pushPair(lines, 70, DXF_UNIT_CODES[options.units ?? "mm"]);
+  // El FORMATO de las longitudes es del dibujo, igual que su unidad. Sin
+  // estos dos pares, un plano dejado en pies y pulgadas se abre en decimal
+  // en el otro extremo y nadie puede saber que estaba en otra cosa.
+  if (options.lengthUnits) {
+    pushPair(lines, 9, "$LUNITS");
+    pushPair(lines, 70, Math.max(1, Math.min(5, Math.trunc(options.lengthUnits.lunits))));
+    pushPair(lines, 9, "$LUPREC");
+    pushPair(lines, 70, Math.max(0, Math.min(8, Math.trunc(options.lengthUnits.luprec))));
+  }
   // La escala global del guion es del DIBUJO. Sin ella, un plano a 1:50 que se
   // devuelve al remitente le llega con los ejes veinticinco veces más cortos y
   // sin nada en el fichero que explique por qué.

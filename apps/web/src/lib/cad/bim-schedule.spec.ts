@@ -21,14 +21,19 @@ function ok(condition: unknown, message: string): void {
   assert.ok(condition, message);
   checks += 1;
 }
+// `null` además de `undefined` porque el total de planta —`schedule.builtArea`—
+// es `number | null` a propósito: no hay huella cuando a algún local le falta
+// la suya, y ese caso tiene que poder afirmarse aquí igual que un número.
 const near = (
-  actual: number | undefined,
+  actual: number | undefined | null,
   expected: number,
   what: string,
   epsilon = 1e-6,
 ) => {
   assert.ok(
-    actual !== undefined && Math.abs(actual - expected) <= epsilon,
+    actual !== undefined &&
+      actual !== null &&
+      Math.abs(actual - expected) <= epsilon,
     `${what}: ${actual}, se esperaba ${expected}`,
   );
   checks += 1;
@@ -521,9 +526,53 @@ const shell = (): CadWallEntity[] => [
   ok(schedule.openings[1].sill === 1_500 && schedule.openings[1].count === 1, "la de 1.500 cuenta una");
 }
 
+// --- el área CONSTRUIDA llega hasta el esquema, que es donde se lee ----------
+// La geometría se fija en `bim-areas.spec.ts`, contra números a mano y contra
+// la identidad que la hace útil. Lo que se afirma AQUÍ es lo otro: que los tres
+// campos nuevos viajan por `buildCadBimSchedule` —la puerta por la que entran
+// DATAEXTRACTION, el CSV y las funciones LISP— y que el total de planta está en
+// el esquema y no hay que sumarlo a mano en cada consumidor.
+{
+  const solo = buildCadBimSchedule(documentOf(shell()));
+  const room = solo.rooms[0];
+  near(room.axisArea, 20_000_000, "a ejes, 5.000 × 4.000");
+  near(room.clearArea, 17_812_500, "útil, 4.750 × 3.750");
+  // A paño exterior por los cuatro lados: 5.250 × 4.250.
+  near(room.builtArea, 22_312_500, "construida, 5.250 × 4.250");
+  near(
+    room.wallShareArea,
+    22_312_500 - 17_812_500,
+    "y la fábrica que le toca, que es la diferencia entre las dos",
+  );
+  near(
+    solo.builtArea,
+    22_312_500,
+    "el esquema trae la huella construida de la planta, ya sumada",
+  );
+
+  // Con el tabique, la planta se parte en dos locales y la huella NO cambia:
+  // el medianero se mide al eje, medio para cada uno, así que no se cuenta dos
+  // veces. Es exactamente el número que se declara en una licencia.
+  const partida = buildCadBimSchedule(
+    documentOf([...shell(), wall("tabique", [2_000, 0], [2_000, 4_000], 150)]),
+  );
+  near(partida.rooms[0].builtArea, 13_281_250, "el mayor: 3.125 × 4.250");
+  near(partida.rooms[1].builtArea, 9_031_250, "el menor: 2.125 × 4.250");
+  near(
+    partida.builtArea,
+    22_312_500,
+    "y la huella de la planta es la misma que sin tabique: partir no construye",
+  );
+  ok(
+    partida.problems.length === 0,
+    "sin nada que declarar: las tres áreas de los dos locales están definidas",
+  );
+}
+
 console.log(
   `bim-schedule: ${checks} aserciones verdes. El cuadro de áreas sale de los ejes de los muros ` +
-    `—un local, dos con un tabique en T, el exterior nunca—, con área a ejes y área útil calculadas ` +
-    `contra valores absolutos; la medición descuenta la superficie de cada hueco de su muro ` +
+    `—un local, dos con un tabique en T, el exterior nunca—, con área a ejes, área útil y área ` +
+    `CONSTRUIDA calculadas contra valores absolutos y con la huella de la planta ya sumada en el ` +
+    `esquema; la medición descuenta la superficie de cada hueco de su muro ` +
     `anfitrión, agrupa la carpintería por marca de despacho, y cambia cuando cambia el modelo.`,
 );
