@@ -26,7 +26,7 @@ son la batería propia del producto.
 | `check:nl-cad` | Banco de calidad NL→CAD sobre umbrales (aciertos, rechazos tipados, cero fallos graves). | Tu cambio degradó el copiloto: mira qué casos caen antes de tocar umbrales (no se tocan). |
 | `check:lint-budget` | Trinquete de AVISOS de lint por regla y workspace: subir falla. | Arregla los avisos nuevos; si de verdad bajaste el total de forma estable, `node scripts/check-lint-budget.mjs --update` y committea el techo nuevo. |
 | `check:dwg-evidence` | La evidencia DWG committeada = lo que el árbol sostiene (capacidades promovidas, round-trips, bundles). Necesita `VALLE_DWG_CORPUS_MIRROR`. | Sin el espejo configurado es un falso rojo de entorno. Con espejo: la evidencia envejeció; regenera con `evidence:dwg` y revisa el diff con lupa. |
-| `check:command-integrity` | Los ~192 comandos: ninguno responde éxito sin efecto verificable; exenciones declaradas y bidireccionales. | O tu comando nuevo termina en silencio/afirmando sin efecto (arréglalo: que haga o que diga que no puede), o la sonda no sabe conducirlo (decláralo en `command-integrity-exemptions.json` con razón). |
+| `check:command-integrity` | Todos los comandos del registro: ninguno responde éxito sin efecto verificable; exenciones declaradas y bidireccionales. | O tu comando nuevo termina en silencio/afirmando sin efecto (arréglalo: que haga o que diga que no puede), o la sonda no sabe conducirlo (decláralo en `command-integrity-exemptions.json` con razón). |
 | `check:rubric:spec` + `check:rubric` | La rúbrica competitiva se computa desde evidencia y se imprime; nunca bloquea (una rúbrica que bloquea se infla). | Sólo falla su spec: el script mismo está roto. |
 
 ## `check:dwg`
