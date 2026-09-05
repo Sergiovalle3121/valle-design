@@ -51,10 +51,15 @@ PRODUCTO, y ahí es donde está la sección 3.
 
 **Éste es el hallazgo que más crédito ahorra de todo el documento.**
 
-El repo tiene 28 pruebas de Playwright **rojas a propósito**, de una auditoría de
-cliente final del 2026-09-01. Cada una reproduce **en el navegador, contra el estudio
-real**, un defecto confirmado. No entran en la suite (`playwright.config.ts` las excluye
-con `testIgnore`) porque un veredicto siempre rojo deja de mirarse.
+El repo tiene 28 pruebas de Playwright que nacieron **rojas a propósito**, de una
+auditoría de cliente final del 2026-09-01. Cada una reproduce **en el navegador, contra
+el estudio real**, un defecto confirmado. No entran en la suite
+(`playwright.config.ts` las excluye con `testIgnore`) porque un veredicto siempre rojo
+deja de mirarse.
+
+Ese mismo `testIgnore` tiene una consecuencia que hay que ver antes de seguir: **como
+nadie las corre, nadie se entera cuando una se pone verde.** Por eso el apartado
+siguiente empieza corriéndolas.
 
 La disciplina que las rodea ya existe y hay que respetarla:
 
@@ -68,51 +73,73 @@ La disciplina que las rodea ya existe y hay que respetarla:
 una sesión que no puede preguntar necesita.** Cada tarea es: pon verde esta prueba,
 gradúala, baja el techo.
 
-### El reparto por impacto
+### EL MANIFIESTO ESTÁ VIEJO. Lo corrí hoy y esto es lo que mide
 
-| Impacto | Cuántas |
-|---|---:|
-| `bloquea_el_trabajo` | **2** |
-| `molesta_mucho` | **15** |
-| `molesta_poco` | **8** |
-| `arnes` (no reproducen defecto; guardan lo que sí funciona) | 3 |
+**Éste es el segundo hallazgo que más crédito ahorra, y contradice al manifiesto.**
 
-### Los dos que bloquean el trabajo, y son el mismo defecto
+El `techo: 28` describe la foto del 2026-09-01. Desde entonces la campaña arregló cosas
+sin graduar sus pruebas, así que el manifiesto acusa a defectos que ya no existen. Corrí
+los 59 casos contra el navegador real y el build de producción el 2026-09-05:
 
-- **`tresd.spec.ts`** — Con el SCU apoyado en la fachada, una línea de dos clics **se va
-  al suelo sin decir nada**: el primer punto sale en el centro de la huella del suelo, ni
-  siquiera sobre el sólido. Y **no se puede dibujar un rectángulo en la fachada**: sólo
-  `LINE` se declara espacial.
-- **`refutacion-scu-raton.spec.ts`** — La contraprueba aislada: el punto del ratón bajo un
-  SCU inclinado sale del plano del suelo y no del plano de trabajo.
+```
+  12 failed
+  47 passed (11.0m)
+```
 
-**Diagnóstico:** no es un hueco de funciones, es que **el 3D no se puede usar para
-dibujar**. Un ingeniero que apoya el SCU en una cara y traza no obtiene lo que trazó.
-Esto es lo primero de la cola, y de largo.
+**De los 28 ficheros, 17 están ENTEROS EN VERDE y 11 siguen rojos con 12 casos.** Tres de
+los 17 son `arnes` —nunca reprodujeron un defecto—, así que **14 defectos confirmados de
+la auditoría de cliente ya están cerrados y sus pruebas siguen fuera de la suite,
+defendiendo nada.**
 
-### Los quince que molestan mucho
+Fable NO tiene que arreglar estos catorce. Tiene que **graduarlos**: moverlos a
+`e2e/golden/`, quitarlos del manifiesto y bajar el techo de 28 a 11. Es trabajo mecánico,
+sin riesgo, y convierte catorce pruebas mudas en catorce defensas activas.
 
-Varios son de los que hacen devolver un producto:
+| Ya verdes → **graduar** | Impacto que declaraba |
+|---|---|
+| `capas.spec.ts` | molesta_mucho — los tipos de línea **sí** se dibujan y se imprimen |
+| `acotar.spec.ts` | molesta_mucho — la cota **sí** sigue al tabique cuando se mueve |
+| `refutacion-plot-extension.spec.ts` | molesta_mucho — «PLOT → Extensión → Trazar» **sí** traza |
+| `refutacion-mis-bloques.spec.ts` | molesta_mucho — «Mis bloques» **sí** está vivo |
+| `refutacion-cara-visible.spec.ts` | molesta_mucho — la cara que se mira **sí** se resalta |
+| `refutacion-cmdk-silla.spec.ts` | molesta_mucho — buscar «silla» **sí** ofrece el bloque |
+| `refutacion-escala-bloqueada.spec.ts` | molesta_mucho — la escala **ya** nace utilizable |
+| `equipo.spec.ts`, `refutacion-equipo-sin-proyecto.spec.ts` | molesta_poco |
+| `refutacion-linea-comandos-opacidad.spec.ts`, `refutacion-linea-comandos-tapa.spec.ts` | molesta_poco |
+| `refutacion-mensaje-anclado.spec.ts`, `refutacion-mensaje-directo.spec.ts` | molesta_poco |
+| `refutacion-palabra-imprimir.spec.ts` | molesta_poco |
+| `00-arranque.spec.ts`, `planta.spec.ts`, `precision.spec.ts` | `arnes` — no graduar: ya guardan lo que funciona |
 
-- **`imprimir.spec.ts`** — «PLOT → Extensión → Trazar», la forma normal de sacar un
-  dibujo en AutoCAD, **no traza nunca**. (Con su contraprueba aislada,
-  `refutacion-plot-extension.spec.ts`.)
-- **`capas.spec.ts`** — El estándar de capas sobrevive a guardar y recargar, pero **ningún
-  tipo de línea se dibuja ni se imprime**: un plano no distingue un eje de un muro.
-- **`acotar.spec.ts`** — Acotas un tabique dibujado con polilínea, lo mueves, y la cota se
-  queda **acotando el aire, y sigue diciendo 4.000 con la misma pinta de estar viva**.
-- **`modificar.spec.ts`** + **`refutacion-pinzamiento.spec.ts`** + **`refutacion-trim.spec.ts`**
-  — El clic con el que se designa **se lo come el pinzamiento**, y eso rompe OFFSET y TRIM.
-- **`intercambio.spec.ts`** + **`refutacion-texto-capa.spec.ts`** + **`refutacion-notas-solo-text.spec.ts`**
-  — Los rótulos TEXT llegan al otro despacho en una capa «Text» que nadie creó, en vez de
-  en su capa NOTAS, y el cuadro de exportar **promete una capa que el fichero no lleva**.
-- **`refutacion-mis-bloques.spec.ts`** — El botón «Mis bloques» **está muerto**.
-- **`refutacion-cara-visible.spec.ts`** — La cara que se mira no está pintada y designarla
-  no la resalta: **no se ve qué cara se va a empujar**.
-- **`refutacion-escala-bloqueada.spec.ts`** — En una hoja recién creada el desplegable de
-  escala **nace apagado y nada explica por qué**.
-- **`refutacion-cmdk-silla.spec.ts`** + **`refutacion-panel-bloques-designar.spec.ts`** —
-  Buscar «silla» ofrece algo que no es el bloque de la biblioteca del despacho.
+### Los 12 casos que SIGUEN rojos, en cuatro racimos
+
+No son doce problemas: son **cuatro**, y cada racimo se arregla de una vez. Ese es el
+orden de la cola.
+
+**Racimo A · El SCU no dibuja donde miras — `bloquea_el_trabajo`, y va primero.**
+`tresd.spec.ts:344` y `refutacion-scu-raton.spec.ts:65`. Con el SCU apoyado en la
+fachada, el punto del ratón sale del plano del SUELO y no del plano de trabajo: el trazo
+se va al suelo sin decir nada. Es el único racimo que impide *usar* el 3D para dibujar, y
+por eso encabeza todo lo demás de esta cola.
+
+**Racimo B · El pinzamiento se come el clic — `molesta_mucho`.**
+`modificar.spec.ts:470`, `refutacion-pinzamiento.spec.ts:220`, `refutacion-trim.spec.ts:296`.
+El clic con el que se designa se pierde si cae sobre un pinzamiento, y eso rompe OFFSET y
+TRIM. Un defecto, tres pruebas.
+
+**Racimo C · La capa se pierde al exportar — `molesta_mucho`.**
+`intercambio.spec.ts:257`, `refutacion-texto-capa.spec.ts:45`,
+`refutacion-notas-solo-text.spec.ts:119` (dos casos: sólo TEXT, y TEXT + MTEXT) y
+`refutacion-cotas-resumen.spec.ts:72`. Los rótulos llegan al otro despacho en una capa
+«Text» que nadie creó, y el cuadro de exportar **promete una capa que el fichero no
+lleva**: es un claim sin evidencia en la propia interfaz, que es justo lo que esta casa
+prohíbe. Cinco casos, un defecto de fondo.
+
+**Racimo D · Los dos sueltos.**
+`imprimir.spec.ts:436` — imprimir, cambiar la escala y volver a imprimir. Ojo: la
+contraprueba aislada `refutacion-plot-extension.spec.ts` **pasa**, así que lo que falla ya
+no es trazar por extensión, sino el **segundo** trazado tras cambiar la escala.
+`refutacion-panel-bloques-designar.spec.ts:136` — con el panel de bloques abierto se
+designa y se redefine, pero **la redefinición no llega al documento guardado**.
 
 ### Cómo se corren (verificado hoy)
 
@@ -124,7 +151,8 @@ E2E_PROD=1 E2E_AUDITORIA=1 E2E_API_ORIGIN=http://localhost:4000 \
   npx playwright test e2e/auditoria --project=chromium --reporter=line --workers=1
 ```
 
-Son **59 casos** en 28 ficheros. Tardan; van en segundo plano.
+Son **59 casos** en 28 ficheros y tardan **11 minutos**; van en segundo plano.
+Hoy dan **12 rojos y 47 verdes** — la tabla de arriba dice cuáles.
 
 **Trampa que me costó veinte minutos y que no tienes que repetir:** si matas un
 `next build` a media escritura, `.next` queda corrupto **y no se nota** — turbo sirve el
