@@ -537,7 +537,7 @@
       ],
       "idaYVuelta": {
         "completado": false,
-        "razon": "El DXF está corrupto o no es un DXF de texto válido."
+        "razon": "Este lector no pudo analizar el DXF. Puede que el archivo esté dañado, o que use algo que todavía no soportamos. Escríbenos y lo miramos."
       }
     }
   ]

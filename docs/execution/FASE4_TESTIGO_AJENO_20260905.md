@@ -17,6 +17,8 @@ dice que **no** — y nombraban la petición que lo arreglaba.
 | filas en su tope | 6 | **11** |
 | filas que retienen 1 pt | 25 | **20** |
 | de ellas, bloqueadas por un defecto medido | **5** | **0** |
+| specs | 624 | **624** |
+| casos contra oráculo independiente | 5 421 | **5 427** |
 
 Los cinco puntos son exactamente los cinco que el censo predijo, y las cinco
 filas que llegan a su tope son las cinco que nombraba: Cotas asociativas, HATCH
@@ -121,3 +123,41 @@ Y sigue en pie lo que ninguna sesión cierra: la **firma humana de derechos** de
 corpus (2 pt), el runtime .NET/VBA que no se finge, y que ninguno de los
 diecinueve ficheros lo guardó AutoCAD — acreditan interoperabilidad con
 implementaciones independientes, no compatibilidad con AutoCAD.
+
+## La corrida, con el código de salida real
+
+No con uno enmascarado por un pipe: un `| tail` encadenado con `&&` devuelve el
+código de `tail`, y eso ya coló un commit con `check:cad` en rojo antes en esta
+misma campaña.
+
+- `npm run typecheck` **EXIT=0** · 8/8 tareas.
+- `npm test` **EXIT=0** · **624/624 specs verdes**, 7/7 tareas.
+- `npm run lint` **EXIT=0** · trinquete en 489/492.
+- `npm run check:cad` **EXIT=0** con `VALLE_DWG_CORPUS_MIRROR`, la cadena entera.
+- `check:command-integrity` 294 comandos, **0 éxitos falsos** · `ui-command-reach`
+  294/294 alcanzables con el ratón · `check:ribbon-coverage` 294.
+- `rubric.spec.mjs` 59 comprobaciones · `check:cad-math` **5 427 casos contra
+  oráculo independiente, 0 desviaciones**.
+
+Dos cosas que hay que decir de esta corrida, porque las dos fueron errores míos
+al operar los gates y no del producto:
+
+1. `check:cad` falló primero porque invoqué `VALLE_DWG_CORPUS_MIRROR=1`, y esa
+   variable quiere la RUTA de un clon, no una bandera. Sin espejo, el gate
+   `check:dwg-evidence` falla por el desajuste conocido entre CI y local que
+   `docs/history/execution/paid-beta-readiness-2026-08.md` ya describe — y se
+   comprobó guardando mis cambios aparte que falla IGUAL sin ellos.
+2. `check:cad` volvió a fallar por la matriz del corpus SINTÉTICO
+   (`dxf-external-corpus-matrix.json`), desfasada en una sola línea: el mensaje
+   de rechazo. Regenerada, dice **0 perdidos en silencio** sobre 27 tipos, y el
+   fichero que rechaza recibe ahora «no pudo analizar» —fallo nuestro— en vez de
+   «está corrupto» —acusación al remitente—, porque ese fichero sí tiene
+   estructura DXF.
+
+Y tres archivos se salieron de su presupuesto de tamaño por lo que añadí. El
+gate lo dijo, y ninguno se añadió al manifiesto: los tres se partieron por
+fronteras que ya estaban dibujadas —el escaneo de HATCH, que es hermano del de
+MTEXT; los avisos declarativos, que son de otra especie que el mapa de
+entidades; el acto 3 de la jornada, que ya tenía hermanos fuera—. El trinquete
+de lint también se puso rojo, por dos importaciones huérfanas que dejaron esas
+particiones: se quitaron; el presupuesto no se tocó.
