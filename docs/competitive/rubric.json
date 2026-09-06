@@ -2626,7 +2626,7 @@
       "group": "frontier",
       "name": "Import/export DWG",
       "points": 7,
-      "gap": "DWG comercial es «todavía no» de etapa (ADR-0012: licenciar para vender, códec propio para poseer). El avance del laboratorio puntúa aquí con su evidencia independiente (oráculo externo); detectar-y-rechazar puntúa en la fila de integridad.",
+      "gap": "DWG comercial es «todavía no» de etapa (ADR-0012: licenciar para vender, códec propio para poseer). El avance del laboratorio puntúa aquí con su evidencia independiente (oráculo externo); detectar-y-rechazar puntúa en la fila de integridad. Desde T-16 (2026-09-06) las dos puertas de importación —tablero y estudio— dan el mismo veredicto al mismo archivo por la misma función (golden 192, document-import-door.spec.ts); con la beta encendida el fondo del estudio sigue sin pintar un DWG y lo dice.",
       "criteria": [
         {
           "id": "dwg.decision",

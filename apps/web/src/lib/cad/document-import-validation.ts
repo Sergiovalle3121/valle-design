@@ -23,6 +23,7 @@ import { DWG_MAX_IMPORT_BYTES } from "./dwg-import-limits";
 import { MESH_IMPORT_MAX_BYTES } from "./interop/mesh-import-limits";
 import { meshImportFormatOf } from "./interop/mesh-format-detect";
 import { looksLikeSkp, rejectSkp } from "./interop/skp-reject";
+import { DWG_UNAVAILABLE_REASON } from "./dwg-unavailable-reason";
 
 export const MAX_DXF_IMPORT_BYTES = 12_000_000;
 export const MAX_JSON_IMPORT_BYTES = 20_000_000;
@@ -123,6 +124,10 @@ export function validateImportFile(
     meshImportFormatOf(fileName) !== null ||
     (kind === "dwg" && (dwgImportIsEnabled() || dwgBetaImportIsEnabled(dwgBetaEnabled)));
   if (!admitted) {
+    // Un `.dwg` se RECONOCE y se rechaza con su motivo —la misma frase que dice
+    // el estudio (T-16)—, no con la lista de formatos: el usuario sabe qué trae
+    // y qué hacer con ello (convertirlo a DXF).
+    if (kind === "dwg") throw new Error(DWG_UNAVAILABLE_REASON);
     throw new Error(
       "Formato no soportado. Usa DXF de texto, JSON canónico, shapefile (.shp), GeoJSON (.geojson) " +
         "o un modelo 3D (OBJ, STL, glTF/GLB o COLLADA/DAE).",

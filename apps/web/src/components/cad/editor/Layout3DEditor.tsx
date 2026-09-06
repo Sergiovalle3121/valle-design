@@ -312,6 +312,7 @@ import {
 } from "@/lib/cad/symbols";
 import { tessellateDxfPrimitive } from "@/lib/cad/curve-tessellate";
 import { DWG_UNAVAILABLE_REASON } from "@/lib/cad/interop-provider";
+import { admitStudioBackdropFile } from "@/lib/cad/document-import-door";
 import { mapDxfLayerToCadLayer } from "@/lib/cad/dxf-layer-map";
 import {
   solveCadConstraints,
@@ -10239,16 +10240,15 @@ export default function Layout3DEditor({
     if (!data) return;
     setDxfBusy(true);
     try {
-      const text = await file.text();
-      if (text.length > 12_000_000) {
-        toast.error("El DXF supera 12 MB.", "Plano DXF");
+      // T-16: la MISMA puerta que el tablero, por nombre y bytes, antes de leer nada.
+      const puerta = admitStudioBackdropFile(file);
+      if (!puerta.ok) {
+        toast.error(puerta.message, "Plano DXF");
         return;
       }
-      // Detección de formato (Fase 74 cableada, ADR §222): un DWG binario jamás
-      // pasará el parser de texto — mejor un mensaje accionable que "sin líneas".
+      const text = await file.text();
+      // Un DWG renombrado a .dxf cae aquí, por CONTENIDO (Fase 74, ADR §222).
       const fmt = detectCadFormat(text);
-      // DWG: la razón viene del contrato de interoperabilidad (D5, fuente única
-      // de verdad) — nunca se finge soporte sin proveedor licenciado.
       if (fmt.format === "dwg") {
         toast.error(DWG_UNAVAILABLE_REASON, "DXF");
         return;

@@ -8,7 +8,8 @@
  *
  * Aquí se alimenta la escena con `cadSnapSceneAddEntities`, tal y como la
  * llama el editor de verdad, sobre entidades reales del documento: una LÍNEA,
- * una POLILÍNEA cerrada, un CÍRCULO, un MTEXT, un INSERT y un POINT. Si un
+ * una POLILÍNEA cerrada, un CÍRCULO, un MTEXT, un INSERT, un POINT y un
+ * ATTDEF (F3-P-01: su inserción decía `endpoint`, como el MTEXT antes). Si un
  * adaptador vuelve a mentir sobre su `kind` —o si alguien borra el mapa de
  * `snap-scene.ts` y reintroduce el reparto «todo lo demás → endpoints»—, este
  * spec deja de pasar.
@@ -106,6 +107,20 @@ const point: CadNativeEntity = {
   layer: "0",
 };
 
+// El ATTDEF se maqueta como un MTEXT (`attdefAsMText`, alineación por defecto
+// «bottom-left»): con `middle-center` sus esquinas (`control`) quedan lejos de
+// la inserción, por la misma razón que el fixture del MTEXT de arriba.
+const attdef: CadNativeEntity = {
+  id: "attdef-1",
+  type: "attdef",
+  tag: "NOMBRE",
+  defaultValue: "PLANTA",
+  insertion: { x: -300, y: 300, z: 0 },
+  height: 10,
+  alignment: "middle-center",
+  layer: "0",
+};
+
 // El cursor de referencia con el que se construye la escena: lejos del
 // círculo, para que sus dos tangentes existan (T-14: el cálculo copia el
 // bloque que `curve-entity-adapters.ts` ya usa para el arco).
@@ -113,7 +128,7 @@ const reference = { x: 20, y: 20 };
 
 // --- la escena la construye EL MISMO camino que el editor -----------------
 const scene: SnapScene = {};
-cadSnapSceneAddEntities(scene, [line, closedPolyline, circle, mtext, insert, point], reference);
+cadSnapSceneAddEntities(scene, [line, closedPolyline, circle, mtext, insert, point, attdef], reference);
 
 {
   const midOfLine = snap({ x: 5.1, y: 0 }, scene, { tolerance: 1 });
@@ -195,6 +210,19 @@ cadSnapSceneAddEntities(scene, [line, closedPolyline, circle, mtext, insert, poi
 {
   const nodeOfPoint = snap({ x: -20.1, y: -20 }, scene, { tolerance: 1 });
   ok(nodeOfPoint?.type === "node", "un POINT resuelve `node`, no `endpoint`");
+  checks += 1;
+}
+
+{
+  const insertionOfAttdef = snap({ x: -300.1, y: 300 }, scene, { tolerance: 1 });
+  ok(
+    insertionOfAttdef?.type === "insertion",
+    "la inserción de un ATTDEF resuelve `insertion`, no `endpoint` (F3-P-01)",
+  );
+  assert.deepEqual(
+    { x: insertionOfAttdef?.point.x, y: insertionOfAttdef?.point.y },
+    { x: -300, y: 300 },
+  );
   checks += 1;
 }
 

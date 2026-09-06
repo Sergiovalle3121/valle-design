@@ -140,7 +140,7 @@ export const attdefAdapter: CadEntityAdapter<CadAttdefEntity> = {
   snaps: {
     snaps: (entity) => {
       const snaps: CadSnapPoint[] = [
-        { kind: "endpoint", point: entity.insertion, label: "Inserción ATTDEF" },
+        { kind: "insertion", point: entity.insertion, label: "Inserción ATTDEF" },
       ];
       layoutCadMText(attdefAsMText(entity)).corners.forEach((point, index) => {
         snaps.push({ kind: "control", point, label: `Esquina ATTDEF ${index + 1}` });

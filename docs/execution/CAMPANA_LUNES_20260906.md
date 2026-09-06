@@ -335,3 +335,23 @@ corpus DWG sin `VALLE_DWG_CORPUS_MIRROR`, no un rojo de main. Verificado:
 typecheck, eslint, lint 478/478, monolito, `check:command-integrity` (294,
 0 éxitos falsos), specs del anfitrión y de palabras clave.
 
+### T-16 · Las dos puertas de importación contestan lo mismo · ARREGLADA (20:20 UTC)
+El estudio (`onDxfFile`) ya no lee el archivo entero para medir 12 000 000
+unidades UTF-16 a mano ni contesta siempre «el editor no lee DWG»: pregunta
+a `admitStudioBackdropFile` (`document-import-door.ts`), que pregunta a
+`validateImportFile` —la misma función del tablero, con la misma beta de
+build y el mismo tope en bytes— antes de leer nada. La razón DWG del
+contrato se mudó a `dwg-unavailable-reason.ts` (sin dependencias) para que
+la puerta ligera del tablero la diga sin arrastrar el importador DXF, y
+`interop-provider.ts` la reexporta. Con las puertas cerradas, un `.dwg`
+recibe esa frase en las dos pantallas; con la beta encendida, el estudio
+admite lo que admite el tablero y dice por dónde entra (D-12). Fuzzer: la
+clase `extension-dwg` pasa a `dwg-sin-proveedor`. Monolito: 17 235 exacto
+(la puerta le quitó al `onDxfFile` lo que le añadió el import). De paso,
+F3-P-01: la inserción del ATTDEF se imanta como `insertion`
+(`annotation-v4-adapters.ts`; `professional-snapping.spec.ts` con un ATTDEF
+real, 22). Verificado: typecheck, eslint (0 errores), lint 478/478,
+monolito, `check:conventions`, `document-import-door.spec.ts` (23),
+`document-import.spec.ts`, `document-import-fuzz.spec.ts` (39),
+`interop-provider.spec.ts`, `dwg-surface-honesty.spec.ts`; golden 192 nuevo
+y el 38 (colocación del DXF de fondo), sobre el build de producción.

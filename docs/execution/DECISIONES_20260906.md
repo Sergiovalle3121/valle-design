@@ -169,6 +169,33 @@ Por qué es lo conservador ...  Un dato de licencia equivocado en el prompt
                     maestro se hereda en cada sesión siguiente.
 Qué haría falta para elegir lo otro ...  Nada.
 
+## D-12 · Con la beta DWG encendida, el estudio no convierte: dice por dónde entra (T-16)
+Qué se dudó ......  La ficha pide que las dos puertas den «la misma
+                    respuesta» al mismo archivo, con la bandera apagada y
+                    encendida. Con la beta apagada es directo (la misma
+                    frase). Con la beta encendida el tablero ADMITE el `.dwg`
+                    (worker → documento), pero el plano de FONDO del estudio
+                    sólo sabe pintar DXF de texto: ¿convertir (DWG →
+                    documento → DXF de fondo) o decirlo?
+Qué se eligió ....  Decirlo. `admitStudioBackdropFile` devuelve el mismo
+                    veredicto que `validateImportFile` (admitido) y, como el
+                    fondo no lo pinta, un mensaje que nombra la puerta por la
+                    que entra («Importar como documento»). Y el tablero pasa
+                    a decir la razón DWG del contrato para un `.dwg` con las
+                    puertas cerradas, en vez de «formato no soportado»: el
+                    archivo se reconoce, y el usuario sabe qué hacer.
+                    Ninguna bandera se enciende: la beta se ejercita sólo
+                    en el spec de Node, contra la misma función.
+Por qué es lo conservador ...  Convertir metería el códec DWG en el camino
+                    del fondo (otra superficie que auditar y una ola entera
+                    con su oráculo), y la mentira que T-16 señala se quita
+                    con la puerta compartida. Cambiar la frase del tablero
+                    cambia UNA clase del fuzzer (`dwg-sin-proveedor`) y una
+                    aserción; no cambia ningún identificador persistido.
+Qué haría falta para elegir lo otro ...  Un `.dwg` real del corpus autorizado
+                    entrando como fondo y midiéndose contra su DXF de oráculo,
+                    en una ola con ficha propia.
+
 ---
 
 # Decisiones del frente F10 · Evidencia independiente (2026-09-06)
