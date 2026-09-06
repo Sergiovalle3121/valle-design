@@ -81,3 +81,25 @@ Qué se eligió ....  `git worktree` en `/home/user/valle-design-f2` con
 Por qué es lo conservador ...  Un escritor por árbol, como en la campaña
                     anterior (once árboles, 1,2 GB, cero conflictos).
 Qué haría falta para elegir lo otro ...  Nada: es el método de la casa.
+
+## D-07 · Los contenedores traen un `main` viejo: cada frente comprueba su base
+Qué se dudó ......  Al integrar F4 apareció «no merge base»: su rama cuelga de
+                    `1478471` (PR #121, de agosto). El clon de los contenedores
+                    trae `main` en ese commit —el de esta sesión también—, y
+                    una sesión que hace `checkout -b` desde ahí trabaja sobre
+                    un árbol de hace un mes. F10 y F11 nacieron de `2fd2bfd`
+                    (bien); F3, F5, F8 y F9 no habían empujado aún.
+Qué se eligió ....  Aviso por rutina a los cinco frentes con la orden exacta:
+                    `git fetch origin main && git merge-base HEAD origin/main`;
+                    si la base es vieja, `git rebase origin/main` (rama
+                    propia), gates otra vez sobre el árbol nuevo,
+                    `push --force-with-lease` y nota en su bitácora. Mientras,
+                    el coordinador no integra ninguna rama cuya base no sea
+                    `2fd2bfd` o `4800017`.
+Por qué es lo conservador ...  Integrar una rama nacida de agosto sería
+                    aplicar diffs contra código que ya no existe; y `main`
+                    usa squash, así que «se aplican diffs, no se fusionan
+                    ramas antiguas» (§3.2).
+Qué haría falta para elegir lo otro ...  Nada: es un defecto del entorno
+                    (instantánea del clon) que conviene que el titular sepa,
+                    porque volverá a pasar en cada sesión nueva.
