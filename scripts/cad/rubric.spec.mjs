@@ -485,7 +485,13 @@ const byId = (scored, id) =>
   // medía contra otro producto. Ola C: 265 — `modeling3d` (5 pt de DESTINO).
   // Ola D (2026-09-02): 271 — `foreign-work` (6 pt de HOY: la prueba de
   // despacho, el portapapeles y las seis órdenes del plano ajeno).
-  eq(published.totalPoints, 271, "el denominador de destino publicado son 271 puntos");
+  // Corte 2026-09-06 (campaña «El lunes de un arquitecto», T-02): 309 —
+  // nacen `comercial` (12 pt de DESTINO), `navegador` (10 pt de DESTINO),
+  // `degradation` (4 pt de HOY), `ribbon-ux` y `accessibility` (6 + 6 pt de
+  // HOY). Cuatro dimensiones enteras de la auditoría de veinte no tenían
+  // dónde puntuar; abrirlas SUBE el denominador y BAJA el porcentaje, y eso
+  // es correcto: la cifra mide el producto, no protege la moral.
+  eq(published.totalPoints, 309, "el denominador de destino publicado son 309 puntos");
   eq(
     published.categories.every((c) => c.scope === "hoy" || c.scope === "destino"),
     true,
@@ -495,8 +501,8 @@ const byId = (scored, id) =>
     published.categories
       .filter((c) => c.scope === "hoy")
       .reduce((acc, c) => acc + c.points, 0),
-    197,
-    "el denominador de HOY (flujo diario 2D + reconocimiento + trabajo ajeno) son 197 puntos",
+    213,
+    "el denominador de HOY (flujo diario 2D + reconocimiento + trabajo ajeno + degradación + cinta + accesibilidad) son 213 puntos",
   );
   const groups = new Map(published.groups.map((g) => [g.id, g.points]));
   for (const [id, points] of groups) {

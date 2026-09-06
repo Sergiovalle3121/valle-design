@@ -41,3 +41,31 @@ de `BACKLOG.md:50` corregidos. Nada se borra. `FASE4_TESTIGO_AJENO_20260905.md`
 se queda (D-03). Las referencias del libro mayor
 `docs/governance/assisted-development-log.json` a las rutas viejas se conservan:
 es un registro de lo que fue cierto en su fecha, no un índice.
+
+### T-02 · Filas nuevas y gaps caducados · HECHA (08:05 UTC)
+`rubric.json` versión `2026-09-06.1`: nacen los grupos `comercial` (4 categorías,
+12 pt destino) y `navegador` (4 categorías, 10 pt destino), y las categorías
+`degradation` (4 pt hoy, en `truth`), `ribbon-ux` y `accessibility` (6 + 6 pt hoy,
+en `recog`). Casi todo nace como `todaviaNo` explícito con su motivo y la ficha
+que lo cierra; lo que ya existía y nadie medía (checkout OXXO/SPEI, asientos en
+el servidor, sólo lectura al vencer, reembolsos por webhook) se cobra. Tres
+correcciones de honestidad: `xrefs.resolution` → `bind` + `layers`;
+`modeling3d.z-roundtrip` → `z-dxf` + `z-pointer`; `toolset-electrical.esquemas`
+renombrado a lo que verifica. Gaps caducados de `command-line` (alias) y `draw-2d`
+(F7/F9/F12) corregidos hacia arriba; `performance` declara que el artefacto mide
+un pipeline que el editor no ejecuta. `rubric.spec.mjs` actualizado a los
+denominadores nuevos con su comentario de corte; matriz regenerada con
+`--markdown`; `--check`, `rubric.spec.mjs` y `check:json-keys` verdes.
+**El porcentaje baja porque el denominador creció con filas honestas: es
+correcto y no es una regresión.** Las cifras: `node scripts/cad/rubric.mjs`.
+`ESCALERA.md` gana la sección de la Ola 0 (FLATSHOT sobre `wall` separado del
+heredado, el imán con nombre falso declarado como defecto, el tope de 12 MB del
+DXF declarado con su cifra y su motivo).
+
+### Sesiones hermanas (directiva del titular, D-02) · 07:37–07:52 UTC
+Siete sesiones con Sonnet 5, una por frente, cada una en su rama y con PR
+borrador contra `main`: F3 (bucle 2D), F4 (papel y entrega), F5 (toolsets),
+F8 (despacho), F9 (cimientos y piel), F10 (evidencia independiente), F11
+(inventario AutoCAD 2027 vs Valle). F4 y F11 pidieron confirmación del encargo
+y la recibieron por rutina de sesión. Territorios y rangos de goldens en
+`docs/execution/frentes/README.md`.
