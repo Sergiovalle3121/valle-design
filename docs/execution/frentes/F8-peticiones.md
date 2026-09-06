@@ -287,3 +287,52 @@ revocadas) para no romper las referencias históricas de auditoría/CAS.
 **Verifica, cuando se implemente:** spec de PostgreSQL real con los tres
 casos bloqueantes de arriba, y uno que confirme que un documento CAS
 compartido con otro miembro sigue intacto después de que el autor se borre.
+
+---
+
+## 6 · T-64 — Nada de lo que configura el despacho se comparte
+
+**No empezada.** Investigado lo suficiente para saber que es una petición
+clara, no sólo por territorio.
+
+**Por qué es una petición.**
+
+- **Territorio.** La ficha pide `/v1/cad/assets` (un módulo `apps/api/src/
+  modules/cad/` o uno nuevo de configuración de despacho) y tocar
+  `apps/web/src/components/cad/lisp/*` — ninguno de los dos está en la
+  lista «Tuyo» de F8 (`{organizations,commercial,identity,outbox-receiver,
+  audit-log,support,feedback,auth}` en el API; `{landing,billing,team,
+  account,organization}*` en los componentes del web). Es territorio de
+  quien lleve el editor CAD (F0/F1 u otro frente de esta misma campaña).
+- **Descubrimiento arquitectónico, para no repetir el trabajo.** El puerto
+  que la ficha señala como "ya escrito y esperando"
+  (`apps/web/src/lib/lisp/library.ts`, `LispLibraryStore`) es SÍNCRONO A
+  PROPÓSITO — la propia cabecera del archivo lo dice: *"hacerlo asíncrono
+  aquí obligaría a que la carga de la biblioteca contaminase de promesas el
+  arranque de la sesión LISP"*. Una implementación respaldada por
+  `/v1/cad/assets` tiene que ser asíncrona (es una llamada de red). Esto NO
+  es un simple "escribir el adaptador que falta": exige decidir cómo la
+  sesión LISP obtiene sus rutinas de organización sin bloquear su arranque
+  —¿precarga async una vez al abrir el documento, con esta interfaz
+  síncrona sirviendo desde una caché ya resuelta? ¿se vuelve asíncrona toda
+  la cadena de arranque?— y esa decisión es del dueño del arranque de la
+  sesión CAD, no de quien sólo escribe el endpoint.
+
+**Propuesta para quien la retome:**
+
+1. `POST/GET/DELETE /v1/cad/assets` (o un módulo de configuración de
+   despacho aparte) con aislamiento por tenant, empezando por las rutinas
+   `.lsp` como dice la ficha.
+2. Un adaptador `RestLispLibraryStore` que NO implemente `LispLibraryStore`
+   directamente (es síncrono) sino que precargue al abrir el documento
+   (ya existe un momento así: donde hoy se inicializa
+   `InMemoryLispLibraryStore` por sesión) y sirva desde esa copia — el
+   mismo patrón que ya usa `/v1/cad/blocks` en otras partes del editor, que
+   la propia ficha señala como el único almacén compartido que sí existe.
+3. Migrar paletas, plantillas, atajos y el `.ctb`/`.lin` a la misma ruta
+   DESPUÉS de las rutinas, no en el mismo cambio — son formatos distintos
+   con su propio parser/validador cada uno.
+
+**Verifica, cuando se implemente:** spec de aislamiento por inquilino
+contra PostgreSQL real (como pide la ficha), y una prueba de que abrir el
+mismo documento desde dos organizaciones distintas nunca mezcla rutinas.
