@@ -14549,26 +14549,27 @@ export default function Layout3DEditor({
             )}
           </div>
 
-          {/* 3D viewport, y debajo la barra de estado. La barra estaba montada
-              DENTRO de `cad-canvas`, absoluta abajo a la derecha, y se comía el
-              pointerdown de cualquier arrastre que empezara ahí: medido en la
-              auditoría del 2026-09-01, un recuadro de selección desde el centro
-              designaba 3 objetos a 180 px y CERO a 200 px. Como en AutoCAD, la
-              barra de estado ocupa su propia franja bajo el área de dibujo; el
-              golden 68 vigila que nada vuelva a robarle el ratón al lienzo. */}
+          {/* 3D viewport, y debajo la barra de estado en su propia franja (como
+              en AutoCAD): montada DENTRO de `cad-canvas` se comía el pointerdown
+              de los arrastres que empezaban ahí; el golden 68 lo vigila. */}
           <div className="flex min-w-0 flex-1 flex-col">
           <div
             data-testid="cad-canvas"
             className="relative min-h-0 min-w-0 flex-1 overflow-hidden"
             onContextMenu={handleCadContextMenu}
             onPointerDown={() => setCadContextMenu(null)}
+            // F8-2 (T-63f): soltar un archivo entra por la puerta del input de fondo.
+            onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) e.preventDefault(); }}
+            onDrop={(e) => {
+              const f = e.dataTransfer.files?.[0];
+              if (!f) return;
+              e.preventDefault();
+              if (!drawingReadOnlyRef.current && !dxfBusy) void onDxfFile(f);
+            }}
           >
             <div ref={mountRef} className="absolute inset-0" />
-            {/* ViewCube + barra de navegación: cara nueva sobre navegación 3D
-                que ya existe y ya está probada (`camera-view-presets.ts`,
-                `view-3d.ts`) — ver el comentario de `CadViewCube`. Sólo tiene
-                sentido con la cámara en perspectiva 3D; en 2D (planta
-                bloqueada) no hay caras que mostrar. */}
+            {/* ViewCube + barra de navegación sobre la navegación 3D ya probada
+                (`camera-view-presets.ts`, `view-3d.ts`); sólo en perspectiva 3D. */}
             <div
               data-testid="cad-navigation-corner"
               className="pointer-events-none absolute right-3 top-3 z-20 flex flex-col items-end gap-2"
@@ -14586,9 +14587,8 @@ export default function Layout3DEditor({
                   </div>
                 </div>
               )}
-              {/* El minimapa vivía abajo a la derecha, absoluto sobre el lienzo,
-                  y era la capa que el golden 68 midió robando esa esquina. Va
-                  con las ayudas de navegación, donde AutoCAD pone las suyas. */}
+              {/* El minimapa va con las ayudas de navegación: abajo a la derecha
+                  robaba esa esquina al lienzo (golden 68). */}
               {showMinimap && workspacePreferences.minimap && (
                 <div className="pointer-events-auto">
                   <CadOverviewMinimap

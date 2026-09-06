@@ -361,7 +361,7 @@ corre `dwg-document-bridge.spec.ts`, que afirmaba la frase vieja
 el literal completo y no la expresión. Corregida la aserción (la razón DWG,
 en las dos cajas) y el script entero verde en local antes de empujar.
 
-### T-20 · El clic que se perdía sobre un pinzamiento · ARREGLADA (20:40 UTC)
+### T-20 · El clic que se perdía sobre un pinzamiento · ARREGLADA (20:38 UTC)
 Racimo B entero. `CadNativeGripDeps.commandActive` (opcional) pregunta lo
 que `CadCommandEngineHost.accepts` ya contestaba y `start()` cede el clic
 con un comando abierto; el monolito lo cablea y sigue en 17 235 exactas
@@ -379,7 +379,7 @@ spec del controlador entran como evidencia de `modify.grips`, `.basics` y
 monolito, `check:auditoria` (techo 6), `check:e2e-localizadores`,
 rubric.spec, `native-grip-controller.spec.ts` (6 bloques).
 
-### Frente F8 integrado (T-17, T-18a/b/d, T-60a-d, T-61, T-63e/f) · HECHO (20:52 UTC)
+### Frente F8 integrado (T-17, T-18a/b/d, T-60a-d, T-61, T-63e/f) · HECHO (20:44 UTC)
 PR #198 (head d8acb66, CI verde: contrato, los cuatro fragmentos E2E,
 despliegue) fusionado sin conflictos (72d568c). Cierra los cuatro correos
 huérfanos con gate de cobertura (`email-template-coverage.spec.ts`,
@@ -400,3 +400,23 @@ y pasa; no es un defecto de la rama. Verificado: tsc web y api, lint
 478/478, monolito, `check:conventions`, `check:authz`, `check:api-console`,
 `check:surface`, no-industrial, legal, los ocho specs web que F8 tocó,
 rubric.spec (61) y la matriz regenerada.
+**CI rojo en cdc1b86 (20:48 UTC)**: `check:cad-math` —que no corrí sobre el
+árbol fusionado— exige dos artefactos congelados que sí cambian con lo
+integrado: el censo de independencia de la rúbrica (cambió la evidencia de
+`modify.*` y `comercial`) y el dictamen de `openapi-spec-validator` (F8
+amplió el contrato). Regenerados con `VALLE_ESCRIBIR_CENSO=1` y
+`censo-openapi.py`; `check:cad-math` verde en local antes de empujar.
+Regla que queda: toda edición de `rubric.json` o del contrato regenera su
+censo en el mismo commit.
+
+### F8-2 · Soltar un DXF sobre el lienzo del estudio (T-63f, tercera superficie) · ARREGLADA (20:54 UTC)
+`cad-canvas` acepta `dragover`/`drop` de ARCHIVOS y los manda por la misma
+puerta que el input del plano de fondo (`onDxfFile` → `admitStudioBackdropFile`,
+T-16): el reordenado de presentaciones arrastra texto y no pasa por ahí; en
+sólo lectura o con una carga en curso el archivo se ignora. Golden 196: el
+DXF soltado viaja al servidor con su colocación (como el 38) y el `.dwg`
+soltado recibe la frase de la puerta compartida sin viajar. Monolito en
+17 235 exactas (tres comentarios comprimidos pagan los manejadores). La
+fila `commercial-migration.first-minute` conserva su «todavía no» sólo por
+el proyecto implícito. Verificado: tsc, eslint (0 errores), monolito, y los
+goldens 196, 38 y 192 sobre el build de producción.

@@ -4175,8 +4175,12 @@
               "path": "apps/web/e2e/golden/150-cad-arrastrar-dxf-tablero.spec.ts"
             },
             {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/196-auditoria-soltar-dxf-lienzo.spec.ts"
+            },
+            {
               "kind": "todaviaNo",
-              "reason": "arrastrar un DXF ya entra por el estado vacío y el tablero (F8, T-63f, golden 150) pero no por el lienzo del estudio (petición F8-2 al monolito), y ninguna pantalla del primer minuto crea el proyecto implícito (ficha T-63)"
+              "reason": "arrastrar un DXF ya entra por el estado vacío, el tablero (F8, golden 150) y el lienzo del estudio (golden 196), pero ninguna pantalla del primer minuto crea el proyecto implícito ni deja el dibujo dentro sin pasar por el tablero (ficha T-63)"
             }
           ]
         },
