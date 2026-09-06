@@ -10,20 +10,23 @@
  * de comandos y no para Ctrl+K, que es donde los busca quien no se sabe el
  * nombre.
  *
- * ## Por qué UNIÓN y no sustitución
+ * ## Las entradas «Frase» se retiraron el 2026-09-06, y por qué
  *
- * El registro heredado no es un residuo: alimenta la barra de frases
- * (`parseCadCommand`/`previewCadCommand`), los esquemas de tools de IA y la
- * asistencia de la línea. Se queda, etiquetado «Frase», y cuando un id
- * heredado coincidiera con un nombre del motor gana el motor — dos entradas
- * con el mismo nombre y efectos distintos es el tipo de ambigüedad que una
- * paleta no puede permitirse.
+ * La paleta ofrecía además el registro heredado de frases (`commands/registry.ts`,
+ * un parser local y determinista) etiquetado «Frase». Cada entrada prometía
+ * «Preview listo en el Copiloto CAD»: un panel que se retiró a propósito con
+ * la IA (`no-ai-boundary.spec.ts` impide que `CadCommandDock` vuelva) y cuyo
+ * «Aplicar» ya no existía en el editor. Cuarenta entradas visibles que
+ * terminaban en un estado que nadie pintaba ni podía aplicar: el cuarto
+ * estado que la casa prohíbe (visible y sin verificar). Se retiran de la
+ * paleta —fix-or-hide: OCULTA— hasta que el circuito se cierre bajo un nombre
+ * que no mienta; el parser sigue en `commands/registry.ts` para la línea de
+ * comandos. `command-palette.spec.ts` defiende que no vuelvan por aquí.
  *
  * Los resúmenes en español del motor viven en `engine/command-summaries.ts`
  * con contrato fail-closed: un comando sin resumen es un error de CI, no una
  * entrada muda.
  */
-import { CAD_COMMAND_REGISTRY } from "./commands/registry";
 import { CAD_COMMAND_REGISTRY_V2 } from "./engine";
 import { cadCommandSummary } from "./engine/command-summaries";
 import { CAD_SYMBOL_LIBRARY } from "./symbols";
@@ -40,9 +43,7 @@ export interface CadPaletteEntry {
 }
 
 export function buildCadPaletteEntries(): CadPaletteEntry[] {
-  const engineNames = new Set<string>();
   const engineEntries = CAD_COMMAND_REGISTRY_V2.all().map((command): CadPaletteEntry => {
-    engineNames.add(command.name.toUpperCase());
     return {
       id: command.name,
       kind: "engine",
@@ -56,18 +57,6 @@ export function buildCadPaletteEntries(): CadPaletteEntry[] {
   });
   return [
     ...engineEntries,
-    ...CAD_COMMAND_REGISTRY.filter(
-      (command) => !engineNames.has(command.id.toUpperCase()),
-    ).map((command) => ({
-      id: command.id,
-      kind: "command" as const,
-      label: command.label,
-      // La etiqueta «Frase» dice QUÉ ejecuta esta entrada: una previsualización
-      // del registro de frases, no un comando del motor. Sin ella las dos familias se
-      // verían iguales y harían cosas distintas.
-      description: `Frase · ${command.description}`,
-      keywords: [command.category, ...command.examples],
-    })),
     ...CAD_TOOLBAR_ACTIONS.map((tool) => ({
       id: tool.id,
       kind: "tool" as const,
