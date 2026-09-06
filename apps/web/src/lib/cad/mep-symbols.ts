@@ -156,5 +156,17 @@ export function cadMepSymbolFor(idOrKeyword: string | undefined): CadMepSymbol |
 
 /** La definición de bloque de un símbolo: base en su origen, geometría en capa 0. */
 export function cadMepBlockDefinition(symbol: CadMepSymbol): CadBlockDefinition {
-  return { id: symbol.id, name: symbol.id, basePoint: { x: 0, y: 0, z: 0 }, entities: symbol.entities(symbol.id.toLowerCase()) };
+  return {
+    id: symbol.id,
+    name: symbol.id,
+    basePoint: { x: 0, y: 0, z: 0 },
+    entities: symbol.entities(symbol.id.toLowerCase()),
+    // Sin esta declaración AETAG escribe la etiqueta en `entity.attributes.TAG`
+    // y ni el trazador (`paper-space.ts`, que recorre `block.attributes`) ni el
+    // exportador DXF (`dxf-export.ts`, que filtra por `definition.attributes`)
+    // la ven: el -M1/-TB1 sobrevive sólo en la XDATA propia de Valle. El
+    // módulo hermano de Plant ya lo declara así (`plant/pid-symbols.ts`); esto
+    // es esa misma línea, copiada al símbolo que le faltaba (T-15).
+    attributes: { TAG: { prompt: "Etiqueta del componente", defaultValue: "" } },
+  };
 }

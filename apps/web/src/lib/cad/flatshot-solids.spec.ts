@@ -166,4 +166,110 @@ eq(cadFlatshotPrism(muro() as never, -100), null, "y una negativa tampoco");
   ok(/no toca ningún cuerpo/.test(resultado.skipped[0].reason), "y con el motivo exacto");
 }
 
+// --- 9 · T-33: el `WALL` NATIVO entra, no sólo el muro heredado ------------
+//
+// `flatshotSolids` ya aceptaba el `box` de `kind:"wall"` (arriba, defecto (c)
+// del informe de distancia). Lo que la auditoría midió es que el muro que
+// `WALL` emite HOY —`type: "wall"`, la entidad paramétrica del esquema 6— caía
+// por el mismo filtro que una línea: `flatshot-solids.ts:181-192` descartaba
+// todo lo que no fuera `solid3d`/`box`/`station` ANTES de `volumeFor`. El
+// golden 92 usaba el muro HEREDADO y no cobra ninguna fila de la rúbrica.
+{
+  const pared = (id: string, x0: number, y0: number, x1: number, y1: number): CadEntity =>
+    ({
+      id, type: "wall",
+      start: { x: x0, y: y0, z: 0 }, end: { x: x1, y: y1, z: 0 },
+      thickness: 200, height: 2_600,
+      layer: "0",
+    }) as CadEntity;
+
+  // Tres muros en L con una esquina compartida: exactamente el caso del
+  // golden 92, pero sobre la entidad que el comando WALL de verdad produce.
+  const entidades: CadEntity[] = [
+    pared("m1", 0, 0, 4_000, 0),
+    pared("m2", 4_000, 0, 4_000, 3_000),
+    pared("m3", 0, 0, 0, -2_000),
+  ];
+  const resultado = cadFlatshotBodies(entidades, () => null);
+  eq(resultado.bodies.length, 3, "los tres muros nativos producen cuerpo, sin necesitar catálogo de alturas");
+  eq(resultado.skipped.length, 0, "ninguno se cuenta como excluido");
+  for (const body of resultado.bodies) {
+    const zs = body.vertices.map((vertice) => vertice.point.z);
+    cerca(Math.min(...zs), 0, "el muro arranca en el suelo");
+    cerca(Math.max(...zs), 2_600, "y llega a SU altura, la de la entidad, no la de un catálogo");
+  }
+  // Y las aristas del alzado son reales: hay vértices a lo largo de todo el
+  // primer muro (eje X), no un prisma degenerado en el origen.
+  const xs = resultado.bodies[0].vertices.map((vertice) => vertice.point.x);
+  ok(Math.max(...xs) - Math.min(...xs) > 3_900, "el primer muro conserva su longitud en el alzado");
+}
+
+// --- 10 · el HUECO alojado en un WALL nativo se resta, con dintel ----------
+{
+  const muroConPuerta: CadEntity = {
+    id: "muro-puerta", type: "wall",
+    start: { x: 0, y: 0, z: 0 }, end: { x: 6_000, y: 0, z: 0 },
+    thickness: 200, height: 2_600,
+    layer: "0",
+  } as CadEntity;
+  const puerta: CadEntity = {
+    id: "puerta-1", type: "opening", kind: "door", hostId: "muro-puerta",
+    position: 3_000, width: 900, height: 2_100, sill: 0,
+    swing: "left", hinge: "start", layer: "0",
+  } as CadEntity;
+
+  const conPuerta = cadFlatshotBodies([muroConPuerta, puerta], () => null);
+  eq(conPuerta.bodies.length, 1, "el hueco no es un cuerpo aparte: sigue habiendo un solo muro");
+  eq(conPuerta.openings, 1, "y se cuenta que se restó");
+  // Un vano que SÍ cortó no aparece en `skipped`: sería el mismo defecto que
+  // el catálogo de alturas evita para el `box` heredado (prueba 7, arriba,
+  // `skipped.length === 0` con la puerta cortando bien).
+  eq(conPuerta.skipped.length, 0, "un vano que cortó bien no se cuenta como excluido");
+
+  const sinPuerta = cadFlatshotBodies(
+    [{ ...muroConPuerta } as CadEntity],
+    () => null,
+  );
+  ok(
+    conPuerta.bodies[0].vertices.length > sinPuerta.bodies[0].vertices.length,
+    "el muro con la puerta tiene más vértices que el muro entero: quedó el dintel",
+  );
+  const zsConPuerta = conPuerta.bodies[0].vertices.map((vertice) => vertice.point.z);
+  ok(zsConPuerta.some((z) => Math.abs(z - 2_100) < 1e-6), "hay vértices a la altura del dintel de la puerta");
+}
+
+// --- 11 · un HUECO que no cabe en su muro SE CUENTA, con motivo real -------
+{
+  const muroCorto: CadEntity = {
+    id: "muro-corto", type: "wall",
+    start: { x: 0, y: 0, z: 0 }, end: { x: 1_000, y: 0, z: 0 },
+    thickness: 200, height: 2_600,
+    layer: "0",
+  } as CadEntity;
+  // Una puerta más ANCHA que el propio muro: no puede caber de ningún modo.
+  const puertaImposible: CadEntity = {
+    id: "puerta-imposible", type: "opening", kind: "door", hostId: "muro-corto",
+    position: 500, width: 5_000, height: 2_100, sill: 0,
+    swing: "left", hinge: "start", layer: "0",
+  } as CadEntity;
+  const resultado = cadFlatshotBodies([muroCorto, puertaImposible], () => null);
+  eq(resultado.bodies.length, 1, "el muro sigue ahí, entero: un vano imposible no lo tumba");
+  eq(resultado.openings, 0, "y no se cuenta un corte que no ocurrió");
+  eq(resultado.skipped.length, 1, "el vano que no cupo SE CUENTA");
+  eq(resultado.skipped[0].entityId, "puerta-imposible", "con su identificador real");
+}
+
+// --- 12 · un HUECO sin su muro anfitrión en el ámbito, también se cuenta --
+{
+  const huerfano: CadEntity = {
+    id: "puerta-huerfana", type: "opening", kind: "door", hostId: "muro-que-no-esta",
+    position: 500, width: 900, height: 2_100, sill: 0,
+    swing: "left", hinge: "start", layer: "0",
+  } as CadEntity;
+  const resultado = cadFlatshotBodies([huerfano], () => null);
+  eq(resultado.bodies.length, 0, "sin muro anfitrión no hay cuerpo que levantar");
+  eq(resultado.skipped.length, 1, "y el vano huérfano se cuenta, no desaparece");
+  eq(resultado.skipped[0].entityId, "puerta-huerfana", "con su identificador");
+}
+
 console.log(`flatshot-solids: ${verdes} comprobaciones verdes`);

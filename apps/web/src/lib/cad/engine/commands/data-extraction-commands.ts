@@ -17,7 +17,15 @@ import { buildCadBimSchedule } from "../../bim-schedule";
 import { buildCadMepSchedule } from "../../mep-schedule";
 import { buildCadMepScheduleTable } from "../../data-extraction/mep-schedule-table";
 import { buildCadCircuitScheduleTable } from "../../data-extraction/circuit-schedule-table";
+import {
+  buildCadPlantLineScheduleTable,
+  buildCadPlantMtoScheduleTable,
+} from "../../data-extraction/plant-schedule-table";
 import { cadCheckCircuits } from "../../electrical/circuit-check";
+import { cadDeviceTagsOf } from "../../electrical/device-tags";
+import { cadWireConnectionReport } from "../../electrical/wire-connections";
+import { cadPlantLinesOf } from "../../plant/line-numbers";
+import { cadPipeMto } from "../../plant/pipe-mto";
 import {
   buildCadDataExtractionCsv,
   buildCadDataExtractionTable,
@@ -51,17 +59,39 @@ const OUTPUT_OPTIONS = [
   // proyecto eléctrico mexicano y que hoy se hace en una hoja aparte con las
   // longitudes medidas a mano. Aquí sale del dibujo, con su veredicto.
   { keyword: "circUitos", shortcut: "U" },
+  // `líNeas` y `Materiales` (T-35): Planta era la única de las tres
+  // disciplinas sin cuadro en el plano — PIDLIST/PIDMTO son consultas
+  // (`kind: inquiry`) que se lleva el viento. Misma lectura, servida como
+  // TABLE, como ya hace `mep-schedule-table.ts`.
+  { keyword: "líNeas", shortcut: "N" },
+  { keyword: "Materiales", shortcut: "M" },
   { keyword: "CSV", shortcut: "C" },
 ] as const;
 
 interface DataExtractionState {
-  output: "table" | "rooms" | "openings" | "mep" | "circuits" | "csv" | null;
+  output: "table" | "rooms" | "openings" | "mep" | "circuits" | "plant-lines" | "plant-mto" | "csv" | null;
 }
 
-const TABLE_NAMES = { table: "la tabla de muros", rooms: "el cuadro de superficies", openings: "el cuadro de carpintería", mep: "el cuadro de instalaciones", circuits: "el cuadro de cargas" } as const;
+const TABLE_NAMES = {
+  table: "la tabla de muros",
+  rooms: "el cuadro de superficies",
+  openings: "el cuadro de carpintería",
+  mep: "el cuadro de instalaciones",
+  circuits: "el cuadro de cargas",
+  "plant-lines": "la lista de líneas",
+  "plant-mto": "el metrado de tubería",
+} as const;
 
 function ask(state: DataExtractionState): CadCommandStep<DataExtractionState> {
-  if (state.output === "table" || state.output === "rooms" || state.output === "openings" || state.output === "mep" || state.output === "circuits")
+  if (
+    state.output === "table" ||
+    state.output === "rooms" ||
+    state.output === "openings" ||
+    state.output === "mep" ||
+    state.output === "circuits" ||
+    state.output === "plant-lines" ||
+    state.output === "plant-mto"
+  )
     return {
       state,
       prompt: { message: `Precise el punto de inserción de ${TABLE_NAMES[state.output]}`, options: [] },
@@ -103,7 +133,14 @@ const dataExtractionCommand: CadCommandDescriptor<DataExtractionState> = {
         const view = context.document?.();
         if (!view) return cadCommandRefused({ output: "csv" }, NO_DOCUMENT_VIEW);
         const schedule = buildCadBimSchedule(view);
-        const content = buildCadDataExtractionCsv(schedule);
+        // T-35: el CSV es el único fichero que DATAEXTRACTION entrega, así
+        // que lleva la lista COMPLETA de conductores y etiquetas — no el
+        // renglón truncado de AEWIRELIST/AETAGLIST. Documentos sin nada
+        // eléctrico no ganan ni pierden una línea.
+        const content = buildCadDataExtractionCsv(schedule, {
+          wires: cadWireConnectionReport(view, { unit: context.unit }).connections,
+          tags: cadDeviceTagsOf(view),
+        });
         return {
           state: { output: "csv" },
           prompt: { message: "", options: [] },
@@ -120,6 +157,8 @@ const dataExtractionCommand: CadCommandDescriptor<DataExtractionState> = {
       if (input.keyword === "carPintería") return ask({ output: "openings" });
       if (input.keyword === "Instalaciones") return ask({ output: "mep" });
       if (input.keyword === "circUitos") return ask({ output: "circuits" });
+      if (input.keyword === "líNeas") return ask({ output: "plant-lines" });
+      if (input.keyword === "Materiales") return ask({ output: "plant-mto" });
       return ask(state);
     }
 
@@ -152,6 +191,19 @@ const dataExtractionCommand: CadCommandDescriptor<DataExtractionState> = {
         return cadCommandRefused(state, "El dibujo no tiene puertas ni ventanas alojadas en muro: no hay cuadro de carpintería que insertar.");
       const table = buildCadOpeningScheduleTable(schedule, input.point, context.activeLayer, context.newEntityId);
       return cadCommandWrites(state, [{ type: "insert", entity: table }], "DATAEXTRACTION Carpintería");
+    }
+    if (state.output === "plant-lines") {
+      if (cadPlantLinesOf(view).length === 0)
+        return cadCommandRefused(state, "El dibujo no tiene ninguna línea de proceso: no hay lista de líneas que insertar. Trace una con PIDLINE.");
+      const table = buildCadPlantLineScheduleTable(view, input.point, context.activeLayer, context.newEntityId, context.unit);
+      return cadCommandWrites(state, [{ type: "insert", entity: table }], "DATAEXTRACTION Líneas");
+    }
+    if (state.output === "plant-mto") {
+      const mto = cadPipeMto(view, { unit: context.unit });
+      if (mto.rows.length === 0)
+        return cadCommandRefused(state, "No hay ninguna ruta de tubería 3D en el dibujo: no hay metrado que insertar. Tienda una con PIDROUTE.");
+      const table = buildCadPlantMtoScheduleTable(mto, input.point, context.activeLayer, context.newEntityId);
+      return cadCommandWrites(state, [{ type: "insert", entity: table }], "DATAEXTRACTION Materiales");
     }
     if (schedule.walls.length === 0)
       return cadCommandRefused(state, "El dibujo no tiene ningún muro que contar: no hay tabla que insertar.");

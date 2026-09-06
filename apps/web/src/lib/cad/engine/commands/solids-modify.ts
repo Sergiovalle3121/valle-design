@@ -52,7 +52,6 @@
 import type { CadPoint2 } from "../../cad-document";
 import type { CadSolidNode } from "../../cad-entities-v5";
 import type { CadEntityCommand } from "../../entity-commands";
-import { solid3dBody } from "../../solid3d-build";
 import { sectionLoopsOfSolid } from "../../solid3d-section";
 import {
   CAD_ACCEPT_DISTANCE,
@@ -70,6 +69,7 @@ import {
   finishedSolid,
   makeSolidEntity,
   prefixNodes,
+  selectedFlattenableBodies,
   selectedSolids,
   solidBatch,
   solidCancelled,
@@ -380,16 +380,19 @@ const sectionCommand: CadCommandDescriptor<PlaneState> = {
     if (input.kind !== "enter" && input.kind !== "keyword")
       return planeStep(state, sectionPrompt, "Pulse Intro para crear la región de sección");
 
-    const solids = selectedSolids(context, state.selection);
+    // No sólo SOLID3D (T-33): un muro del arquitecto también tiene cuerpo, y
+    // SECTION únicamente lo LEE para dibujar la `region` del corte — nunca lo
+    // reemplaza, así que extenderlo aquí no toca su naturaleza paramétrica.
+    const solids = selectedFlattenableBodies(context, state.selection);
     if (solids.length === 0) return solidMessage(state, NO_SOLIDS);
     const plane = verticalPlane(state.first, state.second);
     const commands: CadEntityCommand[] = [];
     for (const source of solids) {
       let loops;
       try {
-        loops = sectionLoopsOfSolid(solid3dBody(source), plane);
+        loops = sectionLoopsOfSolid(source.body, plane);
       } catch (error) {
-        return solidMessage(state, `SECTION no pudo cortar ${source.id}: ${error instanceof Error ? error.message : String(error)}`);
+        return solidMessage(state, `SECTION no pudo cortar ${source.entityId}: ${error instanceof Error ? error.message : String(error)}`);
       }
       for (const loop of loops) {
         commands.push({

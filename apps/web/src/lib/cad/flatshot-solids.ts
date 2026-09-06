@@ -45,10 +45,16 @@
 import type { CadEntity, CadPoint2 } from "./cad-document";
 import { solid3dBody } from "./solid3d-build";
 import { extrudeProfile, tryBoolean, type BrepBody } from "../brep";
+import { wallAxisFrame, wallAxisPoint, type CadWallAxisFrame } from "./wall-openings";
+import { wallJoins } from "./wall-joins";
+import { wallSolidBodyLocalWithDiagnostics, type CadWallSolidOpening } from "./wall-solid";
+import type { CadWallOpeningCutDiagnostic } from "./wall-solid-diagnostics";
 
 type CadBoxEntity = Extract<CadEntity, { type: "box" }>;
 type CadStationEntity = Extract<CadEntity, { type: "station" }>;
 type CadPrismEntity = CadBoxEntity | CadStationEntity;
+type CadFlatshotWallEntity = Extract<CadEntity, { type: "wall" }>;
+type CadFlatshotOpeningEntity = Extract<CadEntity, { type: "opening" }>;
 
 /**
  * Lados con los que se aproxima un objeto redondo.
@@ -164,10 +170,71 @@ export function cadFlatshotPrism(
 }
 
 /**
+ * El cuerpo LOCAL del muro (eje, a través del grosor, altura) llevado al
+ * MUNDO — la misma transformación que `wall-solid-three.ts` aplica a escena,
+ * sin la conversión a coordenadas de Three.js: FLATSHOT y SECTION trabajan en
+ * unidades de dibujo, no de pantalla.
+ */
+function wallBodyToWorld(body: BrepBody, frame: CadWallAxisFrame, baseZ: number): BrepBody {
+  return {
+    ...body,
+    vertices: body.vertices.map((vertex) => {
+      const world = wallAxisPoint(frame, vertex.point.x, vertex.point.y);
+      return { ...vertex, point: { x: world.x, y: world.y, z: baseZ + vertex.point.z } };
+    }),
+  };
+}
+
+/**
+ * El cuerpo B-rep de UN muro, en coordenadas de MUNDO, con sus vanos
+ * alojados restados y sus uniones contra los muros hermanos aplicadas —
+ * o `null` con el motivo cuando la receta es degenerada.
+ *
+ * Compartida por `cadFlatshotBodies` (FLATSHOT/SOLPROF) y por `SECTION`
+ * (T-33): las dos necesitan la MISMA proyección del muro, nunca dos
+ * cálculos que puedan divergir. Nunca reemplaza ni edita la entidad `wall`
+ * — se deriva y se tira—, que es justo lo que `AGENTS.md` exige («wall and
+ * opening stay parametric»): a diferencia de SLICE, que hornea un `solid3d`
+ * nuevo, SECTION sólo LEE el muro para dibujar su contorno de corte.
+ */
+export interface CadWallWorldBodyResult {
+  body: BrepBody;
+  /** Un diagnóstico por vano que NO se pudo restar (índice sobre `openings`). */
+  diagnostics: readonly CadWallOpeningCutDiagnostic[];
+}
+
+export function cadWallWorldBody(
+  wall: CadFlatshotWallEntity,
+  siblingWalls: readonly CadFlatshotWallEntity[],
+  openings: readonly CadWallSolidOpening[],
+): CadWallWorldBodyResult | { reason: string } {
+  const frame = wallAxisFrame(wall);
+  if (!frame) return { reason: "el muro tiene eje o grosor degenerado: no proyecta ocultas." };
+  const others = siblingWalls.filter((candidate) => candidate.id !== wall.id);
+  const joins = others.length > 0 ? wallJoins(wall, others) : null;
+  const { body: localBody, diagnostics } = wallSolidBodyLocalWithDiagnostics(wall, openings, joins);
+  if (!localBody) return { reason: "el muro no produjo un volumen válido: revise grosor y altura." };
+  return { body: wallBodyToWorld(localBody, frame, wall.start.z), diagnostics };
+}
+
+/** Los huecos alojados en `wall` dentro de una lista de entidades cualquiera. */
+export function cadWallHostedOpenings(
+  wall: Pick<CadFlatshotWallEntity, "id">,
+  entities: readonly CadEntity[],
+): CadWallSolidOpening[] {
+  return entities.filter(
+    (candidate): candidate is CadFlatshotOpeningEntity =>
+      candidate.type === "opening" && candidate.hostId === wall.id,
+  );
+}
+
+/**
  * Los cuerpos que hay que aplanar, y lo que se quedó fuera con su motivo.
  *
- * Acepta lo que un dibujo REAL tiene: los sólidos B-rep y los objetos de planta
- * con volumen. Todo lo demás se cuenta.
+ * Acepta lo que un dibujo REAL tiene: los sólidos B-rep, los objetos de planta
+ * con volumen, y los MUROS del arquitecto (T-33) — que antes caían por el
+ * mismo filtro que una línea o un texto, porque `WALL` emite `type: "wall"` y
+ * no `"solid3d"`. Todo lo demás se cuenta.
  */
 export function cadFlatshotBodies(
   entities: readonly CadEntity[],
@@ -178,10 +245,51 @@ export function cadFlatshotBodies(
   // poder decir cuál, y «un hueco» no es una respuesta accionable.
   const holes: { entityId: string; body: BrepBody }[] = [];
   const skipped: CadFlatshotSkipped[] = [];
+  const walls = entities.filter(
+    (candidate): candidate is CadFlatshotWallEntity => candidate.type === "wall",
+  );
+  // Resultado por vano NATIVO alojado en un muro, para que la rama `opening`
+  // del bucle sepa si su hueco YA se restó (y por tanto no aporta cuerpo
+  // propio, ni cuenta como excluido) o si el kernel no pudo cortarlo (y sí
+  // hay que decirlo, con su motivo real, no uno genérico).
+  const wallOpeningOutcomes = new Map<string, string | null>();
+  let wallOpeningsCut = 0;
 
   for (const entity of entities) {
     if (entity.type === "solid3d") {
       bodies.push(solid3dBody(entity));
+      continue;
+    }
+    if (entity.type === "wall") {
+      const openings = cadWallHostedOpenings(entity, entities);
+      const result = cadWallWorldBody(entity, walls, openings);
+      if ("reason" in result) {
+        skipped.push({ entityId: entity.id, reason: result.reason });
+        continue;
+      }
+      bodies.push(result.body);
+      const failed = new Map(result.diagnostics.map((diagnostic) => [diagnostic.openingIndex, diagnostic.cause]));
+      openings.forEach((opening, index) => {
+        const id = (opening as CadFlatshotOpeningEntity).id;
+        if (failed.has(index)) wallOpeningOutcomes.set(id, failed.get(index) ?? "el kernel no pudo restar este vano.");
+        else {
+          wallOpeningOutcomes.set(id, null);
+          wallOpeningsCut += 1;
+        }
+      });
+      continue;
+    }
+    if (entity.type === "opening") {
+      const outcome = wallOpeningOutcomes.get(entity.id);
+      // `undefined`: no se procesó (su muro anfitrión no está en el ámbito, o
+      // no existe). `null`: se restó con éxito y no aporta cuerpo propio, así
+      // que no se cuenta como excluido — igual que un hueco heredado que sí
+      // cortó. Un motivo real: el kernel lo intentó y no pudo.
+      if (outcome === null) continue;
+      skipped.push({
+        entityId: entity.id,
+        reason: outcome ?? "el hueco no aloja en ningún muro de este ámbito: no tiene volumen propio.",
+      });
       continue;
     }
     if (entity.type !== "box" && entity.type !== "station") {
@@ -211,8 +319,10 @@ export function cadFlatshotBodies(
 
   // Los huecos se restan al final, cuando ya se sabe qué cuerpos hay. Restar
   // sobre la marcha dependería del ORDEN en que vienen las entidades, y el
-  // orden de dibujo no dice nada sobre qué atraviesa qué.
-  let openings = 0;
+  // orden de dibujo no dice nada sobre qué atraviesa qué. Los vanos NATIVOS
+  // (`opening`/`wall`) ya se restaron dentro de `cadWallWorldBody`, así que
+  // arrancan la cuenta en vez de duplicar el trabajo.
+  let openings = wallOpeningsCut;
   for (const hole of holes) {
     let cortó = false;
     let falló = false;
