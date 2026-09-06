@@ -248,4 +248,192 @@ function context(hasDocument: boolean, propio?: unknown): CadCommandContext {
   );
 }
 
+// --- T-35: Planta tenía datos y el papel no los veía — líNeas y Materiales -
+{
+  const conPlanta = {
+    meta: { version: 1, schema: 4, unit: "mm" },
+    blocks: [],
+    layers: [],
+    styles: { text: {}, dimension: {}, mleader: {}, table: {}, plot: {} },
+    externalReferences: [],
+    unsupportedEntities: [],
+    modelSpace: { entityIds: ["l1", "r1"] },
+    entities: [
+      // Una línea de proceso de 10 m — PIDLIST hoy sólo la dice en un
+      // renglón que se lleva el viento.
+      {
+        id: "l1",
+        type: "polyline",
+        vertices: [
+          { x: 0, y: 0, z: 0 },
+          { x: 10_000, y: 0, z: 0 },
+        ],
+        closed: false,
+        layer: "TU-PROC",
+        context: {
+          metadata: { "pl:linea": '6"-P-1001-CS150', "pl:servicio": "P", "pl:especificacion": "CS150" },
+        },
+      },
+      // Una ruta 3D de 5 m recta, en OTRA línea — PIDMTO hoy también sólo la
+      // dice en un renglón. Línea distinta a `l1` a propósito: `cadPlantLinesOf`
+      // agrega por número de línea, y una ruta con el MISMO número que un
+      // esquema del P&ID sumaría las dos longitudes en una sola fila, que es
+      // el comportamiento correcto pero no el que esta prueba quiere aislar.
+      {
+        id: "r1",
+        type: "polyline",
+        vertices: [
+          { x: 0, y: 0, z: 0 },
+          { x: 5_000, y: 0, z: 0 },
+        ],
+        closed: false,
+        layer: "TU-RUTA",
+        context: {
+          metadata: {
+            "pl:ruta": "3D",
+            "pl:linea": '4"-P-1002-CS150',
+            "pl:servicio": "P",
+            "pl:especificacion": "CS150",
+          },
+        },
+      },
+    ],
+  } as never;
+
+  ok(
+    command.begin(context(true)).prompt.options.some((option) => option.keyword === "líNeas" && option.shortcut === "N"),
+    "ofrece líNeas",
+  );
+  ok(
+    command.begin(context(true)).prompt.options.some((option) => option.keyword === "Materiales" && option.shortcut === "M"),
+    "y Materiales",
+  );
+
+  // líNeas: una TABLE con la lista de líneas y su longitud REAL.
+  const beginLineas = command.begin(context(true, conPlanta));
+  const elegidoLineas = command.step(beginLineas.state, { kind: "keyword", keyword: "líNeas" }, context(true, conPlanta));
+  const salidaLineas = command.step(
+    elegidoLineas.state,
+    { kind: "point", point: { x: 0, y: 0 }, source: "typed" },
+    context(true, conPlanta),
+  );
+  ok(salidaLineas.result?.kind === "document", "la lista de líneas se inserta como documento");
+  const tablaLineas = (salidaLineas.result as unknown as {
+    commands: { entity: { type: string; cells: { text: string }[] } }[];
+  }).commands[0].entity;
+  ok(tablaLineas.type === "table", "y es una TABLE del dibujo");
+  const celdasLineas = tablaLineas.cells.map((cell) => cell.text);
+  ok(
+    celdasLineas.includes('6"-P-1001-CS150'),
+    `con el número de línea: ${JSON.stringify(celdasLineas)}`,
+  );
+  // El contexto de prueba no declara `unit` (como `studio-context.ts` sí
+  // hace desde `document.meta.unit`), así que `metresPerUnit` no convierte:
+  // 10.000 unidades de dibujo se leen tal cual.
+  ok(
+    celdasLineas.includes("10000.0"),
+    `y su longitud REAL medida sobre el dibujo: ${JSON.stringify(celdasLineas)}`,
+  );
+
+  // Materiales: una TABLE con el metrado.
+  const beginMto = command.begin(context(true, conPlanta));
+  const elegidoMto = command.step(beginMto.state, { kind: "keyword", keyword: "Materiales" }, context(true, conPlanta));
+  const salidaMto = command.step(
+    elegidoMto.state,
+    { kind: "point", point: { x: 0, y: 0 }, source: "typed" },
+    context(true, conPlanta),
+  );
+  ok(salidaMto.result?.kind === "document", "el metrado se inserta como documento");
+  const tablaMto = (salidaMto.result as unknown as { commands: { entity: { type: string } }[] }).commands[0].entity;
+  ok(tablaMto.type === "table", "y es una TABLE del dibujo, no un renglón que se lleva el viento");
+  const textoMto = JSON.stringify(tablaMto);
+  // Mismo motivo que arriba: sin `unit` en el contexto de prueba, el metrado
+  // no convierte de unidades de dibujo a metros.
+  ok(/5000\.00/.test(textoMto), `con los 5.000 de tubo de la ruta: ${textoMto}`);
+
+  // Sin líneas ni rutas, las dos se niegan con motivo.
+  const sinLineas = command.step(
+    command.step(command.begin(context(true)).state, { kind: "keyword", keyword: "líNeas" }, context(true)).state,
+    { kind: "point", point: { x: 0, y: 0 }, source: "typed" },
+    context(true),
+  );
+  ok(sinLineas.result?.kind === "message" && /no tiene ninguna línea de proceso/.test(sinLineas.result.text), "sin líneas se niega con motivo");
+  const sinRutas = command.step(
+    command.step(command.begin(context(true)).state, { kind: "keyword", keyword: "Materiales" }, context(true)).state,
+    { kind: "point", point: { x: 0, y: 0 }, source: "typed" },
+    context(true),
+  );
+  ok(
+    sinRutas.result?.kind === "message" && /ninguna ruta de tubería/i.test(sinRutas.result.text),
+    `sin rutas se niega con motivo: ${JSON.stringify(sinRutas.result)}`,
+  );
+}
+
+// --- T-35: el CSV lleva la lista COMPLETA de conductores y etiquetas -------
+{
+  const conductor = (id: string, tag: string | null, x0: number, x1: number, circuito = "C-1", numero = "1") => ({
+    id,
+    type: "polyline" as const,
+    vertices: [
+      { x: x0, y: 0, z: 0 },
+      { x: x1, y: 0, z: 0 },
+    ],
+    closed: false,
+    layer: "IE-CIR",
+    context: { metadata: { "ie:circuito": circuito, "ie:numero": numero, "ie:calibre": "12" } },
+  });
+  const tablero = {
+    id: "tb1",
+    type: "insert",
+    block: "MEP-TABLERO",
+    insertion: { x: 0, y: 0, z: 0 },
+    scale: { x: 1, y: 1, z: 1 },
+    rotation: 0,
+    attributes: { TAG: "-TB1" },
+    layer: "IE-FUERZA",
+  };
+  const motor = {
+    id: "m1",
+    type: "insert",
+    block: "MEP-TABLERO",
+    insertion: { x: 5_000, y: 0, z: 0 },
+    scale: { x: 1, y: 1, z: 1 },
+    rotation: 0,
+    attributes: { TAG: "-M1" },
+    layer: "IE-FUERZA",
+  };
+  const conElectrico = {
+    meta: { version: 1, schema: 4, unit: "mm" },
+    blocks: [],
+    layers: [],
+    styles: { text: {}, dimension: {}, mleader: {}, table: {}, plot: {} },
+    externalReferences: [],
+    unsupportedEntities: [],
+    modelSpace: { entityIds: ["w1", "tb1", "m1", "wire1"] },
+    entities: [wall(), tablero, motor, conductor("wire1", null, 0, 5_000)],
+  } as never;
+
+  const begin = command.begin(context(true, conElectrico));
+  const csv = command.step(begin.state, { kind: "keyword", keyword: "CSV" }, context(true, conElectrico));
+  ok(csv.result?.kind === "host", "CSV sigue terminando en una petición al anfitrión");
+  if (csv.result?.kind === "host" && csv.result.request.kind === "data-extraction-csv") {
+    const contenido = csv.result.request.content;
+    ok(contenido.includes("CONDUCTORES"), `el CSV lleva la sección de conductores: ${contenido}`);
+    ok(contenido.includes("ETIQUETAS"), `y la de etiquetas: ${contenido}`);
+    ok(contenido.includes("-TB1") && contenido.includes("-M1"), "con las etiquetas reales, no truncadas");
+    ok(contenido.includes("C-1-1"), "y el conductor con su marca completa");
+  }
+
+  // Un documento SIN nada eléctrico no gana ni pierde una sección.
+  const sinElectrico = command.step(
+    command.begin(context(true)).state,
+    { kind: "keyword", keyword: "CSV" },
+    context(true),
+  );
+  if (sinElectrico.result?.kind === "host" && sinElectrico.result.request.kind === "data-extraction-csv") {
+    ok(!sinElectrico.result.request.content.includes("CONDUCTORES"), "sin conductores, no aparece la sección");
+    ok(!sinElectrico.result.request.content.includes("ETIQUETAS"), "sin etiquetas, tampoco");
+  }
+}
+
 console.log(`data-extraction-commands.spec: ${checks} comprobaciones OK`);
