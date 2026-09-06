@@ -342,14 +342,7 @@ import type {
   CadSafetyZone,
   CadSafetyZoneKind,
 } from "@/lib/cad/safety-zones";
-import {
-  createCadSnapshot,
-  diffCadSnapshots,
-  pushCadSnapshot,
-  restoreCadSnapshot,
-  type CadSnapshotDiff,
-  type CadSnapshotHistory,
-} from "@/lib/cad/snapshots";
+import { createCadSnapshot, pushCadSnapshot } from "@/lib/cad/snapshots";
 import {
   cadDocumentToEditorSnapshot,
   editorSnapshotToCadDocument,
@@ -443,6 +436,11 @@ import {
   useCadExportActions,
   useCadExportHost,
 } from "./export-host";
+import {
+  useCadVersions,
+  useCadVersionsActions,
+  useCadVersionsHost,
+} from "./versions-host";
 import { CadDesignReportDialog } from "../dialogs/CadDesignReportDialog";
 import { fmtArea, fmtDist } from "../studio/format-units";
 import { guardCadWebglContext } from "../viewport/webgl-context-guard";
@@ -1395,24 +1393,20 @@ export default function Layout3DEditor({
       notes: "",
     });
   const dxfInputRef = useRef<HTMLInputElement | null>(null);
-  const [showVersions, setShowVersions] = useState(false); // versions/scenarios modal (unify)
-  const [localSnapshots, setLocalSnapshots] = useState<
-    CadSnapshotHistory<Snapshot>
-  >({ snapshots: [] });
-  const [snapshotDiff, setSnapshotDiff] = useState<CadSnapshotDiff | null>(
-    null,
-  );
-  const [versions, setVersions] = useState<
-    {
-      id: string;
-      name: string;
-      createdAt: string;
-      stationCount: number;
-      assetCount: number;
-    }[]
-  >([]);
-  const [versName, setVersName] = useState("");
-  const [versBusy, setVersBusy] = useState(false);
+  // VERSIONES: estado en su anfitrión (versions-host.ts, F1 paso 2) y
+  // desestructurado con los nombres de siempre; las acciones, más abajo.
+  const versionsHost = useCadVersionsHost<Snapshot>();
+  const versionsState = useCadVersions(versionsHost);
+  const {
+    showVersions,
+    localSnapshots,
+    snapshotDiff,
+    versions,
+    versName,
+    versBusy,
+  } = versionsState;
+  const { setShowVersions, setLocalSnapshots, setSnapshotDiff, setVersName } =
+    versionsHost;
   const [reloadTick, setReloadTick] = useState(0); // bump to re-run the load effect (after restore)
   const [cellsView, setCellsView] = useState<Cell[]>([]);
   const [showCells, setShowCells] = useState(false); // cells/zones panel
@@ -3621,7 +3615,7 @@ export default function Layout3DEditor({
       setLocalSnapshots((history) => pushCadSnapshot(history, snap, 20));
       return snap.id;
     },
-    [snapshot],
+    [snapshot, setLocalSnapshots],
   );
   const snapshotDocument = useCallback(
     (value: Snapshot = snapshot()) => {
@@ -10348,128 +10342,29 @@ export default function Layout3DEditor({
       setDxfBusy(false);
     }
   };
-  // ---- versions / scenarios (ported from 2D, unify) ----
-  const scopeQs = `model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`;
-  const loadVersions = async () => {
-    if (!model) return;
-    try {
-      const r = await legacyCadFetch(`layout/snapshots?${scopeQs}`);
-      if (r.ok) setVersions((await r.json()) as typeof versions);
-    } catch {
-      /* transient */
-    }
-  };
-  const openVersions = () => {
-    setShowVersions(true);
-    loadVersions();
-  };
-
-  const saveLocalSnapshot = (
-    reason: "manual" | "command" | "import" | "restore" = "manual",
-  ) => {
-    const label =
-      versName.trim() || `Local ${localSnapshots.snapshots.length + 1}`;
-    recordLocalSnapshot(label, reason);
-    setVersName("");
-    toast.success("Snapshot local guardado en esta sesión.", "Snapshots CAD");
-  };
-  const restoreLocalSnapshot = (id: string) => {
-    const restored = restoreCadSnapshot(localSnapshots, id);
-    if (!restored.layout) {
-      toast.error("No se encontró el snapshot local.", "Snapshots CAD");
-      return;
-    }
-    pushHistory();
-    restore(restored.layout);
-    setLocalSnapshots(restored.history);
-    setShowVersions(false);
-    toast.success("Snapshot local restaurado.", "Snapshots CAD");
-  };
-  const compareLocalSnapshot = (id: string) => {
-    const base = localSnapshots.snapshots.find((item) => item.id === id);
-    if (!base) {
-      toast.error("No se encontró el snapshot local.", "Snapshots CAD");
-      return;
-    }
-    const current = createCadSnapshot(
-      snapshot(),
-      "Actual",
-      "manual",
-      "current",
-    );
-    const diff = diffCadSnapshots(base, current);
-    setSnapshotDiff(diff);
-    toast.success(
-      diff.changed
-        ? "El layout cambió desde ese snapshot."
-        : "El layout coincide con ese snapshot.",
-      "Snapshots CAD",
-    );
-  };
-  const deleteLocalSnapshot = (id: string) => {
-    setLocalSnapshots((history) => ({
-      activeId: history.activeId === id ? undefined : history.activeId,
-      snapshots: history.snapshots.filter((item) => item.id !== id),
-    }));
-  };
-  const saveVersion = async () => {
-    if (!model || drawingReadOnly) return;
-    setVersBusy(true);
-    try {
-      const r = await legacyCadFetch("layout/snapshots", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model,
-          revision,
-          name: versName.trim() || undefined,
-        }),
-      });
-      if (!r.ok) {
-        toast.error("No se pudo guardar la versión.", "Versiones");
-        return;
-      }
-      setVersName("");
-      toast.success("Versión guardada.", "Versiones");
-      loadVersions();
-    } catch {
-      toast.error("Error de red.", "Versiones");
-    } finally {
-      setVersBusy(false);
-    }
-  };
-  const restoreVersion = async (id: string) => {
-    if (!model || drawingReadOnly) return;
-    setVersBusy(true);
-    try {
-      const r = await legacyCadFetch(
-        `layout/snapshots/${id}/restore?${scopeQs}`,
-        { method: "POST" },
-      );
-      if (!r.ok) {
-        toast.error("No se pudo restaurar la versión.", "Versiones");
-        return;
-      }
-      toast.success("Versión restaurada.", "Versiones");
-      setShowVersions(false);
-      setReloadTick((t) => t + 1); // re-run the load effect
-    } catch {
-      toast.error("Error de red.", "Versiones");
-    } finally {
-      setVersBusy(false);
-    }
-  };
-  const deleteVersion = async (id: string) => {
-    if (!model || drawingReadOnly) return;
-    try {
-      const r = await legacyCadFetch(`layout/snapshots/${id}?${scopeQs}`, {
-        method: "DELETE",
-      });
-      if (r.ok) setVersions((await r.json()) as typeof versions);
-    } catch {
-      /* transient */
-    }
-  };
+  // Versiones y snapshots locales: cuerpos en versions-host.ts (F1 paso 2);
+  // cierres recreados en cada render.
+  const {
+    openVersions,
+    saveLocalSnapshot,
+    restoreLocalSnapshot,
+    compareLocalSnapshot,
+    deleteLocalSnapshot,
+    saveVersion,
+    restoreVersion,
+    deleteVersion,
+  } = useCadVersionsActions(versionsHost, {
+    model,
+    revision,
+    drawingReadOnly,
+    versionsState,
+    setReloadTick,
+    snapshot,
+    restore,
+    pushHistory,
+    recordLocalSnapshot,
+    toast,
+  });
   // ---- clone from another model's layout as a template (ported from 2D, unify) ----
   const cloneFrom = async () => {
     if (!cloneSrc || !model || drawingReadOnly) return;
