@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { cadDocumentDxfExportLosses } from "./dxf-cad-document";
-import { cadEntityToDxfPrimitive } from "./dxf-entity-primitives";
+import { cadEntityToDxfPrimitive, cadOpeningToDxfPrimitives } from "./dxf-entity-primitives";
+import { wallJoinedFootprint, wallJoins } from "./wall-joins";
 import type { CadDocument, CadEntity } from "./cad-document";
 
 /**
@@ -232,5 +233,108 @@ assert.equal(
   1,
   "si la entidad con pérdida SÍ se exporta, el aviso debe aparecer",
 );
+
+// --- T-34: la esquina exportada es la del INGLETE, no la aislada ----------
+
+const cornerA: CadEntity = {
+  id: "muro-esquina-a",
+  type: "wall",
+  start: { x: 0, y: 0, z: 0 },
+  end: { x: 1000, y: 0, z: 0 },
+  thickness: 250,
+  height: 2400,
+  layer: "0",
+} as CadEntity;
+const cornerB: CadEntity = {
+  id: "muro-esquina-b",
+  type: "wall",
+  start: { x: 1000, y: 0, z: 0 },
+  end: { x: 1000, y: 1000, z: 0 },
+  thickness: 250,
+  height: 2400,
+  layer: "0",
+} as CadEntity;
+const cornerDocument = documentWith([cornerA, cornerB]);
+
+const isolatedFootprint = cadEntityToDxfPrimitive(cornerA)!;
+const joinedFootprint = cadEntityToDxfPrimitive(cornerA, cornerDocument)!;
+assert.notDeepEqual(
+  joinedFootprint.points,
+  isolatedFootprint.points,
+  "T-34: con un vecino en la esquina, el contorno exportado NO puede ser el aislado",
+);
+// Y coincide EXACTAMENTE con lo que ve el usuario en pantalla: el mismo
+// cálculo que usa `opening-entity-adapter.ts` para las jambas de un hueco.
+const wallCornerA = cornerA as Extract<CadEntity, { type: "wall" }>;
+const wallCornerB = cornerB as Extract<CadEntity, { type: "wall" }>;
+const expectedCorner = wallJoinedFootprint(wallCornerA, wallJoins(wallCornerA, [wallCornerB]));
+assert.deepEqual(joinedFootprint.points, expectedCorner, "el contorno exportado ES el inglete real");
+
+// --- T-34: OPENING deja de salir sin puertas ni ventanas ------------------
+
+const openingHostWall: CadEntity = {
+  id: "muro-con-hueco",
+  type: "wall",
+  start: { x: 0, y: 0, z: 0 },
+  end: { x: 3000, y: 0, z: 0 },
+  thickness: 200,
+  height: 2400,
+  layer: "0",
+} as CadEntity;
+const door: CadEntity = {
+  id: "puerta-1",
+  type: "opening",
+  kind: "door",
+  hostId: "muro-con-hueco",
+  position: 1500,
+  width: 900,
+  height: 2100,
+  sill: 0,
+  swing: "left",
+  hinge: "start",
+  layer: "0",
+} as CadEntity;
+
+const openingLosses = cadDocumentDxfExportLosses(documentWith([openingHostWall, door]));
+assert.deepEqual(
+  openingLosses.filter((loss) => loss.entityId === "puerta-1"),
+  [],
+  "una puerta con anfitrión válido y sin bloque propio exporta sin pérdidas",
+);
+
+const doorPrimitives = cadOpeningToDxfPrimitives(
+  door as Extract<CadEntity, { type: "opening" }>,
+  documentWith([openingHostWall, door]),
+);
+assert.ok(doorPrimitives.length >= 3, "T-34: la puerta produce jambas + hoja + arco, no cero trazos");
+assert.ok(
+  doorPrimitives.every((primitive) => primitive.kind === "polyline" && primitive.layer === "0"),
+  "todas las primitivas viajan en la capa del hueco",
+);
+
+// Con bloque propio: las jambas siguen viajando, pero se declara que el
+// símbolo sale de fábrica en vez del bloque del estudio.
+const doorWithBlock = { ...door, id: "puerta-2", symbolBlock: "PUERTA-DESPACHO" } as CadEntity;
+const blockLosses = cadDocumentDxfExportLosses(
+  documentWith([openingHostWall, doorWithBlock]),
+).filter((loss) => loss.entityId === "puerta-2");
+assert.equal(blockLosses.length, 1);
+assert.equal(blockLosses[0].code, "dxf_export_opening_symbol_block_degraded");
+assert.match(blockLosses[0].detail, /PUERTA-DESPACHO/);
+
+// Sin anfitrión (hostId roto): cero primitivas, declarado como pérdida de
+// geometría — nunca un marcador inventado en el origen.
+const orphanDoor = { ...door, id: "puerta-huerfana", hostId: "no-existe" } as CadEntity;
+const orphanPrimitives = cadOpeningToDxfPrimitives(
+  orphanDoor as Extract<CadEntity, { type: "opening" }>,
+  documentWith([openingHostWall, orphanDoor]),
+);
+assert.deepEqual(orphanPrimitives, []);
+const orphanLosses = cadDocumentDxfExportLosses(
+  documentWith([openingHostWall, orphanDoor]),
+).filter((loss) => loss.entityId === "puerta-huerfana");
+assert.equal(orphanLosses.length, 1);
+assert.equal(orphanLosses[0].code, "dxf_export_entity_dropped");
+assert.equal(orphanLosses[0].severity, "error");
 
 console.log("dxf-export-losses.spec.ts OK");

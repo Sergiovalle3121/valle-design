@@ -30,7 +30,7 @@ import type {
   CadLossManifestEntry,
   CadPoint3,
 } from "./cad-document";
-import { cadEntityToDxfPrimitive } from "./dxf-entity-primitives";
+import { cadEntityToDxfPrimitive, cadOpeningToDxfPrimitives } from "./dxf-entity-primitives";
 import { wallFootprint } from "./wall-geometry";
 
 /**
@@ -60,6 +60,11 @@ const DXF_NON_PRIMITIVE_TYPES = new Set([
   "dimension",
   "mleader",
   "insert",
+  // OPENING (T-34) devuelve VARIAS primitivas (`cadOpeningToDxfPrimitives`),
+  // no una: la regla propia de abajo pregunta lo mismo con la función
+  // correcta, así que el descarte GENÉRICO no debe volver a preguntarle a
+  // `cadEntityToDxfPrimitive` (que para "opening" siempre da `null`).
+  "opening",
 ]);
 
 /**
@@ -199,6 +204,33 @@ const SCHEMA4_LOSS_RULES: Record<string, Schema4LossRule> = {
         (entity.material ? ` (tampoco el material "${entity.material}")` : "") +
         ". Al reimportar volverá como polilínea. Conserva el documento canónico como original.",
     };
+  },
+  /**
+   * OPENING (T-34): sin anfitrión resoluble, o con una receta de muro
+   * degenerada, no hay dónde poner las jambas — cero primitivas, y eso es
+   * pérdida de geometría (`error`), igual que WALL sin contorno. El bloque
+   * propio del hueco (`symbolBlock`) nunca se resuelve al exportar: siempre
+   * sale el símbolo de fábrica, y se declara aparte (`warning`) porque la
+   * entidad SÍ viaja, sólo que con otro símbolo.
+   */
+  opening: (entity, document) => {
+    if (entity.type !== "opening") return null;
+    if (cadOpeningToDxfPrimitives(entity, document).length === 0)
+      return {
+        code: "dxf_export_entity_dropped",
+        severity: "error",
+        detail:
+          "OPENING — el muro anfitrión no existe o su receta es degenerada: el hueco NO estará en el fichero.",
+      };
+    if (entity.symbolBlock)
+      return {
+        code: "dxf_export_opening_symbol_block_degraded",
+        severity: "warning",
+        detail:
+          `OPENING — el bloque propio "${entity.symbolBlock}" no se exporta: las jambas viajan en su ` +
+          "posición real, pero el símbolo sale de fábrica en vez del bloque del estudio.",
+      };
+    return null;
   },
   wipeout: (entity, _document, scoped) => {
     if (entity.type !== "wipeout") return null;
