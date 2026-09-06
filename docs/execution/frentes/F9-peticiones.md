@@ -275,3 +275,185 @@ panel PERSISTE más allá de 12 s (a diferencia del toast) y que
 "Reintentar" dispara un segundo intento real.
 
 ---
+
+## P-05 · Los 9 `outline-none` que quedan del trinquete de foco visible (T-73/d)
+
+**Contexto.** `foco-visible.spec.ts` (`components/ui/`) contaba 27
+controles con `outline-none` y ningún sustituto visible del anillo de
+foco. Las 18 que vivían fuera del monolito ya llevan
+`focus-visible:ring-2 focus-visible:ring-ring` en este mismo commit, y el
+techo de `foco-visible-budget.json` bajó de 27 a **9** — el trinquete sólo
+baja, y no puede bajar más de aquí sin tocar `Layout3DEditor.tsx`, donde
+viven las 9 restantes. Mismo arreglo, mecánico, en las 9 líneas:
+
+```diff
+  # línea 15408 — selector de estado de aprobación del plano
+- className="type-caption rounded-md px-1.5 py-1 bg-muted/60 border border-border outline-none"
++ className="type-caption rounded-md px-1.5 py-1 bg-muted/60 border border-border outline-none focus-visible:ring-2 focus-visible:ring-ring"
+
+  # línea 16267 — caja de búsqueda de la paleta Ctrl+K (ver también P-06,
+  # que le falta bastante más que el foco)
+- className="min-w-0 flex-1 bg-transparent type-small text-foreground placeholder:text-muted-foreground outline-none"
++ className="min-w-0 flex-1 bg-transparent type-small text-foreground placeholder:text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+
+  # línea 17137 — ancho de pasillo (herramienta de distribución)
+- className="w-20 rounded-md bg-muted/60 px-2 py-1 text-right outline-none"
++ className="w-20 rounded-md bg-muted/60 px-2 py-1 text-right outline-none focus-visible:ring-2 focus-visible:ring-ring"
+
+  # línea 17351 — longitud del muro seleccionado
+- className="w-full rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground outline-none"
++ className="w-full rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+
+  # línea 17379 — ángulo del muro seleccionado (misma clase que la anterior)
+- className="w-full rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground outline-none"
++ className="w-full rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+
+  # línea 17424 — nombre visible del activo seleccionado
+- className="w-full rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground placeholder:text-muted-foreground outline-none"
++ className="w-full rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground placeholder:text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+
+  # línea 17441 — capa del objeto seleccionado
+- className="w-full rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground outline-none"
++ className="w-full rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+
+  # línea 17463 — tags del objeto seleccionado
+- className="w-full rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground placeholder:text-muted-foreground outline-none"
++ className="w-full rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground placeholder:text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+
+  # línea 17477 — notas del objeto seleccionado
+- className="w-full resize-none rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground placeholder:text-muted-foreground outline-none"
++ className="w-full resize-none rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground placeholder:text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+```
+
+**Por qué no lo hago yo.** Las 9 líneas están dentro de
+`Layout3DEditor.tsx`, territorio de F1. Es el mismo patrón exacto que ya
+se aplicó a las 18 restantes — cero riesgo de comportamiento, sólo una
+clase Tailwind añadida — pero el archivo tiene su propio trinquete de
+tamaño y dueño.
+
+**Después de aplicar.** Baja `maximo` en
+`components/ui/foco-visible-budget.json` de 9 a 0 y actualiza su `nota`.
+El trinquete llega a cero por primera vez.
+
+---
+
+## P-06 · La paleta Ctrl+K no tiene ni un atributo de accesibilidad (T-73/i)
+
+**Contexto.** Es la superficie insignia del producto y hoy, para un
+lector de pantalla, no existe como diálogo: es un `<div>` flotante sin
+`role`, sin `aria-modal`, sin `aria-label` y sin trampa de foco. El propio
+patrón ya existe en el repo, probado y en uso en los ocho cuadros del
+editor (`CadDialogShell.tsx`, `components/cad/dialogs/`) — no hace falta
+inventar nada, sólo aplicarlo aquí.
+
+**Dónde.** El estado (`showPalette`, `paletteQuery`) se declara en las
+líneas 1516-1517; el marcado de la paleta ocupa aproximadamente las
+líneas 16251-16320 (input de búsqueda en 16255-16268, lista de resultados
+desde 16292).
+
+**Qué falta, mínimo defendible:**
+
+```diff
+- <div className="absolute top-3 right-3 ...">
++ <div
++   className="absolute top-3 right-3 ..."
++   role="dialog"
++   aria-modal="true"
++   aria-label="Buscar comando, herramienta o símbolo"
++ >
+```
+
+Más la trampa de foco: el mismo `useEffect` con captura de `keydown` para
+Tab/Shift+Tab que ya usa `CadDialogShell.tsx` (líneas 73-106 de ese
+archivo), apuntando al contenedor de la paleta en vez de a
+`panelRef`. Ctrl+K vive dentro del monolito y no puede importar
+`CadDialogShell` sin envolver TODO el `<div>` en él (cambiaría el
+marcado/estilos existentes) — la alternativa mínima es copiar sólo la
+lógica de la trampa de foco (las ~35 líneas del `useEffect`, no el
+componente completo), tal como está documentado en `CadDialogShell.tsx`.
+
+**Por qué no lo hago yo.** Marcado y estado dentro de
+`Layout3DEditor.tsx`. El input de búsqueda (línea 16267) ya lleva el
+anillo de foco por P-05; esta petición es el resto: rol, nombre accesible
+y trampa de foco.
+
+**Qué prueba lo verificaría.** No existe hoy ninguna spec de
+accesibilidad para Ctrl+K — los dos e2e existentes
+(`e2e/auditoria/refutacion-cmdk-silla.spec.ts`,
+`refutacion-palabra-imprimir.spec.ts`) prueban qué bloque se inserta, no
+sus atributos ARIA. Un golden nuevo que abra con Ctrl+K, confirme
+`role="dialog"` y `aria-modal`, y que Tab cicle dentro sin escapar a la
+paleta de capas de abajo, cerraría T-73(i).
+
+---
+
+## P-07 · El portal a `document.body` deja TODO el editor fuera de cualquier landmark (T-73/e)
+
+**Contexto.** `axe-estudio.spec.ts` subió el filtro para que `moderate`
+reprima de verdad (T-73/e) — con una única excepción nombrada, `region`,
+documentada en el propio archivo con el `id` de los nodos que la disparan:
+un rótulo de la barra (`.flex-nowrap > .type-small.font-semibold`), un
+elemento de visibilidad responsiva (`.xl\:inline`) y el selector de estado
+de aprobación (`select[aria-label="Estado de aprobación del plano"]`,
+línea 15408). `page-has-heading-one` —la otra mitad de este mismo
+hallazgo— ya está resuelta sin tocar el monolito: `CadStudioHost.tsx`
+envuelve todo en `<main aria-label="Estudio de dibujo">` con un
+`<h1 className="sr-only">` dentro.
+
+**Por qué ese `<main>` no basta para `region`.** El editor entero se pinta
+con `createPortal(<div>...</div>, document.body)` (línea ~18451) para que
+sus overlays `position:fixed` escapen el `backdrop-filter` del contenedor
+—si no, quedarían atrapados dentro de su propia caja en vez del viewport.
+Un portal de React sale del árbol del DOM aunque el componente siga
+colgado del árbol de React: el `<main>` de `CadStudioHost` envuelve el
+`<h1>` y las capas de colaboración (que SÍ están en el flujo normal), pero
+el editor portado se pinta como hijo directo de `<body>`, fuera de
+cualquier landmark — de ahí que sólo `region` (no `page-has-heading-one`)
+siga sin resolverse.
+
+**El arreglo, en una línea.** Cambiar el segundo argumento de ese
+`createPortal` de `document.body` a un contenedor que YA sea un landmark.
+No hace falta que el contenedor lo cree el monolito: `CadStudioHost.tsx`
+puede crear un `<div>` con `role="region"` (o reutilizar su propio
+`<main>` si el `id` se expone) e insertarlo en `document.body` con un
+`ref`, y pasarle ese nodo al editor por una prop existente o nueva. Como
+mínimo defendible, sólo dentro del monolito:
+
+```diff
+- return createPortal(
++ const contenedorPortal =
++   typeof document !== "undefined"
++     ? (document.getElementById("cad-editor-portal-root") ?? document.body)
++     : document.body;
++ return createPortal(
+    <div
+      data-color-scheme={resolvedScheme}
+      ...
+    >
+      ...
+    </div>,
+-   document.body,
++   contenedorPortal,
+  );
+```
+
+Con `CadStudioHost.tsx` (mío) creando ese `<div id="cad-editor-portal-root" role="region" aria-label="Editor" />`
+como hermano del `<main>`, insertado una sola vez al montar (un `useEffect`
+con `document.body.appendChild`/`removeChild`, o de forma más simple un
+`<div id="cad-editor-portal-root" />` fijo en el propio `layout.tsx` raíz
+de la app, fuera del árbol de React del estudio pero presente en TODAS las
+rutas). La segunda opción es más simple y no depende de que
+`CadStudioHost` monte antes que el editor intente portar.
+
+**Por qué no lo hago yo.** El `createPortal` y su segundo argumento están
+dentro de `Layout3DEditor.tsx`. El contenedor destino sí lo puedo crear yo
+(en `layout.tsx` raíz o en `CadStudioHost.tsx`), y lo dejo listo si quien
+aplique esta petición lo prefiere así — avísenme y lo agrego en el mismo
+commit.
+
+**Qué prueba lo verifica.** `axe-estudio.spec.ts` ya lo detecta: al
+aplicar esto, quitar `'region'` de `MODERADAS_PENDIENTES_DE_PETICION` (que
+queda vacío) y confirmar que el aviso `region` desaparece del log de
+`avisos no bloqueantes` en ambos temas.
+
+---

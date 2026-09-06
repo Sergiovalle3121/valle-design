@@ -54,6 +54,7 @@ export function CadNativeEntityList({
   const nombres = cadEntityLabels(entities);
   const visibles = entities.slice(0, limit);
   const ocultas = entities.length - visibles.length;
+  const tituloId = "cad-native-entity-list-titulo";
 
   return (
     <div
@@ -61,30 +62,39 @@ export function CadNativeEntityList({
       data-testid="cad-native-entity-list"
     >
       <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="type-micro uppercase tracking-wide text-primary-ink">
+        <span id={tituloId} className="type-micro uppercase tracking-wide text-primary-ink">
           Entidades nativas
         </span>
         <span className="type-numeric rounded-full bg-muted/60 px-1.5 py-0.5 type-micro text-foreground">
           {entities.length}
         </span>
       </div>
-      <div className="space-y-1">
-        {visibles.map((entity) => (
-          <button
-            key={entity.id}
-            data-testid={`cad-native-entity-${entity.id}`}
-            title={`Identificador técnico: ${entity.id}`}
-            onClick={() => onSelect(entity.id)}
-            className="motion-fast flex w-full items-center justify-between gap-2 rounded-lg bg-surface/80 px-2 py-1.5 text-left type-micro text-foreground transition-[background-color] hover:bg-muted/60"
-          >
-            <span className="truncate">
-              {nombres.get(entity.id) ?? entity.id}
-            </span>
-            <span className="truncate type-micro text-primary-ink">
-              {entity.layer}
-            </span>
-          </button>
-        ))}
+      {/* T-73(g): sin `role="list"` un lector de pantalla no anuncia cuántas
+          filas hay ni deja saltar de una a otra por lista — sólo veía botones
+          sueltos, uno detrás de otro, sin agrupar. El nombre visible ya
+          separa "Muro 1" de "Muros" con dos `<span>`; `aria-label` en el
+          botón evita depender de que el navegador inserte un espacio
+          audible entre ambos al concatenar el texto accesible. */}
+      <div role="list" aria-labelledby={tituloId} className="space-y-1">
+        {visibles.map((entity) => {
+          const nombre = nombres.get(entity.id) ?? entity.id;
+          return (
+            <div key={entity.id} role="listitem">
+              <button
+                data-testid={`cad-native-entity-${entity.id}`}
+                title={`Identificador técnico: ${entity.id}`}
+                aria-label={`${nombre} — capa ${entity.layer}`}
+                onClick={() => onSelect(entity.id)}
+                className="motion-fast flex w-full items-center justify-between gap-2 rounded-lg bg-surface/80 px-2 py-1.5 text-left type-micro text-foreground transition-[background-color] hover:bg-muted/60"
+              >
+                <span className="truncate">{nombre}</span>
+                <span className="truncate type-micro text-primary-ink">
+                  {entity.layer}
+                </span>
+              </button>
+            </div>
+          );
+        })}
       </div>
       {ocultas > 0 ? (
         // Un corte silencioso es una mentira pequeña: quien ve veinte filas de

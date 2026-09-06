@@ -22,6 +22,16 @@ import type { CadPrompt } from "@/lib/cad/engine/command-types";
 import { formatCadKeyword, formatCadPrompt } from "@/lib/cad/engine/prompt";
 
 export interface CadCommandLineEntry {
+  /**
+   * Identidad estable del renglón, ajena a su posición. `history` se recorta
+   * a los últimos `MAX_HISTORY` (`command-engine-host.ts`) — con una clave
+   * de React basada en el índice, CADA renglón cambia de índice al caer el
+   * más viejo del principio, así que React remonta el diálogo COMPLETO en
+   * cada paso de cada comando. Para un lector de pantalla en la región viva
+   * (`role="log"`, `aria-live="polite"`) eso significa volver a anunciar los
+   * sesenta renglones enteros por cada línea nueva, no sólo la que se sumó.
+   */
+  id: number;
   /** Lo que se escribió, o el prompt que se resolvió. */
   text: string;
   level: "prompt" | "input" | "info" | "error";
@@ -82,6 +92,19 @@ export function CadCommandLine({
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === "F2") {
+        // T-73(h): «el prompt vivo no se puede volver a leer» — no había
+        // forma de repasar el diálogo con teclado, y F2 (la tecla de
+        // AutoCAD para esto) no existía. No abre una ventana de texto nueva
+        // —eso es una superficie completa, fuera de este arreglo—: mueve el
+        // foco al propio diálogo (ya es `role="log"`), que con `tabIndex`
+        // pasa a poder leerse con el lector de pantalla y desplazarse con
+        // las flechas sin robarle el ratón al lienzo (`pointer-events-none`
+        // sigue intacto: eso sólo afecta al puntero, no al teclado).
+        event.preventDefault();
+        logRef.current?.focus();
+        return;
+      }
       if (event.key === "Escape") {
         event.preventDefault();
         // Esc con texto escrito lo borra; sin texto, cancela el comando. Es la
@@ -129,6 +152,7 @@ export function CadCommandLine({
   );
 
   const line = prompt ? formatCadPrompt(prompt) : "";
+  const logId = "cad-command-line-log";
 
   return (
     <div
@@ -152,6 +176,7 @@ export function CadCommandLine({
     >
       <div
         ref={logRef}
+        id={logId}
         data-testid="cad-command-line-log"
         // Región viva para lectores de pantalla: cada paso del comando se
         // anuncia sin robar el foco (polite, no assertive — un dibujante
@@ -159,16 +184,32 @@ export function CadCommandLine({
         role="log"
         aria-live="polite"
         aria-label="Diálogo de la línea de comandos"
+        // T-73(h): sin `tabIndex` el diálogo no podía recibir foco — F2
+        // (arriba) ahora lo manda aquí para releerlo o desplazarlo con las
+        // flechas. Escape lo devuelve a la caja: quedarse atrapado en un
+        // registro de sólo lectura sería peor que no poder entrar.
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            inputRef.current?.focus();
+          }
+        }}
         // `pointer-events-none`: el diálogo es texto de SÓLO LECTURA y el
         // muelle flota sobre el lienzo y sobre la barra inferior. Con el
         // puntero enrutado al motor, cada paso de cada comando deja su renglón
         // y el diálogo crece hasta su tope, tapando lo que hay debajo: Undo, la
         // entrada dinámica y los botones de la barra dejaban de poder pulsarse.
         // Sólo la entrada y las palabras clave necesitan recibir el ratón.
+        // (El bloqueo es sólo de PUNTERO: el foco y el teclado —F2, flechas,
+        // Escape— no pasan por `pointer-events` y siguen funcionando. Y esta
+        // clase NO apaga el anillo del sistema (nada de outline-none aquí):
+        // el foco visible por defecto —el mismo `:focus-visible` de toda la
+        // app— es justo lo que hace falta, no uno nuevo.)
         className="pointer-events-none max-h-24 overflow-y-auto px-2 py-1 font-mono leading-snug"
       >
-        {history.map((entry, index) => (
-          <div key={`${index}-${entry.text}`} className={LEVEL_CLASS[entry.level]}>
+        {history.map((entry) => (
+          <div key={entry.id} className={LEVEL_CLASS[entry.level]}>
             {entry.level === "input" ? `> ${entry.text}` : entry.text}
           </div>
         ))}
@@ -209,6 +250,7 @@ export function CadCommandLine({
           spellCheck={false}
           autoComplete="off"
           aria-label="Línea de comandos CAD"
+          aria-describedby={logId}
           placeholder={
             prompt
               ? "coordenada, distancia u opción"
@@ -216,7 +258,7 @@ export function CadCommandLine({
                 ? `escribe un comando · Espacio repite ${lastCommand}`
                 : "escribe un comando (L, C, TR, MI…)"
           }
-          className="pointer-events-auto min-w-0 flex-1 bg-transparent font-mono text-foreground outline-none placeholder:text-muted-foreground"
+          className="pointer-events-auto min-w-0 flex-1 bg-transparent font-mono text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring placeholder:text-muted-foreground"
         />
       </div>
     </div>

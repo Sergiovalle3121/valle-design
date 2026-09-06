@@ -170,7 +170,18 @@ export default function CadStudioHost({
   }, [recoveryScope]);
 
   return (
-    <>
+    // T-73(e): axe marca `page-has-heading-one` y `region` (moderate) sin
+    // que este gate hoy reprobara por ellos — el estudio no tenía NI un
+    // `<h1>` ni un solo landmark, así que TODO su contenido (editor,
+    // colaboración, mensajería, llamada) quedaba fuera de cualquier región
+    // para un lector de pantalla. Se resuelve aquí, fuera del monolito:
+    // `<main>` con `display: contents` no añade ninguna caja nueva al
+    // layout (cero riesgo visual, cero golden roto) y el `<h1>` va oculto
+    // visualmente (`sr-only`) porque el título YA lo dice el navegador y la
+    // barra de estado — repetirlo en pantalla sería ruido, pero un lector de
+    // pantalla sin él no tiene ningún encabezado del que partir.
+    <main className="contents" aria-label="Estudio de dibujo">
+      <h1 className="sr-only">Editor de planos — Valle Design</h1>
       <ErrorBoundary zona="El editor" documentId={documentId} onError={handleEditorCrash} extraActions={<EditorCrashRecoveryAction scope={recoveryScope} />}>
         <Layout3DEditor
           {...props}
@@ -237,6 +248,6 @@ export default function CadStudioHost({
           <CallBar documentId={documentId} displayName={user?.email} />
         </ErrorBoundary>
       ) : null}
-    </>
+    </main>
   );
 }

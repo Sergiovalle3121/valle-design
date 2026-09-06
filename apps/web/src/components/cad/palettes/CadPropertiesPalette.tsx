@@ -117,7 +117,7 @@ const PropertyField = React.memo(function PropertyField({
           readOnly
           tabIndex={-1}
           value={row.varies ? CAD_PROPERTY_VARIES : String(row.value)}
-          className="mt-1 w-full rounded-control border border-border bg-muted/40 px-2 py-1.5 type-caption text-muted-foreground outline-none"
+          className="mt-1 w-full rounded-control border border-border bg-muted/40 px-2 py-1.5 type-caption text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       </label>
     );

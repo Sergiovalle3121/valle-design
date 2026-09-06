@@ -166,7 +166,7 @@ export function CadDynamicInput({
                 : `≈${Number(defaults[field]).toFixed(field === "angle" ? 1 : 2)}`
             }
             inputMode="decimal"
-            className="w-20 bg-transparent type-micro text-foreground outline-none placeholder:text-muted-foreground"
+            className="w-20 bg-transparent type-micro text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring placeholder:text-muted-foreground"
           />
           <button
             type="button"

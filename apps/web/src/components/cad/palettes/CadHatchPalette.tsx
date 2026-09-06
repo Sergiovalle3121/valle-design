@@ -64,7 +64,7 @@ export function CadHatchPalette({
               event.target.value as "normal" | "outer" | "ignore",
             )
           }
-          className="mt-1 w-full rounded-control border border-border bg-surface px-2 py-1 text-foreground outline-none"
+          className="mt-1 w-full rounded-control border border-border bg-surface px-2 py-1 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <option value="normal">Normal · par/impar</option>
           <option value="outer">Outer · primer nivel</option>
