@@ -99,5 +99,9 @@
   "apps/api/src/modules/organizations/organizations.controller.ts#removeMember": {
     "check": "membershipTarget",
     "reason": "membershipTarget() autentica con actor() y exige owner/admin server-side antes de expulsar; el propietario y la auto-expulsión quedan protegidos ahí mismo"
+  },
+  "apps/api/src/modules/audit-log/audit-log.controller.ts#list": {
+    "check": "authenticate",
+    "reason": "identity.authenticate() autentica la cookie de sesión y falla cerrado; access.resolve() verifica la membresía real contra el :organizationId de la URL antes de leer nada"
   }
 }

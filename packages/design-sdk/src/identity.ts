@@ -132,6 +132,16 @@ export function createIdentitySurface({ call, resource }: IdentityTransport) {
         resource("/v1/auth/activity"),
       ),
 
+    /**
+     * T-62c: el derecho ARCO mínimo — exportar lo propio. Nunca lleva
+     * contraseñas ni secretos de MFA.
+     */
+    exportPersonalData: () =>
+      call<Schemas["IdentityPersonalDataExport"]>(
+        "GET",
+        resource("/v1/auth/export"),
+      ),
+
     mfa: {
       status: () => call<Schemas["MfaStatus"]>("GET", resource("/v1/auth/mfa")),
       /**

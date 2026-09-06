@@ -78,9 +78,13 @@ void (async () => {
   //   cambiar la contraseña estando dentro de la sesión
   //   (POST /v1/auth/password/change) y cambiar nombre visible/correo
   //   (PATCH /v1/auth/profile).
+  // + la de T-62a: leer la bitácora de auditoría del tenant
+  //   (GET /v1/organizations/{id}/audit-log).
+  // + la de T-62c: exportar los datos personales propios
+  //   (GET /v1/auth/export).
   assert.equal(
     regenerated.operationCount,
-    108,
+    110,
     "cambió el número de operaciones del contrato; actualiza este spec Y los recuentos de check-design-contract.mjs / standalone-contract-router.spec.ts",
   );
   assert.equal(

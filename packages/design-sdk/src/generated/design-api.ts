@@ -261,6 +261,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Exporta los datos personales propios (T-62c, derecho ARCO); nunca contrasenas ni secretos de MFA. */
+        get: operations["exportIdentityPersonalData"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/auth/verify-email": {
         parameters: {
             query?: never;
@@ -436,6 +453,25 @@ export interface paths {
         head?: never;
         /** Cambia el rol de un miembro (T-60a); el propietario queda fuera, esta ruta no transfiere propiedad. */
         patch: operations["updateOrganizationMembershipRole"];
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/audit-log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["organizationId"];
+            };
+            cookie?: never;
+        };
+        /** Bitacora de auditoria del tenant (T-62a); quien toco que, con retencion de 400 dias. */
+        get: operations["listOrganizationAuditLog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/organizations/{organizationId}/invitations": {
@@ -1959,6 +1995,39 @@ export interface components {
         IdentityActivityList: {
             events: components["schemas"]["IdentityActivityEvent"][];
         };
+        IdentityPersonalDataExport: {
+            user: {
+                /** Format: uuid */
+                id: string;
+                email: components["schemas"]["EmailAddress"];
+                displayName: string | null;
+                /** Format: date-time */
+                emailVerifiedAt: string | null;
+                createdAt: components["schemas"]["Timestamp"];
+            };
+            sessions: {
+                /** Format: uuid */
+                id: string;
+                createdAt: components["schemas"]["Timestamp"];
+                expiresAt: components["schemas"]["Timestamp"];
+                /** Format: date-time */
+                revokedAt: string | null;
+                userAgent: string | null;
+            }[];
+            memberships: {
+                /** Format: uuid */
+                organizationId: string;
+                organizationName: string;
+                role: string;
+            }[];
+            mfa: {
+                enabled: boolean;
+            };
+            activity: {
+                action: string;
+                createdAt: components["schemas"]["Timestamp"];
+            }[];
+        };
         SessionRotationResponse: {
             expiresAt: components["schemas"]["Timestamp"];
         };
@@ -2059,6 +2128,18 @@ export interface components {
             /** Format: uuid */
             userId: string;
             role: components["schemas"]["OrganizationInvitationRole"];
+        };
+        OrganizationAuditLogEntry: {
+            id: string;
+            /** @description Correo de quien ejecuto la accion; null cuando el sistema la registro sola. */
+            actor: string | null;
+            action: string;
+            referenceType: string | null;
+            referenceId: string | null;
+            createdAt: components["schemas"]["Timestamp"];
+        };
+        OrganizationAuditLogList: {
+            items: components["schemas"]["OrganizationAuditLogEntry"][];
         };
         OrganizationInvitationCreate: {
             email: components["schemas"]["EmailAddress"];
@@ -3543,6 +3624,27 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
         };
     };
+    exportIdentityPersonalData: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Perfil, sesiones (sin IP), membresias, estado de MFA y actividad reciente. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentityPersonalDataExport"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
     verifyIdentityEmail: {
         parameters: {
             query?: never;
@@ -3881,6 +3983,33 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listOrganizationAuditLog: {
+        parameters: {
+            query?: {
+                /** @description Tope de asientos a devolver, del mas reciente al mas antiguo. Se acota entre 1 y 200; fuera de ese rango se usa el limite mas cercano en vez de rechazar la peticion. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["organizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Asientos recientes del tenant, del mas nuevo al mas viejo. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationAuditLogList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };

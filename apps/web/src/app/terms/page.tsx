@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import {
   PublicPageShell,
   PublicSection,
@@ -47,10 +48,11 @@ export default function TermsPage() {
       <PublicSection title="Lanzamiento gratuito: qué se cobra y qué no">
         <p>
           Durante el lanzamiento el acceso es gratuito por el periodo que
-          anuncia la página de precios, y <strong>no se solicita ni se
-          almacena ningún medio de pago</strong> para crear una cuenta. Al
-          terminar ese periodo no se realiza ningún cargo automático: no hay
-          nada que cobrar porque no se capturó nada con qué hacerlo.
+          anuncia la página de precios, y{" "}
+          <strong>no se solicita ni se almacena ningún medio de pago</strong>{" "}
+          para crear una cuenta. Al terminar ese periodo no se realiza ningún
+          cargo automático: no hay nada que cobrar porque no se capturó nada con
+          qué hacerlo.
         </p>
         <p>
           <strong>Tus documentos no quedan condicionados al pago.</strong>{" "}
@@ -62,12 +64,13 @@ export default function TermsPage() {
         </p>
         <p>
           Las tarifas que la página de precios publica las sirve el catálogo
-          real del despliegue y describen lo que costará un plan cuando el
-          cobro se active; hoy no hay contratación en línea disponible. No se
-          publica un nivel de servicio (SLA): un compromiso de disponibilidad
-          requiere un acuerdo escrito con el titular. La página de estado sólo
-          es autoritativa cuando el despliegue configura una fuente real de
-          telemetría.
+          real del despliegue y describen lo que costará un plan cuando el cobro
+          se active; hoy no hay contratación en línea disponible. Los niveles de
+          servicio informativos están en <Link href="/sla">/sla</Link>, con la
+          misma advertencia de este borrador: un compromiso de disponibilidad
+          VINCULANTE requiere un acuerdo escrito con el titular. La página de
+          estado sólo es autoritativa cuando el despliegue configura una fuente
+          real de telemetría.
         </p>
         <a className={publicActionClass} href={COMMERCIAL_LINKS.contact}>
           Consultar contacto
@@ -76,11 +79,12 @@ export default function TermsPage() {
 
       <PublicSection title="Borrador pendiente de revisión legal">
         <p>
-          Este texto lo redactó el equipo de producto para que la web no
-          prometa nada que el software no haga. <strong>No ha pasado revisión
-          legal profesional</strong> y no sustituye el acuerdo escrito que
-          requiere un uso comercial. Se publica así, dicho en voz alta, en vez
-          de aparentar una solidez jurídica que todavía no tiene.
+          Este texto lo redactó el equipo de producto para que la web no prometa
+          nada que el software no haga.{" "}
+          <strong>No ha pasado revisión legal profesional</strong> y no
+          sustituye el acuerdo escrito que requiere un uso comercial. Se publica
+          así, dicho en voz alta, en vez de aparentar una solidez jurídica que
+          todavía no tiene.
         </p>
       </PublicSection>
 

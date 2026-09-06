@@ -11,11 +11,13 @@
  * pone el CI en rojo.
  */
 export const LEGAL_PAGE_VERSIONS = {
-  terms: { version: "2026-08-27", publicadoEn: "2026-08-27" },
+  terms: { version: "2026-09-06", publicadoEn: "2026-09-06" },
   privacy: { version: "2026-08-27.2", publicadoEn: "2026-08-27" },
 } as const;
 
-export function legalVersionLine(document: keyof typeof LEGAL_PAGE_VERSIONS): string {
+export function legalVersionLine(
+  document: keyof typeof LEGAL_PAGE_VERSIONS,
+): string {
   const entry = LEGAL_PAGE_VERSIONS[document];
   return `Versión ${entry.version} · publicada el ${entry.publicadoEn}`;
 }

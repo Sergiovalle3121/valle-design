@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ClipboardList, Users } from "lucide-react";
+import { ClipboardList, History, Users } from "lucide-react";
+import { AuditLogPanel } from "@/components/organization/AuditLogPanel";
 import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
 import {
@@ -424,6 +425,15 @@ export function TeamRoom() {
                 es más rápido que buscar la forma de saltársela.
               </p>
             )}
+          </Seccion>
+
+          <Seccion
+            icon={History}
+            numero="03"
+            titulo="Quién tocó qué"
+            descripcion="Los últimos movimientos de la organización: guardar, archivar o crear un documento. Retenido 400 días."
+          >
+            <AuditLogPanel organizationId={organizacion.id} />
           </Seccion>
         </>
       )}

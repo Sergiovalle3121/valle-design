@@ -4,7 +4,7 @@
   "openapi": "3.1.0",
   "apiTitle": "Valle Design — API standalone (v1)",
   "apiVersion": "1.0.0",
-  "operationCount": 108,
+  "operationCount": 110,
   "cadOperationCount": 43,
   "groups": [
     {
@@ -26,6 +26,7 @@
         "disableIdentityMfa",
         "regenerateIdentityBackupCodes",
         "listIdentityActivity",
+        "exportIdentityPersonalData",
         "verifyIdentityEmail",
         "resendIdentityVerification",
         "requestIdentityPasswordReset",
@@ -44,6 +45,7 @@
         "listOrganizationMemberships",
         "updateOrganizationMembershipRole",
         "removeOrganizationMembership",
+        "listOrganizationAuditLog",
         "createOrganizationInvitation",
         "acceptOrganizationInvitation"
       ]
@@ -583,6 +585,24 @@
       ]
     },
     {
+      "operationId": "exportIdentityPersonalData",
+      "method": "GET",
+      "path": "/v1/auth/export",
+      "summary": "Exporta los datos personales propios (T-62c, derecho ARCO); nunca contrasenas ni secretos de MFA.",
+      "tags": [
+        "identity"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401"
+      ]
+    },
+    {
       "operationId": "verifyIdentityEmail",
       "method": "POST",
       "path": "/v1/auth/verify-email",
@@ -911,6 +931,36 @@
         "204",
         "401",
         "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "listOrganizationAuditLog",
+      "method": "GET",
+      "path": "/v1/organizations/{organizationId}/audit-log",
+      "summary": "Bitacora de auditoria del tenant (T-62a); quien toco que, con retencion de 400 dias.",
+      "tags": [
+        "organizations"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "organizationId",
+          "in": "path",
+          "required": true
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "required": false
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
         "404"
       ]
     },

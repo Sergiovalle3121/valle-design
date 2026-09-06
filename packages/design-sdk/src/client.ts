@@ -372,6 +372,19 @@ export function createDesignClient(options: DesignClientOptions) {
             `/v1/organizations/${organizationId}/memberships/${membershipId}`,
           ),
         ),
+      /**
+       * T-62a: la bitácora que se escribía y nadie podía leer. `limit` se
+       * acota server-side entre 1 y 200; sin él el servidor usa 50.
+       */
+      auditLog: (organizationId: string, limit?: number) => {
+        const query = new URLSearchParams();
+        if (limit !== undefined) query.set("limit", String(limit));
+        const sufijo = query.toString();
+        return call<Schemas["OrganizationAuditLogList"]>(
+          "GET",
+          `${resource(`/v1/organizations/${organizationId}/audit-log`)}${sufijo ? `?${sufijo}` : ""}`,
+        );
+      },
       invitations: {
         create: (organizationId: string, input: OrganizationInvitationCreate) =>
           call<OrganizationInvitationCreated>(

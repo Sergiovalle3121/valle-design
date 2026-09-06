@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Clock, KeyRound, Laptop, ShieldCheck, UserRound } from "lucide-react";
+import {
+  Clock,
+  Download,
+  KeyRound,
+  Laptop,
+  ShieldCheck,
+  UserRound,
+} from "lucide-react";
 import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
 import {
@@ -356,7 +363,65 @@ export function AccountSecurity() {
           .
         </p>
       </Seccion>
+
+      <Seccion
+        icon={Download}
+        numero="06"
+        titulo="Tus datos"
+        descripcion="Descarga lo que sabemos de tu cuenta: perfil, sesiones (sin IP), organizaciones a las que perteneces, estado del segundo factor y actividad reciente. Nunca tu contraseña ni secretos de MFA."
+      >
+        <ExportarDatos />
+      </Seccion>
     </Marco>
+  );
+}
+
+/**
+ * T-62(c): el derecho ARCO mínimo indiscutible. El archivo se arma en el
+ * NAVEGADOR a partir de la respuesta JSON — no hay ruta de descarga en el
+ * servidor que sirva un archivo, así que no hace falta inventar un
+ * `Content-Disposition` ni un tipo MIME especial en el API.
+ */
+function ExportarDatos() {
+  const [ocupado, setOcupado] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function descargar() {
+    setOcupado(true);
+    setError(null);
+    try {
+      const datos = await designClient.identity.exportPersonalData();
+      const blob = new Blob([JSON.stringify(datos, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const enlace = document.createElement("a");
+      enlace.href = url;
+      enlace.download = `valle-design-datos-personales-${new Date().toISOString().slice(0, 10)}.json`;
+      enlace.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setError("No se pudo generar la descarga. Vuelve a intentarlo.");
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  return (
+    <div>
+      {error ? (
+        <p role="alert" className="type-small mb-4 text-danger-ink">
+          {error}
+        </p>
+      ) : null}
+      <Button
+        variant="secondary"
+        loading={ocupado}
+        onClick={() => void descargar()}
+      >
+        Descargar mis datos (JSON)
+      </Button>
+    </div>
   );
 }
 
