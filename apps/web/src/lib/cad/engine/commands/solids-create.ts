@@ -16,6 +16,18 @@
  * exportado a DXF. Quien quiera conservarla la copia antes; el paso está en un
  * solo lote, así que deshacer lo devuelve todo de una vez.
  *
+ * ## Un perfil inclinado se RECHAZA, no se aplana
+ *
+ * La auditoría del 2026-09-05 (T-10 b) encontró que EXTRUDE tomaba la cota de
+ * UN vértice y extruía el perfil aplanado: un contorno dibujado a 30° daba un
+ * sólido más pequeño por el coseno, a la cota de una sola esquina y con aspecto
+ * de correcto. En esta versión el extrusor sólo sabe levantar perfiles
+ * horizontales, y eso se DICE: `horizontalProfileFromEntity` mide cuánto se
+ * separan en cota los vértices del contorno y, si se separan más que la
+ * tolerancia del kernel, la orden termina con ese número en milímetros y sin
+ * escribir nada. Extruir por la normal del perfil es el arreglo bueno y está
+ * pendiente; lo que no está permitido es entregar el aplanado en silencio.
+ *
  * ## PRESSPULL ya no vive aquí
  *
  * Este archivo declaraba que PRESSPULL sólo sabía convertir un área cerrada en
@@ -27,10 +39,11 @@
  * extrusión que usa para el segundo caso sigue siendo la de aquí, exportada
  * para que no haya dos.
  */
-import type { CadPoint2 } from "../../cad-document";
+import type { CadEntity, CadPoint2 } from "../../cad-document";
 import type { CadEntityCommand } from "../../entity-commands";
 import type { CadSolidNode } from "../../cad-entities-v5";
 import {
+  horizontalProfileFromEntity,
   planeFrameAt,
   profileFromEntity,
   revolveSetupFromProfile,
@@ -49,8 +62,10 @@ import {
   type CadCommandDescriptor,
   type CadCommandStep,
 } from "../command-types";
+import { cadMillimetresLabel, cadToMillimetres } from "./architecture-support";
 import {
   finishedSolid,
+  formatMagnitude,
   makeSolidEntity,
   selectedEntities,
   solidBatch,
@@ -81,6 +96,68 @@ function profilesOf(context: CadCommandContext, ids: readonly string[]): CadExtr
     if (extracted) profiles.push(extracted);
   }
   return profiles;
+}
+
+/** Cómo nombra el mensaje al contorno que no se pudo extruir. */
+const PROFILE_NOUN: Partial<Record<CadEntity["type"], string>> = {
+  polyline: "la polilínea",
+  region: "la región",
+  spline: "la spline",
+  ellipse: "la elipse",
+  circle: "el círculo",
+};
+
+/**
+ * El motivo, con el número, por el que un contorno inclinado no se extruye.
+ *
+ * Habla en milímetros porque es lo que el arquitecto lee, y los saca de la
+ * unidad del documento por el mismo helper que usan SLAB y ROOF. Una desviación
+ * real pero menor que la décima de milímetro no se redondea a «0 mm», que
+ * sería decirle al usuario que su perfil es horizontal justo al negárselo.
+ */
+function inclinedProfileRefusal(
+  label: string,
+  entity: CadEntity,
+  deviation: number,
+  position: { index: number; total: number },
+  unit: string | undefined,
+): string {
+  const noun = PROFILE_NOUN[entity.type] ?? "el contorno";
+  const which = position.total > 1 ? `${noun} (contorno ${position.index + 1} de ${position.total})` : noun;
+  const millimetres = cadToMillimetres(deviation, unit);
+  const amount = millimetres < 0.1 ? `menos de ${formatMagnitude(0.1)} mm` : `${cadMillimetresLabel(deviation, unit)} mm`;
+  return (
+    `${label} no extruyó ${which}: el perfil no es horizontal (sus vértices se separan ${amount} en cota). ` +
+    `En esta versión ${label} sólo acepta perfiles horizontales y no aplana los inclinados; extruirlos por su normal está pendiente.`
+  );
+}
+
+/**
+ * Perfiles HORIZONTALES de la designación, o el motivo del primero que no lo es.
+ *
+ * Un solo contorno inclinado aborta la orden entera, igual que un perfil que
+ * no da sólido: emitir los demás dejaría media operación hecha y al usuario
+ * sin saber cuál faltó.
+ */
+function horizontalProfilesOf(
+  context: CadCommandContext,
+  ids: readonly string[],
+  label: string,
+): { profiles: CadExtractedProfile[] } | { refusal: string } {
+  // Sólo cuentan como «contorno N de M» las entidades que encierran un área;
+  // una línea colada en la designación no se numera.
+  const contours = selectedEntities(context, ids)
+    .map((entity) => ({ entity, horizontal: horizontalProfileFromEntity(entity) }))
+    .filter((entry) => entry.horizontal.kind !== "none");
+  const profiles: CadExtractedProfile[] = [];
+  for (const [index, { entity, horizontal }] of contours.entries()) {
+    if (horizontal.kind === "inclined")
+      return {
+        refusal: inclinedProfileRefusal(label, entity, horizontal.deviation, { index, total: contours.length }, context.unit),
+      };
+    if (horizontal.kind === "profile") profiles.push(horizontal.extracted);
+  }
+  return { profiles };
 }
 
 // ---------------------------------------------------------------------------
@@ -125,7 +202,11 @@ function extrudeResult(
 ): CadCommandStep<ExtrudeState> {
   if (!(Math.abs(height) > 1e-9))
     return solidMessage(state, `${label} necesita una altura distinta de cero.`);
-  const profiles = profilesOf(context, state.selection);
+  // Un contorno inclinado termina la orden con su motivo ANTES de que nada se
+  // aplane: ver la cabecera, «Un perfil inclinado se RECHAZA, no se aplana».
+  const horizontal = horizontalProfilesOf(context, state.selection, label);
+  if ("refusal" in horizontal) return solidMessage(state, horizontal.refusal);
+  const profiles = horizontal.profiles;
   if (profiles.length === 0) return solidMessage(state, NO_PROFILE);
 
   const commands: CadEntityCommand[] = [];
