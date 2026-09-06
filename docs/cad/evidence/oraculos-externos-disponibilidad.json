@@ -83,6 +83,76 @@
       "queHariaFalta": null
     },
     {
+      "id": "pyproj",
+      "nombre": "pyproj",
+      "version": "3.7.2",
+      "familia": "GEO",
+      "papel": "Oráculo D: reproyección geográfica ↔ UTM (envuelve PROJ 9.5.1). Sirve a dos filas con un solo trabajo: geo.crs (la malla de control de México de crs.spec.ts, reproyectada por PROJ) y toolset-map3d.georreferencia (un shapefile público de Natural Earth, dominio público, leído por el lector de producción y reproyectado por PROJ).",
+      "estado": "cableado",
+      "licencia": "MIT",
+      "admisible": true,
+      "porQueAdmisible": "MIT (pyproj) + MIT-estilo (PROJ, empaquetada dentro de la misma rueda). Los textos están descargados y hasheados en docs/cad/corpus/oraculos/licencias/pyproj-3.7.2-MIT.txt y pyproj-3.7.2-bundled-PROJ-MIT.txt.",
+      "sonda": {
+        "tipo": "python-import",
+        "comando": "python3 -c \"import pyproj; print(pyproj.__version__)\"",
+        "objetivo": "pyproj"
+      },
+      "disponibleAlDeclarar": true,
+      "arnes": [
+        "docs/cad/corpus/oraculos/censo-pyproj.py",
+        "apps/web/src/lib/geo/crs-pyproj.spec.ts",
+        "apps/web/src/lib/geo/shapefile-pyproj.spec.ts"
+      ],
+      "artefactoCongelado": "docs/cad/corpus/oraculos/pyproj-3.7.2.json",
+      "queHariaFalta": null
+    },
+    {
+      "id": "openapi-spec-validator",
+      "nombre": "openapi-spec-validator",
+      "version": "0.9.0",
+      "familia": "API",
+      "papel": "Oráculo E: dictamina si design-api.v1.yaml es un documento OpenAPI 3.1 válido según el esquema oficial de la especificación pública. Sirve al criterio api-sdk.contract.",
+      "estado": "cableado",
+      "licencia": "Apache-2.0",
+      "admisible": true,
+      "porQueAdmisible": "Apache-2.0 (Artur Maciag y colaboradores). El texto está descargado y hasheado en docs/cad/corpus/oraculos/licencias/openapi-spec-validator-0.9.0-Apache-2.0.txt.",
+      "sonda": {
+        "tipo": "python-import",
+        "comando": "python3 -c \"import openapi_spec_validator; print(openapi_spec_validator.__version__)\"",
+        "objetivo": "openapi_spec_validator"
+      },
+      "disponibleAlDeclarar": true,
+      "arnes": [
+        "docs/cad/corpus/oraculos/censo-openapi.py",
+        "apps/web/src/lib/cad/verification/api-sdk-openapi.spec.ts"
+      ],
+      "artefactoCongelado": "docs/cad/corpus/oraculos/openapi-spec-validator-0.9.0.json",
+      "queHariaFalta": null
+    },
+    {
+      "id": "python-hmac-stdlib",
+      "nombre": "Python hmac + hashlib (biblioteca estándar)",
+      "version": null,
+      "familia": "EVENTS",
+      "papel": "Oráculo F: verifica de forma independiente que X-Valle-Signature es HMAC-SHA256 sobre timestamp + \".\" + rawBody. Sirve al criterio events.operational.",
+      "estado": "cableado",
+      "licencia": "PSF License (biblioteca estándar de Python)",
+      "admisible": true,
+      "porQueAdmisible": "PSF License, biblioteca estándar de una distribución de Python legítimamente obtenida. No se instala nada de PyPI: no hay rueda ni texto de licencia de terceros que archivar.",
+      "sonda": {
+        "tipo": "python-import",
+        "comando": "python3 -c \"import hmac, hashlib\"",
+        "objetivo": "hmac"
+      },
+      "disponibleAlDeclarar": true,
+      "arnes": [
+        "docs/cad/corpus/oraculos/censo-hmac-stdlib.py",
+        "apps/web/src/lib/cad/verification/events-hmac.spec.ts"
+      ],
+      "artefactoCongelado": "docs/cad/corpus/oraculos/hmac-stdlib.json",
+      "queHariaFalta": null
+    },
+    {
       "id": "oda-file-converter",
       "nombre": "ODA File Converter",
       "version": "27.1",
@@ -334,8 +404,8 @@
     }
   ],
   "resumen": {
-    "candidatos": 7,
-    "cableados": 3,
+    "candidatos": 10,
+    "cableados": 6,
     "descartadosPorLicencia": 3,
     "ausentesDeclarados": 1,
     "binariosSondeados": 21,

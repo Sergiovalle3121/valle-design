@@ -127,6 +127,152 @@ conviene leerla antes de nada:
      censo lo esquiva recorriendo `instances.values()`. Un oráculo con defectos
      sirve mientras estén escritos; uno con defectos callados, no.
 
+## pyproj 3.7.2 <a id="pyproj-3-7-2"></a>
+
+- **Nombre:** pyproj
+- **Versión:** 3.7.2 (envuelve PROJ 9.5.1)
+- **Papel:** oráculo **D**. Reproyección geográfica ↔ UTM. Sirve a DOS filas de
+  la rúbrica competitiva con un solo trabajo: `geo.crs` (la malla de control de
+  México que `crs.spec.ts` ya genera con su propia fórmula, reproyectada aquí
+  por PROJ) y `toolset-map3d.georreferencia` (un shapefile PÚBLICO de terceros
+  —Natural Earth, dominio público— reproyectado por PROJ). Hasta el 2026-09-06
+  los tres caminos que contrastaban `crs.ts` (cuadratura de Gauss-Legendre,
+  serie de Snyder, diferencias finitas) los escribía y ejecutaba este mismo
+  repositorio.
+- **Lenguaje:** Python 3.11 (rueda binaria `manylinux`, envuelve la biblioteca
+  C PROJ)
+- **Autor / titular:** Jeffrey Whitaker (2006-2018); mantenedores de pyproj
+  (2019-). PROJ empaquetada dentro: linaje Gerald Evenden / Frank Warmerdam,
+  mantenida hoy por OSGeo.
+- **Licencia:** MIT (pyproj) + MIT-estilo (PROJ, empaquetada dentro de la
+  misma rueda)
+- **Texto de la licencia:** `licencias/pyproj-3.7.2-MIT.txt`, 1 118 bytes
+  (pyproj) y `licencias/pyproj-3.7.2-bundled-PROJ-MIT.txt`, 1 720 bytes (PROJ)
+- **SHA-256 del texto de la licencia (pyproj):**
+  `a652687151814d4c4715445912fcb49e7e58f5b248d47a1a88b859a8815e0822`
+- **SHA-256 del texto de la licencia (PROJ empaquetada):**
+  `ac9caff7979c906774d756815d1d473145284ba7ba9a5ef1c5fa77e6a30cef82`
+- **Aviso de copyright conservado:** `Copyright (c) 2006-2018, Jeffrey
+  Whitaker.` / `Copyright (c) 2019-2024, Open source contributors.` (pyproj);
+  `Copyright (c) 2000, Frank Warmerdam` (PROJ, que a su vez declara que
+  «essentially all work was done by Gerald Evenden»)
+- **Origen:** PyPI — `pip install pyproj==3.7.2`
+- **Rueda instalada:**
+  `pyproj-3.7.2-cp311-cp311-manylinux_2_28_x86_64.whl`
+- **SHA-256 de la rueda:**
+  `281cb92847814e8018010c48b4069ff858a30236638631c1a91dd7bfa68f8a8a`
+- **Tamaño de la rueda:** 9 493 977 bytes
+- **Comprobación de procedencia (hecho observado, 2026-09-06):** el sha256 de
+  la rueda descargada **coincide** con el digest que publica el índice en
+  <https://pypi.org/pypi/pyproj/3.7.2/json> para ese mismo nombre de fichero,
+  con fecha de publicación `2025-08-14T12:03:57.937671Z` y tamaño 9 493 977.
+- **Fecha de instalación:** 2026-09-06
+- **Estado de los términos:** publicados, permisivos y descargados. MIT
+  autoriza usar, copiar y distribuir conservando el aviso de copyright, que
+  viaja en `licencias/`. Los bytes de la herramienta **no** entran a este
+  repositorio.
+- **Uso autorizado:** ejecución local como **transformador de coordenadas** de
+  referencia. Nunca como fuente de código: su implementación ni se consulta ni
+  se copia.
+- **Artefacto que produce:** `pyproj-3.7.2.json` — la malla de control de
+  México (660 puntos, la misma fórmula que `mexicoControlGrid()` en
+  `crs.spec.ts`) y los 13 puntos del shapefile de Natural Earth que caen en el
+  dominio de las zonas UTM 11N-16N, cada uno con su este/norte según PROJ.
+- **Cómo se regenera:** `python3 docs/cad/corpus/oraculos/censo-pyproj.py`
+  (acepta `--destino RUTA`, que es como el arnés lo reejecuta sin sobrescribir
+  el artefacto contra el que compara).
+- **El límite de esta herramienta, escrito antes de usarla:** PROJ resuelve la
+  transversa de Mercator con el mismo linaje matemático que Karney (2011)
+  —series de Krüger-Engsager-Poder de orden alto—, igual que `crs.ts`. Una
+  coincidencia aquí acredita **otra implementación**, en otro lenguaje, escrita
+  por otras personas; **no** acredita otro método matemático, que es lo que
+  Snyder y la cuadratura de Gauss-Legendre ya prueban dentro de `crs.spec.ts`.
+  Los dos oráculos se complementan; ninguno sustituye al otro.
+
+## openapi-spec-validator 0.9.0 <a id="openapi-spec-validator-0-9-0"></a>
+
+- **Nombre:** openapi-spec-validator
+- **Versión:** 0.9.0
+- **Papel:** oráculo **E** contra el criterio `api-sdk.contract`. Dictamina si
+  `packages/contracts/specs/design-api.v1.yaml` es un documento OpenAPI 3.1
+  válido según el esquema OFICIAL de la especificación pública (que incorpora
+  JSON Schema 2020-12) — no según `scripts/cad/check-design-contract.mjs`, que
+  es nuestro y valida además reglas de negocio.
+- **Lenguaje:** Python 3.11 (rueda pura)
+- **Autor / titular:** Artur Maciag y colaboradores (proyecto `python-openapi`)
+- **Licencia:** Apache-2.0
+- **Texto de la licencia:**
+  `licencias/openapi-spec-validator-0.9.0-Apache-2.0.txt`, 11 357 bytes
+- **SHA-256 del texto de la licencia:**
+  `b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1`
+- **Aviso de copyright conservado:** `Copyright 2017-2021 Artur Maciag`
+- **Origen:** PyPI — `pip install openapi-spec-validator==0.9.0`
+- **Rueda instalada:** `openapi_spec_validator-0.9.0-py3-none-any.whl`
+- **SHA-256 de la rueda:**
+  `222fecffc7714f6d0a6ad62c0e4b66cc2b7dbfafb7b93acfc6c308abbdb51af8`
+- **Tamaño de la rueda:** 50 328 bytes
+- **Comprobación de procedencia (hecho observado, 2026-09-06):** el sha256 de
+  la rueda descargada **coincide** con el digest que publica el índice en
+  <https://pypi.org/pypi/openapi-spec-validator/0.9.0/json> para ese mismo
+  nombre de fichero, con fecha de publicación `2026-05-20T09:23:17.017044Z` y
+  tamaño 50 328.
+- **Fecha de instalación:** 2026-09-06
+- **Estado de los términos:** publicados, permisivos y descargados.
+  Apache-2.0 autoriza usar, copiar, modificar y distribuir conservando el
+  aviso de copyright y el propio texto de la licencia, que viajan en
+  `licencias/`. Los bytes de la herramienta **no** entran a este repositorio.
+- **Uso autorizado:** ejecución local como **validador** de un documento
+  OpenAPI existente. Nunca como fuente de código: su implementación ni se
+  consulta ni se copia.
+- **Artefacto que produce:** `openapi-spec-validator-0.9.0.json` — el
+  dictamen sobre `design-api.v1.yaml`, anclado al sha256 de sus bytes.
+- **Cómo se regenera:** `python3 docs/cad/corpus/oraculos/censo-openapi.py`
+  (acepta `--destino RUTA`).
+- **El límite de esta herramienta, escrito antes de usarla:** valida SINTAXIS
+  y ESTRUCTURA contra la especificación pública; no valida reglas de negocio
+  de Valle Design (nombres de recursos, seguridad declarada por ruta,
+  coherencia con el SDK generado). Esas reglas las sigue vigilando
+  `check-design-contract.mjs`; los dos oráculos verifican preguntas distintas.
+
+## Python hmac + hashlib (biblioteca estándar) <a id="python-hmac-stdlib"></a>
+
+- **Nombre:** `hmac` + `hashlib` de la biblioteca estándar de CPython
+- **Versión:** la de la distribución de Python instalada (3.11.15 en esta
+  máquina); no se fija a una versión de paquete porque no es un paquete: es
+  parte del intérprete.
+- **Papel:** oráculo **F** contra el criterio `events.operational`. Verifica
+  de forma independiente que `X-Valle-Signature` es exactamente
+  HMAC-SHA256 sobre `${timestamp}.${rawBody}`, el contrato que documentan
+  `apps/api/src/modules/outbox-receiver/outbox-signature.ts` (el verificador
+  real) y `apps/api/src/modules/commercial/webhook-outbox.transport.ts` (el
+  emisor real).
+- **Lenguaje:** Python (biblioteca estándar de CPython)
+- **Autor / titular:** Python Software Foundation
+- **Licencia:** PSF License. Es la biblioteca estándar de una distribución de
+  Python legítimamente obtenida — no se descarga ni se instala nada de PyPI,
+  así que no hay rueda que hashear ni texto de licencia de terceros que
+  archivar aquí: el texto de la PSF License viaja con cualquier distribución
+  oficial de Python.
+- **Origen:** distribución estándar de Python 3. No requiere instalación.
+- **Uso autorizado:** ejecución local como **verificador** independiente de
+  una firma HMAC-SHA256 ya calculada. Nunca como fuente de código.
+- **Artefacto que produce:** `hmac-stdlib.json` — el dictamen sobre una
+  fixture determinista (secreto y timestamp fijos, cuerpo con la misma forma
+  que produce el emisor real): la firma genuina coincide, la firma aplicada
+  sobre un cuerpo alterado en un byte NO coincide.
+- **Cómo se regenera:** la fixture la escribe
+  `apps/web/src/lib/cad/verification/events-hmac.spec.ts` en el temporal del
+  sistema (orden spec-primero-script-después, igual que steputils y pyproj);
+  después `python3 docs/cad/corpus/oraculos/censo-hmac-stdlib.py --fixture RUTA`
+  (acepta `--destino RUTA`).
+- **El límite de esta herramienta, escrito antes de usarla:** verifica el
+  ESTÁNDAR criptográfico (HMAC-SHA256 sobre bytes concretos), no el resto del
+  contrato de entrega — ventana de frescura de 300 s, formato ISO-8601 del
+  timestamp, deduplicación por `idempotency-key`. Esas reglas las sigue
+  verificando `outbox-signature.spec.ts`, que es TypeScript y no es
+  independiente en ese sentido; los dos oráculos verifican preguntas
+  distintas.
+
 ## dxf-parser 1.1.2 <a id="dxf-parser-1-1-2"></a>
 
 - **Nombre:** dxf-parser

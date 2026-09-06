@@ -1,0 +1,33 @@
+{
+  "oraculo": "E",
+  "generadoPor": "python3 docs/cad/corpus/oraculos/censo-openapi.py",
+  "mide": "Si packages/contracts/specs/design-api.v1.yaml es un documento OpenAPI 3.1 v\u00e1lido seg\u00fan el ESQUEMA OFICIAL de la especificaci\u00f3n p\u00fablica -no seg\u00fan ninguna regla que este repositorio haya escrito-. Sirve al criterio api-sdk.contract.",
+  "herramienta": {
+    "nombre": "openapi-spec-validator",
+    "version": "0.9.0",
+    "lenguaje": "Python 3.11",
+    "autor": "Artur Maciag y colaboradores (python-openapi)",
+    "licencia": "Apache-2.0",
+    "origen": "PyPI (pip install openapi-spec-validator==0.9.0)",
+    "instaladoEl": "2026-09-06",
+    "sha256Rueda": "222fecffc7714f6d0a6ad62c0e4b66cc2b7dbfafb7b93acfc6c308abbdb51af8",
+    "sha256Licencia": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1",
+    "registro": "docs/cad/corpus/oraculos/HERRAMIENTAS.md#openapi-spec-validator-0-9-0",
+    "porQueCuentaComoIndependiente": "Valida contra el esquema OFICIAL de OpenAPI 3.1 (que incorpora JSON Schema 2020-12), publicado por la OpenAPI Initiative -no un criterio que este repositorio haya escrito-. Ni el validador ni el esquema comparten una l\u00ednea con scripts/cad/check-design-contract.mjs.",
+    "limiteDeSuIndependencia": "Valida SINTAXIS y ESTRUCTURA del documento contra la especificaci\u00f3n p\u00fablica, no reglas de negocio de Valle Design (nombres de recursos, coherencia con el SDK generado, seguridad declarada por ruta). Esas reglas las sigue verificando check-design-contract.mjs; los dos or\u00e1culos se complementan."
+  },
+  "advertencia": "NO ESTA INSTALADA EN CI. Este dictamen se hizo en la m\u00e1quina declarada y se congela aqu\u00ed, anclado al sha256 de los bytes del contrato. El spec vuelve a correrlo si la herramienta est\u00e1 presente; cuando no est\u00e1, declara la ausencia en vez de fingir el dictamen.",
+  "loQueNoAcredita": "Que el contrato tenga sentido de negocio, que el SDK generado lo respete byte a byte, o que la API real implemente lo declarado. Esas tres cosas las verifican otros gates de este repositorio (check-design-contract.mjs, la generaci\u00f3n del SDK, api-sdk-*.spec.ts).",
+  "contrato": {
+    "ruta": "packages/contracts/specs/design-api.v1.yaml",
+    "sha256": "3f21171ca271e12001cecf926c83dacc9d3524f816e16363fe4e96886aefb376",
+    "bytes": 217420,
+    "openapiVersionDeclarada": "3.1.0"
+  },
+  "dictamen": {
+    "valido": true,
+    "errores": [],
+    "erroresCompletos": [],
+    "totalErrores": 0
+  }
+}
