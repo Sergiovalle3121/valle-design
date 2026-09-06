@@ -178,3 +178,18 @@ prefijo `use`, el compilador de React —si algún día se enciende— la trata 
 hook: se ejecuta en cada render y nunca se memoiza, que es exactamente la
 semántica que hace verbatim la extracción. Queda documentado en la cabecera
 del fichero. Lo mismo aplicará al paso 3.
+
+### T-10 (b) · `EXTRUDE` declara el perfil no plano · ARREGLADA en F2 (09:05 UTC)
+`profileFromEntity` tomaba la cota de UN vértice y el anillo en 2D: un perfil
+inclinado salía aplanado (menor por el coseno) y a la cota de una esquina, con
+aspecto de correcto. Ahora `horizontalProfileFromEntity` mide la separación de
+cota entre los vértices que definen la entidad (con la tolerancia lineal del
+propio kernel) y `EXTRUDE`/`PRESSPULL` se niegan nombrando el contorno y la
+desviación en milímetros: «el perfil no es horizontal (sus vértices se separan
+500 mm en cota). En esta versión EXTRUDE sólo acepta perfiles horizontales y no
+aplana los inclinados; extruirlos por su normal está pendiente». Un perfil
+horizontal a cualquier cota extruye byte-idéntico. 49 comprobaciones nuevas en
+`solid3d-profiles.spec.ts` y `solids-create.spec.ts`; `check:command-integrity`
+sin cambios (el artefacto no se toca). Lo que queda para el backlog: extruir
+por la normal (el arreglo bueno) y el mismo guardián en REVOLVE, LOFT, SLAB y
+STAIR, que siguen leyendo la cota de un vértice.
