@@ -435,6 +435,51 @@ function jambMid(
   ok(doorFit.ok, "una puerta corriente (antepecho 0) cabe bajo un muro de 2.4 m");
 }
 
+// --- 10. `rehostId` reapunta la copia de un hueco al muro copiado (T-19·2) ---
+// El generador del comando (COPY, MIRROR, ARRAY) es quien calcula `rehostId`
+// —es la única parte que sabe qué copia del muro pertenece a la MISMA ronda,
+// ver los specs de cada comando—; aquí se prueba que el EJECUTOR
+// (`executeCadEntityCommandBatch`) lo aplica de verdad cuando llega.
+{
+  const document = documentOf([wall("m1", { x: 0, y: 0 }, { x: 4_000, y: 0 }), door("p1", "m1", 1_500)]);
+  const copied = executeCadEntityCommandBatch(
+    document,
+    [
+      { type: "copy", entityId: "p1", newEntityId: "p1-copy", offset: { x: 0, y: 5_000 }, rehostId: "m1-copy" },
+      { type: "copy", entityId: "m1", newEntityId: "m1-copy", offset: { x: 0, y: 5_000 } },
+    ],
+    "COPY",
+  );
+  const copiedDoor = copied.document.entities.find((entity) => entity.id === "p1-copy") as CadOpeningEntity;
+  ok(
+    copiedDoor.hostId === "m1-copy",
+    `la puerta copiada debe hospedarse en el MURO COPIADO, no en el original: hostId=${copiedDoor.hostId}`,
+  );
+  // Y el original queda intacto: copiar no debe mudar la puerta de sitio.
+  const originalDoor = copied.document.entities.find((entity) => entity.id === "p1") as CadOpeningEntity;
+  ok(originalDoor.hostId === "m1", "el original conserva su anfitrión de siempre");
+  // La copia se dibuja de verdad, hospedada en su propio muro: si `hostId`
+  // apuntara al original, esta lectura fallaría en cuanto los dos muros no
+  // compartan parametrización exacta — aquí comparten longitud, así que la
+  // prueba de arriba (la del campo) es la que de verdad distingue el arreglo.
+  ok(paths(copied.document, "p1-copy").length > 0, "y la puerta copiada dibuja sus jambas");
+}
+
+// --- 11. sin `rehostId` (el muro no viaja en la ronda), el hostId no se toca -
+{
+  const document = documentOf([wall("m1", { x: 0, y: 0 }, { x: 4_000, y: 0 }), door("p1", "m1", 1_500)]);
+  const copied = executeCadEntityCommandBatch(
+    document,
+    [{ type: "copy", entityId: "p1", newEntityId: "p1-copy" }],
+    "COPY",
+  );
+  const copiedDoor = copied.document.entities.find((entity) => entity.id === "p1-copy") as CadOpeningEntity;
+  ok(
+    copiedDoor.hostId === "m1",
+    "sin el muro en el mismo lote, la puerta copiada sigue hospedada en el muro de siempre",
+  );
+}
+
 console.log(
   `wall-openings: ${checks} aserciones verdes. Un hueco parte la cara del muro en su intervalo ` +
     `exacto y cruza con sus jambas de cara a cara; mover el muro arrastra la puerta sin cambiarle ` +

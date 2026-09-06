@@ -406,6 +406,66 @@ const nearLimitContext = makeContext(
   assert.ok(result && result.kind === "document", "por debajo del techo, ARRAY no pregunta nada");
 }
 
+// --- T-19·2: cada colocación reapunta el hueco a SU PROPIO muro ---------------
+// Una rectangular 1×4 arraya el muro y su puerta a la vez: cuatro colocaciones,
+// tres copias de cada uno. Sin correlación por colocación, la puerta de la
+// colocación 2 podría reapuntar al muro de la colocación 1 (o cualquier otra) —
+// aquí se prueba que cada colocación queda emparejada con la suya, y ninguna
+// con el muro ORIGINAL.
+{
+  const hostedWall: CadEntity = {
+    id: "wall-1",
+    type: "line",
+    start: { x: 0, y: 0, z: 0 },
+    end: { x: 4_000, y: 0, z: 0 },
+    layer: "0",
+  };
+  const hostedDoor: CadEntity = {
+    id: "door-1",
+    type: "opening",
+    kind: "door",
+    hostId: "wall-1",
+    position: 1_500,
+    width: 900,
+    height: 2_100,
+    sill: 0,
+    swing: "left",
+    hinge: "start",
+    layer: "0",
+  };
+  const result = run(
+    "ARRAY",
+    [
+      { kind: "selection", entityIds: ["wall-1", "door-1"] },
+      keyword("Rectangular"),
+      distance(1),
+      distance(4),
+      distance(0),
+      distance(1_000),
+    ],
+    makeContext([hostedWall, hostedDoor]),
+  );
+  assert.ok(result && result.kind === "document");
+  const wallCopies = result.commands.filter((c) => c.type === "copy" && c.entityId === "wall-1");
+  const doorCopies = result.commands.filter((c) => c.type === "copy" && c.entityId === "door-1");
+  assert.equal(wallCopies.length, 3, "1×4 son cuatro colocaciones: tres copias del muro");
+  assert.equal(doorCopies.length, 3, "y tres copias de la puerta");
+  for (const [index, doorCopy] of doorCopies.entries()) {
+    assert.ok(doorCopy.type === "copy");
+    assert.equal(
+      doorCopy.rehostId,
+      wallCopies[index]?.type === "copy" ? wallCopies[index].newEntityId : undefined,
+      `la puerta de la colocación ${index + 1} debe reapuntar al muro de ESA MISMA colocación`,
+    );
+    assert.notEqual(doorCopy.rehostId, "wall-1", "nunca al muro original");
+  }
+  assert.equal(
+    new Set(doorCopies.map((c) => (c.type === "copy" ? c.rehostId : null))).size,
+    3,
+    "las tres colocaciones tienen cada una su propia copia del muro como anfitrión",
+  );
+}
+
 console.log(
   `ARRAY: rectangular, polar y de camino con ${checks} anclas de colocación, ` +
     `asociación escrita en cada miembro y ARRAYEDIT regenerando sin tocar los originales`,

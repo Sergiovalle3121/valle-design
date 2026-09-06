@@ -12,7 +12,7 @@
  * raro.
  */
 import type { CadPoint2 } from "../../cad-document";
-import type { CadEntityCommand } from "../../entity-commands";
+import { cadOpeningRehostId, type CadEntityCommand } from "../../entity-commands";
 import { OFFSET_REJECTION_MESSAGE, offsetCanonicalEntity, offsetSideSign } from "../../draw-action-entities";
 import type { CadNativeEntity } from "../../entity-runtime";
 import {
@@ -267,11 +267,17 @@ function makeDisplace(
       const base = state.points[0];
       const offset = { x: input.point.x - base.x, y: input.point.y - base.y };
       if (copy) {
+        // T-19·2: la correspondencia original→copia de ESTA RONDA (este
+        // destino) únicamente — necesaria ANTES de construir los comandos,
+        // para que el hueco de la ronda pueda reapuntar al muro de la MISMA
+        // ronda y no a una copia de un destino anterior.
+        const roundCopyIds = new Map(state.targets.map((entityId) => [entityId, context.newEntityId()]));
         const commands: CadEntityCommand[] = state.targets.map((entityId) => ({
           type: "copy",
           entityId,
-          newEntityId: context.newEntityId(),
+          newEntityId: roundCopyIds.get(entityId)!,
           offset,
+          rehostId: cadOpeningRehostId(context.entity?.(entityId), roundCopyIds),
         }));
         // COPY sigue vivo: se pide otro destino hasta que el usuario acepte.
         return displaceStep(

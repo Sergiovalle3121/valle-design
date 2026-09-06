@@ -232,6 +232,75 @@ assert.equal(
   }
 }
 
+// --- T-19·2: cada destino de COPY reapunta el hueco a SU PROPIO muro ----------
+// Dos destinos en un solo COPY copian el muro y la puerta DOS veces —una vez
+// por destino—; sin correlación por ronda, la puerta de la ronda 2 podría
+// reapuntar al muro de la ronda 1 (o al revés). Se prueba que cada ronda
+// queda emparejada con la suya.
+{
+  const hostedWall: CadEntity = {
+    id: "wall-1",
+    type: "line",
+    start: { x: 0, y: 0, z: 0 },
+    end: { x: 4_000, y: 0, z: 0 },
+    layer: "0",
+  };
+  const hostedDoor: CadEntity = {
+    id: "door-1",
+    type: "opening",
+    kind: "door",
+    hostId: "wall-1",
+    position: 1_500,
+    width: 900,
+    height: 2_100,
+    sill: 0,
+    swing: "left",
+    hinge: "start",
+    layer: "0",
+  };
+  const hostedEntities = new Map([...entities, [hostedWall.id, hostedWall], [hostedDoor.id, hostedDoor]]);
+  let hostedIds = 0;
+  const hostedContext: CadCommandContext = {
+    entityIds: [...hostedEntities.keys()],
+    entity: (id) => hostedEntities.get(id),
+    selection: [],
+    activeLayer: "0",
+    view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+    newEntityId: () => `n${++hostedIds}`,
+  };
+  let state = EMPTY_CAD_COMMAND_ENGINE;
+  const effects: CadCommandEffect[] = [];
+  const runHosted = (action: CadCommandAction) => {
+    const reduction = cadCommandEngineReduce(state, action, hostedContext, registry);
+    state = reduction.state;
+    effects.push(...reduction.effects);
+  };
+  runHosted({ kind: "invoke", command: "CO" });
+  runHosted({ kind: "input", input: { kind: "selection", entityIds: ["wall-1", "door-1"] } });
+  runHosted(point(0, 0));
+  runHosted(point(100, 0)); // ronda 1
+  runHosted(point(200, 0)); // ronda 2
+  runHosted({ kind: "input", input: { kind: "enter" } });
+  const commands = executed(effects)[0].commands;
+  const wallCopies = commands.filter((c) => c.type === "copy" && c.entityId === "wall-1");
+  const doorCopies = commands.filter((c) => c.type === "copy" && c.entityId === "door-1");
+  assert.equal(wallCopies.length, 2, "dos destinos, dos copias del muro");
+  assert.equal(doorCopies.length, 2, "y dos copias de la puerta");
+  for (const [index, doorCopy] of doorCopies.entries()) {
+    assert.ok(doorCopy.type === "copy");
+    assert.equal(
+      doorCopy.rehostId,
+      wallCopies[index]?.type === "copy" ? wallCopies[index].newEntityId : undefined,
+      `la puerta de la ronda ${index} debe reapuntar al muro de ESA MISMA ronda, no a otra`,
+    );
+  }
+  assert.notEqual(
+    doorCopies[0].type === "copy" ? doorCopies[0].rehostId : undefined,
+    doorCopies[1].type === "copy" ? doorCopies[1].rehostId : undefined,
+    "las dos rondas no comparten anfitrión: cada una tiene su propia copia del muro",
+  );
+}
+
 // --- OFFSET calcula un desfase real, y el LADO lo dice un punto (T-23) --------
 {
   const { effects } = run([

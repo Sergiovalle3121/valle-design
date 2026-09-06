@@ -12,6 +12,7 @@
  *   3. Borrando el original NO se duplica: se refleja en el sitio.
  */
 import { strict as assert } from "node:assert";
+import type { CadEntity } from "../../cad-document";
 import type { CadCommandContext, CadCommandInput } from "../command-types";
 import { CAD_MIRROR_COMMANDS } from "./modify-mirror";
 
@@ -93,6 +94,53 @@ const enter: CadCommandInput = { kind: "enter" };
   const news = result.commands.filter((command) => command.type === "copy");
   assert.equal(new Set(news.map((c) => (c.type === "copy" ? c.newEntityId : ""))).size, 2,
     "cada duplicado con su propio identificador");
+}
+
+// --- T-19·2: la puerta reflejada se hospeda en el MURO reflejado --------------
+{
+  const entities = new Map<string, CadEntity>([
+    ["muro", { id: "muro", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 4_000, y: 0, z: 0 }, layer: "0" }],
+    [
+      "puerta",
+      {
+        id: "puerta",
+        type: "opening",
+        kind: "door",
+        hostId: "muro",
+        position: 1_500,
+        width: 900,
+        height: 2_100,
+        sill: 0,
+        swing: "left",
+        hinge: "start",
+        layer: "0",
+      },
+    ],
+  ]);
+  let ids = 0;
+  const context: CadCommandContext = {
+    entityIds: [...entities.keys()],
+    entity: (id) => entities.get(id),
+    selection: ["muro", "puerta"],
+    activeLayer: "0",
+    view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+    newEntityId: () => `new${++ids}`,
+  };
+  let step = mirror.begin(context);
+  for (const input of [point(0, 0), point(0, 1000), enter]) {
+    if (step.result) break;
+    step = mirror.step(step.state, input, context);
+  }
+  const result = step.result;
+  assert.ok(result && result.kind === "document");
+  const wallCopy = result.commands.find((c) => c.type === "copy" && c.entityId === "muro");
+  const doorCopy = result.commands.find((c) => c.type === "copy" && c.entityId === "puerta");
+  assert.ok(wallCopy?.type === "copy" && doorCopy?.type === "copy");
+  assert.equal(
+    doorCopy.rehostId,
+    wallCopy.newEntityId,
+    "conservando el original, la puerta reflejada debe reapuntar su hostId al MURO reflejado",
+  );
 }
 
 // --- un eje degenerado se rechaza ---------------------------------------------
