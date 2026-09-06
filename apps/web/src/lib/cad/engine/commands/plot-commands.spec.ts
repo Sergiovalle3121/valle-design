@@ -262,6 +262,14 @@ const messages = (effects: readonly CadCommandEffect[]) =>
     corner2: { x: 5000, y: 3000 },
   });
 
+  // "Ventana" sin picar las dos esquinas NO deja el área en "Pantalla"
+  // (T-31c/D6): eso trazaría un área que además siempre está bloqueada.
+  // Se queda en la que hubiera antes de elegir "Ventana".
+  const abandonedWindow = run(base, ["PLOT", "V", "T", "sin-esquinas"]);
+  const abandonedRequest = hosts(abandonedWindow.effects)[0];
+  if (abandonedRequest.kind !== "plot") throw new Error("se esperaba una petición de trazado");
+  assert.deepEqual(abandonedRequest.request.pageSetup.area, { kind: "layout" });
+
   // «Ajustar» es una escala válida y se dice así.
   const fitted = run(base, ["PLOT", "ESC", "ajustar", "T", "ajustado"]);
   const fittedRequest = hosts(fitted.effects)[0];

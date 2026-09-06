@@ -245,3 +245,87 @@ estén los dos aplicados.
 
 **Estado:** pendiente del coordinador — no bloquea T-19·4 ni T-30, que ya
 están arregladas en el lado que me toca.
+
+---
+
+## #6 · Área/escala de trazado inertes + tres áreas siempre bloqueadas (T-31·c)
+
+**Archivos:** `apps/web/src/lib/cad/plot/plot-job.ts` y
+`apps/web/src/lib/cad/plot/page-setup.ts` (ninguno en mi lista explícita de
+archivos — `paper-space.ts` y `plot/plot-pdf.ts` sí lo están, éstos no).
+
+**Por qué (dos defectos, ambos en `plot-job.ts`):**
+
+1. `computeCadPlotPlacement`/`cadPlotProject` (`page-setup.ts`) son la
+   aritmética que coloca el área elegida sobre el papel a la escala pedida —
+   `grep` sobre `apps/web/src` los encuentra SÓLO en `plot-output.spec.ts`.
+   `buildCadPlotJob` (`plot-job.ts:196-295`) nunca las llama: reenvía la
+   geometría que ya trae `buildCadPublishPlan` en coordenadas de papel de la
+   presentación, sin proyectar por el área/escala de la configuración de
+   página. Elegir `EXtensión`, `Ventana` o `Escala 1:50` no cambia un solo
+   byte del PDF.
+2. `plot-job.ts:284-288` y `:372-375` llaman
+   `cadPlotAreaSources(input.pageSetup, null)` — el segundo argumento
+   (`extents`) es SIEMPRE `null`, y la llamada tampoco pasa `display`. En
+   `resolveCadPlotArea` (`page-setup.ts`), `extents`/`limits`/`display`
+   devuelven `null` sin ese dato, y `preflightCadPageSetup` emite
+   `unknown_area` con severidad `error`. Tres de las cinco áreas de trazado
+   (`extents`, `limits`, `display`) están SIEMPRE bloqueadas, tenga el
+   documento envolvente o no. `cadDocumentExtents`
+   (`apps/web/src/lib/cad/view/document-extents.ts`, la misma función que usa
+   `ZOOM Extensión`) existe justo para rellenar ese hueco y nadie se la pasa a
+   `cadPlotAreaSources`.
+
+**Cambio propuesto (sketch, no aplicado — territorio ajeno):**
+
+```diff
+--- a/apps/web/src/lib/cad/plot/plot-job.ts
++++ b/apps/web/src/lib/cad/plot/plot-job.ts
+@@
++import { cadDocumentExtents } from "../view/document-extents";
+@@
+ export function buildCadPlotJob(input: CadPlotJobInput): CadPlotJob {
+   const document = withColorSheets(input.document, input.layoutIds);
+   const plan = buildCadPublishPlan(document, input.generatedAt);
+   const table = input.plotStyleTable ?? null;
+   const skippedViewports: CadPlotJob["skippedViewports"] = [];
++  const extents = cadDocumentExtents(document);
+@@
+   const sheets = plan.sheets.map((sheet): CadPublishSheet => {
+     const space = spacesById.get(sheet.id);
++    const resolution = resolveCadPlotArea(
++      input.pageSetup.area,
++      cadPlotAreaSources(input.pageSetup, extents),
++    );
++    // proyectar viewport.commands con computeCadPlotPlacement/cadPlotProject
++    // cuando resolution.kind !== "layout" — el punto que de verdad falta:
++    // hoy sheet.viewports sale de buildCadPublishPlan tal cual, en mm de
++    // papel de la presentación, y nunca se reproyecta por área/escala.
+     ...
+   });
+@@
+   issues: preflightCadPageSetup(
+     input.pageSetup,
+-    cadPlotAreaSources(input.pageSetup, null),
++    cadPlotAreaSources(input.pageSetup, extents),
+     input.plotStyleTable ? [input.plotStyleTable.name] : [],
+   ),
+```
+
+Dejo el punto de reproyección como sketch, no como diff literal, porque
+requiere decidir CÓMO se reproyecta `viewport.commands` (¿escala también el
+`title-block`? ¿la ventana en sí, o sólo el contenido?) y esa decisión de
+diseño no me corresponde tomarla desde fuera de mi territorio sin que el
+coordinador la revise — el arreglo de `extents`/`display` (punto 2) sí es un
+cambio mecánico y literal.
+
+**Lo que SÍ arreglé, en mi territorio** (ver T-31·c en `F4.md`): el bug de
+`engine/commands/plot-commands.ts` donde elegir la palabra clave `Ventana`
+ponía el área en `display` (`Pantalla`) antes de picar ningún punto — ese
+archivo sí está en mi lista y el arreglo es mecánico, probado rojo/verde.
+
+**Estado:** pendiente del coordinador. No bloquea nada de lo ya entregado en
+esta rama; el punto 1 (reproyección) es la pieza más grande que le falta al
+trazado y es la que más se parece a "no se puede trazar a escala", por
+severidad "Alta" en la auditoría (D4/D5 de
+`docs/execution/auditoria-fable/dimensiones/05-layouts-plot.md`).

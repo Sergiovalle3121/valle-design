@@ -365,8 +365,13 @@ const plotCommand: CadCommandDescriptor<PlotState> = {
           return plotStep({ ...state, area: { kind: "extents" } });
         case "LÍmites":
           return plotStep({ ...state, area: { kind: "limits" } });
+        // "Ventana" sólo ARMA la recogida de las dos esquinas (líneas 386-393
+        // ya aceptan puntos en cualquier momento); NO decide el área todavía.
+        // Ponerla en `display` aquí era el defecto: sin picar los dos puntos,
+        // "Ventana" trazaba "Pantalla" (T-31c) — un área que además siempre
+        // bloquea el trazado (`plot-job.ts` nunca resuelve `display`).
         case "Ventana":
-          return plotStep({ ...state, corner1: undefined, area: { kind: "display" } });
+          return plotStep({ ...state, corner1: undefined });
         case "ESCala":
           return plotStep({ ...state, askingScale: true });
         case "Previa":
