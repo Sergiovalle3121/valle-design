@@ -14,7 +14,7 @@ Las cifras no se copian aquí: `node scripts/cad/rubric.mjs` las computa.
 - Monolito: 18 453 líneas / 131 `useState`; asignación 18 454 (una línea de margen).
 - Máquina: 4 CPU, 15 GB, 30 GB libres. Techo de agentes concurrentes locales: 2.
 - Red: PyPI y files.pythonhosted.org responden **directo** (están en `noProxy`);
-  `pyproj 3.7.2`, `mpmath`, `hypothesis` (desinstalada a las 18:50: es MPL-2.0, D-11), `openapi-spec-validator`, `pypdf`,
+  `pyproj 3.7.2`, `mpmath`, `hypothesis` (desinstalada a las 18:25: es MPL-2.0, D-11), `openapi-spec-validator`, `pypdf`,
   `pdfminer.six` instalados con `pip --user` para el frente de evidencia.
 
 ## Ola 0
@@ -236,7 +236,7 @@ no se gasta una corrida de CI en re-lanzar el job aparte —el siguiente push
 (paso 2 + T-43 D1) vuelve a correr la suite entera y hace de re-ejecución—.
 Si repite sobre el nuevo head, se investiga como propio.
 
-### T-12·1 · «Versiones» habla con el historial real del servidor · ARREGLADA (19:40 UTC)
+### T-12·1 · «Versiones» habla con el historial real del servidor · ARREGLADA (18:48 UTC)
 La ficha daba dos salidas —cablear el botón a la historia real, que existe, o
 retirarlo— y se eligió cablearlo, porque volver a una versión anterior es lo
 que un despacho espera de un CAD en el navegador y el servidor ya guardaba
@@ -259,7 +259,7 @@ Verificado: `versions-host.spec.ts` (28), golden 191, typecheck, lint
 monolito. Lo que queda (ESCALERA): previsualizar una versión sin guardarla
 y el diff visual entre dos versiones del servidor.
 
-### T-0D · Segunda mitad: los documentos vencidos, corregidos · HECHO (20:00 UTC)
+### T-0D · Segunda mitad: los documentos vencidos, corregidos · HECHO (18:59 UTC)
 La auditoría documental (cuatro lectores por rebanada, cada hallazgo puesto
 en duda por un verificador aparte contra el árbol) confirmó 43 hallazgos en
 diez documentos vivos y refutó 1; 48 quedaron sin verificar por el parón de
@@ -285,7 +285,7 @@ servidor). `docs/cad-contracts-catalog.md` baja a `docs/history/execution/`
 con su línea en el índice. Gates de documentos en verde (identidad, legal,
 auditoría, dirección de imports).
 
-### T-03 · Frente F10 integrado: seis oráculos ajenos, seis filas sin retención · HECHO (20:20 UTC)
+### T-03 · Frente F10 integrado: seis oráculos ajenos, seis filas sin retención · HECHO (19:05 UTC)
 PR #197 (CI verde) fusionado en la rama de campaña. Peticiones P-F10-01…06
 aplicadas en `rubric.json` (evidencia `spec` con `independent: true`), los seis
 specs admitidos en `FUENTES_INDEPENDIENTES` y sus dictámenes retirados con
@@ -299,7 +299,7 @@ eslint, lint 478/478, monolito, json-keys, dwg-evidence (con el espejo del
 corpus), cad-math, legal, precision-evidence, rubric.spec (61) y la matriz
 regenerada con `--check`.
 
-### T-12·2 · El PNG sale con la cámara activa · ARREGLADA (20:55 UTC)
+### T-12·2 · El PNG sale con la cámara activa · ARREGLADA (19:21 UTC)
 `exportPng` (ya en `export-scene-actions.ts`) pintaba con `cameraRef` (la
 `PerspectiveCamera` cruda) aunque el visor estuviera en planta. Ahora
 `pickCadExportCamera(viewControllerRef.current?.camera, cameraRef.current)`:
@@ -309,7 +309,7 @@ controlador. El monolito pasa `viewControllerRef` al anfitrión (una línea; se
 recortó un comentario para no crecer: sigue en 17 235). Spec de 8
 comprobaciones (regla + cableado). Queda para ESCALERA el golden de píxeles.
 
-### Frente F5 integrado (T-15, T-33, T-19·1, T-10a, T-35) · HECHO (21:35 UTC)
+### Frente F5 integrado (T-15, T-33, T-19·1, T-10a, T-35) · HECHO (19:31 UTC)
 PR #199 fusionado (su único rojo de CI era `llamada-webrtc-real` paso 4, el
 mismo test que falló y luego pasó en la rama de campaña: ambiental, anotado en
 L-7). Peticiones aplicadas: P-01 opción A (el texto del criterio
@@ -323,7 +323,7 @@ esquema de control»; entra la fila en peldaño 0 de ESCALERA), P-02 (la fila
 crecer: un comentario de dos líneas pasa a una), los doce specs de F5, los
 goldens 47, 140 y 93 sobre el build de producción.
 
-### Frente F3 integrado (T-14, T-19·2, T-21, T-22, T-23, T-24, T-25) · HECHO (22:05 UTC)
+### Frente F3 integrado (T-14, T-19·2, T-21, T-22, T-23, T-24, T-25) · HECHO (19:43 UTC)
 PR #201 fusionado sin conflictos. Peticiones: P-02 (el anfitrión escribe
 `session.lastSelectionIds`; «Previo» ya recuerda: spec nuevo con los comandos
 calentados a demanda) y P-04 (pista del suelo del historial en la barra de
