@@ -208,7 +208,17 @@ const pageSetupCommand: CadCommandDescriptor<PageSetupState> = {
     if (input.kind === "keyword") {
       if (input.keyword === "Diálogo") {
         if (!space) return say(NO_LAYOUT);
-        return host({ kind: "page-setup", layoutId: space.id }, "PAGESETUP");
+        // T-12·3: no hay diálogo de página ni setups con nombre — anunciar
+        // éxito sin abrir nada era el defecto. En vez de fingir, se hace lo
+        // único verificable: leer y mostrar el setup vigente en la línea de
+        // comandos, con las opciones que SÍ existen para cambiarlo.
+        const setup = cadPageSetupFromLayout(space);
+        return say(
+          `No hay un diálogo de configuración de página ni setups con nombre en esta versión. ` +
+            `Setup vigente de «${space.name}»: papel ${setup.paper}, orientación ${setup.orientation === "portrait" ? "vertical" : "apaisada"}, ` +
+            `color ${setup.colorMode === "monochrome" ? "monocromo" : "color"}, grosores ×${setup.lineweightScale}, ` +
+            `tabla de plumas ${setup.plotStyleTable ?? "ninguna"}. Usa Papel/Orientación/Estilos/COlor/Grosores/MÁrgenes para cambiarlo campo por campo.`,
+        );
       }
       const field: Record<string, PageSetupField> = {
         Papel: "paper",

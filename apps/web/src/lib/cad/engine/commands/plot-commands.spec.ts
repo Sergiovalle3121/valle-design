@@ -146,10 +146,16 @@ const messages = (effects: readonly CadCommandEffect[]) =>
   const badMargins = run(base, ["PSET", "MA", "5,6"]);
   assert.ok(messages(badMargins.effects).some((text) => text.includes("cuatro números")));
 
-  // El cuadro se pide al anfitrión y no escribe nada.
+  // T-12·3: no hay diálogo ni setups con nombre — «Diálogo» ya NO anuncia
+  // éxito sin efecto. Muestra el setup vigente (verificable) y no escribe
+  // nada ni pide nada al anfitrión.
   const dialog = run(base, ["PSET", "D"]);
-  assert.deepEqual(hosts(dialog.effects), [{ kind: "page-setup", layoutId: "layout:planta" }]);
-  assert.equal(dialog.document.meta.version, base.meta.version);
+  assert.deepEqual(hosts(dialog.effects), [], "sin diálogo real, no se pide nada al anfitrión");
+  const dialogText = messages(dialog.effects).join(" ");
+  assert.match(dialogText, /no hay un diálogo de configuración de página ni setups con nombre/i);
+  assert.match(dialogText, /papel A1/i, "el setup vigente se lee y se muestra de verdad");
+  assert.match(dialogText, /orientación apaisada/i);
+  assert.equal(dialog.document.meta.version, base.meta.version, "leer el setup no escribe nada");
 }
 
 // --- PAGESETUP recoloca las ventanas gráficas al cambiar de papel --------------
