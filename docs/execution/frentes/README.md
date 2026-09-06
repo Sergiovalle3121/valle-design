@@ -13,8 +13,9 @@ exclusivo** (§5.2 del prompt maestro). Escribe aquí dos ficheros:
 
 | Frente | Territorio | Rama | Goldens nuevos |
 |---|---|---|---|
-| F0 · Coordinador | `rubric.json`, `ESCALERA.md`, `BACKLOG.md`, `monolith-budget.json`, `manifiesto.json`, bitácora | `claude/valle-design-auditoria-bhin78` | 101-119 |
+| F0 · Coordinador | `rubric.json`, `ESCALERA.md`, `BACKLOG.md`, `monolith-budget.json`, `manifiesto.json`, bitácora | `claude/valle-design-auditoria-bhin78` | 101-119 y 190-199 |
 | F1 · Monolito | `Layout3DEditor.tsx` en exclusiva y lo que extraiga | (la misma) | — |
+| F2 · Verdad de superficie | cadenas, botones y claims de la Ola 1 fuera del monolito (`command-palette.ts`, `palette-actions.ts`, `command-summaries.ts`, `commands/registry.ts`) | `claude/f2-verdad-superficie` (árbol aparte del coordinador) | 190-199 |
 | F3 · Bucle 2D | `lib/cad/snap-*`, `entity-runtime.ts`, `selection/`, `engine/commands/{modify-*,draw-basics,entity-commands,view-navigation,inquiry-*}`, `precision-input.ts`, `hatch/`, `draft-settings-host.ts`, `CadDraftSettingsDialog.tsx` | `claude/f3-bucle-2d` | 120-129 |
 | F4 · Papel y entrega | `paper-space*.ts`, `plot/` (salvo `aci-palette.ts`), `pdf/`, `viewport-operations.ts`, `dxf-*.ts`, `annotation-scale.ts`, `plot-host.ts`, `plot-commands.ts`, `apps/api/.../cad-dxf-export.ts`, `line-dxf.ts` | `claude/f4-papel-entrega` | 130-139 |
 | F5 · Toolsets | `mep-symbols.ts`, `electrical/`, `plant/`, `flatshot*`, `wall-*`, `bim-*`, `mep-*`, `blocks/block-workflow.ts`, `engine/commands/{electrical-*,data-extraction-*,solids-support,draw-wall,plant-*}` | `claude/f5-toolsets` | 140-149 |
