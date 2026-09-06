@@ -144,3 +144,68 @@ adicional de `toolset-architecture` (subiría su solidez, no su puntaje —
 ya está en 3/4), es una decisión de F0, no una corrección de un error.
 
 ---
+
+## P-03 · Un cable de una línea para que `VSCURRENT` alcance muros y masas (T-10a)
+
+**Para:** F1 (único frente autorizado a tocar `Layout3DEditor.tsx`).
+
+**Archivo:** `apps/web/src/components/cad/editor/Layout3DEditor.tsx`,
+dentro de `useCadStudioCommandEngine({...})`, en la llamada a
+`cadStudioEngineBridges({...})` (hoy en torno a la línea 4893-4909).
+
+**Qué dice hoy** (cito literal, línea 4902):
+```tsx
+      osnapOverrideRef: engineOsnapOverrideRef,
+      solidShadeHost: solidShadeHostRef,
+      setLinetypeScale: setDocumentLinetypeScale,
+```
+
+**Qué cambio pido, EXACTO:**
+```tsx
+      osnapOverrideRef: engineOsnapOverrideRef,
+      solidShadeHost: solidShadeHostRef,
+      nativeMassHosts: nativeMassHostsRef,
+      setLinetypeScale: setDocumentLinetypeScale,
+```
+
+Una línea. `nativeMassHostsRef` ya existe en el monolito (línea 1929,
+`useRef<CadNativeMassHosts | null>(null)`) y ya se usa en otros dos sitios
+(línea 6099 al montarlo, línea 16347 pasado a `Cad3DSolidDiagnostics`), así
+que no hace falta declarar nada nuevo — sólo pasar la ref que ya vive ahí.
+
+**Por qué esta línea sola basta.** `cadStudioEngineBridges(...)` se ESPARCE
+directamente en las opciones del motor (`...cadStudioEngineBridges({...})`,
+línea 4893), y esta sesión ya amplió esa función (`studio-engine-bridges.ts`)
+para que:
+1. `visualStyle` llame a los DOS anfitriones (`solidShadeHost` y
+   `nativeMassHosts`) con el mismo estilo — hoy sólo llega al primero,
+   así que `VSCURRENT` confirma un cambio que sobre `wall`/piso/cielorraso/
+   cubierta no ocurre (T-10a, el hueco mejor probado de la auditoría).
+2. Un `currentVisualStyle` nuevo, que lee el estilo VIGENTE de cualquiera
+   de los dos anfitriones montados — es lo que arregla que `VSCURRENT` +
+   Intro devuelva un mensaje vacío en vez del estilo vigente.
+
+Los dos ya fluyen a `useCadStudioCommandEngine` (`use-command-engine.ts`,
+que ya amplié con el campo `currentVisualStyle?`) y de ahí a
+`cadStudioCommandContext` (`studio-context.ts`, también ampliado); todo el
+cableado nuevo es ADITIVO y opcional en cada parada, así que nada se rompe
+mientras esta línea no se aplique — el comportamiento de hoy sigue
+funcionando exactamente igual, sólo que `wall`/`room` no reciben el
+estilo hasta que se aplique.
+
+**Qué prueba lo verifica:** `apps/web/e2e/golden/47-cad-solids.spec.ts`
+(ampliado en esta sesión) ya afirma `cad-3d-solid-diagnostics[data-visual-style]`
+sobre un muro nativo sembrado en el documento. Antes de aplicar esta
+línea, ese golden debería FALLAR en la comprobación que pide
+`data-visual-style="wireframe"` (el muro sigue recibiendo sólo el estilo
+por defecto porque `nativeMassHosts` nunca llega a
+`cadStudioEngineBridges`); después de aplicarla, debería pasar.
+Re-correr el golden 140 y 47 tras aplicar el cable es la verificación.
+
+**Relacionado, sin construir en esta sesión (declarado en `F5.md`):** la
+persistencia del estilo visual entre recargas de página sigue en memoria
+del anfitrión (`private style`) y se pierde al refrescar. No es parte de
+esta petición: es una decisión de arquitectura (dónde vive el estado de
+un editor de 20.000 líneas) que no me corresponde tomar a solas.
+
+---

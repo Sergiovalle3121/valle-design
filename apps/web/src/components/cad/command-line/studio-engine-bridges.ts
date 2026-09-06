@@ -56,7 +56,22 @@ export interface CadStudioEngineBridgeInputs {
   /** Modos de captura forzados por el paso actual del motor. */
   osnapOverrideRef: { current: readonly SnapType[] | null };
   /** El visor de sólidos, si esta sesión lo tiene montado. */
-  solidShadeHost: { current: { applyVisualStyle(style: CadVisualStyleId): string } | null };
+  solidShadeHost: {
+    current: { applyVisualStyle(style: CadVisualStyleId): string; visualStyle: CadVisualStyleId } | null;
+  };
+  /**
+   * El visor de muros/losas (piso, cielorraso, cubierta), si esta sesión lo
+   * tiene montado (T-10a). Antes, `VSCURRENT` sólo llegaba a `solidShadeHost`
+   * (SOLID3D): confirmaba un cambio de estilo que sobre el modelo del
+   * arquitecto NO ocurría — el estilo visual se quedaba en «alámbrico» de
+   * verdad para todo lo demás, con la línea de comandos diciendo lo
+   * contrario. Opcional para que un anfitrión que todavía no lo monta (una
+   * previsualización, una prueba) siga funcionando exactamente igual que
+   * antes de este campo.
+   */
+  nativeMassHosts?: {
+    current: { applyVisualStyle(style: CadVisualStyleId): string; visualStyle: CadVisualStyleId } | null;
+  };
   /** LTSCALE es del DOCUMENTO: se lee de `meta` y se escribe por la fachada. */
   setLinetypeScale: (value: number) => void;
   /** ¿La orden en curso la arrancó el PUNTERO (barra) o el teclado? */
@@ -82,6 +97,7 @@ export function cadStudioEngineBridges(
   | "history"
   | "osnapOverride"
   | "visualStyle"
+  | "currentVisualStyle"
   | "linetypeScale"
   | "apply"
   | "cursor"
@@ -97,6 +113,7 @@ export function cadStudioEngineBridges(
     redo,
     osnapOverrideRef,
     solidShadeHost,
+    nativeMassHosts,
     setLinetypeScale,
     startedByPointer,
     commit,
@@ -140,8 +157,20 @@ export function cadStudioEngineBridges(
     osnapOverride: (modes) => {
       osnapOverrideRef.current = modes;
     },
-    // VSCURRENT/SHADEMODE: estado del visor, no del documento.
-    visualStyle: (styleId) => solidShadeHost.current?.applyVisualStyle(styleId) ?? null,
+    // VSCURRENT/SHADEMODE: estado del visor, no del documento. Los DOS
+    // anfitriones aplican el MISMO estilo (T-10a): antes sólo se enteraba
+    // `solidShadeHost`, y muros/losas seguían pintándose siempre igual.
+    visualStyle: (styleId) => {
+      const label = solidShadeHost.current?.applyVisualStyle(styleId) ?? null;
+      nativeMassHosts?.current?.applyVisualStyle(styleId);
+      return label;
+    },
+    // VSCURRENT + Intro sin teclear nada CONSULTA el vigente (T-10a): antes
+    // no había de dónde leerlo y la respuesta era un mensaje vacío. El visor
+    // de sólidos manda porque existía primero; si sólo está montado el de
+    // muros/losas (raro, pero posible en una escena sin SOLID3D todavía),
+    // se lee de ahí.
+    currentVisualStyle: () => solidShadeHost.current?.visualStyle ?? nativeMassHosts?.current?.visualStyle,
     setSelection: (entityIds) => selectNative([...entityIds]),
     setSpace: (space, layoutId) => {
       if (space === "model") {

@@ -38,6 +38,7 @@ import type {
 } from "../cad-document";
 import type { CadPlotStyleTable } from "../plot/plot-style-table";
 import type { CadBounds } from "../entity-runtime";
+import type { CadVisualStyleId } from "../view/visual-styles";
 import type { CadSolidFaceRef } from "../cad-entities-v5";
 import type { CadEntityCommand } from "../entity-commands";
 import type { SnapType } from "../snap-engine";
@@ -273,6 +274,18 @@ export interface CadCommandContext {
    * que atraviesa en vez de dibujarse como un bloque (defecto (b)).
    */
   objectVolume?: (kind: string) => { height: number; opening?: boolean } | null;
+  /**
+   * El estilo visual VIGENTE del visor (VSCURRENT/SHADEMODE), si el
+   * anfitrión lo expone (T-10a).
+   *
+   * Sin esto, `VSCURRENT` + Intro —preguntar el valor actual sin cambiarlo,
+   * como hace `DIST` o `LIST`— no tenía nada que leer y devolvía un mensaje
+   * VACÍO en vez del estilo vigente: un comando de consulta que no puede
+   * consultar nada. Opcional porque un anfitrión sin visor 3D montado (una
+   * previsualización de trazado, una prueba en Node) no tiene un estilo del
+   * que informar, y decirlo con `undefined` es más honesto que inventar uno.
+   */
+  currentVisualStyle?: () => CadVisualStyleId | undefined;
   selection: readonly string[];
   activeLayer: string;
   /**

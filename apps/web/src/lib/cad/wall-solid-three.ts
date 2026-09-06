@@ -18,6 +18,12 @@ import * as THREE from "three";
 import { tessellateBody } from "../brep";
 import type { CadWallEntity } from "./cad-entities-v6";
 import type { CadThreeViewport } from "./entity-three";
+import { cadVisualStyle, type CadVisualStyleId } from "./view/visual-styles";
+import {
+  applyCadVisualStyleToGroup,
+  CAD_STYLED_MESH_EDGE_COLOR,
+  CAD_STYLED_MESH_OCCLUDER_COLOR,
+} from "./view/visual-style-mesh";
 import type { CadWallJoins } from "./wall-joins";
 import { cadWallMaterialStyle } from "./wall-materials";
 import { wallAxisFrame, type CadWallAxisFrame } from "./wall-openings";
@@ -147,6 +153,13 @@ export interface CadWallSolidObjectOptions {
   selected?: boolean;
   /** Uniones L/T del muro (las de la planta 2D); sin ellas, la caja base. */
   joins?: CadWallJoins | null;
+  /**
+   * VSCURRENT/SHADEMODE (T-10a). Por defecto `"shaded"` (caras opacas, sin
+   * aristas propias): es exactamente el aspecto que este anfitrión pintaba
+   * antes de que el estilo existiera aquí — cambiar el defecto habría movido
+   * goldens sin que nadie lo pidiera.
+   */
+  style?: CadVisualStyleId;
 }
 
 /**
@@ -207,18 +220,13 @@ export function buildCadWallSolidObject(
     return group;
   }
 
-  const material = new THREE.MeshLambertMaterial({
-    color: options.selected
-      ? WALL_SELECTED_COLOR
-      : cadWallMaterialStyle(wall.material).color,
-    side: THREE.FrontSide,
+  const style = cadVisualStyle(options.style ?? "shaded");
+  group.userData.visualStyle = style.id;
+  applyCadVisualStyleToGroup(group, geometry, {
+    style,
+    facesColor: options.selected ? WALL_SELECTED_COLOR : cadWallMaterialStyle(wall.material).color,
+    nativeEntityId: wall.id,
   });
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.name = `cad-wall-solid-faces:${wall.id}`;
-  mesh.userData.nativeEntityId = wall.id;
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  group.add(mesh);
   return group;
 }
 
@@ -239,15 +247,35 @@ export function recolorCadWallSolidObject(
   wall: Pick<CadWallEntity, "material">,
   selected: boolean,
 ): boolean {
+  // El color de la cara depende del ESTILO vigente: en Oculto la cara es un
+  // ocultador (`!style.faces`), no el material del muro — recolorearla con
+  // `cadWallMaterialStyle` la convertiría en una cara visible sin que nadie
+  // haya cambiado VSCURRENT.
+  const style = cadVisualStyle(object.userData.visualStyle as CadVisualStyleId | undefined);
+  let changed = false;
   const mesh = object.children.find(
     (child): child is THREE.Mesh => (child as THREE.Mesh).isMesh === true,
   );
   const material = mesh?.material as THREE.MeshLambertMaterial | undefined;
-  if (!material) return false;
-  material.color.set(
-    selected ? WALL_SELECTED_COLOR : cadWallMaterialStyle(wall.material).color,
+  if (material) {
+    material.color.set(
+      style.faces
+        ? (selected ? WALL_SELECTED_COLOR : cadWallMaterialStyle(wall.material).color)
+        : CAD_STYLED_MESH_OCCLUDER_COLOR,
+    );
+    changed = true;
+  }
+  // Alámbrico no tiene cara (`applyCadVisualStyleToGroup` la libera): lo
+  // único que hay que recolorear son sus aristas.
+  const lines = object.children.find(
+    (child): child is THREE.LineSegments => (child as THREE.LineSegments).isLineSegments === true,
   );
-  return true;
+  const lineMaterial = lines?.material as THREE.LineBasicMaterial | undefined;
+  if (lineMaterial) {
+    lineMaterial.color.set(selected ? WALL_SELECTED_COLOR : CAD_STYLED_MESH_EDGE_COLOR);
+    changed = true;
+  }
+  return changed;
 }
 
 /** Libera geometría y material del objeto del muro. */

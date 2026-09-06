@@ -58,8 +58,34 @@ function type(tokens: readonly string[]): {
   return { state, effects };
 }
 
+/** Como `type`, pero con un CONTEXTO propio en vez del vacío por defecto. */
+function typeWith(
+  tokens: readonly string[],
+  makeContext: () => CadCommandContext,
+): { state: CadCommandEngineState; effects: CadCommandEffect[] } {
+  let state = EMPTY_CAD_COMMAND_ENGINE;
+  const effects: CadCommandEffect[] = [];
+  for (const token of tokens) {
+    const reduction = cadCommandEngineReduce(
+      state,
+      token === "\r"
+        ? { kind: "input", input: { kind: "enter" } }
+        : { kind: "token", value: token },
+      makeContext(),
+      registry,
+    );
+    state = reduction.state;
+    effects.push(...reduction.effects);
+  }
+  return { state, effects };
+}
+
 function hostRequests(effects: readonly CadCommandEffect[]): CadHostRequest[] {
   return effects.flatMap((effect) => (effect.kind === "host" ? [effect.request] : []));
+}
+
+function messages(effects: readonly CadCommandEffect[]): string[] {
+  return effects.flatMap((effect) => (effect.kind === "message" ? [effect.text] : []));
 }
 
 function errors(effects: readonly CadCommandEffect[]): string[] {
@@ -122,4 +148,30 @@ function errors(effects: readonly CadCommandEffect[]): string[] {
   assert.equal(typed.state.active, null, "cancelar cierra el comando");
 }
 
-console.log("view-visual.spec: VSCURRENT emite la petición de estilo visual correcta");
+// --- T-10a: VSCURRENT + Intro sin teclear nada es una CONSULTA --------------
+//
+// Antes, Intro sin estilo tecleado devolvía el mismo silencio que Cancelar
+// (`kind: "none"`): un comando de consulta que no podía consultar nada.
+{
+  // Con `currentVisualStyle` (el anfitrión SÍ tiene un visor 3D montado):
+  // dice el estilo VIGENTE, no un mensaje vacío.
+  const conVisor = typeWith(["VSCURRENT", "\r"], () => ({
+    ...context(),
+    currentVisualStyle: () => "hidden",
+  }));
+  assert.equal(hostRequests(conVisor.effects).length, 0, "consultar no cambia nada");
+  assert.ok(
+    messages(conVisor.effects).some((text) => /vigente.*Oculto/i.test(text)),
+    `Intro sin estilo tiene que decir el vigente: ${messages(conVisor.effects).join(" / ")}`,
+  );
+
+  // Sin `currentVisualStyle` (anfitrión sin visor 3D: previsualización de
+  // trazado, prueba en Node): lo DICE, en vez de fingir un valor.
+  const sinVisor = typeWith(["VSCURRENT", "\r"], context);
+  assert.ok(
+    messages(sinVisor.effects).some((text) => /no tiene visor de estilos visuales/.test(text)),
+    `sin anfitrión, se declara el límite: ${messages(sinVisor.effects).join(" / ")}`,
+  );
+}
+
+console.log("view-visual.spec: VSCURRENT emite la petición de estilo visual correcta, y consulta el vigente con Intro");

@@ -14,6 +14,7 @@
 import * as THREE from "three";
 import type { CadDocument } from "@/lib/cad/cad-document";
 import type { CadThreeViewport } from "@/lib/cad/entity-three";
+import type { CadVisualStyleId } from "@/lib/cad/view/visual-styles";
 import type { CadWallOpeningCutReport } from "@/lib/cad/wall-solid-diagnostics";
 import { CadWallSolidHost } from "./wall-solid-host";
 import { CadArchitecturalMassHost } from "./room-solid-host";
@@ -36,6 +37,23 @@ export class CadNativeMassHosts {
   }
 
   /**
+   * VSCURRENT/SHADEMODE (T-10a). Antes de esta ficha, `applyVisualStyle`
+   * sólo llegaba a `CadSolidShadeHost` (SOLID3D): la línea de comandos
+   * confirmaba un cambio que sobre muros, pisos, cielorrasos y cubiertas NO
+   * ocurría — el éxito falso que la auditoría midió como el más grave del
+   * catálogo. Una sola fachada para los dos anfitriones de masa nativa
+   * evita que quien cablee esto tenga que acordarse de los DOS.
+   */
+  applyVisualStyle(style: CadVisualStyleId): string {
+    this.masses.setStyle(style);
+    return this.walls.applyVisualStyle(style);
+  }
+
+  get visualStyle(): CadVisualStyleId {
+    return this.walls.visualStyle;
+  }
+
+  /**
    * Evidencia REAL de que se construyó geometría 3D — no una lista de botones
    * recortada a 20, que existe independientemente de si una sola malla llegó
    * a montarse (campaña Paridad, OLA 0.2). Recorre `this.group` en vez de
@@ -43,16 +61,25 @@ export class CadNativeMassHosts {
    * REALMENTE está en la escena Three.js, así que un anfitrión que reporte
    * "construido" sin agregar su objeto al grupo también queda en cero aquí.
    */
-  getSnapshot(): { meshCount: number; vertexCount: number } {
+  getSnapshot(): { meshCount: number; vertexCount: number; visualStyle: CadVisualStyleId } {
     let meshCount = 0;
     let vertexCount = 0;
     this.group.traverse((object) => {
+      // Alámbrico no construye NINGÚN `Mesh` (`applyCadVisualStyleToGroup` lo
+      // libera) — sólo `LineSegments` de aristas. Sin contarlas también, este
+      // estilo reportaría "0 mallas" con muros de verdad en la escena, que es
+      // el mismo éxito falso al revés: parecería que el 3D desapareció.
       const mesh = object as THREE.Mesh;
-      if (!mesh.isMesh) return;
+      const lines = object as unknown as THREE.LineSegments;
+      if (!mesh.isMesh && !lines.isLineSegments) return;
       meshCount += 1;
       vertexCount += mesh.geometry?.attributes?.position?.count ?? 0;
     });
-    return { meshCount, vertexCount };
+    // T-10a: el estilo VIGENTE de la escena, no el que la línea de comandos
+    // DIJO que aplicó — es lo que permite a un golden afirmar la escena
+    // misma (`Cad3DSolidDiagnostics`, `data-visual-style`) en vez de leer de
+    // vuelta la frase que el propio comando escribió.
+    return { meshCount, vertexCount, visualStyle: this.visualStyle };
   }
 
   /**

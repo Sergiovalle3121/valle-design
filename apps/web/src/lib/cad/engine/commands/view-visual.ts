@@ -12,6 +12,7 @@
  */
 import {
   CAD_VISUAL_STYLES,
+  cadVisualStyle,
   resolveCadVisualStyle,
   type CadVisualStyleId,
 } from "../../view/visual-styles";
@@ -20,6 +21,7 @@ import {
   CAD_ACCEPT_TEXT,
   asCadCommand,
   type CadAnyCommandDescriptor,
+  type CadCommandContext,
   type CadCommandDescriptor,
   type CadCommandStep,
 } from "../command-types";
@@ -52,6 +54,25 @@ function prompt(): CadCommandStep<State> {
   };
 }
 
+/**
+ * «VSCURRENT» + Intro sin teclear nada es una CONSULTA —como `DIST` o
+ * `LIST`—: el usuario quiere saber qué estilo está vigente, no cambiarlo. Sin
+ * `context.currentVisualStyle` (un anfitrión sin visor 3D montado) no hay
+ * nada que consultar, y se dice así en vez de devolver un mensaje vacío.
+ */
+function currentStyleStep(context: CadCommandContext): CadCommandStep<State> {
+  const id = context.currentVisualStyle?.();
+  const text = id
+    ? `Estilo visual vigente: ${cadVisualStyle(id).label}.`
+    : "Este espacio de trabajo no tiene visor de estilos visuales.";
+  return {
+    state: {},
+    prompt: { message: "", options: [] },
+    accepts: 0,
+    result: { kind: "message", text },
+  };
+}
+
 const VSCURRENT: CadCommandDescriptor<State> = {
   name: "VSCURRENT",
   aliases: ["SHADEMODE", "VS"],
@@ -61,14 +82,18 @@ const VSCURRENT: CadCommandDescriptor<State> = {
   repeatable: false,
   mutates: false,
   begin: () => prompt(),
-  step: (state, input): CadCommandStep<State> => {
-    if (input.kind === "cancel" || input.kind === "enter")
+  step: (state, input, context): CadCommandStep<State> => {
+    // Cancelar (Esc) es abortar, no preguntar: se queda mudo, como siempre.
+    if (input.kind === "cancel")
       return {
         state,
         prompt: { message: "", options: [] },
         accepts: 0,
         result: { kind: "none" },
       };
+    // Intro SIN teclear nada SÍ es una pregunta — «¿cuál es el vigente?» — y
+    // antes de esta ficha devolvía el mismo silencio que cancelar.
+    if (input.kind === "enter") return currentStyleStep(context);
     if (input.kind === "keyword" || input.kind === "text") {
       const wanted = input.kind === "keyword" ? input.keyword : input.value;
       const style = resolveCadVisualStyle(wanted);

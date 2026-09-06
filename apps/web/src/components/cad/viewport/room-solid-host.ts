@@ -31,6 +31,7 @@ import {
   type CadArchitecturalMassKind,
 } from "@/lib/cad/room-solid-three";
 import type { CadThreeViewport } from "@/lib/cad/entity-three";
+import { cadVisualStyle, type CadVisualStyleId } from "@/lib/cad/view/visual-styles";
 
 /** Losa de piso terminado, hacia abajo desde el nivel 0 del dibujo. */
 export const CAD_FLOOR_SLAB_THICKNESS = 150;
@@ -47,13 +48,46 @@ function sameWalls(
   return a.every((entity, index) => entity === b[index]);
 }
 
+interface CadArchitecturalMassRecipe {
+  kind: CadArchitecturalMassKind;
+  ring: Parameters<typeof buildCadArchitecturalMassObject>[1];
+  z0: number;
+  z1: number;
+}
+
 export class CadArchitecturalMassHost {
   readonly group = new THREE.Group();
   private walls: CadWallEntity[] = [];
   private objects: THREE.Object3D[] = [];
+  /** La receta de cada masa construida, para que `setStyle` pueda retesellar
+   * sin volver a derivar el grafo de muros (`detectCadRooms`). */
+  private recipes: CadArchitecturalMassRecipe[] = [];
+  /** VSCURRENT/SHADEMODE (T-10a): antes este anfitrión no tenía dónde vivir. */
+  private style: CadVisualStyleId = "shaded";
 
   constructor(private readonly viewport: () => CadThreeViewport) {
     this.group.name = "cad-architectural-mass";
+  }
+
+  get visualStyle(): CadVisualStyleId {
+    return this.style;
+  }
+
+  /** Cambia el estilo y retesella las masas ya construidas, con su MISMA receta. */
+  setStyle(style: CadVisualStyleId): CadVisualStyleId {
+    if (style === this.style) return this.style;
+    this.style = style;
+    const recipes = [...this.recipes];
+    this.teardown();
+    this.recipes = [];
+    const viewport = this.viewport();
+    for (const recipe of recipes) this.build(recipe.kind, recipe.ring, recipe.z0, recipe.z1, viewport);
+    return this.style;
+  }
+
+  /** Para el renglón de la línea de comandos: aplica y devuelve la ETIQUETA. */
+  applyVisualStyle(style: CadVisualStyleId): string {
+    return cadVisualStyle(this.setStyle(style)).label;
   }
 
   /**
@@ -76,6 +110,7 @@ export class CadArchitecturalMassHost {
         walls.push(entity);
     if (sameWalls(walls, this.walls)) return;
     this.teardown();
+    this.recipes = [];
     this.walls = walls;
 
     const { exteriorRing } = detectCadRooms(walls);
@@ -109,9 +144,11 @@ export class CadArchitecturalMassHost {
       z0,
       z1,
       viewport,
+      this.style,
     );
     this.group.add(object);
     this.objects.push(object);
+    this.recipes.push({ kind, ring, z0, z1 });
   }
 
   private teardown(): void {

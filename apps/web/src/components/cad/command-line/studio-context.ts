@@ -19,6 +19,7 @@ import type {
 import type { CadVariableAccess } from "@/lib/cad/system-variables";
 import { cadDocumentExtents } from "@/lib/cad/view/document-extents";
 import type { CadView } from "@/lib/cad/view/cad-view";
+import type { CadVisualStyleId } from "@/lib/cad/view/visual-styles";
 
 export interface CadStudioCommandInputs {
   /** Documento canónico vivo. `null` mientras no haya dibujo abierto. */
@@ -52,6 +53,13 @@ export interface CadStudioCommandInputs {
    * LAYOUT y MVIEW la usan para saber sobre qué hoja operan sin preguntar.
    */
   activeLayout?: string | null;
+  /**
+   * El estilo visual VIGENTE del visor 3D (T-10a): lo que `VSCURRENT` +
+   * Intro tiene que poder consultar. Opcional porque un anfitrión sin visor
+   * 3D montado (una previsualización de trazado, una prueba en Node) no
+   * tiene un estilo del que informar.
+   */
+  currentVisualStyle?: () => CadVisualStyleId | undefined;
 }
 
 /** Escala por defecto cuando todavía no hay escena: un píxel, una unidad. */
@@ -133,6 +141,7 @@ export function cadStudioCommandContext(
     // distancia. El catálogo es el MISMO que el visor usa para extruirlos, así
     // que el alzado sale de lo que se está viendo y no de una tabla paralela.
     objectVolume: (kind: string) => cadObjectVolume(kind),
+    ...(inputs.currentVisualStyle ? { currentVisualStyle: inputs.currentVisualStyle } : {}),
     newEntityId: inputs.newEntityId,
   };
 }
