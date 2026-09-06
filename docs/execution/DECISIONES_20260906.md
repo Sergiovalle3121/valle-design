@@ -245,6 +245,36 @@ Qué haría falta para elegir lo otro ...  Que el titular prefiera el fallo
                     cargar los términos» y un reintento, y el botón queda
                     deshabilitado.
 
+## D-15 · Bajo un SCU inclinado el imán se queda con lo que está EN el plano, y las sombras 2D se saltan (T-52, racimo A)
+Qué se dudó ......  Al proyectar el punto real del cursor (con cota) para
+                    el enganche 3D, el índice de aristas devolvía candidatos
+                    OCULTOS: el centroide de la cara de abajo y la arista de
+                    delante se proyectan bajo el cursor que está sobre la
+                    fachada, y el índice no sabe qué tapa el sólido. ¿Se
+                    enseña al índice a ocultar (líneas ocultas, una ola), se
+                    deja el imán como estaba (con la sombra, que aplanaba la
+                    cota) o se filtra por el plano de trabajo?
+Qué se eligió ....  Filtrar por el plano: bajo un SCU inclinado sólo
+                    engancha lo que dista del plano menos que la apertura;
+                    los candidatos 2D (proyecciones en planta de todo) y el
+                    rastreo se saltan, y sin enganche el punto es el del rayo
+                    contra el plano, con su cota. Con el SCU en el mundo nada
+                    cambia (la sombra ES el punto). Y los dos píxeles de la
+                    prueba de auditoría se acercaron al centro para que ambos
+                    clics caigan sobre la fachada: a 55 px por debajo el rayo
+                    cortaba el plano bajo el suelo (cota negativa, geometría
+                    correcta pero no «sobre la fachada»).
+Por qué es lo conservador ...  Un imán que engancha lo que no se ve es peor
+                    que ninguno; la oclusión de verdad es una ola (el
+                    anfitrión ya calcula aristas ocultas, el índice no las
+                    usa). Filtrar al plano recupera exactamente el gesto de
+                    AutoCAD con el SCU en una cara: engancha a las aristas y
+                    vértices de ESA cara. Lo que se pierde (enganchar a otro
+                    sólido delante, fuera del plano) queda declarado.
+Qué haría falta para elegir lo otro ...  Llevar las aristas ocultas del
+                    anfitrión al índice de enganche (visibilidad por candidato)
+                    y entonces quitar el filtro al plano.
+
 ---
 
 # Decisiones del frente F10 · Evidencia independiente (2026-09-06)

@@ -462,7 +462,8 @@ import {
   propagateCadConstraintsByDiff,
 } from "@/lib/cad/constraint-propagation";
 import { CadViewController } from "@/lib/cad/view/view-controller";
-import { cadDrawingPoint, cadDrawingPointOrNull, cadPointerWorldFromRay } from "@/lib/cad/view/pointer-work-plane";
+import {
+  cadDistanceToUcsPlane, cadDrawingPoint, cadDrawingPointOrNull, cadPointerWorldFromRay } from "@/lib/cad/view/pointer-work-plane";
 import {
   snapshotCadCamera,
   type CadCameraSnapshot,
@@ -6350,12 +6351,7 @@ export default function Layout3DEditor({
       const w = commandEngineRef.current?.workPlane ?? null;
       return cadPointerWorldFromRay(raycaster.ray, ctxRef.current!, w);
     };
-    /**
-     * OSNAP de escena completa (Fase 66 cableada, ADR §216): esquinas, puntos
-     * medios y centros de estaciones/assets + los puntos del DXF como nodos.
-     * Solo los ~48 objetos más cercanos alimentan el motor (plantas grandes no
-     * degradan el pointermove). Sin candidato dentro de tolerancia → grid-snap.
-     */
+    /** OSNAP de escena (Fase 66, ADR §216): ~48 objetos cercanos; sin candidato → rejilla. */
     const pointerWorldTolerance = (pixels: number) =>
       cadPointerWorldTolerance(pixels, ctxRef.current!, (px, lo, hi) =>
         viewController.toleranceWorld(px, lo, hi),
@@ -6386,22 +6382,27 @@ export default function Layout3DEditor({
         workspacePreferencesRef.current.aperturePx,
       );
       if (draftSettingsHost.osnap) {
-        // Enganche 3D primero: en perspectiva la arista de un sólido se ve
-        // donde la pinta la cámara, no sobre su sombra en el suelo.
+        // Enganche 3D primero: la arista se ve donde la pinta la cámara, no en su sombra.
         const solid = solidShadeHostRef.current?.snapAtDrawingPoint(wx, wy, {
           aperturePx: workspacePreferencesRef.current.aperturePx,
           modes: draftSettingsHost.snapModes(),
-        });
-        if (solid) return solid;
+        }, wz);
+        if (solid) {
+          // T-52: bajo un SCU inclinado sólo engancha lo que está EN el plano; el
+          // índice no sabe qué tapa el sólido y la cara de atrás también se proyecta.
+          const plano = wz === undefined ? null : (commandEngineRef.current?.workPlane ?? null);
+          if (!plano || Math.abs(cadDistanceToUcsPlane({ x: solid.wx, y: solid.wy, z: solid.wz }, plano)) <= tol)
+            return solid;
+        }
+        // T-52: con cota (SCU inclinado) los candidatos 2D son SOMBRAS en el suelo.
+        if (wz !== undefined) return { wx: snapWorld(wx), wy: snapWorld(wy), wz, onDxf: false };
         const scene = cadSnapSceneFromBoxes(
           [...placementsRef.current.values(), ...assetsRef.current.values()],
           { x: wx, y: wy },
           dxfSnapRef.current,
         );
-        // El ancla del rastreo: el último punto confirmado. Con el puntero ya
-        // enrutado, ese punto lo tiene el motor —no `drawCommandRef`—, así que
-        // se pregunta primero por ahí. Sin esto, el rastreo polar y de objeto
-        // se apagarían justo en los comandos que sí pasan por el motor.
+        // El ancla del rastreo es el último punto confirmado, que con el puntero
+        // enrutado tiene el motor (no `drawCommandRef`): se pregunta primero ahí.
         const anchor =
           enginePointerRouterRef.current?.anchor ??
           drawCommandRef.current?.points.at(-1) ??
@@ -6424,10 +6425,8 @@ export default function Layout3DEditor({
           nativeCandidates,
           anchor ?? { x: wx, y: wy },
         );
-        // El sustrato de PDF: se calca encima, así que sus esquinas y sus
-        // puntos medios tienen que imantar igual que los de una polilínea del
-        // documento. Un sustrato descargado no aporta nada y lo declara él
-        // mismo.
+        // El sustrato de PDF se calca encima: sus esquinas y puntos medios
+        // imantan como los de una polilínea; uno descargado no aporta nada.
         const documentoVivo = loadedCadDocumentRef.current;
         const memoriaPdf = pdfSnapGeometryRef.current;
         // PDFDETACH deja la entrada huérfana. Si el mapa tiene más entradas que
@@ -6498,6 +6497,7 @@ export default function Layout3DEditor({
           };
         }
       }
+      if (wz !== undefined) return { wx: snapWorld(wx), wy: snapWorld(wy), wz, onDxf: false };
       const anchor =
         enginePointerRouterRef.current?.anchor ??
         drawCommandRef.current?.points.at(-1) ??

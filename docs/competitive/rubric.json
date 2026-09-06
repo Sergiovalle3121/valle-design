@@ -2940,8 +2940,12 @@
               "path": "apps/web/e2e/golden/101-auditoria-tresd-dibujar-en-fachada.spec.ts"
             },
             {
-              "kind": "todaviaNo",
-              "reason": "refutacion-scu-raton.spec.ts sigue rojo en e2e/auditoria: LINE desde la paleta deja el punto 1 aplanado a cota 0 (ficha T-52, racimo A); y 272 comandos de 294 no declaran nada bajo un SCU inclinado"
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/198-auditoria-scu-raton-paleta.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/components/cad/viewport/solid-shade-host.spec.ts"
             }
           ]
         }

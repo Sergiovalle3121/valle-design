@@ -1,3 +1,15 @@
+/**
+ * GRADUADA de `e2e/auditoria/` el 2026-09-06 (T-52, racimo A). El punto del
+ * ratón bajo un SCU inclinado salía del plano de trabajo (y=7500 exacta) y
+ * perdía la COTA en el imán: el enganche 3D proyectaba la SOMBRA del punto en
+ * el suelo (`worldToScreen(x, y)`) y enganchaba la arista de abajo, y los
+ * candidatos 2D —proyecciones en planta— devolvían un punto sin z. Desde T-52
+ * `snapAtDrawingPoint` proyecta el punto real con su cota, bajo un plano
+ * inclinado sólo engancha lo que está EN el plano, y las sombras 2D se saltan.
+ * Los píxeles del segundo clic se acercaron al centro para que caiga sobre la
+ * fachada (a 55 px el rayo cortaba el plano por debajo del suelo). El texto de
+ * abajo es el original de la auditoría.
+ */
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { installMockBackend } from "../fixtures/mock-backend";
 import { installCadStudioBackend } from "../fixtures/cad-v1-backend";
@@ -62,7 +74,7 @@ async function centro(page: Page) {
 // El mismo gesto, pero arrancando LINE DESDE LA PALETA (por id, no por rótulo)
 // y con otros píxeles: si el fallo fuese del camino de teclado o de dos píxeles
 // concretos, aquí no saldría.
-test("ESCEPTICO: LINE desde la paleta, dos clics sobre la fachada con el SCU apoyado en ella", async ({
+test("LINE desde la paleta, dos clics sobre la fachada con el SCU apoyado en ella: el trazo queda EN la fachada (T-52)", async ({
   context, page,
 }) => {
   test.setTimeout(240_000);
@@ -80,8 +92,11 @@ test("ESCEPTICO: LINE desde la paleta, dos clics sobre la fachada con el SCU apo
 
   // Herramienta por ID desde la paleta: el camino del ratón de punta a punta.
   await startTool(page, "line");
+  // Los dos píxeles caen SOBRE la fachada: 55 px por debajo del centro el rayo
+  // cortaba el plano de la fachada por debajo del suelo (cota negativa, que es
+  // geometría correcta pero ya no es «sobre la fachada»); a 10 px sigue en ella.
   await page.mouse.click(c.x + 40, c.y - 25);
-  await page.mouse.click(c.x - 90, c.y + 55);
+  await page.mouse.click(c.x - 90, c.y + 10);
   await page.keyboard.press("Enter");
 
   const registro = await page.getByTestId("cad-command-line-log").innerText();

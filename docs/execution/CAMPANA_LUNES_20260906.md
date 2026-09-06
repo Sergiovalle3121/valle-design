@@ -433,3 +433,21 @@ marcada. Las cinco pruebas `real/` que crean cuenta por el formulario
 marcan la casilla. La parte 2 (el servidor exige y registra la aceptación
 al registrarse) queda en F8, avisado. Verificado: tsc, eslint (0 errores),
 golden 197 y la prueba pública de accesibilidad móvil sobre el build.
+
+### T-52 (racimo A) · El punto del ratón bajo un SCU inclinado sale del plano de trabajo · ARREGLADA (21:13 UTC)
+El rayo ya cortaba el plano (y=7500 exacta) pero el imán perdía la cota por
+dos vías: `snapAtDrawingPoint` proyectaba la SOMBRA del punto
+(`worldToScreen(x, y)`, sin z) y enganchaba la arista de abajo, y los
+candidatos 2D devolvían un punto sin z. Ahora el anfitrión proyecta el
+punto real con su cota (el mismo proyector que indexa las aristas), bajo un
+plano inclinado sólo engancha lo que está EN el plano
+(`cadDistanceToUcsPlane` ≤ apertura; D-15: el índice no sabe qué tapa el
+sólido y la cara de atrás también se proyecta) y las sombras 2D y el
+rastreo se saltan. Monolito en 17 235 exactas. Golden 198 (graduado de
+`refutacion-scu-raton`, techo 6 → 5; los píxeles del segundo clic se
+acercaron al centro para caer sobre la fachada) y golden 101 verdes sobre
+el build; `solid-shade-host.spec.ts` (con cota engancha arriba; sin cota,
+la sombra enganchaba abajo) y `pointer-work-plane.spec.ts` (distancia al
+plano). Rúbrica: `modeling3d.z-pointer` deja el «todavía no»; censo
+regenerado. Verificado: tsc, eslint (0 errores), monolito, lint 478/478,
+check:auditoria (techo 5), e2e-localizadores, rubric.spec, check:cad-math.

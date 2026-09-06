@@ -1,8 +1,8 @@
 {
   "descripcion": "Pruebas de la auditoría de cliente final del 2026-09-01. Corren en el navegador contra el estudio real y están ROJAS A PROPÓSITO: cada una reproduce un defecto confirmado. NO entran en la suite (playwright.config.ts las excluye con testIgnore). Cuando su defecto se arregla, la prueba NO se borra: se GRADÚA a e2e/golden/ y pasa a defender el arreglo. Ver README.md.",
   "comoSeCorren": "cd apps/web && NEXT_PUBLIC_API_URL=http://localhost:4000 npx turbo run build --filter=web && E2E_PROD=1 E2E_AUDITORIA=1 E2E_API_ORIGIN=http://localhost:4000 npx playwright test e2e/auditoria/<archivo> --project=chromium --reporter=line",
-  "techo": 6,
-  "notaSobreElTecho": "El techo SÓLO BAJA. Es el número de ficheros de auditoría en disco (los tres `arnes` incluidos): 28 al nacer, 14 desde el 2026-09-06 por la graduación de catorce ya verdes 10 por el racimo C y 9 por la palabra «imprimir» y 6 por T-20 (el clic sobre el pinzamiento: modificar, refutacion-pinzamiento y refutacion-trim mudadas a golden 193-195; 3 con defecto vivo + 3 arnes). Subirlo requiere una auditoría nueva y su entrada en la bitácora; bajarlo es lo que pasa cuando un defecto se arregla y su prueba se muda a e2e/golden/.",
+  "techo": 5,
+  "notaSobreElTecho": "El techo SÓLO BAJA. Es el número de ficheros de auditoría en disco (los tres `arnes` incluidos): 28 al nacer, 14 desde el 2026-09-06 por la graduación de catorce ya verdes 10 por el racimo C y 9 por la palabra «imprimir» y 6 por T-20 (el clic sobre el pinzamiento: modificar, refutacion-pinzamiento y refutacion-trim mudadas a golden 193-195; 3 con defecto vivo + 3 arnes) y 5 por T-52 racimo A (el punto del ratón bajo un SCU inclinado: refutacion-scu-raton mudada a golden 198; 2 con defecto vivo + 3 arnes). Subirlo requiere una auditoría nueva y su entrada en la bitácora; bajarlo es lo que pasa cuando un defecto se arregla y su prueba se muda a e2e/golden/.",
   "pruebas": [
     {
       "archivo": "00-arranque.spec.ts",
@@ -28,11 +28,6 @@
       "archivo": "refutacion-panel-bloques-designar.spec.ts",
       "reproduce": "Contraprueba de si el panel de bloques permite designar lo que ofrece.",
       "impacto": "molesta_mucho"
-    },
-    {
-      "archivo": "refutacion-scu-raton.spec.ts",
-      "reproduce": "Contraprueba aislada de que el punto del ratón bajo un SCU inclinado sale del plano del suelo y no del plano de trabajo.",
-      "impacto": "bloquea_el_trabajo"
     }
   ],
   "notaSobreElNombre": "Las `refutacion-*` son las contrapruebas adversarias: cada una intentó TUMBAR un fallo reportado, y se conservan tanto si lo confirmaron como si lo refutaron —una refutación guardada es lo que impide volver a perseguir un defecto que no existe—. Nacieron con el prefijo `zz-`, que .gitignore reserva para sondas temporales que no son producto; dejaron de serlo al quedar declaradas aquí con su defecto y su regla de graduación, así que se les cambió el nombre en vez de tocar esa regla, que sigue protegiendo las sondas que sí son de usar y tirar.",
