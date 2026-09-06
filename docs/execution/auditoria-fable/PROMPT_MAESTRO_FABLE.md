@@ -37,9 +37,12 @@ Lee después, en este orden, y sólo estos cuatro:
    confirmados y los 106 huecos que el escéptico añadió, con sus `grep` hechos.
 4. `docs/parity/ESCALERA.md` §«Los siete peldaños» — qué se puede prometer en cada uno.
 
-Los veintitrés informes de `docs/execution/auditoria-fable/` son la materia prima.
-**No los leas enteros.** Ábrelos cuando vayas a tocar esa dimensión, por la
-sección concreta. Son ~1,3 MB: leerlos todos gasta la sesión antes de empezar.
+Los veintitrés informes largos viven **un nivel más adentro**, en
+`docs/execution/auditoria-fable/dimensiones/` —veinte de dimensión y tres lentes
+de completitud—, y están ahí a propósito: son **1,3 MB** y leerlos todos gasta la
+sesión antes de empezar. **No los leas enteros.** Abre uno, por su sección
+concreta, cuando vayas a tocar esa dimensión. La carpeta de arriba tiene sólo los
+cuatro documentos que sí se leen, para que listarla no te cueste nada.
 
 ---
 
@@ -456,6 +459,40 @@ por territorio con nadie. **Este frente arranca el primer día y no para.**
 > evidencia ajena. **Construir da la mitad; la otra mitad la da un archivo que no
 > escribimos nosotros.** Por eso este frente va en paralelo con todos los demás,
 > no después.
+
+### T-0D · La higiene documental, porque el sesgo también se hereda por MD
+
+**Qué.** El repositorio tiene **225 ficheros markdown y 7,1 MB**. Eso no es
+neutral: una sesión que lista `docs/` y hojea lo que encuentra arrastra el estado
+de campañas cerradas y toma por vigente lo que ya no lo está. Ya pasó dos veces y
+las dos costaron: `AGENTS.md` decía «~192 comandos» cuando el gate imprime 294, y
+el manifiesto de `e2e/auditoria` acusaba a catorce defectos ya cerrados.
+
+**La regla ya existe y es de la casa** (`AGENTS.md`, §campaña de cierre de ramas):
+la bitácora de una campaña se archiva a `docs/history/execution/` **en el mismo
+commit que publica su informe de cierre**; el `INFORME_*` se queda, porque es
+evidencia medida y no un plan vencido.
+
+**Dónde.**
+
+- `docs/execution/` — 24 documentos, 407 KB. Cuatro bitácoras `CAMPANA_*` siguen
+  ahí **sin informe de cierre publicado** (10X, 3D_POST_M1, COMMERCIAL_RC1,
+  REVIEW_CONCURRENCY). No se movieron a propósito: mover lo que la regla no cubre
+  sería inventar una norma. **Publica su cierre o decláralas muertas en una línea,
+  y entonces archívalas.**
+- **Toda cifra a mano en un documento vivo es un defecto**, aunque hoy coincida
+  (regla 4). Búscalas: `grep -rnE '~?[0-9]{3,} (comandos|specs|casos|filas)' *.md docs/`.
+  Se quitan remitiendo al gate que las imprime, **no se actualizan**.
+- **No borres nada.** En un repo donde la rúbrica cita evidencia, borrar el rastro
+  es peor que el desorden. Archivar es mover, no suprimir.
+
+**Verifica.** `find . -name '*.md' -not -path './node_modules/*' | wc -l` baja, y
+cero referencias rotas: `grep -rn 'docs/execution/CAMPANA' --include='*.md' --include='*.ts' .`
+no debe apuntar a nada movido.
+
+**Mueve.** Ninguna fila de la rúbrica. Se hace igual: es la higiene que evita que
+la sesión siguiente herede una mentira. **Medio día del coordinador, y va en la
+Ola 0 porque todo lo demás se lee después.**
 
 ---
 
