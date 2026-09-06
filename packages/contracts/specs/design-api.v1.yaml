@@ -408,6 +408,19 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/IdentityActivityList" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+  /v1/auth/export:
+    get:
+      operationId: exportIdentityPersonalData
+      tags: [identity]
+      summary: Exporta los datos personales propios (T-62c, derecho ARCO); nunca contrasenas ni secretos de MFA.
+      responses:
+        "200":
+          description: Perfil, sesiones (sin IP), membresias, estado de MFA y actividad reciente.
+          content:
+            application/json:
+              schema:
+                { $ref: "#/components/schemas/IdentityPersonalDataExport" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
   /v1/auth/verify-email:
     post:
       operationId: verifyIdentityEmail
@@ -642,6 +655,30 @@ paths:
         "204": { description: Miembro expulsado. }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/organizations/{organizationId}/audit-log:
+    parameters:
+      - $ref: "#/components/parameters/organizationId"
+    get:
+      operationId: listOrganizationAuditLog
+      tags: [organizations]
+      summary: Bitacora de auditoria del tenant (T-62a); quien toco que, con retencion de 400 dias.
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: >-
+            Tope de asientos a devolver, del mas reciente al mas antiguo.
+            Se acota entre 1 y 200; fuera de ese rango se usa el limite mas
+            cercano en vez de rechazar la peticion.
+          schema: { type: integer, minimum: 1, maximum: 200 }
+      responses:
+        "200":
+          description: Asientos recientes del tenant, del mas nuevo al mas viejo.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrganizationAuditLogList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
   /v1/organizations/{organizationId}/invitations:
     parameters:
@@ -3589,6 +3626,58 @@ components:
           type: array
           maxItems: 100
           items: { $ref: "#/components/schemas/IdentityActivityEvent" }
+    IdentityPersonalDataExport:
+      type: object
+      additionalProperties: false
+      required: [user, sessions, memberships, mfa, activity]
+      properties:
+        user:
+          type: object
+          additionalProperties: false
+          required: [id, email, displayName, emailVerifiedAt, createdAt]
+          properties:
+            id: { type: string, format: uuid }
+            email: { $ref: "#/components/schemas/EmailAddress" }
+            displayName: { type: [string, "null"] }
+            emailVerifiedAt: { type: [string, "null"], format: date-time }
+            createdAt: { $ref: "#/components/schemas/Timestamp" }
+        sessions:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, createdAt, expiresAt, revokedAt, userAgent]
+            properties:
+              id: { type: string, format: uuid }
+              createdAt: { $ref: "#/components/schemas/Timestamp" }
+              expiresAt: { $ref: "#/components/schemas/Timestamp" }
+              revokedAt: { type: [string, "null"], format: date-time }
+              userAgent: { type: [string, "null"] }
+        memberships:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [organizationId, organizationName, role]
+            properties:
+              organizationId: { type: string, format: uuid }
+              organizationName: { type: string }
+              role: { type: string }
+        mfa:
+          type: object
+          additionalProperties: false
+          required: [enabled]
+          properties:
+            enabled: { type: boolean }
+        activity:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [action, createdAt]
+            properties:
+              action: { type: string }
+              createdAt: { $ref: "#/components/schemas/Timestamp" }
     SessionRotationResponse:
       type: object
       additionalProperties: false
@@ -3747,6 +3836,28 @@ components:
         id: { type: string, format: uuid }
         userId: { type: string, format: uuid }
         role: { $ref: "#/components/schemas/OrganizationInvitationRole" }
+    OrganizationAuditLogEntry:
+      type: object
+      additionalProperties: false
+      required: [id, actor, action, referenceType, referenceId, createdAt]
+      properties:
+        id: { type: string }
+        actor:
+          type: [string, "null"]
+          description: Correo de quien ejecuto la accion; null cuando el sistema la registro sola.
+        action: { type: string }
+        referenceType: { type: [string, "null"] }
+        referenceId: { type: [string, "null"] }
+        createdAt: { $ref: "#/components/schemas/Timestamp" }
+    OrganizationAuditLogList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 200
+          items: { $ref: "#/components/schemas/OrganizationAuditLogEntry" }
     OrganizationInvitationCreate:
       type: object
       additionalProperties: false

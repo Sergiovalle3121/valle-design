@@ -682,6 +682,18 @@ export class IdentityController {
     };
   }
 
+  /**
+   * T-62(c): el derecho ARCO mínimo indiscutible — exportar lo propio.
+   * `IdentityService.exportPersonalData` decide qué entra y qué no
+   * (nunca contraseñas ni secretos de MFA).
+   */
+  @Public()
+  @Get('export')
+  async exportPersonalData(@Req() req: Request) {
+    const auth = await this.current(req);
+    return this.identity.exportPersonalData(auth.user.id);
+  }
+
   @Public()
   @Post('verify-email')
   async verify(@Body() body: TokenDto, @Req() req: Request) {

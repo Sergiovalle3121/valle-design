@@ -199,3 +199,140 @@ evidencia REAL de esta rama:
 Esta sección se actualizará cuando T-61/T-62 avancen en esta misma rama; por
 ahora deja la propuesta completa para que el coordinador la aplique cuando
 convenga, sin esperar a que F8 termine.
+
+---
+
+## 4 · T-62(d) — `costo-comparado.json` sin una cifra que pude verificar yo mismo
+
+**Qué pide la ficha.** «El argumento de precio contra AutoCAD no tiene una
+sola cifra respaldada — y si va a compararse, va con fecha, fuente y
+caducidad vigilada por un gate.»
+
+**Por qué es una petición y no un archivo con un número dentro.** Intenté
+verificar un precio actual y citable de AutoCAD con `WebSearch`/`WebFetch`:
+
+- `WebSearch` devolvió un fragmento agregado que citaba
+  `autodeskmexico.com/producto/autocad-suscripcion-anual/` con una cifra en
+  MXN, pero un resumen de buscador no es una fuente que se pueda citar —no
+  vi la página, no sé si el fragmento está actualizado ni si mezcla IVA,
+  promoción o el plan LT con el completo.
+- `WebFetch` a `www.autodeskmexico.com` y a `www.autodesk.com` devolvió los
+  dos `EGRESS_BLOCKED`: el proxy de red de este entorno no deja salir hacia
+  esos dominios. No es un fallo transitorio — es la política de red del
+  entorno, y no me corresponde intentar rodearla.
+
+Publicar una cifra que no pude comprobar de primera mano —con fecha exacta
+de captura y, idealmente, una URL o una captura de pantalla que alguien
+pueda auditar— sería exactamente el defecto que esta ficha existe para
+cerrar: un número que "suena a que alguien lo verificó" sin que nadie lo
+haya hecho. Mejor una petición honesta que una comparación con una fuente
+que ni yo mismo pude confirmar.
+
+**Lo que SÍ dejo listo, para que aplicar la cifra sea lo único que falte:**
+
+- `costo-comparado.json` no existe todavía. Cuando exista, debe llevar como
+  mínimo: `{concepto, valleMXN, competidorMXN, fuente (URL), fechaCaptura,
+  verificadoPor, maxAgeDays}` — el mismo espíritu que el checker `manual`
+  de `scripts/cad/rubric.mjs` (firma + fecha + caducidad, `ageDays >
+  maxAgeDays` falla el gate).
+- El gate de caducidad (`scripts/legal/check-cost-comparison-expiry.mjs` o
+  similar, ya que `scripts/legal/` es territorio de F8) puede escribirse
+  ahora mismo, con el JSON vacío o con una `fixture` de prueba — es
+  mecánica pura, no depende de tener la cifra real. Si el coordinador
+  prefiere que F8 lo escriba de todos modos (sin la cifra, con el hueco
+  marcado), dígalo y se hace en la siguiente entrada de esta bitácora.
+
+**Verifica, cuando alguien con acceso a `autodesk.com`/una fuente citable
+ponga la cifra real:** el gate falla si `ageDays > maxAgeDays` o si falta
+`fuente`/`verificadoPor`; una spec que confirme que el JSON referenciado
+desde la página de precios (si se usa ahí) coincide byte a byte con el
+archivo fuente.
+
+---
+
+## 5 · T-62(c) — Borrar la cuenta (la otra mitad de ARCO)
+
+**Qué se cerró en esta rama.** Exportar los datos personales propios:
+`GET /v1/auth/export` + botón de descarga en `/cuenta` (ver `F8.md`).
+
+**Qué queda fuera, y por qué es una decisión y no una omisión.** Borrar la
+cuenta no es un `DELETE FROM identity_users WHERE id = ...`: hay que
+decidir, con el peso de una ficha propia, qué pasa cuando quien pide
+borrarse es:
+
+- **Propietario único de una organización con más gente dentro.** ¿Se
+  bloquea el borrado hasta transferir la propiedad? ¿Se transfiere sola al
+  admin más antiguo? Las dos son decisiones de producto, no de
+  implementación, y las dos tienen consecuencias para terceros que no
+  pidieron nada.
+- **Propietario o miembro con documentos CAS en curso.** El almacén CAS es
+  compartido por diseño (varias versiones referencian los mismos blobs);
+  borrar a la persona no puede borrar blobs que otro documento vivo sigue
+  necesitando, y "anonimizar" al autor de cada versión histórica es un
+  recorrido de datos que hay que probar con PostgreSQL real antes de
+  ejecutarlo contra una cuenta de verdad.
+- **Con una suscripción activa.** ¿Se cancela primero? ¿Qué pasa con la
+  factura/CFDI ya emitido, que por ley fiscal mexicana no se puede borrar?
+
+**Propuesta mínima, para cuando se aborde:** un flujo en DOS pasos —
+`POST /v1/auth/delete-request` (confirma con contraseña, como
+`updateProfile`, y devuelve qué bloquea el borrado si algo lo bloquea:
+"eres propietario único de N organizaciones", "tienes documentos con otras
+personas") y, sólo si nada lo bloquea, `POST /v1/auth/delete-confirm` con
+un token de un solo uso enviado por correo (mismo patrón que
+`issueIdentityEmailToken`) que de verdad anonimiza (no borra la fila:
+`email = null`, `displayName = null`, credenciales borradas, sesiones
+revocadas) para no romper las referencias históricas de auditoría/CAS.
+
+**Verifica, cuando se implemente:** spec de PostgreSQL real con los tres
+casos bloqueantes de arriba, y uno que confirme que un documento CAS
+compartido con otro miembro sigue intacto después de que el autor se borre.
+
+---
+
+## 6 · T-64 — Nada de lo que configura el despacho se comparte
+
+**No empezada.** Investigado lo suficiente para saber que es una petición
+clara, no sólo por territorio.
+
+**Por qué es una petición.**
+
+- **Territorio.** La ficha pide `/v1/cad/assets` (un módulo `apps/api/src/
+  modules/cad/` o uno nuevo de configuración de despacho) y tocar
+  `apps/web/src/components/cad/lisp/*` — ninguno de los dos está en la
+  lista «Tuyo» de F8 (`{organizations,commercial,identity,outbox-receiver,
+  audit-log,support,feedback,auth}` en el API; `{landing,billing,team,
+  account,organization}*` en los componentes del web). Es territorio de
+  quien lleve el editor CAD (F0/F1 u otro frente de esta misma campaña).
+- **Descubrimiento arquitectónico, para no repetir el trabajo.** El puerto
+  que la ficha señala como "ya escrito y esperando"
+  (`apps/web/src/lib/lisp/library.ts`, `LispLibraryStore`) es SÍNCRONO A
+  PROPÓSITO — la propia cabecera del archivo lo dice: *"hacerlo asíncrono
+  aquí obligaría a que la carga de la biblioteca contaminase de promesas el
+  arranque de la sesión LISP"*. Una implementación respaldada por
+  `/v1/cad/assets` tiene que ser asíncrona (es una llamada de red). Esto NO
+  es un simple "escribir el adaptador que falta": exige decidir cómo la
+  sesión LISP obtiene sus rutinas de organización sin bloquear su arranque
+  —¿precarga async una vez al abrir el documento, con esta interfaz
+  síncrona sirviendo desde una caché ya resuelta? ¿se vuelve asíncrona toda
+  la cadena de arranque?— y esa decisión es del dueño del arranque de la
+  sesión CAD, no de quien sólo escribe el endpoint.
+
+**Propuesta para quien la retome:**
+
+1. `POST/GET/DELETE /v1/cad/assets` (o un módulo de configuración de
+   despacho aparte) con aislamiento por tenant, empezando por las rutinas
+   `.lsp` como dice la ficha.
+2. Un adaptador `RestLispLibraryStore` que NO implemente `LispLibraryStore`
+   directamente (es síncrono) sino que precargue al abrir el documento
+   (ya existe un momento así: donde hoy se inicializa
+   `InMemoryLispLibraryStore` por sesión) y sirva desde esa copia — el
+   mismo patrón que ya usa `/v1/cad/blocks` en otras partes del editor, que
+   la propia ficha señala como el único almacén compartido que sí existe.
+3. Migrar paletas, plantillas, atajos y el `.ctb`/`.lin` a la misma ruta
+   DESPUÉS de las rutinas, no en el mismo cambio — son formatos distintos
+   con su propio parser/validador cada uno.
+
+**Verifica, cuando se implemente:** spec de aislamiento por inquilino
+contra PostgreSQL real (como pide la ficha), y una prueba de que abrir el
+mismo documento desde dos organizaciones distintas nunca mezcla rutinas.

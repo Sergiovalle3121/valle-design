@@ -33,6 +33,7 @@ import {
   verifyArgon2idPassword,
 } from './identity-security';
 import { IdentityMfaService } from './identity-mfa.service';
+import { exportPersonalData, type PersonalDataExport } from './identity-export';
 import {
   consumeTokenWithManager,
   enqueueIdentityEmail,
@@ -741,5 +742,19 @@ export class IdentityService {
       order: { createdAt: 'DESC' },
       take: Math.min(Math.max(limit, 1), 100),
     });
+  }
+
+  /** T-62(c): exportar los datos personales propios. Ver `identity-export.ts`. */
+  exportPersonalData(userId: string): Promise<PersonalDataExport> {
+    return exportPersonalData(
+      {
+        dataSource: this.dataSource,
+        users: this.users,
+        sessions: this.sessions,
+        audit: this.audit,
+        mfa: this.mfa,
+      },
+      userId,
+    );
   }
 }
