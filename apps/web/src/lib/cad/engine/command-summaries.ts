@@ -228,7 +228,7 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   PIPE: "Tubería en planta por servicio: capa y tipo de línea con texto; el diámetro va al cuadro.",
   PLAN: "Vuelve la vista a la planta del SCU actual.",
   PLINE: "Polilínea con tramos rectos y curvos.",
-  PLOT: "Traza la lámina a PDF con escala exacta.",
+  PLOT: "Imprimir la lámina: la traza a PDF con escala exacta.",
   POINT: "Punto aislado.",
   POLYGON: "Polígono regular inscrito o circunscrito.",
   POLYSOLID: "Muro al vuelo: recorrido de tramos rectos y de arco con ancho y altura, o desde una línea o polilínea.",

@@ -1,8 +1,8 @@
 {
   "descripcion": "Pruebas de la auditoría de cliente final del 2026-09-01. Corren en el navegador contra el estudio real y están ROJAS A PROPÓSITO: cada una reproduce un defecto confirmado. NO entran en la suite (playwright.config.ts las excluye con testIgnore). Cuando su defecto se arregla, la prueba NO se borra: se GRADÚA a e2e/golden/ y pasa a defender el arreglo. Ver README.md.",
   "comoSeCorren": "cd apps/web && NEXT_PUBLIC_API_URL=http://localhost:4000 npx turbo run build --filter=web && E2E_PROD=1 E2E_AUDITORIA=1 E2E_API_ORIGIN=http://localhost:4000 npx playwright test e2e/auditoria/<archivo> --project=chromium --reporter=line",
-  "techo": 10,
-  "notaSobreElTecho": "El techo SÓLO BAJA. Es el número de ficheros de auditoría en disco (los tres `arnes` incluidos): 28 al nacer, 14 desde el 2026-09-06 por la graduación de catorce ya verdes y 10 desde esa misma tarde por el racimo C (7 con defecto vivo + 3 arnes). Subirlo requiere una auditoría nueva y su entrada en la bitácora; bajarlo es lo que pasa cuando un defecto se arregla y su prueba se muda a e2e/golden/.",
+  "techo": 9,
+  "notaSobreElTecho": "El techo SÓLO BAJA. Es el número de ficheros de auditoría en disco (los tres `arnes` incluidos): 28 al nacer, 14 desde el 2026-09-06 por la graduación de catorce ya verdes 10 por el racimo C y 9 por la palabra «imprimir» (6 con defecto vivo + 3 arnes). Subirlo requiere una auditoría nueva y su entrada en la bitácora; bajarlo es lo que pasa cuando un defecto se arregla y su prueba se muda a e2e/golden/.",
   "pruebas": [
     {
       "archivo": "00-arranque.spec.ts",
@@ -28,11 +28,6 @@
       "archivo": "precision.spec.ts",
       "reproduce": "Ninguno: el número exacto se respeta —3500 se guarda como 3500, y el enganche a extremo devuelve la coordenada del vértice, no la del ratón—. Se conserva por la misma razón.",
       "impacto": "arnes"
-    },
-    {
-      "archivo": "refutacion-palabra-imprimir.spec.ts",
-      "reproduce": "Buscar la palabra «Imprimir» en el estudio, como haría cualquiera, no lleva a imprimir.",
-      "impacto": "molesta_poco"
     },
     {
       "archivo": "refutacion-panel-bloques-designar.spec.ts",
@@ -83,6 +78,12 @@
         "refutacion-texto-capa.spec.ts": "golden/116-auditoria-texto-capa-notas.spec.ts",
         "refutacion-notas-solo-text.spec.ts": "golden/117-auditoria-notas-solo-text.spec.ts",
         "refutacion-cotas-resumen.spec.ts": "golden/118-auditoria-cotas-resumen.spec.ts"
+      }
+    },
+    "2026-09-06 · T-12 palabra imprimir": {
+      "porQue": "La única entrada con la palabra era una frase del registro heredado que prometía un panel retirado; las frases salen de la paleta (D-04) y PLOT gana su resumen en español, así que «imprimir» lleva a PLOT. La prueba B pasa de exigir un PDF al pulsar a exigir que arranque PLOT, que es lo que hace AutoCAD con la palabra.",
+      "ficheros": {
+        "refutacion-palabra-imprimir.spec.ts": "golden/190-auditoria-palabra-imprimir.spec.ts"
       }
     }
   }

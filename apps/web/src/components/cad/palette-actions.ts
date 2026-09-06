@@ -8,10 +8,10 @@
  * · `tool`   → la acción de barra correspondiente (modo, panel, dibujo).
  * · `engine` → invoca el comando en el motor V2; el prompt aparece en la línea
  *              de comandos y el puntero/teclado siguen desde ahí.
- * · `command`→ previsualiza en el registro de FRASES heredado, que NO ejecuta:
- *              deja el preview listo y lo cuenta en su historial. Es un parser
- *              LOCAL y determinista —no hay IA en este producto, ver
- *              `IDENTITY.md`—: la misma frase da siempre el mismo preview.
+ * · `command`→ (retirada el 2026-09-06) previsualizaba en el registro de
+ *              FRASES heredado y anunciaba un panel que ya no existe; la
+ *              paleta ya no produce entradas de esta familia y si llegara una
+ *              se declara en vez de fingir. Ver `command-palette.ts`.
  * · `symbol` → inserta el símbolo y abre la biblioteca.
  *
  * ## Por qué recibe un anfitrión de callbacks y no el editor
@@ -29,8 +29,6 @@
  * mismo anfitrión, sin sumarle un efecto más al monolito.
  */
 import { useEffect, useMemo, useRef } from "react";
-import { createHistoryItem } from "@/lib/cad/commands/history";
-import { loadCadNlCommands } from "@/lib/cad/commands/lazy";
 import type {
   CadCommandContext,
   CadCommandHistoryItem,
@@ -103,32 +101,10 @@ export async function runCadPaletteEntry(
     return;
   }
   if (entry.kind === "command") {
-    // El copiloto NL no ejecuta desde la paleta: PREVISUALIZA. Ejecutar una
-    // orden en lenguaje natural sin enseñar antes qué va a tocar es la clase
-    // de sorpresa que el copiloto existe para evitar.
-    const example = entry.keywords.find((kw) => kw.includes(" ")) ?? entry.label;
-    host.openNlCommand(example);
-    // El parser se carga al primer uso (`commands/lazy.ts`); la barra ya
-    // muestra la frase mientras llega.
-    const { parseCadCommand, previewCadCommand } = await loadCadNlCommands();
-    const parsed = parseCadCommand(example);
-    if (parsed.ok && parsed.input) {
-      const preview = previewCadCommand(parsed.input, host.nlCommandContext());
-      host.setNlCommandPreview({ input: parsed.input, preview, rawInput: example });
-      host.appendNlCommandHistory(
-        createHistoryItem(parsed.input, "previewed", preview.summary, preview, undefined, {
-          rawInput: example,
-          affectedObjectIds: preview.affectedObjectIds,
-        }),
-      );
-      host.toastSuccess("Preview listo en el Copiloto CAD.", "Cmd-K CAD");
-    } else {
-      host.setNlCommandPreview(null);
-      host.toastError(
-        parsed.clarification || parsed.error || "El comando necesita más contexto.",
-        "Cmd-K CAD",
-      );
-    }
+    // Sin panel que pinte el preview ni «Aplicar» que lo ejecute, la familia
+    // de frases se retiró de la paleta (2026-09-06). Si una entrada llegara
+    // igualmente, se dice en vez de dejar un estado que nadie ve.
+    host.toastError("Las frases ya no se ejecutan desde la paleta.", "Cmd-K CAD");
     return;
   }
   host.insertSymbol(entry.id);
