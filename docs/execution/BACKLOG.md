@@ -792,3 +792,23 @@ exige retirarla al sanar).
   (Node, PG, VALLE_DWG_CORPUS_MIRROR, puertos, App Control de Windows).
 - Accesibilidad del embudo público con lector de pantalla real (R.4).
 - Auditoría de arranque: qué se descarga antes del primer trazo (R.3).
+
+
+## Campaña «El lunes de un arquitecto» (2026-09-06)
+
+### L-1 · Cerrar el circuito de las frases en español bajo un nombre honesto
+Las cuarenta entradas «Frase» salieron de Ctrl+K (D-04): prometían un panel
+retirado y su «Aplicar» estaba muerto. Lo que haría falta para volver a
+ofrecerlas: vista previa dentro de `CadCommandLine` (sin panel), ejecución al
+confirmar, golden de extremo a extremo, y un nombre que diga lo que hay
+(«Frase», nunca «copiloto»). Hasta entonces el parser vive en
+`lib/cad/commands/registry.ts` y lo alimenta sólo la línea de comandos. La
+cadena muerta del monolito (`commandPreview`, `previewCommandText`,
+`repeatLastCommand`, `applyCommandSuggestion`, los cuatro métodos `*NlCommand*`
+del anfitrión de la paleta) sale en un paso de F1 con prueba de `grep`.
+
+### L-2 · Alias en español de la línea de comandos
+`IMPRIMIR ⏎` no arranca `PLOT`. Es la ficha T-73 (c) —el vocabulario de
+comandos en español que la promesa comercial declara— y no un alias suelto:
+una tabla de alias en español atada a `command-manifest.ts` con su spec de
+colisiones (`keyboard-alias-collisions.spec.ts` ya vigila las teclas).
