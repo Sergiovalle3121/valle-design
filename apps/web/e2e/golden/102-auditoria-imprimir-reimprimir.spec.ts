@@ -34,7 +34,7 @@ import { CAD_DOCUMENT_SCHEMA } from "../../src/lib/cad/cad-document-shared";
  *   · SIRVE: teclear PLOT también saca la hoja, con el muro de 10 m como un
  *     tramo de 200 mm de papel.
  *   · FALLA: imprimir, cambiar algo y volver a imprimir → conflicto CAS, ni
- *     PDF ni guardado hasta recargar. Segundo test, marcado `test.fail()`.
+ *     PDF ni guardado hasta recargar. Segundo test; nació marcado `test.fail()` y se graduó el 2026-09-06.
  *   · FALLA: «PLOT Extensión» (y «Límites») no traza en ningún dibujo.
  *   · MOLESTA: la escala nace bloqueada y el candado que la abre no tiene ni
  *     rótulo ni tooltip.
@@ -404,9 +404,11 @@ test("el plano sale en PDF y respeta la escala que elige el jefe de obra", async
  * para el detalle hace falta 1:100, se cambia la escala y se vuelve a imprimir.
  * El segundo PDF NO SALE.
  *
- * Marcado `test.fail()`: hoy falla, y falla POR UN DEFECTO, no por el entorno.
- * El día que se arregle, Playwright avisará de que este test «pasó cuando se
- * esperaba que fallara» — que es exactamente el aviso que se quiere.
+ * Nació marcado `test.fail()` en e2e/auditoria/. El 2026-09-05 Playwright
+ * avisó de que «pasó cuando se esperaba que fallara»: el defecto está CERRADO
+ * —el token CAS del guardado ya se refresca tras publicar—. Se graduó a golden
+ * el 2026-09-06 quitando la marca; lo que sigue es la descripción del defecto
+ * que ahora defiende, conservada como historia.
  *
  * Evidencia recogida por este mismo test (se imprime en la corrida):
  *   · 1ª publicación:  PUT  /v1/cad/documents/…/content      -> 200
@@ -434,8 +436,6 @@ test("el plano sale en PDF y respeta la escala que elige el jefe de obra", async
  * que se siga haciendo no se guarda hasta recargar la página.
  */
 test("imprimir, cambiar la escala y volver a imprimir", async ({ context, page }) => {
-  // Dentro del cuerpo a propósito: a nivel de archivo marcaría TODOS los tests.
-  test.fail();
   test.setTimeout(240_000);
   await abrirEstudioVigilado(context, page);
 

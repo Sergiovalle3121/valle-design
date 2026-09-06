@@ -336,16 +336,15 @@ test("apoyo el SCU en una fachada y dibujo encima", async ({ context, page }) =>
  * comando. LINE se declara `spatial: true`, así que el fallo cerrado del motor
  * no salta: el trazo se guarda a cota cero, en el suelo, y NADIE lo dice.
  *
- * Se deja como `test.fail()` y no como una aserción de lo que hoy pasa: lo que
- * este spec afirma es lo que el producto DEBE hacer. El día que se arregle,
- * esta prueba se pondrá roja pidiendo que se le quite la anotación, que es la
- * forma de que un defecto conocido no se convierta en un contrato.
+ * Nació con `test.fail()` en e2e/auditoria/. El 2026-09-05 Playwright avisó
+ * «Expected to fail, but passed»: el defecto está CERRADO. Se graduó a golden
+ * el 2026-09-06 quitando la marca, y desde entonces defiende el arreglo: si
+ * el trazo vuelve al suelo, esta prueba se pone roja.
  */
 test("dibujo en la fachada con el ratón y el trazo se queda en la fachada", async ({
   context,
   page,
 }) => {
-  test.fail();
   test.setTimeout(240_000);
   const backend = await abrirEstudio(context, page, documentoConCaja());
   await verEnVolumen(page);

@@ -43,7 +43,13 @@ FIX-OR-HIDE y la lista GO/NO-GO, es
 `docs/execution/INFORME_LANZAMIENTO_20260827.md`), y el de la campaña de firma
 propia del 28-08 (`CAMPANA_FIRMA_20260828.md` — paleta v2, cuenta segura, canal
 de comentarios y los cimientos del modo universitario; su informe es
-`docs/execution/INFORME_CAMPANA_FIRMA_20260828.md`).
+`docs/execution/INFORME_CAMPANA_FIRMA_20260828.md`). El 2026-09-06, al abrir la
+campaña «El lunes de un arquitecto», se archivaron aquí las cuatro bitácoras de
+cortes ya fusionados que seguían en `docs/execution/`:
+`CAMPANA_3D_POST_M1_20260825.md`, `CAMPANA_REVIEW_CONCURRENCY_20260825.md`,
+`CAMPANA_COMMERCIAL_RC1_20260826.md` y `CAMPANA_10X_20260827.md` (sus cierres
+medidos son `INFORME_CAMPANA_PARIDAD_20260827.md` y los informes vecinos, que se
+quedaron en `docs/execution/`).
 
 Cuidado al leerlos: uno de ellos cita un baseline de 8 761 líneas para
 `Layout3DEditor.tsx` cuando el archivo real tiene más de 22 000, y otro fija una

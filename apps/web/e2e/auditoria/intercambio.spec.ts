@@ -21,6 +21,7 @@
  */
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { dirname } from "node:path";
 import { API_ORIGIN } from "../fixtures/constants";
 import { installMockBackend } from "../fixtures/mock-backend";
 import { installCadStudioBackend } from "../fixtures/cad-v1-backend";
@@ -28,7 +29,11 @@ import {
   firstPartyRequestFailure,
   loginAsStandaloneOwner,
 } from "../fixtures/standalone-identity";
-import { migrateCadDocument, type CadDocument, type CadEntity } from "../../src/lib/cad/cad-document";
+import {
+  migrateCadDocument,
+  type CadDocument,
+  type CadEntity,
+} from "../../src/lib/cad/cad-document";
 
 /* ───────────────────────── El dibujo que mando ───────────────────────── */
 
@@ -42,9 +47,27 @@ function planoQueMando(): CadDocument {
     meta: { version: 1, schema: 10, unit: "mm" },
     layers: [
       { id: "0", name: "0", color: "#ffffff", visible: true, locked: false },
-      { id: "MUROS", name: "MUROS", color: "#60a5fa", visible: true, locked: false },
-      { id: "COTAS", name: "COTAS", color: "#fbbf24", visible: true, locked: false },
-      { id: "NOTAS", name: "NOTAS", color: "#22d3ee", visible: true, locked: false },
+      {
+        id: "MUROS",
+        name: "MUROS",
+        color: "#60a5fa",
+        visible: true,
+        locked: false,
+      },
+      {
+        id: "COTAS",
+        name: "COTAS",
+        color: "#fbbf24",
+        visible: true,
+        locked: false,
+      },
+      {
+        id: "NOTAS",
+        name: "NOTAS",
+        color: "#22d3ee",
+        visible: true,
+        locked: false,
+      },
     ],
     entities: [
       {
@@ -85,7 +108,8 @@ function planoQueMando(): CadDocument {
       {
         id: "rotulo-sala",
         type: "text",
-        x: 2_000, y: 4_500,
+        x: 2_000,
+        y: 4_500,
         text: "SALA DE JUNTAS",
         height: 250,
         layer: "NOTAS",
@@ -136,19 +160,32 @@ async function instalarTableroDelReceptor(context: BrowserContext) {
     const url = new URL(request.url());
     const method = request.method();
     const json = (body: unknown, status = 200) =>
-      route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
+      route.fulfill({
+        status,
+        contentType: "application/json",
+        body: JSON.stringify(body),
+      });
     const authFailure = firstPartyRequestFailure(request);
     if (authFailure) return json(authFailure.body, authFailure.status);
-    if (url.pathname === "/v1/cad/projects" && method === "GET") return json({ items: projects });
+    if (url.pathname === "/v1/cad/projects" && method === "GET")
+      return json({ items: projects });
     if (url.pathname === "/v1/cad/projects" && method === "POST") {
       const body = request.postDataJSON() as { name: string };
-      const project = { id: "10000000-0000-4000-8000-000000000901", name: body.name, status: "active" };
+      const project = {
+        id: "10000000-0000-4000-8000-000000000901",
+        name: body.name,
+        status: "active",
+      };
       projects.push(project);
       return json(project, 201);
     }
-    if (url.pathname === "/v1/cad/documents" && method === "GET") return json({ items: documents });
+    if (url.pathname === "/v1/cad/documents" && method === "GET")
+      return json({ items: documents });
     if (url.pathname === "/v1/cad/documents" && method === "POST") {
-      const body = request.postDataJSON() as { name: string; projectId: string };
+      const body = request.postDataJSON() as {
+        name: string;
+        projectId: string;
+      };
       const document = {
         id: `20000000-0000-4000-8000-${String(documents.length + 1).padStart(12, "0")}`,
         projectId: body.projectId,
@@ -161,8 +198,11 @@ async function instalarTableroDelReceptor(context: BrowserContext) {
       documents.push(document);
       return json(document, 201);
     }
-    if (url.pathname === "/v1/cad/blocks" && method === "GET") return json({ items: [] });
-    const match = url.pathname.match(/^\/v1\/cad\/documents\/([^/]+)(\/content)?$/);
+    if (url.pathname === "/v1/cad/blocks" && method === "GET")
+      return json({ items: [] });
+    const match = url.pathname.match(
+      /^\/v1\/cad\/documents\/([^/]+)(\/content)?$/,
+    );
     if (match && !match[2] && method === "GET") {
       const document = documents.find((item) => item.id === match[1]);
       return document ? json(document) : json({ message: "not found" }, 404);
@@ -187,11 +227,15 @@ async function instalarTableroDelReceptor(context: BrowserContext) {
 /* ─────────────────────────────── Utilidades ─────────────────────────────── */
 
 /** Pulsa «Descargar DXF» tantas veces como haga falta y devuelve el fichero. */
-async function descargarDxf(page: Page): Promise<{ texto: string; perdidasDeclaradas: string[] }> {
+async function descargarDxf(
+  page: Page,
+): Promise<{ texto: string; perdidasDeclaradas: string[] }> {
   const manifiesto = page.getByTestId("cad-dxf-loss-manifest");
   const boton = page.getByTestId("cad-dxf-download");
 
-  const primer = page.waitForEvent("download", { timeout: 5_000 }).catch(() => null);
+  const primer = page
+    .waitForEvent("download", { timeout: 5_000 })
+    .catch(() => null);
   await boton.click();
   let descarga = await primer;
   let perdidasDeclaradas: string[] = [];
@@ -200,21 +244,24 @@ async function descargarDxf(page: Page): Promise<{ texto: string; perdidasDeclar
     // Hubo comprobación previa: el producto enseña el informe ANTES de dar el
     // fichero. Se anota lo que declara y se vuelve a pulsar.
     await expect(manifiesto).toBeVisible();
-    perdidasDeclaradas = await page.getByTestId("cad-dxf-loss-row").allInnerTexts();
+    perdidasDeclaradas = await page
+      .getByTestId("cad-dxf-loss-row")
+      .allInnerTexts();
     if ((await manifiesto.getAttribute("data-blocking")) === "true")
       await page.getByTestId("cad-dxf-loss-accept").check();
     const segundo = page.waitForEvent("download");
     await boton.click();
     descarga = await segundo;
   } else if (await manifiesto.count()) {
-    perdidasDeclaradas = await page.getByTestId("cad-dxf-loss-row").allInnerTexts();
+    perdidasDeclaradas = await page
+      .getByTestId("cad-dxf-loss-row")
+      .allInnerTexts();
   }
 
   const ruta = await descarga.path();
   expect(ruta, "el producto no entregó ningún fichero DXF").not.toBeNull();
   return { texto: await readFile(ruta!, "utf8"), perdidasDeclaradas };
 }
-
 
 /**
  * Lee el DXF como lo leería el otro despacho al abrirlo: qué capas declara su
@@ -234,21 +281,37 @@ function leerDxf(texto: string) {
       if (valor === "ENDTAB") dentroDeLaTablaDeCapas = false;
       actual = { tipo: valor };
       if (valor === "LAYER") dentroDeLaTablaDeCapas = true;
-      else if (!["SECTION", "ENDSEC", "TABLE", "ENDTAB", "EOF", "SEQEND", "VERTEX", "APPID", "LTYPE", "STYLE"].includes(valor))
+      else if (
+        ![
+          "SECTION",
+          "ENDSEC",
+          "TABLE",
+          "ENDTAB",
+          "EOF",
+          "SEQEND",
+          "VERTEX",
+          "APPID",
+          "LTYPE",
+          "STYLE",
+        ].includes(valor)
+      )
         entidades.push(actual);
       continue;
     }
     if (!actual) continue;
-    if (codigo === "2" && actual.tipo === "LAYER" && dentroDeLaTablaDeCapas) capasDeLaTabla.push(valor);
+    if (codigo === "2" && actual.tipo === "LAYER" && dentroDeLaTablaDeCapas)
+      capasDeLaTabla.push(valor);
     if (codigo === "8") actual.capa = valor;
-    if (codigo === "1" && (actual.tipo === "TEXT" || actual.tipo === "MTEXT")) actual.texto = valor;
+    if (codigo === "1" && (actual.tipo === "TEXT" || actual.tipo === "MTEXT"))
+      actual.texto = valor;
   }
   return { capasDeLaTabla, entidades };
 }
 
 const tipos = (entities: readonly CadEntity[]) => {
   const cuenta: Record<string, number> = {};
-  for (const entity of entities) cuenta[entity.type] = (cuenta[entity.type] ?? 0) + 1;
+  for (const entity of entities)
+    cuenta[entity.type] = (cuenta[entity.type] ?? 0) + 1;
   return cuenta;
 };
 
@@ -257,7 +320,7 @@ const tipos = (entities: readonly CadEntity[]) => {
 test("un plano con capas, texto y cota va y vuelve por DXF sin pérdidas mudas", async ({
   context,
   page,
-}) => {
+}, testInfo) => {
   test.setTimeout(180_000);
   const erroresDeConsola: string[] = [];
   page.on("pageerror", (error) => erroresDeConsola.push(String(error)));
@@ -267,7 +330,10 @@ test("un plano con capas, texto y cota va y vuelve por DXF sin pérdidas mudas",
   await installMockBackend(context);
   await loginAsStandaloneOwner(context);
   await installCadStudioBackend<CadDocument>(context, original, {
-    footprintW: 12_000, footprintH: 10_000, unit: "mm", gridSize: 100,
+    footprintW: 12_000,
+    footprintH: 10_000,
+    unit: "mm",
+    gridSize: 100,
   });
 
   /* ── IDA: abro mi plano y lo exporto ───────────────────────────────────── */
@@ -286,23 +352,36 @@ test("un plano con capas, texto y cota va y vuelve por DXF sin pérdidas mudas",
 
   const { texto: dxf, perdidasDeclaradas } = await descargarDxf(page);
 
-  console.log("\n===== LO QUE EL CUADRO DE EXPORTAR DICE =====\n" + resumenDelCuadro);
-  console.log("\n===== PÉRDIDAS DECLARADAS ANTES DE MANDAR (" + perdidasDeclaradas.length + ") =====");
-  for (const fila of perdidasDeclaradas) console.log("  · " + fila.replace(/\s+/g, " "));
-  const copia = "/tmp/claude-0/-home-user-valle-design/2f4c06e1-2089-56de-9db7-cb15aabde438/scratchpad";
-  await mkdir(copia, { recursive: true }).catch(() => {});
-  await writeFile(`${copia}/exportado.dxf`, dxf, "utf8");
+  console.log(
+    "\n===== LO QUE EL CUADRO DE EXPORTAR DICE =====\n" + resumenDelCuadro,
+  );
+  console.log(
+    "\n===== PÉRDIDAS DECLARADAS ANTES DE MANDAR (" +
+      perdidasDeclaradas.length +
+      ") =====",
+  );
+  for (const fila of perdidasDeclaradas)
+    console.log("  · " + fila.replace(/\s+/g, " "));
+  // Copia del fichero exportado en la carpeta de salida de ESTA corrida
+  // (nació escribiendo a una ruta absoluta del contenedor de la auditoría).
+  const copia = testInfo.outputPath("exportado.dxf");
+  await mkdir(dirname(copia), { recursive: true }).catch(() => {});
+  await writeFile(copia, dxf, "utf8");
   console.log("\n===== EL FICHERO =====");
   console.log("  bytes: " + dxf.length);
   const enElFichero = leerDxf(dxf);
   console.log("  tabla LAYER: " + JSON.stringify(enElFichero.capasDeLaTabla));
   for (const fila of enElFichero.entidades)
-    console.log(`  ${fila.tipo} · capa=${fila.capa ?? "?"}${fila.texto ? " · «" + fila.texto + "»" : ""}`);
+    console.log(
+      `  ${fila.tipo} · capa=${fila.capa ?? "?"}${fila.texto ? " · «" + fila.texto + "»" : ""}`,
+    );
 
   await test.step("el fichero lleva las capas que el cuadro prometió", async () => {
     // El «Paquete de capas» del cuadro es una PROMESA: dice, capa por capa,
     // cuántas entidades van dentro. Aquí se contrasta contra el fichero.
-    expect.soft(resumenDelCuadro, "el cuadro no prometió la capa NOTAS").toContain("NOTAS");
+    expect
+      .soft(resumenDelCuadro, "el cuadro no prometió la capa NOTAS")
+      .toContain("NOTAS");
     expect
       .soft(
         enElFichero.capasDeLaTabla,
@@ -343,7 +422,8 @@ test("un plano con capas, texto y cota va y vuelve por DXF sin pérdidas mudas",
     if (rotulo && rotulo.capa !== "NOTAS")
       expect
         .soft(
-          perdidasDeclaradas.join(" | ") || "(el preflight declaró CERO pérdidas)",
+          perdidasDeclaradas.join(" | ") ||
+            "(el preflight declaró CERO pérdidas)",
           `el TEXT sale en la capa «${rotulo.capa}» en vez de en «NOTAS» y nadie lo declara`,
         )
         .toMatch(/capa/i);
@@ -354,7 +434,9 @@ test("un plano con capas, texto y cota va y vuelve por DXF sin pérdidas mudas",
   const documentosDelReceptor = await instalarTableroDelReceptor(context);
 
   await page.goto("/dashboard");
-  await page.getByLabel("Nombre del proyecto").fill("Intercambio con el otro despacho");
+  await page
+    .getByLabel("Nombre del proyecto")
+    .fill("Intercambio con el otro despacho");
   await page.getByLabel("Crear proyecto").click();
 
   await page.getByLabel(/Importar como documento/).setInputFiles({
@@ -363,17 +445,28 @@ test("un plano con capas, texto y cota va y vuelve por DXF sin pérdidas mudas",
     buffer: Buffer.from(dxf, "utf8"),
   });
 
-  await expect(page.getByText(/Importado: \d+ entidades/)).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText(/Importado: \d+ entidades/)).toBeVisible({
+    timeout: 60_000,
+  });
   const recibo = await page.getByTestId("cad-dxf-import-report").innerText();
   console.log("\n===== LO QUE VE EL QUE RECIBE =====\n" + recibo);
 
-  await expect.poll(() => documentosDelReceptor[0]?.cadDocumentVersion, { timeout: 30_000 }).toBeGreaterThan(0);
+  await expect
+    .poll(() => documentosDelReceptor[0]?.cadDocumentVersion, {
+      timeout: 30_000,
+    })
+    .toBeGreaterThan(0);
   const recibido = documentosDelReceptor[0].cadDocument!;
 
-  console.log("\n===== LO QUE LLEGÓ (documento guardado por el receptor) =====");
+  console.log(
+    "\n===== LO QUE LLEGÓ (documento guardado por el receptor) =====",
+  );
   console.log("  entidades: " + JSON.stringify(tipos(recibido.entities)));
   console.log("  capas: " + JSON.stringify(recibido.layers.map((l) => l.name)));
-  console.log("  manifiesto de pérdidas del receptor: " + JSON.stringify(recibido.lossManifest));
+  console.log(
+    "  manifiesto de pérdidas del receptor: " +
+      JSON.stringify(recibido.lossManifest),
+  );
 
   /* ── ¿QUÉ SOBREVIVIÓ? ─────────────────────────────────────────────────── */
 
@@ -381,23 +474,39 @@ test("un plano con capas, texto y cota va y vuelve por DXF sin pérdidas mudas",
   const entrada = tipos(original.entities);
 
   await test.step("geometría", async () => {
-    expect.soft(salida.line ?? 0, "la línea de fachada no volvió").toBeGreaterThanOrEqual(1);
-    expect.soft(salida.polyline ?? 0, "el contorno cerrado no volvió").toBeGreaterThanOrEqual(1);
-    expect.soft(salida.circle ?? 0, "el círculo de la columna no volvió").toBe(entrada.circle);
-    expect.soft(salida.arc ?? 0, "el arco del barrido de puerta no volvió").toBe(entrada.arc);
+    expect
+      .soft(salida.line ?? 0, "la línea de fachada no volvió")
+      .toBeGreaterThanOrEqual(1);
+    expect
+      .soft(salida.polyline ?? 0, "el contorno cerrado no volvió")
+      .toBeGreaterThanOrEqual(1);
+    expect
+      .soft(salida.circle ?? 0, "el círculo de la columna no volvió")
+      .toBe(entrada.circle);
+    expect
+      .soft(salida.arc ?? 0, "el arco del barrido de puerta no volvió")
+      .toBe(entrada.arc);
     const contorno = recibido.entities.find(
-      (e): e is Extract<CadEntity, { type: "polyline" }> => e.type === "polyline" && e.closed,
+      (e): e is Extract<CadEntity, { type: "polyline" }> =>
+        e.type === "polyline" && e.closed,
     );
-    expect.soft(contorno, "el contorno volvió ABIERTO: deja de ser un recinto").toBeDefined();
+    expect
+      .soft(contorno, "el contorno volvió ABIERTO: deja de ser un recinto")
+      .toBeDefined();
     if (contorno)
-      expect
-        .soft(contorno.vertices.map((v) => [v.x, v.y]))
-        .toEqual([[1_000, 1_000], [9_000, 1_000], [9_000, 6_000], [1_000, 6_000]]);
+      expect.soft(contorno.vertices.map((v) => [v.x, v.y])).toEqual([
+        [1_000, 1_000],
+        [9_000, 1_000],
+        [9_000, 6_000],
+        [1_000, 6_000],
+      ]);
     const circulo = recibido.entities.find(
       (e): e is Extract<CadEntity, { type: "circle" }> => e.type === "circle",
     );
     if (circulo) {
-      expect.soft(circulo.radius, "el radio de la columna cambió").toBeCloseTo(300, 3);
+      expect
+        .soft(circulo.radius, "el radio de la columna cambió")
+        .toBeCloseTo(300, 3);
       expect.soft([circulo.center.x, circulo.center.y]).toEqual([5_000, 3_500]);
     }
   });
@@ -405,9 +514,13 @@ test("un plano con capas, texto y cota va y vuelve por DXF sin pérdidas mudas",
   await test.step("capas", async () => {
     const nombres = recibido.layers.map((layer) => layer.name);
     for (const capa of ["MUROS", "COTAS", "NOTAS"])
-      expect.soft(nombres, `la capa ${capa} no llegó al otro despacho`).toContain(capa);
+      expect
+        .soft(nombres, `la capa ${capa} no llegó al otro despacho`)
+        .toContain(capa);
     const enMuros = recibido.entities.filter((e) => e.layer === "MUROS");
-    expect.soft(enMuros.length, "la geometría perdió su capa MUROS").toBeGreaterThanOrEqual(4);
+    expect
+      .soft(enMuros.length, "la geometría perdió su capa MUROS")
+      .toBeGreaterThanOrEqual(4);
   });
 
   await test.step("textos", async () => {
@@ -415,38 +528,57 @@ test("un plano con capas, texto y cota va y vuelve por DXF sin pérdidas mudas",
       (e): e is Extract<CadEntity, { type: "text" | "mtext" }> =>
         e.type === "text" || e.type === "mtext",
     );
-    expect.soft(textos.length, "el rótulo de la sala no volvió").toBeGreaterThanOrEqual(1);
+    expect
+      .soft(textos.length, "el rótulo de la sala no volvió")
+      .toBeGreaterThanOrEqual(1);
     expect.soft(textos.map((t) => t.text)).toContain("SALA DE JUNTAS");
     if (textos[0])
-      expect.soft(textos[0].layer, "el rótulo volvió en otra capa").toBe("NOTAS");
+      expect
+        .soft(textos[0].layer, "el rótulo volvió en otra capa")
+        .toBe("NOTAS");
   });
 
   await test.step("cotas", async () => {
     const cotas = recibido.entities.filter(
-      (e): e is Extract<CadEntity, { type: "dimension" }> => e.type === "dimension",
+      (e): e is Extract<CadEntity, { type: "dimension" }> =>
+        e.type === "dimension",
     );
-    expect.soft(cotas.length, "la cota de la fachada no volvió como COTA").toBe(1);
+    expect
+      .soft(cotas.length, "la cota de la fachada no volvió como COTA")
+      .toBe(1);
     if (cotas[0]) {
-      expect.soft([
-        [cotas[0].a.x, cotas[0].a.y],
-        [cotas[0].b.x, cotas[0].b.y],
-      ]).toEqual([[1_000, 1_000], [9_000, 1_000]]);
+      expect
+        .soft([
+          [cotas[0].a.x, cotas[0].a.y],
+          [cotas[0].b.x, cotas[0].b.y],
+        ])
+        .toEqual([
+          [1_000, 1_000],
+          [9_000, 1_000],
+        ]);
       expect.soft(cotas[0].layer, "la cota volvió en otra capa").toBe("COTAS");
     }
   });
 
   await test.step("nada se perdió en silencio", async () => {
-    const declarado = [...perdidasDeclaradas, ...(recibido.lossManifest ?? []).map((l) => JSON.stringify(l))]
+    const declarado = [
+      ...perdidasDeclaradas,
+      ...(recibido.lossManifest ?? []).map((l) => JSON.stringify(l)),
+    ]
       .join(" ")
       .toUpperCase();
     const perdidoDeVerdad: string[] = [];
     for (const [tipo, cuantos] of Object.entries(entrada)) {
       const llegaron = salida[tipo] ?? 0;
       if (llegaron < cuantos && !declarado.includes(tipo.toUpperCase()))
-        perdidoDeVerdad.push(`${tipo}: mandé ${cuantos}, llegaron ${llegaron}, y NADIE lo declaró`);
+        perdidoDeVerdad.push(
+          `${tipo}: mandé ${cuantos}, llegaron ${llegaron}, y NADIE lo declaró`,
+        );
     }
     expect.soft(perdidoDeVerdad, perdidoDeVerdad.join(" | ")).toEqual([]);
   });
 
-  expect(erroresDeConsola, "errores de consola durante el intercambio").toEqual([]);
+  expect(erroresDeConsola, "errores de consola durante el intercambio").toEqual(
+    [],
+  );
 });

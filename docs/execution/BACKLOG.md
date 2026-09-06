@@ -47,7 +47,7 @@ cola viva, no el museo (el museo es `docs/history/`).
 - **Parte YA CERRADA — encuadre de cámara** (2026-08-25, campaña post-3D-M1,
   PR #99 + #102): el sub-hallazgo de encuadre de cámara (hallado cerrando
   P0-2, mismo origen) resultó ser dos cosas DISTINTAS, no una — investigado a
-  fondo antes de tocar código (`docs/execution/CAMPANA_3D_POST_M1_20260825.md`).
+  fondo antes de tocar código (`docs/history/execution/CAMPANA_3D_POST_M1_20260825.md`).
   "Ajustar a la planta" (Shift+F) usa el footprint declarado A PROPÓSITO; NO
   es un bug. El bug real, más angosto: sólo el **encuadre inicial** al abrir
   un documento ignoraba el contenido — arreglado con un `useEffect` que
