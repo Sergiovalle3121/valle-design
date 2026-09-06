@@ -29,14 +29,17 @@ const ok = (condition: boolean, message: string) => {
 
 {
   const html = renderToStaticMarkup(
-    createElement(CadDialogShell, {
-      onClose: () => undefined,
-      icon: null,
-      titulo: "Exportar DXF",
-      id: "dxf-export",
-      ancho: "w-[480px]",
-      children: "contenido",
-    }),
+    createElement(
+      CadDialogShell,
+      {
+        onClose: () => undefined,
+        icon: null,
+        titulo: "Exportar DXF",
+        id: "dxf-export",
+        ancho: "w-[480px]",
+      } as Parameters<typeof CadDialogShell>[0],
+      "contenido",
+    ),
   );
   ok(html.includes('role="dialog"'), "el cuadro se anuncia como diálogo");
   ok(html.includes('aria-modal="true"'), "el cuadro se anuncia como modal");
