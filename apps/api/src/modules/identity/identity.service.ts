@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { isUniqueViolation } from '../../common/database/unique-violation';
 import {
   EMAIL_SERVICE,
@@ -21,7 +21,6 @@ import {
   Credential,
   IdentityAuditEvent,
   OneTimeToken,
-  OneTimeTokenPurpose,
   Session,
   User,
 } from './entities/identity.entity';
@@ -31,14 +30,20 @@ import {
   hashArgon2idPassword,
   hashOpaqueToken,
   MAX_DISPLAY_NAME_LENGTH,
-  MAX_TOKEN_LENGTH,
   verifyArgon2idPassword,
 } from './identity-security';
 import { IdentityMfaService } from './identity-mfa.service';
+import {
+  consumeTokenWithManager,
+  enqueueIdentityEmail,
+  issueIdentityEmailToken,
+  issueIdentityEmailTokenWithManager,
+  lockIdentitySubject,
+  validOpaqueToken,
+} from './identity-token-issuance';
 
 export { CSRF_COOKIE, SESSION_COOKIE } from './identity-security';
 
-const OPAQUE_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/u;
 const SESSION_COOKIE_PATTERN =
   /^([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\.([A-Za-z0-9_-]{43})$/iu;
 
@@ -130,7 +135,8 @@ export class IdentityService {
             expiresAt: new Date(Date.now() + 24 * 3_600_000),
           }),
         );
-        await this.enqueueIdentityEmail(
+        await enqueueIdentityEmail(
+          this.email,
           manager,
           user,
           token,
@@ -236,9 +242,9 @@ export class IdentityService {
     cookie: string;
     csrf: string;
   } | null> {
-    if (!this.validOpaqueToken(challenge)) return null;
+    if (!validOpaqueToken(challenge)) return null;
     const consumed = await this.dataSource.transaction((manager) =>
-      this.consumeTokenWithManager(manager, challenge, 'mfa_challenge'),
+      consumeTokenWithManager(manager, challenge, 'mfa_challenge'),
     );
     if (!consumed) return null;
 
@@ -361,7 +367,9 @@ export class IdentityService {
   async sendVerificationEmail(email: string): Promise<void> {
     const user = await this.findUserByEmail(email);
     if (!user || user.emailVerifiedAt) return;
-    await this.issueIdentityEmailToken(
+    await issueIdentityEmailToken(
+      this.dataSource,
+      this.email,
       user,
       'verify_email',
       24 * 3_600_000,
@@ -373,7 +381,9 @@ export class IdentityService {
   async sendPasswordResetEmail(email: string): Promise<void> {
     const user = await this.findUserByEmail(email);
     if (!user) return;
-    await this.issueIdentityEmailToken(
+    await issueIdentityEmailToken(
+      this.dataSource,
+      this.email,
       user,
       'reset_password',
       60 * 60_000,
@@ -383,13 +393,9 @@ export class IdentityService {
   }
 
   async verifyEmail(raw: string): Promise<boolean> {
-    if (!this.validOpaqueToken(raw)) return false;
+    if (!validOpaqueToken(raw)) return false;
     return this.dataSource.transaction(async (manager) => {
-      const token = await this.consumeTokenWithManager(
-        manager,
-        raw,
-        'verify_email',
-      );
+      const token = await consumeTokenWithManager(manager, raw, 'verify_email');
       if (!token) return false;
       const result = await manager.update(User, token.subjectId, {
         emailVerifiedAt: new Date(),
@@ -409,10 +415,10 @@ export class IdentityService {
   }
 
   async resetPassword(raw: string, password: string): Promise<boolean> {
-    if (!this.validOpaqueToken(raw)) return false;
+    if (!validOpaqueToken(raw)) return false;
     const passwordHash = await this.hashPassword(password);
     return this.dataSource.transaction(async (manager) => {
-      const token = await this.consumeTokenWithManager(
+      const token = await consumeTokenWithManager(
         manager,
         raw,
         'reset_password',
@@ -586,7 +592,9 @@ export class IdentityService {
         }),
       );
       if (emailChangePending) {
-        await this.issueIdentityEmailTokenWithManager(
+        await issueIdentityEmailTokenWithManager(
+          this.dataSource,
+          this.email,
           manager,
           user,
           'verify_email',
@@ -613,7 +621,7 @@ export class IdentityService {
     const raw = this.newToken();
     const expiresAt = new Date(Date.now() + 5 * 60_000);
     await this.dataSource.transaction(async (manager) => {
-      await this.lockIdentitySubject(manager, user.id);
+      await lockIdentitySubject(this.dataSource, manager, user.id);
       await manager
         .createQueryBuilder()
         .update(OneTimeToken)
@@ -733,124 +741,5 @@ export class IdentityService {
       order: { createdAt: 'DESC' },
       take: Math.min(Math.max(limit, 1), 100),
     });
-  }
-
-  private async issueIdentityEmailToken(
-    user: User,
-    purpose: OneTimeTokenPurpose,
-    ttlMs: number,
-    template: string,
-    path: string,
-  ): Promise<void> {
-    await this.dataSource.transaction((manager) =>
-      this.issueIdentityEmailTokenWithManager(
-        manager,
-        user,
-        purpose,
-        ttlMs,
-        template,
-        path,
-      ),
-    );
-  }
-
-  /**
-   * Igual que `issueIdentityEmailToken`, pero DENTRO de una transacción que ya
-   * existe. `updateProfile` la necesita así: cambiar el correo y encolar su
-   * verificación tienen que caer juntos o ninguno — un correo cambiado sin
-   * verificación pendiente encolada dejaría la cuenta con un correo nuevo que
-   * nadie ha demostrado poder leer.
-   */
-  private async issueIdentityEmailTokenWithManager(
-    manager: EntityManager,
-    user: User,
-    purpose: OneTimeTokenPurpose,
-    ttlMs: number,
-    template: string,
-    path: string,
-  ): Promise<void> {
-    const raw = this.newToken();
-    await this.lockIdentitySubject(manager, user.id);
-    await manager
-      .createQueryBuilder()
-      .update(OneTimeToken)
-      .set({ consumedAt: new Date() })
-      .where(
-        'subjectId = :userId AND purpose = :purpose AND consumedAt IS NULL',
-        { userId: user.id, purpose },
-      )
-      .execute();
-    const token = await manager.save(
-      OneTimeToken,
-      manager.create(OneTimeToken, {
-        subjectId: user.id,
-        purpose,
-        tokenHash: this.hashToken(raw),
-        expiresAt: new Date(Date.now() + ttlMs),
-      }),
-    );
-    await this.enqueueIdentityEmail(manager, user, token, raw, template, path);
-  }
-
-  private async lockIdentitySubject(
-    manager: EntityManager,
-    userId: string,
-  ): Promise<void> {
-    if (this.dataSource.options.type !== 'postgres') return;
-    await manager
-      .getRepository(User)
-      .createQueryBuilder('identity_user')
-      .setLock('pessimistic_write')
-      .where('identity_user.id = :userId', { userId })
-      .getOneOrFail();
-  }
-
-  private async enqueueIdentityEmail(
-    manager: EntityManager,
-    user: User,
-    token: OneTimeToken,
-    raw: string,
-    template: string,
-    path: string,
-  ): Promise<void> {
-    await this.email.enqueue(
-      {
-        organizationId: null,
-        tenantId: null,
-        to: user.email,
-        template,
-        payload: {
-          token: raw,
-          path: `${path}?token=${encodeURIComponent(raw)}`,
-          expiresAt: token.expiresAt.toISOString(),
-        },
-        idempotencyKey: `${template}:${token.id}`,
-      },
-      { native: manager },
-    );
-  }
-
-  private validOpaqueToken(raw: string): boolean {
-    return raw.length <= MAX_TOKEN_LENGTH && OPAQUE_TOKEN_PATTERN.test(raw);
-  }
-
-  private async consumeTokenWithManager(
-    manager: EntityManager,
-    raw: string,
-    purpose: OneTimeTokenPurpose,
-  ): Promise<OneTimeToken | null> {
-    const token = await manager.findOne(OneTimeToken, {
-      where: { tokenHash: this.hashToken(raw), purpose },
-    });
-    if (!token || token.consumedAt || token.expiresAt <= new Date()) {
-      return null;
-    }
-    const result = await manager
-      .createQueryBuilder()
-      .update(OneTimeToken)
-      .set({ consumedAt: new Date() })
-      .where('id = :id AND consumedAt IS NULL', { id: token.id })
-      .execute();
-    return result.affected ? token : null;
   }
 }
