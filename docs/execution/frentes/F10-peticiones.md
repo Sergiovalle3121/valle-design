@@ -144,7 +144,41 @@ retener 1 punto. **+1 pt.**
 
 ---
 
-## P-F10-05 · Corrección de dato en `PROMPT_MAESTRO_FABLE.md`
+## P-F10-05 · `wasm.toolchain` gana su evidencia independiente
+
+**Qué archivo:** `docs/competitive/rubric.json`, criterio `wasm.toolchain`
+(fila `wasm`, grupo `frontier`).
+
+**Qué cambio exacto:**
+
+```json
+{
+  "kind": "spec",
+  "path": "apps/web/src/lib/cad/wasm/curve-kernel-mpmath.spec.ts",
+  "independent": true,
+  "note": "mpmath (PyPI, BSD-3-Clause) emite el teselado de arcos y elipses a 50 dígitos de precisión para el corpus de casos límite de curve-kernel-corpus.ts, y sirve de referencia ABSOLUTA que curve-kernel-parity.spec.ts no tenía (sólo comparaba JS↔WASM entre sí). Artefacto congelado: docs/cad/corpus/oraculos/mpmath-1.4.1.json."
+}
+```
+
+**Por qué:** `independencia-por-fila.json` cita textualmente
+`curve-kernel-parity.spec.ts`: «comparar los dos motores entre sí… dice si se
+parecen, nunca cuál tiene razón». Para la spline ese spec ya tenía árbitro
+(Bézier cúbica de Bernstein); para arcos y elipses no. `mpmath` lo cierra con
+la MISMA magnitud de tolerancia que el spec de paridad ya usa (desviación
+relativa a la escala de la curva), no con una magnitud inventada para esta
+petición.
+
+**Qué prueba lo verifica:**
+`apps/web/src/lib/cad/wasm/curve-kernel-mpmath.spec.ts`, 110 comprobaciones,
+5 252 magnitudes contrastadas, ejercitando tanto el motor JS como el binario
+WASM real del árbol (`apps/web/public/wasm/valle-cad-kernel.wasm`).
+
+**Qué mueve:** la fila `wasm` (grupo `frontier`, alcance `destino`) deja de
+retener 1 punto. **+1 pt.**
+
+---
+
+## P-F10-06 · Corrección de dato en `PROMPT_MAESTRO_FABLE.md`
 
 **Qué archivo:** `docs/execution/auditoria-fable/PROMPT_MAESTRO_FABLE.md`,
 tabla de la ficha T-03 (Ola 0), fila «Importación de JSON canónico».

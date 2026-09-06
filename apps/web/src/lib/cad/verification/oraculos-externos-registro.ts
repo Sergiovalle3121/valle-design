@@ -58,7 +58,7 @@ export interface Oraculo {
   id: string;
   nombre: string;
   version: string | null;
-  familia: "DXF" | "DWG" | "STEP" | "IFC" | "GEO" | "API" | "EVENTS";
+  familia: "DXF" | "DWG" | "STEP" | "IFC" | "GEO" | "API" | "EVENTS" | "WASM";
   /** Contra qué superficie del producto sería testigo. */
   papel: string;
   estado: EstadoDeOraculo;
@@ -228,6 +228,31 @@ export const ORACULOS: Oraculo[] = [
       "apps/web/src/lib/cad/verification/events-hmac.spec.ts",
     ],
     artefactoCongelado: "docs/cad/corpus/oraculos/hmac-stdlib.json",
+    queHariaFalta: null,
+  },
+  {
+    id: "mpmath",
+    nombre: "mpmath",
+    version: "1.4.1",
+    familia: "WASM",
+    papel:
+      "Oráculo G: teselado de arcos y elipses a precisión arbitraria (50 dígitos) como referencia absoluta para el corpus de casos límite que curve-kernel-parity.spec.ts sólo comparaba JS↔WASM entre sí. Sirve al criterio wasm.toolchain.",
+    estado: "cableado",
+    licencia: "BSD-3-Clause",
+    admisible: true,
+    porQueAdmisible:
+      "BSD-3-Clause (Fredrik Johansson y colaboradores). El texto está descargado y hasheado en docs/cad/corpus/oraculos/licencias/mpmath-1.4.1-BSD-3-Clause.txt.",
+    sonda: {
+      tipo: "python-import",
+      comando: 'python3 -c "import mpmath; print(mpmath.__version__)"',
+      objetivo: "mpmath",
+    },
+    disponibleAlDeclarar: true,
+    arnes: [
+      "docs/cad/corpus/oraculos/censo-mpmath.py",
+      "apps/web/src/lib/cad/wasm/curve-kernel-mpmath.spec.ts",
+    ],
+    artefactoCongelado: "docs/cad/corpus/oraculos/mpmath-1.4.1.json",
     queHariaFalta: null,
   },
   {

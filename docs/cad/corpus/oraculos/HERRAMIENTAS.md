@@ -273,6 +273,54 @@ conviene leerla antes de nada:
   independiente en ese sentido; los dos oráculos verifican preguntas
   distintas.
 
+## mpmath 1.4.1 <a id="mpmath-1-4-1"></a>
+
+- **Nombre:** mpmath
+- **Versión:** 1.4.1
+- **Papel:** oráculo **G** contra el criterio `wasm.toolchain`. Emite el
+  teselado de arcos y elipses con precisión arbitraria (50 dígitos decimales)
+  para el corpus de casos límite de `curve-kernel-corpus.ts`, y sirve de
+  referencia ABSOLUTA que `curve-kernel-parity.spec.ts` no tenía: ese spec
+  compara el motor JavaScript y el kernel WASM sólo ENTRE SÍ, y su propia
+  cabecera declara que eso «dice si se parecen, nunca cuál tiene razón».
+- **Lenguaje:** Python 3.11 (rueda pura)
+- **Autor / titular:** Fredrik Johansson y colaboradores de mpmath
+- **Licencia:** BSD-3-Clause
+- **Texto de la licencia:** `licencias/mpmath-1.4.1-BSD-3-Clause.txt`, 1 481
+  bytes
+- **SHA-256 del texto de la licencia:**
+  `01cb9dc26c9afd5804c2ebf72f9ef03b5fd48972875ed59a483a45f441971f1e`
+- **Aviso de copyright conservado:** `Copyright (c) 2005-2026 Fredrik
+  Johansson and mpmath contributors`
+- **Origen:** PyPI — `pip install mpmath==1.4.1`
+- **Rueda instalada:** `mpmath-1.4.1-py3-none-any.whl`
+- **SHA-256 de la rueda:**
+  `dc4f0ea2304480d4a9a48a94c1020571558ade522b44a6912efac63a586e140f`
+- **Tamaño de la rueda:** 567 787 bytes
+- **Comprobación de procedencia (hecho observado, 2026-09-06):** el sha256
+  de la rueda descargada **coincide** con el digest que publica el índice en
+  <https://pypi.org/pypi/mpmath/1.4.1/json> para ese mismo nombre de fichero,
+  con fecha de publicación `2026-03-15T01:17:36.392621Z` y tamaño 567 787.
+- **Fecha de instalación:** 2026-09-06
+- **Estado de los términos:** publicados, permisivos y descargados.
+  BSD-3-Clause autoriza usar, copiar, modificar y distribuir conservando el
+  aviso de copyright. Los bytes de la herramienta **no** entran a este
+  repositorio.
+- **Uso autorizado:** ejecución local como **emisor de valores de
+  referencia** de operaciones trigonométricas. Nunca como fuente de código.
+- **Artefacto que produce:** `mpmath-1.4.1.json` — el teselado exacto (50
+  dígitos, redondeado al `f64` más cercano) de los 10 arcos y 7 elipses de
+  `ARC_EDGE_CASES`/`ELLIPSE_EDGE_CASES`, para `steps` 24 y 96.
+- **Cómo se regenera:** `python3 docs/cad/corpus/oraculos/censo-mpmath.py`
+  (acepta `--destino RUTA`).
+- **El límite de esta herramienta, escrito antes de usarla:** ninguna libm de
+  propósito general (V8, Rust std) garantiza redondeo correcto al último bit
+  para seno/coseno, así que una discrepancia de 1-3 ULP frente a la
+  referencia exacta es el comportamiento esperado de ambos motores, no un
+  defecto. Medido en esta máquina: la peor desviación relativa a la escala de
+  la curva es 2,22×10⁻¹⁵, idéntica en JS y en WASM; el gate declara el doble
+  con margen (16 épsilon de máquina).
+
 ## dxf-parser 1.1.2 <a id="dxf-parser-1-1-2"></a>
 
 - **Nombre:** dxf-parser
