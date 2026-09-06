@@ -1,6 +1,6 @@
 # Informe de la campaña «El lunes de un arquitecto» · 2026-09-06
 
-Cierre del coordinador (F0/F1) a las 22:25 UTC. La orden completa está en
+Cierre del coordinador (F0/F1) a las 22:25 UTC, actualizado a las 23:22 UTC con el estado del CI. La orden completa está en
 `docs/execution/auditoria-fable/PROMPT_MAESTRO_FABLE.md`; el diario entrada por
 entrada en `CAMPANA_LUNES_20260906.md`; las decisiones tomadas sin preguntar,
 con sus cuatro campos, en `DECISIONES_20260906.md`. Rama `claude/valle-design-auditoria-bhin78`,
@@ -92,8 +92,8 @@ techo de auditoría:  5   (apps/web/e2e/auditoria/manifiesto.json; nació en 28)
 | F4 · Papel y entrega | #196 | **rojo** desde las 19:46: `check:monolith-budget` (`cad-document.ts` 804 > 800 sin presupuesto; `paper-space.ts` 982 > 896); la sesión, ociosa desde las 19:48, recibió el diagnóstico exacto con plazo 23:00 UTC; no integrado |
 | F5 · Toolsets | #199 | integrado en #194 |
 | F7 · Modelado 3D | — | **no arrancó**: dos sesiones bloqueadas por el filtro de la plataforma («no actual user request»); T-50/T-51/T-53 quedan abiertas |
-| F8 · El despacho | #198 | integrado dos veces (d8acb66 y 89ac122: T-62 a/b/c); Contrato verde en su rama y E2E en curso al integrar; el árbol fusionado pasó tsc, gates, 649 specs y los goldens 197, 150, 196 y 210 |
-| F9 · Cimientos y piel | #200 | **queda abierto** (D-17): la cabeza 096e8bf tenía catorce goldens rojos (la sugerencia de la línea de comandos de T-74 se comía el Enter y «L» ejecutaba otro comando); la sesión lo detectó y corrigió sola (160cd14, 22:11 UTC); su fusión cruza `dashboard/page.tsx`, que F8 partió de otra manera, así que la resuelve la sesión F9 sobre `main` cuando #194 aterrice |
+| F8 · El despacho | #198 | integrado dos veces (d8acb66 y 89ac122: T-62 a/b/c); CI entero verde en su rama a las 23:02 UTC; el árbol fusionado pasó tsc, gates, 649 specs y los goldens 197, 150, 196 y 210 |
+| F9 · Cimientos y piel | #200 | **queda abierto** (D-17): la cabeza 096e8bf tenía catorce goldens rojos (la sugerencia de la línea de comandos de T-74 se comía el Enter y «L» ejecutaba otro comando); la sesión lo detectó y corrigió sola (160cd14 (CI entero verde en su rama a las 23:02 UTC), 22:11 UTC); su fusión cruza `dashboard/page.tsx`, que F8 partió de otra manera, así que la resuelve la sesión F9 sobre `main` cuando #194 aterrice |
 | F10 · Evidencia independiente | #197 | integrado |
 | F11 · Inventario AutoCAD | #195 | integrado |
 
@@ -151,6 +151,11 @@ hoy, y la rúbrica de destino (`ALCANCE DESTINO`, arriba) es la que hay que mira
   coordinador).
 - Volver a correr la auditoría de veinte dimensiones sobre `main` para tener
   la nota nueva.
+- Dos lecciones de CI de esta noche, ya escritas en D-18 y en la bitácora: al
+  cambiar un formulario, buscar también quien lo CUENTA (el embudo gratuito
+  contaba tres `<input>` y la casilla de términos era el cuarto); y los
+  goldens que afirman una beta de BUILD deben afirmar los dos estados, porque
+  el CI construye con `NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA=true`.
 - T-50/T-51/T-53 (3D) con una sesión de frente que arranque como usuario, no
   por notificación: el filtro de la plataforma bloqueó las dos de hoy.
 - T-30, T-32, T-40, T-42, T-70, T-71, T-73: sin tocar; sus fichas siguen
