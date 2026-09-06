@@ -127,7 +127,7 @@ sigue visible.
 
 ---
 
-## #4 · `scripts/cad/monolith-budget.json`: registrar el crecimiento de `cad-document.ts` (T-11c) y `paper-space.ts` (T-19, T-30, T-36)
+## #4 · `scripts/cad/monolith-budget.json`: registrar el crecimiento de `cad-document.ts` (T-11c) y `paper-space.ts` (T-19, T-30, T-31, T-36)
 
 **Archivo:** `scripts/cad/monolith-budget.json` (prohibido para F4 — lo aplica
 el coordinador).
@@ -155,7 +155,7 @@ por razones ajenas a F4. T-19·3 (capa `plot:false` nunca imprime) y T-19·4
 proyección de MODELO, y el contorno real de una ventana poligonal viaja ahora
 en vez de perderse), T-36 (escala anotativa resuelta por ventana) y T-30
 (paperCommands: lo dibujado directamente sobre el papel), suman 79 líneas —
-la nueva asignación es **975**.
+la nueva asignación es **982**.
 Igual que con `cad-document.ts`: probé activamente evitar el crecimiento
 (revisé línea por línea si algo se podía comprimir sin tocar comentarios
 ajenos) y no cupo sin sacrificar la claridad del propio arreglo o gatear el
@@ -175,7 +175,7 @@ y, más abajo en el mismo objeto `allowances` (orden alfabético existente):
 
 ```diff
 -    "apps/web/src/lib/cad/paper-space.ts": 896,
-+    "apps/web/src/lib/cad/paper-space.ts": 975,
++    "apps/web/src/lib/cad/paper-space.ts": 982,
 ```
 
 (Equivalente a correr `node scripts/cad/check-monolith-budget.mjs --update

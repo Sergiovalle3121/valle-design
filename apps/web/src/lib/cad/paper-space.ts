@@ -854,8 +854,15 @@ export function buildCadPublishPlan(
           entityId: id,
           detail: "Entity belongs to paper space and is excluded from every model viewport on this sheet.",
         });
-    const viewports = (space.viewports ?? []).map(
-      (viewport): CadPublishViewport => {
+    // T-31·d: `MVIEW Desactivada` (apagada, no borrada) también en PUBLISH —
+    // antes sólo PLOT la respetaba; publicar dibujaba igual una ventana que
+    // el usuario apagó a propósito. Misma regla que `cadViewportIsOn`
+    // (`layout/viewport-operations.ts`), repetida a propósito: importar ese
+    // módulo aquí cierra un ciclo real (él importa `CAD_SHEET_SCALES` de
+    // ESTE archivo a nivel de módulo) que revienta en tiempo de carga.
+    const viewports = (space.viewports ?? [])
+      .filter((viewport) => viewport.layerVisibility?.["*"] !== false)
+      .map((viewport): CadPublishViewport => {
         const viewportMatrix = viewportTransform(viewport, document.meta.unit);
         const factor = unitToMm(document.meta.unit) / Math.max(viewport.scale, 1e-9);
         if (

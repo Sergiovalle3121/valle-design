@@ -17,6 +17,7 @@ import {
 } from "./paper-space";
 import { cadPlanViewport } from "./cad-paper-viewport";
 import { cadLayerShown } from "./cad-layer-visibility";
+import { setCadViewportOn } from "./layout/viewport-operations";
 
 const entities: CadEntity[] = [
   {
@@ -595,6 +596,59 @@ assert.deepEqual(
   );
   // El PDF-de-verdad (renderCadPlotPdf + lectura de bytes) se comprueba en
   // plot-output.spec.ts, que ya corre asíncrono; este archivo es síncrono.
+}
+
+// T-31·d: `MVIEW Desactivada` también en PUBLISH — antes sólo PLOT
+// (`plot-job.ts`) la respetaba; `buildCadPublishPlan` (que PUBLISH y el
+// botón del editor comparten) dibujaba igual una ventana apagada.
+{
+  const offBase = layoutToCadDocument(
+    { layers: [{ id: "0", name: "0", color: "#000000", visible: true, locked: false }] },
+    { unit: "mm" },
+  );
+  const offEntity: CadEntity = {
+    id: "e-off",
+    type: "line",
+    start: { x: 0, y: 0, z: 0 },
+    end: { x: 100, y: 0, z: 0 },
+    layer: "0",
+  };
+  const viewportOn = cadPlanViewport(
+    "vp-on",
+    { x: 10, y: 10, width: 80, height: 80 },
+    { x: -10, y: -10, width: 200, height: 200 },
+    1,
+  );
+  const viewportOff = cadPlanViewport(
+    "vp-off",
+    { x: 10, y: 100, width: 80, height: 80 },
+    { x: -10, y: -10, width: 200, height: 200 },
+    1,
+  );
+  const offSpace = setCadViewportOn(
+    {
+      id: "sheet-off",
+      name: "A-101",
+      entityIds: [],
+      page: { width: 210, height: 297, unit: "mm", orientation: "portrait" },
+      viewports: [viewportOn, viewportOff],
+    },
+    "vp-off",
+    false,
+  );
+  const offDocument: CadDocument = {
+    ...offBase,
+    entities: [offEntity],
+    modelSpace: { entityIds: ["e-off"] },
+    paperSpaces: [offSpace],
+  };
+  const offPlan = buildCadPublishPlan(offDocument, "2026-09-06T00:00:00.000Z");
+  const publishedViewportIds = offPlan.sheets[0]!.viewports.map((viewport) => viewport.id);
+  assert.deepEqual(
+    publishedViewportIds,
+    ["vp-on"],
+    "T-31·d: la ventana apagada (MVIEW OFF) no sale en el plan de publicación",
+  );
 }
 
 console.log("cad paper space specs passed");

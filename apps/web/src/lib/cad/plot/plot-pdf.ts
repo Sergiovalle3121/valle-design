@@ -434,7 +434,14 @@ function drawCommand(
         points[0].x - points[points.length - 1].x,
         points[0].y - points[points.length - 1].y,
       ]);
-    pdf.lines(deltas, points[0].x, points[0].y, [1, 1], "S", false);
+    // T-31·b: el sombreado sólido, la máscara y el wipeout marcan su color de
+    // relleno en `style.fill` (`paper-space.ts`), pero el estilo aquí estaba
+    // FIJO en "S" (sólo trazo): el relleno se calculaba y nunca se pintaba.
+    if (command.style.fill) {
+      const [fr, fg, fb] = rgb(command.style.fill);
+      pdf.setFillColor(fr, fg, fb);
+    }
+    pdf.lines(deltas, points[0].x, points[0].y, [1, 1], command.style.fill ? "F" : "S", false);
     return;
   }
 
@@ -447,6 +454,19 @@ function drawCommand(
   // El tamaño del plan viene en milímetros de papel; `setFontSize` habla en
   // puntos.
   pdf.setFontSize(Math.max(0.5, command.size) * MM_TO_POINTS);
+  // T-31·b: la máscara de fondo de un MTEXT se declaraba (`backgroundMask`/
+  // `backgroundColor` viajan en el comando desde `paper-space.ts`) y nunca
+  // se pintaba — el rótulo salía siempre sobre el fondo de lo que hubiera
+  // debajo, no sobre su propio rectángulo opaco.
+  if (command.backgroundMask && command.backgroundColor) {
+    const width = pdf.getTextWidth(command.text);
+    const height = command.size * 1.2;
+    const left =
+      command.align === "center" ? command.point.x - width / 2 : command.align === "right" ? command.point.x - width : command.point.x;
+    const [mr, mg, mb] = rgb(command.backgroundColor);
+    pdf.setFillColor(mr, mg, mb);
+    pdf.rect(left, command.point.y - height * 0.8, width, height, "F");
+  }
   pdf.text(command.text, command.point.x, command.point.y, {
     align: command.align === "justify" ? "left" : (command.align ?? "left"),
     // El giro del plan es el del DIBUJO: antihorario y con la Y hacia arriba,

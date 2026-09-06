@@ -493,6 +493,66 @@ async function pdfSpecs(): Promise<void> {
       "T-30: la línea de papel llega al PDF",
     );
   }
+
+  // T-31·b: el sombreado sólido y la máscara de fondo de un MTEXT se
+  // CALCULABAN (`style.fill`/`backgroundColor`) y nunca se pintaban — el
+  // estilo de `pdf.lines` estaba fijo en "S" (sólo trazo) y el rectángulo de
+  // fondo nunca se dibujaba. `f` (fill) en el flujo de contenido es el
+  // operador que antes NUNCA aparecía para un `path` con relleno.
+  {
+    const solidSheet = {
+      id: "sheet:solid",
+      name: "Sólido",
+      width: 210,
+      height: 297,
+      orientation: "portrait" as const,
+      colorMode: "color" as const,
+      lineweightScale: 1,
+      titleBlock: {},
+      viewports: [
+        {
+          id: "vp:solid",
+          name: "Model",
+          clip: { x: 10, y: 10, width: 190, height: 277 },
+          scale: 1,
+          locked: true,
+          commands: [
+            {
+              kind: "path" as const,
+              entityId: "e-hatch-solido",
+              viewportId: "vp:solid",
+              points: [{ x: 20, y: 20 }, { x: 100, y: 20 }, { x: 100, y: 100 }, { x: 20, y: 100 }],
+              closed: true,
+              style: { stroke: "#ff0000", lineWidth: 0.1, fill: "#ff0000" },
+            },
+            {
+              kind: "text" as const,
+              entityId: "e-texto-mascara",
+              viewportId: "vp:solid",
+              point: { x: 20, y: 150 },
+              text: "CON MÁSCARA",
+              size: 5,
+              rotation: 0,
+              color: "#000000",
+              backgroundMask: true,
+              backgroundColor: "#ffff00",
+            },
+          ],
+        },
+      ],
+    };
+    const solidPdf = await renderCadPlotPdf([solidSheet], { compress: false, sheetsWithoutTitleBlock: ["sheet:solid"] });
+    let solidText = "";
+    for (const byte of solidPdf.bytes) solidText += String.fromCharCode(byte);
+    const contentStream = solidText.split("stream")[1] ?? "";
+    assert.ok(
+      /(?:^|\s)f(?=\s)/.test(contentStream),
+      "T-31·b: el sombreado sólido y la máscara pintan con el operador de relleno `f`, no sólo el trazo",
+    );
+    // Dos rellenos esperados: el hatch sólido y el rectángulo de la máscara.
+    const fillCount = (contentStream.match(/(?:^|\s)f(?=\s)/g) ?? []).length;
+    assert.ok(fillCount >= 2, `esperaba al menos 2 rellenos (hatch + máscara), hubo ${fillCount}`);
+  }
 }
 
 // Sin `await` de nivel superior: el runner de specs compila a CommonJS. El
