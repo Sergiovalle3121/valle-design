@@ -151,3 +151,30 @@ prueba de la palabra «imprimir» (racimo D) se reescribe —B pide que arranque
 PLOT, no un PDF al pulsar, que es lo que hace AutoCAD— y se gradúa como
 golden 190 (techo 10 → 9). Un alias `IMPRIMIR` en la línea de comandos es la
 ficha T-73 (c), al backlog (L-2).
+
+### T-00 · Paso 1 · HECHO (09:00 UTC)
+El controlador de exportación sale del monolito: `editor/export-host.ts`
+(746 líneas: `CadExportHost` con los cinco estados del cuadro de exportar y
+sus setters de firma React, `useCadExportHost`/`useCadExport` por
+`useSyncExternalStore` —el patrón de `paper-spaces-host.ts`—, y las acciones
+`computeDxfExportSummary`, `setDxfOption`, `openDxfExport`, `exportDxf`
+verbatim) y `editor/export-scene-actions.ts` (164: `exportPng`, `exportGltf`;
+separado porque un solo fichero pasaba de 800). Monolito 17 889 → **17 340**
+líneas y 129 → **124** `useState`. `diff -w` del bloque movido contra HEAD:
+las únicas diferencias son cuatro nombres de tipo (los del cuadro, ya
+exportados por `CadDxfExportDialog.tsx`, sustituyen a los privados). Gates:
+typecheck, eslint (cero `no-unused-vars`, mismos recuentos por regla que
+antes), presupuesto del monolito con `--update`, trinquete de lint, los
+specs que leen el monolito, `check:no-industrial-domain`, `check:conventions`.
+
+**Decisión D-06, la única desviación del plan:** la fábrica de acciones se
+llama `useCadExportActions` y no `createCadExportActions`. No invoca ningún
+hook —son cierres que se recrean en cada render, como antes—, pero la regla
+`react-hooks/refs` marca «Passing a ref to a function may read its value
+during render» para cualquier llamada sin prefijo `use` que reciba refs, y el
+trinquete de lint está exactamente en su techo: el nombre `create*` lo pondría
+en rojo y compensarlo tocando otro controlador estaba prohibido. Con el
+prefijo `use`, el compilador de React —si algún día se enciende— la trata como
+hook: se ejecuta en cada render y nunca se memoiza, que es exactamente la
+semántica que hace verbatim la extracción. Queda documentado en la cabecera
+del fichero. Lo mismo aplicará al paso 3.

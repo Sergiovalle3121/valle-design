@@ -281,11 +281,6 @@ import {
 import { cadSelectionPathMatchesPolygon } from "@/lib/cad/selection-shapes";
 import { planCadSelectionProjection } from "@/lib/cad/selection-projection-budget";
 import { buildCadSelectionUniverse } from "@/components/cad/editor/selection-universe";
-import {
-  hideCadGlbOverlays,
-  planCadGlbExport,
-  serializeCadGlbBlob,
-} from "@/lib/cad/glb-export";
 import { assertCadCommandsNotOnLockedLayers } from "@/lib/cad/entity-command-locks";
 import {
   acquireCadTrackingPoint,
@@ -302,13 +297,6 @@ import {
   stitchCadBoundaryPaths,
 } from "@/lib/cad/hatch-associativity";
 import { cadViewportBoundsChanged } from "@/lib/cad/native-viewport";
-import { exportCadLayoutDxf } from "@/lib/cad/layout-export-adapter";
-import {
-  evaluateCadDxfExportReadiness,
-  type CadDxfExportLayerSummary,
-  type CadDxfExportReadinessEntity,
-  type CadDxfExportReadinessIssue,
-} from "@/lib/cad/dxf-export-readiness";
 import {
   importDxfPrimitives,
   summarizeDxfImportWarnings,
@@ -377,7 +365,6 @@ import {
   type CadEntity,
   type CadExternalReference,
   type CadLayerDef,
-  type CadLossManifestEntry,
   type CadPaperSpace,
   type CadPublicationRecord,
 } from "@/lib/cad/cad-document";
@@ -451,7 +438,11 @@ import {
 } from "../dialogs/CadTakeoffDialog";
 import { CadVersionsDialog } from "../dialogs/CadVersionsDialog";
 import { CadDxfExportDialog } from "../dialogs/CadDxfExportDialog";
-import { nativeEntityReadinessKind } from "./export-readiness-kind";
+import {
+  useCadExport,
+  useCadExportActions,
+  useCadExportHost,
+} from "./export-host";
 import { CadDesignReportDialog } from "../dialogs/CadDesignReportDialog";
 import { fmtArea, fmtDist } from "../studio/format-units";
 import { guardCadWebglContext } from "../viewport/webgl-context-guard";
@@ -564,14 +555,6 @@ import {
   type CadRenderPipelineChoice,
 } from "@/lib/cad/render-pipeline-preference";
 import {
-  cadDocumentNativeDxfHatches,
-  cadDocumentDxfBlocks,
-  cadDocumentDxfInserts,
-  cadDocumentNativeDxfMTexts,
-  cadDocumentNativeDxfMleaders,
-  cadDocumentDxfExportLosses,
-  cadDocumentNativeDxfPrimitives,
-  cadDocumentNativeDxfSemanticDimensions,
   cadDxfCurvesToNativeEntities,
   cadDxfBlocksToCadDocumentParts,
   cadDxfHatchesToNativeEntities,
@@ -921,25 +904,6 @@ function sameStringMap(
 
 /** El preview del copiloto; la forma vive con las acciones de la paleta. */
 type CommandPreviewState = CadPalettePreviewState;
-interface DxfExportOptions {
-  scope: "all" | "selection";
-  includeHidden: boolean;
-  includeMeasurements: boolean;
-  includeLabels: boolean;
-  units: "mm" | "m";
-  fileName: string;
-}
-interface DxfExportSummary {
-  objects: number;
-  connectors: number;
-  measurements: number;
-  labels: number;
-  layers: number;
-  canExport: boolean;
-  includedLayers: string[];
-  layerSummary: CadDxfExportLayerSummary[];
-  issues: CadDxfExportReadinessIssue[];
-}
 interface MeasurementRow {
   id: string;
   label: string;
@@ -1022,29 +986,6 @@ const CAD_DRAW_TOOLS = new Set<EditorTool>([
 ]);
 const isCadDrawTool = (tool: EditorTool): tool is CadDrawCommandId =>
   CAD_DRAW_TOOLS.has(tool);
-
-const DXF_LABEL_REQUIRED_ASSET_KINDS = new Set([
-  "workbench",
-  "rack",
-  "robot",
-  "oven",
-  "printer",
-  "machine",
-  "gantry",
-  "cabinet",
-  "pallet",
-  "desk",
-  "bin",
-  "safety",
-  "wall",
-  "column",
-  "door",
-  "room",
-  "fence",
-  "agv",
-  "agvpath",
-  "zone",
-]);
 
 /** An amber "sticky note" sprite for a free-text annotation on the plan. */
 /** Build a positioned, rotated, pickable asset group (base at floor). */
@@ -1351,7 +1292,18 @@ export default function Layout3DEditor({
   const [dxfWarnings, setDxfWarnings] = useState<CadDxfImportWarning[]>([]);
   const [dxfImportPreview, setDxfImportPreview] =
     useState<CadDxfImportResult | null>(null);
-  const [showDxfExport, setShowDxfExport] = useState(false);
+  // EXPORTACIÓN: estado en su anfitrión (export-host.ts, F1 paso 1) y
+  // desestructurado con los nombres de siempre; las acciones, más abajo.
+  const exportHost = useCadExportHost();
+  const exportState = useCadExport(exportHost);
+  const {
+    showDxfExport,
+    dxfExportOptions,
+    dxfExportSummary,
+    dxfPreflight,
+    dxfPreflightAccepted,
+  } = exportState;
+  const { setShowDxfExport, setDxfPreflightAccepted } = exportHost;
   // ESPACIOS-PAPEL: estado en su anfitrión (paper-spaces-host.ts, P1-FE2a) y
   // desestructurado con los nombres de siempre; acciones: DEUDA-MONOLITO.md.
   const paperSpacesHost = useCadPaperSpacesHost();
@@ -1429,47 +1381,6 @@ export default function Layout3DEditor({
   const [publicationWarnings, setPublicationWarnings] = useState<
     CadPublishWarning[]
   >([]);
-  const [dxfExportOptions, setDxfExportOptions] = useState<DxfExportOptions>({
-    scope: "all",
-    includeHidden: true,
-    includeMeasurements: true,
-    includeLabels: true,
-    units: "mm",
-    fileName: "",
-  });
-  const [dxfExportSummary, setDxfExportSummary] = useState<DxfExportSummary>({
-    objects: 0,
-    connectors: 0,
-    measurements: 0,
-    labels: 0,
-    layers: 0,
-    canExport: false,
-    includedLayers: [],
-    layerSummary: [],
-    issues: [],
-  });
-  /**
-   * PREFLIGHT de pérdidas del DXF.
-   *
-   * El flujo era: generar Blob → `a.click()` → cerrar el modal → decir "listo"
-   * → y SÓLO entonces calcular qué se había perdido. El usuario recibía el
-   * fichero y el mensaje de éxito antes de saber que había geometría dentro
-   * que el DXF no representa, y con el modal ya cerrado no quedaba superficie
-   * donde leer el detalle.
-   *
-   * Ahora las pérdidas se calculan ANTES de existir el Blob, con exactamente
-   * el mismo alcance, selección, capas y opciones con los que se exportaría.
-   * `token` describe esa entrada: si cambia el documento, la selección, el
-   * alcance o las opciones, la aceptación anterior deja de ser válida.
-   */
-  const [dxfPreflight, setDxfPreflight] = useState<{
-    token: string;
-    losses: CadLossManifestEntry[];
-    blocking: boolean;
-  } | null>(null);
-  const [dxfPreflightAccepted, setDxfPreflightAccepted] = useState<
-    string | null
-  >(null);
   const [sheetPackageDraft, setSheetPackageDraft] =
     useState<CadSheetPackageDraft>({
       project: branding.productLabel,
@@ -11931,506 +11842,46 @@ export default function Layout3DEditor({
       fitToBounds(content);
     updateWorkspacePreferences({ ...workspacePreferencesRef.current, viewMode: next });
   }, [applyViewMode, updateWorkspacePreferences, worldBounds, fitToBounds]);
-  const exportPng = () => {
-    const r = rendererRef.current,
-      sc = sceneRef.current,
-      cam = cameraRef.current;
-    if (!r || !sc || !cam) return;
-    r.render(sc, cam);
-    const a = document.createElement("a");
-    a.href = r.domElement.toDataURL("image/png");
-    a.download = `layout3d-${model}-${revision}.png`.replace(/[^\w.\-]+/g, "_");
-    a.click();
-  };
-  // El PDF de la Fase 65 (render + cajetín a mano con jsPDF) se retiró: era
-  // código de rollback sin llamadas y duplicaba a mano lo que lib/cad/plot
-  // hace con contrato y specs. La única salida PDF del producto es
-  // publishSheetSetPdf (conjunto de hojas).
-  // Export the 3D model as binary glTF (.glb) — opens in Blender, other CAD, etc.
-  const exportGltf = async () => {
-    // Lista, plan y serialización viven en `lib/cad/glb-export.ts` con su
-    // spec de round-trip: el GLB lleva el modelo heredado Y la arquitectura
-    // nativa — antes sólo viajaban los grupos heredados y ningún spec miraba.
-    const plan = planCadGlbExport(
-      {
-        legacy: [
-          blocksRef.current,
-          assetsGroupRef.current,
-          connsGroupRef.current,
-          groundRef.current,
-        ],
-        architecture: [
-          nativeMassHostsRef.current?.group,
-          solidShadeHostRef.current?.group,
-        ],
-      },
-      (loadedCadDocumentRef.current?.entities ?? []).some(
-        (entity) => entity.type === "wall" || entity.type === "solid3d",
-      ),
-    );
-    if (plan.kind === "empty") return;
-    if (plan.kind === "architecture-missing") {
-      toast.error(
-        "La vista 3D aún no materializó la arquitectura; abre la vista 3D y reintenta.",
-        "Vista 3D",
-      );
-      return;
-    }
-    try {
-      // `s` es la escala de AJUSTE DE CÁMARA con la que se construyó TODA la
-      // geometría de la escena (línea 6032: `s = 30 / Math.max(W, H)`), no una
-      // conversión de unidades: un predio de 4 m y uno de 400 m ocupan el
-      // mismo cubo de cámara. Exportar esas coordenadas tal cual entregaba un
-      // GLB cuyo metro no medía un metro real — glTF declara 1 unidad = 1
-      // metro — y la distorsión cambiaba con el tamaño de CADA predio. Se
-      // deshace aquí, no en el visor: el visor necesita el ajuste de cámara.
-      const unit = (data?.footprint.unit || "mm") as WorldUnit;
-      const exportScale = ctxRef.current
-        ? unitToMeters(1, unit) / ctxRef.current.s
-        : 1;
-      const blob = await serializeCadGlbBlob(plan.objects, {
-        // Etiquetas y línea de previsualización fuera: geometría limpia.
-        hide: () =>
-          hideCadGlbOverlays(
-            sceneRef.current,
-            (object) =>
-              !!object.userData?.isLabel || object === previewLineRef.current,
-          ),
-        exportScale,
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `layout3d-${model}-${revision}.glb`.replace(
-        /[^\w.\-]+/g,
-        "_",
-      );
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Modelo 3D exportado (.glb).", "Modelo 3D");
-    } catch (error) {
-      console.error(error);
-      toast.error("No se pudo exportar el modelo 3D.", "Modelo 3D");
-    }
-  };
-  const computeDxfExportSummary = (
-    options: DxfExportOptions,
-  ): DxfExportSummary => {
-    const selectedIds = new Set(selRef.current.map((item) => item.id));
-    const selectedNativeIds = new Set(nativeSelectionIdsRef.current);
-    const layerLabel = (id: CadLayerId) =>
-      cadLayers.find((layer) => layer.id === id)?.label ?? id;
-    const layerVisible = (id: CadLayerId) =>
-      cadLayers.find((layer) => layer.id === id)?.visible ?? true;
-    const entities: CadDxfExportReadinessEntity[] = [
-      ...[...placementsRef.current.keys()].map((id) => {
-        const layerId = layerAssignments[id] ?? "layout";
-        return {
-          id,
-          kind: "object" as const,
-          layer: layerLabel(layerId),
-          label: stationsByIdRef.current.get(id)?.station,
-          requiresLabel: true,
-          selected: selectedIds.has(id),
-          visible: layerVisible(layerId),
-        };
-      }),
-      ...[...assetsRef.current.values()].map((asset) => {
-        const layerId =
-          layerAssignments[asset.id] ??
-          defaultCadLayerForAssetKind(asset.kind, objectTags[asset.id]);
-        return {
-          id: asset.id,
-          kind: "object" as const,
-          layer: layerLabel(layerId),
-          label: asset.label,
-          requiresLabel: DXF_LABEL_REQUIRED_ASSET_KINDS.has(asset.kind),
-          selected: selectedIds.has(asset.id),
-          visible: layerVisible(layerId),
-        };
-      }),
-      ...connectorsRef.current.map((conn) => ({
-        id: `${conn.from}:${conn.to}`,
-        kind: "connector" as const,
-        layer: layerLabel("flow"),
-        selected: selectedIds.has(conn.from) && selectedIds.has(conn.to),
-        visible: layerVisible("flow"),
-      })),
-      ...[...annotationsRef.current.values()]
-        .filter((ann) => ann.type === "dim" && ann.x2 != null && ann.y2 != null)
-        .map((ann) => ({
-          id: ann.id,
-          kind: "measurement" as const,
-          layer: layerLabel("measurements"),
-          label: ann.text,
-          selected: true,
-          visible: layerVisible("measurements"),
-        })),
-      ...[...annotationsRef.current.values()]
-        .filter((ann) => ann.type === "text")
-        .map((ann) => ({
-          id: ann.id,
-          kind: "label" as const,
-          layer: layerLabel(layerAssignments[ann.id] ?? "Text"),
-          label: ann.text,
-          selected: true,
-          visible: layersRef.current.notes,
-        })),
-      ...(loadedCadDocumentRef.current?.entities ?? [])
-        .filter((entity) => CAD_ENTITY_REGISTRY.supports(entity))
-        .map((entity) => {
-          const layer = loadedCadDocumentRef.current?.layers.find(
-            (candidate) => candidate.id === entity.layer,
-          );
-          return {
-            id: entity.id,
-            kind: nativeEntityReadinessKind(entity.type),
-            layer: layer?.name ?? entity.layer,
-            label: entity.type.toUpperCase(),
-            selected: selectedNativeIds.has(entity.id),
-            visible: layer?.visible !== false,
-          };
-        }),
-    ];
-    const readiness = evaluateCadDxfExportReadiness({
-      scope: options.scope,
-      includeHidden: options.includeHidden,
-      includeMeasurements: options.includeMeasurements,
-      includeLabels: options.includeLabels,
-      selectedObjectCount: selectedIds.size + selectedNativeIds.size,
-      entities,
-      validationBlockers:
-        (report?.errors ?? 0) + collisionHits.length + safetyIssues.length,
-      validationWarnings: (report?.warnings ?? 0) + dxfWarnings.length,
-      dxfImportWarnings: dxfWarnings.length,
-      selectionKeepsAnnotations: true,
+  // Exportar PNG / GLB / DXF: cuerpos en export-host.ts y
+  // export-scene-actions.ts (F1 paso 1); cierres recreados en cada render.
+  const { exportPng, exportGltf, setDxfOption, openDxfExport, exportDxf } =
+    useCadExportActions(exportHost, {
+      model,
+      revision,
+      branding,
+      exportState,
+      data,
+      cadLayers,
+      layerAssignments,
+      objectTags,
+      report,
+      collisionHits,
+      safetyIssues,
+      dxfWarnings,
+      rendererRef,
+      sceneRef,
+      cameraRef,
+      ctxRef,
+      previewLineRef,
+      blocksRef,
+      assetsGroupRef,
+      connsGroupRef,
+      groundRef,
+      nativeMassHostsRef,
+      solidShadeHostRef,
+      loadedCadDocumentRef,
+      currentDocumentIdRef,
+      selRef,
+      nativeSelectionIdsRef,
+      placementsRef,
+      assetsRef,
+      connectorsRef,
+      annotationsRef,
+      stationsByIdRef,
+      layersRef,
+      snapshotDocument,
+      toast,
     });
-    return {
-      objects: readiness.counts.object,
-      connectors: readiness.counts.connector,
-      measurements: readiness.counts.measurement,
-      labels: readiness.counts.label,
-      layers: readiness.includedLayers.length,
-      canExport: readiness.canExport,
-      includedLayers: readiness.includedLayers,
-      layerSummary: readiness.layerSummary,
-      issues: readiness.issues,
-    };
-  };
-  const setDxfOption = (patch: Partial<DxfExportOptions>) => {
-    setDxfExportOptions((cur) => {
-      const next = { ...cur, ...patch };
-      setDxfExportSummary(computeDxfExportSummary(next));
-      return next;
-    });
-  };
-  const openDxfExport = () => {
-    const next = {
-      ...dxfExportOptions,
-      units: data?.footprint.unit === "m" ? ("m" as const) : ("mm" as const),
-      fileName: `layout-${model}-${revision}`.replace(/[^\w.\-]+/g, "_"),
-    };
-    setDxfExportOptions(next);
-    setDxfExportSummary(computeDxfExportSummary(next));
-    setShowDxfExport(true);
-  };
-  /**
-   * Huella de la ENTRADA del preflight: documento, alcance, selección, capas
-   * ocultas y opciones. Aceptar unas pérdidas vale sólo para esta huella; en
-   * cuanto cambia algo que puede alterar lo que se pierde, hay que volver a
-   * mirar. Se usa la versión del documento —que sube en cada `commitChange`—
-   * en vez de serializarlo entero, que en un plano grande sería caro.
-   */
-  const dxfPreflightToken = (
-    options: DxfExportOptions,
-    document: CadDocument,
-  ) =>
-    JSON.stringify({
-      documentId: currentDocumentIdRef.current,
-      version: document.meta.version,
-      entities: document.entities.length,
-      scope: options.scope,
-      includeHidden: options.includeHidden,
-      includeMeasurements: options.includeMeasurements,
-      includeLabels: options.includeLabels,
-      units: options.units,
-      selection:
-        options.scope === "selection"
-          ? [...nativeSelectionIdsRef.current].sort()
-          : null,
-      hiddenLayers: document.layers
-        .filter((layer) => layer.visible === false)
-        .map((layer) => layer.id)
-        .sort(),
-    });
-  const exportDxf = async (options: DxfExportOptions = dxfExportOptions) => {
-    try {
-      const summary = computeDxfExportSummary(options);
-      setDxfExportSummary(summary);
-      const blocker = summary.issues.find((issue) => issue.level === "blocker");
-      if (blocker) {
-        toast.error(blocker.message, "DXF");
-        return;
-      }
-      const layerLabel = (id: CadLayerId) =>
-        cadLayers.find((layer) => layer.id === id)?.label ?? id;
-      const layerVisible = (id: CadLayerId) =>
-        cadLayers.find((layer) => layer.id === id)?.visible ?? true;
-      const includeLayer = (id: CadLayerId) =>
-        options.includeHidden || layerVisible(id);
-      const centerFor = (id: string): { x: number; y: number } | null => {
-        const p = placementsRef.current.get(id);
-        if (p) return { x: p.x, y: p.y };
-        const asset = assetsRef.current.get(id);
-        if (asset) return { x: asset.x, y: asset.y };
-        return null;
-      };
-      const selectedIds = new Set(selRef.current.map((item) => item.id));
-      const selectedNativeIds = new Set(nativeSelectionIdsRef.current);
-      const includeObject = (id: string, fallback: CadLayerId) => {
-        if (options.scope === "selection" && !selectedIds.has(id)) return false;
-        return includeLayer(layerAssignments[id] ?? fallback);
-      };
-      const boxes = [
-        ...[...placementsRef.current.entries()]
-          .filter(([id]) => includeObject(id, "layout"))
-          .map(([id, p]) => ({
-            id,
-            label: stationsByIdRef.current.get(id)?.station ?? id,
-            x: p.x,
-            y: p.y,
-            width: p.w,
-            height: p.h,
-            rotation: p.rotation,
-            layer: layerLabel(layerAssignments[id] ?? "layout"),
-          })),
-        ...[...assetsRef.current.values()]
-          .filter((asset) =>
-            includeObject(
-              asset.id,
-              defaultCadLayerForAssetKind(asset.kind, objectTags[asset.id]),
-            ),
-          )
-          .map((asset) => ({
-            id: asset.id,
-            label: asset.label || assetMeta(asset.kind).label,
-            x: asset.x,
-            y: asset.y,
-            width: asset.w,
-            height: asset.h,
-            rotation: asset.rotation,
-            layer: layerLabel(
-              layerAssignments[asset.id] ??
-                defaultCadLayerForAssetKind(asset.kind, objectTags[asset.id]),
-            ),
-            ...(asset.shape === "circle" ? { shape: "circle" as const } : {}),
-            ...(assetMeta(asset.kind).archetype === "zone"
-              ? { hatch: true }
-              : {}),
-          })),
-      ];
-      const connectors = connectorsRef.current
-        .map((conn) => {
-          if (!includeLayer("flow")) return null;
-          if (
-            options.scope === "selection" &&
-            (!selectedIds.has(conn.from) || !selectedIds.has(conn.to))
-          )
-            return null;
-          const from = centerFor(conn.from);
-          const to = centerFor(conn.to);
-          return from && to ? { from, to, layer: layerLabel("flow") } : null;
-        })
-        .filter(
-          (
-            conn,
-          ): conn is {
-            from: { x: number; y: number };
-            to: { x: number; y: number };
-            layer: string;
-          } => !!conn,
-        );
-      const labels =
-        options.includeLabels &&
-        (options.includeHidden || layersRef.current.notes)
-          ? [...annotationsRef.current.values()]
-              .filter((ann) => ann.type === "text")
-              .map((ann) => ({
-                text: ann.text || "Nota",
-                x: ann.x,
-                y: ann.y,
-                layer: layerLabel(layerAssignments[ann.id] ?? "Text"),
-              }))
-          : [];
-      const measurements =
-        options.includeMeasurements && includeLayer("measurements")
-          ? [...annotationsRef.current.values()]
-              .filter(
-                (ann) => ann.type === "dim" && ann.x2 != null && ann.y2 != null,
-              )
-              .map((ann) => ({
-                from: { x: ann.x, y: ann.y },
-                to: { x: ann.x2!, y: ann.y2! },
-                label: ann.text,
-                layer: layerLabel("measurements"),
-              }))
-          : [];
-      const dxfDocument = snapshotDocument();
-      // Un único predicado: el informe de pérdidas DEBE mirar exactamente las
-      // mismas entidades que se exportan, o avisaría de cosas que no viajan.
-      const dxfExportEntityFilter = (entity: CadEntity) => {
-        if (!CAD_ENTITY_REGISTRY.supports(entity)) return false;
-        if (options.scope === "selection" && !selectedNativeIds.has(entity.id))
-          return false;
-        const layer = loadedCadDocumentRef.current?.layers.find(
-          (candidate) => candidate.id === entity.layer,
-        );
-        return options.includeHidden || layer?.visible !== false;
-      };
-      const primitives = cadDocumentNativeDxfPrimitives(
-        dxfDocument,
-        dxfExportEntityFilter,
-      );
-      const hatches = cadDocumentNativeDxfHatches(dxfDocument, (entity) => {
-        if (options.scope === "selection" && !selectedNativeIds.has(entity.id))
-          return false;
-        const layer = loadedCadDocumentRef.current?.layers.find(
-          (candidate) => candidate.id === entity.layer,
-        );
-        return options.includeHidden || layer?.visible !== false;
-      });
-      const mtexts = options.includeLabels
-        ? cadDocumentNativeDxfMTexts(dxfDocument, (entity) => {
-            if (
-              options.scope === "selection" &&
-              !selectedNativeIds.has(entity.id)
-            )
-              return false;
-            const layer = loadedCadDocumentRef.current?.layers.find(
-              (candidate) => candidate.id === entity.layer,
-            );
-            return options.includeHidden || layer?.visible !== false;
-          })
-        : [];
-      const semanticDimensions = options.includeMeasurements
-        ? cadDocumentNativeDxfSemanticDimensions(dxfDocument, (entity) => {
-            if (
-              options.scope === "selection" &&
-              !selectedNativeIds.has(entity.id)
-            )
-              return false;
-            const layer = loadedCadDocumentRef.current?.layers.find(
-              (candidate) => candidate.id === entity.layer,
-            );
-            return options.includeHidden || layer?.visible !== false;
-          })
-        : [];
-      const mleaders = options.includeLabels
-        ? cadDocumentNativeDxfMleaders(dxfDocument, (entity) => {
-            if (
-              options.scope === "selection" &&
-              !selectedNativeIds.has(entity.id)
-            )
-              return false;
-            const layer = loadedCadDocumentRef.current?.layers.find(
-              (candidate) => candidate.id === entity.layer,
-            );
-            return options.includeHidden || layer?.visible !== false;
-          })
-        : [];
-      const blocks = cadDocumentDxfBlocks(dxfDocument);
-      const inserts = cadDocumentDxfInserts(dxfDocument, (entity) => {
-        if (options.scope === "selection" && !selectedNativeIds.has(entity.id))
-          return false;
-        const layer = dxfDocument.layers.find(
-          (candidate) => candidate.id === entity.layer,
-        );
-        return options.includeHidden || layer?.visible !== false;
-      });
-      const exported = exportCadLayoutDxf(
-        {
-          boxes,
-          connectors,
-          labels,
-          measurements,
-          primitives,
-          hatches,
-          mtexts,
-          semanticDimensions,
-          mleaders,
-          blocks,
-          inserts,
-          // Las capas con su tipo de línea y grosor, la tabla LTYPE y $LTSCALE
-          // salen del DOCUMENTO (Ola F): sin él, GAS = GAS_LINE volvía como
-          // 6 CONTINUOUS y el plano de instalaciones se abría continuo.
-          document: dxfDocument,
-        },
-        {
-          units: options.units,
-          fileComment: `${branding.productLabel} ${model} ${revision}`,
-        },
-      );
-      // ── PREFLIGHT ──────────────────────────────────────────────────────
-      // Las pérdidas se calculan con el MISMO filtro que se acaba de usar para
-      // construir el modelo, y ANTES de que exista el Blob. Un DXF limpio
-      // descarga directamente; uno con pérdidas exige verlas primero, y si
-      // alguna elimina geometría, aceptarlas explícitamente.
-      const exportLosses = cadDocumentDxfExportLosses(
-        dxfDocument,
-        dxfExportEntityFilter,
-      );
-      const token = dxfPreflightToken(options, dxfDocument);
-      if (exportLosses.length > 0) {
-        const blocking = exportLosses.some((loss) => loss.severity === "error");
-        const alreadyReported = dxfPreflight?.token === token;
-        setDxfPreflight({ token, losses: exportLosses, blocking });
-        // Primera pulsación sobre una entrada con pérdidas: se ENSEÑA el
-        // informe y no se descarga nada. Nunca se anuncia éxito antes de que
-        // el usuario haya podido ver lo que el DXF no representa.
-        if (!alreadyReported) {
-          toast.error(
-            blocking
-              ? `El DXF no puede representar ${exportLosses.filter((loss) => loss.severity === "error").length} entidad(es). Revisa el informe y confirma si quieres descargarlo igualmente.`
-              : `El DXF degrada ${exportLosses.length} entidad(es). Revisa el informe antes de descargar.`,
-            "DXF",
-          );
-          return;
-        }
-        // Una pérdida que ELIMINA geometría exige además aceptación explícita;
-        // una degradación se descarga tras haberse mostrado. La aceptación es
-        // de ESTA entrada: si cambió el documento, la selección, el alcance o
-        // las opciones, el token cambia y vuelve a pedirse.
-        if (blocking && dxfPreflightAccepted !== token) {
-          toast.error(
-            "Confirma que aceptas las pérdidas antes de descargar el DXF.",
-            "DXF",
-          );
-          return;
-        }
-      } else {
-        setDxfPreflight(null);
-      }
-
-      const blob = new Blob([exported.content], { type: "application/dxf" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${(options.fileName.trim() || `layout-${model}-${revision}`).replace(/[^\w.\-]+/g, "_")}.dxf`;
-      a.click();
-      URL.revokeObjectURL(url);
-      setShowDxfExport(false);
-      setDxfPreflight(null);
-      setDxfPreflightAccepted(null);
-      toast.success(
-        exportLosses.length
-          ? `Layout exportado a DXF (${exported.entityCount} entidades) con ${exportLosses.length} pérdida(s) aceptada(s). Conserva el documento de Valle Design como original.`
-          : `Layout exportado a DXF (${exported.entityCount} entidades).`,
-        "DXF",
-      );
-    } catch {
-      toast.error("No se pudo exportar el DXF.", "DXF");
-    }
-  };
   const captureCanonicalSaveRequest = (): CanonicalSaveRequest | null => {
     if (drawingReadOnlyRef.current) return null;
     const targetDocumentId = currentDocumentIdRef.current;
