@@ -15,7 +15,7 @@ import {
 import { Logo } from "@/components/brand/Logo";
 import { SkipLink } from "@/components/SkipLink";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Button, Modal, Surface, buttonClass, cx } from "@/components/ui";
+import { Button, Surface, buttonClass, cx } from "@/components/ui";
 import { FeedbackButton } from "@/components/feedback/FeedbackDialog";
 import { DashboardSkeleton } from "./DashboardSkeleton";
 import { FirstMinute } from "./FirstMinute";
@@ -34,21 +34,16 @@ import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
 import { formatRegionDate } from "@/lib/cad/region";
 import { getClientRegion } from "@/lib/cad/region/client";
 import {
-  importDocumentFile,
   isDwgNativeImportBetaEnabled,
   splitDocumentSelection,
 } from "@/lib/cad/document-import-client";
+import { ArchiveDocumentDialog, useArchiveDocument } from "./archive-document";
 import { EMPTY_CAD_STARTER_CHOICE } from "./starter-choice";
 import { Status } from "./Status";
 import { abrirPlanoDeEjemplo } from "./sample-plan";
 import { prefetchCadStudio } from "@/components/cad/prefetch-studio";
 
-import {
-  abortError,
-  gzipDocument,
-  ImportStatus,
-  type ImportState,
-} from "./import-status";
+import { ImportStatus, useImportDocument } from "./import-status";
 import {
   StartNotes,
   startDocumentContent,
@@ -104,10 +99,6 @@ export default function DashboardPage() {
   const [selectedProject, setSelectedProject] = useState("");
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [importState, setImportState] = useState<ImportState>({
-    status: "idle",
-  });
-  const importAbort = useRef<AbortController | null>(null);
   /**
    * «Crea un plano en blanco» NO abre otro formulario: lleva el foco al que ya
    * está en la página. Duplicar el formulario habría duplicado también las seis
@@ -127,36 +118,14 @@ export default function DashboardPage() {
     auth.permissions.includes("cad:edit") && trialStatus(subscription).canEdit;
   /**
    * T-75(g): `DELETE /v1/cad/documents/:id` exige `cad:admin`, no `cad:edit`
-   * — un editor cualquiera no puede borrar el plano de otro. Antes de esto
-   * `documentsRepository.archive`/`designClient.documents.archive` no tenía
-   * NINGÚN llamador de producto: nadie podía borrar un plano desde la
-   * interfaz, punto.
+   * — un editor cualquiera no puede borrar el plano de otro. El estado y la
+   * confirmación viven en `archive-document.tsx` (presupuesto de tamaño de
+   * esta página, ver su cabecera).
    */
   const canArchive = auth.permissions.includes("cad:admin");
-  const [archiveTarget, setArchiveTarget] = useState<Document | null>(null);
-  const [archiving, setArchiving] = useState(false);
-  const [archiveError, setArchiveError] = useState<string | null>(null);
-
-  const confirmArchiveDocument = async () => {
-    if (!archiveTarget) return;
-    setArchiving(true);
-    setArchiveError(null);
-    try {
-      await designClient.documents.archive(archiveTarget.id);
-      setDocuments((items) => items.filter((item) => item.id !== archiveTarget.id));
-      setArchiveTarget(null);
-    } catch (error) {
-      setArchiveError(
-        error instanceof DesignApiError && error.status === 403
-          ? "Tu rol no tiene permiso para borrar documentos."
-          : error instanceof Error
-            ? error.message
-            : "No se pudo borrar el documento.",
-      );
-    } finally {
-      setArchiving(false);
-    }
-  };
+  const archive = useArchiveDocument((documentId) =>
+    setDocuments((items) => items.filter((item) => item.id !== documentId)),
+  );
 
   const load = useCallback(async () => {
     if (auth.isLoading) return;
@@ -381,129 +350,16 @@ export default function DashboardPage() {
     }
   };
 
-  const importDocument = async (
-    file: File,
-    sidecars: { shx?: File; dbf?: File; prj?: File; cpg?: File } = {},
-  ) => {
-    if (!canEdit || !selectedProject || busy) return;
-    const controller = new AbortController();
-    importAbort.current?.abort();
-    importAbort.current = controller;
-    setBusy(true);
-    setImportState({
-      status: "running",
-      progress: 0,
-      stage: "Preparando importación",
-      canCancel: true,
-    });
-    let created: Document | null = null;
-    let lastStage = "Preparando importación";
-    let lastProgress = 0;
-    try {
-      const report = await importDocumentFile(file, {
-        sidecars,
-        signal: controller.signal,
-        onProgress: (progress, stage) => {
-          lastStage = stage;
-          lastProgress = progress * 0.65;
-          setImportState({
-            status: "running",
-            progress: lastProgress,
-            stage: lastStage,
-            canCancel: true,
-          });
-        },
-        // T-75(f): la importación ya no muere sola al primer atasco — la
-        // persona decide entre esperar más o cancelar.
-        onStalled: (resume) =>
-          setImportState({
-            status: "stalled",
-            progress: lastProgress,
-            stage: lastStage,
-            onKeepWaiting: () => {
-              resume();
-              setImportState({
-                status: "running",
-                progress: lastProgress,
-                stage: lastStage,
-                canCancel: true,
-              });
-            },
-          }),
-      });
-      if (controller.signal.aborted) throw abortError();
-      setImportState({
-        status: "running",
-        progress: 0.7,
-        stage: "Creando documento",
-        canCancel: false,
-      });
-      created = await designClient.documents.create({
-        name: file.name
-          .replace(/\.[^.]+$/, "")
-          .trim()
-          .slice(0, 160),
-        projectId: selectedProject,
-      });
-
-      const { serializeCadDocument } = await import("@/lib/cad/cad-document");
-      const serialized = serializeCadDocument(report.document);
-      const serializedBytes = new Blob([serialized]).size;
-      if (serializedBytes > 1_000_000) {
-        setImportState({
-          status: "running",
-          progress: 0.82,
-          stage: "Comprimiendo documento grande",
-          canCancel: false,
-        });
-        const archive = await gzipDocument(serialized);
-        await designClient.documents.saveArchive(created.id, archive, 0);
-      } else {
-        setImportState({
-          status: "running",
-          progress: 0.86,
-          stage: "Guardando contenido",
-          canCancel: false,
-        });
-        await designClient.documents.saveContent(
-          created.id,
-          report.document as unknown as CadDocumentInline,
-          0,
-        );
-      }
-      setDocuments((items) => [created!, ...items]);
+  const { importState, importDocument, cancelImport } = useImportDocument({
+    canEdit,
+    selectedProject,
+    busy,
+    setBusy,
+    onImported: (document) => {
+      setDocuments((items) => [document, ...items]);
       setState("ready");
-      setImportState({
-        status: "success",
-        report,
-        documentId: created.id,
-      });
-    } catch (error) {
-      let rollbackFailed = false;
-      if (created) {
-        try {
-          await designClient.documents.discardProvisional(created.id);
-        } catch {
-          rollbackFailed = true;
-        }
-      }
-      const message =
-        error instanceof DOMException && error.name === "AbortError"
-          ? "Importación cancelada."
-          : error instanceof Error
-            ? error.message
-            : "No se pudo importar el documento.";
-      setImportState({
-        status: "error",
-        message: rollbackFailed
-          ? `${message} No se pudo descartar el documento provisional; revisa el dashboard.`
-          : message,
-      });
-    } finally {
-      if (importAbort.current === controller) importAbort.current = null;
-      setBusy(false);
-    }
-  };
+    },
+  });
 
   if (state === "loading") return <DashboardSkeleton />;
   if (state === "organization-required") {
@@ -763,7 +619,7 @@ export default function DashboardPage() {
                 </label>
                 <ImportStatus
                   state={importState}
-                  onCancel={() => importAbort.current?.abort()}
+                  onCancel={cancelImport}
                   onOpen={(documentId) => router.push(`/studio/${documentId}`)}
                 />
               </Surface>
@@ -828,7 +684,7 @@ export default function DashboardPage() {
                     {canArchive && (
                       <button
                         type="button"
-                        onClick={() => setArchiveTarget(document)}
+                        onClick={() => archive.setTarget(document)}
                         title={`Borrar «${document.name}»`}
                         aria-label={`Borrar «${document.name}»`}
                         className="absolute right-2 top-2 rounded-control p-1.5 text-muted-foreground transition-colors hover:bg-danger/10 hover:text-danger-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
@@ -848,35 +704,13 @@ export default function DashboardPage() {
           )}
         </div>
       </main>
-      <Modal
-        open={archiveTarget !== null}
-        onClose={() => {
-          if (!archiving) setArchiveTarget(null);
-        }}
-        title={archiveTarget ? `¿Borrar «${archiveTarget.name}»?` : "¿Borrar el documento?"}
-        description="Se ocultará de tu tablero. Su historial y las láminas ya publicadas se conservan; para verlo de nuevo, pide que un administrador lo restaure desde el servidor."
-        size="sm"
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setArchiveTarget(null)} disabled={archiving}>
-              Cancelar
-            </Button>
-            <Button
-              variant="danger"
-              onClick={() => void confirmArchiveDocument()}
-              loading={archiving}
-            >
-              Borrar
-            </Button>
-          </>
-        }
-      >
-        {archiveError && (
-          <p role="alert" className="type-small text-danger-ink">
-            {archiveError}
-          </p>
-        )}
-      </Modal>
+      <ArchiveDocumentDialog
+        target={archive.target}
+        archiving={archive.archiving}
+        error={archive.error}
+        onCancel={() => archive.setTarget(null)}
+        onConfirm={() => void archive.confirm()}
+      />
     </>
   );
 }

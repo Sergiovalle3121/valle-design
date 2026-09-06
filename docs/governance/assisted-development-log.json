@@ -3306,6 +3306,54 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "VALLE-DESIGN-F9-CIMIENTOS-PIEL-20260906",
+      "date": "2026-09-06",
+      "initiative": "Frente F9 · Cimientos y piel, de la campaña «El lunes de un arquitecto» (docs/execution/auditoria-fable/PROMPT_MAESTRO_FABLE.md, encargo del titular 2026-09-05/06). Territorio: scripts/design/, check-lint-budget.mjs y lint-budget.json, scripts/cad/{check-ribbon-coverage,ui-command-reach}.mjs, lib/cad/{render/, plot/aci-palette.ts, commands/lazy.ts}, document-lifecycle/, el recovery de IndexedDB, components/cad/{ribbon/, studio/, command-line/, palettes/CadHatchPalette.tsx, viewport-hints.tsx}, components/collab/{ReviewPlanView,CollabThreadPanel}.tsx, components/ui/, app/studio/, app/dashboard/ (sólo borrar plano), el service worker, goldens 160-169. Trabajo en `claude/f9-cimientos-piel`, sin tocar Layout3DEditor.tsx (exclusivo de F1) ni los archivos compartidos del coordinador (rubric.json, ESCALERA.md, BACKLOG.md, monolith-budget.json, manifiesto.json). T-72(e): lazy.ts ya no cachea la promesa rechazada de un chunk caído (createLazySingleton, testeado sin mockear import() dinámico). T-24·3: describeCadSaveFailure clasifica el 400 permanente de documento sobre el límite junto al 413, con salida explícita en vez de \"espera y reintenta\". T-13: legibleDefaultInk (render-style.ts) invierte la tinta por defecto del dibujo cuando su contraste contra el fondo del lienzo cae bajo el piso; check-contrast.mjs ampliado para medirla contra los cuatro presets de THEMES y para los cuatro pares de UI que el escéptico midió a mano, arreglados con tokens; petición escrita para el wiring del fondo real en render-pipeline-host.ts (F7) y el forzado de tema en Layout3DEditor.tsx (F1/coordinador). T-72(f): check-lint-budget.mjs endurecido a presupuesto por archivo, no sólo por regla y workspace. T-72(h): ErrorBoundary alrededor del editor en CadStudioHost.tsx (fuera del monolito), con checkpoint de emergencia al diario de recuperación en el instante del fallo (wrapDocumentPortForCrashRecovery) y descarga del último punto de recuperación en DXF (EditorCrashRecoveryAction, nuevo prop extraActions en ErrorBoundary). T-75(c): openDatabase maneja onblocked con CadRecoveryBlockedError en vez de colgar la promesa para siempre en silencio. T-75(b): abrir un plano caído ofrece Reintentar y el borrador local. T-75(g): botón de borrar documento en el tablero (borrado suave, exige cad:admin) con confirmación — documentsRepository.archive no tenía llamador. T-75(f): createStallWatchdog reemplaza el plazo fijo de 45s de la importación por un reloj de atasco con \"Seguir esperando\"/\"Cancelar\". T-75(h): ToastContext gana aria-live y role por tarjeta, colores de Tailwind crudos reemplazados por tokens del sistema. T-75(d): la fila dibujar-acotar-modelar de la matriz sin red corregida para no afirmar que nada se nota sin red cuando un comando sin precachear sí falla; el precacheo real del núcleo de comandos se propone a BACKLOG.md (demasiado grande y arriesgado para esta ola sin revisión del coordinador). Regresión encontrada y corregida en el propio trabajo: al añadir el botón de borrar y el reloj de atasco, dashboard/page.tsx llegó a 882 líneas y check-monolith-budget.mjs lo cazó (techo 800 para archivo no presupuestado); corregido extrayendo useImportDocument a import-status.tsx y el borrado a archive-document.tsx, mismo patrón que esa extracción ya usaba.",
+      "branch": "claude/f9-cimientos-piel",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate, vía el encargo escrito de la campaña «El lunes de un arquitecto» (PROMPT_MAESTRO_FABLE.md) y la asignación explícita del frente F9 con su territorio exclusivo, sus prohibiciones (no tocar Layout3DEditor.tsx, no relajar gates/umbrales/goldens, no renombrar identificadores persistidos, fix-or-hide) y su régimen de sesión larga sin preguntar, con la opción conservadora ante cualquier duda no cubierta por la tabla de decisión.",
+      "firstPartyInputs": [
+        "docs/execution/auditoria-fable/PROMPT_MAESTRO_FABLE.md (§0, §1, fichas T-13, T-72, T-73, T-74, T-75, T-24·3, §3, §4, §5.2-5.4, §6.3)",
+        "AGENTS.md entero, en particular la sección Design system",
+        "docs/execution/auditoria-fable/00-PUNTO-DE-PARTIDA-VERIFICADO.md",
+        "docs/execution/auditoria-fable/dimensiones/00c-CUADRO-DE-MANDO.md, sección Diseño visual",
+        "docs/design/DESIGN_SYSTEM.md",
+        "El árbol real en el punto de partida de la campaña (2fd2bfd) y origin/main vuelto a fusionar tras el aviso del coordinador (4800017, PR #193)"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "apps/web/src/lib/cad/commands/{lazy.ts,lazy-singleton.ts}",
+        "apps/web/src/components/cad/document-lifecycle/save-failure.ts",
+        "apps/web/src/lib/cad/render/render-style.ts",
+        "scripts/design/check-contrast.mjs",
+        "apps/web/src/components/cad/{studio/viewport-hints.tsx,collab/ReviewPlanView.tsx,collab/CollabThreadPanel.tsx,palettes/CadHatchPalette.tsx,studio/field-controls.tsx}",
+        "scripts/check-lint-budget.mjs y scripts/lint-budget.json",
+        "apps/web/src/components/ui/ErrorBoundary.tsx",
+        "apps/web/src/components/cad/{CadStudioHost.tsx,document-lifecycle/crash-recovery-port.ts,studio/EditorCrashRecoveryAction.tsx}",
+        "apps/web/src/lib/cad/cad-recovery.ts",
+        "apps/web/src/app/studio/[documentId]/page.tsx",
+        "apps/web/src/app/dashboard/{page.tsx,archive-document.tsx,import-status.tsx}",
+        "apps/web/src/lib/cad/document-import-client.ts",
+        "apps/web/src/contexts/ToastContext.tsx",
+        "apps/web/src/app/(sw)/offline-capability-matrix.ts",
+        "apps/web/e2e/golden/{160-cad-borrar-documento,161-cad-plano-caido-reintentar}.spec.ts",
+        "docs/execution/frentes/{F9.md,F9-peticiones.md}"
+      ],
+      "fixtures": "Ninguno con datos ajenos.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "PR borrador contra main con la rama claude/f9-cimientos-piel. typecheck (Node 20, monorepo entero) limpio en cada lote; npx turbo run test --filter=web en 631/631 specs verdes tras fusionar origin/main; check:contrast, check:lint-budget y check-monolith-budget.mjs en verde; goldens 160-161 verdes contra build de producción (E2E_PROD=1). Pendiente de revisión y merge por el titular o el coordinador de la campaña."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
