@@ -84,6 +84,17 @@ function messageOf(error: unknown): string {
 const RED = /failed to fetch|networkerror|network request failed|load failed|err_(internet|network|connection)|\bred\b/iu;
 
 /**
+ * T-24·3: el servidor rechaza un documento por encima del límite con un 400
+ * (`encodeCadDocumentArchive` en `cad-document-storage.ts`, mensaje
+ * "CadDocument excede N bytes." / "El archivo CAD comprimido excede N
+ * bytes."). Ese fallo es PERMANENTE — el documento nunca va a caber tal
+ * cual— y sin esta marca caía en la rama genérica de abajo, que invita a
+ * "espera y vuelve a pulsar Guardar": un reintento sin cambiar nada repite
+ * el mismo 400 para siempre.
+ */
+const OVER_ARCHIVE_LIMIT = /excede\s+[\d.,]+\s*bytes/iu;
+
+/**
  * El aviso, a partir del error y de si el navegador se cree conectado.
  *
  * `online` es INYECTABLE para que la prueba recorra los dos mundos sin tocar
@@ -146,14 +157,16 @@ export function describeCadSaveFailure(
         "a editarlo, pídele acceso a quien administra el despacho.",
     };
 
-  if (status === 413)
+  if (status === 413 || (status === 400 && OVER_ARCHIVE_LIMIT.test(messageOf(error))))
     return {
       kind: "too-large",
       title: "El plano pesa demasiado",
       message:
-        "El servidor rechazó el envío por tamaño. Divide el dibujo en varias láminas o " +
-        "quita las imágenes insertadas más pesadas, y vuelve a guardar. Mientras tanto " +
-        "tus cambios siguen en este equipo.",
+        "El servidor rechazó el envío por tamaño: este documento no cabe tal cual y " +
+        "reintentar sin cambiar nada va a repetir el mismo rechazo. Exporta una copia a " +
+        "DXF ahora, y luego divide el dibujo en varias láminas o quita las imágenes " +
+        "insertadas más pesadas antes de volver a guardar. Tus cambios siguen en este " +
+        "equipo mientras tanto.",
     };
 
   if (status === 429)

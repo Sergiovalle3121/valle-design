@@ -116,6 +116,55 @@ test("el gate PASA sobre la hoja vigente", () => {
   assert.match(output, /Gate de contraste OK/);
 });
 
+test("T-13: reproduce el defecto medido — blanco de ACI 7 sobre el preset «Claro» del lienzo", () => {
+  // #ffffff (ACI 7, capa "0"/BYLAYER) sobre #eaf0f8 (THEMES.light.bg): el
+  // número exacto que midió la auditoría del 2026-09-05, con el metro de
+  // siempre y sin pasar por el arreglo. Si esto deja de dar ~1,15:1 es que el
+  // preset «Claro» cambió de fondo y el resto de este archivo hay que
+  // revisarlo con él.
+  const white = [0xff, 0xff, 0xff];
+  const lightCanvas = [0xea, 0xf0, 0xf8];
+  assert.equal(contrastRatio(white, lightCanvas).toFixed(2), "1.15");
+});
+
+test("T-13: el gate lee los cuatro presets reales de THEMES, no una copia a mano", () => {
+  const output = execFileSync(process.execPath, [path.join(here, "check-contrast.mjs")], {
+    encoding: "utf8",
+  });
+  assert.match(output, /8 de tinta del dibujo contra los presets del lienzo/);
+});
+
+test("T-13: el gate DETECTA que legibleDefaultInk desapareció de render-style.ts", () => {
+  // La reimplementación de este gate vigila por NOMBRE que la función que
+  // arregla T-13 siga ahí. Sin esta prueba, alguien podría revertir el
+  // arreglo en producción y el gate seguiría imprimiendo «OK» porque el
+  // literal CAD_RENDER_DEFAULT_COLOR que lee sigue estando.
+  const originalPath = path.join(root, "apps/web/src/lib/cad/render/render-style.ts");
+  const original = readFileSync(originalPath, "utf8");
+  const broken = original.replace(/function legibleDefaultInk/, "function legibleDefaultInkRENOMBRADA");
+  assert.notEqual(broken, original, "no se encontró legibleDefaultInk para simular su desaparición");
+
+  const dir = mkdtempSync(path.join(tmpdir(), "valle-contraste-render-style-"));
+  const temporal = path.join(dir, "render-style.ts");
+  writeFileSync(temporal, broken, "utf8");
+
+  let fallo = null;
+  try {
+    execFileSync(process.execPath, [path.join(here, "check-contrast.mjs")], {
+      encoding: "utf8",
+      env: { ...process.env, VALLE_CONTRAST_RENDER_STYLE_TS: temporal },
+    });
+  } catch (error) {
+    fallo = error;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+
+  assert.ok(fallo, "el gate NO falló cuando legibleDefaultInk desaparece");
+  assert.equal(fallo.status, 1);
+  assert.match(`${fallo.stdout ?? ""}${fallo.stderr ?? ""}`, /ya no declara legibleDefaultInk/);
+});
+
 test("el gate DETECTA una paleta ilegible", () => {
   // LA PRUEBA QUE DE VERDAD IMPORTA: se degrada el texto secundario hasta
   // fundirlo con la tarjeta y se ejecuta EL GATE, no su aritmética. Sin

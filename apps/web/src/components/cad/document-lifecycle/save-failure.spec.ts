@@ -68,6 +68,12 @@ const casos = [
     kind: "too-large",
   },
   {
+    nombre: "documento por encima del límite del servidor (permanente, T-24·3)",
+    error: Object.assign(new Error("CadDocument excede 20000000 bytes."), { status: 400 }),
+    online: true,
+    kind: "too-large",
+  },
+  {
     nombre: "demasiadas peticiones",
     error: Object.assign(new Error("Too Many Requests"), { status: 429 }),
     online: true,
@@ -161,6 +167,42 @@ for (const caso of casos) {
   ok(
     aviso.kind === "server",
     "si el servidor llegó a contestar, el aviso no puede echarle la culpa a la red",
+  );
+}
+
+/* ── T-24·3: un 400 permanente no puede invitar a reintentar sin más ────── */
+{
+  const aviso = describeCadSaveFailure(
+    Object.assign(new Error("El archivo CAD comprimido excede 8000000 bytes."), { status: 400 }),
+    { online: true },
+  );
+  ok(
+    aviso.kind === "too-large",
+    "un 400 de tamaño se clasifica como documento demasiado grande, no como fallo genérico del servidor",
+  );
+  ok(
+    !/^\s*espera\b/iu.test(aviso.message) && !/^\s*el servidor no aceptó el guardado/iu.test(aviso.message),
+    "no repite la frase genérica de fallo transitorio del servidor",
+  );
+  ok(
+    /export/iu.test(aviso.message) && /DXF/u.test(aviso.message),
+    "ofrece una salida explícita: exportar a DXF",
+  );
+  ok(
+    /divide|reduc/iu.test(aviso.message),
+    "y una salida para que el documento vuelva a caber: dividir o reducir",
+  );
+}
+
+/* ── Un 400 corriente sin el mensaje de límite sigue siendo genérico ─────── */
+{
+  const aviso = describeCadSaveFailure(
+    Object.assign(new Error("Solicitud inválida"), { status: 400 }),
+    { online: true },
+  );
+  ok(
+    aviso.kind === "server",
+    "un 400 que no es de tamaño no se disfraza de documento demasiado grande",
   );
 }
 

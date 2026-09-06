@@ -62,6 +62,26 @@ const CSS_PATH =
   process.env.VALLE_CONTRAST_CSS ||
   path.join(root, "apps/web/src/app/globals.css");
 
+/**
+ * T-13: hasta esta ampliación, el gate declaraba por escrito en esta misma
+ * cabecera que medía «las combinaciones que la app pinta» y sólo medía pares
+ * TOKEN×TOKEN de `globals.css` — nunca la tinta del propio dibujo, que es
+ * `.ts`, no CSS. Ese hueco escondió #ffffff (ACI 7, capa "0") sobre el preset
+ * «Claro» del lienzo (#eaf0f8): 1,15:1, invisible.
+ *
+ * Estos tres ficheros son la fuente única de los valores que se cruzan más
+ * abajo — nunca un número copiado a mano — y el gate falla ruidoso si alguno
+ * cambia de forma y el patrón deja de encontrarlo.
+ */
+const THEME_TS_PATH =
+  process.env.VALLE_CONTRAST_THEME_TS ||
+  path.join(root, "apps/web/src/components/cad/studio/editor-presentation.ts");
+/** Sólo la prueba de este gate mueve esto, igual que `VALLE_CONTRAST_CSS`. */
+const RENDER_STYLE_TS_PATH =
+  process.env.VALLE_CONTRAST_RENDER_STYLE_TS ||
+  path.join(root, "apps/web/src/lib/cad/render/render-style.ts");
+const ACI_PALETTE_TS_PATH = path.join(root, "apps/web/src/lib/cad/plot/aci-palette.ts");
+
 /** Texto normal: el umbral AA de toda la vida. */
 const TEXT = 4.5;
 /** Elemento gráfico o borde de control: WCAG 1.4.11. */
@@ -139,6 +159,37 @@ const PAIRS = [
   ["--border", "--background", RELIEF, "el borde de una tarjeta contra la página"],
   ["--card", "--background", 1.05, "la tarjeta despegada de la página"],
   ["--input", "--card", RELIEF, "un campo dentro de una tarjeta"],
+
+  // ── T-13: insignias con fondo TINTADO (bg-X/NN) medidas de verdad ─────────
+  // El escéptico las midió a mano el 2026-09-05 porque este gate no las veía:
+  // un fondo compuesto (tinta al 15-20% sobre la superficie real) es una
+  // combinación que la app SÍ pinta y que el gate anterior no sabía componer.
+  // El sexto campo (aquí, un objeto en vez de un string) dice CÓMO se compone
+  // el fondo antes de medir la tinta contra él.
+  [
+    "--warning-ink",
+    { over: "--warning", on: "--background", alpha: 0.15 },
+    TEXT,
+    "el aviso «Clic en dos puntos para medir» flotando sobre el lienzo (viewport-hints.tsx)",
+  ],
+  [
+    "--success-ink",
+    { over: "--success", on: "--card", alpha: 0.15 },
+    TEXT,
+    "el pin de un comentario resuelto en la revisión (ReviewPlanView.tsx / CollabThreadPanel.tsx)",
+  ],
+  [
+    "--primary-ink",
+    { over: "--accent", on: "--surface", alpha: 0.15 },
+    TEXT,
+    "el botón «Pick point en región» del panel de sombreados (CadHatchPalette.tsx)",
+  ],
+  [
+    "--accent-foreground",
+    "--accent",
+    TEXT,
+    "el botón de campo del estudio en su estado activo (field-controls.tsx, antes #0e7490 suelto)",
+  ],
 ];
 
 const css = readFileSync(CSS_PATH, "utf8");
@@ -157,6 +208,26 @@ const themes = [
   ["oscuro (por defecto)", dark],
 ];
 
+/**
+ * `bgToken` es casi siempre un string (`--card`). Cuando el fondo REAL en
+ * pantalla es una tinta compuesta —`bg-warning/15` sobre la superficie que
+ * hay debajo, no `--warning` a plena opacidad— es un objeto
+ * `{ over, on, alpha }` y aquí se compone antes de medir. Sin esto, el gate
+ * seguiría midiendo `--warning` sólido, que nunca es el píxel que ve el ojo.
+ */
+function resolveBackground(tokens, bgToken) {
+  if (typeof bgToken === "string") return resolveToken(tokens, bgToken);
+  const base = resolveToken(tokens, bgToken.on);
+  const overlay = resolveToken(tokens, bgToken.over);
+  return composite(overlay, base, bgToken.alpha);
+}
+
+function describeBg(bgToken) {
+  return typeof bgToken === "string"
+    ? bgToken
+    : `${bgToken.over} a ${bgToken.alpha} sobre ${bgToken.on}`;
+}
+
 const markdown = process.argv.includes("--markdown");
 const failures = [];
 const rows = [];
@@ -165,7 +236,7 @@ for (const [themeName, tokens] of themes) {
   for (const [inkToken, bgToken, minimum, what, alpha] of PAIRS) {
     let ratio;
     try {
-      const fondo = resolveToken(tokens, bgToken);
+      const fondo = resolveBackground(tokens, bgToken);
       const tinta = resolveToken(tokens, inkToken);
       // Con alfa se mide el color COMPUESTO sobre su fondo, que es el que
       // llega al ojo; sin alfa, la tinta tal cual.
@@ -174,14 +245,108 @@ for (const [themeName, tokens] of themes) {
         fondo,
       );
     } catch (error) {
-      failures.push(`[${themeName}] ${inkToken} sobre ${bgToken}: ${error.message}`);
+      failures.push(`[${themeName}] ${inkToken} sobre ${describeBg(bgToken)}: ${error.message}`);
       continue;
     }
-    rows.push({ themeName, inkToken, bgToken, minimum, what, ratio, alpha });
+    rows.push({ themeName, inkToken, bgToken: describeBg(bgToken), minimum, what, ratio, alpha });
     if (ratio + 1e-9 < minimum) {
       failures.push(
-        `[${themeName}] ${what}: ${inkToken}${alpha === undefined ? "" : ` a opacidad ${alpha}`} sobre ${bgToken} mide ` +
+        `[${themeName}] ${what}: ${inkToken}${alpha === undefined ? "" : ` a opacidad ${alpha}`} sobre ${describeBg(bgToken)} mide ` +
           `${formatRatio(ratio)}:1 y el mínimo es ${formatRatio(minimum)}:1`,
+      );
+    }
+  }
+}
+
+/**
+ * T-13, LA MITAD QUE NO ES CSS: la tinta por defecto del DIBUJO —ACI 7
+ * (blanco, capa "0"/BYLAYER) y el color de reserva del renderizador cuando la
+ * entidad no declara nada— contra los CUATRO presets reales de `THEMES`
+ * (`components/cad/studio/editor-presentation.ts`). Nada de esto vive en
+ * `globals.css`: son literales `.ts`, y hasta esta ampliación este gate no
+ * los leía. `legibleDefaultInk` (`lib/cad/render/render-style.ts`) es la
+ * corrección; aquí se reimplementa la MISMA aritmética (no hay un runtime
+ * TS disponible para este script en `node` puro) para comprobar, contra los
+ * literales reales del código, que el arreglo cubre los cuatro presets.
+ */
+const themeTs = readFileSync(THEME_TS_PATH, "utf8");
+const THEME_PATTERN = /(\w+):\s*\{\s*bg:\s*(0x[0-9a-fA-F]{6})[\s\S]*?label:\s*"([^"]+)"/g;
+const presets = [...themeTs.matchAll(THEME_PATTERN)].map((m) => ({
+  key: m[1],
+  bg: Number.parseInt(m[2], 16),
+  label: m[3],
+}));
+if (presets.length < 4) {
+  failures.push(
+    `Sólo se leyeron ${presets.length} preset(s) de THEMES en ${THEME_TS_PATH} (se esperaban 4: ` +
+      "dark/light/night/studio). El patrón de este gate no reconoce el formato del fichero.",
+  );
+}
+
+const aciTs = readFileSync(ACI_PALETTE_TS_PATH, "utf8");
+const aci7Match = /\b7:\s*\[(\d+),\s*(\d+),\s*(\d+)\]/.exec(aciTs);
+if (!aci7Match) failures.push(`No se pudo leer el RGB de ACI 7 en ${ACI_PALETTE_TS_PATH}.`);
+const [aci7R, aci7G, aci7B] = aci7Match ? aci7Match.slice(1, 4).map(Number) : [255, 255, 255];
+const aci7Packed = (aci7R << 16) | (aci7G << 8) | aci7B;
+
+const renderStyleTs = readFileSync(RENDER_STYLE_TS_PATH, "utf8");
+const defaultColorMatch = /CAD_RENDER_DEFAULT_COLOR\s*=\s*(0x[0-9a-fA-F]{6})/.exec(renderStyleTs);
+if (!defaultColorMatch)
+  failures.push(`No se pudo leer CAD_RENDER_DEFAULT_COLOR en ${RENDER_STYLE_TS_PATH}.`);
+const defaultInkPacked = defaultColorMatch ? Number.parseInt(defaultColorMatch[1], 16) : 0x60a5fa;
+if (!/function legibleDefaultInk(?![A-Za-z0-9_])/.test(renderStyleTs)) {
+  failures.push(
+    `${RENDER_STYLE_TS_PATH} ya no declara legibleDefaultInk: este bloque del gate reimplementa ` +
+      "su aritmética y se quedaría midiendo una función que ya no existe.",
+  );
+}
+
+function packedLuminance(rgb) {
+  const channel = (value) => {
+    const c = value / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  return (
+    0.2126 * channel((rgb >> 16) & 0xff) +
+    0.7152 * channel((rgb >> 8) & 0xff) +
+    0.0722 * channel(rgb & 0xff)
+  );
+}
+function packedContrast(a, b) {
+  const la = packedLuminance(a);
+  const lb = packedLuminance(b);
+  const [hi, lo] = la >= lb ? [la, lb] : [lb, la];
+  return (hi + 0.05) / (lo + 0.05);
+}
+/** La misma regla que `legibleDefaultInk` en `render-style.ts`. */
+function legibleDefaultInk(color, backgroundColor) {
+  if (color !== aci7Packed && color !== defaultInkPacked) return color;
+  if (packedContrast(color, backgroundColor) >= GRAPHIC) return color;
+  const white = packedContrast(0xffffff, backgroundColor);
+  const black = packedContrast(0x000000, backgroundColor);
+  return white >= black ? 0xffffff : 0x000000;
+}
+
+for (const preset of presets) {
+  for (const [label, ink] of [
+    ['tinta por defecto (ACI 7, capa "0")', aci7Packed],
+    ["color de reserva del renderizador", defaultInkPacked],
+  ]) {
+    const fixed = legibleDefaultInk(ink, preset.bg);
+    const ratio = packedContrast(fixed, preset.bg);
+    rows.push({
+      themeName: `lienzo · ${preset.label}`,
+      inkToken: label,
+      bgToken: `THEMES.${preset.key}.bg`,
+      minimum: GRAPHIC,
+      what: `${label} sobre el preset «${preset.label}» del lienzo`,
+      ratio,
+    });
+    if (ratio + 1e-9 < GRAPHIC) {
+      failures.push(
+        `[lienzo · ${preset.label}] ${label} mide ${formatRatio(ratio)}:1 tras aplicar ` +
+          `legibleDefaultInk (render-style.ts), y el mínimo gráfico es ${formatRatio(GRAPHIC)}:1. ` +
+          "La corrección se hace en legibleDefaultInk, nunca bajando este mínimo.",
       );
     }
   }
@@ -203,16 +368,18 @@ if (failures.length > 0) {
   console.error("Gate de contraste: FALLÓ");
   for (const failure of failures) console.error(`- ${failure}`);
   console.error(
-    "\nLa corrección se hace en globals.css moviendo el TOKEN, nunca poniendo " +
-      "un color suelto en el componente que falla.",
+    "\nUn par de globals.css se corrige moviendo el TOKEN, nunca poniendo un color suelto en " +
+      "el componente que falla. Un preset del lienzo o la tinta por defecto del dibujo se " +
+      "corrige en legibleDefaultInk (lib/cad/render/render-style.ts), nunca bajando el mínimo.",
   );
   process.exit(1);
 }
 
 const worst = rows.reduce((a, b) => (a.ratio <= b.ratio ? a : b));
 console.log(
-  `Gate de contraste OK: ${rows.length} pares medidos en ${themes.length} temas ` +
-    `(${PAIRS.length} por tema). El par más ajustado es «${worst.what}» en ` +
+  `Gate de contraste OK: ${rows.length} pares medidos (${PAIRS.length} por tema × ` +
+    `${themes.length} temas, más ${presets.length * 2} de tinta del dibujo contra los ` +
+    `presets del lienzo). El par más ajustado es «${worst.what}» en ` +
     `${worst.themeName}: ${formatRatio(worst.ratio)}:1 sobre un mínimo de ` +
     `${formatRatio(worst.minimum)}:1.`,
 );

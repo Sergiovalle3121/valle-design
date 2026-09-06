@@ -41,7 +41,7 @@ export function CadViewportPrompt({
   return (
     <div
       data-testid="cad-live-prompt"
-      className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-warning/15 text-gray-900 type-caption font-semibold inline-flex items-center gap-1.5 pointer-events-none"
+      className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-warning/15 text-warning-ink type-caption font-semibold inline-flex items-center gap-1.5 pointer-events-none"
     >
       {kind === "measure" ? (
         <Ruler className="w-3.5 h-3.5" />
