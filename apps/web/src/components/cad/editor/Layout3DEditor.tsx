@@ -12077,7 +12077,11 @@ export default function Layout3DEditor({
         .map((ann) => ({
           id: ann.id,
           kind: "label" as const,
-          layer: "Text",
+          // La capa asignada al rótulo (NOTAS, por ejemplo) viaja en
+          // layerAssignments; "Text" es sólo la capa por defecto. Antes se
+          // escribía el literal y el cuadro prometía una capa que el fichero
+          // no llevaba (auditoría 2026-09-01, racimo C).
+          layer: layerLabel(layerAssignments[ann.id] ?? "Text"),
           label: ann.text,
           selected: true,
           visible: layersRef.current.notes,
@@ -12088,9 +12092,20 @@ export default function Layout3DEditor({
           const layer = loadedCadDocumentRef.current?.layers.find(
             (candidate) => candidate.id === entity.layer,
           );
+          // El cuadro cuenta lo mismo que exportDxf escribe: la cota nativa
+          // viaja bajo «incluir cotas» y el MTEXT/MLEADER bajo «incluir
+          // rótulos», así que se clasifican igual. Antes todo lo nativo era
+          // «objeto» y el resumen anunciaba «Cotas 0» con una DIMENSION en
+          // el fichero (auditoría 2026-09-01, racimo C).
+          const kind =
+            entity.type === "dimension"
+              ? ("measurement" as const)
+              : entity.type === "mtext" || entity.type === "mleader"
+                ? ("label" as const)
+                : ("object" as const);
           return {
             id: entity.id,
-            kind: "object" as const,
+            kind,
             layer: layer?.name ?? entity.layer,
             label: entity.type.toUpperCase(),
             selected: selectedNativeIds.has(entity.id),
@@ -12265,7 +12280,9 @@ export default function Layout3DEditor({
                 text: ann.text || "Nota",
                 x: ann.x,
                 y: ann.y,
-                layer: "Text",
+                // Misma regla que las cajas y los conectores: la capa
+                // asignada, y "Text" sólo como capa por defecto.
+                layer: layerLabel(layerAssignments[ann.id] ?? "Text"),
               }))
           : [];
       const measurements =
