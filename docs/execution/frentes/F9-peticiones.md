@@ -116,3 +116,62 @@ necesita que el fondo real llegue al pipeline de render para tener algo que
 afirmar) — lo añado a mi cola en cuanto esa petición se aplique.
 
 ---
+
+## P-03 · (para `BACKLOG.md`, no la toco yo) Precachear el núcleo de comandos del service worker — T-75(d)
+
+**No es una petición de archivo a otro frente: es una propuesta de entrada
+para `docs/execution/BACKLOG.md`, que el coordinador es quien edita (§3
+prohíbe que yo lo toque). El service worker SÍ es mi territorio, pero el
+trabajo es demasiado grande y demasiado arriesgado para hacerlo dentro de
+esta ola sin revisión: un error en un service worker no falla ruidoso,
+falla mudo semanas después en la máquina de un usuario, y ARREGLÉ la
+honestidad de la fila (ver bitácora T-75d) precisamente para no fingir que
+esto ya está resuelto.**
+
+**El hueco medido.** `service-worker-policy.ts`: `SW_PRECACHE_URLS` sólo
+lleva el cascarón (`/sin-conexion`, manifiesto, iconos, dos `.woff2`).
+`/_next/static/*` es `stale-while-revalidate` — se sirve de caché SÓLO
+después de haberse pedido una vez. Los 108 módulos de comandos en carga
+diferida (`lib/cad/commands/lazy.ts` es la puerta, pero cada comando del
+registro es su propio `import()`) nunca se precachean: un comando que la
+persona no tecleó en esta pestaña, sin red, falla al intentar descargar su
+chunk.
+
+**Por qué no es un fix de una tarde.** Los nombres de archivo de
+`/_next/static/chunks/*.js` llevan el hash de contenido de Webpack/Next y
+no se conocen hasta que el build termina — igual que `PRELOAD_FONTS` se
+genera desde el manifiesto de fuentes (`scripts/design/subset-fonts.py`),
+precachear "el núcleo de comandos" exige:
+
+1. Definir QUÉ ES el núcleo (¿los comandos que aparecen en `dibujar`,
+   `acotar`, `referenciar a objeto`, `empujar cara`? ¿Los que la Ola 1 del
+   flujo de 10 segundos usa?) — es una decisión de producto, no técnica.
+2. Un script que lea `.next/app-build-manifest.json` (o equivalente) tras
+   el build, resuelva los chunks reales de esos módulos, y los inyecte en
+   `SW_PRECACHE_URLS` — cambia la naturaleza de ese array de "lista fija"
+   a "generada", como ya pasó con las fuentes.
+3. `cache.addAll` es todo-o-nada (`service-worker-policy.ts` lo explica: es
+   deliberado). Si UN chunk del núcleo falla en `install`, el worker entero
+   no instala — nadie tiene NINGÚN offline, ni siquiera el cascarón que
+   funciona hoy. Eso exige probarlo contra un build real antes de fusionar,
+   no contra un mock.
+4. El propio `SW_CACHE_NAME` deriva de un hash de la política — añadir los
+   chunks del núcleo lo cambia, fuerza reinstalación en todos los
+   navegadores con el worker viejo, y hay que medir esa transición.
+
+**Lo que SÍ se hizo mientras tanto (T-75d, en esta rama):** la fila
+`dibujar-acotar-modelar` de `offline-capability-matrix.ts` decía
+`seNota: "Nada. Es el único trozo del producto donde la red no se echa de
+menos."` — falso para un comando no cacheado. Corregida para explicar la
+condición real (código YA descargado) y con un spec nuevo
+(`offline-capability-matrix.spec.ts`, bloque 14) que falla si alguien la
+revierte a esa frase.
+
+**Qué probaría la entrada de BACKLOG cuando alguien la tome:** un golden
+que simule Playwright con `context.setOffline(true)` DESPUÉS de un primer
+`goto` (para que el cascarón y los core chunks ya se hayan precacheado
+según la política nueva), abra el estudio, teclee un comando del núcleo
+declarado, y confirme que ejecuta — y otro que confirme que install() del
+worker sigue en verde con la lista ampliada contra un build real.
+
+---

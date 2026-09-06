@@ -89,4 +89,31 @@ function frontera(props: Record<string, unknown>) {
   assert.deepEqual(guardado, { error: null }, "reintentar vuelve a montar el subárbol");
 }
 
-console.log("frontera de error: 4/4");
+/* ── 5 · extraActions se pinta junto a Reintentar (no en compacta) ─────────── */
+{
+  const accion = createElement("button", { "data-testid": "recuperar-dxf" }, "Descargar DXF");
+  const instancia = frontera({
+    zona: "El editor",
+    children: null,
+    extraActions: accion,
+  });
+  instancia.state = { error: new Error("boom") };
+  const html = renderToStaticMarkup(instancia.render() as ReactElement);
+  assert.match(html, /data-testid="recuperar-dxf"/, "la acción propia de la zona se pinta");
+
+  const compacto = frontera({
+    zona: "El editor",
+    children: null,
+    compacta: true,
+    extraActions: accion,
+  });
+  compacto.state = { error: new Error("boom") };
+  const htmlCompacto = renderToStaticMarkup(compacto.render() as ReactElement);
+  assert.doesNotMatch(
+    htmlCompacto,
+    /recuperar-dxf/,
+    "en compacta no cabe una acción extra, así que se ignora sin romper el layout de una línea",
+  );
+}
+
+console.log("frontera de error: 5/5");

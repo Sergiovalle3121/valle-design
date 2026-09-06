@@ -8,13 +8,14 @@ import {
   FolderPlus,
   LogOut,
   ShieldCheck,
+  Trash2,
   Upload,
   Users,
 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { SkipLink } from "@/components/SkipLink";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Button, Surface, buttonClass, cx } from "@/components/ui";
+import { Button, Modal, Surface, buttonClass, cx } from "@/components/ui";
 import { FeedbackButton } from "@/components/feedback/FeedbackDialog";
 import { DashboardSkeleton } from "./DashboardSkeleton";
 import { FirstMinute } from "./FirstMinute";
@@ -124,6 +125,38 @@ export default function DashboardPage() {
    */
   const canEdit =
     auth.permissions.includes("cad:edit") && trialStatus(subscription).canEdit;
+  /**
+   * T-75(g): `DELETE /v1/cad/documents/:id` exige `cad:admin`, no `cad:edit`
+   * — un editor cualquiera no puede borrar el plano de otro. Antes de esto
+   * `documentsRepository.archive`/`designClient.documents.archive` no tenía
+   * NINGÚN llamador de producto: nadie podía borrar un plano desde la
+   * interfaz, punto.
+   */
+  const canArchive = auth.permissions.includes("cad:admin");
+  const [archiveTarget, setArchiveTarget] = useState<Document | null>(null);
+  const [archiving, setArchiving] = useState(false);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+
+  const confirmArchiveDocument = async () => {
+    if (!archiveTarget) return;
+    setArchiving(true);
+    setArchiveError(null);
+    try {
+      await designClient.documents.archive(archiveTarget.id);
+      setDocuments((items) => items.filter((item) => item.id !== archiveTarget.id));
+      setArchiveTarget(null);
+    } catch (error) {
+      setArchiveError(
+        error instanceof DesignApiError && error.status === 403
+          ? "Tu rol no tiene permiso para borrar documentos."
+          : error instanceof Error
+            ? error.message
+            : "No se pudo borrar el documento.",
+      );
+    } finally {
+      setArchiving(false);
+    }
+  };
 
   const load = useCallback(async () => {
     if (auth.isLoading) return;
@@ -364,16 +397,38 @@ export default function DashboardPage() {
       canCancel: true,
     });
     let created: Document | null = null;
+    let lastStage = "Preparando importación";
+    let lastProgress = 0;
     try {
       const report = await importDocumentFile(file, {
         sidecars,
         signal: controller.signal,
-        onProgress: (progress, stage) =>
+        onProgress: (progress, stage) => {
+          lastStage = stage;
+          lastProgress = progress * 0.65;
           setImportState({
             status: "running",
-            progress: progress * 0.65,
-            stage,
+            progress: lastProgress,
+            stage: lastStage,
             canCancel: true,
+          });
+        },
+        // T-75(f): la importación ya no muere sola al primer atasco — la
+        // persona decide entre esperar más o cancelar.
+        onStalled: (resume) =>
+          setImportState({
+            status: "stalled",
+            progress: lastProgress,
+            stage: lastStage,
+            onKeepWaiting: () => {
+              resume();
+              setImportState({
+                status: "running",
+                progress: lastProgress,
+                stage: lastStage,
+                canCancel: true,
+              });
+            },
           }),
       });
       if (controller.signal.aborted) throw abortError();
@@ -752,23 +807,36 @@ export default function DashboardPage() {
               </h2>
               <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {documents.map((document) => (
-                  <button
-                    key={document.id}
-                    onClick={() => router.push(`/studio/${document.id}`)}
-                    className={cx(
-                      "rounded-card border border-border bg-card p-4 text-left",
-                      "transition-[border-color,box-shadow] duration-200 ease-out-expo",
-                      "hover:border-primary/50 hover:shadow-elevated",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                  <div key={document.id} className="relative">
+                    <button
+                      onClick={() => router.push(`/studio/${document.id}`)}
+                      className={cx(
+                        "w-full rounded-card border border-border bg-card p-4 text-left",
+                        "transition-[border-color,box-shadow] duration-200 ease-out-expo",
+                        "hover:border-primary/50 hover:shadow-elevated",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                        canArchive ? "pr-11" : "",
+                      )}
+                    >
+                      <strong className="type-small block font-semibold text-foreground">
+                        {document.name}
+                      </strong>
+                      <span className="type-mono type-micro mt-2 block truncate text-muted-foreground">
+                        {document.id}
+                      </span>
+                    </button>
+                    {canArchive && (
+                      <button
+                        type="button"
+                        onClick={() => setArchiveTarget(document)}
+                        title={`Borrar «${document.name}»`}
+                        aria-label={`Borrar «${document.name}»`}
+                        className="absolute right-2 top-2 rounded-control p-1.5 text-muted-foreground transition-colors hover:bg-danger/10 hover:text-danger-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+                      >
+                        <Trash2 aria-hidden="true" className="h-4 w-4" />
+                      </button>
                     )}
-                  >
-                    <strong className="type-small block font-semibold text-foreground">
-                      {document.name}
-                    </strong>
-                    <span className="type-mono type-micro mt-2 block truncate text-muted-foreground">
-                      {document.id}
-                    </span>
-                  </button>
+                  </div>
                 ))}
               </div>
               {documents.length === 0 && (
@@ -780,6 +848,35 @@ export default function DashboardPage() {
           )}
         </div>
       </main>
+      <Modal
+        open={archiveTarget !== null}
+        onClose={() => {
+          if (!archiving) setArchiveTarget(null);
+        }}
+        title={archiveTarget ? `¿Borrar «${archiveTarget.name}»?` : "¿Borrar el documento?"}
+        description="Se ocultará de tu tablero. Su historial y las láminas ya publicadas se conservan; para verlo de nuevo, pide que un administrador lo restaure desde el servidor."
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setArchiveTarget(null)} disabled={archiving}>
+              Cancelar
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => void confirmArchiveDocument()}
+              loading={archiving}
+            >
+              Borrar
+            </Button>
+          </>
+        }
+      >
+        {archiveError && (
+          <p role="alert" className="type-small text-danger-ink">
+            {archiveError}
+          </p>
+        )}
+      </Modal>
     </>
   );
 }

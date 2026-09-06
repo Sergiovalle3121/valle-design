@@ -23,6 +23,18 @@ export type ImportState =
       canCancel: boolean;
     }
   | {
+      /**
+       * T-75(f): la importación no rechaza sola al primer atasco — se
+       * queda aquí hasta que la persona decide. `progress`/`stage` son los
+       * últimos que se vieron, para no perder el contexto de dónde se
+       * quedó.
+       */
+      status: "stalled";
+      progress: number;
+      stage: string;
+      onKeepWaiting: () => void;
+    }
+  | {
       status: "success";
       report: DocumentImportReport;
       documentId: string;
@@ -60,6 +72,33 @@ export function ImportStatus({
           max={1}
           value={state.progress}
         />
+      </div>
+    );
+  }
+  if (state.status === "stalled") {
+    return (
+      <div role="alert" className="mt-3 rounded-xl bg-warning/10 p-3 text-sm">
+        <p className="text-warning-ink">
+          «{state.stage}» no avanzó en un rato. El archivo puede ser grande y
+          seguir procesándose, o el navegador puede haberse quedado sin
+          responder.
+        </p>
+        <div className="mt-2 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={state.onKeepWaiting}
+            className="rounded-lg bg-warning/20 px-3 py-1.5 font-semibold text-warning-ink"
+          >
+            Seguir esperando
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground"
+          >
+            <X className="h-3 w-3" /> Cancelar
+          </button>
+        </div>
       </div>
     );
   }

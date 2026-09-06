@@ -22,7 +22,7 @@
  * - onFullscreenChange: no-op — el estudio Design no tiene chrome que ocultar.
  */
 
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import Layout3DEditor, {
   type Layout3DEditorPlatformProps,
   type Layout3DEditorProps,
@@ -36,6 +36,13 @@ import { CallBar } from "@/components/cad/calls/CallBar";
 import { BRAND } from "@/config/brand";
 import { ErrorBoundary } from "@/components/ui";
 import { cadTourHost } from "@/components/cad/onboarding/tour-host";
+import { createDesignDocumentPort } from "@/components/cad/document-lifecycle/design-port";
+import {
+  wrapDocumentPortForCrashRecovery,
+  type LastSavedSnapshot,
+} from "@/components/cad/document-lifecycle/crash-recovery-port";
+import { saveCadRecovery, type CadRecoveryScope } from "@/lib/cad/cad-recovery";
+import { EditorCrashRecoveryAction } from "@/components/cad/studio/EditorCrashRecoveryAction";
 
 /** Props del Host: las del editor SIN las de plataforma (las inyecta el Host),
  *  más el proyecto CAD que define el alcance de trabajo en Design. */
@@ -113,22 +120,66 @@ export default function CadStudioHost({
     [toast],
   );
 
+  // T-72(h): el editor era lo único del estudio sin ErrorBoundary. La cadena
+  // de abajo cierra ese hueco sin tocar Layout3DEditor.tsx (§5.3): el puerto
+  // de documentos —la única puerta de red del editor— se envuelve para
+  // guardar una copia del último documento que de verdad viajó al servidor,
+  // y si el editor se cae, la frontera escribe esa copia en el diario de
+  // recuperación (IndexedDB) en el instante del fallo y ofrece descargarla en
+  // DXF. No sustituye al checkpoint continuo que ya escribe la cola interna
+  // del editor mientras el documento está sucio: es un segundo intento,
+  // fuera del monolito, para el caso en que la caída ocurrió antes de que esa
+  // cola alcanzara a escribir.
+  const crashSnapshotRef = useRef<LastSavedSnapshot | null>(null);
+  const onSaveContent = useCallback((snapshot: LastSavedSnapshot) => {
+    crashSnapshotRef.current = snapshot;
+  }, []);
+  const effectiveDocumentPort = useMemo(
+    () => wrapDocumentPortForCrashRecovery(documentPort ?? createDesignDocumentPort(), onSaveContent),
+    [documentPort, onSaveContent],
+  );
+
+  const userId = user?.id;
+  const recoveryScope = useMemo<CadRecoveryScope | null>(
+    () =>
+      tenantId && userId
+        ? {
+            tenantId,
+            userId,
+            projectId,
+            model: documentId ?? props.model,
+            revision: props.revision,
+          }
+        : null,
+    [documentId, projectId, props.model, props.revision, tenantId, userId],
+  );
+
+  const handleEditorCrash = useCallback(() => {
+    const snapshot = crashSnapshotRef.current;
+    if (!recoveryScope || !snapshot) return;
+    // Fuego y olvido a propósito: si esto también falla, la frontera de error
+    // ya se está pintando de todos modos y no hay nada más que intentar aquí.
+    void saveCadRecovery(recoveryScope, snapshot.document, snapshot.version).catch(() => undefined);
+  }, [recoveryScope]);
+
   return (
     <>
-      <Layout3DEditor
-        {...props}
-        documentId={documentId}
-        readOnly={effectiveReadOnly}
-        model={documentId ?? props.model}
-        identity={identity}
-        scope={scope}
-        theme={resolvedScheme}
-        onNotify={onNotify}
-        onFullscreenChange={noopFullscreenChange}
-        branding={branding}
-        documentPort={documentPort}
-        // Edición Design pura: sin paneles de análisis industrial (WP6).
-      />
+      <ErrorBoundary zona="El editor" documentId={documentId} onError={handleEditorCrash} extraActions={<EditorCrashRecoveryAction scope={recoveryScope} />}>
+        <Layout3DEditor
+          {...props}
+          documentId={documentId}
+          readOnly={effectiveReadOnly}
+          model={documentId ?? props.model}
+          identity={identity}
+          scope={scope}
+          theme={resolvedScheme}
+          onNotify={onNotify}
+          onFullscreenChange={noopFullscreenChange}
+          branding={branding}
+          documentPort={effectiveDocumentPort}
+          // Edición Design pura: sin paneles de análisis industrial (WP6).
+        />
+      </ErrorBoundary>
       {/*
         La colaboración se monta AL LADO del editor, no dentro. Se engancha a
         su lienzo por el registro de viewport (`viewport-registry.ts`), así que
