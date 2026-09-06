@@ -4133,8 +4133,20 @@
               "path": "apps/api/src/modules/audit-log/design-audit-log.service.ts"
             },
             {
-              "kind": "todaviaNo",
-              "reason": "el módulo audit-log no tiene controlador ni ruta en el contrato; sin retención ni purga (ficha T-62 a)"
+              "kind": "file",
+              "path": "apps/api/src/modules/audit-log/audit-log.controller.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/audit-log/audit-log-retention.service.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/audit-log/audit-log-tenant-isolation.pg.spec.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/web/src/components/organization/AuditLogPanel.tsx"
             }
           ]
         },
@@ -4149,8 +4161,12 @@
               "path": "docs/ops/SLA.md"
             },
             {
-              "kind": "todaviaNo",
-              "reason": "no hay ruta /sla ni prueba que ate Piloto·Profesional·Empresa a Prueba·Individual·Despacho (ficha T-62 b)"
+              "kind": "file",
+              "path": "apps/web/src/app/sla/SlaPage.tsx"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/app/sla/sla-surface.spec.ts"
             }
           ]
         },
@@ -4161,8 +4177,16 @@
           "costDays": 0,
           "evidence": [
             {
+              "kind": "file",
+              "path": "apps/api/src/modules/identity/identity-export.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/identity/identity-export.pg.spec.ts"
+            },
+            {
               "kind": "todaviaNo",
-              "reason": "no existe ninguna ruta de exportación personal ni de borrado de cuenta (ficha T-62 c)"
+              "reason": "la exportación existe (GET /v1/auth/export, F8 T-62 c, identity-export.pg.spec.ts); el borrado de cuenta no: hay que decidir qué pasa con las organizaciones y los documentos compartidos del propietario (propuesta en frentes/F8-peticiones.md §5)"
             }
           ]
         }

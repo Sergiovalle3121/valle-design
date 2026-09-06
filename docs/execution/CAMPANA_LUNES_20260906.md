@@ -508,3 +508,35 @@ escribe la referencia); censo y matriz regenerados. Verificado: tsc, lint
 conventions, product-boundary, rubric.spec, check:cad-math (0 desviaciones),
 todos los specs con «xref» en verde, y los goldens 210, 87 y 21 sobre el
 build de producción.
+
+### Frente F8 reintegrado (T-62 a/b/c) · HECHO (22:20 UTC)
+La segunda cabeza de F8 (89ac122, PR #198; Contrato verde, E2E en curso al
+integrar) fusiona limpia sobre la rama: `GET /v1/organizations/{id}/audit-log`
+con pantalla en `/equipo`, retención de 400 días con purga y aislamiento por
+inquilino probado contra PostgreSQL; `/sla` con los nombres de plan leídos
+del catálogo (y `/terms` deja de afirmar que no se publica); `GET
+/v1/auth/export` (ARCO: exportar; borrar la cuenta queda en la petición F8
+§5). Rúbrica (F0): `commercial-dossier.audit-log` y `.sla` dejan el «todavía
+no»; `.arco` lo conserva con la razón nueva; dictamen OpenAPI regenerado (el
+contrato cambió), censo y matriz regenerados; ESCALERA (fila `comercial`).
+Verificado sobre el árbol fusionado: SDK reconstruido, tsc web y api,
+design-contract, authz, api-console, cad-math, rubric.spec, monolito, lint
+478/478, auditoria, localizadores, conventions, legal, surface,
+product-boundary, no-industrial-domain, la suite de specs de web, y los
+goldens 197, 150, 196 y 210 sobre el build de producción.
+
+### Auditoría de las sesiones hermanas · HECHO (22:20 UTC)
+F3 (#201), F5 (#199), F10 (#197) y F11 (#195): integradas; sus sesiones
+sólo vigilan su PR. F8 (#198): dos cabezas integradas (d8acb66 y 89ac122).
+F9 (#200): la cabeza 096e8bf tenía Contrato verde y catorce goldens rojos en
+los fragmentos 2/4 y 3/4 (44, 45, 46 ×4, 47, 59 ×2, 69, 70, 77, 81, 85): un
+comando tecleado terminaba en OTRO comando («Capa a borrar…» al pedir LINE,
+«centro del globo» al pedir BLOCK): la sugerencia de la línea de comandos de
+T-74 se comía el Enter. La sesión lo detectó sola y empujó 160cd14 a las
+22:11; se integra si CI la deja verde (conflictos previsibles en
+`dashboard/page.tsx`, `assisted-development-log.json` y
+`scripts/lint-budget.json`). F4 (#196): rojo desde las 19:46 por el
+presupuesto del monolito (`cad-document.ts` 804 > 800 sin presupuesto;
+`paper-space.ts` 982 > 896), sesión ociosa desde las 19:48; avisada con el
+diagnóstico exacto y plazo 23:00 UTC. F7 y F7-bis: bloqueadas por el filtro
+de la plataforma («no actual user request»); T-50/T-51/T-53 quedan abiertas.

@@ -311,6 +311,38 @@ Qué haría falta para elegir lo otro ...  Que al recargar una xref los cambios
                     con una política de reconciliación, y una atenuación de
                     xref (`XDWGFADECTL`) que hoy no existe.
 
+## D-17 · F9 (#200) no se integra en la rama de campaña esta noche: su fusión cruza el mismo archivo que F8 partió
+Qué se dudó ......  La cabeza 160cd14 de F9 (que arregla su propia regresión:
+                    la sugerencia de la línea de comandos se comía el Enter
+                    y catorce goldens tecleaban un comando y ejecutaban
+                    otro) fusiona con tres conflictos: `scripts/lint-budget.json`
+                    (formato por archivo de F9 contra el techo global),
+                    `docs/governance/assisted-development-log.json` (dos
+                    entradas nuevas) y `apps/web/src/app/dashboard/page.tsx`,
+                    que F8 partió (`dcfe15c`) y F9 partió de OTRA manera
+                    (`import-status.tsx`, `archive-document.tsx`) sobre una
+                    base anterior. ¿Resolverlo desde el coordinador, elegir un
+                    lado, o dejar el PR abierto?
+Qué se eligió ....  Dejarlo abierto: los dos lados cambiaron la misma lógica
+                    y elegir uno pierde comportamiento (el botón de borrar
+                    plano de F9, o la partición de F8). Cuando #194 esté en
+                    `main`, la sesión F9 —que conoce su propia partición—
+                    fusiona `origin/main` en su rama, regenera el trinquete de
+                    lint con `--update` sobre el árbol fusionado (sólo baja),
+                    suma las dos entradas del registro y pasa sus gates; el
+                    titular o el coordinador fusionan #200 después, con su CI
+                    verde sobre esa cabeza.
+Por qué es lo conservador ...  Un conflicto de dos refactorizaciones del
+                    mismo archivo resuelto a ciegas a las diez de la noche es
+                    exactamente el «estado a medio construir» que la campaña
+                    prohíbe empujar. El coste es un PR más que fusionar
+                    mañana; el beneficio es que cada lado lo resuelve quien lo
+                    escribió, con su CI.
+Qué haría falta para elegir lo otro ...  Que el conflicto fuera sólo de
+                    imports o de un archivo generado: entonces se resuelve
+                    aquí (como se hará con `lint-budget.json` cuando F9
+                    fusione `main`, adoptando su formato por archivo).
+
 ---
 
 # Decisiones del frente F10 · Evidencia independiente (2026-09-06)
