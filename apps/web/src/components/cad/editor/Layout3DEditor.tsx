@@ -6656,6 +6656,8 @@ export default function Layout3DEditor({
       },
       notify: (message) => toast.error(message, "Grips"),
       menu: gripMenu,
+      // T-20: en reposo el pinzamiento gana; con un comando abierto, el clic es suyo.
+      commandActive: () => (commandEngineRef.current?.accepts ?? 0) !== 0,
     });
     nativeGripControllerRef.current = nativeGripController;
     const onContextMenu = (event: MouseEvent) => {
@@ -6689,10 +6691,9 @@ export default function Layout3DEditor({
       if (drawingReadOnlyRef.current && toolRef.current !== "select") return;
       if (toolRef.current !== "select") return; // measure/wall resolve on click (pointerup); drag still orbits
       if (nativeGripController.handlePointerDown(e)) return;
-      // El botón central ENCUADRA (camera-policy.ts) y no designa nada: se
-      // corta antes de los hit-tests, que corren para cualquier botón, y con
-      // preventDefault para que Windows no arranque el autoscroll. El grip
-      // pendiente va antes a propósito: un arrastre ya empezado es suyo.
+      // El botón central ENCUADRA (camera-policy.ts) y no designa nada: se corta
+      // antes de los hit-tests (corren para cualquier botón), con preventDefault
+      // para que Windows no arranque el autoscroll. El grip pendiente va antes.
       if (cadPointerDownBeforeHit(e).kind === "camera") {
         e.preventDefault();
         return;
@@ -7299,8 +7300,7 @@ export default function Layout3DEditor({
       const isClick = touchRelease
         ? touchRelease.commits
         : Math.hypot(e.clientX - downX, e.clientY - downY) < 5;
-      // Sólo el CLIC: arrastrar sigue orbitando la cámara aunque haya un
-      // comando abierto, que es como se encuadra mientras se dibuja.
+      // Sólo el CLIC: arrastrar sigue orbitando aunque haya un comando abierto.
       if (isClick && enginePointerRouter.click(e)) {
         try {
           renderer.domElement.releasePointerCapture(e.pointerId);
