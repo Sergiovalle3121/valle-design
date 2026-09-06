@@ -29,6 +29,13 @@ export interface ParseContext {
   drawingUnit?: CadDrawingUnit;
   /** Si un número DESNUDO se lee en pulgadas (`LUNITS` 3 o 4). */
   assumeInches?: boolean;
+  /**
+   * Cómo leer el ángulo de una coordenada polar (`d<a`, `@d<a`). Por defecto,
+   * grados decimales tal cual — el sistema de quien no declara `AUNITS`
+   * (T-25): quien SÍ sabe en qué sistema teclea el usuario (`ANGBASE`,
+   * `ANGDIR`, `AUNITS`) pasa aquí `parseUserAngle` de `unit-angle.ts`.
+   */
+  parseAngle?: (text: string) => number | null;
 }
 
 export type ParseResult =
@@ -115,8 +122,10 @@ export function parseCoordinate(
     const d = num(dStr, ctx);
     // El ángulo NO pasa por el analizador de longitudes: `30<45` son treinta
     // unidades a cuarenta y cinco GRADOS, y convertir el 45 a unidades de
-    // dibujo giraría la línea.
-    const a = angleNum(aStr);
+    // dibujo giraría la línea. Por el mismo motivo tampoco pasa por `ctx`
+    // para la UNIDAD de dibujo — pero sí por `ctx.parseAngle` (T-25) cuando
+    // quien llama sabe en qué sistema (`AUNITS`) teclea el usuario.
+    const a = ctx.parseAngle ? ctx.parseAngle(aStr!) : angleNum(aStr);
     if (d === null || a === null)
       return { ok: false, error: "Polar inválido (usa dist<áng, ej. 30<45)" };
     if (relative) {

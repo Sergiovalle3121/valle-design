@@ -499,6 +499,10 @@ offsetting.host.submit("250");
 offsetting.hitTo = "muro";
 offsetting.router.click(offsetting.at(500, 0));
 assert.equal(offsetting.applied.length, 0, "designar no aplica todavía: OFFSET repite");
+// T-23: el LADO lo pide un punto real, no el signo de la distancia tecleada.
+offsetting.hitTo = null;
+offsetting.router.click(offsetting.at(500, 50));
+assert.equal(offsetting.applied.length, 0, "el punto de lado tampoco aplica todavía");
 offsetting.router.accept();
 assert.equal(
   offsetting.applied.filter((command) => command.type === "insert").length,

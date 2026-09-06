@@ -23,7 +23,7 @@
  * en UN `CadEntityCommand[]`. Si emitiera uno por copia, Ctrl+Z desharía la
  * última y quien pulsó una vez creería haberlas deshecho todas.
  */
-import type { CadPoint2 } from "../../cad-document";
+import type { CadEntity, CadPoint2 } from "../../cad-document";
 import type { CadEntityCommand } from "../../entity-commands";
 import {
   CAD_ARRAY_META,
@@ -36,6 +36,7 @@ import {
 } from "../../cad-array-placement";
 import { cadEntityCurves, curvePointAt } from "../../curve-model";
 import type { CadVec2 } from "../../primitives";
+import { CAD_BATCH_CONFIRM_NO, CAD_BATCH_CONFIRM_YES, cadBatchConfirmationPrompt } from "./batch-limits";
 import {
   CAD_ACCEPT_DISTANCE,
   CAD_ACCEPT_ENTITY_PICK,
@@ -93,6 +94,8 @@ interface ArrayState {
   base: CadPoint2 | null;
   pathId: string | null;
   rotateItems: boolean;
+  /** El lote ya calculado, esperando el «¿Continuar?» del techo (T-24·1). */
+  pendingConfirm: { commands: CadEntityCommand[]; message: string } | null;
 }
 
 const EMPTY: ArrayState = {
@@ -104,6 +107,7 @@ const EMPTY: ArrayState = {
   base: null,
   pathId: null,
   rotateItems: true,
+  pendingConfirm: null,
 };
 
 function refuse(text: string): CadCommandStep<ArrayState> {
@@ -111,6 +115,16 @@ function refuse(text: string): CadCommandStep<ArrayState> {
 }
 
 function arrayStep(state: ArrayState): CadCommandStep<ArrayState> {
+  if (state.pendingConfirm)
+    return {
+      state,
+      prompt: {
+        message: state.pendingConfirm.message,
+        options: [CAD_BATCH_CONFIRM_YES, CAD_BATCH_CONFIRM_NO],
+        defaultOption: CAD_BATCH_CONFIRM_NO.keyword,
+      },
+      accepts: CAD_ACCEPT_KEYWORD,
+    };
   if (state.targets.length === 0)
     return {
       state,
@@ -206,6 +220,7 @@ export function cadArrayCommands(
   targets: readonly string[],
   arrayId: string,
   newEntityId: () => string,
+  getEntity: (id: string) => CadEntity | undefined,
 ): CadEntityCommand[] {
   const placements = cadArrayPlacements(spec);
   const serialized = serializeCadArraySpec(spec);
@@ -216,6 +231,19 @@ export function cadArrayCommands(
     [CAD_ARRAY_META.kind]: spec.kind,
     ...(serialized ? { [CAD_ARRAY_META.params]: serialized } : {}),
   };
+  // T-19·2: el id de copia de CADA target en CADA colocación, generado ANTES
+  // de emitir ningún comando. Un hueco cuyo muro TAMBIÉN se arraya necesita
+  // reapuntar su `hostId` a la copia de la MISMA colocación — nunca a la de
+  // otra ni a la del original— y eso sólo se puede resolver si los ids del
+  // muro ya existen quando se procesa el hueco, sin importar el orden en que
+  // el usuario los haya designado.
+  const copyIdsByTarget = new Map<string, string[]>(
+    targets.map((entityId) => [
+      entityId,
+      // La colocación 0 es la identidad: coincide con el original y no se copia.
+      Array.from({ length: Math.max(0, placements.length - 1) }, () => newEntityId()),
+    ]),
+  );
   const commands: CadEntityCommand[] = [];
   for (const entityId of targets) {
     commands.push({
@@ -223,10 +251,13 @@ export function cadArrayCommands(
       entityId,
       patch: { ...association, [CAD_ARRAY_META.index]: 0 },
     });
-    // La colocación 0 es la identidad: coincide con el original y no se copia.
+    const entity = getEntity(entityId);
+    const copyIds = copyIdsByTarget.get(entityId)!;
     for (let index = 1; index < placements.length; index += 1) {
-      const copyId = newEntityId();
-      commands.push({ type: "copy", entityId, newEntityId: copyId });
+      const copyId = copyIds[index - 1];
+      const rehostId =
+        entity?.type === "opening" ? copyIdsByTarget.get(entity.hostId)?.[index - 1] : undefined;
+      commands.push({ type: "copy", entityId, newEntityId: copyId, rehostId });
       commands.push({ type: "transform", entityId: copyId, transform: placements[index] });
       commands.push({
         type: "metadata",
@@ -250,6 +281,19 @@ const arrayCommand: CadCommandDescriptor<ArrayState> = {
   begin: (context) => arrayStep({ ...EMPTY, targets: context.selection }),
   step: (state, input, context) => {
     if (input.kind === "cancel") return { state: EMPTY, prompt: { message: "", options: [] }, accepts: 0, result: { kind: "none" } };
+
+    // T-24·1: por encima del techo del contrato, ARRAY espera un «Sí» antes
+    // de escribir nada. `No` (o cualquier otra cosa) cancela sin mutar.
+    if (state.pendingConfirm) {
+      if (input.kind === "keyword" && input.keyword === CAD_BATCH_CONFIRM_YES.keyword)
+        return {
+          state: EMPTY,
+          prompt: { message: "", options: [] },
+          accepts: 0,
+          result: { kind: "document", commands: state.pendingConfirm.commands, label: "ARRAY" },
+        };
+      return refuse("ARRAY cancelado: por encima del límite, hacía falta confirmar.");
+    }
 
     if (state.targets.length === 0) {
       if (input.kind === "selection") return arrayStep({ ...state, targets: input.entityIds });
@@ -317,8 +361,20 @@ const arrayCommand: CadCommandDescriptor<ArrayState> = {
     const path = next.pathId ? pathPointsOf(context, next.pathId) : null;
     const spec = specOf(next, itemBase, path);
     if (typeof spec === "string") return refuse(`ARRAY: ${spec}`);
-    const commands = cadArrayCommands(spec, next.targets, context.newEntityId(), context.newEntityId);
+    const commands = cadArrayCommands(
+      spec,
+      next.targets,
+      context.newEntityId(),
+      context.newEntityId,
+      (id) => context.entity?.(id),
+    );
     if (commands.length === 0) return refuse("ARRAY: la matriz no produjo ninguna copia.");
+    // T-24·1: cuántas entidades NUEVAS crea el lote — cada colocación salvo
+    // la 0 (la identidad) es una copia, y cada copia es un `type: "copy"`.
+    const created = commands.filter((command) => command.type === "copy").length;
+    const confirmation = cadBatchConfirmationPrompt(context.entityIds.length, created);
+    if (confirmation)
+      return arrayStep({ ...EMPTY, pendingConfirm: { commands, message: confirmation } });
     return {
       state: EMPTY,
       prompt: { message: "", options: [] },
@@ -437,7 +493,15 @@ const arrayEditCommand: CadCommandDescriptor<ArrayEditState> = {
     const commands: CadEntityCommand[] = cadArrayMembers(entities, state.arrayId)
       .filter((member) => member.index !== 0)
       .map((member) => ({ type: "delete", entityId: member.entity.id }));
-    commands.push(...cadArrayCommands(spec, state.sources, state.arrayId, context.newEntityId));
+    commands.push(
+      ...cadArrayCommands(
+        spec,
+        state.sources,
+        state.arrayId,
+        context.newEntityId,
+        (id) => context.entity?.(id),
+      ),
+    );
     return {
       state: EMPTY_EDIT,
       prompt: { message: "", options: [] },

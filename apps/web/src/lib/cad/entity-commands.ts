@@ -60,7 +60,20 @@ export type CadEntityCommand =
   | { type: "transform"; entityId: string; transform: CadEntityTransform }
   | { type: "properties"; entityId: string; patch: Partial<CadPropertyBag> }
   | { type: "grip"; entityId: string; gripId: string; point: CadPoint2 }
-  | { type: "copy"; entityId: string; newEntityId: string; offset?: CadPoint2 }
+  | {
+      type: "copy";
+      entityId: string;
+      newEntityId: string;
+      offset?: CadPoint2;
+      /**
+       * T-19·2: nuevo `hostId` de un HUECO copiado cuyo anfitrión viaja en la
+       * MISMA ronda. Lo calcula quien genera el comando —ver
+       * `cadOpeningRehostId` en `wall-openings.ts`—, no este ejecutor: un
+       * muro puede copiarse varias veces en un lote y sólo el generador sabe
+       * cuál copia es la de esta ronda.
+       */
+      rehostId?: string;
+    }
   /**
    * Da de alta una entidad nativa nueva. `drawOrder` decide dónde entra en
    * `modelSpace.entityIds`: `"front"` (por defecto) al final, que es lo que se
@@ -405,8 +418,14 @@ export function executeCadEntityCommandBatch(
         { ...source, id: command.newEntityId, context: cloneContext(source.context) },
         { translation: command.offset ?? { x: 0, y: 0 } },
       );
-      present.set(copy.id, copy);
-      createdFrontIds.push(copy.id);
+      // T-19·2: un hueco copiado junto con su muro queda hospedado en el
+      // MURO COPIADO vía `rehostId` (ver el tipo, arriba), no en el original.
+      const rehosted =
+        copy.type === "opening" && command.rehostId !== undefined
+          ? { ...copy, hostId: command.rehostId }
+          : copy;
+      present.set(rehosted.id, rehosted);
+      createdFrontIds.push(rehosted.id);
       regenerationSourceIds.push(source.id);
     } else if (command.type === "replace") {
       if (command.entity.id !== command.entityId)

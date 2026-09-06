@@ -43,6 +43,7 @@ import {
   type CadCommandDescriptor,
   type CadCommandStep,
 } from "../command-types";
+import { CAD_BATCH_CONFIRM_NO, CAD_BATCH_CONFIRM_YES, cadBatchConfirmationPrompt } from "./batch-limits";
 
 const STYLE = { keyword: "Estilo", shortcut: "E" } as const;
 const BLOCK = { keyword: "Bloque", shortcut: "B" } as const;
@@ -178,6 +179,8 @@ interface SpreadState {
   entityId: string | null;
   /** `true` en cuanto se elige `Bloque`: la orden termina con un rechazo. */
   rejectedBlock: boolean;
+  /** El lote ya calculado, esperando el «¿Continuar?» del techo (T-24·1). */
+  pendingConfirm: { commands: CadEntityCommand[]; message: string } | null;
 }
 
 /**
@@ -212,6 +215,16 @@ function spreadStep(
   measure: boolean,
   context: CadCommandContext,
 ): CadCommandStep<SpreadState> {
+  if (state.pendingConfirm)
+    return {
+      state,
+      prompt: {
+        message: state.pendingConfirm.message,
+        options: [CAD_BATCH_CONFIRM_YES, CAD_BATCH_CONFIRM_NO],
+        defaultOption: CAD_BATCH_CONFIRM_NO.keyword,
+      },
+      accepts: CAD_ACCEPT_KEYWORD,
+    };
   if (!state.entityId)
     return {
       state,
@@ -254,21 +267,19 @@ function spreadFinish(
   // DIVIDE deja N−1 marcas INTERIORES y MEASURE no marca el origen: en las dos,
   // una marca de más cae en un sitio creíble y nadie la ve sobrar.
   const marks = measure ? measurePath(path, Math.abs(value)) : dividePath(path, Math.round(value));
-  return {
-    state,
-    prompt: { message: "", options: [] },
-    accepts: 0,
-    result: marks.length
-      ? {
-          kind: "document",
-          commands: marks.map((mark) => ({
-            type: "insert" as const,
-            entity: pointEntity(context.newEntityId(), mark.point, 0, 0, context.activeLayer),
-          })),
-          label: measure ? "MEASURE" : "DIVIDE",
-        }
-      : { kind: "none" },
-  };
+  if (!marks.length) return { state, prompt: { message: "", options: [] }, accepts: 0, result: { kind: "none" } };
+  const commands = marks.map((mark) => ({
+    type: "insert" as const,
+    entity: pointEntity(context.newEntityId(), mark.point, 0, 0, context.activeLayer),
+  }));
+  const label = measure ? "MEASURE" : "DIVIDE";
+  // T-24·1: tantas marcas como segmentos, en un solo lote — un DIVIDE o
+  // MEASURE con un paso minúsculo sobre un objeto largo puede empujar el
+  // documento por encima del techo del contrato igual que una matriz grande.
+  const confirmation = cadBatchConfirmationPrompt(context.entityIds.length, commands.length);
+  if (confirmation)
+    return spreadStep({ ...state, pendingConfirm: { commands, message: confirmation } }, measure, context);
+  return { state, prompt: { message: "", options: [] }, accepts: 0, result: { kind: "document", commands, label } };
 }
 
 function spreadCommand(measure: boolean): CadCommandDescriptor<SpreadState> {
@@ -283,8 +294,29 @@ function spreadCommand(measure: boolean): CadCommandDescriptor<SpreadState> {
     repeatable: true,
     mutates: true,
     cursor: "pick",
-    begin: (context) => spreadStep({ entityId: null, rejectedBlock: false }, measure, context),
+    begin: (context) =>
+      spreadStep({ entityId: null, rejectedBlock: false, pendingConfirm: null }, measure, context),
     step: (state, input, context) => {
+      // T-24·1: por encima del techo, la orden espera un «Sí» antes de
+      // escribir nada. `No` (o cualquier otra cosa) cancela sin mutar.
+      if (state.pendingConfirm) {
+        if (input.kind === "keyword" && input.keyword === CAD_BATCH_CONFIRM_YES.keyword)
+          return {
+            state,
+            prompt: { message: "", options: [] },
+            accepts: 0,
+            result: { kind: "document", commands: state.pendingConfirm.commands, label: measure ? "MEASURE" : "DIVIDE" },
+          };
+        return {
+          state,
+          prompt: { message: "", options: [] },
+          accepts: 0,
+          result: {
+            kind: "message",
+            text: `${measure ? "MEASURE" : "DIVIDE"} cancelado: por encima del límite, hacía falta confirmar.`,
+          },
+        };
+      }
       if (input.kind === "cancel" || input.kind === "enter")
         return { state, prompt: { message: "", options: [] }, accepts: 0, result: { kind: "none" } };
       if (input.kind === "entityPick")

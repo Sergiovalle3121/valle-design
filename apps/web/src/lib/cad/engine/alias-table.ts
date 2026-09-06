@@ -140,6 +140,7 @@ export const CAD_COMMAND_ALIASES: Readonly<Record<string, string>> = {
 
   // --- modificación ---------------------------------------------------------
   E: "ERASE",
+  BORRAR: "ERASE",
   M: "MOVE",
   CO: "COPY",
   CP: "COPY",

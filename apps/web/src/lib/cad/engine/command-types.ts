@@ -181,6 +181,18 @@ export interface CadCommandSession {
    * hace AutoCAD y la única respuesta honesta cuando no hay de dónde encadenar.
    */
   lastDimensionId?: string;
+  /**
+   * La última selección resuelta por CUALQUIER comando de designación, para
+   * la palabra clave `Previo` de «Designe objetos» (T-21). Igual que
+   * `lastDimensionId`: es memoria de SESIÓN, no del documento, y de sólo
+   * lectura para los comandos — el anfitrión es quien la actualiza tras cada
+   * resultado con selección.
+   *
+   * Ausente en un anfitrión que todavía no la escribe: `Previo` resuelve
+   * entonces a «nada», que es la respuesta honesta («no hay una selección
+   * previa que recordar»), no un error.
+   */
+  lastSelectionIds?: readonly string[];
 }
 
 /**

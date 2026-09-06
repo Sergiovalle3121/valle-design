@@ -29,6 +29,7 @@
  */
 import type { CadDocument } from "./cad-document";
 import { CAD_ENTITY_REGISTRY, type CadNativeEntity } from "./entity-runtime";
+import { polylineArc, polylineSegments } from "./polyline-entity-adapter";
 import { rectGeometry, type Point, type SnapScene } from "./snap-engine";
 
 /** Caja del editor: emplazamiento o activo, con giro opcional en grados. */
@@ -139,6 +140,8 @@ export function cadSnapSceneAddEntities(
   scene.perpendicularSegments ??= [];
   scene.endpoints ??= [];
   scene.centers ??= [];
+  scene.geometricCenters ??= [];
+  scene.insertions ??= [];
   scene.quadrants ??= [];
   scene.tangents ??= [];
   scene.nodes ??= [];
@@ -173,38 +176,91 @@ export function cadSnapSceneAddEntities(
           pathLength: segmentCount,
           closed: true,
         });
-      // Sólo una LÍNEA aporta punto medio y pie de perpendicular semánticos.
-      // Las cuerdas con que se tesela un arco no son aristas del dibujo, y
-      // tratarlas como tales llenaría la pantalla de puntos medios que no
-      // existen en el papel.
+      // Una LÍNEA aporta su pie de perpendicular semántico directamente de
+      // sus dos únicos puntos. Su punto medio NO sale de aquí — lo declara
+      // `lineAdapter.snaps` más abajo en este bucle (kind `midpoint`) —:
+      // duplicarlo aquí metería el mismo punto dos veces en `scene.midpoints`.
       if (entity.type === "line" && path.points.length === 2) {
-        scene.midpoints!.push({
-          x: (path.points[0].x + path.points[1].x) / 2,
-          y: (path.points[0].y + path.points[1].y) / 2,
-        });
         scene.perpendicularSegments!.push({
           a: path.points[0],
           b: path.points[1],
         });
       }
     }
+    // Los TRAMOS RECTOS de una polilínea sí son aristas del dibujo — a
+    // diferencia de las cuerdas con que se tesela un arco, que no lo son — y
+    // el adaptador sabe distinguirlos por su `bulge`. El punto medio de cada
+    // tramo ya lo declara `polylineAdapter.snaps` (kind `midpoint`, más abajo
+    // en este bucle); lo que sólo se puede dar aquí, con el vértice real y no
+    // con la aproximación teselada, es el segmento para el pie de
+    // perpendicular.
+    if (entity.type === "polyline") {
+      for (const { start, end } of polylineSegments(entity)) {
+        if (polylineArc(start, end)) continue;
+        scene.perpendicularSegments!.push({
+          a: { x: start.x, y: start.y },
+          b: { x: end.x, y: end.y },
+        });
+      }
+    }
     for (const snap of adapter.snaps.snaps(entity, reference)) {
-      if (snap.kind === "center") scene.centers!.push(snap.point);
-      else if (snap.kind === "control") {
-        // FUGA CORREGIDA AL MOVER ESTO. El código de origen empujaba el punto
-        // de control dentro de `scene.nodes`, que ERA el array vivo de puntos
-        // del DXF de fondo. Cada `pointermove` sobre una spline le añadía
-        // entradas para siempre: el array crecía sin tope durante la sesión y,
-        // peor, los puntos de control de una entidad seguían imantando mucho
-        // después de que el cursor se hubiera ido a otra parte del plano.
-        if (!nodesCopied) {
-          scene.nodes = [...(scene.nodes ?? [])];
-          nodesCopied = true;
-        }
-        scene.nodes!.push(snap.point);
-      } else if (snap.kind === "quadrant") scene.quadrants!.push(snap.point);
-      else if (snap.kind === "tangent") scene.tangents!.push(snap.point);
-      else scene.endpoints!.push(snap.point);
+      // Un mapa `kind → cubo`, no un reparto por defecto: el `CadSnapKind` del
+      // adaptador (ocho modos reales) y los cubos de la `SnapScene` (los
+      // catorce del motor) son EL MISMO vocabulario. Si un valor nuevo se
+      // añade a `CadSnapKind` sin entrada aquí, TypeScript lo marca en el
+      // `switch` exhaustivo de abajo — no hay «todo lo demás → endpoints».
+      switch (snap.kind) {
+        case "midpoint":
+          scene.midpoints!.push(snap.point);
+          break;
+        case "center":
+          scene.centers!.push(snap.point);
+          break;
+        case "geometric-center":
+          scene.geometricCenters!.push(snap.point);
+          break;
+        case "insertion":
+          scene.insertions!.push(snap.point);
+          break;
+        case "quadrant":
+          scene.quadrants!.push(snap.point);
+          break;
+        case "tangent":
+          scene.tangents!.push(snap.point);
+          break;
+        case "node":
+          // Copia al vuelo: `scene.nodes` puede ser el array vivo de puntos
+          // del DXF de fondo (ver el aviso de fuga más abajo, para `control`).
+          if (!nodesCopied) {
+            scene.nodes = [...(scene.nodes ?? [])];
+            nodesCopied = true;
+          }
+          scene.nodes!.push(snap.point);
+          break;
+        case "control":
+          // FUGA CORREGIDA AL MOVER ESTO. El código de origen empujaba el
+          // punto de control dentro de `scene.nodes`, que ERA el array vivo
+          // de puntos del DXF de fondo. Cada `pointermove` sobre una spline
+          // le añadía entradas para siempre: el array crecía sin tope durante
+          // la sesión y, peor, los puntos de control de una entidad seguían
+          // imantando mucho después de que el cursor se hubiera ido a otra
+          // parte del plano.
+          if (!nodesCopied) {
+            scene.nodes = [...(scene.nodes ?? [])];
+            nodesCopied = true;
+          }
+          scene.nodes!.push(snap.point);
+          break;
+        case "endpoint":
+          scene.endpoints!.push(snap.point);
+          break;
+        default:
+          // Exhaustividad real: si `CadSnapKind` gana un valor sin un `case`
+          // aquí, esta línea deja de compilar (`snap.kind` deja de ser
+          // asignable a `never`). Sin esto, un modo nuevo caería de vuelta en
+          // «endpoints» en silencio, exactamente el bug que este arreglo cierra.
+          ((_unreachable: never) => scene.endpoints!.push(snap.point))(snap.kind);
+      }
     }
   }
 }

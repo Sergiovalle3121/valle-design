@@ -151,12 +151,163 @@ assert.equal(
   assert.equal(state.active, null, "Enter cierra el comando");
 }
 
-// --- OFFSET calcula un desfase real -------------------------------------------
+// --- T-24·1: por encima del techo, COPY múltiple pregunta antes de escribir --
+// El mismo mecanismo que ARRAY (modify-array.spec.ts): un documento casi en el
+// límite del contrato, empujado por encima por unas pocas copias de más, no
+// por una matriz gigante — no hace falta escribir 100 000 entidades reales
+// para probar el gate.
+{
+  const nearLimitEntities = new Map(entities);
+  for (let index = 0; index < 99_996; index += 1) {
+    const id = `dummy-${index}`;
+    nearLimitEntities.set(id, { id, type: "point", position: { x: 0, y: 0, z: 0 }, layer: "0" });
+  }
+  function nearLimitContext(selection: readonly string[] = []): CadCommandContext {
+    return {
+      entityIds: [...nearLimitEntities.keys()],
+      entity: (id) => nearLimitEntities.get(id),
+      selection,
+      activeLayer: "0",
+      view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+      newEntityId: () => `n${++nextId}`,
+    };
+  }
+  function runNearLimit(actions: readonly CadCommandAction[], selection: readonly string[] = []) {
+    let state = EMPTY_CAD_COMMAND_ENGINE;
+    const effects: CadCommandEffect[] = [];
+    for (const action of actions) {
+      const reduction = cadCommandEngineReduce(state, action, nearLimitContext(selection), registry);
+      state = reduction.state;
+      effects.push(...reduction.effects);
+    }
+    return { state, effects };
+  }
+  const keyword = (value: string): CadCommandAction => ({
+    kind: "input",
+    input: { kind: "keyword", keyword: value },
+  });
+  const copySequence: CadCommandAction[] = [
+    { kind: "invoke", command: "CO" },
+    point(0, 0),
+    point(100, 0),
+    point(200, 0),
+    point(300, 0),
+    { kind: "input", input: { kind: "enter" } },
+  ];
+  {
+    const { effects } = runNearLimit(copySequence, ["line-1"]);
+    assert.equal(executed(effects).length, 0, "sin confirmar todavía, COPY múltiple no ha escrito nada");
+    const prompts = effects.filter((e): e is Extract<CadCommandEffect, { kind: "prompt" }> => e.kind === "prompt");
+    assert.ok(
+      prompts.some((effect) => effect.prompt.message.includes("Continuar")),
+      "y pregunta antes de hacerlo",
+    );
+  }
+  {
+    const { effects } = runNearLimit([...copySequence, keyword("Sí")], ["line-1"]);
+    const runs = executed(effects);
+    assert.equal(runs.length, 1, "con «Sí», el lote se emite igual que sin gate");
+    assert.equal(runs[0].commands.length, 3, "tres destinos, tres copias, incluso por encima del techo");
+  }
+  {
+    const { effects } = runNearLimit([...copySequence, keyword("No")], ["line-1"]);
+    assert.equal(executed(effects).length, 0, "«No» cancela sin escribir nada");
+    assert.ok(
+      messages(effects).some((message) => message.text.includes("cancelado")),
+      "con un mensaje de cancelación, no un lote a medias",
+    );
+  }
+  {
+    // Por debajo del techo (el contexto normal de este archivo), COPY no pregunta.
+    const { effects } = run(
+      [
+        { kind: "invoke", command: "CO" },
+        point(0, 0),
+        point(100, 0),
+        { kind: "input", input: { kind: "enter" } },
+      ],
+      ["line-1"],
+    );
+    assert.equal(executed(effects).length, 1, "por debajo del techo, COPY no pregunta nada");
+  }
+}
+
+// --- T-19·2: cada destino de COPY reapunta el hueco a SU PROPIO muro ----------
+// Dos destinos en un solo COPY copian el muro y la puerta DOS veces —una vez
+// por destino—; sin correlación por ronda, la puerta de la ronda 2 podría
+// reapuntar al muro de la ronda 1 (o al revés). Se prueba que cada ronda
+// queda emparejada con la suya.
+{
+  const hostedWall: CadEntity = {
+    id: "wall-1",
+    type: "line",
+    start: { x: 0, y: 0, z: 0 },
+    end: { x: 4_000, y: 0, z: 0 },
+    layer: "0",
+  };
+  const hostedDoor: CadEntity = {
+    id: "door-1",
+    type: "opening",
+    kind: "door",
+    hostId: "wall-1",
+    position: 1_500,
+    width: 900,
+    height: 2_100,
+    sill: 0,
+    swing: "left",
+    hinge: "start",
+    layer: "0",
+  };
+  const hostedEntities = new Map([...entities, [hostedWall.id, hostedWall], [hostedDoor.id, hostedDoor]]);
+  let hostedIds = 0;
+  const hostedContext: CadCommandContext = {
+    entityIds: [...hostedEntities.keys()],
+    entity: (id) => hostedEntities.get(id),
+    selection: [],
+    activeLayer: "0",
+    view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+    newEntityId: () => `n${++hostedIds}`,
+  };
+  let state = EMPTY_CAD_COMMAND_ENGINE;
+  const effects: CadCommandEffect[] = [];
+  const runHosted = (action: CadCommandAction) => {
+    const reduction = cadCommandEngineReduce(state, action, hostedContext, registry);
+    state = reduction.state;
+    effects.push(...reduction.effects);
+  };
+  runHosted({ kind: "invoke", command: "CO" });
+  runHosted({ kind: "input", input: { kind: "selection", entityIds: ["wall-1", "door-1"] } });
+  runHosted(point(0, 0));
+  runHosted(point(100, 0)); // ronda 1
+  runHosted(point(200, 0)); // ronda 2
+  runHosted({ kind: "input", input: { kind: "enter" } });
+  const commands = executed(effects)[0].commands;
+  const wallCopies = commands.filter((c) => c.type === "copy" && c.entityId === "wall-1");
+  const doorCopies = commands.filter((c) => c.type === "copy" && c.entityId === "door-1");
+  assert.equal(wallCopies.length, 2, "dos destinos, dos copias del muro");
+  assert.equal(doorCopies.length, 2, "y dos copias de la puerta");
+  for (const [index, doorCopy] of doorCopies.entries()) {
+    assert.ok(doorCopy.type === "copy");
+    assert.equal(
+      doorCopy.rehostId,
+      wallCopies[index]?.type === "copy" ? wallCopies[index].newEntityId : undefined,
+      `la puerta de la ronda ${index} debe reapuntar al muro de ESA MISMA ronda, no a otra`,
+    );
+  }
+  assert.notEqual(
+    doorCopies[0].type === "copy" ? doorCopies[0].rehostId : undefined,
+    doorCopies[1].type === "copy" ? doorCopies[1].rehostId : undefined,
+    "las dos rondas no comparten anfitrión: cada una tiene su propia copia del muro",
+  );
+}
+
+// --- OFFSET calcula un desfase real, y el LADO lo dice un punto (T-23) --------
 {
   const { effects } = run([
     { kind: "invoke", command: "O" },
     { kind: "token", value: "10" },
-    { kind: "input", input: { kind: "entityPick", entityId: "line-1", point: { x: 50, y: 5 } } },
+    { kind: "input", input: { kind: "entityPick", entityId: "line-1", point: { x: 50, y: 0 } } },
+    point(50, 5), // por ENCIMA de la línea (0,0)-(100,0): el lado, no el signo tecleado
     { kind: "input", input: { kind: "enter" } },
   ]);
   const runs = executed(effects);
@@ -166,22 +317,79 @@ assert.equal(
   if (command.type === "insert" && command.entity.type === "line") {
     // La línea original va de (0,0) a (100,0); desfasada 10 queda paralela.
     assert.equal(command.entity.start.y, command.entity.end.y, "la copia sigue siendo horizontal");
-    assert.equal(Math.abs(command.entity.start.y), 10, "y a exactamente 10 unidades");
+    assert.equal(command.entity.start.y, 10, "hacia el lado del punto pinchado, arriba");
     assert.equal(command.entity.start.x, 0, "sin trasladarse en X: es un desfase, no una traslación");
   } else {
     assert.fail("OFFSET debería insertar una línea");
   }
 }
 {
+  // El punto de lado, del OTRO lado, desplaza hacia abajo: no es el signo de
+  // la distancia tecleada —siempre positiva aquí— el que decide.
+  const { effects } = run([
+    { kind: "invoke", command: "O" },
+    { kind: "token", value: "10" },
+    { kind: "input", input: { kind: "entityPick", entityId: "line-1", point: { x: 50, y: 0 } } },
+    point(50, -5),
+    { kind: "input", input: { kind: "enter" } },
+  ]);
+  const command = executed(effects)[0].commands[0];
+  if (command.type === "insert" && command.entity.type === "line") {
+    assert.equal(command.entity.start.y, -10, "el mismo comando, el lado opuesto, el signo opuesto");
+  } else {
+    assert.fail("OFFSET debería insertar una línea");
+  }
+}
+{
   // Una elipse se rechaza con su motivo, en vez de devolver geometría falsa.
+  // Sin lado que reconocer, el rechazo llega igual: no hace falta una
+  // segunda pregunta para llegar al mismo «no».
   const { effects } = run([
     { kind: "invoke", command: "OFFSET" },
     { kind: "token", value: "10" },
     { kind: "input", input: { kind: "entityPick", entityId: "ellipse-1", point: { x: 0, y: 0 } } },
+    point(0, 60),
   ]);
   assert.equal(executed(effects).length, 0, "no se escribe nada");
   const said = messages(effects).map((message) => message.text).join(" ");
   assert.ok(said.includes("elipse"), "y se explica por qué: el desfase de una elipse no es otra elipse");
+}
+
+// --- T-21: «Designe objetos» acepta palabras clave, no sólo el ratón ----------
+// El golden exacto de la ficha: teclear BORRAR (alias de ERASE), la palabra
+// clave V (Ventana), dos esquinas y luego Intro, y afirmar el conteo. La
+// ventana (-10,-10)-(150,10) encierra ENTERA a `line-1` —(0,0) a (100,0)— y
+// deja fuera a `ellipse-1`, cuya caja se sale por arriba y por abajo (radio
+// menor 25 > la mitad de alto de la ventana).
+{
+  const { effects, state } = run([
+    { kind: "invoke", command: "BORRAR" },
+    { kind: "token", value: "V" },
+    { kind: "token", value: "-10,-10" },
+    { kind: "token", value: "150,10" },
+    { kind: "input", input: { kind: "enter" } },
+  ]);
+  const runs = executed(effects);
+  assert.equal(runs.length, 1, "BORRAR → V → dos esquinas → Intro deja un solo lote");
+  assert.equal(runs[0].commands.length, 1, "la ventana sólo encierra ENTERA a line-1");
+  assert.equal(runs[0].commands[0].type, "delete");
+  assert.equal(
+    runs[0].commands[0].type === "delete" ? runs[0].commands[0].entityId : "",
+    "line-1",
+    "y borra justo la que cae dentro, no la elipse",
+  );
+  assert.equal(state.active, null, "el Intro final cierra el comando");
+}
+// Todo, seguido de Intro sin más designación, actúa sobre el dibujo entero.
+{
+  const { effects } = run([
+    { kind: "invoke", command: "ERASE" },
+    { kind: "token", value: "Todo" },
+    { kind: "input", input: { kind: "enter" } },
+  ]);
+  const runs = executed(effects);
+  assert.equal(runs.length, 1);
+  assert.equal(runs[0].commands.length, 2, "Todo designa las dos entidades del documento");
 }
 
 console.log("cad modify command specs passed");

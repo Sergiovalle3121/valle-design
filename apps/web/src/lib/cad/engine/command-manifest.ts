@@ -172,7 +172,7 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "MATCHPROP", aliases: ["MA"], kind: "modify", transparent: false, selection: "command-first", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-align" },
   { name: "ARRAY", aliases: ["AR", "ARR"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-array" },
   { name: "ARRAYEDIT", aliases: [], kind: "modify", transparent: false, selection: "command-first", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-array" },
-  { name: "ERASE", aliases: ["E"], kind: "modify", transparent: false, selection: "required", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-basics" },
+  { name: "ERASE", aliases: ["E", "BORRAR"], kind: "modify", transparent: false, selection: "required", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-basics" },
   { name: "MOVE", aliases: ["M"], kind: "modify", transparent: false, selection: "required", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-basics" },
   { name: "COPY", aliases: ["CO", "CP"], kind: "modify", transparent: false, selection: "required", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-basics" },
   { name: "OFFSET", aliases: ["O"], kind: "modify", transparent: false, selection: "command-first", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-basics" },

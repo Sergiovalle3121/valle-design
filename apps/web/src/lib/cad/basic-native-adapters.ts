@@ -1,7 +1,7 @@
 import type { CadEntity, CadPoint2, CadPoint3 } from './cad-document';
 import { tessellateArc } from './curve-tessellate';
 import { cadTransformPoint3, cadTransformScaleFactor } from './transform2d';
-import type { CadEntityAdapter, CadEntityTransform, CadNativeEntity, CadPropertyValue } from './entity-runtime';
+import type { CadEntityAdapter, CadEntityTransform, CadNativeEntity, CadPropertyValue, CadSnapPoint } from './entity-runtime';
 
 type LineEntity = Extract<CadNativeEntity, { type: 'line' }>;
 type CircleEntity = Extract<CadNativeEntity, { type: 'circle' }>;
@@ -51,7 +51,7 @@ export const lineAdapter: CadEntityAdapter<LineEntity> = {
   snaps: { snaps: (entity) => [
     { kind: 'endpoint', point: entity.start, label: 'Inicio' },
     { kind: 'endpoint', point: entity.end, label: 'Fin' },
-    { kind: 'center', point: { x: (entity.start.x + entity.end.x) / 2, y: (entity.start.y + entity.end.y) / 2 }, label: 'Punto medio' },
+    { kind: 'midpoint', point: { x: (entity.start.x + entity.end.x) / 2, y: (entity.start.y + entity.end.y) / 2 }, label: 'Punto medio' },
   ] },
   properties: {
     read: (entity) => ({ startX: entity.start.x, startY: entity.start.y, endX: entity.end.x, endY: entity.end.y, length: Math.hypot(entity.end.x - entity.start.x, entity.end.y - entity.start.y), layer: entity.layer }),
@@ -86,10 +86,32 @@ export const circleAdapter: CadEntityAdapter<CircleEntity> = {
         ? { ...entity, radius: Math.max(1e-9, Math.hypot(point.x - entity.center.x, point.y - entity.center.y)) }
         : entity,
   },
-  snaps: { snaps: (entity) => [
-    { kind: 'center', point: entity.center, label: 'Centro' },
-    ...[0, 90, 180, 270].map((angle) => ({ kind: 'quadrant' as const, point: { x: entity.center.x + Math.cos(angle * Math.PI / 180) * entity.radius, y: entity.center.y + Math.sin(angle * Math.PI / 180) * entity.radius }, label: `Cuadrante ${angle}°` })),
-  ] },
+  snaps: { snaps: (entity, cursor) => {
+    const points: CadSnapPoint[] = [
+      { kind: 'center', point: entity.center, label: 'Centro' },
+      ...[0, 90, 180, 270].map((angle) => ({ kind: 'quadrant' as const, point: { x: entity.center.x + Math.cos(angle * Math.PI / 180) * entity.radius, y: entity.center.y + Math.sin(angle * Math.PI / 180) * entity.radius }, label: `Cuadrante ${angle}°` })),
+    ];
+    // Tangente DESDE EL CURSOR: mismo cálculo que `curve-entity-adapters.ts`
+    // usa para el arco — aquí sin recorte por barrido porque un círculo
+    // completo siempre tiene sus dos tangentes cuando el cursor cae fuera.
+    if (cursor) {
+      const dx = cursor.x - entity.center.x;
+      const dy = cursor.y - entity.center.y;
+      const distance = Math.hypot(dx, dy);
+      if (distance > entity.radius) {
+        const base = Math.atan2(dy, dx) * 180 / Math.PI;
+        const offset = Math.acos(entity.radius / distance) * 180 / Math.PI;
+        for (const angle of [base - offset, base + offset]) {
+          points.push({
+            kind: 'tangent',
+            point: { x: entity.center.x + Math.cos(angle * Math.PI / 180) * entity.radius, y: entity.center.y + Math.sin(angle * Math.PI / 180) * entity.radius },
+            label: 'Tangente',
+          });
+        }
+      }
+    }
+    return points;
+  } },
   properties: {
     read: (entity) => ({ centerX: entity.center.x, centerY: entity.center.y, radius: entity.radius, diameter: entity.radius * 2, layer: entity.layer }),
     write: (entity, patch) => ({

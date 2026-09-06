@@ -23,9 +23,11 @@ import { formatCadPrompt, matchCadKeyword } from "./prompt";
 import { resolveCadCommandAlias } from "./alias-table";
 import { resolveCadToken } from "./input-pipeline";
 import {
+  CAD_ACCEPT_ANGLE,
   CAD_ACCEPT_DISTANCE,
   CAD_ACCEPT_KEYWORD,
   CAD_ACCEPT_POINT,
+  CAD_ACCEPT_TEXT,
   asCadCommand,
   type CadCommandContext,
   type CadCommandDescriptor,
@@ -355,6 +357,18 @@ assert.equal(__testables.circleThroughThree({ x: 0, y: 0 }, { x: 1, y: 0 }, { x:
   assert.equal(executed(effects).length, 0, "y el comando lo dice en vez de escribir basura");
   assert.ok(effects.some((effect) => effect.kind === "message"), "con un mensaje");
 }
+// T-23: Ttr/Ttt se OFRECEN (el cuadro no miente por omisión) y se RECHAZAN
+// con su motivo — fix-or-hide sobre una opción que falta, no un centro
+// inventado.
+for (const option of ["T", "TT"]) {
+  const { effects } = run([{ kind: "invoke", command: "C" }, { kind: "token", value: option }]);
+  assert.equal(executed(effects).length, 0, `CIRCLE ${option} no escribe geometría inventada`);
+  const said = effects
+    .filter((effect): effect is Extract<CadCommandEffect, { kind: "message" }> => effect.kind === "message")
+    .map((effect) => effect.text)
+    .join(" ");
+  assert.ok(said.includes("Apolonio") || said.includes("todavía no"), `y explica que ${option} no está construido`);
+}
 
 // --- entrada directa de distancia --------------------------------------------
 {
@@ -387,11 +401,171 @@ assert.equal(
   "input",
   "la palabra clave gana a la coordenada: si no, «C» sería un error de sintaxis",
 );
+// --- T-25: un ángulo tecleado respeta ANGBASE/ANGDIR/AUNITS -------------------
+{
+  // Sin `angleFormat` en el contexto, el sistema por defecto es decimal puro
+  // — el comportamiento de siempre, sin romper nada de lo que ya tecleaba.
+  const plain = resolveCadToken("<45", { accepts: CAD_ACCEPT_ANGLE });
+  assert.equal(plain.kind, "input");
+  if (plain.kind === "input" && plain.input.kind === "angle")
+    assert.equal(plain.input.degrees, 45, "sin AUNITS declarado, <45 son 45° decimales tal cual");
+
+  // AUNITS gradianes: <50g son 45° (50 de 400 en la vuelta), no 50 grados.
+  const grads = resolveCadToken("<50g", {
+    accepts: CAD_ACCEPT_ANGLE,
+    angleFormat: { system: "grads", base: 0, direction: 0 },
+  });
+  assert.equal(grads.kind, "input");
+  if (grads.kind === "input" && grads.input.kind === "angle")
+    assert.ok(Math.abs(grads.input.degrees - 45) < 1e-9, "<50g son 45°, no 50°");
+
+  // ANGBASE 90 (el cero apunta al norte) y ANGDIR horario: <0 debe caer
+  // exactamente en el norte del mundo (90° en la convención interna).
+  const rotated = resolveCadToken("<0", {
+    accepts: CAD_ACCEPT_ANGLE,
+    angleFormat: { system: "decimal", base: 90, direction: 1 },
+  });
+  assert.equal(rotated.kind, "input");
+  if (rotated.kind === "input" && rotated.input.kind === "angle")
+    assert.ok(Math.abs(rotated.input.degrees - 90) < 1e-9, "con ANGBASE 90, <0 apunta al norte del mundo (90°)");
+
+  // Y con ANGDIR horario, un valor positivo gira hacia el OTRO lado que en
+  // antihorario — <30 con base 90 no es lo mismo horario que antihorario.
+  const clockwise = resolveCadToken("<30", {
+    accepts: CAD_ACCEPT_ANGLE,
+    angleFormat: { system: "decimal", base: 90, direction: 1 },
+  });
+  const counterclockwise = resolveCadToken("<30", {
+    accepts: CAD_ACCEPT_ANGLE,
+    angleFormat: { system: "decimal", base: 90, direction: 0 },
+  });
+  if (
+    clockwise.kind === "input" &&
+    clockwise.input.kind === "angle" &&
+    counterclockwise.kind === "input" &&
+    counterclockwise.input.kind === "angle"
+  )
+    assert.notEqual(
+      clockwise.input.degrees,
+      counterclockwise.input.degrees,
+      "ANGDIR cambia a qué lado del mundo apunta el mismo número tecleado",
+    );
+
+  // Y la coordenada POLAR (`@dist<áng`) usa el MISMO sistema para su ángulo:
+  // `@10<50g` son diez unidades a 45°, no a 50°.
+  const polarGrads = resolveCadToken("@10<50g", {
+    accepts: CAD_ACCEPT_POINT,
+    lastPoint: { x: 0, y: 0 },
+    angleFormat: { system: "grads", base: 0, direction: 0 },
+  });
+  assert.equal(polarGrads.kind, "input");
+  if (polarGrads.kind === "input" && polarGrads.input.kind === "point") {
+    assert.ok(Math.abs(polarGrads.input.point.x - 10 * Math.SQRT1_2) < 1e-6, "@10<50g cae a 45°, no a 50°");
+    assert.ok(Math.abs(polarGrads.input.point.y - 10 * Math.SQRT1_2) < 1e-6, "");
+  }
+}
 assert.equal(
   resolveCadToken("MID", { accepts: CAD_ACCEPT_POINT }).kind,
   "osnapOverride",
   "MID es un override de captura, no una coordenada",
 );
+// --- T-22: DESDE/M2P/TT/PAR son modificadores de punto, no comandos ni coordenadas
+{
+  const desde = resolveCadToken("DESDE", { accepts: CAD_ACCEPT_POINT });
+  assert.equal(desde.kind, "pointModifier", "DESDE no avanza el paso: abre una sub-captura");
+  if (desde.kind === "pointModifier") assert.equal(desde.modifier, "from");
+
+  const from = resolveCadToken("FROM", { accepts: CAD_ACCEPT_POINT });
+  if (from.kind === "pointModifier") assert.equal(from.modifier, "from", "FROM es sinónimo de DESDE");
+
+  const m2p = resolveCadToken("M2P", { accepts: CAD_ACCEPT_POINT });
+  assert.equal(m2p.kind, "pointModifier");
+  if (m2p.kind === "pointModifier") assert.equal(m2p.modifier, "m2p");
+
+  const tt = resolveCadToken("TT", { accepts: CAD_ACCEPT_POINT });
+  assert.equal(tt.kind, "pointModifier");
+  if (tt.kind === "pointModifier") assert.equal(tt.modifier, "tt");
+
+  const par = resolveCadToken("PAR", { accepts: CAD_ACCEPT_POINT });
+  assert.equal(par.kind, "pointModifier");
+  if (par.kind === "pointModifier") assert.equal(par.modifier, "par");
+
+  // Sin CAD_ACCEPT_POINT, ninguno de los cuatro es más que texto o un error:
+  // un modificador de punto no tiene sentido fuera de una petición de punto.
+  assert.notEqual(
+    resolveCadToken("DESDE", { accepts: CAD_ACCEPT_TEXT }).kind,
+    "pointModifier",
+    "sin CAD_ACCEPT_POINT, DESDE no es un modificador de nada",
+  );
+}
+
+// --- T-22, de punta a punta: DESDE ancla y `@relativo` mide DESDE ELLA -------
+{
+  const { effects, state } = run([
+    { kind: "invoke", command: "LINE" },
+    { kind: "token", value: "DESDE" },
+    point(100, 100), // el ancla — NO es el primer vértice de la línea
+    { kind: "token", value: "@50,0" }, // medido desde el ancla, no desde ningún punto anterior
+    point(200, 100),
+    { kind: "input", input: { kind: "enter" } },
+  ]);
+  const runs = executed(effects);
+  assert.equal(runs.length, 1, "DESDE no rompe el lote de un solo paso de deshacer");
+  const first = runs[0].commands[0];
+  assert.ok(first.type === "insert" && first.entity.type === "line");
+  if (first.type === "insert" && first.entity.type === "line") {
+    assert.deepEqual(
+      { x: first.entity.start.x, y: first.entity.start.y },
+      { x: 150, y: 100 },
+      "el primer vértice es el ancla (100,100) + @50,0, no el ancla en sí ni (50,0) desde el origen",
+    );
+    assert.deepEqual({ x: first.entity.end.x, y: first.entity.end.y }, { x: 200, y: 100 });
+  }
+  assert.equal(state.pointModifier, null, "la sesión de DESDE no sobrevive al comando");
+}
+
+// --- T-22, de punta a punta: M2P resuelve al MEDIO, no al segundo punto -----
+{
+  const { effects } = run([
+    { kind: "invoke", command: "LINE" },
+    { kind: "token", value: "M2P" },
+    point(0, 0),
+    point(100, 0),
+    point(50, 50),
+    { kind: "input", input: { kind: "enter" } },
+  ]);
+  const runs = executed(effects);
+  const first = runs[0].commands[0];
+  assert.ok(first.type === "insert" && first.entity.type === "line");
+  if (first.type === "insert" && first.entity.type === "line") {
+    assert.deepEqual(
+      { x: first.entity.start.x, y: first.entity.start.y },
+      { x: 50, y: 0 },
+      "el primer vértice es el MEDIO de (0,0) y (100,0), no (100,0)",
+    );
+    assert.deepEqual({ x: first.entity.end.x, y: first.entity.end.y }, { x: 50, y: 50 });
+  }
+}
+
+// --- T-22: Esc a medio DESDE no dispara nada a medias ------------------------
+{
+  const { state } = run([
+    { kind: "invoke", command: "LINE" },
+    { kind: "token", value: "DESDE" },
+    { kind: "input", input: { kind: "cancel" } },
+  ]);
+  assert.equal(state.pointModifier, null, "Esc limpia la sesión de DESDE, no la deja viva para el próximo comando");
+}
+
+// --- T-22: PAR se reconoce, pero declara su límite en vez de fingir ----------
+{
+  const { effects } = run([{ kind: "invoke", command: "LINE" }, { kind: "token", value: "PAR" }]);
+  const said = effects
+    .filter((effect): effect is Extract<CadCommandEffect, { kind: "message" }> => effect.kind === "message")
+    .map((effect) => effect.text)
+    .join(" ");
+  assert.ok(said.includes("arista"), "PAR explica que necesita una arista y el ratón todavía no la enruta aquí");
+}
 assert.equal(
   resolveCadToken("120", { accepts: CAD_ACCEPT_DISTANCE }).kind,
   "input",

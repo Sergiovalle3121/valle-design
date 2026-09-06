@@ -28,7 +28,7 @@ function centerDistanceSquared(
   return Number.isFinite(squared) ? squared : Number.POSITIVE_INFINITY;
 }
 
-type CadPathSelectionMode = "polygon" | "fence" | "lasso";
+export type CadPathSelectionMode = "polygon" | "fence" | "lasso";
 
 function pathBounds(points: readonly { x: number; y: number }[]): CadBounds | null {
   if (!points.length) return null;
@@ -87,7 +87,14 @@ function segments(points: readonly { x: number; y: number }[], closed: boolean):
   return result;
 }
 
-function entityMatchesPath(
+/**
+ * Exportada para `selection/selection-keywords.ts`: la palabra clave `Valla`/
+ * `Vpolígono`/`Cpolígono` de un prompt «Designe objetos» necesita esta MISMA
+ * prueba geométrica sin montar un `CadNativeSelectionIndex` completo — un
+ * comando del motor no tiene (ni necesita) el índice espacial en vivo, sólo
+ * la lista de entidades que ya le da `CadCommandContext`.
+ */
+export function entityMatchesPath(
   entity: CadNativeEntity,
   selectionPath: readonly { x: number; y: number }[],
   mode: CadPathSelectionMode,
