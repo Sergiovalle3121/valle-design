@@ -82,7 +82,11 @@ interface RespuestaDoble {
 
 const peticion = (
   ruta: string,
-  opciones: { method?: string; mode?: string; headers?: Record<string, string> } = {},
+  opciones: {
+    method?: string;
+    mode?: string;
+    headers?: Record<string, string>;
+  } = {},
 ): PeticionDoble => ({
   url: absoluta(ruta),
   method: opciones.method ?? "GET",
@@ -111,7 +115,9 @@ function cuadraVary(guardada: Guardada, cabeceras: Headers): boolean {
   if (vary.trim() === "*") return false;
   return vary.split(",").every((nombre) => {
     const clave = nombre.trim().toLowerCase();
-    return (guardada.cabeceras.get(clave) ?? "") === (cabeceras.get(clave) ?? "");
+    return (
+      (guardada.cabeceras.get(clave) ?? "") === (cabeceras.get(clave) ?? "")
+    );
   });
 }
 
@@ -134,8 +140,14 @@ class CacheDoble {
     return guardada.respuesta;
   }
 
-  async put(entrada: string | PeticionDoble, respuesta: RespuestaDoble): Promise<void> {
-    this.entradas.set(clave(entrada), { cabeceras: cabecerasDe(entrada), respuesta });
+  async put(
+    entrada: string | PeticionDoble,
+    respuesta: RespuestaDoble,
+  ): Promise<void> {
+    this.entradas.set(clave(entrada), {
+      cabeceras: cabecerasDe(entrada),
+      respuesta,
+    });
   }
 
   urls(): string[] {
@@ -179,7 +191,8 @@ class Red {
     if (init?.cache === "reload") this.recargas.push(url);
     if (this.caida) throw new TypeError("Failed to fetch");
     const constructor = this.rutas.get(new URL(url).pathname);
-    if (!constructor) throw new TypeError(`Failed to fetch: sin ruta para ${url}`);
+    if (!constructor)
+      throw new TypeError(`Failed to fetch: sin ruta para ${url}`);
     return constructor();
   };
 }
@@ -239,15 +252,24 @@ function montar(): Entorno {
 }
 
 /** Rellena la red con todo lo que el precacheo va a pedir. */
-function servirCascaron(red: Red, cuerpo = "OFFLINE v1", cabeceras: Record<string, string> = {}) {
+function servirCascaron(
+  red: Red,
+  cuerpo = "OFFLINE v1",
+  cabeceras: Record<string, string> = {},
+) {
   for (const ruta of SW_PRECACHE_URLS) {
     red.rutas.set(ruta, () =>
-      ruta === SW_OFFLINE_URL ? html(cuerpo, cabeceras) : html(`recurso ${ruta}`),
+      ruta === SW_OFFLINE_URL
+        ? html(cuerpo, cabeceras)
+        : html(`recurso ${ruta}`),
     );
   }
 }
 
-async function ciclo(entorno: Entorno, tipo: "install" | "activate"): Promise<void> {
+async function ciclo(
+  entorno: Entorno,
+  tipo: "install" | "activate",
+): Promise<void> {
   const oyente = entorno.self.oyentes.get(tipo);
   assert.ok(oyente, `el worker no registró un oyente de ${tipo}`);
   const pendientes: Promise<unknown>[] = [];
@@ -339,7 +361,11 @@ async function principal(): Promise<void> {
       1,
       "install abrió más de una caché: la unidad de invalidación es una sola",
     );
-    assert.equal(entorno.saltos.skipWaiting, 1, "install debe llamar a skipWaiting");
+    assert.equal(
+      entorno.saltos.skipWaiting,
+      1,
+      "install debe llamar a skipWaiting",
+    );
     assert.deepEqual(
       [...entorno.red.recargas].sort(),
       [...SW_PRECACHE_URLS].map(absoluta).sort(),
@@ -402,7 +428,10 @@ async function principal(): Promise<void> {
     // ningún prefijo inmutable, así que si el worker no reconociera su propia
     // lista de precacheo los guardaría en install y no los serviría nunca.
     const icono = despachar(entorno, peticion("/icon"));
-    assert.ok(icono.interceptada, "el worker no reconoce las URL de su cascarón");
+    assert.ok(
+      icono.interceptada,
+      "el worker no reconoce las URL de su cascarón",
+    );
     assert.equal(await cuerpoDe(await icono.promesa), "recurso /icon");
     ok();
   }
@@ -450,7 +479,9 @@ async function principal(): Promise<void> {
   {
     const entorno = montar();
     servirCascaron(entorno.red);
-    entorno.red.rutas.set("/v1/cad/documents/x", () => html('{"documento":"real"}'));
+    entorno.red.rutas.set("/v1/cad/documents/x", () =>
+      html('{"documento":"real"}'),
+    );
     await ciclo(entorno, "install");
 
     // Con red: el worker no toca la petición y no guarda nada nuevo.
@@ -463,13 +494,20 @@ async function principal(): Promise<void> {
       "el worker no debe interceptar /v1/*: no basta con no guardar, hay que no mirar",
     );
     assert.equal(await cuerpoDe(await conRed.promesa), '{"documento":"real"}');
-    assert.deepEqual(cache.urls(), antes, "una respuesta de /v1/* acabó en la caché");
+    assert.deepEqual(
+      cache.urls(),
+      antes,
+      "una respuesta de /v1/* acabó en la caché",
+    );
 
     // Aunque la caché estuviera ENVENENADA con una copia vieja del documento y la
     // red se caiga, el worker no la sirve: propaga el fallo para que
     // document-lifecycle/connectivity.ts marque el guardado pendiente en vez de
     // creerse que guardó.
-    await cache.put(peticion("/v1/cad/documents/x"), html('{"documento":"VIEJO"}'));
+    await cache.put(
+      peticion("/v1/cad/documents/x"),
+      html('{"documento":"VIEJO"}'),
+    );
     const consultasPrevias = cache.consultas.length;
     entorno.red.caida = true;
     const sinRed = despachar(entorno, peticion("/v1/cad/documents/x"));
@@ -489,7 +527,10 @@ async function principal(): Promise<void> {
     // Un enlace de revisión abierto en una pestaña llega como navegación, y sin
     // el guardia caería en `network-first` — que guarda el HTML y, sin red,
     // sirve el documento de otro o el cascarón en lugar del error real.
-    const comoNavegacion = despachar(entorno, navegacion("/v1/cad/documents/x"));
+    const comoNavegacion = despachar(
+      entorno,
+      navegacion("/v1/cad/documents/x"),
+    );
     assert.equal(
       comoNavegacion.interceptada,
       false,
@@ -499,7 +540,10 @@ async function principal(): Promise<void> {
 
     // Y lo mismo para otro origen: la API vive fuera (connect-src * en
     // next.config.ts), así que su host ni siquiera comparte el prefijo /v1/.
-    const ajena = despachar(entorno, peticion("https://api.otro.example/_next/static/a.js"));
+    const ajena = despachar(
+      entorno,
+      peticion("https://api.otro.example/_next/static/a.js"),
+    );
     assert.equal(
       ajena.interceptada,
       false,
@@ -532,7 +576,11 @@ async function principal(): Promise<void> {
       );
       await envio.promesa;
     }
-    assert.deepEqual(cache.urls(), antes, "un método distinto de GET escribió en la caché");
+    assert.deepEqual(
+      cache.urls(),
+      antes,
+      "un método distinto de GET escribió en la caché",
+    );
     ok();
   }
 
@@ -553,7 +601,11 @@ async function principal(): Promise<void> {
       [SW_CACHE_NAME],
       "activate debe dejar sólo la caché de la versión vigente",
     );
-    assert.equal(entorno.clients.llamadas, 1, "activate debe reclamar los clientes");
+    assert.equal(
+      entorno.clients.llamadas,
+      1,
+      "activate debe reclamar los clientes",
+    );
     ok();
   }
 
@@ -561,7 +613,9 @@ async function principal(): Promise<void> {
   {
     const entorno = montar();
     servirCascaron(entorno.red);
-    entorno.red.rutas.set("/cuenta", () => html("CUENTA DE ALGUIEN", { Vary: "Cookie" }));
+    entorno.red.rutas.set("/cuenta", () =>
+      html("CUENTA DE ALGUIEN", { Vary: "Cookie" }),
+    );
     // Con `clone()` de verdad: sin él, quitar el guardia de opacas reventaría con
     // un TypeError en vez de con la aserción que explica qué se rompió.
     const opaca = (): RespuestaDoble => ({
@@ -572,15 +626,22 @@ async function principal(): Promise<void> {
       text: async () => "",
     });
     entorno.red.rutas.set("/_next/static/chunk.opaca.js", opaca);
-    entorno.red.rutas.set("/precios", () =>
-      new Response("REDIRIGIDO", { status: 302 }) as unknown as RespuestaDoble,
+    entorno.red.rutas.set(
+      "/precios",
+      () =>
+        new Response("REDIRIGIDO", {
+          status: 302,
+        }) as unknown as RespuestaDoble,
     );
     await ciclo(entorno, "install");
     const cache = await entorno.caches.open(SW_CACHE_NAME);
     const antes = cache.urls();
 
     for (const despacho of [
-      despachar(entorno, navegacion("/cuenta", { Cookie: "__Host-valle_session=a" })),
+      despachar(
+        entorno,
+        navegacion("/cuenta", { Cookie: "__Host-valle_session=a" }),
+      ),
       despachar(entorno, navegacion("/precios")),
       despachar(entorno, peticion("/_next/static/chunk.opaca.js")),
     ]) {
@@ -610,11 +671,13 @@ async function principal(): Promise<void> {
     const entorno = montar();
     servirCascaron(entorno.red);
     let version = 1;
-    entorno.red.rutas.set("/_next/static/chunks/estudio.9f2a.js", () =>
-      new Response(`chunk v${version}`, {
-        status: 200,
-        headers: { "Content-Type": "text/javascript" },
-      }) as unknown as RespuestaDoble,
+    entorno.red.rutas.set(
+      "/_next/static/chunks/estudio.9f2a.js",
+      () =>
+        new Response(`chunk v${version}`, {
+          status: 200,
+          headers: { "Content-Type": "text/javascript" },
+        }) as unknown as RespuestaDoble,
     );
     await ciclo(entorno, "install");
 
@@ -681,7 +744,9 @@ async function principal(): Promise<void> {
 
     // Con una copia fechada AHORA, el margen manda y no se vuelve a pedir.
     const fresco = montar();
-    servirCascaron(fresco.red, "OFFLINE fresco", { Date: new Date().toUTCString() });
+    servirCascaron(fresco.red, "OFFLINE fresco", {
+      Date: new Date().toUTCString(),
+    });
     fresco.red.rutas.set("/dashboard", () => html("TABLERO"));
     await ciclo(fresco, "install");
     const pedidasTrasInstalar = fresco.red.pedidas.length;
@@ -721,7 +786,11 @@ async function principal(): Promise<void> {
       "ni un mensaje vacío, ni un objeto, ni otro mensaje pueden forzar el relevo",
     );
     oyente({ data: SW_MENSAJE_SALTAR_ESPERA });
-    assert.equal(entorno.saltos.skipWaiting, 1, "el mensaje declarado sí salta la espera");
+    assert.equal(
+      entorno.saltos.skipWaiting,
+      1,
+      "el mensaje declarado sí salta la espera",
+    );
     ok();
   }
 
@@ -741,15 +810,30 @@ async function principal(): Promise<void> {
      aquí con su motivo. */
   {
     const raizApp = path.resolve("src/app");
-    const paginas = readdirSync(raizApp, { recursive: true, encoding: "utf8" }).filter(
-      (relativa) => /(?:^|\/)(?:page|layout)\.tsx$/.test(relativa),
+    const paginas = readdirSync(raizApp, {
+      recursive: true,
+      encoding: "utf8",
+    }).filter((relativa) => /(?:^|\/)(?:page|layout)\.tsx$/.test(relativa));
+    assert.ok(
+      paginas.length > 20,
+      `sólo se encontraron ${paginas.length} páginas: el barrido falló`,
     );
-    assert.ok(paginas.length > 20, `sólo se encontraron ${paginas.length} páginas: el barrido falló`);
 
-    const CON_IDENTIDAD_EN_SERVIDOR: string[] = [];
+    // `layout.tsx` (T-18d/T-63e) lee `headers()` para un único dato:
+    // `x-valle-pathname`, que `middleware.ts` reenvía a partir de la URL de
+    // la propia petición — nunca una cookie ni nada de sesión — y con eso
+    // decide `htmlLang`. Para una URL dada, el HTML que sale es el mismo
+    // para cualquiera que la pida: la invariante que este bloque protege
+    // (el HTML no lleva identidad de nadie) sigue en pie, sólo que ahora
+    // varía por RUTA además de por el idioma que ya declaraba `/sin-conexion`
+    // — y una ruta ya es la clave con la que el caché de navegación guarda
+    // cada entrada, así que variar por ruta no es una fuga nueva.
+    const CON_IDENTIDAD_EN_SERVIDOR: string[] = ["layout.tsx"];
     const infractoras = paginas.filter((relativa) => {
       if (CON_IDENTIDAD_EN_SERVIDOR.includes(relativa)) return false;
-      return /from\s+"next\/headers"/.test(readFileSync(path.join(raizApp, relativa), "utf8"));
+      return /from\s+"next\/headers"/.test(
+        readFileSync(path.join(raizApp, relativa), "utf8"),
+      );
     });
     assert.deepEqual(
       infractoras,
