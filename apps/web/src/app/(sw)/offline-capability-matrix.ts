@@ -464,6 +464,8 @@ export const MATRIZ_SIN_RED: readonly FilaSinRed[] = [
       "/v1/auth/mfa/activate",
       "/v1/auth/mfa/disable",
       "/v1/auth/mfa/backup-codes",
+      "/v1/auth/password/change",
+      "/v1/auth/profile",
     ],
     porque:
       "Son operaciones de seguridad sobre estado del servidor. Una respuesta cacheada aquí no es un dato viejo: es decirle a alguien que revocó una sesión que sigue revocada cuando quizá no lo está.",
@@ -493,6 +495,7 @@ export const MATRIZ_SIN_RED: readonly FilaSinRed[] = [
       "/v1/organizations",
       "/v1/organizations/active",
       "/v1/organizations/:id/memberships",
+      "/v1/organizations/:id/memberships/:id",
       "/v1/organizations/:id/invitations",
       "/v1/organizations/invitations/accept",
     ],

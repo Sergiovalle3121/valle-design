@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { isUniqueViolation } from '../../common/database/unique-violation';
 import {
   EMAIL_SERVICE,
@@ -21,7 +21,6 @@ import {
   Credential,
   IdentityAuditEvent,
   OneTimeToken,
-  OneTimeTokenPurpose,
   Session,
   User,
 } from './entities/identity.entity';
@@ -30,14 +29,21 @@ import {
   DUMMY_PASSWORD_HASH,
   hashArgon2idPassword,
   hashOpaqueToken,
-  MAX_TOKEN_LENGTH,
+  MAX_DISPLAY_NAME_LENGTH,
   verifyArgon2idPassword,
 } from './identity-security';
 import { IdentityMfaService } from './identity-mfa.service';
+import {
+  consumeTokenWithManager,
+  enqueueIdentityEmail,
+  issueIdentityEmailToken,
+  issueIdentityEmailTokenWithManager,
+  lockIdentitySubject,
+  validOpaqueToken,
+} from './identity-token-issuance';
 
 export { CSRF_COOKIE, SESSION_COOKIE } from './identity-security';
 
-const OPAQUE_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/u;
 const SESSION_COOKIE_PATTERN =
   /^([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\.([A-Za-z0-9_-]{43})$/iu;
 
@@ -129,7 +135,8 @@ export class IdentityService {
             expiresAt: new Date(Date.now() + 24 * 3_600_000),
           }),
         );
-        await this.enqueueIdentityEmail(
+        await enqueueIdentityEmail(
+          this.email,
           manager,
           user,
           token,
@@ -235,9 +242,9 @@ export class IdentityService {
     cookie: string;
     csrf: string;
   } | null> {
-    if (!this.validOpaqueToken(challenge)) return null;
+    if (!validOpaqueToken(challenge)) return null;
     const consumed = await this.dataSource.transaction((manager) =>
-      this.consumeTokenWithManager(manager, challenge, 'mfa_challenge'),
+      consumeTokenWithManager(manager, challenge, 'mfa_challenge'),
     );
     if (!consumed) return null;
 
@@ -360,7 +367,9 @@ export class IdentityService {
   async sendVerificationEmail(email: string): Promise<void> {
     const user = await this.findUserByEmail(email);
     if (!user || user.emailVerifiedAt) return;
-    await this.issueIdentityEmailToken(
+    await issueIdentityEmailToken(
+      this.dataSource,
+      this.email,
       user,
       'verify_email',
       24 * 3_600_000,
@@ -372,7 +381,9 @@ export class IdentityService {
   async sendPasswordResetEmail(email: string): Promise<void> {
     const user = await this.findUserByEmail(email);
     if (!user) return;
-    await this.issueIdentityEmailToken(
+    await issueIdentityEmailToken(
+      this.dataSource,
+      this.email,
       user,
       'reset_password',
       60 * 60_000,
@@ -382,13 +393,9 @@ export class IdentityService {
   }
 
   async verifyEmail(raw: string): Promise<boolean> {
-    if (!this.validOpaqueToken(raw)) return false;
+    if (!validOpaqueToken(raw)) return false;
     return this.dataSource.transaction(async (manager) => {
-      const token = await this.consumeTokenWithManager(
-        manager,
-        raw,
-        'verify_email',
-      );
+      const token = await consumeTokenWithManager(manager, raw, 'verify_email');
       if (!token) return false;
       const result = await manager.update(User, token.subjectId, {
         emailVerifiedAt: new Date(),
@@ -408,10 +415,10 @@ export class IdentityService {
   }
 
   async resetPassword(raw: string, password: string): Promise<boolean> {
-    if (!this.validOpaqueToken(raw)) return false;
+    if (!validOpaqueToken(raw)) return false;
     const passwordHash = await this.hashPassword(password);
     return this.dataSource.transaction(async (manager) => {
-      const token = await this.consumeTokenWithManager(
+      const token = await consumeTokenWithManager(
         manager,
         raw,
         'reset_password',
@@ -447,6 +454,160 @@ export class IdentityService {
   }
 
   /**
+   * T-60b: cambiar la contraseña ESTANDO DENTRO de la sesión — el hueco que
+   * `resetPassword` no cubre, porque ese camino exige perder el acceso
+   * primero (pedir un correo). Exige la CONTRASEÑA ACTUAL por la misma razón
+   * que dar de alta el segundo factor la exige (ver `beginMfaEnrollment`):
+   * una sesión abierta en una máquina desatendida no puede bastar para
+   * cambiar la contraseña, o el cambio de contraseña dejaría de ser un
+   * mecanismo de defensa y pasaría a ser un mecanismo de secuestro.
+   *
+   * Revoca las DEMÁS sesiones (no la que hizo el cambio): quien cambia su
+   * contraseña desde su propio dispositivo no espera que ESE dispositivo
+   * cierre sesión, pero sí espera que cualquier otro —incluido uno que un
+   * atacante hubiera abierto con una contraseña filtrada— deje de servir.
+   */
+  async changePassword(
+    userId: string,
+    currentSessionId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<boolean> {
+    const credential = await this.credentials.findOneBy({ userId });
+    const candidateHash =
+      credential?.algorithm === 'argon2id'
+        ? credential.passwordHash
+        : DUMMY_PASSWORD_HASH;
+    const valid = await this.verifyPassword(candidateHash, currentPassword);
+    if (!credential || !valid) return false;
+
+    const passwordHash = await this.hashPassword(newPassword);
+    await this.dataSource.transaction(async (manager) => {
+      await manager.update(
+        Credential,
+        { userId },
+        { passwordHash, algorithm: 'argon2id' },
+      );
+      await manager
+        .createQueryBuilder()
+        .update(Session)
+        .set({ revokedAt: new Date() })
+        .where(
+          'userId = :userId AND id != :currentSessionId AND revokedAt IS NULL',
+          { userId, currentSessionId },
+        )
+        .execute();
+      await manager.save(
+        IdentityAuditEvent,
+        manager.create(IdentityAuditEvent, {
+          actorUserId: userId,
+          action: 'identity.password_changed',
+        }),
+      );
+    });
+    return true;
+  }
+
+  /**
+   * T-60d: la ruta de perfil que no existía — cambiar el nombre visible y el
+   * correo desde dentro de la cuenta.
+   *
+   * El nombre se cambia sin más: no protege nada. El correo es distinto —es
+   * el identificador con el que se entra y a donde llegan los avisos de
+   * seguridad—, así que:
+   *
+   *   1. Exige la CONTRASEÑA, mismo patrón que `changePassword` y
+   *      `beginMfaEnrollment`: una sesión abierta no basta para mover a dónde
+   *      llegan los correos de recuperación.
+   *   2. Comprueba que nadie más lo tenga ya (el índice único de `email` lo
+   *      protegería igual, pero un 409 con nombre es mejor que una violación
+   *      de índice sin traducir).
+   *   3. Marca la cuenta SIN VERIFICAR y encola la verificación al correo
+   *      NUEVO, dentro de la MISMA transacción: reutiliza el camino que ya
+   *      existe para el alta (`identity.verify-email`, purpose
+   *      `verify_email`) en vez de inventar un flujo de "correo pendiente"
+   *      aparte. Hasta que se verifique, el correo del login YA es el nuevo
+   *      —no hay un estado intermedio de "correo a medias"—, así que quien
+   *      lo cambió por error necesita poder pedir un reenvío o restablecer
+   *      con el correo nuevo, no quedarse fuera.
+   *
+   * Devuelve el usuario actualizado y si quedó pendiente de verificar.
+   */
+  async updateProfile(
+    userId: string,
+    input: {
+      displayName?: string | null;
+      email?: string;
+      currentPassword?: string;
+    },
+  ): Promise<
+    | { ok: true; user: User; emailChangePending: boolean }
+    | { ok: false; reason: 'invalid_password' | 'email_in_use' }
+  > {
+    return this.dataSource.transaction(async (manager) => {
+      const user = await manager.findOneByOrFail(User, { id: userId });
+      let emailChangePending = false;
+
+      if (input.email !== undefined) {
+        const normalized = this.normalizeEmail(input.email);
+        if (normalized !== user.email) {
+          const credential = await manager.findOneBy(Credential, { userId });
+          const candidateHash =
+            credential?.algorithm === 'argon2id'
+              ? credential.passwordHash
+              : DUMMY_PASSWORD_HASH;
+          const valid = await this.verifyPassword(
+            candidateHash,
+            input.currentPassword ?? '',
+          );
+          if (!credential || !valid) {
+            return { ok: false, reason: 'invalid_password' as const };
+          }
+          const existing = await manager.findOneBy(User, {
+            email: normalized,
+          });
+          if (existing && existing.id !== userId) {
+            return { ok: false, reason: 'email_in_use' as const };
+          }
+          user.email = normalized;
+          user.emailVerifiedAt = null;
+          emailChangePending = true;
+        }
+      }
+      if (input.displayName !== undefined) {
+        const trimmed = input.displayName?.trim();
+        user.displayName =
+          trimmed && trimmed.length > 0
+            ? trimmed.slice(0, MAX_DISPLAY_NAME_LENGTH)
+            : null;
+      }
+
+      await manager.save(User, user);
+      await manager.save(
+        IdentityAuditEvent,
+        manager.create(IdentityAuditEvent, {
+          actorUserId: userId,
+          action: 'identity.profile_updated',
+          metadata: { emailChanged: emailChangePending },
+        }),
+      );
+      if (emailChangePending) {
+        await issueIdentityEmailTokenWithManager(
+          this.dataSource,
+          this.email,
+          manager,
+          user,
+          'verify_email',
+          24 * 3_600_000,
+          'identity.verify-email',
+          '/verify-email',
+        );
+      }
+      return { ok: true, user, emailChangePending };
+    });
+  }
+
+  /**
    * El desafío entre la contraseña y el código. Cinco minutos.
    *
    * Suficiente para abrir la aplicación de autenticación y teclear seis
@@ -460,7 +621,7 @@ export class IdentityService {
     const raw = this.newToken();
     const expiresAt = new Date(Date.now() + 5 * 60_000);
     await this.dataSource.transaction(async (manager) => {
-      await this.lockIdentitySubject(manager, user.id);
+      await lockIdentitySubject(this.dataSource, manager, user.id);
       await manager
         .createQueryBuilder()
         .update(OneTimeToken)
@@ -580,106 +741,5 @@ export class IdentityService {
       order: { createdAt: 'DESC' },
       take: Math.min(Math.max(limit, 1), 100),
     });
-  }
-
-  private async issueIdentityEmailToken(
-    user: User,
-    purpose: OneTimeTokenPurpose,
-    ttlMs: number,
-    template: string,
-    path: string,
-  ): Promise<void> {
-    const raw = this.newToken();
-    await this.dataSource.transaction(async (manager) => {
-      await this.lockIdentitySubject(manager, user.id);
-      await manager
-        .createQueryBuilder()
-        .update(OneTimeToken)
-        .set({ consumedAt: new Date() })
-        .where(
-          'subjectId = :userId AND purpose = :purpose AND consumedAt IS NULL',
-          { userId: user.id, purpose },
-        )
-        .execute();
-      const token = await manager.save(
-        OneTimeToken,
-        manager.create(OneTimeToken, {
-          subjectId: user.id,
-          purpose,
-          tokenHash: this.hashToken(raw),
-          expiresAt: new Date(Date.now() + ttlMs),
-        }),
-      );
-      await this.enqueueIdentityEmail(
-        manager,
-        user,
-        token,
-        raw,
-        template,
-        path,
-      );
-    });
-  }
-
-  private async lockIdentitySubject(
-    manager: EntityManager,
-    userId: string,
-  ): Promise<void> {
-    if (this.dataSource.options.type !== 'postgres') return;
-    await manager
-      .getRepository(User)
-      .createQueryBuilder('identity_user')
-      .setLock('pessimistic_write')
-      .where('identity_user.id = :userId', { userId })
-      .getOneOrFail();
-  }
-
-  private async enqueueIdentityEmail(
-    manager: EntityManager,
-    user: User,
-    token: OneTimeToken,
-    raw: string,
-    template: string,
-    path: string,
-  ): Promise<void> {
-    await this.email.enqueue(
-      {
-        organizationId: null,
-        tenantId: null,
-        to: user.email,
-        template,
-        payload: {
-          token: raw,
-          path: `${path}?token=${encodeURIComponent(raw)}`,
-          expiresAt: token.expiresAt.toISOString(),
-        },
-        idempotencyKey: `${template}:${token.id}`,
-      },
-      { native: manager },
-    );
-  }
-
-  private validOpaqueToken(raw: string): boolean {
-    return raw.length <= MAX_TOKEN_LENGTH && OPAQUE_TOKEN_PATTERN.test(raw);
-  }
-
-  private async consumeTokenWithManager(
-    manager: EntityManager,
-    raw: string,
-    purpose: OneTimeTokenPurpose,
-  ): Promise<OneTimeToken | null> {
-    const token = await manager.findOne(OneTimeToken, {
-      where: { tokenHash: this.hashToken(raw), purpose },
-    });
-    if (!token || token.consumedAt || token.expiresAt <= new Date()) {
-      return null;
-    }
-    const result = await manager
-      .createQueryBuilder()
-      .update(OneTimeToken)
-      .set({ consumedAt: new Date() })
-      .where('id = :id AND consumedAt IS NULL', { id: token.id })
-      .execute();
-    return result.affected ? token : null;
   }
 }

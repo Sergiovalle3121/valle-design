@@ -3,6 +3,7 @@
 export interface DesignSession {
   userId: string;
   email: string;
+  displayName: string | null;
   role: string | null;
   tenantId: string | null;
   organizationId: string | null;

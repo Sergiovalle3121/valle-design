@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import "./globals.css";
 import "./fonts.css";
 import { getLocale, getMessages } from "next-intl/server";
@@ -9,6 +10,7 @@ import { ToastProvider } from "@/contexts/ToastContext";
 import { BRAND } from "@/config/brand";
 import { PRELOAD_FONTS } from "@/config/fonts-generated";
 import { SITE_URL } from "@/config/site-routes";
+import { PATHNAME_HEADER, isBilingualRoute } from "@/i18n/route-language";
 
 /**
  * TIPOGRAFÍA DE LA MARCA — autohospedada y bajo control directo.
@@ -122,10 +124,16 @@ export default async function RootLayout({
   // Idioma resuelto por next-intl desde la cookie (SSR-safe, patrón del origen).
   const locale = await getLocale();
   const messages = await getMessages();
+  // T-18d / T-63e: `<html lang>` declara el idioma del selector EN/ES sólo en
+  // las rutas que de verdad lo consumen (ver `route-language.ts`); el resto
+  // del producto es español escrito a mano y así lo declara, aunque nadie
+  // haya elegido idioma todavía.
+  const pathname = (await headers()).get(PATHNAME_HEADER) ?? "";
+  const htmlLang = isBilingualRoute(pathname) ? locale : "es";
 
   return (
     <html
-      lang={locale}
+      lang={htmlLang}
       className="h-full antialiased"
       suppressHydrationWarning
     >

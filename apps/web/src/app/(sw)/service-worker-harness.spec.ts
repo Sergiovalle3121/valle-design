@@ -746,7 +746,10 @@ async function principal(): Promise<void> {
     );
     assert.ok(paginas.length > 20, `sólo se encontraron ${paginas.length} páginas: el barrido falló`);
 
-    const CON_IDENTIDAD_EN_SERVIDOR: string[] = [];
+    // layout.tsx (T-18d) lee headers() sólo para x-valle-pathname, que
+    // middleware.ts deriva de la URL de la petición, nunca de una cookie:
+    // el HTML sigue siendo el mismo para cualquiera que pida esa URL.
+    const CON_IDENTIDAD_EN_SERVIDOR: string[] = ["layout.tsx"];
     const infractoras = paginas.filter((relativa) => {
       if (CON_IDENTIDAD_EN_SERVIDOR.includes(relativa)) return false;
       return /from\s+"next\/headers"/.test(readFileSync(path.join(raizApp, relativa), "utf8"));

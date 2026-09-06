@@ -169,7 +169,11 @@ describe('standalone OpenAPI contract against the real Nest router', () => {
     //   sesión (`login/mfa`), las cinco de administrar el segundo factor
     //   (estado, alta, activación, baja y códigos de respaldo) y la actividad
     //   reciente de la cuenta.
-    expect(expected).toHaveLength(46);
+    // + las 4 de T-60: cambiar de rol y expulsar a un miembro
+    //   (PATCH/DELETE .../memberships/{membershipId}), cambiar la
+    //   contraseña estando dentro de la sesión (POST .../password/change) y
+    //   cambiar nombre visible/correo (PATCH .../profile).
+    expect(expected).toHaveLength(50);
     expect([...actual].sort()).toEqual(expected.sort());
   });
 });

@@ -18,10 +18,12 @@ import {
   BILLING_PATH,
   canCancelSubscription,
   canOpenCheckout,
+  checkoutPath,
   pendingPaymentNotice,
   PRICING_PATH,
   type PendingPayment,
 } from "@/lib/commercial/checkout";
+import { fetchPublicCatalog } from "@/lib/commercial/public-catalog";
 import { TaxProfileForm } from "./TaxProfileForm";
 
 type LoadState =
@@ -81,6 +83,13 @@ export function BillingPortal() {
   );
   const [portal, setPortal] = useState<PortalState>({ status: "idle" });
   const [attempt, setAttempt] = useState(0);
+  /**
+   * T-61: el enlace para comprar el asiento siguiente. `null` mientras no se
+   * sabe si el plan actual se vende por asiento — se resuelve leyendo el
+   * catálogo público, la MISMA fuente que `/precios`, para no inventar aquí
+   * un segundo origen de precios.
+   */
+  const [addSeatPath, setAddSeatPath] = useState<string | null>(null);
 
   const gate: SessionGate = auth.isLoading
     ? "loading"
@@ -102,6 +111,36 @@ export function BillingPortal() {
         if (cancelled) return;
         setSubscription(current.subscription);
         setPendingPayment(current.pendingPayment);
+        // Sólo tiene sentido en un plan por asiento y con suscripción activa:
+        // un fallo aquí (catálogo caído, plan ya no publicable) no debe tirar
+        // el resto del portal — el botón sencillamente no aparece.
+        if (current.subscription?.status === "active") {
+          void fetchPublicCatalog()
+            .then((catalog) => {
+              if (cancelled) return;
+              const plan = catalog.items.find(
+                (item) => item.code === current.subscription?.planCode,
+              );
+              const price = plan?.prices[0];
+              if (!plan?.perSeat || !price) {
+                setAddSeatPath(null);
+                return;
+              }
+              setAddSeatPath(
+                checkoutPath({
+                  planCode: plan.code,
+                  currency: price.currency,
+                  period: price.period,
+                  seats: (current.subscription?.seats ?? plan.seatsMinimum) + 1,
+                }),
+              );
+            })
+            .catch(() => {
+              if (!cancelled) setAddSeatPath(null);
+            });
+        } else {
+          setAddSeatPath(null);
+        }
         try {
           const history = await designClient.commercial.invoices();
           if (cancelled) return;
@@ -272,6 +311,15 @@ export function BillingPortal() {
               por encima de ese número, la API lo rechaza: el límite no vive en
               esta pantalla.
             </p>
+            {addSeatPath && canOpenCheckout(auth.role) && (
+              <Link
+                className={`${actionClass} mt-3 inline-block`}
+                href={addSeatPath}
+                data-testid="add-seat"
+              >
+                Comprar un asiento más
+              </Link>
+            )}
           </div>
         ) : (
           <p className="mt-4" role="status">

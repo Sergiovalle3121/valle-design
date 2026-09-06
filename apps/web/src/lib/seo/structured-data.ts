@@ -58,7 +58,13 @@ export function softwareApplicationJsonLd({
     url: absoluteUrl("/"),
     applicationCategory: "DesignApplication",
     applicationSubCategory: "CAD",
-    operatingSystem: "Navegador web (Chrome, Edge, Firefox, Safari)",
+    // T-18b: sólo se nombran los motores que un proyecto REAL de Playwright
+    // ejercita (`playwright.config.ts`). Chrome y Edge comparten Chromium, así
+    // que el proyecto "chromium" respalda a los dos; Firefox tiene el suyo.
+    // Safari corre sobre WebKit y NINGÚN proyecto lo ejercita hoy — afirmarlo
+    // aquí sería un claim sin evidencia, así que se recorta hasta que exista
+    // ese proyecto en CI (ver `structured-data-browser-claim.spec.ts`).
+    operatingSystem: "Navegador web (Chrome, Edge, Firefox)",
     inLanguage: "es-MX",
     featureList: [...featureList],
     publisher: publisherNode(),

@@ -55,11 +55,13 @@ const hosted: PublicCatalog = {
   checkout: "hosted",
   items: [individual, despacho, prueba],
   trialDays: 90,
+  cfdi: "manual",
 };
 const external: PublicCatalog = {
   checkout: "external",
   items: [individual, despacho, prueba],
   trialDays: 90,
+  cfdi: "manual",
 };
 
 // ── Céntimos → pesos mexicanos ─────────────────────────────────────────────
