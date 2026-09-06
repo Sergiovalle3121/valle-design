@@ -27,28 +27,28 @@
   "hallazgo": "La ÚNICA marca `independent: true` del lado DXF de la rúbrica de hoy está en dxf.corpus-external y apunta a docs/cad/evidence/dxf-external-corpus-matrix.json, cuyo propio encabezado dice `corpusSintetico: true`. Hoy no infla la cuenta porque ese criterio no se concede (falta la firma humana de derechos), pero el día que la firma llegue sin P-evidencia-04 concedería 2 pt de «independencia» a un corpus que generó este proyecto. P-evidencia-04 sustituye esa entrada por el corpus real.",
   "medido": {
     "antes": {
-      "total": "244/271",
-      "porcentaje": 90,
-      "alcanceHoy": "185/197",
-      "puntosConEvidenciaIndependiente": 28,
-      "filasConTope": 20
+      "total": "246/309",
+      "porcentaje": 79.6,
+      "alcanceHoy": "185/213",
+      "puntosConEvidenciaIndependiente": 27,
+      "filasConTope": 19
     },
     "despuesDeAplicarLosParchesDeEsteCenso": {
-      "total": "244/271",
-      "porcentaje": 90,
-      "alcanceHoy": "185/197",
-      "puntosConEvidenciaIndependiente": 28,
-      "filasConTope": 20
+      "total": "246/309",
+      "porcentaje": 79.6,
+      "alcanceHoy": "185/213",
+      "puntosConEvidenciaIndependiente": 27,
+      "filasConTope": 19
     },
     "comoSeMidio": "Clonando la rúbrica en memoria, aplicándole los parches de las filas `servible_hoy` y volviendo a llamar a scoreRubric() con el mismo contexto. docs/competitive/rubric.json NO se toca: es archivo compartido y lo aplica el coordinador."
   },
   "resumen": {
-    "filasConTope": 20,
-    "puntosRetenidos": 20,
+    "filasConTope": 19,
+    "puntosRetenidos": 19,
     "porVeredicto": {
       "servible_hoy": 0,
       "bloqueado_por_defecto_medido": 0,
-      "el_corpus_de_hoy_no_lo_alcanza": 14,
+      "el_corpus_de_hoy_no_lo_alcanza": 13,
       "no_lo_sirve_material_ajeno": 6
     }
   },
@@ -295,50 +295,6 @@
       "loQueDiceElTestigo": "Lo que el corpus dice de las directrices es lo contrario de lo que haría falta: las 6 LEADER de floorplan.dxf constan como pérdida DECLARADA —el lector no las trae— y ninguno de los diecinueve archivos trae MLEADER ni ACAD_TABLE.",
       "limiteDelParche": null,
       "loQueFaltaria": "Primero la capacidad (importar LEADER), y sólo después el testigo. Un corpus ajeno con MLEADER exige ficheros guardados por un programa que los escriba, y las dos bibliotecas MIT del corpus no los tienen entre sus ficheros de prueba.",
-      "peticion": null,
-      "parche": null
-    },
-    {
-      "id": "xrefs",
-      "grupo": "pro",
-      "alcance": "hoy",
-      "nombre": "Xrefs",
-      "puntos": 6,
-      "otorgadosAntesDelTope": 6,
-      "conElTope": 5,
-      "criteriosOtorgados": [
-        {
-          "id": "xrefs.document",
-          "puntos": 2,
-          "clasesDeEvidencia": [
-            "file",
-            "golden",
-            "spec"
-          ]
-        },
-        {
-          "id": "xrefs.resolution",
-          "puntos": 2,
-          "clasesDeEvidencia": [
-            "spec"
-          ]
-        },
-        {
-          "id": "xrefs.commands",
-          "puntos": 2,
-          "clasesDeEvidencia": [
-            "command",
-            "golden",
-            "spec"
-          ]
-        }
-      ],
-      "candidato": "xrefs.resolution",
-      "porQueEseCandidato": "Resolver una referencia externa exige el fichero que la contiene Y el fichero al que apunta; eso es lo que un corpus ajeno tendría que traer.",
-      "veredicto": "el_corpus_de_hoy_no_lo_alcanza",
-      "loQueDiceElTestigo": "floorplan.dxf declara cuatro capas con prefijo de xref, así que el plano ajeno SÍ nació con referencias externas — pero llegó solo. Sin los dibujos referenciados no hay nada que resolver.",
-      "limiteDelParche": null,
-      "loQueFaltaria": "Un conjunto ajeno completo: el dibujo y sus referencias. Ninguna de las dos bibliotecas MIT publica uno; el procedimiento de donación existe (`docs/DONACIONES.md` del repositorio de conformidad) y el donante no.",
       "peticion": null,
       "parche": null
     },

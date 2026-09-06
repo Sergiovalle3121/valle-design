@@ -187,16 +187,17 @@ export const DICTAMENES: Record<string, Dictamen> = {
       "La autoridad de acad.pgp es Autodesk y el fichero viaja con AutoCAD: redistribuirlo es una decisión de derechos que no es de este frente. El camino limpio es un tercero libre que publique la misma tabla (LibreCAD y BricsCAD documentan sus equivalencias) y citarlo con su licencia, igual que se hizo con las dos MIT del corpus DXF.",
   },
 
-  xrefs: {
-    candidato: "xrefs.resolution",
-    porQueEseCandidato:
-      "Resolver una referencia externa exige el fichero que la contiene Y el fichero al que apunta; eso es lo que un corpus ajeno tendría que traer.",
-    veredicto: "el_corpus_de_hoy_no_lo_alcanza",
-    loQueDiceElTestigo:
-      "floorplan.dxf declara cuatro capas con prefijo de xref, así que el plano ajeno SÍ nació con referencias externas — pero llegó solo. Sin los dibujos referenciados no hay nada que resolver.",
-    loQueFaltaria:
-      "Un conjunto ajeno completo: el dibujo y sus referencias. Ninguna de las dos bibliotecas MIT publica uno; el procedimiento de donación existe (`docs/DONACIONES.md` del repositorio de conformidad) y el donante no.",
-  },
+  // `xrefs` salió del censo el 2026-09-06 (campaña «El lunes de un arquitecto»,
+  // T-02): la fila dejó de estar en su tope porque `xrefs.resolution` se partió
+  // en `xrefs.bind` (cobrado) y `xrefs.layers` (todavía no: las capas de la
+  // xref se aplastan a una). Un dictamen de una fila sin tope es lo que este
+  // spec prohíbe. Cuando `xrefs.layers` se cierre y la fila vuelva al tope, el
+  // dictamen vuelve con candidato `xrefs.bind` y este texto: «Resolver una
+  // referencia externa exige el fichero que la contiene Y el fichero al que
+  // apunta; floorplan.dxf declara cuatro capas con prefijo de xref pero llegó
+  // solo. Lo que faltaría: un conjunto ajeno completo —el dibujo y sus
+  // referencias—; el procedimiento de donación existe (docs/DONACIONES.md del
+  // repositorio de conformidad) y el donante no.»
 
   "json-import": {
     candidato: "json-import.fuzzing",

@@ -69,3 +69,14 @@ F8 (despacho), F9 (cimientos y piel), F10 (evidencia independiente), F11
 (inventario AutoCAD 2027 vs Valle). F4 y F11 pidieron confirmación del encargo
 y la recibieron por rutina de sesión. Territorios y rangos de goldens en
 `docs/execution/frentes/README.md`.
+
+### Corrección tras la suite de web (08:12 UTC)
+`npx turbo run test --filter=web` sobre el árbol quieto: 623/624. El rojo era
+`independencia-rubrica.spec.ts`: al partir `xrefs.resolution`, la fila `xrefs`
+dejó de estar en su tope y su dictamen del censo describía un árbol que ya no
+es éste (el spec lo ata por los dos lados, y tiene razón). Se retira el
+dictamen con nota fechada y el texto conservado para cuando la fila vuelva al
+tope, y se regenera `independencia-por-fila.json` con `VALLE_ESCRIBIR_CENSO=1`.
+Es un fichero del territorio de F10, tocado por el coordinador porque la
+consecuencia era de su propia edición de la rúbrica; queda anotado aquí para
+la integración de F10.
