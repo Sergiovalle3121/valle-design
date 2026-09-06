@@ -191,12 +191,53 @@ function remapEntities(entities: readonly CadEntity[], blockId: string): CadEnti
   });
 }
 
+/**
+ * Tipos que `blockChildPaths` (`block-text-adapters.ts`) NO sabe teselar
+ * dentro de un bloque: devuelve `[]` para ellos. Meter uno en una definición
+ * no falla — dibuja NADA, en silencio, y si la disposición borra el original
+ * (la de por defecto), la geometría desaparece del dibujo sin aviso, sin
+ * manifiesto de pérdidas y sin que `REVISA` lo vea (T-19·1). `wall` y
+ * `opening` son los dos que un arquitecto usa a diario; el resto del árbol
+ * no produce hoy ningún `wall`/`opening` designable fuera de sus propios
+ * comandos, así que la lista se declara aquí donde `BLOCK` decide, no en el
+ * teselador — ampliarla el día que `blockChildPaths` aprenda a dibujar algo
+ * más es tocar una línea, no una arquitectura.
+ */
+const CAD_BLOCK_UNSUPPORTED_CHILD_TYPES: ReadonlySet<CadEntity["type"]> = new Set([
+  "wall",
+  "opening",
+]);
+
+/** Nombre legible del tipo, para el mensaje de rechazo. */
+function cadBlockChildTypeLabel(type: CadEntity["type"]): string {
+  return type === "wall" ? "muro" : type === "opening" ? "hueco (puerta/ventana)" : type;
+}
+
 export function cadDefineBlockCommands(input: CadDefineBlockInput): CadDefineBlockResult {
   const name = input.name.trim();
   if (!cadBlockNameIsValid(name))
     throw new Error("El nombre de bloque debe tener de 1 a 96 caracteres válidos de DXF.");
   if (input.entities.length === 0)
     throw new Error("Un bloque necesita al menos un objeto designado.");
+
+  // Fix-or-hide, como ya hace OFFSET con lo que no puede desfasar: negarse Y
+  // NOMBRAR, nunca definir un bloque que dibuje menos de lo que el usuario
+  // designó. Sin este guardián, `BLOCK` sobre un muro con su puerta deja la
+  // definición con el muro invisible (`blockChildPaths` no lo tesela) y, con
+  // la disposición por defecto, BORRA el muro original y su hueco alojado —
+  // un trozo de planta que desaparece sin advertencia.
+  const unsupported = input.entities.filter((entity) => CAD_BLOCK_UNSUPPORTED_CHILD_TYPES.has(entity.type));
+  if (unsupported.length > 0) {
+    const nombrados = unsupported
+      .slice(0, 4)
+      .map((entity) => `${cadBlockChildTypeLabel(entity.type)} «${entity.id}»`)
+      .join(", ");
+    const resto = unsupported.length > 4 ? ` y ${unsupported.length - 4} más` : "";
+    throw new Error(
+      `BLOCK no puede incluir ${nombrados}${resto}: un muro o un hueco dentro de un bloque no se dibuja. ` +
+        "Deje esos objetos fuera de la designación.",
+    );
+  }
 
   const attdefs = input.entities.filter((entity): entity is CadAttdefEntity => entity.type === "attdef");
   const geometry = input.entities.filter((entity) => entity.type !== "attdef");

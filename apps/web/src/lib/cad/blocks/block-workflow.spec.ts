@@ -397,4 +397,73 @@ const withAttributes = (() => {
   ok(!cadFindBlock(defined.document.blocks, "ventana"), "y lo que no está, no está");
 }
 
+// --- 9. T-19·1: BLOCK se NIEGA sobre un muro, en vez de hacerlo invisible ---
+//
+// `blockChildPaths` sólo tesela nueve tipos; un `wall`/`opening` dentro de una
+// definición dibuja NADA. Con la disposición por defecto (`insert`), BLOCK
+// además BORRA el original: designo tres muros con sus puertas, tecleo BLOCK,
+// y el trozo de planta desaparece del dibujo sin advertencia. El arreglo fiel
+// a la casa es fix-or-hide: negarse y NOMBRAR, como OFFSET ya hace con lo que
+// no puede desfasar.
+{
+  const muro: CadEntity = {
+    id: "muro-1", type: "wall",
+    start: { x: 0, y: 0, z: 0 }, end: { x: 3_000, y: 0, z: 0 },
+    thickness: 200, height: 2_600, layer: "0",
+  } as CadEntity;
+  const hueco: CadEntity = {
+    id: "hueco-1", type: "opening", kind: "door", hostId: "muro-1",
+    position: 1_500, width: 900, height: 2_100, sill: 0,
+    swing: "left", hinge: "start", layer: "0",
+  } as CadEntity;
+
+  assert.throws(
+    () =>
+      cadDefineBlockCommands({
+        id: "block:planta",
+        name: "planta",
+        basePoint: { x: 0, y: 0, z: 0 },
+        entities: [muro, hueco],
+        insertId: "insert:planta",
+      }),
+    /muro «muro-1».*hueco.*«hueco-1»|BLOCK no puede incluir/,
+    "BLOCK se niega con los DOS objetos nombrados, no con un mensaje genérico",
+  );
+  checks += 1;
+
+  // El original NO se borra: la orden falló ANTES de emitir ningún comando,
+  // así que no hay `delete` que aplicar.
+  let lanzó = false;
+  try {
+    cadDefineBlockCommands({
+      id: "block:planta2", name: "planta2", basePoint: { x: 0, y: 0, z: 0 },
+      entities: [muro], insertId: "insert:planta2",
+    });
+  } catch (error) {
+    lanzó = true;
+    ok(error instanceof Error && /muro/.test(error.message), "el mensaje nombra el TIPO: muro");
+  }
+  ok(lanzó, "y la orden entera se niega, no define un bloque a medias");
+
+  // Un bloque SIN muros ni huecos sigue funcionando exactamente igual.
+  const sano = cadDefineBlockCommands({
+    id: "block:silla", name: "silla", basePoint: { x: 0, y: 0, z: 0 },
+    entities: doorEntities, insertId: "insert:silla",
+  });
+  ok(sano.commands.length > 0, "una selección sin muros ni huecos se sigue pudiendo bloquear");
+
+  // Y `retain` (no borra el original) TAMBIÉN se niega: la DEFINICIÓN sale
+  // igual de invisible aunque el original sobreviva en el dibujo.
+  assert.throws(
+    () =>
+      cadDefineBlockCommands({
+        id: "block:planta3", name: "planta3", basePoint: { x: 0, y: 0, z: 0 },
+        entities: [muro], insertId: "insert:planta3", disposition: "retain",
+      }),
+    /muro/,
+    "y con `retain` también: la definición seguiría sin dibujar el muro",
+  );
+  checks += 1;
+}
+
 console.log(`block-workflow.spec: ${checks} comprobaciones OK`);
