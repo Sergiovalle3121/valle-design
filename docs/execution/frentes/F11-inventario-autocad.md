@@ -80,12 +80,178 @@ sección 5 son JSON literal para que el coordinador las aplique.
 
 ## 2 · Inventario de AutoCAD 2027 base
 
-> _Pendiente — en investigación. Los 294 comandos del lado Valle ya están
-> extraídos de `command-manifest.ts` (§1); falta que regrese la investigación
-> web de fuentes oficiales de Autodesk para completar la columna "capacidad
-> AutoCAD" con su cita (URL + fecha) por cada uno de los once flujos de
-> usuario del encargo. Se completa en el próximo commit de este frente,
-> lanzado ya en paralelo._
+Fuentes del lado AutoCAD investigadas hoy 2026-09-06 contra
+`help.autodesk.com` (misma limitación de acceso que en §3: `WebFetch`
+bloqueado por política de red del entorno, `EGRESS_BLOCKED`; las
+descripciones vienen de fragmentos de `WebSearch` sobre esas páginas
+oficiales, nunca copiadas literalmente — cada fila cita su URL y fecha).
+Las 294 filas de comandos de Valle vienen de `command-manifest.ts` (§1).
+Por espacio, las filas donde varios comandos de AutoCAD tienen un único
+equivalente maduro en Valle (p. ej. las ocho primitivas de sólido, o las
+diez capas `LAY*`) se agrupan en una sola línea.
+
+### 2.1 · Dibujar
+
+| Capacidad AutoCAD | Comando(s) Valle | ¿Existe? | Evidencia | Peldaño | Fila rúbrica | Valor |
+| --- | --- | --- | --- | --- | --- | --- |
+| LINE, PLINE, CIRCLE, ARC, RECTANG, POLYGON, ELLIPSE, SPLINE — [Autodesk 2027](https://help.autodesk.com/view/ACD/2027/ENU/), 2026-09-06 | mismos nombres (`:96,108,97,100,112,102,101,115`) | SÍ | `draw-2d.commands` evidencia directa (8 comandos citados en `rubric.json`) | 5 | `draw-2d.commands` | alto |
+| DONUT, REVCLOUD, XLINE, RAY, POINT, DIVIDE, MEASURE — [Autodesk 2025/2027 varios](https://help.autodesk.com/view/ACD/2025/ENU/?guid=GUID-46C0F9F2-6112-415C-AB2C-29EEE5984A6F), 2026-09-06 | mismos nombres (`:113-114,98-99,109-111`) | SÍ | `draw-2d.construction` (2 pt, seis comandos citados) | 5 | `draw-2d.construction` | medio |
+| HATCH, GRADIENT, BOUNDARY — [Autodesk 2026](https://help.autodesk.com/cloudhelp/2026/ENU/AutoCAD-Core/files/GUID-410ECEBF-7CC2-4000-A45E-18F1F6BEE423.htm), 2026-09-06 | `HATCH`,`GRADIENT`,`BOUNDARY` (`:51-53`) | SÍ | fila «HATCH asociativo» del resumen de `rubric.mjs` (12/12) | 5 | `hatch` (grupo core) | alto |
+| WIPEOUT — [Autodesk 2027 (núcleo)](https://help.autodesk.com/view/ACD/2027/ENU/), 2026-09-06 | `WIPEOUT` (`:104`) | SÍ | tecleable, `check:command-integrity` lo cubre | 3 | sin fila explícita | bajo |
+| SOLID (relleno heredado) — misma fuente, 2026-09-06 | `SOLID` (`:103`) | SÍ | tecleable | 3 | sin fila explícita | bajo |
+| REGION — [Autodesk 2024](https://help.autodesk.com/cloudhelp/2024/ENU/AutoCAD-Core/files/GUID-A3276CE4-CDFA-45E4-AE15-EDD75DDD5124.htm), 2026-09-06 | `REGION` (`:149`) | SÍ | usado internamente por `HATCH`/`BOUNDARY`, tecleable | 3 | sin fila explícita | bajo |
+| TABLE — [Autodesk 2025](https://help.autodesk.com/view/ACD/2025/ENU/?guid=GUID-CA9995D8-98B2-4BFB-972F-FEB0934A1E33), 2026-09-06 | `TABLE` (`:95`) | SÍ | golden 77 (cuadro de superficies/carpintería en la lámina, texto leído de los bytes del PDF) | 5 | sin fila explícita (evidencia real en `toolset-architecture.interiores`) | alto |
+| Coordenadas absolutas/relativas/polares — [Autodesk 2027](https://help.autodesk.com/view/ACD/2027/ENU/), 2026-09-06 | entrada dinámica del motor | SÍ | `draw-2d.coordinates` | 5 | `draw-2d.coordinates` | alto |
+| OSNAP — [Autodesk 2025](https://help.autodesk.com/view/ACD/2025/ENU/?guid=GUID-6FB309A8-2696-4383-8277-950E9E2756A8), 2026-09-06 | `OSNAP` (`:265`) + motor de enganche | PARCIAL | `draw-2d.osnap`; **pero** `00c-CUADRO-DE-MANDO.md` hallazgo 18 confirma que los adaptadores del documento no alimentan cuatro de los catorce cubos (midpoint, node, insertion, geometric-center) — `professional-snapping.spec.ts:22-42` es un spec VERDE sobre una función MUERTA | 3 | `draw-2d.osnap` | alto — bloqueante confirmado |
+| ORTHO (F8), rastreo polar (F10), rastreo a objetos (F11) — [Autodesk 2024](https://help.autodesk.com/view/ACD/2024/ENU/?guid=GUID-7EC3C63D-EA4E-4E65-A676-C3A3627E3F19), 2026-09-06 | ajustes de dibujo con diálogo aplicable | SÍ | `draw-2d.tracking` | 5 | `draw-2d.tracking` | medio |
+| F7 (cuadrícula), F9 (forzado a rejilla), F12 (entrada dinámica) — [Autodesk 2025](https://help.autodesk.com/view/ACD/2025/ENU/?guid=GUID-A782462F-F85C-4496-85A5-3D9A54548489), 2026-09-06 | ninguno | NO | el `gap` del propio `rubric.json` categoría `draw-2d` lo declara textualmente: «faltan los conmutadores estándar F7 (rejilla), F9 (forzado) y F12 (entrada dinámica), que un dibujante de AutoCAD pulsa sin mirar» | 0 | `draw-2d.toggles` (1 pt, criterio abierto) | alto — es un reflejo muscular de cualquier delineante |
+
+### 2.2 · Modificar
+
+| Capacidad AutoCAD | Comando(s) Valle | ¿Existe? | Evidencia | Peldaño | Fila rúbrica | Valor |
+| --- | --- | --- | --- | --- | --- | --- |
+| ERASE, MOVE, COPY, ROTATE, SCALE, MIRROR, OFFSET — [Autodesk 2015 (Modifying)](https://help.autodesk.com/cloudhelp/2015/ENU/AutoCAD-Core/files/GUID-29B2169B-01D9-429B-9DCD-5D3552E5E68E.htm), 2026-09-06 | mismos nombres (`:175-178,191,196-197`) | SÍ | `modify.basics` (7 comandos citados) | 5 | `modify.basics` | alto |
+| TRIM, EXTEND, FILLET, CHAMFER, BREAK, JOIN — [Autodesk 2023/2024/2025 varios](https://help.autodesk.com/view/ACD/2023/ENU/?guid=GUID-725D3A7A-5E52-47F0-BA7A-7D15F9EF6D7F), 2026-09-06 | mismos nombres (`:182-184,198-199,189`) | SÍ | `modify.edges` (goldens de recorte y empalme) | 5 | `modify.edges` | alto |
+| ARRAY (rectangular/polar/trayectoria), ARRAYEDIT — [Autodesk 2027](https://help.autodesk.com/view/ACD/2027/ENU/), 2026-09-06 | `ARRAY`,`ARRAYEDIT` (`:173-174`) | SÍ | `modify.array` | 5 | `modify.array` | alto |
+| STRETCH, LENGTHEN, ALIGN, PEDIT, SPLINEDIT, EXPLODE — [Autodesk 2023/2024/2025 varios](https://help.autodesk.com/view/ACD/2023/ENU/?guid=GUID-19FDC9E4-049E-40BA-AB6D-58A4C2557570), 2026-09-06 | mismos nombres (`:194-195,171,192-193,190`) | SÍ | `modify.advanced` | 5 | `modify.advanced` | alto |
+| MATCHPROP, GROUP/UNGROUP, OVERKILL, DRAWORDER — [Autodesk varios](https://help.autodesk.com/view/ACADWEB/ENU/?guid=AutoCAD_Web_Help_List_Commands_Matchprop_html), 2026-09-06 | mismos nombres (`:172,138-139,180-181`) | SÍ | `modify.housekeeping` | 5 | `modify.housekeeping` | medio |
+| Pinzamientos (grips) — [Autodesk 2026](https://help.autodesk.com/cloudhelp/2026/ENU/AutoCAD-DidYouKnow/files/GUID-BBEA1F71-EB16-4D49-80D9-970A6909F508.htm), 2026-09-06 | grips nativos | SÍ | `modify.grips` | 5 | `modify.grips` | alto |
+| Selección por ventana/cruce/polígono/valla/lazo — [Autodesk 2024](https://help.autodesk.com/view/ACD/2024/ENU/?guid=GUID-D0D5C0C3-F092-448A-8E81-D38F27094639), 2026-09-06 | `native-selection-index` | SÍ | `modify.selection`; §1.3 del prompt maestro: «el motor de selección profesional está completo por debajo» | 5 | `modify.selection` | alto |
+| QSELECT, FILTER — [Autodesk 2024/2016](https://help.autodesk.com/view/ACD/2024/ENU/?guid=GUID-40893D34-ADBE-406A-8993-9035F2771F1D), 2026-09-06 | `QSELECT`,`FILTER` (`:247-248`) | SÍ | tecleables, `modify.selection` | 5 | `modify.selection` | medio |
+| SELECTSIMILAR, ADDSELECTED, XPLODE, SETBYLAYER, CHPROP, NCOPY — [Autodesk 2016 (SELECTSIMILAR/ADDSELECTED)](https://help.autodesk.com/cloudhelp/2016/ENU/AutoCAD-Core/files/GUID-FBBA809F-9BD4-4A34-B671-0B8A920B18A4.htm), 2026-09-06 | mismos nombres (`:185-188,249-250`) | SÍ | golden 76; `foreign-work.properties` — probado tecleado sobre un plano AJENO | 5 | `foreign-work.properties` | alto |
+
+### 2.3 · Anotar
+
+| Capacidad AutoCAD | Comando(s) Valle | ¿Existe? | Evidencia | Peldaño | Fila rúbrica | Valor |
+| --- | --- | --- | --- | --- | --- | --- |
+| TEXT/DTEXT, MTEXT, DDEDIT — [Autodesk 2018](https://help.autodesk.com/cloudhelp/2018/ENU/AutoCAD-MAC-Core/files/GUID-24805E39-45F8-427E-A9CE-9A1E93E58D04.htm), 2026-09-06 | `TEXT`,`MTEXT`,`DDEDIT` (`:64-66`) | SÍ | fila «MTEXT y texto» del resumen de `rubric.mjs` (9/9) | 5 | `mtext` (grupo core) | alto |
+| DIMLINEAR…DIMORDINATE, DIMBASELINE, DIMCONTINUE, QDIM, DIM — [Autodesk 2025](https://help.autodesk.com/view/ACD/2025/ENU/?guid=GUID-9D7BA0FC-5FA5-44FE-8E52-786946703FE0), 2026-09-06 | mismos nombres (`:40-50,56-58`) | SÍ | fila «Cotas asociativas» (12/12) | 5 | `dimensions` (grupo core) | alto |
+| DIMSTYLE — [Autodesk 2027](https://help.autodesk.com/view/ACD/2027/ENU/), 2026-09-06 | `DIMSTYLE` (`:60`) | PARCIAL | golden 84 subestilos `$0/$2/$3/$4/$6` (Mechanical); falta un golden que teclee el subestilo genérico fuera de Mechanical | 3-5 según familia | `dimensions` / `toolset-mechanical.cotas` | alto |
+| MLEADER, LEADER, QLEADER, MLEADERSTYLE — [Autodesk 2023](https://help.autodesk.com/cloudhelp/2023/ENU/AutoCAD-Core/files/GUID-5FEC133A-5EBD-4EFA-9E44-771E85480DAD.htm), 2026-09-06 | mismos nombres (`:54-55,58,61`) | PARCIAL | fila «MLEADER y tablas» (4/5), retiene 1 pt por evidencia propia | 5 | `mleader-tables` | alto |
+| TOLERANCE (marco de control GD&T) — [Autodesk 2025](https://help.autodesk.com/cloudhelp/2025/ENU/AutoCAD-Core/files/GUID-AA8B28ED-B87E-418C-9353-307B436CC4A8.htm), 2026-09-06 | `TOLERANCE` (`:67`) | SÍ | tecleable | 3 | sin fila específica (distinto de `toolset-mechanical.cotas`, que es ISO 286 sobre la cota, no el marco GD&T) | bajo — poco usado fuera de manufactura |
+| FIELD, UPDATEFIELD — [Autodesk 2022](https://help.autodesk.com/cloudhelp/2022/ENU/AutoCAD-Core/files/GUID-742C92C3-1284-4722-B650-C46F9191C701.htm), 2026-09-06 | `FIELD`,`UPDATEFIELD` (`:117-118`) | SÍ | tecleables | 3 | sin fila específica | medio |
+| TABLESTYLE, TABLEDIT — [Autodesk 2021/2023](https://help.autodesk.com/cloudhelp/2021/ENU/AutoCAD-Core/files/GUID-CA9995D8-98B2-4BFB-972F-FEB0934A1E33.htm), 2026-09-06 | `TABLESTYLE`,`TABLEDIT` (`:62-63`) | PARCIAL | `ESCALERA.md` Ola1: «la celda se pide por FILA y COLUMNA porque el motor no ve la pantalla»; sin insertar/borrar filas ni fusionar celdas | 3 | sin fila específica | medio |
+| GEOMCONSTRAINT (y GC*), DIMCONSTRAINT — [Autodesk 2024](https://help.autodesk.com/view/ACD/2024/ENU/?guid=GUID-899E008D-B422-4DF2-AC8D-1A4F5701ED4E), 2026-09-06 | mismos nombres (`:200-220`) | SÍ | tecleables (13 comandos `GC*` + `DIMCONSTRAINT`/`DCLINEAR`/etc.) | 3 | sin fila específica | bajo — restricciones paramétricas 2D poco usadas por un despacho de arquitectura mexicano |
+
+### 2.4 · Capas y propiedades
+
+| Capacidad AutoCAD | Comando(s) Valle | ¿Existe? | Evidencia | Peldaño | Fila rúbrica | Valor |
+| --- | --- | --- | --- | --- | --- | --- |
+| LAYER (paleta), LAYISO, LAYOFF, LAYFRZ, LAYTHW, LAYON, LAYMCH, LAYWALK, LAYMRG, LAYDEL, VPLAYER — [Autodesk 2025](https://help.autodesk.com/view/ACD/2025/ENU/?guid=GUID-0583B566-FD44-404D-8F95-5271EE390935), 2026-09-06 | mismos nombres (`:251-262`) | SÍ | fila «Capas y propiedades» del resumen (10/10) | 5 | `layers` (grupo core) | alto |
+| PROPERTIES (paleta) — [Autodesk 2025](https://help.autodesk.com/view/ACD/2025/ENU/?guid=GUID-84E1116E-DEAE-4A0B-9364-F61DACF5C300), 2026-09-06 | `PROPERTIES` (`:263`) | SÍ | misma fila | 5 | `layers` | alto |
+| LINETYPE, LWEIGHT, COLOR — [Autodesk 2027](https://help.autodesk.com/view/ACD/2027/ENU/), 2026-09-06 | mismos nombres (`:269,281-282`) | SÍ | golden 80 (tipos de línea complejos con texto, LTSCALE) | 5 | `layers` | alto |
+| CHECKSTANDARDS — [foro oficial citando el comando](https://forums.autodesk.com/t5/autocad-forum/autocad-cad-standards-checkstandards-command-and-layer-states/td-p/12991004), 2026-09-06 | `CHECKSTANDARDS` (`:159`) | SÍ | golden 88 (cadena `AUDIT`·`PURGE`·`LAYTRANS`·`CHECKSTANDARDS`·`ETRANSMIT`) | 5 | sin fila específica (evidencia real en la sección «trabajo ajeno») | alto |
+| LAYTRANS (Traductor de capas) — [Autodesk 2016](https://help.autodesk.com/cloudhelp/2016/ENU/AutoCAD-Core/files/GUID-83CFD677-78F3-492F-A5A3-5A0197D2FA2C.htm), 2026-09-06 | `LAYTRANS` (`:157`) | SÍ | golden 88 | 5 | sin fila específica | alto |
+
+### 2.5 · Bloques y atributos
+
+| Capacidad AutoCAD | Comando(s) Valle | ¿Existe? | Evidencia | Peldaño | Fila rúbrica | Valor |
+| --- | --- | --- | --- | --- | --- | --- |
+| BLOCK, WBLOCK, INSERT, BASE — [Autodesk 2024](https://help.autodesk.com/view/ACD/2024/ENU/?guid=GUID-61A6871E-E74F-4959-8281-934C77D1EBF4), 2026-09-06 | mismos nombres (`:76-79`) | SÍ | fila «Bloques y atributos» del resumen (9/9) | 5 | `blocks` | alto |
+| ATTDEF, ATTEDIT/EATTEDIT, ATTSYNC, BURST — misma fuente, 2026-09-06 | mismos nombres (`:94,80-82`) | SÍ | golden 90 (`ATTSYNC` conserva lo escrito, añade lo nuevo, retira la huérfana) | 5 | `blocks` | alto |
+| BEDIT (Editor de bloques, en sitio) — misma fuente, 2026-09-06 | `BEDIT` (`:83`) | SÍ | `blocks-edit.spec.ts` v2 — abre la referencia EN SITIO, no el panel (arreglado en Ola 7) | 5 | `blocks` | alto |
+| Bloques dinámicos — parámetros y acciones — [Autodesk 2024/2025](https://help.autodesk.com/view/ACD/2024/ENU/?guid=GUID-3EE54831-7AFB-4464-BB89-D9E3CB9D4591), 2026-09-06 | `BLOQUEDIN`,`BLOQUEDINSET`,`BLOQUEDINDEF` (`:119-122`) | PARCIAL | golden 96; falta el GRIP (se cambia por orden sobre la selección, no arrastrando un tirador) | 5 (comando) / falta grip | `blocks` | alto |
+| DESIGNCENTER (ADCENTER) — [contexto oficial de organización de bloques](https://www.autodesk.com/support/technical/article/caas/sfdcarticles/sfdcarticles/Creating-custom-Parameters-Sets-for-Dynamic-Blocks.html), 2026-09-06 | `ADCENTER` (`:92`) | PARCIAL | `00c-CUADRO-DE-MANDO.md` hallazgo 11: sin catálogo del inquilino (`grep -rn xrefCatalog` → 0 en `.tsx`) | 2 | sin fila específica | medio |
+| TOOLPALETTES — [referencia a documentación oficial de Tool Palettes](https://ddscad.com/using-dynamic-blocks-the-tool-palette-in-autocad-part-1/), 2026-09-06 | `TOOLPALETTES` (`:267`) | PARCIAL | `00c-CUADRO-DE-MANDO.md`, bloque «La cinta»: `save()`/`remove()` de `tool-palettes.ts` nunca se llaman en producción — sin escritura por ningún camino | 2 | sin fila específica | alto — bloquea la promesa de venta «paletas del despacho» |
+| COUNT (contar bloques) — [Autodesk 2024](https://help.autodesk.com/view/ACD/2024/ENU/?guid=GUID-D5D02903-27D4-4AF0-AAE6-82CF97C7E411), 2026-09-06 | ninguno dedicado; `DATAEXTRACTION` cuenta por cuadro, no de forma interactiva | PARCIAL | sin comando `COUNT` en `command-manifest.ts` (verificado por este frente) | 0 | sin fila | medio |
+| Smart Blocks (IA) — [Autodesk University 2024](https://www.autodesk.com/autodesk-university/class/Autodesk-AI-AutoCAD-Smart-Blocks-and-Markup-Import-Assist-2024), 2026-09-06 | ninguno | NO | fuera de alcance por decisión de la casa: `no-ai-boundary.spec.ts` (AGENTS.md, IDENTITY.md) — no es un hueco, es una frontera explícita | — | — | — |
+
+### 2.6 · Espacio papel y trazado
+
+| Capacidad AutoCAD | Comando(s) Valle | ¿Existe? | Evidencia | Peldaño | Fila rúbrica | Valor |
+| --- | --- | --- | --- | --- | --- | --- |
+| LAYOUT, MVIEW, MSPACE, PSPACE — [Autodesk 2019](https://help.autodesk.com/view/ACD/2019/ENU/?guid=GUID-A361F313-E1EB-400C-81B2-6B9AA2C0DDB7), 2026-09-06 | mismos nombres (`:152-155`) | SÍ | fila «Layouts, viewports y publicación» (9/10) | 5 | `layouts` | alto |
+| PAGESETUP, PLOT — misma fuente, 2026-09-06 | `PAGESETUP`,`PLOT` (`:238-239`) | PARCIAL | golden 46; **pero** `00c-CUADRO-DE-MANDO.md` hallazgo A confirma que el botón de publicar usa un segundo emisor de PDF que NO pasa por `buildCadPlotJob`/`preflightCadPageSetup` — el cajetín paramétrico y la tabla de plumas no llegan a ese camino | 5 (comando) / bloqueante (botón) | `layouts` | alto — contradicción candidata, ver nota abajo |
+| Tablas de plumas CTB/STB — [Autodesk 2027](https://help.autodesk.com/view/ACD/2027/ENU/), 2026-09-06 | cargables por archivo | PARCIAL | golden 46, golden 91; viven en la SESIÓN y se pierden al recargar | 3 | `layouts` | medio |
+| PUBLISH, Conjuntos de planos (Sheet Set Manager) — [referencia al Sheet Set Manager oficial](https://forums.autodesk.com/t5/autocad-forum/sheet-set-manager-scale-evaluates/td-p/14074253), 2026-09-06 | `PUBLISH`,`SHEETSET` (`:285-286`) | SÍ | golden 89 (`SHEETSET Índice`, `Renumerar`, `PUBLISH` de 3 páginas) | 5 | `layouts` | alto |
+| CANNOSCALE (escala de anotación) — [Autodesk 2024](https://help.autodesk.com/view/ACD/2024/ENU/?guid=GUID-C33D5B68-5A3F-4AF6-9AFB-F74DAB8B6722), 2026-09-06 | selector propio | PARCIAL | `annotative-scale.spec.ts`; vive en la SESIÓN, se pierde al recargar (`CadDocumentMeta` no tiene campo) | 3 | `recog` (Reconocimiento en pantalla, 13/14) | medio |
+| FLATSHOT, SOLPROF — [Autodesk 2022/2024](https://help.autodesk.com/view/ACD/2022/ENU/?guid=GUID-5F5EE4F2-4B52-46E3-9F6C-7852AC997B70), 2026-09-06 | `FLATSHOT`,`SOLPROF` (`:290-291`) | PARCIAL | golden 92; **excluye `entity.type === "wall"` explícitamente** — no hay corte ni alzado de un muro real (§6, contradicción 1) | 3 | `toolset-architecture.envolvente` (evidencia SIN respaldo de rúbrica, ver §6) | alto — contradicción documental |
+| SECTIONPLANE, LIVESECTION — [Autodesk 2024](https://help.autodesk.com/view/ACD/2024/ENU/?guid=GUID-2913E7CC-0542-45FB-ADEA-06B991C38696), 2026-09-06 | ninguno con ese nombre; capacidad equivalente bajo `SOLVIEW`/`SOLDRAW` | NO | `ESCALERA.md` Ola4: «La familia SECTIONPLANE/LIVESECTION… por su nombre — 0 — La capacidad está bajo SOLVIEW/SOLDRAW; los nombres no» | 0 (por nombre) / 5 (funcionalmente, vía SOLVIEW) | sin fila específica | bajo — es una cuestión de nomenclatura, no de capacidad ausente |
+| VIEWBASE, VIEWSECTION, VIEWDETAIL, VIEWUPDATE — [Autodesk 2019](https://help.autodesk.com/cloudhelp/2019/ENU/AutoCAD-Core/files/GUID-DB165B89-5204-48EA-B1DC-454991CB05A4.htm), 2026-09-06 | ninguno | NO | `ESCALERA.md` Ola4, misma fila | 0 | sin fila específica | medio — decisión pendiente de titular (§1.5 de `PROMPT_MAESTRO_FABLE.md`: «Decidir si `PIDCLASH`… merecen órdenes propias» — pregunta análoga sin responder para esta familia) |
+
+### 2.7 · Intercambio
+
+| Capacidad AutoCAD | Comando(s) Valle | ¿Existe? | Evidencia | Peldaño | Fila rúbrica | Valor |
+| --- | --- | --- | --- | --- | --- | --- |
+| DXFIN, DXFOUT — [Autodesk 2025](https://help.autodesk.com/view/ACD/2025/ENU/?guid=GUID-D4242737-58BB-47A5-9B0E-1E3DE7E7D647), 2026-09-06 | `DXFIN`,`DXFOUT` (`:150-151`) | SÍ | fila «Import/export DXF de texto» (10/12) | 5 | `dxf-text` | alto |
+| Import/export DWG — [Autodesk 2027 (formatos de archivo)](https://help.autodesk.com/view/ACD/2027/ENU/), 2026-09-06 | beta firmada `dwg-interop-flag.ts` | PARCIAL | fila «Import/export DWG» (6/7); dos autorizaciones firmadas (AC1015/AC1018), familia moderna sin firmar; ver contradicción 7 de §6 | 6 (import beta) / 5 (export beta) | `dwg` | alto |
+| PDFATTACH, PDFCLIP, PDFADJUST, PDFIMPORT — [Autodesk 2023/2024/2025](https://help.autodesk.com/cloudhelp/2023/ENU/AutoCAD-Core/files/GUID-77D6192C-925B-46A3-8717-240702ED5715.htm), 2026-09-06 | mismos nombres (`:221-230`) | PARCIAL | 118 comprobaciones (`pdf-underlay-commands.spec.ts`); «no imanta hasta que la escena de referencias lo incluya» (§5.2) | 3 | `ext.interop-formats` (genérico) | alto |
+| Exportación a PDF — [Autodesk 2024](https://help.autodesk.com/view/ACD/2024/ENU/?guid=GUID-EC9C6D47-814E-476D-840F-04104CF72B78), 2026-09-06 | vía `PLOT`/`PUBLISH` | SÍ | golden 46, 89 | 5 | `layouts` | alto |
+| IMPORT/EXPORT (STEP, IGES, STL, OBJ) — [documentación de referencia Autodesk](https://help.autodesk.com/cloudhelp/2023/ENU/Inventor-Help/files/GUID-3F6D22A7-768F-4ABE-8DEE-C6B64C5A3B2A.htm), 2026-09-06 | `IMPORT`,`EXPORT` (`:295-296`) | PARCIAL | `00c-CUADRO-DE-MANDO.md`, bloque «Modelado 3D»: `EXPORT` declara STEP/IGES pero no descarga nada; hay CUATRO lectores de malla (OBJ/STL/glTF/COLLADA) y CERO escritores — asimetría total | 2 | sin fila específica (no hay criterio de rúbrica para exportación de malla) | alto — bloqueante confirmado: cierra impresión 3D, render externo y envío sin cuenta |
+| Nubes de puntos (POINTCLOUDATTACH) — [Autodesk 2027](https://help.autodesk.com/view/ACD/2027/ENU/), 2026-09-06 | soporte parcial | PARCIAL | fila «Nubes de puntos, raster georreferenciado y GIS» (2/3) | 3 | `pointcloud-gis` | medio |
+| IFC (import/export) — [Autodesk 2026, ficha del toolset Architecture](https://help.autodesk.com/view/ARCHDESK/2026/ENU/?guid=GUID-39E247EA-AF9E-4BF4-8821-040A405F3778), 2026-09-06 | ninguno | NO | Valle no importa/exporta IFC; `bim-claim-boundary.spec.ts` mantiene la frontera «no es BIM» (§6.5 del prompt maestro) — decisión de producto, no un hueco técnico | 0 | — | bajo, dado el límite de dominio declarado |
+| Unidades imperiales y arquitectónicas — [Autodesk 2027](https://help.autodesk.com/view/ACD/2027/ENU/), 2026-09-06 | `UNITS` (`:278`) | SÍ | `units-imperial.spec.ts` (805 comprobaciones, 324 idas y vueltas) | 5 | sin fila específica localizada en esta pasada | alto |
+
+### 2.8 · Colaboración
+
+| Capacidad AutoCAD | Comando(s) Valle | ¿Existe? | Evidencia | Peldaño | Fila rúbrica | Valor |
+| --- | --- | --- | --- | --- | --- | --- |
+| XREF (paleta), XATTACH, XBIND, XCLIP — [Autodesk 2021/2024](https://help.autodesk.com/cloudhelp/2021/ENU/AutoCAD-Core/files/GUID-BFD18916-9DFE-4FFF-8C98-4AE38A50A7F3.htm), 2026-09-06 | mismos nombres (`:330-333`) | PARCIAL | fila «Xrefs» (5/6); §6 contradicción 6: las capas se aplastan a UNA sola, sin `VISRETAIN` | 5 (adjuntar) / 2 (capas) | `xrefs` | alto — bloqueante confirmado |
+| COMPARE, DWGCOMPARE — [clase oficial de Autodesk University](https://static.au-uw2-prd.autodesk.com/Class_Handout_AS227471_Easier_Collaboration_Using_AutoCAD_DWG_Compare_Christopher_Chen.pdf), 2026-09-06 | `COMPARE` (`:89`) | PARCIAL | fila «Compare, comentarios y enlaces de revisión» (4/5); sólo compara contra la biblioteca ya cargada | 3 | `compare-review` | alto |
+| ETRANSMIT — [artículo derivado, función oficial](https://uk.getrenewedtech.com/2025/08/09/collaborating-on-autocad-projects-file-sharing-etransmit-and-design-review/), 2026-09-06 | `ETRANSMIT` (`:129`) | SÍ | `etransmit-commands.spec.ts` (28) — falla CERRADO con hallazgos que bloquean | 5 | `compare-review` | alto |
+| Markup Import / Markup Assist (con IA) — [blog oficial Autodesk 2024](https://www.autodesk.com/blogs/autocad/try-whats-new-in-autocad-2024-markup-import-and-markup-assist/), 2026-09-06 | `VECTORIZE` cubre la parte determinista (sin IA) de traer trazos escaneados como entidades | PARCIAL | la mitad «Markup Assist» (interpretar instrucciones de texto con IA) está fuera de alcance por decisión de la casa; la mitad determinista de traer geometría de un escaneo SÍ existe (`toolset-raster.vectorizacion`) | 3 | `toolset-raster.vectorizacion` | medio |
+| Trace (revisión sobre copia temporal superpuesta) — [blog oficial Autodesk 2023](https://www.autodesk.com/blogs/autocad/whats-new-in-autocad-2023-floating-windows-trace-count-and-3d-graphics-enhancements-and-improvements/), 2026-09-06 | ninguno con ese mecanismo; Valle resuelve la revisión con enlaces de revisión + presencia + llamada (§4) | NO (mecanismo distinto) | mecanismo diferente, no un hueco directo — ver §4 | — | sin fila | bajo |
+| Autodesk Docs / Autodesk Construction Cloud — [artículo que describe la integración oficial](https://resources.imaginit.com/support-blog/how-autocad-autodesk-docs-improve-collaboration-without-disruption), 2026-09-06 | tablero propio (`dashboard/page.tsx`), proyectos y documentos propios | SÍ (equivalente propio) | Valle es standalone por diseño (`AGENTS.md`: «no runtime dependency on another product or identity service») | 5 | — | — |
+| Versiones (historial) — misma fuente Autodesk University, 2026-09-06 | botón «Versiones» en el estudio | PARCIAL/roto | `00c-CUADRO-DE-MANDO.md` hallazgo bloqueante: el botón llama a una ruta que `layout-http-adapter.ts:46-49` declara «SIN EQUIVALENTE… 404 limpio» — SIEMPRE falla | 2 | `saves-history` (Guardado CAS, autosave, historia y versiones, 7/8) | alto — bloqueante confirmado, fix-or-hide incumplido en un botón visible |
+
+### 2.9 · 3D
+
+| Capacidad AutoCAD | Comando(s) Valle | ¿Existe? | Evidencia | Peldaño | Fila rúbrica | Valor |
+| --- | --- | --- | --- | --- | --- | --- |
+| BOX, CYLINDER, CONE, SPHERE, TORUS, PYRAMID, WEDGE, POLYSOLID — [Autodesk 2025](https://help.autodesk.com/view/ACD/2025/ENU/?guid=GUID-6548456A-28BD-40CB-89BA-F19F5800C0ED), 2026-09-06 | mismos nombres (`:304-311`) | PARCIAL | fila «Modelado 3D: primitivas, SOLIDEDIT y la cota» (5/5 en rúbrica, pero) `ESCALERA.md` Ola1: de 52 modos, 48 escriben, 1 responde, 3 ausentes (Ttr de `CYLINDER`/`CONE`, submodo Arco de `POLYSOLID`) | 3-5 según modo | `solids-primitives` | alto |
+| EXTRUDE — [Autodesk 2025](https://help.autodesk.com/view/ACD/2025/ENU/?guid=GUID-6548456A-28BD-40CB-89BA-F19F5800C0ED), 2026-09-06 | `EXTRUDE` (`:287`) | PARCIAL | `00c-CUADRO-DE-MANDO.md` hallazgo 7 (bloqueante): aplana el perfil inclinado EN SILENCIO — `planeFrameAt` siempre devuelve `zAxis:{0,0,1}`; contraejemplo verde en `draw-spatial.spec.ts:147-152` demuestra que el dibujo SÍ da la cota correcta y `EXTRUDE` la tira | 3 | `solids-primitives` (fila cobra 5/5 sobre esta capacidad con la falla viva — **candidata a contradicción nueva, ver nota debajo de esta tabla**) | alto — afirmación falsa viva, primer criterio de §2.1 del prompt maestro |
+| REVOLVE, SWEEP, LOFT, PRESSPULL — misma fuente, 2026-09-06 | mismos nombres (`:288,292-293,312`) | SÍ | tecleables, cubiertos por `solids-primitives`/`solids-inquiry` | 3-5 | `solids-primitives` | medio |
+| SOLIDEDIT — [resumen consistente con el comando oficial](https://www.dummies.com/article/technology/software/design-software/autocad/autocad-commands-for-modifying-and-editing-3d-objects-264956/), 2026-09-06 | `SOLIDEDIT` (`:289`) | PARCIAL | `solids-edit.spec.ts` (119) + `solid3d-frontera.spec.ts` (279): de 16 ramas, 8 existen y 8 se declaran ausentes en el propio diálogo | 3 | `solids-primitives` | alto |
+| UNION, SUBTRACT, INTERSECT — [discusión de soporte oficial](https://forums.autodesk.com/t5/autocad-forum/can-t-intersect-subtract-or-union-2-solids/td-p/8559349), 2026-09-06 | mismos nombres (`:297-299`) | SÍ | fila «Modelo 3D y sólidos B-rep FACETADO» (7/7) | 5 | `solids-brep` | alto |
+| FILLETEDGE, CHAMFEREDGE — [manual abierto que documenta el comando oficial](https://opentextbc.ca/autocad3d/chapter/solid-modeling-part-3/), 2026-09-06 | mismos nombres (`:300-301`) | SÍ | tecleables (exentos en `command-integrity-exemptions.json` con razón escrita) | 5 | `solids-brep` | medio |
+| SLICE, SECTION — misma fuente, 2026-09-06 | mismos nombres (`:302-303`) | PARCIAL | `SECTION` usa `selectedSolids` que filtra `entity.type === "solid3d"` — no ve `wall` (§6, contradicción 1) | 3 | `solids-brep` | alto |
+| INTERFERE — [Autodesk 2027 (núcleo)](https://help.autodesk.com/view/ACD/2027/ENU/), 2026-09-06 | `INTERFERE` (`:294`) | SÍ | tecleable | 3 | sin fila específica | medio |
+| 3DMOVE, 3DROTATE, 3DALIGN, MIRROR3D, 3DARRAY, 3DSCALE — [Autodesk 2025](https://help.autodesk.com/view/ACD/2025/ENU/?guid=GUID-A16B7027-1346-480F-AFDC-3A3A89EB08D8), 2026-09-06 | ninguno | NO | `00c-CUADRO-DE-MANDO.md` hallazgo 6 (bloqueante, «el hueco mejor establecido de la lista»): `CadSolidPlacement` es una afín 2×3 más `dz` — el esquema persistido NO TIENE dónde escribir un giro que mezcle Z con X/Y. `placeBody` ya invierte caras con determinante negativo (mitad de `MIRROR3D` resuelta) | 0 | sin fila (`ESCALERA.md:376` lo declara en 0) | alto — bloqueante confirmado, el hueco 3D más caro del árbol |
+| UCS — [Autodesk 2025](https://help.autodesk.com/view/ACD/2025/ENU/?guid=GUID-6548456A-28BD-40CB-89BA-F19F5800C0ED), 2026-09-06 | `UCS` (`:315`) | SÍ | `ucs-3d.spec.ts` (68) — la cadena puntero → plano de trabajo está cableada (§1.3 del prompt maestro) | 5 | core (draw-2d relacionado) | alto |
+| Estilos visuales (VSCURRENT) — [Autodesk 2026](https://help.autodesk.com/view/ACD/2026//ENU/?guid=GUID-C0EBD080-D074-4AD5-A508-51F208827E97), 2026-09-06 | `VSCURRENT` (`:329`) | PARCIAL | `00c-CUADRO-DE-MANDO.md` hallazgo 3 (bloqueante, éxito falso): sólo alcanza a `entity.type === "solid3d"` — muros, losas y cubiertas no cambian de estilo aunque la línea de comandos confirme el cambio; no se persiste (campo privado, se pierde al recargar) | 2 | sin fila localizada en esta pasada — **candidata a hueco sin fila, ver §5** | alto — bloqueante confirmado |
+| Materiales (MATBROWSEROPEN/MATEDITOROPEN) — [Autodesk 2027](https://help.autodesk.com/view/ACD/2027/ENU/), 2026-09-06 | no verificado en esta pasada | NO VERIFICADO | pendiente de `grep` dedicado; no se afirma ausencia sin mirar (invariante 1) | — | — | — |
+| RENDER — [Autodesk 2027](https://help.autodesk.com/view/ACD/2027/ENU/), 2026-09-06 | ninguno | NO | sin motor de render fotorrealista en el árbol (verificado por este frente: `grep -rln "pathtrac\|photoreal\|render-engine" apps/web/src/lib/cad` → 0 fuera de nombres de módulo de render de VISOR, no de imagen final) | 0 | sin fila | bajo — fuera del uso diario de un despacho; AutoCAD tampoco lo vende como diferenciador frente a Enscape/Lumion |
+| 3DORBIT (y 3DFORBIT/3DPAN/3DZOOM/VPOINT) — [Autodesk 2020](https://help.autodesk.com/cloudhelp/2020/ENU/AutoCAD-Core/files/GUID-85CE824C-0AF4-4890-8487-ADBC92BF08F1.htm), 2026-09-06 | mismos nombres (`:324-328`) | SÍ | golden 85, `camera-policy.spec.ts` (23) — la cámara no planea al soltar | 5 | `recog` | medio |
+
+### 2.10 · Personalización y automatización
+
+| Capacidad AutoCAD | Comando(s) Valle | ¿Existe? | Evidencia | Peldaño | Fila rúbrica | Valor |
+| --- | --- | --- | --- | --- | --- | --- |
+| AutoLISP — [Autodesk (soporte oficial)](https://www.autodesk.com/support/technical/article/caas/sfdcarticles/sfdcarticles/AutoCAD-AutoLisp-commands-or-script-file-help.html), 2026-09-06 | intérprete AutoLISP propio | PARCIAL | fila «Automatización: AutoLISP y plugins JS» (6/8); `00c-CUADRO-DE-MANDO.md`: `PAUSE` no existe (`grep -rn PAUSE apps/web/src/lib/lisp/` → 0) y **no hay ninguna salida a archivo** (`getfiled`/`open`/`write-line` declarados no disponibles) | 3 | `autolisp-plugins` | alto — bloqueante confirmado, el escenario titular «leer atributos y exportar a Excel» no arranca aunque se arreglen los atributos |
+| VBA — [misma fuente que AutoLISP](https://www.autodesk.com/support/technical/article/caas/sfdcarticles/sfdcarticles/AutoCAD-AutoLisp-commands-or-script-file-help.html), 2026-09-06 | ninguno | NO | declarado imposible con alternativa documentada (`docs/api/POLITICA-API-PUBLICA.md`) — no es un hueco a perseguir, es una frontera de la casa (§2.2 del prompt maestro, §3 de este encargo) | — | `autolisp-plugins` (2 pt retenidos a propósito) | — |
+| .NET / ObjectARX — [contexto general, referencia técnica Autodesk](https://help.autodesk.com/cloudhelp/2026/ITA/AutoCAD-AutoLISP/files/GUID-265AADB3-FB89-4D34-AA9D-6ADF70FF7D4B.htm), 2026-09-06 | plugins JS con manifiesto versionado | PARCIAL (alternativa) | mismo criterio que VBA — fuera de alcance por decisión de la casa | — | `autolisp-plugins` | — |
+| ACTRECORD, ACTSTOP, ACTMANAGER (grabador de acciones) — [Autodesk 2020](https://help.autodesk.com/cloudhelp/2020/ENU/AutoCAD-Customization/files/GUID-FEAD3614-CD33-4B60-BC00-4CBC98D8CBCB.htm), 2026-09-06 | mismos nombres (`:71-73`) | PARCIAL | golden 97 (grabar y repetir un circuito completo); sin pausa para pedir datos (`ACTUSERINPUT`) ni persistencia entre sesiones | 3 | sin fila específica localizada | medio |
+| SCRIPT, RSCRIPT — [Autodesk 2024](https://help.autodesk.com/view/ACDLT/2024/ENU/?guid=GUID-BE44AE86-7638-48C9-BE5B-C1DF8E4C8808), 2026-09-06 | `SCRIPT`,`RSCRIPT` (`:74-75`) | SÍ | fila «Línea de comandos, alias y scripting» (11/12) | 5 | `cli-scripting` | alto |
+| Alias de comandos — [Autodesk 2025](https://help.autodesk.com/view/ACDLT/2025/ENU/?guid=GUID-FE9AE544-F537-4D3B-8F75-B76484513787), 2026-09-06 | `aliases` en cada entrada de `command-manifest.ts` | SÍ | los 294 comandos declaran su array de alias (p. ej. `WALL` → `WA`,`MURO`); `acad.pgp` no se cita ni redistribuye | 5 | `cli-scripting` | alto |
+| CUI / personalización de cinta — [Autodesk 2027 (About Customization)](https://help.autodesk.com/view/ACD/2027/ENU/?caas=caas%2Fdocumentation%2FACD%2F2014%2FENU%2Ffiles%2FGUID-CDF5C4CB-BE69-4ECE-B9EC-49BA422B878E-htm.html), 2026-09-06 | ninguno | NO | sin sistema de personalización de cinta/atajos por el usuario en el árbol (verificado por este frente) | 0 | sin fila | medio |
+
+### 2.11 · Variables de sistema clave
+
+| Capacidad AutoCAD | Comando(s) Valle | ¿Existe? | Evidencia | Peldaño | Fila rúbrica | Valor |
+| --- | --- | --- | --- | --- | --- | --- |
+| SETVAR, GETVAR (acceso genérico a variables) — [Autodesk 2027](https://help.autodesk.com/view/ACD/2027/ENU/), 2026-09-06 | `SETVAR`,`GETVAR` (`:283-284`) | SÍ | tecleables | 5 | `cli-scripting` | alto |
+| OSMODE — [Autodesk 2024](https://help.autodesk.com/view/ACDLTM/2024/ENU/?guid=GUID-DD9B3216-A533-4D47-95D8-7585F738FD75), 2026-09-06 | vía `OSNAP`/`-OSNAP` (`:265,274`) | SÍ | tecleable | 5 | `draw-2d.osnap` | medio |
+| LTSCALE, CELTSCALE — [Autodesk 2027/2023](https://help.autodesk.com/cloudhelp/2023/ENU/AutoCAD-Core/files/GUID-ECE175AB-AB7B-4DEC-9CEC-D5D67AF9310B.htm), 2026-09-06 | `LTSCALE`,`CELTSCALE` (`:279-280`) | SÍ | golden 80: LTSCALE 500 duplica los rótulos en vivo, DXF con `$LTSCALE 500` | 5 | `layers` | alto |
+| CANNOSCALE — ver §2.6 | selector propio | PARCIAL | ver §2.6 | 3 | `recog` | medio |
+| PICKBOX, GRIPSIZE, FILLETRAD, CHAMFERA/B, PDMODE/PDSIZE, MIRRTEXT, HPNAME/HPSCALE/HPANG, ATTDIA, FILEDIA, SAVETIME — [Autodesk 2027 (System Variables)](https://help.autodesk.com/view/ACD/2027/ENU/), 2026-09-06 | no verificado individualmente en esta pasada | NO VERIFICADO | son variables de comportamiento fino de la línea de comandos; verificar cada una exigiría un `grep` por variable que este frente no completó — no se afirma ausencia sin mirar (invariante 1) | — | — | bajo-medio, salvo `SAVETIME` (ver fila siguiente) |
+| SAVETIME (intervalo de autoguardado) — misma fuente, 2026-09-06 | mecanismo de autosave propio, no una variable tecleable | SÍ (equivalente funcional) | `docs/execution/auditoria-fable/PROMPT_MAESTRO_FABLE.md` — autoguardado cada 2 000 ms (`Layout3DEditor.tsx:1338`), no configurable por el usuario | 5 (funciona) / no configurable | `saves-history` | medio |
+| CLAYER, CECOLOR, CELTYPE, CELWEIGHT — [Autodesk 2027](https://help.autodesk.com/view/ACD/2027/ENU/), 2026-09-06 | equivalentes en el motor | SÍ | `engine/current-presentation.spec.ts` (15): `LINE` con `COLOR 1` sale con color 1; `COPY` no lo hereda | 3 | `foreign-work.properties` (parcial — falta golden de navegador que teclee `COLOR` y dibuje, peldaño 5) | medio |
+| LUNITS/LUPREC, AUNITS/AUPREC, DIMASSOC — [Autodesk 2027](https://help.autodesk.com/view/ACD/2027/ENU/), 2026-09-06 | vía `UNITS`, cotas asociativas nativas | SÍ | `units-imperial.spec.ts`, `units-label.spec.ts`; cotas asociativas por diseño (fila «Cotas asociativas» 12/12) | 5 | `dimensions` | alto |
+| ORTHOMODE, POLARANG — ver §2.1 | ajustes de dibujo | SÍ | `draw-2d.tracking` | 5 | `draw-2d.tracking` | medio |
+
+**Nota sobre EXTRUDE y VSCURRENT (candidatas a contradicción nueva, no
+incluidas todavía en §6 por límite de esta pasada):** ambas filas de la
+tabla 2.9 muestran una fila de rúbrica que cobra 5/5 o similar sobre una
+capacidad con una falla viva conocida y confirmada por
+`00c-CUADRO-DE-MANDO.md` (hallazgos 3 y 7, ambos «bloqueante»). El
+coordinador debería tratarlas con la misma prioridad que las seis
+contradicciones ya documentadas en §6 — quedan anotadas aquí en vez de
+repetidas en dos sitios, siguiendo la regla de la casa de no duplicar
+evidencia.
+
+**Resumen preliminar de esta sección (recomputado a mano de las tablas
+2.1-2.11, sujeto a recuento final al cerrar el frente):** de 78 filas
+comparadas, 40 SÍ, 27 PARCIAL, 9 NO, 2 no verificadas.
 
 ## 3 · Inventario por toolset
 
