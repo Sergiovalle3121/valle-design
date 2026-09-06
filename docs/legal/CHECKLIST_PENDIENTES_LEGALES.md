@@ -51,13 +51,13 @@ que el contenido definitivo esté listo para publicarse.
 | --- | --- | --- |
 | Versionado de `terms`/`privacy` y registro de aceptación (API) | Hecho | `apps/api/src/modules/legal/` |
 | Regla pura "¿aceptó la versión vigente de términos?" (web) | Hecho | `apps/web/src/lib/legal/acceptance-gate.ts` |
-| `GET /v1/legal/documents` y `POST /v1/legal/acceptances` en el contrato OpenAPI + SDK generado | **Falta** | requiere `packages/contracts/specs/design-api.v1.yaml` + regenerar `packages/design-sdk` |
-| El checkout (`/precios/checkout`) exige aceptación vigente antes de abrir el pago | **Falta** — hoy NO la exige | `apps/web/src/app/precios/checkout/CheckoutStarter.tsx`, `apps/web/src/lib/commercial/checkout.ts` |
-| El registro/primer acceso muestra términos con versión y pide aceptación | **Falta** | ninguna pantalla llama hoy a `GET /v1/legal/documents` |
+| `GET /v1/legal/documents` y `POST /v1/legal/acceptances` en el contrato OpenAPI + SDK generado | Hecho | `packages/contracts/specs/design-api.v1.yaml` (`/v1/legal/documents`, `/v1/legal/acceptances`) + `packages/design-sdk/src/generated/design-api.ts` |
+| El checkout (`/precios/checkout`) exige aceptación vigente antes de abrir el pago | Hecho | `apps/web/src/app/precios/checkout/CheckoutStarter.tsx`, `apps/web/src/lib/commercial/checkout.ts` |
+| El registro/primer acceso muestra términos con versión y pide aceptación | Hecho en parte (2026-09-06) | el checkout ya lo llama (`CheckoutStarter.tsx`) y el formulario de alta (`apps/web/src/components/AuthPage.tsx`) muestra la versión vigente de `GET /v1/legal/documents` y bloquea «Crear cuenta» hasta marcar la casilla (golden 197, petición F8-1); **falta** que el servidor exija y registre esa aceptación al registrarse (T-63d parte 2, frente F8) |
 
 La fila del checkout es del frente comercial (Frente A) y de quien mantenga
 el contrato OpenAPI, no de configuración de producción — se documenta aquí
-para que no se pierda, no para reclamarla como hecha.
+para que no se pierda; ya lo está, según la fila de arriba.
 
 ## Fiscal (ya cubierto en `DEPLOYMENT.md`, referenciado y no duplicado)
 

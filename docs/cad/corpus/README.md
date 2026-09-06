@@ -138,8 +138,11 @@ coincidencia demuestra: **`apps/web/src/lib/cad/dxf-import.ts` importa
 de producción. Contra él no se mide el análisis del archivo —se mide la
 conversión a entidades canónicas, que sí es código propio—, y la independencia
 de análisis la aporta sólo el oráculo B. Se nota en un caso real del corpus:
-`blocks2.dxf` lo rechazan a la vez el oráculo A y el lector, y el oráculo B lo
-lee sin problema.
+`blocks2.dxf` lo rechaza el oráculo A
+(`String '2' cannot be cast to Boolean type`); el lector lo abría igual de mal
+hasta que P-evidencia-13 lo arregló el 2026-09-05, y hoy lo lee
+(`lector.legible: true` en `docs/cad/evidence/dxf-corpus-terceros-matrix.json`,
+con el aviso `header_boolean_out_of_range`); el oráculo B lo lee sin problema.
 
 **Corrección del censo del oráculo B (2026-09-04).** Su primera versión publicó
 un único `archivoEntero` que contaba DOS VECES cada entidad de espacio modelo,
@@ -177,17 +180,19 @@ con `npm test` y con `npm run check:cad-math`.
   que sólo puede bajar. Para regenerar la matriz a propósito:
   `cd apps/web && VALLE_ESCRIBIR_MATRIZ=1 npx tsx src/lib/cad/verification/dxf-fidelidad-terceros.spec.ts`.
 - `apps/web/src/lib/cad/verification/terceros-jornada.spec.ts` — **la jornada**.
-  Coge `bjnortier-dxf/floorplan.dxf` —1,1 MB, R2004, 1109 entidades, lo más
-  parecido a lo que manda un despacho— y lo abre con el lector de producción,
+  Coge `bjnortier-dxf/floorplan.dxf` —1,1 MB, R2004, con las entidades de
+  espacio modelo que cuenta `plano.espacioModeloSegunOraculoB` en
+  `jornada-plano-ajeno.json`, lo más parecido a lo que manda un despacho— y lo
+  abre con el lector de producción,
   compara 3.065 magnitudes contra las que midió `ezdxf` sobre los mismos bytes,
   lo modifica con MOVE/LINE/ERASE del registro de comandos, lo exporta con el
   exportador de producción y lo relee con los dos oráculos. Su artefacto es
   `docs/cad/evidence/jornada-plano-ajeno.json`, y se regenera con
   `cd apps/web && VALLE_ESCRIBIR_JORNADA=1 npx tsx src/lib/cad/verification/terceros-jornada.spec.ts`.
-  Lo que hoy dice y no gusta: **`ezdxf` no abre lo que exportamos** porque MTEXT
-  y HATCH salen sin marcador de subclase (P-evidencia-07, con el arreglo ya
-  probado en `medidas-floorplan.py`); sí abre los otros siete tipos, con cero
-  errores de auditoría. La suite vive repartida en cuatro archivos por el
+  Lo que la jornada destapó y ya está arreglado: **`ezdxf` abre entero lo que
+  exportamos** desde el 2026-09-05 (P-evidencia-07); `jornada-plano-ajeno.json`
+  lo deja escrito en `actos.releerConOraculoB.abreElFicheroCompleto: true` y
+  `tiposQueNoAbre: []`. La suite vive repartida en cuatro archivos por el
   presupuesto de monolito, y la costura sigue el reparto de la jornada: el spec
   conduce los cuatro primeros actos (el producto trabajando),
   `terceros-jornada-medicion.ts` es el instrumento de medida,
@@ -197,24 +202,22 @@ con `npm test` y con `npm run check:cad-math`.
 - **Las cuatro suites por fila** (`terceros-capas`, `terceros-bloques`,
   `terceros-texto`, `terceros-cota-sombreado`). La jornada prueba que el
   producto aguanta un plano de 1,1 MB; lo que no prueba es **de quién es cada
-  defecto**, porque en un dibujo de 1109 entidades una capa mal pintada se
-  pierde entre otras veintitrés. Estas cuatro cogen el fichero ajeno más pequeño
-  que atestigua UNA capacidad —tres capas, un bloque, dos textos, dos cotas y un
+  defecto**, porque en un dibujo con las entidades que cuenta
+  `actos.abrir.entidades` en `docs/cad/evidence/jornada-plano-ajeno.json` una
+  capa mal pintada se pierde entre otras veintitrés. Estas cuatro cogen el
+  fichero ajeno más pequeño que atestigua UNA capacidad —tres capas, un
+  bloque, dos textos, dos cotas y un
   sombreado— y la afirman sobre él, así que lo que falla se lee a ojo y no se
   puede discutir. Comparten `terceros-filas.ts` (anclaje por `sha256` en tres
   artefactos a la vez y la publicación del renglón) y su oráculo es
   `oraculos/medidas-cuatro-filas-ezdxf.json`. Cada una publica su renglón en
   `docs/cad/evidence/independencia-terceros.json`, que se regenera fila a fila
   con `cd apps/web && VALLE_ESCRIBIR_TERCEROS=1 npx tsx src/lib/cad/verification/terceros-capas.spec.ts`
-  (y una por cada una de las otras tres). Lo que hoy dicen y no gusta: el
-  **color de capa** del remitente no se lee ni se escribe y el informe dice «sin
-  pérdidas» (P-evidencia-12); el **MTEXT de dentro de un bloque** sale a espacio
-  modelo sin la transformación acumulada —135 rótulos en el plano ajeno—, y con
-  eso cada cota ajena llega además con su número escrito dos veces
-  (P-evidencia-11); `blocks2.dxf` se **rechaza entero**
-  por un `$XCLIPFRAME` = 2 legítimo, con un mensaje que acusa al remitente
-  (P-evidencia-13); y un contorno de HATCH de cuatro aristas **rectas** se
-  descarta por «no poligonal» (P-evidencia-14).
+  (y una por cada una de las otras tres). Lo que la jornada destapó y ya está
+  arreglado, el 2026-09-05 (P-evidencia-11, 12, 13 y 14): las cuatro filas
+  declaran hoy `veredicto: servible_hoy` en
+  `docs/cad/evidence/independencia-terceros.json`, que detalla cada hallazgo y
+  su arreglo en el `hallazgos` de su propio renglón.
 - `apps/web/src/lib/cad/verification/independencia-rubrica.spec.ts` — **el
   censo**. No mide el corpus: mide qué filas de la rúbrica competitiva podría
   servir este corpus y cuáles no. Genera

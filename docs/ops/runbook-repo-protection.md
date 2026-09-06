@@ -31,10 +31,12 @@ Antes y después del cambio de visibilidad, verificar que sigan intactas:
 ## 4. Rotar secretos históricos
 
 Correr un escáner de secretos autorizado (ej. `gitleaks`, ya está en `D:\dev\tools` según la configuración local)
-sobre el historial completo, no solo HEAD:
+sobre el historial completo, no solo HEAD, con la misma invocación que usa el job `gitleaks` en CI (ver
+`.github/workflows/ci.yml`, que además hace `fetch-depth: 0` al hacer checkout para asegurar el clon completo — en
+local, confirmar que el propio clon no sea shallow antes de correrlo):
 
 ```bash
-gitleaks detect --source . --log-opts="--all" --no-git
+gitleaks detect --source . --config .gitleaks.toml --redact --no-banner
 ```
 
 Cualquier hallazgo: rotar la credencial en el proveedor correspondiente (no basta con quitarla del código; el

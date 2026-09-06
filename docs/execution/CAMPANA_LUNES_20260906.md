@@ -451,3 +451,20 @@ la sombra enganchaba abajo) y `pointer-work-plane.spec.ts` (distancia al
 plano). Rúbrica: `modeling3d.z-pointer` deja el «todavía no»; censo
 regenerado. Verificado: tsc, eslint (0 errores), monolito, lint 478/478,
 check:auditoria (techo 5), e2e-localizadores, rubric.spec, check:cad-math.
+
+### T-0D · Tercera tanda: los 41 hallazgos restantes, aplicados y revisados · HECHO (21:20 UTC)
+Flujo de 44 agentes (un editor y un revisor adversario por documento, ambos
+en Sonnet): 22 documentos, 41 hallazgos confirmados (ADR con notas fechadas
+—0003, 0004, 0006, 0008, 0011, 0015, 0016—, expediente DWG, checklist
+legal, gobernanza, guías, ops, corpus, diseño, capa CAD, deuda del
+monolito). Un hallazgo se saltó con motivo (la fila de 0004 en el README de
+ADR ya decía «Aceptada»); ocho veredictos no-ok aplicados por el
+coordinador: el §4 de la deuda del monolito deja la cifra de `useState` al
+trinquete, la nota de 0004 con sujeto, la de 0008 sin «entre otras» (el
+`switch` tiene exactamente cuatro casos), la nota gemela en el encabezado de
+0015, la fila del alta en el checklist legal dice lo que hoy es verdad
+(F8-1 hecha, parte 2 pendiente), la gramática del expediente y un span de
+código partido en el corpus. Ninguna cifra a mano queda en lo tocado: cada
+frase señala el script o el JSON que la computa. Verificado:
+`check:no-industrial-domain`, `check:legal`, `check:auditoria`,
+`check:conventions`.

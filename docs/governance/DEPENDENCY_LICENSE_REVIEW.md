@@ -8,7 +8,7 @@ una decisión humana antes de declarar la cadena “limpia” para distribución
 | ------------------------------------ | ------------------------------------- | ---------------------------------------- | --------- |
 | `@img/sharp-wasm32@0.35.3`           | runtime/opcional de `sharp`           | Apache-2.0 AND LGPL-3.0-or-later AND MIT | pendiente |
 | `@img/sharp-win32-x64@0.35.3`        | runtime/opcional de `sharp`           | Apache-2.0 AND LGPL-3.0-or-later         | pendiente |
-| `axe-core@4.12.1`                    | desarrollo, vía lint web              | MPL-2.0                                  | pendiente |
+| `axe-core@4.13.0`                    | desarrollo, vía lint web              | MPL-2.0                                  | pendiente |
 | `lightningcss@1.32.0`                | desarrollo, toolchain CSS web         | MPL-2.0                                  | pendiente |
 | `lightningcss-win32-x64-msvc@1.32.0` | desarrollo, binario CSS de plataforma | MPL-2.0                                  | pendiente |
 

@@ -9,6 +9,13 @@
 - No promueve: ninguna capacidad. `readR2004Database` sigue fallando cerrado
   para las tres versiones y `DWG_PROMOTION_GATES` no cambia un bit.
 
+  **Nota del 2026-09-06 (T-0D):** superado el 2026-09-01 — ver la nota
+  gemela en «Lo que esta ADR NO hace»: las tres versiones ya se decodifican
+  en el laboratorio (`decoderStatus: "experimental-lab"` en
+  `DWG_VERSION_REGISTRY`) y `readR2004Database` ya no falla cerrado para el
+  archivo entero (ensambla vía `assembleR2010Database`). `DWG_PROMOTION_GATES`
+  sigue sin cambiar un bit.
+
 ## Contexto
 
 El 2026-08-23 el laboratorio dejó la codificación del tipo de objeto R2010+
@@ -34,6 +41,14 @@ desde el 2026-08-14, con sus términos («facts only, no redistribution») y sus
 hechos anotados uno a uno. De ella salieron los **54 archivos derivados** que
 son el laboratorio entero. §11.7 declaró prohibida en bloque la fuente que
 había construido todo lo que ese mismo informe celebraba.
+
+**Nota del 2026-09-06 (T-0D):** la cifra de archivos derivados no se transcribe
+a mano aquí: se lee del array `derivedFiles` de la entrada
+`ODA-ODS-DWG-5.4.1-PUBLIC` en `packages/dwg-codec/SOURCE_REGISTER.json` (por
+ejemplo, `jq '.entries[] | select(.id=="ODA-ODS-DWG-5.4.1-PUBLIC") |
+.derivedFiles | length' packages/dwg-codec/SOURCE_REGISTER.json`), y hoy ya no
+coincide con la de esta ADR: el laboratorio siguió derivando archivos de esa
+misma fuente después del 2026-08-31.
 
 **Error 2 — el bloqueo no hacía falta.** §11.7 terminaba nombrando ella misma
 la salida: *«hacen falta más identificaciones independientes (más tipos, no
@@ -85,6 +100,16 @@ entidad conocida: 2893 objetos con la respuesta conocida de antemano.
   `DWG_VERSION_DECODER_UNSUPPORTED` para AC1024/AC1027/AC1032;
   `DWG_VERSION_REGISTRY` las mantiene en `decoderStatus: "unsupported"`;
   `productionAvailable` y `legalReviewCleared` siguen `false`.
+
+  **Nota del 2026-09-06 (T-0D):** superado el 2026-09-01: las tres versiones
+  decodifican en el laboratorio (`decoderStatus: "experimental-lab"` en
+  `DWG_VERSION_REGISTRY`,
+  `packages/dwg-codec/src/container/version-registry.ts`), y
+  `readR2004Database` ya ensambla su base neutral vía `assembleR2010Database`
+  en vez de fallar cerrado para el archivo entero; ver
+  `docs/cad/evidence/dwg-r2010-object-body.json`. Nada de esto cambia el
+  producto: `DWG_IMPORT_FLAG`/`DWG_EXPORT_FLAG` y
+  `productionAvailable`/`legalReviewCleared` siguen en `false`.
 - **No dice que M4 esté resuelto.** Decodificar el ENCABEZADO no es
   decodificar el CUERPO, y el cuerpo es la parte grande: el flujo de datos
   R2010+ manda las cadenas a un flujo propio y su cabecera común de entidad

@@ -91,7 +91,8 @@ de la organización también debe soportarla.
 
 Estado y acciones antes del piloto:
 
-1. `valle-design` ya es privado y debe permanecer así;
+1. poner `valle-design` en privado (hoy es público; ver «Última observación
+   remota, 2026-08-22» arriba y `repository-protection-baseline.json`);
 2. contratar un plan compatible y aplicar/verificar la baseline de propietario
    único sobre `main`;
 3. habilitar y probar merge queue tras una eventual transferencia del mismo

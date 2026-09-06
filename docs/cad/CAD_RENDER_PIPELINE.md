@@ -18,7 +18,8 @@ anterior (`planCadNativeRenderBudget`, con su muestreo). Es un interruptor,
 no un silencio: `CadRenderPipelineBadge` publica en la barra de estado (tras
 `?cadDiag=1`) qué camino dibuja, y cuando el legado muestrea, `Viewport
 {rendered}/{visible} visibles · {total} total` se lee en el propio DOM —
-16 goldens lo comprueban por `data-testid="cad-native-render-stats"`. El
+lo comprueba `apps/web/e2e/performance/cad-viewport-100k.spec.ts` (tras
+`CAD_PERF_E2E=1`) por `data-testid="cad-native-render-stats"`. El
 defecto de producción nunca pasa por ese muestreo: `batched` dibuja SIEMPRE
 la vista entera, sin techo.
 
@@ -138,7 +139,8 @@ Tres lecturas que no hay que saltarse:
 
 ## Escenificación de la métrica
 
-`scripts/cad-render-benchmark.mts` vive **aparte** de `cad-corpus-benchmark.mts`
+`apps/web/scripts/cad-render-benchmark.mts` vive **aparte** de
+`apps/web/scripts/cad-corpus-benchmark.mts`
 y ya no es report-only para el perfil `reference-100k`: **es bloqueante**, con
 una línea base calibrada el 2026-08-10 (`baseline.calibratedOn`, con margen
 ×2,5) que la corrida de este documento cumple sin violaciones

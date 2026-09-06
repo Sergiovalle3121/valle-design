@@ -40,6 +40,12 @@ automatizado (`npm run check:provenance`) falla si un archivo del paquete no
 está cubierto por una fuente `allowed`. Hoy: **9/9 fuentes permitidas cubren
 147 archivos del paquete y 21 fixtures**.
 
+**Nota del 2026-09-06 (T-0D):** las cifras de este párrafo y de la tabla son
+las del 2026-08-31; la salida viva y reproducible es la de `npm run
+check:provenance` (fuentes, archivos y fixtures cubiertos), que es la que
+gobierna. Donde este expediente dice «nueve fuentes», léase «las fuentes
+permitidas que ese gate lista».
+
 | Fuente | Tipo | Qué aportó |
 | --- | --- | --- |
 | `VALLE-OWNER-DWG0-2026-08-09` | Directiva del titular | La autorización de trabajo y sus límites de ingeniería (95 archivos derivados) |
@@ -197,6 +203,12 @@ Se enumeran aquí para que el dictamen los tenga delante, no para minimizarlos.
    completa (R2000 y R2004) y escribe una (R2000) con siete tipos de entidad.
    Las versiones modernas (2010/2013/2018) abren su contenedor y su encabezado
    de objeto, pero no su cuerpo. Nada de esto está disponible en el producto.
+
+   **Nota del 2026-09-06 (T-0D):** versiones y tipos vivos en
+   `packages/dwg-codec/CAPABILITIES.md`; desde el 2026-09-01 las versiones
+   modernas decodifican su cuerpo en el laboratorio (`decoderStatus:
+   experimental-lab`). Nada de esto está en el producto:
+   `DWG_IMPORT_FLAG`/`DWG_EXPORT_FLAG` siguen en false.
 
 ---
 

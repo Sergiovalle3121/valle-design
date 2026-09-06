@@ -25,8 +25,10 @@ descubre eso deja de creer también lo que sí era cierto.
 Es la superficie principal y la única pensada para integraciones de servidor a
 servidor.
 
-- **Contrato**: `packages/contracts/specs/design-api.v1.yaml`, OpenAPI 3.1, con
-  73 operaciones (43 bajo `/v1/cad`). El contrato manda: el SDK de TypeScript se
+- **Contrato**: `packages/contracts/specs/design-api.v1.yaml`, OpenAPI 3.1
+  (recuento vivo: `operationCount` / `cadOperationCount` en
+  `apps/web/src/app/docs/api/operations.generated.json`, generado por
+  `scripts/cad/build-api-console.mjs`). El contrato manda: el SDK de TypeScript se
   genera de él y el enrutador del servidor se verifica contra él en cada
   cambio (`scripts/cad/check-design-contract.mjs`).
 - **Consola pública**: `/docs/api` lista las operaciones y permite lanzarlas.

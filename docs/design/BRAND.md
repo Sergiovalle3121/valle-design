@@ -77,7 +77,8 @@ borde, ni otra marca.
 
 Todo color sale de `apps/web/src/app/globals.css`; los hex de esta tabla son la
 conversión de esos tokens HSL, no una segunda paleta. Las cifras están **medidas
-por un gate** —`npm run check:contrast`, 70 pares en los dos temas— con la
+por un gate** —`npm run check:contrast`, los pares que declara `PAIRS` en
+`scripts/design/check-contrast.mjs`; el gate imprime el total— con la
 fórmula de luminancia relativa de WCAG 2.1. El umbral es **4,5:1 para texto
 normal**, 3:1 para elementos gráficos y 1,3:1 para el relieve de un borde.
 
@@ -143,8 +144,9 @@ Es la trampa más común del contraste y el sistema la evita por construcción.
 
 ### El gate, y por qué existe
 
-`npm run check:contrast` mide 35 pares por tema y falla la corrida entera si uno
-baja del umbral. Se escribió ANTES de cortar la paleta v2 —construir la regla y
+`npm run check:contrast` mide los pares de `PAIRS` en
+`scripts/design/check-contrast.mjs` (`--markdown` imprime la tabla) y falla la
+corrida entera si uno baja del umbral. Se escribió ANTES de cortar la paleta v2 —construir la regla y
 después cortar— y encontró dos fallos en el primer corte: un borde claro con
 1,23:1 de relieve y el violeta de hover con 4,21:1 sobre blanco. Sin el gate, los
 dos habrían llegado a producción con la campaña puesta.
@@ -243,9 +245,10 @@ marcas en el pie**, en `components/marketing/TrademarkNotice.tsx`. Y lo que vive
 en guías y preguntas frecuentes, no en marketing: «si vienes de otro CAD, tu
 memoria muscular funciona».
 
-El gate `npm run check:surface` revisa 19 zonas públicas, quita los comentarios
-antes de mirar —juzga lo que el usuario lee, no lo que el equipo escribe para
-entenderse— y comprueba las dos mitades: que no aparezcan marcas ajenas fuera
+El gate `npm run check:surface` revisa las zonas de `PUBLIC_GLOBS` en
+`scripts/design/check-public-surface.mjs` (el gate imprime el número), quita
+los comentarios antes de mirar —juzga lo que el usuario lee, no lo que el
+equipo escribe para entenderse— y comprueba las dos mitades: que no aparezcan marcas ajenas fuera
 del módulo autorizado **y** que el aviso siga montado. Un gate que sólo
 prohibiera se satisface borrando el aviso legal.
 

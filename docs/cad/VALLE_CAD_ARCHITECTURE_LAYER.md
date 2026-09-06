@@ -4,7 +4,7 @@ Last updated: 2026-06-30
 
 ## Scope
 
-This document tracks the first dedicated Valle Design CAD architecture layer for factory and industrial engineering layouts. The goal is not to clone AutoCAD. The goal is to make the existing Valle Design CAD workbench useful for plant shells, rooms, doors, columns, technical area takeoff, and utility planning.
+This document tracks the first dedicated Valle Design CAD architecture layer: architectural and industrial plant layouts are one drawing domain among the many the general-purpose CAD now serves (see `IDENTITY.md` for current product scope — a general 2D CAD that competes with AutoCAD, not an industry-specific tool). The goal is not to clone AutoCAD. The goal is to make the existing Valle Design CAD workbench useful for plant shells, rooms, doors, columns, technical area takeoff, and utility planning.
 
 ## Existing CAD implementation inspected
 
@@ -135,16 +135,22 @@ What changed:
   - `draw_rect_zone`: `rect 0,0 @4000,2500`, `room 1000,1000 @5000,3000 etiqueta QA`
 - These commands emit the same `create` operation used by existing pattern,
   offset, chamfer, and zone commands, so created geometry persists as normal
-  layout assets through the existing `/line-engineering/layout` save path.
+  layout assets through the canonical document save
+  (`designClient.documents.saveContent`/`saveArchive`, see
+  `apps/web/src/components/cad/document-lifecycle/design-port.ts`); the legacy
+  `/line-engineering/layout` route only survives inside the compatibility
+  adapter (`apps/web/src/lib/cad/legacy/layout-http-adapter.ts`) and is
+  forbidden elsewhere by `scripts/cad/check-no-line-engineering.mjs`.
 
 Non-redundancy guardrails:
 
 - The precision module lives once, at `apps/web/src/lib/cad/precision-input.ts`.
   The compatibility re-export that used to sit under `components/` was deleted
   when the folder was renamed (identity campaign, 2026-08-22).
-- Coordinate drafting reuses `parseCadCommand`, `previewCadCommand`,
-  `executeCadCommand`, and `applyCommandOperation`; no alternate command runner
-  was introduced.
+- Coordinate drafting reuses `parseCadCommand`, `previewCadCommand`, and
+  `executeCadCommand`; no alternate command runner was introduced.
+  (`applyCommandOperation` was removed as dead code in the 2026-09-06 monolith
+  cleanup — see `docs/execution/frentes/F1-monolito.md`.)
 - Walls continue to be normal `wall` assets on the architecture layer; rooms and
   zones continue through the existing editable asset model.
 
@@ -171,15 +177,23 @@ Non-redundancy guardrails:
 - The existing `cad-command.ts` reducer is now wired into `Layout3DEditor`;
   no duplicate reducer or canvas was introduced.
 - Created geometry still uses `assetsRef`, `assignObjectsToLayer`, existing undo
-  snapshots, existing dirty/save flow, and the existing `/line-engineering/layout`
-  payload.
+  snapshots, existing dirty/save flow, and the canonical document save
+  (`designClient.documents.saveContent`/`saveArchive`, see
+  `apps/web/src/components/cad/document-lifecycle/design-port.ts`); the legacy
+  `/line-engineering/layout` payload shape only survives inside the
+  compatibility adapter (`apps/web/src/lib/cad/legacy/layout-http-adapter.ts`)
+  and is forbidden elsewhere by `scripts/cad/check-no-line-engineering.mjs`.
 - Existing wall tracing remains available; the new drafting tools are keyboard
   and toolbar access to the same precision model for faster CAD-style work.
 
 ## CAD Studio decoupling — 2026-07-15
 
-Valle Design CAD is now exposed as a first-class universal design studio at
-`/dashboard/cad`, instead of being reachable only from the line-balancing page.
+Valle Design CAD was exposed at the time as a first-class universal design
+studio at `/dashboard/cad`, instead of being reachable only from the
+line-balancing page. **Update (2026-09-06):** `/dashboard/cad`
+(`apps/web/src/app/dashboard/cad`) is today a compatibility redirect to
+`/dashboard`; CAD opens per document at `/studio/[documentId]`
+(`apps/web/src/app/studio/[documentId]`).
 The implementation still reuses the existing `Layout3DEditor`, command engine,
 layer model, DXF import/export, validation, takeoff, templates, symbols, and
 snapshot/version surfaces; no duplicate CAD canvas or persistence model was
@@ -189,12 +203,20 @@ User-visible changes:
 
 - `/dashboard/cad` opens `Layout3DEditor` in `standalone` mode with the equipment
   and universal CAD library visible first, not the station-balancing tray.
-- The global dashboard catalog and command palette include **Valle Design CAD Studio** as
-  its own destination for architecture, engineering, civil/layout, warehouse,
-  utility, and plant design work.
-- `/dashboard/line-engineering` still keeps CAD available for manufacturing line
-  engineering, but its description is narrowed back to routing, takt, and
-  balance so CAD is not conceptually trapped in EMS balancing.
+- **Update (2026-09-06):** no global dashboard catalog or command palette
+  entry named **Valle Design CAD Studio** exists today
+  (`grep -rn "CAD Studio" apps/web/src` finds none). The dashboard
+  (`apps/web/src/app/dashboard/page.tsx`) is itself the single project hub for
+  architecture, engineering, civil/layout, warehouse, utility, and plant
+  design work; see the note below on `/dashboard/cad` and
+  `/dashboard/line-engineering`.
+- **Update (2026-09-06):** `/dashboard/line-engineering` was retired (identity
+  campaign, 2026-08-22 — see `IDENTITY.md`); the directory no longer exists
+  (`apps/web/src/app/dashboard/line-engineering`). `/dashboard/cad`
+  (`apps/web/src/app/dashboard/cad`) no longer opens the editor directly
+  either — it is now a compatibility redirect to `/dashboard`, and CAD opens
+  per document at `/studio/[documentId]`
+  (`apps/web/src/app/studio/[documentId]`).
 - Standalone mode hides line-only arrange/connect shortcuts and uses generic
   labels (`Puntos`, `Biblioteca`) while preserving all advanced CAD capabilities.
 

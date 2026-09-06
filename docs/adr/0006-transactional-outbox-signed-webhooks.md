@@ -10,6 +10,11 @@ externos. Llamar a un proveedor dentro de la transacción mantiene locks durante
 la red; llamarlo después de confirmar puede perder el efecto si el proceso cae.
 No hay un proveedor de correo ni broker incluido en este repositorio.
 
+**Nota del 2026-09-06 (T-0D):** desde ADR-0008 (2026-08-20) sí hay adaptador de
+correo en el repositorio: Resend en
+`apps/api/src/modules/outbox-receiver/adapters/resend-email.sender.ts`,
+configurado vía `EMAIL_SENDER_PROVIDER` (`email-sender.config.ts`).
+
 ## Decisión
 
 Persistir email y eventos de dominio en outboxes PostgreSQL dentro de la misma

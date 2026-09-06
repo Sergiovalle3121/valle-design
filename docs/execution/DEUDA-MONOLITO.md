@@ -1,8 +1,10 @@
 # La deuda del monolito, con número y método
 
-`apps/web/src/components/cad/editor/Layout3DEditor.tsx` — hoy (2026-08-22):
-**20,248 líneas y 141 `useState`**, medidos por `check:monolith-budget`, que
-es trinquete: el número sólo puede bajar.
+`apps/web/src/components/cad/editor/Layout3DEditor.tsx` — la cifra vigente la
+imprime `node scripts/cad/check-monolith-budget.mjs` y el techo vive en
+`scripts/cad/monolith-budget.json`; el punto de partida (2026-08-22) está en
+la primera fila del Registro. El presupuesto es trinquete: el número sólo
+puede bajar.
 
 ## Por qué es LA deuda y no una molestia
 
@@ -119,7 +121,7 @@ estructura visible es idéntica, y el trinquete de `monolith-budget.json` baja *
 
 ## Lo que queda dentro, en orden de salida
 
-### 1 · Paquete premium de entrega — `{showSheetPackage}` · 525 líneas · ~40 dependencias
+### 1 · Paquete premium de entrega — `{showSheetPackage}` · 525 líneas · dependencias: las que imprime el comando de arriba
 
 **El más grande y el que NO se debe extraer todavía.** Toca `paperSpaces`, `orderedPaperSpaces`,
 `activePaperSpace`, `activePaperViewportId`, `sheetPackageDraft`, `sheetPackageChecks`,
@@ -129,7 +131,7 @@ estructura visible es idéntica, y el trinquete de `monolith-budget.json` baja *
 `changeActivePaper`, `changeActiveOrientation`, `updateActivePaperSpace`, `updateActivePageMargin`,
 `commitPaperSpaces`, `publishSheetSetPdf`, `applyActiveTitleBlock`…).
 
-Un componente con cuarenta props no es una extracción, es el monolito con otra sintaxis.
+Un componente con tantas props como dependencias tenga el bloque no es una extracción, es el monolito con otra sintaxis.
 
 **Lo que hacía falta primero — HECHO (campaña de sitio 2026-08-29):** el anfitrión existe
 (`palettes/paper-spaces-host.ts`) y es dueño de los CINCO estados (paperSpaces, activo, viewport
@@ -137,24 +139,26 @@ activo, cuadro abierto, previsualización) con setters de firma React — los ~1
 no cambiaron. Turno siguiente: migrar las ACCIONES una a una al anfitrión (recibiendo historia y
 borrador por parámetro) y entonces el cuadro del juego de láminas sale con dos props.
 
-### 2 · La barra de estado y los conmutadores — dentro del bloque `15193`…`15987`
+### 2 · La barra de estado y los conmutadores — desde `<CadStatusBar` hasta la siguiente etiqueta de nivel superior
 
-Unas 790 líneas de cromo inferior: modo de vista, pipeline de render, profundidad de historial,
-indicadores. Acoplamiento medio; varias de sus lecturas ya viven en
+Cromo inferior (ver el diff entre esas dos etiquetas): modo de vista, pipeline de render,
+profundidad de historial, indicadores. Acoplamiento medio; varias de sus lecturas ya viven en
 `components/cad/studio/editor-presentation.ts`. Candidato natural al siguiente turno de vista pura.
 
-### 3 · Las paletas ya montadas como hijos — `14944`…`15148`
+### 3 · Las paletas ya montadas como hijos — desde `<CadSelectionPalette` hasta `<CadWorkspaceDock`
 
 `CadSelectionPalette`, `CadHatchPalette`, `CadDimensionPalette`, `CadMLeaderPalette`,
 `CadCollaborationPalette`, `CadWorkspaceDock` ya son componentes. Lo que queda dentro del monolito
 son sus **listas de props**, algunas de treinta líneas. No es extracción: es agrupar props en
 objetos con nombre (`selection`, `draft`, `styles`), lo mismo que ya hizo `CadPaletteOverlays`.
 
-### 4 · Los 140 `useState`
+### 4 · Los `useState` que aún quedan
 
-El techo está en 140 y el fichero está exactamente en 140. **Extraer cuadros no baja este número**:
-los cuadros extraídos no eran dueños de su estado, sólo lo pintaban. Bajarlo exige mover la
-PROPIEDAD del estado, no la presentación — es decir, los controladores del punto 1 y 2.
+El techo y el fichero siempre coinciden — es un trinquete (cifra vigente: `node
+scripts/cad/check-monolith-budget.mjs`; techo en `scripts/cad/monolith-budget.json`).
+**Extraer cuadros no baja este número**: los cuadros extraídos no eran dueños de su estado,
+sólo lo pintaban. Bajarlo exige mover la PROPIEDAD del estado, no la presentación — es
+decir, los controladores del punto 1 y 2.
 
 Agrupaciones evidentes al leer las declaraciones (líneas 1500-1800): el estado de exportación DXF
 (4 `useState`), el de espacios-papel y paquete de entrega (~8), el de versiones y snapshots (~5), el
