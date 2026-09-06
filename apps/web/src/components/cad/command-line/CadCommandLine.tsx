@@ -190,17 +190,6 @@ export function CadCommandLine({
         setValue(next >= typed.length ? "" : typed[next]);
         return;
       }
-      if (suggestions.length > 0 && event.key === "Enter") {
-        // Con una sugerencia resaltada, Intro la ejecuta directamente —
-        // mismo gesto que elegir una entrada de Ctrl+K: un paso, no dos.
-        event.preventDefault();
-        const elegido = suggestions[activeSuggestionIndex].nombre;
-        setValue("");
-        setRecallIndex(null);
-        inputRef.current?.blur();
-        onSubmit(elegido);
-        return;
-      }
       if (event.key === "Enter" || (event.key === " " && !value)) {
         event.preventDefault();
         setRecallIndex(null);

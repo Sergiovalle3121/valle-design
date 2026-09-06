@@ -76,7 +76,7 @@ const ok = (condition: boolean, message: string) => {
 }
 
 // T-74(c): el filtro de sugerencias es por PREFIJO del nombre canónico, y
-// las flechas/Tab/Intro sólo actúan sobre ellas cuando de verdad hay alguna
+// las flechas/Tab sólo actúan sobre ellas cuando de verdad hay alguna
 // — comprobado por fuente porque exige teclear de verdad para ejercitarlo.
 {
   const fuente = readFileSync(path.join(__dirname, "CadCommandLine.tsx"), "utf8");
@@ -87,9 +87,21 @@ const ok = (condition: boolean, message: string) => {
   );
   ok(
     fuente.includes("suggestions.length > 0 && (event.key ===") &&
-      fuente.includes('event.key === "Tab"') &&
-      /suggestions\.length > 0 && event\.key === "Enter"/.test(fuente),
-    "flechas, Tab e Intro sólo se apropian de la sugerencia cuando hay alguna visible",
+      fuente.includes('event.key === "Tab"'),
+    "las flechas y Tab sólo se apropian de la sugerencia cuando hay alguna visible",
+  );
+  // T-74(c), REGRESIÓN REAL medida en CI: Intro con sugerencias visibles
+  // ejecutaba la resaltada EN VEZ de lo tecleado. «L» es alias de LINE (la
+  // resolución de alias vive en el motor, no aquí) pero es también PREFIJO
+  // del nombre canónico de LTYPE/LAYER/LIST/LEADER/…; con el hijack, Intro
+  // tras «L» ejecutaba la que encabezara esa lista — no LINE — rompiendo el
+  // gesto más básico de AutoCAD. `e2e/golden/85-cad-diez-segundos.spec.ts`
+  // («L ⏎ empieza LINE», «M ⏎ pide objetos, como MOVE») lo cazó en CI real,
+  // no aquí: por eso queda como guarda de fuente explícita.
+  ok(
+    !/suggestions\.length > 0 && event\.key === "Enter"/.test(fuente),
+    "Intro NUNCA sustituye lo tecleado por una sugerencia — siempre envía el texto literal, " +
+      "que es lo único que el motor sabe resolver por alias (L→LINE, M→MOVE...)",
   );
   ok(
     fuente.includes("role=\"combobox\"") &&
