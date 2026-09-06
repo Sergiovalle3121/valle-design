@@ -5,13 +5,17 @@
 **Archivo:** `apps/web/src/components/cad/editor/Layout3DEditor.tsx`
 (prohibido para F4 — sólo el coordinador lo edita).
 
-**Por qué:** `publishSheetSetPdf()` (13617–13878) dibuja el PDF a mano con
-`jspdf` importado directamente, duplicando lo que `renderCadPlotPdf`
-(`lib/cad/plot/plot-pdf.ts`, territorio F4) ya hace con specs, tabla de
-plumas, incrustación de fuente y cajetín paramétrico. Los botones "Publicar
-PDF" (líneas 15720 y 18811) llaman a esta función, así que TODAS las
-correcciones de F4 sobre `plot-pdf.ts`/`plot-fidelity.ts`/`paper-space.ts`
-(T-19, T-31, T-36) no llegan al botón real hasta que se unifique.
+**Por qué:** `publishSheetSetPdf()` (línea 13366 tras rebasar sobre `main`
+real el 2026-09-06; era 13617 al escribir esto por primera vez — el archivo
+sigue moviéndose bajo trabajo paralelo, así que localízala por nombre, no por
+número) dibuja el PDF a mano con `jspdf` importado directamente, duplicando
+lo que `renderCadPlotPdf` (`lib/cad/plot/plot-pdf.ts`, territorio F4) ya hace
+con specs, tabla de plumas, incrustación de fuente y cajetín paramétrico. Los
+botones "Publicar PDF" (`onClick={() => void publishSheetSetPdf()}`, dos
+apariciones) llaman a esta función, así que TODAS las correcciones de F4
+sobre `plot-pdf.ts`/`plot-fidelity.ts`/`paper-space.ts` (T-19, T-31, T-36 —
+T-19 y T-36 ya ARREGLADAS en mi territorio) no llegan al botón real hasta
+que se unifique.
 
 **Cambio exacto (diff literal):**
 
@@ -94,8 +98,13 @@ el botón.
 
 ## #2 · Reseteo de manifiesto de pérdidas DXF de fondo (T-11 c)
 
-**Archivo:** `apps/web/src/components/cad/editor/Layout3DEditor.tsx:2858,2867`
-(prohibido para F4).
+**Archivo:** `apps/web/src/components/cad/editor/Layout3DEditor.tsx`, la
+llamada `setDxfWarnings([])` al abrir el documento (línea 2858 tras rebasar
+sobre `main` real el 2026-09-06 — coincide con el número original por
+casualidad; hay otras dos apariciones de `setDxfWarnings([])`, en `removeDxf`
+y en el botón de limpiar avisos, que NO son ésta: localízala por el bloque
+que sigue a `dxfModelRef.current = null; dxfMetaRef.current = null;` dentro
+del efecto de carga del documento) (prohibido para F4).
 
 **Por qué:** `lib/cad/dxf-export-loss-manifest.ts` (territorio F4) calcula el
 manifiesto de pérdidas del DXF de fondo; hoy es de sesión (se pierde al
@@ -129,7 +138,7 @@ el coordinador).
 sacrificar el clon profundo que la propia spec de este archivo exige (ver
 `cad-document-migrate.spec.ts`, caso "el clon es profundo"). El archivo
 estaba en 799/800 líneas ANTES de esta ficha (por razones ajenas a F4), así
-que el mínimo necesario lo deja en **803**, 3 por encima del techo por
+que el mínimo necesario lo deja en **804**, 4 por encima del techo por
 defecto. No está en `allowances` hoy, así que `check:monolith-budget` (parte
 de `check:cad`) lo marca como archivo nuevo que supera 800.
 
@@ -144,7 +153,7 @@ proyecto propio, no cabe en esta ficha.
 por razones ajenas a F4. T-19·3 (capa `plot:false` nunca imprime) y T-19·4
 (fuga de espacio papel: una entidad de PAPEL dejaba de excluirse de la
 proyección de MODELO, y el contorno real de una ventana poligonal viaja ahora
-en vez de perderse) añaden juntas 26 líneas — la nueva asignación es **922**.
+en vez de perderse), más T-36 (escala anotativa resuelta por ventana), suman 43 líneas — la nueva asignación es **939**.
 Igual que con `cad-document.ts`: probé activamente evitar el crecimiento
 (revisé línea por línea si algo se podía comprimir sin tocar comentarios
 ajenos) y no cupo sin sacrificar la claridad del propio arreglo o gatear el
@@ -156,7 +165,7 @@ contador con líneas fusionadas artificialmente.
      "apps/api/src/load-probe/review-concurrency.main.ts": 887,
      "apps/api/src/migration-cli/import.ts": 809,
      "apps/web/src/components/cad/editor/Layout3DEditor.tsx": 19002,
-+    "apps/web/src/lib/cad/cad-document.ts": 803,
++    "apps/web/src/lib/cad/cad-document.ts": 804,
      "apps/web/src/lib/cad/commands/parser.ts": 1515,
 ```
 
@@ -164,7 +173,7 @@ y, más abajo en el mismo objeto `allowances` (orden alfabético existente):
 
 ```diff
 -    "apps/web/src/lib/cad/paper-space.ts": 896,
-+    "apps/web/src/lib/cad/paper-space.ts": 922,
++    "apps/web/src/lib/cad/paper-space.ts": 939,
 ```
 
 (Equivalente a correr `node scripts/cad/check-monolith-budget.mjs --update

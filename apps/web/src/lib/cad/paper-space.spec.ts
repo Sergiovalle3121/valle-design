@@ -13,6 +13,7 @@ import {
   createThreeSheetDemo,
   fitCadViewportScale,
   reorderCadPaperSpaces,
+  type CadVectorCommand,
 } from "./paper-space";
 import { cadPlanViewport } from "./cad-paper-viewport";
 import { cadLayerShown } from "./cad-layer-visibility";
@@ -462,6 +463,78 @@ assert.deepEqual(
         warning.code === "paper_space_entity_excluded_from_model" && warning.entityId === "e-clip",
     ),
     "la exclusión se declara, nunca en silencio",
+  );
+}
+
+// T-36: la escala anotativa se resuelve POR VENTANA, sin mutar la entidad. La
+// MISMA entidad, vista en DOS ventanas a escalas distintas, mide lo mismo
+// sobre el papel en las dos (esa es la promesa de "anotativa": tamaño fijo
+// en papel) — y `entity.height` en el documento NUNCA cambia, ni siquiera
+// tras trazar las dos ventanas.
+{
+  const annoBase = layoutToCadDocument(
+    { layers: [{ id: "0", name: "0", color: "#000000", visible: true, locked: false }] },
+    { unit: "mm" },
+  );
+  const annoEntity: CadEntity = {
+    id: "e-rotulo",
+    type: "mtext",
+    insertion: { x: 50, y: 50, z: 0 },
+    text: "PLANTA",
+    // Deliberadamente ABSURDA: si el arreglo mutara/leyera esto, el tamaño
+    // trazado no podría salir cerca de 2,5 mm en ninguna ventana.
+    height: 999_999,
+    layer: "0",
+    context: { metadata: { annotativeHeightMm: 2.5 } },
+  } as CadEntity;
+  const viewportGeneral = cadPlanViewport(
+    "vp-general",
+    { x: 10, y: 10, width: 180, height: 90 },
+    { x: 0, y: 0, width: 10_000, height: 5_000 },
+    100,
+  );
+  const viewportDetalle = cadPlanViewport(
+    "vp-detalle",
+    { x: 10, y: 110, width: 180, height: 90 },
+    { x: 0, y: 0, width: 500, height: 250 },
+    5,
+  );
+  const annoDocument: CadDocument = {
+    ...annoBase,
+    entities: [annoEntity],
+    modelSpace: { entityIds: ["e-rotulo"] },
+    paperSpaces: [
+      {
+        id: "sheet-anno",
+        name: "A-101",
+        entityIds: [],
+        page: { width: 210, height: 297, unit: "mm", orientation: "portrait" },
+        viewports: [viewportGeneral, viewportDetalle],
+      },
+    ],
+  };
+  const annoPlan = buildCadPublishPlan(annoDocument, "2026-09-06T00:00:00.000Z");
+  const sizeIn = (viewportId: string) =>
+    annoPlan.sheets[0]!.viewports
+      .find((viewport) => viewport.id === viewportId)!
+      .commands.find((command) => command.kind === "text" && command.entityId === "e-rotulo") as
+      | Extract<CadVectorCommand, { kind: "text" }>
+      | undefined;
+  const generalText = sizeIn("vp-general");
+  const detailText = sizeIn("vp-detalle");
+  assert.ok(generalText && detailText, "el rótulo aparece en las dos ventanas");
+  assert.ok(
+    Math.abs(generalText!.size - 2.5) < 1e-6,
+    `T-36: 1:100 debe medir 2,5 mm en papel, midió ${generalText!.size}`,
+  );
+  assert.ok(
+    Math.abs(detailText!.size - 2.5) < 1e-6,
+    `T-36: 1:5 debe medir TAMBIÉN 2,5 mm en papel (la misma marca), midió ${detailText!.size}`,
+  );
+  assert.equal(
+    (annoDocument.entities[0] as { height: number }).height,
+    999_999,
+    "T-36: la altura persistida de la entidad NUNCA se toca, ni tras trazar las dos ventanas",
   );
 }
 

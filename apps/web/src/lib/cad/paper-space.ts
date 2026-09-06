@@ -20,6 +20,11 @@ import { cadLinetypeTextCommands } from "./paper-space-linetype-text";
 import { cadImagePlotCommand, type CadImagePlotCommand } from "./paper-space-image";
 import { IDENTITY, multiply, point, type Affine } from "./paper-space-affine";
 import { blockPresentation, styleFor, unitToMm } from "./paper-space-style";
+import {
+  cadAnnotativeDimensionSizes,
+  cadAnnotativeHeightMm,
+  cadAnnotativeModelHeight,
+} from "./layout/annotative-scale";
 
 export const CAD_SHEET_PAPERS = {
   A4: { width: 210, height: 297 },
@@ -571,6 +576,14 @@ function renderEntity(
       entity.type === "text" ? { x: entity.x, y: entity.y } : entity.insertion;
     const paper = point(matrix, anchor);
     const scale = Math.hypot(matrix.a, matrix.b);
+    // T-36: anotativa se resuelve POR VENTANA, sin tocar `entity.height`. La
+    // altura persistida puede ser la que dejó otra ventana a otra escala; la
+    // efectiva se recalcula aquí mismo para ÉSTA, cada vez que se traza.
+    const annotativeMm = cadAnnotativeHeightMm(entity);
+    const effectiveHeight =
+      annotativeMm !== null
+        ? cadAnnotativeModelHeight(annotativeMm, context.viewport.scale, context.document.meta.unit)
+        : (entity.height ?? 120);
     return [
       {
         kind: "text",
@@ -578,12 +591,12 @@ function renderEntity(
         viewportId: context.viewport.id,
         point: paper,
         text: entity.text,
-        size: Math.max(1.5, Math.min(12, (entity.height ?? 120) * scale)),
+        size: Math.max(1.5, Math.min(12, effectiveHeight * scale)),
         rotation: entity.rotation ?? 0,
         color: style.stroke,
         ...(entity.type === "mtext" ? {
           align: entity.paragraphAlignment ?? "left",
-          maxWidth: (entity.width ?? (entity.height ?? 120) * 20) * scale,
+          maxWidth: (entity.width ?? effectiveHeight * 20) * scale,
           bold: entity.bold,
           italic: entity.italic,
           underline: entity.underline,
@@ -594,7 +607,17 @@ function renderEntity(
     ];
   }
   if (entity.type === "dimension") {
-    const geometry = buildCadDimensionGeometry(entity);
+    // T-36: igual que el texto, pero el juego COMPLETO de tamaños (flecha,
+    // huecos, exceso) — una copia efímera, nunca escrita al documento.
+    const annotativeMm = cadAnnotativeHeightMm(entity);
+    const effectiveEntity =
+      annotativeMm !== null
+        ? {
+            ...entity,
+            ...cadAnnotativeDimensionSizes(entity, annotativeMm, context.viewport.scale, context.document.meta.unit),
+          }
+        : entity;
+    const geometry = buildCadDimensionGeometry(effectiveEntity);
     if (!geometry) return [];
     const commands = geometry.paths.map((item) => path(item.points, item.closed)).filter(
       (value): value is CadVectorCommand => !!value,
@@ -605,7 +628,7 @@ function renderEntity(
       viewportId: context.viewport.id,
       point: point(matrix, geometry.textAnchor),
       text: geometry.label,
-      size: Math.max(1.5, Math.min(8, (entity.arrowSize ?? 180) * Math.hypot(matrix.a, matrix.b) * 0.55)),
+      size: Math.max(1.5, Math.min(8, (effectiveEntity.arrowSize ?? 180) * Math.hypot(matrix.a, matrix.b) * 0.55)),
       rotation: geometry.textAngle,
       color: style.stroke,
       align: "center",
