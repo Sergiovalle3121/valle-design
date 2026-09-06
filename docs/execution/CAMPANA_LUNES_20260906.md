@@ -482,3 +482,29 @@ sombra (antes era al revés). `pointer-router.spec.ts` gana el caso 9b.
 Monolito en 17 235 exactas (siete comentarios comprimidos). Verificado:
 tsc, eslint (0 errores), monolito, lint 478/478, e2e-localizadores, y los
 goldens 199, 198, 101 y 47 sobre el build de producción.
+
+### T-41 · Las capas de la xref sobreviven · ARREGLADA (22:05 UTC)
+`xref-projection.ts` aplastaba las cuarenta capas del estructurista en una
+sola gris (`xref:<id>:layer`, grosor fijo). `projectCadXrefLayers` proyecta
+cada capa de origen como `XREF|<xref>|<capa>` (la convención de AutoCAD) con
+su color, tipo de línea y grosor; la entidad conserva su capa; el lote de
+adjuntar las da de alta y el de desligar las retira reasignando a una capa
+que sobrevive (enlazar las deja: ahí viven ya las entidades del anfitrión).
+El gestor de capas rechazaba APAGAR una capa cuyo nombre lleva `|`:
+`updateCadDocumentLayer` validaba el nombre existente en cualquier parche;
+ahora sólo al renombrar (D-16). Golden 210: XATTACH tecleado de un plano de
+tres capas, el gestor lista seis (la «0» ajena también viaja), apagar EJES
+deja MUROS y TEXTOS encendidas en pantalla y en el documento que recibe el
+servidor, con el color del remitente y tres capas dentro del bloque; el
+gestor se cierra antes de guardar porque tiene su propio «Guardar» (estados
+de capa). `xref-workflow.spec.ts` (caso 6) y `cad-layer-manager.spec.ts`
+(apagar y bloquear `XREF|x|y`; renombrar con `|` sigue prohibido). Rúbrica:
+`xrefs.layers` deja el «todavía no» y la fila Xrefs pasa a retener 1 pt por
+evidencia propia, con su dictamen en `independencia-dictamen.ts` (candidato
+`xrefs.bind`: `floorplan.dxf` trae símbolos `<xref>$0$…` de un bind ajeno,
+contados por script; ninguna xref viva en el corpus; el exportador no
+escribe la referencia); censo y matriz regenerados. Verificado: tsc, lint
+478/478, monolito, check:auditoria (techo 5), e2e-localizadores,
+conventions, product-boundary, rubric.spec, check:cad-math (0 desviaciones),
+todos los specs con «xref» en verde, y los goldens 210, 87 y 21 sobre el
+build de producción.

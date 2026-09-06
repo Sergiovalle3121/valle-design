@@ -188,6 +188,17 @@ export const DICTAMENES: Record<string, Dictamen> = {
       "Primero la capacidad (importar LEADER), y sólo después el testigo. Un corpus ajeno con MLEADER exige ficheros guardados por un programa que los escriba, y las dos bibliotecas MIT del corpus no los tienen entre sus ficheros de prueba.",
   },
 
+  xrefs: {
+    candidato: "xrefs.bind",
+    porQueEseCandidato:
+      "Es el único criterio de la fila cuya verdad puede vivir en BYTES que otro programa lea: lo que un enlace (bind) deja en las tablas del plano. Adjuntar, apagar una capa ajena o teclear XCLIP son gestos del anfitrión que ningún fichero de terceros atestigua.",
+    veredicto: "el_corpus_de_hoy_no_lo_alcanza",
+    loQueDiceElTestigo:
+      "El corpus tiene UN rastro de xref, y es de un bind que otro programa ya hizo: floorplan.dxf (bjnortier-dxf) trae 5 de sus 26 LTYPE con el nombre `xref-Bishop-Overland-08$0$…` (DASHED2, CENTER, CENTER2, HIDDEN y HIDDEN2), la convención `<xref>$0$<símbolo>` con la que AutoCAD funde una xref en el anfitrión. Ningún fichero del corpus trae una xref VIVA (un BLOCK_RECORD con la bandera 4 y su ruta), y nuestro exportador DXF no escribe `externalReferences`: el round-trip del enlace no tiene bytes que un tercero pueda leer.",
+    loQueFaltaria:
+      "Dos cosas, en orden. Que el exportador escriba la referencia (el BLOCK_RECORD dependiente con su ruta) y que el enlace nombre los símbolos como el de AutoCAD (`<xref>$0$<capa>`) o declare que no lo hace —hoy los deja como `XREF|<xref>|<capa>`, D-16—; y entonces `ezdxf` (el oráculo B, congelado con su sha256 como el censo DXF) puede abrir lo exportado y contar por su cuenta las capas dependientes. floorplan.dxf ya sirve de patrón de lo que un bind ajeno deja detrás.",
+  },
+
   /* ── Las que el material ajeno del árbol no alcanza ──────────────────── */
 
   "command-line": {

@@ -33,6 +33,7 @@ import type {
   CadEntity,
   CadExternalReference,
   CadPoint3,
+  CadLayerDef,
 } from "../cad-document";
 import type { CadEntityCommand } from "../entity-commands";
 import { cadEmptyLayerDeleteCommand } from "../cad-symbol-tables";
@@ -43,6 +44,8 @@ import {
   cadTenantLayoutUri,
   cadXrefInsertId,
   cadXrefLayer,
+  cadXrefLayerId,
+  projectCadXrefLayers,
   cadXrefPrefix,
   cadXrefRootBlockId,
   isCadTenantAssetUri,
@@ -177,6 +180,10 @@ export function cadXrefAttachCommands(
   };
   return [
     { type: "layer", op: "upsert", layer: cadXrefLayer(input.id, input.snapshot.name) },
+    // T-41: una capa del anfitrión por cada capa del dibujo referenciado.
+    ...projectCadXrefLayers(input.snapshot, input.id).map(
+      (layer): CadEntityCommand => ({ type: "layer", op: "upsert", layer }),
+    ),
     ...projectCadXrefBlocks(input.snapshot, input.id, mode).map(
       (definition): CadEntityCommand => ({ type: "block", op: "define", definition }),
     ),
@@ -215,8 +222,22 @@ function withoutProjection(
   // se borra en este mismo lote, así que la capa queda vacía y no hay nada que
   // reasignar. El destino lo elige el ayudante contra la tabla real: aquí la
   // del xref suele ser la única capa del documento.
-  if (!options.keepLayer && document.layers.some((layer) => layer.id === xrefLayer.id))
-    commands.push(cadEmptyLayerDeleteCommand(document.layers, xrefLayer.name));
+  if (!options.keepLayer) {
+    // Las capas proyectadas (T-41) se retiran con la portadora: quedan vacías
+    // en este mismo lote, porque su geometría vivía dentro de los bloques. El
+    // destino de reasignación se elige entre las capas que SOBREVIVEN al lote:
+    // elegirlo entre las del propio xref apuntaría a una que se borra dos
+    // órdenes después.
+    const projectedLayerPrefix = `${cadXrefLayerId(reference.id)}:`;
+    const delXref = (layer: CadLayerDef) =>
+      layer.id === xrefLayer.id || layer.id.startsWith(projectedLayerPrefix);
+    const survivors = document.layers.filter((layer) => !delXref(layer));
+    for (const layer of document.layers)
+      if (layer.id.startsWith(projectedLayerPrefix))
+        commands.push(cadEmptyLayerDeleteCommand(survivors, layer.name));
+    if (document.layers.some((layer) => layer.id === xrefLayer.id))
+      commands.push(cadEmptyLayerDeleteCommand(survivors, xrefLayer.name));
+  }
   return commands;
 }
 

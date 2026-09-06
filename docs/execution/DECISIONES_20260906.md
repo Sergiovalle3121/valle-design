@@ -275,6 +275,42 @@ Qué haría falta para elegir lo otro ...  Llevar las aristas ocultas del
                     anfitrión al índice de enganche (visibilidad por candidato)
                     y entonces quitar el filtro al plano.
 
+## D-16 · Las capas de la xref son capas del anfitrión («XREF|<xref>|<capa>») y el filtro de nombres corre sólo al renombrar (T-41)
+Qué se dudó ......  Tres caminos para que las capas del plano ajeno
+                    sobrevivan: (a) una tabla de capas POR xref dentro de la
+                    referencia, que manda sobre el anfitrión (VISRETAIN=0);
+                    (b) proyectarlas como capas del anfitrión con prefijo,
+                    que se apagan como cualquier otra y cuyo estado se guarda
+                    con el plano (VISRETAIN=1); (c) dejar la capa única y
+                    añadir un cuadro de «capas de la xref» con visibilidad
+                    aparte. Y al probar (b), el gestor rechazaba APAGAR una
+                    capa cuyo nombre lleva `|`: el filtro de caracteres DXF
+                    corría sobre el nombre existente en cualquier parche.
+Qué se eligió ....  (b): al adjuntar, una capa `XREF|<xref>|<capa>` por cada
+                    capa de origen (su «0» incluida, como AutoCAD), con id
+                    `xref:<id>:layer:<capa>`, el color, tipo de línea y
+                    grosor del remitente y `locked:false`; las entidades
+                    proyectadas conservan su capa; al desligar se retiran
+                    reasignando a una capa que sobreviva al lote, y al
+                    enlazar (bind) se quedan, que es donde viven las
+                    entidades ya del anfitrión. Descargar y recargar no tocan
+                    la tabla, así que lo apagado sigue apagado. El filtro de
+                    nombres corre sólo cuando el parche trae `name`: apagar,
+                    congelar, bloquear o cambiar el color no renombran; el
+                    `|` sigue prohibido al renombrar (es el separador).
+Por qué es lo conservador ...  No toca el esquema del documento ni el gestor
+                    de capas: son capas normales, con la persistencia, el
+                    deshacer y el congelado por ventana que ya tienen, y el
+                    nombre es el que un usuario de AutoCAD espera al abrir el
+                    DXF. (a) pedía un esquema nuevo y otro gestor; (c) dejaba
+                    las entidades aplastadas. Relajar el filtro es lo mínimo:
+                    la validación de un nombre NUEVO no cambia.
+Qué haría falta para elegir lo otro ...  Que al recargar una xref los cambios
+                    de capa del REMITENTE tengan que ganar a los del
+                    anfitrión (VISRETAIN=0): entonces la tabla por xref (a)
+                    con una política de reconciliación, y una atenuación de
+                    xref (`XDWGFADECTL`) que hoy no existe.
+
 ---
 
 # Decisiones del frente F10 · Evidencia independiente (2026-09-06)

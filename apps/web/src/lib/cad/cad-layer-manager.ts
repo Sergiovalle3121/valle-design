@@ -43,7 +43,8 @@ export function updateCadDocumentLayer(
   const current = document.layers.find((layer) => layer.id === id);
   if (!current) throw new Error(`Layer ${id} was not found.`);
   const name = patch.name === undefined ? current.name : patch.name.trim();
-  if (!name || name.length > 96 || INVALID_LAYER_NAME.test(name)) throw new Error('Layer name must contain 1–96 valid DXF characters.');
+  // T-41: el nombre se valida al RENOMBRAR; una capa proyectada («XREF|x|y») se apaga/bloquea sin tocar su nombre.
+  if (patch.name !== undefined && (!name || name.length > 96 || INVALID_LAYER_NAME.test(name))) throw new Error('Layer name must contain 1–96 valid DXF characters.');
   if (document.layers.some((layer) => layer.id !== id && layer.name.toLocaleLowerCase() === name.toLocaleLowerCase()))
     throw new Error(`Layer ${name} already exists.`);
   const next: CadLayerDef = {

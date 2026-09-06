@@ -2025,8 +2025,16 @@
               "path": "apps/web/src/lib/cad/xref/xref-projection.ts"
             },
             {
-              "kind": "todaviaNo",
-              "reason": "xref-projection.ts sobrescribe la capa de cada entidad con una sola xref:<id>:layer de color y grosor fijos: las cuarenta capas del estructurista se convierten en una capa gris (ficha T-41)"
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/xref/xref-workflow.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/cad-layer-manager.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/210-auditoria-capas-de-la-xref.spec.ts"
             }
           ]
         },
