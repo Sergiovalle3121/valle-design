@@ -77,6 +77,8 @@ test.describe("La primera hora de un desconocido", () => {
     await page.getByLabel("Nombre").fill("Arquitecto desconocido");
     await page.getByLabel(/Correo electr.*nico/iu).fill(email);
     await page.getByLabel(/^Contrase/iu).fill(E2E_PASSWORD);
+    // T-63d: la cuenta no se crea sin aceptar los términos vigentes.
+    await page.getByText(/^Acepto los/).click();
     await page.getByRole("button", { name: "Crear cuenta" }).click();
     await expect(page.getByRole("status")).toContainText(/Cuenta creada/iu, {
       timeout: 60_000,

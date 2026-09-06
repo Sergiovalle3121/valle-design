@@ -221,6 +221,30 @@ Por qué es lo conservador ...  El flujo con lado es paridad con AutoCAD ya
 Qué haría falta para elegir lo otro ...  Que el titular prefiera el OFFSET
                     por signo tecleado; entonces T-23 se revisa, no esto.
 
+## D-14 · La casilla de términos del alta enlaza SIN versión cuando `GET /v1/legal/documents` falla (F8-1, T-63d)
+Qué se dudó ......  La casilla nombra la versión vigente que sirve el API
+                    pública. Si esa petición falla (red, API caída a
+                    medias), ¿se bloquea el alta (fallo cerrado), se deja
+                    crear la cuenta sin casilla (fallo abierto), o se
+                    muestra la casilla con los enlaces a las páginas y sin
+                    número de versión?
+Qué se eligió ....  Lo tercero: la casilla sigue siendo obligatoria y
+                    enlaza a `/terms` y `/privacy`, que son las páginas del
+                    producto con el texto vigente; lo único que no se
+                    escribe es una versión que no se ha leído del API. El
+                    botón sigue deshabilitado hasta marcarla.
+Por qué es lo conservador ...  Bloquear el alta por una petición auxiliar
+                    convertiría un fallo de red en una cuenta que no
+                    existe; crearla sin casilla es exactamente el defecto
+                    que T-63d señala. Un enlace sin número es verdad; un
+                    número inventado no. El registro server-owned de la
+                    versión aceptada es la parte 2 (frente F8), donde el
+                    servidor conoce la versión sin preguntarle al cliente.
+Qué haría falta para elegir lo otro ...  Que el titular prefiera el fallo
+                    cerrado; entonces la casilla muestra «no se pudieron
+                    cargar los términos» y un reintento, y el botón queda
+                    deshabilitado.
+
 ---
 
 # Decisiones del frente F10 · Evidencia independiente (2026-09-06)

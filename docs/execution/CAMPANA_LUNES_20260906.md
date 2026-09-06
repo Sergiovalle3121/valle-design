@@ -420,3 +420,16 @@ soltado recibe la frase de la puerta compartida sin viajar. Monolito en
 fila `commercial-migration.first-minute` conserva su «todavía no» sólo por
 el proyecto implícito. Verificado: tsc, eslint (0 errores), monolito, y los
 goldens 196, 38 y 192 sobre el build de producción.
+
+### F8-1 · Aceptar los términos al crear la cuenta (T-63d, parte 1) · ARREGLADA (20:54 UTC)
+El formulario de alta (`AuthPage.tsx`) pide `GET /v1/legal/documents`
+(pública) y muestra una casilla obligatoria —el `Checkbox` de la casa, con
+el `<input>` real— que nombra la versión vigente de los Términos y enlaza
+al Aviso de Privacidad; «Crear cuenta» queda deshabilitado hasta marcarla.
+Si la petición falla, la casilla enlaza a las páginas sin número de
+versión (D-14). Golden 197: la versión en pantalla, los dos enlaces, el
+botón deshabilitado con el formulario lleno, y el alta que sólo viaja
+marcada. Las cinco pruebas `real/` que crean cuenta por el formulario
+marcan la casilla. La parte 2 (el servidor exige y registra la aceptación
+al registrarse) queda en F8, avisado. Verificado: tsc, eslint (0 errores),
+golden 197 y la prueba pública de accesibilidad móvil sobre el build.

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
 import { loginRequiresMfa } from "@valle/design-sdk";
 import { localReturnTo } from "@/lib/session";
@@ -10,7 +10,7 @@ import { useDesignAuth } from "@/contexts/DesignAuthContext";
 import { AuthShell } from "@/components/AuthShell";
 import { FreeLaunchNote } from "@/components/marketing/FreeLaunchNote";
 import { ResendTimerButton } from "@/components/ResendTimerButton";
-import { Button, Input, PasswordField } from "@/components/ui";
+import { Button, Checkbox, Input, PasswordField } from "@/components/ui";
 
 type AuthMode = "login" | "register";
 
@@ -46,6 +46,35 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
    */
   const [mfaChallenge, setMfaChallenge] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * T-63d (petición F8-1). Nadie veía ni confirmaba nada al crear la cuenta.
+   * Los documentos vigentes se piden a `GET /v1/legal/documents` (pública) para
+   * que la casilla nombre la VERSIÓN que se está aceptando; si la petición
+   * falla, la casilla sigue ahí y enlaza a las páginas, porque el texto vive en
+   * el producto — lo que no se inventa es una versión (D-14). Que el servidor
+   * exija y registre esta aceptación al registrarse es la parte 2 (frente F8).
+   */
+  const [legalDocuments, setLegalDocuments] = useState<LegalLink[] | null>(null);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  useEffect(() => {
+    if (!register) return;
+    let alive = true;
+    designClient.legal
+      .documents()
+      .then(({ documents }) => {
+        if (!alive) return;
+        setLegalDocuments(
+          documents.map((doc) => ({ documento: doc.documento, version: doc.version, url: doc.url })),
+        );
+      })
+      .catch(() => {
+        if (alive) setLegalDocuments([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [register]);
+  const legalLinks = legalLinksFor(legalDocuments);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -222,18 +251,59 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
           required
           hint={register ? "Mínimo 12 caracteres." : undefined}
         />
+        {register && (
+          <Checkbox
+            name="acceptedTerms"
+            data-testid="register-accept-terms"
+            required
+            checked={acceptedTerms}
+            onChange={(event) => setAcceptedTerms(event.target.checked)}
+            label={
+              <>
+                Acepto los{" "}
+                <Link href={legalLinks.terms.url} target="_blank" rel="noreferrer" className="underline">
+                  Términos de Servicio
+                </Link>
+                {legalLinks.terms.version ? ` (versión ${legalLinks.terms.version})` : ""} y he leído
+                el{" "}
+                <Link href={legalLinks.privacy.url} target="_blank" rel="noreferrer" className="underline">
+                  Aviso de Privacidad
+                </Link>
+                {legalLinks.privacy.version ? ` (versión ${legalLinks.privacy.version})` : ""}.
+              </>
+            }
+          />
+        )}
         <Button
           type="submit"
           variant="primary"
           size="lg"
           fullWidth
           loading={busy}
+          disabled={register && !acceptedTerms}
         >
           {busy ? "Procesando…" : register ? "Crear cuenta" : "Iniciar sesión"}
         </Button>
       </form>
     </AuthShell>
   );
+}
+
+interface LegalLink {
+  documento: "terms" | "privacy";
+  version: string;
+  url: string;
+}
+
+/**
+ * Los dos enlaces de la casilla. Mientras cargan, o si la carga falló, apuntan
+ * a las páginas fijas del producto (`/terms`, `/privacy`) SIN versión: un
+ * enlace sin número es verdad; un número inventado no.
+ */
+function legalLinksFor(documents: LegalLink[] | null): { terms: LegalLink; privacy: LegalLink } {
+  const find = (documento: LegalLink["documento"], url: string): LegalLink =>
+    documents?.find((doc) => doc.documento === documento) ?? { documento, version: "", url };
+  return { terms: find("terms", "/terms"), privacy: find("privacy", "/privacy") };
 }
 
 /**
