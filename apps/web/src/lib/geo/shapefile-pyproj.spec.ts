@@ -46,7 +46,7 @@ import { geoUtmCrs } from "./crs";
 import { readShapefile } from "./shapefile";
 
 const RAIZ = path.resolve(process.cwd(), "../..");
-const CORPUS_DIR = path.join(RAIZ, "docs/cad/corpus/terceros/natural-earth");
+const CORPUS_DIR = path.join(RAIZ, "docs/cad/corpus/terceros-gis/natural-earth");
 const MANIFEST = path.join(RAIZ, "docs/cad/corpus/terceros-gis-manifest.json");
 const LICENCIA = path.join(RAIZ, "docs/cad/corpus/licencias/natural-earth-vector-PUBLIC-DOMAIN.md");
 const ARTEFACTO_PYPROJ = path.join(RAIZ, "docs/cad/corpus/oraculos/pyproj-3.7.2.json");

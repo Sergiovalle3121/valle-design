@@ -75,7 +75,7 @@ if pyproj.__version__ != ESPERADA:
     sys.exit(f"pyproj {pyproj.__version__} instalada; este censo declara {ESPERADA}")
 
 RAIZ = pathlib.Path(__file__).resolve().parents[4]
-NATURAL_EARTH_SHP = RAIZ / "docs/cad/corpus/terceros/natural-earth/ne_110m_populated_places_simple.shp"
+NATURAL_EARTH_SHP = RAIZ / "docs/cad/corpus/terceros-gis/natural-earth/ne_110m_populated_places_simple.shp"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # La misma zonificacion que apps/web/src/lib/geo/crs.ts, reescrita en Python
@@ -293,7 +293,7 @@ censo = {
         "resultados": grid_out,
     },
     "naturalEarth": {
-        "fuente": "docs/cad/corpus/terceros/natural-earth/ne_110m_populated_places_simple.shp",
+        "fuente": "docs/cad/corpus/terceros-gis/natural-earth/ne_110m_populated_places_simple.shp",
         "licencia": "Dominio publico (Natural Earth)",
         "licenciaArchivo": "docs/cad/corpus/licencias/natural-earth-vector-PUBLIC-DOMAIN.md",
         "repositorio": "https://github.com/nvkelso/natural-earth-vector",

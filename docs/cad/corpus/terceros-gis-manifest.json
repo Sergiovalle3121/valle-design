@@ -34,7 +34,7 @@
     {
       "id": "natural-earth-vector/ne_110m_populated_places_simple.shp",
       "fuente": "natural-earth-vector",
-      "ruta": "terceros/natural-earth/ne_110m_populated_places_simple.shp",
+      "ruta": "terceros-gis/natural-earth/ne_110m_populated_places_simple.shp",
       "urlOrigen": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/ca96624a56bd078437bca8184e78163e5039ad19/110m_cultural/ne_110m_populated_places_simple.shp",
       "sha256": "b9e20f6dd2896285370d049f3e09159b64317a4102fbbc2390171246e8b3a7d0",
       "bytes": 6904,
@@ -43,7 +43,7 @@
     {
       "id": "natural-earth-vector/ne_110m_populated_places_simple.shx",
       "fuente": "natural-earth-vector",
-      "ruta": "terceros/natural-earth/ne_110m_populated_places_simple.shx",
+      "ruta": "terceros-gis/natural-earth/ne_110m_populated_places_simple.shx",
       "urlOrigen": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/ca96624a56bd078437bca8184e78163e5039ad19/110m_cultural/ne_110m_populated_places_simple.shx",
       "sha256": "f173bcd955c36a35a9b190ae315019ff7fa2b48ddaae538a6ed2f04c60a08a52",
       "bytes": 2044,
@@ -52,7 +52,7 @@
     {
       "id": "natural-earth-vector/ne_110m_populated_places_simple.dbf",
       "fuente": "natural-earth-vector",
-      "ruta": "terceros/natural-earth/ne_110m_populated_places_simple.dbf",
+      "ruta": "terceros-gis/natural-earth/ne_110m_populated_places_simple.dbf",
       "urlOrigen": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/ca96624a56bd078437bca8184e78163e5039ad19/110m_cultural/ne_110m_populated_places_simple.dbf",
       "sha256": "d6bf1b8fbd389f694e42ff75040f9ea41ec3cbe1b31c1c62b12dd0cf101264d1",
       "bytes": 369900,
@@ -61,7 +61,7 @@
     {
       "id": "natural-earth-vector/ne_110m_populated_places_simple.prj",
       "fuente": "natural-earth-vector",
-      "ruta": "terceros/natural-earth/ne_110m_populated_places_simple.prj",
+      "ruta": "terceros-gis/natural-earth/ne_110m_populated_places_simple.prj",
       "urlOrigen": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/ca96624a56bd078437bca8184e78163e5039ad19/110m_cultural/ne_110m_populated_places_simple.prj",
       "sha256": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4",
       "bytes": 145,
@@ -70,7 +70,7 @@
     {
       "id": "natural-earth-vector/ne_110m_populated_places_simple.cpg",
       "fuente": "natural-earth-vector",
-      "ruta": "terceros/natural-earth/ne_110m_populated_places_simple.cpg",
+      "ruta": "terceros-gis/natural-earth/ne_110m_populated_places_simple.cpg",
       "urlOrigen": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/ca96624a56bd078437bca8184e78163e5039ad19/110m_cultural/ne_110m_populated_places_simple.cpg",
       "sha256": "3ad3031f5503a4404af825262ee8232cc04d4ea6683d42c5dd0a2f2a27ac9824",
       "bytes": 5,

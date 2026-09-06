@@ -5323,7 +5323,7 @@
     ]
   },
   "naturalEarth": {
-    "fuente": "docs/cad/corpus/terceros/natural-earth/ne_110m_populated_places_simple.shp",
+    "fuente": "docs/cad/corpus/terceros-gis/natural-earth/ne_110m_populated_places_simple.shp",
     "licencia": "Dominio publico (Natural Earth)",
     "licenciaArchivo": "docs/cad/corpus/licencias/natural-earth-vector-PUBLIC-DOMAIN.md",
     "repositorio": "https://github.com/nvkelso/natural-earth-vector",
