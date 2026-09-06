@@ -34,7 +34,7 @@ envían como archivos gzip y se guardan como blobs content-addressed — en
 PostgreSQL por defecto, o en S3/MinIO si el operador configura las variables
 `S3_BLOB_*` (el adaptador se selecciona en runtime). DWG no está disponible públicamente: por defecto la
 interfaz detecta el formato y lo dice, sin fingir soporte. Existe una beta
-interna acotada —`DWG_NATIVE_IMPORT_BETA`, perfil
+interna acotada —`NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA`, perfil
 `AC1015_MODELSPACE_2D_V3`, sólo importación, apagada en producción pública
 por defecto (ADR-0009 §6-bis, ampliada §6-ter y §6-quater)— que conecta el
 códec propio clean-room
@@ -59,7 +59,7 @@ apps/
 packages/
   contracts/   Contratos compartidos y OpenAPI/AsyncAPI versionados
   design-sdk/  Cliente TypeScript generado desde OpenAPI
-  dwg-codec/   Laboratorio clean-room experimental; no disponible en producto
+  dwg-codec/   Códec DWG clean-room; en producto sólo vía la beta de importación NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA (apagada por defecto, ADR-0009 §6-bis)
 docs/          ADR, guías operativas, evidencia y matriz de brechas
 ```
 
@@ -169,7 +169,7 @@ siendo pruebas útiles, pero no sustituyen el recorrido full-stack.
 ## Límites declarados
 
 - No hay disponibilidad DWG pública ni paridad general con AutoCAD: existe
-  una beta interna de SOLO IMPORTACIÓN (`DWG_NATIVE_IMPORT_BETA`, perfil
+  una beta interna de SOLO IMPORTACIÓN (`NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA`, perfil
   `AC1015_MODELSPACE_2D_V3`, con AC1018 opcional detrás de su propia
   variable, ADR-0009 §7), apagada en producción pública por defecto y sin
   escritura; detectar una firma o mantener un laboratorio desconectado ya no
@@ -185,8 +185,14 @@ siendo pruebas útiles, pero no sustituyen el recorrido full-stack.
   universal.
 - El benchmark de 100k usa LOD y presupuestos amplios; no autoriza afirmar
   60 FPS, tiempo real ni detalle simultáneo para 100k entidades.
-- Los blobs viven en PostgreSQL (`design_blobs`). MinIO de Compose está
-  reservado y no participa en el runtime actual.
+- Los blobs viven en PostgreSQL (`design_blobs`) por defecto. Con las
+  `S3_BLOB_*` obligatorias completas (endpoint, bucket y credenciales),
+  `selectCadBlobStore`
+  (`apps/api/src/modules/cad-documents/design-blob-store.adapter.ts`) elige
+  en runtime el adaptador S3/MinIO (`apps/api/src/modules/blob-store`); el
+  MinIO de Compose sirve para probarlo en local (HTTP sólo se admite contra
+  un MinIO local fuera de producción). Ese adaptador nunca se ha ejecutado
+  contra un MinIO ni un S3 reales: lo que falta es esa corrida, no el código.
 - **Valle Design no tiene inteligencia artificial.** La que había (CIDE) era el
   motor de Axos OS, el ERP del que nació este producto, y se retiró entera; el
   candado `apps/web/src/lib/cad/no-ai-boundary.spec.ts` impide que vuelva.

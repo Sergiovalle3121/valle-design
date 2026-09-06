@@ -258,3 +258,30 @@ Verificado: `versions-host.spec.ts` (28), golden 191, typecheck, lint
 478/478, monolito en 17 235 (sin crecer), los diez specs que leen el
 monolito. Lo que queda (ESCALERA): previsualizar una versión sin guardarla
 y el diff visual entre dos versiones del servidor.
+
+### T-0D · Segunda mitad: los documentos vencidos, corregidos · HECHO (20:00 UTC)
+La auditoría documental (cuatro lectores por rebanada, cada hallazgo puesto
+en duda por un verificador aparte contra el árbol) confirmó 43 hallazgos en
+diez documentos vivos y refutó 1; 48 quedaron sin verificar por el parón de
+sesión y se están verificando ahora con Sonnet (misma consigna, mismo
+escéptico). Los 43 se aplicaron con un editor por documento y un revisor
+adversario por documento que re-corrió los comandos de verificación: siete
+veredictos «wrong/missing» se aplicaron a mano (MinIO nunca corrido contra un
+servidor real —lo dice la cabecera del adaptador—, §6-quater y no §6-bis para
+el perfil V3, el contrato de LECTURA/escritura del códec en ARCHITECTURE,
+P2-16 fuera de la sección P1, P1-FE1 sin afirmar en presente un experimento
+de agosto, y el sello «Actualizado» del BACKLOG). Familias: la variable real
+es `NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA` (README, PRODUCT, ARCHITECTURE);
+«el producto rechaza DWG» pasa a «fuera de la beta de ADR-0009»; MinIO/S3
+existe como adaptador seleccionable y sin corrida real; el CFDI timbra con
+`CFDI_PAC_NAME=facturama`; `/health/metrics/commercial` lleva `Bearer
+$METRICS_TOKEN` en DEPLOYMENT y RUNBOOK; el kernel WASM SÍ se consume
+(`tessellate.worker.ts`) y AGENTS.md pasa de «no introducir» a «no extender
+sin»; y en BACKLOG siete entradas cerradas se borran según su propia regla
+(P1-2, P1-3, P1-8, P1-FE2, P1-FE4, P2-FE5 y `npm run doctor`), las cifras a
+mano remiten al script que las computa, y entran L-5 (precaché del núcleo
+del service worker, F9-P-03) y L-6 (previsualizar y comparar versiones del
+servidor). `docs/cad-contracts-catalog.md` baja a `docs/history/execution/`
+con su línea en el índice. Gates de documentos en verde (identidad, legal,
+auditoría, dirección de imports).
+

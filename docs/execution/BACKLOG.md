@@ -1,7 +1,7 @@
 # BACKLOG — ordenado por lo que impide vender
 
-Actualizado: 2026-08-29, campaña de ingeniería frontend
-(`docs/execution/INFORME_CAMPANA_FRONTEND_20260829.md`).
+Actualizado: 2026-09-06, campaña «El lunes de un arquitecto» (T-0D; bitácora
+`docs/execution/CAMPANA_LUNES_20260906.md`).
 Cada entrada dice qué falla,
 dónde, cómo se reproduce, qué criterio la cierra y qué prueba lo fija. El
 orden dentro de cada nivel es el orden recomendado de ataque. Una entrada que
@@ -42,8 +42,9 @@ cola viva, no el museo (el museo es `docs/history/`).
 - **Qué decía originalmente:** dos rutas con comportamiento distinto; una
   re-encuadra el plano automáticamente SIN registrar el desplazamiento
   (pérdida de georreferencia silenciosa — viola la garantía 5 del contrato de
-  interop); tope de 50,000 entidades (`apps/web/src/lib/cad/dxf-import.ts:267`)
-  y corte de ~850 objetos en la ruta editable, ninguno declarado.
+  interop); tope de 50,000 entidades (`apps/web/src/lib/cad/dxf-import.ts`,
+  `MAX_DXF_ENTITIES`) y corte de ~850 objetos en la ruta editable, ninguno
+  declarado.
 - **Parte YA CERRADA — encuadre de cámara** (2026-08-25, campaña post-3D-M1,
   PR #99 + #102): el sub-hallazgo de encuadre de cámara (hallado cerrando
   P0-2, mismo origen) resultó ser dos cosas DISTINTAS, no una — investigado a
@@ -81,9 +82,10 @@ cola viva, no el museo (el museo es `docs/history/`).
   fingir una fidelidad que Route B nunca tuvo.
 - **Hallazgo que CORRIGE la redacción original — los topes YA estaban
   declarados:** la misma investigación confirmó, cita por cita, que los
-  cuatro topes numéricos del código (50.000 en `dxf-import.ts:267`, 40.000 en
-  `components/cad/interop/dxf.ts:20`, 850 en `Layout3DEditor.tsx` y 1.500 en
-  `dxf-walls.ts`) YA se declaraban al usuario cada uno por el mecanismo que le
+  cuatro topes numéricos del código (50.000 en `dxf-import.ts` `MAX_DXF_ENTITIES`,
+  40.000 en `components/cad/interop/dxf.ts` `MAX_ENTITIES`, 850 en
+  `Layout3DEditor.tsx` y 1.500 en `dxf-walls.ts`) YA se declaraban al usuario
+  cada uno por el mecanismo que le
   corresponde a su ruta (informe de fidelidad / `lossManifest` / toast — el
   modelo `Asset` heredado no tiene `lossManifest`, así que el toast es su
   mecanismo correcto, no uno degradado). El backlog original afirmaba lo
@@ -110,31 +112,19 @@ cola viva, no el museo (el museo es `docs/history/`).
 
 ## P1 — bloquea flujos que un despacho espera
 
-### P1-2 · XATTACH por línea de comandos no puede adjuntar (falta la biblioteca)
-- **Qué falla:** la orden está completa pero `context.xrefCatalog` nunca se
-  provee; la vía gráfica sí adjunta (fetch asíncrono del asset del tenant).
-- **Dónde:** `apps/web/src/lib/cad/engine/commands/xrefs.ts` (orden),
-  `Layout3DEditor.tsx` → `fetchCadXrefSnapshot`/`attachProfessionalXref`.
-- **Diseño:** petición de host asíncrona al patrón de PLOT: la orden emite
-  `{kind:"xref-attach", assetId…}`, el anfitrión responde «adjuntando…»,
-  reutiliza `attachProfessionalXref` y el resultado llega por `note()`. O
-  bien: pre-cargar el catálogo del tenant (nombres, sin contenido) al montar
-  y proveer `xrefCatalog` con snapshots bajo demanda.
-- **Criterio:** `XATTACH nombre` adjunta lo mismo que la vía gráfica; el
-  arnés de integridad lo reclasifica de honesto-limitado a delegado.
-- **Estimación:** 1 día.
-
-### P1-3 · BEDIT como editor real de bloques (hoy: puerta al panel)
-La redefinición existe en el panel (redefine + versión propagada); falta la
-edición EN SITIO de la definición. **Diseño esbozado:** modo de edición que
-monta las entidades de la definición como documento temporal en el lienzo,
-guarda de vuelta con `replace` de la definición + regeneración de inserciones
-(el camino de `redefineProfessionalBlock` ya existe). **Criterio:** el
-criterio `blocks.bedit` de la rúbrica pasa con evidencia real.
+### P1-3 · BEDIT: falta editar en sitio una referencia GIRADA o ESCALADA
+`BEDIT` (Ola 7) ya abre la referencia designada o seleccionada EN SITIO sobre
+su punto de inserción, y cae al panel —diciendo por qué— cuando no puede.
+Queda por resolver el caso que el propio comando niega por su nombre: una
+referencia con giro o escala, donde devolver la geometría exige traerla al
+mundo y regresarla girada/escalada, no sólo trasladarla. Ver
+`docs/parity/ESCALERA.md`, fila `blocks`.
 **Estimación:** 2–3 días.
 
 ### P1-5 · Marcar visibilidad por operación en el contrato OpenAPI
-`x-visibility: public|internal|experimental` en las 79 operaciones de
+`x-visibility: public|internal|experimental` en todas las operaciones
+(`operationCount` en `apps/web/src/app/docs/api/operations.generated.json`,
+vigilado por `console-contract.spec.ts`) de
 `packages/contracts/specs/design-api.v1.yaml` + el gate del contrato exige la
 marca en operaciones nuevas + publicar la lista `public` inicial (propuesta en
 `docs/api/POLITICA-API-PUBLICA.md`). **Criterio:** `check:cad-contract` falla
@@ -152,8 +142,8 @@ ante operación sin marca. **Estimación:** medio día.
   5,0×4,0 m con muros de 250 mm y una puerta, el cuadro da 10,178 m³ y el
   sólido real da 10,328 m³ — 1,45% de brecha, del mismo orden que la cifra
   original investigada (cuarto sin puerta: 10,65 vs 10,80 m³, 1,39%).
-- **Dónde:** `apps/web/src/lib/cad/bim-schedule.ts` (líneas ~187-216, el
-  descuento de `junctionVolumeByWall`); el sólido real de referencia vive en
+- **Dónde:** `apps/web/src/lib/cad/bim-schedule.ts` (el descuento de
+  `junctionVolumeByWall`); el sólido real de referencia vive en
   `wall-solid.ts` (`wallSolidBodyLocalWithDiagnostics`) +
   `lib/brep/mass-properties.ts` (`bodyMassProperties`).
 - **Hereda el sesgo (campaña Entrega del proyecto, 2026-08-31):**
@@ -174,43 +164,6 @@ ante operación sin marca. **Estimación:** medio día.
   sólo restar el solape interior) y `wall-takeoff-solid-parity.spec.ts`
   pasa con una brecha ~0% en vez de con un techo de tolerancia.
 - **Estimación:** medio día una vez decidido el criterio de facturación.
-
-### P1-8 · PUBLISH y SHEETSET son comandos reales pero el estudio no les pasa un conjunto cargado
-- **Qué falla:** `PUBLISH` y `SHEETSET` (campaña Entrega del proyecto,
-  2026-08-31) alcanzan de verdad `CAD_COMMAND_REGISTRY_V2` y su anfitrión
-  (`plot-host.ts`) publica un PDF real y renumera/añade/lista hojas de un
-  `CadSheetSet` real cuando se le da uno — probado contra bytes de PDF y
-  contra el conjunto guardado (`plot-host.spec.ts`, `sheet-set-commands.spec.ts`).
-  Lo que falta es la MISMA pieza que P1-2 (XATTACH): nadie llama a
-  `sheetSetsRepository` desde el estudio real y pasa `sheetSet`/`saveSheetSet`
-  a `useCadStudioPlotHost`. Hoy, tecleado en el producto, responde «El
-  conjunto de planos … no está cargado en este estudio» — honesto, no un
-  éxito falso, pero tampoco el flujo completo.
-- **Dónde:** `apps/web/src/components/cad/command-line/plot-host.ts`
-  (`CadPlotHostBridge.sheetSet`/`saveSheetSet`, ya declarados) y
-  `apps/web/src/components/cad/command-line/use-command-engine.ts`
-  (`useCadStudioPlotHost`, que hoy no recibe esas dos opciones). El punto de
-  montaje real está en `Layout3DEditor.tsx` línea ~4852
-  (`useCadStudioCommandEngine({...})`), y por eso NO se tocó en esta
-  campaña: el archivo está en su techo exacto de `check:cad`
-  (19.002/19.002 líneas, 135/135 `useState` — una línea más es un rojo).
-- **Diseño esbozado:** exactamente el patrón que P1-2 ya dejó escrito para
-  XATTACH — precargar el conjunto activo (nombre, sin contenido) al abrir el
-  estudio, o resolver `sheetSetId` bajo demanda contra
-  `sheetSetsRepository.get`/`documentsRepository.open` y entregarlo
-  síncronamente desde una `ref` ya resuelta, como hace `plotStyleTables`.
-  El propio `Layout3DEditor.tsx` ya tiene un flujo de publicación por botón
-  (`publishSheetSetPdf`, con `jsPDF` y `buildCadPublishPlan`) que NO usa esta
-  tubería — es un hallazgo de esta campaña, no un demérito: los dos flujos
-  hoy conviven y deberían converger en `publishCadSheetSet`.
-- **Criterio de aceptación:** `PUBLISH set:id` tecleado en el estudio real
-  produce el mismo PDF que hoy produce el botón; el arnés de integridad no
-  cambia (ya es `delegado`, correcto), pero un golden Playwright puede dejar
-  de afirmar el mensaje «no está cargado» y afirmar en su lugar el PDF
-  descargado.
-- **Estimación:** 1 día, la mayor parte en decidir el punto de precarga
-  (bloqueado por quien tenga permiso de tocar `Layout3DEditor.tsx`, o por la
-  próxima extracción del monolito).
 
 ### ~~P1-7 · Canal "algo salió mal" dentro del producto, vía outbox~~ — CERRADO (campaña de lanzamiento, OLA 4.2)
 
@@ -368,15 +321,10 @@ ante operación sin marca. **Estimación:** medio día.
 
 ### ~~P1-FE1 · Los umbrales de rendimiento de Lighthouse están sin calibrar~~ · CERRADO 2026-08-29
 
-- **Cerrado.** Los cuatro umbrales de las dos pasadas **bloquean**, con el número
-  del runner medido delante:
-
-  | Categoría | Escritorio | Móvil | Medido en el runner | Margen |
-  | --- | ---: | ---: | ---: | ---: |
-  | Rendimiento | **0,90** | **0,70** | 94 / 73 | 4 y 3 puntos |
-  | Accesibilidad | 0,95 | 0,95 | 100 | 5 puntos |
-  | Buenas prácticas | **0,90** | **0,90** | 96 | 6 puntos |
-  | SEO | **0,90** | **0,90** | 100 | 10 puntos |
+- **Cerrado.** Los cuatro umbrales de las dos pasadas **bloquean**; los valores
+  vigentes de cada categoría viven en `scripts/perf/lighthouserc.json`
+  (escritorio) y `scripts/perf/lighthouserc.mobile.json` (móvil) — se
+  recalibran con la campaña que mueva el producto, no a mano en este documento.
 
 - **La medida** (`ubuntu-latest`, run 33252353725 sobre `3ffc7a1`, mediana de tres
   corridas por ruta): escritorio **94 / 94 / 94** con LCP 1,62-1,69 s; móvil
@@ -391,31 +339,17 @@ ante operación sin marca. **Estimación:** medio día.
   campaña). El job `resumen-lighthouse` publica ahora esa tabla en cada corrida,
   en un log de veinte líneas, para que la próxima recalibración no cueste lo
   mismo.
-- **El móvil se fija en 0,70 y no en 90** porque el producto no está en 90.
+- **El umbral móvil de `scripts/perf/lighthouserc.mobile.json` se fija por
+  debajo del de escritorio** porque el producto no rinde igual en los dos.
   Bajar el listón en silencio no vale; dejar el gate en aviso tampoco, porque un
   gate que no bloquea no es un gate. Sube cuando suba el producto: lo que hay que
   adelgazar es **P1-FE6**.
-- **Comprobado que muerde:** subiendo el umbral móvil a 0,80 contra los informes
-  reales, `lhci assert` falla en las tres rutas y devuelve 1; con 0,70 pasa.
-
-### P1-FE2 · El monolito del editor: los tres bloques que quedan
-- **Qué falta:** `Layout3DEditor.tsx` bajó de 20 220 a 19 137 líneas con siete
-  cuadros extraídos, pero el objetivo declarado de la campaña (< 18 500 y
-  `useState` < 130) NO se alcanzó, y el motivo está medido.
-- **Dónde:** el mapa completo, con el acoplamiento de cada bloque y el comando
-  para volver a medirlo, está en `docs/execution/DEUDA-MONOLITO.md`.
-- **Por qué NO se forzó:** el bloque grande que falta —el paquete premium de
-  entrega, 525 líneas— toca ~40 variables del cierre del componente. Un
-  componente con cuarenta props no es una extracción: es el monolito con otra
-  sintaxis. Y los `useState` no bajan extrayendo cuadros porque los cuadros
-  pintaban estado ajeno; bajarlos exige mover la propiedad del estado.
-- **Cómo se cierra:** primero `usePaperSpaces` (controlador de espacios-papel),
-  y con él el cuadro sale con dos props. Después los otros tres controladores
-  identificados (exportación DXF, versiones, validación), que suman ~23
-  `useState`.
-- **Criterio de aceptación:** monolito < 18 500 y `useState` < 130, con el
-  trinquete bajado en el mismo commit y los goldens verdes.
-- **Estimación:** una ola de campaña por controlador.
+- **Comprobado que muerde (al calibrar, 2026-08-29):** subir el umbral móvil por
+  encima de lo medido en el runner hizo fallar `lhci assert` en las tres rutas
+  (devolvió 1); con el umbral entonces committeado pasó. La campaña del sitio del
+  mismo día volvió a subir los dos umbrales
+  (`docs/execution/INFORME_CAMPANA_SITIO_20260829.md`); los vigentes son los de
+  los dos archivos de arriba.
 
 ### P1-FE3 · Web Vitals de campo: falta el endpoint, no el medidor
 - **Qué falta:** `lib/cad/telemetry/interaction-latency.ts` ya mide la latencia
@@ -437,19 +371,6 @@ ante operación sin marca. **Estimación:** medio día.
   percentil. Con límite de tasa y sin dato personal.
 - **Estimación:** media campaña.
 
-### P1-FE4 · La trampa de foco de los cuadros del estudio
-- **Qué falta:** `CadDialogShell` da `role="dialog"`, `aria-modal`,
-  `aria-labelledby` y cierre con Escape a los siete cuadros extraídos — que
-  antes no tenían nada de eso. Lo que **no** hace es mover el foco al abrir,
-  atraparlo dentro ni devolverlo al cerrar.
-- **Por qué NO se hizo a medias:** un foco que salta a un sitio equivocado deja
-  a quien navega con teclado peor que antes. `Modal` (el de `components/ui`) sí
-  lo hace y es la referencia a copiar.
-- **Criterio de aceptación:** los cuadros del estudio pasan el mismo test de
-  trampa de Tab que ya pasa el diálogo de comentarios en
-  `e2e/a11y/teclado-embudo.spec.ts`.
-- **Estimación:** medio día, la mayor parte en pruebas.
-
 ### P1-FE5 · Veintisiete controles del estudio se pueden enfocar y no se ven
 - **Qué falla:** `globals.css` define el anillo de foco en `@layer base` con
   `:focus-visible`, pero Tailwind v4 emite `outline-none` en la capa
@@ -468,9 +389,9 @@ ante operación sin marca. **Estimación:** medio día.
 - **Estado:** hay **trinquete** desde 2026-08-29 —`foco-visible-budget.json`,
   27, y sólo baja—. No se puso en cero para no romper el repo de golpe y
   provocar una lista de excepciones, que es como se muere un gate.
-- **Cómo se cierra:** cada paleta que salga del monolito (P1-FE2) se lleva sus
-  campos y les pone `focus-visible:ring-2 ring-ring`; el trinquete baja en el
-  mismo commit.
+- **Cómo se cierra:** cada paleta que salga del monolito (ver
+  `docs/execution/DEUDA-MONOLITO.md`) se lleva sus campos y les pone
+  `focus-visible:ring-2 ring-ring`; el trinquete baja en el mismo commit.
 - **Criterio de aceptación:** el presupuesto llega a 0 y el gate pasa a
   prohibición.
 - **Estimación:** se paga a plazos, con las extracciones.
@@ -541,23 +462,13 @@ ante operación sin marca. **Estimación:** medio día.
 - **Estimación:** 2 horas — la conversión es mecánica, el recorte de alcance
   pide mirar dónde se usa cada familia.
 
-### P2-FE5 · Las plantillas no se pueden diferir desde la paleta
-- **Qué se descubrió:** `lib/cad/templates.ts` son 4 982 líneas de datos que
-  parecían un `import()` fácil. No lo son: `lib/cad/engine/index.ts` importa
-  `CAD_LAYOUT_COMMANDS`, que importa `CAD_LAYOUT_TEMPLATES`, y el motor de
-  comandos es núcleo del estudio. Diferir las plantillas exige diferir los
-  **manejadores de comandos pesados**, uno a uno, detrás de un `import()` en su
-  `run`.
-- **Criterio de aceptación:** el chunk del editor baja de forma medible en
-  `e2e/performance/frontend-load-budget.spec.ts` sin que ningún comando pierda
-  su prueba.
-- **Estimación:** campaña propia.
-
 ## P2 — deuda que crece con intereses
 
 ### P2-F5 · El barrido de cables sueltos es sensible al orden en el par 2D/3D
-- **Qué falla:** `cables-sueltos.spec.ts` pulsa los 76 controles del estudio en
-  serie y SIN restaurar el estado entre uno y otro, así que en el par
+- **Qué falla:** `cables-sueltos.spec.ts` pulsa en serie todos los controles
+  visibles del estudio que el propio spec inventaría (la cifra medida vive en
+  la nota «CUATRO REBANADAS» del spec y en el log `Barrido k/4: … de N
+  controles`) y SIN restaurar el estado entre uno y otro, así que en el par
   «Vista de plano 2D» / «Vista 3D» el que resulte inerte depende de en qué modo
   esté el visor al llegar a él. Medido: en dos corridas locales consecutivas del
   MISMO commit el inerte cambió de uno al otro; en CI sale siempre el 2D, que es
@@ -609,12 +520,14 @@ habría sido una regresión). **Regla:** una ventana por grupo, nunca en mitad
 de campañas de goldens.
 
 ### P2-5 · Bajar los avisos de lint por familias (presupuesto en `scripts/lint-budget.json`)
-Web: 163 `react-hooks/refs` viven en el monolito — bajan al ritmo de
-`DEUDA-MONOLITO.md`, no con parches cosméticos. API: 338 `no-unsafe-*`
-concentrados en specs (tipar `response.body` con los tipos del SDK) y en
-`migration-cli` + `cfdi-issuance.service.ts` (19, RUTA DE DINERO: tipar
-primero). **Criterio:** el presupuesto baja en cada campaña que toque esos
-archivos; `--update` committeado con el diff.
+Web: los `react-hooks/refs` (cifra en `scripts/lint-budget.json`) viven en el
+monolito — bajan al ritmo de `DEUDA-MONOLITO.md`, no con parches cosméticos.
+API: los `no-unsafe-*` (suma de las cinco reglas en `scripts/lint-budget.json`,
+recalculada con `node scripts/check-lint-budget.mjs --update`) concentrados en
+specs (tipar `response.body` con los tipos del SDK) y en `migration-cli` +
+`cfdi-issuance.service.ts` (RUTA DE DINERO: tipar primero). **Criterio:** el
+presupuesto baja en cada campaña que toque esos archivos; `--update`
+committeado con el diff.
 
 ### P2-6 · CFDI contra el entorno de pruebas real del PAC
 Herencia declarada: el flujo de timbrado está probado contra specs propios;
@@ -640,22 +553,23 @@ referencia por ruta). **Criterio:** `logo-geometry` a un módulo neutro
 (config/brand), social-card junto a sus rutas OG, exención retirada (el gate
 exige retirarla al sanar).
 
-### P2-11 · Auditoría de veracidad de los `.md` vivos + índice de 30 segundos
+### P2-11 · Auditoría de veracidad de los `.md` vivos
 - **Qué falta:** no hay una pasada sistemática que confirme que cada `.md`
   vivo bajo `docs/` (fuera de `docs/history/`, que ya se sabe archivo)
-  describe el estado REAL del repo y no residuo de una decisión superada; ni
-  un `docs/README.md` que oriente en 30 segundos a quien llega, con el mismo
-  patrón que `docs/history/README.md` ya usa para sí mismo ("la verdad de
-  hoy empieza en `IDENTITY.md` y sigue en `ARCHITECTURE.md`, `PRODUCT.md`,
-  `REPOSITORY_SCOPE.md`…").
+  describe el estado REAL del repo y no residuo de una decisión superada.
+  `docs/README.md` (índice de 30 segundos, con el mismo patrón que
+  `docs/history/README.md` ya usa para sí mismo) ya existe (#133).
 - **Origen:** se inició con subagentes en paralelo durante la campaña de
   cierre de ramas del 2026-08-24, pero no sobrevivió a una compactación de
   contexto (sin hallazgos recuperables en disco) y no respondía a un pedido
   explícito del titular — se documenta aquí en vez de relanzarse a ciegas
   sobre una premisa no verificada o perderse en silencio.
+- **Primera pasada sistemática:** la campaña «El lunes de un arquitecto»
+  (T-0D, 2026-09-06) corrió la primera auditoría de este tipo; bitácora en
+  `docs/execution/CAMPANA_LUNES_20260906.md`.
 - **Alcance si se retoma:** pasada doc por doc bajo `docs/` contra el
   código/tests reales (no asumir, verificar cada afirmación como el resto de
-  esta campaña); escribir `docs/README.md`.
+  esta campaña).
 - **Estimación:** medio día de auditoría + lo que cueste cada corrección
   real que aparezca.
 
@@ -704,12 +618,13 @@ exige retirarla al sanar).
 - **Estimación:** medio día.
 
 ### P2-14 · Los hosts 3D no escopan por `modelSpace.entityIds` (1.6 de la campaña Paridad)
-- **Qué falta:** `wall-solid-host.ts:153`, `room-solid-host.ts:74`,
-  `solid-shade-host.ts:322` y `solid-snap-host.ts:110` recorren
+- **Qué falta:** `wall-solid-host.ts`, `room-solid-host.ts`,
+  `solid-shade-host.ts` y `solid-snap-host.ts` recorren
   `document.entities` DIRECTO — sin filtrar por
   `document.modelSpace.entityIds`. Sólo `render-pipeline-host.ts` (2D) sí
-  escopa por `modelSpace.entityIds` (línea 304-310). `CadPaperSpace` ya
-  declara su PROPIO `entityIds: string[]` (`cad-paper-viewport.ts:269`) —
+  escopa por `modelSpace.entityIds` (en `replace()`, al construir
+  `drawOrder`). `CadPaperSpace` ya declara su PROPIO `entityIds: string[]`
+  (`cad-paper-viewport.ts`, `interface CadPaperSpace`) —
   entidades que viven en `document.entities` pero pertenecen a una hoja,
   no al modelo (un texto de nota escrito directo sobre el layout, por
   ejemplo). Investigado sin encontrar HOY un camino de comando que cree
@@ -752,7 +667,7 @@ exige retirarla al sanar).
 - **Investigado antes de tocar el test (campaña Paridad, OLA FINAL,
   2026-08-27):** confirmado que NINGÚN otro golden usa
   `collectBrowserErrors`/verifica `browserErrors` — es el único de los
-  64 con esta aserción, sin filtro de ningún tipo (ni un solo mensaje
+  goldens de `e2e/golden/` con esta aserción, sin filtro de ningún tipo (ni un solo mensaje
   exento), lo que explica por qué es el único que la detecta. No se
   relajó la aserción (regla 5 de la campaña): un `toEqual([])` que
   ignorara mensajes de React sería exactamente el tipo de gate
@@ -777,19 +692,32 @@ exige retirarla al sanar).
 - **Estimación:** 1 hora si el `NEXT_PUBLIC_API_URL` de build local se
   resuelve rápido; si no, es sólo lectura de un log de CI ya existente.
 
+### P2-16 · Publicar un conjunto de planos: dos tuberías que deberían converger
+El botón «Publicar conjunto PDF vectorial»
+(`apps/web/src/components/cad/editor/Layout3DEditor.tsx` `publishSheetSetPdf`,
+vía `buildCadPublishPlan` + `editor/sheet-set-pdf.ts`) y el comando `PUBLISH`
+(`command-line/plot-host.ts` → `lib/cad/sheet-set/sheet-set-publish.ts`
+`publishCadSheetSet`) siguen siendo dos tuberías; ninguna prueba afirma que
+produzcan el mismo PDF (el golden 102 ya llama «OTRO motor» —`lib/cad/plot/plot-job`
++ `plot-pdf`— al camino tecleado frente al botón, y `publishCadSheetSet` va por
+ese mismo motor). **Criterio:** converger en `publishCadSheetSet` o un spec que
+compare ambos archivos. **Estimación:** medio día.
+
 ---
 
 ## Herencias verificables de campañas anteriores (dueño: revisar informes)
 
 - Bloques dinámicos (R.1 de pulido, criterio `blocks.dynamic` de la rúbrica).
 - Nota de crédito CFDI (reserva de pulido).
-- Kernel WASM con paridad verde Y enchufado (criterio `wasm` de la rúbrica:
-  hoy nadie lo importa).
+- Kernel WASM enchufado (`render/curve-kernel-tessellation.ts` lo importa y
+  `tessellate.worker.ts` lo usa; el criterio `wasm.toolchain` de la rúbrica lo
+  verifica). Lo que le falta a la fila para su tope es evidencia independiente
+  de la paridad (referencia de precisión arbitraria, frente F10/mpmath); la
+  puntuación exacta la imprime `node scripts/cad/rubric.mjs`, no este
+  documento.
 - Descomposición del monolito: método y meta en
   `docs/execution/DEUDA-MONOLITO.md`; primer escalón sugerido: los
   anfitriones de selección y capas.
-- `npm run doctor` (R.5): diagnóstico de entorno de desarrollador nuevo
-  (Node, PG, VALLE_DWG_CORPUS_MIRROR, puertos, App Control de Windows).
 - Accesibilidad del embudo público con lector de pantalla real (R.4).
 - Auditoría de arranque: qué se descarga antes del primer trazo (R.3).
 
@@ -830,3 +758,36 @@ transporte de presencia por servidor para el enlace de revisión (el SSE ya
 existe para la sesión first-party), con el token del fragmento y el mismo
 aislamiento por organización. Es la pieza «el invitado existe entre máquinas»
 del grupo `navegador` de la rúbrica (`guest-presence.visible`).
+
+### L-5 · Precachear el núcleo de comandos del service worker (T-75(d), petición F9-P-03)
+- **Qué falla:** `service-worker-policy.ts`: `SW_PRECACHE_URLS` sólo lleva el
+  cascarón (`/sin-conexion`, manifiesto, iconos, fuentes). `/_next/static/*`
+  es `stale-while-revalidate`: se sirve de caché sólo tras haberse pedido una
+  vez. Los módulos de comandos en carga diferida (`lib/cad/commands/lazy.ts` y
+  cada `import()` del registro) nunca se precachean: un comando que la persona
+  no tecleó en esta pestaña falla sin red al pedir su chunk. La fila
+  `dibujar-acotar-modelar` de `offline-capability-matrix.ts` ya dice la
+  condición real (código YA descargado) y `offline-capability-matrix.spec.ts`
+  (bloque 14) impide volver a la frase antigua.
+- **Por qué no es un fix de una tarde:** (1) definir QUÉ es el núcleo es una
+  decisión de producto; (2) los nombres de `/_next/static/chunks/*.js` llevan
+  hash de build: hace falta un script post-build que lea el manifiesto y los
+  inyecte en `SW_PRECACHE_URLS` (como `PRELOAD_FONTS` desde
+  `scripts/design/subset-fonts.py`); (3) `cache.addAll` es todo-o-nada: un
+  chunk que falle en `install` deja al worker sin instalar y a nadie con
+  offline, ni el cascarón; (4) `SW_CACHE_NAME` deriva de la política: cambia y
+  fuerza reinstalación en todos los navegadores.
+- **Criterio:** golden con `context.setOffline(true)` tras un primer `goto`
+  que abra el estudio, teclee un comando del núcleo declarado y confirme que
+  ejecuta; y otro que confirme que `install()` sigue en verde con la lista
+  ampliada contra un build real.
+
+### L-6 · Previsualizar una versión del servidor sin guardarla, y el diff entre dos versiones (queda de T-12·1)
+- **Qué falta:** «Versiones» (golden 191) lista el historial CAS y restaura
+  como versión nueva, pero no deja MIRAR una versión antes de decidir ni
+  comparar dos versiones del servidor entre sí (la paleta de colaboración
+  compara versiones con nombre dentro del documento, no el historial CAS).
+- **Criterio:** abrir una versión en sólo lectura sin escribir en el servidor
+  (`GET …/versions/:n` ya la entrega hidratada) y un diff por entidad entre
+  dos versiones del historial, con golden.
+

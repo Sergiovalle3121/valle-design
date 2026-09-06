@@ -10,8 +10,7 @@ civil, de instalaciones, de mobiliario, de terreno—; el contenido mexicano es 
 fortaleza inicial, no su límite. Ver [`IDENTITY.md`](IDENTITY.md).
 
 Su dominio comprobado incluye documento CAD canónico con CAS/versiones, bloques,
-revisión, publicación PDF, fondo e import/export DXF, intents/vision opcionales y
-blobs en PostgreSQL.
+revisión, publicación PDF, fondo e import/export DXF y blobs en PostgreSQL.
 
 ## Fuera
 
@@ -24,12 +23,36 @@ el software que _opera_ esa fábrica no existe en este repositorio. El gate
 lo hace cumplir. Office y los datos industriales del producto de origen tampoco
 pertenecen aquí.
 
-MinIO está en Compose como reserva, pero el runtime actual no consume sus
-variables. DWG tiene un códec experimental interno (`packages/dwg-codec`) que no
-está expuesto en el producto. El kernel Rust/WASM existe como crate
-(`crates/valle-cad-kernel`), artefacto (`apps/web/public/wasm`) y specs de
-paridad, pero todavía no lo consume ningún camino de la aplicación: por el
-criterio de evidencia de abajo, es parcial, no soportado.
+Los blobs viven en PostgreSQL (`design_blobs`) por defecto (`.env.example` deja
+`S3_BLOB_*` comentadas); con las `S3_BLOB_*` obligatorias completas —todas o
+ninguna— el adaptador S3/MinIO de `apps/api/src/modules/blob-store` se
+selecciona en runtime para el puerto `CAD_BLOB_STORE` (`selectCadBlobStore`), y
+admite HTTP sólo contra un MinIO local fuera de producción, como el que levanta
+`docker-compose.yml` (`http://localhost:9000`). Ese adaptador se prueba con
+vectores SigV4 y un cliente HTTP inyectado; nunca se ha ejecutado contra un
+MinIO ni un S3 reales —lo declara su propia cabecera—. Lo que falta es esa
+corrida, no el código.
+
+DWG tiene un códec propio (`packages/dwg-codec`) expuesto en el producto sólo
+como beta de importación (ADR-0009 §6-bis, ampliada en §6-quater al perfil
+`AC1015_MODELSPACE_2D_V3`; AC1018 desde §7), apagada por defecto tras
+`NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA`
+(y `NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA` para AC1018), con un único punto de
+lectura autorizado (`apps/web/src/lib/cad/dwg-native-reader.ts`, gate
+`scripts/dwg/check-product-boundary.mjs`). La exportación (§8) existe como
+adaptador (`dwg-native-writer.ts`) pero está cerrada — `DWG_EXPORT_FLAG=false`,
+sin botón ni consumidor de producto. Por el criterio de evidencia de abajo:
+parcial.
+
+El kernel Rust/WASM (`crates/valle-cad-kernel`, ADR-0003) lo consume por
+defecto el worker de teselado del pipeline de render
+(`apps/web/src/lib/cad/render/tessellate.worker.ts` →
+`curve-kernel-tessellation.ts`), con el motor JavaScript como reserva mientras
+el binario de `apps/web/public/wasm` no está caliente o no hay `Worker`; su
+alcance es la teselación de arcos, círculos, elipses y splines, no un kernel
+geométrico general. Por el criterio de evidencia de abajo sigue siendo
+parcial: la fila «Kernel Rust/WASM» de
+`docs/competitive/autocad-2027-gap-matrix.md` dice por qué.
 
 ## Criterio de evidencia
 

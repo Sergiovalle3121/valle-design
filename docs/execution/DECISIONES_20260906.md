@@ -103,3 +103,68 @@ Por qué es lo conservador ...  Integrar una rama nacida de agosto sería
 Qué haría falta para elegir lo otro ...  Nada: es un defecto del entorno
                     (instantánea del clon) que conviene que el titular sepa,
                     porque volverá a pasar en cada sesión nueva.
+
+## D-08 · Territorios concedidos a petición de los frentes (F8, F9)
+Qué se dudó ......  F8 pidió el gate de términos y aviso al crear la cuenta
+                    (T-63d) en `AuthPage.tsx` y `modules/identity`, que no
+                    estaban en su lista; F9 pidió `viewport/render-pipeline-
+                    host.ts` (territorio F7, sin sesión) para que el fondo real
+                    del lienzo llegue a `defaultCadRenderStyle` (T-13).
+Qué se eligió ....  Conceder ambos, acotados: F8 sólo `AuthPage.tsx`,
+                    `app/register/**` y la parte 2 dentro de `identity`
+                    (metadata del evento `identity.registered`, sin tocar
+                    `modules/legal`); F9 sólo `setBackgroundColor` + `styleOf`
+                    + su spec. Las líneas del monolito (mitad B de F9-P-01,
+                    `nativeMassHosts` de F5-P-03, `onDrop` de F8-2) las tiende
+                    el coordinador al integrar.
+Por qué es lo conservador ...  Un solo escritor por archivo se mantiene;
+                    ningún otro frente tenía esos archivos abiertos, y dejar
+                    el hueco sin dueño era dejarlo sin arreglar.
+Qué haría falta para elegir lo otro ...  Nada: la §5.2 del prompt maestro
+                    permite al coordinador reasignar territorio.
+
+## D-09 · `toolset-electrical.esquemas` se renombra a lo que verifica (F5-P-01, opción A)
+Qué se dudó ......  El criterio cobra 2 pt por «símbolos normalizados,
+                    numeración de conductores y etiquetado» y la evidencia
+                    prueba las dos últimas mitades, no símbolos de esquema de
+                    control (IEC 60617): `grep -rniE 'bobina|contactor|
+                    relevador|guardamotor|seccionador|60617' apps packages`
+                    sin aciertos de producto.
+Qué se eligió ....  Opción A de la petición: el texto del criterio pasa a
+                    «numeración de conductores y etiquetado de componentes»,
+                    el `gap` declara los símbolos de esquema ausentes y
+                    ESCALERA gana la fila en peldaño 0. Los 2 pt se mantienen
+                    porque la evidencia sí prueba lo que el texto nuevo dice.
+Por qué es lo conservador ...  Cambia una frase, no una cifra: la rúbrica
+                    deja de prometer lo que no mide sin inventar un hueco
+                    nuevo con puntos a mano.
+Qué haría falta para elegir lo otro ...  Construir los símbolos IEC 60617
+                    como bloques con atributos y su golden (ficha futura).
+
+## D-10 · MinIO (AGPL) sólo por red como oráculo: pregunta del titular, no del coordinador (F10-P-08)
+Qué se dudó ......  `CORPUS_POLICY.md` prohíbe AGPL «sin excepción»; la lista
+                    describe bibliotecas enlazadas o redistribuidas. Un
+                    servidor MinIO contactado sólo por red desde el cliente
+                    S3 del producto no se enlaza ni se redistribuye.
+Qué se eligió ....  No arrancar MinIO ni contar `object-storage.s3` con
+                    evidencia independiente hasta que el titular lea la
+                    política y decida. Queda en el informe de cierre.
+Por qué es lo conservador ...  La política es del titular y la lectura
+                    amplia («sólo lo enlazado») no está escrita.
+Qué haría falta para elegir lo otro ...  Una línea del titular en
+                    `CORPUS_POLICY.md` (o aquí) diciendo que el acceso por red
+                    a un servidor AGPL no es material prohibido; entonces
+                    F10 corre el adaptador S3 contra MinIO y congela el censo.
+
+## D-11 · `hypothesis` (MPL-2.0) sale del prompt maestro como oráculo sugerido (F10-P-07)
+Qué se dudó ......  La ficha T-03 sugería «radamsa, atheris o hypothesis»;
+                    hypothesis es MPL-2.0 (PyPI, `license_expression`), que
+                    `CORPUS_POLICY.md` prohíbe.
+Qué se eligió ....  Corregir la ficha: `atheris` (Apache-2.0, rueda cp311) es
+                    el fuzzer ajeno; hypothesis se nombra sólo como excluido.
+                    En este entorno hypothesis se instaló al inicio de la
+                    sesión (antes del aviso) y no entró en ningún artefacto
+                    ni spec: se desinstala.
+Por qué es lo conservador ...  Un dato de licencia equivocado en el prompt
+                    maestro se hereda en cada sesión siguiente.
+Qué haría falta para elegir lo otro ...  Nada.

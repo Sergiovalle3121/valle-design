@@ -299,7 +299,8 @@ Configuración del balanceador que hace que el rollout sea invisible:
 curl -fsS https://api.tu-dominio.com/health/ready | jq
 curl -fsS -H "Authorization: Bearer $METRICS_TOKEN" \
   https://api.tu-dominio.com/metrics | grep -E '^valle_(outbox_backlog|db_pool)'
-curl -fsS https://api.tu-dominio.com/health/metrics/commercial | jq '.outbox'
+curl -fsS -H "Authorization: Bearer $METRICS_TOKEN" \
+  https://api.tu-dominio.com/health/metrics/commercial | jq '.outbox'
 ```
 
 Recorrido funcional mínimo: registro → verificación → login → crear
@@ -431,7 +432,7 @@ el drenaje que la primera puso en marcha.
 | --------------------------------- | ------------------------- | ------------------------------------------ |
 | `GET /health`                     | pública                   | liveness del supervisor                    |
 | `GET /health/ready`               | pública                   | readiness del balanceador                  |
-| `GET /health/metrics/commercial`  | pública (sólo agregados)  | runbook con `curl`, para una persona       |
+| `GET /health/metrics/commercial`  | `Bearer $METRICS_TOKEN` (404 sin token configurado, 401 sin bearer) | runbook con `curl`, para una persona |
 | `GET /metrics`                    | `Bearer $METRICS_TOKEN`   | scrapper Prometheus                        |
 
 `GET /metrics` está **desactivado por defecto**: sin `METRICS_TOKEN` responde
@@ -463,5 +464,5 @@ caída total del API súmale un monitor externo gratuito (p. ej. UptimeRobot)
 contra `/health/ready`.
 
 `docker-compose.yml` es sólo infraestructura local: tiene credenciales
-conocidas y levanta MinIO, aunque el runtime actual almacena blobs en
-PostgreSQL. **No es una receta productiva.**
+conocidas y levanta MinIO, aunque el runtime actual por defecto (sin
+`S3_BLOB_*`) almacena blobs en PostgreSQL. **No es una receta productiva.**

@@ -27,10 +27,14 @@ opera como un tenant independiente.
   estático— y comprar por autoservicio: checkout hospedado de Stripe con
   tarjeta, OXXO y SPEI, portal de facturación del proveedor, historial de
   facturas y baja de la suscripción. Los datos de pago no pasan por Valle:
-  los custodia la pasarela. **Caveat fiscal honesto:** no hay PAC contratado;
-  los datos fiscales se capturan y validan en el producto y el CFDI lo emite
-  una persona con ellos delante (`mode: 'manual'` en
-  `GET /v1/commercial/tax-profile`). El producto no timbra todavía.
+  los custodia la pasarela. **Caveat fiscal honesto:** no hay PAC contratado
+  hoy. Sin variables `CFDI_PAC_*` el CFDI es manual (`mode: 'manual'` en
+  `GET /v1/commercial/tax-profile`): los datos fiscales se capturan y validan
+  en el producto y el comprobante lo emite una persona con ellos delante. Con
+  `CFDI_PAC_NAME=facturama` el adaptador timbra vía el job del outbox y el
+  endpoint publica `mode: 'automatic'` (sandbox por defecto; la corrida contra
+  el sandbox real sigue pendiente de credenciales del dueño — ver
+  DEPLOYMENT.md, tabla de variables `CFDI_PAC_NAME`).
 - Crear proyectos y documentos, abrirlos por UUID en
   `/studio/[documentId]`, editar con herramientas CAD, autosave, undo/redo,
   guardado CAS y consulta de versiones.
@@ -79,15 +83,23 @@ verifica contra la API real y PostgreSQL en
 - Valle Design no es AutoCAD 2027 ni declara paridad funcional, de formato o
   rendimiento.
 - DWG no se abre ni se escribe en el producto público. Existe una beta
-  interna de sólo importación (`DWG_NATIVE_IMPORT_BETA`, perfil
+  interna de sólo importación (`NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA`, perfil
   `AC1015_MODELSPACE_2D_V3`, ADR-0009 §6-bis, ampliada §6-ter y §6-quater;
   AC1018 opcional detrás de su propia variable, §7), apagada por defecto y
   sin ninguna promoción a disponibilidad general — ver
   `docs/adr/0014-dwg-via-propia-unica.md` para la vía única propia. DXF es
   un subconjunto de texto con pérdidas explícitas; no se promete fidelidad
   universal.
-- No existe compatibilidad .NET/VBA, GIS, raster georreferenciado, nubes de
-  puntos, IFC ni object storage S3 conectado.
+- No existe .NET/VBA ni IFC, no se lee ráster georreferenciado (un GeoTIFF se
+  reconoce sólo para rechazarlo con mensaje) y el producto no es un GIS. Sí se
+  importan shapefile y GeoJSON con reproyección a UTM
+  (`apps/web/src/lib/cad/document-import.ts`); existe un lector LAS con
+  índice espacial en `apps/web/src/lib/geo/` que todavía no se abre desde el
+  importador ni se dibuja. El detalle y la puntuación viven en la matriz
+  (`docs/competitive/autocad-2027-gap-matrix.md`, fila «Nubes de puntos,
+  raster georreferenciado y GIS»). El adaptador S3/MinIO existe y se
+  selecciona con `S3_BLOB_*`, sin corrida contra un bucket real
+  (`docs/cad/blob-store-s3-migration-and-operations.md`).
 - Sí existen, y por eso ya no se niegan aquí: un modelador sólido B-rep
   facetado (`EXTRUDE`, `REVOLVE`, booleanas, empalmes, propiedades másicas),
   intercambio `IMPORT`/`EXPORT` en STEP e IGES 5.3, y un intérprete AutoLISP en
