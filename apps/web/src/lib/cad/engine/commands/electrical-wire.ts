@@ -168,7 +168,43 @@ function wireCommands(
       },
     } as never,
   });
+  // El número que AEWIRE calcula no llega al papel si nadie lo rotula: sin
+  // este texto el plano impreso son rayas amarillas sin marca, aunque el
+  // documento sepa perfectamente qué conductor es cada una (T-15).
+  commands.push({
+    type: "insert",
+    entity: cadWireNumberLabel(state, number, context.newEntityId()) as never,
+  });
   return commands;
+}
+
+/** El rótulo del conductor, junto al primer tramo y leído en su sentido. */
+function cadWireNumberLabel(
+  state: WireState,
+  number: number,
+  id: string,
+): { id: string; type: "text"; x: number; y: number; text: string; height: number; rotation?: number; layer: string } {
+  const [a, b] = state.points;
+  const height = 100;
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const length = Math.hypot(dx, dy) || 1;
+  const ux = dx / length;
+  const uy = dy / length;
+  const offset = height * 0.6;
+  const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+  const label = `${state.circuit}-${number}${state.gauge ? ` (${state.gauge} AWG)` : ""}`;
+  return {
+    id,
+    type: "text",
+    x: mid.x - uy * offset,
+    y: mid.y + ux * offset,
+    text: label,
+    height,
+    layer: CAD_IE_WIRE_LAYER,
+    ...(Math.abs(angleDeg) > 1e-9 ? { rotation: angleDeg } : {}),
+  };
 }
 
 function finishWire(
