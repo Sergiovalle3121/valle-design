@@ -731,8 +731,8 @@ Inventario por los siete toolsets (62 filas), §4 Lo que Valle tiene y
 AutoCAD no (ocho piezas de la apuesta del navegador verificadas), §5
 Huecos sin fila (tres propuestas de fila nueva en JSON literal:
 `browser-advantage`, `visual-styles`, más la ampliación anotada de PDF
-underlay), §6 Contradicciones (diez verificadas, seis cobradas de más y
-cuatro declaradas ausentes cuando existen), §7 Cola de 30 capacidades
+underlay), §6 Contradicciones (diez verificadas, ocho cobradas de más y
+dos declaradas ausentes cuando existen), §7 Cola de 30 capacidades
 ordenada por el criterio de §2.1 del prompt maestro.
 
 **Resumen por SÍ/PARCIAL/NO de las secciones 2 y 3 combinadas** (todas las
