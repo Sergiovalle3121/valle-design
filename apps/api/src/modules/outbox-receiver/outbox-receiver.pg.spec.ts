@@ -132,8 +132,13 @@ describePostgres('OutboxReceiverService (dedup insert-first)', () => {
   });
 
   it('una plantilla desconocida se apunta y se acepta, sin envío ni reintento', async () => {
+    // Nombre que NO existe en el árbol y sigue la convención real
+    // (`namespace.kebab-case`) para que este caso siga probando una
+    // plantilla genuinamente desconocida y no, por accidente, una de las
+    // que el árbol sí encola (ver `email-template-coverage.spec.ts`, que
+    // vigila justo eso).
     const result = await service().processEmail(
-      emailDelivery({ template: 'marketing.navidad' }),
+      emailDelivery({ template: 'marketing.newsletter-mensual' }),
       rawBody,
     );
     expect(result).toEqual({ status: 'ignored', outcome: 'unknown_template' });
@@ -141,7 +146,7 @@ describePostgres('OutboxReceiverService (dedup insert-first)', () => {
 
     // La reentrega de esos mismos bytes tampoco mejora: duplicada, 200.
     const redelivery = await service().processEmail(
-      emailDelivery({ template: 'marketing.navidad' }),
+      emailDelivery({ template: 'marketing.newsletter-mensual' }),
       rawBody,
     );
     expect(redelivery.status).toBe('duplicate');
