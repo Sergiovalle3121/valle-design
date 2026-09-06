@@ -176,3 +176,49 @@ seguidos, y comprobar que el `title` (o un `data-*` nuevo) de
 en `U1/R0`.
 
 ---
+
+## P-05 · `npm run check:cad` para en `check:dwg-evidence`, y no es de F3
+
+**Qué encontré.** Al correr `npm run check:cad` completo antes de empujar la
+rama (regla de la casa), la cadena se detiene en `check:dwg-evidence`
+(`scripts/dwg/dwg-evidence.spec.mjs`) con un `AssertionError`: el artefacto
+en disco (`declaracion: "CERO BUNDLES ADMITIDOS, CERO CAPACIDADES
+PROMOVIDAS..."`) ya NO coincide con lo que el árbol actual calcularía
+(`"Capacidades promovidas con corpus independiente admitido..."`). Algo en
+`origin/main` (127 commits por delante de donde nació esta rama, ver el
+aviso del coordinador que motivó el rebase) promovió capacidades DWG sin
+regenerar la evidencia congelada.
+
+**Por qué no es mío.** `git diff 48000177 HEAD -- scripts/dwg/
+packages/dwg-codec/ docs/cad/evidence/` no toca NADA de `dwg-codec` ni de
+`scripts/dwg/` — mi único cambio en `docs/cad/evidence/` es la adición
+aditiva de `undoDepthByTier` a `document-limits.json` (T-24·2), un artefacto
+distinto. El desajuste ya existe en `48000177` (el tip real de `main` al que
+rebasé), antes de cualquier commit mío: es un gate rojo en la base, no algo
+que mi rama introdujo.
+
+**Por qué no lo arreglo yo.** Tocar la evidencia DWG (`scripts/dwg/dwg-
+evidence.mjs --write` o similar) está fuera de mi territorio Y de la
+prohibición explícita de la campaña («nunca activar
+DWG_IMPORT_FLAG/DWG_EXPORT_FLAG»): no sé si «promover capacidades con corpus
+admitido» es un cambio deliberado de otra sesión pendiente de que alguien
+regenere su evidencia, o un olvido — y regenerarla a ciegas podría estar
+afirmando (o negando) una capacidad real sin la verificación independiente
+que ese artefacto promete.
+
+**Qué hace falta.** Que quien tocó la promoción de capacidades DWG en
+`main` corra `node scripts/dwg/dwg-evidence.mjs --write` (o lo que corresponda)
+y commitee el artefacto regenerado, o revierta la promoción si fue
+accidental.
+
+**Cómo verifiqué que el resto de mi trabajo está sano sin ese gate.** Corrí
+uno por uno los chequeos de `check:cad` que sí podían verse afectados por
+F3: `check:e2e-localizadores` (OK), `check:precision-evidence` (OK),
+`check:cad-math` (OK, 5427 casos), `check:command-integrity` (OK, 294
+comandos, 0 éxitos falsos), `check:lint-budget` (OK tras quitar un import
+muerto), monolito (OK tras recortar `entity-commands.ts`), `npx tsc
+--noEmit` y la suite completa de Node (627/627) — todos limpios. `check:cad`
+completo queda bloqueado en `check:dwg-evidence` hasta que se resuelva lo de
+arriba, ajeno a F3.
+
+---
