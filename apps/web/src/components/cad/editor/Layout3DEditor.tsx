@@ -6344,9 +6344,7 @@ export default function Layout3DEditor({
         );
         return point ? { wx: point.x, wy: point.y } : null;
       }
-      // En 3D se conserva el rayo original tal cual: los goldens corren en 3D y
-      // el NDC debe salir del rectángulo real del lienzo, no de un tamaño
-      // cacheado que puede ir un frame por detrás.
+      // En 3D, el rayo original: el NDC sale del rectángulo real del lienzo.
       raycaster.setFromCamera(ptr, activeCamera());
       const w = commandEngineRef.current?.workPlane ?? null;
       return cadPointerWorldFromRay(raycaster.ray, ctxRef.current!, w);
@@ -6591,15 +6589,24 @@ export default function Layout3DEditor({
       preview: enginePreview,
       cursor: engineLiveCursor,
       worldPoint: (event) => cadDrawingPointOrNull(floorWorld(event as PointerEvent)),
-      // La captura la resuelve `snapFloor`, con los catorce modos ya
-      // implementados. El motor no sabe de snaps: los pide por paso y aquí se
-      // le devuelve el punto ya capturado junto con el modo que ganó.
+      // La captura la resuelve `snapFloor` (catorce modos); vuelve con el modo que ganó.
       snap: (point, override) => {
         const r = snapFloor(point.x, point.y, true, (point as { z?: number }).z);
         const p = { ...cadDrawingPoint(r.wx, r.wy, r.wz), snap: r.snapType };
         return cadHonorSnapOverride(p, point, override);
       },
       hitEntity: (point) => hitCanonical(point, 1)[0]?.id ?? null,
+      // T-52 (racimo B): en 3D se designa por el rayo de cámara, no por la sombra.
+      hitEntityAt: (event) => {
+        if (viewController.mode !== "3d") return null;
+        setPtr(event as PointerEvent);
+        raycaster.setFromCamera(ptr, activeCamera());
+        for (const h of raycaster.intersectObjects(nativeGroup.children.filter((c) => c.userData.nativeOverview !== true), true)) {
+          const id = resolveNativeEntityId(h.object);
+          if (id) return id;
+        }
+        return null;
+      },
       hitFace: cadFacePickerFor({
         mode: () => viewController.mode,
         document: () => loadedCadDocumentRef.current,
@@ -6615,8 +6622,7 @@ export default function Layout3DEditor({
       session: engineSessionRef,
     });
     enginePointerRouterRef.current = enginePointerRouter;
-    // ---- Grips nativos: arrastre + ciclo con Espacio + menú por pinzamiento.
-    // Mismo patrón que el enrutador: estado fuera de React, deps por closure.
+    // ---- Grips nativos (arrastre, ciclo, menú): estado fuera de React, deps por closure.
     const gripMenu = new CadGripMenuOverlay(mount, {
       choose: (kind) => nativeGripController.chooseMenuAction(kind),
       dismiss: () => nativeGripController.dismissMenu(),
@@ -6656,8 +6662,7 @@ export default function Layout3DEditor({
       },
       notify: (message) => toast.error(message, "Grips"),
       menu: gripMenu,
-      // T-20: en reposo el pinzamiento gana; con un comando abierto, el clic es suyo.
-      commandActive: () => (commandEngineRef.current?.accepts ?? 0) !== 0,
+      commandActive: () => (commandEngineRef.current?.accepts ?? 0) !== 0, // T-20
     });
     nativeGripControllerRef.current = nativeGripController;
     const onContextMenu = (event: MouseEvent) => {
@@ -6691,9 +6696,8 @@ export default function Layout3DEditor({
       if (drawingReadOnlyRef.current && toolRef.current !== "select") return;
       if (toolRef.current !== "select") return; // measure/wall resolve on click (pointerup); drag still orbits
       if (nativeGripController.handlePointerDown(e)) return;
-      // El botón central ENCUADRA (camera-policy.ts) y no designa nada: se corta
-      // antes de los hit-tests (corren para cualquier botón), con preventDefault
-      // para que Windows no arranque el autoscroll. El grip pendiente va antes.
+      // El botón central ENCUADRA (camera-policy.ts): se corta antes de los
+      // hit-tests, con preventDefault (autoscroll de Windows). El grip va antes.
       if (cadPointerDownBeforeHit(e).kind === "camera") {
         e.preventDefault();
         return;
@@ -7293,10 +7297,8 @@ export default function Layout3DEditor({
           );
         return;
       }
-      // Con RATÓN, clic es «no se movió»: 5 px, tolerancia de aparato apoyado.
-      // Con DEDO manda el reconocedor táctil, porque deslizar es APUNTAR —sin
-      // hover no hay otra forma de ver dónde va a caer el punto— y esos 5 px
-      // anulaban justo el punto que el gesto acababa de señalar.
+      // Con RATÓN, clic es «no se movió» (5 px). Con DEDO manda el reconocedor
+      // táctil: deslizar es APUNTAR, y esos 5 px anulaban el punto señalado.
       const isClick = touchRelease
         ? touchRelease.commits
         : Math.hypot(e.clientX - downX, e.clientY - downY) < 5;
@@ -14568,8 +14570,7 @@ export default function Layout3DEditor({
             }}
           >
             <div ref={mountRef} className="absolute inset-0" />
-            {/* ViewCube + barra de navegación sobre la navegación 3D ya probada
-                (`camera-view-presets.ts`, `view-3d.ts`); sólo en perspectiva 3D. */}
+            {/* ViewCube + barra de navegación (`camera-view-presets.ts`); sólo en 3D. */}
             <div
               data-testid="cad-navigation-corner"
               className="pointer-events-none absolute right-3 top-3 z-20 flex flex-col items-end gap-2"
@@ -14587,8 +14588,7 @@ export default function Layout3DEditor({
                   </div>
                 </div>
               )}
-              {/* El minimapa va con las ayudas de navegación: abajo a la derecha
-                  robaba esa esquina al lienzo (golden 68). */}
+              {/* El minimapa va con las ayudas de navegación (golden 68). */}
               {showMinimap && workspacePreferences.minimap && (
                 <div className="pointer-events-auto">
                   <CadOverviewMinimap

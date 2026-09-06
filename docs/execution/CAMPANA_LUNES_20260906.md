@@ -468,3 +468,17 @@ código partido en el corpus. Ninguna cifra a mano queda en lo tocado: cada
 frase señala el script o el JSON que la computa. Verificado:
 `check:no-industrial-domain`, `check:legal`, `check:auditoria`,
 `check:conventions`.
+
+### T-52 (racimo B) · Designar en 3D va por el rayo, no por la sombra · ARREGLADA (21:33 UTC)
+El puente del motor de comandos definía `hitEntity` sobre `floorWorld` y el
+índice 2D: UNION, SUBTRACT, SLICE, ERASE… designaban la pieza bajo la
+sombra del cursor. `CadEnginePointerBridge.hitEntityAt` (opcional, como
+`hitFace`) lanza el rayo de cámara contra `nativeGroup` —el mismo raycast
+que ya usaba la selección libre— y el enrutador lo consulta antes que el
+pickbox del suelo, que sigue mandando en 2D y cuando el rayo no toca nada.
+Golden 199: en isométrica, ERASE + clic en el centro borra la caja elevada
+que se ve y deja intacta la línea que pasa por (6000, 5000), donde cae la
+sombra (antes era al revés). `pointer-router.spec.ts` gana el caso 9b.
+Monolito en 17 235 exactas (siete comentarios comprimidos). Verificado:
+tsc, eslint (0 errores), monolito, lint 478/478, e2e-localizadores, y los
+goldens 199, 198, 101 y 47 sobre el build de producción.
