@@ -1,0 +1,2541 @@
+{
+  "oraculo": "H",
+  "generadoPor": "python3 docs/cad/corpus/oraculos/censo-atheris.py",
+  "mide": "Documentos JSON hostiles cuyo CONTENIDO decide un fuzzer de terceros guiado por cobertura (atheris/libFuzzer), no una lista ni un PRNG de este proyecto. El veredicto AUTORITATIVO \u2014si el importador real de Valle los rechaza con un error tipado, los acepta correctamente, o revienta sin control\u2014 lo da json-import-atheris.spec.ts alimentando estos mismos textos al producto; este censo s\u00f3lo registra qu\u00e9 prob\u00f3 el fuzzer y lo que dice el CEBO de cobertura (que no es el validador real).",
+  "herramienta": {
+    "nombre": "atheris",
+    "version": "3.0.0",
+    "lenguaje": "Python 3.11 (extensi\u00f3n nativa sobre libFuzzer)",
+    "autor": "Google",
+    "licencia": "Apache-2.0",
+    "origen": "PyPI (pip install atheris==3.0.0)",
+    "instaladoEl": "2026-09-06",
+    "registro": "docs/cad/corpus/oraculos/HERRAMIENTAS.md#atheris-3-0-0",
+    "porQueCuentaComoIndependiente": "Fuzzer de cobertura de Google, sin una l\u00ednea de c\u00f3digo en com\u00fan con document-import-fuzz.ts. El formato can\u00f3nico lo define este proyecto -por construcci\u00f3n no puede existir un corpus AJENO de documentos can\u00f3nicos v\u00e1lidos-, as\u00ed que la independencia posible es la del GENERADOR de mutaciones, no la del material: atheris decide qu\u00e9 bytes probar, este proyecto no.",
+    "limiteDeSuIndependencia": "Sustituye a `hypothesis`, nombrada en PROMPT_MAESTRO_FABLE.md, porque hypothesis es MPL-2.0 y CORPUS_POLICY.md la proh\u00edbe sin excepci\u00f3n. Requiere un CEBO de cobertura (assert_safe_json_mimic) fiel a assertSafeJson pero escrito por este proyecto: el cebo GU\u00cdA la mutaci\u00f3n, no dictamina el resultado \u2014 eso lo hace el spec de TypeScript contra el producto real.",
+    "coberturaMedida": "cov: 7, ft: 7 (el techo que este cebo alcanza en 20 000 ejecuciones; ver cabecera de este script)"
+  },
+  "advertencia": "NO EST\u00c1 INSTALADA EN CI. Esta corrida se hizo en la m\u00e1quina declarada y se congela aqu\u00ed. El spec vuelve a correrla si la herramienta est\u00e1 presente; cuando no est\u00e1, declara la ausencia en vez de fingir la medici\u00f3n.",
+  "loQueNoAcredita": "atheris no es un validador de JSON ni conoce el formato can\u00f3nico de Valle Design. Sus mutaciones exploran un espacio de bytes guiadas por un cebo aproximado; el veredicto de seguridad real lo pone SIEMPRE el producto, nunca este censo.",
+  "configuracion": {
+    "runs": 20000,
+    "maxLen": 4096,
+    "libfuzzerSeed": 1,
+    "semillasIniciales": [
+      "seed-valido.bin",
+      "seed-inseguro.bin",
+      "seed-anidado.bin",
+      "seed-basura.bin"
+    ],
+    "salidaDeLibfuzzer": [
+      "WARNING: no interesting inputs were found so far. Is the code instrumented for coverage?",
+      "This may also happen if the target rejected all inputs we tried so far",
+      "#68\tNEW    cov: 7 ft: 7 corp: 2/4b lim: 4 exec/s: 0 rss: 44Mb L: 3/3 MS: 3 InsertByte-ChangeByte-InsertByte-",
+      "#70\tREDUCE cov: 7 ft: 7 corp: 2/3b lim: 4 exec/s: 0 rss: 44Mb L: 2/2 MS: 2 CopyPart-EraseBytes-",
+      "#20000\tDONE   cov: 7 ft: 7 corp: 2/3b lim: 198 exec/s: 0 rss: 44Mb",
+      "Done 20000 runs in 0 second(s)"
+    ]
+  },
+  "candidatos": [
+    {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "texto": "",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "c41cc5d441c66f96443188eaa1ff8ae16a94fe1a8a2f2b22cc0544613b7e41bf",
+      "texto": "\u746f\u6a20\u6f73\u206e\u7461\u6120\u6c6c\u6a20\u7375\u2074\u6574\u7478",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "35d13fc51e3f554043b5d71452fbab69ef1d4dcd12d4624b7e88d721fcc34183",
+      "texto": "\"meta\":{\"schema\":3},\"entities\":[]}",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "0a28fa400d287d09a14106b1a5090a4b952c56984a8e6070322d906ad2c271c5",
+      "texto": "\"meta\":{\"schema\":3},\"entities\":[],\"a\":{\"b\":{\"c\":1}}}",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "0a689b9149870eda9e0c6e96b00479e773624a527cedaf81b4b2cca2bc6dc83d",
+      "texto": "\"meta\":{\"schema\":3},\"entities\":[],\"__proto__\":{\"x\":1}}",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "83d3d754d0993894df835651033123cd997164cafcc5c3df2e681e849b32e815",
+      "texto": "\u0a03",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "7994bf90fe0195b6d214f0390de1c6d12fbf718be5496322ea84915a53a313c2",
+      "texto": "\u0803",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "ae3f3eb87c84e977a53a08a548efe4b66b8e467f02c96c4cd51e2ff1e87c2fba",
+      "texto": "\u030a",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "18ac3e7343f016890c510e93f935261169d9e3f565436429830faf0934f4f8e4",
+      "texto": "d",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "a980a1ed56ea2cc3ab41018cd75e9e3d2618b33c75f049eeb61ca173e85998bd",
+      "texto": "\u0a0a",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "30284cace37d72425c65a0c0a7b1e77e1330aa4598f5d48ce5d7da3282d4146c",
+      "texto": "\u880a",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "7bad4d91d911519f77633ecd57802194c67118f82f759dd6f62831be6c10356e",
+      "texto": "\u2b2a",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "acf69bcbc696575d5d9a6dd7a38a7bb236455981f75a9711e6d1b1e25c9fe77b",
+      "texto": "\u2a0a",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "texto": "\n",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1",
+      "texto": "*",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "53c234e5e8472b6ac51c1ae1cab3fe06fad053beb8ebfd8977b010655bfdd3c3",
+      "texto": "2\n",
+      "veredictoDelCebo": "aceptado_por_el_cebo"
+    },
+    {
+      "sha256": "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+      "texto": "2",
+      "veredictoDelCebo": "aceptado_por_el_cebo"
+    },
+    {
+      "sha256": "9e5d622f99d7cdf4ff6a0051f5933994e9ac4cc43134f7eb18201fe1c42b394b",
+      "texto": "\uff8a",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "4977021028c4a74c2bca8061786cd88afc96837ef6007265acc4f8cda2d945e0",
+      "texto": "\u007f\u007f\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "57a53aa66f7bc4da9be33b45f2d8187c8876c2910b001225bca361a8841ca89e",
+      "texto": "\uff0a",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "1775baf5ce3259d10e664464cd755b843f22b92a4c3a4e8be18b9b48885deb12",
+      "texto": "\u320a",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "6f160ae5b811b3f67f7c8405b8450ab5d0b3034ac632a13dddfdba3405a55472",
+      "texto": "\n22",
+      "veredictoDelCebo": "aceptado_por_el_cebo"
+    },
+    {
+      "sha256": "fcf83f1bf24151f258919da0b0f57b1105ecd4c729574b1acb6b4e5633bc4daf",
+      "texto": "2\u007f2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "918b18f8c9e5b570e3f3065129227e883c493bf56b12a7befee8fb5e9b9840e8",
+      "texto": "M\u007f2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "8c2574892063f995fdf756bce07f46c1a5193e54cd52837ed91e32008ccf41ac",
+      "texto": "R",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "48f5fabf9dc19eae34be5ed05adbffe429fcfeb657c9d2551a9087ae0f4476bd",
+      "texto": "\u32ff",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "0578c76d2a88663a9b2cbba0368b02190c32ef0675aa514c1dfef0ca64f654e2",
+      "texto": "\u007f\n",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "06d5a529e69773710a7caadf913fae6334851e89d0c9f930f30db2b35e0e729a",
+      "texto": "\uff67",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "42e41defc0529dc6bc881588a1c65e26cc8ab440e774d442f22fde8b1592eec7",
+      "texto": "\u0aff",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "0180ae7f44c8198b62aa16351a3c91190a40c998cfe85bd9685825ef4f775b51",
+      "texto": "2=",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "17186bcad27ba214c77e9d78db1426b07f8d90cac1ba4e0a6f211ddb0844d5a2",
+      "texto": "\u007f=",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "ce31188b0cd929f5a3d4309b3248d45ec705b117d456496f1c6cb71f618f3724",
+      "texto": "{=",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "c15e58fc4c240d2940aa20ced9d0fa51da235f7abd767a37a9ba35e5cb4de61b",
+      "texto": "{1",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "03cd3fe47806fb3a8537ab681a019bacf6d065889507cd10ebae1c03168b9867",
+      "texto": "\u024c",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "7649ba8c953bbfa4b03e2ef3ebdb45d1c077d6a28ad2e1ebc764aaa1477f7d59",
+      "texto": "\u007f\u0002",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "370c1a3662ef0b6be771bb60ae9c8f8bb373c928d8a883abcb5d87f74d608763",
+      "texto": "\ufe0a",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "4637a59ea55ba9a8fb735483174157ca31ea0094f28e7848b28056b62785cf31",
+      "texto": "\ufec5",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "texto": "0",
+      "veredictoDelCebo": "aceptado_por_el_cebo"
+    },
+    {
+      "sha256": "37be7edf334d00e6f202ced9fc67e1ec0f1ccd1ce8b93dbf1a5201e05006228a",
+      "texto": "\u9a0a",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "0aac8a513118fccfb1f6aa61920a018d7fad7358e3b6923bdad9877e7c5fbd58",
+      "texto": "2\n~",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "41d5f0e22504b080103dd05875022f58c02a1783d17588be165380a3cdfbb775",
+      "texto": "\u33ff",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "6d7e266aa769a30d3480a357661deb10b6300e0ba135d48e4ad0917ccebf36f1",
+      "texto": "\u007f2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "95681476ea93493865ab9f8eb33583f93f400665a25a829a2800a96f1ff9eb10",
+      "texto": "\u007f1",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "82a3d7372532d96dd559e335191089776841ecb1c181f292a98b2e62c5a3f37f",
+      "texto": "\u007f22",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "47cfe5eb8ada0e7492d86a6b47dc93e354c32af4a3cf489e0c65067cb48277d9",
+      "texto": "V2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "82b763b0cc3411259ea71bd3ce843c1c3b5cba8a3635adae48ce88d82a794b71",
+      "texto": "\u30ff",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "e075acf5591f2109907e923ddf4a9cf7c5d9a98a8e7255e6b37360194ee40916",
+      "texto": "\u007f23",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "56f4da26ed956730309fa1488611ee0f13b0ac95ebb1bc9b5d210e31ff70e79c",
+      "texto": "223",
+      "veredictoDelCebo": "aceptado_por_el_cebo"
+    },
+    {
+      "sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+      "texto": "1",
+      "veredictoDelCebo": "aceptado_por_el_cebo"
+    },
+    {
+      "sha256": "5316ca1c5ddca8e6ceccfce58f3b8540e540ee22f6180fb89492904051b3d531",
+      "texto": "81",
+      "veredictoDelCebo": "aceptado_por_el_cebo"
+    },
+    {
+      "sha256": "bcaf44f4041e62e142d50cad2aae2520e01247cd144d28d4ab20b758524a7217",
+      "texto": "811",
+      "veredictoDelCebo": "aceptado_por_el_cebo"
+    },
+    {
+      "sha256": "2b4da94214015b4281ac65905270bda4eefb97e08f5b4ae2f517b424ff77bfd9",
+      "texto": "818",
+      "veredictoDelCebo": "aceptado_por_el_cebo"
+    },
+    {
+      "sha256": "2fdac9eecd2141182a90e435d1c5e1be2382a17f31fbfb4630f979dec062e62e",
+      "texto": ":\u007f2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "2c34e62119d9c5fc3aa11640bd7945d6bf309acc6e99d8054f54ae5110e343f6",
+      "texto": "\uffff",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "3f654daf2014da877ddae02af011b05102cc2e156e8339a9ca5da68f16d0669d",
+      "texto": "2\u007f4",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a",
+      "texto": "4",
+      "veredictoDelCebo": "aceptado_por_el_cebo"
+    },
+    {
+      "sha256": "5cf77c26897fd25f7b20a1ac0c2f6925be2bbb7bcfd11f60f55c824fe2e8f643",
+      "texto": "2\u0007",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "a6778f274feb9f2b6f5655842822128ea3be27bd655783444ae5be93c6986313",
+      "texto": "\u32fd",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "50e9f65b4beba772066da870d83520ea6fc51005b28a9096b5f2e1e779f99285",
+      "texto": "2}2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "1bd086e2dd931ff745edfb155c7ed6724fd84f55915bb59e45753b51ec7c7d74",
+      "texto": "2}3",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "4c598bb64ebc2af2e2ac78b9ba38dc136e98aaa07f0f448da8aecf5abdc478f1",
+      "texto": "2\u00043",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "2e66cf0bd3af9d9dff563af6f3d41f984c2a167b24f5dfc0e40e0a857cf04842",
+      "texto": "2\u00053",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "15824d5bb81895e1a15c0eea88519fed2b6b4b1622b6c8bdded4fcaf9b365bf0",
+      "texto": "\u3680",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "aac4f798ed78b6089e61f0052a74479dd538e502cd86b4b8adf9d6a0dbf37242",
+      "texto": "\u3e80",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "bc7f92128ec1c4bc007613e34d772f39de483a5c38658907082d03f682d12005",
+      "texto": "2]",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "b68adbdbda6c841599c52ef909f74b58bfb7f25bb758d8cb9e0dbae7ff89facc",
+      "texto": "\u3200",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "a4d66285955531e83ba7b50bbf6536354a383090df6d8c857785ab9eba7e7d76",
+      "texto": "2\n!",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "5acbf5a3b80e6e3c3e5888a15c02c9b21cd1d4e9e875e79b1dbcf1456798aefb",
+      "texto": "2\nq",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "ac96469638e152a73cadbf62d44e2f39517e1c31d41eb6206f138d0206444d7b",
+      "texto": "(\n",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "8438925a75f710ecc7c410008eb3f67dc1c184bdbb5598faf2f120101491ebd8",
+      "texto": "2n",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "6d82900f9ef39c60f7f66055fbb4c5c876d48585fe0dbf3fc45395d2c101f7b2",
+      "texto": "(n",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "8dc1e3948900d2a057b80b33411779dc6dca78ac3fae4e26051c73c67f040cbe",
+      "texto": "(nC",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "ea87670752658f3636acdc75665f45c95281768e46e078a65e803ddded608f4e",
+      "texto": "\u007f(C",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "176af6648e4eb2fb89df20f09abf030372315684cb914e19027217284ba9c23f",
+      "texto": "\u007fhC",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "a5058e974cc3b10517034675768594cbe3a4dbd53aff6bfb193f2bb8aaa7c57c",
+      "texto": "2[",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "f0b36a88312382485b8011fe48a751fdf81b07271c37c7b5f2901ef12166b3d5",
+      "texto": "X[",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "ef2d127de37b942baad06145e54b0c619a1f22327b2ebbcfbec78f5564afe39d",
+      "texto": "5",
+      "veredictoDelCebo": "aceptado_por_el_cebo"
+    },
+    {
+      "sha256": "0bfe935e70c321c7ca3afc75ce0d0ca2f98b5422e008bb31c00c6d7f1f1c0ad6",
+      "texto": "u",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "eaa9c2060aa48f6d236cd16403cbac284b0fee4b6ed00a0c5509f9a2fd9aeb7d",
+      "texto": "\u32df",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "e7ad40e952c33bf8b541e8a8813a70620d9ac98f904cec4260dd06adb128ed7d",
+      "texto": "\udac3\udc0c",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "4f5b71d76748dd707d99979be94b4ce8222ff069fcf2fe1f93704bef02e846f7",
+      "texto": "\udac3\udc08",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "9ea949f21d7b853a5b5efc28477f1d0950ff13c142c38823c404651e20a80469",
+      "texto": "2\u007f\u007f\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "6c06edc44f18f02856c800ca23a13f39cccbe61092babcad85136b79935de630",
+      "texto": "2\u007fd\u007f\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "ef8cc96d40b55cda10f1af6a746829ace056d0f4d46fd28d275a912003cb9b4d",
+      "texto": "2d\u007f\u007f\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "9b871512327c09ce91dd649b3f96a63b7408ef267c8cc5710114e629730cb61f",
+      "texto": "222",
+      "veredictoDelCebo": "aceptado_por_el_cebo"
+    },
+    {
+      "sha256": "ecc0f5ad7f77f33edb83c1e151aba16bcd46b02ccb773ca8ee5cd82d67eed48d",
+      "texto": "\u007f222",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "c1bfb06545ebb6e60e638ab0daf39ef1237346f05a6fa757d4116fec06e7b01f",
+      "texto": "\u007f22\u007f2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "ced450483a1062ae6d8b95a9028e93cc903ef11f2e95117c652f5e25c60e620c",
+      "texto": "2;;;",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "ac5024009c3071383bb0f3d7f239b9cfa74e316bb09be821a4d743b29a270cd5",
+      "texto": "2;;\u007f;",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "cb39852f995903c085669eb95c91b6480df8ca721900e0e3059e4bfc87c5a22a",
+      "texto": "2;;\u007f2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "b4569f891d00562c896919aec93bc732b7d6f585d2e8182fd2209d575b749ce1",
+      "texto": "2;;\u007f1",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "68507e631cb82fa2596844e8fc93d80d6aa2b16a80b7cb08996fb2d6a725377c",
+      "texto": "2\u0000\u0006\u007f1",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "3241438f3543b52d6e840083c9963c49bf4d0f23adbc444989ebf324a54e234b",
+      "texto": "EEEE-",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "0ac43991c78306894d0acbc9389a6f6d26abdd9a2c7724140e39ad9f27505f74",
+      "texto": "E-EEE",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "4f9accb70c1492da65f55da185a4df4ea3ccce62de36b265c95af9ae276d1874",
+      "texto": "E-GEE",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "b6d0859fdd4d61d555d0137815f161cc636c926569b1377c51a6e46ebbd21f17",
+      "texto": "\u001c\u001c\u001c2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "59f23ccf0571c605f5d50b190dd60bd0adbb198c3909f5d33f05884ff2c5645e",
+      "texto": "\u001c\u001c\u001c4",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "23a7ee190e6167bbf9a7ebde6830767cdaf0d01699b253b87677cffb6299ca6d",
+      "texto": "\u001c4",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "5f261a2891ce7099c10c568534ac56c18da57ed3e4181fbcff79d086d8a33f6a",
+      "texto": "\u1cff",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "texto": "\u0000",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "1cadf684f78b966768c729e93e1195521dfe5fef905910fe81363b3a6760eb34",
+      "texto": "\u0300",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "08f271887ce94707da822d5263bae19d5519cb3614e0daedc4c7ce5dab7473f1",
+      "texto": "M",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce",
+      "texto": "3",
+      "veredictoDelCebo": "aceptado_por_el_cebo"
+    },
+    {
+      "sha256": "cdbbc7a93245d4eebee8c750de79a3c5f66e6e47854b18c273357bf125be50c7",
+      "texto": "3\"",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "8a331fdde7032f33a71e1b2e257d80166e348e00fcb17914f48bdb57a1c63007",
+      "texto": "\"",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "4a64a107f0cb32536e5bce6c98c393db21cca7f4ea187ba8c4dca8b51d4ea80a",
+      "texto": "\u0011",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "8ad2b7f9573d53dfd14bddaa4dbc78391075b99e53157a7edd95dce54a74bfce",
+      "texto": "\u0011`",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "2a3cc745ceecfe2a562c991000afaf53909a3b883540f0bd629cdcc616e655e4",
+      "texto": "\u007fF2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "f76f73b87f6e71e61256433b047b42e2fa2552a2072d1faeb584bf1f28b6e6b6",
+      "texto": "$\u007fF2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "6bc54f13bea593dc5e1c8e6b16249e669d1ce99cbeac65f2a10f36e1d86f1fd4",
+      "texto": "2.",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "76aa5a5d5b8237d772b298a8478d7291fd1b5d1d5941ba16b44fec7b15379452",
+      "texto": "\uff32",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "c02fa12c06f33f09c8ea7aa10aeef5c53061a8c19fd62c8c567276a8aea76261",
+      "texto": "\u2626\u32ff",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "e21cd86763abb2133e51353b78f89fba77bcd3b63b75c8e2dd1f15aa29469df3",
+      "texto": "\u97ff",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "1aebd04ab85243bffa8c149f45da4ae9a8bf8fc204fe7ca90b10112cfad85dba",
+      "texto": "\u007f\u00172",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "a6f2c607ebf6c1d2509ba55bf4cfcb6c04fb79abd488c907d26a7e0b3909a368",
+      "texto": "\u0a6d",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "cc9c7c9a431801676d0705982b6786ba53933f40f91d87b3f1c37953cfab4212",
+      "texto": "\u4a6d",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "620bfdaa346b088fb49998d92f19a7eaf6bfc2fb0aee015753966da1028cb731",
+      "texto": "\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "bce65cc881d715569b6d6f899c03a746309fc4dbf2f08b9f48b3e7f0336fb701",
+      "texto": "!\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "f56ba05cf654ecb908a4ef1c69446eb8001df0eaea2d48917088792b46e19a43",
+      "texto": "\u007f2!\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "87171eae34e52210af3d6890e78f760196fdf91a168398162defae285e8bd385",
+      "texto": "\u007ft!\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "241b25708daf888035069100b63faa698714260bd5b21e7fb54d2d189706c70d",
+      "texto": "\ud83f\udfff",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "eb94fdb37bec7d4a4bae5881a3f19a092e5f52091e2fb7a41d65f22c9b789e55",
+      "texto": "l\\\u001f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "d10b36aa74a59bcf4a88185837f658afaf3646eff2bb16c3928d0e9335e945d2",
+      "texto": "}",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "365475d471c68745e3881c3743e1669911103607f18d88d9db7292e29177c0bf",
+      "texto": "\u007f\u007f\u007f\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "fb6ea09cd99c42cb121da1b6673cc625e6a9a0bbeb6726273793fb19031fe8fe",
+      "texto": "\u007f\u007f\u007f\u007f\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "e42924ca8ea519223d9fea33ab7146eb6b6d601a9695941e8683557b3b814dd1",
+      "texto": "\u007f\u007f\u007f\u007f/",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "58f7b0780592032e4d8602a3e8690fb2c701b2e1dd546e703445aabd6469734d",
+      "texto": "\u001a",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "ffd913c1b42fae78ce888887b54b7b201f45e7ae2dab0ea0d6f5805725a76d93",
+      "texto": "2$",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "a224b6604d298ad0981d354ca58f195046990b0b9390b290af518fd8a803275e",
+      "texto": "2*",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "969662d35a1a46457f99e6b206204c59ec4a0b228493b31501207ca0513dcf41",
+      "texto": "4*",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "058e35b8ec826f7ecee491a7381778325f3f919553d7abd7d066357d021e3c99",
+      "texto": "2\u007f\u007f\u007f\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "96ddec87aba715bc812ffb431bcdd4c91d664d7f8f1919063dfaf92ac910ad11",
+      "texto": "2\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "22b1296596369e5465a6113034f58b200c2a2701b1a88f12aa973046615f84e7",
+      "texto": "2\u007f\u00172",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "7646a80a5ce13f8638e139720790de303563a19f5e6d4d5c3414aafdfaae4869",
+      "texto": "\u0000\uff00",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "6033425784a90266d027f632a0cfdcf95cabf24829fdf0ef60a729becf96e812",
+      "texto": "\uff00\u0000",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd",
+      "texto": "A",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "c3641f8544d7c02f3580b07c0f9887f0c6a27ff5ab1d4a3e29caf197cfc299ae",
+      "texto": "@",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "4814d92093ac8a0f4a2163ab87dee509ba306a58f5888be0edcb2fcd0712028b",
+      "texto": "b2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "c4670457087d8010560ef31d005f01611afed73383028016415ea615fa2e6fbf",
+      "texto": "4b2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "fd849c98eb856e760d13801f9189b7066b2e8b201e2e002613e08d96bfa1a2ee",
+      "texto": "4b2\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "5f3c88b164c5f48686380d67ff982d10b10323caf6e2e8c7317b543f4d4708b0",
+      "texto": "3\u007f2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "9191dadf11c93af78803c5ad8fdc709271f20b3e1e77126e5adbccfa3ba81e5a",
+      "texto": "3\tM",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "c3fe6f0210c0faf7568e4f77319f64a1ba654b7460e7870d2d8e0cecb4ffd276",
+      "texto": "\u007f3M",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "bbf8445bc013bc918d169cb6ba30036ef8fc90495f509a2867af914872fa2c6d",
+      "texto": "\u007f+",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "e9e7c1cc0bfcd794caa6b4b6f6619d29b9d2fbd0a3a8731d6ea48b2412f5c975",
+      "texto": "\u007f)",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "dbf2d8a1ffb886d7964cf470133c8a289aff606c14e6d75fd258678de0f47495",
+      "texto": "\u007f(",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "092fcfbbcfca3b5be7ae1b5e58538e92c35ab273ae13664fed0d67484c8e78a6",
+      "texto": "f\n",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "d34a1f32f9f63abdce15915fddcbf8abfee7724c17f8327dc143b4ade947d2ea",
+      "texto": "f\u0002\n",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "cec1fc5c25bc04397ae5a1e566b850a288136e8d3e66176a21eeb78a13011811",
+      "texto": "f0\n",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "9024aff747b0bc718ae5b9713641967e80a0bf1bba6b31c23ea501a27630705a",
+      "texto": "\n2",
+      "veredictoDelCebo": "aceptado_por_el_cebo"
+    },
+    {
+      "sha256": "830a7f87bec9ed72ea8ba2ec0d01a2ce219fe6c6e943e225cf4a4f1e5fd765f3",
+      "texto": "\n_\n2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "706a49cc24fa85783c3de732c6e1d89ff893add808303698f5af5ce3cc09636b",
+      "texto": "\n\u001a\n2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "f73291f13283169d4a8cec4b129b371f3ca81285c4a18b4d57c71b2df3720e0a",
+      "texto": "u\u007f\u007f\u007f\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "b8e9723a6d73ecb322ec21c930c4d2942b147d30069923fe887a879bed942adb",
+      "texto": "u\u007f2\u007f\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "09288369f302a16925907927777b2afe17b5f4389e0ca3fb21ca7a8af4984b9e",
+      "texto": "\u007f\u007f2u\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "8c1eb2f0ded038b899cdb276c6f7006c904f4364a2c9a2fb33e915cb60fa0211",
+      "texto": "2u\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "785f3ec7eb32f30b90cd0fcf3657d388b5ff4297f2f9716ff66e9b69c05ddd09",
+      "texto": "22",
+      "veredictoDelCebo": "aceptado_por_el_cebo"
+    },
+    {
+      "sha256": "65c74c15a686187bb6bbf9958f494fc6b80068034a659a9ad44991b08c58f2d2",
+      "texto": "o",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "fdb30797b136030e0271eb15e80e9d94b978ad1e5203140a99456d1d5f9db1e5",
+      "texto": "\ud9e2\udc88",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "837f4b22f55aee89e02812594d1db29fb0ba8eeb8ac1cbe0330b1a52dcf0fa8c",
+      "texto": "\ud9cc\udeff",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "b883fae5430c380d5ef303789ddbba70cf237821d1c889c3ea6ec258dc744213",
+      "texto": "\udb4c\udeff",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "8a5edab282632443219e051e4ade2d1d5bbc671c781051bf1437897cbdfea0f1",
+      "texto": "/",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "afea38379b688657cfa59b9aaa6d48f8b98ed181412c46255fceeafdf87e8d72",
+      "texto": "\u007f\u007f\u0002",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "8771350bdb24c8cbd1207c8e6b4bcca3b3045c8a57ec968e99c9dbd16bf156c5",
+      "texto": "\u007f;\u0002",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "e5cde8c7fbe3792765b64eeea205a415dc74e7707a887cf3c979d488bb00283d",
+      "texto": "\u007f;!",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "05dd80e80166fcbb83ef4109b684f9fde1492baede887bb4ebc72c29219e2d16",
+      "texto": "\u007f%2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "4b84085cdf87379c8dfa45a8e9268e532b088b25c3f47b4817034c609c974677",
+      "texto": "\uffff\uffff\uffff",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "876c9b16254e157d1eb645390dcfae6f29b9d3cd394e73a91de8ee5d0e67ee43",
+      "texto": "20000",
+      "veredictoDelCebo": "aceptado_por_el_cebo"
+    },
+    {
+      "sha256": "06e01dc1011ecca65c2f9fef9811bbf5eac2f498d3ebaccbcd640ab8ab452301",
+      "texto": "24000",
+      "veredictoDelCebo": "aceptado_por_el_cebo"
+    },
+    {
+      "sha256": "5d17b8382f2a9882cd9543b0e99d45a9309d0e0a6118d3c9c20d51449dfc88d2",
+      "texto": "2\n000",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "47b25095a0fe135a688b20614771dbb445ad5e27e9cd4f2c2089c5af216e305b",
+      "texto": "80000",
+      "veredictoDelCebo": "aceptado_por_el_cebo"
+    },
+    {
+      "sha256": "8af6d87db63de70550ea19673eb126fdbe575bccc0902e840361b8f2fd704d3c",
+      "texto": "\u007f2\u007f22",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "3863f2ecabcb4070374532e2a96593d59ca71eed2a6552c3cedab0a3895be56f",
+      "texto": "\u007f/\u007f22",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "cf64d3fc9acbca9a4edaa14c142a91b99ff3fac52afce04b72c15865b7e4c5e8",
+      "texto": "~O\u0000M2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "8e0afd1d5e9328715d31ee41796ad3e604dc72190f4f015f2557edba9de21d7b",
+      "texto": "\udbc7\udc1c",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "38c57fb4714f18587588354f63aee67a93ac197b5dcd03bc205812bb067e6047",
+      "texto": "\ud8b8\udfe3",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "e4c55b94439c4b053e880a9096d102dbf7f603c5ce6ed2b34377b755d595b613",
+      "texto": "\u5151\u5151\u32ff",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "9984bfed6efa4c53383e203015949ff7db4bb3a3698f3e455b7e6a2ab4b9173f",
+      "texto": "\u5151\u5151\uff51",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+      "texto": "\u0000\u0000",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "d39a34efd2ef73e793202c7974f786aab9b4e3c52319f8e9bc05e3256a714a7c",
+      "texto": "\uffff\uffff",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "1fd1e8f424ba2a21d42fe6db7b38ce886bf20b55502fd80b670fc524a08b798e",
+      "texto": "\uffff\uffff\u5a18",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "ca1c93c2a01857ec1919e4cc8a4ba68e91b0b00013443b059bbed57bbc91a52c",
+      "texto": "\uffff\uffff\u18ff",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "09fc96082d34c2dfc1295d92073b5ea1dc8ef8da95f14dfded011ffb96d3e54b",
+      "texto": "$",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "594e519ae499312b29433b7dd8a97ff068defcba9755b6d5d00e84c524d67b06",
+      "texto": "z",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "6fca9bb6789bd085f9ee729608a588b958c97bbc9521f314d9af39424a320e8e",
+      "texto": "%zz",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "935b93ea954c9369062ba2b99fa85415cba3706f26bba9afdd0c419b5b87ee6c",
+      "texto": "P%zz",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "b4c788fdc6725ffbe4a7f1a7c4eb6ef3110375bd34cdd7fce57f11c7a969107c",
+      "texto": "\u3333",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "410eea2f921250aa5c72a7e9a3005bc820f7a4e582ae1978a5cde0643bec858e",
+      "texto": "\u3221",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "6ccf19619ff71d4faae65ffb53b7871cac022dd36d82b2e5950b3442fe8ac228",
+      "texto": "\u1b1b\u1b1b\u1b1b",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "03d346933599379966e707f011128c82af820d70c443abbd00fce7069e0f9822",
+      "texto": "\uff1b\u1b32\u1b1b",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "fc9b661a40b7a5e0ddb3a3144bfbd37816bce81b7de1b5295a9485fc909fdb07",
+      "texto": "\u321b\uff1b\u1b1b",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "08670c43d68e0c39682b75bcbecc5adec5a8068475ed6c47f3ccf03bd2bdf3ea",
+      "texto": "\u007f\u007f\u0000\u0002",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "45ba0f167d4f8f94fb75e425ce36bd5cc5f6ae1bb66de00a8f78d26fb5b930d9",
+      "texto": "\u31ff",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "e102a1ca8b8d5d2ab9c2dc09a6c0e5e46ebf26e3cc014f610af80a1895b1d1bd",
+      "texto": "\u0a60",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "f7a96ede0d6e8df5b6692eb11a16d319861ae7d90e11d6a218deb267a087be53",
+      "texto": "\uff60\uffff\u0aff",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "3e9a91ef0ca324238c3a8b251dc25f64aa69e347f4bd9bbf457628fbe88e6636",
+      "texto": "\ub8b8",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "8b940be7fb78aaa6b6567dd7a3987996947460df1c668e698eb92ca77e425349",
+      "texto": "88",
+      "veredictoDelCebo": "aceptado_por_el_cebo"
+    },
+    {
+      "sha256": "ee40a23aead4547af535162827fb97751be1c1221e12daeb4a34b5600c6bff2c",
+      "texto": "\u007f88",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "f77e8cd6e958c49778f552ef8161d354712b1becbb0b9db668c5bbbceb89064f",
+      "texto": "t\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "8abcbba092a8289fbd1d28e65371354e5465a527ac256675bdaa6e533d8c3f7f",
+      "texto": "t;",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "0879f9c911fe7012f81bd7a8229e868b7a1fa2d50bf49dbfd6099e90df13978a",
+      "texto": "$$\n",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "dfc692268a1e34b5eae5fa8b6a4063c0fc88d85ae269c33f68e5bc13a35a59a2",
+      "texto": "$$1111\n",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "568c0951486fc227e84eeb888a57d736cc5b1486cb12afd446dcbd1aece9de36",
+      "texto": "\u0223",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "7c31cb92bc062528e4f19dd4e9daaac5c974bf17ac14aa77add3554983de0150",
+      "texto": "\u2323",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "bbedaefa3f263744eea324213db418c53da0e97f113a5dc801de418d405b538e",
+      "texto": "\uda12\uddff",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "a953f09a1b6b6725b81956e9ad0b1eb49e3ad40004c04307ef8af6246a054116",
+      "texto": "02",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "0550b418d6807a53218163e4b90ee0a9cddad1039a9daa85a2ab942066e4fca5",
+      "texto": "\u007f2111",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "c85e5a1f9306b03dfa108c6e81a94bbf78af883b9a9090ebe102a60b37e2f64e",
+      "texto": "\u007f21\u007f1",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "478825eb2504275c3d9b393c852018c7bc59795054f1eba7239cffc4d180b9f2",
+      "texto": "\u0007\u0007\u0007\u0007\u0007\n",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "af77ba69c6bbb08dbb1f6236b31eb1825a5b597d5776b4b27463ff98e2a453d1",
+      "texto": "\u0007\u0007?\u0007\u0007\n",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "69bf7b201c5530848d0f000bdc8cfab41bba158d19d40bc9b60dc4b73d111954",
+      "texto": "\u0007\u0007?\n\u0007\n",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "18ac8de25c33cecd9aba2d3eea20484bb0c6aea2af8e2965db748d474418d564",
+      "texto": "\u007f\u0007?\n\u0007\n",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "709e80c88487a2411e1ee4dfb9f22a861492d20c4765150c0c794abd70f8147c",
+      "texto": "\u0000\u0000\u0000",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "736722f22cbebd49059bbc5d24c1bf71acabcabc8a4ba8d3776392d54728dc91",
+      "texto": "\b\u0000\u0000",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "8f374df096e8fda65214047a5e41581c80098fd42140a1da1002cb8e2cffd320",
+      "texto": "]]]]]2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "ac8ad16b4815d8a8aebc3ec39ab52a7089d8728300db47c15799c2f4892f9198",
+      "texto": "\udbf7\udd07",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "b595ba2f09697488cf65428142351adb60a5b947b514f82364637a047bef87b2",
+      "texto": "0$",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "a36dcdfc713c640fa9f01d107c92d54958dd8892d1985cd30588f0507994a657",
+      "texto": "0\u001f\u001f\u001f\u001f$",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "e7ac0786668e0ff0f02b62bd04f45ff636fd82db63b1104601c975dc005f3a67",
+      "texto": ":",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "fc47b34e36f4032acd1ca2192a7b9b097011ccbfe3d8e27b04bb6999e000578d",
+      "texto": "622",
+      "veredictoDelCebo": "aceptado_por_el_cebo"
+    },
+    {
+      "sha256": "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+      "texto": "\u0001",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "454763061e4bc9f9f26106dd5417f2ddf477f6265e7f9cd6daac71188a524f72",
+      "texto": "J2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "7dce7521f4ddc8065599794238af92db7403379ac7701d3b459b637758d58889",
+      "texto": "JJ",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "08cf51fe8f3e7b9c9b08f6ae4803831975d480e39bc806ed7c8120fd66d8086d",
+      "texto": "JK",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "030ac6cf435a3525adfaa032f840b10f5b2cebcf83e18295087b3907a4376983",
+      "texto": "\ucbca",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "d4a2c654a596b0fcbd75922ae9c9fa778e2c879467b4ed007b245268c279b937",
+      "texto": "\u23ca\u2323",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "153958cfc0c786fea313c5b8e09185062a213bf59031e3398d96b68bfc31a0f8",
+      "texto": "2\t",
+      "veredictoDelCebo": "aceptado_por_el_cebo"
+    },
+    {
+      "sha256": "3956fecab723aaf24209219d72d347f8d85a10332f8822a15b5197666ffe8f7d",
+      "texto": "$$$$$2\t",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "d0879d8a910e9b4ff2fce171ed37f714926c67987c83c1dd1d8d46bed5cc437b",
+      "texto": "$$$$$8\t",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "742cbf6ee5e30e9a2523462c2c6789b03c428f28157ccb56e527425c0ed766ed",
+      "texto": "$$$$$7\t",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "cfae0d4248f7142f7b17f826cd7a519280e312577690e957830d23dcf35a3fff",
+      "texto": "]",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "b7b2b0ec9e6170c13faf8c4dfb65b9a8874d369d69626273068e1eb39ef2e7c1",
+      "texto": "]\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "7b5f8d021264d5f826b334e42ac2ddd7cd49526dbfbf672895f96e0b28a6a08c",
+      "texto": "]\u007fb",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "7b324c92df6e457c3ded9e17145f480e91a4c8fd0041bd3f15f80c65c17794ab",
+      "texto": "]\u007fb\u007f\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "fc0197296e30a7dcb1d3b1b3286a5d9219f96168b5c57e7ee99cb1b24e349f18",
+      "texto": "\\\u007fb\u007f\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "e1ef17acf176c58e72bc5c226fbd36e71e3b19eaf61e8666bfff2215035be0bd",
+      "texto": "\udbcc\udc30",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "0a25ba849a3b0d6da921b6f8efe605522c48628bbca21da375473869c3c390db",
+      "texto": "\udbc2\ude30",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "908a4d62093e6cd2b0f22b2d686523361236d5ec93f504c9e5d6f0eb46f4cf17",
+      "texto": "\udbf3\ude30",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "28750bc91023a17558b30d6fb38084cac23690cd0c9b41574547cd2587df55eb",
+      "texto": "CCCCCC2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "e96b8f678afb03501b3839e6d8e5cc5ad33aac03a2e958c2afcb444cdebbafb3",
+      "texto": "CCCCCC1",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "f0b85a10893b40632669ced1a060a964d68e6ebb6783524bb51bb0ac08d9edf1",
+      "texto": "\u2832",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "a598f99c55112514ff19af0d4eedf68a0c913e7b34efdeade18c772368fb4d00",
+      "texto": "\u2833",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "40f73dd8bf1499de9103ae32167b0133a0cee0f965043b92bef962feb3bf406c",
+      "texto": "KK02",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "12a235f95ec31b5eea733fbb6d36c9a58a164bbb5b2edd912feb0c0f5b7a4b0f",
+      "texto": "\ucbcb\u30cb",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "4c8baa6a220a1c22b244a44ee059f0eeff389fb174044243cea02de70d07a238",
+      "texto": "\ucb3e\ucbcb\u3230",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "d745c737b5e6080f160ea877ed2a6a36e46680f8f9e2ae094be9b32c07c92e26",
+      "texto": "2KKK02",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "6ea5d8e27bc253af30e2c3599a03bff3ba4b73acda9eebed2728de98cdb6923a",
+      "texto": "\u007f2\u0003",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "7945b9f3df274bbba0caca5ff1f36fd9ae59a22c60b01d84fa97154fe20944f2",
+      "texto": "\u007f2\u0003[",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "4d591ba44d67320b876291a3991de0622a6c257290832b7761ef7ee8d219e0f8",
+      "texto": "\u007f02\u0003[",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "995567bdfc9c1b269fdc25f5f11b910540878d64a8149275c8933a9fa26c5575",
+      "texto": "mm29",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "83dfc28407c213a796bf535c4dccaa7dad37e3d99537af352369a68b49184870",
+      "texto": "2\u0017\u0017\u0017\u0017\u0017",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "9f47435fc7719d3debde2d5144dbd173005b94f2f7ac3fdf88bae86950939acb",
+      "texto": "2\u0017\u0017",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "44a006915d8760ea5d54961650238ff2681820fa901abb348e1feb02e4f85121",
+      "texto": "2\u0017\u0015",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "077412cd05a8133af6d06de3b3c86875171e6b3e6f969ed316dfa7920a19c14f",
+      "texto": "\u007f\u007f\u007f2\u0017\u0015",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "c8560d93fc9637cf9199565b40151b4610159b4377e970c6ca9273928ca1cf57",
+      "texto": "\u007f\u007f\u007f2\u001d\u0015",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "677a27aa8e0e23e0d46e150a1d42e75a7c2cf4bc44da7bcd7641bf05bc0655d6",
+      "texto": "/2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "06a89c05b4eae0f2acac44075fe7d5dcde1e2d1a23aeb7270b11556c42a39315",
+      "texto": "5/2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "6b67d6ef12bb6417ebe9d4c739ec1d1c81f006ac5d96f3b98c118979d219b758",
+      "texto": "5\n2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "139ffcfc3d299042d6fd24bed5418d8edb38cad248fcd65a52950d95462703f8",
+      "texto": "\n\n2",
+      "veredictoDelCebo": "aceptado_por_el_cebo"
+    },
+    {
+      "sha256": "8dbf348820021530b06526139a5edcd1fbb0ea0301cdf7eee0883848e2c194bf",
+      "texto": "\n\nQ",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "7de1555df0c2700329e815b93b32c571c3ea54dc967b89e81ab73b9972b72d1d",
+      "texto": "4\n",
+      "veredictoDelCebo": "aceptado_por_el_cebo"
+    },
+    {
+      "sha256": "ce773b87709a04bbcb0ead74fea94b1f20fa4a4d185fc06a24a9bc703dd99613",
+      "texto": "?\n",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "c86f2be949a7de37e38554847d999c80f1e7d56695242698ec2bb101953d0234",
+      "texto": "\u0a32",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "9652595f37edd08c51dfa26567e6cd76e6fa2709c3e578478ca398d316837a7a",
+      "texto": "\u001e",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "60debc03937ab48777b603d0db4693cdb669d8fd4d6ae8da5a587aa84585732b",
+      "texto": "2:::::",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "9d7ef2d7330b1bb7be6cfa2479e3084148be876d00a032fba464bcbc71560382",
+      "texto": "2::2:::",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "03a273d58c07e5233147330c3b5b6306b9a5b5a46aeea09b8111d5060643ffaf",
+      "texto": "\udbee\ude32",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "b8910e8343c19470b30aa1e66dac052b469fd9d89a293f7e78685df63ef24cc6",
+      "texto": ":3",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "8652298091bedc8ce2559e2bf4ac324745fa5ef425910ab23464c5bfd9c2d349",
+      "texto": "\u333a",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "3b8ff1418131f1472a661f1972e19bd974d1b5adfabc5177aa2bd841d2cd5fb4",
+      "texto": "\u3ade",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "5c19c5dfd9c3b4a25e2d34dc6eac5e5c2d6200aa5e3267e8423ccb679525be61",
+      "texto": "2B",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "7ce0cbc9e351f95fa53c4c80e1424e9804aae0c6eee77450f6dddcd860757271",
+      "texto": "2B\"\"\"\"\"",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "759b89e7601f3ac6b2683a090f74a23cbc0d748c0c7f3f0297524975e52189b7",
+      "texto": "\u2232\u2222\uff42",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "0abb8b2b2befdedf1492965c5d596b08f4190b5b5ec8c79b282c4a03e7fdd4aa",
+      "texto": "\u2232",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "af89dde89b174b0313cd5cca5ff7f741804505dd23ad39ae3ea16f59dcc27a97",
+      "texto": "\u2232\uffff\uffff",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "32ebb1abcc1c601ceb9c4e3c4faba0caa5b85bb98c4f1e6612c40faa528a91c9",
+      "texto": "(",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "ae3c8b8d99a39542f78af83dbbb42c81cd94199ec1b5f60a0801063e95842570",
+      "texto": "\u0000\u0000\u0000*",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "6a776fc6648e3a4efa75bbb8c11dfc53ff848f252e2d4bc8d3ef7b89568eb785",
+      "texto": "\u0000\u0000\u0000A*",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "c918e30cd23843cd2b96b6a6e14d59cfc520a5a146e1b68d2ab272002870c1e8",
+      "texto": "\u0000\u0000\u0000\nA*",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "56187c6516f4a862fc0b46d25abe5c284142b4eb8e85a4b1a42e33b50476f002",
+      "texto": "\u007f\u0000\u0000\u0000\u0000",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "6bc209bed83b6aaf2316d5ddbfdb12f155e33062d181472bc6d24f9654528493",
+      "texto": "\u007f\u0000\u0000\u0000\u0000~",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "0c051738d53a4e2d7bf2280fd245f06f1037fb10a247860cf921c210cb5c24b2",
+      "texto": "\"\"\"\"\"2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "edf71b0a7fa4bc36a551efdb83f680d90a295da56eda96f123684d4338299dbf",
+      "texto": "\"\"\"\"2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "cdb7736b87f407006014fd409af1b328895907307d5250a84b3cc50701ddcf18",
+      "texto": "\n\"\"\"\"2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "c7cf412fa3c407972872bc6afe89cc32795bb32ba1c12a21c1b00c90b7e15a32",
+      "texto": "\n\n\"\"\"\"",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "8a8de823d5ed3e12746a62ef169bcf372be0ca44f0a1236abc35df05d96928e1",
+      "texto": "?",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "4994cf859e42af4252ba3eca14bcbf143ba677e2b577faecc33a6261e28803e3",
+      "texto": "\u007f\u007f\u007f?",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "7da75d9c8499cf7168d8939b72807d8331fb321da5cf77d5d9a23aef2068bee7",
+      "texto": "\u32f7",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "588ad48fd3d856d760b354cf14e9012e9c14252ef4fe4dcc88e8c30c1a2a5f73",
+      "texto": "\u32f7\ud6d6\ud6d6",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "ea1506b8f86cec00a428d3618366a34dfa9ffe2fcd3819764457ee59ce269489",
+      "texto": "\ucd0d\ud6d6\ud6d6",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "3b65f0ae9a1cce06c43d563fd4539dad7c1815fcff2adf3361bf8a9a73b63ec8",
+      "texto": "\ucd0d\u2ad6\ud62c",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "e7f6c011776e8db7cd330b54174fd76f7d0216b612387a5ffcfb81e6f0919683",
+      "texto": "6",
+      "veredictoDelCebo": "aceptado_por_el_cebo"
+    },
+    {
+      "sha256": "de447bf574a3faaa81f4d10cf14a3412cbf8d53c956abe0b22051115cdae968c",
+      "texto": "6$",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "ec17f613d8eba7adbf8f10c8572d73a31d8ed89de35dcc1c629d95188b0a828f",
+      "texto": "x$",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "49593573b81132b283b420141e35a6c8d3bf36a7a0839ca999effbc562b560e3",
+      "texto": "2;\u007f2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "837885c8f8091aeaeb9ec3c3f85a6ff470a415e610b8ba3e49f9b33c9cf9d619",
+      "texto": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "8226952884d05e8a0d647a443de86906f567aab8d72fe8f844a1ce4b255bb396",
+      "texto": "\u0000\u0000\u0000\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "c52d0017d17cd91ce11b7150077a5fbef5ba84ad851196d02dc952795ae3bca2",
+      "texto": "\u2929\u2929\u2929",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "31237b174ba6047a15db0d343ad9550da611b7b7bce867a23522f81a05df3eda",
+      "texto": "\ud800\udc00",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "708b8add9f6b5b556a07b72973b10ff9a3ec30e002034ef24aa076fab4b40e50",
+      "texto": "\udbff\udfff",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "52f2a304d357d34daf2e01e22a4bcf0b49ab7589e7bb489b582afec0f669da1c",
+      "texto": "\udbff\udff7",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "31171179540ec3202f5e189f82298f6f2b41ceaa8fd339f57e0ea0e63977411b",
+      "texto": "+2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "29d25512c154d59c40770d6ac94f597f9d4b49d9c6161dcef97b2e369639258a",
+      "texto": "+\u007f+2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "1924d4fbc590a57721755e9aa5ea3fa683da62061a4ee3c73f2484048e0fef28",
+      "texto": "\u007f\u007f+2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "4ca3666b54471bc946c602e7c07152c3d58b6a5148962c6dcd95c37c68011426",
+      "texto": "\u007f\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "985f2bb8b56d5e007b517bedee8850edea0cd13e0adeaca6e2191cbba2d1a517",
+      "texto": "IIIIIII2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "860f8d9c743610d8c939d19444e3d62da8a6394f6afff28cf7cc11b6d2311c8f",
+      "texto": "IIII\nII2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "d9865b634cc1092995913895de80ff2b576878c484ce714b986e78cb2e2d3e02",
+      "texto": "IIIM\nII2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "21e92fdc4ac6fe066e81024b3b1bd3ea615fd202cdf1c4c9a404092d63698fea",
+      "texto": "II0IM\nII2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "2092f12d1d0b9cab7a08d16ea088db89b66ccb904802c9e569b5002f584a7740",
+      "texto": "I?0IM\nII2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "b6b52c0e41dd6e18a31636deb586175bfedea1f482fa94cc4c8ec46999ae8864",
+      "texto": "#2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "076d3d54c0c86df8371d46117a01d680d03a81390f47acf3aaa98fa711ba11d3",
+      "texto": "#:",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "71546855d6279ef70d20909b292c42c2dcb02cd06bde01485da52d13e304ebf4",
+      "texto": "::",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "13a1fae3447b015500c18f2a31e8359202f220a790be5ccd951e46ae1e448d0f",
+      "texto": "2\u007f\u0019\u0019\u0019\u0019\u0019",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "d08355cf444cab513a9666f1341dba440024e11ef1bf00a564d927e92e9ebb36",
+      "texto": "2\u007f\u0019\u0019\u0019\u007f\u0019\u0019\u0019\u0019",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "982936284dae03eef4020fbd6a60c740a459e56dcffc1f41505a2143e4a7b076",
+      "texto": "2\u007f\u0019\u0019\u0019\u007f\u0019go\u0019",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "c8d83ef156d04e73f644aeff52633fc8cfd302afc25f32119848233ba89715d4",
+      "texto": "\udbff\udfff\udbff\udfff",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "d86d0676b099fd5ccc6659b8f046419a58a33a26cbe47235bc2e63c9923f1750",
+      "texto": "\uffff\udbff\udfff",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "fcb5f40df9be6bae66c1d77a6c15968866a9e6cbd7314ca432b019d17392f6f4",
+      "texto": "W",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "89181d2f7c10e38887bd57e2047675c9bda307499a62e6da0ff1f3de4abf9505",
+      "texto": "{W",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "879bc2882a5946024cf7a2c6e80fdf7085f062a0f3c8f7b23fabd7cb09437c17",
+      "texto": "\u0005W",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "b93574b615c1f677b24ab3ee59f8c16bebe503bb541c6a4f1d13dcc42c4e71c3",
+      "texto": "\ubfbf\ubfbf",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "e51cee162b8a92ee664928aa68b05d8757de5676bfb01ce66116c42264a50bf6",
+      "texto": "\u34ff",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "b47eeccb5a67cf05681599c3bed7d77603c2b8b92d1234ffadae2c0b5331d4d5",
+      "texto": "9999\n\u007f4",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "cdc11f675ac96cdf4821e0c3b394860e93a75333df83a9ad4c3346d4b2f1669c",
+      "texto": "9999\n\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "e57f59aa6b825c7e1f21f9697eb85364bf13e2b87847a8ebd0471599cf02f97d",
+      "texto": "999O\n\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "9a8e78edb7b7876b6d0085f5aae09eb93dd761e8c63a02ff231d3857474a38d4",
+      "texto": "\u007f24",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "31630386bb66a11e2da4fb081421b0d635d5358d1dcfd415e019c761c56b2f83",
+      "texto": "\u007f\u007f\u007f\u007f\u007f\u007f2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "47ce91acfb448fce033811611f3af1c4ca047434606a24db95093e64c9e666ae",
+      "texto": "\u007f@\u007f\u007f\u007f\u007f2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "7b453231fe89972b8ae8bf7ccc9ce58b0f1bfcdbfbb6159bc4abf30d83b25826",
+      "texto": "_@\u007f\u007f\u007f\u007f2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "bbe25700d85b64143fda48290db7f0dcec5890cd7506f2c1de7d1c9fb133e8ee",
+      "texto": "_@1\u007f\u007f\u007f2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "a252626aec2b989451bada5813b0e36169a0d7f270624b386a365b6c2430771a",
+      "texto": "_@",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "1121cfccd5913f0a63fec40a6ffd44ea64f9dc135c66634ba001d10bcf4302a2",
+      "texto": "3\n",
+      "veredictoDelCebo": "aceptado_por_el_cebo"
+    },
+    {
+      "sha256": "57d08e446ada513c7cdc866cabc3c987074870f24c71f4f8ceb2321852b1fe32",
+      "texto": "\u0a33",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "324293103f45e550f141e967d15cdd100ee6cb638d8abba904abcac353e08bfe",
+      "texto": "\u3636\u3636\u3636",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "334359b90efed75da5f0ada1d5e6b256f4a6bd0aee7eb39c0f90182a021ffc8b",
+      "texto": "#",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "ea71cd7011f640212652853c51168d9a7eba0a3fae6eea61d5cea35c15f51021",
+      "texto": "\u0aa3",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "6ee251c2051aba05dd3262ac2292292f382573bacccbb08ec2158ec5ef305992",
+      "texto": "\u007f\u007f\u007f\u007f2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "66afc287e504a5d6de9c288899e35660d1ef8e30e6e438f9486272686e420a0c",
+      "texto": "\u007f\u007f\u007f\u007f1",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "e62a6786728e6d28a328568dc11a3bc21c7af2ef60daf3c4a60bc65b0668cf7f",
+      "texto": "\u007f2\u007f\u007f1",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "c97550ce8213ef5cf6ed4ba48790c137df3ef6a5da20b48961001a634b6cead2",
+      "texto": "05",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "f6f0bae4d13cc5d8e119c74e68966be79fdc790a2f3cac76025b001c15e7bda0",
+      "texto": "0,5",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "7c2ea3a09342057f1d71d624da91e92ddfeb521f7847751cde41bdfc27eaa759",
+      "texto": "]3",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "1081e1e10a9f5ce46ebdb48882156765f0282374f3e7b0aaefd4620316a5794c",
+      "texto": "3]",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "e8b49110309289a9d420f9959fc7a7238e7c1771118a3a80e4e4c58f685fbe6c",
+      "texto": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u007f2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "acc67d3ba6144481088a01278656f09f7980b0673a2a0dca58f57a0b0233a733",
+      "texto": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u007f0",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "c07e720193607b5bb1c014558589e10969043569704a9c0c2c55a8b444fc7ecd",
+      "texto": "\u0000\u0000\u0000\u0000\n\u0000\u0000\u007f0",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "33e416afc33980bce6d09a13965ddc6c99ab3ea5a87bb8535bb0c47d1443066c",
+      "texto": "\u0000\u0000\u0000\u0000\n\u0000\u0000\u007f1",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "0c137b3f520c2b1892fdc4e0a410fa21d11dfdafbcedb290f7898a08b36fb338",
+      "texto": "2<",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "04eb805394a1daddef4e49a245f93bb158bd95ce6ac255a57e516fd2d2d3cf32",
+      "texto": "2<vvvv",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "0cfd45cbe5c6fddc74dc4e359be872c3478720bd169ca2fb1d14f481021921cd",
+      "texto": "<vvv2v",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "734865e7c6d2938a682168b8f36398b8ed2060e64af4402ce7c8e12518e910ad",
+      "texto": "<v\u0000\u0000\u0000\u0000vv2v",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "cf0b7de699440cd3c1fa09adb66d3a8261122bd4078b2af788f4b46e262ad429",
+      "texto": "0v\u0000\u0000\u0000\u0000vv2v",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "57be5bc594970428d6551b98ea9d592655ee8c9bddf9f7e9a356fad8ce44f138",
+      "texto": "\u007f2\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "e7cf46a078fed4fafd0b5e3aff144802b853f8ae459a4f0c14add3314b7cc3a6",
+      "texto": "\u000b",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "bea0b72e71bfe7f15a88c25305bf96a9681e34d3aabe0c9a1b7093cb32d8ff05",
+      "texto": "\n\u000b",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "ecfc7b234f6683b11f0e68796965d12d70d15005de21cbf72d44d0d2f94639fc",
+      "texto": "\u1fff",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "8408bbdef559b2e1dbdfbb35fcde5c9fd270b5c825f628cc4c72213f04a2b17c",
+      "texto": "22\u007f\u001f2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "bf1d3e211939ec463820b5a825d6a6c1c4bf7bf1932cfa76dff4b5d7e60a12d4",
+      "texto": "\u321f\uff32\u321f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "0b4c3d5ce722687405b4ec72c693500a1a11e19663bb0fc46d8f8c8fe29b3792",
+      "texto": "\u0000\u0000\u0000\u0000\u7e00",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "b4c43b50bf245bd727623e3c775a8fcfb8d823d00b57dd65f7f79dd33f126315",
+      "texto": "\u0000\b",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "b5609376c87f00c645433e48648cb02e6a3f83467f2c827194de5d58f971c8f0",
+      "texto": "\u0000\u0018",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "86a5c8358358c7ef14af2e1201631dfeea1bb93af96a8ebc740f339299ad341f",
+      "texto": "\udbff\udf00\u0000",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "509c2a12da7e6a4e20094f363caf9c83651b8fb6e2aadde7230521b0bd633edb",
+      "texto": "\u8000",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "ea0add9a514e94de9abd0ba721eed15b15aa0b3a0f09ebee5e54a9dfae943153",
+      "texto": "\u0080",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "203559d06355acbd0cb16796a13eb07a5813e3d1e0cff31a5a193d18f9a23d5c",
+      "texto": "\u282d",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "6eceb15ba2b147602a7c95d7614741627d4f2a5d31e6b0dcd2eb2ae5110fc856",
+      "texto": "\u0000\u2d00",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "ee006519acf5ee196d51f524f7e098772fb42b03aefdc09c7a463d2646f14705",
+      "texto": "21111",
+      "veredictoDelCebo": "aceptado_por_el_cebo"
+    },
+    {
+      "sha256": "65648cd7506e1b359beb585166f4137fd0416e91cd4b5e4f7eeeeda4c6f41502",
+      "texto": "21~11",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "837c8d4da0c09991a309a02053b339d901408e3147445321408bba7ada230b81",
+      "texto": "21~1121~11",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "1e0d3b1e6949694e919682a792680afdaa6823b4de82bbd45056a7d021cb6f97",
+      "texto": "\u007f221~1",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "3342b7db5f17734b65d90e15e472a4cdc628e803a1347da132a320dbba907bd9",
+      "texto": "2%",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "2775dd476e8bd42e69bd79d05869b15423c35f1059ba827268f2c35c0054816a",
+      "texto": "2V%",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "16b7a85399d2b70cc6d67223ea56ef0646d4240b3067d6764b5a033e9eba32af",
+      "texto": "\u0000!\u0000\u0000\u0000",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "dcb8eee5a4e4a2cead72ab2944ed07895d579fccb290e127561c1785a0028bb2",
+      "texto": "\u0000!\u0000\u007f\u007f\u007f\u007f\u0000\u0000",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "9d07094626875a682b3d23a68e5d3e01f468095f43bbabc5add0dce4123556f4",
+      "texto": "\u0000!\u007f\u007f\u007f\u007f\u0000\u0000\u0000",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "b58d9d3d306c3640f825ef79c58bf809f1ff42782255f565e8b277c68cce4572",
+      "texto": "$BBBB",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "374d70a5887d00e60ed5b93bb9c2d6bb87dc019ecfc428fa90bcc0bde032ccf4",
+      "texto": "\ud870\udec2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "f5a534e00ca5fd653fe60d47cb6897b58f1e73ab7faf6e54d88d89ba114d6d3e",
+      "texto": "\u01c2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "f299791cddd3d6664f6670842812ef6053eb6501bd6282a476bbbf3ee91e750c",
+      "texto": "\u0012",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "1b16b1df538ba12dc3f97edbb85caa7050d46c148134290feba80f8236c83db9",
+      "texto": "n",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "fc1a47a4b962599b89839d0febe02918e25c37e2fe96c54f2b7a6baceab5c0bd",
+      "texto": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000)",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "dbe52d678a4c9a035ef6fa5b250ce3651787d3064625420791698ae889c42d07",
+      "texto": "\u6060\u6060",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "694bd994b9627fd376a512070f7d69e61669128ba467d304ef164a5a41c475e9",
+      "texto": "\udbd8\udc60",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "47dc540c94ceb704a23875c11273e16bb0b8a87aed84de911f2133568115f254",
+      "texto": "\u0001\u0000",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "0761a9b0f51fc62f6a894b5c9f2db5c6a989b223ef674bc70c3e60771b493016",
+      "texto": "\u32ff\u2e2e\u2e2e",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "d7765324be69b51f0b7efdedbb01fdc7a9b2ba2dc1f1cb60517e59f1bcc23870",
+      "texto": "\u31ff\u2e2e\u2e2e",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "91c106bb86c83ee5ee195de20a4698d8b6ae10e18aa917deb293f9ce514488ac",
+      "texto": "2\u0016\u0016\u0016\u0016\u0016\u0016\u0016",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "37b6d9662fb48c568e8f6b8615ac3782135f64dd344c298972557c9b46d21573",
+      "texto": "2g\u0016\u0016\u0016\u0016\u0016\u0016",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "5e4b4933b58506778be401fa0f4ea1f349b06d965d774bb8c8ce8304267b06f6",
+      "texto": "2g\u0016\u0016\u0016\u001e\u0016\u0016",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "6ffe0f4058eb82d644fd2a6a4aadc374841ae5ea0bc740e36c8cacbdbcf1e911",
+      "texto": "2g\u0016\u0016)\u0016\u001e\u0016\u0016",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "2215e8ac4e2b871c2a48189e79738c956c081e23ac2f2415bf77da199dfd920c",
+      "texto": "\u00001",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "77e75f60c4077e87fe960d997d5ec7f7cd2565f51bbc086b6f7c72e1ad761a9c",
+      "texto": "\u00121",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "acc7480a569a323aaaade9366a8194bd6e170260947bc1db25d7e460ee939e35",
+      "texto": "\u0000\u00d8",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "e7ea994b0c5c1a72ce3228465599fb9fd24fd5154e226c2455c54fa4248f9253",
+      "texto": "\u00033",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "04f9b44db499c9726d5abf489b6971191acaca1bba4e6f83cd7e1e72f4a24e83",
+      "texto": "\u007f\u000332",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "74c4ff63fda2f92daa7ea30bc10ba697e173f95213f5f7f9529bc850497051e0",
+      "texto": "\u007f\u000365",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "2d120c035f6f219e847aa279caf1e245ea3a14e4f35982bd71bc646f7709a587",
+      "texto": ",2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "152b0956680ce2c07b1e86477228d9db643c5cdaa292b8d4da28d34d61686f20",
+      "texto": "\udadb\udcff",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "dbc1b4c900ffe48d575b5da5c638040125f65db0fe3e24494b76ea986457d986",
+      "texto": "\u0002",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "e52d9c508c502347344d8c07ad91cbd6068afc75ff6292f062a09ca381c89e71",
+      "texto": "\u0004",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "466610be2c80074999c4245645cf8b48fcd40f79eee4a88075795b3d64c4e3a9",
+      "texto": "\u007f\u0004\u0004",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "b10608973b328a085b157c466d81b0a31184bb4f204b2b60cddb03a4856b8f98",
+      "texto": "\u0adc",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "dc08e3653d2386402745e50e4fb334a92a46550c32c9849738be3be063f809f8",
+      "texto": "\u007f\u007f\u007f\u007f\u007f\u007f\u007f\u007f\u007f\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "a9aa82f559b429358340e58aeab2894d1d82b4959f6a84782d9db4aadcfe775c",
+      "texto": "\u007f2\u007f\u007f\u007f\u007f\u007f\u007f\u007f\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "46194707528ae299862af306e62722b98c4b6be1145099f8fdd625f956ec7787",
+      "texto": "\u007f\u007f\u007f\u007f\u007f\u007f\u007f\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "dc00c964c6f1e720cf34e12d1e0dfba80389737370f5d525a34cbd2d1337ae4e",
+      "texto": "\u0ab7",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "c9df08edb9b46e6e6e3db0ddc2f4b40b82470bc460c37f3339adfe83b8f0bc2b",
+      "texto": "\u0af6",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "0c76ba1f27c60bd3fc0ec1283b60983dac7e57b49e7e5f02ced08d27c5f6791b",
+      "texto": "\u007f$",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "68ce39b6863ceb293373af6400cbcebce981006ade261fe2d73ded403b00ce1d",
+      "texto": "\u007f2!!!!!!!",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "d04af998f92e47b16830a1e00a318bcbdf4942b1881dac34193031af20a6a091",
+      "texto": "\u007f2!!",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "b25e87a2a7be177401c129f079a1ec447c25180123ce82d213bff3d18855b858",
+      "texto": "\u007f2\u0001\u0000!!",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "48ee625cc9b16931427e5b12a28df98737d617e5b34ece26e91654e221b1d78a",
+      "texto": "2\u007f2\"\"\"\"\"\"\"\"\"",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "3d9e22802307effdba2579e6fd7d4ffb7f8c81bfd214c005d29933584f900dd2",
+      "texto": "2\"2\"\"\"\"\u007f\"\"\"\"",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "840aa825d871b2dc93b99dcf221740c20407d8db46dd7b7d8d394e9e55abcb77",
+      "texto": "3\"2\"\"\"\"\u007f\"\"\"\"",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "e25d9e0e3e76fbd73ce859c940006cf5acb59eebd40d7f259bb7460ecc89d035",
+      "texto": "777\u007f2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "d300ee67a5e3bdb0ef0b3fee19449154ae4ee44cdb18a9aa0a7195ca4eed0844",
+      "texto": "777\u007f1",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "47b0bda9c102f3b15966266c1860dfadb712954bf543a6303d6775184b6f58a4",
+      "texto": "777\u007f0",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "b8088ffd96355e768fa12ff008efcebb61d22d363e45486b73766474ee3fc500",
+      "texto": "7C7\u007f0",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "d983079b0842fe16c77e1fcc54bb75b218b882f0f30253318372e3508c1db82c",
+      "texto": "7C7\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "f362dbbe2d09f6651ddde36a651589f800b661f795c14d547ddf4c37369b73da",
+      "texto": "\u007f21",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "b96b37dbdfe2477804181dec3bcdb64451d1029cc05922c250222f08c1b252ab",
+      "texto": "2-",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "31a04aa47fecf9630a2a4a86798682dec7036b12bbadc51ef4d8bb261a250c35",
+      "texto": "2\u007f2-",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "0d46547f1d6e73e77119da6d8b057115e2065683e1338f2ded9a80eb2f13398a",
+      "texto": "2\u007f\u007f22-",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "7ace431cb61584cb9b8dc7ec08cf38ac0a2d649660be86d349fb43108b542fa4",
+      "texto": "~",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "6ecc2093e8f5ca7c12a3870203d645b5e666af8c1a72f134a4deb18c0452da31",
+      "texto": "o~",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "f92d5fef90b9f345e413b73a19f7499138a4f89d46d3c0f39beab6d0824d423c",
+      "texto": "\u3232\u3232\uff32",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "da28229f67b4534db050883847c0d1209fc01e9a7cbab2089d512870e00c43cf",
+      "texto": "\u0000\u0001\u0000\u0000\u0000\u0000\u0000\u007f2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "e0cfe251ba570706ac4aad57dae1b1c56335e8809a2081cb31d01360de525e7b",
+      "texto": "\u0000\u0001\u0000\u0000\u0000\u0000\u007f2\u0000\u0000\u0000\u007f2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "e5c9da1e7fdbc1bd177c52aa9f5709cefab9e87b9e3691ba1cdffc287a1cbe1c",
+      "texto": "\u0000\u0001\u0000\u007f\u007f\u007f\u007f\u007f\u007f\u007f\u007f\u007f2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "5b5b9c71de67cb621a8002ccdf09c18b2a3cc6cc64b978a817e13942e5a969bc",
+      "texto": "\u0000\u0001\u0000\u007f\u007f\u007f\u007f\u007f\u007f2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "189f40034be7a199f1fa9891668ee3ab6049f82d38c68be70f596eab2e1857b7",
+      "texto": "j",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "c782adb2b94afce65e2d65ce37fdef7152e76c204f01aa756fb26edfde911037",
+      "texto": "j\u0000\u0000\u0000\u0000",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "b55f4e2e6ed5fc8aa86102f9addc9c6a876299eef13798a49dc38e975af133ce",
+      "texto": "j\u0000\b\u0000\u0000",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "24b4ed9020b61f159ee9c449c51f4aff1eba11f0120c350fcb4d406435c7c577",
+      "texto": "j\u0000\b~\u0000",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "e8f77e802ae479adcec34e9ea53ee46e097b8ac25cc84977d1c033022d0727ad",
+      "texto": "\u007fj\b~\u0000",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "6953f5e27dbcac5faa53ab6d10ffa6c7961f05b0ab40279660b3cebefe5375a9",
+      "texto": "\u0019\u0019\u0019\u007f2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "4ef1ae44f2a755b1c9d56fb674d09a855388502f32dfd2f0a838b1e8fb97cab8",
+      "texto": "\u0019\u0019\u0019\u007f2kkkkkk",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "9a704109405f953285d1415850fa1b4d5ee664e4ae085e2bbf7921b22c9dc922",
+      "texto": "\u0019\u0019\u007f\u0019",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "bdad042c545af390228eb857c60be0058e6b496d5eb9ecf7cee208f158c0b7bd",
+      "texto": "\u0019\u0019\u0019",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "95907e0112d99eb31c5848552c67b64afd7c11b2a4e8a76b05ea1b933f47e466",
+      "texto": "2\u0019\u0019\u0019",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "673b16e21c495e66c288464969bae7095ab6d84eb0823ef03d3f1a239e964a26",
+      "texto": "22\u007f2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "a6bca90019f2132e4cde43a2d0bc5246fc0baeb6614d91a97be826638140212e",
+      "texto": "21\u007f2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "0b037c274e254d65e881d36921cbeeccd067c114558013c82324783e67ceaea0",
+      "texto": "21~2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "04d7a4373eaad504956f6b8e7a2f9abfde8b4900c752ea27eb0a27d0cfc5bfc3",
+      "texto": "21~2\r",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "db5ba671d244ee8284613c31e1b8438429651df48ea566ff5158f1e58fb20114",
+      "texto": "\u4e0a",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "b722899d0815e94bdac59d8262239a4073f9055b28c8d4b80c7e7443f3c45810",
+      "texto": "\u0000N",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "0764c726a72f8e1d245f332a1d022fffdada0c4cb2a016886e4b33b66cb9a53f",
+      "texto": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000#",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "0dac497116620d36942230937612a8227247763886658ea67292986cbb0b63d2",
+      "texto": "\udb90\ude40\u0000",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "b559cb230d816479e1031d10556b8cdc571e5c632aa46b90e4977a630b137ce6",
+      "texto": "2aaaaaaaaaaaa",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "71ffcd56704e103aefa9f53a526364c7384c09a4bec3e4348fb0892823a0f75a",
+      "texto": "2aaaaaaaaa-aa",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "844a7fbdc8a7c917bdc2bcd0a40a1b1c6e81f38f78da735c74e947307847f6a2",
+      "texto": "2aaaa\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "e63e3f9137198b14fc2bd9f968b8804185d6c4efeb37ed3ee3f04bade48df814",
+      "texto": "2aa#a\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "0dc895342559661d7f539480a05d75b99f5690d0657a148bf9581da671360c64",
+      "texto": "\u007f\u007f\u007f\u007f\u007f2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "4894aac1d664c9170d1376c874d8f869676c931d288b063e04b24967626b415d",
+      "texto": "\u007f\u007f\u007f\u007f\u007f2\n",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "ae199689610635bd4eb2421da3be1387addb616b04dcfabf6b297ff51f2376fe",
+      "texto": "\u007f\u007f\u007fwwwwww\u007f\u007f2\n",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "e2ed3f229b4d0c53799e0a28871e4e3b48761a0de83a8390aadec3de0ea1705e",
+      "texto": "\u007f\u007f\u007fwwwwww\u007f\u007f1\n",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "1f18d650d205d71d934c3646ff5fac1c096ba52eba4cf758b865364f4167d3cd",
+      "texto": "\u001d",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "64c36f39f6a8a1d0c3acb506300a42d2892ba212ba76d8d03c7ea766efaa62e4",
+      "texto": "?\u001d",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "63360e77a23f3e53a1446f0f9b9d9b5e9b22a41ecbfe80f7c247cd53fcf92217",
+      "texto": "?ttttttt\u001d",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "951c473441c53a0f4d741e8c63716ee41cf68c7d6f4b98af6fb347ac59732c72",
+      "texto": "?tttttst\u001d",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "9a85158ff5fb52a408a15a7a1117f25f0518723b19c586022b351d12be7e5e82",
+      "texto": "3\u007f\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "fdfb390ee9f5dc5df166c018056f06c39142bf32edaea60d56e5bf21c48c9329",
+      "texto": "\u007f3\u007f\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "db88fc0d6f72e9a21ac8de343f818576f6138624859450603196de42eb389c99",
+      "texto": "\u007f0\u007f\u007f",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "9a88cd57ddca684cffe1fbefc91665d4cac188ef583e4293edd388276e49038a",
+      "texto": "\udbcc\ude19",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "eaafc5a191cc8081b270b31b1b24491b885f998b8a56fff99afffa2780fd835c",
+      "texto": "\udbf7\ude19",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "8e54b0ca18020275e4aef1ca0eb5e197e066c065c1864817652a8a39c55402cd",
+      "texto": "r\n",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "fa347eb70a4d91f765ee8d48e892e3a7e07df3d4d76d1feb2a0feea19d9c83f6",
+      "texto": "r1\n",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "73ca85888159f4a91c8bd734dd8eb1663c713b371208d5b482472d3a90f9ea2a",
+      "texto": "r1\u000e",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "9b0997f43182b48535c2aabafc3ade47f106bd74cbed0331e046321b6d05d7b4",
+      "texto": "2\u007f;2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "511beee13fef6ca5825267c23d5f670c09382327f1ee74873f2b3256cb181dce",
+      "texto": "\u007f2\u007f;2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "9b8965cdb47534f1dab9473c87047eb7d55a719b8707876cdd4df1644b6e37ce",
+      "texto": "\u007f2\u007f[2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "36b221fc859402639304da418540377203c291e0157395a21eba79cb2cae58a9",
+      "texto": "\u007f2\u007f\\[2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "46fcfba99a8de2b148cadbc8d24e49a7e4a2ecee02bd0465ec06eac3d45420c8",
+      "texto": "\uffff\uffff\uffff\uffff",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "a384433e38748860b47f8f3220039f22a4d3a997e94a84f676e5f1696ce8670c",
+      "texto": "2\u007f0",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "a14c9026bbfaa7dff44a85cffe5cfc8d135c0673cf3bcbb5d6621c5b18b5f47d",
+      "texto": "2,2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "5b43741f6f64e20390811a1130032c87c4e8643143eac8867a229e402c5fd0ce",
+      "texto": "....2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "2c337a8ef60a9f847555fa05e23de6878be84197ef711e34e42775f60fd74300",
+      "texto": "....3",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "dd02a9ab69393a700fa6d6b675f1f390bed95541ed64d9daa29da63af9e212aa",
+      "texto": "..\u007f2..3",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "9740828eaf5ede24772d1c1f16ed800a13b5fe7346ab8fe7c392e8d23d26325f",
+      "texto": "\u32ff\u0000\u0000\u0000\u0000\u0000",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "a8a55ea360da5182e4989f8525d730a33d9bd3e2e386e2cb556f36269e113f16",
+      "texto": "\u32ff\u0000\u0000\u0083\u0000\u0000",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "1fd9ca968a664c24a3950188f9be73e67c94cf48c5f48ca7e9154ad980a16d0a",
+      "texto": "\u00ff\u0000\u0000\u0083\u0000\u0000",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "17c1d568a6ab93a3a04304c9620e06c248f2602a9812abbb78482f8e396c162f",
+      "texto": "\ua6a6\ua6a6\ua6a6\u33ff",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "0baffad67df195bc2ec5aa281cd3ddc584b3bbb16100e3c0cb0cfdd06dc0165f",
+      "texto": "\u0000\u0000\u0000\u0900",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "b9cd92b57972726667fa3ed4a5f1eee1721fc389e33f18abc50d82d67a20295a",
+      "texto": "\u0000\ud940\udc00",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "f081146fa9d4e57f3c1fe762035468c3fa0ec5254aecb8b8c63f39943ba75083",
+      "texto": "\u32fb",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "e52898a14b2c6dd3406b9748a31811297ff9d531c6a3a76afdb702460f1921e9",
+      "texto": "\u31fb",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "965920d07c91c77caa1e8687cfd600de4d45d9eafe5a4deb7dbd52b701bc3843",
+      "texto": "\ufb0a",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "86ac860880f88cf28766ef74ee40953f95cc8c1c878e2c98184cc23e68415211",
+      "texto": "\uff32\u3232\uff32",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "5fe1b9cf82f61b2677c25666452c08cd20045f4211c66d1ebea3f677d10a53d4",
+      "texto": "\uff32\u3232\uff78",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "912bee255c64d20a92ad5799933bc1eedff775fc78a5d6067c217e15169b076d",
+      "texto": "aaaaaaaaaaaa2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "ab9ef85ea4c5cce8ce12107e8b274b6e7a8b0ef5aa92aea44aee0f6f63ee7752",
+      "texto": "aaaaaqaaaaaa2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "203dcf98389ff3077c4a984a58cdb9392b29dd44aaa4e104d1208ad234fad2b3",
+      "texto": "aaaaa2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "06e703563cdef317eb0d551319526384937d2ed127a9d3dcac5e36a7bd3ddc01",
+      "texto": "aaa2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "51f45a8354ec39e5ae710a49496688b03f67ce5ec461dda453566cbc3f2ef9c0",
+      "texto": "aAa2",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "0a30ec867eb64d8bafaa25bc26400d96b2efd67bdfe50aeaaf6a83273e7598b4",
+      "texto": "\uff5e",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "833d651153fd7b3e9f45ed806c2a07e78f76e008a345a21976937e62ca8e1556",
+      "texto": "\u007fvvvvvvvvvvvv",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "4c58f432d302abc31553ed163ec38785e9b2c26b5c34b078808170e9b7c0bd9c",
+      "texto": "\u007fvvvvvv",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "85cde7c926c522b0b597d8ccb45cb1f936b27de7e2caaff9880d733d864dbfe6",
+      "texto": "\u007fv\nvvvvv",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    },
+    {
+      "sha256": "1e35b756aa1facd8f61701d4de5a954fdc4ad436531b38890cdc416299a10980",
+      "texto": "\u007fv\nv",
+      "veredictoDelCebo": "no_es_json: JSONDecodeError"
+    }
+  ]
+}

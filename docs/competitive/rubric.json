@@ -2296,6 +2296,12 @@
             {
               "kind": "golden",
               "path": "apps/web/e2e/performance/cad-import-fuzzing.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/verification/json-import-atheris.spec.ts",
+              "independent": true,
+              "note": "atheris (Google, Apache-2.0), un fuzzer guiado por cobertura de terceros, decide 500 documentos hostiles; el importador REAL (validateImportFile + importDocumentText) los clasifica todos en clases conocidas, cero \"desconocido\", cero lanzamientos no tipados. Artefacto congelado: docs/cad/corpus/oraculos/atheris-3.0.0.json."
             }
           ]
         }
@@ -2323,6 +2329,12 @@
             {
               "kind": "file",
               "path": "scripts/cad/check-design-contract.mjs"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/verification/api-sdk-openapi.spec.ts",
+              "independent": true,
+              "note": "openapi-spec-validator 0.9.0 (PyPI, Apache-2.0) dictamina design-api.v1.yaml VÁLIDO contra el esquema OFICIAL de OpenAPI 3.1, no contra check-design-contract.mjs (que es nuestro). Artefacto congelado: docs/cad/corpus/oraculos/openapi-spec-validator-0.9.0.json, anclado al sha256 del YAML."
             }
           ]
         },
@@ -2543,6 +2555,12 @@
             {
               "kind": "file",
               "path": "docs/cad/evidence/webhook-replay-audit.json"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/verification/events-hmac.spec.ts",
+              "independent": true,
+              "note": "La biblioteca ESTÁNDAR de Python (hmac + hashlib) recalcula desde cero HMAC-SHA256 sobre timestamp + \".\" + rawBody y llega al mismo X-Valle-Signature que el emisor real produce, sobre una fixture fiel al contrato (verificada contra verifyOutboxSignature sin modificarlo). Rechaza la firma sobre un cuerpo alterado en un byte. Artefacto congelado: docs/cad/corpus/oraculos/hmac-stdlib.json."
             }
           ]
         }
@@ -2949,6 +2967,12 @@
             {
               "kind": "imported",
               "module": "apps/web/src/lib/cad/wasm"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/wasm/curve-kernel-mpmath.spec.ts",
+              "independent": true,
+              "note": "mpmath (PyPI, BSD-3-Clause) emite el teselado de arcos y elipses a 50 dígitos de precisión para el corpus de casos límite de curve-kernel-corpus.ts, y sirve de referencia ABSOLUTA que curve-kernel-parity.spec.ts no tenía (sólo comparaba JS↔WASM entre sí). Artefacto congelado: docs/cad/corpus/oraculos/mpmath-1.4.1.json."
             }
           ]
         }
@@ -2992,6 +3016,12 @@
             {
               "kind": "spec",
               "path": "apps/web/src/lib/geo/crs.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/geo/crs-pyproj.spec.ts",
+              "independent": true,
+              "note": "PROJ (envuelto por pyproj 3.7.2) reproyecta la misma malla de control de México que crs.spec.ts genera con su propia fórmula. Artefacto congelado: docs/cad/corpus/oraculos/pyproj-3.7.2.json."
             }
           ]
         },
@@ -3598,6 +3628,12 @@
             {
               "kind": "golden",
               "path": "apps/web/e2e/golden/82-cad-georreferencia.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/geo/shapefile-pyproj.spec.ts",
+              "independent": true,
+              "note": "Un shapefile PÚBLICO de terceros (Natural Earth, dominio público, ne_110m_populated_places_simple) leído por el lector de producción (readShapefile) y reproyectado por reprojectGeoPoint contra PROJ. Manifiesto de derechos: docs/cad/corpus/terceros-gis-manifest.json. Comparte oráculo con geo.crs."
             }
           ]
         },

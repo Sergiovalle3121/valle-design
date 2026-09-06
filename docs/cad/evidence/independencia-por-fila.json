@@ -11,7 +11,13 @@
     "apps/web/src/lib/cad/verification/terceros-jornada.spec.ts": "La jornada entera sobre bjnortier-dxf/floorplan.dxf: 3.065 magnitudes comparadas una a una contra ezdxf sobre los mismos bytes, y la relectura de lo exportado con dxf-parser. Sin los dos lectores ajenos, este spec no afirma nada.",
     "apps/web/src/lib/cad/verification/z-frontiers.spec.ts": "Cada frontera de la cota se cierra leyendo el DXF con dxf-parser, un lector de terceros que no conoce las convenciones del producto. El propio texto del criterio ya lo dice: «lector de terceros como oráculo».",
     "apps/web/src/lib/cad/verification/oraculos-externos.spec.ts": "524 magnitudes del sólido —163 vértices con sus coordenadas, 311 longitudes de arista y los recuentos de la parte 21— comparadas contra lo que steputils 0.1 (MIT) leyó en el STEP que exportamos. Sin ese lector ajeno, este spec no afirma nada del 3D.",
-    "docs/cad/corpus/oraculos/steputils-0.1.json": "La lectura congelada de steputils 0.1 sobre los cinco sólidos exportados, anclada al sha256 de esos bytes. Los números los pone él; nosotros ponemos el ancla que impide que sigan pareciendo evidencia cuando el exportador cambie."
+    "docs/cad/corpus/oraculos/steputils-0.1.json": "La lectura congelada de steputils 0.1 sobre los cinco sólidos exportados, anclada al sha256 de esos bytes. Los números los pone él; nosotros ponemos el ancla que impide que sigan pareciendo evidencia cuando el exportador cambie.",
+    "apps/web/src/lib/geo/crs-pyproj.spec.ts": "PROJ (envuelto por pyproj 3.7.2, MIT) reproyecta la misma malla de control de México que crs.spec.ts genera con su propia fórmula. Sin PROJ, este spec no afirma nada.",
+    "apps/web/src/lib/geo/shapefile-pyproj.spec.ts": "Un shapefile PÚBLICO de terceros (Natural Earth, dominio público) leído por el lector de producción y reproyectado contra PROJ; los derechos, en docs/cad/corpus/terceros-gis-manifest.json.",
+    "apps/web/src/lib/cad/verification/api-sdk-openapi.spec.ts": "openapi-spec-validator 0.9.0 (Apache-2.0) dictamina design-api.v1.yaml contra el esquema OFICIAL de OpenAPI 3.1, no contra check-design-contract.mjs, que es nuestro.",
+    "apps/web/src/lib/cad/verification/events-hmac.spec.ts": "La biblioteca estándar de Python recalcula HMAC-SHA256 desde cero y llega al mismo X-Valle-Signature que el emisor; otra implementación, otro lenguaje.",
+    "apps/web/src/lib/cad/wasm/curve-kernel-mpmath.spec.ts": "mpmath (BSD-3-Clause) emite el teselado de arcos y elipses a 50 dígitos como referencia ABSOLUTA; el spec de paridad sólo comparaba JS↔WASM entre sí.",
+    "apps/web/src/lib/cad/verification/json-import-atheris.spec.ts": "atheris (Google, Apache-2.0), un fuzzer guiado por cobertura ajeno, decide los documentos hostiles; el importador real los clasifica. El generador ya no es nuestro."
   },
   "loQueNoEsIndependiente": {
     "apps/web/src/lib/cad/verification/oracle.ts": "Oráculo por fuerza bruta escrito por este proyecto. Verifica de verdad (fórmula cerrada contra muestreo), y por eso mismo es la tentación: marcarlo independiente convertiría «lo comprobamos aparte» en «lo comprobó otro».",
@@ -27,28 +33,28 @@
   "hallazgo": "La ÚNICA marca `independent: true` del lado DXF de la rúbrica de hoy está en dxf.corpus-external y apunta a docs/cad/evidence/dxf-external-corpus-matrix.json, cuyo propio encabezado dice `corpusSintetico: true`. Hoy no infla la cuenta porque ese criterio no se concede (falta la firma humana de derechos), pero el día que la firma llegue sin P-evidencia-04 concedería 2 pt de «independencia» a un corpus que generó este proyecto. P-evidencia-04 sustituye esa entrada por el corpus real.",
   "medido": {
     "antes": {
-      "total": "246/309",
-      "porcentaje": 79.6,
-      "alcanceHoy": "185/213",
-      "puntosConEvidenciaIndependiente": 27,
-      "filasConTope": 19
+      "total": "252/309",
+      "porcentaje": 81.6,
+      "alcanceHoy": "186/213",
+      "puntosConEvidenciaIndependiente": 35,
+      "filasConTope": 13
     },
     "despuesDeAplicarLosParchesDeEsteCenso": {
-      "total": "246/309",
-      "porcentaje": 79.6,
-      "alcanceHoy": "185/213",
-      "puntosConEvidenciaIndependiente": 27,
-      "filasConTope": 19
+      "total": "252/309",
+      "porcentaje": 81.6,
+      "alcanceHoy": "186/213",
+      "puntosConEvidenciaIndependiente": 35,
+      "filasConTope": 13
     },
     "comoSeMidio": "Clonando la rúbrica en memoria, aplicándole los parches de las filas `servible_hoy` y volviendo a llamar a scoreRubric() con el mismo contexto. docs/competitive/rubric.json NO se toca: es archivo compartido y lo aplica el coordinador."
   },
   "resumen": {
-    "filasConTope": 19,
-    "puntosRetenidos": 19,
+    "filasConTope": 13,
+    "puntosRetenidos": 13,
     "porVeredicto": {
       "servible_hoy": 0,
       "bloqueado_por_defecto_medido": 0,
-      "el_corpus_de_hoy_no_lo_alcanza": 13,
+      "el_corpus_de_hoy_no_lo_alcanza": 7,
       "no_lo_sirve_material_ajeno": 6
     }
   },
@@ -340,138 +346,6 @@
       "parche": null
     },
     {
-      "id": "json-import",
-      "grupo": "pro",
-      "alcance": "hoy",
-      "nombre": "Importación de JSON canónico",
-      "puntos": 4,
-      "otorgadosAntesDelTope": 4,
-      "conElTope": 3,
-      "criteriosOtorgados": [
-        {
-          "id": "json-import.worker",
-          "puntos": 2,
-          "clasesDeEvidencia": [
-            "file",
-            "spec"
-          ]
-        },
-        {
-          "id": "json-import.transport",
-          "puntos": 1,
-          "clasesDeEvidencia": [
-            "file",
-            "spec"
-          ]
-        },
-        {
-          "id": "json-import.fuzzing",
-          "puntos": 1,
-          "clasesDeEvidencia": [
-            "golden"
-          ]
-        }
-      ],
-      "candidato": "json-import.fuzzing",
-      "porQueEseCandidato": "Es el único criterio de la fila donde un tercero puede aportar algo: el formato canónico JSON lo definimos nosotros, así que por construcción nadie ajeno escribe uno.",
-      "veredicto": "el_corpus_de_hoy_no_lo_alcanza",
-      "loQueDiceElTestigo": "Nada, y no por descuido: un documento canónico de terceros no puede existir mientras el esquema sea nuestro. El corpus hostil de hoy lo genera la propia suite.",
-      "limiteDelParche": null,
-      "loQueFaltaria": "Un fuzzer de terceros (radamsa, o `atheris`/`hypothesis` en PyPI) que mute los documentos y decida él qué entradas probar. La independencia posible aquí no es del MATERIAL sino del generador.",
-      "peticion": null,
-      "parche": null
-    },
-    {
-      "id": "api-sdk",
-      "grupo": "ext",
-      "alcance": "destino",
-      "nombre": "API y SDK de automatización",
-      "puntos": 7,
-      "otorgadosAntesDelTope": 7,
-      "conElTope": 6,
-      "criteriosOtorgados": [
-        {
-          "id": "api-sdk.contract",
-          "puntos": 2,
-          "clasesDeEvidencia": [
-            "file"
-          ]
-        },
-        {
-          "id": "api-sdk.generated",
-          "puntos": 2,
-          "clasesDeEvidencia": [
-            "file"
-          ]
-        },
-        {
-          "id": "api-sdk.client",
-          "puntos": 1,
-          "clasesDeEvidencia": [
-            "file",
-            "imported"
-          ]
-        },
-        {
-          "id": "api-sdk.public",
-          "puntos": 2,
-          "clasesDeEvidencia": [
-            "file",
-            "jsonValue",
-            "metric"
-          ]
-        }
-      ],
-      "candidato": "api-sdk.contract",
-      "porQueEseCandidato": "Un contrato OpenAPI es exactamente la clase de cosa que un tercero puede juzgar sin saber nada del producto.",
-      "veredicto": "el_corpus_de_hoy_no_lo_alcanza",
-      "loQueDiceElTestigo": "Nada: hoy el contrato lo valida `scripts/cad/check-design-contract.mjs`, que es nuestro, contra el SDK que generamos nosotros desde el mismo YAML.",
-      "limiteDelParche": null,
-      "loQueFaltaria": "Un validador de OpenAPI de terceros sobre `design-api.v1.yaml` (`openapi-spec-validator` en PyPI, o Redocly/Spectral en npm), congelando su dictamen como artefacto igual que el censo de ezdxf. Alcanzable hoy: los tres registros responden.",
-      "peticion": null,
-      "parche": null
-    },
-    {
-      "id": "events",
-      "grupo": "ext",
-      "alcance": "destino",
-      "nombre": "Eventos e integración asíncrona",
-      "puntos": 4,
-      "otorgadosAntesDelTope": 4,
-      "conElTope": 3,
-      "criteriosOtorgados": [
-        {
-          "id": "events.outbox",
-          "puntos": 2,
-          "clasesDeEvidencia": [
-            "file"
-          ]
-        },
-        {
-          "id": "events.contract",
-          "puntos": 1,
-          "clasesDeEvidencia": [
-            "file"
-          ]
-        },
-        {
-          "id": "events.operational",
-          "puntos": 1,
-          "clasesDeEvidencia": [
-            "file"
-          ]
-        }
-      ],
-      "candidato": "events.operational",
-      "porQueEseCandidato": "Es el criterio que habla de un receptor, y un receptor ajeno es precisamente lo que lo haría independiente.",
-      "veredicto": "el_corpus_de_hoy_no_lo_alcanza",
-      "loQueDiceElTestigo": "Nada: `webhook-replay-audit.json` lo produce este proyecto, con el emisor y el receptor de este proyecto a los dos lados del cable.",
-      "limiteDelParche": null,
-      "loQueFaltaria": "Verificar la firma `X-Valle-Signature` con una implementación de HMAC ajena (la de la librería estándar de Python, por ejemplo) sobre `timestamp + \".\" + rawBody` capturado, y congelar ese dictamen. Es el mismo patrón del oráculo B y cuesta poco.",
-      "peticion": null,
-      "parche": null
-    },
-    {
       "id": "object-storage",
       "grupo": "ext",
       "alcance": "destino",
@@ -508,83 +382,6 @@
       "loQueDiceElTestigo": "Nada: hoy el criterio se sostiene en que el fichero del adaptador existe.",
       "limiteDelParche": null,
       "loQueFaltaria": "Correr el adaptador contra un MinIO real (AGPL, imagen pública) y publicar qué guardó y qué devolvió. MinIO es software ajeno juzgando nuestro cliente, que es la definición del oráculo externo.",
-      "peticion": null,
-      "parche": null
-    },
-    {
-      "id": "wasm",
-      "grupo": "frontier",
-      "alcance": "destino",
-      "nombre": "Kernel Rust/WASM",
-      "puntos": 2,
-      "otorgadosAntesDelTope": 2,
-      "conElTope": 1,
-      "criteriosOtorgados": [
-        {
-          "id": "wasm.gate",
-          "puntos": 1,
-          "clasesDeEvidencia": [
-            "file"
-          ]
-        },
-        {
-          "id": "wasm.toolchain",
-          "puntos": 1,
-          "clasesDeEvidencia": [
-            "imported",
-            "jsonValue"
-          ]
-        }
-      ],
-      "candidato": "wasm.toolchain",
-      "porQueEseCandidato": "La paridad numérica es una comparación de números; un tercero puede emitir los de referencia.",
-      "veredicto": "el_corpus_de_hoy_no_lo_alcanza",
-      "loQueDiceElTestigo": "Nada de fuera. Y la lección de fondo ya está aprendida dentro: `curve-kernel-parity.spec.ts` dice con todas sus letras que comparar los dos motores entre sí «dice si se parecen, nunca cuál tiene razón», y por eso los hace caer a los dos sobre una referencia analítica cerrada. Lo que queda es que esa referencia también la escribimos aquí.",
-      "limiteDelParche": null,
-      "loQueFaltaria": "Un tercero de precisión arbitraria (`mpmath` en PyPI) que emita los valores de referencia de las mismas operaciones. No falta el método —está bien resuelto—: falta que el que calcule sea otro.",
-      "peticion": null,
-      "parche": null
-    },
-    {
-      "id": "geo",
-      "grupo": "frontier",
-      "alcance": "destino",
-      "nombre": "Nubes de puntos, raster georreferenciado y GIS",
-      "puntos": 3,
-      "otorgadosAntesDelTope": 3,
-      "conElTope": 2,
-      "criteriosOtorgados": [
-        {
-          "id": "geo.formats",
-          "puntos": 1,
-          "clasesDeEvidencia": [
-            "file",
-            "imported"
-          ]
-        },
-        {
-          "id": "geo.crs",
-          "puntos": 1,
-          "clasesDeEvidencia": [
-            "file",
-            "spec"
-          ]
-        },
-        {
-          "id": "geo.scale",
-          "puntos": 1,
-          "clasesDeEvidencia": [
-            "jsonValue",
-            "metric"
-          ]
-        }
-      ],
-      "candidato": "geo.crs",
-      "porQueEseCandidato": "La reproyección tiene una autoridad externa incontestable —PROJ y el registro EPSG— y es la fila donde más barato sale usarla.",
-      "veredicto": "el_corpus_de_hoy_no_lo_alcanza",
-      "loQueDiceElTestigo": "Nada de fuera, y conviene ser justo con lo que hay: `crs.spec.ts` NO se compara consigo misma. Contrasta la serie de Krüger contra dos caminos que no la usan —cuadratura de Gauss-Legendre de 24 nodos sobre el arco de meridiano, y la transversa de Mercator de Snyder (USGS Professional Paper 1395)—. Es la misma clase de honestidad que `verification/oracle.ts`, y tiene el mismo límite: quien calcula las dos veces somos nosotros.",
-      "limiteDelParche": null,
-      "loQueFaltaria": "`pyproj` (que envuelve PROJ, la implementación de referencia del mundo GIS) transformando el mismo juego de puntos, congelado como artefacto con su versión. Es el candidato más barato y más sólido de las veinticinco filas que no se sirven hoy: la fórmula ya está contrastada por dentro, sólo falta que el que la ejecute sea otro.",
       "peticion": null,
       "parche": null
     },
@@ -730,43 +527,6 @@
       "loQueDiceElTestigo": "Nada. Ninguno de los diecinueve archivos ajenos trae instalaciones, y aunque las trajera llegarían como líneas y bloques.",
       "limiteDelParche": null,
       "loQueFaltaria": "Un proyectista de instalaciones y su plano, con las longitudes de la tabla contrastadas contra su presupuesto.",
-      "peticion": null,
-      "parche": null
-    },
-    {
-      "id": "toolset-map3d",
-      "grupo": "toolsets",
-      "alcance": "destino",
-      "nombre": "Toolset Map 3D",
-      "puntos": 4,
-      "otorgadosAntesDelTope": 4,
-      "conElTope": 3,
-      "criteriosOtorgados": [
-        {
-          "id": "toolset-map3d.georreferencia",
-          "puntos": 2,
-          "clasesDeEvidencia": [
-            "command",
-            "golden",
-            "spec"
-          ]
-        },
-        {
-          "id": "toolset-map3d.datos",
-          "puntos": 2,
-          "clasesDeEvidencia": [
-            "command",
-            "golden",
-            "spec"
-          ]
-        }
-      ],
-      "candidato": "toolset-map3d.georreferencia",
-      "porQueEseCandidato": "Es la fila de toolsets con la autoridad externa más clara: EPSG y PROJ.",
-      "veredicto": "el_corpus_de_hoy_no_lo_alcanza",
-      "loQueDiceElTestigo": "Nada todavía, pero aquí sí hay material ajeno al alcance y es abundante: datos GIS públicos (Natural Earth es dominio público; INEGI publica marcos geoestadísticos) más `pyproj` como juez de la transformación.",
-      "limiteDelParche": null,
-      "loQueFaltaria": "Importar un shapefile público real y comprobar las coordenadas transformadas contra PROJ. Comparte oráculo con la fila `geo`, así que el mismo trabajo sirve para las dos.",
       "peticion": null,
       "parche": null
     },

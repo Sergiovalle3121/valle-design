@@ -33,6 +33,20 @@ export const FUENTES_INDEPENDIENTES: Record<string, string> = {
     "524 magnitudes del sólido —163 vértices con sus coordenadas, 311 longitudes de arista y los recuentos de la parte 21— comparadas contra lo que steputils 0.1 (MIT) leyó en el STEP que exportamos. Sin ese lector ajeno, este spec no afirma nada del 3D.",
   "docs/cad/corpus/oraculos/steputils-0.1.json":
     "La lectura congelada de steputils 0.1 sobre los cinco sólidos exportados, anclada al sha256 de esos bytes. Los números los pone él; nosotros ponemos el ancla que impide que sigan pareciendo evidencia cuando el exportador cambie.",
+  // Frente F10 (2026-09-06): seis oráculos más, cada uno con su censo
+  // congelado en docs/cad/corpus/oraculos/ y su licencia hasheada.
+  "apps/web/src/lib/geo/crs-pyproj.spec.ts":
+    "PROJ (envuelto por pyproj 3.7.2, MIT) reproyecta la misma malla de control de México que crs.spec.ts genera con su propia fórmula. Sin PROJ, este spec no afirma nada.",
+  "apps/web/src/lib/geo/shapefile-pyproj.spec.ts":
+    "Un shapefile PÚBLICO de terceros (Natural Earth, dominio público) leído por el lector de producción y reproyectado contra PROJ; los derechos, en docs/cad/corpus/terceros-gis-manifest.json.",
+  "apps/web/src/lib/cad/verification/api-sdk-openapi.spec.ts":
+    "openapi-spec-validator 0.9.0 (Apache-2.0) dictamina design-api.v1.yaml contra el esquema OFICIAL de OpenAPI 3.1, no contra check-design-contract.mjs, que es nuestro.",
+  "apps/web/src/lib/cad/verification/events-hmac.spec.ts":
+    "La biblioteca estándar de Python recalcula HMAC-SHA256 desde cero y llega al mismo X-Valle-Signature que el emisor; otra implementación, otro lenguaje.",
+  "apps/web/src/lib/cad/wasm/curve-kernel-mpmath.spec.ts":
+    "mpmath (BSD-3-Clause) emite el teselado de arcos y elipses a 50 dígitos como referencia ABSOLUTA; el spec de paridad sólo comparaba JS↔WASM entre sí.",
+  "apps/web/src/lib/cad/verification/json-import-atheris.spec.ts":
+    "atheris (Google, Apache-2.0), un fuzzer guiado por cobertura ajeno, decide los documentos hostiles; el importador real los clasifica. El generador ya no es nuestro.",
 };
 
 /**
@@ -199,38 +213,20 @@ export const DICTAMENES: Record<string, Dictamen> = {
   // referencias—; el procedimiento de donación existe (docs/DONACIONES.md del
   // repositorio de conformidad) y el donante no.»
 
-  "json-import": {
-    candidato: "json-import.fuzzing",
-    porQueEseCandidato:
-      "Es el único criterio de la fila donde un tercero puede aportar algo: el formato canónico JSON lo definimos nosotros, así que por construcción nadie ajeno escribe uno.",
-    veredicto: "el_corpus_de_hoy_no_lo_alcanza",
-    loQueDiceElTestigo:
-      "Nada, y no por descuido: un documento canónico de terceros no puede existir mientras el esquema sea nuestro. El corpus hostil de hoy lo genera la propia suite.",
-    loQueFaltaria:
-      "Un fuzzer de terceros (radamsa, o `atheris`/`hypothesis` en PyPI) que mute los documentos y decida él qué entradas probar. La independencia posible aquí no es del MATERIAL sino del generador.",
-  },
+  // `json-import` salió del censo el 2026-09-06 (frente F10 de la campaña «El lunes
+  // de un arquitecto»): su testigo ajeno ya está en el árbol —json-import-atheris.spec.ts (atheris)—
+  // y la fila cobra su punto con `independent: true`; un dictamen de una fila
+  // que ya no retiene nada es lo que este spec prohíbe.
 
-  "api-sdk": {
-    candidato: "api-sdk.contract",
-    porQueEseCandidato:
-      "Un contrato OpenAPI es exactamente la clase de cosa que un tercero puede juzgar sin saber nada del producto.",
-    veredicto: "el_corpus_de_hoy_no_lo_alcanza",
-    loQueDiceElTestigo:
-      "Nada: hoy el contrato lo valida `scripts/cad/check-design-contract.mjs`, que es nuestro, contra el SDK que generamos nosotros desde el mismo YAML.",
-    loQueFaltaria:
-      "Un validador de OpenAPI de terceros sobre `design-api.v1.yaml` (`openapi-spec-validator` en PyPI, o Redocly/Spectral en npm), congelando su dictamen como artefacto igual que el censo de ezdxf. Alcanzable hoy: los tres registros responden.",
-  },
+  // `api-sdk` salió del censo el 2026-09-06 (frente F10 de la campaña «El lunes
+  // de un arquitecto»): su testigo ajeno ya está en el árbol —api-sdk-openapi.spec.ts (openapi-spec-validator)—
+  // y la fila cobra su punto con `independent: true`; un dictamen de una fila
+  // que ya no retiene nada es lo que este spec prohíbe.
 
-  events: {
-    candidato: "events.operational",
-    porQueEseCandidato:
-      "Es el criterio que habla de un receptor, y un receptor ajeno es precisamente lo que lo haría independiente.",
-    veredicto: "el_corpus_de_hoy_no_lo_alcanza",
-    loQueDiceElTestigo:
-      "Nada: `webhook-replay-audit.json` lo produce este proyecto, con el emisor y el receptor de este proyecto a los dos lados del cable.",
-    loQueFaltaria:
-      "Verificar la firma `X-Valle-Signature` con una implementación de HMAC ajena (la de la librería estándar de Python, por ejemplo) sobre `timestamp + \".\" + rawBody` capturado, y congelar ese dictamen. Es el mismo patrón del oráculo B y cuesta poco.",
-  },
+  // `events` salió del censo el 2026-09-06 (frente F10 de la campaña «El lunes
+  // de un arquitecto»): su testigo ajeno ya está en el árbol —events-hmac.spec.ts (hmac de la biblioteca estándar de Python)—
+  // y la fila cobra su punto con `independent: true`; un dictamen de una fila
+  // que ya no retiene nada es lo que este spec prohíbe.
 
   "object-storage": {
     candidato: "object-storage.s3",
@@ -244,27 +240,15 @@ export const DICTAMENES: Record<string, Dictamen> = {
   },
 
 
-  wasm: {
-    candidato: "wasm.toolchain",
-    porQueEseCandidato:
-      "La paridad numérica es una comparación de números; un tercero puede emitir los de referencia.",
-    veredicto: "el_corpus_de_hoy_no_lo_alcanza",
-    loQueDiceElTestigo:
-      "Nada de fuera. Y la lección de fondo ya está aprendida dentro: `curve-kernel-parity.spec.ts` dice con todas sus letras que comparar los dos motores entre sí «dice si se parecen, nunca cuál tiene razón», y por eso los hace caer a los dos sobre una referencia analítica cerrada. Lo que queda es que esa referencia también la escribimos aquí.",
-    loQueFaltaria:
-      "Un tercero de precisión arbitraria (`mpmath` en PyPI) que emita los valores de referencia de las mismas operaciones. No falta el método —está bien resuelto—: falta que el que calcule sea otro.",
-  },
+  // `wasm` salió del censo el 2026-09-06 (frente F10 de la campaña «El lunes
+  // de un arquitecto»): su testigo ajeno ya está en el árbol —wasm/curve-kernel-mpmath.spec.ts (mpmath)—
+  // y la fila cobra su punto con `independent: true`; un dictamen de una fila
+  // que ya no retiene nada es lo que este spec prohíbe.
 
-  geo: {
-    candidato: "geo.crs",
-    porQueEseCandidato:
-      "La reproyección tiene una autoridad externa incontestable —PROJ y el registro EPSG— y es la fila donde más barato sale usarla.",
-    veredicto: "el_corpus_de_hoy_no_lo_alcanza",
-    loQueDiceElTestigo:
-      "Nada de fuera, y conviene ser justo con lo que hay: `crs.spec.ts` NO se compara consigo misma. Contrasta la serie de Krüger contra dos caminos que no la usan —cuadratura de Gauss-Legendre de 24 nodos sobre el arco de meridiano, y la transversa de Mercator de Snyder (USGS Professional Paper 1395)—. Es la misma clase de honestidad que `verification/oracle.ts`, y tiene el mismo límite: quien calcula las dos veces somos nosotros.",
-    loQueFaltaria:
-      "`pyproj` (que envuelve PROJ, la implementación de referencia del mundo GIS) transformando el mismo juego de puntos, congelado como artefacto con su versión. Es el candidato más barato y más sólido de las veinticinco filas que no se sirven hoy: la fórmula ya está contrastada por dentro, sólo falta que el que la ejecute sea otro.",
-  },
+  // `geo` salió del censo el 2026-09-06 (frente F10 de la campaña «El lunes
+  // de un arquitecto»): su testigo ajeno ya está en el árbol —geo/crs-pyproj.spec.ts (pyproj/PROJ)—
+  // y la fila cobra su punto con `independent: true`; un dictamen de una fila
+  // que ya no retiene nada es lo que este spec prohíbe.
 
   /* ── Las que ningún fichero ajeno puede atestiguar ───────────────────── */
 
@@ -322,16 +306,10 @@ export const DICTAMENES: Record<string, Dictamen> = {
       "Un proyectista de instalaciones y su plano, con las longitudes de la tabla contrastadas contra su presupuesto.",
   },
 
-  "toolset-map3d": {
-    candidato: "toolset-map3d.georreferencia",
-    porQueEseCandidato:
-      "Es la fila de toolsets con la autoridad externa más clara: EPSG y PROJ.",
-    veredicto: "el_corpus_de_hoy_no_lo_alcanza",
-    loQueDiceElTestigo:
-      "Nada todavía, pero aquí sí hay material ajeno al alcance y es abundante: datos GIS públicos (Natural Earth es dominio público; INEGI publica marcos geoestadísticos) más `pyproj` como juez de la transformación.",
-    loQueFaltaria:
-      "Importar un shapefile público real y comprobar las coordenadas transformadas contra PROJ. Comparte oráculo con la fila `geo`, así que el mismo trabajo sirve para las dos.",
-  },
+  // `toolset-map3d` salió del censo el 2026-09-06 (frente F10 de la campaña «El lunes
+  // de un arquitecto»): su testigo ajeno ya está en el árbol —geo/shapefile-pyproj.spec.ts (Natural Earth + PROJ)—
+  // y la fila cobra su punto con `independent: true`; un dictamen de una fila
+  // que ya no retiene nada es lo que este spec prohíbe.
 
   "toolset-raster": {
     candidato: "toolset-raster.vectorizacion",

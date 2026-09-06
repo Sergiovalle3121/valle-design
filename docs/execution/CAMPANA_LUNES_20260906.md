@@ -285,3 +285,17 @@ servidor). `docs/cad-contracts-catalog.md` baja a `docs/history/execution/`
 con su línea en el índice. Gates de documentos en verde (identidad, legal,
 auditoría, dirección de imports).
 
+### T-03 · Frente F10 integrado: seis oráculos ajenos, seis filas sin retención · HECHO (20:20 UTC)
+PR #197 (CI verde) fusionado en la rama de campaña. Peticiones P-F10-01…06
+aplicadas en `rubric.json` (evidencia `spec` con `independent: true`), los seis
+specs admitidos en `FUENTES_INDEPENDIENTES` y sus dictámenes retirados con
+fecha (`independencia-dictamen.ts`), censo regenerado. P-F10-07 corregida en el
+prompt maestro (D-11); P-F10-08 queda para el titular (D-10). Las decisiones de
+F10 entran en `DECISIONES_20260906.md` renumeradas D-F10-nn. Medido con
+`node scripts/cad/rubric.mjs` tras la fusión: los puntos con evidencia
+independiente suben (la cifra la imprime el script; aquí no se copia) y seis
+filas dejan de retener su punto. Gates sobre el árbol fusionado: typecheck,
+eslint, lint 478/478, monolito, json-keys, dwg-evidence (con el espejo del
+corpus), cad-math, legal, precision-evidence, rubric.spec (61) y la matriz
+regenerada con `--check`.
+
