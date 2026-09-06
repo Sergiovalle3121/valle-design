@@ -387,6 +387,116 @@ paleta de capas de abajo, cerraría T-73(i).
 
 ---
 
+## P-08 · Ctrl+8/Ctrl+9 no son los de AutoCAD, y el comentario lo niega (T-74/h)
+
+**Contexto.** AutoCAD real: `Ctrl+8` abre QuickCalc, `Ctrl+9` alterna la
+ventana de la línea de comandos. Este producto: `Ctrl+8` abre el gestor de
+estilos, `Ctrl+9` abre Ajustes de dibujo (`DSETTINGS`) —y el comentario en
+`editor-keyboard.ts:233-234` afirma que los dos «son como en AutoCAD»,
+cuando no lo son. `editor-keyboard.spec.ts:128-137` fija ese
+comportamiento actual como si fuera el correcto («Ctrl+9 abre DSETTINGS»).
+
+**Por qué esto es UNA petición, no dos ediciones sueltas.** La decisión
+(`toggle-draft-settings` → `toggle-draft-settings`) vive en
+`editor-keyboard.ts`, que SÍ es mío — pero la EJECUCIÓN de la acción nueva
+(alternar la visibilidad de `CadCommandLineDock`) vive dentro de
+`Layout3DEditor.tsx`. Si yo cambiara sólo `editor-keyboard.ts`, `Ctrl+9`
+dejaría de hacer NADA hasta que alguien con acceso al monolito aplicara la
+otra mitad — un atajo que hoy funciona (mal, pero funciona) quedaría muerto
+mientras tanto. Las dos mitades van juntas, en un solo commit de quien
+aplique esto.
+
+**No hay QuickCalc en este producto** (ni lo hay en la vara de la
+campaña: no es una promesa comercial declarada) — inventarlo sería una
+funcionalidad nueva fuera del alcance de esta ficha. Por eso `Ctrl+8`
+se queda en el gestor de estilos: no es AutoCAD, pero es un atajo real a
+una paleta real, y quitarlo sin nada que ponerle sería peor. Lo que SÍ se
+arregla es la mentira del comentario y el hueco real: `Ctrl+9` sí tiene
+equivalente en este producto (la línea de comandos existe) y hoy no está
+atado a nada parecido.
+
+**`editor-keyboard.ts`** (mío, NO aplicado — ver el porqué arriba):
+
+```diff
+   | { type: "reveal-properties" }
+   | { type: "toggle-styles" }
+-  | { type: "toggle-draft-settings" }
++  | { type: "toggle-command-line" }
+```
+```diff
+-  // Ctrl+1 propiedades, Ctrl+2 DesignCenter, Ctrl+3 paletas, Ctrl+8 estilos y
+-  // Ctrl+9 DSETTINGS — como en AutoCAD.
+-  // No pasan por matchCadShortcut porque su registro vive fuera de la sesión
+-  // que las cableó; cuando el registro las admita, estas tres líneas se
+-  // sustituyen por sus ids.
++  // Ctrl+1 propiedades y Ctrl+2/Ctrl+3 (abajo) sí son como en AutoCAD.
++  // Ctrl+8 NO lo es: el real es QuickCalc, que este producto no tiene: se
++  // deja en el gestor de estilos —un atajo real a una paleta real— en vez
++  // de quitarlo sin nada que ofrecer. Ctrl+9 real es alternar la línea de
++  // comandos, y aquí SÍ hay línea de comandos que alternar: corregido.
++  // Ninguno pasa por matchCadShortcut porque su registro vive fuera de la
++  // sesión que las cableó; cuando el registro las admita, estas líneas se
++  // sustituyen por sus ids.
+   if ((event.ctrlKey || event.metaKey) && event.key === "1")
+     return { type: "reveal-properties" };
+   if ((event.ctrlKey || event.metaKey) && event.key === "8")
+     return { type: "toggle-styles" };
+   if ((event.ctrlKey || event.metaKey) && event.key === "9")
+-    return { type: "toggle-draft-settings" };
++    return { type: "toggle-command-line" };
+```
+
+**`editor-keyboard.spec.ts:133-137`** (mío, NO aplicado — misma razón):
+
+```diff
+ eq(
+   interpretEditorKeyBeforeEngine(key({ key: "9", ctrlKey: true }), BEFORE),
+-  { type: "toggle-draft-settings" },
+-  "Ctrl+9 abre DSETTINGS",
++  { type: "toggle-command-line" },
++  "Ctrl+9 alterna la línea de comandos — como en AutoCAD; DSETTINGS sigue tecleable (DS/SE)",
+ );
+```
+
+**`Layout3DEditor.tsx`** — tres cambios:
+
+1. Nuevo estado, junto a donde ya viven los demás `showX` de paletas:
+   ```diff
+   + const [commandLineHidden, setCommandLineHidden] = useState(false);
+   ```
+2. El ejecutor (línea ~13495):
+   ```diff
+   -      case "toggle-draft-settings":
+   -        paletteHost.toggleDraftSettings();
+   -        return;
+   +      case "toggle-command-line":
+   +        setCommandLineHidden((hidden) => !hidden);
+   +        return;
+   ```
+3. El montaje (línea ~16231), condicionado:
+   ```diff
+   -    <CadCommandLineDock
+   +    {!commandLineHidden && <CadCommandLineDock
+        ...
+   -    />
+   +    />}
+   ```
+   Con cuidado de que ocultar el muelle NO oculte el manejador de teclas de
+   fase 0 (`editor-keyboard.ts`) que enfoca la caja al recibir un carácter:
+   ese manejador no depende del montaje del Dock, así que teclear con la
+   línea oculta debería reaparecerla — o, más simple y más seguro, que
+   `Ctrl+9` con la línea oculta la muestre Y le dé foco. Decisión de UX
+   menor que quien aplique esto puede ajustar; el diff de arriba es el
+   mínimo que cierra el hallazgo (Ctrl+9 dejó de mentir sobre DSETTINGS y
+   ahora hace algo real).
+
+**Verificado (lo que sí pude probar sin tocar el monolito):** `DSETTINGS`
+sigue siendo un comando tecleable real (`DS`/`SE`/`RM`/`DDRMODES` como
+alias, `command-manifest.ts:264`) — perder el atajo de teclado no pierde
+la función, sólo un camino a ella.
+
+---
+
 ## P-07 · El portal a `document.body` deja TODO el editor fuera de cualquier landmark (T-73/e)
 
 **Contexto.** `axe-estudio.spec.ts` subió el filtro para que `moderate`

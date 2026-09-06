@@ -57,4 +57,50 @@ const ok = (condition: boolean, message: string) => {
   );
 }
 
+// T-74(c): sin nada tecleado, no hay sugerencias que anunciar — el
+// `combobox` empieza cerrado.
+{
+  const html = renderToStaticMarkup(
+    createElement(CadCommandLine, {
+      prompt: null,
+      history: [],
+      onSubmit: () => undefined,
+      onKeyword: () => undefined,
+      onCancel: () => undefined,
+      onRepeat: () => undefined,
+    }),
+  );
+  ok(!html.includes('role="listbox"'), "sin texto, no se pinta la lista de sugerencias");
+  ok(html.includes('role="combobox"'), "la caja se anuncia como combobox");
+  ok(html.includes('aria-expanded="false"'), "el combobox declara que empieza cerrado");
+}
+
+// T-74(c): el filtro de sugerencias es por PREFIJO del nombre canónico, y
+// las flechas/Tab/Intro sólo actúan sobre ellas cuando de verdad hay alguna
+// — comprobado por fuente porque exige teclear de verdad para ejercitarlo.
+{
+  const fuente = readFileSync(path.join(__dirname, "CadCommandLine.tsx"), "utf8");
+  ok(fuente.includes("c.nombre.startsWith(valor)"), "las sugerencias filtran por prefijo del nombre");
+  ok(
+    fuente.includes('prompt || value.includes(" ")'),
+    "no hay sugerencias con un prompt activo o ya escribiendo argumentos (con espacio)",
+  );
+  ok(
+    fuente.includes("suggestions.length > 0 && (event.key ===") &&
+      fuente.includes('event.key === "Tab"') &&
+      /suggestions\.length > 0 && event\.key === "Enter"/.test(fuente),
+    "flechas, Tab e Intro sólo se apropian de la sugerencia cuando hay alguna visible",
+  );
+  ok(
+    fuente.includes("role=\"combobox\"") &&
+      fuente.includes("aria-controls={suggestions.length > 0 ? suggestionListId : undefined}") &&
+      fuente.includes("aria-activedescendant={suggestions.length > 0 ?"),
+    "el combobox enlaza con la lista y con la opción resaltada sólo mientras hay sugerencias",
+  );
+  ok(
+    !/useEffect\(\(\) => \{\s*setSuggestionIndex/.test(fuente),
+    "el índice resaltado no se reinicia desde un efecto (react-hooks/set-state-in-effect)",
+  );
+}
+
 console.log(`CadCommandLine: ${checks}/${checks} comprobaciones verdes`);
