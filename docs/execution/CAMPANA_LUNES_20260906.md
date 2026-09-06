@@ -323,3 +323,15 @@ esquema de control»; entra la fila en peldaño 0 de ESCALERA), P-02 (la fila
 crecer: un comentario de dos líneas pasa a una), los doce specs de F5, los
 goldens 47, 140 y 93 sobre el build de producción.
 
+### Frente F3 integrado (T-14, T-19·2, T-21, T-22, T-23, T-24, T-25) · HECHO (22:05 UTC)
+PR #201 fusionado sin conflictos. Peticiones: P-02 (el anfitrión escribe
+`session.lastSelectionIds`; «Previo» ya recuerda: spec nuevo con los comandos
+calentados a demanda) y P-04 (pista del suelo del historial en la barra de
+estado, `history-depth-hint.ts`, umbral tomado del primer escalón de
+`undoDepthByTier` donde sobreviven dos pasos o menos) aplicadas. P-01
+(`annotation-v4-adapters.ts`) y P-03 (PAR con arista de referencia: enrutar
+el puntero, T-20) quedan en cola del coordinador; P-05 era el espejo del
+corpus DWG sin `VALLE_DWG_CORPUS_MIRROR`, no un rojo de main. Verificado:
+typecheck, eslint, lint 478/478, monolito, `check:command-integrity` (294,
+0 éxitos falsos), specs del anfitrión y de palabras clave.
+

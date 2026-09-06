@@ -383,6 +383,8 @@ export class CadCommandEngineHost {
   }
 
   select(entityIds: readonly string[]): void {
+    // «Previo» (T-21): el motor es puro; el ÚLTIMO conjunto lo anota el anfitrión.
+    if (entityIds.length) this.session = { ...this.session, lastSelectionIds: [...entityIds] };
     this.dispatch({ kind: "input", input: { kind: "selection", entityIds } });
   }
 
@@ -773,6 +775,9 @@ export class CadCommandEngineHost {
         if (!this.bridge.ui?.(effect.request)) this.log(effect.request.unavailable, "error");
         return;
       case "selection":
+        // Lo que QSELECT/FILTER designan también es «lo previo» del siguiente comando.
+        if (effect.entityIds.length)
+          this.session = { ...this.session, lastSelectionIds: [...effect.entityIds] };
         if (!this.bridge.select?.(effect.entityIds))
           this.log(
             `Este espacio de trabajo no sostiene la designación desde la línea de comandos: ` +
