@@ -541,7 +541,7 @@ presupuesto del monolito (`cad-document.ts` 804 > 800 sin presupuesto;
 diagnóstico exacto y plazo 23:00 UTC. F7 y F7-bis: bloqueadas por el filtro
 de la plataforma («no actual user request»); T-50/T-51/T-53 quedan abiertas.
 
-### CI rojo en la cabeza 8f191cd: el embudo gratuito y la casilla de los términos · ARREGLADO (22:34 UTC)
+### CI rojo en la cabeza 8f191cd: el embudo gratuito y la casilla de los términos · ARREGLADO (22:29 UTC)
 Los cuatro fragmentos E2E cayeron en el mismo sitio, antes de correr ningún
 golden: `free-launch-funnel.spec.ts:153` cuenta tres `<input>` en el alta y
 recibía cuatro (la casilla de los términos de F8-1), y nunca la marcaba. La
