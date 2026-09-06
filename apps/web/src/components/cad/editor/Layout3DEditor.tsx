@@ -11738,8 +11738,7 @@ export default function Layout3DEditor({
       fitToBounds(content);
     updateWorkspacePreferences({ ...workspacePreferencesRef.current, viewMode: next });
   }, [applyViewMode, updateWorkspacePreferences, worldBounds, fitToBounds]);
-  // Exportar PNG / GLB / DXF: cuerpos en export-host.ts y
-  // export-scene-actions.ts (F1 paso 1); cierres recreados en cada render.
+  // Exportar PNG / GLB / DXF: cuerpos en export-host.ts y export-scene-actions.ts.
   const { exportPng, exportGltf, setDxfOption, openDxfExport, exportDxf } =
     useCadExportActions(exportHost, {
       model,
@@ -11757,6 +11756,7 @@ export default function Layout3DEditor({
       rendererRef,
       sceneRef,
       cameraRef,
+      viewControllerRef,
       ctxRef,
       previewLineRef,
       blocksRef,

@@ -299,3 +299,13 @@ eslint, lint 478/478, monolito, json-keys, dwg-evidence (con el espejo del
 corpus), cad-math, legal, precision-evidence, rubric.spec (61) y la matriz
 regenerada con `--check`.
 
+### T-12·2 · El PNG sale con la cámara activa · ARREGLADA (20:55 UTC)
+`exportPng` (ya en `export-scene-actions.ts`) pintaba con `cameraRef` (la
+`PerspectiveCamera` cruda) aunque el visor estuviera en planta. Ahora
+`pickCadExportCamera(viewControllerRef.current?.camera, cameraRef.current)`:
+la del controlador de vista —la misma que `renderer.render(scene,
+activeCamera())` usa en cada cuadro— y la de perspectiva sólo si aún no hay
+controlador. El monolito pasa `viewControllerRef` al anfitrión (una línea; se
+recortó un comentario para no crecer: sigue en 17 235). Spec de 8
+comprobaciones (regla + cableado). Queda para ESCALERA el golden de píxeles.
+

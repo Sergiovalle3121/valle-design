@@ -5,8 +5,15 @@
  * fichero (`scripts/cad/monolith-budget.json`): son las dos acciones que leen
  * el renderer, la escena y la cámara del editor, y ninguna toca el estado del
  * cuadro de exportar DXF. Los cuerpos están movidos tal cual del monolito;
- * `exportPng` sigue pintando con la cámara de perspectiva del editor
- * (`cameraRef`), no con la del controlador de vista.
+ *
+ * ## T-12·2 · El PNG sale con la cámara ACTIVA
+ *
+ * `exportPng` pintaba con la `PerspectiveCamera` cruda del editor aunque el
+ * visor estuviera en planta, donde la cámara activa es la ORTOGRÁFICA: el PNG
+ * que se mandaba al cliente no era lo que había en pantalla y llevaba la
+ * deformación que `lib/cad/view/perspective-distortion.spec.ts` declara
+ * inaceptable. Ahora pide la cámara al controlador de vista —la misma que usa
+ * el bucle de render— y sólo cae a la de perspectiva si aún no hay controlador.
  */
 import type { RefObject } from "react";
 import type * as THREE from "three";
@@ -36,6 +43,8 @@ export interface CadSceneExportInputs {
   rendererRef: RefObject<THREE.WebGLRenderer | null>;
   sceneRef: RefObject<THREE.Scene | null>;
   cameraRef: RefObject<THREE.PerspectiveCamera | null>;
+  /** El controlador de vista: su `camera` es la activa (ortográfica en planta). */
+  viewControllerRef: RefObject<{ camera: THREE.Camera } | null>;
   ctxRef: RefObject<{ s: number; W: number; H: number } | null>;
   previewLineRef: RefObject<THREE.Line | null>;
   blocksRef: RefObject<THREE.Group | null>;
@@ -54,6 +63,18 @@ export interface CadSceneExportActions {
 }
 
 /**
+ * La cámara con la que se pinta el PNG: la activa del controlador de vista
+ * (ortográfica en planta, perspectiva en volumen) y, si todavía no hay
+ * controlador montado, la de perspectiva del editor. Pura, para su spec.
+ */
+export function pickCadExportCamera(
+  active: THREE.Camera | null | undefined,
+  fallback: THREE.Camera | null,
+): THREE.Camera | null {
+  return active ?? fallback;
+}
+
+/**
  * NO es un hook: cierres planos, recreados en cada render del editor, como
  * los `const` que eran.
  */
@@ -67,6 +88,7 @@ export function createCadSceneExportActions(
     rendererRef,
     sceneRef,
     cameraRef,
+    viewControllerRef,
     ctxRef,
     previewLineRef,
     blocksRef,
@@ -81,7 +103,7 @@ export function createCadSceneExportActions(
   const exportPng = () => {
     const r = rendererRef.current,
       sc = sceneRef.current,
-      cam = cameraRef.current;
+      cam = pickCadExportCamera(viewControllerRef.current?.camera, cameraRef.current);
     if (!r || !sc || !cam) return;
     r.render(sc, cam);
     const a = document.createElement("a");
