@@ -101,3 +101,29 @@ Fallo propio cazado por el gate: `rubric.spec.mjs` había crecido a 805 líneas
 (tope 800 sin asignación) con mi comentario de corte; se recorta a una línea
 en vez de abrir asignación. El push anterior lleva ese rojo en `check:cad`;
 este commit lo cierra.
+
+## Ola 1
+
+### T-11 (b) y (c) · La capa del rótulo y el resumen del cuadro de exportar · ARREGLADA (08:40 UTC)
+(b) Los dos literales `layer: "Text"` del monolito descartaban la capa
+asignada al rótulo (`layerAssignments[ann.id]`, que es donde el editor la
+guarda: `Ann` no lleva `layer`); ahora usan `layerLabel(layerAssignments[ann.id]
+?? "Text")`, la misma regla que cajas y conectores. (c) Al medir salió el otro
+defecto del racimo: el resumen del cuadro clasificaba toda entidad nativa como
+«objeto» y anunciaba «Cotas 0» con una DIMENSION en el fichero; ahora la cota
+nativa cuenta como cota y el MTEXT/MLEADER como rótulo
+(`editor/export-readiness-kind.ts`), que es exactamente lo que `exportDxf`
+escribe bajo «incluir cotas» e «incluir rótulos». Verificado contra el build de
+producción: los cinco casos del racimo C (seis pruebas) verdes; graduados a
+`golden/115…118`; techo del manifiesto 14 → **10**. Cambia los bytes del DXF de
+todo dibujo con rótulos en capa propia: entra con la suite de goldens entera
+detrás en el push de la ola, no como parche.
+
+**Fallo propio cazado por el gate, otra vez:** el commit `b42948b` dejó el
+monolito 17 líneas por encima de su asignación (comentarios y la clasificación
+en línea) y CI lo acusó. Corregido en el commit siguiente: el porqué vive en el
+módulo nuevo y aquí, no en el monolito; y se aplica el paso 0b del plan de F1
+—los dos estados que se escribían y nunca se leían (`commandHistoryCursor`,
+`precisionText`) salen con sus ocho llamadas al setter: el valor escrito era
+siempre el inicial, así que React descartaba cada llamada sin efecto—.
+Monolito 17 889 líneas / **129** `useState` (techo 131 → 129).

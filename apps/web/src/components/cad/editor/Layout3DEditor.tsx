@@ -451,6 +451,7 @@ import {
 } from "../dialogs/CadTakeoffDialog";
 import { CadVersionsDialog } from "../dialogs/CadVersionsDialog";
 import { CadDxfExportDialog } from "../dialogs/CadDxfExportDialog";
+import { nativeEntityReadinessKind } from "./export-readiness-kind";
 import { CadDesignReportDialog } from "../dialogs/CadDesignReportDialog";
 import { fmtArea, fmtDist } from "../studio/format-units";
 import { guardCadWebglContext } from "../viewport/webgl-context-guard";
@@ -1518,7 +1519,6 @@ export default function Layout3DEditor({
   const [commandPreview, setCommandPreview] =
     useState<CommandPreviewState | null>(null);
   const [commandLog, setCommandLog] = useState<CadCommandHistoryItem[]>([]);
-  const [, setCommandHistoryCursor] = useState(-1);
   const [commandHistoryHydratedKey, setCommandHistoryHydratedKey] = useState<
     string | null
   >(null);
@@ -1759,7 +1759,6 @@ export default function Layout3DEditor({
     queueMicrotask(() => {
       if (!active) return;
       setCommandHistoryHydratedKey(open ? commandHistoryStorageKey : null);
-      setCommandHistoryCursor(-1);
       setCommandLog(restoredHistory);
     });
     return () => {
@@ -2044,7 +2043,6 @@ export default function Layout3DEditor({
     [draftSettingsHost],
   );
   const lastWallAngleRef = useRef<number | null>(null); // ángulo del último tramo → entrada directa de distancia
-  const [, setPrecisionText] = useState("");
   const [drawPrompt, setDrawPrompt] = useState<string | null>(null);
   const [canCloseDraftPolyline, setCanCloseDraftPolyline] = useState(false);
   const drawCommandRef = useRef<CadDrawCommandState | null>(null);
@@ -8246,7 +8244,6 @@ export default function Layout3DEditor({
         toolRef.current === "wall"
       )
         appendWallTo(result.point.x, result.point.y);
-      setPrecisionText("");
       return;
     }
     if (enginePointerRouterRef.current?.active) {
@@ -8255,7 +8252,6 @@ export default function Layout3DEditor({
       // distancia o entrada directa sobre la dirección del cursor; el editor no
       // tiene por qué saberlo.
       commandEngineRef.current.submit(String(result.scalar));
-      setPrecisionText("");
       return;
     }
     const active = drawCommandRef.current;
@@ -8272,7 +8268,6 @@ export default function Layout3DEditor({
       setTool("select");
       toolRef.current = "select";
     }
-    setPrecisionText("");
   };
   // Live quantity take-off from the current (possibly unsaved) editor state.
   //
@@ -11316,7 +11311,6 @@ export default function Layout3DEditor({
       return false;
     }
     setCommandText(raw);
-    setCommandHistoryCursor(-1);
     return previewCommandText(raw);
   };
   const applyCommandSuggestion = (suggestion: CadCommandSuggestion) => {
@@ -12077,10 +12071,6 @@ export default function Layout3DEditor({
         .map((ann) => ({
           id: ann.id,
           kind: "label" as const,
-          // La capa asignada al rótulo (NOTAS, por ejemplo) viaja en
-          // layerAssignments; "Text" es sólo la capa por defecto. Antes se
-          // escribía el literal y el cuadro prometía una capa que el fichero
-          // no llevaba (auditoría 2026-09-01, racimo C).
           layer: layerLabel(layerAssignments[ann.id] ?? "Text"),
           label: ann.text,
           selected: true,
@@ -12092,20 +12082,9 @@ export default function Layout3DEditor({
           const layer = loadedCadDocumentRef.current?.layers.find(
             (candidate) => candidate.id === entity.layer,
           );
-          // El cuadro cuenta lo mismo que exportDxf escribe: la cota nativa
-          // viaja bajo «incluir cotas» y el MTEXT/MLEADER bajo «incluir
-          // rótulos», así que se clasifican igual. Antes todo lo nativo era
-          // «objeto» y el resumen anunciaba «Cotas 0» con una DIMENSION en
-          // el fichero (auditoría 2026-09-01, racimo C).
-          const kind =
-            entity.type === "dimension"
-              ? ("measurement" as const)
-              : entity.type === "mtext" || entity.type === "mleader"
-                ? ("label" as const)
-                : ("object" as const);
           return {
             id: entity.id,
-            kind,
+            kind: nativeEntityReadinessKind(entity.type),
             layer: layer?.name ?? entity.layer,
             label: entity.type.toUpperCase(),
             selected: selectedNativeIds.has(entity.id),
@@ -12280,8 +12259,6 @@ export default function Layout3DEditor({
                 text: ann.text || "Nota",
                 x: ann.x,
                 y: ann.y,
-                // Misma regla que las cajas y los conectores: la capa
-                // asignada, y "Text" sólo como capa por defecto.
                 layer: layerLabel(layerAssignments[ann.id] ?? "Text"),
               }))
           : [];
@@ -13014,7 +12991,6 @@ export default function Layout3DEditor({
             return;
           case "clear-command-text":
             setCommandText("");
-            setCommandHistoryCursor(-1);
             return;
           case "cancel-draw": {
             if (!drawCommandRef.current) return;
@@ -13023,7 +12999,6 @@ export default function Layout3DEditor({
             setDrawPrompt(null);
             setMeasureLive(null);
             setCanCloseDraftPolyline(false);
-            setPrecisionText("");
             if (!cancelled.emitted.length)
               toast.success("Comando de dibujo cancelado.", "CAD");
             setTool("select");
@@ -15601,7 +15576,6 @@ export default function Layout3DEditor({
                   defaults: dynamicInputDefaults,
                   onCommit: commitDynamicInput,
                   onCancel: () => {
-                    setPrecisionText("");
                     endDraw();
                     setTool("select");
                     toolRef.current = "select";
