@@ -303,7 +303,23 @@ export async function renderCadPlotPdf(
     pdf.setLineCap("butt");
     pdf.setLineJoin("miter");
 
+    // T-19·5: la ventana SIEMPRE recorta — antes ninguna lo hacía y el aviso
+    // de arriba lo daba por hecho. Rectangular por defecto; con el contorno
+    // REAL (T-19·4, `clipPolygon`) cuando la ventana no es un rectángulo.
     for (const viewport of sheet.viewports) {
+      pdf.saveGraphicsState();
+      if (viewport.clipPolygon && viewport.clipPolygon.length >= 3) {
+        const [origin, ...rest] = viewport.clipPolygon;
+        const deltas = rest.map((vertex, index) => [
+          vertex.x - (rest[index - 1] ?? origin).x,
+          vertex.y - (rest[index - 1] ?? origin).y,
+        ]);
+        pdf.lines(deltas, origin.x, origin.y, [1, 1], undefined, true);
+      } else {
+        pdf.rect(viewport.clip.x, viewport.clip.y, viewport.clip.width, viewport.clip.height);
+      }
+      pdf.clip();
+      pdf.discardPath();
       for (const command of viewport.commands)
         drawCommand(
           pdf,
@@ -312,6 +328,7 @@ export async function renderCadPlotPdf(
           styleFor,
           warnings,
         );
+      pdf.restoreGraphicsState();
     }
 
     // Sin cajetín compuesto, se compone aquí con los atributos que la hoja ya

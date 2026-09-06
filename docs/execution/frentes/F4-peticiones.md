@@ -118,7 +118,7 @@ sigue visible.
 
 ---
 
-## #4 · `scripts/cad/monolith-budget.json`: registrar el crecimiento de `cad-document.ts` (T-11c)
+## #4 · `scripts/cad/monolith-budget.json`: registrar el crecimiento de `cad-document.ts` (T-11c) y `paper-space.ts` (T-19·3/4)
 
 **Archivo:** `scripts/cad/monolith-budget.json` (prohibido para F4 — lo aplica
 el coordinador).
@@ -140,6 +140,16 @@ razonados de otras secciones del archivo (rechazado: no es mi contenido y
 esta ficha no es la ocasión para editarlo). Dividir `cad-document.ts` es un
 proyecto propio, no cabe en esta ficha.
 
+`paper-space.ts` YA estaba en `allowances` (896, tocado por olas anteriores)
+por razones ajenas a F4. T-19·3 (capa `plot:false` nunca imprime) y T-19·4
+(fuga de espacio papel: una entidad de PAPEL dejaba de excluirse de la
+proyección de MODELO, y el contorno real de una ventana poligonal viaja ahora
+en vez de perderse) añaden juntas 26 líneas — la nueva asignación es **922**.
+Igual que con `cad-document.ts`: probé activamente evitar el crecimiento
+(revisé línea por línea si algo se podía comprimir sin tocar comentarios
+ajenos) y no cupo sin sacrificar la claridad del propio arreglo o gatear el
+contador con líneas fusionadas artificialmente.
+
 **Cambio exacto (diff literal):**
 
 ```diff
@@ -150,18 +160,25 @@ proyecto propio, no cabe en esta ficha.
      "apps/web/src/lib/cad/commands/parser.ts": 1515,
 ```
 
+y, más abajo en el mismo objeto `allowances` (orden alfabético existente):
+
+```diff
+-    "apps/web/src/lib/cad/paper-space.ts": 896,
++    "apps/web/src/lib/cad/paper-space.ts": 922,
+```
+
 (Equivalente a correr `node scripts/cad/check-monolith-budget.mjs --update
 --allow-growth` sobre el árbol de esta rama — lo hice localmente para
-confirmar el número exacto y lo revertí antes de commitear, porque el
-archivo es territorio exclusivo del coordinador.)
+confirmar los números exactos y lo revertí antes de commitear cada vez,
+porque el archivo es territorio exclusivo del coordinador.)
 
 **Prueba que lo verifica:** `npm run check:cad` (la línea "Presupuesto de
-monolito: 0 problema(s)"). Con este único cambio aplicado, el resto de
+monolito: 0 problema(s)"). Con estos dos cambios aplicados, el resto de
 `check:cad` ya está verde sobre esta rama (typecheck, lint, tests, DXF
 evidence con el espejo local).
 
 **Estado:** pendiente del coordinador. Mientras tanto, esta rama queda con
-`check:cad` en rojo por esta única línea; todo lo demás (typecheck, lint,
+`check:cad` en rojo por estas dos líneas; todo lo demás (typecheck, lint,
 `npx turbo run test --filter=web --filter=valle-design-api`) está verde.
 
 ---

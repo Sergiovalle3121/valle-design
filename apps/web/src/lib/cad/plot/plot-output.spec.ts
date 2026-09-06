@@ -382,6 +382,66 @@ async function pdfSpecs(): Promise<void> {
   console.log(
     `PDF trazado: ${inspected.pageCount} páginas, ${inspected.pageSizesMm[0].width} × ${inspected.pageSizesMm[0].height} mm, fuentes [${inspected.baseFonts.join(", ")}]`,
   );
+
+  // T-19·5: la ventana SIEMPRE recorta en el PDF — antes ninguna lo hacía.
+  // `.clip()` de jsPDF escribe el operador `W` seguido de `n` (descarta el
+  // trazo tras usarlo como recorte); su ausencia es exactamente el defecto.
+  {
+    const rectangularSheet = {
+      id: "sheet:rect",
+      name: "Rectangular",
+      width: 210,
+      height: 297,
+      orientation: "portrait" as const,
+      colorMode: "monochrome" as const,
+      lineweightScale: 1,
+      titleBlock: {},
+      viewports: [
+        {
+          id: "vp:rect",
+          name: "Model",
+          clip: { x: 10, y: 10, width: 190, height: 277 },
+          scale: 1,
+          locked: true,
+          commands: [],
+        },
+      ],
+    };
+    const rectPdf = await renderCadPlotPdf([rectangularSheet], { compress: false });
+    let rectText = "";
+    for (const byte of rectPdf.bytes) rectText += String.fromCharCode(byte);
+    assert.ok(/\bW\b[\s\S]{0,3}\bn\b/.test(rectText), "la ventana rectangular recorta (W n) en el PDF");
+
+    // T-19·4: el contorno REAL de una ventana poligonal viaja y se aplica —
+    // no sólo su rectángulo envolvente.
+    const polygonSheet = {
+      ...rectangularSheet,
+      id: "sheet:poly",
+      viewports: [
+        {
+          ...rectangularSheet.viewports[0],
+          id: "vp:poly",
+          clipPolygon: [
+            { x: 20, y: 20 },
+            { x: 180, y: 20 },
+            { x: 180, y: 100 },
+            { x: 100, y: 260 },
+            { x: 20, y: 100 },
+          ],
+        },
+      ],
+    };
+    const polyPdf = await renderCadPlotPdf([polygonSheet], { compress: false });
+    let polyText = "";
+    for (const byte of polyPdf.bytes) polyText += String.fromCharCode(byte);
+    assert.ok(/\bW\b[\s\S]{0,3}\bn\b/.test(polyText), "la ventana poligonal recorta (W n) en el PDF");
+    // Cinco vértices ⇒ cuatro `l` (lineTo) tras el `moveTo` inicial. Esta hoja
+    // no dibuja ningún otro trazo (viewport.commands está vacío), así que
+    // cualquier `l` del flujo viene del contorno del recorte: si degradara al
+    // rectángulo envolvente (sólo `re`, sin `l`), esto no aparecería.
+    const lineToCount = (polyText.match(/(?:^|\s)l(?=\s)/g) ?? []).length;
+    assert.ok(lineToCount >= 4, `el contorno poligonal debía trazar 4 lineTo, hubo ${lineToCount}`);
+  }
 }
 
 // Sin `await` de nivel superior: el runner de specs compila a CommonJS. El

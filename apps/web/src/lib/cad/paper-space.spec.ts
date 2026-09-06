@@ -14,6 +14,8 @@ import {
   fitCadViewportScale,
   reorderCadPaperSpaces,
 } from "./paper-space";
+import { cadPlanViewport } from "./cad-paper-viewport";
+import { cadLayerShown } from "./cad-layer-visibility";
 
 const entities: CadEntity[] = [
   {
@@ -346,5 +348,121 @@ assert.deepEqual(
   [],
   "persistencia conserva registro de publicaciones",
 );
+
+// T-19·3: una capa "no imprime" (`plot: false`) se ve en pantalla pero NUNCA
+// debe salir en el PDF, en NINGUNA ventana, aunque esa ventana no anule su
+// visibilidad. `buildCadPublishPlan` es el plan que consumen los DOS
+// emisores de PDF (PLOT/PUBLISH y el editor), así que arreglarlo aquí arregla
+// los dos a la vez.
+{
+  const noPlotBase = layoutToCadDocument(
+    {
+      layers: [
+        { id: "normal", name: "Normal", color: "#000000", visible: true, locked: false },
+        { id: "no-plot", name: "NoPlot", color: "#ff0000", visible: true, locked: false },
+      ],
+    },
+    { unit: "mm" },
+  );
+  // `LayoutLayerInput` (modelo histórico) no tiene `plot`: se añade después,
+  // sobre el documento canónico ya construido — igual que hace la spec de
+  // arriba con `lineweight`.
+  noPlotBase.layers = noPlotBase.layers.map((layer) =>
+    layer.id === "no-plot" ? { ...layer, plot: false } : layer,
+  );
+  const noPlotEntities: CadEntity[] = [
+    { id: "e-normal", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 100, y: 0, z: 0 }, layer: "normal" },
+    { id: "e-no-plot", type: "line", start: { x: 0, y: 50, z: 0 }, end: { x: 100, y: 50, z: 0 }, layer: "no-plot" },
+  ];
+  const viewport = cadPlanViewport(
+    "vp-1",
+    { x: 10, y: 10, width: 180, height: 180 },
+    { x: -10, y: -10, width: 200, height: 200 },
+    1,
+  );
+  const noPlotDocument: CadDocument = {
+    ...noPlotBase,
+    entities: noPlotEntities,
+    modelSpace: { entityIds: noPlotEntities.map((entity) => entity.id) },
+    paperSpaces: [
+      {
+        id: "sheet-1",
+        name: "A-101",
+        entityIds: [],
+        page: { width: 210, height: 297, unit: "mm", orientation: "portrait" },
+        viewports: [viewport],
+      },
+    ],
+  };
+  const noPlotPlan = buildCadPublishPlan(noPlotDocument, "2026-09-06T00:00:00.000Z");
+  const publishedEntityIds = new Set(
+    noPlotPlan.sheets[0]!.viewports[0]!.commands.map((command) => command.entityId),
+  );
+  assert.ok(publishedEntityIds.has("e-normal"), "la capa normal SÍ imprime");
+  assert.ok(
+    !publishedEntityIds.has("e-no-plot"),
+    "T-19·3: una capa `plot:false` NUNCA imprime, aunque se vea en pantalla",
+  );
+
+  // La MISMA capa, vista en pantalla, sigue mostrándose: `plot:false` no es
+  // `visible:false`. Si esto fallara, el arreglo habría confundido las dos.
+  assert.equal(
+    cadLayerShown(noPlotDocument.layers.find((layer) => layer.id === "no-plot")!),
+    true,
+    "`plot:false` no apaga la capa en el lienzo",
+  );
+}
+
+// T-19·4 (fuga de espacio papel): una entidad que pertenece a una presentación
+// (`paperSpace.entityIds` — el contorno de una ventana poligonal, un cajetín)
+// puede quedar TAMBIÉN en `modelSpace.entityIds` por cómo el aplicador
+// genérico de "insert" añade toda entidad nueva al dibujo. Sin filtro, esa
+// entidad se proyecta como geometría de MODELO —con sus coordenadas de
+// PAPEL— dentro de CADA ventana del documento.
+{
+  const leakBase = layoutToCadDocument({ layers: [{ id: "0", name: "0", color: "#000000", visible: true, locked: false }] }, { unit: "mm" });
+  const leakEntities: CadEntity[] = [
+    { id: "e-model", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 100, y: 0, z: 0 }, layer: "0" },
+    // Contorno de una ventana poligonal: vive en `paperSpace.entityIds`, pero
+    // el aplicador genérico lo dejó TAMBIÉN en `modelSpace.entityIds`.
+    { id: "e-clip", type: "polyline", closed: true, vertices: [{ x: 20, y: 20, z: 0 }, { x: 80, y: 20, z: 0 }, { x: 50, y: 60, z: 0 }], layer: "0" },
+  ];
+  const viewport = cadPlanViewport(
+    "vp-leak",
+    { x: 10, y: 10, width: 180, height: 180 },
+    { x: -10, y: -10, width: 200, height: 200 },
+    1,
+  );
+  const leakDocument: CadDocument = {
+    ...leakBase,
+    entities: leakEntities,
+    modelSpace: { entityIds: leakEntities.map((entity) => entity.id) },
+    paperSpaces: [
+      {
+        id: "sheet-leak",
+        name: "A-101",
+        entityIds: ["e-clip"],
+        page: { width: 210, height: 297, unit: "mm", orientation: "portrait" },
+        viewports: [viewport],
+      },
+    ],
+  };
+  const leakPlan = buildCadPublishPlan(leakDocument, "2026-09-06T00:00:00.000Z");
+  const leakPublishedIds = new Set(
+    leakPlan.sheets[0]!.viewports[0]!.commands.map((command) => command.entityId),
+  );
+  assert.ok(leakPublishedIds.has("e-model"), "la entidad de modelo real SÍ imprime");
+  assert.ok(
+    !leakPublishedIds.has("e-clip"),
+    "T-19·4: una entidad de PAPEL nunca se proyecta como geometría de modelo",
+  );
+  assert.ok(
+    leakPlan.warnings.some(
+      (warning) =>
+        warning.code === "paper_space_entity_excluded_from_model" && warning.entityId === "e-clip",
+    ),
+    "la exclusión se declara, nunca en silencio",
+  );
+}
 
 console.log("cad paper space specs passed");

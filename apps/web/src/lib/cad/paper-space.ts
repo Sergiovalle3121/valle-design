@@ -129,6 +129,8 @@ export interface CadPublishViewport {
   id: string;
   name: string;
   clip: { x: number; y: number; width: number; height: number };
+  /** Contorno REAL de una ventana no rectangular (T-19·4). Ausente = rectangular. */
+  clipPolygon?: readonly CadPoint2[];
   scale: number;
   locked: boolean;
   commands: CadVectorCommand[];
@@ -398,10 +400,10 @@ function visibleLayer(
   layers: Map<string, CadLayerDef>,
   viewport: CadPaperViewport,
 ): boolean {
-  // La anulación de la VENTANA manda sobre lo global: `false` es VP-freeze y
-  // `true` puede descongelar en ESTA ventana una capa congelada del documento.
-  // Sin anulación, apagada o congelada no se proyecta (cad-layer-visibility.ts).
   const layer = layers.get(layerId);
+  // T-19·3: `plot:false` es del papel (se ve, nunca imprime, sin anulación
+  // por ventana); la ventana SÍ anula apagada/congelada (cad-layer-visibility.ts).
+  if (layer?.plot === false) return false;
   return viewport.layerVisibility?.[layerId] ?? (!layer || cadLayerShown(layer));
 }
 
@@ -785,6 +787,14 @@ export function buildCadPublishPlan(
   const entities = new Map(
     document.entities.map((entity) => [entity.id, entity]),
   );
+  // T-19·4: una entidad de PAPEL (el contorno de una ventana poligonal, un
+  // cajetín) puede quedar TAMBIÉN en `modelSpace.entityIds` por un defecto de
+  // quien la insertó — el aplicador genérico de "insert" no distingue espacio
+  // destino. Sin este filtro, esa entidad se proyecta como geometría de
+  // MODELO con sus coordenadas de PAPEL dentro de CADA ventana del dibujo.
+  const paperSpaceEntityIds = new Set(
+    document.paperSpaces.flatMap((space) => space.entityIds),
+  );
   const manifest = buildCadSheetSetManifest(document, generatedAt);
   const orderedSpaces = document.paperSpaces
     .filter((space) => space.includeInPublish !== false)
@@ -806,6 +816,19 @@ export function buildCadPublishPlan(
   const sheets = orderedSpaces.map((space): CadPublishSheet => {
     const colorMode = space.pageSetup?.colorMode ?? "monochrome";
     const lineweightScale = space.pageSetup?.lineweightScale ?? 1;
+    // La fuga se cuenta UNA vez por hoja, no por ventana: es la misma lista de
+    // modelo para todas las ventanas de esta presentación.
+    const modelEntityIds = document.modelSpace.entityIds.filter(
+      (id) => !paperSpaceEntityIds.has(id),
+    );
+    for (const id of document.modelSpace.entityIds)
+      if (paperSpaceEntityIds.has(id))
+        warnings.push({
+          code: "paper_space_entity_excluded_from_model",
+          sheetId: space.id,
+          entityId: id,
+          detail: "Entity belongs to paper space and is excluded from every model viewport on this sheet.",
+        });
     const viewports = (space.viewports ?? []).map(
       (viewport): CadPublishViewport => {
         const viewportMatrix = viewportTransform(viewport, document.meta.unit);
@@ -820,7 +843,7 @@ export function buildCadPublishPlan(
             viewportId: viewport.id,
             detail: `Model bounds exceed viewport at 1:${viewport.scale}; geometry is clipped to paper bounds.`,
           });
-        const commands = document.modelSpace.entityIds
+        const commands = modelEntityIds
           .map((id) => entities.get(id))
           .filter((entity): entity is CadEntity => !!entity)
           .flatMap((entity) =>
@@ -844,6 +867,9 @@ export function buildCadPublishPlan(
           id: viewport.id,
           name: viewport.name ?? "Model",
           clip: { ...viewport.paperBounds },
+          // T-19·4: el contorno REAL de una ventana poligonal, no sólo su
+          // rectángulo envolvente — para que el PDF recorte la forma exacta.
+          ...(viewport.clipPolygon ? { clipPolygon: viewport.clipPolygon } : {}),
           scale: viewport.scale,
           locked: viewport.locked,
           commands,
