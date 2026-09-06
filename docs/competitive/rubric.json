@@ -312,6 +312,14 @@
             {
               "kind": "spec",
               "path": "apps/web/src/lib/cad/grip-actions.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/components/cad/viewport/native-grip-controller.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/194-auditoria-refutacion-pinzamiento.spec.ts"
             }
           ]
         },
@@ -352,6 +360,10 @@
             {
               "kind": "spec",
               "path": "apps/web/src/lib/cad/engine/commands/modify-basics.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/193-auditoria-modificar-bucle.spec.ts"
             }
           ]
         },
@@ -392,6 +404,10 @@
             {
               "kind": "golden",
               "path": "apps/web/e2e/golden/43-cad-chamfer.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/195-auditoria-refutacion-trim.spec.ts"
             }
           ]
         },

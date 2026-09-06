@@ -360,3 +360,21 @@ corre `dwg-document-bridge.spec.ts`, que afirmaba la frase vieja
 (`/no soportado/`) para el `.dwg` rechazado; el grep de consumidores buscó
 el literal completo y no la expresión. Corregida la aserción (la razón DWG,
 en las dos cajas) y el script entero verde en local antes de empujar.
+
+### T-20 · El clic que se perdía sobre un pinzamiento · ARREGLADA (20:40 UTC)
+Racimo B entero. `CadNativeGripDeps.commandActive` (opcional) pregunta lo
+que `CadCommandEngineHost.accepts` ya contestaba y `start()` cede el clic
+con un comando abierto; el monolito lo cablea y sigue en 17 235 exactas
+(paso 1: 291bb43). En el navegador, sobre el build de producción: las once
+pruebas de `modificar`, `refutacion-pinzamiento` y `refutacion-trim`
+verdes, incluidas OFFSET sobre el punto medio del eje designado y TRIM
+sobre el extremo del muro designado (antes: 0 paralelas, muro intacto). Los
+cuatro casos de OFFSET necesitaron adaptar su recorrido al flujo de T-23
+—el lado se pincha, y ese prompt sólo aparece si el clic anterior llegó—:
+D-13. Graduación: los tres archivos mudan a golden 193-195, el manifiesto
+pasa de 9 a 6 (3 con defecto vivo + 3 arnes), los `expect.soft` se vuelven
+duros y los títulos afirman lo que ahora ocurre. Rúbrica: los goldens y el
+spec del controlador entran como evidencia de `modify.grips`, `.basics` y
+`.edges` (sin tocar puntos). Verificado: typecheck, eslint, lint 478/478,
+monolito, `check:auditoria` (techo 6), `check:e2e-localizadores`,
+rubric.spec, `native-grip-controller.spec.ts` (6 bloques).

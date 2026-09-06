@@ -16,6 +16,14 @@ import { CAD_DOCUMENT_SCHEMA } from "../../src/lib/cad/cad-document-shared";
  * Aquí las dos ramas usan la MISMA distancia (+600), el MISMO píxel (el punto
  * medio exacto del eje) y se cuenta el TOTAL de entidades, no un filtro. Lo
  * único que cambia entre una y otra es si el eje está designado.
+ *
+ * GRADUADA de `e2e/auditoria/` el 2026-09-06 (T-20): el clic que caía sobre un
+ * pinzamiento del objeto designado se lo comía el gestor de pinzamientos; desde
+ * T-20 el pinzamiento cede el clic a cualquier comando que esté pidiendo un
+ * punto o un objeto (`CadNativeGripDeps.commandActive`). Lo que sigue es el
+ * texto original de la auditoría, conservado como memoria del defecto; el
+ * recorrido de OFFSET se adaptó al flujo de T-23 (F3): el LADO se pincha con
+ * un punto, como en AutoCAD, y el signo tecleado ya no decide.
  */
 
 function documentoSemilla(): CadDocument {
@@ -180,6 +188,7 @@ async function desfasarEnElPuntoMedio(
   page: Page,
   backend: { snapshot(): { document: CadDocument; version: number } },
   pxPuntoMedio: { x: number; y: number },
+  pxLado: { x: number; y: number },
   etiqueta: string,
 ) {
   const prompt = page.getByTestId("cad-command-prompt");
@@ -188,6 +197,10 @@ async function desfasarEnElPuntoMedio(
   await teclear(page, "600");
   await expect(prompt).toContainText("Designe");
   await page.mouse.click(pxPuntoMedio.x, pxPuntoMedio.y);
+  // Desde T-23 (F3) OFFSET pregunta el LADO con un punto, como AutoCAD. Si el
+  // clic de arriba no llegó al comando, este prompt no aparece: ahí se mide.
+  await expect(prompt).toContainText("lado", { timeout: 5_000 });
+  await page.mouse.click(pxLado.x, pxLado.y);
   // Lo que el editor cree tener ANTES de cerrar el comando y de guardar.
   const enVivo = await page.getByTestId("cad-native-document-count").textContent();
   await terminar(page);
@@ -210,14 +223,15 @@ test("A — SIN designar: OFFSET 600 pinchando el PUNTO MEDIO del eje SÍ crea l
   await fitFootprint(page);
   const afin = await calibrar(page);
   const pxPuntoMedio = await pixelDe(page, afin, { x: 5_000, y: 7_000 });
+  const pxLado = await pixelDe(page, afin, { x: 5_000, y: 7_600 });
   await soltarSeleccion(page);
 
-  const documento = await desfasarEnElPuntoMedio(page, backend, pxPuntoMedio, "A sin designar");
+  const documento = await desfasarEnElPuntoMedio(page, backend, pxPuntoMedio, pxLado, "A sin designar");
   expect(documento.entities).toHaveLength(3);
   expect(horizontales(documento)).toHaveLength(2);
 });
 
-test("B — CON el eje designado: MISMO píxel, MISMA distancia, y no se crea NADA", async ({
+test("B — CON el eje designado: MISMO píxel, MISMA distancia, y SÍ se crea la paralela (T-20)", async ({
   context,
   page,
 }) => {
@@ -227,12 +241,13 @@ test("B — CON el eje designado: MISMO píxel, MISMA distancia, y no se crea NA
   await fitFootprint(page);
   const afin = await calibrar(page);
   const pxPuntoMedio = await pixelDe(page, afin, { x: 5_000, y: 7_000 });
+  const pxLado = await pixelDe(page, afin, { x: 5_000, y: 7_600 });
 
   // Única variable respecto de A: el eje queda designado (y enseña pinzamientos).
   await page.getByTestId("cad-native-entity-eje").click();
   await expect(propiedades(page)).toBeVisible();
 
-  const documento = await desfasarEnElPuntoMedio(page, backend, pxPuntoMedio, "B designado");
+  const documento = await desfasarEnElPuntoMedio(page, backend, pxPuntoMedio, pxLado, "B designado");
   expect(
     documento.entities,
     "si esto son 2, el clic no llegó al comando: mismo píxel y misma distancia que A",

@@ -28,10 +28,22 @@ import { CAD_DOCUMENT_SCHEMA } from "../../src/lib/cad/cad-document-shared";
  * La comparación es de igualdad estructural profunda sobre las entidades y
  * sobre el orden de dibujo, no «tiene el mismo número de objetos».
  *
+ *
+ * GRADUADA de `e2e/auditoria/` el 2026-09-06 (T-20): el clic que caía sobre un
+ * pinzamiento del objeto designado se lo comía el gestor de pinzamientos; desde
+ * T-20 el pinzamiento cede el clic a cualquier comando que esté pidiendo un
+ * punto o un objeto (`CadNativeGripDeps.commandActive`). Lo que sigue es el
+ * texto original de la auditoría, conservado como memoria del defecto; el
+ * recorrido de OFFSET se adaptó al flujo de T-23 (F3): el LADO se pincha con
+ * un punto, como en AutoCAD, y el signo tecleado ya no decide.
+ * Este archivo es la contraprueba de TRIM (seis combinaciones de designación
+ * y punto de corte, y dos arrastres); la cabecera de arriba la heredó de la
+ * prueba de modificar.
+ *
  * CÓMO SE CORRE (el puerto no es opcional):
  *   cd apps/web
  *   E2E_PROD=1 E2E_API_ORIGIN=http://localhost:4000 \
- *     npx playwright test e2e/auditoria/modificar.spec.ts --project=chromium --reporter=line
+ *     npx playwright test e2e/golden/195-auditoria-refutacion-trim.spec.ts --project=chromium --reporter=line
  */
 
 /* ─────────────────── el plano que ya está sobre la mesa ─────────────────── */

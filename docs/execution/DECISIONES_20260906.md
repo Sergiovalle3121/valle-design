@@ -196,6 +196,31 @@ Qué haría falta para elegir lo otro ...  Un `.dwg` real del corpus autorizado
                     entrando como fondo y midiéndose contra su DXF de oráculo,
                     en una ola con ficha propia.
 
+## D-13 · Las tres pruebas de auditoría de T-20 se gradúan ADAPTADAS al flujo de OFFSET de T-23
+Qué se dudó ......  Con el pinzamiento cediendo el clic, TRIM pasó en sus
+                    seis combinaciones, pero los cuatro casos de OFFSET
+                    seguían rojos: desde T-23 (F3, 0f9c226) OFFSET pide el
+                    LADO con un punto, como AutoCAD, y las pruebas —escritas
+                    antes— pinchaban el objeto y daban Intro, que ahora
+                    significa «salir sin desfasar». ¿Se gradúan las pruebas
+                    cambiando su recorrido, o se dejan rojas hasta que
+                    alguien decida sobre el flujo?
+Qué se eligió ....  Adaptar el recorrido (un clic más, en el lado) y
+                    graduarlas: lo que miden —que el clic sobre el
+                    pinzamiento del objeto designado llegue al comando— es
+                    exactamente lo mismo, y el nuevo prompt («lado») es
+                    además una aserción mejor, porque sólo aparece si el
+                    clic anterior llegó. Los `expect.soft` pasan a duros, los
+                    títulos dicen lo que ahora se afirma y el diagnóstico
+                    original queda en el archivo como memoria.
+Por qué es lo conservador ...  El flujo con lado es paridad con AutoCAD ya
+                    integrada (golden 40 y 26 lo defienden); revertirlo para
+                    que pasaran pruebas viejas sería retroceder. Dejarlas
+                    rojas mantendría un techo de auditoría inflado por un
+                    defecto que ya no existe.
+Qué haría falta para elegir lo otro ...  Que el titular prefiera el OFFSET
+                    por signo tecleado; entonces T-23 se revisa, no esto.
+
 ---
 
 # Decisiones del frente F10 · Evidencia independiente (2026-09-06)

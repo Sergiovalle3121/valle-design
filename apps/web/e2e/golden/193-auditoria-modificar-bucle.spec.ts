@@ -28,10 +28,18 @@ import { CAD_DOCUMENT_SCHEMA } from "../../src/lib/cad/cad-document-shared";
  * La comparación es de igualdad estructural profunda sobre las entidades y
  * sobre el orden de dibujo, no «tiene el mismo número de objetos».
  *
+ * GRADUADA de `e2e/auditoria/` el 2026-09-06 (T-20): el clic que caía sobre un
+ * pinzamiento del objeto designado se lo comía el gestor de pinzamientos; desde
+ * T-20 el pinzamiento cede el clic a cualquier comando que esté pidiendo un
+ * punto o un objeto (`CadNativeGripDeps.commandActive`). Lo que sigue es el
+ * texto original de la auditoría, conservado como memoria del defecto; el
+ * recorrido de OFFSET se adaptó al flujo de T-23 (F3): el LADO se pincha con
+ * un punto, como en AutoCAD, y el signo tecleado ya no decide.
+ *
  * CÓMO SE CORRE (el puerto no es opcional):
  *   cd apps/web
  *   E2E_PROD=1 E2E_API_ORIGIN=http://localhost:4000 \
- *     npx playwright test e2e/auditoria/modificar.spec.ts --project=chromium --reporter=line
+ *     npx playwright test e2e/golden/193-auditoria-modificar-bucle.spec.ts --project=chromium --reporter=line
  */
 
 /* ─────────────────── el plano que ya está sobre la mesa ─────────────────── */
@@ -273,6 +281,9 @@ test("mover, copiar, desfasar, recortar, alargar — y un deshacer fiel paso a p
   await fitFootprint(page);
   const afin = await calibrar(page);
   const pxEje = await pixelDe(page, afin, { x: 5_000, y: 7_000 });
+  // Desde T-23 (F3) OFFSET pregunta el LADO con un punto, como AutoCAD: el
+  // signo tecleado ya no decide. El punto se calibra aquí, antes del comando.
+  const pxLadoDelEje = await pixelDe(page, afin, { x: 5_000, y: 7_600 });
   const pxMuroSobrante = await pixelDe(page, afin, { x: 7_500, y: 1_000 });
   const pxVigaFinal = await pixelDe(page, afin, { x: 3_500, y: 4_000 });
 
@@ -325,6 +336,8 @@ test("mover, copiar, desfasar, recortar, alargar — y un deshacer fiel paso a p
     await teclear(page, "600");
     await expect(prompt).toContainText("Designe");
     await page.mouse.click(pxEje.x, pxEje.y);
+    await expect(prompt).toContainText("lado");
+    await page.mouse.click(pxLadoDelEje.x, pxLadoDelEje.y);
     await terminar(page);
     await expect(prompt).toBeHidden();
 
@@ -430,7 +443,11 @@ test("mover, copiar, desfasar, recortar, alargar — y un deshacer fiel paso a p
 });
 
 /**
- * SEGUNDA PARTE — EL CLIC QUE SE PIERDE.
+ * SEGUNDA PARTE — EL CLIC QUE SE PERDÍA.
+ *
+ * Cerrado el 2026-09-06 (T-20): el pinzamiento cede el clic cuando un comando
+ * pide punto u objeto. El diagnóstico de abajo es el original de la auditoría
+ * y se conserva tal cual; las aserciones de esta prueba ya son duras.
  *
  * Sale de intentar lo más normal del mundo: desfasar un eje 600 mm y, al ver
  * que iba al lado que no, desfasarlo otra vez al otro lado. Se teclea OFFSET,
@@ -467,7 +484,7 @@ test("mover, copiar, desfasar, recortar, alargar — y un deshacer fiel paso a p
  * el muro seleccionado y recorta correctamente hasta x=6000 sin nada
  * seleccionado. Única variable que cambia: si hay pinzamientos en pantalla.
  */
-test("el clic con el que se designa se PIERDE si cae sobre un pinzamiento", async ({
+test("el clic con el que se designa LLEGA al comando aunque caiga sobre un pinzamiento (T-20)", async ({
   context,
   page,
 }) => {
@@ -480,6 +497,10 @@ test("el clic con el que se designa se PIERDE si cae sobre un pinzamiento", asyn
   // El eje va de (1000,7000) a (9000,7000): su PUNTO MEDIO es (5000,7000).
   const pxPuntoMedio = await pixelDe(page, afin, { x: 5_000, y: 7_000 });
   const pxSinPinzamiento = await pixelDe(page, afin, { x: 3_000, y: 7_000 });
+  // Desde T-23 (F3) OFFSET pregunta el LADO con un punto, como AutoCAD: arriba
+  // para +600, abajo para −600. Lejos de cualquier pinzamiento del eje.
+  const pxLadoArriba = await pixelDe(page, afin, { x: 3_000, y: 7_600 });
+  const pxLadoAbajo = await pixelDe(page, afin, { x: 3_000, y: 6_400 });
   const prompt = page.getByTestId("cad-command-prompt");
 
   // Se selecciona el eje primero, que es lo que hace cualquiera antes de tocar
@@ -502,6 +523,8 @@ test("el clic con el que se designa se PIERDE si cae sobre un pinzamiento", asyn
     await teclear(page, "600");
     await expect(prompt).toContainText("Designe");
     await page.mouse.click(pxSinPinzamiento.x, pxSinPinzamiento.y);
+    await expect(prompt).toContainText("lado");
+    await page.mouse.click(pxLadoArriba.x, pxLadoArriba.y);
     await terminar(page);
     await expect(prompt).toBeHidden();
 
@@ -515,18 +538,20 @@ test("el clic con el que se designa se PIERDE si cae sobre un pinzamiento", asyn
   await test.step("2. El MISMO comando, pinchando el MISMO eje en su punto medio", async () => {
     await teclear(page, "OFFSET");
     await expect(prompt).toContainText("desfase");
-    await teclear(page, "-600");
+    await teclear(page, "600");
     await expect(prompt).toContainText("Designe");
+    // El clic cae sobre el pinzamiento del punto medio del eje designado.
     await page.mouse.click(pxPuntoMedio.x, pxPuntoMedio.y);
+    await expect(prompt).toContainText("lado");
+    await page.mouse.click(pxLadoAbajo.x, pxLadoAbajo.y);
     await terminar(page);
     await expect(prompt).toBeHidden();
 
     const documento = await guardar(page, backend);
-    expect.soft(
+    expect(
       paralelasA(documento, -600),
       "MISMO comando, MISMO objeto, sólo cambia el píxel: el clic sobre el " +
-        "pinzamiento del punto medio no llega al comando y no se crea nada, " +
-        "sin ningún aviso al usuario",
+        "pinzamiento del punto medio tiene que llegar al comando (T-20)",
     ).toHaveLength(1);
   });
 
@@ -547,7 +572,7 @@ test("el clic con el que se designa se PIERDE si cae sobre un pinzamiento", asyn
     const muro = documento.entities.find((entidad) => entidad.id === "muro-largo");
     const extremo = muro && muro.type === "line" ? muro.end.x : Number.NaN;
     console.log(`[auditoría] tras RECORTAR pinchando el extremo, el muro acaba en x=${extremo}`);
-    expect.soft(
+    expect(
       extremo,
       "recortar pinchando el sobrante EN SU EXTREMO (donde está el pinzamiento) " +
         "tiene que dejar el muro en x=6000, que es donde lo cruza el tabique",
