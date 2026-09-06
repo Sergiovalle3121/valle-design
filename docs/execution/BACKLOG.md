@@ -812,3 +812,21 @@ del anfitrión de la paleta) sale en un paso de F1 con prueba de `grep`.
 comandos en español que la promesa comercial declara— y no un alias suelto:
 una tabla de alias en español atada a `command-manifest.ts` con su spec de
 colisiones (`keyboard-alias-collisions.spec.ts` ya vigila las teclas).
+
+### L-3 · `EXTRUDE` por la normal del perfil, y el mismo guardián para REVOLVE, LOFT, SLAB y STAIR
+T-10 (b) cerró la mentira: `EXTRUDE` y `PRESSPULL` se niegan con motivo ante
+un perfil no horizontal (`horizontalProfileFromEntity`, tolerancia lineal del
+kernel). Lo que queda es el arreglo bueno —extruir por la normal del perfil,
+con el marco del plano inclinado— y aplicar el mismo guardián a `REVOLVE`,
+`LOFT`, `SLAB`, `ROOF` y `STAIR`, que siguen leyendo la cota de un solo
+vértice por `profileFromEntity`/`planeFrameAt`. Un círculo cuya normal está
+inclinada tampoco se mide (sólo su centro lleva cota): declarado en el propio
+helper.
+
+### L-4 · Presencia entre máquinas para el invitado del enlace
+T-43 D1 deja de afirmar «nadie más» cuando el invitado sólo tiene el canal de
+pestañas. Lo que haría falta para que el invitado VEA y sea visto: un
+transporte de presencia por servidor para el enlace de revisión (el SSE ya
+existe para la sesión first-party), con el token del fragmento y el mismo
+aislamiento por organización. Es la pieza «el invitado existe entre máquinas»
+del grupo `navegador` de la rúbrica (`guest-presence.visible`).
