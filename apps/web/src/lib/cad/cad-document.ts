@@ -613,6 +613,8 @@ export interface CadDocument {
    * `layer-states.ts`; la escritura entra por el lote (`layer-state`).
    */
   layerStates?: CadNamedLayerState[];
+  /** Pérdidas del DXF DE FONDO (T-11c, `dxf-background-loss-manifest.ts`). OPCIONAL: ausente si nunca se cargó uno. */
+  dxfBackgroundLossManifest?: CadLossManifestEntry[];
 }
 
 // Sólo TIPOS: se borran al compilar, así que no cierran ningún ciclo.
@@ -696,6 +698,7 @@ export function commitChange(doc: CadDocument, label: string): CadDocument {
     ...(doc.cells ? { cells: structuredClone(doc.cells) } : {}),
     ...(doc.imageDefinitions ? { imageDefinitions: structuredClone(doc.imageDefinitions) } : {}),
     ...(doc.layerStates ? { layerStates: structuredClone(doc.layerStates) } : {}),
+    ...(doc.dxfBackgroundLossManifest ? { dxfBackgroundLossManifest: structuredClone(doc.dxfBackgroundLossManifest) } : {}),
     history: [...doc.history, { version, label }],
   };
 }
@@ -774,6 +777,7 @@ export function serializeCadDocument(doc: CadDocument): string {
       : {}),
     // Catálogo por NOMBRE: ordenarlo es canonicalización legítima, como blocks.
     ...(doc.layerStates ? { layerStates: [...doc.layerStates].sort(byName).map(stableValue) } : {}),
+    ...(doc.dxfBackgroundLossManifest ? { dxfBackgroundLossManifest: doc.dxfBackgroundLossManifest.map(stableValue) } : {}),
   };
   return JSON.stringify(payload);
 }

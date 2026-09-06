@@ -118,6 +118,54 @@ sigue visible.
 
 ---
 
+## #4 · `scripts/cad/monolith-budget.json`: registrar el crecimiento de `cad-document.ts` (T-11c)
+
+**Archivo:** `scripts/cad/monolith-budget.json` (prohibido para F4 — lo aplica
+el coordinador).
+
+**Por qué:** T-11(c) añade el campo opcional `dxfBackgroundLossManifest` a
+`CadDocument` (`apps/web/src/lib/cad/cad-document.ts`) más su manejo en
+`commitChange`/`serializeCadDocument` — 4 líneas netas, el mínimo posible sin
+sacrificar el clon profundo que la propia spec de este archivo exige (ver
+`cad-document-migrate.spec.ts`, caso "el clon es profundo"). El archivo
+estaba en 799/800 líneas ANTES de esta ficha (por razones ajenas a F4), así
+que el mínimo necesario lo deja en **803**, 3 por encima del techo por
+defecto. No está en `allowances` hoy, así que `check:monolith-budget` (parte
+de `check:cad`) lo marca como archivo nuevo que supera 800.
+
+Comprobé que no hay forma honesta de evitarlo sin: (a) gatear el conteo con
+líneas fusionadas artificialmente (rechazado: reduce legibilidad para burlar
+un contador, no una razón real), o (b) recortar comentarios ajenos ya
+razonados de otras secciones del archivo (rechazado: no es mi contenido y
+esta ficha no es la ocasión para editarlo). Dividir `cad-document.ts` es un
+proyecto propio, no cabe en esta ficha.
+
+**Cambio exacto (diff literal):**
+
+```diff
+     "apps/api/src/load-probe/review-concurrency.main.ts": 887,
+     "apps/api/src/migration-cli/import.ts": 809,
+     "apps/web/src/components/cad/editor/Layout3DEditor.tsx": 19002,
++    "apps/web/src/lib/cad/cad-document.ts": 803,
+     "apps/web/src/lib/cad/commands/parser.ts": 1515,
+```
+
+(Equivalente a correr `node scripts/cad/check-monolith-budget.mjs --update
+--allow-growth` sobre el árbol de esta rama — lo hice localmente para
+confirmar el número exacto y lo revertí antes de commitear, porque el
+archivo es territorio exclusivo del coordinador.)
+
+**Prueba que lo verifica:** `npm run check:cad` (la línea "Presupuesto de
+monolito: 0 problema(s)"). Con este único cambio aplicado, el resto de
+`check:cad` ya está verde sobre esta rama (typecheck, lint, tests, DXF
+evidence con el espejo local).
+
+**Estado:** pendiente del coordinador. Mientras tanto, esta rama queda con
+`check:cad` en rojo por esta única línea; todo lo demás (typecheck, lint,
+`npx turbo run test --filter=web --filter=valle-design-api`) está verde.
+
+---
+
 ## #3 · Doc-mismatch de arranque
 
 `docs/execution/auditoria-fable/PROMPT_MAESTRO_FABLE.md` y los demás
