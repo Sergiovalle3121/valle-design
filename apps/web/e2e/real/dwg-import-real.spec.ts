@@ -13,7 +13,7 @@
  *    de autoría propia convertido a DWG con ODA File Converter 27.1 — NO
  *    generado por `writeDwg`, NO un archivo donado por un tercero. Se
  *    declara así, sin llamarlo "independiente de cliente": ver
- *    `docs/execution/CAMPANA_DWG_PRODUCTO_MAIN_9H.md`).
+ *    `docs/history/execution/CAMPANA_DWG_PRODUCTO_MAIN_9H.md`).
  *  - No intercepta ninguna ruta: habla con la API NestJS real y PostgreSQL,
  *    exactamente como `e2e/real/studio-real-api.spec.ts`.
  *  - Verifica los tipos/conteos de entidad contra un oráculo DXF independiente
