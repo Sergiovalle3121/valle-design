@@ -69,6 +69,9 @@ export interface CadStatusBarSaveState {
   saveStatus: AutosaveStatus;
   saveIssue: {
     kind: "conflict" | "offline" | "server";
+    /** T-75(a): el monolito todavía no lo rellena (petición P-04 en
+     *  F9-peticiones.md) — `describeCadSaveFailure` ya lo produce. */
+    title?: string;
     message: string;
     serverVersion?: number;
   } | null;

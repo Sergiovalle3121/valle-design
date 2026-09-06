@@ -14,12 +14,19 @@
  * el instante del fallo con el último contenido que de verdad viajó hacia el
  * servidor. Cuando no hay ninguno de los dos, lo dice: fix-or-hide, nunca un
  * botón que promete y no entrega.
+ *
+ * `loadCadRecovery` y `exportCadDocumentDxf` llegan por `import()` DENTRO del
+ * manejador de clic, no como import estático: el gate de presupuesto de
+ * bytes (`scripts/perf/bundle-budget.mjs`) cazó que arrastrarlos aquí subía
+ * el JS de primera carga de `/studio/demo-123` en +26,7 KB gzip por encima
+ * de su techo — el escritor DXF completo y el códec del diario de
+ * recuperación son justo el peso que no debería pagar CUALQUIER visita al
+ * estudio por una acción que sólo existe cuando el editor ya se cayó.
  */
 import { useState } from "react";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui";
-import { loadCadRecovery, type CadRecoveryScope } from "@/lib/cad/cad-recovery";
-import { exportCadDocumentDxf } from "@/lib/cad/dxf-document-export";
+import type { CadRecoveryScope } from "@/lib/cad/cad-recovery";
 import type { CadDxfDocumentExportSource } from "@/lib/cad/dxf-document-export";
 
 type RecoveryState =
@@ -41,6 +48,10 @@ export function EditorCrashRecoveryAction({
   const descargar = async () => {
     setState({ kind: "loading" });
     try {
+      const [{ loadCadRecovery }, { exportCadDocumentDxf }] = await Promise.all([
+        import("@/lib/cad/cad-recovery"),
+        import("@/lib/cad/dxf-document-export"),
+      ]);
       const record = await loadCadRecovery(scope);
       if (!record) {
         setState({ kind: "none" });

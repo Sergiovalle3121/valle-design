@@ -41,7 +41,7 @@ import {
   wrapDocumentPortForCrashRecovery,
   type LastSavedSnapshot,
 } from "@/components/cad/document-lifecycle/crash-recovery-port";
-import { saveCadRecovery, type CadRecoveryScope } from "@/lib/cad/cad-recovery";
+import type { CadRecoveryScope } from "@/lib/cad/cad-recovery";
 import { EditorCrashRecoveryAction } from "@/components/cad/studio/EditorCrashRecoveryAction";
 
 /** Props del Host: las del editor SIN las de plataforma (las inyecta el Host),
@@ -157,9 +157,16 @@ export default function CadStudioHost({
   const handleEditorCrash = useCallback(() => {
     const snapshot = crashSnapshotRef.current;
     if (!recoveryScope || !snapshot) return;
-    // Fuego y olvido a propósito: si esto también falla, la frontera de error
-    // ya se está pintando de todos modos y no hay nada más que intentar aquí.
-    void saveCadRecovery(recoveryScope, snapshot.document, snapshot.version).catch(() => undefined);
+    // `cad-recovery.ts` llega por `import()`, no estático: el gate de
+    // presupuesto de bytes cazó que esta única llamada —que sólo se ejecuta
+    // si el editor se cae— subía el JS de primera carga del estudio para
+    // toda visita, se caiga o no. Fuego y olvido: si esto también falla, la
+    // frontera de error ya se está pintando de todos modos.
+    void import("@/lib/cad/cad-recovery")
+      .then(({ saveCadRecovery }) =>
+        saveCadRecovery(recoveryScope, snapshot.document, snapshot.version),
+      )
+      .catch(() => undefined);
   }, [recoveryScope]);
 
   return (

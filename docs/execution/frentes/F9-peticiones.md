@@ -175,3 +175,103 @@ declarado, y confirme que ejecuta — y otro que confirme que install() del
 worker sigue en verde con la lista ampliada contra un build real.
 
 ---
+
+## P-04 · Montar `SaveStatusPanel` sustituyendo el toast de 12 s — T-75(a)
+
+**Archivo:** `apps/web/src/components/cad/editor/Layout3DEditor.tsx`
+
+**El componente ya está escrito, probado y fuera del monolito:**
+`apps/web/src/components/cad/studio/SaveStatusPanel.tsx` +
+`SaveStatusPanel.spec.ts` (11/11 verdes). Recibe `issue: {kind, title?,
+message} | null` y dos callbacks OPCIONALES (`onRetry`, `onExportDxf`): sin
+ellos se degrada a mostrar el texto completo con un botón "Detalles", sin
+fingir acciones que no harían nada. No tiene ningún `setTimeout`: es
+persistente mientras `issue` no sea `null`.
+
+**Por qué no lo monté yo mismo.** `CadStatusBar.tsx` (donde vive hoy
+`saveIssue`, ya fuera del monolito) tiene su altura ajustada al píxel contra
+CUATRO goldens (19, 67, 68, 72 — el propio archivo lo dice en un comentario:
+"36 px de barra frente a los 75 de antes"), y ya hay un historial escrito
+de un aviso flotante (`fixed right-3 top-[11.5rem]`, la barra de llamada)
+que tapaba un botón real. Decidir la posición sin poder correr esos cuatro
+goldens localmente habría sido adivinar sobre una superficie que ya se
+midió mal una vez. Prefiero entregar el componente listo y que quien tiene
+el árbol completo decida dónde flota.
+
+**Lo que hay que cambiar, en tres sitios:**
+
+1. **El tipo `saveIssue` pierde el título de `describeCadSaveFailure` hoy
+   mismo**, con o sin este panel — es un defecto aparte que este panel deja
+   visible. En la declaración del estado (busca
+   `const [saveIssue, setSaveIssue] = useState<{`):
+
+   ```diff
+    const [saveIssue, setSaveIssue] = useState<{
+      kind: "conflict" | "offline" | "server";
+   +  title?: string;
+      message: string;
+      serverVersion?: number;
+    } | null>(null);
+   ```
+
+   Y en `CadStatusBarSaveState` (`components/cad/studio/CadStatusBar.tsx`,
+   mío, ya actualizado en este mismo PR) el campo `title?: string` ya está
+   declarado — sólo falta que el monolito lo rellene.
+
+2. **El manejador principal** (busca `const aviso = describeCadSaveFailure(saveError);` — hay DOS apariciones, la primera dentro de la rama que ya llama a `setSaveIssue`):
+
+   ```diff
+        const aviso = describeCadSaveFailure(saveError);
+        if (requestIsActive) {
+          if (aviso.kind === "offline") setConnectionState("offline");
+          setSaveIssue({
+            kind: aviso.kind === "offline" ? "offline" : "server",
+   +        title: aviso.title,
+            message: aviso.message,
+          });
+   -      toast.error(aviso.message, aviso.title);
+        }
+        return null;
+      }
+   ```
+
+   El toast de la RAMA DE CONFLICTO (`toast.error(saveError.message, "Conflicto CAS")`, unas líneas antes) puede quedarse o pasar también al panel (`setSaveIssue({kind: "conflict", title: "Conflicto CAS", message: saveError.message, serverVersion: saveError.serverVersion})` ya lo hace, sólo añade `title`) — es una decisión de UX menor, no de arquitectura.
+
+3. **El segundo manejador** (`runCanonicalSave`, la segunda aparición de
+   `const aviso = describeCadSaveFailure(saveError);`) **hoy NO llama a
+   `setSaveIssue` en absoluto** — sólo saca el toast. Es un hueco de
+   cobertura que este panel también destaparía si no se corrige a la vez:
+   sin el `setSaveIssue`, ese camino de guardado seguiría sin aviso
+   persistente aunque el panel exista.
+
+   ```diff
+        const aviso = describeCadSaveFailure(saveError);
+        if (aviso.kind === "offline") setConnectionState("offline");
+   -    toast.error(aviso.message, aviso.title);
+   +    setSaveIssue({
+   +      kind: aviso.kind === "offline" ? "offline" : "server",
+   +      title: aviso.title,
+   +      message: aviso.message,
+   +    });
+        return null;
+      } finally {
+   ```
+
+4. **Montar el panel.** En `CadStatusBar.tsx` (mío) o en el nivel del
+   estudio donde ya flotan otros overlays (`CadViewportPrompt`,
+   `viewport-hints.tsx`, mío también): `import { SaveStatusPanel } from
+   "@/components/cad/studio/SaveStatusPanel"` y
+   `<SaveStatusPanel issue={saveState.saveIssue} onRetry={() => void save()} onExportDxf={() => /* el mismo handler del botón DXF existente */} />`
+   — `save` es la función ya definida unas líneas después del segundo
+   manejador (`const save = async (): Promise<Layout | null> => {`); el
+   handler de exportar DXF ya existe en algún punto del monolito para el
+   botón de la paleta, búscalo por `exportCadDocumentDxf` o el
+   `data-testid` del botón de exportar.
+
+**Qué prueba lo verifica.** `SaveStatusPanel.spec.ts` ya cubre el
+componente puro. Falta un golden de integración (fuera de mi alcance sin
+el montaje real): provocar un guardado fallido de verdad y afirmar que el
+panel PERSISTE más allá de 12 s (a diferencia del toast) y que
+"Reintentar" dispara un segundo intento real.
+
+---
