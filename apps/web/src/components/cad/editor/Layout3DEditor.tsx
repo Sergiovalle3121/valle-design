@@ -10350,12 +10350,13 @@ export default function Layout3DEditor({
     restoreLocalSnapshot,
     compareLocalSnapshot,
     deleteLocalSnapshot,
-    saveVersion,
     restoreVersion,
-    deleteVersion,
+    servidorConocido,
   } = useCadVersionsActions(versionsHost, {
     model,
     revision,
+    documentId,
+    refs: { documentId: currentDocumentIdRef, data: dataRef, dirty: dirtyRef },
     drawingReadOnly,
     versionsState,
     setReloadTick,
@@ -14144,7 +14145,7 @@ export default function Layout3DEditor({
         <T3Btn
           active={showVersions}
           onClick={openVersions}
-          title="Versiones / escenarios — guardar, restaurar"
+          title="Versiones — historial del servidor y snapshots locales"
         >
           <History className="w-4 h-4" />
         </T3Btn>
@@ -17150,7 +17151,6 @@ export default function Layout3DEditor({
           revision={revision}
           versName={versName}
           onVersNameChange={setVersName}
-          onSaveVersion={saveVersion}
           guardadoBloqueado={drawingReadOnly}
           ocupado={versBusy}
           onSaveLocalSnapshot={() => saveLocalSnapshot("manual")}
@@ -17159,9 +17159,9 @@ export default function Layout3DEditor({
           onCompareSnapshot={compareLocalSnapshot}
           onRestoreSnapshot={restoreLocalSnapshot}
           onDeleteSnapshot={deleteLocalSnapshot}
+          servidorConocido={servidorConocido}
           versions={versions}
           onRestoreVersion={restoreVersion}
-          onDeleteVersion={deleteVersion}
         />
       )}
 

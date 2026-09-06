@@ -14,7 +14,7 @@ Las cifras no se copian aquí: `node scripts/cad/rubric.mjs` las computa.
 - Monolito: 18 453 líneas / 131 `useState`; asignación 18 454 (una línea de margen).
 - Máquina: 4 CPU, 15 GB, 30 GB libres. Techo de agentes concurrentes locales: 2.
 - Red: PyPI y files.pythonhosted.org responden **directo** (están en `noProxy`);
-  `pyproj 3.7.2`, `mpmath`, `hypothesis`, `openapi-spec-validator`, `pypdf`,
+  `pyproj 3.7.2`, `mpmath`, `hypothesis` (desinstalada a las 18:50: es MPL-2.0, D-11), `openapi-spec-validator`, `pypdf`,
   `pdfminer.six` instalados con `pip --user` para el frente de evidencia.
 
 ## Ola 0
@@ -235,3 +235,26 @@ sueltos 2/2 en verde). Nada del diff toca llamadas, señalización ni el SSE de
 no se gasta una corrida de CI en re-lanzar el job aparte —el siguiente push
 (paso 2 + T-43 D1) vuelve a correr la suite entera y hace de re-ejecución—.
 Si repite sobre el nuevo head, se investiga como propio.
+
+### T-12·1 · «Versiones» habla con el historial real del servidor · ARREGLADA (19:40 UTC)
+La ficha daba dos salidas —cablear el botón a la historia real, que existe, o
+retirarlo— y se eligió cablearlo, porque volver a una versión anterior es lo
+que un despacho espera de un CAD en el navegador y el servidor ya guardaba
+una versión por cada guardado (`/v1/cad/documents/:id/versions`, CAS,
+inmutable). `versions-host.ts` deja de pedir `layout/snapshots…` (404
+declarado) y lee el historial con `versionsRepository` (`list`/`get` y un
+`restoreAs` nuevo que es `saveContent` con el CAS de la cabeza que el editor
+conoce). El cuadro ya no promete «Guardar versión» ni papelera: el historial
+no se nombra ni se borra; restaurar guarda la versión vieja como versión
+nueva y recarga el editor. Se niega —con la frase que ve el arquitecto— sin
+identidad en el servidor, con cambios sin mandar, con un puntero a blob y
+ante un 409. La identidad la resuelve `peekLegacyDocumentId`
+(`legacy/layout-document-identity.ts`, sólo lectura de la caché del
+adaptador: ese fichero está en su techo y sólo puede encoger). Las refs del
+monolito se leen en el evento, nunca en render (D-06 aplica: la fábrica es
+`createCadVersionsActions`, y `useCadVersionsActions` es su alias con
+prefijo). El fake `/v1/cad` gana el historial (`e2e/fixtures/cad-v1-versions.ts`).
+Verificado: `versions-host.spec.ts` (28), golden 191, typecheck, lint
+478/478, monolito en 17 235 (sin crecer), los diez specs que leen el
+monolito. Lo que queda (ESCALERA): previsualizar una versión sin guardarla
+y el diff visual entre dos versiones del servidor.

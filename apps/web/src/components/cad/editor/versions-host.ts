@@ -9,10 +9,14 @@
  * (`recordLocalSnapshot`, el efecto de carga, el propio cuadro) no cambien ni
  * uno.
  *
- * Los cuerpos de las acciones están movidos tal cual del monolito: mismas
- * cadenas de aviso, mismas rutas `layout/snapshots…` y mismos cuerpos de
- * petición. Que el adaptador responda hoy 404 a esas rutas es asunto de
- * T-12·1, no de esta mudanza: el botón y el cuadro siguen siendo alcanzables.
+ * Las acciones locales están movidas tal cual del monolito. Las de servidor
+ * son nuevas (T-12·1): antes pedían `layout/snapshots…`, una ruta que el
+ * adaptador declaraba «sin equivalente en /v1/cad → 404», así que la lista
+ * salía siempre vacía y guardar/restaurar/borrar siempre fallaban. Hoy leen
+ * el historial CAS real del documento (`/v1/cad/documents/:id/versions`, una
+ * versión por cada guardado, inmutable) y «restaurar» guarda el documento de
+ * esa versión como versión NUEVA con el CAS de siempre: nada se borra, y si el
+ * servidor avanzó mientras tanto el 409 se dice, no se disimula.
  *
  * ## Las acciones NO llaman a ningún hook, a propósito
  *
@@ -32,11 +36,17 @@ import {
   useMemo,
   useSyncExternalStore,
   type Dispatch,
+  type RefObject,
   type SetStateAction,
 } from "react";
-import type { CadVersionView } from "../dialogs/CadVersionsDialog";
+import type {
+  CadDocumentInline,
+  CadDocumentVersionDetail,
+  CadDocumentVersionSummary,
+} from "@valle/design-sdk";
+import type { CadServerVersion } from "../dialogs/CadVersionsDialog";
 import type { CadEditorNotifier } from "./export-scene-actions";
-import { legacyCadFetch as legacyCadFetchDefault } from "@/lib/cad/legacy/layout-http-adapter";
+import { peekLegacyDocumentId } from "@/lib/cad/legacy/layout-document-identity";
 import {
   createCadSnapshot,
   diffCadSnapshots,
@@ -63,14 +73,35 @@ function resolve<T>(value: Updater<T>, previous: T): T {
     : value;
 }
 
+export type { CadServerVersion };
+
 /**
- * Una versión tal como la devuelve `layout/snapshots`: la forma exacta que el
- * monolito afirmaba al hacer el cast, más estrecha que la vista del cuadro
- * (`name` siempre viene, `createdAt` siempre es texto ISO).
+ * Lo que el anfitrión necesita del servidor, y nada más: la lista, una versión
+ * hidratada, y guardar-como-nueva. `versionsRepository` lo cumple tal cual; un
+ * spec lo sustituye por un doble sin red.
  */
-export interface CadServerVersion extends CadVersionView {
-  name: string;
-  createdAt: string;
+export interface CadVersionsApi {
+  list: (documentId: string) => Promise<{ items: CadDocumentVersionSummary[] }>;
+  get: (documentId: string, version: number) => Promise<CadDocumentVersionDetail>;
+  restoreAs: (
+    documentId: string,
+    cadDocument: CadDocumentInline,
+    expectedCadDocumentVersion: number,
+  ) => Promise<unknown>;
+}
+
+/** El puntero a blob no trae entidades; la versión hidratada (R3) sí. */
+function inlineDocumentOf(
+  detail: CadDocumentVersionDetail,
+): CadDocumentInline | null {
+  const envelope = detail.cadDocument as unknown as {
+    _storage?: { kind?: string };
+    entities?: unknown;
+  };
+  if (!envelope || envelope._storage?.kind === "document_blob") return null;
+  return Array.isArray(envelope.entities)
+    ? (detail.cadDocument as CadDocumentInline)
+    : null;
 }
 
 /** El motivo de un snapshot local; el mismo que `CadLayoutSnapshot["reason"]`. */
@@ -174,33 +205,45 @@ export function useCadVersions<S>(
 }
 
 export interface CadVersionsInputs<S> {
-  // Props del editor.
-  model: string;
-  revision: string;
   // Estado del RENDER en curso: los cierres leen exactamente lo que leían.
   drawingReadOnly: boolean;
   versionsState: Pick<CadVersionsSnapshot<S>, "versName" | "localSnapshots">;
   // Setter que sigue siendo del monolito: `reloadTick` alimenta su efecto de carga.
   setReloadTick: Dispatch<SetStateAction<number>>;
+  // Props del editor: `documentId` es el alcance de `/studio/[documentId]`
+  // (ausente en el estudio heredado, que resuelve la identidad por model+revision).
+  model: string;
+  revision: string;
+  documentId: string | undefined;
+  /**
+   * Las refs del monolito que las acciones leen EN EL EVENTO, nunca en render:
+   * la identidad resuelta por el adaptador, el layout cargado (con la versión
+   * CAS que el editor cree cabeza) y si hay cambios sin mandar.
+   */
+  refs: {
+    documentId: RefObject<string | undefined>;
+    data: RefObject<{ cadDocumentVersion?: number } | null>;
+    dirty: RefObject<boolean>;
+  };
+  /** El historial del servidor; por defecto `versionsRepository` (cargado perezoso). */
+  api?: CadVersionsApi;
   // Devoluciones de llamada del editor (todas `useCallback` en el monolito).
   snapshot: () => S;
   restore: (s: S) => void;
   pushHistory: () => void;
   recordLocalSnapshot: (label: string, reason: CadLocalSnapshotReason) => string;
   toast: CadEditorNotifier;
-  /** Por defecto `legacyCadFetch`; un spec puede sustituirlo para simular el 404. */
-  fetch?: typeof legacyCadFetchDefault;
 }
 
 export interface CadVersionsActions {
+  /** El dibujo tiene identidad en el servidor: hay historial que leer. */
+  servidorConocido: boolean;
   openVersions: () => void;
   saveLocalSnapshot: (reason?: CadLocalSnapshotReason) => void;
   restoreLocalSnapshot: (id: string) => void;
   compareLocalSnapshot: (id: string) => void;
   deleteLocalSnapshot: (id: string) => void;
-  saveVersion: () => Promise<void>;
-  restoreVersion: (id: string) => Promise<void>;
-  deleteVersion: (id: string) => Promise<void>;
+  restoreVersion: (version: number) => Promise<void>;
 }
 
 /**
@@ -208,22 +251,23 @@ export interface CadVersionsActions {
  * único que cambia es de dónde salen los identificadores del cierre. No
  * invoca ningún hook (ver la cabecera del fichero sobre el prefijo `use`).
  */
-export function useCadVersionsActions<S>(
+export function createCadVersionsActions<S>(
   host: CadVersionsHost<S>,
   inputs: CadVersionsInputs<S>,
 ): CadVersionsActions {
   const {
-    model,
-    revision,
     drawingReadOnly,
     versionsState,
     setReloadTick,
+    model,
+    revision,
+    refs,
+    api: apiInput,
     snapshot,
     restore,
     pushHistory,
     recordLocalSnapshot,
     toast,
-    fetch: legacyCadFetch = legacyCadFetchDefault,
   } = inputs;
   const { versName, localSnapshots } = versionsState;
   const {
@@ -234,20 +278,42 @@ export function useCadVersionsActions<S>(
     setVersName,
     setVersBusy,
   } = host;
-  // ---- versions / scenarios (ported from 2D, unify) ----
-  const scopeQs = `model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`;
+  // ---- el historial del servidor (T-12·1) ----
+  const documentId = () =>
+    refs.documentId.current ?? peekLegacyDocumentId(model, revision);
+  const serverVersion = () => refs.data.current?.cadDocumentVersion ?? null;
+  const hasUnsavedChanges = () => refs.dirty.current === true;
+  const api = async (): Promise<CadVersionsApi> =>
+    apiInput ??
+    (await import("@/lib/cad/repositories/versions")).versionsRepository;
   const loadVersions = async () => {
-    if (!model) return;
+    const id = documentId();
+    if (!id) {
+      setVersions([]);
+      return;
+    }
     try {
-      const r = await legacyCadFetch(`layout/snapshots?${scopeQs}`);
-      if (r.ok) setVersions((await r.json()) as CadServerVersion[]);
+      const page = await (await api()).list(id);
+      setVersions(
+        [...page.items]
+          .sort((a, b) => b.version - a.version)
+          .map((item) => ({
+            version: item.version,
+            createdAt: item.createdAt,
+            createdBy: item.createdBy ?? null,
+            sha256: item.sha256 ?? null,
+          })),
+      );
     } catch {
-      /* transient */
+      toast.error(
+        "No se pudo leer el historial del servidor; la lista puede estar incompleta.",
+        "Versiones",
+      );
     }
   };
   const openVersions = () => {
     setShowVersions(true);
-    loadVersions();
+    void loadVersions();
   };
 
   const saveLocalSnapshot = (
@@ -298,72 +364,83 @@ export function useCadVersionsActions<S>(
       snapshots: history.snapshots.filter((item) => item.id !== id),
     }));
   };
-  const saveVersion = async () => {
-    if (!model || drawingReadOnly) return;
-    setVersBusy(true);
-    try {
-      const r = await legacyCadFetch("layout/snapshots", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model,
-          revision,
-          name: versName.trim() || undefined,
-        }),
-      });
-      if (!r.ok) {
-        toast.error("No se pudo guardar la versión.", "Versiones");
-        return;
-      }
-      setVersName("");
-      toast.success("Versión guardada.", "Versiones");
-      loadVersions();
-    } catch {
-      toast.error("Error de red.", "Versiones");
-    } finally {
-      setVersBusy(false);
-    }
-  };
-  const restoreVersion = async (id: string) => {
-    if (!model || drawingReadOnly) return;
-    setVersBusy(true);
-    try {
-      const r = await legacyCadFetch(
-        `layout/snapshots/${id}/restore?${scopeQs}`,
-        { method: "POST" },
+  const restoreVersion = async (version: number) => {
+    if (drawingReadOnly) return;
+    const id = documentId();
+    if (!id) {
+      toast.error(
+        "Este dibujo aún no tiene identidad en el servidor: guárdalo primero.",
+        "Versiones",
       );
-      if (!r.ok) {
-        toast.error("No se pudo restaurar la versión.", "Versiones");
+      return;
+    }
+    if (hasUnsavedChanges()) {
+      toast.error(
+        "Hay cambios sin guardar: espera al guardado automático o pulsa Ctrl+S antes de volver a una versión.",
+        "Versiones",
+      );
+      return;
+    }
+    const expected = serverVersion();
+    if (expected === null) {
+      toast.error(
+        "El editor no sabe qué versión tiene el servidor: recarga el dibujo.",
+        "Versiones",
+      );
+      return;
+    }
+    setVersBusy(true);
+    try {
+      const detail = await (await api()).get(id, version);
+      const document = inlineDocumentOf(detail);
+      if (!document) {
+        toast.error(
+          `La versión ${version} llegó como puntero a blob, no como documento; no se puede restaurar desde aquí.`,
+          "Versiones",
+        );
         return;
       }
-      toast.success("Versión restaurada.", "Versiones");
+      await (await api()).restoreAs(id, document, expected);
+      toast.success(
+        `El dibujo volvió a la versión ${version}; el servidor la guardó como versión nueva.`,
+        "Versiones",
+      );
       setShowVersions(false);
       setReloadTick((t) => t + 1); // re-run the load effect
-    } catch {
-      toast.error("Error de red.", "Versiones");
+    } catch (error) {
+      const conflict =
+        typeof error === "object" &&
+        error !== null &&
+        "isVersionConflict" in error &&
+        typeof (error as { isVersionConflict: unknown }).isVersionConflict ===
+          "function" &&
+        (error as { isVersionConflict: () => boolean }).isVersionConflict();
+      toast.error(
+        conflict
+          ? "El documento cambió en el servidor mientras mirabas las versiones: recarga y vuelve a intentarlo."
+          : "No se pudo restaurar la versión.",
+        "Versiones",
+      );
     } finally {
       setVersBusy(false);
-    }
-  };
-  const deleteVersion = async (id: string) => {
-    if (!model || drawingReadOnly) return;
-    try {
-      const r = await legacyCadFetch(`layout/snapshots/${id}?${scopeQs}`, {
-        method: "DELETE",
-      });
-      if (r.ok) setVersions((await r.json()) as CadServerVersion[]);
-    } catch {
-      /* transient */
     }
   };
   return {
+    servidorConocido:
+      inputs.documentId !== undefined ||
+      peekLegacyDocumentId(model, revision) !== null,
     openVersions,
     saveLocalSnapshot,
     restoreLocalSnapshot,
     compareLocalSnapshot,
     deleteLocalSnapshot,
-    saveVersion,
     restoreVersion,
-    deleteVersion,
   };
 }
+
+/**
+ * El nombre con prefijo `use` que llama el monolito (D-06): no invoca hooks,
+ * pero recibe refs, y `react-hooks/refs` marca cualquier llamada sin prefijo
+ * `use` que las reciba. Un spec llama a `createCadVersionsActions` directo.
+ */
+export const useCadVersionsActions = createCadVersionsActions;

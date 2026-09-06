@@ -269,8 +269,8 @@ function v1Json(
 
 /* ═══════════════════ Resolución model+revision → documento ═══════════════ */
 
-/** Caché de sesión: "model|revision" → documentId (el editor es el único escritor). */
-const documentIdCache = new Map<string, string>();
+/** Caché de sesión: "model|revision" → documentId (el editor es el único escritor; `layout-document-identity.ts` sólo lee). */
+export const documentIdCache = new Map<string, string>();
 
 async function resolveDocumentId(
   model: string,
