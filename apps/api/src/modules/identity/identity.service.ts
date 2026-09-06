@@ -30,6 +30,7 @@ import {
   DUMMY_PASSWORD_HASH,
   hashArgon2idPassword,
   hashOpaqueToken,
+  MAX_DISPLAY_NAME_LENGTH,
   MAX_TOKEN_LENGTH,
   verifyArgon2idPassword,
 } from './identity-security';
@@ -502,6 +503,103 @@ export class IdentityService {
   }
 
   /**
+   * T-60d: la ruta de perfil que no existía — cambiar el nombre visible y el
+   * correo desde dentro de la cuenta.
+   *
+   * El nombre se cambia sin más: no protege nada. El correo es distinto —es
+   * el identificador con el que se entra y a donde llegan los avisos de
+   * seguridad—, así que:
+   *
+   *   1. Exige la CONTRASEÑA, mismo patrón que `changePassword` y
+   *      `beginMfaEnrollment`: una sesión abierta no basta para mover a dónde
+   *      llegan los correos de recuperación.
+   *   2. Comprueba que nadie más lo tenga ya (el índice único de `email` lo
+   *      protegería igual, pero un 409 con nombre es mejor que una violación
+   *      de índice sin traducir).
+   *   3. Marca la cuenta SIN VERIFICAR y encola la verificación al correo
+   *      NUEVO, dentro de la MISMA transacción: reutiliza el camino que ya
+   *      existe para el alta (`identity.verify-email`, purpose
+   *      `verify_email`) en vez de inventar un flujo de "correo pendiente"
+   *      aparte. Hasta que se verifique, el correo del login YA es el nuevo
+   *      —no hay un estado intermedio de "correo a medias"—, así que quien
+   *      lo cambió por error necesita poder pedir un reenvío o restablecer
+   *      con el correo nuevo, no quedarse fuera.
+   *
+   * Devuelve el usuario actualizado y si quedó pendiente de verificar.
+   */
+  async updateProfile(
+    userId: string,
+    input: {
+      displayName?: string | null;
+      email?: string;
+      currentPassword?: string;
+    },
+  ): Promise<
+    | { ok: true; user: User; emailChangePending: boolean }
+    | { ok: false; reason: 'invalid_password' | 'email_in_use' }
+  > {
+    return this.dataSource.transaction(async (manager) => {
+      const user = await manager.findOneByOrFail(User, { id: userId });
+      let emailChangePending = false;
+
+      if (input.email !== undefined) {
+        const normalized = this.normalizeEmail(input.email);
+        if (normalized !== user.email) {
+          const credential = await manager.findOneBy(Credential, { userId });
+          const candidateHash =
+            credential?.algorithm === 'argon2id'
+              ? credential.passwordHash
+              : DUMMY_PASSWORD_HASH;
+          const valid = await this.verifyPassword(
+            candidateHash,
+            input.currentPassword ?? '',
+          );
+          if (!credential || !valid) {
+            return { ok: false, reason: 'invalid_password' as const };
+          }
+          const existing = await manager.findOneBy(User, {
+            email: normalized,
+          });
+          if (existing && existing.id !== userId) {
+            return { ok: false, reason: 'email_in_use' as const };
+          }
+          user.email = normalized;
+          user.emailVerifiedAt = null;
+          emailChangePending = true;
+        }
+      }
+      if (input.displayName !== undefined) {
+        const trimmed = input.displayName?.trim();
+        user.displayName =
+          trimmed && trimmed.length > 0
+            ? trimmed.slice(0, MAX_DISPLAY_NAME_LENGTH)
+            : null;
+      }
+
+      await manager.save(User, user);
+      await manager.save(
+        IdentityAuditEvent,
+        manager.create(IdentityAuditEvent, {
+          actorUserId: userId,
+          action: 'identity.profile_updated',
+          metadata: { emailChanged: emailChangePending },
+        }),
+      );
+      if (emailChangePending) {
+        await this.issueIdentityEmailTokenWithManager(
+          manager,
+          user,
+          'verify_email',
+          24 * 3_600_000,
+          'identity.verify-email',
+          '/verify-email',
+        );
+      }
+      return { ok: true, user, emailChangePending };
+    });
+  }
+
+  /**
    * El desafío entre la contraseña y el código. Cinco minutos.
    *
    * Suficiente para abrir la aplicación de autenticación y teclear seis
@@ -644,36 +742,54 @@ export class IdentityService {
     template: string,
     path: string,
   ): Promise<void> {
-    const raw = this.newToken();
-    await this.dataSource.transaction(async (manager) => {
-      await this.lockIdentitySubject(manager, user.id);
-      await manager
-        .createQueryBuilder()
-        .update(OneTimeToken)
-        .set({ consumedAt: new Date() })
-        .where(
-          'subjectId = :userId AND purpose = :purpose AND consumedAt IS NULL',
-          { userId: user.id, purpose },
-        )
-        .execute();
-      const token = await manager.save(
-        OneTimeToken,
-        manager.create(OneTimeToken, {
-          subjectId: user.id,
-          purpose,
-          tokenHash: this.hashToken(raw),
-          expiresAt: new Date(Date.now() + ttlMs),
-        }),
-      );
-      await this.enqueueIdentityEmail(
+    await this.dataSource.transaction((manager) =>
+      this.issueIdentityEmailTokenWithManager(
         manager,
         user,
-        token,
-        raw,
+        purpose,
+        ttlMs,
         template,
         path,
-      );
-    });
+      ),
+    );
+  }
+
+  /**
+   * Igual que `issueIdentityEmailToken`, pero DENTRO de una transacción que ya
+   * existe. `updateProfile` la necesita así: cambiar el correo y encolar su
+   * verificación tienen que caer juntos o ninguno — un correo cambiado sin
+   * verificación pendiente encolada dejaría la cuenta con un correo nuevo que
+   * nadie ha demostrado poder leer.
+   */
+  private async issueIdentityEmailTokenWithManager(
+    manager: EntityManager,
+    user: User,
+    purpose: OneTimeTokenPurpose,
+    ttlMs: number,
+    template: string,
+    path: string,
+  ): Promise<void> {
+    const raw = this.newToken();
+    await this.lockIdentitySubject(manager, user.id);
+    await manager
+      .createQueryBuilder()
+      .update(OneTimeToken)
+      .set({ consumedAt: new Date() })
+      .where(
+        'subjectId = :userId AND purpose = :purpose AND consumedAt IS NULL',
+        { userId: user.id, purpose },
+      )
+      .execute();
+    const token = await manager.save(
+      OneTimeToken,
+      manager.create(OneTimeToken, {
+        subjectId: user.id,
+        purpose,
+        tokenHash: this.hashToken(raw),
+        expiresAt: new Date(Date.now() + ttlMs),
+      }),
+    );
+    await this.enqueueIdentityEmail(manager, user, token, raw, template, path);
   }
 
   private async lockIdentitySubject(

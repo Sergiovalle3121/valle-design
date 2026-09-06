@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Clock, KeyRound, Laptop, ShieldCheck } from "lucide-react";
+import { Clock, KeyRound, Laptop, ShieldCheck, UserRound } from "lucide-react";
 import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
 import {
   Button,
+  Input,
   PasswordField,
   Surface,
   buttonClass,
@@ -32,13 +33,18 @@ import { getClientRegion } from "@/lib/cad/region/client";
  * revocaba todas las demás sesiones— no estaba escrita en ninguna parte, así
  * que nadie sabía que existía.
  *
- * ── LAS CUATRO COSAS QUE ENSEÑA ─────────────────────────────────────────────
- *   1. Las sesiones abiertas, con su dispositivo aproximado y un botón de
+ * ── LAS CINCO COSAS QUE ENSEÑA ───────────────────────────────────────────────
+ *   1. Nombre visible y correo (T-60d). Hasta esta ficha no había ruta: el
+ *      nombre se ponía una vez al registrarse y ahí se quedaba, y el correo
+ *      no se podía corregir sin escribirle a soporte. Cambiar el correo pide
+ *      la contraseña actual y vuelve a poner `emailVerifiedAt` en null — la
+ *      cuenta queda con el correo nuevo pero sin verificar hasta confirmarlo.
+ *   2. Las sesiones abiertas, con su dispositivo aproximado y un botón de
  *      cerrar. La actual marcada, porque cerrar la propia por error asusta.
- *   2. La actividad reciente: inicios de sesión con su método, y los sucesos de
+ *   3. La actividad reciente: inicios de sesión con su método, y los sucesos de
  *      identidad que ya se auditaban. Es lo que responde «¿entró alguien más?».
- *   3. El segundo factor, con su alta completa.
- *   4. Cambiar la contraseña SIN SALIR DE LA CUENTA (T-60b). Hasta esta ficha
+ *   4. El segundo factor, con su alta completa.
+ *   5. Cambiar la contraseña SIN SALIR DE LA CUENTA (T-60b). Hasta esta ficha
  *      la única vía era el enlace por correo —perder el acceso primero para
  *      poder cambiarla—; el formulario de abajo pide la actual, la cambia, y
  *      cierra todas las demás sesiones automáticamente, que es exactamente lo
@@ -214,8 +220,17 @@ export function AccountSecurity() {
       ) : null}
 
       <Seccion
-        icon={ShieldCheck}
+        icon={UserRound}
         numero="01"
+        titulo="Nombre y correo"
+        descripcion="Cómo te reconocemos y a dónde te escribimos. Cambiar el correo pide tu contraseña actual y vuelve a pedirte que lo confirmes."
+      >
+        <CambiarPerfil />
+      </Seccion>
+
+      <Seccion
+        icon={ShieldCheck}
+        numero="02"
         titulo="Segundo factor"
         descripcion="Un código de seis dígitos además de tu contraseña. Es la diferencia entre que te roben la contraseña y que te roben la cuenta."
       >
@@ -224,7 +239,7 @@ export function AccountSecurity() {
 
       <Seccion
         icon={Laptop}
-        numero="02"
+        numero="03"
         titulo="Sesiones abiertas"
         descripcion="Cada navegador donde entraste y sigue con acceso. Si ves una que no reconoces, ciérrala."
       >
@@ -290,7 +305,7 @@ export function AccountSecurity() {
 
       <Seccion
         icon={Clock}
-        numero="03"
+        numero="04"
         titulo="Actividad reciente"
         descripcion="Los últimos movimientos de tu cuenta. Si alguno no fuiste tú, cambia la contraseña: eso cierra todas las demás sesiones."
       >
@@ -325,7 +340,7 @@ export function AccountSecurity() {
 
       <Seccion
         icon={KeyRound}
-        numero="04"
+        numero="05"
         titulo="Contraseña"
         descripcion="Se guarda con Argon2id: nunca almacenamos tu contraseña, sólo un derivado del que no se puede volver atrás."
       >
@@ -342,6 +357,99 @@ export function AccountSecurity() {
         </p>
       </Seccion>
     </Marco>
+  );
+}
+
+/**
+ * T-60d: nombre visible y correo. Igual que `CambiarContrasena`, su propio
+ * estado — no el de `AccountSecurity` — porque son formularios independientes
+ * que no deben deshabilitarse entre sí.
+ *
+ * `currentPassword` sólo se envía si `email` cambió: el campo se muestra
+ * siempre (nadie sabe de antemano si va a tocar el correo) pero queda vacío
+ * y sin enviar cuando sólo se cambia el nombre, que es la ruta que NO exige
+ * contraseña en el servidor (`IdentityService.updateProfile`).
+ */
+function CambiarPerfil() {
+  const auth = useDesignAuth();
+  const [ocupado, setOcupado] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [exito, setExito] = useState<string | null>(null);
+  const correoActual = auth.user?.email ?? "";
+
+  async function guardar(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const displayName = String(form.get("displayName") ?? "").trim();
+    const email = String(form.get("email") ?? "").trim();
+    const currentPassword = String(form.get("currentPassword") ?? "");
+    const cambiaCorreo = email.length > 0 && email !== correoActual;
+    setOcupado(true);
+    setError(null);
+    setExito(null);
+    try {
+      const resultado = await designClient.identity.updateProfile({
+        displayName: displayName.length > 0 ? displayName : null,
+        ...(cambiaCorreo ? { email, currentPassword } : {}),
+      });
+      await auth.refresh();
+      setExito(
+        resultado.emailChangePending
+          ? "Guardado. Te mandamos un correo al nuevo buzón para confirmarlo."
+          : "Guardado.",
+      );
+      const passwordField =
+        event.currentTarget.elements.namedItem("currentPassword");
+      if (passwordField instanceof HTMLInputElement) passwordField.value = "";
+    } catch (cause) {
+      setError(
+        cause instanceof DesignApiError && cause.status === 401
+          ? "Contraseña actual incorrecta."
+          : cause instanceof DesignApiError && cause.status === 409
+            ? "Ese correo ya pertenece a otra cuenta."
+            : "No se pudo guardar. Vuelve a intentarlo.",
+      );
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  return (
+    <form onSubmit={guardar} className="max-w-sm space-y-4">
+      {exito ? (
+        <p role="status" className="type-small text-success-ink">
+          {exito}
+        </p>
+      ) : null}
+      {error ? (
+        <p role="alert" className="type-small text-danger-ink">
+          {error}
+        </p>
+      ) : null}
+      <Input
+        label="Nombre visible"
+        name="displayName"
+        autoComplete="name"
+        maxLength={160}
+        defaultValue={auth.user?.displayName ?? ""}
+      />
+      <Input
+        label="Correo"
+        name="email"
+        type="email"
+        autoComplete="email"
+        defaultValue={correoActual}
+      />
+      <PasswordField
+        label="Contraseña actual"
+        name="currentPassword"
+        autoComplete="current-password"
+        hint="Sólo hace falta si cambias el correo."
+      />
+      <Button type="submit" variant="secondary" loading={ocupado}>
+        Guardar
+      </Button>
+    </form>
   );
 }
 

@@ -4,7 +4,7 @@
   "openapi": "3.1.0",
   "apiTitle": "Valle Design — API standalone (v1)",
   "apiVersion": "1.0.0",
-  "operationCount": 107,
+  "operationCount": 108,
   "cadOperationCount": 43,
   "groups": [
     {
@@ -30,7 +30,8 @@
         "resendIdentityVerification",
         "requestIdentityPasswordReset",
         "resetIdentityPassword",
-        "changeIdentityPassword"
+        "changeIdentityPassword",
+        "updateIdentityProfile"
       ]
     },
     {
@@ -696,6 +697,37 @@
         "200",
         "400",
         "401",
+        "429"
+      ]
+    },
+    {
+      "operationId": "updateIdentityProfile",
+      "method": "PATCH",
+      "path": "/v1/auth/profile",
+      "summary": "Cambia el nombre visible o el correo de la sesion (T-60d); cambiar el correo exige la contrasena y reabre la verificacion.",
+      "tags": [
+        "identity"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "X-CSRF-Token",
+          "in": "header",
+          "required": true,
+          "description": "Token de doble envio igual a la cookie legible valle_csrf."
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "UpdateProfileRequest"
+      },
+      "responses": [
+        "200",
+        "400",
+        "401",
+        "409",
         "429"
       ]
     },

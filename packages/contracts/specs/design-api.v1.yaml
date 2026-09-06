@@ -505,6 +505,33 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
+  /v1/auth/profile:
+    patch:
+      operationId: updateIdentityProfile
+      tags: [identity]
+      summary: Cambia el nombre visible o el correo de la sesion (T-60d); cambiar el correo exige la contrasena y reabre la verificacion.
+      parameters:
+        - $ref: "#/components/parameters/csrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateProfileRequest" }
+      responses:
+        "200":
+          description: Perfil actualizado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UpdateProfileResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409":
+          description: >-
+            El correo pedido ya pertenece a otra cuenta (`email_in_use`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
   /v1/organizations:
     get:
       operationId: listOrganizations
@@ -744,8 +771,7 @@ paths:
             Lista vacia si el operador todavia no publico ninguno.
           content:
             application/json:
-              schema:
-                { $ref: "#/components/schemas/PublicCommercialPlanList" }
+              schema: { $ref: "#/components/schemas/PublicCommercialPlanList" }
         "400": { $ref: "#/components/responses/BadRequest" }
   /v1/commercial/public/tax-catalogs:
     get:
@@ -932,8 +958,7 @@ paths:
           description: Sesion abierta; `url` es la pagina de pago del proveedor.
           content:
             application/json:
-              schema:
-                { $ref: "#/components/schemas/CommercialCheckoutSession" }
+              schema: { $ref: "#/components/schemas/CommercialCheckoutSession" }
         "400":
           description: >-
             Plan no vendible (`plan_unavailable`), sin precio publicado para
@@ -3107,6 +3132,23 @@ components:
       required: [changed]
       properties:
         changed: { type: boolean, const: true }
+    UpdateProfileRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        displayName:
+          type: [string, "null"]
+          maxLength: 160
+        email: { $ref: "#/components/schemas/EmailAddress" }
+        currentPassword: { $ref: "#/components/schemas/Password" }
+    UpdateProfileResponse:
+      type: object
+      additionalProperties: false
+      required: [displayName, email, emailChangePending]
+      properties:
+        displayName: { type: [string, "null"] }
+        email: { $ref: "#/components/schemas/EmailAddress" }
+        emailChangePending: { type: boolean }
     FeedbackRequest:
       type: object
       additionalProperties: false
@@ -3367,11 +3409,12 @@ components:
         user:
           type: object
           additionalProperties: false
-          required: [id, email, emailVerified]
+          required: [id, email, emailVerified, displayName]
           properties:
             id: { type: string, format: uuid }
             email: { $ref: "#/components/schemas/EmailAddress" }
             emailVerified: { type: boolean }
+            displayName: { type: [string, "null"] }
         session:
           type: object
           additionalProperties: false
@@ -3901,8 +3944,7 @@ components:
     PublicCommercialPlan:
       type: object
       additionalProperties: false
-      required:
-        [code, name, kind, perSeat, seatsMinimum, taxIncluded, prices]
+      required: [code, name, kind, perSeat, seatsMinimum, taxIncluded, prices]
       description: >-
         Vista PUBLICA de un plan. Deliberadamente mas estrecha que
         `CommercialPlan`: no expone `entitlements`, que son vocabulario
@@ -4171,8 +4213,18 @@ components:
       type: object
       additionalProperties: false
       required:
-        [id, invoiceId, kind, status, uuid, amountCents, currency,
-         filesAvailable, detail, createdAt]
+        [
+          id,
+          invoiceId,
+          kind,
+          status,
+          uuid,
+          amountCents,
+          currency,
+          filesAvailable,
+          detail,
+          createdAt,
+        ]
       properties:
         id: { type: string, format: uuid }
         invoiceId:
@@ -5797,7 +5849,16 @@ components:
     MessagingChannel:
       type: object
       required:
-        [id, kind, projectId, name, otherMember, unreadCount, lastMessageAt, createdAt]
+        [
+          id,
+          kind,
+          projectId,
+          name,
+          otherMember,
+          unreadCount,
+          lastMessageAt,
+          createdAt,
+        ]
       properties:
         id:
           $ref: "#/components/schemas/MessagingChannelId"
@@ -5861,7 +5922,8 @@ components:
           description: "El otro miembro de la organización, para `kind: 'direct'`."
     MessagingMessage:
       type: object
-      required: [id, channelId, author, body, parentMessageId, anchor, createdAt]
+      required:
+        [id, channelId, author, body, parentMessageId, anchor, createdAt]
       properties:
         id:
           $ref: "#/components/schemas/MessagingMessageId"

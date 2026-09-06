@@ -106,6 +106,16 @@ export function createIdentitySurface({ call, resource }: IdentityTransport) {
         input,
       ),
     /**
+     * T-60d: nombre visible y correo de la sesión. Cambiar el correo exige
+     * la contraseña actual y reabre la verificación de correo.
+     */
+    updateProfile: (input: Schemas["UpdateProfileRequest"]) =>
+      call<Schemas["UpdateProfileResponse"]>(
+        "PATCH",
+        resource("/v1/auth/profile"),
+        input,
+      ),
+    /**
      * SEGUNDO ACTO DEL INICIO DE SESIÓN.
      *
      * Sólo se llama cuando `login` respondió `mfaRequired`. Va aquí y no

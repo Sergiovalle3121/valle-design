@@ -13,7 +13,7 @@ import { loginUrl, type DesignSession } from "@/lib/session";
 
 interface DesignAuthValue {
   session: DesignSession | null;
-  user: { id: string; email: string } | null;
+  user: { id: string; email: string; displayName: string | null } | null;
   tenantId: string | null;
   organizationId: string | null;
   organizationName: string | null;
@@ -42,6 +42,7 @@ export function DesignAuthProvider({
       setSession({
         userId: data.user.id,
         email: data.user.email,
+        displayName: data.user.displayName,
         role: data.organization?.role ?? null,
         tenantId: data.organization?.tenantId ?? null,
         organizationId: data.organization?.id ?? null,
@@ -75,7 +76,13 @@ export function DesignAuthProvider({
   const value = useMemo<DesignAuthValue>(
     () => ({
       session,
-      user: session ? { id: session.userId, email: session.email } : null,
+      user: session
+        ? {
+            id: session.userId,
+            email: session.email,
+            displayName: session.displayName,
+          }
+        : null,
       tenantId: session?.tenantId ?? null,
       organizationId: session?.organizationId ?? null,
       organizationName: session?.organizationName ?? null,

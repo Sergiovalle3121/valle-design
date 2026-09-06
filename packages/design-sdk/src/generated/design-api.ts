@@ -346,6 +346,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Cambia el nombre visible o el correo de la sesion (T-60d); cambiar el correo exige la contrasena y reabre la verificacion. */
+        patch: operations["updateIdentityProfile"];
+        trace?: never;
+    };
     "/v1/organizations": {
         parameters: {
             query?: never;
@@ -1709,6 +1726,16 @@ export interface components {
             /** @constant */
             changed: true;
         };
+        UpdateProfileRequest: {
+            displayName?: string | null;
+            email?: components["schemas"]["EmailAddress"];
+            currentPassword?: components["schemas"]["Password"];
+        };
+        UpdateProfileResponse: {
+            displayName: string | null;
+            email: components["schemas"]["EmailAddress"];
+            emailChangePending: boolean;
+        };
         FeedbackRequest: {
             /** @enum {string} */
             kind: "falla" | "sugerencia" | "duda";
@@ -1858,6 +1885,7 @@ export interface components {
                 id: string;
                 email: components["schemas"]["EmailAddress"];
                 emailVerified: boolean;
+                displayName: string | null;
             };
             session: {
                 /** Format: uuid */
@@ -3646,6 +3674,45 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    updateIdentityProfile: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Token de doble envio igual a la cookie legible valle_csrf. */
+                "X-CSRF-Token": components["parameters"]["csrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description Perfil actualizado. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateProfileResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description El correo pedido ya pertenece a otra cuenta (`email_in_use`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
             429: components["responses"]["TooManyRequests"];
         };
     };

@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Body,
+  ConflictException,
   Controller,
   Delete,
   Get,
@@ -10,6 +11,7 @@ import {
   Inject,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Req,
   Res,
@@ -146,6 +148,31 @@ export class ChangePasswordDto {
   @MinLength(MIN_PASSWORD_LENGTH)
   @MaxLength(MAX_PASSWORD_LENGTH)
   newPassword!: string;
+}
+
+/**
+ * T-60d: perfil (nombre visible y correo). Los dos campos son opcionales —
+ * se manda lo que se quiere cambiar—, pero `currentPassword` se vuelve
+ * obligatorio EN LOS HECHOS en cuanto `email` viene distinto del actual: lo
+ * exige `IdentityService.updateProfile`, no esta clase, porque "obligatorio
+ * sólo si cambia el correo" no es una regla de forma.
+ */
+export class UpdateProfileDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_DISPLAY_NAME_LENGTH)
+  displayName?: string | null;
+
+  @IsOptional()
+  @IsEmail()
+  @MaxLength(MAX_EMAIL_LENGTH)
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(MIN_PASSWORD_LENGTH)
+  @MaxLength(MAX_PASSWORD_LENGTH)
+  currentPassword?: string;
 }
 
 export interface SessionCookiePolicy {
@@ -457,6 +484,7 @@ export class IdentityController {
         id: user.id,
         email: user.email,
         emailVerified: !!user.emailVerifiedAt,
+        displayName: user.displayName,
       },
       session: { id: session.id, expiresAt: session.expiresAt },
       organization,
@@ -719,5 +747,41 @@ export class IdentityController {
       throw new UnauthorizedException('Contraseña actual incorrecta.');
     }
     return { changed: true };
+  }
+
+  /**
+   * T-60d: la ruta de perfil que no existía — cambiar el nombre visible y el
+   * correo. Cambiar el correo exige `currentPassword` (lo comprueba el
+   * servicio, no esta clase) y deja la cuenta sin verificar hasta que se
+   * confirme el correo NUEVO, reutilizando el mismo camino de verificación
+   * del alta.
+   */
+  @Public()
+  @Patch('profile')
+  @HttpCode(200)
+  async updateProfile(@Body() body: UpdateProfileDto, @Req() req: Request) {
+    const auth = await this.current(req);
+    this.csrf(req, auth.session.csrfHash);
+    await this.limit('profile-update.account', [auth.user.id], 10);
+    const result = await this.identity.updateProfile(auth.user.id, {
+      displayName: body.displayName,
+      email: body.email,
+      currentPassword: body.currentPassword,
+    });
+    if (!result.ok) {
+      if (result.reason === 'invalid_password') {
+        throw new UnauthorizedException('Contraseña incorrecta.');
+      }
+      throw new ConflictException({
+        statusCode: 409,
+        code: 'email_in_use',
+        message: 'Ese correo ya pertenece a otra cuenta.',
+      });
+    }
+    return {
+      displayName: result.user.displayName,
+      email: result.user.email,
+      emailChangePending: result.emailChangePending,
+    };
   }
 }
