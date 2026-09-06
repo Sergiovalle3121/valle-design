@@ -18,6 +18,7 @@ import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import { enter3DView } from "../fixtures/view-mode";
 import { worldPoint } from "../fixtures/world-point";
 import { fitFootprint, topView } from "../fixtures/camera-preset";
+import { startTool } from "../fixtures/tool-palette";
 
 const cadDocument = {
   meta: { version: 1, schema: 3, unit: "mm" },
@@ -79,7 +80,7 @@ test("MED, y sólo MED, sobre un tramo de POLYLINE anuncia «medio» en el HUD",
   await expect(page.getByTestId("cad-draft-settings-mode-count")).toHaveText("1/14");
   await page.getByTestId("cad-draft-settings-close").click();
 
-  await page.getByRole("button", { name: "Line", exact: true }).click();
+  await startTool(page, "line");
   // Ancla lejos de la polilínea para no interferir con su propia designación.
   const anchor = await worldPoint(page, { x: 500, y: 8_000 });
   await page.mouse.click(anchor.x, anchor.y);
