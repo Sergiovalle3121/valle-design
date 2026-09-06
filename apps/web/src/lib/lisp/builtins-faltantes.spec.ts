@@ -330,16 +330,15 @@ function designa(...ids: string[]): LispResponse {
     "nil",
     "ni el cuadrante aparece porque haya una línea cerca",
   );
-  // DIVERGENCIA DECLARADA: el adaptador de LINE del producto publica su punto
-  // medio como enganche de clase «center», así que «cen» sobre una línea
-  // contesta su punto medio y AutoCAD no lo haría. Se fija aquí a propósito: es
-  // lo que engancha el ratón hoy, y la corrección del adaptador —fuera de este
-  // territorio— está escrita como P-ext-02. El día que se aplique, esta
-  // aserción falla en voz alta, que es justo lo que se quiere.
+  // P-ext-02 CERRADA (T-14, frente F3): el adaptador de LINE ya no publica su
+  // punto medio como enganche de clase «center» — ahora es «midpoint», su
+  // clase real (`basic-native-adapters.ts`). «cen» sobre una línea SOLA ya no
+  // engancha nada, igual que «qua» en la aserción de arriba: una línea no
+  // tiene centro.
   eq(
     correr('(osnap (list 40 5) "cen")', [ENTIDADES[0]]).text,
-    "(50.0 0.0 0.0)",
-    "«cen» sobre una línea da su punto medio: divergencia heredada del adaptador, no de este módulo",
+    "nil",
+    "«cen» sobre una línea ya no engancha nada: el punto medio es «mid», no «cen» (P-ext-02 cerrada)",
   );
   contains(dibujo('(osnap (list 0 0) "zzz")'), "no es un modo de referencia a objetos", "un modo inventado se rechaza");
   contains(dibujo('(osnap (list 0 0) "")'), "no ha decidido a qué quiere engancharse", "y la cadena vacía también");
