@@ -24,7 +24,8 @@
  * última y quien pulsó una vez creería haberlas deshecho todas.
  */
 import type { CadEntity, CadPoint2 } from "../../cad-document";
-import { cadOpeningRehostId, type CadEntityCommand } from "../../entity-commands";
+import type { CadEntityCommand } from "../../entity-commands";
+import { cadOpeningRehostId } from "../../wall-openings";
 import {
   CAD_ARRAY_META,
   cadArrayIdOf,

@@ -12,7 +12,8 @@
  * raro.
  */
 import type { CadPoint2 } from "../../cad-document";
-import { cadOpeningRehostId, type CadEntityCommand } from "../../entity-commands";
+import type { CadEntityCommand } from "../../entity-commands";
+import { cadOpeningRehostId } from "../../wall-openings";
 import { OFFSET_REJECTION_MESSAGE, offsetCanonicalEntity, offsetSideSign } from "../../draw-action-entities";
 import type { CadNativeEntity } from "../../entity-runtime";
 import {

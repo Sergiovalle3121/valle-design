@@ -23,6 +23,7 @@ import { formatCadPrompt, matchCadKeyword } from "./prompt";
 import { resolveCadCommandAlias } from "./alias-table";
 import { resolveCadToken } from "./input-pipeline";
 import {
+  CAD_ACCEPT_ANGLE,
   CAD_ACCEPT_DISTANCE,
   CAD_ACCEPT_KEYWORD,
   CAD_ACCEPT_POINT,
@@ -400,6 +401,69 @@ assert.equal(
   "input",
   "la palabra clave gana a la coordenada: si no, «C» sería un error de sintaxis",
 );
+// --- T-25: un ángulo tecleado respeta ANGBASE/ANGDIR/AUNITS -------------------
+{
+  // Sin `angleFormat` en el contexto, el sistema por defecto es decimal puro
+  // — el comportamiento de siempre, sin romper nada de lo que ya tecleaba.
+  const plain = resolveCadToken("<45", { accepts: CAD_ACCEPT_ANGLE });
+  assert.equal(plain.kind, "input");
+  if (plain.kind === "input" && plain.input.kind === "angle")
+    assert.equal(plain.input.degrees, 45, "sin AUNITS declarado, <45 son 45° decimales tal cual");
+
+  // AUNITS gradianes: <50g son 45° (50 de 400 en la vuelta), no 50 grados.
+  const grads = resolveCadToken("<50g", {
+    accepts: CAD_ACCEPT_ANGLE,
+    angleFormat: { system: "grads", base: 0, direction: 0 },
+  });
+  assert.equal(grads.kind, "input");
+  if (grads.kind === "input" && grads.input.kind === "angle")
+    assert.ok(Math.abs(grads.input.degrees - 45) < 1e-9, "<50g son 45°, no 50°");
+
+  // ANGBASE 90 (el cero apunta al norte) y ANGDIR horario: <0 debe caer
+  // exactamente en el norte del mundo (90° en la convención interna).
+  const rotated = resolveCadToken("<0", {
+    accepts: CAD_ACCEPT_ANGLE,
+    angleFormat: { system: "decimal", base: 90, direction: 1 },
+  });
+  assert.equal(rotated.kind, "input");
+  if (rotated.kind === "input" && rotated.input.kind === "angle")
+    assert.ok(Math.abs(rotated.input.degrees - 90) < 1e-9, "con ANGBASE 90, <0 apunta al norte del mundo (90°)");
+
+  // Y con ANGDIR horario, un valor positivo gira hacia el OTRO lado que en
+  // antihorario — <30 con base 90 no es lo mismo horario que antihorario.
+  const clockwise = resolveCadToken("<30", {
+    accepts: CAD_ACCEPT_ANGLE,
+    angleFormat: { system: "decimal", base: 90, direction: 1 },
+  });
+  const counterclockwise = resolveCadToken("<30", {
+    accepts: CAD_ACCEPT_ANGLE,
+    angleFormat: { system: "decimal", base: 90, direction: 0 },
+  });
+  if (
+    clockwise.kind === "input" &&
+    clockwise.input.kind === "angle" &&
+    counterclockwise.kind === "input" &&
+    counterclockwise.input.kind === "angle"
+  )
+    assert.notEqual(
+      clockwise.input.degrees,
+      counterclockwise.input.degrees,
+      "ANGDIR cambia a qué lado del mundo apunta el mismo número tecleado",
+    );
+
+  // Y la coordenada POLAR (`@dist<áng`) usa el MISMO sistema para su ángulo:
+  // `@10<50g` son diez unidades a 45°, no a 50°.
+  const polarGrads = resolveCadToken("@10<50g", {
+    accepts: CAD_ACCEPT_POINT,
+    lastPoint: { x: 0, y: 0 },
+    angleFormat: { system: "grads", base: 0, direction: 0 },
+  });
+  assert.equal(polarGrads.kind, "input");
+  if (polarGrads.kind === "input" && polarGrads.input.kind === "point") {
+    assert.ok(Math.abs(polarGrads.input.point.x - 10 * Math.SQRT1_2) < 1e-6, "@10<50g cae a 45°, no a 50°");
+    assert.ok(Math.abs(polarGrads.input.point.y - 10 * Math.SQRT1_2) < 1e-6, "");
+  }
+}
 assert.equal(
   resolveCadToken("MID", { accepts: CAD_ACCEPT_POINT }).kind,
   "osnapOverride",

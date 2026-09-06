@@ -66,15 +66,11 @@ export type CadEntityCommand =
       newEntityId: string;
       offset?: CadPoint2;
       /**
-       * T-19·2: cuando la entidad copiada es un HUECO y su anfitrión viaja en
-       * la MISMA ronda (el mismo destino de COPY, la misma colocación de
-       * ARRAY, el mismo lote de MIRROR), quien genera el comando ya sabe qué
-       * id recibió esa copia del muro — es la única parte que conoce la
-       * correspondencia ronda a ronda, porque un mismo muro puede copiarse
-       * varias veces (varios destinos, varias colocaciones) y el batch por sí
-       * solo no puede adivinar CUÁL de esas copias es la de esta ronda.
-       * `undefined` dice «el anfitrión no viaja con esta copia»: el hueco
-       * copiado se queda hospedado en el muro de siempre.
+       * T-19·2: nuevo `hostId` de un HUECO copiado cuyo anfitrión viaja en la
+       * MISMA ronda. Lo calcula quien genera el comando —ver
+       * `cadOpeningRehostId` en `wall-openings.ts`—, no este ejecutor: un
+       * muro puede copiarse varias veces en un lote y sólo el generador sabe
+       * cuál copia es la de esta ronda.
        */
       rehostId?: string;
     }
@@ -309,27 +305,6 @@ function cadEntityCommandLabel(
  * que el caso de un comando conserva exactamente el mismo documento, la misma
  * etiqueta y los mismos errores que antes.
  */
-/**
- * T-19·2: el `rehostId` que le toca a un hueco si se copia EN LA MISMA RONDA
- * que su muro anfitrión.
- *
- * `roundCopyIds` es la correspondencia original→copia de ESTA RONDA
- * únicamente —un destino de COPY, una colocación de ARRAY, un lote de
- * MIRROR—, nunca la del lote completo: un mismo muro puede copiarse varias
- * veces en un solo lote (varios destinos, varias colocaciones) y sólo quien
- * genera los comandos de la ronda actual sabe cuál de esas copias es la
- * suya. `undefined` —anfitrión ausente de esta ronda, o entidad que no es un
- * hueco— deja `copy` sin tocar: el hueco copiado se queda hospedado en el
- * muro de siempre.
- */
-export function cadOpeningRehostId(
-  entity: CadEntity | undefined,
-  roundCopyIds: ReadonlyMap<string, string>,
-): string | undefined {
-  if (!entity || entity.type !== "opening") return undefined;
-  return roundCopyIds.get(entity.hostId);
-}
-
 export function executeCadEntityCommandBatch(
   document: CadDocument,
   commands: readonly CadEntityCommand[],
@@ -443,13 +418,8 @@ export function executeCadEntityCommandBatch(
         { ...source, id: command.newEntityId, context: cloneContext(source.context) },
         { translation: command.offset ?? { x: 0, y: 0 } },
       );
-      // T-19·2: un hueco copiado junto con su muro debe quedar hospedado en
-      // el MURO COPIADO, no en el original — si no, la puerta nueva se dibuja
-      // colgada del eje viejo y moverla no arrastra la de al lado.
-      // `rehostId` lo calcula quien generó el comando (única parte que sabe
-      // qué copia del muro pertenece a esta MISMA ronda: un muro puede
-      // copiarse varias veces en un solo lote — varios destinos de COPY,
-      // varias colocaciones de ARRAY— y el batch no puede adivinar cuál).
+      // T-19·2: un hueco copiado junto con su muro queda hospedado en el
+      // MURO COPIADO vía `rehostId` (ver el tipo, arriba), no en el original.
       const rehosted =
         copy.type === "opening" && command.rehostId !== undefined
           ? { ...copy, hostId: command.rehostId }

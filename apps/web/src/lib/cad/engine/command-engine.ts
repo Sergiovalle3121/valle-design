@@ -29,6 +29,7 @@ import {
   cadActiveUcs,
   cadActiveUcsIsInclined,
   cadActiveUcsIsTilted,
+  cadAngleFormat,
   type CadSystemVariableValue,
 } from "../system-variables";
 import { cadDrawingUnitFromInsunits } from "../units-imperial";
@@ -319,6 +320,10 @@ export function cadCommandEngineReduce(
               ? { drawingUnit: cadDrawingUnitFromInsunits(Number(context.variables.get("INSUNITS") ?? 4))! }
               : {}),
             ...([3, 4].includes(Number(context.variables.get("LUNITS") ?? 2)) ? { assumeInches: true } : {}),
+            // ANGBASE/ANGDIR/AUNITS llegan hasta el teclado (T-25): `<45` y el
+            // ángulo de una coordenada polar se leen en el sistema del
+            // usuario, no siempre en grados decimales desde el este.
+            angleFormat: cadAngleFormat(context.variables),
           }
         : {}),
     };

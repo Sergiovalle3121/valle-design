@@ -25,7 +25,8 @@
  * `φ − rotación`, que lo deja leyéndose del derecho.
  */
 import type { CadPoint2 } from "../../cad-document";
-import { cadOpeningRehostId, type CadEntityCommand } from "../../entity-commands";
+import type { CadEntityCommand } from "../../entity-commands";
+import { cadOpeningRehostId } from "../../wall-openings";
 import {
   CAD_ACCEPT_ENTITY_PICK,
   CAD_ACCEPT_KEYWORD,
