@@ -1393,8 +1393,7 @@ export default function Layout3DEditor({
       notes: "",
     });
   const dxfInputRef = useRef<HTMLInputElement | null>(null);
-  // VERSIONES: estado en su anfitrión (versions-host.ts, F1 paso 2) y
-  // desestructurado con los nombres de siempre; las acciones, más abajo.
+  // VERSIONES: estado en su anfitrión (versions-host.ts); las acciones, más abajo.
   const versionsHost = useCadVersionsHost<Snapshot>();
   const versionsState = useCadVersions(versionsHost);
   const {
@@ -4798,6 +4797,7 @@ export default function Layout3DEditor({
       redo,
       osnapOverrideRef: engineOsnapOverrideRef,
       solidShadeHost: solidShadeHostRef,
+      nativeMassHosts: nativeMassHostsRef,
       setLinetypeScale: setDocumentLinetypeScale,
       startedByPointer: () => !!enginePointerRouterRef.current?.startedByPointer,
       commit: (commands, created) => commitNativeCommands(commands, created ? [...created] : undefined),

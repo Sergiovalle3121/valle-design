@@ -791,3 +791,13 @@ del grupo `navegador` de la rúbrica (`guest-presence.visible`).
   (`GET …/versions/:n` ya la entrega hidratada) y un diff por entidad entre
   dos versiones del historial, con golden.
 
+### L-7 · `llamada-webrtc-real.spec.ts` paso 4 falla a ratos en el runner de CI
+- **Qué falla:** «B se une y los dos llegan a en-curso» no vio «En curso» en A
+  en 60 s en dos corridas de hoy (PR #194 sobre `512fdc8`, PR #199 sobre
+  `d132c94`) y pasó en la siguiente sobre el mismo código (PR #194 sobre
+  `0f427ac`). Nada de los diffs tocaba llamadas ni señalización.
+- **Criterio:** que la prueba distinga «la sala no llegó a en-curso» de «el
+  runner tardó más de 60 s en negociar ICE» (esperas por estado de la sala,
+  no por texto; o un umbral medido en el runner y declarado), sin relajar lo
+  que afirma. **Estimación:** medio día.
+

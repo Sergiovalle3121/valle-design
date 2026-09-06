@@ -309,3 +309,17 @@ controlador. El monolito pasa `viewControllerRef` al anfitrión (una línea; se
 recortó un comentario para no crecer: sigue en 17 235). Spec de 8
 comprobaciones (regla + cableado). Queda para ESCALERA el golden de píxeles.
 
+### Frente F5 integrado (T-15, T-33, T-19·1, T-10a, T-35) · HECHO (21:35 UTC)
+PR #199 fusionado (su único rojo de CI era `llamada-webrtc-real` paso 4, el
+mismo test que falló y luego pasó en la rama de campaña: ambiental, anotado en
+L-7). Peticiones aplicadas: P-01 opción A (el texto del criterio
+`toolset-electrical.esquemas` ya decía «instalación en PLANTA … sin símbolos de
+esquema de control»; entra la fila en peldaño 0 de ESCALERA), P-02 (la fila
+`FLATSHOT`/`SECTION` sobre la entidad `wall` pasa a peldaño 5 con el golden
+140 y `flatshot-solids.spec.ts` §9-12; `SLICE` sin muros a propósito), P-03
+(`nativeMassHosts: nativeMassHostsRef` en `cadStudioEngineBridges`; el golden
+47 recupera las dos aserciones de `data-visual-style`). Verificado sobre el
+árbol fusionado: typecheck, eslint, lint 478/478, monolito 17 235 (sin
+crecer: un comentario de dos líneas pasa a una), los doce specs de F5, los
+goldens 47, 140 y 93 sobre el build de producción.
+

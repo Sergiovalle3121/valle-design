@@ -244,6 +244,12 @@ test("un sólido tecleado sobrevive a guardar, cerrar y reabrir — con su árbo
     await expect(page.getByTestId("cad-command-line")).toContainText(
       "Estilo visual: Alámbrico.",
     );
+    // T-10a: el estilo llega a la ESCENA (sólidos y masas nativas), no sólo al
+    // mensaje: el editor pasa `nativeMassHosts` a los puentes del motor.
+    await expect(page.getByTestId("cad-3d-solid-diagnostics")).toHaveAttribute(
+      "data-visual-style",
+      "wireframe",
+    );
     // El nombre viejo delega en el nuevo, como en AutoCAD, y con él la
     // memoria muscular de quien lleva veinte años tecleando SHADEMODE.
     await type(page, "SHADEMODE");
@@ -251,18 +257,10 @@ test("un sólido tecleado sobrevive a guardar, cerrar y reabrir — con su árbo
     await expect(page.getByTestId("cad-command-line")).toContainText(
       "Estilo visual: Sombreado.",
     );
-    // T-10a, ANOTADO Y NO AFIRMADO AQUÍ: el estilo ya alcanza a `wall`/`room`
-    // en código (`CadNativeMassHosts.applyVisualStyle`, probado en
-    // `native-mass-hosts.spec.ts` y `studio-engine-bridges.spec.ts`), pero
-    // ESTE editor en vivo todavía no pasa `nativeMassHosts` a
-    // `cadStudioEngineBridges` — un cable de una línea en
-    // `Layout3DEditor.tsx` que sólo F1 puede tender (petición P-03,
-    // `docs/execution/frentes/F5-peticiones.md`). Hasta que se aplique,
-    // `cad-3d-solid-diagnostics[data-visual-style]` se queda en su valor por
-    // defecto («shaded») aunque VSCURRENT cambie el SOLID3D de verdad —
-    // afirmarlo aquí habría dejado este golden en rojo por un cable que no
-    // es mío de tender. Cuando P-03 se aplique, esta sección es donde hay
-    // que añadir de vuelta `toHaveAttribute("data-visual-style", "wireframe")`.
+    await expect(page.getByTestId("cad-3d-solid-diagnostics")).toHaveAttribute(
+      "data-visual-style",
+      "shaded",
+    );
   }
 
   // --- 4. Cerrar y REABRIR: la prueba de que ya no es una isla --------------
