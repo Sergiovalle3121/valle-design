@@ -46,6 +46,7 @@ import {
 } from "./command-types";
 import { resolveCadToken, type CadTokenContext } from "./input-pipeline";
 import { cadCurrentPresentation, cadWithCurrentPresentation } from "./current-presentation";
+import { cadPointModifierAddPoint, cadPointModifierStart, type CadPointModifierSession } from "../point-modifiers";
 
 export interface CadActiveCommand {
   name: string;
@@ -54,6 +55,24 @@ export interface CadActiveCommand {
   transparent: boolean;
 }
 
+/**
+ * Sesión de DESDE/M2P/TT en curso (T-22). Dos fases:
+ *
+ * - `collecting`: todavía reuniendo los puntos que el modificador necesita
+ *   (uno para `from`/`tt`, dos para `m2p`). Los puntos que llegan en esta
+ *   fase NO se le pasan al paso activo: son del modificador, no del comando.
+ * - `anchored`: sólo para `from`/`tt`. Ya hay ancla; el PRÓXIMO punto —el que
+ *   de verdad quiere el comando— se resuelve normalmente, salvo que si se
+ *   TECLEA (no se pincha), `@relativo` se mide desde el ancla en vez de
+ *   desde el último punto fijado del dibujo. Es la sustitución de
+ *   `lastPoint` que describe la ficha, hecha en el reductor puro en vez de
+ *   en el anfitrión: no hace falta más estado que el que este motor ya
+ *   lleva para `osnapOverride`.
+ */
+type CadPointModifierPendingState =
+  | { phase: "collecting"; session: CadPointModifierSession }
+  | { phase: "anchored"; anchor: { x: number; y: number } };
+
 export interface CadCommandEngineState {
   active: CadActiveCommand | null;
   /** Pila de comandos en pausa por uno transparente. */
@@ -61,6 +80,8 @@ export interface CadCommandEngineState {
   lastRepeatable: string | null;
   /** Override de captura pendiente, válido para la próxima captura. */
   osnapOverride: readonly SnapType[] | null;
+  /** DESDE/M2P/TT a medio resolver (T-22). */
+  pointModifier: CadPointModifierPendingState | null;
 }
 
 export const EMPTY_CAD_COMMAND_ENGINE: CadCommandEngineState = {
@@ -68,6 +89,7 @@ export const EMPTY_CAD_COMMAND_ENGINE: CadCommandEngineState = {
   suspended: [],
   lastRepeatable: null,
   osnapOverride: null,
+  pointModifier: null,
 };
 
 export type CadCommandEffect =
@@ -136,6 +158,7 @@ function resume(state: CadCommandEngineState, registry: CadCommandRegistry): Cad
     active: restored,
     suspended,
     osnapOverride: null,
+    pointModifier: null,
   };
   const effects: CadCommandEffect[] = [{ kind: "osnapOverride", modes: null }];
   if (restored) {
@@ -272,10 +295,14 @@ export function cadCommandEngineReduce(
   }
 
   if (action.kind === "token") {
+    // Con el ancla de DESDE/TT ya reunida, `@relativo` se mide desde ELLA,
+    // no desde el último punto fijado del dibujo — es la sustitución de
+    // `lastPoint` de la ficha T-22.
+    const anchor = state.pointModifier?.phase === "anchored" ? state.pointModifier.anchor : null;
     const tokenContext: CadTokenContext = {
       accepts: state.active?.step.accepts,
       prompt: state.active?.step.prompt,
-      lastPoint: lastPointOf(state),
+      lastPoint: anchor ?? lastPointOf(state),
       cursor: context.cursor ?? null,
       knownCommands: registry.names(),
       // El SCU llega hasta el analizador de coordenadas: `10,20` es diez y
@@ -307,6 +334,28 @@ export function cadCommandEngineReduce(
         state: { ...state, osnapOverride: resolved.modes },
         effects: [{ kind: "osnapOverride", modes: resolved.modes }],
       };
+    if (resolved.kind === "pointModifier") {
+      // PAR necesita una ARISTA de referencia —un `entityPick`, no un token—
+      // y por eso no se puede abrir aquí: se declara el límite en vez de
+      // fingir que el ratón ya está enrutado a esto.
+      if (resolved.modifier === "par")
+        return {
+          state,
+          effects: [
+            {
+              kind: "message",
+              text:
+                "PAR necesita designar una arista de referencia con el ratón, y esa ruta todavía no está " +
+                "conectada. Teclee la coordenada directamente.",
+              level: "error",
+            },
+          ],
+        };
+      return {
+        state: { ...state, pointModifier: { phase: "collecting", session: cadPointModifierStart(resolved.modifier) } },
+        effects: [],
+      };
+    }
     return cadCommandEngineReduce(state, { kind: "input", input: resolved.input }, context, registry);
   }
 
@@ -316,7 +365,10 @@ export function cadCommandEngineReduce(
     // Sin comando activo, Esc limpia lo que hubiera pendiente y el resto se
     // ignora en silencio: un clic en el vacío no es un error.
     if (action.input.kind === "cancel")
-      return { state: { ...state, osnapOverride: null }, effects: [{ kind: "osnapOverride", modes: null }] };
+      return {
+        state: { ...state, osnapOverride: null, pointModifier: null },
+        effects: [{ kind: "osnapOverride", modes: null }],
+      };
     return { state, effects: [] };
   }
 
@@ -334,6 +386,37 @@ export function cadCommandEngineReduce(
       effects: [{ kind: "preview", paths: [] }, ...resumed.effects],
     };
   }
+
+  // DESDE/M2P/TT reuniendo puntos (T-22): el punto es del MODIFICADOR, no
+  // del comando activo, así que no llega a `descriptor.step`.
+  if (action.input.kind === "point" && state.pointModifier?.phase === "collecting") {
+    const outcome = cadPointModifierAddPoint(state.pointModifier.session, action.input.point);
+    if (!outcome.done)
+      return {
+        state: { ...state, pointModifier: { phase: "collecting", session: outcome.session } },
+        effects: [],
+      };
+    if (state.pointModifier.session.kind === "m2p")
+      // M2P se resuelve de una vez: el medio ES el punto que el comando
+      // activo pidió, como si se hubiera tecleado directamente.
+      return cadCommandEngineReduce(
+        { ...state, pointModifier: null },
+        { kind: "input", input: { ...action.input, point: outcome.point } },
+        context,
+        registry,
+      );
+    // `from`/`tt`: el punto reunido es el ANCLA, no la respuesta al comando.
+    // Se pasa a fase «anchored» y se vuelve a pedir —con el MISMO prompt del
+    // comando activo, sin sustituirlo por uno propio: T-22 declara esto como
+    // límite conocido, ver la bitácora de F3—; lo tecleado a continuación
+    // medirá `@relativo` desde el ancla (más arriba, en `action.kind ===
+    // "token"`), y un clic directo simplemente entrega ese punto tal cual.
+    return { state: { ...state, pointModifier: { phase: "anchored", anchor: action.input.point } }, effects: [] };
+  }
+  // Con el ancla ya fijada, el punto que ahora llega —tecleado o pinchado— es
+  // la respuesta real al comando: se limpia el modificador y sigue normal.
+  if (action.input.kind === "point" && state.pointModifier?.phase === "anchored")
+    return cadCommandEngineReduce({ ...state, pointModifier: null }, action, context, registry);
 
   // Fallo cerrado ante un SCU que no es el plano z = 0 del mundo: un comando
   // que escribe geometría y no se ha declarado espacial aplanaría el punto

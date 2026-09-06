@@ -32,6 +32,7 @@ import {
   parseCadLengthInDrawingUnits,
   type CadDrawingUnit,
 } from "../units-imperial";
+import { CAD_POINT_MODIFIER_TOKENS, type CadPointModifierKind } from "../point-modifiers";
 import type { SnapType } from "../snap-engine";
 import {
   isCadUcsPlanar,
@@ -85,6 +86,12 @@ export type CadResolvedToken =
   | { kind: "input"; input: CadCommandInput }
   | { kind: "invoke"; command: string; transparent: boolean }
   | { kind: "osnapOverride"; modes: readonly SnapType[] }
+  /**
+   * DESDE/M2P/TT/PAR (T-22): como `osnapOverride`, NO avanza el paso. Abre
+   * una sub-captura que sustituye el punto de la captura siguiente —ver
+   * `point-modifiers.ts` para la aritmética pura de `from`/`m2p`/`tt`—.
+   */
+  | { kind: "pointModifier"; modifier: CadPointModifierKind }
   | { kind: "error"; message: string };
 
 export interface CadTokenContext {
@@ -165,6 +172,14 @@ export function resolveCadToken(raw: string, context: CadTokenContext): CadResol
   if (accepts(context.accepts, CAD_ACCEPT_POINT)) {
     const override = CAD_OSNAP_OVERRIDES[token.toUpperCase()];
     if (override) return { kind: "osnapOverride", modes: override };
+  }
+
+  // 3.5. Modificador de punto — DESDE/M2P/TT/PAR (T-22): tampoco avanza el
+  // paso. Igual que el override de OSNAP, es una orden sobre CÓMO se va a
+  // resolver la PRÓXIMA captura, no un punto en sí.
+  if (accepts(context.accepts, CAD_ACCEPT_POINT)) {
+    const modifier = CAD_POINT_MODIFIER_TOKENS[token.toUpperCase()];
+    if (modifier) return { kind: "pointModifier", modifier };
   }
 
   // 6. El ángulo se detecta antes que la coordenada porque `<45` empieza por un

@@ -16,6 +16,12 @@ import type { CadEntityCommand } from "../../entity-commands";
 import { OFFSET_REJECTION_MESSAGE, offsetCanonicalEntity } from "../../draw-action-entities";
 import type { CadNativeEntity } from "../../entity-runtime";
 import {
+  CAD_DESIGNATE_IDLE,
+  CAD_SELECT_KEYWORD_OPTIONS,
+  cadDesignateStep,
+  type CadDesignatePickState,
+} from "../../selection/selection-keywords";
+import {
   CAD_ACCEPT_DISTANCE,
   CAD_ACCEPT_ENTITY_PICK,
   CAD_ACCEPT_KEYWORD,
@@ -25,13 +31,43 @@ import {
   type CadAnyCommandDescriptor,
   type CadCommandContext,
   type CadCommandDescriptor,
+  type CadCommandInput,
   type CadCommandStep,
 } from "../command-types";
 
-const SELECT_PROMPT = { message: "Designe objetos", options: [] } as const;
+/**
+ * Un prompt «Designe objetos» que acepta las diez palabras clave de T-21
+ * (Todo, Previo, Último, Ventana, Captura, Valla, Vpolígono, Cpolígono,
+ * Borrar, Añadir), no sólo el ratón. Antes de este arreglo el prompt
+ * compartido era `{ message: "Designe objetos", options: [] }` a secas: sin
+ * `CAD_ACCEPT_KEYWORD`, ninguna de las diez llegaba siquiera a intentarse.
+ */
+const SELECT_PROMPT = { message: "Designe objetos", options: CAD_SELECT_KEYWORD_OPTIONS } as const;
+const SELECT_ACCEPTS = CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_KEYWORD;
 
 function pendingSelection<S>(state: S): CadCommandStep<S> {
-  return { state, prompt: SELECT_PROMPT, accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK };
+  return { state, prompt: SELECT_PROMPT, accepts: SELECT_ACCEPTS };
+}
+
+/**
+ * Intenta resolver `input` como designación por palabra clave sobre
+ * `(targets, pick, removing)`. Si `cadDesignateStep` la resuelve, reconstruye
+ * el estado propio del comando (`EraseState`, `DisplaceState`…) con los tres
+ * campos actualizados y el resto intacto; si devuelve `null`, la entrada no
+ * es de aquí y el llamador sigue con su propia lógica de siempre —incluida
+ * la de terminar de inmediato ante un `selection`/`entityPick` crudo del
+ * ratón, que T-21 no toca—.
+ */
+function tryDesignateKeyword<
+  S extends { targets: readonly string[]; pick: CadDesignatePickState; removing: boolean },
+>(state: S, input: CadCommandInput, context: CadCommandContext): CadCommandStep<S> | null {
+  const outcome = cadDesignateStep(state.targets, state.pick, state.removing, input, context, "Designe objetos");
+  if (!outcome) return null;
+  return {
+    state: { ...state, targets: outcome.targets, pick: outcome.pick, removing: outcome.removing },
+    prompt: outcome.prompt,
+    accepts: outcome.accepts,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -40,11 +76,17 @@ function pendingSelection<S>(state: S): CadCommandStep<S> {
 
 interface EraseState {
   targets: readonly string[];
+  /** Ventana/captura/valla/polígono a medio reunir (T-21). */
+  pick: CadDesignatePickState;
+  /** «Borrar» quita de `targets` en vez de sumar; «Añadir» lo devuelve a sumar. */
+  removing: boolean;
 }
+
+const ERASE_IDLE_STATE: EraseState = { targets: [], pick: CAD_DESIGNATE_IDLE, removing: false };
 
 function eraseResult(targets: readonly string[]): CadCommandStep<EraseState> {
   return {
-    state: { targets },
+    state: { ...ERASE_IDLE_STATE, targets },
     prompt: { message: "", options: [] },
     accepts: 0,
     result:
@@ -60,7 +102,7 @@ function eraseResult(targets: readonly string[]): CadCommandStep<EraseState> {
 
 const eraseCommand: CadCommandDescriptor<EraseState> = {
   name: "ERASE",
-  aliases: ["E"],
+  aliases: ["E", "BORRAR"],
   kind: "modify",
   transparent: false,
   selection: "required",
@@ -70,10 +112,10 @@ const eraseCommand: CadCommandDescriptor<EraseState> = {
   // Con objetos ya designados, ERASE actúa de inmediato: es lo que espera quien
   // selecciona y pulsa Supr.
   begin: (context) =>
-    context.selection.length > 0
-      ? eraseResult(context.selection)
-      : pendingSelection({ targets: [] }),
-  step: (state, input) => {
+    context.selection.length > 0 ? eraseResult(context.selection) : pendingSelection(ERASE_IDLE_STATE),
+  step: (state, input, context) => {
+    const byKeyword = tryDesignateKeyword(state, input, context);
+    if (byKeyword) return byKeyword;
     if (input.kind === "selection") return eraseResult(input.entityIds);
     if (input.kind === "entityPick") return eraseResult([input.entityId]);
     if (input.kind === "enter") return eraseResult(state.targets);
@@ -91,6 +133,10 @@ interface DisplaceState {
   points: CadPoint2[];
   commands: CadEntityCommand[];
   copies: number;
+  /** Ventana/captura/valla/polígono a medio reunir (T-21). */
+  pick: CadDesignatePickState;
+  /** «Borrar» quita de `targets` en vez de sumar; «Añadir» lo devuelve a sumar. */
+  removing: boolean;
 }
 
 function displaceStep(
@@ -144,16 +190,37 @@ function makeDisplace(
     cursor: "pick",
     begin: (context) =>
       displaceStep(
-        { targets: context.selection, points: [], commands: [], copies: 0 },
+        {
+          targets: context.selection,
+          points: [],
+          commands: [],
+          copies: 0,
+          pick: CAD_DESIGNATE_IDLE,
+          removing: false,
+        },
         context,
         copy,
       ),
     step: (state, input, context) => {
+      // Sólo mientras aún no hay punto base: una vez que MOVE/COPY empezó a
+      // pedir puntos de destino, «Ventana»/«Borrar»/etc ya no tienen prompt
+      // donde vivir — el paso pertenece al desplazamiento, no a la designación.
+      if (state.points.length === 0) {
+        const byKeyword = tryDesignateKeyword(state, input, context);
+        if (byKeyword) return byKeyword;
+      }
       if (input.kind === "selection")
         return displaceStep({ ...state, targets: input.entityIds }, context, copy);
       if (input.kind === "entityPick")
         return displaceStep({ ...state, targets: [input.entityId] }, context, copy);
-      if (input.kind === "enter") return displaceResult(state, name);
+      if (input.kind === "enter") {
+        // Enter con designación ya reunida (por teclado o por T-21) y AÚN sin
+        // punto base: confirma el lote y avanza a pedirlo, en vez de abortar
+        // el comando con un lote vacío — es lo que hace AutoCAD tras designar.
+        if (state.points.length === 0 && state.targets.length > 0)
+          return displaceStep(state, context, copy);
+        return displaceResult(state, name);
+      }
       if (input.kind !== "point") return displaceStep(state, context, copy);
 
       if (state.points.length === 0)

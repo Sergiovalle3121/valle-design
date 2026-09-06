@@ -162,7 +162,7 @@ export const pointAdapter: CadEntityAdapter<CadPointEntity> = {
       gripId === "position" ? { ...entity, position: point3(point, entity.position.z) } : entity,
   },
   snaps: {
-    snaps: (entity) => [{ kind: "endpoint", point: entity.position, label: "Nodo" }],
+    snaps: (entity) => [{ kind: "node", point: entity.position, label: "Nodo" }],
   },
   properties: {
     read: (entity) => ({

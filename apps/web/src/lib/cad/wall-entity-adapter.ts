@@ -287,7 +287,7 @@ const wallAdapter: CadEntityAdapter<WallEntity> = {
     snaps: (entity) => [
       { kind: "endpoint", point: { x: entity.start.x, y: entity.start.y }, label: "Inicio del eje" },
       { kind: "endpoint", point: { x: entity.end.x, y: entity.end.y }, label: "Fin del eje" },
-      { kind: "center", point: wallMidpoint(entity), label: "Punto medio del eje" },
+      { kind: "midpoint", point: wallMidpoint(entity), label: "Punto medio del eje" },
       // Las esquinas del contorno son a lo que se engancha quien acota el
       // muro terminado: la cara, no el eje.
       ...(wallFootprint(entity) ?? []).map((corner) => ({

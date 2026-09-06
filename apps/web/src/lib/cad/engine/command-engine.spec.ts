@@ -26,6 +26,7 @@ import {
   CAD_ACCEPT_DISTANCE,
   CAD_ACCEPT_KEYWORD,
   CAD_ACCEPT_POINT,
+  CAD_ACCEPT_TEXT,
   asCadCommand,
   type CadCommandContext,
   type CadCommandDescriptor,
@@ -392,6 +393,103 @@ assert.equal(
   "osnapOverride",
   "MID es un override de captura, no una coordenada",
 );
+// --- T-22: DESDE/M2P/TT/PAR son modificadores de punto, no comandos ni coordenadas
+{
+  const desde = resolveCadToken("DESDE", { accepts: CAD_ACCEPT_POINT });
+  assert.equal(desde.kind, "pointModifier", "DESDE no avanza el paso: abre una sub-captura");
+  if (desde.kind === "pointModifier") assert.equal(desde.modifier, "from");
+
+  const from = resolveCadToken("FROM", { accepts: CAD_ACCEPT_POINT });
+  if (from.kind === "pointModifier") assert.equal(from.modifier, "from", "FROM es sinónimo de DESDE");
+
+  const m2p = resolveCadToken("M2P", { accepts: CAD_ACCEPT_POINT });
+  assert.equal(m2p.kind, "pointModifier");
+  if (m2p.kind === "pointModifier") assert.equal(m2p.modifier, "m2p");
+
+  const tt = resolveCadToken("TT", { accepts: CAD_ACCEPT_POINT });
+  assert.equal(tt.kind, "pointModifier");
+  if (tt.kind === "pointModifier") assert.equal(tt.modifier, "tt");
+
+  const par = resolveCadToken("PAR", { accepts: CAD_ACCEPT_POINT });
+  assert.equal(par.kind, "pointModifier");
+  if (par.kind === "pointModifier") assert.equal(par.modifier, "par");
+
+  // Sin CAD_ACCEPT_POINT, ninguno de los cuatro es más que texto o un error:
+  // un modificador de punto no tiene sentido fuera de una petición de punto.
+  assert.notEqual(
+    resolveCadToken("DESDE", { accepts: CAD_ACCEPT_TEXT }).kind,
+    "pointModifier",
+    "sin CAD_ACCEPT_POINT, DESDE no es un modificador de nada",
+  );
+}
+
+// --- T-22, de punta a punta: DESDE ancla y `@relativo` mide DESDE ELLA -------
+{
+  const { effects, state } = run([
+    { kind: "invoke", command: "LINE" },
+    { kind: "token", value: "DESDE" },
+    point(100, 100), // el ancla — NO es el primer vértice de la línea
+    { kind: "token", value: "@50,0" }, // medido desde el ancla, no desde ningún punto anterior
+    point(200, 100),
+    { kind: "input", input: { kind: "enter" } },
+  ]);
+  const runs = executed(effects);
+  assert.equal(runs.length, 1, "DESDE no rompe el lote de un solo paso de deshacer");
+  const first = runs[0].commands[0];
+  assert.ok(first.type === "insert" && first.entity.type === "line");
+  if (first.type === "insert" && first.entity.type === "line") {
+    assert.deepEqual(
+      { x: first.entity.start.x, y: first.entity.start.y },
+      { x: 150, y: 100 },
+      "el primer vértice es el ancla (100,100) + @50,0, no el ancla en sí ni (50,0) desde el origen",
+    );
+    assert.deepEqual({ x: first.entity.end.x, y: first.entity.end.y }, { x: 200, y: 100 });
+  }
+  assert.equal(state.pointModifier, null, "la sesión de DESDE no sobrevive al comando");
+}
+
+// --- T-22, de punta a punta: M2P resuelve al MEDIO, no al segundo punto -----
+{
+  const { effects } = run([
+    { kind: "invoke", command: "LINE" },
+    { kind: "token", value: "M2P" },
+    point(0, 0),
+    point(100, 0),
+    point(50, 50),
+    { kind: "input", input: { kind: "enter" } },
+  ]);
+  const runs = executed(effects);
+  const first = runs[0].commands[0];
+  assert.ok(first.type === "insert" && first.entity.type === "line");
+  if (first.type === "insert" && first.entity.type === "line") {
+    assert.deepEqual(
+      { x: first.entity.start.x, y: first.entity.start.y },
+      { x: 50, y: 0 },
+      "el primer vértice es el MEDIO de (0,0) y (100,0), no (100,0)",
+    );
+    assert.deepEqual({ x: first.entity.end.x, y: first.entity.end.y }, { x: 50, y: 50 });
+  }
+}
+
+// --- T-22: Esc a medio DESDE no dispara nada a medias ------------------------
+{
+  const { state } = run([
+    { kind: "invoke", command: "LINE" },
+    { kind: "token", value: "DESDE" },
+    { kind: "input", input: { kind: "cancel" } },
+  ]);
+  assert.equal(state.pointModifier, null, "Esc limpia la sesión de DESDE, no la deja viva para el próximo comando");
+}
+
+// --- T-22: PAR se reconoce, pero declara su límite en vez de fingir ----------
+{
+  const { effects } = run([{ kind: "invoke", command: "LINE" }, { kind: "token", value: "PAR" }]);
+  const said = effects
+    .filter((effect): effect is Extract<CadCommandEffect, { kind: "message" }> => effect.kind === "message")
+    .map((effect) => effect.text)
+    .join(" ");
+  assert.ok(said.includes("arista"), "PAR explica que necesita una arista y el ratón todavía no la enruta aquí");
+}
 assert.equal(
   resolveCadToken("120", { accepts: CAD_ACCEPT_DISTANCE }).kind,
   "input",

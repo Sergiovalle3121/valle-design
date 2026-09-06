@@ -30,6 +30,7 @@ import type { CadPoint2, CadPoint3 } from "./cad-document";
 // así que pedirle un VALOR de vuelta cierra un ciclo que revienta al cargar.
 import { commonHitTester } from "./entity-hit-geometry";
 import { simplifyWithinTolerance } from "./simplify";
+import { polygonCentroid } from "./geom-measure";
 import { cadTransformIsReflecting, cadTransformPoint3, cadTransformScaleFactor } from "./transform2d";
 import type {
   CadBoundsProvider,
@@ -313,7 +314,7 @@ export const polylineAdapter: CadEntityAdapter<CadPolylineEntity> = {
           });
           const mid = arc.startAngle + arc.sweep / 2;
           points.push({
-            kind: "control",
+            kind: "midpoint",
             point: {
               x: arc.center.x + Math.cos(mid) * arc.radius,
               y: arc.center.y + Math.sin(mid) * arc.radius,
@@ -323,11 +324,23 @@ export const polylineAdapter: CadEntityAdapter<CadPolylineEntity> = {
           return;
         }
         points.push({
-          kind: "control",
+          kind: "midpoint",
           point: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 },
           label: `Punto medio ${index + 1}`,
         });
       });
+      // Centro geométrico: sólo tiene sentido sobre un contorno CERRADO — una
+      // polilínea abierta no encierra área y su centroide no es un punto que
+      // un dibujante busque. `polygonCentroid` sobre los vértices basta: el
+      // combado de un tramo en arco desplaza el área real una cantidad
+      // ínfima frente a la cuerda, y afinarlo no lo pide ningún dibujante.
+      if (entity.closed && entity.vertices.length >= 3) {
+        points.push({
+          kind: "geometric-center",
+          point: polygonCentroid(entity.vertices),
+          label: "Centro geométrico",
+        });
+      }
       return points;
     },
   },

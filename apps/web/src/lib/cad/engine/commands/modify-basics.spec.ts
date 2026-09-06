@@ -184,4 +184,41 @@ assert.equal(
   assert.ok(said.includes("elipse"), "y se explica por qué: el desfase de una elipse no es otra elipse");
 }
 
+// --- T-21: «Designe objetos» acepta palabras clave, no sólo el ratón ----------
+// El golden exacto de la ficha: teclear BORRAR (alias de ERASE), la palabra
+// clave V (Ventana), dos esquinas y luego Intro, y afirmar el conteo. La
+// ventana (-10,-10)-(150,10) encierra ENTERA a `line-1` —(0,0) a (100,0)— y
+// deja fuera a `ellipse-1`, cuya caja se sale por arriba y por abajo (radio
+// menor 25 > la mitad de alto de la ventana).
+{
+  const { effects, state } = run([
+    { kind: "invoke", command: "BORRAR" },
+    { kind: "token", value: "V" },
+    { kind: "token", value: "-10,-10" },
+    { kind: "token", value: "150,10" },
+    { kind: "input", input: { kind: "enter" } },
+  ]);
+  const runs = executed(effects);
+  assert.equal(runs.length, 1, "BORRAR → V → dos esquinas → Intro deja un solo lote");
+  assert.equal(runs[0].commands.length, 1, "la ventana sólo encierra ENTERA a line-1");
+  assert.equal(runs[0].commands[0].type, "delete");
+  assert.equal(
+    runs[0].commands[0].type === "delete" ? runs[0].commands[0].entityId : "",
+    "line-1",
+    "y borra justo la que cae dentro, no la elipse",
+  );
+  assert.equal(state.active, null, "el Intro final cierra el comando");
+}
+// Todo, seguido de Intro sin más designación, actúa sobre el dibujo entero.
+{
+  const { effects } = run([
+    { kind: "invoke", command: "ERASE" },
+    { kind: "token", value: "Todo" },
+    { kind: "input", input: { kind: "enter" } },
+  ]);
+  const runs = executed(effects);
+  assert.equal(runs.length, 1);
+  assert.equal(runs[0].commands.length, 2, "Todo designa las dos entidades del documento");
+}
+
 console.log("cad modify command specs passed");
