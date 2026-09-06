@@ -194,13 +194,18 @@ funcionando exactamente igual, sólo que `wall`/`room` no reciben el
 estilo hasta que se aplique.
 
 **Qué prueba lo verifica:** `apps/web/e2e/golden/47-cad-solids.spec.ts`
-(ampliado en esta sesión) ya afirma `cad-3d-solid-diagnostics[data-visual-style]`
-sobre un muro nativo sembrado en el documento. Antes de aplicar esta
-línea, ese golden debería FALLAR en la comprobación que pide
-`data-visual-style="wireframe"` (el muro sigue recibiendo sólo el estilo
-por defecto porque `nativeMassHosts` nunca llega a
-`cadStudioEngineBridges`); después de aplicarla, debería pasar.
-Re-correr el golden 140 y 47 tras aplicar el cable es la verificación.
+(ampliado en esta sesión con un muro nativo sembrado en el documento) SE
+LLEGÓ A ESCRIBIR con una aserción de escena
+(`cad-3d-solid-diagnostics[data-visual-style]`) y se corrió de verdad en
+navegador: dio rojo exacto (`Expected: "wireframe", Received: "shaded"`),
+confirmando que el hueco es precisamente este cable y ningún otro. Esa
+aserción se retiró del golden (queda como comentario en la sección
+VSCURRENT, con el texto exacto a reponer) para no dejar la suite en rojo
+por una línea que sólo F1 puede tender. **Cuando se aplique esta
+petición:** reponer en `47-cad-solids.spec.ts`, sección VSCURRENT, las dos
+líneas `await expect(page.getByTestId("cad-3d-solid-diagnostics")).toHaveAttribute("data-visual-style", "wireframe" / "shaded")`
+que el comentario deja escritas, y re-correr los goldens 140 y 47 —
+deberían pasar los dos.
 
 **Relacionado, sin construir en esta sesión (declarado en `F5.md`):** la
 persistencia del estilo visual entre recargas de página sigue en memoria
