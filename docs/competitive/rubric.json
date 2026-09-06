@@ -4023,8 +4023,12 @@
               "path": "apps/api/src/modules/commercial/seat-entitlement.service.ts"
             },
             {
-              "kind": "todaviaNo",
-              "reason": "no hay endpoint ni botón para comprar un asiento más; el golden que compra tres, choca, compra el cuarto e invita no existe (ficha T-61)"
+              "kind": "spec",
+              "path": "apps/api/src/modules/commercial/commercial-seat-growth.pg.spec.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/web/src/app/cuenta/facturacion/BillingPortal.tsx"
             }
           ]
         },
@@ -4049,7 +4053,7 @@
       "name": "Facturación declarada con su límite",
       "points": 3,
       "scope": "destino",
-      "gap": "Abierta el 2026-09-06 (T-02). «Factura CFDI» se anuncia en dos superficies públicas con etiquetas escritas a mano mientras el proveedor de timbrado está en modo manual porque no hay PAC contratado; el límite honesto sólo aparece después de iniciar sesión, y el comprador pregunta antes. Contratar el PAC es del titular; que el sello y el FAQ se DERIVEN del descriptor del proveedor es de esta campaña (T-18). Los reembolsos y disputas por webhook firmado ya existen y se cobran aquí.",
+      "gap": "Abierta el 2026-09-06 (T-02). Hasta F8 (T-18a, 2026-09-06) «Factura CFDI» se anunciaba en dos superficies públicas con etiquetas escritas a mano mientras el proveedor de timbrado estaba en modo manual porque no hay PAC contratado; el límite honesto sólo aparece después de iniciar sesión, y el comprador pregunta antes. Contratar el PAC es del titular; que el sello y el FAQ se DERIVEN del descriptor del proveedor es de esta campaña (T-18). Los reembolsos y disputas por webhook firmado ya existen y se cobran aquí.",
       "criteria": [
         {
           "id": "commercial-billing.cfdi-honest",
@@ -4058,8 +4062,12 @@
           "costDays": 0,
           "evidence": [
             {
-              "kind": "todaviaNo",
-              "reason": "PricingCatalog.tsx y faq.ts llevan la etiqueta escrita a mano y null-cfdi.provider.ts está en mode manual (ficha T-18 a)"
+              "kind": "spec",
+              "path": "apps/web/src/app/precios/commercial-surface.spec.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/commercial/controllers/public-catalog.controller.ts"
             }
           ]
         },
@@ -4083,8 +4091,12 @@
           "costDays": 0,
           "evidence": [
             {
-              "kind": "todaviaNo",
-              "reason": "email-templates.ts tiene cuatro casos y el árbol encola ocho nombres; los huérfanos (identity.new-sign-in, commercial.trial-expiry, product.feedback, support.incident) salen 200 status ignored; el gate de cobertura no existe (ficha T-17)"
+              "kind": "spec",
+              "path": "apps/api/src/modules/outbox-receiver/email-template-coverage.spec.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/outbox-receiver/email-templates.ts"
             }
           ]
         }
@@ -4159,8 +4171,12 @@
           "costDays": 0,
           "evidence": [
             {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/150-cad-arrastrar-dxf-tablero.spec.ts"
+            },
+            {
               "kind": "todaviaNo",
-              "reason": "ninguna pantalla del primer minuto crea el proyecto implícito y no hay onDrop de DXF en el producto (ficha T-63)"
+              "reason": "arrastrar un DXF ya entra por el estado vacío y el tablero (F8, T-63f, golden 150) pero no por el lienzo del estudio (petición F8-2 al monolito), y ninguna pantalla del primer minuto crea el proyecto implícito (ficha T-63)"
             }
           ]
         },

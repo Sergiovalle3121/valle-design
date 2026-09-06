@@ -378,3 +378,25 @@ spec del controlador entran como evidencia de `modify.grips`, `.basics` y
 `.edges` (sin tocar puntos). Verificado: typecheck, eslint, lint 478/478,
 monolito, `check:auditoria` (techo 6), `check:e2e-localizadores`,
 rubric.spec, `native-grip-controller.spec.ts` (6 bloques).
+
+### Frente F8 integrado (T-17, T-18a/b/d, T-60a-d, T-61, T-63e/f) · HECHO (20:52 UTC)
+PR #198 (head d8acb66, CI verde: contrato, los cuatro fragmentos E2E,
+despliegue) fusionado sin conflictos (72d568c). Cierra los cuatro correos
+huérfanos con gate de cobertura (`email-template-coverage.spec.ts`,
+`identity.new-sign-in` primero), «Factura CFDI» derivada del modo real del
+proveedor, el JSON-LD sin Safari, `<html lang>` por ruta, arrastrar un DXF
+al estado vacío y al tablero (golden 150), expulsar/degradar miembros,
+cambiar contraseña y correo dentro de la sesión, 2FA con reautenticación y
+comprar el asiento que falta (`commercial-seat-growth.pg.spec.ts`). En la
+rúbrica su evidencia sustituye cuatro «todavía no» del grupo `comercial`
+(asientos, CFDI honesto, correo transaccional; el primer minuto conserva su
+«todavía no» por el lienzo y el proyecto implícito), sin tocar puntos; la
+cifra la computa `node scripts/cad/rubric.mjs`. Peticiones: F8-1 (aceptar
+términos al crear la cuenta, `AuthPage.tsx` + identidad) y F8-2 (`onDrop`
+en el lienzo del estudio) pasan a la cola del coordinador; F8 sigue con
+T-62 en su rama. El typecheck del árbol fusionado fallaba en local por el
+`dist/` viejo del SDK (el contrato ganó `cfdi`): se reconstruyó con turbo
+y pasa; no es un defecto de la rama. Verificado: tsc web y api, lint
+478/478, monolito, `check:conventions`, `check:authz`, `check:api-console`,
+`check:surface`, no-industrial, legal, los ocho specs web que F8 tocó,
+rubric.spec (61) y la matriz regenerada.
