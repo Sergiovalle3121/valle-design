@@ -33,15 +33,15 @@
   "hallazgo": "La ÚNICA marca `independent: true` del lado DXF de la rúbrica de hoy está en dxf.corpus-external y apunta a docs/cad/evidence/dxf-external-corpus-matrix.json, cuyo propio encabezado dice `corpusSintetico: true`. Hoy no infla la cuenta porque ese criterio no se concede (falta la firma humana de derechos), pero el día que la firma llegue sin P-evidencia-04 concedería 2 pt de «independencia» a un corpus que generó este proyecto. P-evidencia-04 sustituye esa entrada por el corpus real.",
   "medido": {
     "antes": {
-      "total": "252/309",
-      "porcentaje": 81.6,
+      "total": "253/309",
+      "porcentaje": 81.9,
       "alcanceHoy": "186/213",
       "puntosConEvidenciaIndependiente": 35,
       "filasConTope": 13
     },
     "despuesDeAplicarLosParchesDeEsteCenso": {
-      "total": "252/309",
-      "porcentaje": 81.6,
+      "total": "253/309",
+      "porcentaje": 81.9,
       "alcanceHoy": "186/213",
       "puntosConEvidenciaIndependiente": 35,
       "filasConTope": 13
