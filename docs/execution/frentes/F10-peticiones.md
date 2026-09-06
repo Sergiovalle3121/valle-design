@@ -178,7 +178,46 @@ retener 1 punto. **+1 pt.**
 
 ---
 
-## P-F10-06 · Corrección de dato en `PROMPT_MAESTRO_FABLE.md`
+## P-F10-06 · `json-import.fuzzing` gana su evidencia independiente
+
+**Qué archivo:** `docs/competitive/rubric.json`, criterio
+`json-import.fuzzing` (fila `json-import`, grupo `pro`).
+
+**Qué cambio exacto:**
+
+```json
+{
+  "kind": "spec",
+  "path": "apps/web/src/lib/cad/verification/json-import-atheris.spec.ts",
+  "independent": true,
+  "note": "atheris (Google, Apache-2.0), un fuzzer guiado por cobertura de terceros, decide 500 documentos hostiles; el importador REAL (validateImportFile + importDocumentText) los clasifica todos en clases conocidas, cero 'desconocido', cero lanzamientos no tipados. Sustituye a hypothesis (MPL-2.0, inadmisible; ver P-F10-07). Artefacto congelado: docs/cad/corpus/oraculos/atheris-3.0.0.json."
+}
+```
+
+**Por qué:** el formato canónico lo define este proyecto, así que ningún
+corpus ajeno de documentos VÁLIDOS puede existir por construcción —
+`independencia-por-fila.json` ya lo señala—. La independencia posible es la
+del GENERADOR de mutaciones, no la del material: hoy decide un PRNG propio
+(`document-import-fuzz.ts`); con esta evidencia, también decide un fuzzer que
+ningún empleado de este proyecto escribió.
+
+**Qué prueba lo verifica:**
+`apps/web/src/lib/cad/verification/json-import-atheris.spec.ts`, 512
+comprobaciones. Reutiliza la MISMA taxonomía de clasificación
+(`classifyCadImportError`, `CAD_IMPORT_OUTCOMES`) que ya usa
+`document-import-fuzz.ts`, importada sin modificar ese archivo.
+
+**Qué mueve:** la fila `json-import` (grupo `pro`, alcance `hoy`) deja de
+retener 1 punto. **+1 pt.**
+
+**Nota para quien aplique esto:** este oráculo NO sustituye ni reduce el
+alcance de `document-import-fuzz.ts` — sigue siendo el fuzzer interno
+determinista que corre en cada `npm test`. Éste es un SEGUNDO fuzzer, externo,
+que corre por su cuenta y decide otro conjunto de entradas.
+
+---
+
+## P-F10-07 · Corrección de dato en `PROMPT_MAESTRO_FABLE.md`
 
 **Qué archivo:** `docs/execution/auditoria-fable/PROMPT_MAESTRO_FABLE.md`,
 tabla de la ficha T-03 (Ola 0), fila «Importación de JSON canónico».

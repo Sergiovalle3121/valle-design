@@ -321,6 +321,64 @@ conviene leerla antes de nada:
   la curva es 2,22×10⁻¹⁵, idéntica en JS y en WASM; el gate declara el doble
   con margen (16 épsilon de máquina).
 
+## atheris 3.0.0 <a id="atheris-3-0-0"></a>
+
+- **Nombre:** atheris
+- **Versión:** 3.0.0 (no la 3.1.0 más reciente: sólo publica ruedas
+  `cp312`+; `cp311` sólo existe en la 3.0.0, y esta máquina es Python 3.11)
+- **Papel:** oráculo **H** contra el criterio `json-import.fuzzing`. Fuzzer
+  guiado por cobertura (usa libFuzzer por debajo) que decide qué documentos
+  hostiles se prueban contra la importación de JSON canónico.
+  **Sustituye a `hypothesis`**, la opción que nombraba
+  `PROMPT_MAESTRO_FABLE.md`: `hypothesis` es MPL-2.0 (verificado el
+  2026-09-06 contra `https://pypi.org/pypi/hypothesis/6.167.1/json`,
+  `license_expression: "MPL-2.0"`) y `CORPUS_POLICY.md` prohíbe MPL «sin
+  excepción y sin discusión». Ver petición de corrección en
+  `docs/execution/frentes/F10-peticiones.md`.
+- **Lenguaje:** Python 3.11 (extensión nativa que envuelve libFuzzer)
+- **Autor / titular:** Google
+- **Licencia:** Apache-2.0
+- **Texto de la licencia:** `licencias/atheris-3.0.0-Apache-2.0.txt`
+- **SHA-256 del texto de la licencia:**
+  `58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd`
+- **Origen:** PyPI — `pip install atheris==3.0.0`
+- **Rueda instalada:**
+  `atheris-3.0.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl`
+- **SHA-256 de la rueda:**
+  `8a5c8a781467c187da40fd29139784193e2647058831f837f675d0bb8cbd8746`
+- **Tamaño de la rueda:** 34 805 555 bytes
+- **Comprobación de procedencia (hecho observado, 2026-09-06):** el sha256 de
+  la rueda descargada **coincide** con el digest que publica el índice en
+  <https://pypi.org/pypi/atheris/3.0.0/json> para ese mismo nombre de
+  fichero, con fecha de publicación `2025-11-24T23:53:53.477756Z` y tamaño
+  34 805 555.
+- **Fecha de instalación:** 2026-09-06
+- **Estado de los términos:** publicados, permisivos y descargados.
+  Apache-2.0 autoriza usar, copiar, modificar y distribuir conservando el
+  aviso de copyright. Los bytes de la herramienta **no** entran a este
+  repositorio.
+- **Uso autorizado:** ejecución local como **generador** de documentos
+  hostiles. Nunca como fuente de código.
+- **Artefactos que produce:**
+  - `atheris-fuzz-worker.py` — el proceso de fuzzing en sí (subproceso
+    aparte: `atheris.Fuzz()` termina el intérprete al agotar `-runs=N`).
+  - `atheris-3.0.0.json` — el censo: 500 textos DISTINTOS que el fuzzer
+    generó (no sólo el corpus final tras la minimización de libFuzzer),
+    cada uno con el veredicto de un CEBO de cobertura (nunca el validador
+    real).
+- **Cómo se regenera:** `python3 docs/cad/corpus/oraculos/censo-atheris.py`
+  (acepta `--destino RUTA`). Determinista: semilla de libFuzzer fija (`1`),
+  mismas semillas iniciales, mismo cebo → mismos 500 textos, comprobado
+  ejecutando la corrida dos veces y comparando byte a byte.
+- **El límite de esta herramienta, escrito antes de usarla:** necesita un
+  CEBO de cobertura (`assert_safe_json_mimic`, fiel a `assertSafeJson` de
+  `document-import.ts` pero escrito por este proyecto) para que su motor de
+  mutación tenga señal; el cebo es deliberadamente pequeño y su cobertura
+  satura en 7 ramas distintas (`cov: 7, ft: 7`) en 20 000 ejecuciones — un
+  techo MEDIDO, no una cifra mayor sin comprobar. El VEREDICTO de seguridad
+  real —qué hace el importador de verdad con cada documento— nunca lo da
+  atheris ni su cebo: lo da `json-import-atheris.spec.ts` contra el producto.
+
 ## dxf-parser 1.1.2 <a id="dxf-parser-1-1-2"></a>
 
 - **Nombre:** dxf-parser

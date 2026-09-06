@@ -58,7 +58,7 @@ export interface Oraculo {
   id: string;
   nombre: string;
   version: string | null;
-  familia: "DXF" | "DWG" | "STEP" | "IFC" | "GEO" | "API" | "EVENTS" | "WASM";
+  familia: "DXF" | "DWG" | "STEP" | "IFC" | "GEO" | "API" | "EVENTS" | "WASM" | "FUZZ";
   /** Contra qué superficie del producto sería testigo. */
   papel: string;
   estado: EstadoDeOraculo;
@@ -253,6 +253,32 @@ export const ORACULOS: Oraculo[] = [
       "apps/web/src/lib/cad/wasm/curve-kernel-mpmath.spec.ts",
     ],
     artefactoCongelado: "docs/cad/corpus/oraculos/mpmath-1.4.1.json",
+    queHariaFalta: null,
+  },
+  {
+    id: "atheris",
+    nombre: "atheris",
+    version: "3.0.0",
+    familia: "FUZZ",
+    papel:
+      "Oráculo H: fuzzer de terceros guiado por cobertura (Google) que decide qué documentos hostiles prueban la importación de JSON canónico. Sustituye a hypothesis (MPL-2.0, inadmisible). Sirve al criterio json-import.fuzzing.",
+    estado: "cableado",
+    licencia: "Apache-2.0",
+    admisible: true,
+    porQueAdmisible:
+      "Apache-2.0 (Google). El texto está descargado y hasheado en docs/cad/corpus/oraculos/licencias/atheris-3.0.0-Apache-2.0.txt.",
+    sonda: {
+      tipo: "python-import",
+      comando: 'python3 -c "import atheris"',
+      objetivo: "atheris",
+    },
+    disponibleAlDeclarar: true,
+    arnes: [
+      "docs/cad/corpus/oraculos/atheris-fuzz-worker.py",
+      "docs/cad/corpus/oraculos/censo-atheris.py",
+      "apps/web/src/lib/cad/verification/json-import-atheris.spec.ts",
+    ],
+    artefactoCongelado: "docs/cad/corpus/oraculos/atheris-3.0.0.json",
     queHariaFalta: null,
   },
   {
