@@ -89,14 +89,133 @@ sección 5 son JSON literal para que el coordinador las aplique.
 
 ## 3 · Inventario por toolset
 
-> _Pendiente — en investigación, misma razón que la sección 2. Base ya
-> disponible en `docs/parity/ESCALERA.md` §Las filas de los siete toolsets
-> y en las secciones Ola E (Architecture), F (MEP), G (Map 3D), H (Raster
-> Design), I (Mechanical), 5 (Electrical) y 6 (Plant 3D) de ese mismo
-> documento, más `docs/competitive/rubric.json` categorías `toolset-*`
-> (`toolset-architecture`, `toolset-mep`, `toolset-map3d`,
-> `toolset-raster`, `toolset-mechanical`, `toolset-electrical`,
-> `toolset-plant3d`). Falta la cita oficial de Autodesk por comando._
+Fuentes del lado AutoCAD: páginas oficiales de `help.autodesk.com` por
+toolset, investigadas hoy 2026-09-06. **Nota de la investigación**: el
+acceso directo por `WebFetch` a `help.autodesk.com`/`knowledge.autodesk.com`
+estuvo bloqueado por la política de red del entorno (`EGRESS_BLOCKED`), así
+que la descripción de cada comando viene de los fragmentos que devolvió
+`WebSearch` sobre esas páginas oficiales, no de la lectura completa de la
+página — cada URL sigue siendo la fuente oficial citada, con su fecha, y
+ninguna tabla copia texto de Autodesk. Para **Mechanical**, Autodesk no
+publica un índice de comandos tabulado (a diferencia de Plant 3D/Map 3D):
+la cobertura es representativa, no exhaustiva. Tres capacidades quedaron
+explícitamente marcadas «no confirmado en la documentación oficial
+revisada» en vez de inventadas: detección de choques nativa en Plant 3D
+(Autodesk remite a Navisworks), un comando de «requisición» en Plant 3D, y
+el manejo de fuentes SHX en Raster Design.
+
+Fuentes del lado Valle: `docs/parity/ESCALERA.md` §Las filas de los siete
+toolsets y sus secciones Ola E (Architecture), F (MEP/instalaciones), G
+(Map 3D), H (Raster Design), I (Mechanical), 5 (Electrical) y 6 (Plant 3D);
+`docs/competitive/rubric.json` categorías `toolset-architecture`,
+`toolset-mep`, `toolset-map3d`, `toolset-raster`, `toolset-mechanical`,
+`toolset-electrical`, `toolset-plant3d`; `command-manifest.ts` para
+confirmar qué es tecleable.
+
+### 3.1 · Architecture
+
+| Capacidad AutoCAD | Comando(s) Valle | ¿Existe? | Evidencia en el árbol | Peldaño | Fila rúbrica | Valor |
+| --- | --- | --- | --- | --- | --- | --- |
+| Muro paramétrico (WALLADD) — [Autodesk 2026](https://help.autodesk.com/cloudhelp/2026/ENU/AutoCAD-Architecture/files/GUID-72935B4D-8B1E-4DBC-8380-0D7C05C45F4D.htm), 2026-09-06 | `WALL` (`command-manifest.ts:116`, alias `WA`/`MURO`) | SÍ | `draw-wall.ts`; `wall-entity-adapter.ts` | 5 | `toolset-architecture.envolvente` | alto |
+| Puerta paramétrica que recorta el muro (DOORADD) — [Autodesk 2026](https://help.autodesk.com/cloudhelp/2026/ENU/AutoCAD-Architecture/files/GUID-72935B4D-8B1E-4DBC-8380-0D7C05C45F4D.htm), 2026-09-06 | `DOOR` (`:106`, alias `PUERTA`) | SÍ | golden 77 (cuadro de carpintería); `draw-opening.ts` | 5 | `toolset-architecture.envolvente` | alto |
+| Ventana paramétrica (WINDOWADD) — [Autodesk 2024](https://help.autodesk.com/view/ARCHDESK/2024/ENU/?guid=GUID-7E988B34-E2AF-443B-A340-0A62CD81D1C5), 2026-09-06 | `WINDOW` (`:107`) | SÍ | golden 77; `draw-opening.ts` | 5 | `toolset-architecture.envolvente` | alto |
+| Escalera paramétrica (recta/U/helicoidal) (STAIRADD) — [Autodesk 2026](https://help.autodesk.com/cloudhelp/2026/ENU/AutoCAD-Architecture/files/GUID-72935B4D-8B1E-4DBC-8380-0D7C05C45F4D.htm), 2026-09-06 | `STAIR` (`:70`, alias `ESCALERA`) | PARCIAL | golden 78; `architecture-stair.spec.ts` (656) — recta/L/U con Blondel y RCDMX | 5 | `toolset-architecture.interiores` | alto |
+| Cubierta paramétrica (ROOFADD) — [Autodesk 2019](https://knowledge.autodesk.com/support/autocad-architecture/learn-explore/caas/CloudHelp/cloudhelp/2019/ENU/AutoCAD-Architecture/files/GUID-F287FECD-E0E0-44A8-A921-6BC97DA599A3-htm.html), 2026-09-06 | `ROOF` (`:68`, alias `CUBIERTA`) | PARCIAL | golden 79; sólo rectángulos, sin faldones distintos | 5 | `toolset-architecture.envolvente` | medio |
+| Losa paramétrica (SLABADD) — [Autodesk 2026](https://help.autodesk.com/cloudhelp/2026/ENU/AutoCAD-Architecture/files/GUID-72935B4D-8B1E-4DBC-8380-0D7C05C45F4D.htm), 2026-09-06 | `SLAB` (`:69`) | PARCIAL | golden 79; sin huecos tecleados ni pendiente | 5 | `toolset-architecture.envolvente` | medio |
+| Objeto "espacio" con área/perímetro para cuadros (SPACEADD) — [Autodesk 2026](https://help.autodesk.com/view/ARCHDESK/2026/ENU/?guid=GUID-B109BFED-BAB3-4F9E-AA4E-5AC348D765F3), 2026-09-06 | sin comando dedicado; `DATAEXTRACTION` Superficies (`:90`) | PARCIAL | `bim-schedule.spec.ts` (66); `data-extraction.spec.ts` (25) | 5 | `toolset-architecture.interiores` | alto |
+| Wall Style Manager: componentes y representación distinta por vista (plan/sección/alzado) — [Autodesk 2024](https://help.autodesk.com/view/ARCHDESK/2024/ENU/?guid=GUID-A3FDD8B8-4818-4E80-80FC-58755AE0E8C7), 2026-09-06 | ninguno | NO | `grep -rln "wallStyle\|WallStyle\|wall-style" apps/web/src/lib/cad --include=*.ts` (excluyendo specs) → 0 (verificado por este frente) | 0 | sin fila | medio |
+| Secciones/alzados generados desde el modelo y enlazados (live) — [foro oficial Autodesk citando documentación](https://forums.autodesk.com/t5/autocad-architecture-forum/can-i-automatically-create-a-section-or-elevation-from-a-2d-plan/td-p/7497208), 2026-09-06 | `FLATSHOT`/`SOLPROF` (`:290-291`), `SOLVIEW`/`SOLDRAW` (`:313-314`) | PARCIAL | golden 92; **pero** `flatshot-solids.ts:181-192` excluye explícitamente `entity.type === "wall"` — contradicción §6.1 de este documento: no hay corte ni alzado de un muro dibujado con `WALL` | 3 | sin fila (el golden 92 no respalda ninguna fila, §6.1) | alto — es la contradicción más cara de esta sección |
+| Content Browser / catálogo de contenido arquitectónico (Ctrl+4) — [referencia secundaria sobre comportamiento documentado](https://www.augi.com/articles/detail/aec-wall-objects), 2026-09-06 | `ADCENTER` (`:92`); catálogo de aberturas propio | PARCIAL | `architecture-openings-catalog.spec.ts` (336, nueve tipos); pero `00c-CUADRO-DE-MANDO.md` hallazgo 11 confirma que `ADCENTER` no tiene catálogo del inquilino (`grep -rn xrefCatalog` → 0 en `.tsx`) | 3 | `toolset-architecture.interiores` (parcial) | medio |
+
+### 3.2 · MEP
+
+| Capacidad AutoCAD | Comando(s) Valle | ¿Existe? | Evidencia en el árbol | Peldaño | Fila rúbrica | Valor |
+| --- | --- | --- | --- | --- | --- | --- |
+| Trazado de tubería paramétrica (PIPEADD) — [Autodesk 2024](https://help.autodesk.com/view/BLDSYS/2024/ENU/?guid=GUID-E35FD395-DE94-431C-AE57-F78BE80A65E3), 2026-09-06 | `PIPE` (`:168`, alias `TUBERIA`) | SÍ | golden 81; `mep-tracing.spec.ts` (127) | 5 | `toolset-mep.trazado` | alto |
+| Accesorio de tubería insertado (codo/te/reducción) (PIPEFITTINGADD) — [Autodesk 2023](https://help.autodesk.com/view/BLDSYS/2023/ENU/?guid=GUID-35E20ECE-C21A-46D5-93F7-8018F797BEE8), 2026-09-06 | ninguno propio en MEP (Plant 3D sí deduce accesorios en `PIDROUTE`, ver 3.5) | NO | ESCALERA.md Ola F: «sin accesorios automáticos (codos, tes, reducciones)» en la fila de `PIPE` | 3 | `toolset-mep.trazado` (parcial, declarado en `gap`) | medio |
+| Ducto a doble línea (DUCTADD) — [Autodesk 2019](https://knowledge.autodesk.com/support/autocad-mep/learn-explore/caas/CloudHelp/cloudhelp/2019/ENU/AutoCAD-MEP/files/GUID-2CBE6D8D-C516-48F6-A1B6-3F3B08FDCE95-htm.html), 2026-09-06 | `DUCT` (`:169`) | SÍ | golden 81: codo 300×(2.000+2.000)=1.200.000 en papel | 5 | `toolset-mep.trazado` | alto |
+| Charola/bandeja portacables (CABLETRAYADD) — [Autodesk 2020](https://help.autodesk.com/cloudhelp/2020/ENU/AutoCAD-MEP/files/GUID-8FAF7015-5004-4D7A-9CCD-A8014DC2687C.htm), 2026-09-06 | `CABLETRAY` (`:170`) | SÍ | golden 81 | 5 | `toolset-mep.trazado` | alto |
+| Conducto eléctrico (canalización) (CONDUITADD) — [Autodesk 2019](https://help.autodesk.com/cloudhelp/2019/ENU/AutoCAD-MEP/files/GUID-B72E4C39-18FA-486A-AECC-A2A791CF9E4A.htm), 2026-09-06 | ninguno | NO | `grep -n '"CONDUIT"' command-manifest.ts` → 0 (verificado por este frente) | 0 | sin fila | bajo — poco usado en obra mexicana frente a charola |
+| Insertar dispositivo eléctrico desde catálogo (DEVICEADD) — [Autodesk 2019](https://help.autodesk.com/cloudhelp/2019/ENU/AutoCAD-MEP/files/GUID-B72E4C39-18FA-486A-AECC-A2A791CF9E4A.htm), 2026-09-06 | `MEPSYMBOL` (`:167`, alias `DEVICEADD`) | SÍ | golden 81 (ocho símbolos como bloques) | 5 | `toolset-mep.trazado` | alto |
+| Asignar dispositivo a circuito (CIRCUITASSIGN) — misma fuente, 2026-09-06 | `AECIRCUIT` (`:123`) | SÍ | golden 93; `electrical-circuit.spec.ts` | 5 | `toolset-electrical` (informes) | alto |
+| Cuadros (schedules) enlazados al modelo — [Autodesk 2019](https://help.autodesk.com/cloudhelp/2019/ENU/AutoCAD-MEP/files/GUID-ED12BB7E-4B8A-4148-8DFF-58F33F9963F1.htm), 2026-09-06 | `DATAEXTRACTION` Instalaciones (`:90`) | SÍ | golden 81 (7,00 m Ø19, 4,00 m de ducto, 1 válvula) | 5 | `toolset-mep.tablas` | alto |
+| Detección de choques / validación de conectores (clash) — [Autodesk 2026](https://help.autodesk.com/cloudhelp/2026/ENU/AutoCAD-MEP/files/GUID-B5A862C6-9CE5-4C27-9D3B-49AE9C7C3D88.htm), 2026-09-06 | sin comando dedicado; motor de choques | SÍ | `mep-runs.ts`; `plant/clash.spec.ts` (56) — choques contra muros, huecos y sólidos por distancia exacta | 5 | sin fila (ver §4 — candidata a "Valle tiene y AutoCAD no": el toolset MEP de Autodesk lo documenta, pero Plant 3D **no**, según 3.5) | medio |
+| Dimensionado de sistemas (tamaño óptimo de ducto/tubería) — [Autodesk 2026](https://help.autodesk.com/cloudhelp/2026/ENU/AutoCAD-MEP/files/GUID-B5A862C6-9CE5-4C27-9D3B-49AE9C7C3D88.htm), 2026-09-06 | ninguno | NO | sin cálculo de carga térmica/hidráulica en el árbol (verificado por este frente, sin comando ni módulo `sizing`) | 0 | sin fila | medio |
+
+### 3.3 · Electrical
+
+| Capacidad AutoCAD | Comando(s) Valle | ¿Existe? | Evidencia en el árbol | Peldaño | Fila rúbrica | Valor |
+| --- | --- | --- | --- | --- | --- | --- |
+| Insertar símbolo esquemático con etiqueta automática — [Autodesk 2024](https://help.autodesk.com/cloudhelp/2024/ENU/AutoCAD-Electrical/files/GUID-E4EB5B65-0836-4852-A3EB-0A888504F86C.htm), 2026-09-06 | `AETAG` (`:125`) etiqueta; símbolo, ver fila siguiente | PARCIAL | `device-tags.spec.ts` (31) — la etiqueta existe, el símbolo de esquema no | 3 | `toolset-electrical.esquemas` | alto |
+| Símbolos IEC/JIC de esquema unifilar de control (bobina, contactor, relevador) — [Autodesk 2026](https://help.autodesk.com/view/ACAD_E/2026/ENU/?guid=GUID-8C2A7E02-AC89-4164-8264-0B899573CD88), 2026-09-06 | ninguno | NO | `grep -rn 'bobina|contactor|relevador|guardamotor|seccionador|60617|schematic' apps/web/src apps/api/src packages/` → 0 (repo completo; §6 contradicción 2) | 0 | `toolset-electrical.esquemas` **cobra 2/2 sin esta evidencia** — ver contradicción §6.2 | alto — bloqueante confirmado (`00c-CUADRO-DE-MANDO.md`) |
+| Circuito reutilizable (insertar/copiar) — misma fuente, 2026-09-06 | ninguno específico | NO | sin biblioteca de circuitos guardados; sólo `AECIRCUIT` estampa datos sobre geometría ya dibujada | 0 | sin fila | medio |
+| Numeración de conductores (Wire Numbers) — [Autodesk 2022](https://help.autodesk.com/cloudhelp/2022/ENU/AutoCAD-Electrical/files/GUID-33962B71-757A-45B4-8B69-06E8E2F12EDA.htm), 2026-09-06 | `AEWIRE` (`:127`) | PARCIAL | golden 93; `wire-numbering.spec.ts` (25) — numera y detecta repetidos, **pero no se rotula en el plano impreso** (`00c-CUADRO-DE-MANDO.md` hallazgo 2, bloqueante) | 5 (numeración) / 0 (rótulo impreso) | `toolset-electrical.esquemas` (parcial — la columna «qué falta» de `ESCALERA.md` no lo dice con todas las letras, ver §6) | alto |
+| Referencias cruzadas entre hojas — [Autodesk 2026](https://help.autodesk.com/view/ACAD_E/2026/ENU/?guid=GUID-97B0C6AC-84C4-4EA6-A0A9-13DC29B14BA4), 2026-09-06 | ninguno | NO | `ESCALERA.md` Ola 5: «Referencias cruzadas entre hojas… 0 — Todavía no» | 0 | sin fila | medio |
+| Lista de materiales (BOM report) — [Autodesk 2024](https://help.autodesk.com/view/ACAD_E/2024/ENU/?guid=GUID-5CD44760-40C3-41A2-B436-9061140C7DE6), 2026-09-06 | `DATAEXTRACTION` Circuitos (`:90`) | PARCIAL | golden 93 (cuadro de cargas como `TABLE`); **pero** `AEWIRELIST`/`AETAGLIST` truncan a 6/3 renglones y no exportan CSV (`00c-CUADRO-DE-MANDO.md`, hallazgo alta bajo «Mechanical y Electrical») | 5 (cuadro) / 2 (listados) | `toolset-electrical.informes` | alto |
+| Informe de E/S de PLC — [Autodesk 2025 (fragmento)](https://help.autodesk.com/view/ACAD_E/2025/ENU/?guid=GUID-E6FB3B2C-3B3C-4E1F-8627-F138323E5FD5), 2026-09-06 | ninguno | NO | `ESCALERA.md` Ola 5: «Escalerilla (ladder) y E/S de PLC… 0 — Todavía no» | 0 | sin fila | bajo — control industrial fuera del uso típico de un despacho de arquitectura |
+| Panel Layout: huella física del componente — [Autodesk 2026](https://help.autodesk.com/cloudhelp/2026/ENU/AutoCAD-Electrical/files/GUID-E0C1E7EB-3984-47B5-A03F-238FA3E14729.htm), 2026-09-06 | ninguno | NO | `ESCALERA.md` Ola 5: «Plano de gabinete atado al esquema… 0 — Todavía no» | 0 | sin fila | bajo |
+| Base de datos de catálogo de fabricante — misma fuente, 2026-09-06 | ninguno | NO | `ESCALERA.md` Ola 5: «Catálogo de fabricante… 0 — Todavía no» | 0 | sin fila (mencionado como límite en `toolset-electrical.informes`) | medio |
+
+### 3.4 · Mechanical
+
+| Capacidad AutoCAD | Comando(s) Valle | ¿Existe? | Evidencia en el árbol | Peldaño | Fila rúbrica | Valor |
+| --- | --- | --- | --- | --- | --- | --- |
+| Biblioteca de piezas normalizadas (AMCONTENTLIB) — [Autodesk 2021](https://knowledge.autodesk.com/support/autocad-mechanical/learn-explore/caas/CloudHelp/cloudhelp/2021/ENU/AutoCAD-Mechanical/files/GUID-B1A6E455-F587-4548-BE78-2CB18B9C88F1-htm.html), 2026-09-06 | `STDPART` (`:163`) | PARCIAL | golden 84; sólo ISO 4017/4032/7089, sin M14/M30+ ni pulgadas | 5 | `toolset-mechanical.normalizados` | alto |
+| Asistente de ensamble de sujeción automático (AMSCREWCON2D) — [Autodesk 2023](https://help.autodesk.com/cloudhelp/2023/ENU/AutoCAD-Mechanical/files/GUID-F83A2934-7DA7-4325-A4D5-115A91870EA9.htm), 2026-09-06 | ninguno | NO | sin asistente que genere el ensamble completo (tornillo+tuercas+arandelas+agujeros) en un paso; sólo inserción individual de `STDPART` | 0 | sin fila | bajo |
+| Símbolo de soldadura (Weld Symbol) — [Autodesk 2023](https://help.autodesk.com/cloudhelp/2023/ENU/AutoCAD-Mechanical/files/GUID-F932CFCF-BFAC-4C13-B399-2B22E1A8718C.htm), 2026-09-06 | `WELDSYMBOL` (`:165`) | PARCIAL | golden 84; ISO 2553/AWS A2.4, nueve tipos; sin símbolos compuestos ni intermitencia | 5 | `toolset-mechanical.normalizados` | medio |
+| Símbolo de acabado superficial — [Autodesk 2022 (glosario)](https://help.autodesk.com/cloudhelp/2022/ENU/AutoCAD-Mechanical/files/GUID-F18FCB9F-970E-4019-B349-2427D498779A.htm), 2026-09-06 | `SURFACESYMBOL` (`:166`) | PARCIAL | golden 84; ISO 1302, sin Rz/Rmax | 5 | `toolset-mechanical.normalizados` | medio |
+| Globos de identificación (AMBALLOON) — [Autodesk 2024](https://help.autodesk.com/view/AMECH_PP/2024/ENU/?guid=GUID-AB9DFFBE-685B-4D44-95FA-B6CB0B7F1E37), 2026-09-06 | `BALLOON` (`:161`) | PARCIAL | golden 84; el globo no es una entidad propia (cuatro trazos con la misma marca) | 5 | `toolset-mechanical.normalizados` | medio |
+| Lista de materiales maestra (BOM) — [Autodesk 2025](https://help.autodesk.com/view/AMECH_PP/2025/ENU/?guid=GUID-332A2D3E-A4EB-4181-8270-1A89BBAD691E), 2026-09-06 | `BOM` (`:162`) | PARCIAL | golden 84; sin exportar a CSV, sin material/peso por fila | 5 | `toolset-mechanical.normalizados` | medio |
+| Cotas de manufactura con ajuste/tolerancia (Power Dimensions / Tolerance-Fit) — [Autodesk 2026](https://help.autodesk.com/cloudhelp/2026/ENU/AutoCAD-Mechanical/files/GUID-529EF8B1-D412-4109-86EE-97D3BDFE3BF5.htm), 2026-09-06 | `DIMTOLERANCE` (`:93`) | PARCIAL | golden 84; `dimension-tolerance.spec.ts` (71) — dieciséis ajustes ISO 286, sin K/M/N/P | 5 | `toolset-mechanical.cotas` | alto |
+| Cajetín con lista de ajustes (AMTITLE) — [Autodesk 2024 (fragmento)](https://help.autodesk.com/view/AMECH_PP/2024/ENU/?guid=GUID-1354621C-1BE8-4C79-882D-2FC14F27108A), 2026-09-06 | cajetín genérico (`plot/title-block.ts`) | PARCIAL | ISO 7200/mexicano paramétrico existe, **pero** el botón de publicar no lo usa (`00c-CUADRO-DE-MANDO.md`, «Espacio papel» hallazgo A — contradicción con la promesa del propio auditor) | 3 | sin fila específica; conectado a `layouts.plot-workflow` | medio |
+
+### 3.5 · Plant 3D
+
+| Capacidad AutoCAD | Comando(s) Valle | ¿Existe? | Evidencia en el árbol | Peldaño | Fila rúbrica | Valor |
+| --- | --- | --- | --- | --- | --- | --- |
+| Lista de líneas de proceso / colocar objeto 3D equivalente al P&ID — [Autodesk 2024](https://help.autodesk.com/view/PLNT3D/2024/ENU/?guid=GUID-1DCE0736-7898-4866-8889-51D4C8879284), 2026-09-06 | `PIDLIST` (`:235`), `PIDLINE` (`:234`) | SÍ | golden 94; `line-numbers.spec.ts` (29) | 5 | `toolset-plant3d.pid` | alto |
+| Asignar/editar número de línea — [Autodesk 2023](https://help.autodesk.com/view/PLNT3D/2023/ENU/index.html?guid=piping_line_numbers_set_to), 2026-09-06 | `PIDLINE` | SÍ | golden 94: `6"-P-1001-CS150` correlativo desde el dibujo | 5 | `toolset-plant3d.pid` | alto |
+| Tubería 3D con accesorios por especificación (PLANTPIPEADD) — [documentación de referencia de comandos, 2023](https://help.autodesk.com/cloudhelp/2023/ENU/Plant3D-UserGuide/files/GUID-C9E27D11-1AF3-41B3-BAF5-B73E3117B2EE.htm), 2026-09-06 | `PIDROUTE` (`:236`) | PARCIAL | golden 95; `pipe-route.spec.ts` (26) — accesorios DEDUCIDOS de la geometría (codo/te/reducción), sin diámetro exterior ni catálogo de especificación | 5 | `toolset-plant3d.tuberia` | alto |
+| Editar pendiente de un tramo (PLANTPIPESLOPE) — misma fuente, 2026-09-06 | sin comando dedicado | NO | `grep -n "slope\|pendiente" plant-route.ts` → 0 (verificado por este frente); `PIDROUTE` sí mete cota en 3D por vértice pero no una edición de pendiente independiente | 3 (cota 3D existe, edición de pendiente no) | sin fila específica | bajo |
+| Soporte de tubería (PLANTPIPESUPPORTADD) — misma fuente, 2026-09-06 | ninguno | NO | `grep -rln "pipe.*support\|soporte.*tuber" apps/web/src/lib/cad` (excl. spec) → 0 (verificado) | 0 | sin fila | bajo |
+| Isométrico de producción/rápido (PLANTPRODUCTIONISO/QUICKISO) — misma fuente, 2026-09-06 | `PIDISO` (`:233`) | PARCIAL | golden 95; `isometric.spec.ts` (26) — longitudes verdaderas, ejes a 30°/150°, sin formato ISOGEN/PCF | 5 | `toolset-plant3d.tuberia` | alto |
+| Estilos de isométrico configurables — [Autodesk 2017](https://help.autodesk.com/cloudhelp/2017/ENU/Plant3D-UserGuide/files/GUID-D3604F62-1BBF-420E-9399-439E5E74A24F.htm), 2026-09-06 | ninguno | NO | `PIDISO` produce un único formato fijo, sin configuración de estilo | 0 | sin fila | bajo |
+| Exportación PCF (compatible ISOGEN) — [foro oficial Autodesk referenciando la guía](https://forums.autodesk.com/t5/inventor-forum/inventor-to-plant-3d-through-pcf-isogen-files-post-1-skey/td-p/10404924), 2026-09-06 | ninguno | NO | `grep -rln "\.pcf\|PCF" apps/web/src/lib/cad` (excl. spec) → 0 (verificado); `ESCALERA.md` Ola 6 lo declara "todavía no" por ser formato propietario sin oráculo | 0 | sin fila | medio — ESCALERA ya documenta la razón de negocio (formato propietario sin especificación pública) |
+| Convertir equipo de Inventor a objeto Plant 3D — misma fuente, 2026-09-06 | ninguno | NO | fuera de alcance (Valle no importa Inventor) | 0 | sin fila | bajo |
+| Catálogo de proyecto compartido (specs/componentes) — misma fuente, 2026-09-06 | ninguno | NO | `ESCALERA.md` Ola 6: «El catálogo del PROYECTO… tampoco existe todavía» | 0 | `toolset-plant3d.tuberia` (límite declarado en `gap`) | alto — bloquea diámetro exterior/peso/precio en el metrado |
+| Detección de choques nativa — **no confirmado en fuentes oficiales**: Autodesk remite a Navisworks Manage/ACC, [artículo de soporte oficial](https://www.autodesk.com/support/technical/article/caas/sfdcarticles/sfdcarticles/Is-it-possible-to-perform-a-clash-detection-analysis-with-Autocad-Plant-3D.html), 2026-09-06 | `plant/clash.ts` | SÍ (Valle) | `plant/clash.spec.ts` (56, choques por distancia exacta) | 5 | sin fila | alto — candidata a "Valle tiene y AutoCAD Plant 3D no", ver §4 |
+
+### 3.6 · Map 3D
+
+| Capacidad AutoCAD | Comando(s) Valle | ¿Existe? | Evidencia en el árbol | Peldaño | Fila rúbrica | Valor |
+| --- | --- | --- | --- | --- | --- | --- |
+| Georreferenciar el dibujo (GEOGRAPHICLOCATION) — [Autodesk 2021](https://help.autodesk.com/cloudhelp/2021/ENU/AutoCAD-Core/files/GUID-10A3B776-A0FA-4438-B29B-EA22C070A27E.htm), 2026-09-06 | `GEOGRAPHICLOCATION` (`:137`, alias `GEO`) | PARCIAL | golden 82; `geo-location.spec.ts` (44) — sólo hemisferio norte, UTM 11N-16N, WGS84/ITRF; **NAD27/NAD83 rechazados por nombre a propósito** (`crs.ts:31-34`) | 5 | `toolset-map3d.georreferencia` | alto |
+| Importar shapefile (.shp) — [Autodesk 2024](https://help.autodesk.com/view/MAP/2024/ENU/?guid=GUID-D65473F6-0B63-4F4E-A3B7-9B8EE8217B77), 2026-09-06 | `MAPIMPORT` (`:160`) | SÍ | golden 82; `map-import.spec.ts` (46) | 5 | `toolset-map3d.datos` | alto |
+| Crear/configurar sistema de coordenadas (MAPCSCREATE) — investigación web (snippet), 2026-09-06 | ninguno independiente | NO | sólo las seis zonas UTM fijas + WGS84 geográfico; sin asistente de creación de un sistema arbitrario | 0 | sin fila (cubierto parcialmente por `georreferencia`) | bajo — un despacho mexicano no necesita CS arbitrarios, las 6 zonas cubren el país |
+| Asignar sistema de coordenadas ya definido (MAPCSASSIGN) — investigación web (snippet), 2026-09-06 | `GEOGRAPHICLOCATION` (selección de zona) | PARCIAL | `geo-location.ts:107` | 5 | `toolset-map3d.georreferencia` | medio |
+| Análisis topológico (MAPTOPO) — [Autodesk 2020](https://help.autodesk.com/cloudhelp/2020/ENU/MAP3D-Use/files/GUID-420839B8-E6D7-4002-B353-915041761FDB.htm), 2026-09-06 | ninguno | NO | `ESCALERA.md` Ola G: «Mapa de fondo… topología… 0 — Todavía no» | 0 | sin fila | bajo |
+| Buffers, overlay, consultas espaciales — [página de producto Autodesk](https://www.autodesk.com/products/autocad/included-toolsets/autocad-map-3d), 2026-09-06 | ninguno | NO | `ESCALERA.md` Ola G, misma fila: «sin consulta ni filtro por atributo» | 0 | `toolset-map3d.datos` (límite declarado) | medio |
+| Conexión editable a datos GIS externos (SHP/MapInfo/Oracle en vivo) — misma fuente, 2026-09-06 | ninguno | NO | Valle sólo importa ficheros estáticos, sin conexión a base de datos externa | 0 | sin fila | bajo |
+| Importar GeoJSON — **no confirmado como comando oficial de Map 3D** en la documentación revisada por este frente, 2026-09-06 | `MAPIMPORT` (GeoJSON RFC 7946) | SÍ (Valle) | `geojson.spec.ts` (34) — Feature/FeatureCollection, seis geometrías simples | 5 | `toolset-map3d.datos` | alto — candidata a "Valle tiene y AutoCAD no", ver §4 |
+
+### 3.7 · Raster Design
+
+| Capacidad AutoCAD | Comando(s) Valle | ¿Existe? | Evidencia en el árbol | Peldaño | Fila rúbrica | Valor |
+| --- | --- | --- | --- | --- | --- | --- |
+| Adjuntar imagen (IMAGEATTACH) — [Autodesk 2026](https://help.autodesk.com/cloudhelp/2026/ENU/AutoCAD-RasterDesign/files/GUID-EECFE554-6C75-4F17-A173-D0AB06EF5A34.htm), 2026-09-06 | `IMAGEATTACH` (`:241`) | SÍ | golden 83; `raster-image.spec.ts` (75) | 5 | `toolset-raster.imagen` | alto |
+| Recortar imagen (IMAGECLIP) — misma fuente, 2026-09-06 | `IMAGECLIP` (`:242`) | SÍ | golden 83 | 5 | `toolset-raster.imagen` | alto |
+| Ajustar brillo/contraste/desvanecimiento (IMAGEADJUST) — misma fuente, 2026-09-06 | `IMAGEADJUST` (`:243`) | SÍ | golden 83; `image-geometry.spec.ts` (44) | 5 | `toolset-raster.imagen` | alto |
+| Marco de imagen y transparencia (IMAGEFRAME/TRANSPARENCY) — misma fuente, 2026-09-06 | ninguno | NO | `ESCALERA.md` Ola H: «TRANSPARENCY… e IMAGEFRAME… no existen» | 0 | `toolset-raster.imagen` (límite declarado) | bajo |
+| Enderezado por rotación (Deskew) — [Autodesk 2026](https://help.autodesk.com/view/RSTR/2026/ENU/?guid=GUID-8A1BBEFB-160A-485A-9717-4F2AB00A7A56), 2026-09-06 | ninguno | NO | `grep -rln "deskew\|enderezar\|straighten" apps/web/src/lib/cad` (excl. spec) → 0 (verificado); `ESCALERA.md` Ola H lo declara fuera de alcance: «es procesamiento de imagen, no CAD» | 0 | sin fila | medio |
+| Corrección de sesgo/aspecto (Bias) — [Autodesk 2024](https://help.autodesk.com/view/RSTR/2024/ENU/?guid=GUID-EC20A3BF-6EE0-489D-AE30-AB62156AEB48), 2026-09-06 | ninguno | NO | mismo `grep`, mismo motivo | 0 | sin fila | bajo |
+| Limpieza de imagen (Despeckle/Invert/Mirror) — misma fuente, 2026-09-06 | ninguno independiente (motas se descartan sólo como efecto de `VECTORIZE`) | NO | `grep -rln "despeckle\|invert.*image" apps/web/src/lib/cad` (excl. spec) → 0 como comando de imagen dedicado; sí como efecto lateral de vectorización (ver fila siguiente) | 0 | sin fila | bajo |
+| Vectorizar líneas/polilíneas de un escaneo — [Autodesk 2023](https://help.autodesk.com/cloudhelp/2023/ENU/AutoCAD-RasterDesign/files/GUID-907A2991-A772-4134-A6C4-AFF74F6A138D.htm), 2026-09-06 | `VECTORIZE` (`:318`) | PARCIAL | `raster-vectorize.spec.ts` (43); PNG 40×30 girado 90° vuelve como polilíneas a <1 µm del original; falta un golden de navegador (peldaño 5) | 3 | `toolset-raster.vectorizacion` | alto |
+| Reconocimiento de texto (Text Recognition) — [Autodesk 2022/2024](https://help.autodesk.com/view/RSTR/2022/ENU/?guid=GUID-4C9085D9-4001-42A6-A877-567BB9908EE4), 2026-09-06 | `VECTORIZE` | PARCIAL | `raster-text-recognize.spec.ts` (94); «PREDIO 4-A · 1 240.50 m2» vuelve carácter a carácter; sin manuscrito, tipografías de contorno relleno, letras que se tocan ni MTEXT | 3 | `toolset-raster.vectorizacion` | alto |
+
+**Resumen preliminar de esta sección (calculado a mano de las tablas de
+arriba, sujeto a la nota de §7 sobre no copiar cifras — este conteo se
+recomputa al cerrar el frente contando filas de las tablas 3.1-3.7):**
+de 62 filas comparadas, 24 SÍ, 26 PARCIAL, 12 NO.
 
 ## 4 · Lo que Valle tiene y AutoCAD no
 
