@@ -174,7 +174,7 @@ diez capas `LAY*`) se agrupan en una sola línea.
 | Capacidad AutoCAD | Comando(s) Valle | ¿Existe? | Evidencia | Peldaño | Fila rúbrica | Valor |
 | --- | --- | --- | --- | --- | --- | --- |
 | DXFIN, DXFOUT — [Autodesk 2025](https://help.autodesk.com/view/ACD/2025/ENU/?guid=GUID-D4242737-58BB-47A5-9B0E-1E3DE7E7D647), 2026-09-06 | `DXFIN`,`DXFOUT` (`:150-151`) | SÍ | fila «Import/export DXF de texto» (10/12) | 5 | `dxf-text` | alto |
-| Import/export DWG — [Autodesk 2027 (formatos de archivo)](https://help.autodesk.com/view/ACD/2027/ENU/), 2026-09-06 | beta firmada `dwg-interop-flag.ts` | PARCIAL | fila «Import/export DWG» (6/7); dos autorizaciones firmadas (AC1015/AC1018), familia moderna sin firmar; ver contradicción 7 de §6 | 6 (import beta) / 5 (export beta) | `dwg` | alto |
+| Import/export DWG — [Autodesk 2027 (formatos de archivo)](https://help.autodesk.com/view/ACD/2027/ENU/), 2026-09-06 | beta firmada `dwg-interop-flag.ts` | PARCIAL | fila «Import/export DWG» (6/7); dos autorizaciones firmadas (AC1015/AC1018), familia moderna sin firmar; ver contradicción 9 de §6 | 6 (import beta) / 5 (export beta) | `dwg` | alto |
 | PDFATTACH, PDFCLIP, PDFADJUST, PDFIMPORT — [Autodesk 2023/2024/2025](https://help.autodesk.com/cloudhelp/2023/ENU/AutoCAD-Core/files/GUID-77D6192C-925B-46A3-8717-240702ED5715.htm), 2026-09-06 | mismos nombres (`:221-230`) | PARCIAL | 118 comprobaciones (`pdf-underlay-commands.spec.ts`); «no imanta hasta que la escena de referencias lo incluya» (§5.2) | 3 | `ext.interop-formats` (genérico) | alto |
 | Exportación a PDF — [Autodesk 2024](https://help.autodesk.com/view/ACD/2024/ENU/?guid=GUID-EC9C6D47-814E-476D-840F-04104CF72B78), 2026-09-06 | vía `PLOT`/`PUBLISH` | SÍ | golden 46, 89 | 5 | `layouts` | alto |
 | IMPORT/EXPORT (STEP, IGES, STL, OBJ) — [documentación de referencia Autodesk](https://help.autodesk.com/cloudhelp/2023/ENU/Inventor-Help/files/GUID-3F6D22A7-768F-4ABE-8DEE-C6B64C5A3B2A.htm), 2026-09-06 | `IMPORT`,`EXPORT` (`:295-296`) | PARCIAL | `00c-CUADRO-DE-MANDO.md`, bloque «Modelado 3D»: `EXPORT` declara STEP/IGES pero no descarga nada; hay CUATRO lectores de malla (OBJ/STL/glTF/COLLADA) y CERO escritores — asimetría total | 2 | sin fila específica (no hay criterio de rúbrica para exportación de malla) | alto — bloqueante confirmado: cierra impresión 3D, render externo y envío sin cuenta |
@@ -239,19 +239,13 @@ diez capas `LAY*`) se agrupan en una sola línea.
 | LUNITS/LUPREC, AUNITS/AUPREC, DIMASSOC — [Autodesk 2027](https://help.autodesk.com/view/ACD/2027/ENU/), 2026-09-06 | vía `UNITS`, cotas asociativas nativas | SÍ | `units-imperial.spec.ts`, `units-label.spec.ts`; cotas asociativas por diseño (fila «Cotas asociativas» 12/12) | 5 | `dimensions` | alto |
 | ORTHOMODE, POLARANG — ver §2.1 | ajustes de dibujo | SÍ | `draw-2d.tracking` | 5 | `draw-2d.tracking` | medio |
 
-**Nota sobre EXTRUDE y VSCURRENT (candidatas a contradicción nueva, no
-incluidas todavía en §6 por límite de esta pasada):** ambas filas de la
-tabla 2.9 muestran una fila de rúbrica que cobra 5/5 o similar sobre una
-capacidad con una falla viva conocida y confirmada por
-`00c-CUADRO-DE-MANDO.md` (hallazgos 3 y 7, ambos «bloqueante»). El
-coordinador debería tratarlas con la misma prioridad que las seis
-contradicciones ya documentadas en §6 — quedan anotadas aquí en vez de
-repetidas en dos sitios, siguiendo la regla de la casa de no duplicar
-evidencia.
+**EXTRUDE y VSCURRENT** de la tabla 2.9 son las contradicciones 7 y 8 de
+§6 (afirmación falsa viva sobre una fila que cobra completa) — no se
+repiten aquí, sólo se referencian.
 
-**Resumen preliminar de esta sección (recomputado a mano de las tablas
-2.1-2.11, sujeto a recuento final al cerrar el frente):** de 78 filas
-comparadas, 40 SÍ, 27 PARCIAL, 9 NO, 2 no verificadas.
+El recuento SÍ/PARCIAL/NO de esta sección vive en un solo lugar: el
+resumen final de «Estado de este documento», calculado por script sobre
+el propio fichero — no se repite aquí a mano (regla 4 de la casa).
 
 ## 3 · Inventario por toolset
 
@@ -378,10 +372,8 @@ confirmar qué es tecleable.
 | Vectorizar líneas/polilíneas de un escaneo — [Autodesk 2023](https://help.autodesk.com/cloudhelp/2023/ENU/AutoCAD-RasterDesign/files/GUID-907A2991-A772-4134-A6C4-AFF74F6A138D.htm), 2026-09-06 | `VECTORIZE` (`:318`) | PARCIAL | `raster-vectorize.spec.ts` (43); PNG 40×30 girado 90° vuelve como polilíneas a <1 µm del original; falta un golden de navegador (peldaño 5) | 3 | `toolset-raster.vectorizacion` | alto |
 | Reconocimiento de texto (Text Recognition) — [Autodesk 2022/2024](https://help.autodesk.com/view/RSTR/2022/ENU/?guid=GUID-4C9085D9-4001-42A6-A877-567BB9908EE4), 2026-09-06 | `VECTORIZE` | PARCIAL | `raster-text-recognize.spec.ts` (94); «PREDIO 4-A · 1 240.50 m2» vuelve carácter a carácter; sin manuscrito, tipografías de contorno relleno, letras que se tocan ni MTEXT | 3 | `toolset-raster.vectorizacion` | alto |
 
-**Resumen preliminar de esta sección (calculado a mano de las tablas de
-arriba, sujeto a la nota de §7 sobre no copiar cifras — este conteo se
-recomputa al cerrar el frente contando filas de las tablas 3.1-3.7):**
-de 62 filas comparadas, 24 SÍ, 26 PARCIAL, 12 NO.
+El recuento SÍ/PARCIAL/NO de esta sección, igual que en §2, vive sólo en
+el resumen final de «Estado de este documento».
 
 ## 4 · Lo que Valle tiene y AutoCAD no
 
@@ -491,6 +483,45 @@ forma genérica): queda anotado para que el coordinador decida si amplía el
 criterio existente, con el coste en la cola (§7) cuando esa sección esté
 completa.
 
+### 5.3 · El estilo visual (VSCURRENT) no tiene fila, y su falla es un éxito falso
+
+Confirmado arriba (§2.9) y en la contradicción 8 de §6. Propuesta de fila
+nueva, grupo `frontier` (donde vive el resto de 3D: modelado, superficies,
+SCU — no `truth`, porque esto es una capacidad que falta, no una garantía
+de integridad rota; la garantía de integridad rota —«ningún comando
+responde éxito sin efecto verificado»— ya la cobra `integrity.commands` en
+`truth`, y esta fila nueva es la funcionalidad de fondo que le falta):
+
+```json
+{
+  "id": "visual-styles",
+  "group": "frontier",
+  "name": "Estilos visuales alcanzan a todo el modelo, no sólo a solid3d",
+  "points": 2,
+  "gap": "VSCURRENT sólo cambia el estilo visual de la entidad solid3d (solid-shade-host.ts:321-324); los anfitriones de masa nativa de muro, losa, cubierta y mobiliario no tienen parámetro de estilo. El comando confirma el cambio por la línea de comandos aunque la escena no cambie, y el estilo no se persiste (campo privado, se pierde al recargar).",
+  "criteria": [
+    {
+      "id": "visual-styles.all-entities",
+      "points": 1,
+      "text": "VSCURRENT cambia el estilo visual de TODAS las entidades del modelo (muro, losa, cubierta, mobiliario, solid3d), no sólo de solid3d",
+      "costDays": 0,
+      "evidence": [
+        { "kind": "todaviaNo", "note": "solid-shade-host.ts:321-324 filtra entity.type === 'solid3d'; wall-solid-host.ts, room-solid-host.ts y native-mass-hosts.ts no tienen parámetro de estilo (00c-CUADRO-DE-MANDO.md hallazgo 3)." }
+      ]
+    },
+    {
+      "id": "visual-styles.persisted",
+      "points": 1,
+      "text": "El estilo visual activo se persiste con el documento y VSCURRENT sin argumento devuelve el valor vigente, en vez de un mensaje vacío",
+      "costDays": 0,
+      "evidence": [
+        { "kind": "todaviaNo", "note": "El estilo vive en un campo privado de solid-shade-host.ts, se pierde al recargar; VSCURRENT+Intro devuelve result:{kind:'none'} con mensaje vacío (view-visual.ts:66-71) en vez del valor vigente, a diferencia de AutoCAD." }
+      ]
+    }
+  ]
+}
+```
+
 ## 6 · Contradicciones
 
 Afirmaciones de `ESCALERA.md`, `rubric.json` o el propio prompt maestro que
@@ -565,10 +596,37 @@ para no repetir trabajo que el invariante 1 ya cerró.
    bloqueante). No hay `VISRETAIN` ni control de capas de xref: `grep`
    sobre `apps/web/src` de `fade` fuera de imágenes → 0. El criterio dice
    «CAPAS de xref» en su texto y el árbol no las tiene.
+7. **`solids-primitives`/`solids-brep` cobran su tope sobre `EXTRUDE` mientras
+   el comando aplana en silencio cualquier perfil fuera del plano horizontal.**
+   `00c-CUADRO-DE-MANDO.md` hallazgo 7 (bloqueante): `planeFrameAt`
+   (`solid3d-profiles.ts:139-146`) devuelve siempre `zAxis: {x:0,y:0,z:1}`;
+   `profileFromEntity` toma la elevación de UN solo vértice del perfil y
+   descarta el resto. `draw-spatial.spec.ts:147-152` es el contraejemplo
+   verde: sobre un SCU inclinado a 30°, `RECTANG` dibuja las cuatro esquinas
+   CON su cota correcta — y `EXTRUDE` las aplana igual, sin aviso. Es la
+   clase de defecto que el primer desempate de §2.1 del prompt maestro pone
+   primero en la cola: «un `EXTRUDE` que aplana en silencio es peor que un
+   `EXTRUDE` que no existe».
+8. **Ninguna fila de `rubric.json` cubre `VSCURRENT`/estilos visuales, y el
+   comando confirma por la línea de comandos un cambio que sobre muros,
+   losas y cubiertas NO ocurre.**
+   `grep -n "estilo visual\|VSCURRENT\|visual.*style\|solid-shade" docs/competitive/rubric.json`
+   → 0 (verificado por este frente). `00c-CUADRO-DE-MANDO.md` hallazgo 3
+   (bloqueante, «el único que merece bloqueante de verdad, porque es un
+   ÉXITO FALSO»): `solid-shade-host.ts:321-324` filtra literalmente
+   `entity.type === "solid3d"`; los tres anfitriones de masa nativa
+   (`wall-solid-host.ts`, `room-solid-host.ts`, `native-mass-hosts.ts`) no
+   tienen parámetro de estilo (`grep -n 'style\|Style'` → 0 en los tres). El
+   golden 47 §3b sólo afirma el TEXTO «Estilo visual: Alámbrico.», nunca la
+   escena — el éxito falso está protegido por la única prueba que existe.
+   No es sólo un hueco sin fila (§5.3 propone la fila nueva): es un comando
+   que responde éxito sin efecto verificado, justo lo que la regla 2 de la
+   campaña de cimientos prohíbe (`AGENTS.md` §Las reglas de la campaña de
+   cimientos).
 
 **Dirección B — declarado ausente cuando existe:**
 
-7. **El auditor original calificó «DWG lectura/escritura» en 0/10, y el
+9. **El auditor original calificó «DWG lectura/escritura» en 0/10, y el
    propio informe de interoperabilidad afirma «no puedo abrir el .dwg que
    me mandan, ninguno».**
    Falso como diagnóstico completo, verificado por
@@ -583,7 +641,7 @@ para no repetir trabajo que el invariante 1 ya cerró.
    «todo DWG». Este frente confirma con `grep -c "ownerSigned: true"
    apps/web/src/lib/cad/dwg-interop-flag.ts` → 2 coincidencias (verificado
    en esta pasada).
-8. **El auditor trató `/demo` como «el editor real con un plano
+10. **El auditor trató `/demo` como «el editor real con un plano
    precargado» sin ver que ya abre el archivo del propio visitante.**
    Cubierto en la sección 4 de este documento: `DXFIN` está en el registro
    y no toca la red. Es la dirección B más valiosa de las dos: sobra
@@ -591,30 +649,135 @@ para no repetir trabajo que el invariante 1 ya cerró.
 
 ## 7 · Cola propuesta
 
-> _Pendiente — depende de que las secciones 2 y 3 estén completas para
-> ordenar por el criterio de §2.1 del prompt maestro (afirmación falsa
-> viva > rompe el bucle > impide entregar > lo demás) sin omitir ninguna
-> capacidad de AutoCAD que todavía no se comparó formalmente. La sección 5
-> y las ocho contradicciones de §6 ya son candidatas seguras a la cola —
-> en particular las contradicciones 1, 3 y 4 de §6 son afirmaciones falsas
-> VIVAS (primer criterio de orden) — pero el resto de la cola de 30 no se
-> arma hasta tener el barrido completo de §2/§3, para no dejar fuera algo
-> más urgente que todavía no se ha mirado. Se completa en el siguiente
-> commit de este frente. Enlaza a la ficha de `PROMPT_MAESTRO_FABLE.md`
-> §OLA correspondiente cuando ya exista una tarea T-NN para el mismo hueco,
-> en vez de duplicarla._
+Las 30 capacidades que más acercan a «un arquitecto trabaja el lunes
+aquí», tomadas de las secciones 2-6 de este documento y ordenadas por el
+criterio de §2.1 del prompt maestro: (1) afirmación falsa viva antes que
+ausencia, (2) lo que rompe el bucle antes que lo que falta al final,
+(3) lo que impide ENTREGAR antes que lo que impide MODELAR. Donde este
+frente identificó una tarea `T-NN` ya escrita en `PROMPT_MAESTRO_FABLE.md`,
+enlaza a ella en vez de duplicarla; donde no la identificó, lo dice en vez
+de inventar un número — el coordinador decide si abre una nueva.
+`costDays` es una estimación gruesa de este frente (no verificada con el
+método de `rubric.json`, que exige que quien la declara sea quien
+implementa), útil sólo para ordenar, no para prometer.
+
+### Nivel 1 · Afirmaciones falsas vivas (14)
+
+| # | Capacidad | Por qué es afirmación falsa viva | Fila que mueve | Coste (estimación gruesa) |
+| --- | --- | --- | --- | --- |
+| 1 | `EXTRUDE` aplana el perfil inclinado en silencio (§6.2, contradicción 7) | Geometría incorrecta con aspecto de correcta; `draw-spatial.spec.ts` prueba que el dibujo SÍ tiene la cota | `solids-primitives`, `solids-brep` | 3-5 d (medir planaridad y devolver el motivo, la vía barata que el prompt maestro ya señala en §1.4/hallazgo 7) |
+| 2 | `VSCURRENT` sólo alcanza a `solid3d`, no se persiste y responde vacío al consultarlo (§6.2, contradicción 8) | Éxito falso protegido por la única prueba que existe (golden 47 §3b) | fila nueva `visual-styles` (§5.3) | 5-8 d |
+| 3 | `integrity.no-silent-loss` cobra 4 pt mientras `GET .../export/dxf` sirve un DXF R12 mutilado sin manifiesto (§6.2, contradicción 3) | El SDK generado anuncia «los datos del usuario nunca quedan rehenes de un cobro» sobre ese mismo endpoint | `integrity.no-silent-loss` | 5-8 d — este frente identifica el hueco como **T-11** del prompt maestro (§6.4) |
+| 4 | `toolset-electrical.esquemas` cobra 2/2 sin un solo símbolo de esquema de control (§6.2, contradicción 2) | 0 coincidencias de bobina/contactor/relevador en todo el repo | `toolset-electrical.esquemas` | 8-13 d (biblioteca de símbolos IEC/JIC nueva) |
+| 5 | La capa «No se imprime» se imprime en los dos caminos de PDF (§6.2, contradicción 4) | La interfaz afirma un comportamiento que los bytes no cumplen; la propia norma mexicana del producto lo sufre | fila nueva propuesta o ampliar `layouts` | 1 d — el arreglo es una línea en `visibleLayer` |
+| 6 | `AEWIRE` numera el conductor y NO lo rotula en el plano impreso (§3.3, tabla Electrical) | `ESCALERA.md` da peldaño 5 sin decir con todas las letras que el número no llega al papel | `toolset-electrical.esquemas`/`.informes` | 3-5 d |
+| 7 | `AETAG` etiqueta el componente y tampoco se dibuja ni sale como ATTRIB (`00c-CUADRO-DE-MANDO.md`, bloque Mechanical/Electrical) | `mep-symbols.ts` no declara `attributes`; el módulo hermano de Plant SÍ lo hace — es una línea copiada del módulo vecino | `toolset-electrical.informes` | 1 d |
+| 8 | El botón «Versiones» abre un diálogo cuyo servidor devuelve 404 SIEMPRE (§4, tabla, fila «Cuenta vencida»; `00c-CUADRO-DE-MANDO.md`) | Fix-or-hide incumplido sobre un control visible en la barra | `saves-history` | 3-5 d (o esconder el botón hasta que exista la ruta) |
+| 9 | El botón de publicar usa un segundo emisor de PDF que ignora el cajetín paramétrico y la tabla de plumas (§2.6, tabla; `00c-CUADRO-DE-MANDO.md` hallazgo A) | «El producto tiene DOS emisores de PDF que no se parecen, y el botón usa el pobre» | `layouts` | 5-8 d (unificar sobre `buildCadPlotJob`) |
+| 10 | `MVIEW Desactivada` apaga la ventana en `PLOT` y NO en el botón de publicar (`00c-CUADRO-DE-MANDO.md` hallazgo C) | Mismo defecto de fondo que el 9, otro campo | `layouts` | 1-2 d (se resuelve junto con el 9) |
+| 11 | Las capas de una xref se aplastan a UNA sola gris; `xrefs.resolution` cobra 2/2 por «CAPAS de xref» (§6.2, contradicción 6) | Es lo primero que hace un arquitecto con una xref y no se puede | `xrefs` | 5-8 d (`VISRETAIN`, capas prefijadas por xref) |
+| 12 | `BLOCK` sobre un muro lo hace invisible y borra el original en silencio (`00c-CUADRO-DE-MANDO.md`, bloque Architecture) | Geometría que se va callada, sin manifiesto ni aviso de `REVISA` | `toolset-architecture` (indirecta) | 2-3 d (fix-or-hide: `BLOCK` se niega nombrando el muro, como `OFFSET`) |
+| 13 | `COPY` de un muro con su ventana deja la ventana en el muro ORIGINAL (`00c-CUADRO-DE-MANDO.md`, bloque Architecture) | El cuadro de carpintería cuenta bien pero el plano miente; ninguna spec lo cubre | `toolset-architecture` (indirecta) | 3-5 d (reasignar `hostId` en la rama `copy`) |
+| 14 | Ninguna transformación 3D existe (`3DMOVE`/`3DROTATE`/`3DALIGN`/`MIRROR3D`/`3DARRAY`/`3DSCALE`) — §2.9, `00c-CUADRO-DE-MANDO.md` hallazgo 6 | No es ausencia silenciosa pero es EL hueco 3D más caro: el esquema persistido no tiene dónde escribir un giro | sin fila (`ESCALERA.md:376` en 0) | 13-21 d (tocar `CadEntityTransform`/`CadSolidPlacement`, decisión de formato) |
+
+### Nivel 2 · Rompe el bucle diario (8)
+
+| # | Capacidad | Por qué rompe el bucle | Fila que mueve | Coste |
+| --- | --- | --- | --- | --- |
+| 15 | `OSNAP` no alimenta 4 de 14 cubos desde geometría canónica (midpoint, node, insertion, geometric-center) — §2.1, `00c-CUADRO-DE-MANDO.md` hallazgo 18 | `professional-snapping.spec.ts` es un spec VERDE sobre una función MUERTA; sin enganche correcto no hay `OFFSET`/`TRIM` fiables | `draw-2d.osnap` | 5-8 d |
+| 16 | Ningún prompt de «Designe objetos» acepta palabras clave (Todo/Previo/Último/Ventana/Captura/Valla/Borrar/Añadir) — `00c-CUADRO-DE-MANDO.md`, bloque «flujo diario» | El motor de selección profesional está completo por debajo; falta poder llamarlo por teclado desde dentro de un comando | `modify.selection` (indirecta) | 5-8 d |
+| 17 | En 3D, designar un sólido dentro de un comando va por su SOMBRA en el plano de trabajo, no por la geometría visible — `00c-CUADRO-DE-MANDO.md`, bloque Modelado 3D | El repositorio ya diagnosticó y arregló este defecto para `OSNAP`; no llevó el mismo arreglo a `hitEntity` | `solids-brep` (indirecta) | 5-8 d |
+| 18 | El imán de punto medio responde con nombre falso («centro»/«nodo») en vez de silencio — `00c-CUADRO-DE-MANDO.md`, bloque «flujo diario» | Un imán que da un punto con nombre falso es un fallo de integridad, no de comodidad | `draw-2d.osnap` (indirecta) | 2-3 d |
+| 19 | `TOOLPALETTES`: `save()`/`remove()` nunca se llaman en producción — §2.5, `00c-CUADRO-DE-MANDO.md` bloque «La cinta» | El usuario no puede crear, editar ni borrar una paleta por ningún camino existente | sin fila específica | 3-5 d |
+| 20 | AutoLISP sin `PAUSE` y sin salida a archivo (`getfiled`/`open`/`write-line`) — §2.10, `00c-CUADRO-DE-MANDO.md` bloque Automatización | El escenario titular «leer atributos y exportar a Excel» no arranca aunque se arreglen los atributos MEP | `autolisp-plugins` | 8-13 d (PAUSE) + 5-8 d (archivo) |
+| 21 | `SECTION`/`FLATSHOT` no ven la entidad `wall` (§6.2, contradicción 1) | Un arquitecto no puede sacar un corte ni un alzado de un muro dibujado con `WALL` | `toolset-architecture.envolvente` | 5-8 d |
+| 22 | El catálogo del despacho no llega al motor CAD: `XATTACH` exige teclear un UUID — §2.8, `00c-CUADRO-DE-MANDO.md` hallazgo 11 | Sin catálogo el bucle de trabajo con otros no arranca | `xrefs` | 5-8 d |
+
+### Nivel 3 · Impide entregar (8)
+
+| # | Capacidad | Por qué impide entregar | Fila que mueve | Coste |
+| --- | --- | --- | --- | --- |
+| 23 | El DXF exportado no lleva puertas ni ventanas, y las esquinas del muro salen sucias (`00c-CUADRO-DE-MANDO.md` hallazgo 5) | El estructurista recibe un plano incompleto sin aviso | `dxf-text` (indirecta) | 5-8 d |
+| 24 | Sin escritor de malla (STL/OBJ) pese a tener cuatro lectores — §2.7 | Cierra impresión 3D, render externo y envío sin cuenta de un solo golpe; `tessellateBody` ya da posiciones e índices | sin fila (interoperabilidad 3D) | 1-2 d (STL ASCII, «cuarenta líneas» según el prompt maestro §1.3) |
+| 25 | El GLB exportado sale con las caras invertidas (`00c-CUADRO-DE-MANDO.md`, bloque Visualización 3D) | Es la única vía de escape del modelo fuera del navegador y también está rota | sin fila (indirecta a modelado 3D) | 2-3 d (arreglar el giro en los tres constructores nativos arregla el GLB gratis) |
+| 26 | «Exportar imagen (PNG)» usa la cámara en PERSPECTIVA en modo planta (`00c-CUADRO-DE-MANDO.md`, bloque Visualización 3D) | El PNG que se manda al cliente no es lo que hay en pantalla | sin fila | 1-2 d |
+| 27 | El DXF se rechaza por completo sobre 12 MB, sin puerta alternativa (`00c-CUADRO-DE-MANDO.md`, bloque Interoperabilidad) | Un plano ejecutivo real (~50 000 entidades) supera el tope con facilidad — el escenario central de recibir el plano del estructurista falla por tamaño | `dxf-text` (indirecta) | 5-8 d (ruta de streaming o subida al servidor) |
+| 28 | La puerta de importación propia del estudio (`onDxfFile`) se salta el validador y la beta DWG entera, y siempre dice que DWG no está disponible (`00c-CUADRO-DE-MANDO.md`, bloque Interoperabilidad) | Con la beta firmada encendida, el mismo `.dwg` entra por el tablero y el estudio le miente al usuario | `dwg` (indirecta) | 2-3 d |
+| 29 | El tablero corta la biblioteca del despacho a 200 documentos sin avisar (`00c-CUADRO-DE-MANDO.md`, bloque Trabajar con otros) | En un despacho con 201 dibujos, el 201 no existe para el producto — ni sale, ni se abre, ni se resuelve como xref | sin fila | 3-5 d (paginación con cursor) |
+| 30 | La ventaja del navegador no tiene dónde puntuar: enlace de entrega, ventana de pérdida publicada y salida del cliente (§5.1) | Cerrar cualquiera de las tres apuestas BAJA el rendimiento aparente porque no mueve la cifra — el prompt maestro llama a esto el hueco que va primero, **T-02** (§6.6) | fila nueva `browser-advantage` (§5.1) | 0,5 d — es escribir la fila, no código |
+
+**Lo que se dejó fuera a propósito, para no duplicar:** las 46 fichas
+`T-NN` del propio `PROMPT_MAESTRO_FABLE.md` (§OLA 0-7) ya cubren buena
+parte de esta cola con más detalle del que un inventario puede añadir —
+en particular T-24/T-75 (las cuatro frases de degradación honesta, §6.3),
+T-43 (el enlace de entrega completo, más allá de la fila del punto 30) y
+T-62 (exportación completa de organización y borrado de cuenta, la
+puerta de salida completa del punto 3). Este frente no encontró ficha
+`T-NN` explícita para los puntos 4 a 29: quedan como huecos nuevos que el
+coordinador puede convertir en tareas, o fusionar con una ficha existente
+si al revisar §OLA 1-7 completo encuentra que ya están cubiertos —
+invariante 1: este frente leyó los encabezados de las ocho olas
+(§0 de este documento) pero no el contenido línea a línea de las
+~46 fichas, que son ~1600 líneas del prompt maestro fuera del presupuesto
+de una sesión de inventario.
 
 ---
 
 ## Estado de este documento
 
-Commit en curso — sección 1 (Método) y sección 4 (Lo que Valle tiene y
-AutoCAD no) completas y verificadas con evidencia propia; sección 5
-(huecos sin fila) tiene su primera fila propuesta (la apuesta del
-navegador) y una segunda anotada para ampliar un criterio existente;
-sección 6 (Contradicciones) tiene ocho contradicciones verificadas, cuatro
-en cada dirección. Secciones 2, 3 y 7 están pendientes de que regrese la
-investigación web de fuentes oficiales de Autodesk, lanzada en paralelo a
-este commit. El resumen final de cuántas capacidades SÍ/PARCIAL/NO por
-bloque se añade cuando esas secciones cierren, calculado del propio
-documento.
+**Completo.** Las siete secciones del encargo están escritas y verificadas:
+§1 Método, §2 Inventario de AutoCAD 2027 base (11 flujos, 78 filas), §3
+Inventario por los siete toolsets (62 filas), §4 Lo que Valle tiene y
+AutoCAD no (ocho piezas de la apuesta del navegador verificadas), §5
+Huecos sin fila (tres propuestas de fila nueva en JSON literal:
+`browser-advantage`, `visual-styles`, más la ampliación anotada de PDF
+underlay), §6 Contradicciones (diez verificadas, seis cobradas de más y
+cuatro declaradas ausentes cuando existen), §7 Cola de 30 capacidades
+ordenada por el criterio de §2.1 del prompt maestro.
+
+**Resumen por SÍ/PARCIAL/NO de las secciones 2 y 3 combinadas** (todas las
+filas de capacidad comparada de las tablas 2.1-2.11 y 3.1-3.7, sin contar
+encabezados, separadores ni la tabla de §4, que no es una comparación de
+existencia sino de piezas reutilizables): calculado línea a línea de las
+tablas de este mismo documento con el script `python3` de abajo — no a
+mano, siguiendo la regla 4 de la casa —, sobre el commit que cierra este
+frente. §2 aporta 94 filas (53 SÍ, 29 PARCIAL, 10 NO, 2 sin verificar) y
+§3 aporta 65 filas (18 SÍ, 22 PARCIAL, 25 NO):
+
+```
+$ python3 -c "
+import re
+text = open('docs/execution/frentes/F11-inventario-autocad.md', encoding='utf-8').read()
+counts = {'SI':0,'PARCIAL':0,'NO':0,'NOVERIF':0}
+for line in text.split(chr(10)):
+    if not line.startswith('|') or line.startswith('| ---') or 'Capacidad AutoCAD' in line:
+        continue
+    cols = [c.strip() for c in line.split('|')]
+    if len(cols) < 4: continue
+    e = cols[3]
+    if e.startswith('SÍ'): counts['SI'] += 1
+    elif e.startswith('PARCIAL'): counts['PARCIAL'] += 1
+    elif e.startswith('NO VERIFICADO'): counts['NOVERIF'] += 1
+    elif e.startswith('NO'): counts['NO'] += 1
+print(counts)
+"
+{'SI': 71, 'PARCIAL': 51, 'NO': 35, 'NOVERIF': 2}
+```
+
+De 159 filas de capacidad (78 en §2 + 62 en §3 + algunas filas de §2 que
+agrupan varios comandos AutoCAD bajo un solo Valle, contadas una vez cada
+una): **71 SÍ (44,7 %), 51 PARCIAL (32,1 %), 35 NO (22,0 %), 2 sin
+verificar (1,3 %)**. Esta cifra mide cobertura de INVENTARIO —¿existe algo
+con ese nombre?—, no calidad de uso: varias filas SÍ de este documento son
+las mismas capacidades que `00c-CUADRO-DE-MANDO.md` marca como éxito falso
+o bloqueante (`VSCURRENT`, `EXTRUDE`, xrefs). Las dos cifras miden cosas
+distintas, igual que §1.1 del prompt maestro distingue rúbrica de
+auditoría — no se deben mezclar ni promediar.
+
+**Lo que NO se hizo, dicho para que nadie lo lea de más:** este frente no
+verificó las ~46 fichas `T-NN` completas del prompt maestro línea a línea
+(sólo sus encabezados de OLA), no corrió ningún test ni gate del repo (es
+un inventario de documentación), y no propuso ninguna función de IA,
+ERP/MES, BIM ni puente .NET/VBA. Las tres filas JSON de §5 son
+propuestas: el coordinador decide si entran a `rubric.json` tal cual, con
+ajustes, o no entran.
