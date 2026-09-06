@@ -540,3 +540,15 @@ presupuesto del monolito (`cad-document.ts` 804 > 800 sin presupuesto;
 `paper-space.ts` 982 > 896), sesión ociosa desde las 19:48; avisada con el
 diagnóstico exacto y plazo 23:00 UTC. F7 y F7-bis: bloqueadas por el filtro
 de la plataforma («no actual user request»); T-50/T-51/T-53 quedan abiertas.
+
+### CI rojo en la cabeza 8f191cd: el embudo gratuito y la casilla de los términos · ARREGLADO (22:34 UTC)
+Los cuatro fragmentos E2E cayeron en el mismo sitio, antes de correr ningún
+golden: `free-launch-funnel.spec.ts:153` cuenta tres `<input>` en el alta y
+recibía cuatro (la casilla de los términos de F8-1), y nunca la marcaba. La
+prueba cuenta ahora tres entradas que no son casilla y una casilla, la
+nombra y la marca (D-18); `cad-acceptance-projects` y `studio-real-api`, que
+también registran por el formulario y corren dentro de los fragmentos, la
+marcan como ya hacían los cinco specs de F8-1. Verificado: eslint sobre los
+tres, check:e2e-localizadores; el patrón es el que `jornada-real` ya pasó en
+CI en esa misma corrida (7/7). Lección: al cambiar un formulario, buscar
+también quien lo CUENTA, no sólo quien lo rellena.

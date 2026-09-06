@@ -343,6 +343,32 @@ Qué haría falta para elegir lo otro ...  Que el conflicto fuera sólo de
                     aquí (como se hará con `lint-budget.json` cuando F9
                     fusione `main`, adoptando su formato por archivo).
 
+## D-18 · El embudo gratuito sigue exigiendo «tres campos» y cuenta los que se teclean: la casilla de los términos es la única entrada admitida además
+Qué se dudó ......  `e2e/real/free-launch-funnel.spec.ts` afirma que el alta
+                    tiene exactamente tres `<input>` («un cuarto campo es un
+                    porcentaje de gente que no llega al editor») y la casilla
+                    de los términos de F8-1 (T-63d, D-14) es el cuarto; además
+                    el embudo nunca la marcaba, así que «Crear cuenta» quedaba
+                    deshabilitado. Los cuatro fragmentos E2E de la cabeza
+                    8f191cd cayeron ahí antes de correr un solo golden. ¿Se
+                    quita la casilla, se afloja la aserción o se afina?
+Qué se eligió ....  Afinar: la prueba cuenta tres entradas que NO son casilla
+                    y exactamente una casilla, comprueba que es la de los
+                    términos (`register-accept-terms`) y la marca antes de
+                    pulsar. Los otros dos specs reales que registran por el
+                    formulario (`cad-acceptance-projects`, `studio-real-api`)
+                    la marcan igual que ya hacían los cinco de F8-1.
+Por qué es lo conservador ...  La regla del embudo (nada que teclear de más)
+                    se conserva literal; el consentimiento no es un campo del
+                    embudo sino una exigencia legal registrada en D-14, y la
+                    prueba lo dice ahora con nombre en vez de contarlo como
+                    fricción. Quitar la casilla deshacía T-63d; aflojar la
+                    cuenta a «≥ 3» dejaba entrar el cuarto campo de verdad.
+Qué haría falta para elegir lo otro ...  Que el titular decida que el
+                    consentimiento se recoja en otro sitio (por ejemplo, al
+                    verificar el correo): entonces la casilla sale del alta y
+                    la cuenta vuelve a tres sin excepción.
+
 ---
 
 # Decisiones del frente F10 · Evidencia independiente (2026-09-06)
