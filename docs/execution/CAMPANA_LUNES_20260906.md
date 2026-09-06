@@ -355,3 +355,8 @@ monolito, `check:conventions`, `document-import-door.spec.ts` (23),
 `document-import.spec.ts`, `document-import-fuzz.spec.ts` (39),
 `interop-provider.spec.ts`, `dwg-surface-honesty.spec.ts`; golden 192 nuevo
 y el 38 (colocación del DXF de fondo), sobre el build de producción.
+**CI rojo en eed5736 (20:21 UTC)**: `scripts/dwg/check-product-boundary.mjs`
+corre `dwg-document-bridge.spec.ts`, que afirmaba la frase vieja
+(`/no soportado/`) para el `.dwg` rechazado; el grep de consumidores buscó
+el literal completo y no la expresión. Corregida la aserción (la razón DWG,
+en las dos cajas) y el script entero verde en local antes de empujar.

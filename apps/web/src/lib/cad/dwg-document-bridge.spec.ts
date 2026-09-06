@@ -169,12 +169,18 @@ assert.equal(
 assert.equal(DWG_AC1018_BETA_AUTHORIZATION.legalReviewStatus, "pending_parallel");
 
 // ─── 3. La interfaz de importación sigue rechazando .dwg ────────────────────
+// Con SU razón —la del contrato de interoperabilidad, la misma que dice el
+// estudio (T-16)—, no con la lista de formatos: el archivo se reconoce.
 assert.throws(
   () => validateImportFile("plano.dwg", 1000),
-  /no soportado/i,
+  /DWG requiere un proveedor con licencia/,
   "la interfaz de importación rechaza .dwg mientras el gate esté cerrado",
 );
-assert.throws(() => validateImportFile("PLANO.DWG", 1000), /no soportado/i, "y da igual la caja");
+assert.throws(
+  () => validateImportFile("PLANO.DWG", 1000),
+  /DWG requiere un proveedor con licencia/,
+  "y da igual la caja",
+);
 assert.equal(
   importLimitForFileName("plano.dwg"),
   MAX_DWG_IMPORT_BYTES,
