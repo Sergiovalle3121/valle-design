@@ -3,16 +3,25 @@
  * pantalla — ni `aria-live`, ni `role` — y estaba pintado con color de
  * Tailwind crudo en vez de tokens.
  *
+ * El primer intento puso `aria-live` en DOS `<div>` contenedores (uno
+ * `polite`, uno `assertive`), y los dos llevaban EXACTAMENTE el mismo
+ * `fixed top-4 right-4`: un acierto y un error a la vez se pintaban
+ * superpuestos en la misma esquina en vez de apilados. El golden
+ * `e2e/golden/53-cad-bim-wall.spec.ts` lo cazó por accidente (buscaba UN
+ * `div.fixed.top-4.right-4` y encontraba dos, y su aserción `toContainText`
+ * revienta en modo estricto con más de un nodo). Arreglado moviendo
+ * `aria-live` a cada TARJETA según su propio `kind`, con una sola pila
+ * visual — sigue siendo un patrón válido de región viva (el nodo que
+ * aparece es el que lleva el atributo).
+ *
  * Lo que se puede comprobar SIN navegador (marcado estático, sin montar un
  * toast de verdad: `renderToString` no re-renderiza tras un `setState`
  * disparado durante el propio render, así que la lista de avisos llega
- * siempre vacía aquí) es la ESTRUCTURA fija: las dos regiones vivas existen
- * desde el primer render, con la polaridad correcta. Que cada TARJETA lleve
- * su `role` (`alert` para error, `status` para el resto) es marcado
- * dinámico — depende de `t.kind`, así que sólo se ve con una tarjeta de
- * verdad montada — y queda para un golden de navegador si hace falta
- * volver a medirlo; aquí se verifica por lectura del código fuente, que es
- * honesto sobre lo que prueba y lo que no.
+ * siempre vacía aquí) es que existe UN SOLO contenedor posicionado — no dos
+ * — y que sus hijos siguen pasando. El `aria-live` condicional por tarjeta
+ * y el `role` por tipo son marcado dinámico — dependen de `t.kind`, así que
+ * sólo se ven con una tarjeta de verdad montada — y se verifican por
+ * lectura del código fuente, honesto sobre lo que prueba y lo que no.
  */
 import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
@@ -28,15 +37,14 @@ const html = renderToString(
 // Los hijos pasan: el provider no envuelve la app en nada que rompa layout.
 assert.match(html, /contenido/, "el provider sigue pintando sus hijos");
 
-// Las dos regiones vivas existen desde el primer render, no sólo cuando hay
-// un aviso — un lector de pantalla tiene que conocerlas de antemano para
-// anunciar lo que entre después.
-assert.match(html, /aria-live="polite"/, "hay una región polite para aciertos/info");
-assert.match(html, /aria-live="assertive"/, "hay una región assertive para errores");
+// UN SOLO contenedor con esta clase — la regresión real que rompió el
+// golden de BIM/GLB era que hubiera dos.
+const contenedores = html.match(/fixed top-4 right-4/g) ?? [];
+assert.equal(contenedores.length, 1, "debe existir un único contenedor `fixed top-4 right-4`, no dos");
 
 // Ninguna clase de color crudo sobrevive en el marcado que SÍ se renderiza
-// (el contenedor y sus dos regiones; las tarjetas individuales no están
-// montadas en este snapshot, ver cabecera).
+// (el contenedor; las tarjetas individuales no están montadas en este
+// snapshot, ver cabecera).
 for (const cruda of [
   "bg-white/85",
   "dark:bg-neutral-900/85",
@@ -48,11 +56,16 @@ for (const cruda of [
   assert.doesNotMatch(html, new RegExp(cruda.replace(/[/[\]]/g, "\\$&")), `«${cruda}» no debería seguir en el marcado`);
 }
 
-// El resto —el `role` por tarjeta, el color de los iconos por estado— vive
-// en el código fuente y se verifica ahí: son atributos condicionados por
-// datos que este snapshot vacío no puede ejercitar.
+// El resto —el `aria-live`/`role` por tarjeta, el color de los iconos por
+// estado— vive en el código fuente y se verifica ahí: son atributos
+// condicionados por datos que este snapshot vacío no puede ejercitar.
 const fuente = readFileSync(path.join(__dirname, "ToastContext.tsx"), "utf8");
 assert.match(fuente, /role=\{t\.kind === 'error' \? 'alert' : 'status'\}/, "cada tarjeta declara su role según el tipo");
+assert.match(
+  fuente,
+  /aria-live=\{t\.kind === 'error' \? 'assertive' : 'polite'\}/,
+  "cada tarjeta declara su propia región viva según el tipo, no un contenedor compartido",
+);
 assert.match(fuente, /text-danger\b/, "el icono de error usa el token de peligro, no rose-500");
 assert.match(fuente, /text-success\b/, "el icono de éxito usa el token de éxito, no emerald-500");
 assert.match(fuente, /text-primary\b/, "el icono informativo usa el token de marca, no blue-500");

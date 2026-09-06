@@ -94,37 +94,24 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {/*
         T-75(h): este contenedor no anunciaba NADA a un lector de pantalla —
         ni `aria-live`, ni `role` — así que cualquier aviso, incluido un
-        fallo de guardado, era mudo fuera de la vista. Dos regiones en vez de
-        una: los aciertos/info son `polite` (no interrumpen), los errores son
-        `assertive` (si el guardado falló, la persona tiene que enterarse
-        YA, no cuando termine de leer lo que estaba leyendo). Cada tarjeta
-        lleva además su propio `role` para que un lector que la encuentre
-        por otra vía (navegación por regiones) también sepa qué es.
+        fallo de guardado, era mudo fuera de la vista.
+
+        Una región `polite` y otra `assertive` en dos `<div>` separados
+        (primer intento) rompía la pila visual: los dos llevaban EXACTAMENTE
+        el mismo `fixed top-4 right-4`, así que un éxito y un error a la vez
+        se pintaban superpuestos en la misma esquina en vez de apilados. El
+        golden `53-cad-bim-wall.spec.ts` lo cazó por accidente (buscaba UN
+        `div.fixed.top-4.right-4` y encontró dos). El `aria-live` va en cada
+        TARJETA, no en un contenedor — sigue siendo un patrón válido (el
+        nodo que aparece es el que lleva el atributo) y deja una sola pila
+        visual con el orden de aparición real, aciertos y errores
+        intercalados como siempre.
       */}
-      <div
-        aria-live="polite"
-        aria-atomic="false"
-        className="fixed top-4 right-4 z-[300] flex flex-col gap-2 w-[min(380px,calc(100vw-2rem))] pointer-events-none"
-      >
+      <div className="fixed top-4 right-4 z-[300] flex flex-col gap-2 w-[min(380px,calc(100vw-2rem))] pointer-events-none">
         <AnimatePresence>
-          {toasts
-            .filter((t) => t.kind !== 'error')
-            .map((t) => (
-              <Toast key={t.id} toast={t} reduce={reduce} onClose={() => remove(t.id)} />
-            ))}
-        </AnimatePresence>
-      </div>
-      <div
-        aria-live="assertive"
-        aria-atomic="false"
-        className="fixed top-4 right-4 z-[300] flex flex-col gap-2 w-[min(380px,calc(100vw-2rem))] pointer-events-none"
-      >
-        <AnimatePresence>
-          {toasts
-            .filter((t) => t.kind === 'error')
-            .map((t) => (
-              <Toast key={t.id} toast={t} reduce={reduce} onClose={() => remove(t.id)} />
-            ))}
+          {toasts.map((t) => (
+            <Toast key={t.id} toast={t} reduce={reduce} onClose={() => remove(t.id)} />
+          ))}
         </AnimatePresence>
       </div>
     </ToastCtx.Provider>
@@ -150,6 +137,12 @@ function Toast({
       data-testid="app-toast"
       data-toast-kind={t.kind}
       role={t.kind === 'error' ? 'alert' : 'status'}
+      // Un error interrumpe (assertive): la persona tiene que enterarse YA,
+      // no cuando termine de leer lo que estaba leyendo. Un acierto/info no
+      // interrumpe (polite). El propio nodo que aparece lleva el atributo —
+      // no hace falta que el CONTENEDOR sea la región viva.
+      aria-live={t.kind === 'error' ? 'assertive' : 'polite'}
+      aria-atomic="true"
       layout
       initial={reduce ? { opacity: 0 } : { opacity: 0, y: -16, scale: 0.96 }}
       animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
