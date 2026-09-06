@@ -13,7 +13,11 @@
  * sólo pestañas propias. El segundo se omite para invitados de review link
  * (`guest: true`): `EventSource` no puede mandar `X-Review-Token`, así que
  * esa presencia sigue sin fanout entre máquinas — "todavía no", declarado, no
- * disimulado tras un `connected: true` que no sería cierto.
+ * disimulado tras un `connected: true` que no sería cierto. Y por eso
+ * `connected` NO es «hay algún transporte»: es «hay un transporte que alcanza
+ * otras máquinas» (`presence-affirmation.ts`). Con sólo BroadcastChannel el
+ * invitado vería su propia segunda pestaña, y a nadie más — así que la lista
+ * vacía no puede leerse como «no hay nadie».
  *
  * ## El ritmo
  *
@@ -52,6 +56,7 @@ import {
   openCadPresenceTransport,
   type CadPresenceTransport,
 } from "@/lib/cad/collab/presence-channel";
+import { cadPresenceCanAffirmNobody } from "@/lib/cad/collab/presence-affirmation";
 import { serverPresenceChannel } from "@/lib/cad/collab/server-presence-channel";
 
 /** Ritmo máximo de emisión del cursor. 8 Hz basta para que se vea fluido. */
@@ -68,7 +73,11 @@ export interface CadPresenceState {
   peers: CadPresencePeer[];
   /** Identidad de ESTA pestaña. */
   selfId: string;
-  /** false ⇒ no hay transporte: no se puede afirmar que no haya nadie más. */
+  /**
+   * false ⇒ ningún transporte alcanza otras máquinas: una lista vacía no
+   * significa «no hay nadie más», significa «desde aquí no se puede saber».
+   * Los peers que sí lleguen (pestañas de este navegador) se devuelven igual.
+   */
   connected: boolean;
   /** Alimenta el latido. Barata: sólo guarda en refs. */
   report: (cursor: CadPoint2 | null, viewport: CadBounds | null) => void;
@@ -193,11 +202,13 @@ export function useCadPresence(options: {
   return {
     peers,
     selfId,
-    // Conectado si HAY algún transporte real: el de pestañas, o el de
-    // servidor cuando aplica (no para invitados — ver cabecera). Con
-    // cualquiera de los dos, "nadie en la lista" es una afirmación real.
+    // Conectado sólo si el transporte que alcanza OTRAS MÁQUINAS está abierto
+    // (la regla vive en presence-affirmation.ts, con su spec). El canal de
+    // pestañas solo no basta: con él "nadie en la lista" no es una afirmación,
+    // es una ceguera — y a un invitado se le decía «nadie» con el arquitecto
+    // mirando desde otro portátil.
     connected:
-      (channelAvailable || (serverChannelAvailable && !guest)) &&
+      cadPresenceCanAffirmNobody({ guest, channelAvailable, serverChannelAvailable }) &&
       enabled &&
       !!documentId,
     report,
