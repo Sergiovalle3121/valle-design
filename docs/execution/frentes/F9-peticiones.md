@@ -497,6 +497,262 @@ la función, sólo un camino a ella.
 
 ---
 
+## P-09 · `PROPERTIES`/`PR` avisa «no montada» de una paleta que SÍ está montada (T-74/b)
+
+**Contexto.** `PROPERTIES` (alias `PR`, `CH`, `MO`, `DDMODIFY`,
+`settings-palettes.ts:539-548`) es un `paletteCommand` con `target:
+"properties"`. `requestCadUi` (`use-command-engine.ts:480`) resuelve el
+target contra los manejadores que se hayan registrado con
+`registerCadUiHandler` (`palette-command-bus.ts`) — y hoy **nadie registra
+`"properties"`**, así que `PR` siempre cae en el mensaje de
+`unavailable` ("La paleta de propiedades no está montada..."), aunque
+`CadEntityPropertiesPanel` sí está montado (`Layout3DEditor.tsx:626,16609`,
+como panel derecho anclado).
+
+**La buena noticia: ya existe la función que lo revela.**
+`revealPropertiesPalette` (`Layout3DEditor.tsx:2122-2134`, escrita para
+Ctrl+1 — ver `executeEditorKeyAction`, caso `"reveal-properties"`,
+línea ~13490) hace exactamente lo que `PR` necesita: cierra los paneles
+profesionales que comparten el panel derecho, sale de modo enfoque, y
+abre el dock derecho si estaba cerrado. `"layer-manager"` ya resolvió
+este MISMO problema con el MISMO patrón (`Layout3DEditor.tsx:12428-12440`,
+comentario incluido: «el aviso era un límite falso, no uno real») — este
+es el molde exacto a copiar, una pestaña de indentación más abajo.
+
+```diff
++  /**
++   * Igual que "layer-manager" arriba: `PROPERTIES`/`PR` avisaba que la
++   * paleta "no está montada" cuando SÍ lo está (`CadEntityPropertiesPanel`,
++   * panel derecho) — nadie se había apuntado a "properties" en el bus de
++   * paletas. `revealPropertiesPalette` ya existe para Ctrl+1; esto la
++   * conecta también al comando tecleado/despachado desde la cinta.
++   */
++  useEffect(() => {
++    return registerCadUiHandler("properties", () => {
++      revealPropertiesPalette();
++      return true;
++    });
++  }, [revealPropertiesPalette]);
+```
+
+Colocado justo debajo del `useEffect` de `"layer-manager"`
+(`Layout3DEditor.tsx:12428-12440`), donde `registerCadUiHandler` ya está
+importado y el patrón ya está a la vista.
+
+**Por qué no lo hago yo.** `revealPropertiesPalette` y el `useEffect` que
+la conectaría viven dentro de `Layout3DEditor.tsx`. `registerCadUiHandler`
+(`palette-command-bus.ts`) sí es mío, pero no hay nada que registrar
+sin la función a la que apuntar.
+
+**Qué NO resuelve esta petición, a propósito:** `OPTIONS`/`OP` y
+`UCSMAN`/`UC` (los otros dos hallazgos de T-74/b) no tienen ningún
+diálogo real en el repo hoy — no es un cableado que falte, es una
+superficie que no existe. Arreglar su mensaje sin construir el diálogo
+sería cosmético; construir el diálogo es una decisión de producto (¿qué
+variables expone OPTIONS? ¿qué controla UCSMAN en un editor sin UCS
+paramétrico?) fuera de esta ronda. `TOOLPALETTES`/`TP` tampoco se toca
+aquí — ver el hallazgo (e) más abajo, que es la misma familia de problema
+pero sin panel al que apuntar todavía.
+
+**Qué prueba lo verifica.** No hay golden hoy que teclee `PR` y confirme
+qué mensaje sale — sería el golden natural para esta petición: teclear
+`PR`, confirmar que el panel de propiedades queda visible (no el aviso de
+"no montada" en el diálogo) y que el `useEffect` de arriba no rompe el
+Ctrl+1 existente (mismo `revealPropertiesPalette`, dos caminos).
+
+---
+
+## P-10 · El menú del botón derecho es el mismo tenga designado un muro, una cota o nada (T-74/f)
+
+**Contexto.** El manejador de apertura
+(`handleCadContextMenu`, `Layout3DEditor.tsx:13899-13923`) sólo mira la
+preferencia `rightClickAction` (repetir/Enter/por defecto) para decidir
+qué hacer al pulsar — nunca qué hay designado. El menú en sí
+(`Layout3DEditor.tsx:15877-15944`) es una lista ESTÁTICA de cinco
+entradas (Repetir último comando / Enter-terminar comando / Seleccionar
+todo / Eliminar selección / Mostrar propiedades); lo único que reacciona
+a la selección es el `disabled` de "Eliminar selección"
+(`selList.length === 0 && nativeSelectionIds.length === 0` — cuenta,
+no tipo). AutoCAD real cambia el CONTENIDO del menú según qué está bajo
+el cursor: clic derecho en un muro ofrece sus propiedades y comandos de
+muro; en una cota, sus estilos; en nada, el menú genérico de arriba.
+
+**Qué falta, con dónde engancharlo.** El menú necesita leer el tipo de
+la entidad ancla de la selección —`nativeSelectionIndexRef.current`
+(la misma fuente que ya usa el panel de propiedades) da acceso a la
+entidad por id— y anteponer entradas específicas por `entity.type` antes
+de las cinco genéricas. Ejemplo mínimo defendible (no exhaustivo — el
+catálogo completo de acciones por tipo es una decisión de producto: qué
+comandos ofrecer para un muro vs. una cota vs. un bloque):
+
+```diff
++ const entidadAncla = anchorId ? nativeSelectionIndexRef.current?.entity(anchorId) : null;
+  {cadContextMenu && (
+    <div ...>
++     {entidadAncla?.type === "wall" && (
++       <button onClick={() => { invoke("PROPERTIES"); closeContextMenu(); }}>
++         Propiedades del muro
++       </button>
++     )}
++     {entidadAncla?.type === "dimension" && (
++       <button onClick={() => { invoke("DIMSTYLE"); closeContextMenu(); }}>
++         Estilo de cota
++       </button>
++     )}
+      {/* las cinco entradas genéricas de siempre, sin cambios */}
+    </div>
+  )}
+```
+
+`anchorId` es lo que ya usa el panel de propiedades para decidir qué
+entidad mostrar (buscar `selSnap`/`anchorId` cerca de la línea 17402 en
+esta misma revisión) — reutilizar esa misma variable evita que el menú y
+el panel puedan decir cosas distintas sobre "qué está designado".
+
+**Por qué no lo hago yo.** Tanto el manejador de apertura como el
+marcado del menú viven enteros dentro de `Layout3DEditor.tsx`; no existe
+un `CadContextMenu.tsx` que extraer sin tocar el monolito primero.
+
+**Qué prueba lo verificaría.** Un golden que designe un muro, abra el
+menú con botón derecho, y confirme una entrada específica de muro que
+hoy no existe; repetir con una cota y con nada designado, confirmando en
+ese último caso el menú genérico de siempre (regresión: que "nada
+designado" no rompa ni oferte acciones sin sentido).
+
+---
+
+## P-11 · Sólo tres pestañas de lámina, arriba, dicen «Model», sin Ctrl+RePág (T-74/g)
+
+**Contexto.** La tira de pestañas (`Layout3DEditor.tsx:14764-14797`) vive
+en la barra de acceso rápido, ARRIBA del lienzo (AutoCAD las pone abajo,
+pero moverlas es un cambio de layout más grande, fuera de esta
+petición — el hallazgo real y barato de arreglar es el resto). Línea
+14773: el literal `"Model"` en inglés, suelto en una interfaz que por lo
+demás está en español. Línea 14775:
+`{orderedPaperSpaces.slice(0, 3).map(...)}` — un límite de TRES
+pestañas visibles; el resto sólo se alcanza abriendo el gestor de
+láminas con el botón "Layout" (14787-14796). Y no existe Ctrl+RePág
+(`PageDown`)/Ctrl+AvPág (`PageUp`) en ningún punto del árbol —
+confirmado: cero resultados para `PageUp`/`PageDown` en
+`editor-keyboard.ts`.
+
+**Diffs, en dos mitades independientes:**
+
+1. **La etiqueta y el límite** (`Layout3DEditor.tsx`, mecánico):
+   ```diff
+   - <span>Model</span>
+   + <span>Espacio modelo</span>
+   ```
+   ```diff
+   - {orderedPaperSpaces.slice(0, 3).map((space) => (
+   + {orderedPaperSpaces.slice(0, MAX_TABS_VISIBLES).map((space) => (
+   ```
+   con `MAX_TABS_VISIBLES` elegido por quien mida cuánto ancho le sobra a
+   la barra de acceso rápido con el resto de sus controles — no es un
+   número que deba adivinar sin verlo en pantalla.
+
+2. **Ctrl+RePág/Ctrl+AvPág** — la interpretación SÍ es mía
+   (`editor-keyboard.ts`, no aplicada aquí por la misma razón que P-08:
+   sería un atajo muerto sin la otra mitad):
+   ```diff
+     | { type: "toggle-command-line" }
+   + | { type: "cycle-sheet"; direction: 1 | -1 }
+   ```
+   ```diff
+   + if ((event.ctrlKey || event.metaKey) && event.key === "PageDown")
+   +   return { type: "cycle-sheet", direction: 1 };
+   + if ((event.ctrlKey || event.metaKey) && event.key === "PageUp")
+   +   return { type: "cycle-sheet", direction: -1 };
+   ```
+   y en `executeEditorKeyAction` (`Layout3DEditor.tsx:13484`):
+   ```diff
+   +      case "cycle-sheet":
+   +        selectPaperSpace(/* siguiente/anterior sobre orderedPaperSpaces, envolviendo */);
+   +        return;
+   ```
+   (el nombre exacto de la función que cambia de lámina activa hay que
+   confirmarlo en el punto de aplicación — busca cerca de la línea 14775
+   dónde el clic en una pestaña cambia de lámina, y reutiliza esa misma
+   ruta).
+
+**Por qué no lo hago yo.** Todo lo del punto 1 y el `case` del punto 2
+viven dentro de `Layout3DEditor.tsx`.
+
+**Qué prueba lo verificaría.** Un golden con más de tres láminas
+(fixture nuevo) que confirme que aparecen todas hasta `MAX_TABS_VISIBLES`
+sin abrir el gestor, que la etiqueta dice "Espacio modelo", y que
+Ctrl+AvPág/Ctrl+RePág ciclan entre ellas en el orden de la tira.
+
+---
+
+## P-12 · No hay ni una sola pestaña contextual de la cinta (T-74/a)
+
+**Contexto.** AutoCAD muestra una pestaña extra —"Muro", "Cota"— cuando
+hay algo de ese tipo designado, con los comandos que de verdad se usan
+sobre ESE tipo de entidad. Aquí `CAD_RIBBON_TABS` (`ribbon.ts:63-71`) es
+una lista fija de siete pestañas (inicio/insertar/anotar/paramétrico/
+vista/salida/administrar) y `&lt;CadRibbon&gt;` (mío, `CadRibbon.tsx`) no
+recibe ni conoce nada sobre qué está designado — sólo `dispatch` y
+`readOnly` (`Layout3DEditor.tsx:15459-15462`).
+
+**Por qué esto es más grande que P-05..P-11: no hay dato que filtrar
+todavía.** La selección vive enteramente dentro del monolito, en estado
+local sin publicar — `nativeSelectionIndexRef`
+(`Layout3DEditor.tsx:1975`, el mismo índice que ya usa el panel de
+propiedades y que P-10 propone reutilizar para el menú contextual) y
+`selSummary`/selección legacy (`1536`). No existe ningún equivalente a
+`palette-host.ts` (el store externo que SÍ expone el estado de las
+paletas) para "qué tipo de entidad está designada ahora mismo". Sin ese
+dato saliendo del monolito, no hay nada que el lado de la cinta (mío)
+pueda filtrar — por eso esta petición empieza pidiendo el DATO, no el
+filtro.
+
+**Diseño mínimo defendible, en dos mitades:**
+
+1. **Monolito: publicar el tipo de selección.** Un patrón como
+   `registerCadUiHandler`/`palette-host.ts` pero de sólo lectura —o, más
+   simple, una prop nueva en `&lt;CadRibbon&gt;`:
+   ```diff
+     <CadRibbon
+       dispatch={(name) => commandEngineRef.current.invoke(name)}
+       readOnly={drawingReadOnly}
+   +   selectionKind={anchorEntityType}
+     />
+   ```
+   donde `anchorEntityType` es `nativeSelectionIndexRef.current?.entity(anchorId)?.type ?? null`
+   recalculado donde ya se recalcula `selSnap` para el panel de
+   propiedades (cerca de la línea 17402) — un `useMemo` más sobre un valor
+   que el monolito YA deriva para otra cosa, no una fuente de verdad
+   nueva.
+
+2. **Fuera del monolito: la pestaña contextual en sí** (esto sí lo puedo
+   escribir yo, una vez llegue el dato): un mapa
+   `CAD_CONTEXTUAL_TABS: Partial<Record&lt;CadNativeEntityType, CadRibbonTabMeta &amp; { panels: ... }&gt;&gt;`
+   en `ribbon.ts`, y en `CadRibbon.tsx` insertar esa pestaña (activada
+   automáticamente al aparecer, como en AutoCAD) cuando `selectionKind`
+   coincide con una clave del mapa, quitarla cuando deja de coincidir.
+   Qué comandos va cada pestaña contextual (¿"Muro" con
+   WALLLENGTH/WALLTHICKNESS/lo que exista? ¿"Cota" con los estilos de
+   `DIMSTYLE`?) es una decisión de producto tipo por tipo, no algo que
+   deba inventar sin que alguien del frente de producto lo revise.
+
+**Por qué no lo hago yo (ni la mitad 2 sola).** La mitad 1 necesita tocar
+`Layout3DEditor.tsx` para exponer el dato. Sin él, escribir la mitad 2 a
+ciegas sería una pestaña contextual que nunca aparece — trabajo
+demostrable pero inútil hasta que la otra mitad llegue. Se documentan las
+dos juntas para que quien tenga acceso al monolito pueda aplicar la
+mitad 1 y pedirme la mitad 2 en un seguimiento, en vez de que esta ficha
+se quede a medias en cualquiera de los dos lados.
+
+**Alcance de esta petición:** es un diseño, no un diff mecánico como P-05
+o P-09 — el catálogo de qué comandos van en cada pestaña contextual es
+trabajo de producto que excede una ficha de mecánica. Se deja documentado
+para la siguiente ronda de este frente, con el punto de enganche exacto
+(`nativeSelectionIndexRef`, línea 1975) para no tener que volver a
+investigarlo desde cero.
+
+---
+
 ## P-07 · El portal a `document.body` deja TODO el editor fuera de cualquier landmark (T-73/e)
 
 **Contexto.** `axe-estudio.spec.ts` subió el filtro para que `moderate`
