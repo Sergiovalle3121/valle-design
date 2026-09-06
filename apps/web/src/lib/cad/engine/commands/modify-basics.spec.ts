@@ -151,12 +151,94 @@ assert.equal(
   assert.equal(state.active, null, "Enter cierra el comando");
 }
 
-// --- OFFSET calcula un desfase real -------------------------------------------
+// --- T-24·1: por encima del techo, COPY múltiple pregunta antes de escribir --
+// El mismo mecanismo que ARRAY (modify-array.spec.ts): un documento casi en el
+// límite del contrato, empujado por encima por unas pocas copias de más, no
+// por una matriz gigante — no hace falta escribir 100 000 entidades reales
+// para probar el gate.
+{
+  const nearLimitEntities = new Map(entities);
+  for (let index = 0; index < 99_996; index += 1) {
+    const id = `dummy-${index}`;
+    nearLimitEntities.set(id, { id, type: "point", position: { x: 0, y: 0, z: 0 }, layer: "0" });
+  }
+  function nearLimitContext(selection: readonly string[] = []): CadCommandContext {
+    return {
+      entityIds: [...nearLimitEntities.keys()],
+      entity: (id) => nearLimitEntities.get(id),
+      selection,
+      activeLayer: "0",
+      view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+      newEntityId: () => `n${++nextId}`,
+    };
+  }
+  function runNearLimit(actions: readonly CadCommandAction[], selection: readonly string[] = []) {
+    let state = EMPTY_CAD_COMMAND_ENGINE;
+    const effects: CadCommandEffect[] = [];
+    for (const action of actions) {
+      const reduction = cadCommandEngineReduce(state, action, nearLimitContext(selection), registry);
+      state = reduction.state;
+      effects.push(...reduction.effects);
+    }
+    return { state, effects };
+  }
+  const keyword = (value: string): CadCommandAction => ({
+    kind: "input",
+    input: { kind: "keyword", keyword: value },
+  });
+  const copySequence: CadCommandAction[] = [
+    { kind: "invoke", command: "CO" },
+    point(0, 0),
+    point(100, 0),
+    point(200, 0),
+    point(300, 0),
+    { kind: "input", input: { kind: "enter" } },
+  ];
+  {
+    const { effects } = runNearLimit(copySequence, ["line-1"]);
+    assert.equal(executed(effects).length, 0, "sin confirmar todavía, COPY múltiple no ha escrito nada");
+    const prompts = effects.filter((e): e is Extract<CadCommandEffect, { kind: "prompt" }> => e.kind === "prompt");
+    assert.ok(
+      prompts.some((effect) => effect.prompt.message.includes("Continuar")),
+      "y pregunta antes de hacerlo",
+    );
+  }
+  {
+    const { effects } = runNearLimit([...copySequence, keyword("Sí")], ["line-1"]);
+    const runs = executed(effects);
+    assert.equal(runs.length, 1, "con «Sí», el lote se emite igual que sin gate");
+    assert.equal(runs[0].commands.length, 3, "tres destinos, tres copias, incluso por encima del techo");
+  }
+  {
+    const { effects } = runNearLimit([...copySequence, keyword("No")], ["line-1"]);
+    assert.equal(executed(effects).length, 0, "«No» cancela sin escribir nada");
+    assert.ok(
+      messages(effects).some((message) => message.text.includes("cancelado")),
+      "con un mensaje de cancelación, no un lote a medias",
+    );
+  }
+  {
+    // Por debajo del techo (el contexto normal de este archivo), COPY no pregunta.
+    const { effects } = run(
+      [
+        { kind: "invoke", command: "CO" },
+        point(0, 0),
+        point(100, 0),
+        { kind: "input", input: { kind: "enter" } },
+      ],
+      ["line-1"],
+    );
+    assert.equal(executed(effects).length, 1, "por debajo del techo, COPY no pregunta nada");
+  }
+}
+
+// --- OFFSET calcula un desfase real, y el LADO lo dice un punto (T-23) --------
 {
   const { effects } = run([
     { kind: "invoke", command: "O" },
     { kind: "token", value: "10" },
-    { kind: "input", input: { kind: "entityPick", entityId: "line-1", point: { x: 50, y: 5 } } },
+    { kind: "input", input: { kind: "entityPick", entityId: "line-1", point: { x: 50, y: 0 } } },
+    point(50, 5), // por ENCIMA de la línea (0,0)-(100,0): el lado, no el signo tecleado
     { kind: "input", input: { kind: "enter" } },
   ]);
   const runs = executed(effects);
@@ -166,18 +248,38 @@ assert.equal(
   if (command.type === "insert" && command.entity.type === "line") {
     // La línea original va de (0,0) a (100,0); desfasada 10 queda paralela.
     assert.equal(command.entity.start.y, command.entity.end.y, "la copia sigue siendo horizontal");
-    assert.equal(Math.abs(command.entity.start.y), 10, "y a exactamente 10 unidades");
+    assert.equal(command.entity.start.y, 10, "hacia el lado del punto pinchado, arriba");
     assert.equal(command.entity.start.x, 0, "sin trasladarse en X: es un desfase, no una traslación");
   } else {
     assert.fail("OFFSET debería insertar una línea");
   }
 }
 {
+  // El punto de lado, del OTRO lado, desplaza hacia abajo: no es el signo de
+  // la distancia tecleada —siempre positiva aquí— el que decide.
+  const { effects } = run([
+    { kind: "invoke", command: "O" },
+    { kind: "token", value: "10" },
+    { kind: "input", input: { kind: "entityPick", entityId: "line-1", point: { x: 50, y: 0 } } },
+    point(50, -5),
+    { kind: "input", input: { kind: "enter" } },
+  ]);
+  const command = executed(effects)[0].commands[0];
+  if (command.type === "insert" && command.entity.type === "line") {
+    assert.equal(command.entity.start.y, -10, "el mismo comando, el lado opuesto, el signo opuesto");
+  } else {
+    assert.fail("OFFSET debería insertar una línea");
+  }
+}
+{
   // Una elipse se rechaza con su motivo, en vez de devolver geometría falsa.
+  // Sin lado que reconocer, el rechazo llega igual: no hace falta una
+  // segunda pregunta para llegar al mismo «no».
   const { effects } = run([
     { kind: "invoke", command: "OFFSET" },
     { kind: "token", value: "10" },
     { kind: "input", input: { kind: "entityPick", entityId: "ellipse-1", point: { x: 0, y: 0 } } },
+    point(0, 60),
   ]);
   assert.equal(executed(effects).length, 0, "no se escribe nada");
   const said = messages(effects).map((message) => message.text).join(" ");

@@ -97,6 +97,11 @@ test("OFFSET sobre un arco produce un arco concéntrico y lo persiste", async ({
   await applyDynamicInput(page, { offset: "250mm" });
   const on = await worldPoint(page, { x: 4_707, y: 3_707 });
   await page.mouse.click(on.x, on.y);
+  // T-23: el LADO ya no lo decide el signo tecleado — lo pide un punto real.
+  // Más lejos del centro que el propio arco (radio 1000) hace crecer el
+  // desfase, que es lo que las aserciones de abajo esperan (1250).
+  const beyond = await worldPoint(page, { x: 4_919, y: 3_919 });
+  await page.mouse.click(beyond.x, beyond.y);
   await page.keyboard.press("Enter");
 
   // Antes esto dejaba el toast «OFFSET sólo admite líneas, polilíneas y

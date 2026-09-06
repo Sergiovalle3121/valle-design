@@ -201,6 +201,15 @@ const lineCommand: CadCommandDescriptor<LineState> = {
 const CIRCLE_3P = { keyword: "3P", shortcut: "3" } as const;
 const CIRCLE_2P = { keyword: "2P", shortcut: "2" } as const;
 const CIRCLE_DIAMETER = { keyword: "Diámetro", shortcut: "D" } as const;
+// `Ttr`/`Ttt` (tangente-tangente-radio, tangente-tangente-tangente) NO están
+// construidos: resolverlos de verdad exige el problema de Apolonio sobre
+// rectas y circunferencias arbitrarias, con la ambigüedad de qué solución
+// coger según de qué lado se pinchó cada referencia. Fix-or-hide se aplica
+// también a una opción que falta — como ya hace `ARC` con las suyas—: se
+// OFRECEN en el prompt (para que el cuadro no mienta por omisión) y
+// RECHAZAN con su motivo en vez de fingir un centro o un radio inventados.
+const CIRCLE_TTR = { keyword: "Ttr", shortcut: "T" } as const;
+const CIRCLE_TTT = { keyword: "Ttt", shortcut: "TT" } as const;
 
 type CircleMode = "center" | "two-point" | "three-point";
 
@@ -271,7 +280,7 @@ function circleStep(
         state,
         prompt: {
           message: "Precise el centro",
-          options: [CIRCLE_3P, CIRCLE_2P],
+          options: [CIRCLE_3P, CIRCLE_2P, CIRCLE_TTR, CIRCLE_TTT],
         },
         accepts: CAD_ACCEPT_POINT | CAD_ACCEPT_KEYWORD,
       };
@@ -345,6 +354,19 @@ const circleCommand: CadCommandDescriptor<CircleState> = {
         );
       if (input.keyword === CIRCLE_DIAMETER.keyword)
         return circleStep({ ...state, diameter: true }, context);
+      if (input.keyword === CIRCLE_TTR.keyword || input.keyword === CIRCLE_TTT.keyword)
+        return {
+          state,
+          prompt: { message: "", options: [] },
+          accepts: 0,
+          result: {
+            kind: "message",
+            text:
+              `CIRCLE ${input.keyword} todavía no está implementado: resolver la circunferencia tangente ` +
+              "exige el problema de Apolonio sobre las referencias designadas, con varias soluciones posibles " +
+              "según de qué lado se pinche cada una. Use 3P o 2P mientras tanto.",
+          },
+        };
       return circleStep(state, context);
     }
 

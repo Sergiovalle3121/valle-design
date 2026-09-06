@@ -332,6 +332,80 @@ const keyword = (word: string): CadCommandInput => ({ kind: "keyword", keyword: 
   );
 }
 
+// --- T-24·1: por encima del techo, ARRAY pregunta antes de escribir ----------
+// El documento ya tiene casi 100 000 entidades (simuladas, baratas de crear);
+// una matriz de sólo 2×2 (tres copias) lo empuja por encima del límite del
+// contrato. No hace falta una matriz gigante para probar el gate: sólo un
+// documento que ya esté cerca de él.
+const nearLimitContext = makeContext(
+  Array.from({ length: 99_994 }, (_, index): CadEntity => ({
+    id: `dummy-${index}`,
+    type: "point",
+    position: { x: 0, y: 0, z: 0 },
+    layer: "0",
+  })),
+);
+{
+  const result = run(
+    "ARRAY",
+    [pick("seat"), keyword("Rectangular"), distance(2), distance(2), distance(10), distance(10)],
+    nearLimitContext,
+  );
+  assert.equal(result, undefined, "sin confirmar todavía, ARRAY no ha escrito nada");
+}
+{
+  // La MISMA secuencia, con «Sí» al final: escribe el lote completo.
+  const result = run(
+    "ARRAY",
+    [
+      pick("seat"),
+      keyword("Rectangular"),
+      distance(2),
+      distance(2),
+      distance(10),
+      distance(10),
+      keyword("Sí"),
+    ],
+    nearLimitContext,
+  );
+  assert.ok(result && result.kind === "document", "con «Sí», el lote se emite igual que sin gate");
+  assert.equal(
+    result.commands.filter((command) => command.type === "copy").length,
+    3,
+    "2×2 son cuatro colocaciones: tres copias más el original",
+  );
+}
+{
+  // Y con «No», se cancela SIN escribir nada.
+  const result = run(
+    "ARRAY",
+    [
+      pick("seat"),
+      keyword("Rectangular"),
+      distance(2),
+      distance(2),
+      distance(10),
+      distance(10),
+      keyword("No"),
+    ],
+    nearLimitContext,
+  );
+  assert.equal(result?.kind, "message", "«No» cancela con un mensaje, no con un lote a medias");
+}
+{
+  // Y por debajo del techo, ni se pregunta: el resultado llega de una vez,
+  // como antes de esta ficha.
+  const result = run("ARRAY", [
+    pick("seat"),
+    keyword("Rectangular"),
+    distance(2),
+    distance(2),
+    distance(10),
+    distance(10),
+  ]);
+  assert.ok(result && result.kind === "document", "por debajo del techo, ARRAY no pregunta nada");
+}
+
 console.log(
   `ARRAY: rectangular, polar y de camino con ${checks} anclas de colocación, ` +
     `asociación escrita en cada miembro y ARRAYEDIT regenerando sin tocar los originales`,

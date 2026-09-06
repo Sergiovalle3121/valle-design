@@ -376,3 +376,78 @@ export function offsetCanonicalEntity(
 
   return { ok: false, reason: "unsupported-entity" };
 }
+
+/**
+ * De qué lado cae `point` respecto de `entity`, en el signo que espera
+ * `offsetCanonicalEntity` (T-23): antes, el signo de OFFSET lo decidía quien
+ * tecleaba la distancia, adivinando de qué lado del tramo más cercano de una
+ * polilínea de diecisiete vértices caería el signo positivo. Aquí se calcula
+ * a partir de un punto real —el que AutoCAD pide con «Precise punto en lado
+ * de desplazamiento»— y `null` cuando la entidad no tiene un «lado» que
+ * `offsetCanonicalEntity` sepa aplicar (elipses, splines: el mismo rechazo
+ * de siempre se dispara después, con `offsetCanonicalEntity` como fuente
+ * única de verdad sobre qué se admite).
+ *
+ * Una LÍNEA o un TRAMO de polilínea tienen dos lados, izquierda y derecha de
+ * `a→b`; un CÍRCULO o un ARCO tienen dentro y fuera del radio. Ninguno de los
+ * dos casos necesita saber de `bulge`: el lado de un tramo en arco se decide
+ * igual que el de un círculo —dentro/fuera de su radio—, no como el de una
+ * recta.
+ */
+export function offsetSideSign(entity: CadEntity, point: DrawPoint): 1 | -1 | null {
+  if (entity.type === "line") {
+    return sideOfSegment(entity.start, entity.end, point);
+  }
+  if (entity.type === "circle" || entity.type === "arc") {
+    if (!finite(entity.center.x, entity.center.y, entity.radius)) return null;
+    const distance = Math.hypot(point.x - entity.center.x, point.y - entity.center.y);
+    return distance < entity.radius ? -1 : 1;
+  }
+  if (entity.type === "polyline") {
+    const vertices = entity.vertices;
+    if (vertices.length < 2) return null;
+    // El tramo más cercano decide el lado — recto o en arco, da igual: un
+    // arco de un `bulge` moderado tiene su cuerda a un lado bien definido,
+    // y es la MISMA pregunta que se le haría a la cuerda si fuera recta.
+    let best: { distanceSquared: number; sign: 1 | -1 } | null = null;
+    const count = entity.closed ? vertices.length : vertices.length - 1;
+    for (let index = 0; index < count; index += 1) {
+      const a = vertices[index];
+      const b = vertices[(index + 1) % vertices.length];
+      const foot = nearestPointOnSegment(a, b, point);
+      const distanceSquared = (point.x - foot.x) ** 2 + (point.y - foot.y) ** 2;
+      if (!best || distanceSquared < best.distanceSquared) {
+        const sign = sideOfSegment(a, b, point);
+        if (sign !== null) best = { distanceSquared, sign };
+      }
+    }
+    return best?.sign ?? null;
+  }
+  return null;
+}
+
+/** Pie de la perpendicular de `point` sobre el segmento `a`-`b`, acotado al segmento. */
+function nearestPointOnSegment(a: DrawPoint, b: DrawPoint, point: DrawPoint): DrawPoint {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared < 1e-18) return a;
+  const t = Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSquared));
+  return { x: a.x + t * dx, y: a.y + t * dy };
+}
+
+/**
+ * Signo del lado de `point` respecto de `a→b`, en la MISMA convención que
+ * `offsetSegment` de `geom-edit.ts` (`dist>0` = a la izquierda de `a→b`):
+ * la normal izquierda es `(-dy, dx)` sobre la dirección normalizada.
+ */
+function sideOfSegment(a: DrawPoint, b: DrawPoint, point: DrawPoint): 1 | -1 | null {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const length = Math.hypot(dx, dy);
+  if (length < 1e-12) return null;
+  const nx = -dy / length;
+  const ny = dx / length;
+  const signed = (point.x - a.x) * nx + (point.y - a.y) * ny;
+  return signed >= 0 ? 1 : -1;
+}

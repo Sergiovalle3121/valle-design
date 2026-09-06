@@ -356,6 +356,18 @@ assert.equal(__testables.circleThroughThree({ x: 0, y: 0 }, { x: 1, y: 0 }, { x:
   assert.equal(executed(effects).length, 0, "y el comando lo dice en vez de escribir basura");
   assert.ok(effects.some((effect) => effect.kind === "message"), "con un mensaje");
 }
+// T-23: Ttr/Ttt se OFRECEN (el cuadro no miente por omisión) y se RECHAZAN
+// con su motivo — fix-or-hide sobre una opción que falta, no un centro
+// inventado.
+for (const option of ["T", "TT"]) {
+  const { effects } = run([{ kind: "invoke", command: "C" }, { kind: "token", value: option }]);
+  assert.equal(executed(effects).length, 0, `CIRCLE ${option} no escribe geometría inventada`);
+  const said = effects
+    .filter((effect): effect is Extract<CadCommandEffect, { kind: "message" }> => effect.kind === "message")
+    .map((effect) => effect.text)
+    .join(" ");
+  assert.ok(said.includes("Apolonio") || said.includes("todavía no"), `y explica que ${option} no está construido`);
+}
 
 // --- entrada directa de distancia --------------------------------------------
 {

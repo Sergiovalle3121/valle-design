@@ -141,6 +141,34 @@ const near = (actual: number, expected: number, what: string, epsilon = 1e-6) =>
   assert.ok(blocked.kind === "message" && /PUNTO/.test(blocked.text), "y explica qué sí se admite");
 }
 
+// --- T-24·1: por encima del techo, DIVIDE pregunta antes de escribir ----------
+// Mismo mecanismo que ARRAY y COPY múltiple (modify-array.spec.ts,
+// modify-basics.spec.ts): un documento casi en el límite del contrato, con
+// unas pocas marcas de más empujándolo por encima — no hace falta una
+// división gigante para probar el gate.
+{
+  const line: CadEntity = {
+    id: "l1", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 400, y: 0, z: 0 }, layer,
+  };
+  const dummies: CadEntity[] = Array.from({ length: 99_996 }, (_unused, index) => ({
+    id: `dummy-${index}`,
+    type: "point" as const,
+    position: { x: 0, y: 0, z: 0 },
+    layer,
+  }));
+  const document = emptyDocument([line, ...dummies]);
+  const noConfirm = run("DIVIDE", [pick("l1"), distance(5)], document);
+  assert.equal(noConfirm, undefined, "sin confirmar todavía, DIVIDE no ha escrito nada");
+  const confirmed = commandsOf(run("DIVIDE", [pick("l1"), distance(5), keyword("Sí")], document));
+  assert.equal(confirmed.length, 4, "con «Sí», el lote se emite igual que sin gate: 5 tramos, 4 marcas");
+  const cancelled = run("DIVIDE", [pick("l1"), distance(5), keyword("No")], document);
+  assert.equal(cancelled?.kind, "message", "«No» cancela sin escribir nada");
+  // Y por debajo del techo (el documento normal, con sólo la línea), DIVIDE
+  // no pregunta nada: sigue igual que antes de esta ficha.
+  const belowLimit = commandsOf(run("DIVIDE", [pick("l1"), distance(5)], emptyDocument([line])));
+  assert.equal(belowLimit.length, 4, "por debajo del techo, DIVIDE no pregunta nada");
+}
+
 // --- MEASURE: marcas cada N, sin marcar el origen -----------------------------
 {
   const line: CadEntity = {

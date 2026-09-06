@@ -13,7 +13,7 @@
  */
 import type { CadPoint2 } from "../../cad-document";
 import type { CadEntityCommand } from "../../entity-commands";
-import { OFFSET_REJECTION_MESSAGE, offsetCanonicalEntity } from "../../draw-action-entities";
+import { OFFSET_REJECTION_MESSAGE, offsetCanonicalEntity, offsetSideSign } from "../../draw-action-entities";
 import type { CadNativeEntity } from "../../entity-runtime";
 import {
   CAD_DESIGNATE_IDLE,
@@ -21,6 +21,7 @@ import {
   cadDesignateStep,
   type CadDesignatePickState,
 } from "../../selection/selection-keywords";
+import { CAD_BATCH_CONFIRM_NO, CAD_BATCH_CONFIRM_YES, cadBatchConfirmationPrompt } from "./batch-limits";
 import {
   CAD_ACCEPT_DISTANCE,
   CAD_ACCEPT_ENTITY_PICK,
@@ -137,6 +138,8 @@ interface DisplaceState {
   pick: CadDesignatePickState;
   /** «Borrar» quita de `targets` en vez de sumar; «Añadir» lo devuelve a sumar. */
   removing: boolean;
+  /** El lote ya calculado, esperando el «¿Continuar?» del techo (T-24·1, sólo COPY). */
+  pendingConfirm: { commands: CadEntityCommand[]; message: string } | null;
 }
 
 function displaceStep(
@@ -174,6 +177,30 @@ function displaceResult(state: DisplaceState, label: string): CadCommandStep<Dis
   };
 }
 
+/**
+ * Cierre de COPY (T-24·1): por encima del techo del contrato, pregunta antes
+ * de escribir. MOVE no pasa por aquí — no crea entidades, no tiene techo que
+ * defender.
+ */
+function displaceResultWithConfirmation(
+  state: DisplaceState,
+  label: string,
+  context: CadCommandContext,
+): CadCommandStep<DisplaceState> {
+  const created = state.commands.filter((command) => command.type === "copy").length;
+  const confirmation = cadBatchConfirmationPrompt(context.entityIds.length, created);
+  if (!confirmation) return displaceResult(state, label);
+  return {
+    state: { ...state, pendingConfirm: { commands: state.commands, message: confirmation } },
+    prompt: {
+      message: confirmation,
+      options: [CAD_BATCH_CONFIRM_YES, CAD_BATCH_CONFIRM_NO],
+      defaultOption: CAD_BATCH_CONFIRM_NO.keyword,
+    },
+    accepts: CAD_ACCEPT_KEYWORD,
+  };
+}
+
 function makeDisplace(
   name: "MOVE" | "COPY",
   aliases: readonly string[],
@@ -197,11 +224,22 @@ function makeDisplace(
           copies: 0,
           pick: CAD_DESIGNATE_IDLE,
           removing: false,
+          pendingConfirm: null,
         },
         context,
         copy,
       ),
     step: (state, input, context) => {
+      if (state.pendingConfirm) {
+        if (input.kind === "keyword" && input.keyword === CAD_BATCH_CONFIRM_YES.keyword)
+          return displaceResult({ ...state, commands: state.pendingConfirm.commands }, name);
+        return {
+          state,
+          prompt: { message: "", options: [] },
+          accepts: 0,
+          result: { kind: "message", text: `${name} cancelado: por encima del límite, hacía falta confirmar.` },
+        };
+      }
       // Sólo mientras aún no hay punto base: una vez que MOVE/COPY empezó a
       // pedir puntos de destino, «Ventana»/«Borrar»/etc ya no tienen prompt
       // donde vivir — el paso pertenece al desplazamiento, no a la designación.
@@ -219,7 +257,7 @@ function makeDisplace(
         // el comando con un lote vacío — es lo que hace AutoCAD tras designar.
         if (state.points.length === 0 && state.targets.length > 0)
           return displaceStep(state, context, copy);
-        return displaceResult(state, name);
+        return copy ? displaceResultWithConfirmation(state, name, context) : displaceResult(state, name);
       }
       if (input.kind !== "point") return displaceStep(state, context, copy);
 
@@ -270,6 +308,13 @@ function makeDisplace(
 interface OffsetState {
   distance: number | null;
   commands: CadEntityCommand[];
+  /**
+   * Objeto ya designado, esperando el punto que dice de qué LADO se
+   * desplaza (T-23). Antes el signo de `distance` decidía el lado a ciegas
+   * —adivinar la perpendicular de una polilínea de diecisiete vértices—;
+   * ahora lo decide un punto real, como en AutoCAD.
+   */
+  pendingTarget: string | null;
 }
 
 function offsetStep(state: OffsetState): CadCommandStep<OffsetState> {
@@ -279,11 +324,49 @@ function offsetStep(state: OffsetState): CadCommandStep<OffsetState> {
       prompt: { message: "Precise la distancia de desfase", options: [] },
       accepts: CAD_ACCEPT_DISTANCE | CAD_ACCEPT_POINT,
     };
+  if (state.pendingTarget !== null)
+    return {
+      state,
+      prompt: { message: "Precise punto en lado de desplazamiento", options: [] },
+      accepts: CAD_ACCEPT_POINT,
+    };
   return {
     state,
     prompt: { message: "Designe el objeto a desplazar", options: [] },
     accepts: CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_SELECTION | CAD_ACCEPT_KEYWORD,
   };
+}
+
+function offsetApply(
+  state: OffsetState,
+  entityId: string,
+  distance: number,
+  context: CadCommandContext,
+): CadCommandStep<OffsetState> {
+  const source = context.entity?.(entityId);
+  if (!source)
+    return {
+      state: { ...state, pendingTarget: null },
+      prompt: { message: "", options: [] },
+      accepts: 0,
+      result: { kind: "message", text: `La entidad ${entityId} ya no existe.` },
+    };
+  const offset = offsetCanonicalEntity(source, distance, context.newEntityId);
+  // Un rechazo se cuenta tal cual: OFFSET de una elipse no es otra elipse y
+  // devolver geometría aproximada en silencio cambiaría el dibujo.
+  if (!offset.ok)
+    return {
+      state: { ...state, pendingTarget: null },
+      prompt: { message: "", options: [] },
+      accepts: 0,
+      result: { kind: "message", text: OFFSET_REJECTION_MESSAGE[offset.reason] },
+    };
+  // OFFSET también es repetitivo: se sigue designando hasta aceptar.
+  return offsetStep({
+    ...state,
+    pendingTarget: null,
+    commands: [...state.commands, { type: "insert", entity: offset.entity as CadNativeEntity }],
+  });
 }
 
 const offsetCommand: CadCommandDescriptor<OffsetState> = {
@@ -295,7 +378,7 @@ const offsetCommand: CadCommandDescriptor<OffsetState> = {
   repeatable: true,
   mutates: true,
   cursor: "pick",
-  begin: () => offsetStep({ distance: null, commands: [] }),
+  begin: () => offsetStep({ distance: null, commands: [], pendingTarget: null }),
   step: (state, input, context) => {
     if (input.kind === "enter")
       return {
@@ -313,6 +396,18 @@ const offsetCommand: CadCommandDescriptor<OffsetState> = {
       return offsetStep(state);
     }
 
+    if (state.pendingTarget !== null) {
+      if (input.kind !== "point") return offsetStep(state);
+      const source = context.entity?.(state.pendingTarget);
+      // Sin lado que reconocer —una elipse, una spline— se conserva el signo
+      // TECLEADO: `offsetCanonicalEntity` rechaza esos tipos de todos modos
+      // con su motivo, así que no hace falta una segunda pregunta para
+      // llegar al mismo rechazo.
+      const sign = source ? offsetSideSign(source, input.point) : null;
+      const distance = (sign ?? (Math.sign(state.distance) || 1)) * Math.abs(state.distance);
+      return offsetApply(state, state.pendingTarget, distance, context);
+    }
+
     const targets =
       input.kind === "entityPick"
         ? [input.entityId]
@@ -320,31 +415,11 @@ const offsetCommand: CadCommandDescriptor<OffsetState> = {
           ? input.entityIds
           : [];
     if (targets.length === 0) return offsetStep(state);
-
-    const commands = [...state.commands];
-    for (const entityId of targets) {
-      const source = context.entity?.(entityId);
-      if (!source)
-        return {
-          state,
-          prompt: { message: "", options: [] },
-          accepts: 0,
-          result: { kind: "message", text: `La entidad ${entityId} ya no existe.` },
-        };
-      const offset = offsetCanonicalEntity(source, state.distance, context.newEntityId);
-      // Un rechazo se cuenta tal cual: OFFSET de una elipse no es otra elipse y
-      // devolver geometría aproximada en silencio cambiaría el dibujo.
-      if (!offset.ok)
-        return {
-          state,
-          prompt: { message: "", options: [] },
-          accepts: 0,
-          result: { kind: "message", text: OFFSET_REJECTION_MESSAGE[offset.reason] },
-        };
-      commands.push({ type: "insert", entity: offset.entity as CadNativeEntity });
-    }
-    // OFFSET también es repetitivo: se sigue designando hasta aceptar.
-    return offsetStep({ ...state, commands });
+    // Un objeto por turno: el LADO se pincha objeto por objeto, así que una
+    // selección múltiple sólo toma el primero — el resto se sigue
+    // designando en la próxima vuelta del bucle, como ya hacía antes con el
+    // signo tecleado.
+    return offsetStep({ ...state, pendingTarget: targets[0] });
   },
 };
 

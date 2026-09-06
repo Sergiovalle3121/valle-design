@@ -1,6 +1,7 @@
 {
   "$schema": "urn:valle-design:schema:cad-document-limits-evidence:v1",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
+  "schemaVersionNote": "v2 añade `undoDepthByTier` (T-24·2); todos los campos de v1 se conservan sin cambios.",
   "benchmarkId": "valle-design-cad-document-limits-v1",
   "startedAt": "2026-08-18T07:03:28.759Z",
   "finishedAt": "2026-08-18T07:04:47.115Z",
@@ -259,6 +260,26 @@
       ]
     }
   ],
+  "undoDepthByTier": {
+    "note": "T-24·2 — cuántos pasos de deshacer sobreviven de verdad, no cuántos declara `maxEntries`. Generado con `scripts/cad/undo-depth-benchmark.mts`.",
+    "method": "Para cada escalón (el mismo corpus `plano-real` y los mismos tamaños que arriba) se instancia `CanonicalHistory` con las opciones REALES con las que `Layout3DEditor.tsx` la construye (maxEntries 80, maxRetainedBytes 32 MiB, groupWindowMs 400) y se repite 150 veces un MOVE real de una sola entidad con `executeCadEntityCommandBatch` — la única ruta de mutación del producto. Se publica la profundidad de RÉGIMEN ESTACIONARIO (las últimas 20 vueltas idénticas), no la de la primera edición: las primeras vueltas sólo están llenando el presupuesto.",
+    "whyItMatters": "`maxEntries: 80` es la cifra que se lee en el código y la que un desarrollador asume. El límite que de verdad gobierna en un plano denso es `maxRetainedBytes` (32 MiB): cada checkpoint retiene una referencia al documento COMPLETO —no un diff—, y `enforceBudget()` expulsa el más viejo mientras el total exceda el presupuesto, salvo el último (ver `canonical-history.ts`, es el suelo de seguridad de datos, no un bug). A 20.000 entidades —el plano real de despacho que sostiene el resto de este artefacto— el historial ya sólo conserva DOS pasos; a 50.000 y por encima, exactamente UNO: cualquier Ctrl+Z después del primero no tiene nada que deshacer.",
+    "productionHistoryOptions": { "maxEntries": 80, "maxRetainedBytes": 33554432, "groupWindowMs": 400 },
+    "generatedWith": "npx tsx scripts/cad/undo-depth-benchmark.mts",
+    "tiers": [
+      { "entities": 2000, "steadyStateUndoDepth": 20, "estimatedBytesPerCheckpoint": 1621141, "boundBy": "bytes" },
+      { "entities": 5000, "steadyStateUndoDepth": 8, "estimatedBytesPerCheckpoint": 3997362, "boundBy": "bytes" },
+      { "entities": 10000, "steadyStateUndoDepth": 4, "estimatedBytesPerCheckpoint": 7945261, "boundBy": "bytes" },
+      { "entities": 20000, "steadyStateUndoDepth": 2, "estimatedBytesPerCheckpoint": 15853651, "boundBy": "bytes" },
+      { "entities": 50000, "steadyStateUndoDepth": 1, "estimatedBytesPerCheckpoint": 39545636, "boundBy": "bytes" },
+      { "entities": 100000, "steadyStateUndoDepth": 1, "estimatedBytesPerCheckpoint": 79110580, "boundBy": "bytes" },
+      { "entities": 150000, "steadyStateUndoDepth": 1, "estimatedBytesPerCheckpoint": 118654530, "boundBy": "bytes" }
+    ],
+    "notMeasured": [
+      "el coste en tiempo de CPU de cada recordCurrent (eso ya lo publican serializeMs/documentBytes arriba, a través del tamaño del documento)",
+      "si el indicador del estado (U{undo}/R{redo} en Layout3DEditor.tsx) avisa cuando la profundidad ya tocó el suelo — no lo hace hoy; pedido a la coordinación (F3-peticiones.md, P-04) porque ese archivo es de otra sesión"
+    ]
+  },
   "scope": {
     "measured": [
       "serialización del documento canónico (serializeCadDocument)",

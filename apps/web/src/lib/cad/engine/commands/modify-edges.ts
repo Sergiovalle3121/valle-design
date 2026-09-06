@@ -41,7 +41,10 @@ import {
   type CadCurveEditOutcome,
   type CadEditableEntity,
 } from "../../curve-edit";
+import { CAD_ENTITY_REGISTRY } from "../../entity-runtime";
 import { breakSegment } from "../../geom-trim";
+import { entityMatchesPath } from "../../native-selection-index";
+import { segmentIntersection } from "../../snap-engine";
 import {
   CAD_ACCEPT_ENTITY_PICK,
   CAD_ACCEPT_KEYWORD,
@@ -57,6 +60,16 @@ import {
 type CadLineEntity = Extract<CadEntity, { type: "line" }>;
 
 const ALL_EDGES = { keyword: "Todos", shortcut: "T" } as const;
+/**
+ * `Valla` (T-23/T-21): arrastrar una línea y recortar TODO lo que cruza, en
+ * vez de designar objeto por objeto. Sólo tiene sentido en TRIM —EXTEND no
+ * "cruza" nada, alarga hacia un borde— y la geometría ya estaba: la valla
+ * (`entityMatchesPath(…, "fence", true)`, exportada de
+ * `native-selection-index.ts` para T-21) encuentra QUÉ cruza; el PUNTO de
+ * corte de cada una es la intersección real valla↔entidad, no una
+ * aproximación — el mismo `pick` que ya usa el recorte objeto por objeto.
+ */
+const FENCE = { keyword: "Valla", shortcut: "V" } as const;
 
 function asLine(entity: CadEntity | undefined): CadLineEntity | null {
   return entity && entity.type === "line" ? entity : null;
@@ -91,9 +104,11 @@ interface EdgeState {
   touched: number;
   /** Objetos designados que no se pudieron tratar, con su motivo. */
   refusals: string[];
+  /** `Valla` (sólo TRIM) a medio reunir: `null` en reposo. */
+  fence: CadPoint2[] | null;
 }
 
-const EMPTY: EdgeState = { edges: [], cutting: false, commands: [], touched: 0, refusals: [] };
+const EMPTY: EdgeState = { edges: [], cutting: false, commands: [], touched: 0, refusals: [], fence: null };
 
 type EdgeOperation = "TRIM" | "EXTEND";
 
@@ -111,6 +126,12 @@ function edgeStep(state: EdgeState, operation: EdgeOperation): CadCommandStep<Ed
       },
       accepts: CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_SELECTION | CAD_ACCEPT_KEYWORD,
     };
+  if (state.fence)
+    return {
+      state,
+      prompt: { message: "Precise el punto de la valla (Intro para terminar)", options: [] },
+      accepts: CAD_ACCEPT_POINT,
+    };
   return {
     state,
     prompt: {
@@ -118,10 +139,51 @@ function edgeStep(state: EdgeState, operation: EdgeOperation): CadCommandStep<Ed
         operation === "TRIM"
           ? "Designe el objeto a recortar"
           : "Designe el objeto a alargar",
-      options: [],
+      options: operation === "TRIM" ? [FENCE] : [],
     },
-    accepts: CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_POINT,
+    accepts:
+      CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_POINT | (operation === "TRIM" ? CAD_ACCEPT_KEYWORD : 0),
   };
+}
+
+/**
+ * Los ids que la valla cruza, cada uno con su punto de corte REAL —la
+ * intersección valla↔entidad, no el punto más cercano de la valla ni una
+ * aproximación—. Recorre los tramos ya teselados del renderer, que es
+ * exactamente lo que `native-selection-index.ts` usa para lo mismo.
+ */
+function fenceCrossings(
+  fence: readonly CadPoint2[],
+  candidates: readonly CadEntity[],
+): Array<{ entity: CadEntity; pick: CadPoint2 }> {
+  const fenceSegments: Array<{ a: CadPoint2; b: CadPoint2 }> = [];
+  for (let index = 1; index < fence.length; index += 1)
+    fenceSegments.push({ a: fence[index - 1], b: fence[index] });
+
+  const result: Array<{ entity: CadEntity; pick: CadPoint2 }> = [];
+  for (const entity of candidates) {
+    // Un asset HEREDADO (`box`, `station`) no tiene adaptador registrado: no
+    // es de aquí, igual que `computeCadCurveTrim` ya los rechaza más abajo.
+    if (!CAD_ENTITY_REGISTRY.supports(entity)) continue;
+    if (!entityMatchesPath(entity, fence, "fence", true)) continue;
+    const paths = CAD_ENTITY_REGISTRY.adapter(entity).renderer.paths(entity, 64);
+    let pick: CadPoint2 | null = null;
+    for (const path of paths) {
+      for (let index = 1; index < path.points.length && !pick; index += 1) {
+        const entitySegment = { a: path.points[index - 1], b: path.points[index] };
+        for (const fenceSegment of fenceSegments) {
+          const point = segmentIntersection(entitySegment, fenceSegment);
+          if (point) {
+            pick = point;
+            break;
+          }
+        }
+      }
+      if (pick) break;
+    }
+    if (pick) result.push({ entity, pick });
+  }
+  return result;
 }
 
 /**
@@ -194,7 +256,48 @@ function edgeCommand(
     cursor: "pick",
     begin: () => edgeStep(EMPTY, operation),
     step: (state, input, context) => {
-      if (input.kind === "cancel") return edgeFinish({ ...state, commands: [] }, operation);
+      if (input.kind === "cancel")
+        return edgeFinish({ ...state, commands: [], fence: null }, operation);
+
+      // `Valla` a medio reunir (T-23): sus puntos y su Intro son SUYOS, no
+      // del comando — se resuelven ANTES de que el Intro genérico de abajo
+      // pudiera confundirlo con «cerrar la fase» o «terminar el comando».
+      if (state.fence) {
+        if (input.kind === "point")
+          return edgeStep({ ...state, fence: [...state.fence, input.point] }, operation);
+        if (input.kind === "enter") {
+          if (state.fence.length < 2) return edgeStep({ ...state, fence: null }, operation);
+          // La valla busca entre TODO el dibujo qué recortar — igual que un
+          // `entityPick` con el ratón puede designar cualquier objeto—, no
+          // sólo entre los bordes de corte ya designados.
+          const candidates = context.entityIds
+            .map((id) => context.entity?.(id))
+            .filter((entity): entity is CadEntity => !!entity);
+          const crossings = fenceCrossings(state.fence, candidates);
+          let commands = state.commands;
+          let touched = state.touched;
+          const refusals = [...state.refusals];
+          for (const { entity, pick } of crossings) {
+            const target = asCadEditableEntity(entity);
+            if (!target) continue;
+            const outcome = computeCadCurveTrim({
+              target,
+              boundaries: edgeEntities(state, context),
+              pick,
+              newEntityId: context.newEntityId,
+            });
+            const produced = editCommands(target.id, outcome);
+            if (produced.length === 0) {
+              refusals.push(`${target.id} ${"error" in outcome ? outcome.error : "no cambió."}`);
+              continue;
+            }
+            commands = [...commands, ...produced];
+            touched += 1;
+          }
+          return edgeStep({ ...state, fence: null, commands, touched, refusals }, operation);
+        }
+        return edgeStep(state, operation);
+      }
 
       // Enter cierra la fase actual: la primera vez pasa a recortar (con todos
       // los bordes si no se designó ninguno), la segunda termina.
@@ -205,6 +308,9 @@ function edgeCommand(
 
       if (input.kind === "keyword" && input.keyword === ALL_EDGES.keyword)
         return edgeStep({ ...state, edges: [], cutting: true }, operation);
+
+      if (input.kind === "keyword" && input.keyword === FENCE.keyword && state.cutting && operation === "TRIM")
+        return edgeStep({ ...state, fence: [] }, operation);
 
       const picked =
         input.kind === "entityPick"

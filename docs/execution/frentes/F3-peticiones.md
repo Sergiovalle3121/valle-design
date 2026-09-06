@@ -119,3 +119,60 @@ horizontal → teclear `500` → el segundo vértice cae a 500 unidades en la
 MISMA dirección del muro, no en la del cursor.
 
 ---
+
+## P-04 · T-24·2 — el indicador `U{undo}/R{redo}` no avisa cuando el historial ya tocó el suelo
+
+**Archivo.** `apps/web/src/components/cad/editor/Layout3DEditor.tsx` (~línea
+16528, `data-testid="cad-history-depth"`) — el monolito, fuera de mi
+territorio.
+
+**Qué medí.** `scripts/cad/undo-depth-benchmark.mts` (nuevo, este commit)
+instancia `CanonicalHistory` con las opciones REALES de producción
+(`maxEntries: 80`, `maxRetainedBytes: 32 MiB`, las mismas con las que
+`Layout3DEditor.tsx` la construye dos veces) sobre el corpus `plano-real` en
+los mismos escalones que `document-limits.json`, y repite un MOVE real 150
+veces por escalón hasta el régimen estacionario. Resultado, publicado ahora en
+`docs/cad/evidence/document-limits.json` → `undoDepthByTier`:
+
+| entidades | profundidad de deshacer en régimen estacionario |
+|-----------|---------------------------------------------------|
+| 2 000     | 20 |
+| 5 000     | 8 |
+| 10 000    | 4 |
+| **20 000**| **2** |
+| 50 000    | 1 |
+| 100 000   | 1 |
+| 150 000   | 1 |
+
+`maxEntries: 80` es la cifra que un desarrollador lee en el código; la que de
+verdad gobierna en un plano denso es `maxRetainedBytes` (32 MiB), porque cada
+checkpoint retiene el documento COMPLETO (no un diff) y `enforceBudget()`
+expulsa el más viejo mientras el total exceda el presupuesto — salvo el
+último, que es el suelo de seguridad de datos declarado en
+`canonical-history.ts`, no un error. A 20 000 entidades —el plano real de
+despacho que sostiene el resto de la evidencia— sólo sobreviven DOS pasos; de
+50 000 en adelante, exactamente UNO: el segundo Ctrl+Z de la sesión ya no
+tiene nada que deshacer.
+
+**Por qué no lo arreglé yo.** El indicador que un arquitecto ve
+(`U{hist.undo}/R{hist.redo}`, texto llano, sin condición) vive en
+`Layout3DEditor.tsx`, fuera del territorio de F3. Y aunque estuviera dentro,
+subir `maxRetainedBytes` no es una decisión mía para tomar sola: cambia
+cuánta memoria retiene el navegador por pestaña, una decisión de producto que
+afecta a todos los tamaños de documento, no sólo al denso.
+
+**Qué hace falta.** Cuando `hist.undo <= 1` Y el documento supera algún
+umbral de entidades (por ejemplo, el mismo que ya usa la evidencia,
+20 000), el indicador debería distinguir «diste un solo paso» de «el
+presupuesto de memoria no deja conservar más» — un `title` distinto basta,
+no hace falta rediseñar el HUD. Sin eso, quien mueve un plano denso y pulsa
+Ctrl+Z dos veces cree que el producto perdió su segunda acción, cuando en
+realidad nunca hubo sitio para conservarla.
+
+**Prueba que lo verifica.** Golden de navegador: abrir un documento con
+≥20 000 entidades (el corpus `plano-real` ya sirve), hacer dos MOVE
+seguidos, y comprobar que el `title` (o un `data-*` nuevo) de
+`cad-history-depth` señala el suelo de presupuesto en vez de quedarse mudo
+en `U1/R0`.
+
+---

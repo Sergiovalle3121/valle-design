@@ -142,6 +142,11 @@ test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFF
     await applyDynamicInput(page, { offset: '250mm' });
     const on = await worldPoint(page, { x: 3_000, y: 4_000 });
     await page.mouse.click(on.x, on.y);
+    // T-23: el LADO ya no lo decide el signo tecleado — lo pide un punto
+    // real. Cualquier lado sirve aquí: las aserciones de abajo no dependen
+    // de la dirección, sólo de que el desfase exista como entidad nueva.
+    const side = await worldPoint(page, { x: 3_000, y: 3_900 });
+    await page.mouse.click(side.x, side.y);
     await page.keyboard.press('Enter');
     await expect(page.getByTestId('cad-native-properties')).toContainText('POLYLINE');
   });
