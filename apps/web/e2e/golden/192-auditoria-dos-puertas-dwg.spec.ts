@@ -76,7 +76,15 @@ async function instalarTableroVacio(context: BrowserContext) {
   });
 }
 
-test("con la beta apagada, el tablero y el estudio rechazan el mismo .dwg con la misma frase", async ({
+/**
+ * La beta DWG es una variable de BUILD (`NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA`,
+ * ADR-0009 §7): el CI construye con ella encendida y un despliegue con las
+ * puertas cerradas la tiene apagada. La prueba afirma lo que el build dice en
+ * los dos estados y comprueba que el selector del tablero coincide con él.
+ */
+const BETA_DWG = process.env.NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA === "true";
+
+test("el tablero y el estudio contestan lo mismo al mismo .dwg: la razón DWG con la beta apagada, por dónde entra con la beta encendida", async ({
   context,
   page,
 }) => {
@@ -93,9 +101,18 @@ test("con la beta apagada, el tablero y el estudio rechazan el mismo .dwg con la
     await page.getByLabel("Crear proyecto").click();
     const entrada = page.getByLabel("Importar como documento");
     await expect(entrada).toBeEnabled();
+    // El selector delata el build: ofrece `.dwg` sólo con la beta encendida.
+    // Si el build y esta prueba no coinciden, que falle aquí y con nombre.
+    const acepta = (await entrada.getAttribute("accept")) ?? "";
+    expect(
+      acepta.includes(".dwg"),
+      `accept="${acepta}" con NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA=${process.env.NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA ?? "(sin definir)"}`,
+    ).toBe(BETA_DWG);
+    // Con la beta encendida el tablero lo ADMITE y el .dwg sigue el camino de
+    // importación (ADR-0009), que no es el asunto de esta prueba.
+    if (BETA_DWG) return;
     // Con la beta apagada el selector ni ofrece `.dwg`; `setInputFiles` se lo
     // salta, como se lo salta quien arrastra el archivo o elige «todos».
-    await expect(entrada).not.toHaveAttribute("accept", /\.dwg/);
     await entrada.setInputFiles(ARCHIVO_DWG);
     const aviso = page.getByRole("alert").filter({ hasText: "DWG" });
     await expect(aviso).toBeVisible();
@@ -120,10 +137,18 @@ test("con la beta apagada, el tablero y el estudio rechazan el mismo .dwg con la
     const saltar = page.getByTestId("cad-guided-tour-skip");
     if (await saltar.count()) await saltar.click();
     await page.getByTestId("cad-dxf-input").setInputFiles(ARCHIVO_DWG);
-    const toast = page.getByTestId("app-toast").filter({ hasText: "DWG requiere" });
-    await expect(toast).toBeVisible();
-    const respuestaDelEstudio = (await toast.textContent()) ?? "";
-    expect(respuestaDelEstudio, "la misma frase, palabra por palabra").toContain(respuestaDelTablero);
+    if (BETA_DWG) {
+      // La puerta compartida lo admite y el fondo no lo pinta: dice por dónde
+      // entra (D-12), en vez de la mentira vieja «el editor no lee DWG».
+      const toast = page.getByTestId("app-toast").filter({ hasText: "entra como documento" });
+      await expect(toast).toBeVisible();
+      await expect(toast).toContainText("Este DWG entra como documento, no como plano de fondo");
+    } else {
+      const toast = page.getByTestId("app-toast").filter({ hasText: "DWG requiere" });
+      await expect(toast).toBeVisible();
+      const respuestaDelEstudio = (await toast.textContent()) ?? "";
+      expect(respuestaDelEstudio, "la misma frase, palabra por palabra").toContain(respuestaDelTablero);
+    }
     // Lo que la puerta rechaza no se lee ni se sube: antes el estudio
     // materializaba el archivo entero como texto para decirle que no.
     expect(subidas, "un archivo rechazado en la puerta no viaja al servidor").toEqual([]);

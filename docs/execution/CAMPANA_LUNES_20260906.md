@@ -552,3 +552,18 @@ marcan como ya hacían los cinco specs de F8-1. Verificado: eslint sobre los
 tres, check:e2e-localizadores; el patrón es el que `jornada-real` ya pasó en
 CI en esa misma corrida (7/7). Lección: al cambiar un formulario, buscar
 también quien lo CUENTA, no sólo quien lo rellena.
+
+### CI rojo en la cabeza ffef872 (fragmento 2/4): las dos puertas DWG con la beta ENCENDIDA · ARREGLADO (23:20 UTC)
+Los goldens 192 y 196 afirmaban la puerta cerrada («DWG requiere un
+proveedor con licencia») y el CI construye la web con
+`NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA=true` (variable de BUILD, inlineada en
+`ci.yml`): en ese build el tablero ofrece `.dwg` y el estudio dice «entra
+como documento» (D-12). En local la beta estaba apagada y los dos pasaban.
+Ahora los dos afirman lo que el build declara en cada estado: 192 comprueba
+que el selector del tablero coincide con la variable (si no, falla con
+nombre) y, con la beta encendida, que el estudio contesta por dónde entra;
+196 espera la frase de cada estado. En ningún estado viaja nada al servidor.
+Verificado en los dos builds: con la beta apagada (3 pasan) y reconstruida
+con la beta encendida (3 pasan); eslint. Fragmentos 1/4 y 4/4 verdes en esa
+cabeza; 3/4 en curso. `DWG_IMPORT_FLAG`/`DWG_EXPORT_FLAG` siguen en false:
+la beta del build no enciende el runtime (ADR-0009 §7).

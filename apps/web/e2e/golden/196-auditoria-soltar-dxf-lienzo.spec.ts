@@ -114,8 +114,13 @@ test("un .dwg soltado sobre el lienzo recibe la frase de la puerta compartida y 
     mimeType: "application/octet-stream",
     content: `AC1015${"\0".repeat(64)}`,
   });
-  await expect(
-    page.getByTestId("app-toast").filter({ hasText: "DWG requiere un proveedor con licencia" }),
-  ).toBeVisible();
+  // La beta DWG es una variable de BUILD: con ella apagada la puerta rechaza
+  // con la razón del contrato; encendida, lo admite y dice por dónde entra
+  // (D-12). En los dos casos el fondo no lo pinta y nada viaja al servidor.
+  const frase =
+    process.env.NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA === "true"
+      ? "Este DWG entra como documento, no como plano de fondo"
+      : "DWG requiere un proveedor con licencia";
+  await expect(page.getByTestId("app-toast").filter({ hasText: frase })).toBeVisible();
   expect(subidas, "lo que la puerta rechaza no se sube").toEqual([]);
 });
