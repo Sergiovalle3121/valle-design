@@ -55,6 +55,20 @@ async function type(page: Page, value: string) {
   await input.press('Enter');
 }
 
+/**
+ * Como `type`, pero para el PRIMER comando de la prueba: sus módulos se
+ * cargan a demanda (`engine/lazy-commands.ts`) y, si el chunk todavía no
+ * llegó, el propio producto contesta «vuelva a teclearlo en un instante» en
+ * vez de fingir que hizo algo. Es exactamente lo que haría quien lo teclea
+ * de verdad: reintentarlo una vez ya con el módulo puesto.
+ */
+async function typeFirstCommand(page: Page, value: string) {
+  const log = page.getByTestId('cad-command-line-log');
+  await type(page, value);
+  const stillLoading = await log.getByText('todavía no terminó de cargar').count();
+  if (stillLoading > 0) await type(page, value);
+}
+
 test('BORRAR → V (Ventana) → dos esquinas → Intro designa por palabra clave y borra sólo lo encerrado', async ({
   context,
   page,
@@ -66,7 +80,7 @@ test('BORRAR → V (Ventana) → dos esquinas → Intro designa por palabra clav
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
 
   const prompt = page.getByTestId('cad-command-prompt');
-  await type(page, 'BORRAR');
+  await typeFirstCommand(page, 'BORRAR');
   await expect(prompt).toContainText('Designe objetos');
   await type(page, 'V');
   await type(page, '-1000,-1000');
@@ -92,7 +106,7 @@ test('Todo, seguido de Intro, designa el dibujo entero', async ({ context, page 
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
 
   const prompt = page.getByTestId('cad-command-prompt');
-  await type(page, 'ERASE');
+  await typeFirstCommand(page, 'ERASE');
   await type(page, 'Todo');
   await expect(prompt).not.toBeHidden();
   await page.getByTestId('cad-command-input').press('Enter');

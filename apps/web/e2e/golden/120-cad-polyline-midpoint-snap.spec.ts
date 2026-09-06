@@ -17,6 +17,7 @@ import { installCadV1Backend } from "../fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import { enter3DView } from "../fixtures/view-mode";
 import { worldPoint } from "../fixtures/world-point";
+import { fitFootprint, topView } from "../fixtures/camera-preset";
 
 const cadDocument = {
   meta: { version: 1, schema: 3, unit: "mm" },
@@ -64,8 +65,8 @@ test("MED, y sólo MED, sobre un tramo de POLYLINE anuncia «medio» en el HUD",
   await page.goto("/legacy/studio");
   await expect(page.getByTestId("cad-native-entity-list")).toBeVisible();
   await enter3DView(page);
-  await page.getByTitle(/Vista superior/).click();
-  await page.getByTitle(/Ajustar a la planta/).click();
+  await topView(page);
+  await fitFootprint(page);
 
   // Apaga los catorce y enciende SÓLO medio: si algún otro modo compitiera
   // por el mismo punto —«centro», «nodo»— este golden lo delataría en vez de
