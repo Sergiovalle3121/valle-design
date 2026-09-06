@@ -127,3 +127,27 @@ módulo nuevo y aquí, no en el monolito; y se aplica el paso 0b del plan de F1
 `precisionText`) salen con sus ocho llamadas al setter: el valor escrito era
 siempre el inicial, así que React descartaba cada llamada sin efecto—.
 Monolito 17 889 líneas / **129** `useState` (techo 131 → 129).
+
+### Frentes hermanos a las 08:40 UTC
+PR borrador abiertos: [#195](https://github.com/Sergiovalle3121/valle-design/pull/195)
+F11 (inventario completo: 159 capacidades comparadas, tres filas propuestas en
+JSON —`visual-styles`, `browser-advantage`, PDF underlay— y una cola de 30
+ordenada por el criterio del prompt maestro; la mayoría coincide con las
+fichas T-NN, y añade `TOOLPALETTES` sin escritura, AutoLISP sin `PAUSE` ni
+salida a fichero, y el corte de la biblioteca a 200 documentos),
+[#196](https://github.com/Sergiovalle3121/valle-design/pull/196) F4 (T-11 a
+hecho, decisión del emisor de PDF, T-19·3 hecho, en T-19·4/5) y
+[#197](https://github.com/Sergiovalle3121/valle-design/pull/197) F10 (pyproj,
+openapi-spec-validator, HMAC, mpmath, atheris). F3 (T-14, T-21, T-23 en
+verde), F5 (T-15, T-33, T-10 a en curso), F8 (T-17 hecho, T-18, T-63) y F9
+(T-13, T-72, T-75 c) siguen en marcha sin PR todavía.
+
+### T-12·5 y T-12·4 · F2 en árbol aparte · ARREGLADA/OCULTA (08:50 UTC)
+Las cuarenta entradas «Frase» salen de Ctrl+K (D-04) con sus tres cadenas
+del «copiloto»; `command-palette.spec.ts` lo defiende y el golden 119 lo mira
+en el navegador. `PLOT` gana su resumen en español («Imprimir la lámina…»),
+así que buscar «imprimir» ofrece PLOT y pulsarlo arranca el trazado: la
+prueba de la palabra «imprimir» (racimo D) se reescribe —B pide que arranque
+PLOT, no un PDF al pulsar, que es lo que hace AutoCAD— y se gradúa como
+golden 190 (techo 10 → 9). Un alias `IMPRIMIR` en la línea de comandos es la
+ficha T-73 (c), al backlog (L-2).
