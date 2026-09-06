@@ -152,11 +152,13 @@ evidencia REAL de esta rama:
       "titulo": "Un despacho que crece puede comprar el asiento que necesita",
       "descripcion": "Checkout de un asiento adicional desde dentro de la organizacion, sin relajar el limite del servidor.",
       "evidencia": [
-        "apps/api/src/modules/commercial/controllers/*.ts (endpoint de compra de asientos)",
-        "apps/web/src/app/cuenta/facturacion/BillingPortal.tsx",
-        "apps/web/e2e/golden/15N-*-comprar-asiento.spec.ts"
+        "apps/api/src/modules/commercial/controllers/billing.controller.ts (openIntent: seats <= current.seats)",
+        "apps/api/src/modules/commercial/commercial-seat-growth.pg.spec.ts",
+        "apps/web/src/app/cuenta/facturacion/BillingPortal.tsx (botón «Comprar un asiento más»)",
+        "apps/web/src/app/equipo/TeamRoom.tsx (enlace desde el muro de invitación)",
+        "apps/web/src/lib/commercial/checkout.ts (PlanSelection.seats)"
       ],
-      "estado": "pendiente — T-61 en curso en esta rama"
+      "estado": "cerrado — T-61, esta rama"
     },
     {
       "id": "comercial-facturacion-declarada",

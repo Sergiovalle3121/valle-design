@@ -309,11 +309,7 @@ paths:
     post:
       operationId: beginIdentityMfaEnrollment
       tags: [identity]
-      summary: >-
-        Emite un secreto TOTP sin confirmar y su URI para el codigo QR. Exige
-        la contrasena (T-60c): sin ella, una sesion abierta en una maquina
-        desatendida podria inscribir un TOTP propio y "asegurar" la cuenta a
-        nombre de quien no es su dueno.
+      summary: Emite un secreto TOTP sin confirmar y su URI para el codigo QR. Exige la contrasena (T-60c).
       parameters:
         - $ref: "#/components/parameters/csrfToken"
       requestBody:
@@ -492,10 +488,7 @@ paths:
     post:
       operationId: changeIdentityPassword
       tags: [identity]
-      summary: >-
-        Cambia la contrasena ESTANDO DENTRO de la sesion (T-60b). Exige la
-        contrasena actual y revoca las demas sesiones; la que hizo el cambio
-        sigue abierta.
+      summary: Cambia la contrasena ESTANDO DENTRO de la sesion (T-60b), sin perder el acceso primero.
       parameters:
         - $ref: "#/components/parameters/csrfToken"
       requestBody:
@@ -590,10 +583,7 @@ paths:
     patch:
       operationId: updateOrganizationMembershipRole
       tags: [organizations]
-      summary: >-
-        Cambia el rol de un miembro (T-60a). El propietario queda fuera: la
-        propiedad es `organization.ownerUserId`, no la membresia, y esta ruta
-        no transfiere propiedad.
+      summary: Cambia el rol de un miembro (T-60a); el propietario queda fuera, esta ruta no transfiere propiedad.
       parameters:
         - $ref: "#/components/parameters/csrfToken"
       requestBody:
@@ -618,10 +608,7 @@ paths:
     delete:
       operationId: removeOrganizationMembership
       tags: [organizations]
-      summary: >-
-        Expulsa a un miembro (T-60a). Limpia la organizacion activa de
-        cualquier sesion suya que apuntara aqui; no revoca sus sesiones en
-        otras organizaciones.
+      summary: Expulsa a un miembro (T-60a); limpia su organizacion activa aqui, sin revocar sus sesiones en otras.
       parameters:
         - $ref: "#/components/parameters/csrfToken"
       responses:

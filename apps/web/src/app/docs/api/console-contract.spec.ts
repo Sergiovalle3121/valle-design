@@ -73,9 +73,13 @@ void (async () => {
   //   flujo @Sse que reparte oferta, respuesta y candidatos ICE.
   // + las 2 de /v1/cad/presence: publicar el propio cursor/encuadre y el
   //   flujo @Sse que reparte el de los demás.
+  // + las 3 de T-60: cambiar de rol y expulsar a un miembro
+  //   (PATCH/DELETE /v1/organizations/{id}/memberships/{membershipId}) y
+  //   cambiar la contraseña estando dentro de la sesión
+  //   (POST /v1/auth/password/change).
   assert.equal(
     regenerated.operationCount,
-    104,
+    107,
     "cambió el número de operaciones del contrato; actualiza este spec Y los recuentos de check-design-contract.mjs / standalone-contract-router.spec.ts",
   );
   assert.equal(

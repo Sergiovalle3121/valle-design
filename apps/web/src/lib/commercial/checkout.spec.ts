@@ -66,6 +66,31 @@ for (const broken of [
   assert.equal(fromQuery(broken), null, `debería rechazar "${broken}"`);
 }
 
+// ── T-61: comprar MÁS asientos de un plan ya activo viaja en la URL ────────
+const conAsientos = { ...selection, seats: 4 } as const;
+assert.equal(
+  checkoutPath(conAsientos),
+  "/precios/checkout?plan=despacho&periodo=yearly&moneda=MXN&asientos=4",
+);
+assert.deepEqual(
+  fromQuery("plan=despacho&periodo=yearly&moneda=MXN&asientos=4"),
+  conAsientos,
+);
+// Ausente sigue significando "el mínimo del plan": no aparece la clave.
+assert.equal(
+  "seats" in (fromQuery("plan=despacho&periodo=yearly&moneda=MXN") ?? {}),
+  false,
+);
+// Un valor absurdo NO tira la compra entera: se ignora y cae al mínimo del
+// plan, porque el servidor vuelve a validar `seats` de todos modos.
+for (const asientos of ["0", "-1", "1001", "tres", "1.5"]) {
+  assert.deepEqual(
+    fromQuery(`plan=despacho&periodo=yearly&moneda=MXN&asientos=${asientos}`),
+    selection,
+    `asientos="${asientos}" debería ignorarse, no rechazar la compra`,
+  );
+}
+
 // ── Roles: la interfaz no ofrece lo que la API va a rechazar ────────────────
 assert.equal(canOpenCheckout("owner"), true);
 assert.equal(canOpenCheckout("admin"), true);
@@ -282,8 +307,11 @@ assert.match(generico.title, /Esperando la confirmación/u);
 // Un pago pendiente NUNCA convierte un fallo real en espera: el past_due sigue
 // siendo un fallo aunque haya una ficha viva.
 assert.equal(
-  resolveCheckoutOutcome(subscription({ status: "past_due" }), "despacho", pagoPendiente)
-    .outcome,
+  resolveCheckoutOutcome(
+    subscription({ status: "past_due" }),
+    "despacho",
+    pagoPendiente,
+  ).outcome,
   "fallido",
 );
 

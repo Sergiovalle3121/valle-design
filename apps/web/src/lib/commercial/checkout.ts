@@ -49,7 +49,16 @@ export interface PlanSelection {
   planCode: string;
   currency: string;
   period: PlanPeriod;
+  /**
+   * T-61: cuántos asientos comprar. Ausente significa «el mínimo del plan»
+   * (lo de siempre); presente es lo que permite volver a este mismo camino
+   * para comprar MÁS asientos de un plan que ya está activo —
+   * `BillingPortal.tsx` es quien lo manda con un valor concreto.
+   */
+  seats?: number;
 }
+
+const SEATS_MAX = 1_000;
 
 /** URL que retoma la compra. Los nombres van en español, como las rutas. */
 export function checkoutPath(selection: PlanSelection): string {
@@ -58,6 +67,9 @@ export function checkoutPath(selection: PlanSelection): string {
     periodo: selection.period,
     moneda: selection.currency,
   });
+  if (selection.seats !== undefined) {
+    query.set("asientos", String(selection.seats));
+  }
   return `${CHECKOUT_PATH}?${query.toString()}`;
 }
 
@@ -83,7 +95,16 @@ export function parsePlanSelection(
   }
   if (period !== "monthly" && period !== "yearly") return null;
   if (!CURRENCY_PATTERN.test(currency)) return null;
-  return { planCode, currency, period };
+  const rawSeats = (read("asientos") ?? "").trim();
+  if (!rawSeats) return { planCode, currency, period };
+  const seats = Number(rawSeats);
+  // Fuera de rango se ignora el parámetro (no se rechaza toda la compra):
+  // el servidor vuelve a validar seats con `resolveCheckoutSeats`, así que
+  // el peor caso de un valor absurdo aquí es pedir el mínimo del plan.
+  if (!Number.isInteger(seats) || seats < 1 || seats > SEATS_MAX) {
+    return { planCode, currency, period };
+  }
+  return { planCode, currency, period, seats };
 }
 
 /**

@@ -185,7 +185,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Emite un secreto TOTP sin confirmar y su URI para el codigo QR. Exige la contrasena (T-60c): sin ella, una sesion abierta en una maquina desatendida podria inscribir un TOTP propio y "asegurar" la cuenta a nombre de quien no es su dueno. */
+        /** Emite un secreto TOTP sin confirmar y su URI para el codigo QR. Exige la contrasena (T-60c). */
         post: operations["beginIdentityMfaEnrollment"];
         delete?: never;
         options?: never;
@@ -338,7 +338,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Cambia la contrasena ESTANDO DENTRO de la sesion (T-60b). Exige la contrasena actual y revoca las demas sesiones; la que hizo el cambio sigue abierta. */
+        /** Cambia la contrasena ESTANDO DENTRO de la sesion (T-60b), sin perder el acceso primero. */
         post: operations["changeIdentityPassword"];
         delete?: never;
         options?: never;
@@ -413,11 +413,11 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Expulsa a un miembro (T-60a). Limpia la organizacion activa de cualquier sesion suya que apuntara aqui; no revoca sus sesiones en otras organizaciones. */
+        /** Expulsa a un miembro (T-60a); limpia su organizacion activa aqui, sin revocar sus sesiones en otras. */
         delete: operations["removeOrganizationMembership"];
         options?: never;
         head?: never;
-        /** Cambia el rol de un miembro (T-60a). El propietario queda fuera: la propiedad es `organization.ownerUserId`, no la membresia, y esta ruta no transfiere propiedad. */
+        /** Cambia el rol de un miembro (T-60a); el propietario queda fuera, esta ruta no transfiere propiedad. */
         patch: operations["updateOrganizationMembershipRole"];
         trace?: never;
     };
