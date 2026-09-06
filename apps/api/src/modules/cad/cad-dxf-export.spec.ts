@@ -2,7 +2,7 @@ import { buildDxfExportInput } from './cad-dxf-export';
 
 describe('buildDxfExportInput — proyección documento canónico → DXF R12', () => {
   it('mapea cajas, líneas y textos a assets/anotaciones con huella del bbox', () => {
-    const input = buildDxfExportInput(
+    const { input, warnings } = buildDxfExportInput(
       {
         meta: { schema: 3, version: 1, unit: 'mm' },
         entities: [
@@ -28,7 +28,7 @@ describe('buildDxfExportInput — proyección documento canónico → DXF R12', 
             position: { x: 100, y: 200 },
             text: 'LINEA 1',
           },
-          { id: 'raro', type: 'spline' }, // sin geometría mapeable: se ignora
+          { id: 'raro', type: 'spline' }, // sin geometría mapeable: manifiesto, no silencio
         ],
       },
       'Plano demo',
@@ -60,10 +60,14 @@ describe('buildDxfExportInput — proyección documento canónico → DXF R12', 
     ]);
     expect(input.stations).toEqual([]);
     expect(input.connectors).toEqual([]);
+    // La entidad sin proyección posible se declara, nunca desaparece callada.
+    expect(warnings).toEqual([
+      expect.objectContaining({ entityId: 'raro', code: 'entity_unmapped' }),
+    ]);
   });
 
   it('emite ARC, CIRCLE y todos los vértices de una POLYLINE en su capa real', () => {
-    const input = buildDxfExportInput(
+    const { input, warnings } = buildDxfExportInput(
       {
         meta: { schema: 3, version: 1, unit: 'mm' },
         entities: [
@@ -136,15 +140,96 @@ describe('buildDxfExportInput — proyección documento canónico → DXF R12', 
     );
     // La huella cubre el arco completo, no sólo su centro.
     expect(input.footprint.footprintW).toBeGreaterThanOrEqual(4120);
+    // Ningún nombre de capa de este caso pasa de 31 caracteres.
+    expect(warnings).toEqual([]);
   });
 
   it('documento vacío/null produce una huella mínima estable (nunca 0×0)', () => {
-    const input = buildDxfExportInput(null, 'Nuevo', null, null);
+    const { input, warnings } = buildDxfExportInput(null, 'Nuevo', null, null);
     expect(input.model).toBe('Nuevo');
     expect(input.revision).toBe('A');
     expect(input.footprint.footprintW).toBeGreaterThan(0);
     expect(input.footprint.footprintH).toBeGreaterThan(0);
     expect(input.assets).toEqual([]);
     expect(input.annotations).toEqual([]);
+    expect(warnings).toEqual([]);
+  });
+
+  it('NUNCA convierte en rectángulo inventado una entidad que no es box/station aunque tenga x/y/w/h', () => {
+    // El defecto de v2: `boxOf` miraba x/y/w/h antes de mirar el tipo. Una
+    // entidad `wall` (o cualquier otra) con esos cuatro campos por coincidencia
+    // de esquema salía como EQUIPO inventado en vez de su geometría real.
+    const { input, warnings } = buildDxfExportInput(
+      {
+        meta: { schema: 3, version: 1, unit: 'mm' },
+        entities: [
+          {
+            id: 'w1',
+            type: 'wall',
+            x: 10,
+            y: 20,
+            w: 300,
+            h: 15,
+            start: { x: 0, y: 0 },
+            end: { x: 300, y: 0 },
+            layer: 'MUROS',
+          },
+        ],
+      },
+      'Plano',
+      null,
+      null,
+    );
+
+    expect(input.assets).toEqual([]);
+    expect(warnings).toEqual([
+      expect.objectContaining({ entityId: 'w1', code: 'entity_unmapped' }),
+    ]);
+  });
+
+  it('declara la capa recortada a 31 caracteres en vez de aplicarla en silencio', () => {
+    const longLayer = 'A'.repeat(40);
+    const { input, warnings } = buildDxfExportInput(
+      {
+        meta: { schema: 3, version: 1, unit: 'mm' },
+        entities: [
+          {
+            id: 'l1',
+            type: 'line',
+            start: { x: 0, y: 0 },
+            end: { x: 100, y: 0 },
+            layer: longLayer,
+          },
+        ],
+      },
+      'Plano',
+      null,
+      null,
+    );
+
+    expect(input.geometry?.lines?.[0]?.layer).toHaveLength(31);
+    expect(warnings).toEqual([
+      expect.objectContaining({ entityId: 'l1', code: 'layer_truncated' }),
+    ]);
+  });
+
+  it('declara el texto recortado a 240 caracteres en vez de aplicarlo en silencio', () => {
+    const longText = 'x'.repeat(300);
+    const { input, warnings } = buildDxfExportInput(
+      {
+        meta: { schema: 3, version: 1, unit: 'mm' },
+        entities: [
+          { id: 't1', type: 'text', position: { x: 0, y: 0 }, text: longText },
+        ],
+      },
+      'Plano',
+      null,
+      null,
+    );
+
+    expect(input.annotations[0]?.text).toHaveLength(240);
+    expect(warnings).toEqual([
+      expect.objectContaining({ entityId: 't1', code: 'text_truncated' }),
+    ]);
   });
 });

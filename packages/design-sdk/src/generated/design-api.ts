@@ -2859,6 +2859,16 @@ export interface components {
             unit: string;
             /** @description Contenido DXF R12 completo como texto. */
             dxf: string;
+            /** @description Pérdidas de la proyección a DXF R12: capas recortadas a 31 caracteres, textos recortados a 240 y entidades sin proyección posible. Vacío cuando la exportación no perdió nada. Su ausencia en una respuesta antigua no implica que no hubiera pérdidas —sólo que aún no se declaraban. */
+            lossManifest?: components["schemas"]["DxfExportLossWarning"][];
+        };
+        DxfExportLossWarning: {
+            /** @description Id de la entidad afectada, o "(sin id)" si no tenía. */
+            entityId: string;
+            /** @enum {string} */
+            code: "layer_truncated" | "text_truncated" | "entity_unmapped";
+            /** @description Explicación legible de la pérdida. */
+            detail: string;
         };
         /** @description Asset del bloque con coordenadas RELATIVAS al origen (0,0) del bloque. */
         CadBlockAsset: {

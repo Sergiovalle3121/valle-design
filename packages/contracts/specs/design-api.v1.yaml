@@ -5543,6 +5543,29 @@ components:
         dxf:
           type: string
           description: Contenido DXF R12 completo como texto.
+        lossManifest:
+          type: array
+          description: >-
+            Pérdidas de la proyección a DXF R12: capas recortadas a 31
+            caracteres, textos recortados a 240 y entidades sin proyección
+            posible. Vacío cuando la exportación no perdió nada. Su ausencia
+            en una respuesta antigua no implica que no hubiera pérdidas —sólo
+            que aún no se declaraban.
+          items:
+            $ref: "#/components/schemas/DxfExportLossWarning"
+    DxfExportLossWarning:
+      type: object
+      required: [entityId, code, detail]
+      properties:
+        entityId:
+          type: string
+          description: Id de la entidad afectada, o "(sin id)" si no tenía.
+        code:
+          type: string
+          enum: [layer_truncated, text_truncated, entity_unmapped]
+        detail:
+          type: string
+          description: Explicación legible de la pérdida.
     CadBlockAsset:
       type: object
       description: Asset del bloque con coordenadas RELATIVAS al origen (0,0) del bloque.
