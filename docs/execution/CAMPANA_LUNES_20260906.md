@@ -193,3 +193,45 @@ horizontal a cualquier cota extruye byte-idéntico. 49 comprobaciones nuevas en
 sin cambios (el artefacto no se toca). Lo que queda para el backlog: extruir
 por la normal (el arreglo bueno) y el mismo guardián en REVOLVE, LOFT, SLAB y
 STAIR, que siguen leyendo la cota de un vértice.
+
+### T-00 · Paso 2 · HECHO (18:10 UTC)
+`editor/versions-host.ts` (369 líneas): el cuadro «Versiones» —abierto, nombre,
+ocupado, lista del servidor— y los snapshots locales con su última comparación,
+más las ocho acciones, movidos tal cual. Seis `useState` menos (124 → 118).
+Monolito 17 340 → **17 235** (techo de la ficha ≤ 17 250: cumplido; acumulado
+18 453 → 17 235, 1 218 líneas fuera). Único ajuste no verbatim: el `useCallback`
+de `recordLocalSnapshot` declara `setLocalSnapshots` (ya no es un setter de
+React; sin declararlo el trinquete de `exhaustive-deps` subía 6 → 7). Verificado
+como el paso 1. Los pasos 3 (`dxf-backdrop-host`) y 4 quedan opcionales: el
+techo de la ficha ya está cumplido y la Ola 1 tiene prioridad.
+
+### T-43 D1 · El invitado ya no oye «nadie más» · ARREGLADA en F2 (09:08 UTC, fusionada 18:12 UTC)
+`use-cad-presence.ts` calculaba `connected` como «hay algún transporte»; con
+BroadcastChannel (pestañas de este navegador) un invitado del enlace veía
+`connected: true`, la lista vacía y «Nadie más en este documento ahora mismo»
+mientras el arquitecto miraba desde otra máquina. Regla nueva y pura
+(`presence-affirmation.ts`): sólo un transporte que alcance OTRAS máquinas
+respalda la afirmación —hoy el canal del servidor, y sólo lo tiene la sesión
+first-party—. El panel enseña los peers reales y, sin ese transporte, dice
+«No se puede saber quién más está mirando desde aquí». 12 comprobaciones
+(regla + cableado). Golden 109 sin cambio. Decisión no preguntada: con peers de
+pestaña propia y sin transporte entre máquinas se enseñan los chips Y la nota;
+ocultar los chips tiraría información cierta.
+
+### Parón por límite de sesión (09:10 → 17:50 UTC)
+La cuenta agotó su límite de sesión a las 09:10 UTC (agentes en vuelo
+terminados por el proveedor: el paso 2 quedó a medias en el árbol y la
+auditoría documental completó 48 verificaciones de 96). Reanudado a las 17:50
+con la orden «try again». El árbol del paso 2 se verificó entero antes de
+commitear (no se dio nada por hecho del agente interrumpido). Los frentes
+Sonnet pararon a la misma hora: F10 (#197, 4 commits), F11 (#195, 5), F9
+(rama nueva, 2), F4 (#196, sin rebasar: 5 commits sobre `1478471`).
+
+### CI del PR #194 en rojo sobre `512fdc8`: `llamada-webrtc-real.spec.ts` (paso 4)
+`E2E Playwright 4/4`: «B se une y los dos llegan a en-curso» — en A nunca
+apareció «En curso» en 60 s (el resto de la rebanada, 69 en verde; cables
+sueltos 2/2 en verde). Nada del diff toca llamadas, señalización ni el SSE de
+`/v1/calls`; en `main` (`2fd2bfd`) la misma suite estaba en verde. Decisión:
+no se gasta una corrida de CI en re-lanzar el job aparte —el siguiente push
+(paso 2 + T-43 D1) vuelve a correr la suite entera y hace de re-ejecución—.
+Si repite sobre el nuevo head, se investiga como propio.
