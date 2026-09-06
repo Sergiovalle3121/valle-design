@@ -168,7 +168,17 @@ export function parsePublicCatalog(payload: unknown): PublicCatalog {
       `trialDays fuera del rango que el producto concede: ${trialDays}`,
     );
   }
-  return { checkout, items: body.items.map(parsePlan), trialDays };
+  // T-18a: el modo REAL de emisión de CFDI, contra la lista cerrada del
+  // contrato. De este campo depende que el sello fiscal de precios pueda
+  // anunciar «Factura CFDI»; un valor inesperado no puede degradar a
+  // "supongo que sí se puede timbrar".
+  const cfdi = body.cfdi;
+  if (cfdi !== "manual" && cfdi !== "automatic") {
+    throw new CatalogContractError(
+      `cfdi desconocido: ${String(cfdi)}. Sin saber el modo real de emisión, no se anuncia factura.`,
+    );
+  }
+  return { checkout, items: body.items.map(parsePlan), trialDays, cfdi };
 }
 
 /**

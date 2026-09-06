@@ -3,9 +3,15 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Clock, KeyRound, Laptop, ShieldCheck } from "lucide-react";
-import { designClient } from "@/lib/cad/repositories/client";
+import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
-import { Button, Surface, buttonClass, cx } from "@/components/ui";
+import {
+  Button,
+  PasswordField,
+  Surface,
+  buttonClass,
+  cx,
+} from "@/components/ui";
 import { MfaEnrollment } from "./MfaEnrollment";
 import { describeUserAgent } from "@/lib/user-agent";
 import { formatRegionDateTime } from "@/lib/cad/region";
@@ -32,15 +38,11 @@ import { getClientRegion } from "@/lib/cad/region/client";
  *   2. La actividad reciente: inicios de sesión con su método, y los sucesos de
  *      identidad que ya se auditaban. Es lo que responde «¿entró alguien más?».
  *   3. El segundo factor, con su alta completa.
- *   4. Lo que el producto YA hace y nunca decía: cambiar la contraseña cierra
- *      todas las demás sesiones. Una defensa que el usuario no conoce es una
- *      defensa que no usa.
- *
- * ── POR QUÉ NO HAY «CAMBIAR CONTRASEÑA» AQUÍ ────────────────────────────────
- * Porque el API no tiene ese endpoint: la única vía es el enlace por correo, y
- * esta página enlaza a ella en vez de fingir un formulario que no existiría. La
- * regla del repositorio es que no se muestra un botón cuyo comportamiento no
- * esté probado, y eso incluye no insinuarlo.
+ *   4. Cambiar la contraseña SIN SALIR DE LA CUENTA (T-60b). Hasta esta ficha
+ *      la única vía era el enlace por correo —perder el acceso primero para
+ *      poder cambiarla—; el formulario de abajo pide la actual, la cambia, y
+ *      cierra todas las demás sesiones automáticamente, que es exactamente lo
+ *      que hay que poder hacer cuando sospechas que alguien más entró.
  */
 
 type Sesion = {
@@ -66,6 +68,7 @@ const ACCION: Record<string, string> = {
   "identity.registered": "Cuenta creada",
   "identity.email_verified": "Correo verificado",
   "identity.password_reset": "Contraseña restablecida",
+  "identity.password_changed": "Contraseña cambiada",
   "identity.mfa_enabled": "Segundo factor activado",
   "identity.mfa_disabled": "Segundo factor desactivado",
 };
@@ -80,7 +83,10 @@ const ERROR_LECTURA =
   "No se pudo leer el estado de tu cuenta. Actualiza la página o vuelve en un momento.";
 
 const fecha = (d: Date) =>
-  formatRegionDateTime(d, getClientRegion(), { dateStyle: "medium", timeStyle: "short" });
+  formatRegionDateTime(d, getClientRegion(), {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 
 function cuando(iso: string): string {
   return fecha(new Date(iso));
@@ -323,23 +329,90 @@ export function AccountSecurity() {
         titulo="Contraseña"
         descripcion="Se guarda con Argon2id: nunca almacenamos tu contraseña, sólo un derivado del que no se puede volver atrás."
       >
-        <p className="type-small text-muted-foreground">
-          El cambio se hace por correo, con un enlace de un solo uso que caduca
-          en una hora.{" "}
-          <strong className="font-semibold text-foreground">
-            Al cambiarla se cierran todas tus demás sesiones automáticamente
-          </strong>
-          , que es exactamente lo que hay que poder hacer cuando sospechas que
-          alguien más entró.
+        <CambiarContrasena />
+        <p className="type-caption mt-4 text-muted-foreground">
+          ¿No recuerdas la actual?{" "}
+          <Link
+            href="/forgot-password"
+            className="font-medium text-primary-ink underline underline-offset-4 hover:text-foreground"
+          >
+            Restablécela por correo
+          </Link>
+          .
         </p>
-        <Link
-          href="/forgot-password"
-          className={cx(buttonClass({ variant: "secondary" }), "mt-5")}
-        >
-          Cambiar mi contraseña
-        </Link>
       </Seccion>
     </Marco>
+  );
+}
+
+/**
+ * T-60b: el formulario en sí. Vive aparte de `AccountSecurity` por la misma
+ * razón que `MfaEnrollment` — su estado (ocupado, error, éxito) es del
+ * FORMULARIO, no de la página, y mezclarlo con el `ocupado` de sesiones
+ * haría que cerrar una sesión deshabilitara este botón sin motivo.
+ */
+function CambiarContrasena() {
+  const [ocupado, setOcupado] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [exito, setExito] = useState(false);
+
+  async function cambiar(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const currentPassword = String(form.get("currentPassword") ?? "");
+    const newPassword = String(form.get("newPassword") ?? "");
+    setOcupado(true);
+    setError(null);
+    setExito(false);
+    try {
+      await designClient.identity.changePassword({
+        currentPassword,
+        newPassword,
+      });
+      setExito(true);
+      event.currentTarget.reset();
+    } catch (cause) {
+      setError(
+        cause instanceof DesignApiError && cause.status === 401
+          ? "Contraseña actual incorrecta."
+          : "No se pudo cambiar la contraseña. Vuelve a intentarlo.",
+      );
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  return (
+    <form onSubmit={cambiar} className="max-w-sm space-y-4">
+      {exito ? (
+        <p role="status" className="type-small text-success-ink">
+          Contraseña cambiada. Tus demás sesiones se cerraron; ésta sigue
+          abierta.
+        </p>
+      ) : null}
+      {error ? (
+        <p role="alert" className="type-small text-danger-ink">
+          {error}
+        </p>
+      ) : null}
+      <PasswordField
+        label="Contraseña actual"
+        name="currentPassword"
+        autoComplete="current-password"
+        required
+      />
+      <PasswordField
+        label="Contraseña nueva"
+        name="newPassword"
+        autoComplete="new-password"
+        showStrength
+        required
+        hint="Mínimo 12 caracteres."
+      />
+      <Button type="submit" variant="secondary" loading={ocupado}>
+        Cambiar mi contraseña
+      </Button>
+    </form>
   );
 }
 

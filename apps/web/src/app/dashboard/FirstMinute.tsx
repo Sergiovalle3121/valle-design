@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { FilePlus2, PlayCircle, Upload } from "lucide-react";
 import { Button, Surface, cx } from "@/components/ui";
 import { EmptyCanvasArt } from "@/components/brand/Illustration";
@@ -97,8 +97,8 @@ export function FirstMinute({
           <div className="flex flex-1 flex-col p-6">
             <h3 className="type-heading">Abre un plano de ejemplo</h3>
             <p className="type-small mt-2 text-muted-foreground">
-              Una planta con muros que resuelven su esquina, cotas amarradas a la
-              geometría y su cajetín. Es tuyo: dibuja encima, bórralo o
+              Una planta con muros que resuelven su esquina, cotas amarradas a
+              la geometría y su cajetín. Es tuyo: dibuja encima, bórralo o
               impórtalo a PDF.
             </p>
             <Button
@@ -137,7 +137,8 @@ export function FirstMinute({
           <PathCard
             Icon={Upload}
             title="Importa un DXF"
-            text="Con comprobación previa y un manifiesto que dice, entidad por entidad, qué no viajó igual."
+            text="Con comprobación previa y un manifiesto que dice, entidad por entidad, qué no viajó igual. Arrástralo aquí o elige el archivo."
+            onDropFiles={busy ? undefined : onImport}
             action={
               <>
                 <Button
@@ -174,14 +175,46 @@ function PathCard({
   title,
   text,
   action,
+  onDropFiles,
 }: {
   Icon: typeof FilePlus2;
   title: string;
   text: string;
   action: React.ReactNode;
+  /**
+   * T-63f: arrastrar-y-soltar un DXF no existía en NINGUNA parte del
+   * producto — ni estado vacío, ni tablero, ni lienzo (el lienzo es del
+   * monolito y va a petición aparte). Esta tarjeta es el primer sitio: si
+   * se provee, la tarjeta entera se vuelve zona de suelta.
+   */
+  onDropFiles?: (files: FileList | null) => void;
 }) {
+  const [draggingOver, setDraggingOver] = useState(false);
+  const dropHandlers = onDropFiles
+    ? {
+        onDragOver: (event: React.DragEvent) => {
+          event.preventDefault();
+          setDraggingOver(true);
+        },
+        onDragLeave: () => setDraggingOver(false),
+        onDrop: (event: React.DragEvent) => {
+          event.preventDefault();
+          setDraggingOver(false);
+          onDropFiles(event.dataTransfer.files);
+        },
+      }
+    : {};
   return (
-    <Surface className={cx("flex h-full flex-col")}>
+    <Surface
+      className={cx(
+        "flex h-full flex-col",
+        onDropFiles &&
+          "motion-fast border-2 border-dashed transition-[border-color,background-color]",
+        draggingOver && "border-primary bg-primary/5",
+      )}
+      data-testid={onDropFiles ? "first-minute-import-dropzone" : undefined}
+      {...dropHandlers}
+    >
       <Icon aria-hidden="true" className="h-6 w-6 text-primary-ink" />
       <h3 className="type-heading mt-4">{title}</h3>
       <p className="type-small mt-2 text-muted-foreground">{text}</p>

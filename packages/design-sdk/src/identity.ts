@@ -96,6 +96,16 @@ export function createIdentitySurface({ call, resource }: IdentityTransport) {
         input,
       ),
     /**
+     * T-60b: cambiar la contraseña ESTANDO DENTRO de la sesión. Exige la
+     * actual; revoca las demás sesiones y deja viva la que hizo el cambio.
+     */
+    changePassword: (input: Schemas["PasswordChangeRequest"]) =>
+      call<Schemas["PasswordChangeResponse"]>(
+        "POST",
+        resource("/v1/auth/password/change"),
+        input,
+      ),
+    /**
      * SEGUNDO ACTO DEL INICIO DE SESIÓN.
      *
      * Sólo se llama cuando `login` respondió `mfaRequired`. Va aquí y no
@@ -114,11 +124,17 @@ export function createIdentitySurface({ call, resource }: IdentityTransport) {
 
     mfa: {
       status: () => call<Schemas["MfaStatus"]>("GET", resource("/v1/auth/mfa")),
-      /** Emite un secreto SIN confirmar y su URI para el código QR. */
-      setup: () =>
+      /**
+       * Emite un secreto SIN confirmar y su URI para el código QR. Exige la
+       * contraseña (T-60c): dar de alta un segundo factor sin ella dejaría
+       * que una sesión abierta en una máquina desatendida lo activara a
+       * nombre de quien no es su dueño.
+       */
+      setup: (password: string) =>
         call<Schemas["MfaSetupResponse"]>(
           "POST",
           resource("/v1/auth/mfa/setup"),
+          { password },
         ),
       /**
        * Confirma el alta. Los códigos de respaldo que devuelve son la ÚNICA

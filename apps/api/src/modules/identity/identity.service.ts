@@ -447,6 +447,61 @@ export class IdentityService {
   }
 
   /**
+   * T-60b: cambiar la contraseña ESTANDO DENTRO de la sesión — el hueco que
+   * `resetPassword` no cubre, porque ese camino exige perder el acceso
+   * primero (pedir un correo). Exige la CONTRASEÑA ACTUAL por la misma razón
+   * que dar de alta el segundo factor la exige (ver `beginMfaEnrollment`):
+   * una sesión abierta en una máquina desatendida no puede bastar para
+   * cambiar la contraseña, o el cambio de contraseña dejaría de ser un
+   * mecanismo de defensa y pasaría a ser un mecanismo de secuestro.
+   *
+   * Revoca las DEMÁS sesiones (no la que hizo el cambio): quien cambia su
+   * contraseña desde su propio dispositivo no espera que ESE dispositivo
+   * cierre sesión, pero sí espera que cualquier otro —incluido uno que un
+   * atacante hubiera abierto con una contraseña filtrada— deje de servir.
+   */
+  async changePassword(
+    userId: string,
+    currentSessionId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<boolean> {
+    const credential = await this.credentials.findOneBy({ userId });
+    const candidateHash =
+      credential?.algorithm === 'argon2id'
+        ? credential.passwordHash
+        : DUMMY_PASSWORD_HASH;
+    const valid = await this.verifyPassword(candidateHash, currentPassword);
+    if (!credential || !valid) return false;
+
+    const passwordHash = await this.hashPassword(newPassword);
+    await this.dataSource.transaction(async (manager) => {
+      await manager.update(
+        Credential,
+        { userId },
+        { passwordHash, algorithm: 'argon2id' },
+      );
+      await manager
+        .createQueryBuilder()
+        .update(Session)
+        .set({ revokedAt: new Date() })
+        .where(
+          'userId = :userId AND id != :currentSessionId AND revokedAt IS NULL',
+          { userId, currentSessionId },
+        )
+        .execute();
+      await manager.save(
+        IdentityAuditEvent,
+        manager.create(IdentityAuditEvent, {
+          actorUserId: userId,
+          action: 'identity.password_changed',
+        }),
+      );
+    });
+    return true;
+  }
+
+  /**
    * El desafío entre la contraseña y el código. Cinco minutos.
    *
    * Suficiente para abrir la aplicación de autenticación y teclear seis

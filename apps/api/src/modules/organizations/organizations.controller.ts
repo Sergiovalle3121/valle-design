@@ -3,12 +3,15 @@ import {
   Body,
   ConflictException,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
+  HttpCode,
   Inject,
   NotFoundException,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Req,
   ServiceUnavailableException,
@@ -91,6 +94,17 @@ class InvitationAcceptanceDto {
 class ActiveOrganizationDto {
   @IsUUID()
   organizationId!: string;
+}
+
+/**
+ * T-60a: cambiar el rol de un miembro. `owner` queda deliberadamente FUERA de
+ * la lista — no existe todavía una transferencia de propiedad, y promover o
+ * degradar al propietario por esta vía sería inventarla a medias. La
+ * propiedad sigue siendo `organization.ownerUserId`, no la membresía.
+ */
+class MembershipRoleDto {
+  @IsIn(['admin', 'member', 'viewer'])
+  role!: Exclude<OrganizationRole, 'owner'>;
 }
 
 @Controller('v1/organizations')
@@ -321,6 +335,116 @@ export class OrganizationsController {
           : [];
       }),
     };
+  }
+
+  /**
+   * T-60a: sobre TODO el API había 17 rutas `@Delete`/`@Patch`/`@Put` y
+   * ninguna era de organizaciones — no se podía expulsar a nadie ni degradar
+   * un rol. Las dos rutas de abajo comparten la misma comprobación de acceso
+   * (`this.membershipTarget`): quién puede actuar, sobre quién, y por qué el
+   * propietario queda siempre fuera de las dos.
+   */
+  private async membershipTarget(
+    req: Request,
+    organizationId: string,
+    membershipId: string,
+  ) {
+    const auth = await this.actor(req);
+    const access = await this.access.resolve(auth.user.id, organizationId);
+    if (!access || !['owner', 'admin'].includes(access.membership.role)) {
+      throw new NotFoundException();
+    }
+    const target = await this.memberships.findOneBy({
+      id: membershipId,
+      organizationId,
+    });
+    if (!target) throw new NotFoundException();
+    if (target.userId === access.organization.ownerUserId) {
+      throw new ForbiddenException({
+        statusCode: 403,
+        code: 'organization_owner_protected',
+        message:
+          'No se puede expulsar ni cambiar el rol del propietario. Transferir la propiedad no está disponible todavía.',
+      });
+    }
+    // Un admin no puede actuar sobre OTRO admin ni sobre sí mismo por esta
+    // vía: sólo el propietario tiene ese alcance. Bajarle el rol a un colega
+    // admin, o subirse el propio, son decisiones que exigen ser el dueño.
+    if (
+      access.membership.role === 'admin' &&
+      (target.role === 'admin' || target.userId === auth.user.id)
+    ) {
+      throw new ForbiddenException({
+        statusCode: 403,
+        code: 'organization_admin_scope',
+        message:
+          'Un administrador no puede actuar sobre otro administrador ni sobre sí mismo. Pide al propietario.',
+      });
+    }
+    if (access.membership.role === 'owner' && target.userId === auth.user.id) {
+      throw new ForbiddenException({
+        statusCode: 403,
+        code: 'organization_self_action',
+        message:
+          'No puedes expulsarte ni cambiar tu propio rol por esta vía. Transfiere la propiedad o pide a otro propietario.',
+      });
+    }
+    return { auth, access, target };
+  }
+
+  @Patch(':organizationId/memberships/:membershipId')
+  async changeMemberRole(
+    @Param('organizationId', new ParseUUIDPipe({ version: '4' }))
+    organizationId: string,
+    @Param('membershipId', new ParseUUIDPipe({ version: '4' }))
+    membershipId: string,
+    @Body() body: MembershipRoleDto,
+    @Req() req: Request,
+  ) {
+    const { target } = await this.membershipTarget(
+      req,
+      organizationId,
+      membershipId,
+    );
+    await this.memberships.update({ id: target.id }, { role: body.role });
+    return { id: target.id, userId: target.userId, role: body.role };
+  }
+
+  /**
+   * Expulsar a alguien. Además de borrar la membresía, se limpia
+   * `activeOrganizationId` en cualquier sesión suya que apuntara a ESTA
+   * organización: sin eso, su próxima petición seguiría intentando trabajar
+   * en un tenant al que ya no pertenece — un 403 confuso en vez de un cambio
+   * de organización limpio. Las sesiones NO se revocan enteras: la persona
+   * puede pertenecer a otras organizaciones y expulsarla de ésta no tiene por
+   * qué cerrarle la sesión en las demás.
+   */
+  @Delete(':organizationId/memberships/:membershipId')
+  @HttpCode(204)
+  async removeMember(
+    @Param('organizationId', new ParseUUIDPipe({ version: '4' }))
+    organizationId: string,
+    @Param('membershipId', new ParseUUIDPipe({ version: '4' }))
+    membershipId: string,
+    @Req() req: Request,
+  ): Promise<void> {
+    const { target } = await this.membershipTarget(
+      req,
+      organizationId,
+      membershipId,
+    );
+    await this.data.transaction(async (manager) => {
+      await manager.delete(Membership, { id: target.id });
+      await manager
+        .createQueryBuilder()
+        .update(Session)
+        .set({ activeOrganizationId: null })
+        .where('userId = :userId AND activeOrganizationId = :organizationId', {
+          userId: target.userId,
+          organizationId,
+        })
+        .execute();
+    });
   }
 
   @Post(':organizationId/invitations')

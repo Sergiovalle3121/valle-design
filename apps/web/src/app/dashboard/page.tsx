@@ -102,6 +102,9 @@ export default function DashboardPage() {
   useEffect(() => prefetchCadStudio(), []);
   const [selectedProject, setSelectedProject] = useState("");
   const [busy, setBusy] = useState(false);
+  // T-63f: arrastrar-y-soltar sobre el tablero (la lista de documentos), la
+  // otra mitad del hueco además del estado vacío (`FirstMinute.tsx`).
+  const [draggingOverBoard, setDraggingOverBoard] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [importState, setImportState] = useState<ImportState>({
     status: "idle",
@@ -746,10 +749,48 @@ export default function DashboardPage() {
               }}
             />
           ) : (
-            <section className="order-3 mt-12" aria-labelledby="documentos">
+            <section
+              className={cx(
+                "order-3 mt-12 rounded-card",
+                canEdit &&
+                  "motion-fast border-2 border-dashed border-transparent transition-[border-color,background-color]",
+                draggingOverBoard && "border-primary bg-primary/5",
+              )}
+              aria-labelledby="documentos"
+              data-testid="dashboard-board-dropzone"
+              onDragOver={
+                canEdit && !busy
+                  ? (event) => {
+                      event.preventDefault();
+                      setDraggingOverBoard(true);
+                    }
+                  : undefined
+              }
+              onDragLeave={
+                canEdit && !busy ? () => setDraggingOverBoard(false) : undefined
+              }
+              onDrop={
+                canEdit && !busy
+                  ? (event) => {
+                      event.preventDefault();
+                      setDraggingOverBoard(false);
+                      const chosen = splitDocumentSelection([
+                        ...event.dataTransfer.files,
+                      ]);
+                      if (chosen)
+                        void importDocument(chosen.primary, chosen.sidecars);
+                    }
+                  : undefined
+              }
+            >
               <h2 id="documentos" className="type-heading">
                 Documentos
               </h2>
+              <p className="type-small mt-1 text-muted-foreground">
+                {canEdit
+                  ? "Arrastra un DXF aquí para importarlo, o usa “Importar como documento” arriba."
+                  : null}
+              </p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {documents.map((document) => (
                   <button

@@ -132,6 +132,22 @@ export class ResetDto extends TokenDto {
   password!: string;
 }
 
+/**
+ * T-60b: cambiar la contraseña ESTANDO DENTRO de la sesión exige la actual,
+ * no sólo la nueva — ver el porqué en `IdentityService.changePassword`.
+ */
+export class ChangePasswordDto {
+  @IsString()
+  @MinLength(MIN_PASSWORD_LENGTH)
+  @MaxLength(MAX_PASSWORD_LENGTH)
+  currentPassword!: string;
+
+  @IsString()
+  @MinLength(MIN_PASSWORD_LENGTH)
+  @MaxLength(MAX_PASSWORD_LENGTH)
+  newPassword!: string;
+}
+
 export interface SessionCookiePolicy {
   name: string;
   secure: boolean;
@@ -535,11 +551,14 @@ export class IdentityController {
   @Public()
   @Post('mfa/setup')
   @HttpCode(200)
-  async mfaSetup(@Req() req: Request) {
+  async mfaSetup(@Body() body: PasswordConfirmationDto, @Req() req: Request) {
     const auth = await this.current(req);
     this.csrf(req, auth.session.csrfHash);
     await this.limit('mfa-setup.account', [auth.user.id], 10);
-    const secret = await this.mfa.beginMfaEnrollment(auth.user.id);
+    const secret = await this.mfa.beginMfaEnrollment(
+      auth.user.id,
+      body.password,
+    );
     return {
       secret,
       uri: totpUri({
@@ -676,5 +695,29 @@ export class IdentityController {
       throw new BadRequestException('Token inválido o expirado.');
     }
     return { reset: true };
+  }
+
+  /**
+   * T-60b: el cambio de contraseña ESTANDO DENTRO de la cuenta. No existía
+   * ninguna ruta para esto — sólo el camino de "olvidé mi contraseña", que
+   * exige perder el acceso primero.
+   */
+  @Public()
+  @Post('password/change')
+  @HttpCode(200)
+  async changePassword(@Body() body: ChangePasswordDto, @Req() req: Request) {
+    const auth = await this.current(req);
+    this.csrf(req, auth.session.csrfHash);
+    await this.limit('password-change.account', [auth.user.id], 5);
+    const changed = await this.identity.changePassword(
+      auth.user.id,
+      auth.session.id,
+      body.currentPassword,
+      body.newPassword,
+    );
+    if (!changed) {
+      throw new UnauthorizedException('Contraseña actual incorrecta.');
+    }
+    return { changed: true };
   }
 }

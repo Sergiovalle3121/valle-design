@@ -30,6 +30,8 @@ const starter = read("src/app/precios/checkout/CheckoutStarter.tsx");
 const portal = read("src/app/cuenta/facturacion/BillingPortal.tsx");
 const returned = read("src/app/cuenta/facturacion/retorno/CheckoutReturn.tsx");
 const commercialConfig = read("src/config/commercial.ts");
+const faq = read("src/lib/marketing/faq.ts");
+const faqCenter = read("src/components/marketing/FaqCenter.tsx");
 
 // ── Los precios vienen de la API o no vienen ───────────────────────────────
 assert.ok(
@@ -162,6 +164,43 @@ assert.ok(
   "la superficie pública debe conocer la ruta de precios",
 );
 
+// ── T-18a: «Factura CFDI» no puede prometerse en modo manual ───────────────
+// El sello de precios y la respuesta del FAQ tienen que DERIVAR su texto del
+// modo real que publica el catálogo (`cfdi`), nunca afirmarlo a mano. Un
+// `NullCfdiProvider` (sin PAC contratado) es el único adaptador que existe
+// hoy en cualquier despliegue real: si cualquiera de las dos superficies
+// pudiera decir «Factura CFDI» sin condicionarlo al modo, estaría
+// prometiendo una emisión automática que el producto no tiene.
+assert.match(
+  catalog,
+  /cfdiMode === "automatic"\s*\?\s*"Factura CFDI"/u,
+  "el sello fiscal debe condicionar «Factura CFDI» al modo automático",
+);
+assert.ok(
+  catalog.includes("cfdiMode={state.catalog.cfdi}"),
+  "el sello fiscal debe recibir el modo REAL del catálogo público",
+);
+assert.ok(
+  faq.includes('cfdiFacturaAnswer("manual")'),
+  "la respuesta estática de «¿Emiten factura?» debe ser la del modo manual, " +
+    "el único que existe sin PAC contratado",
+);
+// «Sí, con CFDI» sólo puede vivir en la rama `automatic` de
+// `cfdiFacturaAnswer`; que la entrada del FAQ la referencie por función (la
+// aserción de arriba) en vez de por literal ya lo impide estructuralmente,
+// y esta cuenta lo confirma: si el texto apareciera una segunda vez suelto
+// en el fuente, sería un literal fuera de la función.
+assert.equal(
+  (faq.match(/Sí, con CFDI/gu) ?? []).length,
+  1,
+  "«Sí, con CFDI» sólo puede aparecer una vez, dentro de cfdiFacturaAnswer('automatic')",
+);
+assert.ok(
+  faqCenter.includes("fetchPublicCatalog") &&
+    faqCenter.includes("cfdiFacturaAnswer"),
+  "el centro de preguntas interactivo debe sustituir la respuesta con el modo real",
+);
+
 console.log(
-  "commercial-surface: precios sin cifras a mano, compra vetada sin pasarela, retorno ciego a la URL y baja sólo para owner",
+  "commercial-surface: precios sin cifras a mano, compra vetada sin pasarela, retorno ciego a la URL, baja sólo para owner y CFDI derivado del modo real",
 );

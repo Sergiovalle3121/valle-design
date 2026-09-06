@@ -37,12 +37,7 @@ import { COMMERCIAL_LINKS } from "@/config/commercial";
  */
 
 export type FaqCategoryId =
-  | "empezar"
-  | "dibujo"
-  | "archivos"
-  | "cuenta"
-  | "precios"
-  | "educacion";
+  "empezar" | "dibujo" | "archivos" | "cuenta" | "precios" | "educacion";
 
 export interface FaqCategory {
   id: FaqCategoryId;
@@ -85,7 +80,8 @@ export const FAQ_CATEGORIES: readonly FaqCategory[] = [
     id: "cuenta",
     numero: "04",
     label: "Cuenta y seguridad",
-    resumen: "Dónde viven tus planos, quién los ve y cómo se protege el acceso.",
+    resumen:
+      "Dónde viven tus planos, quién los ve y cómo se protege el acceso.",
   },
   {
     id: "precios",
@@ -106,6 +102,33 @@ const guia = (slug: (typeof DOC_GUIDES)[number]["slug"], texto: string) => ({
   href: docGuidePath(slug),
 });
 
+/**
+ * T-18a: la pregunta «¿Emiten factura?» es la única del FAQ cuya respuesta
+ * depende del modo REAL de emisión de CFDI (`GET /v1/commercial/public/plans`
+ * → `cfdi`), así que su texto vive en una función en vez de escrito a mano
+ * dos veces. `FACTURA_PREGUNTA` es la clave estable con la que
+ * `FaqCenter.tsx` localiza esta entrada para sustituir su respuesta en
+ * cuanto conoce el catálogo real.
+ */
+export const FACTURA_PREGUNTA = "¿Emiten factura?";
+
+export function cfdiFacturaAnswer(mode: "manual" | "automatic"): string {
+  if (mode === "automatic") {
+    return (
+      "Sí, con CFDI y los datos fiscales de tu despacho. Los importes se " +
+      "publican en pesos mexicanos con el impuesto ya dentro, para que la " +
+      "cifra que ves sea la que se cobra."
+    );
+  }
+  return (
+    "Todavía no de forma automática: capturamos y validamos tus datos " +
+    "fiscales en la cuenta, y el comprobante CFDI te lo emite nuestro " +
+    "equipo con ellos ya listos. Los importes se publican en pesos " +
+    "mexicanos con el impuesto ya dentro, para que la cifra que ves sea la " +
+    "que se cobra."
+  );
+}
+
 export const FAQ_ENTRIES: readonly FaqEntry[] = [
   /* ── 01 · EMPEZAR ──────────────────────────────────────────────────────── */
   {
@@ -116,10 +139,14 @@ export const FAQ_ENTRIES: readonly FaqEntry[] = [
   },
   {
     categoria: "empezar",
-    pregunta: "Vengo de otro CAD de escritorio. ¿Tengo que reaprender a dibujar?",
+    pregunta:
+      "Vengo de otro CAD de escritorio. ¿Tengo que reaprender a dibujar?",
     respuesta:
       "No. La línea de comandos entiende la tabla de alias de siempre: escribes L y dibuja una línea, C un círculo, TR recorta. Las referencias a objetos, el rastreo polar y la entrada por coordenadas funcionan como esperas, y el orden de las preguntas de cada comando es el que ya tienes en la mano. Tu memoria muscular sirve desde el primer minuto; lo que cambia es dónde vive el archivo, no cómo se dibuja.",
-    enlace: guia("dibujar-planta-arquitectonica", "Dibujar una planta paso a paso"),
+    enlace: guia(
+      "dibujar-planta-arquitectonica",
+      "Dibujar una planta paso a paso",
+    ),
   },
   {
     categoria: "empezar",
@@ -159,14 +186,20 @@ export const FAQ_ENTRIES: readonly FaqEntry[] = [
     pregunta: "¿Las cotas se actualizan solas si muevo el dibujo?",
     respuesta:
       "Sí, y es la diferencia que más se nota en obra. La cota queda amarrada a la geometría que mide: mueves el muro y el número cambia con él. Hay cota lineal, alineada, angular, de radio y de diámetro, con estilos de cota que se aplican al plano entregado. Una medida escrita a mano encima de una línea acaba mintiendo el día que alguien mueve esa línea, y nadie se entera hasta que está construido.",
-    enlace: guia("acotacion-asociativa", "Por qué la cota debe moverse con el dibujo"),
+    enlace: guia(
+      "acotacion-asociativa",
+      "Por qué la cota debe moverse con el dibujo",
+    ),
   },
   {
     categoria: "dibujo",
     pregunta: "¿Puedo imprimir a escala de verdad?",
     respuesta:
       "Sí. Colocas el dibujo en una presentación, eliges tamaño de papel y escala normalizada, y la lámina sale a PDF con el tamaño de página exacto, su cajetín y su escala gráfica. Una unidad de dibujo mide en el papel lo que la escala dice que mide. Hay papeles de A4 a A0, carta y tabloide, escalas de 1:1 a 1:5000, varias ventanas por lámina cada una a su escala, y tablas de plumas que deciden color y grosor de cada trazo.",
-    enlace: guia("imprimir-planos-pdf-escala", "Imprimir a escala, paso a paso"),
+    enlace: guia(
+      "imprimir-planos-pdf-escala",
+      "Imprimir a escala, paso a paso",
+    ),
   },
   {
     categoria: "dibujo",
@@ -319,9 +352,17 @@ export const FAQ_ENTRIES: readonly FaqEntry[] = [
   },
   {
     categoria: "precios",
-    pregunta: "¿Emiten factura?",
-    respuesta:
-      "Sí, con CFDI y los datos fiscales de tu despacho. Los importes se publican en pesos mexicanos con el impuesto ya dentro, para que la cifra que ves sea la que se cobra.",
+    pregunta: FACTURA_PREGUNTA,
+    // Texto por defecto: el modo REAL hoy en todo despliegue sin PAC
+    // contratado (`NullCfdiProvider`, `mode: 'manual'`). T-18a: esta
+    // respuesta NUNCA puede afirmar de entrada que ya se timbra automático —
+    // eso promete una emisión que el producto no tiene todavía— así que el texto
+    // estático (el que ve un buscador en el JSON-LD, o un navegador antes de
+    // que `FaqCenter` termine de leer el catálogo) es el honesto: se
+    // capturan y validan los datos, y el comprobante lo emite el equipo. El
+    // centro de preguntas interactivo la SUSTITUYE con `cfdiFacturaAnswer`
+    // en cuanto conoce el modo real (ver `FaqCenter.tsx`).
+    respuesta: cfdiFacturaAnswer("manual"),
   },
 
   /* ── 06 · EDUCACIÓN ────────────────────────────────────────────────────── */

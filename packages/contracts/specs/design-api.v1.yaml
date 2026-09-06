@@ -309,9 +309,18 @@ paths:
     post:
       operationId: beginIdentityMfaEnrollment
       tags: [identity]
-      summary: Emite un secreto TOTP sin confirmar y su URI para el codigo QR.
+      summary: >-
+        Emite un secreto TOTP sin confirmar y su URI para el codigo QR. Exige
+        la contrasena (T-60c): sin ella, una sesion abierta en una maquina
+        desatendida podria inscribir un TOTP propio y "asegurar" la cuenta a
+        nombre de quien no es su dueno.
       parameters:
         - $ref: "#/components/parameters/csrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PasswordConfirmationRequest" }
       responses:
         "200":
           description: >-
@@ -479,6 +488,30 @@ paths:
               schema: { $ref: "#/components/schemas/PasswordResetResponse" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
+  /v1/auth/password/change:
+    post:
+      operationId: changeIdentityPassword
+      tags: [identity]
+      summary: >-
+        Cambia la contrasena ESTANDO DENTRO de la sesion (T-60b). Exige la
+        contrasena actual y revoca las demas sesiones; la que hizo el cambio
+        sigue abierta.
+      parameters:
+        - $ref: "#/components/parameters/csrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PasswordChangeRequest" }
+      responses:
+        "200":
+          description: Contrasena cambiada; las demas sesiones quedaron revocadas.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PasswordChangeResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
   /v1/organizations:
     get:
       operationId: listOrganizations
@@ -549,6 +582,52 @@ paths:
                 { $ref: "#/components/schemas/OrganizationMembershipList" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/organizations/{organizationId}/memberships/{membershipId}:
+    parameters:
+      - $ref: "#/components/parameters/organizationId"
+      - $ref: "#/components/parameters/membershipId"
+    patch:
+      operationId: updateOrganizationMembershipRole
+      tags: [organizations]
+      summary: >-
+        Cambia el rol de un miembro (T-60a). El propietario queda fuera: la
+        propiedad es `organization.ownerUserId`, no la membresia, y esta ruta
+        no transfiere propiedad.
+      parameters:
+        - $ref: "#/components/parameters/csrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              { $ref: "#/components/schemas/OrganizationMembershipRoleUpdate" }
+      responses:
+        "200":
+          description: Rol actualizado.
+          content:
+            application/json:
+              schema:
+                {
+                  $ref: "#/components/schemas/OrganizationMembershipRoleUpdated",
+                }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      operationId: removeOrganizationMembership
+      tags: [organizations]
+      summary: >-
+        Expulsa a un miembro (T-60a). Limpia la organizacion activa de
+        cualquier sesion suya que apuntara aqui; no revoca sus sesiones en
+        otras organizaciones.
+      parameters:
+        - $ref: "#/components/parameters/csrfToken"
+      responses:
+        "204": { description: Miembro expulsado. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
   /v1/organizations/{organizationId}/invitations:
     parameters:
@@ -2843,6 +2922,13 @@ components:
       schema:
         type: string
         format: uuid
+    membershipId:
+      name: membershipId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     projectId:
       name: projectId
       in: path
@@ -3021,6 +3107,19 @@ components:
       properties:
         token: { $ref: "#/components/schemas/OpaqueOneTimeToken" }
         password: { $ref: "#/components/schemas/Password" }
+    PasswordChangeRequest:
+      type: object
+      additionalProperties: false
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword: { $ref: "#/components/schemas/Password" }
+        newPassword: { $ref: "#/components/schemas/Password" }
+    PasswordChangeResponse:
+      type: object
+      additionalProperties: false
+      required: [changed]
+      properties:
+        changed: { type: boolean, const: true }
     FeedbackRequest:
       type: object
       additionalProperties: false
@@ -3604,6 +3703,20 @@ components:
           type: array
           maxItems: 200
           items: { $ref: "#/components/schemas/OrganizationMembership" }
+    OrganizationMembershipRoleUpdate:
+      type: object
+      additionalProperties: false
+      required: [role]
+      properties:
+        role: { $ref: "#/components/schemas/OrganizationInvitationRole" }
+    OrganizationMembershipRoleUpdated:
+      type: object
+      additionalProperties: false
+      required: [id, userId, role]
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        role: { $ref: "#/components/schemas/OrganizationInvitationRole" }
     OrganizationInvitationCreate:
       type: object
       additionalProperties: false
@@ -3839,7 +3952,7 @@ components:
     PublicCommercialPlanList:
       type: object
       additionalProperties: false
-      required: [checkout, items, trialDays]
+      required: [checkout, items, trialDays, cfdi]
       properties:
         checkout:
           allOf:
@@ -3863,6 +3976,16 @@ components:
             "3 meses gratis" porque el backend concede 90 dias, no porque
             alguien haya escrito "3 meses" en una plantilla. Ninguna cifra vive
             en dos lugares.
+        cfdi:
+          type: string
+          enum: [manual, automatic]
+          description: >-
+            Modo REAL de emision de CFDI hoy, del mismo adaptador que expone
+            `CfdiIssuance.mode`. `manual` significa que no hay PAC contratado:
+            el producto captura y custodia los datos fiscales pero NO timbra,
+            y la superficie publica (el sello fiscal de precios, el FAQ) debe
+            DERIVAR su texto de este campo en vez de anunciar "Factura CFDI"
+            por su cuenta.
     UpgradeIntentStatus:
       type: string
       enum: [pending, confirmed, cancelled]

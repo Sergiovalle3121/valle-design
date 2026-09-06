@@ -15,6 +15,11 @@ import { OrganizationCommercialConfiguration } from '../../organizations/organiz
 import { PlanCatalog, PlanPrice } from '../entities/commercial.entities';
 import { SAT_CFDI_USES, SAT_TAX_REGIMES } from '../fiscal/sat-catalogs';
 import {
+  CFDI_PROVIDER,
+  type CfdiIssuanceMode,
+  type CfdiProvider,
+} from '../ports/cfdi-provider.port';
+import {
   PAYMENT_PROVIDER,
   type PaymentProvider,
 } from '../ports/payment-provider.port';
@@ -88,6 +93,15 @@ interface PublicCatalogView {
    * vez de convertirse en una promesa que el backend no cumple.
    */
   trialDays: number;
+  /**
+   * Modo REAL de emisión de CFDI hoy (`manual` sin PAC contratado,
+   * `automatic` con uno). T-18a: «Factura CFDI» se anunciaba en la portada
+   * con una etiqueta escrita a mano mientras el adaptador seguía siendo
+   * `NullCfdiProvider`. El sello y el FAQ público DERIVAN de este campo en
+   * vez de repetir la promesa por su cuenta, para que un despliegue sin PAC
+   * no pueda mostrar «Factura CFDI» donde el producto no puede timbrar.
+   */
+  cfdi: CfdiIssuanceMode;
 }
 
 /** Metadata de presentación que el operador deja en `plan_catalog.metadata`. */
@@ -137,6 +151,8 @@ export class PublicCatalogController {
     private readonly planPrices: Repository<PlanPrice>,
     @Inject(PAYMENT_PROVIDER)
     private readonly payments: PaymentProvider,
+    @Inject(CFDI_PROVIDER)
+    private readonly cfdi: CfdiProvider,
     private readonly commercial: OrganizationCommercialConfiguration,
     @Optional()
     @Inject(PUBLIC_CATALOG_CLOCK)
@@ -231,6 +247,7 @@ export class PublicCatalogController {
       checkout: this.payments.descriptor().mode,
       items,
       trialDays: this.commercial.trialDays,
+      cfdi: this.cfdi.descriptor().mode,
     };
   }
 
