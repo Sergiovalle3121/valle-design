@@ -151,6 +151,8 @@ export interface CadPublishSheet {
   lineweightScale: number;
   titleBlock: Record<string, string>;
   viewports: CadPublishViewport[];
+  /** Dibujado DIRECTAMENTE sobre el papel, fuera de toda ventana (T-30). */
+  paperCommands?: CadVectorCommand[];
 }
 
 export interface CadPublishPlan {
@@ -816,7 +818,7 @@ export function buildCadPublishPlan(
   // destino. Sin este filtro, esa entidad se proyecta como geometría de
   // MODELO con sus coordenadas de PAPEL dentro de CADA ventana del dibujo.
   const paperSpaceEntityIds = new Set(
-    document.paperSpaces.flatMap((space) => space.entityIds),
+    document.paperSpaces.flatMap((space) => space.entityIds ?? []),
   );
   const manifest = buildCadSheetSetManifest(document, generatedAt);
   const orderedSpaces = document.paperSpaces
@@ -899,6 +901,38 @@ export function buildCadPublishPlan(
         };
       },
     );
+    // T-30: lo que se dibuja DIRECTAMENTE sobre el papel (líneas, texto, el
+    // propio contorno de una ventana poligonal) — `space.entityIds`, nunca
+    // proyectado por ninguna ventana. Ventana sintética 1:1 en identidad:
+    // una entidad de papel ya está en mm de papel, no en unidades de modelo.
+    const paperViewport: CadPaperViewport = {
+      id: `${space.id}:paper`,
+      name: "Papel",
+      paperBounds: { x: 0, y: 0, width: space.page.width, height: space.page.height },
+      modelBounds: { x: 0, y: 0, width: space.page.width, height: space.page.height },
+      scale: 1,
+      locked: true,
+    };
+    const paperCommands = (space.entityIds ?? [])
+      .map((id) => entities.get(id))
+      .filter((entity): entity is CadEntity => !!entity)
+      .flatMap((entity) =>
+        renderEntity(entity, {
+          sheetId: space.id,
+          viewport: paperViewport,
+          viewportMatrix: IDENTITY,
+          entityMatrix: IDENTITY,
+          layers,
+          blocks,
+          entities,
+          document,
+          colorMode,
+          lineweightScale,
+          depth: 0,
+          stack: [],
+          warnings,
+        }),
+      );
     return {
       id: space.id,
       name: space.name,
@@ -909,6 +943,7 @@ export function buildCadPublishPlan(
       lineweightScale,
       titleBlock: { ...(space.titleBlock?.attributes ?? {}) },
       viewports,
+      paperCommands,
     };
   });
   const vectorCommandCount = sheets.reduce(
@@ -917,7 +952,8 @@ export function buildCadPublishPlan(
       sheet.viewports.reduce(
         (viewportTotal, viewport) => viewportTotal + viewport.commands.filter((command) => command.kind !== "image").length,
         0,
-      ),
+      ) +
+      (sheet.paperCommands?.length ?? 0),
     0,
   );
   const rasterCommandCount = sheets.reduce(

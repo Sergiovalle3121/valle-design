@@ -127,7 +127,7 @@ sigue visible.
 
 ---
 
-## #4 · `scripts/cad/monolith-budget.json`: registrar el crecimiento de `cad-document.ts` (T-11c) y `paper-space.ts` (T-19·3/4)
+## #4 · `scripts/cad/monolith-budget.json`: registrar el crecimiento de `cad-document.ts` (T-11c) y `paper-space.ts` (T-19, T-30, T-36)
 
 **Archivo:** `scripts/cad/monolith-budget.json` (prohibido para F4 — lo aplica
 el coordinador).
@@ -153,7 +153,9 @@ proyecto propio, no cabe en esta ficha.
 por razones ajenas a F4. T-19·3 (capa `plot:false` nunca imprime) y T-19·4
 (fuga de espacio papel: una entidad de PAPEL dejaba de excluirse de la
 proyección de MODELO, y el contorno real de una ventana poligonal viaja ahora
-en vez de perderse), más T-36 (escala anotativa resuelta por ventana), suman 43 líneas — la nueva asignación es **939**.
+en vez de perderse), T-36 (escala anotativa resuelta por ventana) y T-30
+(paperCommands: lo dibujado directamente sobre el papel), suman 79 líneas —
+la nueva asignación es **975**.
 Igual que con `cad-document.ts`: probé activamente evitar el crecimiento
 (revisé línea por línea si algo se podía comprimir sin tocar comentarios
 ajenos) y no cupo sin sacrificar la claridad del propio arreglo o gatear el
@@ -173,7 +175,7 @@ y, más abajo en el mismo objeto `allowances` (orden alfabético existente):
 
 ```diff
 -    "apps/web/src/lib/cad/paper-space.ts": 896,
-+    "apps/web/src/lib/cad/paper-space.ts": 939,
++    "apps/web/src/lib/cad/paper-space.ts": 975,
 ```
 
 (Equivalente a correr `node scripts/cad/check-monolith-budget.mjs --update
@@ -195,9 +197,51 @@ evidence con el espejo local).
 ## #3 · Doc-mismatch de arranque
 
 `docs/execution/auditoria-fable/PROMPT_MAESTRO_FABLE.md` y los demás
-documentos de §0 no existían en `main` ni en ninguna rama remota al abrir
-esta sesión (07:39 UTC). No es una petición de cambio de código, sólo un aviso
-para el coordinador: si esos documentos existen sólo en su árbol de trabajo
-local, F4 (y presumiblemente F3/F5/F8/F9/F10/F11) no pudieron leerlos y
-trabajaron sólo con el resumen ya inlineado en el mensaje de arranque de cada
-frente.
+documentos de §0 no existían en el `main` que este contenedor tenía clonado
+al abrir la sesión (07:39 UTC) — el clon estaba 127 commits desactualizado
+(ver "Rebase sobre origin/main real" en F4.md). Sobre el `main` real SÍ
+existen, en `docs/execution/auditoria-fable/dimensiones/`. Corregido: no es
+un doc-mismatch real, era un clon viejo. Se deja la entrada para que quede
+escrito el hallazgo, no para pedir nada.
+
+---
+
+## #5 · `entity-commands.ts`: el aplicador genérico de "insert" no distingue espacio destino (T-19·4 y T-30)
+
+**Archivo:** `apps/web/src/lib/cad/entity-commands.ts` (fuera de mi
+territorio explícito — no está en la lista de F4).
+
+**Por qué:** el mismo síntoma de raíz aparece en DOS fichas mías. El
+aplicador genérico de `{type:"insert", entity}` añade TODA entidad nueva a
+`document.modelSpace.entityIds` (draw order), sin mirar si el comando que la
+generó pretendía colocarla en el PAPEL de la presentación activa en vez de
+en el modelo. Efectos:
+- (T-19·4, YA MITIGADO en mi territorio) el contorno de una ventana
+  poligonal —que SÍ se añade correctamente a `paperSpace.entityIds` desde
+  `viewport-operations.ts`— queda TAMBIÉN en `modelSpace.entityIds`, y
+  `buildCadPublishPlan` lo excluye ahora de la proyección de modelo con
+  aviso. Arreglado el síntoma en el PDF; la causa (la entidad vive en dos
+  sitios en el documento) sigue ahí.
+- (T-30, sin mitigar) no hay forma de que un comando de dibujo (LINE, TEXT)
+  ejecutado con el editor en ESPACIO PAPEL escriba en
+  `paperSpace.entityIds` en vez de en `modelSpace.entityIds`. El camino de
+  LECTURA/EXPORTACIÓN de `paperCommands` (mi territorio) ya está listo y
+  probado; falta la AUTORÍA.
+
+**Cambio que se necesita (no aporto el diff — no conozco el archivo lo
+bastante para no romper el resto del aplicador):** el comando genérico de
+inserción necesita saber en qué espacio se ejecutó (probablemente vía
+`CadCommandContext`, que ya sabe `activeLayout`/`activeSpace` en algún
+punto del motor) y, cuando el espacio activo es PAPEL, añadir el id a
+`paperSpaces[activeLayoutId].entityIds` en vez de a `modelSpace.entityIds`
+— nunca a los dos.
+
+**Prueba que lo verifica:** spec en `entity-commands.spec.ts` (o donde viva
+la suite del aplicador): dibujar una LINE con el espacio activo en PAPEL
+produce una entidad en `paperSpace.entityIds` y NO en `modelSpace.entityIds`.
+Golden de extremo a extremo (dibujar en papel con el editor real, publicar,
+verlo en el PDF y no en ninguna ventana) una vez este cambio y el de T-30
+estén los dos aplicados.
+
+**Estado:** pendiente del coordinador — no bloquea T-19·4 ni T-30, que ya
+están arregladas en el lado que me toca.

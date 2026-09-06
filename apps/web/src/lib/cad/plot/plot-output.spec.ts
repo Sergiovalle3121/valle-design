@@ -25,6 +25,7 @@ import {
 import { buildCadPlotJob, buildCadPlotPreview, cadPlotAreaSources } from "./plot-job";
 import { createCadMonochromeTable } from "./plot-style-table";
 import { inspectCadPdf, renderCadPlotPdf, MM_TO_POINTS } from "./plot-pdf";
+import { measureCadPdf } from "./pdf-measure";
 
 const METADATA = {
   project: "Nave",
@@ -441,6 +442,56 @@ async function pdfSpecs(): Promise<void> {
     // rectángulo envolvente (sólo `re`, sin `l`), esto no aparecería.
     const lineToCount = (polyText.match(/(?:^|\s)l(?=\s)/g) ?? []).length;
     assert.ok(lineToCount >= 4, `el contorno poligonal debía trazar 4 lineTo, hubo ${lineToCount}`);
+  }
+
+  // T-30: lo dibujado DIRECTAMENTE sobre el papel llega al PDF de verdad, sin
+  // pasar por ninguna ventana (la de esta hoja no tiene comandos).
+  {
+    const paperSheet = {
+      id: "sheet:paper",
+      name: "Papel",
+      width: 210,
+      height: 297,
+      orientation: "portrait" as const,
+      colorMode: "monochrome" as const,
+      lineweightScale: 1,
+      titleBlock: {},
+      viewports: [
+        { id: "vp:vacio", name: "Model", clip: { x: 10, y: 10, width: 190, height: 277 }, scale: 1, locked: true, commands: [] },
+      ],
+      paperCommands: [
+        {
+          kind: "path" as const,
+          entityId: "e-linea-papel",
+          viewportId: "sheet:paper:paper",
+          points: [{ x: 20, y: 270 }, { x: 190, y: 270 }],
+          closed: false,
+          style: { stroke: "#000000", lineWidth: 0.25 },
+        },
+        {
+          kind: "text" as const,
+          entityId: "e-texto-papel",
+          viewportId: "sheet:paper:paper",
+          point: { x: 20, y: 260 },
+          text: "NOTAS GENERALES",
+          size: 4,
+          rotation: 0,
+          color: "#000000",
+        },
+      ],
+    };
+    const paperPdf = await renderCadPlotPdf([paperSheet], { compress: false, sheetsWithoutTitleBlock: ["sheet:paper"] });
+    const measured = measureCadPdf(paperPdf.bytes);
+    assert.ok(
+      measured.labels.some((label) => label.text.includes("NOTAS GENERALES")),
+      "T-30: el texto de papel llega al PDF",
+    );
+    assert.ok(
+      measured.segments.some(
+        (segment) => Math.abs(segment.y1 - segment.y2) < 1e-6 && Math.abs(segment.x2 - segment.x1 - 170) < 1,
+      ),
+      "T-30: la línea de papel llega al PDF",
+    );
   }
 }
 

@@ -331,6 +331,17 @@ export async function renderCadPlotPdf(
       pdf.restoreGraphicsState();
     }
 
+    // T-30: lo dibujado DIRECTAMENTE sobre el papel — nunca dentro de una
+    // ventana, así que sin recorte de ventana.
+    for (const command of sheet.paperCommands ?? [])
+      drawCommand(
+        pdf,
+        command,
+        command.kind === "text" ? pickFont(familyOf(command.entityId)) : bodyFont,
+        styleFor,
+        warnings,
+      );
+
     // Sin cajetín compuesto, se compone aquí con los atributos que la hoja ya
     // trae. Degradar a un marco vacío dejaría la lámina SIN número de plano, y
     // callado: un PDF con borde bonito y sin identificar es peor que un error.

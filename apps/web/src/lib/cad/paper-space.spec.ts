@@ -538,4 +538,63 @@ assert.deepEqual(
   );
 }
 
+// T-30: dibujar directamente sobre el papel (línea y texto), publicar, y que
+// salgan en el PDF SIN pasar por ninguna ventana. La ventana del sheet tiene
+// un modelo vacío: si el texto/línea aparecieran ahí en vez de en
+// `paperCommands`, esta prueba lo delataría (la ventana quedaría vacía).
+{
+  const paperBase = layoutToCadDocument(
+    { layers: [{ id: "0", name: "0", color: "#000000", visible: true, locked: false }] },
+    { unit: "mm" },
+  );
+  const paperLine: CadEntity = {
+    id: "e-linea-papel",
+    type: "line",
+    start: { x: 20, y: 270, z: 0 },
+    end: { x: 190, y: 270, z: 0 },
+    layer: "0",
+  };
+  const paperText: CadEntity = {
+    id: "e-texto-papel",
+    type: "text",
+    x: 20,
+    y: 260,
+    text: "NOTAS GENERALES",
+    layer: "0",
+  } as CadEntity;
+  const emptyViewport = cadPlanViewport(
+    "vp-vacio",
+    { x: 10, y: 10, width: 100, height: 100 },
+    { x: 0, y: 0, width: 1000, height: 1000 },
+    100,
+  );
+  const paperDocument: CadDocument = {
+    ...paperBase,
+    entities: [paperLine, paperText],
+    modelSpace: { entityIds: [] },
+    paperSpaces: [
+      {
+        id: "sheet-papel",
+        name: "A-101",
+        // Dibujado en PAPEL: entityIds de la presentación, nunca de modelSpace.
+        entityIds: ["e-linea-papel", "e-texto-papel"],
+        page: { width: 210, height: 297, unit: "mm", orientation: "portrait" },
+        viewports: [emptyViewport],
+      },
+    ],
+  };
+  const paperPlan = buildCadPublishPlan(paperDocument, "2026-09-06T00:00:00.000Z");
+  const sheet = paperPlan.sheets[0]!;
+  const paperIds = new Set((sheet.paperCommands ?? []).map((command) => command.entityId));
+  assert.ok(paperIds.has("e-linea-papel"), "T-30: la línea de papel sale en paperCommands");
+  assert.ok(paperIds.has("e-texto-papel"), "T-30: el texto de papel sale en paperCommands");
+  assert.equal(
+    sheet.viewports[0]!.commands.length,
+    0,
+    "T-30: nada de lo dibujado en papel se cuela en la ventana (modelo vacío)",
+  );
+  // El PDF-de-verdad (renderCadPlotPdf + lectura de bytes) se comprueba en
+  // plot-output.spec.ts, que ya corre asíncrono; este archivo es síncrono.
+}
+
 console.log("cad paper space specs passed");
