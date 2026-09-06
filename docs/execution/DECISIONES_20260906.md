@@ -123,3 +123,44 @@ Qué haría falta para elegir lo otro ...... Descargar el archivo de datos
                     licencia propia distinta de la del programa que lo aloja,
                     con esa declaración archivada igual que las demás
                     licencias de este frente.
+
+## D-06 · No arrancar `dockerd` para tirar de una imagen de MinIO (AGPL)
+
+Qué se dudó ...... `independencia-por-fila.json` sugiere MinIO real como
+                    oráculo de `object-storage.s3`. El binario directo
+                    (`dl.min.io`) no es alcanzable, pero Docker Hub sí
+                    responde, y `dockerd` está instalado aunque no arrancado.
+                    ¿Se arranca el demonio para tirar de `minio/minio` y
+                    correr el servidor?
+Qué se eligió ..... No. El clasificador de seguridad de la sesión bloqueó el
+                    intento de arrancar `dockerd` por su cuenta ("sobrepasa
+                    lo que este modo autoriza sin permiso explícito"), y se
+                    aceptó el bloqueo sin buscar un rodeo.
+Por qué es lo conservador ...... Arrancar un demonio de sistema es una
+                    acción de alcance mucho mayor que escribir un censo o un
+                    spec: puede quedar corriendo, consumir recursos
+                    compartidos con otros frentes, o dejar estado a medias si
+                    la sesión termina a mitad de la descarga. Y aparte de la
+                    red hay una pregunta de licencia sin resolver: el censo
+                    llama a MinIO «AGPL», y `CORPUS_POLICY.md` prohíbe AGPL
+                    «sin excepción y sin discusión» en su lista de material
+                    PROHIBIDO — pero esa lista, leída entera, describe
+                    material que se IMPORTA, se ENLAZA o se REDISTRIBUYE
+                    (los tres casos ya excluidos —LibreDWG, IfcOpenShell,
+                    pythonocc-core— son bibliotecas que un script importa).
+                    Un servidor AGPL en su PROPIO proceso, contactado sólo
+                    por red desde un cliente que no enlaza ni redistribuye su
+                    código, es un caso distinto —el mismo principio por el
+                    que hablar con PostgreSQL o MySQL desde software
+                    propietario no hereda su licencia— y ningún caso previo
+                    de este repositorio lo resuelve. Decidir esa distinción
+                    por cuenta propia, sin que el titular la confirme, sería
+                    exactamente el tipo de interpretación legal que este
+                    frente no está en posición de hacer solo.
+Qué haría falta para elegir lo otro ...... Permiso explícito para arrancar
+                    `dockerd` (o que `dl.min.io` entre al `noProxy` y se
+                    pueda usar el binario suelto, sin demonio de contenedores
+                    de por medio), Y que el titular confirme si un servidor
+                    AGPL contactado sólo por red cuenta como material
+                    prohibido bajo `CORPUS_POLICY.md` o si la prohibición es
+                    sólo para lo que se enlaza o se redistribuye.

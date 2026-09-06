@@ -250,3 +250,40 @@ comando citado arriba; no hay spec porque `hypothesis` nunca llegó a
 instalarse con este propósito en el árbol (sólo se instaló, se detectó el
 problema y se desinstaló de la máquina — nunca entró a ningún artefacto
 comprometido).
+
+---
+
+## P-F10-08 · Pregunta para el titular: `object-storage.s3` y MinIO (AGPL)
+
+**No es una petición de cambio a `rubric.json`: es una pregunta que sólo el
+titular puede contestar**, escrita aquí para que no se pierda.
+
+`independencia-por-fila.json` sugiere MinIO real como oráculo del criterio
+`object-storage.s3`, y lo llama «AGPL, imagen pública» sin resolver si eso lo
+excluye. `CORPUS_POLICY.md` prohíbe AGPL «sin excepción y sin discusión» en
+su lista de material prohibido, pero esa lista —leída entera— describe
+bibliotecas que se IMPORTAN o se ENLAZAN (los tres casos ya excluidos en
+`HERRAMIENTAS.md` — LibreDWG, IfcOpenShell, pythonocc-core — lo son). Un
+servidor MinIO en su propio proceso, contactado sólo por red desde nuestro
+cliente S3 sin enlazar ni redistribuir su código, es un caso distinto: el
+mismo principio por el que hablar con PostgreSQL o MySQL desde software
+propietario no hereda su licencia.
+
+**La pregunta:** ¿cuenta un servidor AGPL contactado sólo por red (nunca
+enlazado, nunca redistribuido) como «material prohibido» bajo
+`CORPUS_POLICY.md`, o la prohibición es sólo para lo que se enlaza o se
+redistribuye? Este frente no tiene autoridad para decidir esa lectura por su
+cuenta.
+
+**Lo demás está medido, no es la pregunta:** el binario directo
+(`dl.min.io`) no es alcanzable desde esta sesión; Docker Hub sí lo es
+(`registry-1.docker.io` responde 401, no un bloqueo); `dockerd` está
+instalado pero arrancarlo requiere permiso que el clasificador de seguridad
+de la sesión no concede por su cuenta. Detalle completo en `F10.md` y en
+`docs/execution/DECISIONES_20260906.md`, entrada D-06.
+
+**Si la respuesta es que SÍ cuenta como oráculo admisible:** el trabajo que
+falta es (1) permiso para arrancar `dockerd` o acceso a `dl.min.io`, (2)
+correr el adaptador S3 del producto contra el MinIO real, y (3) publicar qué
+guardó y qué devolvió — el mismo patrón de censo congelado que los otros seis
+oráculos de este frente ya siguen.
