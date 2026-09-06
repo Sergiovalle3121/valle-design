@@ -24,7 +24,20 @@
  * la revolución sale entonces del papel, que es lo que uno espera al revolucionar
  * un alzado. Si el perfil cruza el eje se rechaza: un radio negativo no describe
  * ningún sólido de revolución, describe dos que se atraviesan.
+ *
+ * ## El perfil que sale de aquí es SIEMPRE horizontal, y hay que decirlo
+ *
+ * `profileFromEntity` toma la cota de UN vértice y los puntos del renderizador,
+ * que son 2D. Un perfil dibujado inclinado —vértices a cotas distintas— sale de
+ * aquí aplanado sobre la cota de esa esquina, más pequeño por el coseno y con
+ * aspecto de correcto. Ese aplanado es una mentira si nadie lo declara, y la
+ * auditoría del 2026-09-05 (T-10 b) lo encontró en EXTRUDE. El arreglo bueno
+ * —extruir por la normal del perfil— es un trabajo aparte; el arreglo honesto
+ * es medir cuánto se separa el perfil de la horizontal
+ * (`profileElevationDeviation`) y que el comando lo RECHACE con ese número en
+ * vez de consumir el perfil aplanado (`horizontalProfileFromEntity`).
  */
+import { BREP_TOLERANCE } from "../brep";
 import type { CadEntity, CadPoint2, CadPoint3 } from "./cad-document";
 import type { CadSolidFrame, CadSolidProfile } from "./cad-entities-v5";
 import { CAD_ENTITY_REGISTRY } from "./entity-runtime";
@@ -143,6 +156,101 @@ export function planeFrameAt(elevation: number): CadSolidFrame {
     zAxis: { x: 0, y: 0, z: 1 },
     xAxis: { x: 1, y: 0, z: 0 },
   };
+}
+
+/**
+ * Tolerancia de horizontalidad de un perfil: la lineal del kernel B-rep. Dos
+ * cotas que difieren menos que esto son LA MISMA cota para el kernel, así que
+ * no hay ningún aplanado que declarar. No es una cifra propia: si el kernel
+ * cambia la suya, ésta la sigue.
+ */
+export const CAD_PROFILE_HORIZONTAL_TOLERANCE = BREP_TOLERANCE.linear;
+
+/** Cota de un punto que puede venir sin `z` (dibujos anteriores al esquema 3D). */
+function elevationOf(point: CadPoint2 & { z?: number }): number {
+  return point.z ?? 0;
+}
+
+/**
+ * Cotas de los vértices que DEFINEN la entidad, no de los que dibuja el
+ * renderizador: éste trabaja en 2D y ya ha perdido la inclinación. Vacío para
+ * las entidades que no encierran un área.
+ *
+ * De la elipse sólo se conocen con certeza los dos extremos del eje mayor
+ * (`center ± majorAxis`); el eje menor no lleva cota propia. Del círculo, sólo
+ * el centro: un círculo cuya `context.normal` estuviera inclinada no se mide
+ * aquí, y ése es un límite declarado, no un descuido.
+ */
+function profileElevations(entity: CadEntity): number[] {
+  if (entity.type === "region")
+    return [...entity.outer, ...(entity.inners ?? []).flat()].map(elevationOf);
+  if (entity.type === "circle") return [elevationOf(entity.center)];
+  if (entity.type === "polyline") return entity.vertices.map(elevationOf);
+  if (entity.type === "ellipse") {
+    const centre = elevationOf(entity.center);
+    const rise = elevationOf(entity.majorAxis);
+    return [centre + rise, centre - rise];
+  }
+  if (entity.type === "spline") return entity.controlPoints.map(elevationOf);
+  return [];
+}
+
+/**
+ * Cuánto se separa el perfil de un plano horizontal: la diferencia entre la
+ * cota más alta y la más baja de sus vértices, en unidades del dibujo. Cero
+ * para un perfil horizontal y para las entidades que no definen ninguno.
+ *
+ * Es la medida barata y honesta que pide la ficha T-10 (b): un perfil inclinado
+ * 30° y de 1000 de largo se separa 500; uno alabeado (una esquina fuera del
+ * plano de las otras tres) también se detecta, porque no distingue «inclinado»
+ * de «no plano» —ninguno de los dos es horizontal, y eso es lo que el extrusor
+ * de esta versión exige.
+ */
+export function profileElevationDeviation(entity: CadEntity): number {
+  const elevations = profileElevations(entity);
+  if (elevations.length === 0) return 0;
+  let lowest = elevations[0];
+  let highest = elevations[0];
+  for (const elevation of elevations) {
+    if (elevation < lowest) lowest = elevation;
+    if (elevation > highest) highest = elevation;
+  }
+  return highest - lowest;
+}
+
+/**
+ * Lo que una entidad da al pedirle un perfil HORIZONTAL, que es el único que el
+ * extrusor de esta versión sabe llevar a sólido:
+ *
+ *   - `profile`: el perfil, con la cota del plano en que vive.
+ *   - `none`: la entidad no encierra un área (polilínea abierta, línea, texto).
+ *   - `inclined`: encierra un área pero sus vértices no comparten cota;
+ *     `deviation` es cuánto se separan. NO trae perfil a propósito: el aplanado
+ *     que `profileFromEntity` devolvería es justo lo que no se puede consumir
+ *     sin decirlo.
+ */
+export type CadHorizontalProfile =
+  | { kind: "profile"; extracted: CadExtractedProfile }
+  | { kind: "none" }
+  | { kind: "inclined"; deviation: number };
+
+/**
+ * Perfil horizontal de una entidad, o el motivo por el que no lo hay.
+ *
+ * Es la puerta que EXTRUDE (y PRESSPULL, que comparte su máquina) usa en vez de
+ * `profileFromEntity` a secas. `profileFromEntity` sigue existiendo tal cual
+ * porque REVOLVE, LOFT y las losas lo consumen; medir su planaridad en cada
+ * uno de ellos es trabajo pendiente, no algo que este helper finja resuelto.
+ */
+export function horizontalProfileFromEntity(
+  entity: CadEntity,
+  segments = CURVE_SEGMENTS,
+): CadHorizontalProfile {
+  const extracted = profileFromEntity(entity, segments);
+  if (!extracted) return { kind: "none" };
+  const deviation = profileElevationDeviation(entity);
+  if (deviation > CAD_PROFILE_HORIZONTAL_TOLERANCE) return { kind: "inclined", deviation };
+  return { kind: "profile", extracted };
 }
 
 /** Contornos cerrados de una entidad, para construir una REGION. */
