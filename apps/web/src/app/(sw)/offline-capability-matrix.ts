@@ -59,7 +59,9 @@ import { SW_NEVER_CACHE_PREFIXES } from "./service-worker-policy";
  * - `requiere-backend`: sin red no pasa. Punto.
  */
 export type VeredictoSinRed =
-  "funciona-sin-red" | "degrada-y-reintenta" | "requiere-backend";
+  | "funciona-sin-red"
+  | "degrada-y-reintenta"
+  | "requiere-backend";
 
 /** Una familia de endpoint —o un flujo local— con su veredicto y su prueba. */
 export interface FilaSinRed {
@@ -107,8 +109,7 @@ export const MATRIZ_SIN_RED: readonly FilaSinRed[] = [
   /* ── Lo que ocurre entero dentro del navegador ─────────────────────────── */
   {
     id: "cascaron-de-la-sesion",
-    flujo:
-      "Recargar el estudio con el cable desconectado y ver una pantalla del producto",
+    flujo: "Recargar el estudio con el cable desconectado y ver una pantalla del producto",
     veredicto: "funciona-sin-red",
     endpoints: [],
     evidencia: [
@@ -132,8 +133,7 @@ export const MATRIZ_SIN_RED: readonly FilaSinRed[] = [
     ],
     porque:
       "El motor 2D, el registro de frases y el B-rep facetado son TypeScript que corre en la pestaña. Ninguno consulta al servidor para trazar una línea, resolver una referencia a objeto o extruir una cara.",
-    seNota:
-      "Nada. Es el único trozo del producto donde la red no se echa de menos.",
+    seNota: "Nada. Es el único trozo del producto donde la red no se echa de menos.",
   },
   {
     id: "diario-de-recuperacion",
@@ -167,14 +167,10 @@ export const MATRIZ_SIN_RED: readonly FilaSinRed[] = [
     flujo: "Abrir un DXF que llegó por correo",
     veredicto: "funciona-sin-red",
     endpoints: [],
-    evidencia: [
-      "apps/web/src/lib/cad/dxf-import.ts",
-      "apps/web/src/lib/cad/dxf-import-report.ts",
-    ],
+    evidencia: ["apps/web/src/lib/cad/dxf-import.ts", "apps/web/src/lib/cad/dxf-import-report.ts"],
     porque:
       "La importación lee el archivo que la persona elige del disco y lo convierte en el documento canónico dentro de la pestaña. Lo que no se puede sin red es GUARDAR el resultado (ver `guardar-el-dibujo`).",
-    seNota:
-      "Nada al importar. El informe de importación sale igual, con sus avisos y sus pérdidas.",
+    seNota: "Nada al importar. El informe de importación sale igual, con sus avisos y sus pérdidas.",
   },
   {
     id: "historial-de-comandos",
@@ -224,10 +220,7 @@ export const MATRIZ_SIN_RED: readonly FilaSinRed[] = [
     id: "guardar-el-dibujo",
     flujo: "Guardar lo dibujado (a mano o por autosave)",
     veredicto: "degrada-y-reintenta",
-    endpoints: [
-      "/v1/cad/documents/:id/content",
-      "/v1/cad/documents/:id/archive",
-    ],
+    endpoints: ["/v1/cad/documents/:id/content", "/v1/cad/documents/:id/archive"],
     porque:
       "El `PUT` falla, el editor lo marca pendiente y el journal conserva el trabajo. Es el ÚNICO flujo del producto con las tres piezas completas: aviso honesto, copia local y reintento automático.",
     seNota:
@@ -245,14 +238,10 @@ export const MATRIZ_SIN_RED: readonly FilaSinRed[] = [
     id: "historial-de-versiones",
     flujo: "Mirar el historial de versiones del servidor y volver a una",
     veredicto: "requiere-backend",
-    endpoints: [
-      "/v1/cad/documents/:id/versions",
-      "/v1/cad/documents/:id/versions/:id",
-    ],
+    endpoints: ["/v1/cad/documents/:id/versions", "/v1/cad/documents/:id/versions/:id"],
     porque:
       "La historia CAS es inmutable y vive en el servidor. Lo local son los checkpoints del journal, que son otra cosa: un borrador reciente por carril, no la línea de versiones del documento.",
-    seNota:
-      "El panel de versiones no carga. Los checkpoints locales siguen ahí y se dicen aparte.",
+    seNota: "El panel de versiones no carga. Los checkpoints locales siguen ahí y se dicen aparte.",
     evidencia: [
       "apps/web/src/lib/cad/repositories/versions.ts",
       "packages/design-sdk/src/client.ts",
@@ -278,8 +267,7 @@ export const MATRIZ_SIN_RED: readonly FilaSinRed[] = [
     endpoints: ["/v1/cad/documents/:id/dxf"],
     porque:
       "El DXF adjunto se guarda junto al documento en el servidor, con el mismo CAS. Es persistencia, no lectura de archivo.",
-    seNota:
-      "La operación falla. El DXF que ya estaba cargado en la pestaña se sigue viendo.",
+    seNota: "La operación falla. El DXF que ya estaba cargado en la pestaña se sigue viendo.",
     evidencia: [
       "apps/web/src/lib/cad/legacy/layout-http-adapter.ts",
       "packages/design-sdk/src/client.ts",
@@ -315,8 +303,7 @@ export const MATRIZ_SIN_RED: readonly FilaSinRed[] = [
     flujo: "Armar el conjunto de planos de la entrega",
     veredicto: "requiere-backend",
     endpoints: ["/v1/cad/sheet-sets", "/v1/cad/sheet-sets/:id"],
-    porque:
-      "El conjunto es una entidad del servidor que agrupa documentos de la organización.",
+    porque: "El conjunto es una entidad del servidor que agrupa documentos de la organización.",
     seNota: "El panel no carga y no se puede añadir ni quitar láminas.",
     evidencia: [
       "apps/web/src/lib/cad/repositories/sheet-sets.ts",
@@ -359,24 +346,17 @@ export const MATRIZ_SIN_RED: readonly FilaSinRed[] = [
     id: "comentarios-sobre-el-plano",
     flujo: "Comentar sobre un punto del plano y darlo por resuelto",
     veredicto: "requiere-backend",
-    endpoints: [
-      "/v1/cad/documents/:id/comments",
-      "/v1/cad/comments/:id/resolve",
-    ],
+    endpoints: ["/v1/cad/documents/:id/comments", "/v1/cad/comments/:id/resolve"],
     porque:
       "Un comentario es para otra persona: nace en el servidor o no nace. Guardarlo local sería prometer una conversación que nadie recibe.",
-    seNota:
-      "El hilo no carga y el botón de comentar falla. El anclaje al punto del plano es local y no se pierde.",
+    seNota: "El hilo no carga y el botón de comentar falla. El anclaje al punto del plano es local y no se pierde.",
     evidencia: ["packages/design-sdk/src/client.ts"],
   },
   {
     id: "presencia-en-el-dibujo",
     flujo: "Ver quién más está en el dibujo y dónde tiene el cursor",
     veredicto: "degrada-y-reintenta",
-    endpoints: [
-      "/v1/cad/documents/:id/presence",
-      "/v1/cad/documents/:id/presence/stream",
-    ],
+    endpoints: ["/v1/cad/documents/:id/presence", "/v1/cad/documents/:id/presence/stream"],
     porque:
       "El stream se corta y la presencia remota se apaga; nada que sea del usuario se pierde, porque la presencia es efímera por definición.",
     seNota:
@@ -400,8 +380,7 @@ export const MATRIZ_SIN_RED: readonly FilaSinRed[] = [
     ],
     porque:
       "No hay cola de salida: `send()` llama y devuelve `false` si falla. Un mensaje encolado en silencio que se entrega media hora tarde es peor que uno que no salió, porque nadie sabe cuál de los dos pasó.",
-    seNota:
-      "El envío falla y el texto se queda en la caja. La lista de canales tampoco carga.",
+    seNota: "El envío falla y el texto se queda en la caja. La lista de canales tampoco carga.",
     evidencia: [
       "apps/web/src/components/cad/messaging/use-team-messaging.ts",
       "packages/design-sdk/src/messaging.ts",
@@ -427,15 +406,10 @@ export const MATRIZ_SIN_RED: readonly FilaSinRed[] = [
     id: "llamada-y-pantalla-compartida",
     flujo: "Entrar a una llamada del dibujo y compartir pantalla",
     veredicto: "requiere-backend",
-    endpoints: [
-      "/v1/calls/rooms",
-      "/v1/calls/rooms/:id/leave",
-      "/v1/calls/rooms/:id/signals",
-    ],
+    endpoints: ["/v1/calls/rooms", "/v1/calls/rooms/:id/leave", "/v1/calls/rooms/:id/signals"],
     porque:
       "Unirse, salir y señalizar son llamadas HTTP, y el medio en sí viaja por la red entre pares. Una llamada sin red no degrada: no existe.",
-    seNota:
-      "La barra de llamada dice «sin conexión» y no se puede entrar a la sala.",
+    seNota: "La barra de llamada dice «sin conexión» y no se puede entrar a la sala.",
     evidencia: [
       "apps/web/src/lib/cad/calls/call-signaling-transport.ts",
       "packages/design-sdk/src/calls.ts",
@@ -448,8 +422,7 @@ export const MATRIZ_SIN_RED: readonly FilaSinRed[] = [
     endpoints: ["/v1/calls/rooms/:id/events"],
     porque:
       "El stream de señalización es `EventSource`, que reintenta solo. El transporte distingue el corte pasajero del abandono definitivo y sólo avisa en el segundo caso: reportar cada microcorte como llamada perdida sería mentir en la dirección contraria.",
-    seNota:
-      "Un corte breve no se nota. Uno definitivo levanta `call_signaling_lost` y la barra lo dice.",
+    seNota: "Un corte breve no se nota. Uno definitivo levanta `call_signaling_lost` y la barra lo dice.",
     reintento:
       "La reconexión nativa de `EventSource`; `call-signaling-transport.ts` sólo llama a `onError` cuando `readyState === CLOSED`, o sea cuando el navegador ya se rindió.",
     evidencia: [
@@ -516,8 +489,7 @@ export const MATRIZ_SIN_RED: readonly FilaSinRed[] = [
   },
   {
     id: "organizacion-y-equipo",
-    flujo:
-      "Cambiar de organización, invitar a alguien o aceptar una invitación",
+    flujo: "Cambiar de organización, invitar a alguien o aceptar una invitación",
     veredicto: "requiere-backend",
     endpoints: [
       "/v1/organizations",
@@ -552,10 +524,7 @@ export const MATRIZ_SIN_RED: readonly FilaSinRed[] = [
     id: "precios-publicos",
     flujo: "Mirar los planes y sus precios antes de contratar",
     veredicto: "requiere-backend",
-    endpoints: [
-      "/v1/commercial/public/plans",
-      "/v1/commercial/public/tax-catalogs",
-    ],
+    endpoints: ["/v1/commercial/public/plans", "/v1/commercial/public/tax-catalogs"],
     porque:
       "Es catálogo público y podría cachearse, pero un precio es un dato que no puede salir viejo: enseñar el del mes pasado es una oferta que el producto no va a honrar. Hoy se pide siempre a la red.",
     seNota: "La página de precios no llega a pintar sus cifras.",
@@ -607,8 +576,7 @@ export const MATRIZ_SIN_RED: readonly FilaSinRed[] = [
     sinPuertaEnElNavegador: true,
     porque:
       "Es un webhook firmado de servidor a servidor. El navegador no lo llama nunca —ni podría: la firma se verifica sobre el cuerpo crudo con el secreto del proveedor.",
-    seNota:
-      "Nada en el navegador. Sin red del SERVIDOR el pago se confirma tarde, no se pierde: la entrega es al menos una vez.",
+    seNota: "Nada en el navegador. Sin red del SERVIDOR el pago se confirma tarde, no se pierde: la entrega es al menos una vez.",
     evidencia: [
       "packages/contracts/specs/design-api.v1.yaml",
       "packages/design-sdk/src/generated/design-api.ts",
@@ -621,8 +589,7 @@ export const MATRIZ_SIN_RED: readonly FilaSinRed[] = [
     endpoints: ["/v1/legal/documents", "/v1/legal/acceptances"],
     porque:
       "La aceptación es un registro con fecha y versión del documento: sólo vale si el servidor la guardó. Una aceptación local no es una aceptación.",
-    seNota:
-      "La compuerta legal no puede resolverse y el flujo que la exige se queda esperando.",
+    seNota: "La compuerta legal no puede resolverse y el flujo que la exige se queda esperando.",
     evidencia: [
       "apps/web/src/lib/legal/acceptance-gate.ts",
       "packages/design-sdk/src/client.ts",
@@ -632,12 +599,7 @@ export const MATRIZ_SIN_RED: readonly FilaSinRed[] = [
     id: "reportar-y-opinar",
     flujo: "Reportar un problema o mandar una opinión",
     veredicto: "requiere-backend",
-    endpoints: [
-      "/v1/support/incidents",
-      "/v1/feedback",
-      "/v1/feedback/mine",
-      "/v1/feedback/:id",
-    ],
+    endpoints: ["/v1/support/incidents", "/v1/feedback", "/v1/feedback/mine", "/v1/feedback/:id"],
     porque:
       "El reporte es para que alguien lo lea. Guardarlo en el navegador y no decirlo sería prometer una respuesta que nadie va a dar.",
     seNota:
@@ -663,36 +625,16 @@ export const PROMESAS_DE_SIN_CONEXION: readonly {
   fila: string;
   veredicto: VeredictoSinRed;
 }[] = [
-  {
-    clave: "works.drawTitle",
-    fila: "dibujar-acotar-modelar",
-    veredicto: "funciona-sin-red",
-  },
-  {
-    clave: "works.journalTitle",
-    fila: "diario-de-recuperacion",
-    veredicto: "funciona-sin-red",
-  },
-  {
-    clave: "works.retryTitle",
-    fila: "guardar-el-dibujo",
-    veredicto: "degrada-y-reintenta",
-  },
-  {
-    clave: "blocked.saveTitle",
-    fila: "guardar-el-dibujo",
-    veredicto: "degrada-y-reintenta",
-  },
+  { clave: "works.drawTitle", fila: "dibujar-acotar-modelar", veredicto: "funciona-sin-red" },
+  { clave: "works.journalTitle", fila: "diario-de-recuperacion", veredicto: "funciona-sin-red" },
+  { clave: "works.retryTitle", fila: "guardar-el-dibujo", veredicto: "degrada-y-reintenta" },
+  { clave: "blocked.saveTitle", fila: "guardar-el-dibujo", veredicto: "degrada-y-reintenta" },
   {
     clave: "blocked.blocksTitle",
     fila: "biblioteca-de-bloques-del-equipo",
     veredicto: "requiere-backend",
   },
-  {
-    clave: "blocked.reviewTitle",
-    fila: "enlace-de-revision",
-    veredicto: "requiere-backend",
-  },
+  { clave: "blocked.reviewTitle", fila: "enlace-de-revision", veredicto: "requiere-backend" },
 ];
 
 /* ── Extracción y normalización de rutas ───────────────────────────────────
@@ -728,9 +670,7 @@ export function normalizaRutaV1(ruta: string): string {
     .split("/")
     .filter(Boolean)
     .map((segmento) =>
-      segmento.startsWith("${") ||
-      segmento.startsWith("{") ||
-      segmento.startsWith(":")
+      segmento.startsWith("${") || segmento.startsWith("{") || segmento.startsWith(":")
         ? ":id"
         : segmento,
     );
@@ -778,8 +718,7 @@ export function clasificaRuta(
   declaradas: readonly string[],
 ): "endpoint" | "prefijo" | "desconocida" {
   if (declaradas.includes(ruta)) return "endpoint";
-  if (declaradas.some((declarada) => declarada.startsWith(`${ruta}/`)))
-    return "prefijo";
+  if (declaradas.some((declarada) => declarada.startsWith(`${ruta}/`))) return "prefijo";
   return "desconocida";
 }
 
@@ -787,9 +726,7 @@ export function clasificaRuta(
 
 /** ¿Esta ruta cae en la superficie que el service worker ni siquiera intercepta? */
 export function tocaLaRed(endpoint: string): boolean {
-  return SW_NEVER_CACHE_PREFIXES.some((prefijo) =>
-    endpoint.startsWith(prefijo),
-  );
+  return SW_NEVER_CACHE_PREFIXES.some((prefijo) => endpoint.startsWith(prefijo));
 }
 
 /** Todos los endpoints clasificados, sin repetir. */
@@ -799,9 +736,7 @@ export function endpointsClasificados(): readonly string[] {
 
 /** La fila que clasifica este endpoint, o `null` si ninguna lo hace. */
 export function filaDelEndpoint(endpoint: string): FilaSinRed | null {
-  return (
-    MATRIZ_SIN_RED.find((fila) => fila.endpoints.includes(endpoint)) ?? null
-  );
+  return MATRIZ_SIN_RED.find((fila) => fila.endpoints.includes(endpoint)) ?? null;
 }
 
 /** La fila con este identificador, o `null`. */
@@ -835,9 +770,7 @@ export function resumenSinRed(): {
  */
 export function matrizComoTexto(): string {
   return MATRIZ_SIN_RED.map((fila) => {
-    const rutas = fila.endpoints.length
-      ? fila.endpoints.join(" ")
-      : "(no toca la red)";
+    const rutas = fila.endpoints.length ? fila.endpoints.join(" ") : "(no toca la red)";
     return `${fila.veredicto}\t${fila.flujo}\t${rutas}`;
   }).join("\n");
 }
