@@ -3306,6 +3306,49 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "F5-TOOLSETS-CAMPANA-FABLE-20260906",
+      "date": "2026-09-06",
+      "initiative": "Frente F5 · Toolsets de la campaña «El lunes de un arquitecto» (docs/execution/auditoria-fable/PROMPT_MAESTRO_FABLE.md), sesión autónoma de varias horas sobre valle-design. Cinco fichas: T-15 (la etiqueta eléctrica que el repositorio juraba dibujada y no se dibujaba: cadMepBlockDefinition sin `attributes`, corregido copiando el patrón de plant/pid-symbols.ts; el número de conductor gana su rótulo en wireCommands); T-33 (FLATSHOT/SECTION no veían la entidad `wall` nativa del esquema 6, sólo el `box` heredado de compatibilidad; ahora cadFlatshotBodies reconoce `wall`, resta sus huecos alojados y aplica sus uniones contra muros hermanos; SLICE se deja fuera a propósito por bornear el invariante «wall stays parametric» de AGENTS.md); T-19·1 (BLOCK sobre un muro lo hacía invisible y borraba el original: cadDefineBlockCommands se niega ahora, nombrando la entidad, como OFFSET ya hace); T-10a (VSCURRENT confirmaba un cambio de estilo visual que sobre wall/room no ocurría: los cuatro estilos llegan ahora a CadWallSolidHost y CadArchitecturalMassHost vía un helper compartido con solid3d-three.ts, y VSCURRENT + Intro puede CONSULTAR el estilo vigente en vez de devolver un mensaje vacío); T-35 (Planta era la única de tres disciplinas sin cuadro en el plano: DATAEXTRACTION gana líNeas/Materiales como TABLE, y el CSV lleva ahora la lista COMPLETA de conductores y etiquetas eléctricas, no el renglón truncado de AEWIRELIST/AETAGLIST). Cada ficha con specs nuevos que leen bytes de DXF/PDF o el estado real de la escena 3D, nunca sólo el texto de la línea de comandos.",
+      "branch": "claude/f5-toolsets",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate, encargo de la campaña «El lunes de un arquitecto» (docs/execution/auditoria-fable/PROMPT_MAESTRO_FABLE.md) para el frente F5 · Toolsets, con sus reglas no negociables: territorio exclusivo (mep-symbols.ts, electrical/, plant/, flatshot*.ts, wall-*.ts, bim-*.ts, blocks/block-workflow.ts, los anfitriones de viewport de sólidos, goldens 140-149), prohibido tocar Layout3DEditor.tsx, rubric.json, ESCALERA.md o BACKLOG.md (peticiones al buzón en su lugar), prohibido relajar gates, umbrales, goldens o presupuestos, prohibido renombrar identificadores persistidos, fix-or-hide, ningún claim sin evidencia, régimen de sesión larga sin preguntar con la tabla de decisión conservadora del prompt maestro (§3.4.1).",
+      "firstPartyInputs": [
+        "docs/execution/auditoria-fable/PROMPT_MAESTRO_FABLE.md (encargo completo de la campaña, §0, §1, fichas T-15/T-33/T-34/T-35/T-19·1/T-10a, §3, §5.2-5.4)",
+        "AGENTS.md (reglas de la casa, en particular «wall and opening stay parametric» que decide por qué SLICE se deja fuera de T-33)",
+        "docs/execution/auditoria-fable/00-PUNTO-DE-PARTIDA-VERIFICADO.md y 00c-CUADRO-DE-MANDO.md (huecos confirmados con sus grep, citados en cada ficha)",
+        "docs/parity/ESCALERA.md (peldaño 5 de FLATSHOT, corregido por petición y no en el propio archivo, que es territorio de F0)",
+        "El árbol en 2fd2bfd (tip de main al crear la rama) y su suite: npm run typecheck, npm run lint, npm run check:cad corridos antes de cada push."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna: las cinco fichas son correcciones internas sobre módulos ya existentes del propio repositorio (mep-symbols.ts, flatshot-solids.ts, block-workflow.ts, los anfitriones de viewport, data-extraction-commands.ts), copiando patrones ya establecidos en el mismo árbol (plant/pid-symbols.ts, solid3d-three.ts, mep-schedule-table.ts, circuit-schedule-table.ts).",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/mep-symbols.ts, electrical/wire-connections.ts uso en engine/commands/electrical-wire.ts",
+        "apps/web/src/lib/cad/electrical/electrical-attributes-{dxf,plot}.spec.ts (nuevos)",
+        "apps/web/src/lib/cad/flatshot-solids.ts y su spec (soporte de `wall`/`opening` nativos)",
+        "apps/web/src/lib/cad/engine/commands/{solids-support,solids-modify}.ts (SECTION sobre muros, sin tocar SLICE)",
+        "apps/web/src/lib/cad/blocks/block-workflow.ts y apps/web/src/lib/cad/block-text-adapters.spec.ts (nuevo)",
+        "apps/web/src/lib/cad/view/visual-style-mesh.ts (nuevo, compartido), wall-solid-three.ts, room-solid-three.ts",
+        "apps/web/src/components/cad/viewport/{wall-solid-host,room-solid-host,native-mass-hosts,Cad3DSolidDiagnostics}.ts(x)",
+        "apps/web/src/components/cad/command-line/{studio-context,studio-engine-bridges,use-command-engine}.ts",
+        "apps/web/src/lib/cad/engine/{command-types,commands/view-visual}.ts",
+        "apps/web/src/lib/cad/data-extraction/{data-extraction,plant-schedule-table}.ts y su spec de trazado",
+        "apps/web/e2e/golden/140-cad-alzado-muro-nativo.spec.ts (nuevo) y 47-cad-solids.spec.ts (ampliado)",
+        "docs/execution/frentes/F5.md y F5-peticiones.md (bitácora y buzón del frente, con tres peticiones a F0/F1)"
+      ],
+      "fixtures": "Ninguno con datos ajenos: los documentos de prueba son geometría sintética construida en cada spec (muros, conductores, líneas de proceso).",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "npm run typecheck (8/8 tareas verdes vía turbo), npm run lint (0 errores, 200 warnings preexistentes sin relación), npm run check:cad completo verde con VALLE_DWG_CORPUS_MIRROR (check:command-integrity: 294 comandos, 0 éxitos falsos; check:auditoria: techo 28 intacto), y las specs unitarias de las cinco fichas corridas una a una antes de cada commit. npx turbo run test --filter=web corrido antes del push."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
