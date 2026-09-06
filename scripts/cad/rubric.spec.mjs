@@ -485,12 +485,7 @@ const byId = (scored, id) =>
   // medía contra otro producto. Ola C: 265 — `modeling3d` (5 pt de DESTINO).
   // Ola D (2026-09-02): 271 — `foreign-work` (6 pt de HOY: la prueba de
   // despacho, el portapapeles y las seis órdenes del plano ajeno).
-  // Corte 2026-09-06 (campaña «El lunes de un arquitecto», T-02): 309 —
-  // nacen `comercial` (12 pt de DESTINO), `navegador` (10 pt de DESTINO),
-  // `degradation` (4 pt de HOY), `ribbon-ux` y `accessibility` (6 + 6 pt de
-  // HOY). Cuatro dimensiones enteras de la auditoría de veinte no tenían
-  // dónde puntuar; abrirlas SUBE el denominador y BAJA el porcentaje, y eso
-  // es correcto: la cifra mide el producto, no protege la moral.
+  // Corte 2026-09-06 (T-02): 309 — comercial 12, navegador 10, degradation 4, ribbon-ux 6, accessibility 6 (ver notes).
   eq(published.totalPoints, 309, "el denominador de destino publicado son 309 puntos");
   eq(
     published.categories.every((c) => c.scope === "hoy" || c.scope === "destino"),

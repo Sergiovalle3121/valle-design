@@ -80,3 +80,24 @@ tope, y se regenera `independencia-por-fila.json` con `VALLE_ESCRIBIR_CENSO=1`.
 Es un fichero del territorio de F10, tocado por el coordinador porque la
 consecuencia era de su propia edición de la rúbrica; queda anotado aquí para
 la integración de F10.
+
+### T-00 · Paso 0 · HECHO (08:25 UTC)
+Los once símbolos muertos que eslint marcaba (`no-unused-vars`) y su cascada
+probada con `grep -nw`: `applyCommand` (y `applyCommandOperation`, que sólo él
+llamaba), `submitPrecisionPoint`, `interpretCommand`,
+`navigateCommandLineHistory`, `undoLastCommand`, `redoLastCommand`, el `ctx`
+huérfano de `snapFloor`, cuatro imports de tipo y los dos imports que sólo los
+muertos usaban (`cadNlCommandsIfLoaded`, `navigateCadCommandHistory`,
+`parseCoordinate`, `CadOperation`). Dos estados quedan escritos y nunca leídos
+(`commandHistoryCursor`, `precisionText`): se conserva el `useState` y se
+retira la lectura del valor; retirarlos entero toca nueve llamadas al setter y
+va al BACKLOG. Resultado: 18 453 → 17 898 líneas (−555), 171 → 160 avisos de
+lint en el fichero, cero `no-unused-vars`. `check-monolith-budget --update` en
+el mismo commit (y baja también las asignaciones de `dxf-*`, `paper-space`, que
+ya estaban por debajo); `check-lint-budget --update` aprieta el trinquete.
+Typecheck verde; los ocho specs que leen el monolito, verdes.
+
+Fallo propio cazado por el gate: `rubric.spec.mjs` había crecido a 805 líneas
+(tope 800 sin asignación) con mi comentario de corte; se recorta a una línea
+en vez de abrir asignación. El push anterior lleva ese rojo en `check:cad`;
+este commit lo cierra.

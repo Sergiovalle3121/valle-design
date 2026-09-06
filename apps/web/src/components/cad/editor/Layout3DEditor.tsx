@@ -93,7 +93,6 @@ import { CanonicalHistory } from "@/components/cad/document-lifecycle/history-co
 import {
   ASSET_CATEGORIES,
   assetMeta,
-  type AssetArchetype,
 } from "@/components/cad/viewport/asset-catalog";
 import { parseDxf, type DxfModel } from "@/components/cad/interop/dxf";
 import {
@@ -143,7 +142,7 @@ import {
   type CheckBox,
   type DesignReport,
 } from "@/lib/cad/design-checks";
-import { parseCoordinate, constrainPoint } from "@/lib/cad/precision-input";
+import { constrainPoint } from "@/lib/cad/precision-input";
 import {
   startCommand,
   feedPoint,
@@ -178,10 +177,9 @@ import { cadEntityCarriesPdfUnderlay } from "@/lib/cad/pdf/underlay-key";
 import { cadPdfSnapIfLoaded, loadCadPdfSnap } from "@/lib/cad/pdf/lazy";
 import type { CadPdfSnapGeometryResult } from "@/lib/cad/pdf/pdf-snap-geometry";
 import { detectCadFormat } from "@/components/cad/interop/cad-format-detect";
-import type { PlotLayout } from "@/components/cad/plot/plot-scale";
 import { createHistoryItem as createCadHistoryItem } from "@/lib/cad/commands/history";
-import { cadNlCommandsIfLoaded, loadCadNlCommands } from "@/lib/cad/commands/lazy";
-import type { CadCommandHistoryItem, CadCommandInput, CadOperation } from "@/lib/cad/commands/types";
+import { loadCadNlCommands } from "@/lib/cad/commands/lazy";
+import type { CadCommandHistoryItem, CadCommandInput } from "@/lib/cad/commands/types";
 import {
   measureBoxes,
   measurementLabel,
@@ -243,7 +241,6 @@ import {
 } from "@/lib/cad/cad-conflict-incident";
 import {
   cadCommandHistoryStorageKey,
-  navigateCadCommandHistory,
   prependCadCommandHistory,
   readCadCommandHistory,
   repeatableCadCommand,
@@ -422,7 +419,6 @@ import {
 } from "@/lib/cad/cad-layout-manager";
 import {
   analyzeCadXrefGraph,
-  attachCadXref,
   bindCadXref,
   compareCadXrefVersion,
   detachCadXref,
@@ -651,7 +647,6 @@ import {
 } from "@/components/cad/palettes/CadEditorLayerToggles";
 import {
   filterCadLayerRows,
-  type CadLayerFilterProperty,
   type CadLayerManagerRow,
 } from "@/components/cad/palettes/layer-manager-model";
 import { cadEntityAssociationAnchor } from "@/lib/cad/associative-dimension";
@@ -1523,7 +1518,7 @@ export default function Layout3DEditor({
   const [commandPreview, setCommandPreview] =
     useState<CommandPreviewState | null>(null);
   const [commandLog, setCommandLog] = useState<CadCommandHistoryItem[]>([]);
-  const [commandHistoryCursor, setCommandHistoryCursor] = useState(-1);
+  const [, setCommandHistoryCursor] = useState(-1);
   const [commandHistoryHydratedKey, setCommandHistoryHydratedKey] = useState<
     string | null
   >(null);
@@ -2049,7 +2044,7 @@ export default function Layout3DEditor({
     [draftSettingsHost],
   );
   const lastWallAngleRef = useRef<number | null>(null); // ángulo del último tramo → entrada directa de distancia
-  const [precisionText, setPrecisionText] = useState("");
+  const [, setPrecisionText] = useState("");
   const [drawPrompt, setDrawPrompt] = useState<string | null>(null);
   const [canCloseDraftPolyline, setCanCloseDraftPolyline] = useState(false);
   const drawCommandRef = useRef<CadDrawCommandState | null>(null);
@@ -6483,7 +6478,6 @@ export default function Layout3DEditor({
       tracking?: "object" | "polar" | "ortho";
       trackingAngle?: number;
     } => {
-      const ctx = ctxRef.current!;
       const tol = pointerWorldTolerance(
         workspacePreferencesRef.current.aperturePx,
       );
@@ -8237,66 +8231,6 @@ export default function Layout3DEditor({
       setMeasureLive(`Inicio en (${nx}, ${ny})`);
     }
     wallChainRef.current = { wx: nx, wy: ny };
-  };
-  const submitPrecisionPoint = () => {
-    const raw = precisionText.trim();
-    if (!raw) {
-      if (enginePointerRouterRef.current?.active || drawCommandRef.current)
-        commitActiveDraftCommand();
-      return;
-    }
-    // Con el motor abierto, la línea de precisión entrega el texto TAL CUAL al
-    // motor. No lo analiza aquí: el pipeline de entrada del motor ya resuelve
-    // coordenadas absolutas y relativas, polares, palabras clave, overrides de
-    // captura y entrada directa de distancia — y hacerlo dos veces con dos
-    // gramáticas distintas es exactamente cómo se acaba con dos productos.
-    if (enginePointerRouterRef.current?.active) {
-      commandEngineRef.current.submit(raw);
-      setPrecisionText("");
-      return;
-    }
-    if (drawCommandRef.current) {
-      const last = drawCommandRef.current.points.at(-1) ?? null;
-      const parsed = parseCoordinate(raw, {
-        last,
-        lockedAngleDeg: lastWallAngleRef.current,
-      });
-      if (!parsed.ok) {
-        const d = Number(raw.replace(",", "."));
-        if (Number.isFinite(d)) {
-          const next = feedDistance(drawCommandRef.current, d);
-          drawCommandRef.current = next.done ? null : next;
-          setCanCloseDraftPolyline(
-            !next.done && next.id === "polyline" && next.points.length >= 3,
-          );
-          applyDrawState(next);
-          if (next.done) {
-            setTool("select");
-            toolRef.current = "select";
-            setDrawPrompt(null);
-            setMeasureLive(null);
-          }
-          setPrecisionText("");
-          return;
-        }
-        toast.error(parsed.error, "Precisión");
-        return;
-      }
-      feedDraftPoint(parsed.point.x, parsed.point.y);
-      setPrecisionText("");
-      return;
-    }
-    const chain = wallChainRef.current;
-    const parsed = parseCoordinate(raw, {
-      last: chain ? { x: chain.wx, y: chain.wy } : null,
-      lockedAngleDeg: lastWallAngleRef.current,
-    });
-    if (!parsed.ok) {
-      toast.error(parsed.error, "Precisión");
-      return;
-    }
-    appendWallTo(parsed.point.x, parsed.point.y);
-    setPrecisionText("");
   };
   const commitDynamicInput = (
     result: Extract<CadDynamicInputResult, { ok: true }>,
@@ -11385,21 +11319,6 @@ export default function Layout3DEditor({
     setCommandHistoryCursor(-1);
     return previewCommandText(raw);
   };
-  const interpretCommand = () => {
-    setCommandHistoryCursor(-1);
-    if (!commandText.trim()) repeatLastCommand();
-    else previewCommandText(commandText);
-  };
-  const navigateCommandLineHistory = (direction: "older" | "newer") => {
-    const next = navigateCadCommandHistory(
-      commandLog,
-      commandHistoryCursor,
-      direction,
-    );
-    setCommandHistoryCursor(next.cursor);
-    setCommandText(next.value);
-    setCommandPreview(null);
-  };
   const applyCommandSuggestion = (suggestion: CadCommandSuggestion) => {
     setCommandText(suggestion.example);
     if (!suggestion.ready) {
@@ -11408,480 +11327,6 @@ export default function Layout3DEditor({
       return;
     }
     previewCommandText(suggestion.example);
-  };
-  const applyCommandOperation = (op: CadOperation) => {
-    if (op.type === "move") {
-      const type = placementsRef.current.has(op.objectId)
-        ? "station"
-        : assetsRef.current.has(op.objectId)
-          ? "asset"
-          : null;
-      if (type && isItemLayerLocked({ type, id: op.objectId })) {
-        toast.error(
-          `Movimiento omitido: ${op.objectId} está en una capa bloqueada.`,
-          "Capas",
-        );
-        return false;
-      }
-      const p = placementsRef.current.get(op.objectId);
-      if (p) {
-        p.x = op.after.x;
-        p.y = op.after.y;
-        p.w = op.after.w;
-        p.h = op.after.h;
-        p.rotation = op.after.rotation ?? p.rotation;
-        return true;
-      }
-      const a = assetsRef.current.get(op.objectId);
-      if (a) {
-        a.x = op.after.x;
-        a.y = op.after.y;
-        a.w = op.after.w;
-        a.h = op.after.h;
-        a.rotation = op.after.rotation ?? a.rotation;
-        return true;
-      }
-    } else if (op.type === "connect") {
-      if (
-        !connectorsRef.current.some(
-          (c) =>
-            c.from === op.from &&
-            c.to === op.to &&
-            (c.kind ?? "flow") === op.kind,
-        )
-      )
-        connectorsRef.current = [
-          ...connectorsRef.current,
-          { from: op.from, to: op.to, kind: op.kind },
-        ];
-      return true;
-    } else if (op.type === "create") {
-      // Con sourceId copia kind/etiqueta/capa del origen (duplicación); sin él,
-      // op.object.kind crea un asset fresco (zonas envolventes, muros nuevos).
-      if (op.object.type !== "asset") return false;
-      const src = op.object.sourceId
-        ? assetsRef.current.get(op.object.sourceId)
-        : undefined;
-      const kind = src?.kind ?? op.object.kind;
-      if (!kind) return false;
-      const id = newId("as");
-      assetsRef.current.set(id, {
-        id,
-        kind,
-        label: op.object.label || src?.label,
-        x: op.object.x,
-        y: op.object.y,
-        w: op.object.w,
-        h: op.object.h,
-        rotation: op.object.rotation ?? src?.rotation ?? 0,
-      });
-      setAssetIds(new Set(assetsRef.current.keys()));
-      const srcLayer = op.object.sourceId
-        ? layerAssignmentsRef.current[op.object.sourceId]
-        : undefined;
-      setLayerAssignments((cur) =>
-        assignObjectsToLayer(
-          cur,
-          [id],
-          srcLayer ?? defaultCadLayerForAssetKind(kind),
-        ),
-      );
-      return true;
-    } else if (op.type === "annotate") {
-      if (op.annotation.kind === "text") {
-        // TEXT conversacional (VD-CAD-TEXT-001): misma nota que el botón de
-        // notas — editable/arrastrable/borrable como cualquier otra.
-        const id = newId("nt");
-        annotationsRef.current.set(id, {
-          id,
-          type: "text",
-          x: op.annotation.x,
-          y: op.annotation.y,
-          text: op.annotation.text.slice(0, 240),
-        });
-        rebuildNotes();
-        return true;
-      }
-      // Auto-acotado (ADR §225): cada cota entra como anotación dim normal —
-      // editable/borrable desde el panel de mediciones como cualquier otra.
-      const id = newId("dim");
-      annotationsRef.current.set(id, {
-        id,
-        type: "dim",
-        x: op.annotation.x,
-        y: op.annotation.y,
-        x2: op.annotation.x2,
-        y2: op.annotation.y2,
-        text: op.annotation.text,
-      });
-      setDimCount(
-        [...annotationsRef.current.values()].filter((ann) => ann.type === "dim")
-          .length,
-      );
-      refreshMeasurementRows();
-      return true;
-    } else if (op.type === "history") {
-      // 'deshaz' / 'rehaz' (VD-CAD-UNDO-001): el mismo historial de Ctrl+Z.
-      if (op.action === "undo") undo();
-      else redo();
-      return true;
-    } else if (op.type === "studio_view") {
-      // 'vista 2d' / 'vista 3d' (VD-CAD-VIEW-001): por el MISMO toggle del
-      // toolbar — duplicarlo perdía el recuerdo y el reencuadre georreferenciado.
-      if (viewModeRef.current !== op.mode) toggleViewMode();
-      return true;
-    } else if (op.type === "rename") {
-      // "renombra la mesa a 'Mesa VIP'" (VD-CAD-RENAME-001): solo assets —
-      // las estaciones toman su nombre del routing.
-      const asset = assetsRef.current.get(op.objectId);
-      if (!asset) {
-        toast.error(
-          "Los puntos heredados toman su nombre del documento; solo puedo renombrar objetos del dibujo.",
-          "Comando CAD",
-        );
-        return false;
-      }
-      asset.label = op.label.slice(0, 80);
-      return true;
-    } else if (op.type === "studio_save") {
-      // 'guarda' (VD-CAD-SAVE-001): el mismo botón Guardar del estudio.
-      void save();
-      return true;
-    } else if (op.type === "studio_export") {
-      // 'imprime en a3' (VD-CAD-PLOT-003): dispara el export real. El papel
-      // pedido se aplica a la HOJA ACTIVA por la vía canónica —la misma que
-      // el selector «Papel» del panel de layouts—, que es la única que la
-      // publicación lee. Antes se guardaba en un estado de la barra que nadie
-      // consultaba: el usuario pedía A3 y salía lo que dijera la hoja.
-      if (op.format === "pdf") {
-        const paper = op.paper as CadSheetPaper | undefined;
-        if (paper) changeActivePaper(paper);
-        void publishSheetSetPdf();
-      } else if (op.format === "dxf") {
-        void exportDxf();
-      } else if (op.format === "png") {
-        exportPng();
-      } else {
-        void exportGltf();
-      }
-      return true;
-    } else if (op.type === "clear_annotations") {
-      // Limpieza conversacional (VD-CAD-CLEAN-001): mismo contrato que el
-      // botón de limpiar cotas — si no había nada que quitar, no aplica.
-      let cleared = false;
-      annotationsRef.current.forEach((a, id) => {
-        if (
-          (op.kind === "dims" && a.type === "dim") ||
-          (op.kind === "notes" && a.type === "text") ||
-          op.kind === "all"
-        ) {
-          annotationsRef.current.delete(id);
-          cleared = true;
-        }
-      });
-      if (!cleared) return false;
-      setDimCount(
-        [...annotationsRef.current.values()].filter((ann) => ann.type === "dim")
-          .length,
-      );
-      refreshMeasurementRows();
-      rebuildDims();
-      rebuildNotes();
-      return true;
-    } else if (op.type === "delete") {
-      // ERASE conversacional (VD-CAD-DELETE-001): mismo contrato que Supr —
-      // respeta capas bloqueadas y saca al objeto de la selección viva.
-      const type = placementsRef.current.has(op.objectId)
-        ? ("station" as const)
-        : assetsRef.current.has(op.objectId)
-          ? ("asset" as const)
-          : null;
-      if (!type) return false;
-      if (isItemLayerLocked({ type, id: op.objectId })) {
-        toast.error(
-          `Borrado omitido: ${op.objectId} está en una capa bloqueada.`,
-          "Capas",
-        );
-        return false;
-      }
-      if (type === "station") {
-        placementsRef.current.delete(op.objectId);
-        setPlacedIds(new Set(placementsRef.current.keys()));
-      } else {
-        assetsRef.current.delete(op.objectId);
-        setAssetIds(new Set(assetsRef.current.keys()));
-      }
-      if (selRef.current.some((s) => s.id === op.objectId))
-        select(selRef.current.filter((s) => s.id !== op.objectId));
-      return true;
-    } else if (op.type === "focus") {
-      const items: SelItem[] = op.objectIds
-        .map((id) =>
-          placementsRef.current.has(id)
-            ? { type: "station" as const, id }
-            : assetsRef.current.has(id)
-              ? { type: "asset" as const, id }
-              : null,
-        )
-        .filter((it): it is SelItem => !!it);
-      if (items.length) select(items);
-      // 'enfoca la cocina' (VD-CAD-ZOOM-001): fit_to_view manda zoom:true;
-      // seleccionar por nombre NO mueve la cámara (select_objects sin zoom).
-      if (op.zoom) fitView(items.length ? "selection" : "all");
-    }
-    return false;
-  };
-  const isMutatingCommandOperation = (op: CadOperation) =>
-    op.type === "move" ||
-    op.type === "connect" ||
-    op.type === "create" ||
-    op.type === "annotate" ||
-    op.type === "delete" ||
-    op.type === "clear_annotations" ||
-    op.type === "rename";
-  const canApplyCommandOperation = (op: CadOperation) => {
-    if (!isMutatingCommandOperation(op)) return true;
-    if (op.type === "move" || op.type === "delete") {
-      const type = placementsRef.current.has(op.objectId)
-        ? ("station" as const)
-        : assetsRef.current.has(op.objectId)
-          ? ("asset" as const)
-          : null;
-      return !!type && !isItemLayerLocked({ type, id: op.objectId });
-    }
-    if (op.type === "connect") {
-      const exists = (id: string) =>
-        placementsRef.current.has(id) || assetsRef.current.has(id);
-      return exists(op.from) && exists(op.to);
-    }
-    if (op.type === "create")
-      return (
-        op.object.type === "asset" &&
-        !!(
-          op.object.kind ||
-          (op.object.sourceId && assetsRef.current.has(op.object.sourceId))
-        )
-      );
-    if (op.type === "rename") return assetsRef.current.has(op.objectId);
-    if (op.type === "clear_annotations") {
-      return [...annotationsRef.current.values()].some(
-        (annotation) =>
-          op.kind === "all" ||
-          (op.kind === "dims" && annotation.type === "dim") ||
-          (op.kind === "notes" && annotation.type === "text"),
-      );
-    }
-    return true;
-  };
-  const applyCommand = () => {
-    if (!commandPreview) return;
-    if (drawingReadOnlyRef.current) {
-      notifyReadOnly();
-      return;
-    }
-    // Hay previsualización ⇒ `previewCommandText` ya cargó el intérprete; se
-    // comprueba igual para no aplicar nada a ciegas si alguna vez no fuera así.
-    const nl = cadNlCommandsIfLoaded();
-    if (!nl) return toast.error("El intérprete de frases no terminó de cargar: vuelve a previsualizar la orden.", "Comando CAD");
-    // Cadena o comando suelto (VD-CAD-CHAIN-001): cada paso se ejecuta
-    // contra el contexto YA mutado por el anterior ('pon una puerta y luego
-    // céntrala' centra la puerta recién creada); un solo snapshot → un undo.
-    const inputs =
-      commandPreview.chain && commandPreview.chain.length > 1
-        ? commandPreview.chain
-        : [commandPreview.input];
-    const transactionCheckpoint = snapshotDocument();
-    const transactionWasDirty = dirty;
-    const transactionHistory =
-      canonicalHistoryRef.current?.createRecoveryPoint() ?? null;
-    let snapshotTaken = false;
-    let anyChanged = false;
-    const rollbackCommandTransaction = () => {
-      loadedCadDocumentRef.current = transactionCheckpoint;
-      restore(cadDocumentToEditorSnapshot(transactionCheckpoint));
-      if (snapshotTaken) {
-        if (transactionHistory && canonicalHistoryRef.current) {
-          canonicalHistoryRef.current.restoreRecoveryPoint(transactionHistory);
-          setHist(canonicalHistoryRef.current.depths());
-        } else cancelHistoryCheckpoint();
-      }
-      dirtyRef.current = transactionWasDirty;
-      setDirty(transactionWasDirty);
-    };
-    for (const input of inputs) {
-      const commandStartedAt = Date.now();
-      const result = nl.executeCadCommand(input, buildCommandContext());
-      const audit = () => ({
-        rawInput: commandPreview.rawInput,
-        durationMs: Date.now() - commandStartedAt,
-        affectedObjectIds: result.affectedObjectIds,
-        completedAt: new Date().toISOString(),
-      });
-      if (!result.applied) {
-        if (snapshotTaken) rollbackCommandTransaction();
-        anyChanged = false;
-        toast.error(
-          result.issues.find((i) => i.level === "error")?.message ||
-            "El comando no es válido.",
-          "Comando CAD",
-        );
-        setCommandLog((items) =>
-          prependCadCommandHistory(
-            items,
-            createCadHistoryItem(
-              input,
-              "failed",
-              result.historyLabel,
-              commandPreview.preview,
-              result,
-              audit(),
-            ),
-          ),
-        );
-        break;
-      }
-      const mutatingOperations = result.operations.filter(
-        isMutatingCommandOperation,
-      );
-      const blockedOperation = mutatingOperations.find(
-        (op) => !canApplyCommandOperation(op),
-      );
-      if (blockedOperation) {
-        if (snapshotTaken) rollbackCommandTransaction();
-        anyChanged = false;
-        setCommandLog((items) =>
-          prependCadCommandHistory(
-            items,
-            createCadHistoryItem(
-              input,
-              "failed",
-              `Transacción cancelada: ${result.historyLabel}`,
-              commandPreview.preview,
-              result,
-              audit(),
-            ),
-          ),
-        );
-        toast.error(
-          "No se aplicó ningún cambio: una operación no pudo validarse.",
-          "Comando CAD",
-        );
-        break;
-      }
-      const mutates = mutatingOperations.length > 0;
-      if (mutates && !snapshotTaken) {
-        recordLocalSnapshot(
-          `Auto · ${result.historyLabel}${inputs.length > 1 ? ` (cadena de ${inputs.length})` : ""}`,
-          "command",
-        );
-        pushHistory();
-        snapshotTaken = true;
-      }
-      // map + some: .some(applyCommandOperation) directo corta en la primera op
-      // aplicada y dejaba a medias los comandos multi-objeto (align, flow line).
-      const operationResults = result.operations.map(applyCommandOperation);
-      const changed = operationResults.some(Boolean);
-      const partialFailure = mutatingOperations.some((operation) => {
-        const index = result.operations.indexOf(operation);
-        return !operationResults[index];
-      });
-      if (partialFailure) {
-        rollbackCommandTransaction();
-        setCommandLog((items) =>
-          prependCadCommandHistory(
-            items,
-            createCadHistoryItem(
-              input,
-              "failed",
-              `Rollback: ${result.historyLabel}`,
-              commandPreview.preview,
-              result,
-              audit(),
-            ),
-          ),
-        );
-        toast.error(
-          "La operación falló y la transacción completa fue revertida.",
-          "Comando CAD",
-        );
-        anyChanged = false;
-        break;
-      }
-      if (changed && snapshotDocument().constraints.length) {
-        const solved = solveCadConstraints(
-          snapshotDocument(),
-          result.affectedObjectIds,
-        );
-        if (!solved.converged) {
-          rollbackCommandTransaction();
-          setCommandLog((items) =>
-            prependCadCommandHistory(
-              items,
-              createCadHistoryItem(
-                input,
-                "failed",
-                `Restricción incompatible: ${result.historyLabel}`,
-                commandPreview.preview,
-                result,
-                audit(),
-              ),
-            ),
-          );
-          toast.error(
-            solved.issues[0]?.message ||
-              "Las restricciones no pudieron resolverse; se revirtió la transacción.",
-            "Restricciones",
-          );
-          anyChanged = false;
-          break;
-        }
-        loadedCadDocumentRef.current = solved.document;
-        restore(cadDocumentToEditorSnapshot(solved.document));
-      }
-      anyChanged = anyChanged || changed;
-      setCommandLog((items) =>
-        prependCadCommandHistory(
-          items,
-          createCadHistoryItem(
-            input,
-            "applied",
-            result.historyLabel,
-            commandPreview.preview,
-            result,
-            audit(),
-          ),
-        ),
-      );
-      if (changed) {
-        refreshSnap();
-      }
-      toast.success(result.historyLabel, "Comando CAD");
-    }
-    if (anyChanged) {
-      markDirty();
-      refreshSnap();
-      rebuildAll();
-    }
-    setCommandPreview(null);
-    setCommandText("");
-  };
-  const undoLastCommand = () => {
-    const item = commandLog.find((c) => c.status === "applied");
-    if (!item || hist.undo === 0) return;
-    undo();
-    setCommandLog((items) =>
-      items.map((c) => (c.id === item.id ? { ...c, status: "undone" } : c)),
-    );
-    toast.success(`Deshecho: ${item.label}`, "Comando CAD");
-  };
-  const redoLastCommand = () => {
-    const item = commandLog.find((c) => c.status === "undone");
-    if (!item || hist.redo === 0) return;
-    redo();
-    setCommandLog((items) =>
-      items.map((c) => (c.id === item.id ? { ...c, status: "applied" } : c)),
-    );
-    toast.success(`Rehecho: ${item.label}`, "Comando CAD");
   };
   const toggleCadLayerVisibility = (id: CadLayerId) => {
     const layer = cadLayers.find((candidate) => candidate.id === id);
