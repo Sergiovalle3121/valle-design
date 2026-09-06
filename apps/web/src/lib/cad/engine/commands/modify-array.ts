@@ -25,7 +25,6 @@
  */
 import type { CadEntity, CadPoint2 } from "../../cad-document";
 import type { CadEntityCommand } from "../../entity-commands";
-import { cadOpeningRehostId } from "../../wall-openings";
 import {
   CAD_ARRAY_META,
   cadArrayIdOf,
