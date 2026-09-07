@@ -51,9 +51,9 @@ import {
   CAPABILITY_TABS,
   CapabilityExplorer,
   CapabilityExplorerPanels,
-  TOOLSET_TEMPLATE_IDS,
   type CapabilityTabId,
 } from "./CapabilityExplorer";
+import { TOOLSET_TEMPLATE_IDS } from "./capability-explorer-shared";
 import { galleryTemplate } from "@/lib/marketing/template-gallery";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -61,7 +61,7 @@ const webRoot = path.resolve(here, "../../../");
 
 // El spec corre en Node puro (tsx), no en el navegador: importar
 // `galleryTemplate` aquí es gratis. En el componente es justo lo prohibido —
-// ver la nota junto a `TOOLSET_TEMPLATE_IDS` en CapabilityExplorer.tsx.
+// ver la nota en ./capability-explorer-shared.ts.
 const TEST_TOOLSET_TEMPLATES = TOOLSET_TEMPLATE_IDS.flatMap((id) => {
   const template = galleryTemplate(id);
   return template ? [template] : [];

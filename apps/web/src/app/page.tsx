@@ -6,10 +6,8 @@ import { DOC_GUIDES, PRICING_PATH, docGuidePath } from "@/config/site-routes";
 import { JsonLd } from "@/components/JsonLd";
 import { PublicNav } from "@/components/PublicNav";
 import { SkipLink } from "@/components/SkipLink";
-import {
-  CapabilityExplorer,
-  TOOLSET_TEMPLATE_IDS,
-} from "@/components/marketing/CapabilityExplorer";
+import { CapabilityExplorer } from "@/components/marketing/CapabilityExplorer";
+import { TOOLSET_TEMPLATE_IDS } from "@/components/marketing/capability-explorer-shared";
 import { EngineeringEvidence } from "@/components/marketing/EngineeringEvidence";
 import { FaqCenter } from "@/components/marketing/FaqCenter";
 import { FeaturedTemplates } from "@/components/gallery/FeaturedTemplates";

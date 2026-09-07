@@ -183,22 +183,6 @@ const CAPABILITY_TABS: readonly CapabilityTabDef[] = [
  * son las tres plantillas técnicas (civil, estructura, instalaciones) que la
  * portada, hasta hoy, no enseñaba nunca.
  */
-/**
- * Sólo los IDS viven aquí — la RESOLUCIÓN real (`galleryTemplate`) la hace
- * `page.tsx` en el servidor y baja el resultado ya plano como prop
- * `toolsetTemplates`. Este archivo lleva "use client": llamar aquí a
- * `galleryTemplate` (que arrastra el catálogo entero de 149 plantillas,
- * `CAD_LAYOUT_TEMPLATES`) metía ese catálogo completo en el JS de la
- * portada — 53 KB gzip que nadie pedía, y el presupuesto de bundle de `/`
- * los detectó de inmediato. `FeaturedTemplates.tsx` (servidor puro) ya
- * resolvía esto bien; aquí se sigue el mismo patrón.
- */
-const TOOLSET_TEMPLATE_IDS = [
-  "civil-site-utilities",
-  "structural-grid-core",
-  "mep-plantroom",
-] as const;
-
 function DibujoVisual() {
   return (
     <ProductFrame
@@ -548,8 +532,9 @@ export function CapabilityExplorer({
   className?: string;
   initialTabId?: CapabilityTabId;
   /**
-   * Resuelto en el SERVIDOR por `page.tsx` (`galleryTemplate` por id) y
-   * bajado ya plano — ver la nota sobre `TOOLSET_TEMPLATE_IDS` arriba.
+   * Resuelto en el SERVIDOR por `page.tsx` (`galleryTemplate` sobre los ids
+   * de `./capability-explorer-shared`) y bajado ya plano — ver la nota en
+   * ese archivo.
    */
   toolsetTemplates: readonly GalleryTemplate[];
 }) {
@@ -580,5 +565,8 @@ export function CapabilityExplorer({
   );
 }
 
-export { CAPABILITY_TABS, TOOLSET_TEMPLATE_IDS };
+export { CAPABILITY_TABS };
+// `TOOLSET_TEMPLATE_IDS` vive en ./capability-explorer-shared (sin "use
+// client"): no se reexporta aquí — ver la nota en ese archivo sobre por qué
+// re-exportar una constante desde un módulo cliente rompe en el servidor.
 export type { CapabilityTabId };
