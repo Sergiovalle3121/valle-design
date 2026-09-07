@@ -154,8 +154,21 @@ function ToolButton({
           : "text-muted-foreground hover:bg-muted hover:text-foreground",
       )}
     >
-      <Icon aria-hidden="true" className="h-4 w-4" />
-      <span className="type-micro font-medium leading-none">{action.label}</span>
+      <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
+      {/*
+        `w-full` + `break-words` en vez de `whitespace-nowrap`: «Seleccionar»
+        —el más largo de los dieciséis, 11 caracteres— no cabe en los 56 px del
+        botón a ningún tamaño de fuente del sistema. Sin un punto de quiebre el
+        texto es UNA palabra, así que el navegador no la envuelve por su cuenta
+        y se sale del botón por los dos lados, montada sobre el vecino de la
+        rejilla. `break-words` fuerza el corte quando hace falta y `leading-
+        snug` (1,375) separa las dos líneas lo suficiente para que no se toquen
+        los descendentes de la primera con los ascendentes de la segunda —
+        `leading-none` (1) las pegaba.
+      */}
+      <span className="w-full break-words text-center type-micro font-medium leading-snug">
+        {action.label}
+      </span>
 
       {/*
         El tooltip se dibuja a la DERECHA porque la paleta vive pegada al borde

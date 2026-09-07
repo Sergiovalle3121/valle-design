@@ -1,20 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  ArrowRight,
-  Blocks,
-  CloudUpload,
-  DraftingCompass,
-  FileDown,
-  Printer,
-  Ruler,
-  Terminal,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { PRODUCT_LABEL } from "@/config/brand";
 import { DOC_GUIDES, PRICING_PATH, docGuidePath } from "@/config/site-routes";
 import { JsonLd } from "@/components/JsonLd";
 import { PublicNav } from "@/components/PublicNav";
 import { SkipLink } from "@/components/SkipLink";
+import { CapabilityExplorer } from "@/components/marketing/CapabilityExplorer";
 import { EngineeringEvidence } from "@/components/marketing/EngineeringEvidence";
 import { FaqCenter } from "@/components/marketing/FaqCenter";
 import { FeaturedTemplates } from "@/components/gallery/FeaturedTemplates";
@@ -135,61 +127,6 @@ const proof = [
     src: "/product/paleta-capas.png",
     alt: "Gestor de capas con color, tipo de línea y grosor",
     nota: "Gestor de capas con color, tipo de línea y grosor de trazo, y congelado por ventana en la presentación.",
-  },
-] as const;
-
-/**
- * Capacidades. `limite` no es letra pequeña: se pinta con el mismo tamaño que
- * el resto y por eso está en la misma estructura de datos. Una ficha sin límite
- * es una ficha cuya capacidad está cerrada de punta a punta.
- */
-const capabilities = [
-  {
-    icon: DraftingCompass,
-    title: "Dibujo 2D con la precisión que exige un plano",
-    text: "Líneas, polilíneas con arcos, círculos, arcos, rectángulos, polígonos, elipses y splines. Referencias a objetos indexadas, rastreo polar, entrada por coordenadas y línea de comandos con la tabla de alias de siempre: escribes L, C o TR y responde.",
-    limite: null,
-  },
-  {
-    icon: Ruler,
-    title: "Cotas asociativas y anotación",
-    text: "Cota lineal, alineada, angular, de radio y de diámetro, con estilos de cota aplicables al plano entregado. La cota queda amarrada a la geometría que mide: mueves el muro y el número cambia solo.",
-    limite: null,
-  },
-  {
-    icon: Blocks,
-    title: "Capas, bloques, sombreado y texto",
-    text: "Gestor de capas con color, tipo de línea y grosor; biblioteca de bloques con atributos, compartida por organización; sombreado asociativo al contorno; texto de párrafo con maquetación real. Muros que resuelven su unión en L, en T y en continuación colineal al dibujarlos.",
-    limite:
-      "Sin bloques dinámicos ni comportamiento anotativo, y el sombreado resuelve contornos poligonales: las islas anidadas y los contornos curvos siguen pendientes.",
-  },
-  {
-    icon: Printer,
-    title: "Espacio papel e impresión a escala",
-    text: "Presentaciones con varias ventanas, cada una a su escala, con capas congeladas por ventana. Papeles A4 a A0, carta y tabloide; escalas normalizadas de 1:1 a 1:5000; tablas de plumas CTB y STB que deciden color y grosor de cada trazo. La lámina sale a PDF con el tamaño de página exacto, cajetín y escala gráfica.",
-    limite:
-      "El emisor deja escrito qué fuentes incrustó y cuáles sustituyó por una estándar; todavía no publicamos una medición de fidelidad tipográfica.",
-  },
-  {
-    icon: FileDown,
-    title: "DXF de ida y de vuelta",
-    text: "DXF de texto —el formato estándar de intercambio que cualquier programa de dibujo abre— importado y exportado con comprobación previa y un manifiesto de pérdidas que dice, entidad por entidad, qué no viajó igual. Casi nada se degrada en silencio, y lo que sí, está listado abajo.",
-    limite:
-      "Se escribe DXF en la versión AC1015 y sólo geometría plana: la Z se aplana. La importación admite hasta 12 MB y 50.000 entidades por archivo, y el corpus de ida y vuelta es propio: aún no hay uno de archivos de terceros con licencia para publicar una matriz de interoperabilidad.",
-  },
-  {
-    icon: Terminal,
-    title: "Automatización con LISP en el navegador",
-    text: "Un intérprete del dialecto LISP del dibujo técnico —lector, evaluador, funciones de entidad por códigos DXF, conjuntos de selección y diálogos DCL— ejecutándose en tu navegador dentro de un entorno aislado con presupuesto de pasos y de tiempo. Las rutinas que automatizan tu trabajo repetitivo dejan de estar atadas a una instalación de escritorio.",
-    limite:
-      "Es un subconjunto del lenguaje: una rutina que dependa de funciones fuera de esa superficie necesita adaptarse. Tus rutinas se guardan en el navegador, no en el servidor, así que hoy no viajan solas a otra computadora.",
-  },
-  {
-    icon: CloudUpload,
-    title: "Proyectos en la nube, con red debajo",
-    text: "Los documentos viven en el servidor, aislados por organización, con guardado explícito y autoguardado sobre la misma cola de escritura, versiones consultables y comparación entre ellas. Para revisar, enlaces con caducidad y revocación, y comentarios anclados a la geometría.",
-    limite:
-      "La revisión es asíncrona: dos personas comentan y se turnan sobre el documento, no dibujan a la vez con cursores simultáneos. Los borradores de recuperación se guardan en tu navegador durante siete días, no en el servidor.",
   },
 ] as const;
 
@@ -503,29 +440,10 @@ export default function LandingPage() {
           <SectionHead
             id="capacidades"
             eyebrow="Capacidades"
-            title="Lo que ya puedes hacer hoy"
-            lead="Cada punto de esta lista corresponde a algo implementado y probado en el producto. Donde falta terminar algo, está dicho en la misma ficha."
+            title="Lo que ya puedes hacer hoy, por disciplina"
+            lead="Dibujo, anotación, entrega, 3D, toolsets y colaboración: elige tu pestaña. Cada una corresponde a algo implementado y probado en el producto, y donde falta terminar algo, está dicho en el mismo panel."
           />
-          <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {capabilities.map(({ icon: Icon, title, text, limite }) => (
-              <article
-                key={title}
-                className="flex flex-col rounded-card border border-border bg-card p-6 shadow-resting"
-              >
-                <Icon aria-hidden="true" className="h-7 w-7 text-primary-ink" />
-                <h3 className="type-heading mt-5">{title}</h3>
-                <p className="type-body mt-3 text-muted-foreground">{text}</p>
-                {limite ? (
-                  <p className="type-small mt-auto border-t border-border pt-4 text-muted-foreground">
-                    <span className="font-semibold text-foreground">
-                      Límite actual:{" "}
-                    </span>
-                    {limite}
-                  </p>
-                ) : null}
-              </article>
-            ))}
-          </div>
+          <CapabilityExplorer />
         </Band>
 
         {/* ── PARA QUIÉN ─────────────────────────────────────────────────── */}
