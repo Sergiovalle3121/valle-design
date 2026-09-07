@@ -498,6 +498,15 @@ export interface CadScenePatch {
 export class CadSceneSynchronizer<P> {
   readonly spatialIndex: CadSpatialIndex;
   private readonly versions = new Map<string, string>();
+  /**
+   * El OBJETO que produjo cada versión. Las mutaciones canónicas no clonan lo
+   * que no tocan (el ejecutor conserva las referencias en su `present`), así
+   * que la misma referencia es la misma entidad y no hay que volver a
+   * serializarla: antes cada sincronización pagaba `JSON.stringify` de TODO el
+   * documento para decidir que no había cambiado nada. El hash se conserva
+   * como respaldo para las instantáneas clonadas de deshacer/rehacer.
+   */
+  private readonly lastSeen = new Map<string, CadNativeEntity>();
   private readonly projections = new Map<string, P>();
   private syncGeneration = 0;
   private currentDocument?: CadDocument;
@@ -525,15 +534,17 @@ export class CadSceneSynchronizer<P> {
     for (const [id, projection] of [...this.projections]) {
       if (current.has(id)) continue;
       sink.remove(id, projection);
-      this.projections.delete(id);
-      this.versions.delete(id);
-      this.spatialIndex.remove(id);
+      this.forget(id);
       removed += 1;
     }
 
     for (const entity of current.values()) {
-      const version = JSON.stringify(entity);
       const previous = this.projections.get(entity.id);
+      if (previous && this.lastSeen.get(entity.id) === entity) {
+        unchanged += 1;
+        continue;
+      }
+      const version = JSON.stringify(entity);
       if (!previous) {
         this.projections.set(entity.id, sink.create(entity));
         this.spatialIndex.upsert(
@@ -552,6 +563,7 @@ export class CadSceneSynchronizer<P> {
         unchanged += 1;
       }
       this.versions.set(entity.id, version);
+      this.lastSeen.set(entity.id, entity);
     }
 
     return {
@@ -594,9 +606,7 @@ export class CadSceneSynchronizer<P> {
     for (const [id, projection] of [...this.projections]) {
       if (currentIds.has(id)) continue;
       sink.remove(id, projection);
-      this.projections.delete(id);
-      this.versions.delete(id);
-      this.spatialIndex.remove(id);
+      this.forget(id);
       stats.removed += 1;
     }
 
@@ -617,8 +627,12 @@ export class CadSceneSynchronizer<P> {
       }
       const batch = entities.slice(start, start + batchSize);
       for (const entity of batch) {
-        const version = JSON.stringify(entity);
         const previous = this.projections.get(entity.id);
+        if (previous && this.lastSeen.get(entity.id) === entity) {
+          stats.unchanged += 1;
+          continue;
+        }
+        const version = JSON.stringify(entity);
         if (!previous) {
           this.projections.set(entity.id, sink.create(entity));
           stats.created += 1;
@@ -635,6 +649,7 @@ export class CadSceneSynchronizer<P> {
           );
         }
         this.versions.set(entity.id, version);
+        this.lastSeen.set(entity.id, entity);
       }
       stats.processed += batch.length;
       stats.batches += 1;
@@ -659,15 +674,17 @@ export class CadSceneSynchronizer<P> {
       const projection = this.projections.get(id);
       if (!projection) continue;
       sink.remove(id, projection);
-      this.projections.delete(id);
-      this.versions.delete(id);
-      this.spatialIndex.remove(id);
+      this.forget(id);
       removed += 1;
     }
 
     for (const entity of patch.upsert) {
-      const version = JSON.stringify(entity);
       const previous = this.projections.get(entity.id);
+      if (previous && this.lastSeen.get(entity.id) === entity) {
+        unchanged += 1;
+        continue;
+      }
+      const version = JSON.stringify(entity);
       if (!previous) {
         this.projections.set(entity.id, sink.create(entity));
         created += 1;
@@ -684,6 +701,7 @@ export class CadSceneSynchronizer<P> {
         );
       }
       this.versions.set(entity.id, version);
+      this.lastSeen.set(entity.id, entity);
     }
 
     return {
@@ -693,6 +711,13 @@ export class CadSceneSynchronizer<P> {
       unchanged,
       total: this.projections.size,
     };
+  }
+
+  private forget(id: string): void {
+    this.projections.delete(id);
+    this.versions.delete(id);
+    this.lastSeen.delete(id);
+    this.spatialIndex.remove(id);
   }
 
   projection(entityId: string): P | undefined {
@@ -710,6 +735,7 @@ export class CadSceneSynchronizer<P> {
       sink.remove(id, projection);
     this.projections.clear();
     this.versions.clear();
+    this.lastSeen.clear();
     this.spatialIndex.clear();
   }
 }

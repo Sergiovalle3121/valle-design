@@ -827,11 +827,7 @@ function pushInsert(lines: string[], insert: CadDxfExportInsert, definition?: Ca
   if (attributeCount) { pushPair(lines, 0, "SEQEND"); pushPair(lines, 8, safeLayerName(insert.layer)); }
 }
 
-function pushBlocks(
-  lines: string[],
-  blocks: CadDxfExportBlock[],
-  objects: CadDxfSchema4Objects,
-) {
+function pushBlocks(lines: string[], blocks: CadDxfExportBlock[], objects: CadDxfSchema4Objects, blockByName: ReadonlyMap<string, CadDxfExportBlock>) {
   pushPair(lines, 0, "SECTION");
   pushPair(lines, 2, "BLOCKS");
   for (const block of blocks) {
@@ -855,7 +851,7 @@ function pushBlocks(
     for (const primitive of block.primitives)
       writePrimitiveGeometry(lines, safeLayerName(primitive.layer), primitive, objects);
     for (const insert of block.inserts ?? [])
-      pushInsert(lines, insert, blocks.find((candidate) => candidate.name === insert.block));
+      pushInsert(lines, insert, blockByName.get(insert.block));
     for (const [tag, attribute] of Object.entries(block.attributes ?? {})) {
       pushPair(lines, 0, "ATTDEF");
       pushPair(lines, 8, DEFAULT_LAYER);
@@ -899,9 +895,13 @@ export function exportCadDxf(
     primitives: semanticDimensionBlockPrimitives(dimension),
   }));
   const allBlocks = [...(model.blocks ?? []), ...dimensionBlocks, ...semanticDimensionBlocks];
+  // Un mapa y no `find` por INSERT: un plano de mobiliario con miles de inserts y
+  // cientos de bloques pagaba I×B comparaciones por exportación. Invertido para
+  // que, ante un nombre repetido, gane la PRIMERA definición, como hacía `find`.
+  const blockByName = new Map([...allBlocks].reverse().map((block) => [block.name, block] as const));
   pushHeader(lines, options, schema4PointVariables(model.primitives ?? []), model.linetypeScale);
   pushLayerTable(lines, model, layers);
-  if (allBlocks.length) pushBlocks(lines, allBlocks, schema4Objects);
+  if (allBlocks.length) pushBlocks(lines, allBlocks, schema4Objects, blockByName);
   pushPair(lines, 0, "SECTION");
   pushPair(lines, 2, "ENTITIES");
 
@@ -918,8 +918,7 @@ export function exportCadDxf(
       entityCount += 1;
   }
   for (const insert of model.inserts ?? []) {
-    const definition = allBlocks.find((block) => block.name === insert.block);
-    pushInsert(lines, insert, definition);
+    pushInsert(lines, insert, blockByName.get(insert.block));
     entityCount += 1;
   }
   for (const hatch of model.hatches ?? []) {

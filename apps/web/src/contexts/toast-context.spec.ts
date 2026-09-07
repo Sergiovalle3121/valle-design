@@ -71,4 +71,12 @@ assert.match(fuente, /text-success\b/, "el icono de éxito usa el token de éxit
 assert.match(fuente, /text-primary\b/, "el icono informativo usa el token de marca, no blue-500");
 assert.doesNotMatch(fuente, /rose-500|emerald-500|blue-500|neutral-900|text-gray-\d/, "no queda ningún color de Tailwind crudo en el archivo");
 
+// Identidad estable del valor del contexto. `CadStudioHost` deriva `onNotify`
+// de `useToast()` y el monolito lo mete en una docena de dependencias: un
+// objeto nuevo por render volvía a renderizar el editor entero en cada aviso y
+// en cada auto-descarte. `renderToString` no re-renderiza, así que —como el
+// resto de este archivo— se afirma sobre la fuente.
+assert.match(fuente, /const api = useMemo<ToastApi>\(/, "el valor del contexto se memoiza sobre `show`");
+assert.doesNotMatch(fuente, /const api: ToastApi = \{/, "ya no se construye un objeto de API nuevo en cada render");
+
 console.log("toast-context (T-75h): OK");

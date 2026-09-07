@@ -368,4 +368,38 @@ const deleted = executeCadEntityCommand(changed.document, {
 assert.equal(synchronizer.sync(deleted.document, sink).removed, 1);
 assert.deepEqual(removed, ["spline-1"]);
 
+// Camino rápido por identidad: sincronizar el MISMO objeto no vuelve a
+// serializarlo. Las mutaciones canónicas no clonan lo que no tocan, así que
+// una edición de una entidad paga UN hash, no uno por entidad del documento; y
+// una instantánea clonada (deshacer/rehacer) sigue reconciliando por hash.
+{
+  const nativeStringify = JSON.stringify;
+  let stringifyCalls = 0;
+  const counting = new CadSceneSynchronizer<Projection>();
+  assert.equal(counting.sync(document, sink).created, 3);
+  JSON.stringify = ((value: unknown, ...rest: unknown[]) => {
+    stringifyCalls += 1;
+    return nativeStringify(value, ...(rest as []));
+  }) as typeof JSON.stringify;
+  try {
+    assert.deepEqual(counting.sync(document, sink), { created: 0, updated: 0, removed: 0, unchanged: 3, total: 3 });
+    assert.equal(stringifyCalls, 0, "el mismo documento no se vuelve a serializar");
+    const sameArc = document.entities.find((entity) => entity.id === arc.id) as CadNativeEntity;
+    assert.equal(counting.applyPatch({ upsert: [sameArc], remove: [] }, sink).unchanged, 1);
+    assert.equal(stringifyCalls, 0, "un parche con la misma referencia tampoco");
+    assert.equal(counting.sync(changed.document, sink).updated, 1, "el documento editado actualiza la entidad tocada");
+    const afterEdit = stringifyCalls;
+    const cloned = structuredClone(changed.document);
+    assert.equal(counting.sync(cloned, sink).unchanged, 3, "un clon idéntico sigue siendo «sin cambios»");
+    assert.equal(stringifyCalls - afterEdit, 3, "pero sí pasa por el hash, porque la referencia cambió");
+    const clonedChanged = {
+      ...cloned,
+      entities: cloned.entities.map((entity) => (entity.id === arc.id ? { ...entity, radius: 70 } : entity)),
+    };
+    assert.equal(counting.sync(clonedChanged, sink).updated, 1, "un clon con cambios actualiza lo cambiado");
+  } finally {
+    JSON.stringify = nativeStringify;
+  }
+}
+
 console.log("cad native entity runtime specs passed");

@@ -54,7 +54,7 @@ import type { CadThreeViewport } from "@/lib/cad/entity-three";
 import { CadRenderScene } from "@/lib/cad/render/scene";
 import { CadImageLayer, cadBrowserImageLoader, type CadImageLoader } from "@/lib/cad/render/image-layer-three";
 import type { CadRenderOrigin, CadRenderView } from "@/lib/cad/render/pipeline";
-import { defaultCadRenderStyle } from "@/lib/cad/render/render-style";
+import { DEFAULT_BACKGROUND_COLOR, defaultCadRenderStyle } from "@/lib/cad/render/render-style";
 import type { CadLineStyle } from "@/lib/cad/render/line-batch";
 import { disposeCadTessellateWorker } from "@/lib/cad/render/tessellate-worker-client";
 import type { CadScreenYSign } from "@/lib/cad/render/text-atlas";
@@ -181,6 +181,15 @@ export class CadViewportRenderHost {
    * documento— dijera «intacto».
    */
   private document: CadDocument | null = null;
+  /**
+   * Fondo actual del lienzo (`THEMES[tema].bg`), para que `legibleDefaultInk`
+   * sepa contra qué se dibuja. F9 P-01: la corrección de contraste de T-13
+   * existía pero el anfitrión nunca le pasaba el fondo real, así que el preset
+   * «Claro» seguía pintando ACI 7 blanco sobre un lienzo casi blanco.
+   */
+  private backgroundColor = DEFAULT_BACKGROUND_COLOR;
+  /** La exclusión del último `replace`, para poder recargar por el mismo camino. */
+  private lastExcluded: ReadonlySet<string> | undefined;
   private glyphs = 0;
   private droppedGlyphs = 0;
   /** Pendiente de reconciliar mallas. Sincronizar en cada cuadro sería caro. */
@@ -276,7 +285,7 @@ export class CadViewportRenderHost {
     // El MISMO resolutor que mide la matriz de propiedades del DXF: grosor y
     // ranura ya resueltos contra capa y bloque. La selección sólo cambia el
     // color, no el grosor ni el guion.
-    const style = defaultCadRenderStyle(entity, this.document ?? undefined);
+    const style = defaultCadRenderStyle(entity, this.document ?? undefined, this.backgroundColor);
     return this.selection.has(entity.id)
       ? { ...style, color: CAD_RENDER_SELECTED_COLOR }
       : style;
@@ -331,6 +340,7 @@ export class CadViewportRenderHost {
   ): void {
     if (this.disposed) return;
     const excluded = options.excludeEntityIds;
+    this.lastExcluded = excluded;
     const entities = document.entities.filter(
       (entity): entity is CadNativeEntity =>
         CAD_ENTITY_REGISTRY.supports(entity) && !excluded?.has(entity.id),
@@ -390,18 +400,37 @@ export class CadViewportRenderHost {
     if (touched.length === 0) return;
     // Los ids tocados SIGUEN existiendo: hay que pasar su entidad como upsert o
     // el pipeline los daría de baja y desaparecerían del dibujo al seleccionar.
-    const byId = new Map(
-      (document?.entities ?? [])
-        .filter((entity): entity is CadNativeEntity =>
-          CAD_ENTITY_REGISTRY.supports(entity),
-        )
-        .map((entity) => [entity.id, entity] as const),
-    );
-    const upserts = touched
-      .map((id) => byId.get(id))
-      .filter((entity): entity is CadNativeEntity => !!entity);
-    this.scene.invalidate(touched, upserts, document ?? undefined);
+    // La entidad sale del pipeline, que YA la tiene residente, y no de un mapa
+    // del documento entero reconstruido en cada clic: designar es el gesto más
+    // frecuente del editor y el documento no cambia con él. Un id que el
+    // pipeline no tiene es uno que el editor EXCLUYÓ (INSERT del lote
+    // instanciado, sólido sombreado): meterlo aquí lo dibujaría dos veces, así
+    // que ni se upserta ni se invalida.
+    const upserts: CadNativeEntity[] = [];
+    for (const id of touched) {
+      const entity = this.scene.pipeline.entity(id);
+      if (entity) upserts.push(entity);
+    }
+    if (upserts.length === 0) return;
+    this.scene.invalidate(upserts.map((entity) => entity.id), upserts, document ?? undefined);
     this.dirty = true;
+  }
+
+  /**
+   * Fondo del lienzo, empaquetado 0xRRGGBB (`THEMES[tema].bg`).
+   *
+   * La tinta por defecto se resuelve al teselar, así que un fondo nuevo
+   * recarga por el MISMO camino que la carga inicial, respetando la exclusión
+   * de INSERT y sólidos sombreados. Es un reteselado completo (`replace` vacía
+   * la caché); aceptable porque cambiar de tema es raro. Un recoloreado más
+   * barato es un seguimiento, no un bloqueo.
+   *
+   * El monolito lo llama en `applyTheme` y justo al construir el anfitrión, antes del primer `syncNativeScene()` (F9 P-01/P-02).
+   */
+  setBackground(color: number): void {
+    if (this.disposed || this.backgroundColor === color) return;
+    this.backgroundColor = color;
+    if (this.document) this.replace(this.document, { excludeEntityIds: this.lastExcluded });
   }
 
   setHiddenLayers(hiddenLayers: ReadonlySet<string>): void {

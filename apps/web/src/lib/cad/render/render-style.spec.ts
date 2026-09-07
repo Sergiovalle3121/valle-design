@@ -11,6 +11,7 @@
 import { strict as assert } from "node:assert";
 import {
   CAD_RENDER_DEFAULT_COLOR,
+  DEFAULT_BACKGROUND_COLOR,
   defaultCadRenderStyle,
   legibleDefaultInk,
   packedContrastRatio,
@@ -96,5 +97,10 @@ for (const [name, theme] of Object.entries(THEMES)) {
     "y el resultado es legible sobre ese fondo",
   );
 }
+
+// F9 P-01: el fondo por defecto que este módulo asume cuando nadie le pasa uno
+// es el preset «Oscuro» — y ahora lo EXPORTA para que el anfitrión del viewport
+// arranque con el mismo valor. Si el preset se mueve, esto avisa.
+ok(DEFAULT_BACKGROUND_COLOR === THEMES.dark.bg, "el fondo por defecto exportado es el del preset «Oscuro» de THEMES");
 
 console.log(`render-style (T-13): ${checks} comprobaciones verdes`);

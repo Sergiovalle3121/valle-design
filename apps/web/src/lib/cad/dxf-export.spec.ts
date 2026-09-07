@@ -81,4 +81,44 @@ assert.ok(
 );
 assert.equal(curved.entityCount, 2, "curved geometry counts two entities");
 
+// Bloques por nombre: la definición de cada INSERT sale de un mapa, no de
+// `find` sobre todos los bloques (I×B comparaciones por exportación). Ante un
+// nombre repetido gana la PRIMERA definición, como antes, y los INSERT anidados
+// dentro de un bloque resuelven igual. La complejidad se afirma contando las
+// llamadas a `Array.prototype.find`: no pueden crecer con el número de INSERT.
+function exportWithInserts(count: number) {
+  return exportCadDxf({
+    blocks: [
+      { name: "SILLA", primitives: [], attributes: { TAG: { defaultValue: "S" } } },
+      { name: "SILLA", primitives: [] },
+      { name: "MESA", primitives: [], inserts: [{ block: "SILLA", x: 1, y: 1, attributes: { TAG: "anidada" } }] },
+    ],
+    inserts: Array.from({ length: count }, (_, index) => ({ block: "SILLA", x: index, y: 0, attributes: { TAG: `s${index}` } })),
+  });
+}
+const nativeFind = Array.prototype.find;
+function findCallsDuring(run: () => void): number {
+  let calls = 0;
+  Array.prototype.find = function countingFind(this: unknown[], ...args: unknown[]) {
+    calls += 1;
+    return nativeFind.apply(this, args as Parameters<typeof nativeFind>);
+  } as typeof Array.prototype.find;
+  try {
+    run();
+  } finally {
+    Array.prototype.find = nativeFind;
+  }
+  return calls;
+}
+const withBlocks = exportWithInserts(1);
+assert.ok(withBlocks.content.includes("1\ns0\n2\nTAG"), "el ATTRIB sale de la PRIMERA definición de SILLA (la segunda no declara TAG)");
+assert.ok(withBlocks.content.includes("1\nanidada\n2\nTAG"), "un INSERT anidado dentro de un bloque resuelve su definición igual");
+const findsWithOne = findCallsDuring(() => exportWithInserts(1));
+const findsWithMany = findCallsDuring(() => exportWithInserts(200));
+assert.equal(
+  findsWithMany,
+  findsWithOne,
+  `resolver bloques no crece con los INSERT: ${findsWithOne} find con 1 INSERT frente a ${findsWithMany} con 200`,
+);
+
 console.log("cad dxf export specs passed");

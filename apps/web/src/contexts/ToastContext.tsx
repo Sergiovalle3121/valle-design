@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
 type Kind = 'success' | 'error' | 'info';
@@ -107,12 +107,19 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     [remove],
   );
 
-  const api: ToastApi = {
-    show,
-    success: (m, title) => show(m, { kind: 'success', title }),
-    error: (m, title) => show(m, { kind: 'error', title }),
-    info: (m, title) => show(m, { kind: 'info', title }),
-  };
+  // Identidad estable: el consumidor del estudio (CadStudioHost) deriva
+  // `onNotify` de este objeto y el monolito lo mete en una docena de
+  // dependencias; un objeto nuevo por render volvía a renderizar el editor
+  // entero en cada aviso y en cada auto-descarte. `show` ya es estable.
+  const api = useMemo<ToastApi>(
+    () => ({
+      show,
+      success: (m, title) => show(m, { kind: 'success', title }),
+      error: (m, title) => show(m, { kind: 'error', title }),
+      info: (m, title) => show(m, { kind: 'info', title }),
+    }),
+    [show],
+  );
 
   return (
     <ToastCtx.Provider value={api}>

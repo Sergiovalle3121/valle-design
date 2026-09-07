@@ -52,6 +52,11 @@ ok(true, "cadRenderZoomOctave cuantiza a potencias de dos con anclas comprobadas
 const pipeline = new CadRenderPipeline();
 pipeline.replace(nativeEntities, drawOrderIds);
 assert.equal(pipeline.stats().totalEntities, ENTITIES);
+// `entity(id)`: la entidad residente, por referencia, para que el anfitrión
+// no rehaga un mapa del documento entero en cada clic de selección.
+assert.equal(pipeline.entity(nativeEntities[0].id), nativeEntities[0], "entity(id) devuelve la MISMA referencia que se cargó");
+assert.equal(pipeline.entity("no-existe"), undefined, "y undefined para un id que no reside");
+ok(true, "entity(id) resuelve la entidad residente sin recorrer nada");
 
 const fullView = {
   bounds: { minX, minY, maxX, maxY },
@@ -238,7 +243,8 @@ assert.ok(
   "una entidad dada de baja deja de dibujarse",
 );
 assert.equal(pipeline.stats().totalEntities, ENTITIES - 1);
-ok(true, "una baja sale del índice, del detalle y del total");
+assert.equal(pipeline.entity(removedId), undefined, "una baja también sale de entity(id)");
+ok(true, "una baja sale del índice, del detalle, del total y de entity(id)");
 
 // ---------------------------------------------------------------------------
 // La memoria no crece paseando: los tiles que salen de la vista se liberan y la
