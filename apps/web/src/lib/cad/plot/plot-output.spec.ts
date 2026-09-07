@@ -387,6 +387,8 @@ async function pdfSpecs(): Promise<void> {
   // T-19·5: la ventana SIEMPRE recorta en el PDF — antes ninguna lo hacía.
   // `.clip()` de jsPDF escribe el operador `W` seguido de `n` (descarta el
   // trazo tras usarlo como recorte); su ausencia es exactamente el defecto.
+  // Y `W` sólo vale sobre un camino AÚN sin pintar: se exige que el operador
+  // que construye el contorno vaya pegado al recorte.
   {
     const rectangularSheet = {
       id: "sheet:rect",
@@ -411,7 +413,12 @@ async function pdfSpecs(): Promise<void> {
     const rectPdf = await renderCadPlotPdf([rectangularSheet], { compress: false });
     let rectText = "";
     for (const byte of rectPdf.bytes) rectText += String.fromCharCode(byte);
-    assert.ok(/\bW\b[\s\S]{0,3}\bn\b/.test(rectText), "la ventana rectangular recorta (W n) en el PDF");
+    // El rectángulo (`re`) tiene que ir SEGUIDO del recorte. Si el camino se
+    // pinta antes (`re S W n`, lo que hace jsPDF con el estilo por defecto), `S`
+    // lo consume y `W` recibe un camino vacío: no recorta nada y encima traza
+    // el marco de la ventana con la pluma que quedara puesta.
+    assert.ok(/\bre\s+W\s+n\b/.test(rectText), "la ventana rectangular recorta (re W n) en el PDF");
+    assert.ok(!/\bS\s+W\b/.test(rectText), "el recorte rectangular no se pinta antes de aplicarse");
 
     // T-19·4: el contorno REAL de una ventana poligonal viaja y se aplica —
     // no sólo su rectángulo envolvente.
@@ -435,7 +442,9 @@ async function pdfSpecs(): Promise<void> {
     const polyPdf = await renderCadPlotPdf([polygonSheet], { compress: false });
     let polyText = "";
     for (const byte of polyPdf.bytes) polyText += String.fromCharCode(byte);
-    assert.ok(/\bW\b[\s\S]{0,3}\bn\b/.test(polyText), "la ventana poligonal recorta (W n) en el PDF");
+    // Cierre del contorno (`h`) seguido del recorte, sin `S` por medio.
+    assert.ok(/\bh\s+W\s+n\b/.test(polyText), "la ventana poligonal recorta (h W n) en el PDF");
+    assert.ok(!/\bS\s+W\b/.test(polyText), "el recorte poligonal no se pinta antes de aplicarse");
     // Cinco vértices ⇒ cuatro `l` (lineTo) tras el `moveTo` inicial. Esta hoja
     // no dibuja ningún otro trazo (viewport.commands está vacío), así que
     // cualquier `l` del flujo viene del contorno del recorte: si degradara al

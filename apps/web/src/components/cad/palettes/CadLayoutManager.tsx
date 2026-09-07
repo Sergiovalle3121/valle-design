@@ -8,7 +8,7 @@ import type {
   CadPaperViewport,
 } from "@/lib/cad/cad-document";
 import type { CadLayoutPreflightIssue } from "@/lib/cad/cad-layout-manager";
-import type { CadPublishSheet } from "@/lib/cad/paper-space";
+import type { CadPublishSheet, CadVectorCommand } from "@/lib/cad/paper-space";
 import { CAD_SHEET_SCALES } from "@/lib/cad/paper-space";
 
 interface CadLayoutManagerProps {
@@ -58,6 +58,45 @@ function CadExactPrintPreview({ sheet }: { sheet: CadPublishSheet }) {
       ),
     [sheet.viewports],
   );
+  // Un mismo pintor para lo de ventana y lo de papel (T-30): la previa y el
+  // PDF salen del mismo plan y no pueden enseñar cosas distintas. `image` no
+  // se pinta aquí, igual que antes.
+  const renderCommand = (command: CadVectorCommand, index: number) =>
+    command.kind === "path" ? (
+      <path
+        key={`${command.entityId}:${index}`}
+        d={`${command.points.map((point, pointIndex) => `${pointIndex ? "L" : "M"}${point.x},${point.y}`).join(" ")}${command.closed ? " Z" : ""}`}
+        fill={command.style.fill ?? "none"}
+        stroke={command.style.stroke}
+        strokeWidth={command.style.lineWidth}
+        strokeDasharray={command.style.dash?.join(" ")}
+      />
+    ) : command.kind === "text" ? (
+      <text
+        key={`${command.entityId}:${index}`}
+        x={command.point.x}
+        y={command.point.y}
+        fill={command.color}
+        fontSize={command.size}
+        fontWeight={command.bold ? 700 : 400}
+        fontStyle={command.italic ? "italic" : "normal"}
+        textAnchor={
+          command.align === "center"
+            ? "middle"
+            : command.align === "right"
+              ? "end"
+              : "start"
+        }
+        // El SVG mide la Y hacia abajo y `rotate()` positivo gira en el
+        // sentido del reloj; el giro del plan es el del dibujo (antihorario,
+        // Y hacia arriba). Sin el signo, la previa enseñaba los rótulos
+        // verticales al revés que el PDF del conjunto, que sí usaba el signo
+        // correcto.
+        transform={`rotate(${-command.rotation} ${command.point.x} ${command.point.y})`}
+      >
+        {command.text}
+      </text>
+    ) : null;
   return (
     <div
       data-testid="cad-exact-print-preview"
@@ -71,7 +110,16 @@ function CadExactPrintPreview({ sheet }: { sheet: CadPublishSheet }) {
         <defs>
           {sheet.viewports.map((viewport) => (
             <clipPath key={viewport.id} id={clipIds.get(viewport.id)}>
-              <rect {...viewport.clip} />
+              {/* T-19·4: el contorno REAL de una ventana poligonal recorta,
+                  como en el PDF; sin él, el rectángulo envolvente de siempre.
+                  `clipPolygon` ya viene en mm de papel, Y hacia abajo. */}
+              {viewport.clipPolygon && viewport.clipPolygon.length >= 3 ? (
+                <polygon
+                  points={viewport.clipPolygon.map((point) => `${point.x},${point.y}`).join(" ")}
+                />
+              ) : (
+                <rect {...viewport.clip} />
+              )}
             </clipPath>
           ))}
         </defs>
@@ -94,43 +142,7 @@ function CadExactPrintPreview({ sheet }: { sheet: CadPublishSheet }) {
         {sheet.viewports.map((viewport) => (
           <g key={viewport.id}>
             <g clipPath={`url(#${clipIds.get(viewport.id)})`}>
-              {viewport.commands.map((command, index) =>
-                command.kind === "path" ? (
-                  <path
-                    key={`${command.entityId}:${index}`}
-                    d={`${command.points.map((point, pointIndex) => `${pointIndex ? "L" : "M"}${point.x},${point.y}`).join(" ")}${command.closed ? " Z" : ""}`}
-                    fill={command.style.fill ?? "none"}
-                    stroke={command.style.stroke}
-                    strokeWidth={command.style.lineWidth}
-                    strokeDasharray={command.style.dash?.join(" ")}
-                  />
-                ) : command.kind === "text" ? (
-                  <text
-                    key={`${command.entityId}:${index}`}
-                    x={command.point.x}
-                    y={command.point.y}
-                    fill={command.color}
-                    fontSize={command.size}
-                    fontWeight={command.bold ? 700 : 400}
-                    fontStyle={command.italic ? "italic" : "normal"}
-                    textAnchor={
-                      command.align === "center"
-                        ? "middle"
-                        : command.align === "right"
-                          ? "end"
-                          : "start"
-                    }
-                    // El SVG mide la Y hacia abajo y `rotate()` positivo gira
-                    // en el sentido del reloj; el giro del plan es el del
-                    // dibujo (antihorario, Y hacia arriba). Sin el signo, la
-                    // previa enseñaba los rótulos verticales al revés que el
-                    // PDF del conjunto, que sí usaba el signo correcto.
-                    transform={`rotate(${-command.rotation} ${command.point.x} ${command.point.y})`}
-                  >
-                    {command.text}
-                  </text>
-                ) : null,
-              )}
+              {viewport.commands.map(renderCommand)}
             </g>
             <rect
               {...viewport.clip}
@@ -148,6 +160,9 @@ function CadExactPrintPreview({ sheet }: { sheet: CadPublishSheet }) {
             </text>
           </g>
         ))}
+        {/* T-30: lo dibujado DIRECTAMENTE sobre el papel — fuera de toda
+            ventana, así que sin recorte — como en `sheet-set-pdf.ts`. */}
+        {(sheet.paperCommands ?? []).map(renderCommand)}
         <rect
           x="6"
           y={Math.max(6, sheet.height - 36)}

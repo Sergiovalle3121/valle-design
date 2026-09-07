@@ -306,6 +306,10 @@ export async function renderCadPlotPdf(
     // T-19·5: la ventana SIEMPRE recorta — antes ninguna lo hacía y el aviso
     // de arriba lo daba por hecho. Rectangular por defecto; con el contorno
     // REAL (T-19·4, `clipPolygon`) cuando la ventana no es un rectángulo.
+    // El camino se construye SIN pintar (estilo `null`, como el recorte de
+    // imagen de abajo): con el estilo por defecto jsPDF emitía `S` antes de
+    // `W`, el trazo consumía el camino, el recorte se aplicaba sobre nada y
+    // el marco de la ventana salía trazado con la pluma que quedara puesta.
     for (const viewport of sheet.viewports) {
       pdf.saveGraphicsState();
       if (viewport.clipPolygon && viewport.clipPolygon.length >= 3) {
@@ -314,9 +318,9 @@ export async function renderCadPlotPdf(
           vertex.x - (rest[index - 1] ?? origin).x,
           vertex.y - (rest[index - 1] ?? origin).y,
         ]);
-        pdf.lines(deltas, origin.x, origin.y, [1, 1], undefined, true);
+        pdf.lines(deltas, origin.x, origin.y, [1, 1], null, true);
       } else {
-        pdf.rect(viewport.clip.x, viewport.clip.y, viewport.clip.width, viewport.clip.height);
+        pdf.rect(viewport.clip.x, viewport.clip.y, viewport.clip.width, viewport.clip.height, null);
       }
       pdf.clip();
       pdf.discardPath();

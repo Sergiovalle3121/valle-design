@@ -167,16 +167,19 @@ export async function renderCadSheetSetPdf(
     sheet.viewports.forEach((viewport) => {
       pdf.saveGraphicsState();
       // T-19·4: el contorno REAL de una ventana poligonal recorta; sin él, el
-      // rectángulo envolvente de siempre. Misma regla que `plot-pdf.ts`.
+      // rectángulo envolvente de siempre. Misma regla que `plot-pdf.ts`, y el
+      // mismo estilo `null` (T-19·5): el camino del recorte se construye SIN
+      // pintar, porque con el estilo por defecto jsPDF emitía `S` antes de
+      // `W` y el recorte se aplicaba sobre un camino ya consumido — nada.
       if (viewport.clipPolygon && viewport.clipPolygon.length >= 3) {
         const [origin, ...rest] = viewport.clipPolygon;
         const deltas = rest.map((vertex, index) => [
           vertex.x - (rest[index - 1] ?? origin).x,
           vertex.y - (rest[index - 1] ?? origin).y,
         ]);
-        pdf.lines(deltas, origin.x, origin.y, [1, 1], undefined, true);
+        pdf.lines(deltas, origin.x, origin.y, [1, 1], null, true);
       } else {
-        pdf.rect(viewport.clip.x, viewport.clip.y, viewport.clip.width, viewport.clip.height);
+        pdf.rect(viewport.clip.x, viewport.clip.y, viewport.clip.width, viewport.clip.height, null);
       }
       pdf.clip();
       pdf.discardPath();

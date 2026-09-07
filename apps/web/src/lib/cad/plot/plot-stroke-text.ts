@@ -150,24 +150,40 @@ export function cadStrokeSheetText(
   const stroked = new Set<string>();
   /** Familias que AÚN viajan como texto: una máscara de fondo basta. */
   const asText = new Set<string>();
-  const next = sheets.map((sheet): CadPublishSheet => {
-    const viewports = sheet.viewports.map((viewport): CadPublishViewport => {
-      const commands: CadVectorCommand[] = [];
-      for (const command of viewport.commands) {
-        const paths = cadStrokeTextCommands(command, fontByEntity);
-        const family = familyOf(command.entityId, fontByEntity);
-        if (!paths) {
-          if (command.kind === "text" && family) asText.add(family);
-          commands.push(command);
-          continue;
-        }
-        if (family) stroked.add(family);
-        commands.push(...paths);
+  /** Los mismos comandos con sus rótulos de `.shx` ya trazados. */
+  const strokeCommands = (source: readonly CadVectorCommand[]): CadVectorCommand[] => {
+    const commands: CadVectorCommand[] = [];
+    for (const command of source) {
+      const paths = cadStrokeTextCommands(command, fontByEntity);
+      const family = familyOf(command.entityId, fontByEntity);
+      if (!paths) {
+        if (command.kind === "text" && family) asText.add(family);
+        commands.push(command);
+        continue;
       }
-      return { ...viewport, commands };
-    });
-    return { ...sheet, viewports };
-  });
+      if (family) stroked.add(family);
+      commands.push(...paths);
+    }
+    return commands;
+  };
+  const next = sheets.map(
+    (sheet): CadPublishSheet => ({
+      ...sheet,
+      viewports: sheet.viewports.map(
+        (viewport): CadPublishViewport => ({
+          ...viewport,
+          commands: strokeCommands(viewport.commands),
+        }),
+      ),
+      // T-30: un rótulo dibujado sobre el papel se traza igual que uno de
+      // ventana. Antes se saltaba `paperCommands` y una familia podía
+      // declararse TRAZADA mientras su rótulo de papel seguía viajando como
+      // texto. Se conserva la forma: el campo sigue ausente si venía ausente.
+      ...(sheet.paperCommands
+        ? { paperCommands: strokeCommands(sheet.paperCommands) }
+        : {}),
+    }),
+  );
   return {
     sheets: next,
     // Una familia se declara TRAZADA sólo si no le quedó ni un rótulo como

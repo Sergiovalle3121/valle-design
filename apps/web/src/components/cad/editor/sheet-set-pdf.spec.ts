@@ -51,6 +51,9 @@ async function bytesOf(sheet: CadPublishSheet): Promise<Uint8Array> {
   return new Uint8Array(await renderCadSheetSetPdf(plan(sheet), meta, undefined, { compress: false }));
 }
 
+/** El flujo de contenido tal cual, para mirar los OPERADORES que `measureCadPdf` no lee (`W`, `S`). */
+const latin1 = (bytes: Uint8Array): string => Buffer.from(bytes).toString("latin1");
+
 async function main(): Promise<void> {
   let checks = 0;
 
@@ -58,24 +61,24 @@ async function main(): Promise<void> {
   // envolvente nunca produce (la ventana no lleva comandos, así que todo trazo
   // del contenido, fuera del marco y el cajetín, viene del contorno).
   {
-    const rect = measureCadPdf(await bytesOf(base));
-    const poly = measureCadPdf(
-      await bytesOf({
-        ...base,
-        viewports: [
-          {
-            ...base.viewports[0],
-            clipPolygon: [
-              { x: 20, y: 20 },
-              { x: 180, y: 20 },
-              { x: 180, y: 100 },
-              { x: 100, y: 240 },
-              { x: 20, y: 100 },
-            ],
-          },
-        ],
-      }),
-    );
+    const rectBytes = await bytesOf(base);
+    const polyBytes = await bytesOf({
+      ...base,
+      viewports: [
+        {
+          ...base.viewports[0],
+          clipPolygon: [
+            { x: 20, y: 20 },
+            { x: 180, y: 20 },
+            { x: 180, y: 100 },
+            { x: 100, y: 240 },
+            { x: 20, y: 100 },
+          ],
+        },
+      ],
+    });
+    const rect = measureCadPdf(rectBytes);
+    const poly = measureCadPdf(polyBytes);
     const diagonal = (m: typeof poly) =>
       m.segments.filter((s) => Math.abs(s.x1 - s.x2) > 1e-6 && Math.abs(s.y1 - s.y2) > 1e-6);
     assert.equal(diagonal(rect).length, 0, "el rectángulo no tiene aristas oblicuas");
@@ -84,6 +87,18 @@ async function main(): Promise<void> {
       `el contorno poligonal debía trazar sus dos aristas oblicuas; hubo ${diagonal(poly).length}`,
     );
     checks += 2;
+
+    // T-19·5: el recorte se aplica sobre un camino AÚN sin pintar. Con el
+    // estilo por defecto jsPDF emitía `re S W n` / `h S W n`: `S` consume el
+    // camino, `W` recibe uno vacío (no recorta) y el marco de la ventana sale
+    // trazado con la pluma que quedara puesta. Mismo defecto y misma prueba
+    // que en `plot-output.spec.ts`.
+    const rectText = latin1(rectBytes);
+    const polyText = latin1(polyBytes);
+    assert.ok(/\bre\s+W\s+n\b/.test(rectText), "la ventana rectangular recorta (re W n) en el PDF del botón");
+    assert.ok(/\bh\s+W\s+n\b/.test(polyText), "la ventana poligonal recorta (h W n) en el PDF del botón");
+    assert.ok(!/\bS\s+W\b/.test(rectText) && !/\bS\s+W\b/.test(polyText), "el recorte no se pinta antes de aplicarse");
+    checks += 3;
   }
 
   // T-30: una línea y un texto de PAPEL llegan al PDF sin pasar por la ventana.
