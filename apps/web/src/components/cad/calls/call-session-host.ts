@@ -306,8 +306,26 @@ export function createCallSessionHost(
     // Las dos partes se quedarían viéndose en el roster (la señalización SÍ
     // funciona) sin que ninguna mande jamás una oferta — "conectando" para
     // siempre, sin ser un fallo de ICE. Un canal de datos vacío, que no se
-    // usa para nada, fuerza la primera negociación siempre.
-    connection.createDataChannel("valle-calls-bootstrap");
+    // usa para nada, fuerza la primera negociación.
+    //
+    // Lo abre SÓLO el descortés, y ahí está la diferencia con la versión que
+    // lo abría en los dos lados. Abriéndolo en los dos, los dos disparaban
+    // `negotiationneeded` y los dos ofertaban: colisión (glare) en TODAS las
+    // llamadas, no en un caso raro. La negociación perfecta la resuelve —el
+    // cortés cede y hace rollback— pero medido contra el stack real, una de
+    // cada cinco veces el recolector de ICE del cortés se queda muerto tras
+    // ese rollback: su `icegatheringstate` vuelve a `new`, arranca otra vez y
+    // no emite NI UN candidato en lo que queda de llamada. El otro extremo se
+    // queda sin nada contra qué probar, `iceconnectionstate` no sale nunca de
+    // `new` y los dos se quedan en «Conectando…» sin un solo error en consola
+    // —el rojo intermitente del paso 4 de `llamada-webrtc-real.spec.ts`—.
+    //
+    // Con un solo ofertante no hay colisión ni rollback en la primera
+    // negociación: el descortés oferta, el cortés contesta desde `stable`. La
+    // negociación perfecta sigue entera para las renegociaciones (encender la
+    // cámara, compartir pantalla), donde la colisión sí es un caso raro y de
+    // verdad concurrente.
+    if (!polite) connection.createDataChannel("valle-calls-bootstrap");
 
     dispatch({ type: "peer-negotiating", participantId });
     applyTrackPolicyToPeer(participantId);
