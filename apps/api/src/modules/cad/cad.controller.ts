@@ -335,7 +335,7 @@ export class CadController {
     const document = row.cadDocument
       ? await this.cadDocuments.hydrateCadDocument(row.cadDocument)
       : null;
-    const input = buildDxfExportInput(
+    const { input, warnings } = buildDxfExportInput(
       document,
       row.name,
       row.model,
@@ -349,6 +349,9 @@ export class CadController {
       fileName: exported.filename,
       unit: exported.unit,
       dxf: exported.dxf,
+      // Nunca un recorte en silencio: toda capa recortada, texto recortado o
+      // entidad sin proyección DXF viaja aquí. Vacío cuando no hubo ninguna.
+      lossManifest: warnings,
     };
   }
 

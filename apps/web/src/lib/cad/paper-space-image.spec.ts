@@ -106,12 +106,18 @@ void (async () => {
   eq(measured.images, [{ widthPx: 4, heightPx: 2, filter: "FlateDecode" }], "el PDF lleva UN XObject imagen de 4 × 2");
   eq(measured.imageDraws, 1, "y lo dibuja una vez");
   ok(!plain.warnings.some((warning) => warning.includes("IMAGE")), `sin avisos de imagen: ${plain.warnings.join(" | ")}`);
+  // T-19·5: la VENTANA misma recorta de verdad (antes ninguna lo hacía), así
+  // que "sin recorte de imagen" ya no significa "cero `W n` en la página" —
+  // significa uno solo, el de la ventana. Lo que distingue a la imagen CON
+  // recorte propio es un `W n` DE MÁS, no la presencia/ausencia absoluta.
   const text = Buffer.from(plain.bytes).toString("latin1");
-  ok(!/W\s+n/.test(text.split("stream")[1] ?? ""), "sin recorte no hay `W n` en la página");
+  const plainClipCount = (text.split("stream")[1] ?? "").match(/W\s*\n?\s*n\b/g)?.length ?? 0;
+  eq(plainClipCount, 1, "sin recorte de imagen, el único `W n` es el de la ventana");
 
   const adjusted = await renderCadPlotPdf([sheetWith([{ ...raster, brightness: 70, fade: 40, clip: [{ x: 100, y: 250 }, { x: 140, y: 250 }, { x: 120, y: 230 }] }])], { compress: false, sheetsWithoutTitleBlock: ["s1"] });
   const adjustedText = Buffer.from(adjusted.bytes).toString("latin1");
-  ok(/\bW\s*\n?\s*n\b/.test(adjustedText), "con recorte, el flujo lleva el recorte `W n`");
+  const adjustedClipCount = (adjustedText.split("stream")[1] ?? "").match(/W\s*\n?\s*n\b/g)?.length ?? 0;
+  eq(adjustedClipCount, 2, "con recorte de imagen, el flujo lleva DOS `W n`: la ventana y la imagen");
   ok(/\/ca\s+0\.6/.test(adjustedText) || /\/ca 0\.6/.test(adjustedText), "la atenuación 40 es un estado gráfico con opacidad 0,6");
   eq(measureCadPdf(adjusted.bytes).imageDraws, 1, "y la imagen sigue dibujándose");
   ok(adjusted.warnings.some((warning) => warning.includes("el brillo/contraste (70/50) no se aplica en la lámina")), `el brillo se declara: ${adjusted.warnings.join(" | ")}`);

@@ -208,7 +208,17 @@ const pageSetupCommand: CadCommandDescriptor<PageSetupState> = {
     if (input.kind === "keyword") {
       if (input.keyword === "Diálogo") {
         if (!space) return say(NO_LAYOUT);
-        return host({ kind: "page-setup", layoutId: space.id }, "PAGESETUP");
+        // T-12·3: no hay diálogo de página ni setups con nombre — anunciar
+        // éxito sin abrir nada era el defecto. En vez de fingir, se hace lo
+        // único verificable: leer y mostrar el setup vigente en la línea de
+        // comandos, con las opciones que SÍ existen para cambiarlo.
+        const setup = cadPageSetupFromLayout(space);
+        return say(
+          `No hay un diálogo de configuración de página ni setups con nombre en esta versión. ` +
+            `Setup vigente de «${space.name}»: papel ${setup.paper}, orientación ${setup.orientation === "portrait" ? "vertical" : "apaisada"}, ` +
+            `color ${setup.colorMode === "monochrome" ? "monocromo" : "color"}, grosores ×${setup.lineweightScale}, ` +
+            `tabla de plumas ${setup.plotStyleTable ?? "ninguna"}. Usa Papel/Orientación/Estilos/COlor/Grosores/MÁrgenes para cambiarlo campo por campo.`,
+        );
       }
       const field: Record<string, PageSetupField> = {
         Papel: "paper",
@@ -355,8 +365,13 @@ const plotCommand: CadCommandDescriptor<PlotState> = {
           return plotStep({ ...state, area: { kind: "extents" } });
         case "LÍmites":
           return plotStep({ ...state, area: { kind: "limits" } });
+        // "Ventana" sólo ARMA la recogida de las dos esquinas (líneas 386-393
+        // ya aceptan puntos en cualquier momento); NO decide el área todavía.
+        // Ponerla en `display` aquí era el defecto: sin picar los dos puntos,
+        // "Ventana" trazaba "Pantalla" (T-31c) — un área que además siempre
+        // bloquea el trazado (`plot-job.ts` nunca resuelve `display`).
         case "Ventana":
-          return plotStep({ ...state, corner1: undefined, area: { kind: "display" } });
+          return plotStep({ ...state, corner1: undefined });
         case "ESCala":
           return plotStep({ ...state, askingScale: true });
         case "Previa":

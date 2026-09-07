@@ -25,6 +25,7 @@ import {
 import { buildCadPlotJob, buildCadPlotPreview, cadPlotAreaSources } from "./plot-job";
 import { createCadMonochromeTable } from "./plot-style-table";
 import { inspectCadPdf, renderCadPlotPdf, MM_TO_POINTS } from "./plot-pdf";
+import { measureCadPdf } from "./pdf-measure";
 
 const METADATA = {
   project: "Nave",
@@ -382,6 +383,176 @@ async function pdfSpecs(): Promise<void> {
   console.log(
     `PDF trazado: ${inspected.pageCount} páginas, ${inspected.pageSizesMm[0].width} × ${inspected.pageSizesMm[0].height} mm, fuentes [${inspected.baseFonts.join(", ")}]`,
   );
+
+  // T-19·5: la ventana SIEMPRE recorta en el PDF — antes ninguna lo hacía.
+  // `.clip()` de jsPDF escribe el operador `W` seguido de `n` (descarta el
+  // trazo tras usarlo como recorte); su ausencia es exactamente el defecto.
+  {
+    const rectangularSheet = {
+      id: "sheet:rect",
+      name: "Rectangular",
+      width: 210,
+      height: 297,
+      orientation: "portrait" as const,
+      colorMode: "monochrome" as const,
+      lineweightScale: 1,
+      titleBlock: {},
+      viewports: [
+        {
+          id: "vp:rect",
+          name: "Model",
+          clip: { x: 10, y: 10, width: 190, height: 277 },
+          scale: 1,
+          locked: true,
+          commands: [],
+        },
+      ],
+    };
+    const rectPdf = await renderCadPlotPdf([rectangularSheet], { compress: false });
+    let rectText = "";
+    for (const byte of rectPdf.bytes) rectText += String.fromCharCode(byte);
+    assert.ok(/\bW\b[\s\S]{0,3}\bn\b/.test(rectText), "la ventana rectangular recorta (W n) en el PDF");
+
+    // T-19·4: el contorno REAL de una ventana poligonal viaja y se aplica —
+    // no sólo su rectángulo envolvente.
+    const polygonSheet = {
+      ...rectangularSheet,
+      id: "sheet:poly",
+      viewports: [
+        {
+          ...rectangularSheet.viewports[0],
+          id: "vp:poly",
+          clipPolygon: [
+            { x: 20, y: 20 },
+            { x: 180, y: 20 },
+            { x: 180, y: 100 },
+            { x: 100, y: 260 },
+            { x: 20, y: 100 },
+          ],
+        },
+      ],
+    };
+    const polyPdf = await renderCadPlotPdf([polygonSheet], { compress: false });
+    let polyText = "";
+    for (const byte of polyPdf.bytes) polyText += String.fromCharCode(byte);
+    assert.ok(/\bW\b[\s\S]{0,3}\bn\b/.test(polyText), "la ventana poligonal recorta (W n) en el PDF");
+    // Cinco vértices ⇒ cuatro `l` (lineTo) tras el `moveTo` inicial. Esta hoja
+    // no dibuja ningún otro trazo (viewport.commands está vacío), así que
+    // cualquier `l` del flujo viene del contorno del recorte: si degradara al
+    // rectángulo envolvente (sólo `re`, sin `l`), esto no aparecería.
+    const lineToCount = (polyText.match(/(?:^|\s)l(?=\s)/g) ?? []).length;
+    assert.ok(lineToCount >= 4, `el contorno poligonal debía trazar 4 lineTo, hubo ${lineToCount}`);
+  }
+
+  // T-30: lo dibujado DIRECTAMENTE sobre el papel llega al PDF de verdad, sin
+  // pasar por ninguna ventana (la de esta hoja no tiene comandos).
+  {
+    const paperSheet = {
+      id: "sheet:paper",
+      name: "Papel",
+      width: 210,
+      height: 297,
+      orientation: "portrait" as const,
+      colorMode: "monochrome" as const,
+      lineweightScale: 1,
+      titleBlock: {},
+      viewports: [
+        { id: "vp:vacio", name: "Model", clip: { x: 10, y: 10, width: 190, height: 277 }, scale: 1, locked: true, commands: [] },
+      ],
+      paperCommands: [
+        {
+          kind: "path" as const,
+          entityId: "e-linea-papel",
+          viewportId: "sheet:paper:paper",
+          points: [{ x: 20, y: 270 }, { x: 190, y: 270 }],
+          closed: false,
+          style: { stroke: "#000000", lineWidth: 0.25 },
+        },
+        {
+          kind: "text" as const,
+          entityId: "e-texto-papel",
+          viewportId: "sheet:paper:paper",
+          point: { x: 20, y: 260 },
+          text: "NOTAS GENERALES",
+          size: 4,
+          rotation: 0,
+          color: "#000000",
+        },
+      ],
+    };
+    const paperPdf = await renderCadPlotPdf([paperSheet], { compress: false, sheetsWithoutTitleBlock: ["sheet:paper"] });
+    const measured = measureCadPdf(paperPdf.bytes);
+    assert.ok(
+      measured.labels.some((label) => label.text.includes("NOTAS GENERALES")),
+      "T-30: el texto de papel llega al PDF",
+    );
+    assert.ok(
+      measured.segments.some(
+        (segment) => Math.abs(segment.y1 - segment.y2) < 1e-6 && Math.abs(segment.x2 - segment.x1 - 170) < 1,
+      ),
+      "T-30: la línea de papel llega al PDF",
+    );
+  }
+
+  // T-31·b: el sombreado sólido y la máscara de fondo de un MTEXT se
+  // CALCULABAN (`style.fill`/`backgroundColor`) y nunca se pintaban — el
+  // estilo de `pdf.lines` estaba fijo en "S" (sólo trazo) y el rectángulo de
+  // fondo nunca se dibujaba. `f` (fill) en el flujo de contenido es el
+  // operador que antes NUNCA aparecía para un `path` con relleno.
+  {
+    const solidSheet = {
+      id: "sheet:solid",
+      name: "Sólido",
+      width: 210,
+      height: 297,
+      orientation: "portrait" as const,
+      colorMode: "color" as const,
+      lineweightScale: 1,
+      titleBlock: {},
+      viewports: [
+        {
+          id: "vp:solid",
+          name: "Model",
+          clip: { x: 10, y: 10, width: 190, height: 277 },
+          scale: 1,
+          locked: true,
+          commands: [
+            {
+              kind: "path" as const,
+              entityId: "e-hatch-solido",
+              viewportId: "vp:solid",
+              points: [{ x: 20, y: 20 }, { x: 100, y: 20 }, { x: 100, y: 100 }, { x: 20, y: 100 }],
+              closed: true,
+              style: { stroke: "#ff0000", lineWidth: 0.1, fill: "#ff0000" },
+            },
+            {
+              kind: "text" as const,
+              entityId: "e-texto-mascara",
+              viewportId: "vp:solid",
+              point: { x: 20, y: 150 },
+              text: "CON MÁSCARA",
+              size: 5,
+              rotation: 0,
+              color: "#000000",
+              backgroundMask: true,
+              backgroundColor: "#ffff00",
+            },
+          ],
+        },
+      ],
+    };
+    const solidPdf = await renderCadPlotPdf([solidSheet], { compress: false, sheetsWithoutTitleBlock: ["sheet:solid"] });
+    let solidText = "";
+    for (const byte of solidPdf.bytes) solidText += String.fromCharCode(byte);
+    const contentStream = solidText.split("stream")[1] ?? "";
+    assert.ok(
+      /(?:^|\s)f(?=\s)/.test(contentStream),
+      "T-31·b: el sombreado sólido y la máscara pintan con el operador de relleno `f`, no sólo el trazo",
+    );
+    // Dos rellenos esperados: el hatch sólido y el rectángulo de la máscara.
+    const fillCount = (contentStream.match(/(?:^|\s)f(?=\s)/g) ?? []).length;
+    assert.ok(fillCount >= 2, `esperaba al menos 2 rellenos (hatch + máscara), hubo ${fillCount}`);
+  }
 }
 
 // Sin `await` de nivel superior: el runner de specs compila a CommonJS. El

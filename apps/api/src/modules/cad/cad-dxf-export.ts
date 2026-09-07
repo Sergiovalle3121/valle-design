@@ -21,13 +21,33 @@ import type { PersistedCadDocument } from '../cad-documents/cad-document-validat
  * LINE/ARC/CIRCLE; lo que faltaba era el canal para llegar hasta él.
  * La huella (footprint) sale de `meta` cuando existe; si no, del bounding box
  * de lo mapeado (mínimo 1000×1000 para que el plano nunca colapse a 0).
+ *
+ * v2 llamaba `boxOf(entity)` ANTES de mirar `entity.type`: cualquier entidad
+ * que tuviera por casualidad cuatro campos numéricos `x/y/w/h` finitos —sin
+ * que su tipo fuera `box` ni `station`— salía como un rectángulo inventado en
+ * vez de su geometría real, y ningún aviso lo decía. v3 discrimina por tipo
+ * PRIMERO: sólo `box`/`station` pueden convertirse en asset. Cualquier pérdida
+ * que quede —capa recortada a 31 caracteres, texto recortado a 240, o una
+ * entidad que no encaja en ninguna proyección— se declara en `warnings` en vez
+ * de aplicarse en silencio.
  */
+export interface DxfExportLossWarning {
+  entityId: string;
+  code: 'layer_truncated' | 'text_truncated' | 'entity_unmapped';
+  detail: string;
+}
+
+export interface DxfExportBuildResult {
+  input: CadLayoutDxfInput;
+  warnings: DxfExportLossWarning[];
+}
+
 export function buildDxfExportInput(
   document: PersistedCadDocument | null,
   name: string,
   model: string | null,
   revision: string | null,
-): CadLayoutDxfInput {
+): DxfExportBuildResult {
   const meta = objectOf(document?.meta);
   const entities: Record<string, unknown>[] = Array.isArray(document?.entities)
     ? (document.entities as unknown[]).filter(
@@ -52,35 +72,50 @@ export function buildDxfExportInput(
     maxX = Math.max(maxX, x);
     maxY = Math.max(maxY, y);
   };
+  const warnings: DxfExportLossWarning[] = [];
 
   for (const entity of entities) {
     const type =
       typeof entity.type === 'string' ? entity.type.toLowerCase() : '';
-    const box = boxOf(entity);
-    if (box) {
-      assets.push({
-        kind: (typeof entity.kind === 'string'
-          ? entity.kind
-          : type || 'box'
-        ).slice(0, 24),
-        x: box.x,
-        y: box.y,
-        w: box.w,
-        h: box.h,
-        rotation: finiteOr(entity.rotation, 0),
-        ...(typeof entity.label === 'string'
-          ? { label: entity.label.slice(0, 64) }
-          : {}),
+    const entityId = typeof entity.id === 'string' ? entity.id : '(sin id)';
+
+    // El tipo se decide ANTES de mirar si hay una caja: `box`/`station` son
+    // los ÚNICOS tipos con `x/y/w/h` propios. Mirar la caja primero convertía
+    // en rectángulo inventado a cualquier entidad —muro, hueco, cota— que
+    // tuviera esos cuatro campos por coincidencia de esquema.
+    if (type === 'box' || type === 'station') {
+      const box = boxOf(entity);
+      if (box) {
+        assets.push({
+          kind: (typeof entity.kind === 'string'
+            ? entity.kind
+            : type || 'box'
+          ).slice(0, 24),
+          x: box.x,
+          y: box.y,
+          w: box.w,
+          h: box.h,
+          rotation: finiteOr(entity.rotation, 0),
+          ...(typeof entity.label === 'string'
+            ? { label: entity.label.slice(0, 64) }
+            : {}),
+        });
+        track(box.x, box.y);
+        track(box.x + box.w, box.y + box.h);
+        continue;
+      }
+      warnings.push({
+        entityId,
+        code: 'entity_unmapped',
+        detail: `Entidad "${type}" sin caja finita (x/y/w/h): no se exportó.`,
       });
-      track(box.x, box.y);
-      track(box.x + box.w, box.y + box.h);
       continue;
     }
     // Geometría 2D canónica ANTES del camino heredado: `segmentOf` capturaba
     // LINE y POLYLINE y las degradaba a cotas en la capa COTAS (perdiendo
     // además todo vértice intermedio de la polilínea), mientras que ARC y
     // CIRCLE no encajaban en ningún caso y se caían del DXF en silencio.
-    const layer = layerOf(entity);
+    const layer = layerOf(entity, entityId, warnings);
     if (type === 'line' || type === 'polyline') {
       const points = polylinePoints(entity);
       if (points.length >= 2) {
@@ -159,18 +194,39 @@ export function buildDxfExportInput(
       track(segment.x2, segment.y2);
       continue;
     }
-    if ((type === 'text' || type === 'mtext') && textOf(entity)) {
-      const point = pointOf(entity.position) ?? pointOf(entity);
-      if (point) {
+    if (type === 'text' || type === 'mtext') {
+      const raw = textOf(entity);
+      const point = raw ? (pointOf(entity.position) ?? pointOf(entity)) : null;
+      if (raw && point) {
+        if (raw.length > 240)
+          warnings.push({
+            entityId,
+            code: 'text_truncated',
+            detail: `Texto recortado de ${raw.length} a 240 caracteres.`,
+          });
         annotations.push({
           type: 'text',
           x: point.x,
           y: point.y,
-          text: textOf(entity)!.slice(0, 240),
+          text: raw.slice(0, 240),
         });
         track(point.x, point.y);
+        continue;
       }
+      warnings.push({
+        entityId,
+        code: 'entity_unmapped',
+        detail: raw
+          ? 'Texto sin posición (x/y) legible: no se exportó.'
+          : 'Entidad de texto sin contenido: no se exportó.',
+      });
+      continue;
     }
+    warnings.push({
+      entityId,
+      code: 'entity_unmapped',
+      detail: `Tipo "${type || '(desconocido)'}" no tiene proyección a DXF R12: no se exportó.`,
+    });
   }
 
   const bboxW = Number.isFinite(maxX - minX) ? Math.max(maxX - minX, 0) : 0;
@@ -178,7 +234,7 @@ export function buildDxfExportInput(
   const footprintW = positiveOr(meta?.footprintW, Math.max(bboxW, 1000));
   const footprintH = positiveOr(meta?.footprintH, Math.max(bboxH, 1000));
 
-  return {
+  const input: CadLayoutDxfInput = {
     model: model || name || 'CAD',
     revision: revision || 'A',
     footprint: {
@@ -200,17 +256,32 @@ export function buildDxfExportInput(
         }
       : {}),
   };
+  return { input, warnings };
 }
 
 /**
  * Capa DXF de la entidad. Los nombres de capa R12 no admiten espacios ni
  * caracteres de control, así que se normalizan sin inventar una capa nueva:
  * una entidad sin capa declarada cae en `0`, la capa por defecto del formato.
+ * Cuando el nombre saneado no cabe en 31 caracteres, el recorte se declara en
+ * `warnings` — antes se aplicaba y no había forma de saber que dos capas
+ * distintas podían haber colisionado en el mismo nombre recortado.
  */
-function layerOf(entity: Record<string, unknown>): string {
+function layerOf(
+  entity: Record<string, unknown>,
+  entityId: string,
+  warnings: DxfExportLossWarning[],
+): string {
   const raw = typeof entity.layer === 'string' ? entity.layer.trim() : '';
   if (!raw) return '0';
-  const safe = raw.replace(/[^A-Za-z0-9_$-]+/g, '_').slice(0, 31);
+  const sanitized = raw.replace(/[^A-Za-z0-9_$-]+/g, '_');
+  if (sanitized.length > 31)
+    warnings.push({
+      entityId,
+      code: 'layer_truncated',
+      detail: `Capa "${raw}" recortada a 31 caracteres: "${sanitized.slice(0, 31)}".`,
+    });
+  const safe = sanitized.slice(0, 31);
   return safe || '0';
 }
 

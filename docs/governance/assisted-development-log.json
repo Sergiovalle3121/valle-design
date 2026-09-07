@@ -3397,6 +3397,38 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "F4-PAPEL-Y-ENTREGA-20260906",
+      "date": "2026-09-06",
+      "initiative": "Frente F4 «Papel y entrega» de la campaña multi-frente «El lunes de un arquitecto»: corrección del export DXF R12 del servidor (boxOf discriminaba después del tipo e inventaba rectángulos; capas y textos se recortaban sin aviso), documentación de la decisión de unificar los dos emisores de PDF del producto (renderCadPlotPdf frente al jsPDF a mano de Layout3DEditor.tsx) y peticiones al coordinador para lo que vive en el monolito.",
+      "branch": "claude/f4-papel-entrega",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular vía coordinador multi-frente"
+      ],
+      "authority": "El encargo llegó como mensaje de arranque de una sesión hija creada por la sesión coordinadora 'Valle Design campaña de auditoría' (origin web_claude_ai, iniciada por Sergio Valle Zárate), confirmada por notificación de una Routine ('Poke F4 · Papel y entrega') y verificada independientemente antes de actuar consultando get_session/list_sessions: la sesión coordinadora y siete sesiones hermanas (F3, F5, F8, F9, F10, F11) existen con el mismo origen y etiqueta de campaña 'campana-lunes-20260906'. Ningún mensaje directo del titular llegó a esta sesión hija; la autorización de fusión queda pendiente de revisión humana del PR.",
+      "firstPartyInputs": [
+        "El código propio del monorepo (apps/api/src/modules/cad, packages/contracts, packages/design-sdk) y sus specs existentes.",
+        "El resumen de fichas T-11/T-19/T-30–T-36 inlineado en el mensaje de arranque de la sesión — los documentos de referencia docs/execution/auditoria-fable/*.md no existían aún en main ni en ninguna rama remota al abrir la sesión (ver docs/execution/frentes/F4.md, nota de arranque)."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. El arreglo se escribió sobre el código propio del repositorio (apps/api/src/modules/cad/cad-dxf-export.ts, cad.controller.ts, el contrato OpenAPI y el SDK generado).",
+      "derivedAreas": [
+        "apps/api/src/modules/cad/cad-dxf-export.ts (discriminación por tipo antes de boxOf, manifiesto de pérdidas layer_truncated/text_truncated/entity_unmapped)",
+        "apps/api/src/modules/cad/cad.controller.ts (ruta exportDxf: lossManifest en la respuesta)",
+        "packages/contracts/specs/design-api.v1.yaml + packages/design-sdk (DxfExport.lossManifest, DxfExportLossWarning — aditivo)",
+        "docs/execution/frentes/F4.md y F4-peticiones.md (bitácora y peticiones al coordinador)"
+      ],
+      "fixtures": "Ninguno nuevo. Se clonó localmente valle-design-dwg-conformance (solo lectura, como espejo VALLE_DWG_CORPUS_MIRROR) sin modificarlo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: revisión humana del PR de la rama claude/f4-papel-entrega. Evidencia local: specs de cad-dxf-export (6/6), cad.controller (14/14), design-sdk (9/9), typecheck y check:cad verdes sobre el SHA de esta rama."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

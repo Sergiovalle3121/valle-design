@@ -20,6 +20,11 @@ import { cadLinetypeTextCommands } from "./paper-space-linetype-text";
 import { cadImagePlotCommand, type CadImagePlotCommand } from "./paper-space-image";
 import { IDENTITY, multiply, point, type Affine } from "./paper-space-affine";
 import { blockPresentation, styleFor, unitToMm } from "./paper-space-style";
+import {
+  cadAnnotativeDimensionSizes,
+  cadAnnotativeHeightMm,
+  cadAnnotativeModelHeight,
+} from "./layout/annotative-scale";
 
 export const CAD_SHEET_PAPERS = {
   A4: { width: 210, height: 297 },
@@ -129,6 +134,8 @@ export interface CadPublishViewport {
   id: string;
   name: string;
   clip: { x: number; y: number; width: number; height: number };
+  /** Contorno REAL de una ventana no rectangular (T-19·4). Ausente = rectangular. */
+  clipPolygon?: readonly CadPoint2[];
   scale: number;
   locked: boolean;
   commands: CadVectorCommand[];
@@ -144,6 +151,8 @@ export interface CadPublishSheet {
   lineweightScale: number;
   titleBlock: Record<string, string>;
   viewports: CadPublishViewport[];
+  /** Dibujado DIRECTAMENTE sobre el papel, fuera de toda ventana (T-30). */
+  paperCommands?: CadVectorCommand[];
 }
 
 export interface CadPublishPlan {
@@ -398,10 +407,10 @@ function visibleLayer(
   layers: Map<string, CadLayerDef>,
   viewport: CadPaperViewport,
 ): boolean {
-  // La anulación de la VENTANA manda sobre lo global: `false` es VP-freeze y
-  // `true` puede descongelar en ESTA ventana una capa congelada del documento.
-  // Sin anulación, apagada o congelada no se proyecta (cad-layer-visibility.ts).
   const layer = layers.get(layerId);
+  // T-19·3: `plot:false` es del papel (se ve, nunca imprime, sin anulación
+  // por ventana); la ventana SÍ anula apagada/congelada (cad-layer-visibility.ts).
+  if (layer?.plot === false) return false;
   return viewport.layerVisibility?.[layerId] ?? (!layer || cadLayerShown(layer));
 }
 
@@ -569,6 +578,14 @@ function renderEntity(
       entity.type === "text" ? { x: entity.x, y: entity.y } : entity.insertion;
     const paper = point(matrix, anchor);
     const scale = Math.hypot(matrix.a, matrix.b);
+    // T-36: anotativa se resuelve POR VENTANA, sin tocar `entity.height`. La
+    // altura persistida puede ser la que dejó otra ventana a otra escala; la
+    // efectiva se recalcula aquí mismo para ÉSTA, cada vez que se traza.
+    const annotativeMm = cadAnnotativeHeightMm(entity);
+    const effectiveHeight =
+      annotativeMm !== null
+        ? cadAnnotativeModelHeight(annotativeMm, context.viewport.scale, context.document.meta.unit)
+        : (entity.height ?? 120);
     return [
       {
         kind: "text",
@@ -576,12 +593,12 @@ function renderEntity(
         viewportId: context.viewport.id,
         point: paper,
         text: entity.text,
-        size: Math.max(1.5, Math.min(12, (entity.height ?? 120) * scale)),
+        size: Math.max(1.5, Math.min(12, effectiveHeight * scale)),
         rotation: entity.rotation ?? 0,
         color: style.stroke,
         ...(entity.type === "mtext" ? {
           align: entity.paragraphAlignment ?? "left",
-          maxWidth: (entity.width ?? (entity.height ?? 120) * 20) * scale,
+          maxWidth: (entity.width ?? effectiveHeight * 20) * scale,
           bold: entity.bold,
           italic: entity.italic,
           underline: entity.underline,
@@ -592,7 +609,17 @@ function renderEntity(
     ];
   }
   if (entity.type === "dimension") {
-    const geometry = buildCadDimensionGeometry(entity);
+    // T-36: igual que el texto, pero el juego COMPLETO de tamaños (flecha,
+    // huecos, exceso) — una copia efímera, nunca escrita al documento.
+    const annotativeMm = cadAnnotativeHeightMm(entity);
+    const effectiveEntity =
+      annotativeMm !== null
+        ? {
+            ...entity,
+            ...cadAnnotativeDimensionSizes(entity, annotativeMm, context.viewport.scale, context.document.meta.unit),
+          }
+        : entity;
+    const geometry = buildCadDimensionGeometry(effectiveEntity);
     if (!geometry) return [];
     const commands = geometry.paths.map((item) => path(item.points, item.closed)).filter(
       (value): value is CadVectorCommand => !!value,
@@ -603,7 +630,7 @@ function renderEntity(
       viewportId: context.viewport.id,
       point: point(matrix, geometry.textAnchor),
       text: geometry.label,
-      size: Math.max(1.5, Math.min(8, (entity.arrowSize ?? 180) * Math.hypot(matrix.a, matrix.b) * 0.55)),
+      size: Math.max(1.5, Math.min(8, (effectiveEntity.arrowSize ?? 180) * Math.hypot(matrix.a, matrix.b) * 0.55)),
       rotation: geometry.textAngle,
       color: style.stroke,
       align: "center",
@@ -785,6 +812,14 @@ export function buildCadPublishPlan(
   const entities = new Map(
     document.entities.map((entity) => [entity.id, entity]),
   );
+  // T-19·4: una entidad de PAPEL (el contorno de una ventana poligonal, un
+  // cajetín) puede quedar TAMBIÉN en `modelSpace.entityIds` por un defecto de
+  // quien la insertó — el aplicador genérico de "insert" no distingue espacio
+  // destino. Sin este filtro, esa entidad se proyecta como geometría de
+  // MODELO con sus coordenadas de PAPEL dentro de CADA ventana del dibujo.
+  const paperSpaceEntityIds = new Set(
+    document.paperSpaces.flatMap((space) => space.entityIds ?? []),
+  );
   const manifest = buildCadSheetSetManifest(document, generatedAt);
   const orderedSpaces = document.paperSpaces
     .filter((space) => space.includeInPublish !== false)
@@ -806,8 +841,28 @@ export function buildCadPublishPlan(
   const sheets = orderedSpaces.map((space): CadPublishSheet => {
     const colorMode = space.pageSetup?.colorMode ?? "monochrome";
     const lineweightScale = space.pageSetup?.lineweightScale ?? 1;
-    const viewports = (space.viewports ?? []).map(
-      (viewport): CadPublishViewport => {
+    // La fuga se cuenta UNA vez por hoja, no por ventana: es la misma lista de
+    // modelo para todas las ventanas de esta presentación.
+    const modelEntityIds = document.modelSpace.entityIds.filter(
+      (id) => !paperSpaceEntityIds.has(id),
+    );
+    for (const id of document.modelSpace.entityIds)
+      if (paperSpaceEntityIds.has(id))
+        warnings.push({
+          code: "paper_space_entity_excluded_from_model",
+          sheetId: space.id,
+          entityId: id,
+          detail: "Entity belongs to paper space and is excluded from every model viewport on this sheet.",
+        });
+    // T-31·d: `MVIEW Desactivada` (apagada, no borrada) también en PUBLISH —
+    // antes sólo PLOT la respetaba; publicar dibujaba igual una ventana que
+    // el usuario apagó a propósito. Misma regla que `cadViewportIsOn`
+    // (`layout/viewport-operations.ts`), repetida a propósito: importar ese
+    // módulo aquí cierra un ciclo real (él importa `CAD_SHEET_SCALES` de
+    // ESTE archivo a nivel de módulo) que revienta en tiempo de carga.
+    const viewports = (space.viewports ?? [])
+      .filter((viewport) => viewport.layerVisibility?.["*"] !== false)
+      .map((viewport): CadPublishViewport => {
         const viewportMatrix = viewportTransform(viewport, document.meta.unit);
         const factor = unitToMm(document.meta.unit) / Math.max(viewport.scale, 1e-9);
         if (
@@ -820,7 +875,7 @@ export function buildCadPublishPlan(
             viewportId: viewport.id,
             detail: `Model bounds exceed viewport at 1:${viewport.scale}; geometry is clipped to paper bounds.`,
           });
-        const commands = document.modelSpace.entityIds
+        const commands = modelEntityIds
           .map((id) => entities.get(id))
           .filter((entity): entity is CadEntity => !!entity)
           .flatMap((entity) =>
@@ -844,12 +899,47 @@ export function buildCadPublishPlan(
           id: viewport.id,
           name: viewport.name ?? "Model",
           clip: { ...viewport.paperBounds },
+          // T-19·4: el contorno REAL de una ventana poligonal, no sólo su
+          // rectángulo envolvente — para que el PDF recorte la forma exacta.
+          ...(viewport.clipPolygon ? { clipPolygon: viewport.clipPolygon } : {}),
           scale: viewport.scale,
           locked: viewport.locked,
           commands,
         };
       },
     );
+    // T-30: lo que se dibuja DIRECTAMENTE sobre el papel (líneas, texto, el
+    // propio contorno de una ventana poligonal) — `space.entityIds`, nunca
+    // proyectado por ninguna ventana. Ventana sintética 1:1 en identidad:
+    // una entidad de papel ya está en mm de papel, no en unidades de modelo.
+    const paperViewport: CadPaperViewport = {
+      id: `${space.id}:paper`,
+      name: "Papel",
+      paperBounds: { x: 0, y: 0, width: space.page.width, height: space.page.height },
+      modelBounds: { x: 0, y: 0, width: space.page.width, height: space.page.height },
+      scale: 1,
+      locked: true,
+    };
+    const paperCommands = (space.entityIds ?? [])
+      .map((id) => entities.get(id))
+      .filter((entity): entity is CadEntity => !!entity)
+      .flatMap((entity) =>
+        renderEntity(entity, {
+          sheetId: space.id,
+          viewport: paperViewport,
+          viewportMatrix: IDENTITY,
+          entityMatrix: IDENTITY,
+          layers,
+          blocks,
+          entities,
+          document,
+          colorMode,
+          lineweightScale,
+          depth: 0,
+          stack: [],
+          warnings,
+        }),
+      );
     return {
       id: space.id,
       name: space.name,
@@ -860,6 +950,7 @@ export function buildCadPublishPlan(
       lineweightScale,
       titleBlock: { ...(space.titleBlock?.attributes ?? {}) },
       viewports,
+      paperCommands,
     };
   });
   const vectorCommandCount = sheets.reduce(
@@ -868,7 +959,8 @@ export function buildCadPublishPlan(
       sheet.viewports.reduce(
         (viewportTotal, viewport) => viewportTotal + viewport.commands.filter((command) => command.kind !== "image").length,
         0,
-      ),
+      ) +
+      (sheet.paperCommands?.length ?? 0),
     0,
   );
   const rasterCommandCount = sheets.reduce(
