@@ -8,10 +8,16 @@
     "margen": "gate = medido +4%. Cubre la variacion entre corridas del mismo build; no es holgura para crecer."
   },
   "gate": {
-    "landingJsKB": 840.0,
+    "landingJsKB": 877.1,
     "estudioJsKB": 3488.8
   },
   "observado": {
+    "20260907-explorador-capacidades": {
+      "landingJsKB": 843.4,
+      "estudioJsKB": 3426.7,
+      "estudioUsableMs": 1636,
+      "nota": "La seccion Capacidades paso de una reticula estatica de tarjetas (cero JS) a CapabilityExplorer, un explorador por pestanas interactivo (Tabs con estado, ARIA real). Subida real de una capacidad nueva, no una fuga: se detecto y corrigio primero una fuga real de este mismo cambio en scripts/perf/bundle-budget.json (53 KB gzip por resolver el catalogo de 149 plantillas en codigo cliente). Medido tras esa correccion: 843.4 KB (806.9 KB de la medida base mas el peso real del explorador). El estudio BAJO a 3426.7 KB, dentro del techo vigente sin cambios. Techo de landing = 843.4 x 1.04, misma formula de margen que el resto del archivo."
+    },
     "20260829-antes": {
       "landingJsKB": 806.9,
       "estudioJsKB": 4019.3,

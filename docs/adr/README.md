@@ -22,6 +22,7 @@ silencio. Formato: `NNNN-titulo.md`, estado en la segunda línea.
 | [0014](0014-dwg-via-propia-unica.md) | DWG a vía única propia: se retira el proveedor licenciado que ADR-0012 dejaba abierto. | Aceptada |
 | [0015](0015-dwg-m4-encabezado-r2010.md) | M4 no estaba bloqueado: la especificación registrada sí era fuente permitida, y el encabezado de objeto R2010+ se resolvió midiendo contra el corpus. | Aceptada |
 | [0016](0016-modelado-directo-sobre-brep-facetado.md) | Modelado directo sobre el B-rep FACETADO que ya existe; el 3D exacto queda «todavía no» con condición de reapertura, y la identidad se amplía a modelador 3D. | Aceptada |
+| [0017](0017-kernel-3d-exacto-spike.md) | Spike medido: manifold-3d (Apache-2.0, 0.6 MB, booleanas sub-ms) vs opencascade.js/OCCT (LGPL-2.1+excepción, 63 MB, booleanas ~50-60ms) para un futuro kernel 3D exacto; no se integra nada, sólo se deja el mapa de costos y licencia. | Aceptada — spike cerrado, sin integración |
 
 ## Cómo se añade una
 

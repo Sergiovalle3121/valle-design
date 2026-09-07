@@ -51,8 +51,8 @@ for (const route of ["login", "register"] as const) {
 }
 
 /**
- * LA REGLA DE HONESTIDAD, y por qué desde la campaña de firma cubre DOS
- * archivos.
+ * LA REGLA DE HONESTIDAD, y por qué desde la campaña de firma cubre más de un
+ * archivo.
  *
  * El centro de preguntas se llevó el texto del FAQ a `lib/marketing/faq.ts`
  * para que la página, el buscador y el JSON-LD digan literalmente lo mismo. Ese
@@ -60,9 +60,15 @@ for (const route of ["login", "register"] as const) {
  * quedara mirando sólo `page.tsx`, la regla habría seguido en verde mientras la
  * treintena de respuestas nuevas podía prometer lo que quisiera — que es
  * exactamente cómo un gate deja de proteger sin que nadie lo desactive.
+ *
+ * La sección «Capacidades» tuvo el mismo movimiento en la campaña del
+ * explorador por pestañas: su copy salió de `page.tsx` hacia
+ * `CapabilityExplorer.tsx`. Mismo riesgo, misma corrección: ese componente
+ * entra a la lista o el gate deja de ver exactamente el texto que antes veía.
  */
 const publicCopy = `${landing}
-${readFileSync("src/lib/marketing/faq.ts", "utf8")}`;
+${readFileSync("src/lib/marketing/faq.ts", "utf8")}
+${readFileSync("src/components/marketing/CapabilityExplorer.tsx", "utf8")}`;
 
 assert.doesNotMatch(
   publicCopy,

@@ -31,12 +31,19 @@ export function CadCommandLineDock({ host, disabled, inputRef }: CadCommandLineD
   const snapshot = useCadCommandEngine(host);
   // El muelle se aparta de la barra de estado por su cuenta; ver el módulo.
   return (
-    <div className="flex w-full flex-col gap-1">
+    <div className="flex w-full flex-col gap-2">
       {/*
         El recorrido guiado, encima de todo y sólo la primera vez. Se monta aquí
         por lo mismo que la consola LISP: registrarlo en el editor costaría JSX y
         un `useState` en un archivo cuyo presupuesto sólo puede bajar. Su estado
         vive fuera de React y sobrevive a los remontajes.
+
+        `gap-2`, no `gap-1`: con el panel desplegado entero el hueco sobre la
+        línea de comandos medía 4 px en 1.280×720 (golden de solape) — visible
+        en el DOM como dos cajas separadas, invisible al ojo como una sola.
+        8 px son el mínimo de la escala que de verdad se lee como aire entre
+        dos tarjetas; el pliegue del acompañante (`cad-guided-tour-toggle`)
+        hace el resto cuando 8 px tampoco alcanzan.
       */}
       <CadGuidedTourDock host={host} disabled={disabled} />
       {/*

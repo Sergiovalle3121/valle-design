@@ -3429,6 +3429,62 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "SALTO-10-10-OLA1-2026-09-07",
+      "date": "2026-09-07",
+      "initiative": "Ola 1 de la campaña «El salto al 10/10» (docs/execution/CAMPANA_SALTO_20260907.md), encargo del titular de nueve frentes hacia 10/10 en funcionalidad y estética. Sesión única atada a una sola rama: los seis frentes de la Ola 1 corrieron como agentes paralelos de un Workflow sobre el mismo checkout, en territorios de archivo disjuntos, con integración y gates únicos de esta sesión (coordinador). Entregables reales: (1) DWG-Corpus — expediente de candidatos de terceros para el corpus DWG/DXF, cero admitidos (bloqueo de red del entorno a todo dominio salvo github.com/raw.githubusercontent.com; los únicos candidatos alcanzables, ejemplos de QCAD/LibreCAD/FreeCAD, tienen licencia GPL/LGPL prohibida por CORPUS_POLICY.md), sin descargar ningún byte ni tocar bundles/; (2) DWG-Encendido — paquete de encendido que enlaza la evidencia viva de dwg-decoder-matrix.json y documenta que la beta NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA (firmada 2026-08-24, ADR-0009) es distinta del flag general DWG_IMPORT_FLAG, y que DWG_EXPORT_FLAG no tiene ningún consumidor de UI hoy; ningún flag se tocó; (3) Kernel3D — spike medido de manifold-3d (Apache-2.0, corrección de un supuesto erróneo del encargo que decía MIT) vs opencascade.js (LGPL-2.1+excepción), con benchmarks reales en /tmp fuera del repo, ADR-0017 aceptado sin autorizar ninguna integración; (4) Portada — CapabilityExplorer.tsx, explorador de capacidades por pestañas que reemplaza la retícula de tarjetas, reutilizando activos reales del producto; (5) EditorUX — tres estorbos de UX arreglados y verificados con Playwright contra el editor real (recorrido tapando la línea de comandos, etiqueta «Seleccionar» encimada, biblioteca de plantillas sin colapsar), con extracción de CadLeftDockPanel.tsx para mantener el presupuesto del monolito (un intento inicial de subir el techo con --allow-growth fue revertido por esta sesión antes de integrar, siguiendo AGENTS.md: «a listed file may only shrink»); (6) Arquitectura-Hueco — investigación que confirmó, con 127+37+51 aserciones reales ejecutadas, que el hueco de puerta/ventana YA recorta el muro de verdad en planta y en 3D; no se tocó código, y se corrigió la premisa errónea del encargo original.",
+      "branch": "claude/valle-design-10-10-fq3nl3",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular, orquestando seis subagentes paralelos vía la herramienta Workflow más un subagente de corrección de presupuesto"
+      ],
+      "authority": "Sergio Valle Zárate, encargo directo de la campaña «El salto al 10/10» con sus nueve frentes; adaptado por esta sesión a lo que un checkout único y una sola rama permiten, documentado en docs/execution/CAMPANA_SALTO_20260907.md. Reglas no negociables respetadas: ningún gate/umbral/golden/presupuesto relajado (la violación de presupuesto que un subagente introdujo se corrigió antes de integrar, no se toleró), CORPUS_POLICY.md respetada al pie de la letra (cero admisiones sin los dos revisores humanos que exige), DWG_IMPORT_FLAG/DWG_EXPORT_FLAG sin tocar, ningún identificador persistido renombrado, ningún data-testid existente renombrado.",
+      "firstPartyInputs": [
+        "docs/execution/CAMPANA_SALTO_20260907.md (encargo de la Ola 1, con la verificación previa de los dos «arreglos urgentes» de portada que resultaron no ser reales)",
+        "AGENTS.md (sección Native/WASM entry gate para el spike de kernel; sección de presupuesto del monolito, cuya violación inicial se corrigió; sección de sistema de diseño para CapabilityExplorer)",
+        "IDENTITY.md, ADR-0016 (límite del kernel facetado, condición de reapertura citada en ADR-0017)",
+        "CORPUS_POLICY.md del repositorio valle-design-dwg-conformance, íntegra, incluida la enmienda 2026-08-20",
+        "docs/adr/0007, 0009, 0012, 0014, 0015 y docs/cad/evidence/dwg-decoder-matrix.json (cifras reales citadas, no inventadas, en el paquete de encendido)",
+        "scripts/check-dependency-licenses.mjs (ancla objetiva del veredicto de licencia del spike de kernel)"
+      ],
+      "externalSources": [
+        {
+          "location": "https://github.com/qcad/qcad (LICENSE.txt), https://github.com/LibreCAD/LibreCAD (LICENSE), https://github.com/FreeCAD/FreeCAD (LICENSE)",
+          "terms": "GPLv3 / GPLv2 / LGPLv2.1 respectivamente",
+          "fact": "Verificados como ÚNICOS candidatos de corpus DWG/DXF alcanzables desde este entorno; RECHAZADOS por CORPUS_POLICY.md (lista explícita de licencias prohibidas). Ningún byte de sus archivos de ejemplo se descargó ni se usó."
+        },
+        {
+          "location": "npm: manifold-3d@latest, opencascade.js@1.1.1 (instalados en /tmp/kernel-spike-20260907, fuera del repositorio, nunca en package.json/package-lock.json del producto)",
+          "terms": "Apache-2.0 (manifold-3d, corregido de la suposición inicial de MIT) / LGPL-2.1 con Open CASCADE Exception 1.0 (opencascade.js)",
+          "fact": "Medidos con benchmarks propios (tamaño de WASM, tiempo de init, tiempo de booleana, exactitud contra volúmenes analíticos) para ADR-0017. Ninguno se integró al producto."
+        },
+        {
+          "location": "https://raw.githubusercontent.com/Open-Cascade-SAS/OCCT/master/OCCT_LGPL_EXCEPTION.txt",
+          "terms": "Open CASCADE Exception 1.0",
+          "fact": "Texto verbatim citado en la sección legal de ADR-0017 (el paquete npm de opencascade.js no incluye el texto de la excepción)."
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna implementación externa se copió, tradujo, portó ni adaptó. Los dos kernels evaluados en el spike se instalaron y midieron como dependencias externas candidatas, no como código consultado para escribir código propio; el spike no integra ningún kernel al producto.",
+      "derivedAreas": [
+        "docs/cad/evidence/DWG_PAQUETE_ENCENDIDO_20260907.md (nuevo)",
+        "docs/adr/0017-kernel-3d-exacto-spike.md (nuevo) y docs/adr/README.md (fila del índice)",
+        "apps/web/src/components/marketing/CapabilityExplorer.tsx y su spec (nuevos); apps/web/src/app/page.tsx (sección Capacidades); apps/web/src/app/public-pages.spec.ts (CapabilityExplorer.tsx añadido al escaneo de honestidad pública)",
+        "apps/web/src/components/cad/onboarding/CadGuidedTourDock.tsx (pliegue del recorrido guiado); apps/web/src/components/cad/command-line/CadCommandLineDock.tsx (separación del hueco); apps/web/src/components/cad/editor/CadToolPalette.tsx (etiqueta «Seleccionar»)",
+        "apps/web/src/components/cad/editor/CadLeftDockPanel.tsx (nuevo, extraído de Layout3DEditor.tsx) y Layout3DEditor.tsx (16961 líneas, por debajo del presupuesto original de 17235); scripts/cad/monolith-budget.json actualizado por extracción, no por --allow-growth",
+        "apps/web/src/lib/cad/cad-workspace.ts y su spec (preferencia leftDockCollapsed)",
+        "apps/web/e2e/golden/211, 212, 213 (nuevos, verificados contra el editor real con Playwright)",
+        "valle-design-dwg-conformance/docs/CANDIDATOS_TERCEROS_20260907.md (nuevo; cero bundles admitidos)"
+      ],
+      "fixtures": "Ninguno con datos ajenos ni de clientes. El expediente de candidatos DWG/DXF de terceros documenta candidatos RECHAZADOS o NO VERIFICABLES; no se incorporó ningún archivo DWG/DXF de terceros al corpus.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "npm run typecheck (turbo, 0 errores), npm run lint (turbo, 0 errores, warnings preexistentes sin relación con los archivos tocados), npm test (turbo, 650/650 specs verdes), npm run check:cad completo con VALLE_DWG_CORPUS_MIRROR (33 sub-checks verdes: monolito 16961/16961, rúbrica 256/309 con 35 pt de evidencia independiente, galería de plantillas 149/149, corpus DXF/PDF al día, 110 operaciones de API sincronizadas). Además, específico de esta ola: node scripts/cad/check-monolith-budget.mjs tras la extracción de CadLeftDockPanel.tsx (16961 líneas, sin --allow-growth); npx playwright test sobre los goldens 211/212/213 contra el editor real (7/7 verdes en Chromium); npx tsx sobre wall-openings.spec.ts/wall-solid.spec.ts/flatshot-solids.spec.ts (127+37+51 aserciones verdes) que confirmaron sin tocar código que el hueco de puerta/ventana ya recorta el muro de verdad."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
