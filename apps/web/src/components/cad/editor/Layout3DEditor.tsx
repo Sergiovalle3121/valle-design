@@ -288,6 +288,7 @@ import {
   type CadDxfPoint,
   type CadDxfPrimitive,
 } from "@/lib/cad/dxf-import";
+import { cadDxfWarningsFromBackgroundLossManifest, cadWithDxfBackgroundLossManifest } from "@/lib/cad/dxf-background-loss-manifest";
 import {
   CAD_SYMBOL_LIBRARY,
   getCadSymbol,
@@ -2737,7 +2738,7 @@ export default function Layout3DEditor({
         dxfMetaRef.current = null;
         dxfSnapRef.current = [];
         setHasDxf(false);
-        setDxfWarnings([]);
+        setDxfWarnings(d.dxf ? cadDxfWarningsFromBackgroundLossManifest(loadedCadDocumentRef.current?.dxfBackgroundLossManifest) : []);
         setDxfImportPreview(null);
         if (d.dxf) {
           try {
@@ -10293,6 +10294,7 @@ export default function Layout3DEditor({
       setHasDxf(true);
       dxfSnapRef.current = dxfSnapPoints(dxfModel, meta);
       rebuildDxfRef.current();
+      if (loadedCadDocumentRef.current) loadedCadDocumentRef.current = cadWithDxfBackgroundLossManifest(loadedCadDocumentRef.current, importPreview.warnings);
       markDirty();
       toast.success("Plano DXF cargado de fondo.", "Plano DXF");
     } catch {
@@ -10319,6 +10321,7 @@ export default function Layout3DEditor({
       setDxfWarnings([]);
       setDxfImportPreview(null);
       rebuildDxfRef.current();
+      if (loadedCadDocumentRef.current) loadedCadDocumentRef.current = cadWithDxfBackgroundLossManifest(loadedCadDocumentRef.current, []);
       markDirty();
       toast.success("Plano DXF quitado.", "Plano DXF");
     } catch {
@@ -11652,10 +11655,7 @@ export default function Layout3DEditor({
       });
     setShowView(true);
   };
-  const toggleViewMenu = () => {
-    if (!showView) openViewMenu();
-    else setShowView(false);
-  };
+  const toggleViewMenu = () => (showView ? setShowView(false) : openViewMenu());
   /**
    * Los paneles que SÍ están montados aquí se apuntan al bus de paletas
    * (`palette-command-bus.ts`): LAYER abre el de capas y PROPERTIES/PR el de
