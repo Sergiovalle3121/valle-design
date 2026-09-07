@@ -11657,19 +11657,15 @@ export default function Layout3DEditor({
     else setShowView(false);
   };
   /**
-   * Apunta el panel de capas al bus de paletas (`palette-command-bus.ts`) para
-   * que el comando LAYER —tecleado o despachado desde la cinta, es el mismo
-   * despacho— pueda abrirlo. Antes nadie se apuntaba a "layer-manager": el
-   * propio comando ya avisaba con honestidad ("El gestor de capas no está
-   * montado en este espacio de trabajo"), pero el panel SÍ está montado aquí
-   * —es exactamente el que abre el botón "Vista, capas y plano"— así que el
-   * aviso era un límite falso, no uno real.
+   * Los paneles que SÍ están montados aquí se apuntan al bus de paletas
+   * (`palette-command-bus.ts`): LAYER abre el de capas y PROPERTIES/PR el de
+   * propiedades por el mismo camino que Ctrl+1 (F9 P-09). Sin registro, los
+   * dos comandos avisaban «no está montado»: un límite falso, no uno real.
    */
   useEffect(() => {
-    return registerCadUiHandler("layer-manager", () => {
-      openViewMenu();
-      return true;
-    });
+    const offLayers = registerCadUiHandler("layer-manager", () => { openViewMenu(); return true; });
+    const offProperties = registerCadUiHandler("properties", () => { revealPropertiesPalette(); return true; });
+    return () => { offLayers(); offProperties(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
   const applyViewMode = useCallback((mode: "3d" | "2d") => {
