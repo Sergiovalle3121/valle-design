@@ -3522,6 +3522,44 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "REPO-OPTIMIZATION-CLEANUP-20260907",
+      "date": "2026-09-07",
+      "initiative": "Encargo del titular: analizar el repositorio, cerrar todas las ramas y PR abiertos (integrar lo útil, borrar lo que no) y pulir/optimizar la aplicación. Triaje: F8 y F11 estaban byte a byte dentro de main (#194) y F3/F5/F10 sólo diferían en lo que main superó (verificado con merge-tree contra el árbol de main); #173 quedó superado por la decisión del 2026-09-04 de reportar el espacio del DWG con el campo `space` sin mover la entidad. Integración en una sola rama: F9 (#200) y F4 (#196) resueltos a mano (dashboard/page.tsx, lint-budget.json por archivo, libro mayor), #202 limpio, #203 sobre el explorador de #202 (insignia 3D + H1, sin la retícula sustituida), las doce subidas de dependabot (#175) aplicadas con npm sobre el árbol actual porque su lockfile estaba inconsistente. El rojo de F4 en el trinquete de tamaño se pagó por extracción (paper-space-render.ts, cad-document-serialize.ts) y no subiendo techos; el oráculo OpenAPI se re-censó con la misma rueda. Pulido: el PDF del botón «Publicar» honra el recorte poligonal y lo dibujado en papel (F4 #1 parcial); PROPERTIES/PR abre la paleta montada (F9 P-09); las advertencias del DXF de fondo sobreviven a reabrir (F4 #2); framer-motion sale del cascarón (ToastContext a keyframes CSS: −40 KB gzip en toda ruta, Lighthouse móvil de la portada 78→80 local) con el trinquete de bundle re-apretado; y una ronda de investigación con verificación adversarial (seis frentes) cuyos hallazgos confirmados se implementaron por territorios: recorte real del PDF (estilo nulo antes de W n), comandos de papel con tabla de plumas, previsualización exacta con polígono, negociación WebRTC sin rollback explícito en «stable», goldens 27 y llamada más robustos sin relajar tiempos, recuperación tras cuelgue sin pisar el checkpoint más nuevo y con búsqueda por ámbito, CAS condicional de conjuntos de hojas, sin parser urlencoded (CSRF en login), lectura de un bloque sin cargar la biblioteca, cotas al DTO de capas y a la exportación de sesiones, micro-rendimiento (useMemo del API de avisos, Map de bloques en DXF, entity(id) en el pipeline, identidad en el sincronizador), paleta Ctrl+K extraída con role=dialog y foco atrapado, nueve anillos de foco, «Modelo», y archivo de la campaña «El lunes de un arquitecto» con sus enlaces. Cierre en GitHub: los seis PR (#173, #175, #196, #200, #202, #203) quedaron cerrados con nota que enlaza a #204; el borrado de las ramas remotas lo rechazó la política de egreso de la sesión (403 en git push --delete), así que lo hace el titular: git push origin --delete de las diez ramas claude/* listadas en el PR (la de dependabot la borró su bot al cerrar).",
+      "branch": "claude/repo-optimization-cleanup-pxrml2",
+      "assistants": [
+        "Claude Code (Anthropic), sesión remota operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate, vía tarea remota de Claude Code on the web («cierra todas las ramas y PR abiertos, integra lo útil, borra lo que no, y pule/optimiza la app»). Ningún gate, golden, umbral ni presupuesto se relajó: donde un PR integrado lo exigía (monolith-budget) se resolvió por extracción; los techos que se tocaron bajaron (bundle-budget --write, monolith --update, foco-visible).",
+      "firstPartyInputs": [
+        "AGENTS.md, CONTRIBUTING.md (política de ramas), docs/history/README.md (regla de archivo)",
+        "Los seis PR abiertos y las once ramas remotas, sus bitácoras y buzones de peticiones (docs/execution/frentes/*)",
+        "docs/execution/auditoria-fable/PROMPT_MAESTRO_FABLE.md y el informe INFORME_LUNES_20260906.md",
+        "scripts/perf/lighthouse-gate.mjs, lighthouserc.mobile.json y los informes locales de Lighthouse (LCP del hero con 92 % de render delay anclado a la hidratación)",
+        "El corpus de conformidad DWG (clon de sólo lectura del repo hermano al commit fijado) para correr check:dwg"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. La negociación WebRTC sigue el patrón público «perfect negotiation» de la especificación W3C/MDN (idea de protocolo, no código copiado).",
+      "derivedAreas": [
+        "Fusiones de F9/F4/#202/#203 y subidas de dependencias; extracciones paper-space-render.ts y cad-document-serialize.ts; docs/cad/corpus/oraculos/openapi-spec-validator-0.9.0.json re-censado",
+        "components/cad/editor/sheet-set-pdf.ts (+spec), Layout3DEditor.tsx (PROPERTIES, manifiesto DXF de fondo, anillos de foco, «Modelo», paleta extraída), palettes/palette-targets-mounted.spec.ts, lib/cad/dxf-background-loss-manifest.ts",
+        "contexts/ToastContext.tsx y globals.css (keyframes valle-toast-*), scripts/perf/bundle-budget.json, docs/design/DESIGN_SYSTEM.md",
+        "lib/cad/plot/{plot-pdf,plot-job,plot-stroke-text}.ts, palettes/CadLayoutManager.tsx, calls/call-session-host.ts, e2e/golden/27 y e2e/real/llamada-webrtc-real, lib/cad/cad-recovery.ts, CadStudioHost.tsx, EditorCrashRecoveryAction.tsx, render-style.ts, render-pipeline-host.ts, entity-runtime.ts, dxf-export.ts",
+        "apps/api: main.ts (bodyParser:false), cad-sheet-sets.repository.ts (CAS condicional), cad.controller.ts + servicio de bloques (findOne), dto/cad.dto.ts (cota de capas), identity-export.ts (cota de sesiones)",
+        "docs/history/execution/{CAMPANA_LUNES_20260906.md, frentes-lunes-20260906/} y los enlaces que apuntaban ahí; package.json (evidence:document-limits)"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Sobre el árbol quieto del head final y con VALLE_DWG_CORPUS_MIRROR: typecheck (8/8), lint (2/2), check-lint-budget (327/490), npm test (7/7 workspaces: web con los specs nuevos, API 810 + nuevos, códec 487, SDK), check:cad completo, check:dwg, check:governance y build, todos verdes (bitácora de gates de la sesión). Cada territorio del pulido corrió sus specs en rojo sin el arreglo y en verde con él. Lighthouse local (misma metodología del gate) antes/después del recorte de framer-motion: portada móvil 78 → 80, /precios 85 → 92. CI del PR #204 sobre el head anterior (256681f): Contrato·Build·Test·Lint·Smoke, Despliegue y E2E 4/4 verdes; el head final se verifica en CI antes de fusionar.",
+        "review": "PR borrador #204; revisión del titular sobre el diff completo."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
