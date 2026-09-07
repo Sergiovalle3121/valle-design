@@ -44,12 +44,14 @@ function snapshot(options: {
   name: string;
   revision?: string;
   entities?: CadEntity[];
+  layers?: CadDocument["layers"];
   externalReferences?: CadDocument["externalReferences"];
 }): CadXrefAssetSnapshot {
   const entities = options.entities ?? [line(`${options.assetId}-line`, 5_000)];
   const document = migrateCadDocument({
     meta: { version: 3, schema: 4, unit: "mm" },
     entities,
+    ...(options.layers ? { layers: options.layers } : {}),
     externalReferences: options.externalReferences ?? [],
   });
   return {
@@ -244,6 +246,64 @@ const attached = (() => {
   ok(
     !detached.layers.some((layer) => layer.id === "xref:xref-planta:layer"),
     "incluida la capa",
+  );
+}
+
+// --- 6. T-41: las capas del estructurista sobreviven, una a una ---------------
+{
+  const estructura = snapshot({
+    assetId: "asset-estructura",
+    name: "ESTRUCTURA",
+    layers: [
+      { id: "0", name: "0", color: "#ffffff", visible: true, locked: false },
+      { id: "MUROS", name: "MUROS", color: "#ff0000", visible: true, locked: false, lineweight: 0.5 },
+      { id: "EJES", name: "EJES", color: "#00ff00", visible: true, locked: true, linetype: "center" },
+      { id: "TEXTOS", name: "TEXTOS", color: "#0000ff", visible: false, locked: false },
+    ],
+    entities: [
+      { ...line("muro", 0), layer: "MUROS" },
+      { ...line("eje", 2_000), layer: "EJES" },
+      { ...line("rotulo", 4_000), layer: "TEXTOS" },
+      { ...line("suelto", 6_000), layer: "CAPA-QUE-NO-EXISTE" },
+    ],
+  });
+  const conCapas = executeCadEntityCommandBatch(
+    host(),
+    cadXrefAttachCommands(host(), { id: "xref-estructura", snapshot: estructura }),
+    "XATTACH",
+  ).document;
+  const capa = (nombre: string) => conCapas.layers.find((layer) => layer.name === nombre);
+  ok(!!capa("XREF|ESTRUCTURA|MUROS"), "cada capa de origen tiene la suya en el anfitrión");
+  assert.equal(capa("XREF|ESTRUCTURA|MUROS")?.color, "#ff0000", "con su color");
+  assert.equal(capa("XREF|ESTRUCTURA|MUROS")?.lineweight, 0.5, "y su grosor");
+  assert.equal(capa("XREF|ESTRUCTURA|EJES")?.linetype, "center", "y su tipo de línea");
+  assert.equal(capa("XREF|ESTRUCTURA|EJES")?.locked, false, "nace desbloqueada aunque en origen lo estuviera");
+  assert.equal(capa("XREF|ESTRUCTURA|TEXTOS")?.visible, false, "y con la visibilidad de origen");
+  checks += 5;
+  const raiz = conCapas.blocks.find((block) => block.id === "xref:xref-estructura:root");
+  const capasDelBloque = new Set(raiz?.entities.map((entity) => entity.layer));
+  ok(capasDelBloque.has("xref:xref-estructura:layer:MUROS"), "la geometría conserva su capa, proyectada");
+  ok(capasDelBloque.has("xref:xref-estructura:layer:EJES"), "una por capa de origen");
+  ok(capasDelBloque.has("xref:xref-estructura:layer"), "lo que llega sin capa conocida cae a la portadora");
+  assert.equal(capasDelBloque.size, 4, "MUROS, EJES, TEXTOS y la portadora: nada se aplana a una");
+  checks += 1;
+  // Apagar UNA capa del xref no toca las demás: es una capa del anfitrión como cualquiera.
+  const apagada = executeCadEntityCommandBatch(
+    conCapas,
+    [{ type: "layer", op: "upsert", layer: { ...capa("XREF|ESTRUCTURA|EJES")!, visible: false } }],
+    "LAYER Apagar",
+  ).document;
+  assert.equal(apagada.layers.find((layer) => layer.name === "XREF|ESTRUCTURA|EJES")?.visible, false);
+  assert.equal(apagada.layers.find((layer) => layer.name === "XREF|ESTRUCTURA|MUROS")?.visible, true);
+  checks += 2;
+  const sinXref = executeCadEntityCommandBatch(
+    apagada,
+    cadXrefDetachCommands(apagada, "xref-estructura"),
+    "XREF Desligar",
+  ).document;
+  ok(
+    !sinXref.layers.some((layer) => layer.id.startsWith("xref:xref-estructura:layer")),
+    "desligar retira las capas proyectadas junto con la portadora",
   );
 }
 

@@ -1,0 +1,36 @@
+{
+  "oraculo": "F",
+  "generadoPor": "python3 docs/cad/corpus/oraculos/censo-hmac-stdlib.py",
+  "mide": "Si HMAC-SHA256 de la biblioteca EST\u00c1NDAR de Python (hmac + hashlib, sin instalar nada de PyPI) sobre `${timestamp}.${rawBody}` reproduce `X-Valle-Signature` para una entrega genuina, y la RECHAZA para un cuerpo alterado en un byte. Sirve al criterio events.operational.",
+  "herramienta": {
+    "nombre": "Python hmac + hashlib (biblioteca est\u00e1ndar de CPython)",
+    "version": "3.11.15",
+    "lenguaje": "Python",
+    "autor": "Python Software Foundation (CPython)",
+    "licencia": "PSF License (biblioteca est\u00e1ndar, incluida en la distribuci\u00f3n de Python)",
+    "origen": "Distribuci\u00f3n est\u00e1ndar de Python 3 \u2014 no requiere instalaci\u00f3n",
+    "porQueCuentaComoIndependiente": "No comparte una l\u00ednea de c\u00f3digo, un binario ni un mantenedor con `node:crypto`: es otra implementaci\u00f3n del mismo est\u00e1ndar (RFC 2104 HMAC, FIPS 180-4 SHA-256), en otro lenguaje, mantenida por otro proyecto.",
+    "limiteDeSuIndependencia": "Verifica el EST\u00c1NDAR criptogr\u00e1fico (HMAC-SHA256 sobre bytes concretos), no el resto del contrato de entrega (ventana de frescura de 300 s, formato ISO-8601 del timestamp, deduplicaci\u00f3n por idempotency-key): eso lo sigue verificando outbox-signature.spec.ts, que es donde vive esa l\u00f3gica."
+  },
+  "fixture": {
+    "timestamp": "2026-09-06T00:00:00.000Z",
+    "secretLength": 43,
+    "rawBodyBytes": 399,
+    "generadaPor": "apps/web/src/lib/cad/verification/events-hmac.spec.ts",
+    "nota": "El secreto es SOLO de esta fixture de evidencia, fijo y determinista para que el censo sea reproducible. Nunca es un secreto de producci\u00f3n."
+  },
+  "casoGenuino": {
+    "firmaCalculadaPorPython": "sha256=7e8ed31af3fc9dd421ab5b5732340c726d385041685002eaa05796de3ff904cd",
+    "firmaDeclaradaPorLaFixture": "sha256=7e8ed31af3fc9dd421ab5b5732340c726d385041685002eaa05796de3ff904cd",
+    "coincide": true
+  },
+  "casoAlterado": {
+    "firmaCalculadaSobreElCuerpoAlterado": "sha256=1caebdcaf8abadc484a9edb1155b2c043e6329717f7360eba6fceaf2ce68ab7f",
+    "firmaOriginal": "sha256=7e8ed31af3fc9dd421ab5b5732340c726d385041685002eaa05796de3ff904cd",
+    "coincide": false
+  },
+  "dictamen": {
+    "valido": true,
+    "criterio": "acepta la firma genuina Y rechaza la firma sobre el cuerpo alterado"
+  }
+}

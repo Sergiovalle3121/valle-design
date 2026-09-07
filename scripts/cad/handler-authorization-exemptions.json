@@ -91,5 +91,17 @@
   "apps/api/src/modules/organizations/organizations.controller.ts#accept": {
     "check": "actor",
     "reason": "aceptar una invitación es del usuario autenticado; el token de invitación se verifica por hash server-side"
+  },
+  "apps/api/src/modules/organizations/organizations.controller.ts#changeMemberRole": {
+    "check": "membershipTarget",
+    "reason": "membershipTarget() autentica con actor() y exige owner/admin server-side antes de tocar el rol; el propietario y el auto-cambio quedan protegidos ahí mismo"
+  },
+  "apps/api/src/modules/organizations/organizations.controller.ts#removeMember": {
+    "check": "membershipTarget",
+    "reason": "membershipTarget() autentica con actor() y exige owner/admin server-side antes de expulsar; el propietario y la auto-expulsión quedan protegidos ahí mismo"
+  },
+  "apps/api/src/modules/audit-log/audit-log.controller.ts#list": {
+    "check": "authenticate",
+    "reason": "identity.authenticate() autentica la cookie de sesión y falla cerrado; access.resolve() verifica la membresía real contra el :organizationId de la URL antes de leer nada"
   }
 }

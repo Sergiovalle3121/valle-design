@@ -30,4 +30,15 @@ assert.deepEqual(deleted.paperSpaces[0].viewports?.[0].layerVisibility, { 0: fal
 assert.deepEqual(deleted.paperSpaces[0].viewports?.[0].layerOverrides, { 0: { color: '#000000' } });
 assert.throws(() => deleteCadDocumentLayer(base, '0', 'missing'), /cannot be deleted/);
 
+// T-41: una capa PROYECTADA de una xref se llama «XREF|<xref>|<capa>»; apagarla o bloquearla no la renombra,
+// así que el filtro de caracteres DXF sólo corre cuando el parche trae un nombre.
+const conXref: CadDocument = { ...base, layers: [...base.layers, { id: 'xref:PLANTA:EJES', name: 'XREF|PLANTA|EJES', color: '#ff00ff', visible: true, locked: false }] };
+const apagada = updateCadDocumentLayer(conXref, 'xref:PLANTA:EJES', { visible: false });
+assert.equal(apagada.layers.find((layer) => layer.id === 'xref:PLANTA:EJES')!.visible, false);
+assert.equal(apagada.layers.find((layer) => layer.id === 'xref:PLANTA:EJES')!.name, 'XREF|PLANTA|EJES');
+const bloqueada = updateCadDocumentLayer(apagada, 'xref:PLANTA:EJES', { locked: true });
+assert.equal(bloqueada.layers.find((layer) => layer.id === 'xref:PLANTA:EJES')!.locked, true);
+assert.throws(() => updateCadDocumentLayer(conXref, '0', { name: 'mal|nombre' }), /valid DXF/);
+assert.throws(() => updateCadDocumentLayer(conXref, '0', { name: '' }), /valid DXF/);
+
 console.log('cad layer manager specs passed');

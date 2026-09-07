@@ -128,6 +128,82 @@ export function formatAngle(worldDeg: number, options: AngleFormatOptions): stri
   }
 }
 
+/**
+ * Pasa un ángulo del USUARIO (ya con `ANGBASE`/`ANGDIR` aplicados) al MUNDO.
+ * Es la inversa exacta de `toUserAngle` — ver ahí la deducción del signo.
+ */
+export function fromUserAngle(userDeg: number, options: AngleFormatOptions): number {
+  const base = options.base ?? 0;
+  return options.direction === 1 ? base - userDeg : base + userDeg;
+}
+
+const DMS_PATTERN = /^(-)?(\d+)d(?:(\d+)'(?:([\d.]+)")?)?$/i;
+
+/** Inversa de `formatDms`: admite grados solos, grados/minutos o los tres campos. */
+function parseDms(text: string): number | null {
+  const match = DMS_PATTERN.exec(text.trim());
+  if (!match) return null;
+  const [, sign, d, m, s] = match;
+  const degrees = Number(d) + Number(m ?? 0) / 60 + Number(s ?? 0) / 3600;
+  return sign ? -degrees : degrees;
+}
+
+/** Inversa de `formatSurveyor`: los cuatro ejes a secas, o `N 30d0'0" E`. */
+function parseSurveyor(text: string): number | null {
+  const trimmed = text.trim().toUpperCase();
+  if (trimmed === "E") return 0;
+  if (trimmed === "N") return 90;
+  if (trimmed === "W") return 180;
+  if (trimmed === "S") return 270;
+  const match = /^([NS])\s+(.+?)\s+([EW])$/.exec(trimmed);
+  if (!match) return null;
+  const [, northSouth, dmsText, eastWest] = match;
+  const fromAxis = parseDms(dmsText);
+  if (fromAxis === null || fromAxis < 0 || fromAxis > 90) return null;
+  // Inversa exacta de las cuatro ramas de `formatSurveyor`.
+  if (northSouth === "N" && eastWest === "E") return 90 - fromAxis;
+  if (northSouth === "S" && eastWest === "E") return 270 + fromAxis;
+  if (northSouth === "N" && eastWest === "W") return 90 + fromAxis;
+  return 270 - fromAxis; // S ... W
+}
+
+/**
+ * Lee un ángulo tecleado por el usuario, en SU sistema (`AUNITS`), y lo
+ * devuelve en grados del MUNDO (`ANGBASE`/`ANGDIR` ya deshechos). `null` si el
+ * texto no se puede interpretar en el sistema activo — nunca un cero
+ * silencioso: un ángulo mal leído no se nota mirando el dibujo, se nota
+ * cuando la pieza ya está cortada.
+ */
+export function parseUserAngle(text: string, options: AngleFormatOptions): number | null {
+  const trimmed = text.trim();
+  if (trimmed === "") return null;
+  let user: number | null;
+  switch (options.system) {
+    case "decimal": {
+      const value = Number(trimmed);
+      user = Number.isFinite(value) ? value : null;
+      break;
+    }
+    case "dms":
+      user = parseDms(trimmed);
+      break;
+    case "grads": {
+      const match = /^([+-]?(?:\d+\.?\d*|\.\d+))g$/i.exec(trimmed);
+      user = match ? (Number(match[1]) * 360) / 400 : null;
+      break;
+    }
+    case "radians": {
+      const match = /^([+-]?(?:\d+\.?\d*|\.\d+))r$/i.exec(trimmed);
+      user = match ? (Number(match[1]) * 180) / Math.PI : null;
+      break;
+    }
+    case "surveyor":
+      user = parseSurveyor(trimmed);
+      break;
+  }
+  return user === null ? null : fromUserAngle(user, options);
+}
+
 /** `AUNITS` → sistema. Un valor fuera de rango cae en grados decimales. */
 export const ANGLE_SYSTEM_BY_AUNITS: readonly AngleSystem[] = [
   "decimal",

@@ -505,10 +505,25 @@ export class BillingController {
           organizationId,
           tenantId: organizationId,
         });
-        if (current?.planCode === plan.code && current.status === 'active') {
+        // T-61: un despacho que crece SÍ puede volver a este mismo endpoint
+        // para comprar más asientos del plan que ya tiene — `resolveCheckoutSeats`
+        // y el webhook que aplica `intent.requestedSeats` ya sabían hacerlo;
+        // lo único que lo bloqueaba era este rechazo, escrito para el caso
+        // distinto de "repetir la MISMA compra". Sólo se deja pasar cuando
+        // pide MÁS asientos de los que ya tiene pagados — igualar o pedir
+        // menos sigue siendo la compra redundante que este error existe para
+        // evitar; bajar asientos no es un checkout, es un cambio de plan.
+        if (
+          current?.planCode === plan.code &&
+          current.status === 'active' &&
+          seats <= current.seats
+        ) {
           throw new ConflictException({
             code: 'plan_already_active',
-            message: 'La organización ya tiene ese plan activo.',
+            message:
+              seats === current.seats
+                ? 'La organización ya tiene ese plan activo con esa cantidad de asientos.'
+                : 'La organización ya tiene ese plan activo con más asientos de los que pides.',
           });
         }
 

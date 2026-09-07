@@ -37,22 +37,19 @@ const entries = buildCadPaletteEntries();
   );
 }
 
-// --- el registro heredado sigue: alimenta la barra de frases y se dice ----------
+// --- las entradas «Frase» se retiraron (2026-09-06) y no vuelven por aquí -------
 {
-  const phrase = entries.find(
-    (entry) => entry.kind === "command" && entry.id === "measure_distance",
+  // Prometían «Preview listo en el Copiloto CAD», un panel retirado con la IA y
+  // sin «Aplicar» en el editor: cuarenta entradas visibles que terminaban en un
+  // estado que nadie pintaba. Fix-or-hide: OCULTA hasta que el circuito se
+  // cierre bajo un nombre honesto. El parser sigue en commands/registry.ts.
+  assert.equal(
+    entries.filter((entry) => entry.kind === "command").length,
+    0,
+    "la paleta no ofrece entradas de frase",
   );
-  assert.ok(phrase, "las entradas del registro de frases no se pierden en la unión");
-  assert.ok(
-    phrase.description.startsWith("Frase · "),
-    "y quedan etiquetadas con lo que de verdad ejecutan",
-  );
-  // Si un id heredado coincidiera con un nombre del motor, ganaría el motor:
-  // hoy no hay colisiones y el spec lo deja afirmado para cuando las haya.
-  const engineNames = new Set(CAD_COMMAND_REGISTRY_V2.all().map((command) => command.name));
   for (const entry of entries)
-    if (entry.kind === "command")
-      assert.ok(!engineNames.has(entry.id.toUpperCase()), `${entry.id} duplicaría al motor`);
+    assert.ok(!entry.description.startsWith("Frase"), `${entry.id} anuncia una frase`);
 }
 
 // --- lo de siempre sigue en su sitio ----------------------------------------------

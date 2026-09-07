@@ -64,6 +64,9 @@ export const CAD_IMPORT_FUZZ_SEED = "valle-json-import-fuzz-2026-08-19-v1";
 export const CAD_IMPORT_OUTCOMES = {
   ok: /^$/,
   "formato-no-soportado": /Formato no soportado/i,
+  // El `.dwg` se reconoce y se rechaza con su motivo (T-16): la misma frase en
+  // el tablero y en el estudio, no la lista de formatos.
+  "dwg-sin-proveedor": /DWG requiere un proveedor con licencia/i,
   "tamano-invalido": /está vacío o su tamaño no es válido/i,
   "supera-limite": /supera el límite de/i,
   "json-no-analizable": /El JSON no se puede analizar/i,
@@ -204,8 +207,8 @@ export function hostileCorpus(options: { includeHuge?: boolean } = {}): HostileC
       id: "extension-dwg",
       fileName: "plano.dwg",
       content: "{}",
-      expect: "formato-no-soportado",
-      why: "La puerta de formato: por aquí sólo entran DXF de texto y JSON canónico, y nada más.",
+      expect: "dwg-sin-proveedor",
+      why: "La puerta de formato: un .dwg con las betas cerradas se reconoce y se rechaza con SU razón, la misma que dice el estudio (T-16).",
     },
     {
       id: "vacio",

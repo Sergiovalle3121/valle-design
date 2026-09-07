@@ -55,11 +55,25 @@ const INCLUDED = [
  * Lo que se afirma aquí sale del catálogo (`taxNote` lo publica el producto) y
  * de la superficie fiscal que ya existe en `/cuenta/facturacion`: no hay ni una
  * promesa nueva, sólo se pone donde se ve.
+ *
+ * T-18a: la etiqueta del CFDI se DERIVA de `cfdiMode`, el modo real que
+ * publica el catálogo (`GET /v1/commercial/public/plans`). Mientras no haya
+ * PAC contratado (`mode: 'manual'`, `NullCfdiProvider`) esta lista NUNCA
+ * puede decir «Factura CFDI» — eso prometería una emisión automática que el
+ * producto no tiene — así que dice, sin adornos, que el comprobante se emite
+ * a mano. `factura-cfdi.spec.ts` falla si alguna de las dos ramas dice lo
+ * contrario de lo que el modo permite.
  */
-function FiscalSeal() {
+function FiscalSeal({ cfdiMode }: { cfdiMode: "manual" | "automatic" }) {
   const items = [
     { Icon: Receipt, label: "IVA incluido" },
-    { Icon: FileText, label: "Factura CFDI" },
+    {
+      Icon: FileText,
+      label:
+        cfdiMode === "automatic"
+          ? "Factura CFDI"
+          : "CFDI: lo emite nuestro equipo",
+    },
     { Icon: ShieldCheck, label: "Cancelas cuando quieras" },
   ] as const;
   return (
@@ -246,7 +260,7 @@ export function PricingCatalog() {
 
           <div className="flex flex-wrap items-center justify-between gap-4">
             <PeriodSwitch period={period} onChange={setPeriod} />
-            <FiscalSeal />
+            <FiscalSeal cfdiMode={state.catalog.cfdi} />
           </div>
 
           {/*
@@ -273,8 +287,9 @@ export function PricingCatalog() {
                 // recomendación, que es una afirmación que sí podemos sostener.
                 recommended={
                   plan.kind === "paid" &&
-                  state.catalog.items.findIndex((item) => item.kind === "paid") ===
-                    index
+                  state.catalog.items.findIndex(
+                    (item) => item.kind === "paid",
+                  ) === index
                 }
               />
             ))}

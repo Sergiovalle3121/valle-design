@@ -13,6 +13,7 @@
 import type { CadPoint2, CadPoint3 } from "./cad-document";
 import { cadHatchPatternBaseAngle } from "./hatch-pattern-table";
 import { cadHatchPatternStrokes } from "./hatch-pattern-strokes";
+import { polygonCentroid } from "./geom-measure";
 import { hatchRegionContainsPoint } from "./hatch-associativity";
 import {
   cadTransformAngleBase,
@@ -213,12 +214,23 @@ export const hatchAdapter: CadEntityAdapter<CadHatchEntity> = {
   },
   snaps: {
     snaps: (entity) => {
+      // El centro geométrico del sombreado es el CENTROIDE del contorno
+      // exterior, no el punto medio de su caja: una L o una U tienen su caja
+      // vacía por el medio y el centroide sí cae dentro de la región rellena.
+      // `center` (el modo del CÍRCULO) no es lo que esto es: un hatch no
+      // tiene centro en ese sentido, y llamarlo así era el mismo fallo que
+      // T-14 corrige en el resto de adaptadores.
+      const outer = entity.boundaries[0] ?? [];
       const bounds = hatchBounds.bounds(entity);
+      const geometricCenter =
+        outer.length >= 3
+          ? polygonCentroid(outer)
+          : { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 };
       return [
         {
-          kind: "center" as const,
-          point: { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 },
-          label: "Centro",
+          kind: "geometric-center" as const,
+          point: geometricCenter,
+          label: "Centro geométrico",
         },
         ...entity.boundaries.flatMap((boundary, boundaryIndex) =>
           boundary.map((point, vertexIndex) => ({

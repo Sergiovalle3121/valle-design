@@ -8,10 +8,10 @@ import { CadDialogShell } from "./CadDialogShell";
 /**
  * VERSIONES Y SNAPSHOTS LOCALES, FUERA DEL MONOLITO.
  *
- * Ciento cuarenta y nueve líneas que pintaban dos listas —las versiones que
- * viven en el servidor y los puntos de restauración que no salen del
- * navegador— y disparaban ocho acciones del editor. Ninguna decisión, ningún
- * cálculo: presentación pura con un contrato explícito.
+ * Dos listas —el historial que vive en el servidor y los puntos de
+ * restauración que no salen del navegador— y las acciones del editor que las
+ * mueven. Ninguna decisión, ningún cálculo: presentación pura con un contrato
+ * explícito.
  *
  * ## Por qué las dos listas van juntas
  *
@@ -20,6 +20,13 @@ import { CadDialogShell } from "./CadDialogShell";
  * propia tarjeta («No salen del navegador»), pero separarlas en dos cuadros
  * obligaría a saber de antemano cuál de los dos mecanismos usó uno hace veinte
  * minutos.
+ *
+ * ## El historial del servidor no se nombra ni se borra (T-12·1)
+ *
+ * Es el historial CAS del documento: una versión por cada guardado, inmutable.
+ * Por eso aquí no hay «Guardar versión» ni papelera: guardar ya crea la
+ * versión, y «Restaurar» guarda la antigua como versión NUEVA. Las versiones
+ * con nombre y la comparación entre ellas viven en la paleta de colaboración.
  */
 
 /** Un punto de restauración local, tal como lo pinta la lista. */
@@ -30,13 +37,12 @@ export interface CadLocalSnapshotView {
   reason: string;
 }
 
-/** Una versión guardada en el servidor. */
-export interface CadVersionView {
-  id: string;
-  name?: string | null;
-  createdAt: string | number;
-  stationCount: number;
-  assetCount: number;
+/** Una versión del historial CAS del servidor, tal como la pinta la lista. */
+export interface CadServerVersion {
+  version: number;
+  createdAt: string;
+  createdBy: string | null;
+  sha256: string | null;
 }
 
 /** El resultado de comparar contra un snapshot. */
@@ -52,7 +58,6 @@ export function CadVersionsDialog({
   revision,
   versName,
   onVersNameChange,
-  onSaveVersion,
   guardadoBloqueado,
   ocupado,
   onSaveLocalSnapshot,
@@ -61,17 +66,16 @@ export function CadVersionsDialog({
   onCompareSnapshot,
   onRestoreSnapshot,
   onDeleteSnapshot,
+  servidorConocido,
   versions,
   onRestoreVersion,
-  onDeleteVersion,
 }: {
   onClose: () => void;
   model: string;
   revision: string;
   versName: string;
   onVersNameChange: (valor: string) => void;
-  onSaveVersion: () => void;
-  /** El documento está en sólo lectura: guardar versión se deshabilita. */
+  /** El documento está en sólo lectura: restaurar se deshabilita. */
   guardadoBloqueado: boolean;
   ocupado: boolean;
   onSaveLocalSnapshot: () => void;
@@ -80,9 +84,10 @@ export function CadVersionsDialog({
   onCompareSnapshot: (id: string) => void;
   onRestoreSnapshot: (id: string) => void;
   onDeleteSnapshot: (id: string) => void;
-  versions: readonly CadVersionView[];
-  onRestoreVersion: (id: string) => void;
-  onDeleteVersion: (id: string) => void;
+  /** El dibujo tiene identidad en el servidor (sin ella no hay historial que leer). */
+  servidorConocido: boolean;
+  versions: readonly CadServerVersion[];
+  onRestoreVersion: (version: number) => void;
 }) {
   const region = getClientRegion();
   return (
@@ -99,16 +104,9 @@ export function CadVersionsDialog({
           <input
             value={versName}
             onChange={(e) => onVersNameChange(e.target.value)}
-            placeholder="Nombre de la versión/snapshot (opcional)"
+            placeholder="Nombre del snapshot local (opcional)"
             className="flex-1 bg-muted/60 rounded-lg px-2.5 py-1.5 type-small outline-none focus:ring-1 ring-indigo-500/40"
           />
-          <button
-            onClick={onSaveVersion}
-            disabled={guardadoBloqueado || ocupado}
-            className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-brand-strong text-primary-foreground type-caption font-medium disabled:opacity-50"
-          >
-            Guardar versión
-          </button>
           <button
             onClick={onSaveLocalSnapshot}
             className="px-3 py-1.5 rounded-lg bg-muted/60 hover:bg-muted text-foreground type-caption font-medium"
@@ -180,43 +178,60 @@ export function CadVersionsDialog({
             </div>
           )}
         </div>
-        {versions.length === 0 ? (
-          <p className="type-caption text-muted-foreground text-center py-4">
-            Aún no hay versiones guardadas.
-          </p>
-        ) : (
-          <div className="space-y-1.5">
-            {versions.map((v) => (
-              <div
-                key={v.id}
-                className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="type-small font-medium truncate">
-                    {v.name || "Sin nombre"}
-                  </div>
-                  <div className="type-micro text-muted-foreground dark:text-muted-foreground">
-                    {formatRegionDateTime(new Date(v.createdAt), region)} ·{" "}
-                    {v.stationCount} est · {v.assetCount} eq
-                  </div>
-                </div>
-                <button
-                  onClick={() => onRestoreVersion(v.id)}
-                  disabled={ocupado}
-                  className="px-2 py-1 rounded-md bg-muted/60 hover:bg-muted type-caption disabled:opacity-50"
-                >
-                  Restaurar
-                </button>
-                <button
-                  onClick={() => onDeleteVersion(v.id)}
-                  className="p-1 rounded-md text-danger-ink hover:bg-rose-500/20"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
+        <div
+          className="rounded-xl border border-border bg-muted/20 p-3"
+          data-testid="cad-versiones-servidor"
+        >
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="type-micro font-semibold uppercase tracking-wide text-foreground">
+              Historial del servidor
+            </div>
+            <span className="type-micro text-muted-foreground">
+              {versions.length} guardado{versions.length === 1 ? "" : "s"}
+            </span>
           </div>
-        )}
+          <p className="mb-2 type-micro text-muted-foreground">
+            Una versión por cada guardado. Restaurar guarda esa versión como
+            la más nueva: nada se borra.
+          </p>
+          {!servidorConocido ? (
+            <p className="type-caption text-muted-foreground text-center py-3">
+              Este dibujo aún no tiene identidad en el servidor.
+            </p>
+          ) : versions.length === 0 ? (
+            <p className="type-caption text-muted-foreground text-center py-3">
+              El servidor todavía no guardó ninguna versión de este dibujo.
+            </p>
+          ) : (
+            <div className="space-y-1.5">
+              {versions.map((v) => (
+                <div
+                  key={v.version}
+                  data-testid={`cad-version-row-${v.version}`}
+                  className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="type-small font-medium truncate">
+                      Versión {v.version}
+                    </div>
+                    <div className="type-micro text-muted-foreground dark:text-muted-foreground">
+                      {formatRegionDateTime(new Date(v.createdAt), region)}
+                      {v.createdBy ? ` · ${v.createdBy}` : ""}
+                    </div>
+                  </div>
+                  <button
+                    data-testid={`cad-version-restore-${v.version}`}
+                    onClick={() => onRestoreVersion(v.version)}
+                    disabled={ocupado || guardadoBloqueado}
+                    className="px-2 py-1 rounded-md bg-muted/60 hover:bg-muted type-caption disabled:opacity-50"
+                  >
+                    Restaurar
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </CadDialogShell>
   );

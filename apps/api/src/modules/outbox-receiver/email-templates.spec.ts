@@ -112,10 +112,168 @@ describe('renderEmailTemplate', () => {
     }
   });
 
+  it('renderiza identity.new-sign-in — es un aviso de SEGURIDAD', () => {
+    // Shape de identity.service.ts:543 (recordSignIn).
+    const rendered = renderEmailTemplate(
+      'identity.new-sign-in',
+      {
+        method: 'totp',
+        at: '2026-09-05T12:00:00.000Z',
+        userAgent: 'Mozilla/5.0 (X11; Linux x86_64)',
+      },
+      base,
+    );
+    expect(rendered.subject).toContain('dispositivo nuevo');
+    expect(rendered.text).toContain('código de tu aplicación de autenticación');
+    expect(rendered.text).toContain('Mozilla/5.0');
+    expect(rendered.text).toContain(`${base}/cuenta`);
+    expect(rendered.text).toContain('cambia tu contraseña');
+  });
+
+  it('identity.new-sign-in acepta userAgent nulo y rechaza method desconocido', () => {
+    const rendered = renderEmailTemplate(
+      'identity.new-sign-in',
+      { method: 'password', at: '2026-09-05T12:00:00.000Z', userAgent: null },
+      base,
+    );
+    expect(rendered.text).toContain('No pudimos identificar el dispositivo');
+
+    expect.assertions(3);
+    try {
+      renderEmailTemplate(
+        'identity.new-sign-in',
+        { method: 'huella', at: '2026-09-05T12:00:00.000Z' },
+        base,
+      );
+    } catch (error) {
+      expect(error).toBeInstanceOf(EmailTemplateError);
+      expect((error as EmailTemplateError).code).toBe('invalid_payload');
+    }
+  });
+
+  it('renderiza commercial.trial-expiry sin amenazar y sin enseñar el planCode', () => {
+    // Shape de trial-expiry-reminder.service.ts:147.
+    const rendered = renderEmailTemplate(
+      'commercial.trial-expiry',
+      {
+        organizationName: 'Despacho Río',
+        planCode: 'individual',
+        trialEndsAt: '2026-09-12T18:00:00.000Z',
+        daysLeft: 1,
+        readOnlyAfterExpiry: true,
+      },
+      base,
+    );
+    expect(rendered.subject).toContain('mañana');
+    expect(rendered.text).toContain('Despacho Río');
+    expect(rendered.text).toContain('tus planos siguen siendo tuyos');
+    expect(rendered.text).toContain(`${base}/cuenta/facturacion`);
+    expect(rendered.text).not.toContain('individual');
+  });
+
+  it('rechaza commercial.trial-expiry con daysLeft fuera de {7,1}', () => {
+    expect.assertions(2);
+    try {
+      renderEmailTemplate(
+        'commercial.trial-expiry',
+        {
+          organizationName: 'Despacho Río',
+          trialEndsAt: '2026-09-12T18:00:00.000Z',
+          daysLeft: 3,
+          readOnlyAfterExpiry: true,
+        },
+        base,
+      );
+    } catch (error) {
+      expect(error).toBeInstanceOf(EmailTemplateError);
+      expect((error as EmailTemplateError).code).toBe('invalid_payload');
+    }
+  });
+
+  it('renderiza product.feedback — correo INTERNO, con contexto técnico', () => {
+    // Shape de feedback.service.ts:111.
+    const rendered = renderEmailTemplate(
+      'product.feedback',
+      {
+        id: 'fb_1',
+        kind: 'falla',
+        message: 'El PLOT recorta mal la ventana gráfica',
+        from: 'arq@example.test',
+        organizationId: 'org_1',
+        context: { ruta: '/studio/doc1', navegador: 'Chrome' },
+      },
+      base,
+    );
+    expect(rendered.subject).toContain('falla');
+    expect(rendered.text).toContain('arq@example.test');
+    expect(rendered.text).toContain('recorta mal la ventana gráfica');
+    expect(rendered.text).toContain('ruta: /studio/doc1');
+  });
+
+  it('renderiza product.feedback sin organización ni contexto', () => {
+    const rendered = renderEmailTemplate(
+      'product.feedback',
+      {
+        id: 'fb_2',
+        kind: 'duda',
+        message: '¿Cómo exporto a PDF?',
+        from: 'arq@example.test',
+        organizationId: null,
+        context: null,
+      },
+      base,
+    );
+    expect(rendered.text).toContain('sin organización');
+  });
+
+  it('renderiza support.incident con documento SÓLO si fue autorizado', () => {
+    // Shape de support-incident.payload.ts.
+    const autorizado = renderEmailTemplate(
+      'support.incident',
+      {
+        summary: 'El editor se congeló al abrir un DXF grande',
+        appVersion: '2026.09.1',
+        userAgent: 'Mozilla/5.0',
+        activeCommand: 'DXFIN',
+        documentId: 'doc_123',
+        documentAuthorized: true,
+        reportedBy: 'user_1',
+        organizationId: 'org_1',
+        reportedAt: '2026-09-05T12:00:00.000Z',
+        alcance: 'La persona autorizo EXPRESAMENTE revisar su documento.',
+      },
+      base,
+    );
+    expect(autorizado.text).toContain('doc_123');
+    expect(autorizado.text).toContain('DXFIN');
+
+    const sinAutorizar = renderEmailTemplate(
+      'support.incident',
+      {
+        summary: 'No encuentro el comando LINE',
+        appVersion: '2026.09.1',
+        userAgent: 'Mozilla/5.0',
+        activeCommand: null,
+        documentId: null,
+        documentAuthorized: false,
+        reportedBy: 'user_2',
+        organizationId: null,
+        reportedAt: '2026-09-05T12:00:00.000Z',
+        alcance: 'Reporte sin acceso al plano.',
+      },
+      base,
+    );
+    expect(sinAutorizar.text).toContain('no autorizado o no aplica');
+    expect(sinAutorizar.text).not.toContain('doc_123');
+  });
+
   it('rechaza una plantilla desconocida con error tipado', () => {
     expect.assertions(2);
     try {
-      renderEmailTemplate('marketing.navidad', {}, base);
+      // Nombre que sigue la convención real (namespace.kebab-case) pero NO
+      // existe en el árbol: ver la nota de coherencia en
+      // email-template-coverage.spec.ts.
+      renderEmailTemplate('marketing.newsletter-mensual', {}, base);
     } catch (error) {
       expect(error).toBeInstanceOf(EmailTemplateError);
       expect((error as EmailTemplateError).code).toBe('unknown_template');

@@ -93,7 +93,6 @@ import { CanonicalHistory } from "@/components/cad/document-lifecycle/history-co
 import {
   ASSET_CATEGORIES,
   assetMeta,
-  type AssetArchetype,
 } from "@/components/cad/viewport/asset-catalog";
 import { parseDxf, type DxfModel } from "@/components/cad/interop/dxf";
 import {
@@ -143,7 +142,7 @@ import {
   type CheckBox,
   type DesignReport,
 } from "@/lib/cad/design-checks";
-import { parseCoordinate, constrainPoint } from "@/lib/cad/precision-input";
+import { constrainPoint } from "@/lib/cad/precision-input";
 import {
   startCommand,
   feedPoint,
@@ -178,10 +177,9 @@ import { cadEntityCarriesPdfUnderlay } from "@/lib/cad/pdf/underlay-key";
 import { cadPdfSnapIfLoaded, loadCadPdfSnap } from "@/lib/cad/pdf/lazy";
 import type { CadPdfSnapGeometryResult } from "@/lib/cad/pdf/pdf-snap-geometry";
 import { detectCadFormat } from "@/components/cad/interop/cad-format-detect";
-import type { PlotLayout } from "@/components/cad/plot/plot-scale";
 import { createHistoryItem as createCadHistoryItem } from "@/lib/cad/commands/history";
-import { cadNlCommandsIfLoaded, loadCadNlCommands } from "@/lib/cad/commands/lazy";
-import type { CadCommandHistoryItem, CadCommandInput, CadOperation } from "@/lib/cad/commands/types";
+import { loadCadNlCommands } from "@/lib/cad/commands/lazy";
+import type { CadCommandHistoryItem, CadCommandInput } from "@/lib/cad/commands/types";
 import {
   measureBoxes,
   measurementLabel,
@@ -243,7 +241,6 @@ import {
 } from "@/lib/cad/cad-conflict-incident";
 import {
   cadCommandHistoryStorageKey,
-  navigateCadCommandHistory,
   prependCadCommandHistory,
   readCadCommandHistory,
   repeatableCadCommand,
@@ -284,11 +281,6 @@ import {
 import { cadSelectionPathMatchesPolygon } from "@/lib/cad/selection-shapes";
 import { planCadSelectionProjection } from "@/lib/cad/selection-projection-budget";
 import { buildCadSelectionUniverse } from "@/components/cad/editor/selection-universe";
-import {
-  hideCadGlbOverlays,
-  planCadGlbExport,
-  serializeCadGlbBlob,
-} from "@/lib/cad/glb-export";
 import { assertCadCommandsNotOnLockedLayers } from "@/lib/cad/entity-command-locks";
 import {
   acquireCadTrackingPoint,
@@ -305,13 +297,6 @@ import {
   stitchCadBoundaryPaths,
 } from "@/lib/cad/hatch-associativity";
 import { cadViewportBoundsChanged } from "@/lib/cad/native-viewport";
-import { exportCadLayoutDxf } from "@/lib/cad/layout-export-adapter";
-import {
-  evaluateCadDxfExportReadiness,
-  type CadDxfExportLayerSummary,
-  type CadDxfExportReadinessEntity,
-  type CadDxfExportReadinessIssue,
-} from "@/lib/cad/dxf-export-readiness";
 import {
   importDxfPrimitives,
   summarizeDxfImportWarnings,
@@ -327,6 +312,7 @@ import {
 } from "@/lib/cad/symbols";
 import { tessellateDxfPrimitive } from "@/lib/cad/curve-tessellate";
 import { DWG_UNAVAILABLE_REASON } from "@/lib/cad/interop-provider";
+import { admitStudioBackdropFile } from "@/lib/cad/document-import-door";
 import { mapDxfLayerToCadLayer } from "@/lib/cad/dxf-layer-map";
 import {
   solveCadConstraints,
@@ -357,14 +343,7 @@ import type {
   CadSafetyZone,
   CadSafetyZoneKind,
 } from "@/lib/cad/safety-zones";
-import {
-  createCadSnapshot,
-  diffCadSnapshots,
-  pushCadSnapshot,
-  restoreCadSnapshot,
-  type CadSnapshotDiff,
-  type CadSnapshotHistory,
-} from "@/lib/cad/snapshots";
+import { createCadSnapshot, pushCadSnapshot } from "@/lib/cad/snapshots";
 import {
   cadDocumentToEditorSnapshot,
   editorSnapshotToCadDocument,
@@ -380,7 +359,6 @@ import {
   type CadEntity,
   type CadExternalReference,
   type CadLayerDef,
-  type CadLossManifestEntry,
   type CadPaperSpace,
   type CadPublicationRecord,
 } from "@/lib/cad/cad-document";
@@ -422,7 +400,6 @@ import {
 } from "@/lib/cad/cad-layout-manager";
 import {
   analyzeCadXrefGraph,
-  attachCadXref,
   bindCadXref,
   compareCadXrefVersion,
   detachCadXref,
@@ -455,6 +432,16 @@ import {
 } from "../dialogs/CadTakeoffDialog";
 import { CadVersionsDialog } from "../dialogs/CadVersionsDialog";
 import { CadDxfExportDialog } from "../dialogs/CadDxfExportDialog";
+import {
+  useCadExport,
+  useCadExportActions,
+  useCadExportHost,
+} from "./export-host";
+import {
+  useCadVersions,
+  useCadVersionsActions,
+  useCadVersionsHost,
+} from "./versions-host";
 import { CadDesignReportDialog } from "../dialogs/CadDesignReportDialog";
 import { fmtArea, fmtDist } from "../studio/format-units";
 import { guardCadWebglContext } from "../viewport/webgl-context-guard";
@@ -475,7 +462,8 @@ import {
   propagateCadConstraintsByDiff,
 } from "@/lib/cad/constraint-propagation";
 import { CadViewController } from "@/lib/cad/view/view-controller";
-import { cadDrawingPoint, cadDrawingPointOrNull, cadPointerWorldFromRay } from "@/lib/cad/view/pointer-work-plane";
+import {
+  cadDistanceToUcsPlane, cadDrawingPoint, cadDrawingPointOrNull, cadPointerWorldFromRay } from "@/lib/cad/view/pointer-work-plane";
 import {
   snapshotCadCamera,
   type CadCameraSnapshot,
@@ -567,14 +555,6 @@ import {
   type CadRenderPipelineChoice,
 } from "@/lib/cad/render-pipeline-preference";
 import {
-  cadDocumentNativeDxfHatches,
-  cadDocumentDxfBlocks,
-  cadDocumentDxfInserts,
-  cadDocumentNativeDxfMTexts,
-  cadDocumentNativeDxfMleaders,
-  cadDocumentDxfExportLosses,
-  cadDocumentNativeDxfPrimitives,
-  cadDocumentNativeDxfSemanticDimensions,
   cadDxfCurvesToNativeEntities,
   cadDxfBlocksToCadDocumentParts,
   cadDxfHatchesToNativeEntities,
@@ -651,7 +631,6 @@ import {
 } from "@/components/cad/palettes/CadEditorLayerToggles";
 import {
   filterCadLayerRows,
-  type CadLayerFilterProperty,
   type CadLayerManagerRow,
 } from "@/components/cad/palettes/layer-manager-model";
 import { cadEntityAssociationAnchor } from "@/lib/cad/associative-dimension";
@@ -925,25 +904,6 @@ function sameStringMap(
 
 /** El preview del copiloto; la forma vive con las acciones de la paleta. */
 type CommandPreviewState = CadPalettePreviewState;
-interface DxfExportOptions {
-  scope: "all" | "selection";
-  includeHidden: boolean;
-  includeMeasurements: boolean;
-  includeLabels: boolean;
-  units: "mm" | "m";
-  fileName: string;
-}
-interface DxfExportSummary {
-  objects: number;
-  connectors: number;
-  measurements: number;
-  labels: number;
-  layers: number;
-  canExport: boolean;
-  includedLayers: string[];
-  layerSummary: CadDxfExportLayerSummary[];
-  issues: CadDxfExportReadinessIssue[];
-}
 interface MeasurementRow {
   id: string;
   label: string;
@@ -1026,29 +986,6 @@ const CAD_DRAW_TOOLS = new Set<EditorTool>([
 ]);
 const isCadDrawTool = (tool: EditorTool): tool is CadDrawCommandId =>
   CAD_DRAW_TOOLS.has(tool);
-
-const DXF_LABEL_REQUIRED_ASSET_KINDS = new Set([
-  "workbench",
-  "rack",
-  "robot",
-  "oven",
-  "printer",
-  "machine",
-  "gantry",
-  "cabinet",
-  "pallet",
-  "desk",
-  "bin",
-  "safety",
-  "wall",
-  "column",
-  "door",
-  "room",
-  "fence",
-  "agv",
-  "agvpath",
-  "zone",
-]);
 
 /** An amber "sticky note" sprite for a free-text annotation on the plan. */
 /** Build a positioned, rotated, pickable asset group (base at floor). */
@@ -1355,7 +1292,18 @@ export default function Layout3DEditor({
   const [dxfWarnings, setDxfWarnings] = useState<CadDxfImportWarning[]>([]);
   const [dxfImportPreview, setDxfImportPreview] =
     useState<CadDxfImportResult | null>(null);
-  const [showDxfExport, setShowDxfExport] = useState(false);
+  // EXPORTACIÓN: estado en su anfitrión (export-host.ts, F1 paso 1) y
+  // desestructurado con los nombres de siempre; las acciones, más abajo.
+  const exportHost = useCadExportHost();
+  const exportState = useCadExport(exportHost);
+  const {
+    showDxfExport,
+    dxfExportOptions,
+    dxfExportSummary,
+    dxfPreflight,
+    dxfPreflightAccepted,
+  } = exportState;
+  const { setShowDxfExport, setDxfPreflightAccepted } = exportHost;
   // ESPACIOS-PAPEL: estado en su anfitrión (paper-spaces-host.ts, P1-FE2a) y
   // desestructurado con los nombres de siempre; acciones: DEUDA-MONOLITO.md.
   const paperSpacesHost = useCadPaperSpacesHost();
@@ -1433,47 +1381,6 @@ export default function Layout3DEditor({
   const [publicationWarnings, setPublicationWarnings] = useState<
     CadPublishWarning[]
   >([]);
-  const [dxfExportOptions, setDxfExportOptions] = useState<DxfExportOptions>({
-    scope: "all",
-    includeHidden: true,
-    includeMeasurements: true,
-    includeLabels: true,
-    units: "mm",
-    fileName: "",
-  });
-  const [dxfExportSummary, setDxfExportSummary] = useState<DxfExportSummary>({
-    objects: 0,
-    connectors: 0,
-    measurements: 0,
-    labels: 0,
-    layers: 0,
-    canExport: false,
-    includedLayers: [],
-    layerSummary: [],
-    issues: [],
-  });
-  /**
-   * PREFLIGHT de pérdidas del DXF.
-   *
-   * El flujo era: generar Blob → `a.click()` → cerrar el modal → decir "listo"
-   * → y SÓLO entonces calcular qué se había perdido. El usuario recibía el
-   * fichero y el mensaje de éxito antes de saber que había geometría dentro
-   * que el DXF no representa, y con el modal ya cerrado no quedaba superficie
-   * donde leer el detalle.
-   *
-   * Ahora las pérdidas se calculan ANTES de existir el Blob, con exactamente
-   * el mismo alcance, selección, capas y opciones con los que se exportaría.
-   * `token` describe esa entrada: si cambia el documento, la selección, el
-   * alcance o las opciones, la aceptación anterior deja de ser válida.
-   */
-  const [dxfPreflight, setDxfPreflight] = useState<{
-    token: string;
-    losses: CadLossManifestEntry[];
-    blocking: boolean;
-  } | null>(null);
-  const [dxfPreflightAccepted, setDxfPreflightAccepted] = useState<
-    string | null
-  >(null);
   const [sheetPackageDraft, setSheetPackageDraft] =
     useState<CadSheetPackageDraft>({
       project: branding.productLabel,
@@ -1488,24 +1395,19 @@ export default function Layout3DEditor({
       notes: "",
     });
   const dxfInputRef = useRef<HTMLInputElement | null>(null);
-  const [showVersions, setShowVersions] = useState(false); // versions/scenarios modal (unify)
-  const [localSnapshots, setLocalSnapshots] = useState<
-    CadSnapshotHistory<Snapshot>
-  >({ snapshots: [] });
-  const [snapshotDiff, setSnapshotDiff] = useState<CadSnapshotDiff | null>(
-    null,
-  );
-  const [versions, setVersions] = useState<
-    {
-      id: string;
-      name: string;
-      createdAt: string;
-      stationCount: number;
-      assetCount: number;
-    }[]
-  >([]);
-  const [versName, setVersName] = useState("");
-  const [versBusy, setVersBusy] = useState(false);
+  // VERSIONES: estado en su anfitrión (versions-host.ts); las acciones, más abajo.
+  const versionsHost = useCadVersionsHost<Snapshot>();
+  const versionsState = useCadVersions(versionsHost);
+  const {
+    showVersions,
+    localSnapshots,
+    snapshotDiff,
+    versions,
+    versName,
+    versBusy,
+  } = versionsState;
+  const { setShowVersions, setLocalSnapshots, setSnapshotDiff, setVersName } =
+    versionsHost;
   const [reloadTick, setReloadTick] = useState(0); // bump to re-run the load effect (after restore)
   const [cellsView, setCellsView] = useState<Cell[]>([]);
   const [showCells, setShowCells] = useState(false); // cells/zones panel
@@ -1523,7 +1425,6 @@ export default function Layout3DEditor({
   const [commandPreview, setCommandPreview] =
     useState<CommandPreviewState | null>(null);
   const [commandLog, setCommandLog] = useState<CadCommandHistoryItem[]>([]);
-  const [commandHistoryCursor, setCommandHistoryCursor] = useState(-1);
   const [commandHistoryHydratedKey, setCommandHistoryHydratedKey] = useState<
     string | null
   >(null);
@@ -1764,7 +1665,6 @@ export default function Layout3DEditor({
     queueMicrotask(() => {
       if (!active) return;
       setCommandHistoryHydratedKey(open ? commandHistoryStorageKey : null);
-      setCommandHistoryCursor(-1);
       setCommandLog(restoredHistory);
     });
     return () => {
@@ -2049,7 +1949,6 @@ export default function Layout3DEditor({
     [draftSettingsHost],
   );
   const lastWallAngleRef = useRef<number | null>(null); // ángulo del último tramo → entrada directa de distancia
-  const [precisionText, setPrecisionText] = useState("");
   const [drawPrompt, setDrawPrompt] = useState<string | null>(null);
   const [canCloseDraftPolyline, setCanCloseDraftPolyline] = useState(false);
   const drawCommandRef = useRef<CadDrawCommandState | null>(null);
@@ -3717,7 +3616,7 @@ export default function Layout3DEditor({
       setLocalSnapshots((history) => pushCadSnapshot(history, snap, 20));
       return snap.id;
     },
-    [snapshot],
+    [snapshot, setLocalSnapshots],
   );
   const snapshotDocument = useCallback(
     (value: Snapshot = snapshot()) => {
@@ -4900,6 +4799,7 @@ export default function Layout3DEditor({
       redo,
       osnapOverrideRef: engineOsnapOverrideRef,
       solidShadeHost: solidShadeHostRef,
+      nativeMassHosts: nativeMassHostsRef,
       setLinetypeScale: setDocumentLinetypeScale,
       startedByPointer: () => !!enginePointerRouterRef.current?.startedByPointer,
       commit: (commands, created) => commitNativeCommands(commands, created ? [...created] : undefined),
@@ -6444,19 +6344,12 @@ export default function Layout3DEditor({
         );
         return point ? { wx: point.x, wy: point.y } : null;
       }
-      // En 3D se conserva el rayo original tal cual: los goldens corren en 3D y
-      // el NDC debe salir del rectángulo real del lienzo, no de un tamaño
-      // cacheado que puede ir un frame por detrás.
+      // En 3D, el rayo original: el NDC sale del rectángulo real del lienzo.
       raycaster.setFromCamera(ptr, activeCamera());
       const w = commandEngineRef.current?.workPlane ?? null;
       return cadPointerWorldFromRay(raycaster.ray, ctxRef.current!, w);
     };
-    /**
-     * OSNAP de escena completa (Fase 66 cableada, ADR §216): esquinas, puntos
-     * medios y centros de estaciones/assets + los puntos del DXF como nodos.
-     * Solo los ~48 objetos más cercanos alimentan el motor (plantas grandes no
-     * degradan el pointermove). Sin candidato dentro de tolerancia → grid-snap.
-     */
+    /** OSNAP de escena (Fase 66, ADR §216): ~48 objetos cercanos; sin candidato → rejilla. */
     const pointerWorldTolerance = (pixels: number) =>
       cadPointerWorldTolerance(pixels, ctxRef.current!, (px, lo, hi) =>
         viewController.toleranceWorld(px, lo, hi),
@@ -6483,27 +6376,31 @@ export default function Layout3DEditor({
       tracking?: "object" | "polar" | "ortho";
       trackingAngle?: number;
     } => {
-      const ctx = ctxRef.current!;
       const tol = pointerWorldTolerance(
         workspacePreferencesRef.current.aperturePx,
       );
       if (draftSettingsHost.osnap) {
-        // Enganche 3D primero: en perspectiva la arista de un sólido se ve
-        // donde la pinta la cámara, no sobre su sombra en el suelo.
+        // Enganche 3D primero: la arista se ve donde la pinta la cámara, no en su sombra.
         const solid = solidShadeHostRef.current?.snapAtDrawingPoint(wx, wy, {
           aperturePx: workspacePreferencesRef.current.aperturePx,
           modes: draftSettingsHost.snapModes(),
-        });
-        if (solid) return solid;
+        }, wz);
+        if (solid) {
+          // T-52: bajo un SCU inclinado sólo engancha lo que está EN el plano; el
+          // índice no sabe qué tapa el sólido y la cara de atrás también se proyecta.
+          const plano = wz === undefined ? null : (commandEngineRef.current?.workPlane ?? null);
+          if (!plano || Math.abs(cadDistanceToUcsPlane({ x: solid.wx, y: solid.wy, z: solid.wz }, plano)) <= tol)
+            return solid;
+        }
+        // T-52: con cota (SCU inclinado) los candidatos 2D son SOMBRAS en el suelo.
+        if (wz !== undefined) return { wx: snapWorld(wx), wy: snapWorld(wy), wz, onDxf: false };
         const scene = cadSnapSceneFromBoxes(
           [...placementsRef.current.values(), ...assetsRef.current.values()],
           { x: wx, y: wy },
           dxfSnapRef.current,
         );
-        // El ancla del rastreo: el último punto confirmado. Con el puntero ya
-        // enrutado, ese punto lo tiene el motor —no `drawCommandRef`—, así que
-        // se pregunta primero por ahí. Sin esto, el rastreo polar y de objeto
-        // se apagarían justo en los comandos que sí pasan por el motor.
+        // El ancla del rastreo es el último punto confirmado, que con el puntero
+        // enrutado tiene el motor (no `drawCommandRef`): se pregunta primero ahí.
         const anchor =
           enginePointerRouterRef.current?.anchor ??
           drawCommandRef.current?.points.at(-1) ??
@@ -6526,10 +6423,8 @@ export default function Layout3DEditor({
           nativeCandidates,
           anchor ?? { x: wx, y: wy },
         );
-        // El sustrato de PDF: se calca encima, así que sus esquinas y sus
-        // puntos medios tienen que imantar igual que los de una polilínea del
-        // documento. Un sustrato descargado no aporta nada y lo declara él
-        // mismo.
+        // El sustrato de PDF se calca encima: sus esquinas y puntos medios
+        // imantan como los de una polilínea; uno descargado no aporta nada.
         const documentoVivo = loadedCadDocumentRef.current;
         const memoriaPdf = pdfSnapGeometryRef.current;
         // PDFDETACH deja la entrada huérfana. Si el mapa tiene más entradas que
@@ -6600,6 +6495,7 @@ export default function Layout3DEditor({
           };
         }
       }
+      if (wz !== undefined) return { wx: snapWorld(wx), wy: snapWorld(wy), wz, onDxf: false };
       const anchor =
         enginePointerRouterRef.current?.anchor ??
         drawCommandRef.current?.points.at(-1) ??
@@ -6693,15 +6589,24 @@ export default function Layout3DEditor({
       preview: enginePreview,
       cursor: engineLiveCursor,
       worldPoint: (event) => cadDrawingPointOrNull(floorWorld(event as PointerEvent)),
-      // La captura la resuelve `snapFloor`, con los catorce modos ya
-      // implementados. El motor no sabe de snaps: los pide por paso y aquí se
-      // le devuelve el punto ya capturado junto con el modo que ganó.
+      // La captura la resuelve `snapFloor` (catorce modos); vuelve con el modo que ganó.
       snap: (point, override) => {
         const r = snapFloor(point.x, point.y, true, (point as { z?: number }).z);
         const p = { ...cadDrawingPoint(r.wx, r.wy, r.wz), snap: r.snapType };
         return cadHonorSnapOverride(p, point, override);
       },
       hitEntity: (point) => hitCanonical(point, 1)[0]?.id ?? null,
+      // T-52 (racimo B): en 3D se designa por el rayo de cámara, no por la sombra.
+      hitEntityAt: (event) => {
+        if (viewController.mode !== "3d") return null;
+        setPtr(event as PointerEvent);
+        raycaster.setFromCamera(ptr, activeCamera());
+        for (const h of raycaster.intersectObjects(nativeGroup.children.filter((c) => c.userData.nativeOverview !== true), true)) {
+          const id = resolveNativeEntityId(h.object);
+          if (id) return id;
+        }
+        return null;
+      },
       hitFace: cadFacePickerFor({
         mode: () => viewController.mode,
         document: () => loadedCadDocumentRef.current,
@@ -6717,8 +6622,7 @@ export default function Layout3DEditor({
       session: engineSessionRef,
     });
     enginePointerRouterRef.current = enginePointerRouter;
-    // ---- Grips nativos: arrastre + ciclo con Espacio + menú por pinzamiento.
-    // Mismo patrón que el enrutador: estado fuera de React, deps por closure.
+    // ---- Grips nativos (arrastre, ciclo, menú): estado fuera de React, deps por closure.
     const gripMenu = new CadGripMenuOverlay(mount, {
       choose: (kind) => nativeGripController.chooseMenuAction(kind),
       dismiss: () => nativeGripController.dismissMenu(),
@@ -6758,6 +6662,7 @@ export default function Layout3DEditor({
       },
       notify: (message) => toast.error(message, "Grips"),
       menu: gripMenu,
+      commandActive: () => (commandEngineRef.current?.accepts ?? 0) !== 0, // T-20
     });
     nativeGripControllerRef.current = nativeGripController;
     const onContextMenu = (event: MouseEvent) => {
@@ -6791,10 +6696,8 @@ export default function Layout3DEditor({
       if (drawingReadOnlyRef.current && toolRef.current !== "select") return;
       if (toolRef.current !== "select") return; // measure/wall resolve on click (pointerup); drag still orbits
       if (nativeGripController.handlePointerDown(e)) return;
-      // El botón central ENCUADRA (camera-policy.ts) y no designa nada: se
-      // corta antes de los hit-tests, que corren para cualquier botón, y con
-      // preventDefault para que Windows no arranque el autoscroll. El grip
-      // pendiente va antes a propósito: un arrastre ya empezado es suyo.
+      // El botón central ENCUADRA (camera-policy.ts): se corta antes de los
+      // hit-tests, con preventDefault (autoscroll de Windows). El grip va antes.
       if (cadPointerDownBeforeHit(e).kind === "camera") {
         e.preventDefault();
         return;
@@ -7394,15 +7297,12 @@ export default function Layout3DEditor({
           );
         return;
       }
-      // Con RATÓN, clic es «no se movió»: 5 px, tolerancia de aparato apoyado.
-      // Con DEDO manda el reconocedor táctil, porque deslizar es APUNTAR —sin
-      // hover no hay otra forma de ver dónde va a caer el punto— y esos 5 px
-      // anulaban justo el punto que el gesto acababa de señalar.
+      // Con RATÓN, clic es «no se movió» (5 px). Con DEDO manda el reconocedor
+      // táctil: deslizar es APUNTAR, y esos 5 px anulaban el punto señalado.
       const isClick = touchRelease
         ? touchRelease.commits
         : Math.hypot(e.clientX - downX, e.clientY - downY) < 5;
-      // Sólo el CLIC: arrastrar sigue orbitando la cámara aunque haya un
-      // comando abierto, que es como se encuadra mientras se dibuja.
+      // Sólo el CLIC: arrastrar sigue orbitando aunque haya un comando abierto.
       if (isClick && enginePointerRouter.click(e)) {
         try {
           renderer.domElement.releasePointerCapture(e.pointerId);
@@ -8238,66 +8138,6 @@ export default function Layout3DEditor({
     }
     wallChainRef.current = { wx: nx, wy: ny };
   };
-  const submitPrecisionPoint = () => {
-    const raw = precisionText.trim();
-    if (!raw) {
-      if (enginePointerRouterRef.current?.active || drawCommandRef.current)
-        commitActiveDraftCommand();
-      return;
-    }
-    // Con el motor abierto, la línea de precisión entrega el texto TAL CUAL al
-    // motor. No lo analiza aquí: el pipeline de entrada del motor ya resuelve
-    // coordenadas absolutas y relativas, polares, palabras clave, overrides de
-    // captura y entrada directa de distancia — y hacerlo dos veces con dos
-    // gramáticas distintas es exactamente cómo se acaba con dos productos.
-    if (enginePointerRouterRef.current?.active) {
-      commandEngineRef.current.submit(raw);
-      setPrecisionText("");
-      return;
-    }
-    if (drawCommandRef.current) {
-      const last = drawCommandRef.current.points.at(-1) ?? null;
-      const parsed = parseCoordinate(raw, {
-        last,
-        lockedAngleDeg: lastWallAngleRef.current,
-      });
-      if (!parsed.ok) {
-        const d = Number(raw.replace(",", "."));
-        if (Number.isFinite(d)) {
-          const next = feedDistance(drawCommandRef.current, d);
-          drawCommandRef.current = next.done ? null : next;
-          setCanCloseDraftPolyline(
-            !next.done && next.id === "polyline" && next.points.length >= 3,
-          );
-          applyDrawState(next);
-          if (next.done) {
-            setTool("select");
-            toolRef.current = "select";
-            setDrawPrompt(null);
-            setMeasureLive(null);
-          }
-          setPrecisionText("");
-          return;
-        }
-        toast.error(parsed.error, "Precisión");
-        return;
-      }
-      feedDraftPoint(parsed.point.x, parsed.point.y);
-      setPrecisionText("");
-      return;
-    }
-    const chain = wallChainRef.current;
-    const parsed = parseCoordinate(raw, {
-      last: chain ? { x: chain.wx, y: chain.wy } : null,
-      lockedAngleDeg: lastWallAngleRef.current,
-    });
-    if (!parsed.ok) {
-      toast.error(parsed.error, "Precisión");
-      return;
-    }
-    appendWallTo(parsed.point.x, parsed.point.y);
-    setPrecisionText("");
-  };
   const commitDynamicInput = (
     result: Extract<CadDynamicInputResult, { ok: true }>,
   ) => {
@@ -8312,7 +8152,6 @@ export default function Layout3DEditor({
         toolRef.current === "wall"
       )
         appendWallTo(result.point.x, result.point.y);
-      setPrecisionText("");
       return;
     }
     if (enginePointerRouterRef.current?.active) {
@@ -8321,7 +8160,6 @@ export default function Layout3DEditor({
       // distancia o entrada directa sobre la dirección del cursor; el editor no
       // tiene por qué saberlo.
       commandEngineRef.current.submit(String(result.scalar));
-      setPrecisionText("");
       return;
     }
     const active = drawCommandRef.current;
@@ -8338,7 +8176,6 @@ export default function Layout3DEditor({
       setTool("select");
       toolRef.current = "select";
     }
-    setPrecisionText("");
   };
   // Live quantity take-off from the current (possibly unsaved) editor state.
   //
@@ -10405,16 +10242,15 @@ export default function Layout3DEditor({
     if (!data) return;
     setDxfBusy(true);
     try {
-      const text = await file.text();
-      if (text.length > 12_000_000) {
-        toast.error("El DXF supera 12 MB.", "Plano DXF");
+      // T-16: la MISMA puerta que el tablero, por nombre y bytes, antes de leer nada.
+      const puerta = admitStudioBackdropFile(file);
+      if (!puerta.ok) {
+        toast.error(puerta.message, "Plano DXF");
         return;
       }
-      // Detección de formato (Fase 74 cableada, ADR §222): un DWG binario jamás
-      // pasará el parser de texto — mejor un mensaje accionable que "sin líneas".
+      const text = await file.text();
+      // Un DWG renombrado a .dxf cae aquí, por CONTENIDO (Fase 74, ADR §222).
       const fmt = detectCadFormat(text);
-      // DWG: la razón viene del contrato de interoperabilidad (D5, fuente única
-      // de verdad) — nunca se finge soporte sin proveedor licenciado.
       if (fmt.format === "dwg") {
         toast.error(DWG_UNAVAILABLE_REASON, "DXF");
         return;
@@ -10508,128 +10344,30 @@ export default function Layout3DEditor({
       setDxfBusy(false);
     }
   };
-  // ---- versions / scenarios (ported from 2D, unify) ----
-  const scopeQs = `model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`;
-  const loadVersions = async () => {
-    if (!model) return;
-    try {
-      const r = await legacyCadFetch(`layout/snapshots?${scopeQs}`);
-      if (r.ok) setVersions((await r.json()) as typeof versions);
-    } catch {
-      /* transient */
-    }
-  };
-  const openVersions = () => {
-    setShowVersions(true);
-    loadVersions();
-  };
-
-  const saveLocalSnapshot = (
-    reason: "manual" | "command" | "import" | "restore" = "manual",
-  ) => {
-    const label =
-      versName.trim() || `Local ${localSnapshots.snapshots.length + 1}`;
-    recordLocalSnapshot(label, reason);
-    setVersName("");
-    toast.success("Snapshot local guardado en esta sesión.", "Snapshots CAD");
-  };
-  const restoreLocalSnapshot = (id: string) => {
-    const restored = restoreCadSnapshot(localSnapshots, id);
-    if (!restored.layout) {
-      toast.error("No se encontró el snapshot local.", "Snapshots CAD");
-      return;
-    }
-    pushHistory();
-    restore(restored.layout);
-    setLocalSnapshots(restored.history);
-    setShowVersions(false);
-    toast.success("Snapshot local restaurado.", "Snapshots CAD");
-  };
-  const compareLocalSnapshot = (id: string) => {
-    const base = localSnapshots.snapshots.find((item) => item.id === id);
-    if (!base) {
-      toast.error("No se encontró el snapshot local.", "Snapshots CAD");
-      return;
-    }
-    const current = createCadSnapshot(
-      snapshot(),
-      "Actual",
-      "manual",
-      "current",
-    );
-    const diff = diffCadSnapshots(base, current);
-    setSnapshotDiff(diff);
-    toast.success(
-      diff.changed
-        ? "El layout cambió desde ese snapshot."
-        : "El layout coincide con ese snapshot.",
-      "Snapshots CAD",
-    );
-  };
-  const deleteLocalSnapshot = (id: string) => {
-    setLocalSnapshots((history) => ({
-      activeId: history.activeId === id ? undefined : history.activeId,
-      snapshots: history.snapshots.filter((item) => item.id !== id),
-    }));
-  };
-  const saveVersion = async () => {
-    if (!model || drawingReadOnly) return;
-    setVersBusy(true);
-    try {
-      const r = await legacyCadFetch("layout/snapshots", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model,
-          revision,
-          name: versName.trim() || undefined,
-        }),
-      });
-      if (!r.ok) {
-        toast.error("No se pudo guardar la versión.", "Versiones");
-        return;
-      }
-      setVersName("");
-      toast.success("Versión guardada.", "Versiones");
-      loadVersions();
-    } catch {
-      toast.error("Error de red.", "Versiones");
-    } finally {
-      setVersBusy(false);
-    }
-  };
-  const restoreVersion = async (id: string) => {
-    if (!model || drawingReadOnly) return;
-    setVersBusy(true);
-    try {
-      const r = await legacyCadFetch(
-        `layout/snapshots/${id}/restore?${scopeQs}`,
-        { method: "POST" },
-      );
-      if (!r.ok) {
-        toast.error("No se pudo restaurar la versión.", "Versiones");
-        return;
-      }
-      toast.success("Versión restaurada.", "Versiones");
-      setShowVersions(false);
-      setReloadTick((t) => t + 1); // re-run the load effect
-    } catch {
-      toast.error("Error de red.", "Versiones");
-    } finally {
-      setVersBusy(false);
-    }
-  };
-  const deleteVersion = async (id: string) => {
-    if (!model || drawingReadOnly) return;
-    try {
-      const r = await legacyCadFetch(`layout/snapshots/${id}?${scopeQs}`, {
-        method: "DELETE",
-      });
-      if (r.ok) setVersions((await r.json()) as typeof versions);
-    } catch {
-      /* transient */
-    }
-  };
+  // Versiones y snapshots locales: cuerpos en versions-host.ts (F1 paso 2);
+  // cierres recreados en cada render.
+  const {
+    openVersions,
+    saveLocalSnapshot,
+    restoreLocalSnapshot,
+    compareLocalSnapshot,
+    deleteLocalSnapshot,
+    restoreVersion,
+    servidorConocido,
+  } = useCadVersionsActions(versionsHost, {
+    model,
+    revision,
+    documentId,
+    refs: { documentId: currentDocumentIdRef, data: dataRef, dirty: dirtyRef },
+    drawingReadOnly,
+    versionsState,
+    setReloadTick,
+    snapshot,
+    restore,
+    pushHistory,
+    recordLocalSnapshot,
+    toast,
+  });
   // ---- clone from another model's layout as a template (ported from 2D, unify) ----
   const cloneFrom = async () => {
     if (!cloneSrc || !model || drawingReadOnly) return;
@@ -11382,23 +11120,7 @@ export default function Layout3DEditor({
       return false;
     }
     setCommandText(raw);
-    setCommandHistoryCursor(-1);
     return previewCommandText(raw);
-  };
-  const interpretCommand = () => {
-    setCommandHistoryCursor(-1);
-    if (!commandText.trim()) repeatLastCommand();
-    else previewCommandText(commandText);
-  };
-  const navigateCommandLineHistory = (direction: "older" | "newer") => {
-    const next = navigateCadCommandHistory(
-      commandLog,
-      commandHistoryCursor,
-      direction,
-    );
-    setCommandHistoryCursor(next.cursor);
-    setCommandText(next.value);
-    setCommandPreview(null);
   };
   const applyCommandSuggestion = (suggestion: CadCommandSuggestion) => {
     setCommandText(suggestion.example);
@@ -11408,480 +11130,6 @@ export default function Layout3DEditor({
       return;
     }
     previewCommandText(suggestion.example);
-  };
-  const applyCommandOperation = (op: CadOperation) => {
-    if (op.type === "move") {
-      const type = placementsRef.current.has(op.objectId)
-        ? "station"
-        : assetsRef.current.has(op.objectId)
-          ? "asset"
-          : null;
-      if (type && isItemLayerLocked({ type, id: op.objectId })) {
-        toast.error(
-          `Movimiento omitido: ${op.objectId} está en una capa bloqueada.`,
-          "Capas",
-        );
-        return false;
-      }
-      const p = placementsRef.current.get(op.objectId);
-      if (p) {
-        p.x = op.after.x;
-        p.y = op.after.y;
-        p.w = op.after.w;
-        p.h = op.after.h;
-        p.rotation = op.after.rotation ?? p.rotation;
-        return true;
-      }
-      const a = assetsRef.current.get(op.objectId);
-      if (a) {
-        a.x = op.after.x;
-        a.y = op.after.y;
-        a.w = op.after.w;
-        a.h = op.after.h;
-        a.rotation = op.after.rotation ?? a.rotation;
-        return true;
-      }
-    } else if (op.type === "connect") {
-      if (
-        !connectorsRef.current.some(
-          (c) =>
-            c.from === op.from &&
-            c.to === op.to &&
-            (c.kind ?? "flow") === op.kind,
-        )
-      )
-        connectorsRef.current = [
-          ...connectorsRef.current,
-          { from: op.from, to: op.to, kind: op.kind },
-        ];
-      return true;
-    } else if (op.type === "create") {
-      // Con sourceId copia kind/etiqueta/capa del origen (duplicación); sin él,
-      // op.object.kind crea un asset fresco (zonas envolventes, muros nuevos).
-      if (op.object.type !== "asset") return false;
-      const src = op.object.sourceId
-        ? assetsRef.current.get(op.object.sourceId)
-        : undefined;
-      const kind = src?.kind ?? op.object.kind;
-      if (!kind) return false;
-      const id = newId("as");
-      assetsRef.current.set(id, {
-        id,
-        kind,
-        label: op.object.label || src?.label,
-        x: op.object.x,
-        y: op.object.y,
-        w: op.object.w,
-        h: op.object.h,
-        rotation: op.object.rotation ?? src?.rotation ?? 0,
-      });
-      setAssetIds(new Set(assetsRef.current.keys()));
-      const srcLayer = op.object.sourceId
-        ? layerAssignmentsRef.current[op.object.sourceId]
-        : undefined;
-      setLayerAssignments((cur) =>
-        assignObjectsToLayer(
-          cur,
-          [id],
-          srcLayer ?? defaultCadLayerForAssetKind(kind),
-        ),
-      );
-      return true;
-    } else if (op.type === "annotate") {
-      if (op.annotation.kind === "text") {
-        // TEXT conversacional (VD-CAD-TEXT-001): misma nota que el botón de
-        // notas — editable/arrastrable/borrable como cualquier otra.
-        const id = newId("nt");
-        annotationsRef.current.set(id, {
-          id,
-          type: "text",
-          x: op.annotation.x,
-          y: op.annotation.y,
-          text: op.annotation.text.slice(0, 240),
-        });
-        rebuildNotes();
-        return true;
-      }
-      // Auto-acotado (ADR §225): cada cota entra como anotación dim normal —
-      // editable/borrable desde el panel de mediciones como cualquier otra.
-      const id = newId("dim");
-      annotationsRef.current.set(id, {
-        id,
-        type: "dim",
-        x: op.annotation.x,
-        y: op.annotation.y,
-        x2: op.annotation.x2,
-        y2: op.annotation.y2,
-        text: op.annotation.text,
-      });
-      setDimCount(
-        [...annotationsRef.current.values()].filter((ann) => ann.type === "dim")
-          .length,
-      );
-      refreshMeasurementRows();
-      return true;
-    } else if (op.type === "history") {
-      // 'deshaz' / 'rehaz' (VD-CAD-UNDO-001): el mismo historial de Ctrl+Z.
-      if (op.action === "undo") undo();
-      else redo();
-      return true;
-    } else if (op.type === "studio_view") {
-      // 'vista 2d' / 'vista 3d' (VD-CAD-VIEW-001): por el MISMO toggle del
-      // toolbar — duplicarlo perdía el recuerdo y el reencuadre georreferenciado.
-      if (viewModeRef.current !== op.mode) toggleViewMode();
-      return true;
-    } else if (op.type === "rename") {
-      // "renombra la mesa a 'Mesa VIP'" (VD-CAD-RENAME-001): solo assets —
-      // las estaciones toman su nombre del routing.
-      const asset = assetsRef.current.get(op.objectId);
-      if (!asset) {
-        toast.error(
-          "Los puntos heredados toman su nombre del documento; solo puedo renombrar objetos del dibujo.",
-          "Comando CAD",
-        );
-        return false;
-      }
-      asset.label = op.label.slice(0, 80);
-      return true;
-    } else if (op.type === "studio_save") {
-      // 'guarda' (VD-CAD-SAVE-001): el mismo botón Guardar del estudio.
-      void save();
-      return true;
-    } else if (op.type === "studio_export") {
-      // 'imprime en a3' (VD-CAD-PLOT-003): dispara el export real. El papel
-      // pedido se aplica a la HOJA ACTIVA por la vía canónica —la misma que
-      // el selector «Papel» del panel de layouts—, que es la única que la
-      // publicación lee. Antes se guardaba en un estado de la barra que nadie
-      // consultaba: el usuario pedía A3 y salía lo que dijera la hoja.
-      if (op.format === "pdf") {
-        const paper = op.paper as CadSheetPaper | undefined;
-        if (paper) changeActivePaper(paper);
-        void publishSheetSetPdf();
-      } else if (op.format === "dxf") {
-        void exportDxf();
-      } else if (op.format === "png") {
-        exportPng();
-      } else {
-        void exportGltf();
-      }
-      return true;
-    } else if (op.type === "clear_annotations") {
-      // Limpieza conversacional (VD-CAD-CLEAN-001): mismo contrato que el
-      // botón de limpiar cotas — si no había nada que quitar, no aplica.
-      let cleared = false;
-      annotationsRef.current.forEach((a, id) => {
-        if (
-          (op.kind === "dims" && a.type === "dim") ||
-          (op.kind === "notes" && a.type === "text") ||
-          op.kind === "all"
-        ) {
-          annotationsRef.current.delete(id);
-          cleared = true;
-        }
-      });
-      if (!cleared) return false;
-      setDimCount(
-        [...annotationsRef.current.values()].filter((ann) => ann.type === "dim")
-          .length,
-      );
-      refreshMeasurementRows();
-      rebuildDims();
-      rebuildNotes();
-      return true;
-    } else if (op.type === "delete") {
-      // ERASE conversacional (VD-CAD-DELETE-001): mismo contrato que Supr —
-      // respeta capas bloqueadas y saca al objeto de la selección viva.
-      const type = placementsRef.current.has(op.objectId)
-        ? ("station" as const)
-        : assetsRef.current.has(op.objectId)
-          ? ("asset" as const)
-          : null;
-      if (!type) return false;
-      if (isItemLayerLocked({ type, id: op.objectId })) {
-        toast.error(
-          `Borrado omitido: ${op.objectId} está en una capa bloqueada.`,
-          "Capas",
-        );
-        return false;
-      }
-      if (type === "station") {
-        placementsRef.current.delete(op.objectId);
-        setPlacedIds(new Set(placementsRef.current.keys()));
-      } else {
-        assetsRef.current.delete(op.objectId);
-        setAssetIds(new Set(assetsRef.current.keys()));
-      }
-      if (selRef.current.some((s) => s.id === op.objectId))
-        select(selRef.current.filter((s) => s.id !== op.objectId));
-      return true;
-    } else if (op.type === "focus") {
-      const items: SelItem[] = op.objectIds
-        .map((id) =>
-          placementsRef.current.has(id)
-            ? { type: "station" as const, id }
-            : assetsRef.current.has(id)
-              ? { type: "asset" as const, id }
-              : null,
-        )
-        .filter((it): it is SelItem => !!it);
-      if (items.length) select(items);
-      // 'enfoca la cocina' (VD-CAD-ZOOM-001): fit_to_view manda zoom:true;
-      // seleccionar por nombre NO mueve la cámara (select_objects sin zoom).
-      if (op.zoom) fitView(items.length ? "selection" : "all");
-    }
-    return false;
-  };
-  const isMutatingCommandOperation = (op: CadOperation) =>
-    op.type === "move" ||
-    op.type === "connect" ||
-    op.type === "create" ||
-    op.type === "annotate" ||
-    op.type === "delete" ||
-    op.type === "clear_annotations" ||
-    op.type === "rename";
-  const canApplyCommandOperation = (op: CadOperation) => {
-    if (!isMutatingCommandOperation(op)) return true;
-    if (op.type === "move" || op.type === "delete") {
-      const type = placementsRef.current.has(op.objectId)
-        ? ("station" as const)
-        : assetsRef.current.has(op.objectId)
-          ? ("asset" as const)
-          : null;
-      return !!type && !isItemLayerLocked({ type, id: op.objectId });
-    }
-    if (op.type === "connect") {
-      const exists = (id: string) =>
-        placementsRef.current.has(id) || assetsRef.current.has(id);
-      return exists(op.from) && exists(op.to);
-    }
-    if (op.type === "create")
-      return (
-        op.object.type === "asset" &&
-        !!(
-          op.object.kind ||
-          (op.object.sourceId && assetsRef.current.has(op.object.sourceId))
-        )
-      );
-    if (op.type === "rename") return assetsRef.current.has(op.objectId);
-    if (op.type === "clear_annotations") {
-      return [...annotationsRef.current.values()].some(
-        (annotation) =>
-          op.kind === "all" ||
-          (op.kind === "dims" && annotation.type === "dim") ||
-          (op.kind === "notes" && annotation.type === "text"),
-      );
-    }
-    return true;
-  };
-  const applyCommand = () => {
-    if (!commandPreview) return;
-    if (drawingReadOnlyRef.current) {
-      notifyReadOnly();
-      return;
-    }
-    // Hay previsualización ⇒ `previewCommandText` ya cargó el intérprete; se
-    // comprueba igual para no aplicar nada a ciegas si alguna vez no fuera así.
-    const nl = cadNlCommandsIfLoaded();
-    if (!nl) return toast.error("El intérprete de frases no terminó de cargar: vuelve a previsualizar la orden.", "Comando CAD");
-    // Cadena o comando suelto (VD-CAD-CHAIN-001): cada paso se ejecuta
-    // contra el contexto YA mutado por el anterior ('pon una puerta y luego
-    // céntrala' centra la puerta recién creada); un solo snapshot → un undo.
-    const inputs =
-      commandPreview.chain && commandPreview.chain.length > 1
-        ? commandPreview.chain
-        : [commandPreview.input];
-    const transactionCheckpoint = snapshotDocument();
-    const transactionWasDirty = dirty;
-    const transactionHistory =
-      canonicalHistoryRef.current?.createRecoveryPoint() ?? null;
-    let snapshotTaken = false;
-    let anyChanged = false;
-    const rollbackCommandTransaction = () => {
-      loadedCadDocumentRef.current = transactionCheckpoint;
-      restore(cadDocumentToEditorSnapshot(transactionCheckpoint));
-      if (snapshotTaken) {
-        if (transactionHistory && canonicalHistoryRef.current) {
-          canonicalHistoryRef.current.restoreRecoveryPoint(transactionHistory);
-          setHist(canonicalHistoryRef.current.depths());
-        } else cancelHistoryCheckpoint();
-      }
-      dirtyRef.current = transactionWasDirty;
-      setDirty(transactionWasDirty);
-    };
-    for (const input of inputs) {
-      const commandStartedAt = Date.now();
-      const result = nl.executeCadCommand(input, buildCommandContext());
-      const audit = () => ({
-        rawInput: commandPreview.rawInput,
-        durationMs: Date.now() - commandStartedAt,
-        affectedObjectIds: result.affectedObjectIds,
-        completedAt: new Date().toISOString(),
-      });
-      if (!result.applied) {
-        if (snapshotTaken) rollbackCommandTransaction();
-        anyChanged = false;
-        toast.error(
-          result.issues.find((i) => i.level === "error")?.message ||
-            "El comando no es válido.",
-          "Comando CAD",
-        );
-        setCommandLog((items) =>
-          prependCadCommandHistory(
-            items,
-            createCadHistoryItem(
-              input,
-              "failed",
-              result.historyLabel,
-              commandPreview.preview,
-              result,
-              audit(),
-            ),
-          ),
-        );
-        break;
-      }
-      const mutatingOperations = result.operations.filter(
-        isMutatingCommandOperation,
-      );
-      const blockedOperation = mutatingOperations.find(
-        (op) => !canApplyCommandOperation(op),
-      );
-      if (blockedOperation) {
-        if (snapshotTaken) rollbackCommandTransaction();
-        anyChanged = false;
-        setCommandLog((items) =>
-          prependCadCommandHistory(
-            items,
-            createCadHistoryItem(
-              input,
-              "failed",
-              `Transacción cancelada: ${result.historyLabel}`,
-              commandPreview.preview,
-              result,
-              audit(),
-            ),
-          ),
-        );
-        toast.error(
-          "No se aplicó ningún cambio: una operación no pudo validarse.",
-          "Comando CAD",
-        );
-        break;
-      }
-      const mutates = mutatingOperations.length > 0;
-      if (mutates && !snapshotTaken) {
-        recordLocalSnapshot(
-          `Auto · ${result.historyLabel}${inputs.length > 1 ? ` (cadena de ${inputs.length})` : ""}`,
-          "command",
-        );
-        pushHistory();
-        snapshotTaken = true;
-      }
-      // map + some: .some(applyCommandOperation) directo corta en la primera op
-      // aplicada y dejaba a medias los comandos multi-objeto (align, flow line).
-      const operationResults = result.operations.map(applyCommandOperation);
-      const changed = operationResults.some(Boolean);
-      const partialFailure = mutatingOperations.some((operation) => {
-        const index = result.operations.indexOf(operation);
-        return !operationResults[index];
-      });
-      if (partialFailure) {
-        rollbackCommandTransaction();
-        setCommandLog((items) =>
-          prependCadCommandHistory(
-            items,
-            createCadHistoryItem(
-              input,
-              "failed",
-              `Rollback: ${result.historyLabel}`,
-              commandPreview.preview,
-              result,
-              audit(),
-            ),
-          ),
-        );
-        toast.error(
-          "La operación falló y la transacción completa fue revertida.",
-          "Comando CAD",
-        );
-        anyChanged = false;
-        break;
-      }
-      if (changed && snapshotDocument().constraints.length) {
-        const solved = solveCadConstraints(
-          snapshotDocument(),
-          result.affectedObjectIds,
-        );
-        if (!solved.converged) {
-          rollbackCommandTransaction();
-          setCommandLog((items) =>
-            prependCadCommandHistory(
-              items,
-              createCadHistoryItem(
-                input,
-                "failed",
-                `Restricción incompatible: ${result.historyLabel}`,
-                commandPreview.preview,
-                result,
-                audit(),
-              ),
-            ),
-          );
-          toast.error(
-            solved.issues[0]?.message ||
-              "Las restricciones no pudieron resolverse; se revirtió la transacción.",
-            "Restricciones",
-          );
-          anyChanged = false;
-          break;
-        }
-        loadedCadDocumentRef.current = solved.document;
-        restore(cadDocumentToEditorSnapshot(solved.document));
-      }
-      anyChanged = anyChanged || changed;
-      setCommandLog((items) =>
-        prependCadCommandHistory(
-          items,
-          createCadHistoryItem(
-            input,
-            "applied",
-            result.historyLabel,
-            commandPreview.preview,
-            result,
-            audit(),
-          ),
-        ),
-      );
-      if (changed) {
-        refreshSnap();
-      }
-      toast.success(result.historyLabel, "Comando CAD");
-    }
-    if (anyChanged) {
-      markDirty();
-      refreshSnap();
-      rebuildAll();
-    }
-    setCommandPreview(null);
-    setCommandText("");
-  };
-  const undoLastCommand = () => {
-    const item = commandLog.find((c) => c.status === "applied");
-    if (!item || hist.undo === 0) return;
-    undo();
-    setCommandLog((items) =>
-      items.map((c) => (c.id === item.id ? { ...c, status: "undone" } : c)),
-    );
-    toast.success(`Deshecho: ${item.label}`, "Comando CAD");
-  };
-  const redoLastCommand = () => {
-    const item = commandLog.find((c) => c.status === "undone");
-    if (!item || hist.redo === 0) return;
-    redo();
-    setCommandLog((items) =>
-      items.map((c) => (c.id === item.id ? { ...c, status: "applied" } : c)),
-    );
-    toast.success(`Rehecho: ${item.label}`, "Comando CAD");
   };
   const toggleCadLayerVisibility = (id: CadLayerId) => {
     const layer = cadLayers.find((candidate) => candidate.id === id);
@@ -12492,506 +11740,46 @@ export default function Layout3DEditor({
       fitToBounds(content);
     updateWorkspacePreferences({ ...workspacePreferencesRef.current, viewMode: next });
   }, [applyViewMode, updateWorkspacePreferences, worldBounds, fitToBounds]);
-  const exportPng = () => {
-    const r = rendererRef.current,
-      sc = sceneRef.current,
-      cam = cameraRef.current;
-    if (!r || !sc || !cam) return;
-    r.render(sc, cam);
-    const a = document.createElement("a");
-    a.href = r.domElement.toDataURL("image/png");
-    a.download = `layout3d-${model}-${revision}.png`.replace(/[^\w.\-]+/g, "_");
-    a.click();
-  };
-  // El PDF de la Fase 65 (render + cajetín a mano con jsPDF) se retiró: era
-  // código de rollback sin llamadas y duplicaba a mano lo que lib/cad/plot
-  // hace con contrato y specs. La única salida PDF del producto es
-  // publishSheetSetPdf (conjunto de hojas).
-  // Export the 3D model as binary glTF (.glb) — opens in Blender, other CAD, etc.
-  const exportGltf = async () => {
-    // Lista, plan y serialización viven en `lib/cad/glb-export.ts` con su
-    // spec de round-trip: el GLB lleva el modelo heredado Y la arquitectura
-    // nativa — antes sólo viajaban los grupos heredados y ningún spec miraba.
-    const plan = planCadGlbExport(
-      {
-        legacy: [
-          blocksRef.current,
-          assetsGroupRef.current,
-          connsGroupRef.current,
-          groundRef.current,
-        ],
-        architecture: [
-          nativeMassHostsRef.current?.group,
-          solidShadeHostRef.current?.group,
-        ],
-      },
-      (loadedCadDocumentRef.current?.entities ?? []).some(
-        (entity) => entity.type === "wall" || entity.type === "solid3d",
-      ),
-    );
-    if (plan.kind === "empty") return;
-    if (plan.kind === "architecture-missing") {
-      toast.error(
-        "La vista 3D aún no materializó la arquitectura; abre la vista 3D y reintenta.",
-        "Vista 3D",
-      );
-      return;
-    }
-    try {
-      // `s` es la escala de AJUSTE DE CÁMARA con la que se construyó TODA la
-      // geometría de la escena (línea 6032: `s = 30 / Math.max(W, H)`), no una
-      // conversión de unidades: un predio de 4 m y uno de 400 m ocupan el
-      // mismo cubo de cámara. Exportar esas coordenadas tal cual entregaba un
-      // GLB cuyo metro no medía un metro real — glTF declara 1 unidad = 1
-      // metro — y la distorsión cambiaba con el tamaño de CADA predio. Se
-      // deshace aquí, no en el visor: el visor necesita el ajuste de cámara.
-      const unit = (data?.footprint.unit || "mm") as WorldUnit;
-      const exportScale = ctxRef.current
-        ? unitToMeters(1, unit) / ctxRef.current.s
-        : 1;
-      const blob = await serializeCadGlbBlob(plan.objects, {
-        // Etiquetas y línea de previsualización fuera: geometría limpia.
-        hide: () =>
-          hideCadGlbOverlays(
-            sceneRef.current,
-            (object) =>
-              !!object.userData?.isLabel || object === previewLineRef.current,
-          ),
-        exportScale,
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `layout3d-${model}-${revision}.glb`.replace(
-        /[^\w.\-]+/g,
-        "_",
-      );
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Modelo 3D exportado (.glb).", "Modelo 3D");
-    } catch (error) {
-      console.error(error);
-      toast.error("No se pudo exportar el modelo 3D.", "Modelo 3D");
-    }
-  };
-  const computeDxfExportSummary = (
-    options: DxfExportOptions,
-  ): DxfExportSummary => {
-    const selectedIds = new Set(selRef.current.map((item) => item.id));
-    const selectedNativeIds = new Set(nativeSelectionIdsRef.current);
-    const layerLabel = (id: CadLayerId) =>
-      cadLayers.find((layer) => layer.id === id)?.label ?? id;
-    const layerVisible = (id: CadLayerId) =>
-      cadLayers.find((layer) => layer.id === id)?.visible ?? true;
-    const entities: CadDxfExportReadinessEntity[] = [
-      ...[...placementsRef.current.keys()].map((id) => {
-        const layerId = layerAssignments[id] ?? "layout";
-        return {
-          id,
-          kind: "object" as const,
-          layer: layerLabel(layerId),
-          label: stationsByIdRef.current.get(id)?.station,
-          requiresLabel: true,
-          selected: selectedIds.has(id),
-          visible: layerVisible(layerId),
-        };
-      }),
-      ...[...assetsRef.current.values()].map((asset) => {
-        const layerId =
-          layerAssignments[asset.id] ??
-          defaultCadLayerForAssetKind(asset.kind, objectTags[asset.id]);
-        return {
-          id: asset.id,
-          kind: "object" as const,
-          layer: layerLabel(layerId),
-          label: asset.label,
-          requiresLabel: DXF_LABEL_REQUIRED_ASSET_KINDS.has(asset.kind),
-          selected: selectedIds.has(asset.id),
-          visible: layerVisible(layerId),
-        };
-      }),
-      ...connectorsRef.current.map((conn) => ({
-        id: `${conn.from}:${conn.to}`,
-        kind: "connector" as const,
-        layer: layerLabel("flow"),
-        selected: selectedIds.has(conn.from) && selectedIds.has(conn.to),
-        visible: layerVisible("flow"),
-      })),
-      ...[...annotationsRef.current.values()]
-        .filter((ann) => ann.type === "dim" && ann.x2 != null && ann.y2 != null)
-        .map((ann) => ({
-          id: ann.id,
-          kind: "measurement" as const,
-          layer: layerLabel("measurements"),
-          label: ann.text,
-          selected: true,
-          visible: layerVisible("measurements"),
-        })),
-      ...[...annotationsRef.current.values()]
-        .filter((ann) => ann.type === "text")
-        .map((ann) => ({
-          id: ann.id,
-          kind: "label" as const,
-          layer: "Text",
-          label: ann.text,
-          selected: true,
-          visible: layersRef.current.notes,
-        })),
-      ...(loadedCadDocumentRef.current?.entities ?? [])
-        .filter((entity) => CAD_ENTITY_REGISTRY.supports(entity))
-        .map((entity) => {
-          const layer = loadedCadDocumentRef.current?.layers.find(
-            (candidate) => candidate.id === entity.layer,
-          );
-          return {
-            id: entity.id,
-            kind: "object" as const,
-            layer: layer?.name ?? entity.layer,
-            label: entity.type.toUpperCase(),
-            selected: selectedNativeIds.has(entity.id),
-            visible: layer?.visible !== false,
-          };
-        }),
-    ];
-    const readiness = evaluateCadDxfExportReadiness({
-      scope: options.scope,
-      includeHidden: options.includeHidden,
-      includeMeasurements: options.includeMeasurements,
-      includeLabels: options.includeLabels,
-      selectedObjectCount: selectedIds.size + selectedNativeIds.size,
-      entities,
-      validationBlockers:
-        (report?.errors ?? 0) + collisionHits.length + safetyIssues.length,
-      validationWarnings: (report?.warnings ?? 0) + dxfWarnings.length,
-      dxfImportWarnings: dxfWarnings.length,
-      selectionKeepsAnnotations: true,
+  // Exportar PNG / GLB / DXF: cuerpos en export-host.ts y export-scene-actions.ts.
+  const { exportPng, exportGltf, setDxfOption, openDxfExport, exportDxf } =
+    useCadExportActions(exportHost, {
+      model,
+      revision,
+      branding,
+      exportState,
+      data,
+      cadLayers,
+      layerAssignments,
+      objectTags,
+      report,
+      collisionHits,
+      safetyIssues,
+      dxfWarnings,
+      rendererRef,
+      sceneRef,
+      cameraRef,
+      viewControllerRef,
+      ctxRef,
+      previewLineRef,
+      blocksRef,
+      assetsGroupRef,
+      connsGroupRef,
+      groundRef,
+      nativeMassHostsRef,
+      solidShadeHostRef,
+      loadedCadDocumentRef,
+      currentDocumentIdRef,
+      selRef,
+      nativeSelectionIdsRef,
+      placementsRef,
+      assetsRef,
+      connectorsRef,
+      annotationsRef,
+      stationsByIdRef,
+      layersRef,
+      snapshotDocument,
+      toast,
     });
-    return {
-      objects: readiness.counts.object,
-      connectors: readiness.counts.connector,
-      measurements: readiness.counts.measurement,
-      labels: readiness.counts.label,
-      layers: readiness.includedLayers.length,
-      canExport: readiness.canExport,
-      includedLayers: readiness.includedLayers,
-      layerSummary: readiness.layerSummary,
-      issues: readiness.issues,
-    };
-  };
-  const setDxfOption = (patch: Partial<DxfExportOptions>) => {
-    setDxfExportOptions((cur) => {
-      const next = { ...cur, ...patch };
-      setDxfExportSummary(computeDxfExportSummary(next));
-      return next;
-    });
-  };
-  const openDxfExport = () => {
-    const next = {
-      ...dxfExportOptions,
-      units: data?.footprint.unit === "m" ? ("m" as const) : ("mm" as const),
-      fileName: `layout-${model}-${revision}`.replace(/[^\w.\-]+/g, "_"),
-    };
-    setDxfExportOptions(next);
-    setDxfExportSummary(computeDxfExportSummary(next));
-    setShowDxfExport(true);
-  };
-  /**
-   * Huella de la ENTRADA del preflight: documento, alcance, selección, capas
-   * ocultas y opciones. Aceptar unas pérdidas vale sólo para esta huella; en
-   * cuanto cambia algo que puede alterar lo que se pierde, hay que volver a
-   * mirar. Se usa la versión del documento —que sube en cada `commitChange`—
-   * en vez de serializarlo entero, que en un plano grande sería caro.
-   */
-  const dxfPreflightToken = (
-    options: DxfExportOptions,
-    document: CadDocument,
-  ) =>
-    JSON.stringify({
-      documentId: currentDocumentIdRef.current,
-      version: document.meta.version,
-      entities: document.entities.length,
-      scope: options.scope,
-      includeHidden: options.includeHidden,
-      includeMeasurements: options.includeMeasurements,
-      includeLabels: options.includeLabels,
-      units: options.units,
-      selection:
-        options.scope === "selection"
-          ? [...nativeSelectionIdsRef.current].sort()
-          : null,
-      hiddenLayers: document.layers
-        .filter((layer) => layer.visible === false)
-        .map((layer) => layer.id)
-        .sort(),
-    });
-  const exportDxf = async (options: DxfExportOptions = dxfExportOptions) => {
-    try {
-      const summary = computeDxfExportSummary(options);
-      setDxfExportSummary(summary);
-      const blocker = summary.issues.find((issue) => issue.level === "blocker");
-      if (blocker) {
-        toast.error(blocker.message, "DXF");
-        return;
-      }
-      const layerLabel = (id: CadLayerId) =>
-        cadLayers.find((layer) => layer.id === id)?.label ?? id;
-      const layerVisible = (id: CadLayerId) =>
-        cadLayers.find((layer) => layer.id === id)?.visible ?? true;
-      const includeLayer = (id: CadLayerId) =>
-        options.includeHidden || layerVisible(id);
-      const centerFor = (id: string): { x: number; y: number } | null => {
-        const p = placementsRef.current.get(id);
-        if (p) return { x: p.x, y: p.y };
-        const asset = assetsRef.current.get(id);
-        if (asset) return { x: asset.x, y: asset.y };
-        return null;
-      };
-      const selectedIds = new Set(selRef.current.map((item) => item.id));
-      const selectedNativeIds = new Set(nativeSelectionIdsRef.current);
-      const includeObject = (id: string, fallback: CadLayerId) => {
-        if (options.scope === "selection" && !selectedIds.has(id)) return false;
-        return includeLayer(layerAssignments[id] ?? fallback);
-      };
-      const boxes = [
-        ...[...placementsRef.current.entries()]
-          .filter(([id]) => includeObject(id, "layout"))
-          .map(([id, p]) => ({
-            id,
-            label: stationsByIdRef.current.get(id)?.station ?? id,
-            x: p.x,
-            y: p.y,
-            width: p.w,
-            height: p.h,
-            rotation: p.rotation,
-            layer: layerLabel(layerAssignments[id] ?? "layout"),
-          })),
-        ...[...assetsRef.current.values()]
-          .filter((asset) =>
-            includeObject(
-              asset.id,
-              defaultCadLayerForAssetKind(asset.kind, objectTags[asset.id]),
-            ),
-          )
-          .map((asset) => ({
-            id: asset.id,
-            label: asset.label || assetMeta(asset.kind).label,
-            x: asset.x,
-            y: asset.y,
-            width: asset.w,
-            height: asset.h,
-            rotation: asset.rotation,
-            layer: layerLabel(
-              layerAssignments[asset.id] ??
-                defaultCadLayerForAssetKind(asset.kind, objectTags[asset.id]),
-            ),
-            ...(asset.shape === "circle" ? { shape: "circle" as const } : {}),
-            ...(assetMeta(asset.kind).archetype === "zone"
-              ? { hatch: true }
-              : {}),
-          })),
-      ];
-      const connectors = connectorsRef.current
-        .map((conn) => {
-          if (!includeLayer("flow")) return null;
-          if (
-            options.scope === "selection" &&
-            (!selectedIds.has(conn.from) || !selectedIds.has(conn.to))
-          )
-            return null;
-          const from = centerFor(conn.from);
-          const to = centerFor(conn.to);
-          return from && to ? { from, to, layer: layerLabel("flow") } : null;
-        })
-        .filter(
-          (
-            conn,
-          ): conn is {
-            from: { x: number; y: number };
-            to: { x: number; y: number };
-            layer: string;
-          } => !!conn,
-        );
-      const labels =
-        options.includeLabels &&
-        (options.includeHidden || layersRef.current.notes)
-          ? [...annotationsRef.current.values()]
-              .filter((ann) => ann.type === "text")
-              .map((ann) => ({
-                text: ann.text || "Nota",
-                x: ann.x,
-                y: ann.y,
-                layer: "Text",
-              }))
-          : [];
-      const measurements =
-        options.includeMeasurements && includeLayer("measurements")
-          ? [...annotationsRef.current.values()]
-              .filter(
-                (ann) => ann.type === "dim" && ann.x2 != null && ann.y2 != null,
-              )
-              .map((ann) => ({
-                from: { x: ann.x, y: ann.y },
-                to: { x: ann.x2!, y: ann.y2! },
-                label: ann.text,
-                layer: layerLabel("measurements"),
-              }))
-          : [];
-      const dxfDocument = snapshotDocument();
-      // Un único predicado: el informe de pérdidas DEBE mirar exactamente las
-      // mismas entidades que se exportan, o avisaría de cosas que no viajan.
-      const dxfExportEntityFilter = (entity: CadEntity) => {
-        if (!CAD_ENTITY_REGISTRY.supports(entity)) return false;
-        if (options.scope === "selection" && !selectedNativeIds.has(entity.id))
-          return false;
-        const layer = loadedCadDocumentRef.current?.layers.find(
-          (candidate) => candidate.id === entity.layer,
-        );
-        return options.includeHidden || layer?.visible !== false;
-      };
-      const primitives = cadDocumentNativeDxfPrimitives(
-        dxfDocument,
-        dxfExportEntityFilter,
-      );
-      const hatches = cadDocumentNativeDxfHatches(dxfDocument, (entity) => {
-        if (options.scope === "selection" && !selectedNativeIds.has(entity.id))
-          return false;
-        const layer = loadedCadDocumentRef.current?.layers.find(
-          (candidate) => candidate.id === entity.layer,
-        );
-        return options.includeHidden || layer?.visible !== false;
-      });
-      const mtexts = options.includeLabels
-        ? cadDocumentNativeDxfMTexts(dxfDocument, (entity) => {
-            if (
-              options.scope === "selection" &&
-              !selectedNativeIds.has(entity.id)
-            )
-              return false;
-            const layer = loadedCadDocumentRef.current?.layers.find(
-              (candidate) => candidate.id === entity.layer,
-            );
-            return options.includeHidden || layer?.visible !== false;
-          })
-        : [];
-      const semanticDimensions = options.includeMeasurements
-        ? cadDocumentNativeDxfSemanticDimensions(dxfDocument, (entity) => {
-            if (
-              options.scope === "selection" &&
-              !selectedNativeIds.has(entity.id)
-            )
-              return false;
-            const layer = loadedCadDocumentRef.current?.layers.find(
-              (candidate) => candidate.id === entity.layer,
-            );
-            return options.includeHidden || layer?.visible !== false;
-          })
-        : [];
-      const mleaders = options.includeLabels
-        ? cadDocumentNativeDxfMleaders(dxfDocument, (entity) => {
-            if (
-              options.scope === "selection" &&
-              !selectedNativeIds.has(entity.id)
-            )
-              return false;
-            const layer = loadedCadDocumentRef.current?.layers.find(
-              (candidate) => candidate.id === entity.layer,
-            );
-            return options.includeHidden || layer?.visible !== false;
-          })
-        : [];
-      const blocks = cadDocumentDxfBlocks(dxfDocument);
-      const inserts = cadDocumentDxfInserts(dxfDocument, (entity) => {
-        if (options.scope === "selection" && !selectedNativeIds.has(entity.id))
-          return false;
-        const layer = dxfDocument.layers.find(
-          (candidate) => candidate.id === entity.layer,
-        );
-        return options.includeHidden || layer?.visible !== false;
-      });
-      const exported = exportCadLayoutDxf(
-        {
-          boxes,
-          connectors,
-          labels,
-          measurements,
-          primitives,
-          hatches,
-          mtexts,
-          semanticDimensions,
-          mleaders,
-          blocks,
-          inserts,
-          // Las capas con su tipo de línea y grosor, la tabla LTYPE y $LTSCALE
-          // salen del DOCUMENTO (Ola F): sin él, GAS = GAS_LINE volvía como
-          // 6 CONTINUOUS y el plano de instalaciones se abría continuo.
-          document: dxfDocument,
-        },
-        {
-          units: options.units,
-          fileComment: `${branding.productLabel} ${model} ${revision}`,
-        },
-      );
-      // ── PREFLIGHT ──────────────────────────────────────────────────────
-      // Las pérdidas se calculan con el MISMO filtro que se acaba de usar para
-      // construir el modelo, y ANTES de que exista el Blob. Un DXF limpio
-      // descarga directamente; uno con pérdidas exige verlas primero, y si
-      // alguna elimina geometría, aceptarlas explícitamente.
-      const exportLosses = cadDocumentDxfExportLosses(
-        dxfDocument,
-        dxfExportEntityFilter,
-      );
-      const token = dxfPreflightToken(options, dxfDocument);
-      if (exportLosses.length > 0) {
-        const blocking = exportLosses.some((loss) => loss.severity === "error");
-        const alreadyReported = dxfPreflight?.token === token;
-        setDxfPreflight({ token, losses: exportLosses, blocking });
-        // Primera pulsación sobre una entrada con pérdidas: se ENSEÑA el
-        // informe y no se descarga nada. Nunca se anuncia éxito antes de que
-        // el usuario haya podido ver lo que el DXF no representa.
-        if (!alreadyReported) {
-          toast.error(
-            blocking
-              ? `El DXF no puede representar ${exportLosses.filter((loss) => loss.severity === "error").length} entidad(es). Revisa el informe y confirma si quieres descargarlo igualmente.`
-              : `El DXF degrada ${exportLosses.length} entidad(es). Revisa el informe antes de descargar.`,
-            "DXF",
-          );
-          return;
-        }
-        // Una pérdida que ELIMINA geometría exige además aceptación explícita;
-        // una degradación se descarga tras haberse mostrado. La aceptación es
-        // de ESTA entrada: si cambió el documento, la selección, el alcance o
-        // las opciones, el token cambia y vuelve a pedirse.
-        if (blocking && dxfPreflightAccepted !== token) {
-          toast.error(
-            "Confirma que aceptas las pérdidas antes de descargar el DXF.",
-            "DXF",
-          );
-          return;
-        }
-      } else {
-        setDxfPreflight(null);
-      }
-
-      const blob = new Blob([exported.content], { type: "application/dxf" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${(options.fileName.trim() || `layout-${model}-${revision}`).replace(/[^\w.\-]+/g, "_")}.dxf`;
-      a.click();
-      URL.revokeObjectURL(url);
-      setShowDxfExport(false);
-      setDxfPreflight(null);
-      setDxfPreflightAccepted(null);
-      toast.success(
-        exportLosses.length
-          ? `Layout exportado a DXF (${exported.entityCount} entidades) con ${exportLosses.length} pérdida(s) aceptada(s). Conserva el documento de Valle Design como original.`
-          : `Layout exportado a DXF (${exported.entityCount} entidades).`,
-        "DXF",
-      );
-    } catch {
-      toast.error("No se pudo exportar el DXF.", "DXF");
-    }
-  };
   const captureCanonicalSaveRequest = (): CanonicalSaveRequest | null => {
     if (drawingReadOnlyRef.current) return null;
     const targetDocumentId = currentDocumentIdRef.current;
@@ -13552,7 +12340,6 @@ export default function Layout3DEditor({
             return;
           case "clear-command-text":
             setCommandText("");
-            setCommandHistoryCursor(-1);
             return;
           case "cancel-draw": {
             if (!drawCommandRef.current) return;
@@ -13561,7 +12348,6 @@ export default function Layout3DEditor({
             setDrawPrompt(null);
             setMeasureLive(null);
             setCanCloseDraftPolyline(false);
-            setPrecisionText("");
             if (!cancelled.emitted.length)
               toast.success("Comando de dibujo cancelado.", "CAD");
             setTool("select");
@@ -15361,7 +14147,7 @@ export default function Layout3DEditor({
         <T3Btn
           active={showVersions}
           onClick={openVersions}
-          title="Versiones / escenarios — guardar, restaurar"
+          title="Versiones — historial del servidor y snapshots locales"
         >
           <History className="w-4 h-4" />
         </T3Btn>
@@ -15765,26 +14551,26 @@ export default function Layout3DEditor({
             )}
           </div>
 
-          {/* 3D viewport, y debajo la barra de estado. La barra estaba montada
-              DENTRO de `cad-canvas`, absoluta abajo a la derecha, y se comía el
-              pointerdown de cualquier arrastre que empezara ahí: medido en la
-              auditoría del 2026-09-01, un recuadro de selección desde el centro
-              designaba 3 objetos a 180 px y CERO a 200 px. Como en AutoCAD, la
-              barra de estado ocupa su propia franja bajo el área de dibujo; el
-              golden 68 vigila que nada vuelva a robarle el ratón al lienzo. */}
+          {/* 3D viewport, y debajo la barra de estado en su propia franja (como
+              en AutoCAD): montada DENTRO de `cad-canvas` se comía el pointerdown
+              de los arrastres que empezaban ahí; el golden 68 lo vigila. */}
           <div className="flex min-w-0 flex-1 flex-col">
           <div
             data-testid="cad-canvas"
             className="relative min-h-0 min-w-0 flex-1 overflow-hidden"
             onContextMenu={handleCadContextMenu}
             onPointerDown={() => setCadContextMenu(null)}
+            // F8-2 (T-63f): soltar un archivo entra por la puerta del input de fondo.
+            onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) e.preventDefault(); }}
+            onDrop={(e) => {
+              const f = e.dataTransfer.files?.[0];
+              if (!f) return;
+              e.preventDefault();
+              if (!drawingReadOnlyRef.current && !dxfBusy) void onDxfFile(f);
+            }}
           >
             <div ref={mountRef} className="absolute inset-0" />
-            {/* ViewCube + barra de navegación: cara nueva sobre navegación 3D
-                que ya existe y ya está probada (`camera-view-presets.ts`,
-                `view-3d.ts`) — ver el comentario de `CadViewCube`. Sólo tiene
-                sentido con la cámara en perspectiva 3D; en 2D (planta
-                bloqueada) no hay caras que mostrar. */}
+            {/* ViewCube + barra de navegación (`camera-view-presets.ts`); sólo en 3D. */}
             <div
               data-testid="cad-navigation-corner"
               className="pointer-events-none absolute right-3 top-3 z-20 flex flex-col items-end gap-2"
@@ -15802,9 +14588,7 @@ export default function Layout3DEditor({
                   </div>
                 </div>
               )}
-              {/* El minimapa vivía abajo a la derecha, absoluto sobre el lienzo,
-                  y era la capa que el golden 68 midió robando esa esquina. Va
-                  con las ayudas de navegación, donde AutoCAD pone las suyas. */}
+              {/* El minimapa va con las ayudas de navegación (golden 68). */}
               {showMinimap && workspacePreferences.minimap && (
                 <div className="pointer-events-auto">
                   <CadOverviewMinimap
@@ -16139,7 +14923,6 @@ export default function Layout3DEditor({
                   defaults: dynamicInputDefaults,
                   onCommit: commitDynamicInput,
                   onCancel: () => {
-                    setPrecisionText("");
                     endDraw();
                     setTool("select");
                     toolRef.current = "select";
@@ -18368,7 +17151,6 @@ export default function Layout3DEditor({
           revision={revision}
           versName={versName}
           onVersNameChange={setVersName}
-          onSaveVersion={saveVersion}
           guardadoBloqueado={drawingReadOnly}
           ocupado={versBusy}
           onSaveLocalSnapshot={() => saveLocalSnapshot("manual")}
@@ -18377,9 +17159,9 @@ export default function Layout3DEditor({
           onCompareSnapshot={compareLocalSnapshot}
           onRestoreSnapshot={restoreLocalSnapshot}
           onDeleteSnapshot={deleteLocalSnapshot}
+          servidorConocido={servidorConocido}
           versions={versions}
           onRestoreVersion={restoreVersion}
-          onDeleteVersion={deleteVersion}
         />
       )}
 

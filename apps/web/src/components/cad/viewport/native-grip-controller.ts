@@ -85,6 +85,16 @@ export interface CadNativeGripDeps {
   releasePointer(pointerId: number): void;
   notify(message: string): void;
   menu: CadGripMenuSurface;
+  /**
+   * ¿Hay un comando del motor esperando algo del puntero? (T-20.) El
+   * pinzamiento tiene derecho de tanteo sobre el clic sólo EN REPOSO: con un
+   * comando pidiendo un punto o un objeto, el clic es del comando —si no,
+   * OFFSET y TRIM pierden justo el clic que cae sobre el punto medio o el
+   * extremo del objeto recién designado, que es donde uno pincha. La pregunta
+   * la responde `CadCommandEngineHost.accepts` (0 en reposo); aquí sólo se
+   * pregunta. Opcional para que los arneses en reposo no la declaren.
+   */
+  commandActive?(): boolean;
 }
 
 type GripPhase = "drag" | "menu" | "pending";
@@ -112,6 +122,8 @@ export class CadNativeGripController {
   /** pointerdown sobre un marcador con `userData.nativeGripId`. */
   start(entityId: string, gripId: string, event: CadGripPointerEventLike): boolean {
     if (this.deps.readOnly()) return false;
+    // Con un comando pidiendo punto u objeto, el clic es del comando (T-20).
+    if (this.deps.commandActive?.()) return false;
     const document = this.deps.document();
     const entity = document?.entities.find((candidate) => candidate.id === entityId);
     if (!document || !entity || !CAD_ENTITY_REGISTRY.supports(entity)) return false;

@@ -50,6 +50,7 @@ import type {
   CadWallOpeningCutReport,
 } from "@/lib/cad/wall-solid-diagnostics";
 import { cadHiddenLayerIds } from "@/lib/cad/cad-layer-visibility";
+import { cadVisualStyle, type CadVisualStyleId } from "@/lib/cad/view/visual-styles";
 
 interface CadWallSolidEntry {
   wall: CadWallEntity;
@@ -128,9 +129,38 @@ function wallGeometryUnchanged(a: CadWallEntity, b: CadWallEntity): boolean {
 export class CadWallSolidHost {
   readonly group = new THREE.Group();
   private readonly built = new Map<string, CadWallSolidEntry>();
+  /** VSCURRENT/SHADEMODE (T-10a): antes este anfitrión no tenía dónde vivir. */
+  private style: CadVisualStyleId = "shaded";
 
   constructor(private readonly viewport: () => CadThreeViewport) {
     this.group.name = "cad-walls-solid";
+  }
+
+  get visualStyle(): CadVisualStyleId {
+    return this.style;
+  }
+
+  /**
+   * Cambia el estilo y RETESELLA todos los muros construidos — a diferencia
+   * de una recoloreada por selección, cambiar de Alámbrico a Sombreado
+   * añade o quita geometría (aristas, caras), así que no basta con tocar un
+   * color de material existente.
+   */
+  setStyle(style: CadVisualStyleId): CadVisualStyleId {
+    if (style === this.style) return this.style;
+    this.style = style;
+    const entries = [...this.built.entries()];
+    for (const [id, entry] of entries) {
+      disposeCadWallSolidObject(entry.object);
+      this.built.delete(id);
+      this.add(id, entry.wall, entry.openings, entry.joins, entry.selected);
+    }
+    return this.style;
+  }
+
+  /** Para el renglón de la línea de comandos: aplica y devuelve la ETIQUETA. */
+  applyVisualStyle(style: CadVisualStyleId): string {
+    return cadVisualStyle(this.setStyle(style)).label;
   }
 
   /**
@@ -217,6 +247,7 @@ export class CadWallSolidHost {
     const object = buildCadWallSolidObject(wall, openings, this.viewport(), {
       selected,
       joins,
+      style: this.style,
     });
     this.group.add(object);
     this.built.set(id, { wall, openings, joins, selected, object });

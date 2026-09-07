@@ -17,6 +17,11 @@ de arquitectura, instalaciones, GIS) entrará como TIPOS NUEVOS; sin esta
 disciplina, cada una sería un evento de migración con riesgo de perder planos
 de clientes.
 
+**Nota del 2026-09-06 (T-0D):** el esquema vigente lo define la constante
+`CAD_DOCUMENT_SCHEMA` en `apps/web/src/lib/cad/cad-document-shared.ts`
+(reexportada desde `cad-document.ts`); «9» era el valor al 2026-08-22, fecha de
+esta ADR.
+
 ## Decisión
 
 1. **Subir de esquema es SIEMPRE aditivo.** Se permite: añadir secciones

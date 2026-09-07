@@ -1,4 +1,5 @@
 import { DataSource, Repository } from 'typeorm';
+import type { CfdiProvider } from '../ports/cfdi-provider.port';
 import type { PaymentProvider } from '../ports/payment-provider.port';
 import {
   PlanCatalog,
@@ -16,6 +17,21 @@ function paymentsIn(mode: string): PaymentProvider {
   return {
     descriptor: () => ({ mode }),
   } as unknown as PaymentProvider;
+}
+
+/**
+ * Proveedor de CFDI doble (T-18a): el catálogo público sólo le pide el modo
+ * de emisión, que es lo que decide si la superficie pública puede anunciar
+ * «Factura CFDI» o debe decir que la emisión hoy es manual.
+ */
+function cfdiIn(mode: 'manual' | 'automatic'): CfdiProvider {
+  return {
+    descriptor: () => ({
+      name: mode === 'manual' ? 'null' : 'facturama',
+      mode,
+      available: mode === 'automatic',
+    }),
+  } as unknown as CfdiProvider;
 }
 
 describe('PublicCatalogController', () => {
@@ -43,11 +59,13 @@ describe('PublicCatalogController', () => {
     mode = 'hosted',
     clock: () => number = () => 1_000,
     trialDays = 90,
+    cfdiMode: 'manual' | 'automatic' = 'manual',
   ): PublicCatalogController {
     return new PublicCatalogController(
       plans,
       prices,
       paymentsIn(mode),
+      cfdiIn(cfdiMode),
       // La configuración REAL parsea `TRIAL_DAYS` al construirse y revienta el
       // arranque con un valor inválido; aquí se inyecta el resultado ya
       // resuelto para poder fijar la duración por caso.
@@ -303,6 +321,21 @@ describe('PublicCatalogController', () => {
       'despacho',
       'individual',
     ]);
+  });
+
+  it('publica el modo real de emisión de CFDI (T-18a)', async () => {
+    await seedPaidPlan('individual', {
+      public: true,
+      name: 'Individual',
+      kind: 'paid',
+    });
+
+    await expect(
+      controller('hosted', () => 1_000, 90, 'manual').listPublicPlans({}),
+    ).resolves.toMatchObject({ cfdi: 'manual' });
+    await expect(
+      controller('hosted', () => 2_000, 90, 'automatic').listPublicPlans({}),
+    ).resolves.toMatchObject({ cfdi: 'automatic' });
   });
 
   it('degrada seatsMinimum absurdo a 1 en vez de propagarlo al contrato', async () => {

@@ -57,10 +57,16 @@ export function CheckoutStarter() {
   const plan = params.get("plan");
   const periodo = params.get("periodo");
   const moneda = params.get("moneda");
+  const asientos = params.get("asientos");
   const selection = useMemo(() => {
-    const values: Record<string, string | null> = { plan, periodo, moneda };
+    const values: Record<string, string | null> = {
+      plan,
+      periodo,
+      moneda,
+      asientos,
+    };
     return parsePlanSelection((key) => values[key] ?? null);
-  }, [plan, periodo, moneda]);
+  }, [plan, periodo, moneda, asientos]);
   const [state, setState] = useState<StarterState>({
     status: "checking-legal",
   });
@@ -75,9 +81,7 @@ export function CheckoutStarter() {
     !!auth.organizationId &&
     canOpenCheckout(auth.role);
 
-  const methods = selection
-    ? availablePaymentMethods(selection.currency)
-    : [];
+  const methods = selection ? availablePaymentMethods(selection.currency) : [];
 
   /**
    * PUERTA LEGAL: se corre UNA vez, en cuanto `ready` es cierto, y decide si
@@ -149,6 +153,7 @@ export function CheckoutStarter() {
         currency: selection.currency,
         period: selection.period,
         paymentMethod: method,
+        ...(selection.seats !== undefined ? { seats: selection.seats } : {}),
       });
       if (session.checkout !== "hosted" || !session.url) {
         // Defensa en profundidad: la API responde 409 cuando no hay pasarela,
@@ -272,8 +277,8 @@ export function CheckoutStarter() {
       <Shell title="Antes de continuar, acepta los términos">
         <p>
           Para contratar necesitamos que aceptes la versión vigente de los
-          términos de servicio, publicada el {state.terms.publicadoEn}. No se
-          te ha cobrado nada.
+          términos de servicio, publicada el {state.terms.publicadoEn}. No se te
+          ha cobrado nada.
         </p>
         <div className="flex flex-wrap gap-3">
           <Link
@@ -344,7 +349,11 @@ export function CheckoutStarter() {
       <Shell title="Te llevamos al pago">
         <p role="status">
           Abriendo la página de pago del proveedor para el plan{" "}
-          <strong>{selection.planCode}</strong>. No cierres esta pestaña.
+          <strong>{selection.planCode}</strong>
+          {selection.seats !== undefined
+            ? ` con ${selection.seats} asientos`
+            : ""}
+          . No cierres esta pestaña.
         </p>
         {state.status === "redirecting" && (
           <a className={publicActionClass} href={state.url}>
@@ -358,9 +367,17 @@ export function CheckoutStarter() {
   return (
     <Shell title="¿Cómo prefieres pagar?">
       <p>
-        Contratas el plan <strong>{selection.planCode}</strong>. El importe lo
-        fija el catálogo del producto y lo cobra el proveedor en su propia
-        página.
+        Contratas el plan <strong>{selection.planCode}</strong>
+        {selection.seats !== undefined ? (
+          <>
+            {" "}
+            con <strong>{selection.seats} asientos</strong>
+          </>
+        ) : (
+          ""
+        )}
+        . El importe lo fija el catálogo del producto y lo cobra el proveedor en
+        su propia página.
       </p>
       <fieldset className="space-y-3" data-testid="payment-methods">
         <legend className="sr-only">Medio de pago</legend>

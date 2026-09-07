@@ -12,6 +12,7 @@ import {
 const body = {
   checkout: "external",
   trialDays: 90,
+  cfdi: "manual",
   items: [
     {
       code: "despacho",
@@ -34,9 +35,15 @@ assert.equal(parsed.items.length, 1);
 assert.equal(parsed.items[0].seatsMinimum, 3);
 assert.equal(parsed.items[0].prices[1].amountCents, 169000);
 assert.equal(parsed.trialDays, 90);
+assert.equal(parsed.cfdi, "manual");
 assert.deepEqual(
-  parsePublicCatalog({ checkout: "hosted", items: [], trialDays: 14 }),
-  { checkout: "hosted", items: [], trialDays: 14 },
+  parsePublicCatalog({
+    checkout: "hosted",
+    items: [],
+    trialDays: 14,
+    cfdi: "automatic",
+  }),
+  { checkout: "hosted", items: [], trialDays: 14, cfdi: "automatic" },
 );
 
 // Un cuerpo que no encaja NO se pinta a medias.
@@ -54,29 +61,37 @@ const rejected: unknown[] = [
   { checkout: "hosted", items: [], trialDays: 91 },
   { checkout: "hosted", items: [], trialDays: 14.5 },
   { checkout: "hosted", items: [], trialDays: "90" },
+  // T-18a: sin saber el modo real de emisión de CFDI, no se anuncia factura.
+  { checkout: "hosted", items: [], trialDays: 90 },
+  { checkout: "hosted", items: [], trialDays: 90, cfdi: "yes" },
   {
     checkout: "hosted",
     trialDays: 90,
+    cfdi: "manual",
     items: [{ ...body.items[0], name: "" }],
   },
   {
     checkout: "hosted",
     trialDays: 90,
+    cfdi: "manual",
     items: [{ ...body.items[0], kind: "gratis" }],
   },
   {
     checkout: "hosted",
     trialDays: 90,
+    cfdi: "manual",
     items: [{ ...body.items[0], perSeat: "sí" }],
   },
   {
     checkout: "hosted",
     trialDays: 90,
+    cfdi: "manual",
     items: [{ ...body.items[0], seatsMinimum: 2.5 }],
   },
   {
     checkout: "hosted",
     trialDays: 90,
+    cfdi: "manual",
     items: [
       {
         ...body.items[0],
@@ -89,6 +104,7 @@ const rejected: unknown[] = [
   {
     checkout: "hosted",
     trialDays: 90,
+    cfdi: "manual",
     items: [
       {
         ...body.items[0],
@@ -99,6 +115,7 @@ const rejected: unknown[] = [
   {
     checkout: "hosted",
     trialDays: 90,
+    cfdi: "manual",
     items: [
       {
         ...body.items[0],

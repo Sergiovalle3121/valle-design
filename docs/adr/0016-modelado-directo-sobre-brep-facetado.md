@@ -17,6 +17,9 @@ el 3D creció solo: la campaña 3D-M1 (PR #99) entregó muros y masas volumétri
 `apps/web/src/lib/brep/` es hoy un B-rep de medias-aristas de 9.407 líneas que
 importan una veintena de módulos.
 
+**Nota del 2026-09-06 (T-0D):** cifras al 2026-08-31; las vivas las dan `wc -l
+apps/web/src/lib/brep/*.ts` y `grep -rl "@/lib/brep" apps/web/src`.
+
 El estado medido, para que la decisión no se tome a ciegas:
 
 - **El kernel B-rep existe, es facetado y está enchufado.** Topología half-edge con
@@ -26,6 +29,11 @@ El estado medido, para que la decisión no se tome a ciegas:
   coincidir, NURBS y superficies analíticas como portadoras, teselado por tolerancia
   de cuerda, y STEP AP203/AP214 e IGES 5.3 en los dos sentidos. La rúbrica lo puntúa
   6/7 y el punto que falta es de evidencia independiente, no de funcionalidad.
+
+**Nota del 2026-09-06 (T-0D):** la puntuación viva de la fila `brep` y el
+denominador los imprime `node scripts/cad/rubric.mjs`; hoy la fila está en su
+tope y el «punto que faltaba» de evidencia independiente ya está cubierto.
+
 - **El kernel Rust/WASM no es un kernel 3D.** `crates/valle-cad-kernel` son 671
   líneas que teselan arcos, elipses y B-splines; su ABI no tiene una sola coordenada
   Z. Tiene paridad numérica verde y cero importadores.
@@ -59,6 +67,11 @@ Las razones, en orden de peso:
   fila `brep` vale 7 de 220 puntos, y el reparto por peso comercial de la matriz
   anota que vende «en el comparativo, no en el uso diario». Un despacho no compara
   kernels: compara si puede modelar rápido y entregar la lámina.
+
+**Nota del 2026-09-06 (T-0D):** la puntuación viva de la fila `brep` y el
+denominador los imprime `node scripts/cad/rubric.mjs`; hoy la fila está en su
+tope y el «punto que faltaba» de evidencia independiente ya está cubierto.
+
 - **ADR-0003 sigue vigente y aplica igual.** Un kernel exacto en Rust/WASM tendría
   que pasar sus ocho requisitos con perfilado, paridad y fallback. No hay ningún
   perfil que hoy nombre la geometría exacta como el cuello.

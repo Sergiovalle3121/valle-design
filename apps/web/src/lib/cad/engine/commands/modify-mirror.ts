@@ -26,6 +26,7 @@
  */
 import type { CadPoint2 } from "../../cad-document";
 import type { CadEntityCommand } from "../../entity-commands";
+import { cadOpeningRehostId } from "../../wall-openings";
 import {
   CAD_ACCEPT_ENTITY_PICK,
   CAD_ACCEPT_KEYWORD,
@@ -109,10 +110,22 @@ function mirrorCommands(state: MirrorState, erase: boolean, context: CadCommandC
     point: state.first!,
     direction: { x: state.second!.x - state.first!.x, y: state.second!.y - state.first!.y },
   };
+  // T-19·2: sin «Borrar original», cada objeto conservado recibe UNA copia —
+  // un solo destino, así que la correspondencia original→copia de esta ronda
+  // cubre TODA la orden, no sólo un fragmento de ella.
+  const roundCopyIds = erase
+    ? new Map<string, string>()
+    : new Map(state.selection.map((entityId) => [entityId, context.newEntityId()]));
   const commands: CadEntityCommand[] = [];
   for (const entityId of state.selection) {
-    const target = erase ? entityId : context.newEntityId();
-    if (!erase) commands.push({ type: "copy", entityId, newEntityId: target });
+    const target = erase ? entityId : roundCopyIds.get(entityId)!;
+    if (!erase)
+      commands.push({
+        type: "copy",
+        entityId,
+        newEntityId: target,
+        rehostId: cadOpeningRehostId(context.entity?.(entityId), roundCopyIds),
+      });
     commands.push({ type: "transform", entityId: target, transform: { mirror } });
   }
   return commands;

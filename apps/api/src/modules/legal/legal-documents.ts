@@ -94,14 +94,20 @@ export const LEGAL_DOCUMENTS: readonly LegalDocumentVersion[] = [
   // documento — la vigente (el validador de abajo lo exige): las versiones
   // anteriores viven en el historial de git y en las filas de aceptación que
   // las nombran.
+  // 2026-09-06 (T-62b): sustituye a la versión 2026-08-27 — la sección
+  // comercial deja de decir «no se publica un nivel de servicio (SLA)»,
+  // que se volvió falso en cuanto `/sla` se publicó en el mismo cambio;
+  // ahora enlaza ahí y aclara que sigue sin ser un compromiso VINCULANTE
+  // sin acuerdo escrito. La versión anterior no se editó: se publica una
+  // nueva, como exige el candado.
   {
     documento: 'terms',
-    version: '2026-08-27',
-    publicadoEn: '2026-08-27',
+    version: '2026-09-06',
+    publicadoEn: '2026-09-06',
     url: '/terms',
     requiereAceptacion: true,
     contentHash:
-      'de5ffcbe352e93b7fe8f32198196fa1d082f2ff496f53f537ae78bd81e77f712',
+      'bff1c51e26f7372bfb91446046d7a08f35dd7d64af0ed3f37b439b4a87fbcc38',
   },
   // 2026-08-27.2 (campaña de lanzamiento, OLA 4.2): sustituye a 2026-08-27 —
   // el estudio estrena el botón «algo salió mal», y lo que ese botón envía

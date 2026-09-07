@@ -91,11 +91,11 @@ export const nativeDxfProvider: CadInteroperabilityProvider = {
   },
 };
 
-export const DWG_UNAVAILABLE_REASON =
-  "DWG requiere un proveedor con licencia (ODA Drawings SDK / Autodesk RealDWG). " +
-  `${PRODUCT_LABEL.design} no hace ingeniería inversa del formato: conecta un proveedor ` +
-  "licenciado que implemente CadInteroperabilityProvider o convierte el archivo " +
-  "a DXF para importarlo hoy.";
+// La frase vive en `dwg-unavailable-reason.ts` (sin dependencias) porque la
+// puerta ligera del tablero también la dice (T-16); aquí se reexporta para que
+// ningún consumidor cambie de import.
+export { DWG_UNAVAILABLE_REASON } from "./dwg-unavailable-reason";
+import { DWG_UNAVAILABLE_REASON } from "./dwg-unavailable-reason";
 
 /** Placeholder DWG honesto: existe para decir la verdad, no para fingir. */
 export const unlicensedDwgProvider: CadInteroperabilityProvider = {

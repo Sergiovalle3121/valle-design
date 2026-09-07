@@ -464,6 +464,9 @@ export const MATRIZ_SIN_RED: readonly FilaSinRed[] = [
       "/v1/auth/mfa/activate",
       "/v1/auth/mfa/disable",
       "/v1/auth/mfa/backup-codes",
+      "/v1/auth/password/change",
+      "/v1/auth/profile",
+      "/v1/auth/export",
     ],
     porque:
       "Son operaciones de seguridad sobre estado del servidor. Una respuesta cacheada aquí no es un dato viejo: es decirle a alguien que revocó una sesión que sigue revocada cuando quizá no lo está.",
@@ -493,12 +496,23 @@ export const MATRIZ_SIN_RED: readonly FilaSinRed[] = [
       "/v1/organizations",
       "/v1/organizations/active",
       "/v1/organizations/:id/memberships",
+      "/v1/organizations/:id/memberships/:id",
       "/v1/organizations/:id/invitations",
       "/v1/organizations/invitations/accept",
     ],
     porque:
       "La membresía se verifica en el servidor SIEMPRE: `organization.id` es el identificador de tenant y nada del navegador puede fijarlo. Es un invariante de AGENTS.md, no una limitación de esta campaña.",
     seNota: "No se puede cambiar de organización ni gestionar el equipo.",
+    evidencia: ["packages/design-sdk/src/client.ts"],
+  },
+  {
+    id: "bitacora-de-auditoria",
+    flujo: "Ver quién tocó qué en la organización (T-62a)",
+    veredicto: "requiere-backend",
+    endpoints: ["/v1/organizations/:id/audit-log"],
+    porque:
+      "La bitácora vive en `design_audit_log`, tenant-scoped en el servidor. Cachearla sería enseñar un histórico viejo como si fuera el estado actual de quién tocó qué.",
+    seNota: "El panel «Quién tocó qué» de /equipo no carga.",
     evidencia: ["packages/design-sdk/src/client.ts"],
   },
   {

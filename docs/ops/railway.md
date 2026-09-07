@@ -74,11 +74,19 @@ compilado). Mínimo para `valle-api`:
 - `DATABASE_URL` = referencia al plugin (`${{Postgres.DATABASE_URL}}`)
 - `NODE_ENV=production`, `SYNCHRONIZE=false` (explícito, obligatorio)
 - `IDENTITY_RATE_LIMIT_KEY_SECRET` (secreto ≥32 chars)
+- `IDENTITY_MFA_ENCRYPTION_KEY` (secreto ≥32 chars) — cifra en reposo el
+  secreto del segundo factor; el arranque muere sin ella
+  (`apps/api/src/modules/identity/identity-mfa.ts`, verificado en
+  `scripts/deploy/production-startup-smoke.mjs`).
 - `OUTBOX_DISPATCHER_ENABLED=true` + `OUTBOX_*_WEBHOOK_URL`/`SECRET`
   (transporte firmado del correo transaccional)
 - `ALLOWED_ORIGIN=https://<dominio-web>`
 - Stripe (si se activa cobro): `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,
   precios — sin ellas el checkout degrada declarado (`checkout_unavailable`).
+- Correo transaccional (si se activa): `EMAIL_SENDER_PROVIDER`,
+  `EMAIL_SENDER_API_KEY`, `EMAIL_SENDER_FROM`, `OUTBOX_EMAIL_LINK_BASE_URL` —
+  sin ellas el receptor responde 503 y el correo espera en el outbox
+  (`apps/api/src/modules/outbox-receiver/email-sender.config.ts`).
 - Sentry/observabilidad: `SENTRY_DSN` (si el titular la contrata).
 
 Para `valle-web` (en BUILD, porque Next las inlinea): `NEXT_PUBLIC_API_URL`
@@ -127,7 +135,7 @@ que exigen cero errores de consola. La API sirve las suyas en
    servicios con sus Config File Paths, añadir el plugin PostgreSQL 16 y las
    variables de arriba. Sin esto no existe URL que probar.
 2. `OWNER ACTION: DNS` — CNAMEs de `app.` y `api.` al dominio del titular.
-3. `OWNER ACTION: SMTP/CORREO` — credenciales del transporte real de correo
-   transaccional (el outbox firma y entrega a un receptor HTTPS del titular).
+3. `OWNER ACTION: RESEND` — dominio verificado y `EMAIL_SENDER_API_KEY`; el
+   receptor es `/v1/outbox/*` de la propia API (ADR-0008).
 4. `OWNER ACTION: SENTRY` — DSN si se contrata observabilidad externa.
 5. `OWNER ACTION: STRIPE LIVE` — claves live y autorización de cobro real.

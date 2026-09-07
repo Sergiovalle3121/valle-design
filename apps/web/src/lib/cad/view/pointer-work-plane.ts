@@ -114,6 +114,25 @@ const IMPACTO = new THREE.Vector3();
  * el plano queda a la espalda de la cámara. Decirlo es mejor que inventar un
  * punto, que caería a kilómetros de donde el usuario está mirando.
  */
+/**
+ * Distancia (con signo) de un punto de dibujo al plano de trabajo, en unidades
+ * de dibujo. Es lo que permite al enganche 3D bajo un SCU inclinado quedarse
+ * sólo con los candidatos que están EN el plano (T-52, racimo A): el índice de
+ * aristas no sabe qué tapa el sólido, y un vértice de la cara de atrás que se
+ * proyecta bajo el cursor engancharía un punto que el usuario no ve.
+ */
+export function cadDistanceToUcsPlane(
+  point: { x: number; y: number; z: number },
+  plane: CadNamedUcs,
+): number {
+  const n = plane.zAxis;
+  return (
+    (point.x - plane.origin.x) * n.x +
+    (point.y - plane.origin.y) * n.y +
+    (point.z - plane.origin.z) * n.z
+  );
+}
+
 export function cadPointerWorldFromRay(
   ray: THREE.Ray,
   frame: CadPointerFrame,

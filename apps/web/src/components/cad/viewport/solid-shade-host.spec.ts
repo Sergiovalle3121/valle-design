@@ -147,4 +147,40 @@ const none: ReadonlySet<string> = new Set();
   host.dispose();
 }
 
-console.log("solid-shade-host.spec: reconciliación por referencia y estilos conmutables");
+// --- T-52 (racimo A): con cota, el enganche 3D proyecta el punto REAL, no su sombra
+{
+  // Controlador falso en 3D cuyo proyector distingue la cota: un punto a z
+  // sube y se desplaza medio z en pantalla; su sombra (z = 0) se queda donde
+  // `worldToScreen` proyecta el plano del suelo.
+  const controller = {
+    revision: 1,
+    mode: "3d" as const,
+    view: { widthPx: 1_000, heightPx: 800 },
+    createDrawingProjector: () => (point: { x: number; y: number; z: number }) => ({
+      x: point.x + point.z * 0.5,
+      y: 400 + point.y - point.z * 0.5,
+      w: 1,
+    }),
+    eyeDrawingPoint: () => ({ x: 50, y: -5_000, z: 5_000 }),
+    viewDirectionDrawing: () => ({ x: 0, y: 0.7071, z: -0.7071 }),
+    worldToScreen: (point: { x: number; y: number }) => ({ x: point.x, y: 400 + point.y }),
+    onChange: () => () => {},
+  };
+  const host = new CadSolidShadeHost(() => viewport, () => controller);
+  host.sync(documentWith([solid("caja", 50)]), none);
+  const query = { aperturePx: 6 };
+  // El cursor está sobre el punto medio de la ARISTA SUPERIOR de la cara y=0,
+  // que bajo un SCU apoyado en esa cara llega con cota 50.
+  const conCota = host.snapAtDrawingPoint(50, 0, query, 50);
+  assert.ok(conCota, "con cota hay enganche");
+  assert.equal(conCota?.wz, 50, "y es a la arista de arriba, con su cota, no a su sombra");
+  assert.equal(conCota?.wx, 50);
+  // Sin cota se proyecta la sombra en el suelo y el enganche cae a la arista de abajo.
+  const sinCota = host.snapAtDrawingPoint(50, 0, query);
+  assert.equal(sinCota?.wz, 0, "sin cota, la sombra engancha la arista del suelo (el defecto de T-52)");
+  host.dispose();
+}
+
+console.log(
+  "solid-shade-host.spec: reconciliación por referencia, estilos conmutables y el enganche 3D con cota (T-52)",
+);

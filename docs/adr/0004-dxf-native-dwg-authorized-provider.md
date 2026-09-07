@@ -15,6 +15,14 @@ parser, SDK, licencia, endpoint, corpus ni prueba DWG.
 Declarar DXF nativo parcial y DWG no soportado. La UI debe rechazar `.dwg` de
 forma explícita; renombrar un archivo o un DXF no crea compatibilidad DWG.
 
+**Nota del 2026-09-06 (T-0D):** esta decisión fue ampliada por ADR-0007
+(laboratorio clean-room) y por ADR-0009 §6-bis (beta de importación firmada el
+2026-08-24), hoy apagada por defecto tras `NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA`.
+`DWG_IMPORT_FLAG` y `DWG_EXPORT_FLAG` siguen en `false`
+(`apps/web/src/lib/cad/dwg-interop-flag.ts`, `apps/web/src/lib/cad/dwg-export-flag.ts`);
+detalle en `docs/adr/0007-dwg-clean-room-experimental-research.md` y
+`docs/adr/0009-dwg-promotion-package.md`.
+
 La importación DXF/JSON se procesa con límites de tamaño, tiempo y estructura,
 produce el documento canónico y conserva warnings/loss manifest. Una promoción
 de fidelidad exige corpus autorizado, round-trip y pruebas de las entidades

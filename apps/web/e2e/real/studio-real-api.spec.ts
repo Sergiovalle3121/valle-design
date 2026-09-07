@@ -203,6 +203,7 @@ test.describe("recorrido comercial CAD first-party contra PostgreSQL", () => {
     await page.getByLabel("Nombre").fill("Valle E2E Owner");
     await page.getByLabel(/Correo electr.*nico/iu).fill(email);
     await page.getByLabel(/^Contrase/iu).fill(E2E_PASSWORD);
+    await page.getByText(/^Acepto los/).click(); // T-63d: la casilla de los términos (D-14)
     await page.getByRole("button", { name: "Crear cuenta" }).click();
     await expect(page.getByRole("status")).toContainText(/Cuenta creada/iu);
 

@@ -1,0 +1,5525 @@
+{
+  "oraculo": "D",
+  "generadoPor": "python3 docs/cad/corpus/oraculos/censo-pyproj.py",
+  "mide": "Dos cosas con la misma herramienta: (1) la malla de control de Mexico que crs.spec.ts genera con su propia formula, reproyectada por PROJ; (2) un shapefile PUBLICO de terceros (Natural Earth, dominio publico) reproyectado por PROJ. Sirve a dos filas de la rubrica: geo.crs y toolset-map3d.georreferencia.",
+  "herramienta": {
+    "nombre": "pyproj",
+    "version": "3.7.2",
+    "projVersion": "9.5.1",
+    "lenguaje": "Python 3.11 (envoltura de la biblioteca C PROJ)",
+    "autor": "Jeffrey Whitaker (2006-2018); mantenedores de pyproj (2019-)",
+    "licencia": "MIT",
+    "licenciaBundledProj": "MIT (Frank Warmerdam / Gerald Evenden), PROJ",
+    "origen": "PyPI (pip install pyproj==3.7.2)",
+    "instaladoEl": "2026-09-06",
+    "sha256Rueda": "281cb92847814e8018010c48b4069ff858a30236638631c1a91dd7bfa68f8a8a",
+    "sha256Licencia": "a652687151814d4c4715445912fcb49e7e58f5b248d47a1a88b859a8815e0822",
+    "sha256LicenciaProj": "ac9caff7979c906774d756815d1d473145284ba7ba9a5ef1c5fa77e6a30cef82",
+    "registro": "docs/cad/corpus/oraculos/HERRAMIENTAS.md#pyproj-3-7-2",
+    "porQueCuentaComoIndependiente": "PROJ es la implementacion de referencia del mundo GIS para EPSG y para la transversa de Mercator, mantenida por OSGeo desde los a\u00f1os 80 (linaje Evenden/Warmerdam), sin una linea de codigo en comun con apps/web/src/lib/geo/crs.ts. pyproj es su envoltura oficial en Python.",
+    "limiteDeSuIndependencia": "PROJ resuelve la transversa de Mercator con el mismo metodo de fondo que Karney (2011) -series de Kruger-Engsager-Poder-, igual que crs.ts. Una coincidencia aqui acredita OTRA IMPLEMENTACION en otro lenguaje, no OTRO METODO matematico: eso ya lo prueban Snyder y la cuadratura de Gauss-Legendre que crs.spec.ts trae por dentro."
+  },
+  "advertencia": "NO ESTA INSTALADA EN CI. Esta lectura se hizo en la maquina declarada y se congela aqui. El spec vuelve a correrla si la herramienta esta presente; cuando no esta, declara la ausencia en vez de fingir la medicion.",
+  "loQueNoAcredita": "pyproj/PROJ no son AutoCAD Map 3D ni ningun software comercial de topografia. Acreditan que la reproyeccion coincide con la implementacion de referencia del mundo GIS, no compatibilidad con un producto concreto.",
+  "grid": {
+    "definicion": {
+      "formula": "mexicoControlGrid() de crs.spec.ts: lat 14..33 paso 1, lon -118..-86 paso 1, filtrado a zonas 11..16",
+      "latMinDeg": 14,
+      "latMaxDeg": 33,
+      "lonMinDeg": -118,
+      "lonMaxDeg": -86,
+      "stepDeg": 1
+    },
+    "puntos": 660,
+    "porZona": {
+      "11": 80,
+      "12": 120,
+      "13": 120,
+      "14": 120,
+      "15": 120,
+      "16": 100
+    },
+    "resultados": [
+      {
+        "lonDeg": -118,
+        "latDeg": 14,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 392004.347744884,
+        "northing": 1547954.320486085
+      },
+      {
+        "lonDeg": -117,
+        "latDeg": 14,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 500000.0,
+        "northing": 1547726.306719834
+      },
+      {
+        "lonDeg": -116,
+        "latDeg": 14,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 607995.652255113,
+        "northing": 1547954.320486085
+      },
+      {
+        "lonDeg": -115,
+        "latDeg": 14,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 716020.555127576,
+        "northing": 1548638.688569596
+      },
+      {
+        "lonDeg": -114,
+        "latDeg": 14,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 175896.005642541,
+        "northing": 1549780.392432603
+      },
+      {
+        "lonDeg": -113,
+        "latDeg": 14,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 283979.444872424,
+        "northing": 1548638.688569596
+      },
+      {
+        "lonDeg": -112,
+        "latDeg": 14,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 392004.347744885,
+        "northing": 1547954.320486085
+      },
+      {
+        "lonDeg": -111,
+        "latDeg": 14,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 500000.0,
+        "northing": 1547726.306719834
+      },
+      {
+        "lonDeg": -110,
+        "latDeg": 14,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 607995.652255115,
+        "northing": 1547954.320486085
+      },
+      {
+        "lonDeg": -109,
+        "latDeg": 14,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 716020.555127576,
+        "northing": 1548638.688569596
+      },
+      {
+        "lonDeg": -108,
+        "latDeg": 14,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 175896.005642541,
+        "northing": 1549780.392432603
+      },
+      {
+        "lonDeg": -107,
+        "latDeg": 14,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 283979.444872424,
+        "northing": 1548638.688569596
+      },
+      {
+        "lonDeg": -106,
+        "latDeg": 14,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 392004.347744885,
+        "northing": 1547954.320486085
+      },
+      {
+        "lonDeg": -105,
+        "latDeg": 14,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 499999.999999999,
+        "northing": 1547726.306719834
+      },
+      {
+        "lonDeg": -104,
+        "latDeg": 14,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 607995.652255113,
+        "northing": 1547954.320486085
+      },
+      {
+        "lonDeg": -103,
+        "latDeg": 14,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 716020.555127574,
+        "northing": 1548638.688569596
+      },
+      {
+        "lonDeg": -102,
+        "latDeg": 14,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 175896.005642541,
+        "northing": 1549780.392432603
+      },
+      {
+        "lonDeg": -101,
+        "latDeg": 14,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 283979.444872424,
+        "northing": 1548638.688569596
+      },
+      {
+        "lonDeg": -100,
+        "latDeg": 14,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 392004.347744885,
+        "northing": 1547954.320486085
+      },
+      {
+        "lonDeg": -99,
+        "latDeg": 14,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 500000.0,
+        "northing": 1547726.306719834
+      },
+      {
+        "lonDeg": -98,
+        "latDeg": 14,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 607995.652255115,
+        "northing": 1547954.320486085
+      },
+      {
+        "lonDeg": -97,
+        "latDeg": 14,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 716020.555127576,
+        "northing": 1548638.688569596
+      },
+      {
+        "lonDeg": -96,
+        "latDeg": 14,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 175896.00564254,
+        "northing": 1549780.392432603
+      },
+      {
+        "lonDeg": -95,
+        "latDeg": 14,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 283979.444872423,
+        "northing": 1548638.688569596
+      },
+      {
+        "lonDeg": -94,
+        "latDeg": 14,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 392004.347744884,
+        "northing": 1547954.320486085
+      },
+      {
+        "lonDeg": -93,
+        "latDeg": 14,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 499999.999999999,
+        "northing": 1547726.306719834
+      },
+      {
+        "lonDeg": -92,
+        "latDeg": 14,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 607995.652255113,
+        "northing": 1547954.320486085
+      },
+      {
+        "lonDeg": -91,
+        "latDeg": 14,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 716020.555127574,
+        "northing": 1548638.688569596
+      },
+      {
+        "lonDeg": -90,
+        "latDeg": 14,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 175896.005642542,
+        "northing": 1549780.392432603
+      },
+      {
+        "lonDeg": -89,
+        "latDeg": 14,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 283979.444872426,
+        "northing": 1548638.688569596
+      },
+      {
+        "lonDeg": -88,
+        "latDeg": 14,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 392004.347744887,
+        "northing": 1547954.320486085
+      },
+      {
+        "lonDeg": -87,
+        "latDeg": 14,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 500000.000000001,
+        "northing": 1547726.306719834
+      },
+      {
+        "lonDeg": -86,
+        "latDeg": 14,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 607995.652255115,
+        "northing": 1547954.320486085
+      },
+      {
+        "lonDeg": -118,
+        "latDeg": 15,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 392487.77232369,
+        "northing": 1658568.840997084
+      },
+      {
+        "lonDeg": -117,
+        "latDeg": 15,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 500000.0,
+        "northing": 1658325.993564785
+      },
+      {
+        "lonDeg": -116,
+        "latDeg": 15,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 607512.227676308,
+        "northing": 1658568.840997084
+      },
+      {
+        "lonDeg": -115,
+        "latDeg": 15,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 715053.016841093,
+        "northing": 1659297.727506552
+      },
+      {
+        "lonDeg": -114,
+        "latDeg": 15,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 177349.038211679,
+        "northing": 1660513.686878174
+      },
+      {
+        "lonDeg": -113,
+        "latDeg": 15,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 284946.983158907,
+        "northing": 1659297.727506552
+      },
+      {
+        "lonDeg": -112,
+        "latDeg": 15,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 392487.772323691,
+        "northing": 1658568.840997084
+      },
+      {
+        "lonDeg": -111,
+        "latDeg": 15,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 500000.0,
+        "northing": 1658325.993564785
+      },
+      {
+        "lonDeg": -110,
+        "latDeg": 15,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 607512.227676309,
+        "northing": 1658568.840997084
+      },
+      {
+        "lonDeg": -109,
+        "latDeg": 15,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 715053.016841093,
+        "northing": 1659297.727506552
+      },
+      {
+        "lonDeg": -108,
+        "latDeg": 15,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 177349.038211679,
+        "northing": 1660513.686878174
+      },
+      {
+        "lonDeg": -107,
+        "latDeg": 15,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 284946.983158907,
+        "northing": 1659297.727506552
+      },
+      {
+        "lonDeg": -106,
+        "latDeg": 15,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 392487.772323691,
+        "northing": 1658568.840997084
+      },
+      {
+        "lonDeg": -105,
+        "latDeg": 15,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 499999.999999999,
+        "northing": 1658325.993564785
+      },
+      {
+        "lonDeg": -104,
+        "latDeg": 15,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 607512.227676308,
+        "northing": 1658568.840997084
+      },
+      {
+        "lonDeg": -103,
+        "latDeg": 15,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 715053.016841092,
+        "northing": 1659297.727506552
+      },
+      {
+        "lonDeg": -102,
+        "latDeg": 15,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 177349.038211679,
+        "northing": 1660513.686878174
+      },
+      {
+        "lonDeg": -101,
+        "latDeg": 15,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 284946.983158907,
+        "northing": 1659297.727506552
+      },
+      {
+        "lonDeg": -100,
+        "latDeg": 15,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 392487.772323691,
+        "northing": 1658568.840997084
+      },
+      {
+        "lonDeg": -99,
+        "latDeg": 15,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 500000.0,
+        "northing": 1658325.993564785
+      },
+      {
+        "lonDeg": -98,
+        "latDeg": 15,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 607512.227676309,
+        "northing": 1658568.840997084
+      },
+      {
+        "lonDeg": -97,
+        "latDeg": 15,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 715053.016841093,
+        "northing": 1659297.727506552
+      },
+      {
+        "lonDeg": -96,
+        "latDeg": 15,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 177349.038211677,
+        "northing": 1660513.686878174
+      },
+      {
+        "lonDeg": -95,
+        "latDeg": 15,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 284946.983158906,
+        "northing": 1659297.727506552
+      },
+      {
+        "lonDeg": -94,
+        "latDeg": 15,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 392487.77232369,
+        "northing": 1658568.840997084
+      },
+      {
+        "lonDeg": -93,
+        "latDeg": 15,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 499999.999999999,
+        "northing": 1658325.993564785
+      },
+      {
+        "lonDeg": -92,
+        "latDeg": 15,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 607512.227676308,
+        "northing": 1658568.840997084
+      },
+      {
+        "lonDeg": -91,
+        "latDeg": 15,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 715053.016841092,
+        "northing": 1659297.727506552
+      },
+      {
+        "lonDeg": -90,
+        "latDeg": 15,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 177349.03821168,
+        "northing": 1660513.686878174
+      },
+      {
+        "lonDeg": -89,
+        "latDeg": 15,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 284946.983158908,
+        "northing": 1659297.727506552
+      },
+      {
+        "lonDeg": -88,
+        "latDeg": 15,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 392487.772323692,
+        "northing": 1658568.840997084
+      },
+      {
+        "lonDeg": -87,
+        "latDeg": 15,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 500000.000000001,
+        "northing": 1658325.993564785
+      },
+      {
+        "lonDeg": -86,
+        "latDeg": 15,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 607512.227676309,
+        "northing": 1658568.840997084
+      },
+      {
+        "lonDeg": -118,
+        "latDeg": 16,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 393003.79026437,
+        "northing": 1769192.762430191
+      },
+      {
+        "lonDeg": -117,
+        "latDeg": 16,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 500000.0,
+        "northing": 1768935.375976459
+      },
+      {
+        "lonDeg": -116,
+        "latDeg": 16,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 606996.209735627,
+        "northing": 1769192.762430191
+      },
+      {
+        "lonDeg": -115,
+        "latDeg": 16,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 714020.253767349,
+        "northing": 1769965.282298341
+      },
+      {
+        "lonDeg": -114,
+        "latDeg": 16,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 178900.003205298,
+        "northing": 1771254.018281299
+      },
+      {
+        "lonDeg": -113,
+        "latDeg": 16,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 285979.746232651,
+        "northing": 1769965.282298341
+      },
+      {
+        "lonDeg": -112,
+        "latDeg": 16,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 393003.790264372,
+        "northing": 1769192.762430191
+      },
+      {
+        "lonDeg": -111,
+        "latDeg": 16,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 500000.0,
+        "northing": 1768935.375976459
+      },
+      {
+        "lonDeg": -110,
+        "latDeg": 16,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 606996.209735628,
+        "northing": 1769192.762430191
+      },
+      {
+        "lonDeg": -109,
+        "latDeg": 16,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 714020.253767349,
+        "northing": 1769965.282298341
+      },
+      {
+        "lonDeg": -108,
+        "latDeg": 16,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 178900.003205298,
+        "northing": 1771254.018281299
+      },
+      {
+        "lonDeg": -107,
+        "latDeg": 16,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 285979.746232651,
+        "northing": 1769965.282298341
+      },
+      {
+        "lonDeg": -106,
+        "latDeg": 16,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 393003.790264372,
+        "northing": 1769192.762430191
+      },
+      {
+        "lonDeg": -105,
+        "latDeg": 16,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 499999.999999999,
+        "northing": 1768935.375976459
+      },
+      {
+        "lonDeg": -104,
+        "latDeg": 16,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 606996.209735627,
+        "northing": 1769192.762430191
+      },
+      {
+        "lonDeg": -103,
+        "latDeg": 16,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 714020.253767348,
+        "northing": 1769965.282298341
+      },
+      {
+        "lonDeg": -102,
+        "latDeg": 16,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 178900.003205298,
+        "northing": 1771254.018281299
+      },
+      {
+        "lonDeg": -101,
+        "latDeg": 16,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 285979.746232651,
+        "northing": 1769965.282298341
+      },
+      {
+        "lonDeg": -100,
+        "latDeg": 16,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 393003.790264372,
+        "northing": 1769192.762430191
+      },
+      {
+        "lonDeg": -99,
+        "latDeg": 16,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 500000.0,
+        "northing": 1768935.375976459
+      },
+      {
+        "lonDeg": -98,
+        "latDeg": 16,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 606996.209735628,
+        "northing": 1769192.762430191
+      },
+      {
+        "lonDeg": -97,
+        "latDeg": 16,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 714020.253767349,
+        "northing": 1769965.282298341
+      },
+      {
+        "lonDeg": -96,
+        "latDeg": 16,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 178900.003205297,
+        "northing": 1771254.018281299
+      },
+      {
+        "lonDeg": -95,
+        "latDeg": 16,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 285979.74623265,
+        "northing": 1769965.282298341
+      },
+      {
+        "lonDeg": -94,
+        "latDeg": 16,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 393003.79026437,
+        "northing": 1769192.762430191
+      },
+      {
+        "lonDeg": -93,
+        "latDeg": 16,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 499999.999999999,
+        "northing": 1768935.375976459
+      },
+      {
+        "lonDeg": -92,
+        "latDeg": 16,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 606996.209735627,
+        "northing": 1769192.762430191
+      },
+      {
+        "lonDeg": -91,
+        "latDeg": 16,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 714020.253767348,
+        "northing": 1769965.282298341
+      },
+      {
+        "lonDeg": -90,
+        "latDeg": 16,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 178900.003205299,
+        "northing": 1771254.018281299
+      },
+      {
+        "lonDeg": -89,
+        "latDeg": 16,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 285979.746232652,
+        "northing": 1769965.282298341
+      },
+      {
+        "lonDeg": -88,
+        "latDeg": 16,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 393003.790264373,
+        "northing": 1769192.762430191
+      },
+      {
+        "lonDeg": -87,
+        "latDeg": 16,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 500000.000000001,
+        "northing": 1768935.375976459
+      },
+      {
+        "lonDeg": -86,
+        "latDeg": 16,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 606996.209735628,
+        "northing": 1769192.762430191
+      },
+      {
+        "lonDeg": -118,
+        "latDeg": 17,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 393552.252694871,
+        "northing": 1879826.648833177
+      },
+      {
+        "lonDeg": -117,
+        "latDeg": 17,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 500000.0,
+        "northing": 1879555.035669507
+      },
+      {
+        "lonDeg": -116,
+        "latDeg": 17,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 606447.747305127,
+        "northing": 1879826.648833177
+      },
+      {
+        "lonDeg": -115,
+        "latDeg": 17,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 712922.565451071,
+        "northing": 1880641.863945406
+      },
+      {
+        "lonDeg": -114,
+        "latDeg": 17,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 180548.44679163,
+        "northing": 1882001.809074491
+      },
+      {
+        "lonDeg": -113,
+        "latDeg": 17,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 287077.434548929,
+        "northing": 1880641.863945406
+      },
+      {
+        "lonDeg": -112,
+        "latDeg": 17,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 393552.252694872,
+        "northing": 1879826.648833177
+      },
+      {
+        "lonDeg": -111,
+        "latDeg": 17,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 500000.0,
+        "northing": 1879555.035669507
+      },
+      {
+        "lonDeg": -110,
+        "latDeg": 17,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 606447.747305128,
+        "northing": 1879826.648833177
+      },
+      {
+        "lonDeg": -109,
+        "latDeg": 17,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 712922.565451071,
+        "northing": 1880641.863945406
+      },
+      {
+        "lonDeg": -108,
+        "latDeg": 17,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 180548.44679163,
+        "northing": 1882001.809074491
+      },
+      {
+        "lonDeg": -107,
+        "latDeg": 17,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 287077.434548929,
+        "northing": 1880641.863945406
+      },
+      {
+        "lonDeg": -106,
+        "latDeg": 17,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 393552.252694872,
+        "northing": 1879826.648833177
+      },
+      {
+        "lonDeg": -105,
+        "latDeg": 17,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 499999.999999999,
+        "northing": 1879555.035669507
+      },
+      {
+        "lonDeg": -104,
+        "latDeg": 17,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 606447.747305127,
+        "northing": 1879826.648833177
+      },
+      {
+        "lonDeg": -103,
+        "latDeg": 17,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 712922.565451069,
+        "northing": 1880641.863945406
+      },
+      {
+        "lonDeg": -102,
+        "latDeg": 17,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 180548.44679163,
+        "northing": 1882001.809074491
+      },
+      {
+        "lonDeg": -101,
+        "latDeg": 17,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 287077.434548929,
+        "northing": 1880641.863945406
+      },
+      {
+        "lonDeg": -100,
+        "latDeg": 17,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 393552.252694872,
+        "northing": 1879826.648833177
+      },
+      {
+        "lonDeg": -99,
+        "latDeg": 17,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 500000.0,
+        "northing": 1879555.035669507
+      },
+      {
+        "lonDeg": -98,
+        "latDeg": 17,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 606447.747305128,
+        "northing": 1879826.648833177
+      },
+      {
+        "lonDeg": -97,
+        "latDeg": 17,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 712922.565451071,
+        "northing": 1880641.863945406
+      },
+      {
+        "lonDeg": -96,
+        "latDeg": 17,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 180548.446791629,
+        "northing": 1882001.809074491
+      },
+      {
+        "lonDeg": -95,
+        "latDeg": 17,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 287077.434548928,
+        "northing": 1880641.863945406
+      },
+      {
+        "lonDeg": -94,
+        "latDeg": 17,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 393552.252694871,
+        "northing": 1879826.648833177
+      },
+      {
+        "lonDeg": -93,
+        "latDeg": 17,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 499999.999999999,
+        "northing": 1879555.035669507
+      },
+      {
+        "lonDeg": -92,
+        "latDeg": 17,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 606447.747305127,
+        "northing": 1879826.648833177
+      },
+      {
+        "lonDeg": -91,
+        "latDeg": 17,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 712922.565451069,
+        "northing": 1880641.863945406
+      },
+      {
+        "lonDeg": -90,
+        "latDeg": 17,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 180548.446791632,
+        "northing": 1882001.809074491
+      },
+      {
+        "lonDeg": -89,
+        "latDeg": 17,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 287077.434548931,
+        "northing": 1880641.863945406
+      },
+      {
+        "lonDeg": -88,
+        "latDeg": 17,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 393552.252694873,
+        "northing": 1879826.648833177
+      },
+      {
+        "lonDeg": -87,
+        "latDeg": 17,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 500000.000000001,
+        "northing": 1879555.035669507
+      },
+      {
+        "lonDeg": -86,
+        "latDeg": 17,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 606447.747305128,
+        "northing": 1879826.648833177
+      },
+      {
+        "lonDeg": -118,
+        "latDeg": 18,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 394133.001264032,
+        "northing": 1990471.05237372
+      },
+      {
+        "lonDeg": -117,
+        "latDeg": 18,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 500000.0,
+        "northing": 1990185.542104159
+      },
+      {
+        "lonDeg": -116,
+        "latDeg": 18,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 605866.998735965,
+        "northing": 1990471.05237372
+      },
+      {
+        "lonDeg": -115,
+        "latDeg": 18,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 711760.270482417,
+        "northing": 1991327.972696153
+      },
+      {
+        "lonDeg": -114,
+        "latDeg": 18,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 182293.886352411,
+        "northing": 1992757.472835286
+      },
+      {
+        "lonDeg": -113,
+        "latDeg": 18,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 288239.729517583,
+        "northing": 1991327.972696153
+      },
+      {
+        "lonDeg": -112,
+        "latDeg": 18,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 394133.001264034,
+        "northing": 1990471.05237372
+      },
+      {
+        "lonDeg": -111,
+        "latDeg": 18,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 500000.0,
+        "northing": 1990185.542104159
+      },
+      {
+        "lonDeg": -110,
+        "latDeg": 18,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 605866.998735967,
+        "northing": 1990471.05237372
+      },
+      {
+        "lonDeg": -109,
+        "latDeg": 18,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 711760.270482417,
+        "northing": 1991327.972696153
+      },
+      {
+        "lonDeg": -108,
+        "latDeg": 18,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 182293.886352411,
+        "northing": 1992757.472835286
+      },
+      {
+        "lonDeg": -107,
+        "latDeg": 18,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 288239.729517583,
+        "northing": 1991327.972696153
+      },
+      {
+        "lonDeg": -106,
+        "latDeg": 18,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 394133.001264034,
+        "northing": 1990471.05237372
+      },
+      {
+        "lonDeg": -105,
+        "latDeg": 18,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 499999.999999999,
+        "northing": 1990185.542104159
+      },
+      {
+        "lonDeg": -104,
+        "latDeg": 18,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 605866.998735965,
+        "northing": 1990471.05237372
+      },
+      {
+        "lonDeg": -103,
+        "latDeg": 18,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 711760.270482416,
+        "northing": 1991327.972696153
+      },
+      {
+        "lonDeg": -102,
+        "latDeg": 18,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 182293.886352411,
+        "northing": 1992757.472835286
+      },
+      {
+        "lonDeg": -101,
+        "latDeg": 18,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 288239.729517583,
+        "northing": 1991327.972696153
+      },
+      {
+        "lonDeg": -100,
+        "latDeg": 18,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 394133.001264034,
+        "northing": 1990471.05237372
+      },
+      {
+        "lonDeg": -99,
+        "latDeg": 18,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 500000.0,
+        "northing": 1990185.542104159
+      },
+      {
+        "lonDeg": -98,
+        "latDeg": 18,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 605866.998735967,
+        "northing": 1990471.05237372
+      },
+      {
+        "lonDeg": -97,
+        "latDeg": 18,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 711760.270482417,
+        "northing": 1991327.972696153
+      },
+      {
+        "lonDeg": -96,
+        "latDeg": 18,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 182293.88635241,
+        "northing": 1992757.472835286
+      },
+      {
+        "lonDeg": -95,
+        "latDeg": 18,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 288239.729517582,
+        "northing": 1991327.972696153
+      },
+      {
+        "lonDeg": -94,
+        "latDeg": 18,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 394133.001264032,
+        "northing": 1990471.05237372
+      },
+      {
+        "lonDeg": -93,
+        "latDeg": 18,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 499999.999999999,
+        "northing": 1990185.542104159
+      },
+      {
+        "lonDeg": -92,
+        "latDeg": 18,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 605866.998735965,
+        "northing": 1990471.05237372
+      },
+      {
+        "lonDeg": -91,
+        "latDeg": 18,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 711760.270482416,
+        "northing": 1991327.972696153
+      },
+      {
+        "lonDeg": -90,
+        "latDeg": 18,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 182293.886352413,
+        "northing": 1992757.472835286
+      },
+      {
+        "lonDeg": -89,
+        "latDeg": 18,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 288239.729517584,
+        "northing": 1991327.972696153
+      },
+      {
+        "lonDeg": -88,
+        "latDeg": 18,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 394133.001264035,
+        "northing": 1990471.05237372
+      },
+      {
+        "lonDeg": -87,
+        "latDeg": 18,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 500000.000000001,
+        "northing": 1990185.542104159
+      },
+      {
+        "lonDeg": -86,
+        "latDeg": 18,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 605866.998735967,
+        "northing": 1990471.05237372
+      },
+      {
+        "lonDeg": -118,
+        "latDeg": 19,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 394745.868166296,
+        "northing": 2101126.512675014
+      },
+      {
+        "lonDeg": -117,
+        "latDeg": 19,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 500000.0,
+        "northing": 2100827.451800963
+      },
+      {
+        "lonDeg": -116,
+        "latDeg": 19,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 605254.131833702,
+        "northing": 2101126.512675014
+      },
+      {
+        "lonDeg": -115,
+        "latDeg": 19,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 710533.706442446,
+        "northing": 2102024.097445337
+      },
+      {
+        "lonDeg": -114,
+        "latDeg": 19,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 184135.810577587,
+        "northing": 2103521.413789794
+      },
+      {
+        "lonDeg": -113,
+        "latDeg": 19,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 289466.293557554,
+        "northing": 2102024.097445337
+      },
+      {
+        "lonDeg": -112,
+        "latDeg": 19,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 394745.868166297,
+        "northing": 2101126.512675014
+      },
+      {
+        "lonDeg": -111,
+        "latDeg": 19,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 500000.0,
+        "northing": 2100827.451800963
+      },
+      {
+        "lonDeg": -110,
+        "latDeg": 19,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 605254.131833703,
+        "northing": 2101126.512675014
+      },
+      {
+        "lonDeg": -109,
+        "latDeg": 19,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 710533.706442446,
+        "northing": 2102024.097445337
+      },
+      {
+        "lonDeg": -108,
+        "latDeg": 19,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 184135.810577587,
+        "northing": 2103521.413789794
+      },
+      {
+        "lonDeg": -107,
+        "latDeg": 19,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 289466.293557554,
+        "northing": 2102024.097445337
+      },
+      {
+        "lonDeg": -106,
+        "latDeg": 19,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 394745.868166297,
+        "northing": 2101126.512675014
+      },
+      {
+        "lonDeg": -105,
+        "latDeg": 19,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 499999.999999999,
+        "northing": 2100827.451800963
+      },
+      {
+        "lonDeg": -104,
+        "latDeg": 19,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 605254.131833702,
+        "northing": 2101126.512675014
+      },
+      {
+        "lonDeg": -103,
+        "latDeg": 19,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 710533.706442445,
+        "northing": 2102024.097445337
+      },
+      {
+        "lonDeg": -102,
+        "latDeg": 19,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 184135.810577587,
+        "northing": 2103521.413789794
+      },
+      {
+        "lonDeg": -101,
+        "latDeg": 19,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 289466.293557554,
+        "northing": 2102024.097445337
+      },
+      {
+        "lonDeg": -100,
+        "latDeg": 19,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 394745.868166297,
+        "northing": 2101126.512675014
+      },
+      {
+        "lonDeg": -99,
+        "latDeg": 19,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 500000.0,
+        "northing": 2100827.451800963
+      },
+      {
+        "lonDeg": -98,
+        "latDeg": 19,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 605254.131833703,
+        "northing": 2101126.512675014
+      },
+      {
+        "lonDeg": -97,
+        "latDeg": 19,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 710533.706442446,
+        "northing": 2102024.097445337
+      },
+      {
+        "lonDeg": -96,
+        "latDeg": 19,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 184135.810577586,
+        "northing": 2103521.413789794
+      },
+      {
+        "lonDeg": -95,
+        "latDeg": 19,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 289466.293557553,
+        "northing": 2102024.097445337
+      },
+      {
+        "lonDeg": -94,
+        "latDeg": 19,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 394745.868166296,
+        "northing": 2101126.512675014
+      },
+      {
+        "lonDeg": -93,
+        "latDeg": 19,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 499999.999999999,
+        "northing": 2100827.451800963
+      },
+      {
+        "lonDeg": -92,
+        "latDeg": 19,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 605254.131833702,
+        "northing": 2101126.512675014
+      },
+      {
+        "lonDeg": -91,
+        "latDeg": 19,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 710533.706442445,
+        "northing": 2102024.097445337
+      },
+      {
+        "lonDeg": -90,
+        "latDeg": 19,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 184135.810577588,
+        "northing": 2103521.413789794
+      },
+      {
+        "lonDeg": -89,
+        "latDeg": 19,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 289466.293557555,
+        "northing": 2102024.097445337
+      },
+      {
+        "lonDeg": -88,
+        "latDeg": 19,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 394745.868166298,
+        "northing": 2101126.512675014
+      },
+      {
+        "lonDeg": -87,
+        "latDeg": 19,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 500000.000000001,
+        "northing": 2100827.451800963
+      },
+      {
+        "lonDeg": -86,
+        "latDeg": 19,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 605254.131833703,
+        "northing": 2101126.512675014
+      },
+      {
+        "lonDeg": -118,
+        "latDeg": 20,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 395390.676168249,
+        "northing": 2211793.556165367
+      },
+      {
+        "lonDeg": -117,
+        "latDeg": 20,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 500000.0,
+        "northing": 2211481.307669964
+      },
+      {
+        "lonDeg": -116,
+        "latDeg": 20,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 604609.323831748,
+        "northing": 2211793.556165367
+      },
+      {
+        "lonDeg": -115,
+        "latDeg": 20,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 709243.229844676,
+        "northing": 2212730.715145051
+      },
+      {
+        "lonDeg": -114,
+        "latDeg": 20,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 186073.679566424,
+        "northing": 2214294.026326485
+      },
+      {
+        "lonDeg": -113,
+        "latDeg": 20,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 290756.770155324,
+        "northing": 2212730.715145051
+      },
+      {
+        "lonDeg": -112,
+        "latDeg": 20,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 395390.676168251,
+        "northing": 2211793.556165367
+      },
+      {
+        "lonDeg": -111,
+        "latDeg": 20,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 500000.0,
+        "northing": 2211481.307669964
+      },
+      {
+        "lonDeg": -110,
+        "latDeg": 20,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 604609.323831749,
+        "northing": 2211793.556165367
+      },
+      {
+        "lonDeg": -109,
+        "latDeg": 20,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 709243.229844676,
+        "northing": 2212730.715145051
+      },
+      {
+        "lonDeg": -108,
+        "latDeg": 20,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 186073.679566424,
+        "northing": 2214294.026326485
+      },
+      {
+        "lonDeg": -107,
+        "latDeg": 20,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 290756.770155324,
+        "northing": 2212730.715145051
+      },
+      {
+        "lonDeg": -106,
+        "latDeg": 20,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 395390.676168251,
+        "northing": 2211793.556165367
+      },
+      {
+        "lonDeg": -105,
+        "latDeg": 20,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 499999.999999999,
+        "northing": 2211481.307669964
+      },
+      {
+        "lonDeg": -104,
+        "latDeg": 20,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 604609.323831748,
+        "northing": 2211793.556165367
+      },
+      {
+        "lonDeg": -103,
+        "latDeg": 20,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 709243.229844674,
+        "northing": 2212730.715145051
+      },
+      {
+        "lonDeg": -102,
+        "latDeg": 20,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 186073.679566424,
+        "northing": 2214294.026326485
+      },
+      {
+        "lonDeg": -101,
+        "latDeg": 20,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 290756.770155324,
+        "northing": 2212730.715145051
+      },
+      {
+        "lonDeg": -100,
+        "latDeg": 20,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 395390.676168251,
+        "northing": 2211793.556165367
+      },
+      {
+        "lonDeg": -99,
+        "latDeg": 20,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 500000.0,
+        "northing": 2211481.307669964
+      },
+      {
+        "lonDeg": -98,
+        "latDeg": 20,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 604609.323831749,
+        "northing": 2211793.556165367
+      },
+      {
+        "lonDeg": -97,
+        "latDeg": 20,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 709243.229844676,
+        "northing": 2212730.715145051
+      },
+      {
+        "lonDeg": -96,
+        "latDeg": 20,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 186073.679566423,
+        "northing": 2214294.026326485
+      },
+      {
+        "lonDeg": -95,
+        "latDeg": 20,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 290756.770155323,
+        "northing": 2212730.715145051
+      },
+      {
+        "lonDeg": -94,
+        "latDeg": 20,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 395390.676168249,
+        "northing": 2211793.556165367
+      },
+      {
+        "lonDeg": -93,
+        "latDeg": 20,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 499999.999999999,
+        "northing": 2211481.307669964
+      },
+      {
+        "lonDeg": -92,
+        "latDeg": 20,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 604609.323831748,
+        "northing": 2211793.556165367
+      },
+      {
+        "lonDeg": -91,
+        "latDeg": 20,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 709243.229844674,
+        "northing": 2212730.715145051
+      },
+      {
+        "lonDeg": -90,
+        "latDeg": 20,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 186073.679566426,
+        "northing": 2214294.026326485
+      },
+      {
+        "lonDeg": -89,
+        "latDeg": 20,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 290756.770155326,
+        "northing": 2212730.715145051
+      },
+      {
+        "lonDeg": -88,
+        "latDeg": 20,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 395390.676168252,
+        "northing": 2211793.556165367
+      },
+      {
+        "lonDeg": -87,
+        "latDeg": 20,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 500000.000000001,
+        "northing": 2211481.307669964
+      },
+      {
+        "lonDeg": -86,
+        "latDeg": 20,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 604609.323831749,
+        "northing": 2211793.556165367
+      },
+      {
+        "lonDeg": -118,
+        "latDeg": 21,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 396067.238637069,
+        "northing": 2322472.695442542
+      },
+      {
+        "lonDeg": -117,
+        "latDeg": 21,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 500000.0,
+        "northing": 2322147.638355101
+      },
+      {
+        "lonDeg": -116,
+        "latDeg": 21,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 603932.761362928,
+        "northing": 2322472.695442542
+      },
+      {
+        "lonDeg": -115,
+        "latDeg": 21,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 707889.216072645,
+        "northing": 2323448.290229021
+      },
+      {
+        "lonDeg": -114,
+        "latDeg": 21,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 188106.92493514,
+        "northing": 2325075.69452077
+      },
+      {
+        "lonDeg": -113,
+        "latDeg": 21,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 292110.783927355,
+        "northing": 2323448.290229021
+      },
+      {
+        "lonDeg": -112,
+        "latDeg": 21,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 396067.238637071,
+        "northing": 2322472.695442542
+      },
+      {
+        "lonDeg": -111,
+        "latDeg": 21,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 500000.0,
+        "northing": 2322147.638355101
+      },
+      {
+        "lonDeg": -110,
+        "latDeg": 21,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 603932.761362929,
+        "northing": 2322472.695442542
+      },
+      {
+        "lonDeg": -109,
+        "latDeg": 21,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 707889.216072645,
+        "northing": 2323448.290229021
+      },
+      {
+        "lonDeg": -108,
+        "latDeg": 21,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 188106.92493514,
+        "northing": 2325075.69452077
+      },
+      {
+        "lonDeg": -107,
+        "latDeg": 21,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 292110.783927355,
+        "northing": 2323448.290229021
+      },
+      {
+        "lonDeg": -106,
+        "latDeg": 21,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 396067.238637071,
+        "northing": 2322472.695442542
+      },
+      {
+        "lonDeg": -105,
+        "latDeg": 21,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 499999.999999999,
+        "northing": 2322147.638355101
+      },
+      {
+        "lonDeg": -104,
+        "latDeg": 21,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 603932.761362928,
+        "northing": 2322472.695442542
+      },
+      {
+        "lonDeg": -103,
+        "latDeg": 21,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 707889.216072643,
+        "northing": 2323448.290229021
+      },
+      {
+        "lonDeg": -102,
+        "latDeg": 21,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 188106.92493514,
+        "northing": 2325075.69452077
+      },
+      {
+        "lonDeg": -101,
+        "latDeg": 21,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 292110.783927355,
+        "northing": 2323448.290229021
+      },
+      {
+        "lonDeg": -100,
+        "latDeg": 21,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 396067.238637071,
+        "northing": 2322472.695442542
+      },
+      {
+        "lonDeg": -99,
+        "latDeg": 21,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 500000.0,
+        "northing": 2322147.638355101
+      },
+      {
+        "lonDeg": -98,
+        "latDeg": 21,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 603932.761362929,
+        "northing": 2322472.695442542
+      },
+      {
+        "lonDeg": -97,
+        "latDeg": 21,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 707889.216072645,
+        "northing": 2323448.290229021
+      },
+      {
+        "lonDeg": -96,
+        "latDeg": 21,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 188106.924935139,
+        "northing": 2325075.69452077
+      },
+      {
+        "lonDeg": -95,
+        "latDeg": 21,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 292110.783927354,
+        "northing": 2323448.290229021
+      },
+      {
+        "lonDeg": -94,
+        "latDeg": 21,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 396067.238637069,
+        "northing": 2322472.695442542
+      },
+      {
+        "lonDeg": -93,
+        "latDeg": 21,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 499999.999999999,
+        "northing": 2322147.638355101
+      },
+      {
+        "lonDeg": -92,
+        "latDeg": 21,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 603932.761362928,
+        "northing": 2322472.695442542
+      },
+      {
+        "lonDeg": -91,
+        "latDeg": 21,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 707889.216072643,
+        "northing": 2323448.290229021
+      },
+      {
+        "lonDeg": -90,
+        "latDeg": 21,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 188106.924935142,
+        "northing": 2325075.69452077
+      },
+      {
+        "lonDeg": -89,
+        "latDeg": 21,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 292110.783927357,
+        "northing": 2323448.290229021
+      },
+      {
+        "lonDeg": -88,
+        "latDeg": 21,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 396067.238637072,
+        "northing": 2322472.695442542
+      },
+      {
+        "lonDeg": -87,
+        "latDeg": 21,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 500000.000000001,
+        "northing": 2322147.638355101
+      },
+      {
+        "lonDeg": -86,
+        "latDeg": 21,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 603932.761362929,
+        "northing": 2322472.695442542
+      },
+      {
+        "lonDeg": -118,
+        "latDeg": 22,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 396775.359570922,
+        "northing": 2433164.428653589
+      },
+      {
+        "lonDeg": -117,
+        "latDeg": 22,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 500000.0,
+        "northing": 2432826.957594587
+      },
+      {
+        "lonDeg": -116,
+        "latDeg": 22,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 603224.640429076,
+        "northing": 2433164.428653589
+      },
+      {
+        "lonDeg": -115,
+        "latDeg": 22,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 706472.059313372,
+        "northing": 2434177.274050861
+      },
+      {
+        "lonDeg": -114,
+        "latDeg": 22,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 190234.949931167,
+        "northing": 2435866.79167091
+      },
+      {
+        "lonDeg": -113,
+        "latDeg": 22,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 293527.940686628,
+        "northing": 2434177.274050861
+      },
+      {
+        "lonDeg": -112,
+        "latDeg": 22,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 396775.359570923,
+        "northing": 2433164.428653589
+      },
+      {
+        "lonDeg": -111,
+        "latDeg": 22,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 500000.0,
+        "northing": 2432826.957594587
+      },
+      {
+        "lonDeg": -110,
+        "latDeg": 22,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 603224.640429077,
+        "northing": 2433164.428653589
+      },
+      {
+        "lonDeg": -109,
+        "latDeg": 22,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 706472.059313372,
+        "northing": 2434177.274050861
+      },
+      {
+        "lonDeg": -108,
+        "latDeg": 22,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 190234.949931167,
+        "northing": 2435866.79167091
+      },
+      {
+        "lonDeg": -107,
+        "latDeg": 22,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 293527.940686628,
+        "northing": 2434177.274050861
+      },
+      {
+        "lonDeg": -106,
+        "latDeg": 22,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 396775.359570923,
+        "northing": 2433164.428653589
+      },
+      {
+        "lonDeg": -105,
+        "latDeg": 22,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 499999.999999999,
+        "northing": 2432826.957594587
+      },
+      {
+        "lonDeg": -104,
+        "latDeg": 22,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 603224.640429076,
+        "northing": 2433164.428653589
+      },
+      {
+        "lonDeg": -103,
+        "latDeg": 22,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 706472.059313371,
+        "northing": 2434177.274050861
+      },
+      {
+        "lonDeg": -102,
+        "latDeg": 22,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 190234.949931167,
+        "northing": 2435866.79167091
+      },
+      {
+        "lonDeg": -101,
+        "latDeg": 22,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 293527.940686628,
+        "northing": 2434177.274050861
+      },
+      {
+        "lonDeg": -100,
+        "latDeg": 22,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 396775.359570923,
+        "northing": 2433164.428653589
+      },
+      {
+        "lonDeg": -99,
+        "latDeg": 22,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 500000.0,
+        "northing": 2432826.957594587
+      },
+      {
+        "lonDeg": -98,
+        "latDeg": 22,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 603224.640429077,
+        "northing": 2433164.428653589
+      },
+      {
+        "lonDeg": -97,
+        "latDeg": 22,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 706472.059313372,
+        "northing": 2434177.274050861
+      },
+      {
+        "lonDeg": -96,
+        "latDeg": 22,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 190234.949931165,
+        "northing": 2435866.79167091
+      },
+      {
+        "lonDeg": -95,
+        "latDeg": 22,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 293527.940686626,
+        "northing": 2434177.274050861
+      },
+      {
+        "lonDeg": -94,
+        "latDeg": 22,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 396775.359570922,
+        "northing": 2433164.428653589
+      },
+      {
+        "lonDeg": -93,
+        "latDeg": 22,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 499999.999999999,
+        "northing": 2432826.957594587
+      },
+      {
+        "lonDeg": -92,
+        "latDeg": 22,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 603224.640429076,
+        "northing": 2433164.428653589
+      },
+      {
+        "lonDeg": -91,
+        "latDeg": 22,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 706472.059313371,
+        "northing": 2434177.274050861
+      },
+      {
+        "lonDeg": -90,
+        "latDeg": 22,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 190234.949931168,
+        "northing": 2435866.79167091
+      },
+      {
+        "lonDeg": -89,
+        "latDeg": 22,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 293527.940686629,
+        "northing": 2434177.274050861
+      },
+      {
+        "lonDeg": -88,
+        "latDeg": 22,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 396775.359570924,
+        "northing": 2433164.428653589
+      },
+      {
+        "lonDeg": -87,
+        "latDeg": 22,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 500000.000000001,
+        "northing": 2432826.957594587
+      },
+      {
+        "lonDeg": -86,
+        "latDeg": 22,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 603224.640429077,
+        "northing": 2433164.428653589
+      },
+      {
+        "lonDeg": -118,
+        "latDeg": 23,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 397514.833631374,
+        "northing": 2543869.238890901
+      },
+      {
+        "lonDeg": -117,
+        "latDeg": 23,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 500000.0,
+        "northing": 2543519.763598048
+      },
+      {
+        "lonDeg": -116,
+        "latDeg": 23,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 602485.166368624,
+        "northing": 2543869.238890901
+      },
+      {
+        "lonDeg": -115,
+        "latDeg": 23,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 704992.172486608,
+        "northing": 2544918.104336962
+      },
+      {
+        "lonDeg": -114,
+        "latDeg": 23,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 192457.129554159,
+        "northing": 2546667.679845844
+      },
+      {
+        "lonDeg": -113,
+        "latDeg": 23,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 295007.827513392,
+        "northing": 2544918.104336962
+      },
+      {
+        "lonDeg": -112,
+        "latDeg": 23,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 397514.833631375,
+        "northing": 2543869.238890901
+      },
+      {
+        "lonDeg": -111,
+        "latDeg": 23,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 500000.0,
+        "northing": 2543519.763598048
+      },
+      {
+        "lonDeg": -110,
+        "latDeg": 23,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 602485.166368625,
+        "northing": 2543869.238890901
+      },
+      {
+        "lonDeg": -109,
+        "latDeg": 23,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 704992.172486608,
+        "northing": 2544918.104336962
+      },
+      {
+        "lonDeg": -108,
+        "latDeg": 23,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 192457.129554159,
+        "northing": 2546667.679845844
+      },
+      {
+        "lonDeg": -107,
+        "latDeg": 23,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 295007.827513392,
+        "northing": 2544918.104336962
+      },
+      {
+        "lonDeg": -106,
+        "latDeg": 23,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 397514.833631375,
+        "northing": 2543869.238890901
+      },
+      {
+        "lonDeg": -105,
+        "latDeg": 23,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 499999.999999999,
+        "northing": 2543519.763598048
+      },
+      {
+        "lonDeg": -104,
+        "latDeg": 23,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 602485.166368624,
+        "northing": 2543869.238890901
+      },
+      {
+        "lonDeg": -103,
+        "latDeg": 23,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 704992.172486607,
+        "northing": 2544918.104336962
+      },
+      {
+        "lonDeg": -102,
+        "latDeg": 23,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 192457.129554159,
+        "northing": 2546667.679845844
+      },
+      {
+        "lonDeg": -101,
+        "latDeg": 23,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 295007.827513392,
+        "northing": 2544918.104336962
+      },
+      {
+        "lonDeg": -100,
+        "latDeg": 23,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 397514.833631375,
+        "northing": 2543869.238890901
+      },
+      {
+        "lonDeg": -99,
+        "latDeg": 23,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 500000.0,
+        "northing": 2543519.763598048
+      },
+      {
+        "lonDeg": -98,
+        "latDeg": 23,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 602485.166368625,
+        "northing": 2543869.238890901
+      },
+      {
+        "lonDeg": -97,
+        "latDeg": 23,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 704992.172486608,
+        "northing": 2544918.104336962
+      },
+      {
+        "lonDeg": -96,
+        "latDeg": 23,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 192457.129554157,
+        "northing": 2546667.679845844
+      },
+      {
+        "lonDeg": -95,
+        "latDeg": 23,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 295007.827513391,
+        "northing": 2544918.104336962
+      },
+      {
+        "lonDeg": -94,
+        "latDeg": 23,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 397514.833631374,
+        "northing": 2543869.238890901
+      },
+      {
+        "lonDeg": -93,
+        "latDeg": 23,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 499999.999999999,
+        "northing": 2543519.763598048
+      },
+      {
+        "lonDeg": -92,
+        "latDeg": 23,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 602485.166368624,
+        "northing": 2543869.238890901
+      },
+      {
+        "lonDeg": -91,
+        "latDeg": 23,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 704992.172486607,
+        "northing": 2544918.104336962
+      },
+      {
+        "lonDeg": -90,
+        "latDeg": 23,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 192457.12955416,
+        "northing": 2546667.679845844
+      },
+      {
+        "lonDeg": -89,
+        "latDeg": 23,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 295007.827513393,
+        "northing": 2544918.104336962
+      },
+      {
+        "lonDeg": -88,
+        "latDeg": 23,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 397514.833631376,
+        "northing": 2543869.238890901
+      },
+      {
+        "lonDeg": -87,
+        "latDeg": 23,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 500000.000000001,
+        "northing": 2543519.763598048
+      },
+      {
+        "lonDeg": -86,
+        "latDeg": 23,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 602485.166368625,
+        "northing": 2543869.238890901
+      },
+      {
+        "lonDeg": -118,
+        "latDeg": 24,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 398285.44617789,
+        "northing": 2654587.59360521
+      },
+      {
+        "lonDeg": -117,
+        "latDeg": 24,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 500000.0,
+        "northing": 2654226.538441135
+      },
+      {
+        "lonDeg": -116,
+        "latDeg": 24,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 601714.553822107,
+        "northing": 2654587.59360521
+      },
+      {
+        "lonDeg": -115,
+        "latDeg": 24,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 703449.987169766,
+        "northing": 2655671.204654667
+      },
+      {
+        "lonDeg": -114,
+        "latDeg": 24,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 194772.81068388,
+        "northing": 2657478.709445421
+      },
+      {
+        "lonDeg": -113,
+        "latDeg": 24,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 296550.012830234,
+        "northing": 2655671.204654667
+      },
+      {
+        "lonDeg": -112,
+        "latDeg": 24,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 398285.446177892,
+        "northing": 2654587.59360521
+      },
+      {
+        "lonDeg": -111,
+        "latDeg": 24,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 500000.0,
+        "northing": 2654226.538441135
+      },
+      {
+        "lonDeg": -110,
+        "latDeg": 24,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 601714.553822108,
+        "northing": 2654587.59360521
+      },
+      {
+        "lonDeg": -109,
+        "latDeg": 24,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 703449.987169766,
+        "northing": 2655671.204654667
+      },
+      {
+        "lonDeg": -108,
+        "latDeg": 24,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 194772.81068388,
+        "northing": 2657478.709445421
+      },
+      {
+        "lonDeg": -107,
+        "latDeg": 24,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 296550.012830234,
+        "northing": 2655671.204654667
+      },
+      {
+        "lonDeg": -106,
+        "latDeg": 24,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 398285.446177892,
+        "northing": 2654587.59360521
+      },
+      {
+        "lonDeg": -105,
+        "latDeg": 24,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 499999.999999999,
+        "northing": 2654226.538441135
+      },
+      {
+        "lonDeg": -104,
+        "latDeg": 24,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 601714.553822107,
+        "northing": 2654587.59360521
+      },
+      {
+        "lonDeg": -103,
+        "latDeg": 24,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 703449.987169765,
+        "northing": 2655671.204654667
+      },
+      {
+        "lonDeg": -102,
+        "latDeg": 24,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 194772.81068388,
+        "northing": 2657478.709445421
+      },
+      {
+        "lonDeg": -101,
+        "latDeg": 24,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 296550.012830234,
+        "northing": 2655671.204654667
+      },
+      {
+        "lonDeg": -100,
+        "latDeg": 24,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 398285.446177892,
+        "northing": 2654587.59360521
+      },
+      {
+        "lonDeg": -99,
+        "latDeg": 24,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 500000.0,
+        "northing": 2654226.538441135
+      },
+      {
+        "lonDeg": -98,
+        "latDeg": 24,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 601714.553822108,
+        "northing": 2654587.59360521
+      },
+      {
+        "lonDeg": -97,
+        "latDeg": 24,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 703449.987169766,
+        "northing": 2655671.204654667
+      },
+      {
+        "lonDeg": -96,
+        "latDeg": 24,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 194772.810683879,
+        "northing": 2657478.709445421
+      },
+      {
+        "lonDeg": -95,
+        "latDeg": 24,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 296550.012830233,
+        "northing": 2655671.204654667
+      },
+      {
+        "lonDeg": -94,
+        "latDeg": 24,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 398285.44617789,
+        "northing": 2654587.59360521
+      },
+      {
+        "lonDeg": -93,
+        "latDeg": 24,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 499999.999999999,
+        "northing": 2654226.538441135
+      },
+      {
+        "lonDeg": -92,
+        "latDeg": 24,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 601714.553822107,
+        "northing": 2654587.59360521
+      },
+      {
+        "lonDeg": -91,
+        "latDeg": 24,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 703449.987169765,
+        "northing": 2655671.204654667
+      },
+      {
+        "lonDeg": -90,
+        "latDeg": 24,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 194772.810683882,
+        "northing": 2657478.709445421
+      },
+      {
+        "lonDeg": -89,
+        "latDeg": 24,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 296550.012830235,
+        "northing": 2655671.204654667
+      },
+      {
+        "lonDeg": -88,
+        "latDeg": 24,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 398285.446177893,
+        "northing": 2654587.59360521
+      },
+      {
+        "lonDeg": -87,
+        "latDeg": 24,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 500000.000000001,
+        "northing": 2654226.538441135
+      },
+      {
+        "lonDeg": -86,
+        "latDeg": 24,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 601714.553822108,
+        "northing": 2654587.59360521
+      },
+      {
+        "lonDeg": -118,
+        "latDeg": 25,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 399086.973304468,
+        "northing": 2765319.944036245
+      },
+      {
+        "lonDeg": -117,
+        "latDeg": 25,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 500000.0,
+        "northing": 2764947.747478365
+      },
+      {
+        "lonDeg": -116,
+        "latDeg": 25,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 600913.026695529,
+        "northing": 2765319.944036245
+      },
+      {
+        "lonDeg": -115,
+        "latDeg": 25,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 701845.953518433,
+        "northing": 2766436.983896374
+      },
+      {
+        "lonDeg": -114,
+        "latDeg": 25,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 197181.312215079,
+        "northing": 2768300.218773609
+      },
+      {
+        "lonDeg": -113,
+        "latDeg": 25,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 298154.046481567,
+        "northing": 2766436.983896374
+      },
+      {
+        "lonDeg": -112,
+        "latDeg": 25,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 399086.97330447,
+        "northing": 2765319.944036245
+      },
+      {
+        "lonDeg": -111,
+        "latDeg": 25,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 500000.0,
+        "northing": 2764947.747478365
+      },
+      {
+        "lonDeg": -110,
+        "latDeg": 25,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 600913.026695531,
+        "northing": 2765319.944036245
+      },
+      {
+        "lonDeg": -109,
+        "latDeg": 25,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 701845.953518433,
+        "northing": 2766436.983896374
+      },
+      {
+        "lonDeg": -108,
+        "latDeg": 25,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 197181.312215079,
+        "northing": 2768300.218773609
+      },
+      {
+        "lonDeg": -107,
+        "latDeg": 25,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 298154.046481567,
+        "northing": 2766436.983896374
+      },
+      {
+        "lonDeg": -106,
+        "latDeg": 25,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 399086.97330447,
+        "northing": 2765319.944036245
+      },
+      {
+        "lonDeg": -105,
+        "latDeg": 25,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 499999.999999999,
+        "northing": 2764947.747478365
+      },
+      {
+        "lonDeg": -104,
+        "latDeg": 25,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 600913.026695529,
+        "northing": 2765319.944036245
+      },
+      {
+        "lonDeg": -103,
+        "latDeg": 25,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 701845.953518431,
+        "northing": 2766436.983896374
+      },
+      {
+        "lonDeg": -102,
+        "latDeg": 25,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 197181.312215079,
+        "northing": 2768300.218773609
+      },
+      {
+        "lonDeg": -101,
+        "latDeg": 25,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 298154.046481567,
+        "northing": 2766436.983896374
+      },
+      {
+        "lonDeg": -100,
+        "latDeg": 25,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 399086.97330447,
+        "northing": 2765319.944036245
+      },
+      {
+        "lonDeg": -99,
+        "latDeg": 25,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 500000.0,
+        "northing": 2764947.747478365
+      },
+      {
+        "lonDeg": -98,
+        "latDeg": 25,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 600913.026695531,
+        "northing": 2765319.944036245
+      },
+      {
+        "lonDeg": -97,
+        "latDeg": 25,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 701845.953518433,
+        "northing": 2766436.983896374
+      },
+      {
+        "lonDeg": -96,
+        "latDeg": 25,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 197181.312215078,
+        "northing": 2768300.218773609
+      },
+      {
+        "lonDeg": -95,
+        "latDeg": 25,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 298154.046481566,
+        "northing": 2766436.983896374
+      },
+      {
+        "lonDeg": -94,
+        "latDeg": 25,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 399086.973304468,
+        "northing": 2765319.944036245
+      },
+      {
+        "lonDeg": -93,
+        "latDeg": 25,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 499999.999999999,
+        "northing": 2764947.747478365
+      },
+      {
+        "lonDeg": -92,
+        "latDeg": 25,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 600913.026695529,
+        "northing": 2765319.944036245
+      },
+      {
+        "lonDeg": -91,
+        "latDeg": 25,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 701845.953518431,
+        "northing": 2766436.983896374
+      },
+      {
+        "lonDeg": -90,
+        "latDeg": 25,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 197181.312215081,
+        "northing": 2768300.218773609
+      },
+      {
+        "lonDeg": -89,
+        "latDeg": 25,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 298154.046481569,
+        "northing": 2766436.983896374
+      },
+      {
+        "lonDeg": -88,
+        "latDeg": 25,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 399086.973304471,
+        "northing": 2765319.944036245
+      },
+      {
+        "lonDeg": -87,
+        "latDeg": 25,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 500000.000000001,
+        "northing": 2764947.747478365
+      },
+      {
+        "lonDeg": -86,
+        "latDeg": 25,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 600913.026695531,
+        "northing": 2765319.944036245
+      },
+      {
+        "lonDeg": -118,
+        "latDeg": 26,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 399919.181878479,
+        "northing": 2876066.72466172
+      },
+      {
+        "lonDeg": -117,
+        "latDeg": 26,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 500000.0,
+        "northing": 2875683.838774886
+      },
+      {
+        "lonDeg": -116,
+        "latDeg": 26,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 600080.818121519,
+        "northing": 2876066.72466172
+      },
+      {
+        "lonDeg": -115,
+        "latDeg": 26,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 700180.540182332,
+        "northing": 2877215.835780184
+      },
+      {
+        "lonDeg": -114,
+        "latDeg": 26,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 199681.925199485,
+        "northing": 2879132.533625168
+      },
+      {
+        "lonDeg": -113,
+        "latDeg": 26,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 299819.459817668,
+        "northing": 2877215.835780184
+      },
+      {
+        "lonDeg": -112,
+        "latDeg": 26,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 399919.18187848,
+        "northing": 2876066.72466172
+      },
+      {
+        "lonDeg": -111,
+        "latDeg": 26,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 500000.0,
+        "northing": 2875683.838774886
+      },
+      {
+        "lonDeg": -110,
+        "latDeg": 26,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 600080.81812152,
+        "northing": 2876066.72466172
+      },
+      {
+        "lonDeg": -109,
+        "latDeg": 26,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 700180.540182332,
+        "northing": 2877215.835780184
+      },
+      {
+        "lonDeg": -108,
+        "latDeg": 26,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 199681.925199485,
+        "northing": 2879132.533625168
+      },
+      {
+        "lonDeg": -107,
+        "latDeg": 26,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 299819.459817668,
+        "northing": 2877215.835780184
+      },
+      {
+        "lonDeg": -106,
+        "latDeg": 26,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 399919.18187848,
+        "northing": 2876066.72466172
+      },
+      {
+        "lonDeg": -105,
+        "latDeg": 26,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 499999.999999999,
+        "northing": 2875683.838774886
+      },
+      {
+        "lonDeg": -104,
+        "latDeg": 26,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 600080.818121519,
+        "northing": 2876066.72466172
+      },
+      {
+        "lonDeg": -103,
+        "latDeg": 26,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 700180.540182331,
+        "northing": 2877215.835780184
+      },
+      {
+        "lonDeg": -102,
+        "latDeg": 26,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 199681.925199485,
+        "northing": 2879132.533625168
+      },
+      {
+        "lonDeg": -101,
+        "latDeg": 26,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 299819.459817668,
+        "northing": 2877215.835780184
+      },
+      {
+        "lonDeg": -100,
+        "latDeg": 26,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 399919.18187848,
+        "northing": 2876066.72466172
+      },
+      {
+        "lonDeg": -99,
+        "latDeg": 26,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 500000.0,
+        "northing": 2875683.838774886
+      },
+      {
+        "lonDeg": -98,
+        "latDeg": 26,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 600080.81812152,
+        "northing": 2876066.72466172
+      },
+      {
+        "lonDeg": -97,
+        "latDeg": 26,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 700180.540182332,
+        "northing": 2877215.835780184
+      },
+      {
+        "lonDeg": -96,
+        "latDeg": 26,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 199681.925199484,
+        "northing": 2879132.533625168
+      },
+      {
+        "lonDeg": -95,
+        "latDeg": 26,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 299819.459817667,
+        "northing": 2877215.835780184
+      },
+      {
+        "lonDeg": -94,
+        "latDeg": 26,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 399919.181878479,
+        "northing": 2876066.72466172
+      },
+      {
+        "lonDeg": -93,
+        "latDeg": 26,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 499999.999999999,
+        "northing": 2875683.838774886
+      },
+      {
+        "lonDeg": -92,
+        "latDeg": 26,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 600080.818121519,
+        "northing": 2876066.72466172
+      },
+      {
+        "lonDeg": -91,
+        "latDeg": 26,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 700180.540182331,
+        "northing": 2877215.835780184
+      },
+      {
+        "lonDeg": -90,
+        "latDeg": 26,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 199681.925199486,
+        "northing": 2879132.533625168
+      },
+      {
+        "lonDeg": -89,
+        "latDeg": 26,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 299819.459817669,
+        "northing": 2877215.835780184
+      },
+      {
+        "lonDeg": -88,
+        "latDeg": 26,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 399919.181878481,
+        "northing": 2876066.72466172
+      },
+      {
+        "lonDeg": -87,
+        "latDeg": 26,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 500000.000000001,
+        "northing": 2875683.838774886
+      },
+      {
+        "lonDeg": -86,
+        "latDeg": 26,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 600080.81812152,
+        "northing": 2876066.72466172
+      },
+      {
+        "lonDeg": -118,
+        "latDeg": 27,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 400781.829581785,
+        "northing": 2986828.352665348
+      },
+      {
+        "lonDeg": -117,
+        "latDeg": 27,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 500000.0,
+        "northing": 2986435.242557882
+      },
+      {
+        "lonDeg": -116,
+        "latDeg": 27,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 599218.170418212,
+        "northing": 2986828.352665348
+      },
+      {
+        "lonDeg": -115,
+        "latDeg": 27,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 698454.234216642,
+        "northing": 2988008.13836772
+      },
+      {
+        "lonDeg": -114,
+        "latDeg": 27,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 202273.912995055,
+        "northing": 2989975.966886322
+      },
+      {
+        "lonDeg": -113,
+        "latDeg": 27,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 301545.765783358,
+        "northing": 2988008.13836772
+      },
+      {
+        "lonDeg": -112,
+        "latDeg": 27,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 400781.829581786,
+        "northing": 2986828.352665348
+      },
+      {
+        "lonDeg": -111,
+        "latDeg": 27,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 500000.0,
+        "northing": 2986435.242557882
+      },
+      {
+        "lonDeg": -110,
+        "latDeg": 27,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 599218.170418214,
+        "northing": 2986828.352665348
+      },
+      {
+        "lonDeg": -109,
+        "latDeg": 27,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 698454.234216642,
+        "northing": 2988008.13836772
+      },
+      {
+        "lonDeg": -108,
+        "latDeg": 27,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 202273.912995055,
+        "northing": 2989975.966886322
+      },
+      {
+        "lonDeg": -107,
+        "latDeg": 27,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 301545.765783358,
+        "northing": 2988008.13836772
+      },
+      {
+        "lonDeg": -106,
+        "latDeg": 27,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 400781.829581786,
+        "northing": 2986828.352665348
+      },
+      {
+        "lonDeg": -105,
+        "latDeg": 27,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 499999.999999999,
+        "northing": 2986435.242557882
+      },
+      {
+        "lonDeg": -104,
+        "latDeg": 27,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 599218.170418212,
+        "northing": 2986828.352665348
+      },
+      {
+        "lonDeg": -103,
+        "latDeg": 27,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 698454.23421664,
+        "northing": 2988008.13836772
+      },
+      {
+        "lonDeg": -102,
+        "latDeg": 27,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 202273.912995055,
+        "northing": 2989975.966886322
+      },
+      {
+        "lonDeg": -101,
+        "latDeg": 27,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 301545.765783358,
+        "northing": 2988008.13836772
+      },
+      {
+        "lonDeg": -100,
+        "latDeg": 27,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 400781.829581786,
+        "northing": 2986828.352665348
+      },
+      {
+        "lonDeg": -99,
+        "latDeg": 27,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 500000.0,
+        "northing": 2986435.242557882
+      },
+      {
+        "lonDeg": -98,
+        "latDeg": 27,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 599218.170418214,
+        "northing": 2986828.352665348
+      },
+      {
+        "lonDeg": -97,
+        "latDeg": 27,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 698454.234216642,
+        "northing": 2988008.13836772
+      },
+      {
+        "lonDeg": -96,
+        "latDeg": 27,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 202273.912995054,
+        "northing": 2989975.966886322
+      },
+      {
+        "lonDeg": -95,
+        "latDeg": 27,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 301545.765783357,
+        "northing": 2988008.13836772
+      },
+      {
+        "lonDeg": -94,
+        "latDeg": 27,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 400781.829581785,
+        "northing": 2986828.352665348
+      },
+      {
+        "lonDeg": -93,
+        "latDeg": 27,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 499999.999999999,
+        "northing": 2986435.242557882
+      },
+      {
+        "lonDeg": -92,
+        "latDeg": 27,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 599218.170418212,
+        "northing": 2986828.352665348
+      },
+      {
+        "lonDeg": -91,
+        "latDeg": 27,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 698454.23421664,
+        "northing": 2988008.13836772
+      },
+      {
+        "lonDeg": -90,
+        "latDeg": 27,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 202273.912995056,
+        "northing": 2989975.966886322
+      },
+      {
+        "lonDeg": -89,
+        "latDeg": 27,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 301545.765783359,
+        "northing": 2988008.13836772
+      },
+      {
+        "lonDeg": -88,
+        "latDeg": 27,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 400781.829581788,
+        "northing": 2986828.352665348
+      },
+      {
+        "lonDeg": -87,
+        "latDeg": 27,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 500000.000000001,
+        "northing": 2986435.242557882
+      },
+      {
+        "lonDeg": -86,
+        "latDeg": 27,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 599218.170418214,
+        "northing": 2986828.352665348
+      },
+      {
+        "lonDeg": -118,
+        "latDeg": 28,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 401674.664954199,
+        "northing": 3097605.227424538
+      },
+      {
+        "lonDeg": -117,
+        "latDeg": 28,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 500000.0,
+        "northing": 3097202.370688265
+      },
+      {
+        "lonDeg": -116,
+        "latDeg": 28,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 598325.335045799,
+        "northing": 3097605.227424538
+      },
+      {
+        "lonDeg": -115,
+        "latDeg": 28,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 696667.54098853,
+        "northing": 3098814.253599707
+      },
+      {
+        "lonDeg": -114,
+        "latDeg": 28,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 204956.511422597,
+        "northing": 3100830.818149893
+      },
+      {
+        "lonDeg": -113,
+        "latDeg": 28,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 303332.45901147,
+        "northing": 3098814.253599707
+      },
+      {
+        "lonDeg": -112,
+        "latDeg": 28,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 401674.6649542,
+        "northing": 3097605.227424538
+      },
+      {
+        "lonDeg": -111,
+        "latDeg": 28,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 500000.0,
+        "northing": 3097202.370688265
+      },
+      {
+        "lonDeg": -110,
+        "latDeg": 28,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 598325.3350458,
+        "northing": 3097605.227424538
+      },
+      {
+        "lonDeg": -109,
+        "latDeg": 28,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 696667.54098853,
+        "northing": 3098814.253599707
+      },
+      {
+        "lonDeg": -108,
+        "latDeg": 28,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 204956.511422597,
+        "northing": 3100830.818149893
+      },
+      {
+        "lonDeg": -107,
+        "latDeg": 28,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 303332.45901147,
+        "northing": 3098814.253599707
+      },
+      {
+        "lonDeg": -106,
+        "latDeg": 28,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 401674.6649542,
+        "northing": 3097605.227424538
+      },
+      {
+        "lonDeg": -105,
+        "latDeg": 28,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 499999.999999999,
+        "northing": 3097202.370688265
+      },
+      {
+        "lonDeg": -104,
+        "latDeg": 28,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 598325.335045799,
+        "northing": 3097605.227424538
+      },
+      {
+        "lonDeg": -103,
+        "latDeg": 28,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 696667.540988529,
+        "northing": 3098814.253599707
+      },
+      {
+        "lonDeg": -102,
+        "latDeg": 28,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 204956.511422597,
+        "northing": 3100830.818149893
+      },
+      {
+        "lonDeg": -101,
+        "latDeg": 28,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 303332.45901147,
+        "northing": 3098814.253599707
+      },
+      {
+        "lonDeg": -100,
+        "latDeg": 28,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 401674.6649542,
+        "northing": 3097605.227424538
+      },
+      {
+        "lonDeg": -99,
+        "latDeg": 28,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 500000.0,
+        "northing": 3097202.370688265
+      },
+      {
+        "lonDeg": -98,
+        "latDeg": 28,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 598325.3350458,
+        "northing": 3097605.227424538
+      },
+      {
+        "lonDeg": -97,
+        "latDeg": 28,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 696667.54098853,
+        "northing": 3098814.253599707
+      },
+      {
+        "lonDeg": -96,
+        "latDeg": 28,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 204956.511422596,
+        "northing": 3100830.818149893
+      },
+      {
+        "lonDeg": -95,
+        "latDeg": 28,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 303332.459011468,
+        "northing": 3098814.253599707
+      },
+      {
+        "lonDeg": -94,
+        "latDeg": 28,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 401674.664954199,
+        "northing": 3097605.227424538
+      },
+      {
+        "lonDeg": -93,
+        "latDeg": 28,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 499999.999999999,
+        "northing": 3097202.370688265
+      },
+      {
+        "lonDeg": -92,
+        "latDeg": 28,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 598325.335045799,
+        "northing": 3097605.227424538
+      },
+      {
+        "lonDeg": -91,
+        "latDeg": 28,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 696667.540988529,
+        "northing": 3098814.253599707
+      },
+      {
+        "lonDeg": -90,
+        "latDeg": 28,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 204956.511422598,
+        "northing": 3100830.818149893
+      },
+      {
+        "lonDeg": -89,
+        "latDeg": 28,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 303332.459011471,
+        "northing": 3098814.253599707
+      },
+      {
+        "lonDeg": -88,
+        "latDeg": 28,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 401674.664954201,
+        "northing": 3097605.227424538
+      },
+      {
+        "lonDeg": -87,
+        "latDeg": 28,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 500000.000000001,
+        "northing": 3097202.370688265
+      },
+      {
+        "lonDeg": -86,
+        "latDeg": 28,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 598325.3350458,
+        "northing": 3097605.227424538
+      },
+      {
+        "lonDeg": -118,
+        "latDeg": 29,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 402597.427439346,
+        "northing": 3208397.730018401
+      },
+      {
+        "lonDeg": -117,
+        "latDeg": 29,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 500000.0,
+        "northing": 3207985.616153363
+      },
+      {
+        "lonDeg": -116,
+        "latDeg": 29,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 597402.572560651,
+        "northing": 3208397.730018401
+      },
+      {
+        "lonDeg": -115,
+        "latDeg": 29,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 694820.984078811,
+        "northing": 3209634.52684989
+      },
+      {
+        "lonDeg": -114,
+        "latDeg": 29,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 207728.928929906,
+        "northing": 3211697.373345432
+      },
+      {
+        "lonDeg": -113,
+        "latDeg": 29,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 305179.015921189,
+        "northing": 3209634.52684989
+      },
+      {
+        "lonDeg": -112,
+        "latDeg": 29,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 402597.427439348,
+        "northing": 3208397.730018401
+      },
+      {
+        "lonDeg": -111,
+        "latDeg": 29,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 500000.0,
+        "northing": 3207985.616153363
+      },
+      {
+        "lonDeg": -110,
+        "latDeg": 29,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 597402.572560652,
+        "northing": 3208397.730018401
+      },
+      {
+        "lonDeg": -109,
+        "latDeg": 29,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 694820.984078811,
+        "northing": 3209634.52684989
+      },
+      {
+        "lonDeg": -108,
+        "latDeg": 29,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 207728.928929906,
+        "northing": 3211697.373345432
+      },
+      {
+        "lonDeg": -107,
+        "latDeg": 29,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 305179.015921189,
+        "northing": 3209634.52684989
+      },
+      {
+        "lonDeg": -106,
+        "latDeg": 29,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 402597.427439348,
+        "northing": 3208397.730018401
+      },
+      {
+        "lonDeg": -105,
+        "latDeg": 29,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 499999.999999999,
+        "northing": 3207985.616153363
+      },
+      {
+        "lonDeg": -104,
+        "latDeg": 29,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 597402.572560651,
+        "northing": 3208397.730018401
+      },
+      {
+        "lonDeg": -103,
+        "latDeg": 29,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 694820.98407881,
+        "northing": 3209634.52684989
+      },
+      {
+        "lonDeg": -102,
+        "latDeg": 29,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 207728.928929906,
+        "northing": 3211697.373345432
+      },
+      {
+        "lonDeg": -101,
+        "latDeg": 29,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 305179.015921189,
+        "northing": 3209634.52684989
+      },
+      {
+        "lonDeg": -100,
+        "latDeg": 29,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 402597.427439348,
+        "northing": 3208397.730018401
+      },
+      {
+        "lonDeg": -99,
+        "latDeg": 29,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 500000.0,
+        "northing": 3207985.616153363
+      },
+      {
+        "lonDeg": -98,
+        "latDeg": 29,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 597402.572560652,
+        "northing": 3208397.730018401
+      },
+      {
+        "lonDeg": -97,
+        "latDeg": 29,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 694820.984078811,
+        "northing": 3209634.52684989
+      },
+      {
+        "lonDeg": -96,
+        "latDeg": 29,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 207728.928929905,
+        "northing": 3211697.373345432
+      },
+      {
+        "lonDeg": -95,
+        "latDeg": 29,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 305179.015921187,
+        "northing": 3209634.52684989
+      },
+      {
+        "lonDeg": -94,
+        "latDeg": 29,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 402597.427439346,
+        "northing": 3208397.730018401
+      },
+      {
+        "lonDeg": -93,
+        "latDeg": 29,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 499999.999999999,
+        "northing": 3207985.616153363
+      },
+      {
+        "lonDeg": -92,
+        "latDeg": 29,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 597402.572560651,
+        "northing": 3208397.730018401
+      },
+      {
+        "lonDeg": -91,
+        "latDeg": 29,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 694820.98407881,
+        "northing": 3209634.52684989
+      },
+      {
+        "lonDeg": -90,
+        "latDeg": 29,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 207728.928929907,
+        "northing": 3211697.373345432
+      },
+      {
+        "lonDeg": -89,
+        "latDeg": 29,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 305179.01592119,
+        "northing": 3209634.52684989
+      },
+      {
+        "lonDeg": -88,
+        "latDeg": 29,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 402597.427439349,
+        "northing": 3208397.730018401
+      },
+      {
+        "lonDeg": -87,
+        "latDeg": 29,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 500000.000000001,
+        "northing": 3207985.616153363
+      },
+      {
+        "lonDeg": -86,
+        "latDeg": 29,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 597402.572560652,
+        "northing": 3208397.730018401
+      },
+      {
+        "lonDeg": -118,
+        "latDeg": 30,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 403549.847433009,
+        "northing": 3319206.222756714
+      },
+      {
+        "lonDeg": -117,
+        "latDeg": 30,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 500000.0,
+        "northing": 3318785.352581206
+      },
+      {
+        "lonDeg": -116,
+        "latDeg": 30,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 596450.152566988,
+        "northing": 3319206.222756714
+      },
+      {
+        "lonDeg": -115,
+        "latDeg": 30,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 692915.105178588,
+        "northing": 3320469.28649789
+      },
+      {
+        "lonDeg": -114,
+        "latDeg": 30,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 210590.346763535,
+        "northing": 3322575.904384763
+      },
+      {
+        "lonDeg": -113,
+        "latDeg": 30,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 307084.894821412,
+        "northing": 3320469.28649789
+      },
+      {
+        "lonDeg": -112,
+        "latDeg": 30,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 403549.84743301,
+        "northing": 3319206.222756714
+      },
+      {
+        "lonDeg": -111,
+        "latDeg": 30,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 500000.0,
+        "northing": 3318785.352581206
+      },
+      {
+        "lonDeg": -110,
+        "latDeg": 30,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 596450.15256699,
+        "northing": 3319206.222756714
+      },
+      {
+        "lonDeg": -109,
+        "latDeg": 30,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 692915.105178588,
+        "northing": 3320469.28649789
+      },
+      {
+        "lonDeg": -108,
+        "latDeg": 30,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 210590.346763535,
+        "northing": 3322575.904384763
+      },
+      {
+        "lonDeg": -107,
+        "latDeg": 30,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 307084.894821412,
+        "northing": 3320469.28649789
+      },
+      {
+        "lonDeg": -106,
+        "latDeg": 30,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 403549.84743301,
+        "northing": 3319206.222756714
+      },
+      {
+        "lonDeg": -105,
+        "latDeg": 30,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 499999.999999999,
+        "northing": 3318785.352581206
+      },
+      {
+        "lonDeg": -104,
+        "latDeg": 30,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 596450.152566988,
+        "northing": 3319206.222756714
+      },
+      {
+        "lonDeg": -103,
+        "latDeg": 30,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 692915.105178586,
+        "northing": 3320469.28649789
+      },
+      {
+        "lonDeg": -102,
+        "latDeg": 30,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 210590.346763535,
+        "northing": 3322575.904384763
+      },
+      {
+        "lonDeg": -101,
+        "latDeg": 30,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 307084.894821412,
+        "northing": 3320469.28649789
+      },
+      {
+        "lonDeg": -100,
+        "latDeg": 30,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 403549.84743301,
+        "northing": 3319206.222756714
+      },
+      {
+        "lonDeg": -99,
+        "latDeg": 30,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 500000.0,
+        "northing": 3318785.352581206
+      },
+      {
+        "lonDeg": -98,
+        "latDeg": 30,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 596450.15256699,
+        "northing": 3319206.222756714
+      },
+      {
+        "lonDeg": -97,
+        "latDeg": 30,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 692915.105178588,
+        "northing": 3320469.28649789
+      },
+      {
+        "lonDeg": -96,
+        "latDeg": 30,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 210590.346763534,
+        "northing": 3322575.904384763
+      },
+      {
+        "lonDeg": -95,
+        "latDeg": 30,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 307084.894821411,
+        "northing": 3320469.28649789
+      },
+      {
+        "lonDeg": -94,
+        "latDeg": 30,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 403549.847433009,
+        "northing": 3319206.222756714
+      },
+      {
+        "lonDeg": -93,
+        "latDeg": 30,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 499999.999999999,
+        "northing": 3318785.352581206
+      },
+      {
+        "lonDeg": -92,
+        "latDeg": 30,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 596450.152566988,
+        "northing": 3319206.222756714
+      },
+      {
+        "lonDeg": -91,
+        "latDeg": 30,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 692915.105178586,
+        "northing": 3320469.28649789
+      },
+      {
+        "lonDeg": -90,
+        "latDeg": 30,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 210590.346763536,
+        "northing": 3322575.904384763
+      },
+      {
+        "lonDeg": -89,
+        "latDeg": 30,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 307084.894821414,
+        "northing": 3320469.28649789
+      },
+      {
+        "lonDeg": -88,
+        "latDeg": 30,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 403549.847433012,
+        "northing": 3319206.222756714
+      },
+      {
+        "lonDeg": -87,
+        "latDeg": 30,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 500000.000000001,
+        "northing": 3318785.352581206
+      },
+      {
+        "lonDeg": -86,
+        "latDeg": 30,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 596450.15256699,
+        "northing": 3319206.222756714
+      },
+      {
+        "lonDeg": -118,
+        "latDeg": 31,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 404531.646334012,
+        "northing": 3430031.048730434
+      },
+      {
+        "lonDeg": -117,
+        "latDeg": 31,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 500000.0,
+        "northing": 3429601.93377706
+      },
+      {
+        "lonDeg": -116,
+        "latDeg": 31,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 595468.353665985,
+        "northing": 3430031.048730434
+      },
+      {
+        "lonDeg": -115,
+        "latDeg": 31,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 690950.463980771,
+        "northing": 3431318.843521497
+      },
+      {
+        "lonDeg": -114,
+        "latDeg": 31,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 213539.919148343,
+        "northing": 3433466.668823456
+      },
+      {
+        "lonDeg": -113,
+        "latDeg": 31,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 309049.536019229,
+        "northing": 3431318.843521497
+      },
+      {
+        "lonDeg": -112,
+        "latDeg": 31,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 404531.646334013,
+        "northing": 3430031.048730434
+      },
+      {
+        "lonDeg": -111,
+        "latDeg": 31,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 500000.0,
+        "northing": 3429601.93377706
+      },
+      {
+        "lonDeg": -110,
+        "latDeg": 31,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 595468.353665987,
+        "northing": 3430031.048730434
+      },
+      {
+        "lonDeg": -109,
+        "latDeg": 31,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 690950.463980771,
+        "northing": 3431318.843521497
+      },
+      {
+        "lonDeg": -108,
+        "latDeg": 31,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 213539.919148343,
+        "northing": 3433466.668823456
+      },
+      {
+        "lonDeg": -107,
+        "latDeg": 31,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 309049.536019229,
+        "northing": 3431318.843521497
+      },
+      {
+        "lonDeg": -106,
+        "latDeg": 31,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 404531.646334013,
+        "northing": 3430031.048730434
+      },
+      {
+        "lonDeg": -105,
+        "latDeg": 31,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 499999.999999999,
+        "northing": 3429601.93377706
+      },
+      {
+        "lonDeg": -104,
+        "latDeg": 31,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 595468.353665985,
+        "northing": 3430031.048730434
+      },
+      {
+        "lonDeg": -103,
+        "latDeg": 31,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 690950.46398077,
+        "northing": 3431318.843521497
+      },
+      {
+        "lonDeg": -102,
+        "latDeg": 31,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 213539.919148343,
+        "northing": 3433466.668823456
+      },
+      {
+        "lonDeg": -101,
+        "latDeg": 31,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 309049.536019229,
+        "northing": 3431318.843521497
+      },
+      {
+        "lonDeg": -100,
+        "latDeg": 31,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 404531.646334013,
+        "northing": 3430031.048730434
+      },
+      {
+        "lonDeg": -99,
+        "latDeg": 31,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 500000.0,
+        "northing": 3429601.93377706
+      },
+      {
+        "lonDeg": -98,
+        "latDeg": 31,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 595468.353665987,
+        "northing": 3430031.048730434
+      },
+      {
+        "lonDeg": -97,
+        "latDeg": 31,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 690950.463980771,
+        "northing": 3431318.843521497
+      },
+      {
+        "lonDeg": -96,
+        "latDeg": 31,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 213539.919148342,
+        "northing": 3433466.668823456
+      },
+      {
+        "lonDeg": -95,
+        "latDeg": 31,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 309049.536019228,
+        "northing": 3431318.843521497
+      },
+      {
+        "lonDeg": -94,
+        "latDeg": 31,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 404531.646334012,
+        "northing": 3430031.048730434
+      },
+      {
+        "lonDeg": -93,
+        "latDeg": 31,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 499999.999999999,
+        "northing": 3429601.93377706
+      },
+      {
+        "lonDeg": -92,
+        "latDeg": 31,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 595468.353665985,
+        "northing": 3430031.048730434
+      },
+      {
+        "lonDeg": -91,
+        "latDeg": 31,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 690950.46398077,
+        "northing": 3431318.843521497
+      },
+      {
+        "lonDeg": -90,
+        "latDeg": 31,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 213539.919148344,
+        "northing": 3433466.668823456
+      },
+      {
+        "lonDeg": -89,
+        "latDeg": 31,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 309049.53601923,
+        "northing": 3431318.843521497
+      },
+      {
+        "lonDeg": -88,
+        "latDeg": 31,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 404531.646334015,
+        "northing": 3430031.048730434
+      },
+      {
+        "lonDeg": -87,
+        "latDeg": 31,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 500000.000000001,
+        "northing": 3429601.93377706
+      },
+      {
+        "lonDeg": -86,
+        "latDeg": 31,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 595468.353665987,
+        "northing": 3430031.048730434
+      },
+      {
+        "lonDeg": -118,
+        "latDeg": 32,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 405542.536597724,
+        "northing": 3540872.531384336
+      },
+      {
+        "lonDeg": -117,
+        "latDeg": 32,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 500000.0,
+        "northing": 3540435.693282792
+      },
+      {
+        "lonDeg": -116,
+        "latDeg": 32,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 594457.463402274,
+        "northing": 3540872.531384336
+      },
+      {
+        "lonDeg": -115,
+        "latDeg": 32,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 688927.638066356,
+        "northing": 3542183.491108966
+      },
+      {
+        "lonDeg": -114,
+        "latDeg": 32,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 216576.773474944,
+        "northing": 3544369.909538625
+      },
+      {
+        "lonDeg": -113,
+        "latDeg": 32,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 311072.361933644,
+        "northing": 3542183.491108966
+      },
+      {
+        "lonDeg": -112,
+        "latDeg": 32,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 405542.536597725,
+        "northing": 3540872.531384336
+      },
+      {
+        "lonDeg": -111,
+        "latDeg": 32,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 500000.0,
+        "northing": 3540435.693282792
+      },
+      {
+        "lonDeg": -110,
+        "latDeg": 32,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 594457.463402275,
+        "northing": 3540872.531384336
+      },
+      {
+        "lonDeg": -109,
+        "latDeg": 32,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 688927.638066356,
+        "northing": 3542183.491108966
+      },
+      {
+        "lonDeg": -108,
+        "latDeg": 32,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 216576.773474944,
+        "northing": 3544369.909538625
+      },
+      {
+        "lonDeg": -107,
+        "latDeg": 32,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 311072.361933644,
+        "northing": 3542183.491108966
+      },
+      {
+        "lonDeg": -106,
+        "latDeg": 32,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 405542.536597725,
+        "northing": 3540872.531384336
+      },
+      {
+        "lonDeg": -105,
+        "latDeg": 32,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 499999.999999999,
+        "northing": 3540435.693282792
+      },
+      {
+        "lonDeg": -104,
+        "latDeg": 32,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 594457.463402274,
+        "northing": 3540872.531384336
+      },
+      {
+        "lonDeg": -103,
+        "latDeg": 32,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 688927.638066355,
+        "northing": 3542183.491108966
+      },
+      {
+        "lonDeg": -102,
+        "latDeg": 32,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 216576.773474944,
+        "northing": 3544369.909538625
+      },
+      {
+        "lonDeg": -101,
+        "latDeg": 32,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 311072.361933644,
+        "northing": 3542183.491108966
+      },
+      {
+        "lonDeg": -100,
+        "latDeg": 32,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 405542.536597725,
+        "northing": 3540872.531384336
+      },
+      {
+        "lonDeg": -99,
+        "latDeg": 32,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 500000.0,
+        "northing": 3540435.693282792
+      },
+      {
+        "lonDeg": -98,
+        "latDeg": 32,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 594457.463402275,
+        "northing": 3540872.531384336
+      },
+      {
+        "lonDeg": -97,
+        "latDeg": 32,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 688927.638066356,
+        "northing": 3542183.491108966
+      },
+      {
+        "lonDeg": -96,
+        "latDeg": 32,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 216576.773474943,
+        "northing": 3544369.909538625
+      },
+      {
+        "lonDeg": -95,
+        "latDeg": 32,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 311072.361933642,
+        "northing": 3542183.491108966
+      },
+      {
+        "lonDeg": -94,
+        "latDeg": 32,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 405542.536597724,
+        "northing": 3540872.531384336
+      },
+      {
+        "lonDeg": -93,
+        "latDeg": 32,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 499999.999999999,
+        "northing": 3540435.693282792
+      },
+      {
+        "lonDeg": -92,
+        "latDeg": 32,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 594457.463402274,
+        "northing": 3540872.531384336
+      },
+      {
+        "lonDeg": -91,
+        "latDeg": 32,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 688927.638066355,
+        "northing": 3542183.491108966
+      },
+      {
+        "lonDeg": -90,
+        "latDeg": 32,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 216576.773474945,
+        "northing": 3544369.909538625
+      },
+      {
+        "lonDeg": -89,
+        "latDeg": 32,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 311072.361933645,
+        "northing": 3542183.491108966
+      },
+      {
+        "lonDeg": -88,
+        "latDeg": 32,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 405542.536597726,
+        "northing": 3540872.531384336
+      },
+      {
+        "lonDeg": -87,
+        "latDeg": 32,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 500000.000000001,
+        "northing": 3540435.693282792
+      },
+      {
+        "lonDeg": -86,
+        "latDeg": 32,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 594457.463402275,
+        "northing": 3540872.531384336
+      },
+      {
+        "lonDeg": -118,
+        "latDeg": 33,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 406582.221792238,
+        "northing": 3651730.974112377
+      },
+      {
+        "lonDeg": -117,
+        "latDeg": 33,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 500000.0,
+        "northing": 3651286.943959683
+      },
+      {
+        "lonDeg": -116,
+        "latDeg": 33,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 593417.77820776,
+        "northing": 3651730.974112377
+      },
+      {
+        "lonDeg": -115,
+        "latDeg": 33,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 686847.222785337,
+        "northing": 3653063.504291846
+      },
+      {
+        "lonDeg": -114,
+        "latDeg": 33,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 219700.010495191,
+        "northing": 3655285.854423533
+      },
+      {
+        "lonDeg": -113,
+        "latDeg": 33,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 313152.777214663,
+        "northing": 3653063.504291846
+      },
+      {
+        "lonDeg": -112,
+        "latDeg": 33,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 406582.221792239,
+        "northing": 3651730.974112377
+      },
+      {
+        "lonDeg": -111,
+        "latDeg": 33,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 500000.0,
+        "northing": 3651286.943959683
+      },
+      {
+        "lonDeg": -110,
+        "latDeg": 33,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 593417.778207761,
+        "northing": 3651730.974112377
+      },
+      {
+        "lonDeg": -109,
+        "latDeg": 33,
+        "zone": 12,
+        "epsg": "EPSG:32612",
+        "easting": 686847.222785337,
+        "northing": 3653063.504291846
+      },
+      {
+        "lonDeg": -108,
+        "latDeg": 33,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 219700.010495191,
+        "northing": 3655285.854423533
+      },
+      {
+        "lonDeg": -107,
+        "latDeg": 33,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 313152.777214663,
+        "northing": 3653063.504291846
+      },
+      {
+        "lonDeg": -106,
+        "latDeg": 33,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 406582.221792239,
+        "northing": 3651730.974112377
+      },
+      {
+        "lonDeg": -105,
+        "latDeg": 33,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 499999.999999999,
+        "northing": 3651286.943959683
+      },
+      {
+        "lonDeg": -104,
+        "latDeg": 33,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 593417.77820776,
+        "northing": 3651730.974112377
+      },
+      {
+        "lonDeg": -103,
+        "latDeg": 33,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 686847.222785335,
+        "northing": 3653063.504291846
+      },
+      {
+        "lonDeg": -102,
+        "latDeg": 33,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 219700.010495191,
+        "northing": 3655285.854423533
+      },
+      {
+        "lonDeg": -101,
+        "latDeg": 33,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 313152.777214663,
+        "northing": 3653063.504291846
+      },
+      {
+        "lonDeg": -100,
+        "latDeg": 33,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 406582.221792239,
+        "northing": 3651730.974112377
+      },
+      {
+        "lonDeg": -99,
+        "latDeg": 33,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 500000.0,
+        "northing": 3651286.943959683
+      },
+      {
+        "lonDeg": -98,
+        "latDeg": 33,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 593417.778207761,
+        "northing": 3651730.974112377
+      },
+      {
+        "lonDeg": -97,
+        "latDeg": 33,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 686847.222785337,
+        "northing": 3653063.504291846
+      },
+      {
+        "lonDeg": -96,
+        "latDeg": 33,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 219700.01049519,
+        "northing": 3655285.854423533
+      },
+      {
+        "lonDeg": -95,
+        "latDeg": 33,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 313152.777214662,
+        "northing": 3653063.504291846
+      },
+      {
+        "lonDeg": -94,
+        "latDeg": 33,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 406582.221792238,
+        "northing": 3651730.974112377
+      },
+      {
+        "lonDeg": -93,
+        "latDeg": 33,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 499999.999999999,
+        "northing": 3651286.943959683
+      },
+      {
+        "lonDeg": -92,
+        "latDeg": 33,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 593417.77820776,
+        "northing": 3651730.974112377
+      },
+      {
+        "lonDeg": -91,
+        "latDeg": 33,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 686847.222785335,
+        "northing": 3653063.504291846
+      },
+      {
+        "lonDeg": -90,
+        "latDeg": 33,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 219700.010495193,
+        "northing": 3655285.854423533
+      },
+      {
+        "lonDeg": -89,
+        "latDeg": 33,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 313152.777214665,
+        "northing": 3653063.504291846
+      },
+      {
+        "lonDeg": -88,
+        "latDeg": 33,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 406582.22179224,
+        "northing": 3651730.974112377
+      },
+      {
+        "lonDeg": -87,
+        "latDeg": 33,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 500000.000000001,
+        "northing": 3651286.943959683
+      },
+      {
+        "lonDeg": -86,
+        "latDeg": 33,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 593417.778207761,
+        "northing": 3651730.974112377
+      }
+    ]
+  },
+  "naturalEarth": {
+    "fuente": "docs/cad/corpus/terceros-gis/natural-earth/ne_110m_populated_places_simple.shp",
+    "licencia": "Dominio publico (Natural Earth)",
+    "licenciaArchivo": "docs/cad/corpus/licencias/natural-earth-vector-PUBLIC-DOMAIN.md",
+    "repositorio": "https://github.com/nvkelso/natural-earth-vector",
+    "commit": "ca96624a56bd078437bca8184e78163e5039ad19",
+    "sha256": {
+      "shp": "b9e20f6dd2896285370d049f3e09159b64317a4102fbbc2390171246e8b3a7d0",
+      "shx": "f173bcd955c36a35a9b190ae315019ff7fa2b48ddaae538a6ed2f04c60a08a52",
+      "dbf": "d6bf1b8fbd389f694e42ff75040f9ea41ec3cbe1b31c1c62b12dd0cf101264d1",
+      "prj": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4",
+      "cpg": "3ad3031f5503a4404af825262ee8232cc04d4ea6683d42c5dd0a2f2a27ac9824"
+    },
+    "totalPuntosEnElArchivo": 243,
+    "puntosEnRangoMexico": 13,
+    "resultados": [
+      {
+        "indice": 54,
+        "numeroRegistro": 55,
+        "lonDeg": -87.2194752,
+        "latDeg": 14.1039908,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 476309.347584344,
+        "northing": 1559238.279274735,
+        "idaYVuelta": {
+          "lonDeg": -87.2194752,
+          "latDeg": 14.1039908
+        }
+      },
+      {
+        "indice": 63,
+        "numeroRegistro": 64,
+        "lonDeg": -86.2704375,
+        "latDeg": 12.1549624,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 579375.824760244,
+        "northing": 1343795.579886495,
+        "idaYVuelta": {
+          "lonDeg": -86.2704375,
+          "latDeg": 12.1549624
+        }
+      },
+      {
+        "indice": 89,
+        "numeroRegistro": 90,
+        "lonDeg": -84.07881397,
+        "latDeg": 9.930370728,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 820348.224177268,
+        "northing": 1099123.261488284,
+        "idaYVuelta": {
+          "lonDeg": -84.07881397,
+          "latDeg": 9.930370728
+        }
+      },
+      {
+        "indice": 90,
+        "numeroRegistro": 91,
+        "lonDeg": -89.215575805,
+        "latDeg": 13.703280259,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 260381.072690607,
+        "northing": 1516008.8859983,
+        "idaYVuelta": {
+          "lonDeg": -89.215575805,
+          "latDeg": 13.703280259
+        }
+      },
+      {
+        "indice": 98,
+        "numeroRegistro": 99,
+        "lonDeg": -90.5289114,
+        "latDeg": 14.6230805,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 766192.607638213,
+        "northing": 1618087.544713214,
+        "idaYVuelta": {
+          "lonDeg": -90.5289114,
+          "latDeg": 14.6230805
+        }
+      },
+      {
+        "indice": 115,
+        "numeroRegistro": 116,
+        "lonDeg": -88.767073,
+        "latDeg": 17.2520335,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 312135.538859944,
+        "northing": 1908295.955164769,
+        "idaYVuelta": {
+          "lonDeg": -88.767073,
+          "latDeg": 17.2520335
+        }
+      },
+      {
+        "indice": 176,
+        "numeroRegistro": 177,
+        "lonDeg": -104.9859618,
+        "latDeg": 39.7411339,
+        "zone": 13,
+        "epsg": "EPSG:32613",
+        "easting": 501202.809210994,
+        "northing": 4399026.35115516,
+        "idaYVuelta": {
+          "lonDeg": -104.9859618,
+          "latDeg": 39.7411339
+        }
+      },
+      {
+        "indice": 177,
+        "numeroRegistro": 178,
+        "lonDeg": -95.348436257,
+        "latDeg": 29.741272832,
+        "zone": 15,
+        "epsg": "EPSG:32615",
+        "easting": 272880.996546103,
+        "northing": 3292426.728057147,
+        "idaYVuelta": {
+          "lonDeg": -95.348436257,
+          "latDeg": 29.741272832
+        }
+      },
+      {
+        "indice": 179,
+        "numeroRegistro": 180,
+        "lonDeg": -84.367641866,
+        "latDeg": 33.739457284,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 743865.345360727,
+        "northing": 3736380.889689215,
+        "idaYVuelta": {
+          "lonDeg": -84.367641866,
+          "latDeg": 33.739457284
+        }
+      },
+      {
+        "indice": 180,
+        "numeroRegistro": 181,
+        "lonDeg": -87.635236553,
+        "latDeg": 41.847961283,
+        "zone": 16,
+        "epsg": "EPSG:32616",
+        "easting": 447266.053640516,
+        "northing": 4633090.798519024,
+        "idaYVuelta": {
+          "lonDeg": -87.635236553,
+          "latDeg": 41.847961283
+        }
+      },
+      {
+        "indice": 196,
+        "numeroRegistro": 197,
+        "lonDeg": -100.3319306,
+        "latDeg": 25.671941,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 366327.871706584,
+        "northing": 2840027.375382793,
+        "idaYVuelta": {
+          "lonDeg": -100.3319306,
+          "latDeg": 25.671941
+        }
+      },
+      {
+        "indice": 216,
+        "numeroRegistro": 217,
+        "lonDeg": -118.231986472,
+        "latDeg": 34.04921926,
+        "zone": 11,
+        "epsg": "EPSG:32611",
+        "easting": 386291.084586237,
+        "northing": 3768297.878699754,
+        "idaYVuelta": {
+          "lonDeg": -118.231986472,
+          "latDeg": 34.04921926
+        }
+      },
+      {
+        "indice": 224,
+        "numeroRegistro": 225,
+        "lonDeg": -99.1329341,
+        "latDeg": 19.4443883,
+        "zone": 14,
+        "epsg": "EPSG:32614",
+        "easting": 486046.250988741,
+        "northing": 2150004.612770417,
+        "idaYVuelta": {
+          "lonDeg": -99.1329341,
+          "latDeg": 19.4443883
+        }
+      }
+    ]
+  }
+}

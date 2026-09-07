@@ -1,10 +1,10 @@
 {
   "$schema": "urn:valle-design:schema:cad-competitive-rubric:v1",
   "schemaVersion": 1,
-  "version": "2026-09-03.1",
+  "version": "2026-09-06.1",
   "title": "Rúbrica competitiva CAD — Valle Design frente a AutoCAD 2027",
   "cutoffDate": "2026-08-22",
-  "totalPoints": 271,
+  "totalPoints": 309,
   "manualMaxAgeDays": 180,
   "notes": [
     "Hay DOS denominadores y los dos se publican SIEMPRE con su etiqueta: «Alcance de HOY» (las filas con scope 'hoy': el flujo diario de dibujo 2D técnico; la cifra que se enseña a un cliente y se vende contra AutoCAD LT) y «Alcance de DESTINO» (todas las filas: AutoCAD completo con sus siete toolsets). Un porcentaje sin su etiqueta de alcance no se cita en ningún informe: «88,6 %» a secas fue el error de la auditoría del 2026-09-01.",
@@ -13,7 +13,8 @@
     "costDays es una estimación de esfuerzo declarada por quien escribe el criterio; alimenta la tabla de prioridad y no la nota.",
     "Corte 2026-08-20: la evidencia de existencia se re-basó a contenido. El 189/200 del corte anterior concedía puntos por que un JSON existiera aunque su contenido desmintiera el criterio (browser-slo medía 48 s de detalle completo). Ahora un criterio de ≥2 pt sólo-existencia es un error de definición, y los gaps documentados (frozen, PAGESETUP, hatch en PDF, BEDIT, F7/F9/F12, .shx, kernel WASM sin importador) son criterios que fallan, no notas al pie.",
     "Corte 2026-08-22 (campaña de cimientos): DOS denominadores publicados — alcance de hoy (categorías scope:hoy) y alcance de destino (todas). Evidencia clasificada en propia vs independiente: una categoría sin NINGUNA evidencia independiente no puede llegar a su tope (se retiene 1 punto con nota). Filas nuevas: integridad (comandos que hacen lo que dicen, pérdidas nunca silenciosas) y capacidad de crecer (las ocho puertas del anexo). Correcciones de honestidad: plugins ya no declara .NET/VBA, BEDIT-en-sitio y bloques dinámicos son «todavía no» explícitos, el SLO de navegador se exige también sobre la mezcla architecture@100k, y detectar-y-rechazar DWG puntúa en integridad, no en soporte DWG.",
-    "Corte 2026-09-02: eje de RECONOCIMIENTO (scope hoy) con criterios que miran la PANTALLA —texto dibujado, orden de la cinta, teclas a la línea de comandos, ventana por arrastre, nada tapa el lienzo—, medidos por goldens de Playwright y no por existencia de código; y las SIETE filas de toolsets (scope destino) aunque hoy valgan cero: el denominador de destino dice a qué distancia está el producto de AutoCAD completo, no sólo de AutoCAD LT."
+    "Corte 2026-09-02: eje de RECONOCIMIENTO (scope hoy) con criterios que miran la PANTALLA —texto dibujado, orden de la cinta, teclas a la línea de comandos, ventana por arrastre, nada tapa el lienzo—, medidos por goldens de Playwright y no por existencia de código; y las SIETE filas de toolsets (scope destino) aunque hoy valgan cero: el denominador de destino dice a qué distancia está el producto de AutoCAD completo, no sólo de AutoCAD LT.",
+    "Corte 2026-09-06 (campaña «El lunes de un arquitecto», T-02): la auditoría de veinte dimensiones encontró cuatro dimensiones enteras sin dónde puntuar —la cinta y la UX, la accesibilidad, el negocio y la ventaja del navegador— y la lente de modos de fallo una quinta. Nacen los grupos `comercial` (12 pt de DESTINO) y `navegador` (10 pt de DESTINO), y las categorías `degradation` (4 pt de HOY, en integridad), `ribbon-ux` y `accessibility` (6 + 6 pt de HOY, en reconocimiento). Casi todo nace como «todavía no» explícito: el denominador sube y el porcentaje BAJA, y eso es correcto —la cifra mide el producto, no protege la moral—. Y tres correcciones de honestidad: xrefs.resolution se parte en bind y capas (las capas se aplastan a una), modeling3d.z-roundtrip se parte en DXF y puntero (un spec de navegador lo contradecía) y toolset-electrical.esquemas se renombra a lo que verifica (símbolos de planta, no de esquema). Los gaps caducados de command-line (alias) y draw-2d (F7/F9/F12) se corrigen hacia arriba."
   ],
   "groups": [
     {
@@ -39,17 +40,27 @@
     {
       "id": "truth",
       "name": "Integridad y capacidad de crecer",
-      "points": 21
+      "points": 25
     },
     {
       "id": "recog",
       "name": "Reconocimiento: se ve y se maneja como AutoCAD",
-      "points": 14
+      "points": 26
     },
     {
       "id": "toolsets",
       "name": "Los siete toolsets de AutoCAD",
       "points": 28
+    },
+    {
+      "id": "comercial",
+      "name": "Comprar, crecer, entrar y salir: lo que decide un despacho",
+      "points": 12
+    },
+    {
+      "id": "navegador",
+      "name": "Lo que sólo un CAD en el navegador puede dar",
+      "points": 10
     }
   ],
   "categories": [
@@ -58,7 +69,7 @@
       "group": "core",
       "name": "Dibujo 2D y precisión",
       "points": 16,
-      "gap": "El corpus de geometría degenerada existe; faltan los conmutadores estándar F7 (rejilla), F9 (forzado) y F12 (entrada dinámica), que un dibujante de AutoCAD pulsa sin mirar.",
+      "gap": "El corpus de geometría degenerada existe y los conmutadores F7 (rejilla), F9 (forzado) y F12 (entrada dinámica) están declarados y despachados (keyboard-shortcuts.ts, editor-keyboard.ts; el gap anterior que los daba por ausentes estaba caducado, medido el 2026-09-06). Lo que sigue en «todavía no»: con CEN encendido el imán se pega al punto MEDIO de toda línea y el HUD anuncia «centro» (y NOD → medio de cada tramo de polilínea): CadSnapKind tiene cinco valores y cuatro de los catorce modos que el cuadro promete no tienen adaptador (fichas T-14 y T-22); teclear un ángulo ignora ANGBASE, ANGDIR y AUNITS (T-25); CIRCLE no tiene Ttr ni Ttt y no lo declara (T-23).",
       "criteria": [
         {
           "id": "draw-2d.canonical",
@@ -301,6 +312,14 @@
             {
               "kind": "spec",
               "path": "apps/web/src/lib/cad/grip-actions.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/components/cad/viewport/native-grip-controller.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/194-auditoria-refutacion-pinzamiento.spec.ts"
             }
           ]
         },
@@ -341,6 +360,10 @@
             {
               "kind": "spec",
               "path": "apps/web/src/lib/cad/engine/commands/modify-basics.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/193-auditoria-modificar-bucle.spec.ts"
             }
           ]
         },
@@ -381,6 +404,10 @@
             {
               "kind": "golden",
               "path": "apps/web/e2e/golden/43-cad-chamfer.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/195-auditoria-refutacion-trim.spec.ts"
             }
           ]
         },
@@ -1725,7 +1752,7 @@
       "group": "pro",
       "name": "Línea de comandos, alias y scripting",
       "points": 12,
-      "gap": "Quedan exactamente 2 de 129 alias de acad.pgp sin resolver: BE→BEDIT y BLE→BLEND. OPTIONS y PROPERTIES no tienen variante por la línea —ni aquí ni en AutoCAD—: se responde con SETVAR y LIST.",
+      "gap": "Los alias de acad.pgp resuelven todos, BE→BEDIT y BLE→BLEND incluidos (medido el 2026-09-06 sobre command-manifest.ts; el gap anterior, que dejaba dos sin resolver, estaba caducado). OPTIONS y PROPERTIES no tienen variante por la línea —ni aquí ni en AutoCAD—: se responde con SETVAR y LIST. Lo que sigue en «todavía no»: ningún prompt de «Designe objetos» acepta palabras clave (Todo, Previo, Último, Ventana, Captura, Valla…) aunque el motor de selección profesional esté completo por debajo (ficha T-21).",
       "criteria": [
         {
           "id": "command-line.registry",
@@ -1953,7 +1980,7 @@
       "group": "pro",
       "name": "Xrefs",
       "points": 6,
-      "gap": "Ola 2 (2026-09-03): XATTACH adjunta de verdad tecleado, por dos caminos —biblioteca cargada, o petición de anfitrión con activo, revisión, modo, punto, escala y giro ya resueltos—, y el golden lo afirma sobre el documento que recibe el servidor. Lo que sigue en «todavía no»: el motor no tiene CATÁLOGO del inquilino, así que «?» no puede listar los dibujos disponibles y pide que se escriba el activo; publicarlo en `context.xrefCatalog` vive en el monolito.",
+      "gap": "Ola 2 (2026-09-03): XATTACH adjunta de verdad tecleado, por dos caminos —biblioteca cargada, o petición de anfitrión con activo, revisión, modo, punto, escala y giro ya resueltos—, y el golden lo afirma sobre el documento que recibe el servidor. Lo que sigue en «todavía no»: el motor no tiene CATÁLOGO del inquilino, así que «?» no puede listar los dibujos disponibles y pide que se escriba el activo; publicarlo en `context.xrefCatalog` vive en el monolito. Corrección de honestidad (2026-09-06): xrefs.resolution cobraba 2 pt por «capas de xref» con una sola spec de bind mientras las capas se aplastan a una; se parte en bind (1, cobrado) y capas (1, todavía no). Y para adjuntar hay que teclear un UUID: el tablero navega la biblioteca y ese catálogo no entra al motor, a la paleta, a ADCENTER ni a COMPARE (ficha T-40).",
       "criteria": [
         {
           "id": "xrefs.document",
@@ -1976,14 +2003,38 @@
           ]
         },
         {
-          "id": "xrefs.resolution",
-          "points": 2,
-          "text": "Resolución de recursos, capas de xref y bind con round-trip",
+          "id": "xrefs.bind",
+          "points": 1,
+          "text": "Resolución de recursos y bind con round-trip",
           "costDays": 6,
           "evidence": [
             {
               "kind": "spec",
               "path": "apps/web/src/lib/cad/cad-xrefs-bind.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "xrefs.layers",
+          "points": 1,
+          "text": "Las capas de la xref sobreviven: apagar, congelar y atenuar una capa del plano ajeno sin tocar las demás (VISRETAIN)",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/xref/xref-projection.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/xref/xref-workflow.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/cad-layer-manager.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/210-auditoria-capas-de-la-xref.spec.ts"
             }
           ]
         },
@@ -2027,7 +2078,7 @@
       "group": "pro",
       "name": "Rendimiento 10k/100k",
       "points": 12,
-      "gap": "El SLO interactivo de navegador está MEDIDO y FALLA: la corrida versionada registra 48,2 s hasta el detalle completo y 1,4 fps de paneo (corpus architecture, 10k, GPU por software). El criterio lee esas cifras y no se concede hasta que las cifras cambien.",
+      "gap": "El SLO interactivo de navegador está MEDIDO y FALLA: la corrida versionada (docs/cad/evidence/browser-slo-100k.json) sigue por encima del SLO de detalle y por debajo del de paneo, y el criterio lee esas cifras y no se concede hasta que cambien. Corrección del 2026-09-06: ese artefacto mide un pipeline que el editor NO ejecuta —el arnés mete las 100 000 entidades, los INSERT incluidos, en CadRenderScene.replace(), mientras el editor excluye los INSERT y los sólidos sombreados y los dibuja instanciados—, así que ni el número malo ni uno bueno serían el del producto hasta que el arnés monte la escena por donde pasa el usuario o declare la diferencia entidad por entidad (ficha T-70). Y modify.dense-stress espera una corrida de npm run evidence:dense-editing.",
       "criteria": [
         {
           "id": "performance.index",
@@ -2269,6 +2320,12 @@
             {
               "kind": "golden",
               "path": "apps/web/e2e/performance/cad-import-fuzzing.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/verification/json-import-atheris.spec.ts",
+              "independent": true,
+              "note": "atheris (Google, Apache-2.0), un fuzzer guiado por cobertura de terceros, decide 500 documentos hostiles; el importador REAL (validateImportFile + importDocumentText) los clasifica todos en clases conocidas, cero \"desconocido\", cero lanzamientos no tipados. Artefacto congelado: docs/cad/corpus/oraculos/atheris-3.0.0.json."
             }
           ]
         }
@@ -2296,6 +2353,12 @@
             {
               "kind": "file",
               "path": "scripts/cad/check-design-contract.mjs"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/verification/api-sdk-openapi.spec.ts",
+              "independent": true,
+              "note": "openapi-spec-validator 0.9.0 (PyPI, Apache-2.0) dictamina design-api.v1.yaml VÁLIDO contra el esquema OFICIAL de OpenAPI 3.1, no contra check-design-contract.mjs (que es nuestro). Artefacto congelado: docs/cad/corpus/oraculos/openapi-spec-validator-0.9.0.json, anclado al sha256 del YAML."
             }
           ]
         },
@@ -2516,6 +2579,12 @@
             {
               "kind": "file",
               "path": "docs/cad/evidence/webhook-replay-audit.json"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/verification/events-hmac.spec.ts",
+              "independent": true,
+              "note": "La biblioteca ESTÁNDAR de Python (hmac + hashlib) recalcula desde cero HMAC-SHA256 sobre timestamp + \".\" + rawBody y llega al mismo X-Valle-Signature que el emisor real produce, sobre una fixture fiel al contrato (verificada contra verifyOutboxSignature sin modificarlo). Rechaza la firma sobre un cuerpo alterado en un byte. Artefacto congelado: docs/cad/corpus/oraculos/hmac-stdlib.json."
             }
           ]
         }
@@ -2581,7 +2650,7 @@
       "group": "frontier",
       "name": "Import/export DWG",
       "points": 7,
-      "gap": "DWG comercial es «todavía no» de etapa (ADR-0012: licenciar para vender, códec propio para poseer). El avance del laboratorio puntúa aquí con su evidencia independiente (oráculo externo); detectar-y-rechazar puntúa en la fila de integridad.",
+      "gap": "DWG comercial es «todavía no» de etapa (ADR-0012: licenciar para vender, códec propio para poseer). El avance del laboratorio puntúa aquí con su evidencia independiente (oráculo externo); detectar-y-rechazar puntúa en la fila de integridad. Desde T-16 (2026-09-06) las dos puertas de importación —tablero y estudio— dan el mismo veredicto al mismo archivo por la misma función (golden 192, document-import-door.spec.ts); con la beta encendida el fondo del estudio sigue sin pintar un DWG y lo dice.",
       "criteria": [
         {
           "id": "dwg.decision",
@@ -2781,7 +2850,7 @@
       "group": "frontier",
       "name": "Modelado 3D: primitivas, SOLIDEDIT y la cota",
       "points": 5,
-      "gap": "Ola C (2026-09-02). Medido antes: faltaban LAS OCHO primitivas (el nodo `box` existía y ningún comando lo creaba), SOLIDEDIT entero y la cota moría en cuatro fronteras del DXF (30/31 fijos a cero, `pt()` y `point3()` la tiraban). Lo que sigue en «todavía no»: CIRCLE/ARC y las primitivas sobre un plano INCLINADO (honran el elevado), el plano inclinado al importar DXF (normal ≠ ±Z) y las ramas de SOLIDEDIT que piden recomponer caras (Mover, Girar, Desfasar…) o designar aristas.",
+      "gap": "Ola C (2026-09-02). Medido antes: faltaban LAS OCHO primitivas (el nodo `box` existía y ningún comando lo creaba), SOLIDEDIT entero y la cota moría en cuatro fronteras del DXF (30/31 fijos a cero, `pt()` y `point3()` la tiraban). Lo que sigue en «todavía no»: CIRCLE/ARC y las primitivas sobre un plano INCLINADO (honran el elevado), el plano inclinado al importar DXF (normal ≠ ±Z) y las ramas de SOLIDEDIT que piden recomponer caras (Mover, Girar, Desfasar…) o designar aristas. Corrección de honestidad (2026-09-06): z-roundtrip cobraba 2 pt con specs unitarios que un spec de navegador committeado contradecía (refutacion-scu-raton); se parte en la frontera del DXF (1, cobrado con oráculo ajeno) y el puntero (1, todavía no). Además no existe ninguna transformación 3D: CadSolidPlacement es una afín 2×3 más dz y el esquema no tiene dónde escribir un giro (ficha T-50); el modelo no sale del navegador por ninguna vía de malla (T-51); designar en 3D va por la sombra en el suelo (T-52).",
       "criteria": [
         {
           "id": "modeling3d.primitives",
@@ -2848,9 +2917,9 @@
           ]
         },
         {
-          "id": "modeling3d.z-roundtrip",
-          "points": 2,
-          "text": "La cota cruza todas las fronteras: PLINE y RECTANG dibujan en el plano del SCU inclinado, CIRCLE y ARC en la planta elevada, y el DXF conserva 30/31, elevación, polilínea 3D y SCU reflejado (lector de terceros como oráculo)",
+          "id": "modeling3d.z-dxf",
+          "points": 1,
+          "text": "La cota cruza las fronteras del DXF: 30/31, elevación, polilínea 3D y SCU reflejado (lector de terceros como oráculo), y PLINE/RECTANG tecleados dibujan en el plano del SCU inclinado",
           "costDays": 0,
           "evidence": [
             {
@@ -2865,6 +2934,26 @@
             {
               "kind": "spec",
               "path": "apps/web/src/lib/cad/dxf-import-cota.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "modeling3d.z-pointer",
+          "points": 1,
+          "text": "Con el SCU apoyado en la fachada, el punto del RATÓN sale del plano de trabajo y no del suelo: LINE desde la paleta con dos clics deja el trazo en la fachada, defendido por un golden de navegador",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/101-auditoria-tresd-dibujar-en-fachada.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/198-auditoria-scu-raton-paleta.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/components/cad/viewport/solid-shade-host.spec.ts"
             }
           ]
         }
@@ -2906,6 +2995,12 @@
             {
               "kind": "imported",
               "module": "apps/web/src/lib/cad/wasm"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/wasm/curve-kernel-mpmath.spec.ts",
+              "independent": true,
+              "note": "mpmath (PyPI, BSD-3-Clause) emite el teselado de arcos y elipses a 50 dígitos de precisión para el corpus de casos límite de curve-kernel-corpus.ts, y sirve de referencia ABSOLUTA que curve-kernel-parity.spec.ts no tenía (sólo comparaba JS↔WASM entre sí). Artefacto congelado: docs/cad/corpus/oraculos/mpmath-1.4.1.json."
             }
           ]
         }
@@ -2949,6 +3044,12 @@
             {
               "kind": "spec",
               "path": "apps/web/src/lib/geo/crs.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/geo/crs-pyproj.spec.ts",
+              "independent": true,
+              "note": "PROJ (envuelto por pyproj 3.7.2) reproyecta la misma malla de control de México que crs.spec.ts genera con su propia fórmula. Artefacto congelado: docs/cad/corpus/oraculos/pyproj-3.7.2.json."
             }
           ]
         },
@@ -3555,6 +3656,12 @@
             {
               "kind": "golden",
               "path": "apps/web/e2e/golden/82-cad-georreferencia.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/geo/shapefile-pyproj.spec.ts",
+              "independent": true,
+              "note": "Un shapefile PÚBLICO de terceros (Natural Earth, dominio público, ne_110m_populated_places_simple) leído por el lector de producción (readShapefile) y reproyectado por reprojectGeoPoint contra PROJ. Manifiesto de derechos: docs/cad/corpus/terceros-gis-manifest.json. Comparte oráculo con geo.crs."
             }
           ]
         },
@@ -3753,12 +3860,12 @@
       "scope": "destino",
       "name": "Toolset Electrical",
       "points": 4,
-      "gap": "EN ALCANCE desde la Ola 5 (2026-09-03): el titular retiró la marca de «fuera de alcance». Lo que hay: conductores numerados desde el DIBUJO con detección de números repetidos, ETIQUETAS de componente en los atributos del bloque —una a una o todas de golpe, con la familia deducida del símbolo—, datos de circuito estampados en un solo paso, revisión contra la NOM-001-SEDE (ampacidad, tope del conductor pequeño y caída de tensión calculada con la longitud REAL de la polilínea) y el cuadro de cargas como TABLE del documento. Lo que NO hay: referencias cruzadas entre hojas, escalerilla (ladder), E/S de PLC, plano de gabinete atado al esquema y catálogo de fabricante.",
+      "gap": "EN ALCANCE desde la Ola 5 (2026-09-03): el titular retiró la marca de «fuera de alcance». Lo que hay: conductores numerados desde el DIBUJO con detección de números repetidos, ETIQUETAS de componente en los atributos del bloque —una a una o todas de golpe, con la familia deducida del símbolo—, datos de circuito estampados en un solo paso, revisión contra la NOM-001-SEDE (ampacidad, tope del conductor pequeño y caída de tensión calculada con la longitud REAL de la polilínea) y el cuadro de cargas como TABLE del documento. Lo que NO hay: referencias cruzadas entre hojas, escalerilla (ladder), E/S de PLC, plano de gabinete atado al esquema y catálogo de fabricante. Corrección de honestidad (2026-09-06): el criterio «esquemas» cobraba «Esquemas eléctricos: símbolos normalizados» con evidencia de los cuatro símbolos de PLANTA de mep-symbols.ts; se renombra a lo que verifica. Y las dos únicas cosas que el toolset pone sobre el papel —número de conductor y etiqueta— NO se dibujan ni salen como ATTRIB: cadMepBlockDefinition no declara attributes, al revés que su hermano de Plant (ficha T-15); AEWIRELIST y AETAGLIST son un renglón truncado sin salida a fichero (T-35).",
       "criteria": [
         {
           "id": "toolset-electrical.esquemas",
           "points": 2,
-          "text": "Esquemas eléctricos: símbolos normalizados, numeración de conductores y etiquetado de componentes, todo derivado del dibujo",
+          "text": "Instalación eléctrica en PLANTA: símbolos de planta, numeración de conductores y etiquetado de componentes derivados del dibujo (sin símbolos de esquema de control: ni bobina, ni contacto, ni contactor, ni guardamotor)",
           "costDays": 0,
           "evidence": [
             {
@@ -3886,6 +3993,660 @@
             {
               "kind": "spec",
               "path": "apps/web/src/lib/cad/plant/pipe-solid.spec.ts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "commercial-growth",
+      "group": "comercial",
+      "name": "Compra y crecimiento del despacho",
+      "points": 3,
+      "scope": "destino",
+      "gap": "Abierta el 2026-09-06 (campaña «El lunes de un arquitecto», T-02): la maquinaria de cobro está construida con rigor —catálogo servido de la base, aritmética en céntimos enteros, checkout con tarjeta/OXXO/SPEI, asientos comprobados en el servidor— y ninguna fila la medía. Lo que sigue en «todavía no»: el despacho que crece no puede comprar el cuarto asiento desde el producto (el checkout responde plan_already_active y el servidor rechaza la cuarta invitación; el único camino es el portal genérico del proveedor, que el producto no configura ni declara). El límite de asientos está bien puesto y NO se relaja: el arreglo es vender el asiento.",
+      "criteria": [
+        {
+          "id": "commercial-growth.checkout",
+          "points": 1,
+          "text": "Checkout con tarjeta, OXXO y SPEI, precios en céntimos enteros servidos del catálogo de la base de datos",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/commercial/adapters/stripe-mexican-payments.spec.ts",
+              "minLines": 40
+            },
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/commercial/controllers/public-catalog.controller.spec.ts",
+              "minLines": 40
+            }
+          ]
+        },
+        {
+          "id": "commercial-growth.seats",
+          "points": 1,
+          "text": "Los asientos se comprueban en el servidor y el despacho puede COMPRAR el siguiente sin salir del producto: choca contra el límite, compra el cuarto, invita",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/commercial/seat-entitlement.service.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/api/src/modules/commercial/commercial-seat-growth.pg.spec.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/web/src/app/cuenta/facturacion/BillingPortal.tsx"
+            }
+          ]
+        },
+        {
+          "id": "commercial-growth.read-only-after-expiry",
+          "points": 1,
+          "text": "Cuando el período termina la cuenta pasa a sólo lectura y sigue abriendo, imprimiendo y exportando: obligación del servicio probada contra PostgreSQL",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/auth/guards/entitlement-read-only.pg.spec.ts",
+              "minLines": 40
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "commercial-billing",
+      "group": "comercial",
+      "name": "Facturación declarada con su límite",
+      "points": 3,
+      "scope": "destino",
+      "gap": "Abierta el 2026-09-06 (T-02). Hasta F8 (T-18a, 2026-09-06) «Factura CFDI» se anunciaba en dos superficies públicas con etiquetas escritas a mano mientras el proveedor de timbrado estaba en modo manual porque no hay PAC contratado; el límite honesto sólo aparece después de iniciar sesión, y el comprador pregunta antes. Contratar el PAC es del titular; que el sello y el FAQ se DERIVEN del descriptor del proveedor es de esta campaña (T-18). Los reembolsos y disputas por webhook firmado ya existen y se cobran aquí.",
+      "criteria": [
+        {
+          "id": "commercial-billing.cfdi-honest",
+          "points": 1,
+          "text": "«Factura CFDI» sólo se anuncia cuando el proveedor de timbrado no está en modo manual: el sello de la portada y la respuesta del FAQ se derivan del descriptor, con una prueba que lo impide en modo manual",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/app/precios/commercial-surface.spec.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/commercial/controllers/public-catalog.controller.ts"
+            }
+          ]
+        },
+        {
+          "id": "commercial-billing.webhooks",
+          "points": 1,
+          "text": "Reembolsos y disputas llegan por webhook firmado y dejan asiento verificable",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/commercial/commercial-refunds-disputes.pg.spec.ts",
+              "minLines": 40
+            }
+          ]
+        },
+        {
+          "id": "commercial-billing.transactional-mail",
+          "points": 1,
+          "text": "Cada plantilla de correo que el árbol encola tiene renderizador: un gate de cobertura recorre todos los nombres encolados y ninguno se descarta en silencio",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/api/src/modules/outbox-receiver/email-template-coverage.spec.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/outbox-receiver/email-templates.ts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "commercial-dossier",
+      "group": "comercial",
+      "name": "El expediente que pide un comprador",
+      "points": 3,
+      "scope": "destino",
+      "gap": "Abierta el 2026-09-06 (T-02). La bitácora de auditoría se escribe y no se lee (el módulo audit-log no tiene controlador, ni retención ni purga); el SLA existe, es bueno y ningún cliente puede verlo (vive en docs/ops/SLA.md con nombres de plan que no coinciden con el catálogo vendible); no hay borrado de cuenta ni exportación de datos personales (derechos ARCO). Todo «todavía no» (ficha T-62).",
+      "criteria": [
+        {
+          "id": "commercial-dossier.audit-log",
+          "points": 1,
+          "text": "El cliente puede leer quién tocó sus planos: GET /v1/organizations/{id}/audit-log con pantalla, aislamiento por inquilino probado, retención y purga declaradas",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/audit-log/design-audit-log.service.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/audit-log/audit-log.controller.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/audit-log/audit-log-retention.service.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/audit-log/audit-log-tenant-isolation.pg.spec.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/web/src/components/organization/AuditLogPanel.tsx"
+            }
+          ]
+        },
+        {
+          "id": "commercial-dossier.sla",
+          "points": 1,
+          "text": "El SLA se publica y sus nombres de plan son los del catálogo vendible, atados por una prueba",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "docs/ops/SLA.md"
+            },
+            {
+              "kind": "file",
+              "path": "apps/web/src/app/sla/SlaPage.tsx"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/app/sla/sla-surface.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "commercial-dossier.arco",
+          "points": 1,
+          "text": "Exportación de datos personales y borrado de cuenta (derechos ARCO/RGPD) con contrato, ruta y prueba",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/identity/identity-export.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/identity/identity-export.pg.spec.ts"
+            },
+            {
+              "kind": "todaviaNo",
+              "reason": "la exportación existe (GET /v1/auth/export, F8 T-62 c, identity-export.pg.spec.ts); el borrado de cuenta no: hay que decidir qué pasa con las organizaciones y los documentos compartidos del propietario (propuesta en frentes/F8-peticiones.md §5)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "commercial-migration",
+      "group": "comercial",
+      "name": "Migración de entrada y de salida",
+      "points": 3,
+      "scope": "destino",
+      "gap": "Abierta el 2026-09-06 (T-02). Entrar: «Importa un DXF» del estado vacío no hace nada, el returnTo muere en la verificación y ninguna pantalla del primer minuto sabe crear el proyecto implícito (tres defectos que son uno, ficha T-63); no existe arrastrar-y-soltar en ninguna parte. Y /demo YA abre el DXF del propio visitante sin cuenta y sin red —DXFIN entra por engine.feedFile— y nada en el sitio lo dice. Salir: la puerta de salida del API entrega un DXF R12 mutilado y sin manifiesto (ficha T-11 a) y no existe exportación completa de la organización.",
+      "criteria": [
+        {
+          "id": "commercial-migration.first-minute",
+          "points": 1,
+          "text": "Del estado vacío o de /demo al documento abierto en la cuenta nueva CON el dibujo dentro: arrastrar-y-soltar un DXF, proyecto implícito, returnTo que sobrevive a la verificación",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/150-cad-arrastrar-dxf-tablero.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/196-auditoria-soltar-dxf-lienzo.spec.ts"
+            },
+            {
+              "kind": "todaviaNo",
+              "reason": "arrastrar un DXF ya entra por el estado vacío, el tablero (F8, golden 150) y el lienzo del estudio (golden 196), pero ninguna pantalla del primer minuto crea el proyecto implícito ni deja el dibujo dentro sin pasar por el tablero (ficha T-63)"
+            }
+          ]
+        },
+        {
+          "id": "commercial-migration.demo-own-file",
+          "points": 1,
+          "text": "El sitio dice —y una prueba defiende— que /demo abre el DXF del propio visitante sin cuenta, sin instalar y sin subir nada",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "command",
+              "name": "DXFIN"
+            },
+            {
+              "kind": "todaviaNo",
+              "reason": "la capacidad existe y ninguna superficie pública la anuncia ni ninguna prueba defiende la frase (prompt maestro §6.2)"
+            }
+          ]
+        },
+        {
+          "id": "commercial-migration.exit",
+          "points": 1,
+          "text": "La salida completa: el DXF del API público sale con discriminación por tipo y manifiesto de pérdidas, y la organización entera se puede exportar",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "cad-dxf-export.ts recorta capas a 31 y texto a 240 sin aviso y dibuja rectángulos inventados (ficha T-11 a); no hay exportación de organización"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "delivery-link",
+      "group": "navegador",
+      "name": "El plano entregado tiene dirección",
+      "points": 4,
+      "scope": "destino",
+      "gap": "Abierta el 2026-09-06 (T-02, §6.2 del prompt maestro). Casi nada hay que inventar: el recibo de publicación (sha256, tamaño, hojas, 409 de CAS) existe y no tiene los bytes al lado; el mecanismo de enlace server-owned entero (hash, caducidad, revocación, aislamiento por organización, token en el fragmento, 403 review_read_only) existe y hoy sólo enseña el espacio modelo; el codificador de QR propio existe y sólo se usa para el alta de MFA. Falta el adaptador del blob store y coserlo (ficha T-43).",
+      "criteria": [
+        {
+          "id": "delivery-link.address",
+          "points": 2,
+          "text": "Publicar produce una URL que el cliente abre en el teléfono sin cuenta ni instalación y que enseña la LÁMINA con su versión, su sha256 y sus pérdidas declaradas",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/cad-documents/review-link.service.ts"
+            },
+            {
+              "kind": "todaviaNo",
+              "reason": "el recibo de publicación no tiene los bytes al lado y el enlace de revisión sólo proyecta el espacio modelo (ficha T-43)"
+            }
+          ]
+        },
+        {
+          "id": "delivery-link.revocation",
+          "points": 1,
+          "text": "El enlace de la lámina caduca y se revoca: tras revocar, 403, probado de extremo a extremo sin sesión",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "el golden publicar → abrir sin sesión → ver la lámina → revocar → 403 no existe (ficha T-43)"
+            }
+          ]
+        },
+        {
+          "id": "delivery-link.qr",
+          "points": 1,
+          "text": "El enlace de la lámina va impreso como QR en el cajetín: el plano de papel de la obra apunta a su versión viva",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/qr/qr-roundtrip.spec.ts"
+            },
+            {
+              "kind": "todaviaNo",
+              "reason": "el codificador existe con su oráculo y sólo lo usa el alta de MFA; ningún cajetín lo imprime (ficha T-43)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "guest-presence",
+      "group": "navegador",
+      "name": "El invitado existe entre máquinas",
+      "points": 2,
+      "scope": "destino",
+      "gap": "Abierta el 2026-09-06 (T-02). La presencia con cursor y encuadre y la llamada con política ICE y TURN declarado existen para los miembros; el invitado del enlace es invisible entre máquinas: no aparece en la presencia y no puede entrar en la llamada. Y al cliente se le afirma que no hay nadie mirando cuando sí lo hay (T-43 D1: media hora, y va primero).",
+      "criteria": [
+        {
+          "id": "guest-presence.visible",
+          "points": 1,
+          "text": "El invitado del enlace aparece en la presencia del autor con su cursor y su encuadre, y al cliente nunca se le afirma que no hay nadie mirando cuando sí lo hay",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/collab/presence.spec.ts"
+            },
+            {
+              "kind": "todaviaNo",
+              "reason": "el invitado no tiene transporte de presencia y la vista del enlace afirma «nadie mirando» sin comprobarlo (ficha T-43)"
+            }
+          ]
+        },
+        {
+          "id": "guest-presence.call",
+          "points": 1,
+          "text": "El invitado puede entrar en la llamada que ya está dentro del plano",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "la llamada sólo admite miembros con sesión (ficha T-43)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "deep-link",
+      "group": "navegador",
+      "name": "Un punto del dibujo tiene URL",
+      "points": 2,
+      "scope": "destino",
+      "gap": "Abierta el 2026-09-06 (T-02). Los comentarios ya se anclan a un punto del plano; lo que no existe es que ese punto —o cualquier encuadre— tenga una dirección que se pueda mandar y que al abrirla el receptor vea exactamente eso.",
+      "criteria": [
+        {
+          "id": "deep-link.point",
+          "points": 1,
+          "text": "Una URL lleva a un punto y un encuadre concretos del dibujo, en el estudio y en el enlace de revisión",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/collab/comment-anchor.spec.ts"
+            },
+            {
+              "kind": "todaviaNo",
+              "reason": "no hay codificación de encuadre ni de punto en la URL (ficha T-43)"
+            }
+          ]
+        },
+        {
+          "id": "deep-link.comment",
+          "points": 1,
+          "text": "Al comentario del cliente se le puede contestar desde el estudio y el autor se entera de que llegó",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "no hay respuesta en hilo ni aviso de comentario nuevo (ficha T-42 c)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pwa",
+      "group": "navegador",
+      "name": "Se instala y avisa con la pestaña cerrada",
+      "points": 2,
+      "scope": "destino",
+      "gap": "Abierta el 2026-09-06 (T-02). Hay manifiesto de aplicación web; la instalabilidad no está probada y no existe push: con la pestaña cerrada nadie se entera de nada (xref cambiada, bloque redefinido, comentario del cliente, 409 sin salida: ficha T-42).",
+      "criteria": [
+        {
+          "id": "pwa.install",
+          "points": 1,
+          "text": "La aplicación se instala (manifiesto, service worker, criterios de instalabilidad) y una prueba lo defiende",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/web/src/app/manifest.ts"
+            },
+            {
+              "kind": "todaviaNo",
+              "reason": "la instalabilidad no está medida por ninguna prueba (ficha T-43)"
+            }
+          ]
+        },
+        {
+          "id": "pwa.push",
+          "points": 1,
+          "text": "Con la pestaña cerrada, el producto avisa: xref cambiada, bloque de biblioteca redefinido, comentario del cliente",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "no existe push ni aviso de cambio de xref o de bloque (fichas T-42 y T-43)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "degradation",
+      "group": "truth",
+      "name": "Degradación honesta: qué pasa cuando algo se rompe",
+      "points": 4,
+      "scope": "hoy",
+      "gap": "Abierta el 2026-09-06 (T-02, lente de modos de fallo). La parte difícil está hecha —CAS atómico, diario de recuperación con carril por pestaña y SHA-256 verificado, gunzipBounded, guardián de webglcontextlost con su preventDefault, matriz ejecutable de flujos sin red, ventana de pérdida medida y publicada— y lo que falta es que el producto no se contradiga cuando falla: un 400 permanente sale por la rama del 500 pasajero; Deshacer promete 80 pasos y a 100 000 entidades entrega uno sin decirlo; ARRAY 500×500 convierte el plano en un archivo que ya no se puede guardar; y dos pestañas con un cambio de versión cuelgan el recovery en silencio (fichas T-24 y T-75).",
+      "criteria": [
+        {
+          "id": "degradation.permanent-vs-transient",
+          "points": 1,
+          "text": "El fallo permanente no se anuncia como transitorio: un 400 (el documento no cabe nunca) ofrece salida (exportar, reducir) en vez de «espera y vuelve a pulsar Guardar»",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/components/cad/document-lifecycle/save-failure.spec.ts"
+            },
+            {
+              "kind": "todaviaNo",
+              "reason": "save-failure.ts:159-166 manda el 400 por la rama del 500 y el spec cubre cinco estados y no éste (ficha T-24·3)"
+            }
+          ]
+        },
+        {
+          "id": "degradation.undo-depth",
+          "points": 1,
+          "text": "La profundidad de deshacer prometida es la entregada: un gate versiona undoDepthByTier, la barra de estado la enseña y avisa una vez cuando el historial se poda",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "docs/cad/evidence/document-limits.json"
+            },
+            {
+              "kind": "todaviaNo",
+              "reason": "a 100 000 entidades el checkpoint estima 48,6 MiB contra 32 MiB y la pila se poda a 1 sin aviso; el indicador vive detrás de ?cadDiag=1 (ficha T-24·2)"
+            }
+          ]
+        },
+        {
+          "id": "degradation.server-limit",
+          "points": 1,
+          "text": "Ninguna operación deja el documento fuera del límite del servidor: ARRAY, COPY múltiple y DIVIDE piden confirmación por encima de CAD_DOCUMENT_LIMITS.maxEntities",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "ARRAY no tiene techo ni confirmación (ficha T-24·1)"
+            }
+          ]
+        },
+        {
+          "id": "degradation.local-storage-warns",
+          "points": 1,
+          "text": "El almacenamiento local avisa cuando deja de proteger: openDatabase bloqueado o versión cambiada produce un aviso visible, nunca un recovery colgado en silencio",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/cad-recovery.spec.ts"
+            },
+            {
+              "kind": "todaviaNo",
+              "reason": "openDatabase no maneja blocked (ficha T-75 c)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ribbon-ux",
+      "group": "recog",
+      "name": "La cinta y el gesto: cómo se usa de verdad",
+      "points": 6,
+      "scope": "hoy",
+      "gap": "Abierta el 2026-09-06 (T-02, dimensión 3 de la auditoría de veinte). No hay ni una pestaña contextual: la cinta no sabe qué hay designado; PR/OP/TP/UC contestan con aviso rojo aunque el panel esté montado; la línea de comandos no sugiere nada mientras se escribe y el buscador ya existe; Inicio tiene 159 botones en una tira de ~10 500 px sin desplegables; el menú del botón derecho es el mismo con un muro, una cota o nada; sólo hay pestaña para las tres primeras láminas y no hay Ctrl+RePág; Ctrl+8 y Ctrl+9 están atados a la paleta equivocada; en sólo lectura la cinta se apaga entera (ficha T-74).",
+      "criteria": [
+        {
+          "id": "ribbon-ux.contextual-tab",
+          "points": 1,
+          "text": "Designar un muro, una cota o un bloque abre su pestaña contextual en la cinta, y check-ribbon-coverage la vigila",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "no existe ninguna pestaña contextual (ficha T-74 a)"
+            }
+          ]
+        },
+        {
+          "id": "ribbon-ux.keytips",
+          "points": 1,
+          "text": "Alt+letra (KeyTips) alcanza cada pestaña y cada panel de la cinta, y ui-command-reach lo cuenta",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "no hay KeyTips (ficha T-73 f)"
+            }
+          ]
+        },
+        {
+          "id": "ribbon-ux.command-suggestions",
+          "points": 1,
+          "text": "La línea de comandos sugiere mientras se escribe, con el buscador que ya existe",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "el buscador existe y la caja no lo consulta (ficha T-74 c)"
+            }
+          ]
+        },
+        {
+          "id": "ribbon-ux.context-menu",
+          "points": 1,
+          "text": "El menú del botón derecho depende de lo designado",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "el menú es el mismo tenga designado un muro, una cota o nada (ficha T-74 f)"
+            }
+          ]
+        },
+        {
+          "id": "ribbon-ux.layout-tabs",
+          "points": 1,
+          "text": "Las pestañas de láminas listan todas, abajo, dicen «Modelo» y Ctrl+RePág/AvPág cambian entre ellas",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "sólo hay pestaña para las tres primeras, arriba, dicen «Model» y no hay Ctrl+RePág (ficha T-74 g)"
+            }
+          ]
+        },
+        {
+          "id": "ribbon-ux.read-only-honest",
+          "points": 1,
+          "text": "En un dibujo de sólo lectura la cinta conserva los comandos que no mutan nada, y Ctrl+8/Ctrl+9 abren las paletas que AutoCAD abre",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "la cinta se apaga entera y Ctrl+8/9 están cruzados con un comentario que afirma lo contrario (ficha T-74 h, i)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "accessibility",
+      "group": "recog",
+      "name": "Sin ratón, sin vista y en dos idiomas",
+      "points": 6,
+      "scope": "hoy",
+      "gap": "Abierta el 2026-09-06 (T-02, dimensión 20 de la auditoría de veinte; su hueco 15 decía literalmente que la rúbrica no medía esta dimensión en absoluto). 43 controles del estudio se enfocan sin verse (el trinquete dice 27); cero encabezados en el estudio, que se escapa porque el gate de axe filtra a serious|critical; los 159 botones de la cinta llegan sin su panel; el prompt vivo no se puede volver a leer (sin aria-describedby, el log no recibe foco, F2 no existe); forced-colors y prefers-contrast no existen en el árbol; y el vocabulario de comandos en español que la promesa comercial declara no existe (ficha T-73).",
+      "criteria": [
+        {
+          "id": "accessibility.axe-moderate",
+          "points": 1,
+          "text": "El gate de axe del estudio falla con impacto moderate, no sólo serious|critical, y el estudio tiene su encabezado",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "axe-estudio.spec.ts filtra a serious|critical y el estudio no tiene ningún <h1>…<h3> (ficha T-73 e)"
+            }
+          ]
+        },
+        {
+          "id": "accessibility.focus-visible",
+          "points": 1,
+          "text": "Ningún control se enfoca sin verse: el trinquete de foco visible está en cero",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "43 controles se enfocan sin verse y el trinquete está en 27 (ficha T-73 d)"
+            }
+          ]
+        },
+        {
+          "id": "accessibility.ribbon-roles",
+          "points": 1,
+          "text": "Cada panel de la cinta tiene role y aria-label, y la cinta se navega por flechas con un golden que lo defiende",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "CadRibbonPanel no tiene role ni aria-label; ningún golden navega la cinta por teclado (ficha T-73 f)"
+            }
+          ]
+        },
+        {
+          "id": "accessibility.command-log",
+          "points": 1,
+          "text": "El prompt vivo se puede volver a leer: aria-describedby en la caja, el log recibe foco y F2 existe",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "tres huecos «media» que juntos son un callejón sin salida (ficha T-73 h)"
+            }
+          ]
+        },
+        {
+          "id": "accessibility.forced-colors",
+          "points": 1,
+          "text": "forced-colors y prefers-contrast existen, con la misma disciplina que prefers-reduced-motion",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "no aparecen en ninguna parte del árbol (ficha T-73 j)"
+            }
+          ]
+        },
+        {
+          "id": "accessibility.spanish-vocabulary",
+          "points": 1,
+          "text": "El vocabulario de comandos en español que la promesa comercial declara existe, se prueba y no choca destructivamente con los alias ingleses de AutoCAD",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "no existe vocabulario de comandos en español y los atajos de palabra clave españoles chocan con los ingleses (ficha T-73 a, c)"
             }
           ]
         }

@@ -32,7 +32,9 @@ import {
   parseCadLengthInDrawingUnits,
   type CadDrawingUnit,
 } from "../units-imperial";
+import { CAD_POINT_MODIFIER_TOKENS, type CadPointModifierKind } from "../point-modifiers";
 import type { SnapType } from "../snap-engine";
+import { parseUserAngle, type AngleFormatOptions } from "../unit-angle";
 import {
   isCadUcsPlanar,
   isCadWorldUcs,
@@ -85,6 +87,12 @@ export type CadResolvedToken =
   | { kind: "input"; input: CadCommandInput }
   | { kind: "invoke"; command: string; transparent: boolean }
   | { kind: "osnapOverride"; modes: readonly SnapType[] }
+  /**
+   * DESDE/M2P/TT/PAR (T-22): como `osnapOverride`, NO avanza el paso. Abre
+   * una sub-captura que sustituye el punto de la captura siguiente —ver
+   * `point-modifiers.ts` para la aritmética pura de `from`/`m2p`/`tt`—.
+   */
+  | { kind: "pointModifier"; modifier: CadPointModifierKind }
   | { kind: "error"; message: string };
 
 export interface CadTokenContext {
@@ -115,6 +123,12 @@ export interface CadTokenContext {
   drawingUnit?: CadDrawingUnit;
   /** Si un número DESNUDO se lee en pulgadas (`LUNITS` 3 o 4). */
   assumeInches?: boolean;
+  /**
+   * Cómo leer y escribir un ángulo tecleado (`ANGBASE`, `ANGDIR`, `AUNITS`,
+   * T-25). Sin ella, `<45` y el ángulo de una coordenada polar se leen en
+   * grados decimales puros — el sistema de quien no ha declarado nada.
+   */
+  angleFormat?: AngleFormatOptions;
 }
 
 /**
@@ -124,6 +138,9 @@ export interface CadTokenContext {
  * estructurista— sin tener que restituir el SCU universal y volver.
  */
 const WORLD_COORDINATE_PREFIX = "*";
+
+/** Grados decimales, cero al este, antihorario: el sistema de quien no ha declarado `AUNITS`. */
+const DEFAULT_ANGLE_FORMAT: AngleFormatOptions = { system: "decimal", base: 0, direction: 0 };
 
 function accepts(mask: CadInputMask | undefined, flag: number): boolean {
   return ((mask ?? 0) & flag) !== 0;
@@ -167,11 +184,21 @@ export function resolveCadToken(raw: string, context: CadTokenContext): CadResol
     if (override) return { kind: "osnapOverride", modes: override };
   }
 
+  // 3.5. Modificador de punto — DESDE/M2P/TT/PAR (T-22): tampoco avanza el
+  // paso. Igual que el override de OSNAP, es una orden sobre CÓMO se va a
+  // resolver la PRÓXIMA captura, no un punto en sí.
+  if (accepts(context.accepts, CAD_ACCEPT_POINT)) {
+    const modifier = CAD_POINT_MODIFIER_TOKENS[token.toUpperCase()];
+    if (modifier) return { kind: "pointModifier", modifier };
+  }
+
   // 6. El ángulo se detecta antes que la coordenada porque `<45` empieza por un
-  //    carácter que el analizador de coordenadas no reconoce.
+  //    carácter que el analizador de coordenadas no reconoce. Se lee en el
+  //    sistema del usuario (T-25): `<45` con AUNITS en gradianes son 45
+  //    GRADIANES, no 45 grados decimales.
   if (token.startsWith("<") && accepts(context.accepts, CAD_ACCEPT_ANGLE)) {
-    const degrees = Number(token.slice(1));
-    return Number.isFinite(degrees)
+    const degrees = parseUserAngle(token.slice(1), context.angleFormat ?? DEFAULT_ANGLE_FORMAT);
+    return degrees !== null
       ? { kind: "input", input: { kind: "angle", degrees } }
       : { kind: "error", message: `Ángulo inválido "${token}".` };
   }
@@ -229,6 +256,7 @@ export function resolveCadToken(raw: string, context: CadTokenContext): CadResol
       last: last ?? null,
       ...(context.drawingUnit ? { drawingUnit: context.drawingUnit } : {}),
       ...(context.assumeInches ? { assumeInches: true } : {}),
+      parseAngle: (text) => parseUserAngle(text, context.angleFormat ?? DEFAULT_ANGLE_FORMAT),
     });
     if (parsed.ok) {
       const point = ucs ? ucsToWorld(parsed.point, ucs) : parsed.point;

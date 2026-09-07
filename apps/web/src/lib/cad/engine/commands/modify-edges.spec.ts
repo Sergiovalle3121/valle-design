@@ -232,6 +232,48 @@ const pickAt = (entityId: string, x: number, y: number): CadCommandInput => ({
   assert.equal(step.result.commands[1].type, "properties", "la línea sólo mueve números");
 }
 
+// --- T-21/T-23: `Valla` recorta TODO lo que cruza, sin designar uno a uno ------
+{
+  // Misma escena y mismo borde («v», x=500) que el primer caso de esta
+  // suite; en vez de pinchar «h» a mano, se arrastra una valla vertical que
+  // la cruza en x=100 — el MISMO punto de designación, así que el resultado
+  // tiene que ser idéntico: se va el lado izquierdo.
+  const fence = run("TRIM", [
+    pickAt("v", 500, 100),
+    enter,
+    { kind: "keyword", keyword: "Valla" },
+    { kind: "point", point: { x: 100, y: -50 }, source: "typed" },
+    { kind: "point", point: { x: 100, y: 150 }, source: "typed" },
+    enter,
+    enter,
+  ]);
+  assert.ok(fence && fence.kind === "document", "la valla sí produjo un recorte");
+  const patch = fence.commands[0];
+  assert.ok(patch.type === "properties");
+  assert.equal(patch.entityId, "h");
+  assert.equal(patch.patch.startX, 500, "el mismo resultado que pinchar h en x=100 a mano");
+  assert.equal(patch.patch.endX, 1000);
+}
+{
+  // Una valla que cruza VARIAS entidades las recorta todas en UN lote: la
+  // valla vertical en x=100 cruza tanto «h» (y=100, frontera «v» en x=500)
+  // como «low» (y=0, frontera «circ» en x=±50). `Todos` como frontera para
+  // que las dos tengan contra qué recortar.
+  const descriptor = commands.get("TRIM");
+  assert.ok(descriptor);
+  const context = makeContext();
+  let step = descriptor.begin(context);
+  step = descriptor.step(step.state, { kind: "keyword", keyword: "Todos" }, context);
+  step = descriptor.step(step.state, { kind: "keyword", keyword: "Valla" }, context);
+  step = descriptor.step(step.state, { kind: "point", point: { x: 100, y: -50 }, source: "typed" }, context);
+  step = descriptor.step(step.state, { kind: "point", point: { x: 100, y: 150 }, source: "typed" }, context);
+  step = descriptor.step(step.state, enter, context);
+  assert.ok(!step.result, "la valla recorta y la orden sigue viva, esperando más designación o Intro");
+  step = descriptor.step(step.state, enter, context);
+  assert.ok(step.result && step.result.kind === "document");
+  assert.equal(step.result.commands.length, 2, "h y low, cada una recortada, en UN solo lote");
+}
+
 console.log(
   `modificación de bordes: ${CAD_MODIFY_EDGE_COMMANDS.map((command) => command.name).join(", ")} ` +
     `verificados sobre línea, círculo y arco`,

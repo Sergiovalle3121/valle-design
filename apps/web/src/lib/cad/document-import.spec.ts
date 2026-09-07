@@ -75,7 +75,10 @@ assert.throws(
   () => importDocumentText("raro.dxf", "0\nSECTION\n2\nHEADER\n9\n$ACADVER\n"),
   /no pudo analizar el DXF/i,
 );
-assert.throws(() => validateImportFile("drawing.dwg", 100), /no soportado/i);
+// Un `.dwg` con las puertas cerradas recibe SU razón (la del contrato de
+// interoperabilidad, la misma que dice el estudio — T-16), no la lista de
+// formatos.
+assert.throws(() => validateImportFile("drawing.dwg", 100), /DWG requiere un proveedor con licencia/);
 assert.throws(
   () => validateImportFile("drawing.dxf", MAX_DXF_IMPORT_BYTES + 1),
   /límite/i,

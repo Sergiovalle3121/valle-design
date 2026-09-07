@@ -78,10 +78,24 @@ export interface CadGrip {
   label: string;
 }
 
+/**
+ * Los ocho modos de OSNAP que un adaptador puede SERVIR sobre su entidad, más
+ * `control` para lo que no es un modo de OSNAP (puntos de control de spline,
+ * asas de anchura/altura/rotación que un cuadro de diálogo nunca ofrece como
+ * casilla de captura). Antes de esta lista sólo había cinco valores y el
+ * puente en `snap-scene.ts` repartía «todo lo demás → endpoints»: un adaptador
+ * que quería anunciar el punto medio de un muro no tenía dónde escribirlo y
+ * mentía diciendo `center`, con lo que el HUD anunciaba «centro» sobre un
+ * punto que no era el centro de nada.
+ */
 export type CadSnapKind =
-  | "center"
   | "endpoint"
+  | "midpoint"
+  | "center"
+  | "geometric-center"
+  | "node"
   | "quadrant"
+  | "insertion"
   | "tangent"
   | "control";
 

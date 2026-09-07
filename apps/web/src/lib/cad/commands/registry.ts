@@ -358,7 +358,7 @@ function helpCommandsPreview(): CadCommandPreview {
   return {
     summary: `${CAD_COMMAND_REGISTRY.length} comandos disponibles; dilos en español.`,
     affectedObjectIds: [],
-    operations: [{ type: "report", title: "Comandos del copiloto CAD", rows }],
+    operations: [{ type: "report", title: "Comandos por frase", rows }],
     issues: [],
   };
 }
@@ -1162,7 +1162,7 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     label: "Ayuda",
     category: "viewport",
     description:
-      "Lista todos los comandos del copiloto con un ejemplo de cada uno; di '¿qué puedes hacer?' cuando no recuerdes la frase.",
+      "Lista todos los comandos por frase con un ejemplo de cada uno; di '¿qué puedes hacer?' cuando no recuerdes la frase.",
     inputSchema: {},
     examples: ["ayuda", "¿qué puedes hacer?"],
     validate: () => [],

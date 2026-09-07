@@ -148,9 +148,14 @@ test.describe("el embudo gratuito, medido contra el stack real", () => {
     await page.getByLabel("Nombre").fill("Arquitecta fundadora");
     await page.getByLabel(/Correo electr.*nico/iu).fill(email);
     await page.getByLabel(/^Contrase/iu).fill(E2E_PASSWORD);
-    // TRES campos. Ni uno más. Un cuarto campo en el alta de un producto
-    // gratuito es un porcentaje de gente que no llega al editor.
-    expect(await page.locator("form input").count()).toBe(3);
+    // TRES campos que se teclean. Ni uno más: un cuarto campo en el alta de un
+    // producto gratuito es un porcentaje de gente que no llega al editor. La
+    // casilla de los términos (T-63d, D-14) no se teclea y es la única entrada
+    // que se admite además de esos tres: exigida por la ley, no por el embudo.
+    expect(await page.locator('form input:not([type="checkbox"])').count()).toBe(3);
+    expect(await page.locator('form input[type="checkbox"]').count()).toBe(1);
+    await expect(page.getByTestId("register-accept-terms")).toBeVisible();
+    await page.getByText(/^Acepto los/).click();
     await click(page.getByRole("button", { name: "Crear cuenta" }));
     await expect(page.getByRole("status")).toContainText(/Cuenta creada/iu);
     await screen("revisa tu correo");

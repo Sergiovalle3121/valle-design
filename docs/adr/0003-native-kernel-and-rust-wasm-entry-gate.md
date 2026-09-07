@@ -7,6 +7,15 @@
 
 El kernel comprobable es TypeScript: documento canónico, comandos, geometría,
 índices, DXF, historia y proyecciones. No hay toolchain Rust ni artefacto WASM.
+
+**Nota del 2026-09-06 (T-0D):** hoy existen `crates/valle-cad-kernel` y el
+binario publicado `apps/web/public/wasm/valle-cad-kernel.wasm`, verificados por
+`node scripts/wasm/build-kernel.mjs --check` con paridad en
+`apps/web/src/lib/cad/wasm/curve-kernel-parity.spec.ts` y evidencia en
+`docs/cad/evidence/wasm-parity.json`; el alcance es acotado (teselado de arcos,
+elipses y splines) con reserva TypeScript; el resto del kernel sigue siendo
+TypeScript, y el gate de esta decisión aplica a cualquier EXTENSIÓN.
+
 Introducir otro kernel sin paridad dividiría semántica, serialización,
 determinismo, depuración y soporte de navegador.
 

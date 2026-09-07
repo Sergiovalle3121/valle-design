@@ -196,7 +196,9 @@ and consume it from there. Never a loose value in a component. Full reference:
 
 ## Native/WASM entry gate
 
-Do not introduce Rust, WASM or a native kernel until profiling identifies a
+The Rust/WASM curve kernel already exists (ADR-0003, `crates/valle-cad-kernel`,
+consumed by `apps/web/src/lib/cad/render/tessellate.worker.ts` with a JS
+fallback). Do not extend native surface further until profiling identifies a
 specific TypeScript bottleneck, a prototype shows a material measured gain,
 deterministic differential tests pass, memory is bounded and a worker-compatible
 TypeScript fallback remains. Such a change also requires an ADR, pinned

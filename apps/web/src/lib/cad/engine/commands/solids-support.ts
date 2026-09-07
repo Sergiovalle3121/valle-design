@@ -17,13 +17,15 @@
  * escritura: el ejecutor por lotes es atómico y un dibujo a medio romper es peor
  * que una orden que no se hizo.
  */
+import type { BrepBody } from "../../../brep";
 import type { CadEntity } from "../../cad-document";
 import type { CadSolid3dEntity, CadSolidNode } from "../../cad-entities-v5";
 import type { CadEntityCommand } from "../../entity-commands";
 import type { CadNativeEntity } from "../../entity-runtime";
+import { cadWallHostedOpenings, cadWallWorldBody } from "../../flatshot-solids";
 import { DEFAULT_REGION_PROFILE, formatRegionMagnitude } from "../../region";
 import type { RegionProfile } from "../../region";
-import { evaluateSolidTree, validateSolidTree } from "../../solid3d-build";
+import { evaluateSolidTree, solid3dBody, validateSolidTree } from "../../solid3d-build";
 import type { CadCommandContext, CadCommandStep } from "../command-types";
 
 /** Entidades designadas que el contexto sabe resolver. */
@@ -48,6 +50,51 @@ export function selectedSolids(
   return selectedEntities(context, ids).filter(
     (entity): entity is CadSolid3dEntity => entity.type === "solid3d",
   );
+}
+
+export interface CadFlattenableBody {
+  entityId: string;
+  layer: string;
+  body: BrepBody;
+}
+
+/**
+ * Lo mismo que un SOLID3D le da a SECTION —un cuerpo B-rep en coordenadas de
+ * mundo—, pero también para los MUROS del arquitecto (T-33): `SECTION` sólo
+ * LEE el cuerpo para dibujar el contorno del corte como una `region` nueva,
+ * nunca reemplaza la entidad de origen, así que extenderlo a `wall` no
+ * infringe «wall and opening stay parametric» (`AGENTS.md`) — a diferencia
+ * de `SLICE`, que HORNEA un `solid3d` nuevo en el lugar del sólido cortado y
+ * por eso se queda deliberadamente sin muros (ver `F5.md`).
+ *
+ * Un muro sin cuerpo válido no rompe la orden: se omite, igual que
+ * `cadFlatshotBodies` lo cuenta como excluido con su motivo.
+ */
+export function selectedFlattenableBodies(
+  context: CadCommandContext,
+  ids: readonly string[],
+): CadFlattenableBody[] {
+  const selected = selectedEntities(context, ids);
+  const allEntities = context.entityIds
+    .map((id) => context.entity?.(id))
+    .filter((entity): entity is CadEntity => !!entity);
+  const walls = allEntities.filter(
+    (entity): entity is Extract<CadEntity, { type: "wall" }> => entity.type === "wall",
+  );
+  const bodies: CadFlattenableBody[] = [];
+  for (const entity of selected) {
+    if (entity.type === "solid3d") {
+      bodies.push({ entityId: entity.id, layer: entity.layer, body: solid3dBody(entity) });
+      continue;
+    }
+    if (entity.type === "wall") {
+      const openings = cadWallHostedOpenings(entity, allEntities);
+      const result = cadWallWorldBody(entity, walls, openings);
+      if ("body" in result) bodies.push({ entityId: entity.id, layer: entity.layer, body: result.body });
+      continue;
+    }
+  }
+  return bodies;
 }
 
 /** Monta la entidad SOLID3D a partir de sus nodos. */

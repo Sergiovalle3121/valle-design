@@ -1,14 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import {
+  FACTURA_PREGUNTA,
   FAQ_CATEGORIES,
   FAQ_ENTRIES,
   FAQ_FALLBACK_HREF,
+  cfdiFacturaAnswer,
   type FaqCategoryId,
 } from "@/lib/marketing/faq";
+import { fetchPublicCatalog } from "@/lib/commercial/public-catalog";
 import { buttonClass, cx } from "@/components/ui";
 
 /**
@@ -59,10 +62,35 @@ type Filtro = FaqCategoryId | "todas";
 export function FaqCenter() {
   const [consulta, setConsulta] = useState("");
   const [filtro, setFiltro] = useState<Filtro>("todas");
+  // T-18a: FAQ_ENTRIES trae por defecto el texto honesto de modo `manual`
+  // (el real en todo despliegue sin PAC contratado). En cuanto el catálogo
+  // público responde, se sustituye por el modo REAL — sin esperar a esto la
+  // respuesta ya es correcta, nunca promete de más.
+  const [cfdiMode, setCfdiMode] = useState<"manual" | "automatic" | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchPublicCatalog({ signal: controller.signal })
+      .then((catalog) => setCfdiMode(catalog.cfdi))
+      .catch(() => {
+        // Sin catálogo, se queda el texto por defecto (`manual`): es el
+        // honesto en todo despliegue real hasta que exista un PAC.
+      });
+    return () => controller.abort();
+  }, []);
+
+  const entradas = useMemo(() => {
+    if (!cfdiMode || cfdiMode === "manual") return FAQ_ENTRIES;
+    return FAQ_ENTRIES.map((entrada) =>
+      entrada.pregunta === FACTURA_PREGUNTA
+        ? { ...entrada, respuesta: cfdiFacturaAnswer(cfdiMode) }
+        : entrada,
+    );
+  }, [cfdiMode]);
 
   const resultados = useMemo(() => {
     const aguja = normalizar(consulta);
-    return FAQ_ENTRIES.filter((entrada) => {
+    return entradas.filter((entrada) => {
       if (filtro !== "todas" && entrada.categoria !== filtro) return false;
       if (!aguja) return true;
       // Se busca en pregunta Y respuesta: ver la decisión 1 de la cabecera.
@@ -70,7 +98,7 @@ export function FaqCenter() {
         aguja,
       );
     });
-  }, [consulta, filtro]);
+  }, [entradas, consulta, filtro]);
 
   /**
    * Las categorías se agrupan a partir de LO FILTRADO, no de la lista completa:

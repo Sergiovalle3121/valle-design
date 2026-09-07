@@ -4,7 +4,7 @@
   "openapi": "3.1.0",
   "apiTitle": "Valle Design — API standalone (v1)",
   "apiVersion": "1.0.0",
-  "operationCount": 104,
+  "operationCount": 110,
   "cadOperationCount": 43,
   "groups": [
     {
@@ -26,10 +26,13 @@
         "disableIdentityMfa",
         "regenerateIdentityBackupCodes",
         "listIdentityActivity",
+        "exportIdentityPersonalData",
         "verifyIdentityEmail",
         "resendIdentityVerification",
         "requestIdentityPasswordReset",
-        "resetIdentityPassword"
+        "resetIdentityPassword",
+        "changeIdentityPassword",
+        "updateIdentityProfile"
       ]
     },
     {
@@ -40,6 +43,9 @@
         "createOrganization",
         "activateOrganization",
         "listOrganizationMemberships",
+        "updateOrganizationMembershipRole",
+        "removeOrganizationMembership",
+        "listOrganizationAuditLog",
         "createOrganizationInvitation",
         "acceptOrganizationInvitation"
       ]
@@ -444,7 +450,7 @@
       "operationId": "beginIdentityMfaEnrollment",
       "method": "POST",
       "path": "/v1/auth/mfa/setup",
-      "summary": "Emite un secreto TOTP sin confirmar y su URI para el codigo QR.",
+      "summary": "Emite un secreto TOTP sin confirmar y su URI para el codigo QR. Exige la contrasena (T-60c).",
       "tags": [
         "identity"
       ],
@@ -459,7 +465,10 @@
           "description": "Token de doble envio igual a la cookie legible valle_csrf."
         }
       ],
-      "requestBody": null,
+      "requestBody": {
+        "required": true,
+        "schema": "PasswordConfirmationRequest"
+      },
       "responses": [
         "200",
         "400",
@@ -576,6 +585,24 @@
       ]
     },
     {
+      "operationId": "exportIdentityPersonalData",
+      "method": "GET",
+      "path": "/v1/auth/export",
+      "summary": "Exporta los datos personales propios (T-62c, derecho ARCO); nunca contrasenas ni secretos de MFA.",
+      "tags": [
+        "identity"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401"
+      ]
+    },
+    {
       "operationId": "verifyIdentityEmail",
       "method": "POST",
       "path": "/v1/auth/verify-email",
@@ -660,6 +687,67 @@
       "responses": [
         "201",
         "400",
+        "429"
+      ]
+    },
+    {
+      "operationId": "changeIdentityPassword",
+      "method": "POST",
+      "path": "/v1/auth/password/change",
+      "summary": "Cambia la contrasena ESTANDO DENTRO de la sesion (T-60b), sin perder el acceso primero.",
+      "tags": [
+        "identity"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "X-CSRF-Token",
+          "in": "header",
+          "required": true,
+          "description": "Token de doble envio igual a la cookie legible valle_csrf."
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "PasswordChangeRequest"
+      },
+      "responses": [
+        "200",
+        "400",
+        "401",
+        "429"
+      ]
+    },
+    {
+      "operationId": "updateIdentityProfile",
+      "method": "PATCH",
+      "path": "/v1/auth/profile",
+      "summary": "Cambia el nombre visible o el correo de la sesion (T-60d); cambiar el correo exige la contrasena y reabre la verificacion.",
+      "tags": [
+        "identity"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "X-CSRF-Token",
+          "in": "header",
+          "required": true,
+          "description": "Token de doble envio igual a la cookie legible valle_csrf."
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "UpdateProfileRequest"
+      },
+      "responses": [
+        "200",
+        "400",
+        "401",
+        "409",
         "429"
       ]
     },
@@ -764,6 +852,114 @@
       "responses": [
         "200",
         "400",
+        "401",
+        "404"
+      ]
+    },
+    {
+      "operationId": "updateOrganizationMembershipRole",
+      "method": "PATCH",
+      "path": "/v1/organizations/{organizationId}/memberships/{membershipId}",
+      "summary": "Cambia el rol de un miembro (T-60a); el propietario queda fuera, esta ruta no transfiere propiedad.",
+      "tags": [
+        "organizations"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "organizationId",
+          "in": "path",
+          "required": true
+        },
+        {
+          "name": "membershipId",
+          "in": "path",
+          "required": true
+        },
+        {
+          "name": "X-CSRF-Token",
+          "in": "header",
+          "required": true,
+          "description": "Token de doble envio igual a la cookie legible valle_csrf."
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "OrganizationMembershipRoleUpdate"
+      },
+      "responses": [
+        "200",
+        "400",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "removeOrganizationMembership",
+      "method": "DELETE",
+      "path": "/v1/organizations/{organizationId}/memberships/{membershipId}",
+      "summary": "Expulsa a un miembro (T-60a); limpia su organizacion activa aqui, sin revocar sus sesiones en otras.",
+      "tags": [
+        "organizations"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "organizationId",
+          "in": "path",
+          "required": true
+        },
+        {
+          "name": "membershipId",
+          "in": "path",
+          "required": true
+        },
+        {
+          "name": "X-CSRF-Token",
+          "in": "header",
+          "required": true,
+          "description": "Token de doble envio igual a la cookie legible valle_csrf."
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "204",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "listOrganizationAuditLog",
+      "method": "GET",
+      "path": "/v1/organizations/{organizationId}/audit-log",
+      "summary": "Bitacora de auditoria del tenant (T-62a); quien toco que, con retencion de 400 dias.",
+      "tags": [
+        "organizations"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "organizationId",
+          "in": "path",
+          "required": true
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "required": false
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
         "401",
         "404"
       ]

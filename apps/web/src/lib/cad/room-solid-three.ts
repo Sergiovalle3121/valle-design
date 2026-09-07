@@ -14,6 +14,8 @@ import { tessellateBody } from "../brep";
 import type { CadPoint2 } from "./cad-document";
 import type { CadThreeViewport } from "./entity-three";
 import { architecturalSlabBodyLocal } from "./room-solid";
+import { cadVisualStyle, type CadVisualStyleId } from "./view/visual-styles";
+import { applyCadVisualStyleToGroup } from "./view/visual-style-mesh";
 
 export type CadArchitecturalMassKind = "floor" | "ceiling" | "roof";
 
@@ -78,6 +80,13 @@ export function buildCadArchitecturalMassObject(
   z0: number,
   z1: number,
   viewport: CadThreeViewport,
+  /**
+   * VSCURRENT/SHADEMODE (T-10a). Por defecto `"shaded"` (caras opacas, sin
+   * aristas): es el aspecto que este constructor pintaba antes de que el
+   * estilo existiera aquí, así que un llamador que no lo pasa no ve ningún
+   * cambio.
+   */
+  style: CadVisualStyleId = "shaded",
 ): THREE.Group {
   const group = new THREE.Group();
   group.name = `cad-architectural-mass:${kind}`;
@@ -96,15 +105,12 @@ export function buildCadArchitecturalMassObject(
     return group;
   }
 
-  const material = new THREE.MeshLambertMaterial({
-    color: MASS_COLOR[kind],
-    side: THREE.FrontSide,
+  const resolved = cadVisualStyle(style);
+  group.userData.visualStyle = resolved.id;
+  applyCadVisualStyleToGroup(group, geometry, {
+    style: resolved,
+    facesColor: MASS_COLOR[kind],
   });
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.name = `cad-architectural-mass-faces:${kind}`;
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  group.add(mesh);
   return group;
 }
 

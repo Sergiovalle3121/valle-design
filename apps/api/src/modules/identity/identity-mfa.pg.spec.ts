@@ -100,7 +100,7 @@ describePostgres('segundo factor (PostgreSQL real)', () => {
 
   /** Da de alta el factor y lo deja confirmado. Devuelve secreto y respaldos. */
   async function conSegundoFactor(usuario: User) {
-    const secreto = await mfa.beginMfaEnrollment(usuario.id);
+    const secreto = await mfa.beginMfaEnrollment(usuario.id, CONTRASENA);
     const codigo = totp(secreto, Date.now()) as string;
     const respaldos = await mfa.confirmMfaEnrollment(usuario.id, codigo);
     expect(respaldos).not.toBeNull();
@@ -117,7 +117,7 @@ describePostgres('segundo factor (PostgreSQL real)', () => {
     // El estado intermedio es el peligroso: un factor a medias que ya exigiera
     // código dejaría al usuario fuera de su propia cuenta.
     const usuario = await cuenta();
-    await mfa.beginMfaEnrollment(usuario.id);
+    await mfa.beginMfaEnrollment(usuario.id, CONTRASENA);
     expect(await mfa.mfaStatus(usuario.id)).toMatchObject({
       enabled: false,
       pending: true,
@@ -128,7 +128,7 @@ describePostgres('segundo factor (PostgreSQL real)', () => {
 
   it('un código equivocado no confirma el alta', async () => {
     const usuario = await cuenta();
-    await mfa.beginMfaEnrollment(usuario.id);
+    await mfa.beginMfaEnrollment(usuario.id, CONTRASENA);
     expect(await mfa.confirmMfaEnrollment(usuario.id, '000000')).toBeNull();
     expect((await mfa.mfaStatus(usuario.id)).enabled).toBe(false);
   });
@@ -355,9 +355,26 @@ describePostgres('segundo factor (PostgreSQL real)', () => {
     // contraseña: exactamente el agujero que el factor viene a tapar.
     const usuario = await cuenta();
     await conSegundoFactor(usuario);
-    await expect(mfa.beginMfaEnrollment(usuario.id)).rejects.toThrow(
-      /ya tiene segundo factor/u,
-    );
+    await expect(
+      mfa.beginMfaEnrollment(usuario.id, CONTRASENA),
+    ).rejects.toThrow(/ya tiene segundo factor/u);
+  });
+
+  // T-60c: dar de alta el segundo factor exige la CONTRASEÑA, la misma
+  // reautenticación reciente que ya exigían desactivar y rehacer respaldos.
+  // Sin esto, una sesión abierta en una máquina desatendida podía inscribir
+  // un TOTP propio sin más credencial que "estar delante de la pantalla".
+  it('dar de alta el segundo factor exige la contraseña correcta', async () => {
+    const usuario = await cuenta();
+    await expect(
+      mfa.beginMfaEnrollment(usuario.id, 'contrasena-equivocada'),
+    ).rejects.toThrow(/[Cc]ontraseña incorrecta/u);
+    expect((await mfa.mfaStatus(usuario.id)).pending).toBe(false);
+
+    // Con la contraseña correcta, sí arranca el alta.
+    const secreto = await mfa.beginMfaEnrollment(usuario.id, CONTRASENA);
+    expect(secreto).toEqual(expect.any(String));
+    expect((await mfa.mfaStatus(usuario.id)).pending).toBe(true);
   });
 
   it('el historial registra los inicios de sesión y su método', async () => {

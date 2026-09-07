@@ -108,9 +108,10 @@ backups cada 6 h y 30 días: cuatro líneas de cron y
 
 El RPO **es** el intervalo entre backups verificados; el RTO se mide en cada
 ejercicio y se registra. Los objetivos por plan están en `docs/ops/SLA.md` §5,
-junto con la advertencia de que la medida de arriba —28 tablas, 20 filas— **no
-se extrapola**: cada cliente con RTO comprometido necesita su propio ejercicio
-sobre su volumen real.
+junto con la advertencia de que la medida de arriba —la que imprime el propio
+ejercicio en «Salida real de un ejercicio» más arriba— **no se extrapola**:
+cada cliente con RTO comprometido necesita su propio ejercicio sobre su
+volumen real.
 
 ### Dos cosas que este procedimiento aprendió a la primera
 

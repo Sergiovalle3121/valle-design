@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, IsNull, Repository } from 'typeorm';
 import {
@@ -107,14 +111,31 @@ export class IdentityMfaService {
    * Lo que NO se puede hacer es sustituir un factor YA CONFIRMADO: eso sería
    * desactivar el segundo factor sin pedir ni el código ni la contraseña, o
    * sea, exactamente el agujero que el factor viene a tapar.
+   *
+   * T-60c: DAR DE ALTA exige la CONTRASEÑA, la misma reautenticación reciente
+   * que ya exigían `disableMfa` y `regenerateBackupCodes`. Sin ella, una
+   * sesión abierta en una máquina desatendida podía inscribir el TOTP de
+   * quien se sienta delante — un segundo factor que cualquiera con la
+   * pantalla, sin la contraseña, puede activar a su nombre no protege nada:
+   * sólo le da al atacante la sensación de haber "asegurado" la cuenta.
    */
-  async beginMfaEnrollment(userId: string): Promise<string> {
+  async beginMfaEnrollment(userId: string, password: string): Promise<string> {
     if (await this.confirmedMfaFactor(userId)) {
       throw new BadRequestException({
         code: 'mfa_already_enabled',
         message:
           'Esta cuenta ya tiene segundo factor. Desactívalo antes de dar de alta otro.',
       });
+    }
+    const credential = await this.credentials.findOneBy({ userId });
+    const validPassword = await this.verifyPassword(
+      credential?.algorithm === 'argon2id'
+        ? credential.passwordHash
+        : DUMMY_PASSWORD_HASH,
+      password,
+    );
+    if (!credential || !validPassword) {
+      throw new UnauthorizedException('Contraseña incorrecta.');
     }
     const secret = generateTotpSecret();
     const existing = await this.mfaFactors.findOneBy({ userId });

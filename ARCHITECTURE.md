@@ -85,7 +85,9 @@ convierte en un segundo modelo público.
 La importación de DXF de texto y JSON canónico ocurre en un Web Worker con
 progreso, cancelación, timeout y límites estructurales. La conversión produce
 el mismo `CadDocument` y conserva warnings/loss manifest. El runtime de producto
-rechaza DWG.
+rechaza DWG por defecto; sólo lo acepta con la beta
+`NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA=true` (apagada en producción pública; ver
+§ Interoperabilidad y asistencia).
 
 ## Outbox y efectos externos
 
@@ -104,22 +106,30 @@ efecto externo.
 
 DXF es un adaptador parcial sobre el documento canónico. El loss manifest hace
 explícita la semántica no representable. STEP e IGES existen para SÓLIDOS
-(comandos IMPORT/EXPORT del motor, geometría facetada del kernel B-rep); DWG e
-IFC no están implementados en el producto. El contrato que cualquier formato
-futuro debe implementar está escrito en `docs/interop/CONTRATO-INTEROP.md`.
+(comandos IMPORT/EXPORT del motor, geometría facetada del kernel B-rep).
+IFC no está implementado. DWG existe en el producto sólo como beta de
+importación (`AC1015_MODELSPACE_2D_V3`, apagada por defecto en producción
+pública; detalle en el párrafo siguiente); la exportación DWG no está
+cableada a la interfaz (el escritor autorizado por ADR-0009 §8,
+`apps/web/src/lib/cad/dwg-native-writer.ts`, sólo lo consume su spec). El
+contrato que cualquier formato futuro debe implementar está escrito en
+`docs/interop/CONTRATO-INTEROP.md`.
 
 `packages/dwg-codec/` es el laboratorio clean-room gobernado por ADR-0007.
 Su códec lee AC1015/AC1018 a la base neutral con diagnósticos y pérdidas
 declaradas, y escribe un AC1015 completo aceptado por oráculo externo.
 Desde ADR-0009 §6-bis (2026-08-24), ampliado el mismo día por §6-ter/§6-quater
-y por §7 para AC1018, tiene un ÚNICO consumidor runtime autorizado,
+y por §7 para AC1018, tiene un ÚNICO consumidor runtime autorizado de LECTURA,
 `apps/web/src/lib/cad/dwg-native-reader.ts`, que expone el perfil de
-importación `AC1015_MODELSPACE_2D_V3` detrás del flag
-`DWG_NATIVE_IMPORT_BETA` (apagado en producción pública por defecto, gate
+importación `AC1015_MODELSPACE_2D_V3` detrás de la variable de build
+`NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA` (apagada en producción pública por defecto, gate
 verificado por `scripts/dwg/check-product-boundary.mjs`); AC1018 entra al
 MISMO perfil de entidades detrás de una SEGUNDA variable propia
-(`NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA`, también apagada por defecto). El
-resto del laboratorio —1024/1027/1032, escritura— sigue sin consumidor.
+(`NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA`, también apagada por defecto). La
+escritura tiene su punto autorizado (el escritor de ADR-0009 §8 de arriba),
+fallo cerrado hasta el oráculo externo de §8.2; 1024/1027/1032 están
+cableadas detrás de `NEXT_PUBLIC_DWG_MODERN_IMPORT_BETA` pero sin firma del
+titular, así que esa variable no habilita nada.
 Toda la vía es códec propio: ADR-0014 retiró la opción de proveedor
 licenciado que ADR-0012 dejaba abierta.
 
@@ -170,7 +180,8 @@ siempre. Ver `DEPLOYMENT.md` § TURN para llamadas WebRTC.
   se ha vuelto a correr desde entonces.
 - No hay receptor webhook, proveedor de correo ni broker dentro del repo.
 - La cobertura DXF no equivale a round-trip universal. La beta DWG
-  (`DWG_NATIVE_IMPORT_BETA`, perfil `AC1015_MODELSPACE_2D_V3`, sólo
+  (`NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA`, perfil `AC1015_MODELSPACE_2D_V3`, sólo
   importación) está apagada en producción pública por defecto y su
-  cobertura real es exactamente ese perfil, no DWG general; no hay
-  exportación DWG en ningún estado.
+  cobertura real es exactamente ese perfil, no DWG general; la exportación
+  DWG no llega a la interfaz: su escritor (ADR-0009 §8) espera el oráculo
+  externo de §8.2 detrás de un flag propio apagado.

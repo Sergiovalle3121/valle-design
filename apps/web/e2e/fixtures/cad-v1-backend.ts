@@ -32,6 +32,7 @@ import { API_ORIGIN } from "./constants";
 import { firstPartyRequestFailure } from "./standalone-identity";
 import { CadReviewCommentStore } from "./cad-review-comments";
 import { CadSheetSetStore } from "./cad-v1-sheet-sets";
+import { CadV1VersionStore } from "./cad-v1-versions";
 import {
   cadReviewLinkRoutes,
   cadReviewSessionResource,
@@ -145,6 +146,7 @@ export class CadV1Backend {
    * por presupuesto de tamaño (`cad-v1-sheet-sets.ts`).
    */
   readonly sheetSets = new CadSheetSetStore();
+  readonly versions = new CadV1VersionStore();
   private readonly library: LibraryBlockRow[] = [];
   readonly publicationRequests: PublicationRequest[] = [];
   readonly reviewSessions: CadReviewSessionRow[] = [];
@@ -209,6 +211,7 @@ export class CadV1Backend {
       openBody: seed.openBody,
     };
     this.rows.push(row);
+    this.versions.record(row.id, row.version, row.document);
     return row;
   }
 
@@ -467,6 +470,7 @@ export class CadV1Backend {
           unknown
         >;
         row.version += 1;
+        this.versions.record(row.id, row.version, row.document);
         const entities = (row.document as { entities?: unknown[] }).entities;
         return json({
           cadDocumentId: row.id,
@@ -475,6 +479,10 @@ export class CadV1Backend {
           storedAsBlobPointer: false,
         });
       }
+
+      // ── Historial CAS: lista y detalle hidratado — ver helper ──
+      const versionReply = this.versions.routes({ documentId: row.id, rest, method });
+      if (versionReply) return json(versionReply.body, versionReply.status);
 
       // ── Archivo de recuperación (autosave): ACUSE sin CAS — ver helper ──
       if (rest === "archive" && method === "PUT")

@@ -64,6 +64,7 @@ const installed = new WeakMap<BrowserContext, StandaloneIdentityBackend>();
 
 export class StandaloneIdentityBackend {
   private authenticated = false;
+  private displayName: string | null = null;
   private role: MockOrganizationRole = "owner";
   private permissions: readonly string[] = CAD_PERMISSIONS;
   private legalAcceptances: Array<{
@@ -304,6 +305,7 @@ export class StandaloneIdentityBackend {
         id: OWNER_USER_ID,
         email: OWNER_EMAIL,
         emailVerified: true,
+        displayName: this.displayName,
       },
       session: { id: OWNER_SESSION_ID, expiresAt: EXPIRES_AT },
       organization: {

@@ -107,6 +107,7 @@ interface Harness {
   snapTo: { point: CadPoint2; snap?: SnapType } | null;
   /** Entidad que devolverá el hit-test en el próximo clic. */
   hitTo: string | null;
+  hitAt: string | null;
   at(x: number, y: number): PointerEvent;
 }
 
@@ -121,7 +122,9 @@ function harness(entities: readonly CadNativeEntity[] = []): Harness {
   const state: {
     snapTo: { point: CadPoint2; snap?: SnapType } | null;
     hitTo: string | null;
-  } = { snapTo: null, hitTo: null };
+    /** Lo que el rayo de cámara ve bajo el evento (T-52); `null` = cae al pickbox. */
+    hitAt: string | null;
+  } = { snapTo: null, hitTo: null, hitAt: null };
   const host = new CadCommandEngineHost(CAD_COMMAND_REGISTRY_V2, {
     context: () => ({
       entityIds: [...byId.keys()],
@@ -149,6 +152,7 @@ function harness(entities: readonly CadNativeEntity[] = []): Harness {
     }),
     snap: (point) => state.snapTo ?? { point },
     hitEntity: () => state.hitTo,
+    hitEntityAt: () => state.hitAt,
     setCursor: (point) => {
       cursorPoint = point;
     },
@@ -175,6 +179,12 @@ function harness(entities: readonly CadNativeEntity[] = []): Harness {
     },
     set hitTo(value) {
       state.hitTo = value;
+    },
+    get hitAt() {
+      return state.hitAt;
+    },
+    set hitAt(value) {
+      state.hitAt = value;
     },
     at: (x, y) =>
       ({ worldX: x, worldY: y, clientX: x / 10, clientY: y / 10, button: 0 }) as
@@ -489,6 +499,31 @@ assert.equal(erasing.router.active, false, "el comando terminó");
 ok(erasing.cursor.hidden > 0, "y el cursor vivo se retiró, como tras un punto final");
 
 // ---------------------------------------------------------------------------
+// 9b. T-52 (racimo B): el rayo de cámara designa ANTES que la sombra en el suelo.
+// ---------------------------------------------------------------------------
+const elevado = harness();
+elevado.router.invoke("ERASE");
+elevado.hitTo = "sombra-en-el-suelo";
+elevado.hitAt = "solido-elevado";
+elevado.router.click(elevado.at(50, 50));
+assert.deepEqual(
+  elevado.applied,
+  [{ type: "delete", entityId: "solido-elevado" }],
+  "con rayo de cámara se designa lo que se VE, no lo que hay bajo la sombra",
+);
+const sinRayo = harness();
+sinRayo.router.invoke("ERASE");
+sinRayo.hitTo = "bajo-el-cursor";
+sinRayo.hitAt = null;
+sinRayo.router.click(sinRayo.at(50, 50));
+assert.deepEqual(
+  sinRayo.applied,
+  [{ type: "delete", entityId: "bajo-el-cursor" }],
+  "sin respuesta del rayo (2D, o nada bajo él) manda el pickbox de siempre",
+);
+ok(true, "hitEntityAt va antes que hitEntity y cae a él con null");
+
+// ---------------------------------------------------------------------------
 // 10. OFFSET de punta a punta con el puntero: distancia → objeto → Enter.
 // ---------------------------------------------------------------------------
 const offsetting = harness([
@@ -499,6 +534,10 @@ offsetting.host.submit("250");
 offsetting.hitTo = "muro";
 offsetting.router.click(offsetting.at(500, 0));
 assert.equal(offsetting.applied.length, 0, "designar no aplica todavía: OFFSET repite");
+// T-23: el LADO lo pide un punto real, no el signo de la distancia tecleada.
+offsetting.hitTo = null;
+offsetting.router.click(offsetting.at(500, 50));
+assert.equal(offsetting.applied.length, 0, "el punto de lado tampoco aplica todavía");
 offsetting.router.accept();
 assert.equal(
   offsetting.applied.filter((command) => command.type === "insert").length,

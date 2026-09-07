@@ -69,6 +69,14 @@ export function renderEmailTemplate(
       return renderInvitationEmail(payload, linkBaseUrl);
     case 'commercial.renewal-reminder':
       return renderRenewalReminderEmail(payload, linkBaseUrl);
+    case 'identity.new-sign-in':
+      return renderNewSignInEmail(payload, linkBaseUrl);
+    case 'commercial.trial-expiry':
+      return renderTrialExpiryEmail(payload, linkBaseUrl);
+    case 'product.feedback':
+      return renderProductFeedbackEmail(payload);
+    case 'support.incident':
+      return renderSupportIncidentEmail(payload);
     default:
       throw new EmailTemplateError(
         'unknown_template',
@@ -224,6 +232,223 @@ function renderRenewalReminderEmail(
 }
 
 /**
+ * Aviso de SEGURIDAD: «alguien entró en tu cuenta desde un dispositivo
+ * nuevo». Shape de `identity.service.ts:543` (`recordSignIn`): sólo se
+ * encola cuando YA hay un inicio de sesión previo en el historial, así que
+ * este correo nunca sorprende al primer acceso de una cuenta nueva.
+ *
+ * No lleva token ni enlace de un solo uso — no hay nada que confirmar—, así
+ * que el enlace apunta a la página de cuenta real (`/cuenta`) donde vive
+ * `AccountSecurity`, para revisar el acceso y cambiar la contraseña si no
+ * fue la persona dueña de la cuenta.
+ */
+const SIGN_IN_METHOD_LABELS: Record<string, string> = {
+  password: 'tu contraseña',
+  totp: 'un código de tu aplicación de autenticación',
+  backup_code: 'un código de respaldo',
+};
+
+function renderNewSignInEmail(
+  payload: unknown,
+  linkBaseUrl: string,
+): RenderedEmail {
+  const method = readString(payload, 'method');
+  const methodLabel = SIGN_IN_METHOD_LABELS[method];
+  if (!methodLabel) {
+    throw new EmailTemplateError(
+      'invalid_payload',
+      `El campo \`method\` no reconoce el valor "${method}".`,
+    );
+  }
+  const at = readString(payload, 'at');
+  const atMs = Date.parse(at);
+  if (Number.isNaN(atMs)) {
+    throw new EmailTemplateError(
+      'invalid_payload',
+      'El campo `at` no es una fecha válida.',
+    );
+  }
+  const userAgent = readOptionalString(payload, 'userAgent');
+  const subject = `Alguien entró en tu cuenta desde un dispositivo nuevo — ${PRODUCT_NAME}`;
+  const when = formatDeadline(new Date(atMs));
+  const link = `${linkBaseUrl}/cuenta`;
+  const intro =
+    `Detectamos un inicio de sesión en tu cuenta de ${PRODUCT_NAME} el ` +
+    `${when}, usando ${methodLabel}.`;
+  const device = userAgent
+    ? `Dispositivo o navegador: ${userAgent}.`
+    : 'No pudimos identificar el dispositivo.';
+  const warning =
+    'Si fuiste tú, no tienes que hacer nada más. Si no reconoces este ' +
+    'acceso, entra a tu cuenta ahora mismo y cambia tu contraseña.';
+  const text = ['Hola:', '', intro, device, '', warning, '', link].join('\n');
+  const html = htmlLayout(subject, [
+    paragraph(escapeHtml(intro)),
+    paragraph(escapeHtml(device)),
+    paragraph(escapeHtml(warning)),
+    actionButton(link, 'Revisar mi cuenta'),
+  ]);
+  return { subject, html, text };
+}
+
+/**
+ * Aviso de fin de prueba, a 7 días y a 1 día. Shape de
+ * `trial-expiry-reminder.service.ts:147`. `planCode` es un código interno,
+ * igual que en `commercial.renewal-reminder`: no se interpola en la prosa.
+ */
+function renderTrialExpiryEmail(
+  payload: unknown,
+  linkBaseUrl: string,
+): RenderedEmail {
+  const organizationName = readString(payload, 'organizationName');
+  const trialEndsAt = readString(payload, 'trialEndsAt');
+  const endsAtMs = Date.parse(trialEndsAt);
+  if (Number.isNaN(endsAtMs)) {
+    throw new EmailTemplateError(
+      'invalid_payload',
+      'El campo `trialEndsAt` no es una fecha válida.',
+    );
+  }
+  const daysLeft = readNumber(payload, 'daysLeft');
+  if (daysLeft !== 7 && daysLeft !== 1) {
+    throw new EmailTemplateError(
+      'invalid_payload',
+      'El campo `daysLeft` debe ser 7 o 1.',
+    );
+  }
+  const readOnlyAfterExpiry = readBoolean(payload, 'readOnlyAfterExpiry');
+  const deadline = formatDeadline(new Date(endsAtMs));
+  const subject =
+    daysLeft === 1
+      ? `Tu prueba termina mañana — ${PRODUCT_NAME}`
+      : `Tu prueba termina en una semana — ${PRODUCT_NAME}`;
+  const urgency =
+    daysLeft === 1
+      ? 'Tu prueba gratuita termina MAÑANA.'
+      : 'Tu prueba gratuita termina en 7 días.';
+  const intro =
+    `${urgency} La prueba de «${organizationName}» en ${PRODUCT_NAME} ` +
+    `vence el ${deadline}.`;
+  const action =
+    'Activa un plan antes de esa fecha para seguir editando sin ' +
+    'interrupciones.';
+  // La promesa que hace este aviso distinto de una amenaza: no se pierde el
+  // trabajo, sólo se pausa la edición.
+  const consequence = readOnlyAfterExpiry
+    ? 'Al vencer no pierdes tu trabajo: tus planos siguen siendo tuyos y ' +
+      'podrás seguir exportándolos. Sólo se pausa la edición hasta que ' +
+      'actives un plan.'
+    : 'Revisa las condiciones de tu prueba antes de que venza.';
+  const link = `${linkBaseUrl}/cuenta/facturacion`;
+  const text = ['Hola:', '', intro, '', action, '', link, '', consequence].join(
+    '\n',
+  );
+  const html = htmlLayout(subject, [
+    paragraph(escapeHtml(intro)),
+    paragraph(escapeHtml(action)),
+    actionButton(link, 'Activar mi plan'),
+    paragraph(escapeHtml(consequence)),
+  ]);
+  return { subject, html, text };
+}
+
+/**
+ * Comentario de producto («falla», «sugerencia», «duda»). Correo INTERNO al
+ * buzón de operación (`SUPPORT_EMAIL`), nunca al cliente: shape de
+ * `feedback.service.ts:111`. El contexto técnico ya viene saneado a cinco
+ * campos por `sanearContexto`; aquí sólo se enseña, no se vuelve a filtrar.
+ */
+function renderProductFeedbackEmail(payload: unknown): RenderedEmail {
+  const id = readString(payload, 'id');
+  const kind = readString(payload, 'kind');
+  const message = readString(payload, 'message');
+  const from = readString(payload, 'from');
+  const organizationId = readOptionalString(payload, 'organizationId');
+  const context = readOptionalRecord(payload, 'context');
+  const subject = `Comentario nuevo (${kind}) — ${PRODUCT_NAME}`;
+  const contextLines = context
+    ? Object.entries(context).map(([key, value]) => `${key}: ${String(value)}`)
+    : [];
+  const text = [
+    `Id: ${id}`,
+    `Tipo: ${kind}`,
+    `De: ${from}`,
+    `Organización: ${organizationId ?? 'sin organización'}`,
+    '',
+    message,
+    ...(contextLines.length > 0
+      ? ['', 'Contexto técnico:', ...contextLines]
+      : []),
+  ].join('\n');
+  const html = htmlLayout(subject, [
+    paragraph(`<strong>Tipo:</strong> ${escapeHtml(kind)}`),
+    paragraph(`<strong>De:</strong> ${escapeHtml(from)}`),
+    paragraph(
+      `<strong>Organización:</strong> ${escapeHtml(
+        organizationId ?? 'sin organización',
+      )}`,
+    ),
+    paragraph(escapeHtml(message).replace(/\n/g, '<br>')),
+    ...(contextLines.length > 0
+      ? [
+          paragraph(
+            `<strong>Contexto técnico:</strong><br>` +
+              contextLines.map((line) => escapeHtml(line)).join('<br>'),
+          ),
+        ]
+      : []),
+  ]);
+  return { subject, html, text };
+}
+
+/**
+ * Reporte de «algo salió mal». Correo INTERNO al buzón de operación, nunca al
+ * cliente: shape de `support-incident.payload.ts` (`SupportIncidentPayload`).
+ * El documento sólo se enseña cuando `documentAuthorized` es verdadero —la
+ * regla de privacidad ya la aplicó el servidor antes de encolar—, y nunca
+ * viaja el contenido del plano, sólo su identificador.
+ */
+function renderSupportIncidentEmail(payload: unknown): RenderedEmail {
+  const summary = readString(payload, 'summary');
+  const appVersion = readString(payload, 'appVersion');
+  const userAgent = readString(payload, 'userAgent');
+  const activeCommand = readOptionalString(payload, 'activeCommand');
+  const documentId = readOptionalString(payload, 'documentId');
+  const documentAuthorized = readBoolean(payload, 'documentAuthorized');
+  const reportedBy = readString(payload, 'reportedBy');
+  const organizationId = readOptionalString(payload, 'organizationId');
+  const reportedAt = readString(payload, 'reportedAt');
+  const alcance = readString(payload, 'alcance');
+  const reportedAtMs = Date.parse(reportedAt);
+  const when = Number.isNaN(reportedAtMs)
+    ? reportedAt
+    : formatDeadline(new Date(reportedAtMs));
+  const subject = `Reporte de incidente — ${PRODUCT_NAME}`;
+  const lines = [
+    `Reportado por: ${reportedBy}`,
+    `Organización: ${organizationId ?? 'sin organización'}`,
+    `Cuándo: ${when}`,
+    `Versión: ${appVersion}`,
+    `Navegador: ${userAgent}`,
+    `Comando activo: ${activeCommand ?? 'ninguno'}`,
+    `Documento: ${
+      documentAuthorized && documentId
+        ? documentId
+        : 'no autorizado o no aplica'
+    }`,
+    `Alcance: ${alcance}`,
+    '',
+    summary,
+  ];
+  const text = lines.join('\n');
+  const html = htmlLayout(
+    subject,
+    lines.map((line) => paragraph(escapeHtml(line))),
+  );
+  return { subject, html, text };
+}
+
+/**
  * Fecha límite legible en es-MX y hora del centro de México, con la zona
  * dicha con todas sus letras: «caduca a las 18:00» sin zona es una promesa
  * ambigua para un usuario en Tijuana o en Cancún.
@@ -246,6 +471,59 @@ function readString(payload: unknown, field: string): string {
   throw new EmailTemplateError(
     'invalid_payload',
     `El payload no trae el campo \`${field}\`.`,
+  );
+}
+
+/** Como `readString`, pero el campo puede faltar o ser explícitamente `null`. */
+function readOptionalString(payload: unknown, field: string): string | null {
+  if (payload !== null && typeof payload === 'object') {
+    const value = (payload as Record<string, unknown>)[field];
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'string') return value;
+  }
+  throw new EmailTemplateError(
+    'invalid_payload',
+    `El campo \`${field}\` debe ser una cadena o nulo.`,
+  );
+}
+
+function readNumber(payload: unknown, field: string): number {
+  if (payload !== null && typeof payload === 'object') {
+    const value = (payload as Record<string, unknown>)[field];
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+  }
+  throw new EmailTemplateError(
+    'invalid_payload',
+    `El campo \`${field}\` debe ser un número.`,
+  );
+}
+
+function readBoolean(payload: unknown, field: string): boolean {
+  if (payload !== null && typeof payload === 'object') {
+    const value = (payload as Record<string, unknown>)[field];
+    if (typeof value === 'boolean') return value;
+  }
+  throw new EmailTemplateError(
+    'invalid_payload',
+    `El campo \`${field}\` debe ser verdadero o falso.`,
+  );
+}
+
+/** El campo puede faltar o ser `null`; si está presente debe ser un objeto. */
+function readOptionalRecord(
+  payload: unknown,
+  field: string,
+): Record<string, unknown> | null {
+  if (payload !== null && typeof payload === 'object') {
+    const value = (payload as Record<string, unknown>)[field];
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'object' && !Array.isArray(value)) {
+      return value as Record<string, unknown>;
+    }
+  }
+  throw new EmailTemplateError(
+    'invalid_payload',
+    `El campo \`${field}\` debe ser un objeto o nulo.`,
   );
 }
 

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   canonicalEntityFromDrawAction,
   offsetCanonicalEntity,
+  offsetSideSign,
   type CanonicalDrawAction,
 } from "./draw-action-entities";
 import type { CadEntity } from "./cad-document";
@@ -243,5 +244,68 @@ assert.equal(
   "invalid-distance",
   "un desfase de cero no crea geometría duplicada",
 );
+
+// --- T-23: el LADO de OFFSET lo decide un punto, no el signo tecleado -------
+// (La geometría del desfase con `bulge` sigue rechazándose —ver
+// `bulge-unsupported` más abajo—; lo que aquí se prueba es que el SIGNO
+// correcto para pedirlo se puede calcular incluso cuando el tramo más
+// cercano al punto de lado es un arco de la polilínea.)
+{
+  // Línea horizontal (0,0)-(100,0): arriba es "izquierda" de a→b (T-23,
+  // misma convención que `offsetSegment`).
+  const line: CadEntity = { id: "l1", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 100, y: 0, z: 0 }, layer: "0" };
+  assert.equal(offsetSideSign(line, { x: 50, y: 10 }), 1, "por encima de a→b es el lado positivo");
+  assert.equal(offsetSideSign(line, { x: 50, y: -10 }), -1, "por debajo, el lado negativo");
+}
+{
+  const circle: CadEntity = { id: "c1", type: "circle", center: { x: 0, y: 0, z: 0 }, radius: 100, layer: "0" };
+  assert.equal(offsetSideSign(circle, { x: 0, y: 50 }), -1, "dentro del radio: encoger");
+  assert.equal(offsetSideSign(circle, { x: 0, y: 200 }), 1, "fuera del radio: crecer");
+}
+{
+  // Un cuadrado con UN tramo en arco (bulge): el lado se decide con el
+  // tramo RECTO más cercano exactamente igual que sobre una polilínea sin
+  // arcos —`offsetSideSign` no necesita resolver el offset del arco para
+  // decidir de qué lado cae un punto—, y la geometría del arco en sí sigue
+  // rechazándose donde ya se rechazaba.
+  const arced: CadEntity = {
+    id: "p1",
+    type: "polyline",
+    vertices: [
+      { x: 0, y: 0, z: 0, bulge: 1 }, // el tramo en arco: (0,0) → (100,0)
+      { x: 100, y: 0, z: 0 },
+      { x: 100, y: -100, z: 0 }, // tramo recto: derecha
+      { x: 0, y: -100, z: 0 }, // tramo recto: abajo, y de vuelta a (0,0)
+    ],
+    closed: true,
+    layer: "0",
+  };
+  // (150, -50) está más cerca del tramo RECTO derecho —(100,0)-(100,-100)—
+  // que de cualquier otro: a la derecha de ese tramo (x>100) es el lado
+  // positivo, en la misma convención que una línea suelta.
+  assert.equal(offsetSideSign(arced, { x: 150, y: -50 }), 1, "lado derecho del tramo recto más cercano");
+  assert.equal(offsetSideSign(arced, { x: 50, y: -50 }), -1, "y el lado de dentro, el opuesto");
+
+  assert.equal(
+    offsetRejected(arced, 10),
+    "bulge-unsupported",
+    "el LADO se puede decidir; la geometría del arco sigue sin construirse",
+  );
+}
+{
+  // Sin un lado que reconocer (elipse, spline), `offsetSideSign` dice la
+  // verdad: no sabe, y el rechazo lo da `offsetCanonicalEntity` como siempre.
+  const ellipse: CadEntity = {
+    id: "e1",
+    type: "ellipse",
+    center: { x: 0, y: 0, z: 0 },
+    majorAxis: { x: 100, y: 0, z: 0 },
+    ratio: 0.5,
+    startParameter: 0,
+    endParameter: 360,
+    layer: "0",
+  };
+  assert.equal(offsetSideSign(ellipse, { x: 0, y: 200 }), null);
+}
 
 console.log("draw-action-entities.spec.ts OK");

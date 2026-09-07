@@ -1,6 +1,7 @@
 "use client";
 
 import type { RefObject } from "react";
+import { cadHistoryDepthHint } from "./history-depth-hint";
 import {
   CadDiagnosticsReadout,
 } from "@/components/cad/editor/CadDiagnosticsReadout";
@@ -141,6 +142,9 @@ export function CadStatusBar({
   onAnnotationScale,
 }: CadStatusBarProps) {
   const nativeRenderStats = diagnostics.nativeRenderStats;
+  // T-24·2: cuando el presupuesto de memoria —no las acciones— fija la
+  // profundidad, el indicador lo dice en vez de quedarse mudo en U1/R0.
+  const historyHint = cadHistoryDepthHint(diagnostics.historyUndo, diagnostics.nativeEntityCount);
   return (
     // Franja propia bajo el área de dibujo, ancho completo, como la barra de
     // estado de AutoCAD. Ya no es `absolute` dentro del lienzo: montada así se
@@ -217,7 +221,8 @@ export function CadStatusBar({
           data-testid="cad-history-depth"
           data-undo={diagnostics.historyUndo}
           data-redo={diagnostics.historyRedo}
-          title="Profundidad de deshacer/rehacer"
+          data-history-floor={historyHint.floor ? "true" : "false"}
+          title={historyHint.title}
         >
           U{diagnostics.historyUndo}/R{diagnostics.historyRedo}
         </span>

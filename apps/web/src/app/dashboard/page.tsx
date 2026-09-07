@@ -2,20 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import {
-  FilePlus2,
-  FolderPlus,
-  LogOut,
-  ShieldCheck,
-  Upload,
-  Users,
-} from "lucide-react";
-import { Logo } from "@/components/brand/Logo";
+import { FilePlus2, FolderPlus, Upload } from "lucide-react";
 import { SkipLink } from "@/components/SkipLink";
-import { ThemeToggle } from "@/components/ThemeToggle";
-import { Button, Surface, buttonClass, cx } from "@/components/ui";
-import { FeedbackButton } from "@/components/feedback/FeedbackDialog";
+import { Button, Surface, cx } from "@/components/ui";
+import { DashboardHeader } from "./DashboardHeader";
 import { DashboardSkeleton } from "./DashboardSkeleton";
 import { FirstMinute } from "./FirstMinute";
 import { OrganizationOnboarding } from "./OrganizationOnboarding";
@@ -30,8 +20,6 @@ import { useDesignAuth } from "@/contexts/DesignAuthContext";
 import { TrialBanner } from "@/components/commercial/TrialBanner";
 import { trialStatus } from "@/lib/commercial/trial-phase";
 import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
-import { formatRegionDate } from "@/lib/cad/region";
-import { getClientRegion } from "@/lib/cad/region/client";
 import {
   importDocumentFile,
   isDwgNativeImportBetaEnabled,
@@ -102,6 +90,9 @@ export default function DashboardPage() {
   useEffect(() => prefetchCadStudio(), []);
   const [selectedProject, setSelectedProject] = useState("");
   const [busy, setBusy] = useState(false);
+  // T-63f: arrastrar-y-soltar sobre el tablero (la lista de documentos), la
+  // otra mitad del hueco además del estado vacío (`FirstMinute.tsx`).
+  const [draggingOverBoard, setDraggingOverBoard] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [importState, setImportState] = useState<ImportState>({
     status: "idle",
@@ -487,80 +478,17 @@ export default function DashboardPage() {
         id="contenido"
         className="mx-auto min-h-screen w-full max-w-6xl p-6 md:p-10"
       >
-        <header className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <Logo markClassName="h-6 w-6" showWordmark={false} />
-            <p className="type-eyebrow mt-3 text-primary-ink">Organización</p>
-            <h1 className="type-title mt-1">
-              {auth.organizationName ?? auth.tenantId}
-            </h1>
-            {subscription && (
-              <p
-                className="type-caption mt-2 text-muted-foreground"
-                data-testid="subscription-status"
-              >
-                Suscripción {subscription.status}
-                {subscription.status === "trialing" && subscription.trialEndsAt
-                  ? ` hasta ${formatRegionDate(new Date(subscription.trialEndsAt), getClientRegion())}`
-                  : ""}
-                {entitlements.includes("design.cad") ? " · CAD habilitado" : ""}
-              </p>
-            )}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <ThemeToggle />
-            {organizations.length > 1 && (
-              <select
-                aria-label="Organización activa"
-                value={auth.organizationId ?? ""}
-                disabled={busy}
-                onChange={(event) =>
-                  void activateOrganization(event.target.value)
-                }
-                className="type-small min-h-11 rounded-control border border-border bg-card px-3 text-foreground"
-              >
-                {organizations.map((organization) => (
-                  <option key={organization.id} value={organization.id}>
-                    {organization.name}
-                  </option>
-                ))}
-              </select>
-            )}
-            {/*
-              La página de seguridad de la cuenta no era alcanzable desde
-              NINGUNA navegación del producto: existía la ruta y no había cómo
-              llegar. Una función de seguridad que el usuario no encuentra es
-              una función que no protege a nadie.
-            */}
-            {/*
-              El canal de vuelta, en el cromo y no flotando sobre nada. La
-              lección del aviso de tableta: cualquier cosa encima del área de
-              trabajo acaba robando un clic que el usuario quería dar.
-            */}
-            <FeedbackButton />
-            {/*
-              Misma lección que la de arriba, y el mismo hueco: el producto
-              sabía invitar a una organización desde su primer día y no había
-              una sola pantalla donde hacerlo.
-            */}
-            <Link href="/equipo" className={buttonClass({ variant: "ghost" })}>
-              <Users aria-hidden="true" className="h-4 w-4" />
-              Equipo
-            </Link>
-            <Link href="/cuenta" className={buttonClass({ variant: "ghost" })}>
-              <ShieldCheck aria-hidden="true" className="h-4 w-4" />
-              Seguridad
-            </Link>
-            <Button
-              variant="ghost"
-              onClick={auth.logout}
-              iconLeft={<LogOut className="h-4 w-4" />}
-            >
-              Cerrar sesión
-            </Button>
-          </div>
-        </header>
+        <DashboardHeader
+          organizationName={auth.organizationName}
+          tenantId={auth.tenantId}
+          subscription={subscription}
+          entitlements={entitlements}
+          organizations={organizations}
+          organizationId={auth.organizationId}
+          busy={busy}
+          onActivateOrganization={(id) => void activateOrganization(id)}
+          onLogout={auth.logout}
+        />
 
         {/*
           EL ORDEN DEPENDE DEL ESTADO, y no es maquetación por gusto. Con
@@ -746,10 +674,48 @@ export default function DashboardPage() {
               }}
             />
           ) : (
-            <section className="order-3 mt-12" aria-labelledby="documentos">
+            <section
+              className={cx(
+                "order-3 mt-12 rounded-card",
+                canEdit &&
+                  "motion-fast border-2 border-dashed border-transparent transition-[border-color,background-color]",
+                draggingOverBoard && "border-primary bg-primary/5",
+              )}
+              aria-labelledby="documentos"
+              data-testid="dashboard-board-dropzone"
+              onDragOver={
+                canEdit && !busy
+                  ? (event) => {
+                      event.preventDefault();
+                      setDraggingOverBoard(true);
+                    }
+                  : undefined
+              }
+              onDragLeave={
+                canEdit && !busy ? () => setDraggingOverBoard(false) : undefined
+              }
+              onDrop={
+                canEdit && !busy
+                  ? (event) => {
+                      event.preventDefault();
+                      setDraggingOverBoard(false);
+                      const chosen = splitDocumentSelection([
+                        ...event.dataTransfer.files,
+                      ]);
+                      if (chosen)
+                        void importDocument(chosen.primary, chosen.sidecars);
+                    }
+                  : undefined
+              }
+            >
               <h2 id="documentos" className="type-heading">
                 Documentos
               </h2>
+              <p className="type-small mt-1 text-muted-foreground">
+                {canEdit
+                  ? "Arrastra un DXF aquí para importarlo, o usa “Importar como documento” arriba."
+                  : null}
+              </p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {documents.map((document) => (
                   <button

@@ -153,6 +153,14 @@ let dibujo = documento();
     "la capa del circuito se dio de alta sola",
   );
 
+  // El número no puede vivir SÓLO en metadatos: si nadie lo rotula, el plano
+  // impreso es una raya amarilla muda (T-15). Tiene que salir como TEXTO.
+  const rotulo = dibujo.entities.find(
+    (entity) => entity.type === "text" && (entity as { text?: string }).text === "C-1-1 (12 AWG)",
+  );
+  ok(rotulo, `el número del conductor tiene que dibujarse en la lámina: ${JSON.stringify(dibujo.entities.map((e) => e.type))}`);
+  eq((rotulo as { layer?: string } | undefined)?.layer, CAD_IE_WIRE_LAYER, "el rótulo va en la capa del conductor");
+
   // La orden DICE el número que puso: sin eso, lo único que aporta es invisible.
   ok(
     dichos(sesion.effects).some((texto) => /AEWIRE: conductor C-1-1.*calibre 12/.test(texto)),

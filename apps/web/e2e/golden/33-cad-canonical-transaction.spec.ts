@@ -390,6 +390,10 @@ test('a locked layer refuses drawing and OFFSET, and rejection leaves zero histo
     await applyDynamicInput(page, { offset: '250' });
     const on = await worldPoint(page, { x: 1_250, y: 1_500 });
     await page.mouse.click(on.x, on.y);
+    // T-23: el LADO ya no lo decide el signo tecleado — lo pide un punto
+    // real, fuera de la línea designada.
+    const side = await worldPoint(page, { x: 1_750, y: 1_500 });
+    await page.mouse.click(side.x, side.y);
     await page.keyboard.press('Enter');
     await expectNativeCount(page, 2);
     await expectHistory(page, 1, 0);
@@ -416,6 +420,10 @@ test('a locked layer refuses drawing and OFFSET, and rejection leaves zero histo
     await applyDynamicInput(page, { offset: '250' });
     const on = await worldPoint(page, { x: 1_250, y: 1_500 });
     await page.mouse.click(on.x, on.y);
+    // T-23: el LADO ya no lo decide el signo tecleado — lo pide un punto
+    // real, fuera de la línea designada.
+    const side = await worldPoint(page, { x: 1_750, y: 1_500 });
+    await page.mouse.click(side.x, side.y);
     await page.keyboard.press('Enter');
 
     await expectNativeCount(page, 1);

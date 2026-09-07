@@ -425,3 +425,24 @@ export function orphanedOpeningIds(present: ReadonlyMap<string, CadEntity>): str
   }
   return orphans;
 }
+
+/**
+ * T-19·2: el `rehostId` que le toca a un hueco copiado EN LA MISMA RONDA que
+ * su muro anfitrión (un destino de COPY, una colocación de ARRAY, un lote de
+ * MIRROR). Vive aquí y no en el ejecutor de comandos por la misma razón que
+ * `orphanedOpeningIds`: aquel archivo está bajo el techo de tamaño, y esto es
+ * la regla del ALOJAMIENTO.
+ *
+ * `roundCopyIds` es la correspondencia original→copia de ESTA RONDA
+ * únicamente, nunca la del lote completo: un mismo muro puede copiarse varias
+ * veces en un lote y sólo quien genera los comandos de la ronda actual sabe
+ * cuál copia es la suya. `undefined` —anfitrión ausente de la ronda, o
+ * entidad que no es un hueco— deja el `hostId` de la copia sin tocar.
+ */
+export function cadOpeningRehostId(
+  entity: CadEntity | undefined,
+  roundCopyIds: ReadonlyMap<string, string>,
+): string | undefined {
+  if (!entity || entity.type !== "opening") return undefined;
+  return roundCopyIds.get(entity.hostId);
+}

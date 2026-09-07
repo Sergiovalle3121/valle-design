@@ -185,6 +185,13 @@ export interface CadStudioCommandEngineOptions {
    */
   visualStyle?(styleId: CadVisualStyleId): string | null;
   /**
+   * El estilo visual VIGENTE, para que `VSCURRENT` + Intro pueda CONSULTARLO
+   * en vez de sólo cambiarlo (T-10a). Antes de esta ficha no había forma de
+   * preguntarlo, y `VSCURRENT` + Intro devolvía un mensaje vacío. Opcional:
+   * sin visor 3D montado, no hay un estilo vigente del que informar.
+   */
+  currentVisualStyle?(): CadVisualStyleId | undefined;
+  /**
    * Cambia el espacio activo del editor (MSPACE/PSPACE/MODEL/LAYOUT).
    * Devuelve si de verdad cambió; sin él, el anfitrión de trazado responde que
    * el cambio no está disponible en vez de afirmarlo.
@@ -431,6 +438,7 @@ export function useCadStudioCommandEngine(
         cursor: options.cursor?.current ?? null,
         newEntityId: options.newEntityId,
         activeLayout: options.activeLayout ?? null,
+        ...(options.currentVisualStyle ? { currentVisualStyle: options.currentVisualStyle } : {}),
       }),
     apply: options.apply,
     view: navigation.apply,

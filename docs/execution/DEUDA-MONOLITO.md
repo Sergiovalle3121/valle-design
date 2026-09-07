@@ -1,8 +1,10 @@
 # La deuda del monolito, con número y método
 
-`apps/web/src/components/cad/editor/Layout3DEditor.tsx` — hoy (2026-08-22):
-**20,248 líneas y 141 `useState`**, medidos por `check:monolith-budget`, que
-es trinquete: el número sólo puede bajar.
+`apps/web/src/components/cad/editor/Layout3DEditor.tsx` — la cifra vigente la
+imprime `node scripts/cad/check-monolith-budget.mjs` y el techo vive en
+`scripts/cad/monolith-budget.json`; el punto de partida (2026-08-22) está en
+la primera fila del Registro. El presupuesto es trinquete: el número sólo
+puede bajar.
 
 ## Por qué es LA deuda y no una molestia
 
@@ -53,6 +55,7 @@ trinquete de lint lo registra).
 | 2026-08-29 | ingeniería frontend | 19,107 | 140 | Siete cuadros modales y los formateadores de unidad → `components/cad/dialogs/` y `components/cad/studio/format-units.ts`. **−1 113 líneas.** `useState` NO baja: los cuadros extraídos pintaban estado ajeno, no eran dueños de ninguno. Ver el mapa medido de abajo. |
 | 2026-08-30 | pipeline de render por lotes | 19,002 | 135 | El anfitrión que enchufa `lib/cad/render/` al editor (reemplaza al `THREE.Line`-por-entidad y el muestreo silencioso de `planCadNativeRenderBudget` como camino por defecto) sale entero como `CadViewportRenderHost` en `components/cad/viewport/render-pipeline-host.ts`, con su propio spec — patrón del punto 2 del método: "los anfitriones ya modelados". **−105 líneas, −5 `useState`** (los cinco que vivían sólo para orquestar la sincronización de mallas por entidad, ahora dueños del anfitrión). Esta fila no se registró cuando la extracción aterrizó; se reconstruye aquí el 2026-08-31 al regenerar la evidencia del pipeline y notar que el registro no coincidía con `monolith-budget.json` — la regla 4 de la campaña de cimientos ("ninguna cifra vive en dos lugares") aplicada contra el propio registro. |
 | 2026-08-31 | verificación + evidencia del pipeline de render | 19,002 | 135 | Sin extracción nueva — se explica por qué: el trabajo de esta campaña fue confirmar que la extracción de arriba funciona de verdad (specs de `render/`, `render-pipeline-host.spec.ts` y `render-pipeline-preference.spec.ts` verdes), regenerar `evidence/cad-render-benchmark-100k.json` y `evidence/cad-plan-benchmark-20k.json` desde el arnés, corregir un `declaredMachine` escrito a mano en `cad-plan-benchmark.mts` que seguía declarando el portátil de calibración en cualquier máquina, y poner `CAD_RENDER_PIPELINE.md` al día con lo que el código ya hacía. El candidato para la próxima extracción sigue siendo el mismo de la fila de "Lo que queda dentro" de abajo: la barra de estado y conmutadores (`15193`…`15987`), acoplamiento medio, ya con varias lecturas en `editor-presentation.ts`. |
+| 2026-09-06 | «El lunes de un arquitecto» (Ola 0, T-00) | 17,235 | 118 | Paso 0: once símbolos muertos con prueba de eslint y su cascada (`applyCommand`, `applyCommandOperation`, `submitPrecisionPoint`, `interpretCommand`, `navigateCommandLineHistory`, `undoLastCommand`, `redoLastCommand`, cuatro imports de tipo, un `ctx` huérfano) y dos estados escritos y nunca leídos (0b). Paso 1: el controlador de EXPORTACIÓN sale entero — `editor/export-host.ts` (anfitrión con los cinco estados del cuadro de exportar a DXF, `computeDxfExportSummary`, `openDxfExport`, `exportDxf` verbatim) y `editor/export-scene-actions.ts` (`exportPng`, `exportGltf`). Paso 2: el cuadro «Versiones» y los snapshots locales — `editor/versions-host.ts` (seis estados, ocho acciones verbatim). **−1 218 líneas y −13 `useState` en la campaña hasta aquí**; el plan completo, con los pasos 3-4, está en `docs/execution/frentes/F1-monolito.md`. |
 
 ---
 
@@ -118,7 +121,7 @@ estructura visible es idéntica, y el trinquete de `monolith-budget.json` baja *
 
 ## Lo que queda dentro, en orden de salida
 
-### 1 · Paquete premium de entrega — `{showSheetPackage}` · 525 líneas · ~40 dependencias
+### 1 · Paquete premium de entrega — `{showSheetPackage}` · 525 líneas · dependencias: las que imprime el comando de arriba
 
 **El más grande y el que NO se debe extraer todavía.** Toca `paperSpaces`, `orderedPaperSpaces`,
 `activePaperSpace`, `activePaperViewportId`, `sheetPackageDraft`, `sheetPackageChecks`,
@@ -128,7 +131,7 @@ estructura visible es idéntica, y el trinquete de `monolith-budget.json` baja *
 `changeActivePaper`, `changeActiveOrientation`, `updateActivePaperSpace`, `updateActivePageMargin`,
 `commitPaperSpaces`, `publishSheetSetPdf`, `applyActiveTitleBlock`…).
 
-Un componente con cuarenta props no es una extracción, es el monolito con otra sintaxis.
+Un componente con tantas props como dependencias tenga el bloque no es una extracción, es el monolito con otra sintaxis.
 
 **Lo que hacía falta primero — HECHO (campaña de sitio 2026-08-29):** el anfitrión existe
 (`palettes/paper-spaces-host.ts`) y es dueño de los CINCO estados (paperSpaces, activo, viewport
@@ -136,24 +139,26 @@ activo, cuadro abierto, previsualización) con setters de firma React — los ~1
 no cambiaron. Turno siguiente: migrar las ACCIONES una a una al anfitrión (recibiendo historia y
 borrador por parámetro) y entonces el cuadro del juego de láminas sale con dos props.
 
-### 2 · La barra de estado y los conmutadores — dentro del bloque `15193`…`15987`
+### 2 · La barra de estado y los conmutadores — desde `<CadStatusBar` hasta la siguiente etiqueta de nivel superior
 
-Unas 790 líneas de cromo inferior: modo de vista, pipeline de render, profundidad de historial,
-indicadores. Acoplamiento medio; varias de sus lecturas ya viven en
+Cromo inferior (ver el diff entre esas dos etiquetas): modo de vista, pipeline de render,
+profundidad de historial, indicadores. Acoplamiento medio; varias de sus lecturas ya viven en
 `components/cad/studio/editor-presentation.ts`. Candidato natural al siguiente turno de vista pura.
 
-### 3 · Las paletas ya montadas como hijos — `14944`…`15148`
+### 3 · Las paletas ya montadas como hijos — desde `<CadSelectionPalette` hasta `<CadWorkspaceDock`
 
 `CadSelectionPalette`, `CadHatchPalette`, `CadDimensionPalette`, `CadMLeaderPalette`,
 `CadCollaborationPalette`, `CadWorkspaceDock` ya son componentes. Lo que queda dentro del monolito
 son sus **listas de props**, algunas de treinta líneas. No es extracción: es agrupar props en
 objetos con nombre (`selection`, `draft`, `styles`), lo mismo que ya hizo `CadPaletteOverlays`.
 
-### 4 · Los 140 `useState`
+### 4 · Los `useState` que aún quedan
 
-El techo está en 140 y el fichero está exactamente en 140. **Extraer cuadros no baja este número**:
-los cuadros extraídos no eran dueños de su estado, sólo lo pintaban. Bajarlo exige mover la
-PROPIEDAD del estado, no la presentación — es decir, los controladores del punto 1 y 2.
+El techo y el fichero siempre coinciden — es un trinquete (cifra vigente: `node
+scripts/cad/check-monolith-budget.mjs`; techo en `scripts/cad/monolith-budget.json`).
+**Extraer cuadros no baja este número**: los cuadros extraídos no eran dueños de su estado,
+sólo lo pintaban. Bajarlo exige mover la PROPIEDAD del estado, no la presentación — es
+decir, los controladores del punto 1 y 2.
 
 Agrupaciones evidentes al leer las declaraciones (líneas 1500-1800): el estado de exportación DXF
 (4 `useState`), el de espacios-papel y paquete de entrega (~8), el de versiones y snapshots (~5), el

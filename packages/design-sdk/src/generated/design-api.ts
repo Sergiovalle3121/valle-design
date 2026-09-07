@@ -185,7 +185,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Emite un secreto TOTP sin confirmar y su URI para el codigo QR. */
+        /** Emite un secreto TOTP sin confirmar y su URI para el codigo QR. Exige la contrasena (T-60c). */
         post: operations["beginIdentityMfaEnrollment"];
         delete?: never;
         options?: never;
@@ -253,6 +253,23 @@ export interface paths {
         };
         /** Sucesos recientes de identidad de la cuenta autenticada. */
         get: operations["listIdentityActivity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Exporta los datos personales propios (T-62c, derecho ARCO); nunca contrasenas ni secretos de MFA. */
+        get: operations["exportIdentityPersonalData"];
         put?: never;
         post?: never;
         delete?: never;
@@ -329,6 +346,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/password/change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cambia la contrasena ESTANDO DENTRO de la sesion (T-60b), sin perder el acceso primero. */
+        post: operations["changeIdentityPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Cambia el nombre visible o el correo de la sesion (T-60d); cambiar el correo exige la contrasena y reabre la verificacion. */
+        patch: operations["updateIdentityProfile"];
+        trace?: never;
+    };
     "/v1/organizations": {
         parameters: {
             query?: never;
@@ -375,6 +426,46 @@ export interface paths {
         };
         /** Lista hasta 200 miembros de una organizacion visible. */
         get: operations["listOrganizationMemberships"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/memberships/{membershipId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["organizationId"];
+                membershipId: components["parameters"]["membershipId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Expulsa a un miembro (T-60a); limpia su organizacion activa aqui, sin revocar sus sesiones en otras. */
+        delete: operations["removeOrganizationMembership"];
+        options?: never;
+        head?: never;
+        /** Cambia el rol de un miembro (T-60a); el propietario queda fuera, esta ruta no transfiere propiedad. */
+        patch: operations["updateOrganizationMembershipRole"];
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/audit-log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["organizationId"];
+            };
+            cookie?: never;
+        };
+        /** Bitacora de auditoria del tenant (T-62a); quien toco que, con retencion de 400 dias. */
+        get: operations["listOrganizationAuditLog"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1663,6 +1754,24 @@ export interface components {
             token: components["schemas"]["OpaqueOneTimeToken"];
             password: components["schemas"]["Password"];
         };
+        PasswordChangeRequest: {
+            currentPassword: components["schemas"]["Password"];
+            newPassword: components["schemas"]["Password"];
+        };
+        PasswordChangeResponse: {
+            /** @constant */
+            changed: true;
+        };
+        UpdateProfileRequest: {
+            displayName?: string | null;
+            email?: components["schemas"]["EmailAddress"];
+            currentPassword?: components["schemas"]["Password"];
+        };
+        UpdateProfileResponse: {
+            displayName: string | null;
+            email: components["schemas"]["EmailAddress"];
+            emailChangePending: boolean;
+        };
         FeedbackRequest: {
             /** @enum {string} */
             kind: "falla" | "sugerencia" | "duda";
@@ -1812,6 +1921,7 @@ export interface components {
                 id: string;
                 email: components["schemas"]["EmailAddress"];
                 emailVerified: boolean;
+                displayName: string | null;
             };
             session: {
                 /** Format: uuid */
@@ -1884,6 +1994,39 @@ export interface components {
         };
         IdentityActivityList: {
             events: components["schemas"]["IdentityActivityEvent"][];
+        };
+        IdentityPersonalDataExport: {
+            user: {
+                /** Format: uuid */
+                id: string;
+                email: components["schemas"]["EmailAddress"];
+                displayName: string | null;
+                /** Format: date-time */
+                emailVerifiedAt: string | null;
+                createdAt: components["schemas"]["Timestamp"];
+            };
+            sessions: {
+                /** Format: uuid */
+                id: string;
+                createdAt: components["schemas"]["Timestamp"];
+                expiresAt: components["schemas"]["Timestamp"];
+                /** Format: date-time */
+                revokedAt: string | null;
+                userAgent: string | null;
+            }[];
+            memberships: {
+                /** Format: uuid */
+                organizationId: string;
+                organizationName: string;
+                role: string;
+            }[];
+            mfa: {
+                enabled: boolean;
+            };
+            activity: {
+                action: string;
+                createdAt: components["schemas"]["Timestamp"];
+            }[];
         };
         SessionRotationResponse: {
             expiresAt: components["schemas"]["Timestamp"];
@@ -1975,6 +2118,28 @@ export interface components {
         };
         OrganizationMembershipList: {
             items: components["schemas"]["OrganizationMembership"][];
+        };
+        OrganizationMembershipRoleUpdate: {
+            role: components["schemas"]["OrganizationInvitationRole"];
+        };
+        OrganizationMembershipRoleUpdated: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            userId: string;
+            role: components["schemas"]["OrganizationInvitationRole"];
+        };
+        OrganizationAuditLogEntry: {
+            id: string;
+            /** @description Correo de quien ejecuto la accion; null cuando el sistema la registro sola. */
+            actor: string | null;
+            action: string;
+            referenceType: string | null;
+            referenceId: string | null;
+            createdAt: components["schemas"]["Timestamp"];
+        };
+        OrganizationAuditLogList: {
+            items: components["schemas"]["OrganizationAuditLogEntry"][];
         };
         OrganizationInvitationCreate: {
             email: components["schemas"]["EmailAddress"];
@@ -2086,6 +2251,11 @@ export interface components {
             items: components["schemas"]["PublicCommercialPlan"][];
             /** @description Duracion REAL de la prueba, en dias, tal y como la resuelve `TRIAL_DAYS` al arrancar el proceso. La superficie publica anuncia la oferta LEYENDO este numero: con `TRIAL_DAYS=90` la pagina dice "3 meses gratis" porque el backend concede 90 dias, no porque alguien haya escrito "3 meses" en una plantilla. Ninguna cifra vive en dos lugares. */
             trialDays: number;
+            /**
+             * @description Modo REAL de emision de CFDI hoy, del mismo adaptador que expone `CfdiIssuance.mode`. `manual` significa que no hay PAC contratado: el producto captura y custodia los datos fiscales pero NO timbra, y la superficie publica (el sello fiscal de precios, el FAQ) debe DERIVAR su texto de este campo en vez de anunciar "Factura CFDI" por su cuenta.
+             * @enum {string}
+             */
+            cfdi: "manual" | "automatic";
         };
         /** @enum {string} */
         UpgradeIntentStatus: "pending" | "confirmed" | "cancelled";
@@ -3053,6 +3223,7 @@ export interface components {
         csrfToken: string;
         identitySessionId: string;
         organizationId: string;
+        membershipId: string;
         projectId: components["schemas"]["CadProjectId"];
         documentId: components["schemas"]["CadDocumentId"];
         sheetSetId: components["schemas"]["CadSheetSetId"];
@@ -3322,7 +3493,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordConfirmationRequest"];
+            };
+        };
         responses: {
             /** @description Secreto y URI otpauth. El factor NO protege nada hasta confirmarlo con un codigo; los codigos de respaldo se entregan al activar. */
             200: {
@@ -3449,6 +3624,27 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
         };
     };
+    exportIdentityPersonalData: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Perfil, sesiones (sin IP), membresias, estado de MFA y actividad reciente. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentityPersonalDataExport"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
     verifyIdentityEmail: {
         parameters: {
             query?: never;
@@ -3550,6 +3746,75 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    changeIdentityPassword: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Token de doble envio igual a la cookie legible valle_csrf. */
+                "X-CSRF-Token": components["parameters"]["csrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Contrasena cambiada; las demas sesiones quedaron revocadas. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PasswordChangeResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    updateIdentityProfile: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Token de doble envio igual a la cookie legible valle_csrf. */
+                "X-CSRF-Token": components["parameters"]["csrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description Perfil actualizado. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateProfileResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description El correo pedido ya pertenece a otra cuenta (`email_in_use`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
             429: components["responses"]["TooManyRequests"];
         };
     };
@@ -3656,6 +3921,94 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    removeOrganizationMembership: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Token de doble envio igual a la cookie legible valle_csrf. */
+                "X-CSRF-Token": components["parameters"]["csrfToken"];
+            };
+            path: {
+                organizationId: components["parameters"]["organizationId"];
+                membershipId: components["parameters"]["membershipId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Miembro expulsado. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateOrganizationMembershipRole: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Token de doble envio igual a la cookie legible valle_csrf. */
+                "X-CSRF-Token": components["parameters"]["csrfToken"];
+            };
+            path: {
+                organizationId: components["parameters"]["organizationId"];
+                membershipId: components["parameters"]["membershipId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizationMembershipRoleUpdate"];
+            };
+        };
+        responses: {
+            /** @description Rol actualizado. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationMembershipRoleUpdated"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listOrganizationAuditLog: {
+        parameters: {
+            query?: {
+                /** @description Tope de asientos a devolver, del mas reciente al mas antiguo. Se acota entre 1 y 200; fuera de ese rango se usa el limite mas cercano en vez de rechazar la peticion. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["organizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Asientos recientes del tenant, del mas nuevo al mas viejo. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationAuditLogList"];
+                };
+            };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };

@@ -77,14 +77,18 @@ export function MfaEnrollment() {
     return () => controller.abort();
   }, [leerEstado]);
 
-  async function empezar() {
+  async function empezar(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const password = String(
+      new FormData(event.currentTarget).get("password") ?? "",
+    );
     setOcupado(true);
     setError(null);
     try {
-      const respuesta = await designClient.identity.mfa.setup();
+      const respuesta = await designClient.identity.mfa.setup(password);
       setAlta({ secret: respuesta.secret, uri: respuesta.uri });
     } catch {
-      setError("No se pudo empezar el alta. Vuelve a intentarlo.");
+      setError("Contraseña incorrecta.");
     } finally {
       setOcupado(false);
     }
@@ -219,9 +223,13 @@ export function MfaEnrollment() {
             />
             Activo desde el{" "}
             {estado.confirmedAt
-              ? formatRegionDate(new Date(estado.confirmedAt), getClientRegion(), {
-                  dateStyle: "long",
-                })
+              ? formatRegionDate(
+                  new Date(estado.confirmedAt),
+                  getClientRegion(),
+                  {
+                    dateStyle: "long",
+                  },
+                )
               : "—"}
             . Te quedan{" "}
             <span className="type-numeric font-semibold">
@@ -325,18 +333,28 @@ export function MfaEnrollment() {
         </div>
       ) : (
         /* ── APAGADO ──────────────────────────────────────────────────────── */
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <p className="type-small text-muted-foreground">
-            Ahora mismo tu cuenta entra sólo con la contraseña.
-          </p>
-          <Button
-            variant="primary"
-            loading={ocupado}
-            onClick={() => void empezar()}
-          >
+        <form
+          onSubmit={empezar}
+          className="flex flex-wrap items-end justify-between gap-4"
+        >
+          <div className="max-w-sm space-y-3">
+            <p className="type-small text-muted-foreground">
+              Ahora mismo tu cuenta entra sólo con la contraseña. Se pide de
+              nuevo aquí porque dar de alta un segundo factor con sólo la sesión
+              abierta dejaría que cualquiera frente a tu pantalla lo activara a
+              su nombre.
+            </p>
+            <PasswordField
+              label="Tu contraseña"
+              name="password"
+              autoComplete="current-password"
+              required
+            />
+          </div>
+          <Button type="submit" variant="primary" loading={ocupado}>
             Activar el segundo factor
           </Button>
-        </div>
+        </form>
       )}
     </div>
   );

@@ -61,14 +61,23 @@ Importar es tratar datos hostiles. DXF/JSON se procesan en un Web Worker con
 límites de archivo, tiempo, profundidad y cantidad de nodos; claves de
 prototype pollution se rechazan. El servidor valida esquema, cardinalidad,
 números finitos, gzip, tamaño expandido y hash para evitar payloads sin límite
-y zip bombs. El producto rechaza DWG y no lo envía al laboratorio.
+y zip bombs. Fuera de la beta de ADR-0009 (`NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA` sin
+definir o `false`, el valor por defecto) el producto rechaza DWG; con la
+beta encendida en build, `document-import.worker.ts` envía los bytes al
+adaptador autorizado (`apps/web/src/lib/cad/dwg-native-reader.ts`, gate
+`scripts/dwg/check-product-boundary.mjs`) dentro del mismo Web Worker de
+importación, sin red ni filesystem.
 
 La investigación aislada de `packages/dwg-codec/` trata cada byte como hostil,
 sin red, filesystem implícito, telemetría ni ejecución de contenido embebido.
 Debe usar cursores y aritmética comprobados, budgets inmutables, errores tipados
 y pruebas adversariales deterministas. Esa investigación no es una afirmación
-de seguridad ni autoriza integración runtime; su threat model y procedencia
-están gobernados por ADR-0007 y las reglas scoped del package.
+de seguridad. Su threat model y procedencia siguen gobernados por ADR-0007
+y las reglas scoped del package; la integración runtime la gobierna
+ADR-0009 (beta firmada, importación y exportación acotadas, flags
+apagados por defecto en producción pública), y el conjunto exacto de
+módulos del producto autorizados a referenciar el códec lo verifica
+`scripts/dwg/check-product-boundary.mjs`, no este documento.
 
 ## Outbox y webhooks firmados
 

@@ -98,6 +98,45 @@ const shellWalls: CadWallEntity[] = [
   assert.equal(hosts.group.parent, null);
 }
 
+// --- T-10a: VSCURRENT llega a los DOS anfitriones de masa nativa ----------
+//
+// Antes, `applyVisualStyle` sólo existía en `CadSolidShadeHost` (SOLID3D):
+// el estilo visual «confirmaba un cambio que sobre muros, losas y cubiertas
+// no ocurre» (auditoría, 00c-CUADRO-DE-MANDO.md). Aquí se afirma la ESCENA
+// —conteo de mallas y aristas, y el `data-visual-style` que
+// `Cad3DSolidDiagnostics` publica—, no la etiqueta que el comando devuelve.
+{
+  const hosts = new CadNativeMassHosts(() => viewport);
+  hosts.sync(documentWith(shellWalls), new Set());
+  assert.equal(hosts.visualStyle, "shaded", "por defecto, el aspecto de siempre: caras, sin aristas");
+  const shaded = hosts.getSnapshot();
+  assert.ok(shaded.meshCount > 0, "en Sombreado hay mallas de cara");
+
+  const label = hosts.applyVisualStyle("wireframe");
+  assert.equal(label, "Alámbrico", "devuelve la ETIQUETA que VSCURRENT anuncia");
+  assert.equal(hosts.visualStyle, "wireframe", "y el estado vigente cambió de verdad");
+
+  const wireframe = hosts.getSnapshot();
+  assert.equal(
+    wireframe.visualStyle,
+    "wireframe",
+    "getSnapshot().visualStyle es lo que `Cad3DSolidDiagnostics` publica como `data-visual-style`",
+  );
+  assert.equal(
+    wireframe.meshCount,
+    shaded.meshCount,
+    // Alámbrico no construye `Mesh`, sólo `LineSegments` — pero getSnapshot
+    // cuenta las DOS clases, así que el número de PIEZAS visibles no cae a
+    // cero: si cayera, un golden creería que el 3D desapareció.
+    "el recuento sigue viendo objetos reales: no se confunde «sin caras» con «sin escena»",
+  );
+
+  hosts.applyVisualStyle("shaded");
+  assert.equal(hosts.visualStyle, "shaded", "y se puede volver atrás");
+
+  hosts.dispose();
+}
+
 console.log(
-  "native-mass-hosts.spec: la fachada delega sync/dispose en muros y masas por igual",
+  "native-mass-hosts.spec: la fachada delega sync/dispose en muros y masas por igual, y VSCURRENT llega a los dos",
 );

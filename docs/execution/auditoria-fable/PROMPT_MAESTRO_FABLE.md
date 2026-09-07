@@ -426,7 +426,7 @@ una** —no hay que investigar cuál—. Los más baratos y sólidos primero:
 | API y SDK | `openapi-spec-validator` (PyPI) o Spectral/Redocly (npm) sobre `design-api.v1.yaml` | |
 | Eventos e integración | HMAC de la librería estándar de Python verificando `X-Valle-Signature` | |
 | Kernel Rust/WASM | `mpmath` emitiendo valores de referencia | |
-| Importación de JSON canónico | Fuzzer ajeno: `radamsa`, `atheris` o `hypothesis` | |
+| Importación de JSON canónico | Fuzzer ajeno: `atheris` (Google, Apache-2.0; rueda cp311 = 3.0.0) o `radamsa`. **No** `hypothesis`: es MPL-2.0, prohibida por `CORPUS_POLICY.md` (corregido el 2026-09-06 por F10, D-11) | |
 | Almacenamiento de objetos | **MinIO** real juzgando nuestro cliente S3 | |
 | Layouts y publicación | `pypdf`, `pdfminer.six` o `mutool` leyendo los bytes y **midiendo la escala** | Cruza con la ola 3 |
 | Toolset Raster Design | Un plano escaneado de dominio público (HABS/HAER, Library of Congress) con geometría conocida | |

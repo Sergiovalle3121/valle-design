@@ -45,6 +45,9 @@ import { OrganizationCommercialConfiguration } from './modules/organizations/org
 import { OrganizationsController } from './modules/organizations/organizations.controller';
 import { LegalAcceptance } from './modules/legal/entities/legal-acceptance.entity';
 import { LegalController } from './modules/legal/legal.controller';
+import { AuditLogController } from './modules/audit-log/audit-log.controller';
+import { DesignAuditLog } from './modules/audit-log/design-audit-log.service';
+import { TenantContextService } from './common/tenant/tenant-context.service';
 
 interface ExpressRouteLayer {
   route?: {
@@ -90,11 +93,14 @@ describe('standalone OpenAPI contract against the real Nest router', () => {
         TaxProfileController,
         CfdiController,
         LegalController,
+        AuditLogController,
       ],
       providers: [
         { provide: IdentityService, useValue: {} },
         { provide: IdentityMfaService, useValue: {} },
         { provide: OrganizationAccessService, useValue: {} },
+        { provide: DesignAuditLog, useValue: {} },
+        { provide: TenantContextService, useValue: {} },
         {
           provide: OrganizationCommercialConfiguration,
           useValue: { trialDays: 14 },
@@ -169,7 +175,15 @@ describe('standalone OpenAPI contract against the real Nest router', () => {
     //   sesión (`login/mfa`), las cinco de administrar el segundo factor
     //   (estado, alta, activación, baja y códigos de respaldo) y la actividad
     //   reciente de la cuenta.
-    expect(expected).toHaveLength(46);
+    // + las 4 de T-60: cambiar de rol y expulsar a un miembro
+    //   (PATCH/DELETE .../memberships/{membershipId}), cambiar la
+    //   contraseña estando dentro de la sesión (POST .../password/change) y
+    //   cambiar nombre visible/correo (PATCH .../profile).
+    // + la de T-62a: leer la bitácora de auditoría del tenant
+    //   (GET .../audit-log).
+    // + la de T-62c: exportar los datos personales propios
+    //   (GET /v1/auth/export).
+    expect(expected).toHaveLength(52);
     expect([...actual].sort()).toEqual(expected.sort());
   });
 });

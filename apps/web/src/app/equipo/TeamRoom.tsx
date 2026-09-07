@@ -2,13 +2,26 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ClipboardList, Users } from "lucide-react";
+import { ClipboardList, History, Users } from "lucide-react";
+import { AuditLogPanel } from "@/components/organization/AuditLogPanel";
 import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
-import { Button, Select, Surface, Textarea, buttonClass, cx } from "@/components/ui";
-import { parseRoster, rosterRejectionText, ROSTER_MAX } from "@/lib/education/roster";
+import {
+  Button,
+  Select,
+  Surface,
+  Textarea,
+  buttonClass,
+  cx,
+} from "@/components/ui";
+import {
+  parseRoster,
+  rosterRejectionText,
+  ROSTER_MAX,
+} from "@/lib/education/roster";
 import { formatRegionDate } from "@/lib/cad/region";
 import { getClientRegion } from "@/lib/cad/region/client";
+import { BILLING_PATH } from "@/lib/commercial/checkout";
 
 /**
  * EL EQUIPO — la pantalla que el backend llevaba meses esperando.
@@ -67,6 +80,8 @@ type ResultadoInvitacion = {
   email: string;
   estado: "enviada" | "error";
   detalle?: string;
+  /** T-61: 409 por límite de asientos — dispara el enlace de compra abajo. */
+  sinAsientos?: boolean;
 };
 
 const PAPEL: Record<string, string> = {
@@ -86,7 +101,8 @@ const QUE_PUEDE: Record<string, string> = {
 const ERROR_LECTURA =
   "No se pudo leer tu equipo. Actualiza la página o vuelve en un momento.";
 
-const fecha = (d: Date) => formatRegionDate(d, getClientRegion(), { dateStyle: "medium" });
+const fecha = (d: Date) =>
+  formatRegionDate(d, getClientRegion(), { dateStyle: "medium" });
 
 export function TeamRoom() {
   const auth = useDesignAuth();
@@ -96,7 +112,9 @@ export function TeamRoom() {
   const [lista, setLista] = useState("");
   const [papel, setPapel] = useState("member");
   const [enviando, setEnviando] = useState(false);
-  const [resultados, setResultados] = useState<ResultadoInvitacion[] | null>(null);
+  const [resultados, setResultados] = useState<ResultadoInvitacion[] | null>(
+    null,
+  );
 
   /** Leer es una función pura de red: pide y devuelve, no escribe estado. */
   const leerEquipo = useCallback(async () => {
@@ -162,20 +180,23 @@ export function TeamRoom() {
           hechos.push({ email, estado: "enviada" });
         } catch (fallo) {
           const api = fallo instanceof DesignApiError ? fallo : null;
+          const sinAsientos = api?.status === 409;
           hechos.push({
             email,
             estado: "error",
             detalle: api?.message ?? "No se pudo enviar.",
+            sinAsientos,
           });
           // 409 es el límite de asientos: seguir intentando las restantes sólo
           // produce el mismo error repetido.
-          if (api?.status === 409) {
+          if (sinAsientos) {
             const restantes = analisis.emails.length - indice - 1;
             if (restantes > 0) {
               hechos.push({
                 email: `y ${restantes} más`,
                 estado: "error",
                 detalle: "sin enviar: no quedan asientos disponibles",
+                sinAsientos: true,
               });
             }
             break;
@@ -291,7 +312,9 @@ export function TeamRoom() {
                   rows={6}
                   value={lista}
                   onChange={(evento) => setLista(evento.target.value)}
-                  placeholder={"ana@alumnos.uni.mx, luis@alumnos.uni.mx\nAna Ruiz <ana@uni.mx>"}
+                  placeholder={
+                    "ana@alumnos.uni.mx, luis@alumnos.uni.mx\nAna Ruiz <ana@uni.mx>"
+                  }
                   hint={`Hasta ${ROSTER_MAX} de una vez. Cada persona recibe un enlace que caduca en siete días.`}
                 />
 
@@ -353,7 +376,10 @@ export function TeamRoom() {
                 </Button>
 
                 {resultados ? (
-                  <div role="status" className="rounded-control border border-border p-4">
+                  <div
+                    role="status"
+                    className="rounded-control border border-border p-4"
+                  >
                     <p className="type-small font-semibold text-foreground">
                       {resultados.filter((r) => r.estado === "enviada").length}{" "}
                       enviadas
@@ -377,6 +403,18 @@ export function TeamRoom() {
                         </li>
                       ))}
                     </ul>
+                    {resultados.some((r) => r.sinAsientos) && (
+                      <p className="type-small mt-3">
+                        <Link
+                          href={BILLING_PATH}
+                          className="font-medium text-primary-ink underline underline-offset-4 hover:text-foreground"
+                          data-testid="seat-limit-buy-more"
+                        >
+                          Comprar más asientos
+                        </Link>{" "}
+                        para poder invitar al resto.
+                      </p>
+                    )}
                   </div>
                 ) : null}
               </div>
@@ -387,6 +425,15 @@ export function TeamRoom() {
                 es más rápido que buscar la forma de saltársela.
               </p>
             )}
+          </Seccion>
+
+          <Seccion
+            icon={History}
+            numero="03"
+            titulo="Quién tocó qué"
+            descripcion="Los últimos movimientos de la organización: guardar, archivar o crear un documento. Retenido 400 días."
+          >
+            <AuditLogPanel organizationId={organizacion.id} />
           </Seccion>
         </>
       )}

@@ -203,15 +203,26 @@ export class CadSolidShadeHost {
    *
    * Sólo en modo 3D. En 2D la proyección plana ya acierta y el motor de siempre
    * la resuelve; meterse ahí movería goldens sin ganar nada.
+   *
+   * `wz` (T-52, racimo A): bajo un SCU inclinado el punto del puntero YA tiene
+   * cota —el rayo cortó el plano de trabajo, no el suelo— y proyectar sólo
+   * `(wx, wy)` habría vuelto a razonar sobre su SOMBRA: el cursor sobre la
+   * fachada se enganchaba a la arista de abajo. Con cota se proyecta el punto
+   * real, con el mismo proyector que indexa las aristas.
    */
   snapAtDrawingPoint(
     wx: number,
     wy: number,
     options: CadSolidSnapQuery,
+    wz?: number,
   ): CadSolidDrawingSnap | null {
     const controller = this.viewController?.() ?? null;
     if (!controller || controller.mode !== "3d") return null;
-    const at = controller.worldToScreen({ x: wx, y: wy });
+    const at =
+      wz === undefined
+        ? controller.worldToScreen({ x: wx, y: wy })
+        : controller.createDrawingProjector()({ x: wx, y: wy, z: wz });
+    if (!at) return null;
     const hit = this.snap3d(at.x, at.y, options);
     if (!hit) return null;
     return {

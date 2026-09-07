@@ -24,6 +24,10 @@ const controllerDirs = [
   "apps/api/src/modules/cad",
   "apps/api/src/modules/identity",
   "apps/api/src/modules/organizations",
+  // La bitácora de auditoría (T-62a): su única ruta hoy es
+  // `GET /v1/organizations/{organizationId}/audit-log`, ya cubierta por el
+  // prefijo `/v1/organizations` de abajo.
+  "apps/api/src/modules/audit-log",
   "apps/api/src/modules/commercial/controllers",
   "apps/api/src/modules/legal",
   "apps/api/src/modules/support",

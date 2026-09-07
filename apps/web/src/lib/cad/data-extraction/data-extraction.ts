@@ -21,6 +21,8 @@ import type { CadPoint2 } from "../cad-document";
 import type { CadTableCell } from "../cad-entities-v4";
 import type { CadNativeEntity } from "../entity-runtime";
 import type { CadBimSchedule, CadWallQuantityRow, CadOpeningQuantityRow, CadRoomAreaRow } from "../bim-schedule";
+import type { CadDeviceTag } from "../electrical/device-tags";
+import type { CadWireConnection, CadWireEnd } from "../electrical/wire-connections";
 
 type CadTableEntity = Extract<CadNativeEntity, { type: "table" }>;
 
@@ -63,14 +65,51 @@ function roomRowValues(row: CadRoomAreaRow): string[] {
   ];
 }
 
+const WIRE_HEADERS = ["Conductor", "De", "A", "Extremo suelto"];
+const TAG_HEADERS = ["Etiqueta", "Descripción"];
+
+/** Un extremo del recorrido, como texto de una celda: la etiqueta, o «(suelto)». */
+function wireEndValue(end: CadWireEnd): string {
+  return end.tag ?? "(suelto)";
+}
+
+function wireRowValues(connection: CadWireConnection): string[] {
+  return [
+    connection.label,
+    wireEndValue(connection.from),
+    wireEndValue(connection.to),
+    connection.loose > 0 ? `${connection.loose} extremo(s)` : "—",
+  ];
+}
+
+function tagRowValues(tag: CadDeviceTag): string[] {
+  return [tag.tag, tag.entityId];
+}
+
+/**
+ * Los conductores y las etiquetas eléctricas — T-35. `AEWIRELIST` y
+ * `AETAGLIST` truncan su renglón a propósito (6 de/a, 5 etiquetas sin
+ * marcar) porque la línea de comandos no puede con más; esto es la lista
+ * COMPLETA, sin ese límite, para el archivo que un despacho entrega.
+ */
+export interface CadDataExtractionElectricalExtras {
+  wires?: readonly CadWireConnection[];
+  tags?: readonly CadDeviceTag[];
+}
+
 /**
  * CSV de las tres tablas, en secciones.
  *
  * Un solo archivo y no tres: es lo que un despacho adjunta a una memoria de
  * cálculo, y tres descargas por cada DATAEXTRACTION es la clase de fricción
- * que hace que la gente vuelva a escribirlo a mano.
+ * que hace que la gente vuelva a escribirlo a mano. `electrical` es
+ * OPCIONAL y aditivo (T-35): un documento sin nada eléctrico sigue dando
+ * exactamente el CSV de siempre.
  */
-export function buildCadDataExtractionCsv(schedule: CadBimSchedule): string {
+export function buildCadDataExtractionCsv(
+  schedule: CadBimSchedule,
+  electrical?: CadDataExtractionElectricalExtras,
+): string {
   const csvValue = (value: string): string =>
     /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
   const line = (values: readonly string[]): string => values.map(csvValue).join(",");
@@ -95,6 +134,20 @@ export function buildCadDataExtractionCsv(schedule: CadBimSchedule): string {
     lines.push("");
     lines.push("PROBLEMAS (no contados)");
     for (const problem of schedule.problems) lines.push(line([problem]));
+  }
+
+  if (electrical?.wires && electrical.wires.length > 0) {
+    lines.push("");
+    lines.push("CONDUCTORES");
+    lines.push(line(WIRE_HEADERS));
+    for (const connection of electrical.wires) lines.push(line(wireRowValues(connection)));
+  }
+
+  if (electrical?.tags && electrical.tags.length > 0) {
+    lines.push("");
+    lines.push("ETIQUETAS");
+    lines.push(line(TAG_HEADERS));
+    for (const tag of electrical.tags) lines.push(line(tagRowValues(tag)));
   }
 
   return lines.join("\r\n");

@@ -152,6 +152,16 @@ export interface CadEnginePointerBridge {
    */
   hitEntity(point: CadPoint2): string | null;
   /**
+   * Entidad bajo el EVENTO, resuelta con el rayo de cámara (T-52, racimo B).
+   *
+   * Opcional como `hitFace`: sólo el lienzo 3D puede responderla. Cuando existe
+   * va ANTES que `hitEntity`, que trabaja sobre la SOMBRA del cursor en el
+   * suelo: en perspectiva un sólido elevado se designa donde se ve, no donde
+   * cae su sombra —una caja de 3 m vista a 50° son metros de error—. `null`
+   * deja caer al pickbox de siempre, que en 2D es exacto.
+   */
+  hitEntityAt?(event: PointerEvent | MouseEvent): string | null;
+  /**
    * CARA de sólido bajo el evento, resuelta con el rayo de cámara.
    *
    * Opcional a propósito: sólo el lienzo 3D puede responderla —hace falta una
@@ -342,7 +352,7 @@ export class CadEnginePointerRouter {
         return true;
     }
     if (accepts & CAD_ACCEPT_ENTITY_PICK) {
-      const hit = this.bridge.hitEntity(raw);
+      const hit = this.bridge.hitEntityAt?.(event) ?? this.bridge.hitEntity(raw);
       if (hit) {
         this.bridge.host.pickEntity(hit, raw);
         this.afterDispatch();

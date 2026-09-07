@@ -49,9 +49,21 @@ function seedDocument(): CadDocument {
     closed: true,
     layer: "0",
   });
-  const entities = [
+  const entities: CadEntity[] = [
     rectangle("perfil-base", 1_000, 1_000, 4_000, 3_000),
     rectangle("perfil-hueco", 2_000, 1_500, 1_000, 1_000),
+    // Un muro NATIVO, lejos de los perfiles de arriba: T-10a necesita algo
+    // que VSCURRENT confirme y que hasta esta ficha se pintaba SIEMPRE igual
+    // (una cara opaca fija), sin que el estilo lo alcanzara.
+    {
+      id: "muro-vscurrent",
+      type: "wall",
+      start: { x: 8_000, y: 1_000, z: 0 },
+      end: { x: 11_000, y: 1_000, z: 0 },
+      thickness: 200,
+      height: 2_600,
+      layer: "0",
+    } as CadEntity,
   ];
   return {
     meta: { version: 1, schema: 4, unit: "mm" },
@@ -232,12 +244,22 @@ test("un sólido tecleado sobrevive a guardar, cerrar y reabrir — con su árbo
     await expect(page.getByTestId("cad-command-line")).toContainText(
       "Estilo visual: Alámbrico.",
     );
+    // T-10a: el estilo llega a la ESCENA (sólidos y masas nativas), no sólo al
+    // mensaje: el editor pasa `nativeMassHosts` a los puentes del motor.
+    await expect(page.getByTestId("cad-3d-solid-diagnostics")).toHaveAttribute(
+      "data-visual-style",
+      "wireframe",
+    );
     // El nombre viejo delega en el nuevo, como en AutoCAD, y con él la
     // memoria muscular de quien lleva veinte años tecleando SHADEMODE.
     await type(page, "SHADEMODE");
     await type(page, "S");
     await expect(page.getByTestId("cad-command-line")).toContainText(
       "Estilo visual: Sombreado.",
+    );
+    await expect(page.getByTestId("cad-3d-solid-diagnostics")).toHaveAttribute(
+      "data-visual-style",
+      "shaded",
     );
   }
 

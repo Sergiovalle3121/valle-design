@@ -42,6 +42,13 @@ export const cadXrefPrefix = (xrefId: string) => `xref:${safe(xrefId)}`;
 export const cadXrefRootBlockId = (xrefId: string) => `${cadXrefPrefix(xrefId)}:root`;
 export const cadXrefInsertId = (xrefId: string) => `${cadXrefPrefix(xrefId)}:insert`;
 export const cadXrefLayerId = (xrefId: string) => `${cadXrefPrefix(xrefId)}:layer`;
+/**
+ * La capa del anfitrión que proyecta UNA capa del dibujo referenciado (T-41).
+ * Cuelga del mismo prefijo que el resto de la proyección para que desligar la
+ * encuentre y la retire con lo demás.
+ */
+export const cadXrefSourceLayerId = (xrefId: string, sourceLayerId: string) =>
+  `${cadXrefLayerId(xrefId)}:${safe(sourceLayerId)}`;
 
 export function cadTenantLayoutUri(assetId: string, revision: string) {
   return `tenant-layout://${encodeURIComponent(assetId)}/${encodeURIComponent(revision)}`;
@@ -97,11 +104,22 @@ export function projectCadXrefBlocks(
       .map((reference) => reference.insertId)
       .filter((id): id is string => !!id),
   );
+  // T-41: cada entidad conserva SU capa, proyectada como `XREF|nombre|capa`;
+  // sólo lo que viene sin capa conocida cae a la capa portadora del xref.
+  const layerIds = new Map(
+    source.layers.map((layer) => [layer.id, cadXrefSourceLayerId(xrefId, layer.id)]),
+  );
   const cloneEntities = (entities: CadEntity[], scope: string) => {
     const selected = mode === "overlay" ? entities.filter((entity) => !externalInsertIds.has(entity.id)) : entities;
     const ids = new Map(selected.map((entity, index) => [entity.id, `${prefix}:${scope}:entity:${index}`]));
     return selected.map((entity, index) =>
-      detachedEntity(entity, `${prefix}:${scope}:entity:${index}`, cadXrefLayerId(xrefId), blockIds, ids),
+      detachedEntity(
+        entity,
+        `${prefix}:${scope}:entity:${index}`,
+        layerIds.get(entity.layer) ?? cadXrefLayerId(xrefId),
+        blockIds,
+        ids,
+      ),
     );
   };
   const blocks: CadBlockDefinition[] = source.blocks.map((block, index) => ({
@@ -130,7 +148,30 @@ export function projectCadXrefBlocks(
 }
 
 /**
- * La capa sobre la que aterriza todo lo que proyecta un xref.
+ * Las capas del dibujo referenciado, proyectadas en el anfitrión (T-41).
+ *
+ * Antes toda la proyección aterrizaba en UNA capa gris: las cuarenta capas del
+ * estructurista se volvían una, y no se podía congelar sus textos ni apagar su
+ * retícula sin apagar el xref entero. Ahora cada capa de origen tiene la suya,
+ * `XREF|<xref>|<capa>` —la convención de AutoCAD—, con su color, tipo de línea
+ * y grosor; nace DESBLOQUEADA por la misma razón que la portadora (el
+ * contenido vive dentro de un bloque y no se edita), y con la visibilidad de
+ * origen. Lo que el anfitrión cambie después (apagar, congelar) es suyo: al
+ * recargar no se vuelve a proyectar la tabla, que es lo que AutoCAD llama
+ * VISRETAIN=1.
+ */
+export function projectCadXrefLayers(snapshot: CadXrefAssetSnapshot, xrefId: string): CadLayerDef[] {
+  return snapshot.document.layers.map((layer) => ({
+    ...structuredClone(layer),
+    id: cadXrefSourceLayerId(xrefId, layer.id),
+    name: `XREF|${snapshot.name}|${layer.name}`,
+    locked: false,
+  }));
+}
+
+/**
+ * La capa PORTADORA del xref: la del INSERT que lo representa y de lo que llegue
+ * sin capa conocida. Apagarla sigue ocultando el xref entero.
  *
  * **Nace DESBLOQUEADA, y eso es un arreglo.** Nacía bloqueada, y el candado no
  * protegía lo que parecía: el contenido del xref vive dentro de una definición

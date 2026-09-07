@@ -205,7 +205,7 @@ equivocado: corrígelo antes de seguir.
 
 ```bash
 # 1 · ¿Cuánto y desde cuándo?
-curl -sS $API/health/metrics/commercial | jq '.outbox, .dispatcher'
+curl -sS -H "Authorization: Bearer $METRICS_TOKEN" $API/health/metrics/commercial | jq '.outbox, .dispatcher'
 
 # 2 · Mismo dato desde la base (consistente entre réplicas)
 psql "$DATABASE_URL" -c "
@@ -216,12 +216,12 @@ psql "$DATABASE_URL" -c "
   FROM domain_outbox GROUP BY status;"
 
 # 3 · ¿El worker está vivo? Sin `claimed` creciendo, no está tomando lotes.
-curl -sS $API/health/metrics/commercial | jq '.dispatcher.email.claimed'
+curl -sS -H "Authorization: Bearer $METRICS_TOKEN" $API/health/metrics/commercial | jq '.dispatcher.email.claimed'
 sleep 10
-curl -sS $API/health/metrics/commercial | jq '.dispatcher.email.claimed'
+curl -sS -H "Authorization: Bearer $METRICS_TOKEN" $API/health/metrics/commercial | jq '.dispatcher.email.claimed'
 
 # 4 · ¿Por qué falla? La CLASE de error, nunca el payload.
-curl -sS $API/health/metrics/commercial | jq '.dispatcher.email.retriesByKind, .dispatcher.email.deadByKind'
+curl -sS -H "Authorization: Bearer $METRICS_TOKEN" $API/health/metrics/commercial | jq '.dispatcher.email.retriesByKind, .dispatcher.email.deadByKind'
 ```
 
 Árbol de decisión según la clase de fallo:
@@ -242,7 +242,7 @@ payloads a mano. La entrega es at-least-once y el receptor deduplica por
 baja:
 
 ```bash
-watch -n 10 "curl -sS $API/health/metrics/commercial | jq '.outbox.email.oldestUnsentAgeSeconds'"
+watch -n 10 "curl -sS -H 'Authorization: Bearer $METRICS_TOKEN' $API/health/metrics/commercial | jq '.outbox.email.oldestUnsentAgeSeconds'"
 ```
 
 Las filas `dead` NO se reintentan solas — es deliberado: ocho intentos
@@ -262,7 +262,7 @@ node scripts/ops/outbox-replay.mjs --queue email --all-dead
 node scripts/ops/outbox-replay.mjs --queue domain --all-dead
 
 # 4 · Pega el JSON que imprime en el informe del incidente y vigila el drenaje
-watch -n 10 "curl -sS $API/health/metrics/commercial | jq '.outbox'"
+watch -n 10 "curl -sS -H 'Authorization: Bearer $METRICS_TOKEN' $API/health/metrics/commercial | jq '.outbox'"
 ```
 
 El script devuelve las filas a `pending` con `attempt_count=0` y conserva

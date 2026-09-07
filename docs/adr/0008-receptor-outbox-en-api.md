@@ -39,6 +39,10 @@ no una aplicación aparte ni una función serverless:
   apuntar el recibo y 200. No existe todavía ningún proyector de eventos, y
   fingirlo sería peor que declararlo.
 
+**Nota del 2026-09-06 (T-0D):** la lista viva de plantillas es la de
+`apps/api/src/modules/outbox-receiver/email-templates.ts` (hoy incluye
+también `commercial.renewal-reminder`).
+
 ## Alternativas consideradas
 
 - **Aplicación receptora separada**: aísla fallos, pero duplica despliegue,

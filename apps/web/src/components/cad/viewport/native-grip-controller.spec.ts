@@ -194,4 +194,26 @@ function makeController(overrides: Partial<CadNativeGripDeps> = {}) {
   assert.deepEqual(t.recorded.orbit, []);
 }
 
-console.log("native grip controller specs passed");
+// 6) T-20: con un comando del motor pidiendo punto u objeto, el clic sobre un
+// pinzamiento es DEL COMANDO: el arranque se rechaza sin tocar nada (ni
+// órbita, ni captura, ni estado) para que el mismo pointerdown siga su camino
+// hasta `enginePointerRouter.click`. En reposo, el pinzamiento sigue ganando.
+{
+  const t = makeController({ commandActive: () => true });
+  assert.equal(
+    t.controller.start("p", "vertex:1", t.at(100, 0)),
+    false,
+    "OFFSET/TRIM pidiendo punto: el pinzamiento cede el clic",
+  );
+  assert.equal(t.controller.active, false, "no queda ninguna sesión de grip abierta");
+  assert.deepEqual(t.recorded.orbit, [], "la órbita no se toca");
+  assert.equal(t.controller.handlePointerUp(t.at(100, 0)), false, "el pointerup tampoco es suyo");
+  let enReposo = false;
+  const r = makeController({ commandActive: () => enReposo });
+  assert.equal(r.controller.start("p", "vertex:1", r.at(100, 0)), true, "en reposo el pinzamiento gana");
+  r.controller.handlePointerUp(r.at(100, 0));
+  enReposo = true;
+  assert.ok(r.menu.isOpen, "y el menú del grip caliente sigue funcionando en reposo");
+}
+
+console.log("native grip controller specs passed (6 bloques: arrastre, ciclo, menú, to-arc, readOnly, comando abierto)");

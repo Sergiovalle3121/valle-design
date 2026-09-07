@@ -169,4 +169,20 @@ const base = {
   );
 }
 
+// --- T-10a: currentVisualStyle es opcional y sólo viaja cuando lo hay --------
+{
+  const sinVisor = cadStudioCommandContext({ ...base, document: documentWith(["a"]) });
+  assert.equal(
+    sinVisor.currentVisualStyle,
+    undefined,
+    "sin visor 3D montado, VSCURRENT + Intro tiene que poder decirlo, no fingir un estilo",
+  );
+  const conVisor = cadStudioCommandContext({
+    ...base,
+    document: documentWith(["a"]),
+    currentVisualStyle: () => "wireframe",
+  });
+  assert.equal(conVisor.currentVisualStyle?.(), "wireframe", "y con visor, el estilo vigente viaja tal cual");
+}
+
 console.log("cad studio command context specs passed");

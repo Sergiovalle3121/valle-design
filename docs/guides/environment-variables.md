@@ -256,6 +256,11 @@ destino standalone para el CLI de migración. No inviertas las URLs. Los
 directorios de export incluyen manifiesto, NDJSON y blobs con hashes; se deben
 conservar y verificar como una unidad.
 
-Las variables `S3_*` y MinIO no forman parte del runtime actual: los blobs viven
-en `design_blobs` dentro de PostgreSQL. No configures S3 esperando que cambie el
-destino de almacenamiento.
+Las variables `S3_BLOB_*` sí forman parte del runtime: cuando las obligatorias
+(`S3_BLOB_ENDPOINT`, `S3_BLOB_BUCKET`, `S3_BLOB_ACCESS_KEY_ID`,
+`S3_BLOB_SECRET_ACCESS_KEY`) están completas, `BlobStoreModule` activa
+`S3BlobStore` en vez de `design_blobs` en PostgreSQL (selección todo-o-nada;
+una configuración parcial hace fallar el arranque). El default sin configurar
+sigue siendo PostgreSQL. Ese adaptador nunca se ha ejecutado contra un MinIO ni
+un S3 reales. Ver `docs/cad/blob-store-s3-migration-and-operations.md` para la
+tabla completa de variables.

@@ -13,7 +13,11 @@
 import { strict as assert } from "node:assert";
 import * as THREE from "three";
 import { cadUcsFromPlane, type CadNamedUcs } from "../ucs";
-import { cadPointerWorldFromRay, type CadPointerFrame } from "./pointer-work-plane";
+import {
+  cadDistanceToUcsPlane,
+  cadPointerWorldFromRay,
+  type CadPointerFrame,
+} from "./pointer-work-plane";
 
 /** Marco realista del editor: una planta de 12.000 × 10.000. */
 const MARCO: CadPointerFrame = { s: 0.02, W: 12_000, H: 10_000 };
@@ -173,4 +177,25 @@ function fueraDelPlano(ucs: CadNamedUcs, p: { x: number; y: number; z?: number }
   );
 }
 
-console.log("cad pointer work plane specs passed");
+// --- la distancia al plano: lo que filtra el enganche 3D bajo un SCU inclinado (T-52)
+{
+  const fachada = marco(
+    "FACHADA",
+    { x: 6_000, y: 7_500, z: 1_500 },
+    { x: 0, y: 1, z: 0 },
+    { x: 1, y: 0, z: 0 },
+  );
+  assert.equal(cadDistanceToUcsPlane({ x: 8_000, y: 7_500, z: 200 }, fachada), 0, "un punto de la fachada está a cero");
+  assert.equal(
+    Math.abs(cadDistanceToUcsPlane({ x: 6_000, y: 5_000, z: 0 }, fachada)),
+    2_500,
+    "el centroide de la cara de abajo, que se proyecta bajo el cursor, está a 2 500 del plano: no engancha",
+  );
+  assert.equal(
+    Math.abs(cadDistanceToUcsPlane({ x: 6_000, y: 2_500, z: 0 }, fachada)),
+    5_000,
+    "y el punto medio de la arista de delante, a 5 000",
+  );
+}
+
+console.log("cad pointer work plane specs passed (incl. distancia al plano, T-52)");

@@ -43,11 +43,28 @@ FIX-OR-HIDE y la lista GO/NO-GO, es
 `docs/execution/INFORME_LANZAMIENTO_20260827.md`), y el de la campaña de firma
 propia del 28-08 (`CAMPANA_FIRMA_20260828.md` — paleta v2, cuenta segura, canal
 de comentarios y los cimientos del modo universitario; su informe es
-`docs/execution/INFORME_CAMPANA_FIRMA_20260828.md`).
+`docs/execution/INFORME_CAMPANA_FIRMA_20260828.md`). El 2026-09-06, al abrir la
+campaña «El lunes de un arquitecto», se archivaron aquí las cuatro bitácoras de
+cortes ya fusionados que seguían en `docs/execution/`:
+`CAMPANA_3D_POST_M1_20260825.md`, `CAMPANA_REVIEW_CONCURRENCY_20260825.md`,
+`CAMPANA_COMMERCIAL_RC1_20260826.md` y `CAMPANA_10X_20260827.md` (sus cierres
+medidos son `INFORME_CAMPANA_PARIDAD_20260827.md` y los informes vecinos, que se
+quedaron en `docs/execution/`). El mismo día, tras la auditoría documental de la
+ficha T-0D, bajó aquí `cad-contracts-catalog.md`: el catálogo de contratos CAD
+de las Fases 66–73, escrito para el cableado de Codex. Sus rutas
+`apps/*/line-engineering` y `/api/line-engineering` ya no existen (hoy viven en
+`apps/api/src/modules/cad-documents/` y `modules/cad` bajo `/v1/cad`, y los
+módulos puros en `apps/web/src/lib/cad/`); sus entradas de IA (`cad-intent.ts`,
+`cad-vision.ts`, `/layout/cad-intent`, `/layout/vision`, variables `CIDE_*`)
+describen CIDE, retirado según `IDENTITY.md` y bloqueado por
+`apps/web/src/lib/cad/no-ai-boundary.spec.ts`. Se conserva entero, con su
+banner original.
 
 Cuidado al leerlos: uno de ellos cita un baseline de 8 761 líneas para
-`Layout3DEditor.tsx` cuando el archivo real tiene más de 22 000, y otro fija una
-misión que venció el 28 de julio. Son fotografías con fecha, no inventarios.
+`Layout3DEditor.tsx` que el archivo real multiplicaba ya entonces (la cifra viva
+la imprime `node scripts/cad/check-monolith-budget.mjs`; el registro con fecha
+está en `docs/execution/DEUDA-MONOLITO.md`), y otro fija una misión que venció
+el 28 de julio. Son fotografías con fecha, no inventarios.
 
 **Los `INFORME_*` se quedaron en `docs/execution/`** a propósito: son evidencia
 medida al cierre de cada campaña, no planes vencidos.

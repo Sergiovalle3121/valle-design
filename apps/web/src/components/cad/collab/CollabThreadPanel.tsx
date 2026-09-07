@@ -84,43 +84,47 @@ export default function CollabThreadPanel({
         </span>
       </header>
 
-      {/* Presencia. Se enseña el estado del canal en vez de un número a secas:
-          sin transporte no se puede afirmar que no haya nadie más mirando. */}
+      {/* Presencia. Se enseña el estado del canal en vez de un número a secas.
+          `presenceConnected` dice si hay un transporte que alcance OTRAS
+          MÁQUINAS (`presence-affirmation.ts`): sólo entonces la lista vacía
+          significa «nadie más». Sin él —el invitado del enlace, hoy— los peers
+          que sí llegan (pestañas de este navegador) se enseñan porque son
+          reales, pero la lista no se cierra: se dice que no se puede saber. */}
       <div
         data-testid="cad-collab-presence"
         data-connected={presenceConnected ? "true" : "false"}
         className="flex flex-wrap items-center gap-1 rounded-control border border-border bg-muted/40 p-1.5"
       >
-        {!presenceConnected ? (
-          <span className="type-micro text-muted-foreground">
-            Presencia no disponible en este navegador.
+        {peers.map((peer) => (
+          <span
+            key={peer.peerId}
+            data-testid={`cad-collab-peer-${peer.peerId}`}
+            className="flex items-center gap-1 rounded-full border border-border px-2 py-0.5 type-micro"
+            title={
+              peer.cursor
+                ? `Cursor en ${Math.round(peer.cursor.x)}, ${Math.round(peer.cursor.y)}`
+                : "Mirando el plano"
+            }
+          >
+            <span
+              aria-hidden
+              className="h-2 w-2 rounded-full"
+              style={{ backgroundColor: peer.color }}
+            />
+            {peer.name.trim() || "Invitado"}
+            {peer.guest ? " · revisión" : ""}
           </span>
-        ) : peers.length === 0 ? (
+        ))}
+        {presenceConnected && peers.length === 0 ? (
           <span className="type-micro text-muted-foreground">
             Nadie más en este documento ahora mismo.
           </span>
-        ) : (
-          peers.map((peer) => (
-            <span
-              key={peer.peerId}
-              data-testid={`cad-collab-peer-${peer.peerId}`}
-              className="flex items-center gap-1 rounded-full border border-border px-2 py-0.5 type-micro"
-              title={
-                peer.cursor
-                  ? `Cursor en ${Math.round(peer.cursor.x)}, ${Math.round(peer.cursor.y)}`
-                  : "Mirando el plano"
-              }
-            >
-              <span
-                aria-hidden
-                className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: peer.color }}
-              />
-              {peer.name.trim() || "Invitado"}
-              {peer.guest ? " · revisión" : ""}
-            </span>
-          ))
-        )}
+        ) : null}
+        {!presenceConnected ? (
+          <span className="type-micro text-muted-foreground">
+            No se puede saber quién más está mirando desde aquí.
+          </span>
+        ) : null}
       </div>
 
       {/* Redactor */}

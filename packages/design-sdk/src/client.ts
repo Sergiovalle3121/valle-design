@@ -348,6 +348,43 @@ export function createDesignClient(options: DesignClientOptions) {
           "GET",
           resource(`/v1/organizations/${organizationId}/memberships`),
         ),
+      /**
+       * T-60a: cambiar de rol o expulsar a un miembro. El propietario queda
+       * fuera de las dos — la propiedad es `organization.ownerUserId`, no la
+       * membresía, y ninguna de las dos rutas transfiere propiedad.
+       */
+      updateMembershipRole: (
+        organizationId: string,
+        membershipId: string,
+        role: Schemas["OrganizationMembershipRoleUpdate"]["role"],
+      ) =>
+        call<Schemas["OrganizationMembershipRoleUpdated"]>(
+          "PATCH",
+          resource(
+            `/v1/organizations/${organizationId}/memberships/${membershipId}`,
+          ),
+          { role },
+        ),
+      removeMembership: (organizationId: string, membershipId: string) =>
+        call<void>(
+          "DELETE",
+          resource(
+            `/v1/organizations/${organizationId}/memberships/${membershipId}`,
+          ),
+        ),
+      /**
+       * T-62a: la bitácora que se escribía y nadie podía leer. `limit` se
+       * acota server-side entre 1 y 200; sin él el servidor usa 50.
+       */
+      auditLog: (organizationId: string, limit?: number) => {
+        const query = new URLSearchParams();
+        if (limit !== undefined) query.set("limit", String(limit));
+        const sufijo = query.toString();
+        return call<Schemas["OrganizationAuditLogList"]>(
+          "GET",
+          `${resource(`/v1/organizations/${organizationId}/audit-log`)}${sufijo ? `?${sufijo}` : ""}`,
+        );
+      },
       invitations: {
         create: (organizationId: string, input: OrganizationInvitationCreate) =>
           call<OrganizationInvitationCreated>(

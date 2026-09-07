@@ -1,0 +1,80 @@
+{
+  "esquemaVersion": "1.0.0",
+  "politica": "docs/cad/corpus/README.md",
+  "actualizado": "2026-09-06",
+  "verificadoPor": "apps/web/src/lib/geo/shapefile-pyproj.spec.ts",
+  "queEs": "El manifiesto de derechos del material GIS de terceros que sirve a la fila toolset-map3d.georreferencia. Es un manifiesto HERMANO de docs/cad/corpus/manifest.json (que es DXF y lo verifica dxf-corpus-terceros.spec.ts): mismo rigor -licencia descargada, procedencia completa, bytes íntegros por sha256, titular identificado, motivo escrito-, aplicado a un formato distinto.",
+  "derechos": {
+    "dictamenAutomatico": "Natural Earth declara su contenido entero de dominio público en su propio LICENSE.md: «All versions of Natural Earth raster + vector map data found on this website are in the public domain (...) No permission is needed to use Natural Earth. Crediting the authors is unnecessary.» El texto completo está descargado, hasheado y versionado aquí.",
+    "firmaHumana": {
+      "firmadoPor": "",
+      "firmadoEl": "",
+      "nota": "TODAVÍA NO. El dictamen automático está completo (licencia de dominio público descargada e identificada); falta la firma del titular, igual que en docs/cad/corpus/manifest.json."
+    },
+    "loQueNoSeAfirma": "Que este archivo lo produjo o lo verificó AutoCAD Map 3D, ArcGIS o QGIS. Es un dataset cartográfico de dominio público (Natural Earth) usado como fuente de coordenadas conocidas para contrastar la reproyección del producto contra PROJ; no acredita compatibilidad con ningún software GIS comercial."
+  },
+  "fuentes": [
+    {
+      "id": "natural-earth-vector",
+      "repositorio": "https://github.com/nvkelso/natural-earth-vector",
+      "descripcion": "Dataset cartográfico Natural Earth, capa 1:110m de lugares poblados (ne_110m_populated_places_simple), en shapefile ESRI con su .prj geográfico WGS84.",
+      "ref": "ca96624a56bd078437bca8184e78163e5039ad19",
+      "descargadoEl": "2026-09-06",
+      "licencia": "Dominio público (declarado por el propio proyecto)",
+      "titular": "Tom Patterson y Nathaniel Vaughn Kelso, con los contribuyentes de Natural Earth",
+      "avisoCopyright": "Ninguno requerido: «No permission is needed to use Natural Earth. Crediting the authors is unnecessary.»",
+      "licenciaUrl": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/ca96624a56bd078437bca8184e78163e5039ad19/LICENSE.md",
+      "licenciaArchivo": "licencias/natural-earth-vector-PUBLIC-DOMAIN.md",
+      "redistribucion": "Permitida sin condición. El dominio público declarado no impone aviso de copyright ni atribución, y este manifiesto los deja de todas formas por trazabilidad.",
+      "modificacion": "Permitida por la licencia. Aquí NO se ejerce: los bytes se conservan intactos y el sha256 lo demuestra.",
+      "licenciaSha256": "2631b5b39b6d1acc56de75235109b5af2dbb4b0ac5a127b6f06185977247fd4b"
+    }
+  ],
+  "archivos": [
+    {
+      "id": "natural-earth-vector/ne_110m_populated_places_simple.shp",
+      "fuente": "natural-earth-vector",
+      "ruta": "terceros-gis/natural-earth/ne_110m_populated_places_simple.shp",
+      "urlOrigen": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/ca96624a56bd078437bca8184e78163e5039ad19/110m_cultural/ne_110m_populated_places_simple.shp",
+      "sha256": "b9e20f6dd2896285370d049f3e09159b64317a4102fbbc2390171246e8b3a7d0",
+      "bytes": 6904,
+      "porQue": "La geometría: 243 lugares poblados del mundo, de los que 13 caen en el dominio de las zonas UTM 11N-16N que crs.ts verifica. Tipo de forma Point (1), el más simple del formato."
+    },
+    {
+      "id": "natural-earth-vector/ne_110m_populated_places_simple.shx",
+      "fuente": "natural-earth-vector",
+      "ruta": "terceros-gis/natural-earth/ne_110m_populated_places_simple.shx",
+      "urlOrigen": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/ca96624a56bd078437bca8184e78163e5039ad19/110m_cultural/ne_110m_populated_places_simple.shx",
+      "sha256": "f173bcd955c36a35a9b190ae315019ff7fa2b48ddaae538a6ed2f04c60a08a52",
+      "bytes": 2044,
+      "porQue": "El índice, para que readShapefile lo compruebe como redundancia (indexVerified)."
+    },
+    {
+      "id": "natural-earth-vector/ne_110m_populated_places_simple.dbf",
+      "fuente": "natural-earth-vector",
+      "ruta": "terceros-gis/natural-earth/ne_110m_populated_places_simple.dbf",
+      "urlOrigen": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/ca96624a56bd078437bca8184e78163e5039ad19/110m_cultural/ne_110m_populated_places_simple.dbf",
+      "sha256": "d6bf1b8fbd389f694e42ff75040f9ea41ec3cbe1b31c1c62b12dd0cf101264d1",
+      "bytes": 369900,
+      "porQue": "La tabla de atributos (nombre de cada lugar). No se usa en la comprobación de coordenadas; se conserva completa porque el conjunto es uno solo y no se trocea."
+    },
+    {
+      "id": "natural-earth-vector/ne_110m_populated_places_simple.prj",
+      "fuente": "natural-earth-vector",
+      "ruta": "terceros-gis/natural-earth/ne_110m_populated_places_simple.prj",
+      "urlOrigen": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/ca96624a56bd078437bca8184e78163e5039ad19/110m_cultural/ne_110m_populated_places_simple.prj",
+      "sha256": "a02a27b1d1982c8516d83398e85a3c8b1aef1713c13ef4d84d7bde17430c07c4",
+      "bytes": 145,
+      "porQue": "El sistema de referencia declarado (WGS84 geográfico), leído por parseGeoCrsWkt: es lo que decide que las coordenadas del .shp son (longitud, latitud) y no ya una proyección."
+    },
+    {
+      "id": "natural-earth-vector/ne_110m_populated_places_simple.cpg",
+      "fuente": "natural-earth-vector",
+      "ruta": "terceros-gis/natural-earth/ne_110m_populated_places_simple.cpg",
+      "urlOrigen": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/ca96624a56bd078437bca8184e78163e5039ad19/110m_cultural/ne_110m_populated_places_simple.cpg",
+      "sha256": "3ad3031f5503a4404af825262ee8232cc04d4ea6683d42c5dd0a2f2a27ac9824",
+      "bytes": 5,
+      "porQue": "La codificación de texto del .dbf. Se conserva por completitud del conjunto descargado; no participa en la comprobación de coordenadas."
+    }
+  ]
+}

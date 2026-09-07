@@ -255,6 +255,8 @@ test.describe("La Jornada Real: de cuenta nueva a plano entregado", () => {
     await page.getByLabel("Nombre").fill("Arquitecta de la jornada");
     await page.getByLabel(/Correo electr.*nico/iu).fill(email);
     await page.getByLabel(/^Contrase/iu).fill(E2E_PASSWORD);
+    // T-63d: la cuenta no se crea sin aceptar los términos vigentes.
+    await page.getByText(/^Acepto los/).click();
     await page.getByRole("button", { name: "Crear cuenta" }).click();
     await expect(page.getByRole("status")).toContainText(/Cuenta creada/iu);
 

@@ -167,7 +167,7 @@ const mtextAdapter: CadEntityAdapter<CadMTextEntity> = {
   },
   snaps: {
     snaps: (entity) => [
-      { kind: "endpoint" as const, point: entity.insertion, label: "Inserción MTEXT" },
+      { kind: "insertion" as const, point: entity.insertion, label: "Inserción MTEXT" },
       ...layoutCadMText(entity).corners.map((point, index) => ({
         kind: "control" as const,
         point,
@@ -456,7 +456,7 @@ const insertAdapter: CadEntityAdapter<CadInsertEntity> = {
       return entity;
     },
   },
-  snaps: { snaps: (entity) => [{ kind: "endpoint", point: entity.insertion, label: "Inserción BLOCK" }] },
+  snaps: { snaps: (entity) => [{ kind: "insertion", point: entity.insertion, label: "Inserción BLOCK" }] },
   properties: {
     read: (entity) => ({
       block: entity.block, insertionX: entity.insertion.x, insertionY: entity.insertion.y,

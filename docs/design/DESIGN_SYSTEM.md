@@ -86,7 +86,7 @@ Lo mismo con la marca: `bg-brand-strong` para rellenar (**6,93:1** con su letra)
 ### El gate que lo mide, y por qué manda
 
 ```bash
-npm run check:contrast     # 35 pares × 2 temas = 70, y falla la corrida entera
+npm run check:contrast     # imprime los pares medidos (PAIRS en scripts/design/check-contrast.mjs) y falla la corrida entera
 ```
 
 Se construyó ANTES de cortar la paleta v2 —primero la regla, después el corte— y
@@ -266,8 +266,9 @@ cuadro.
 
 ## 8. Accesibilidad — el piso, no el objetivo
 
-- **Contraste AA**: 4,5:1 texto normal, 3:1 texto grande. Las 21 mediciones del
-  sistema están en [`BRAND.md`](BRAND.md).
+- **Contraste AA**: 4,5:1 texto normal, 3:1 texto grande. La tabla completa la
+  imprime `node scripts/design/check-contrast.mjs --markdown`; [`BRAND.md`](BRAND.md)
+  comenta los pares de marca y de estado.
 - **Objetivo táctil**: `min-h-11` (44 px) en superficie pública. El estudio tiene
   su propia regla en `globals.css` bajo `@media (pointer: coarse)`, para no pagar
   el tamaño con oclusión de lienzo en escritorio.
