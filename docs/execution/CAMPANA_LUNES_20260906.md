@@ -568,7 +568,7 @@ con la beta encendida (3 pasan); eslint. Fragmentos 1/4 y 4/4 verdes en esa
 cabeza; 3/4 en curso. `DWG_IMPORT_FLAG`/`DWG_EXPORT_FLAG` siguen en false:
 la beta del build no enciende el runtime (ADR-0009 §7).
 
-### CI: la intermitencia conocida de `llamada-webrtc-real` (fragmento 4/4) · REGISTRADO (00:04 UTC, 2026-09-07)
+### CI: la intermitencia conocida de `llamada-webrtc-real` (fragmento 4/4) · REGISTRADO (00:02 UTC, 2026-09-07)
 Sobre la cabeza 0789886 el fragmento 4/4 cayó en `e2e/real/llamada-webrtc-real.spec.ts:220`
 (paso 4: «En curso» no apareció en 60 s, dos intentos); los otros 77 casos del
 fragmento pasaron y el mismo fragmento estaba verde una hora antes en ffef872
