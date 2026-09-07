@@ -98,7 +98,15 @@ test('DXF import remains editable/exportable and persists an explicit loss manif
     const centerX = page.getByTestId('cad-native-property-centerX');
     const before = Number(await centerX.inputValue());
     await page.getByTestId('cad-native-move-x').click();
-    await expect.poll(async () => Number(await centerX.inputValue())).toBe(before + 100);
+    // Firefox en CI fallaba aquí con el «Timeout … while waiting on the
+    // predicate» pelado, sin Expected/Received: `inputValue()` dentro del
+    // `poll` esperaba sin límite a un campo que ya no estaba en el DOM, y el
+    // informe no distinguía «la paleta desapareció» de «el valor es otro».
+    // Afirmar primero la paleta y después el valor sobre el propio locator
+    // —que se vuelve a resolver en cada reintento— nombra la causa real en
+    // el próximo rojo, con los mismos plazos de siempre.
+    await expect(page.getByTestId('cad-native-properties')).toContainText('ARC');
+    await expect(centerX).toHaveValue(String(before + 100));
   });
 
   await saveAndSettle(page, backend);

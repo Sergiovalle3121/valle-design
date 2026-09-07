@@ -19,6 +19,20 @@
  * Quien es cortés cede su propia oferta (rollback) ante una oferta entrante
  * en colisión; quien no, la ignora.
  *
+ * El rollback del cortés es IMPLÍCITO: `setRemoteDescription(oferta)` lo hace
+ * solo cuando el par está en `have-local-offer` (Chromium ≥ 80, Firefox,
+ * Safari). Hasta el 2026-09-07 se pedía a mano con
+ * `setLocalDescription({ type: "rollback" })`, y eso tiene un hueco: entre
+ * `makingOffer = true` y que la oferta propia se aplique el estado sigue en
+ * `stable`, y un rollback en `stable` es `InvalidStateError`. Si la oferta
+ * ajena caía en ese hueco —ancho en un runner sin GPU, donde el visor 3D se
+ * pinta por software en cada frame— el cortés nunca respondía, su propia
+ * oferta también fallaba, y la llamada se quedaba en «Conectando…» sin
+ * mensaje: ICE nunca sale de `new`, y la política ICE sólo dice «espera».
+ * Por eso la oferta propia también se crea con `setLocalDescription()` a
+ * secas: la negociación queda en la cola de operaciones del navegador y
+ * cada paso se adapta al estado que encuentra.
+ *
  * ## Las señales de un par se atienden EN FILA, y por qué
  *
  * Un `ice-candidate` sólo se puede añadir cuando ya hay descripción remota.
@@ -232,14 +246,27 @@ export function createCallSessionHost(
       if (!active2) return;
       try {
         runtime.makingOffer = true;
-        const offer = await connection.createOffer();
-        await connection.setLocalDescription(offer);
+        // Sin argumento: el navegador crea Y aplica la descripción en un solo
+        // paso de su cola de operaciones. Si una oferta ajena se coló antes y
+        // el rollback implícito ya nos dejó en `have-remote-offer`, esto
+        // produce la RESPUESTA en vez de fallar con `createOffer` +
+        // `setLocalDescription(oferta)` en el estado equivocado.
+        await connection.setLocalDescription();
+        const local = connection.localDescription;
+        if (!local || (local.type !== "offer" && local.type !== "answer")) return;
         await signaling.sendSignal(
           active2.roomId,
           active2.participantId,
           participantId,
-          "offer",
-          offer as unknown as Record<string, unknown>,
+          local.type,
+          { type: local.type, sdp: local.sdp },
+        );
+      } catch (error) {
+        // Antes esto era un rechazo sin dueño: sin este renglón la única
+        // pista de una negociación que no arranca es «a veces no va».
+        console.error(
+          `[llamada] negociación con ${participantId} no iniciada:`,
+          error,
         );
       } finally {
         runtime.makingOffer = false;
@@ -375,14 +402,10 @@ export function createCallSessionHost(
       runtime.ignoreOffer = !runtime.polite && offerCollision;
       if (runtime.ignoreOffer) return;
       const description = signal.payload as unknown as RTCSessionDescriptionInit;
-      if (offerCollision) {
-        await Promise.all([
-          pc.setLocalDescription({ type: "rollback" }),
-          pc.setRemoteDescription(description),
-        ]);
-      } else {
-        await pc.setRemoteDescription(description);
-      }
+      // En colisión el rollback de la oferta propia es implícito (ver la
+      // cabecera): pedirlo a mano fallaba cuando la oferta ajena llegaba antes
+      // de que la propia se hubiera aplicado, y el cortés no respondía nunca.
+      await applyRemoteOffer(pc, description);
       await flushPendingCandidates(runtime);
       // La decisión de ignorar es de ESA oferta y de ninguna más. Dejarla puesta
       // silenciaba para siempre cualquier error de candidato de este par: el
@@ -390,14 +413,21 @@ export function createCallSessionHost(
       // nadie la volvía a poner en falso — así que el primer glare convertía a
       // ese par en mudo ante cualquier fallo posterior.
       runtime.ignoreOffer = false;
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
+      // Sin argumento: con descripción remota puesta, esto crea y aplica la
+      // respuesta en la misma cola de operaciones que la oferta.
+      await pc.setLocalDescription();
+      const answer = pc.localDescription;
+      if (!answer || answer.type !== "answer") {
+        throw new Error(
+          `la respuesta no se creó (estado ${pc.signalingState}, descripción local ${answer?.type ?? "ninguna"})`,
+        );
+      }
       await signaling.sendSignal(
         active.roomId,
         active.participantId,
         participantId,
         "answer",
-        answer as unknown as Record<string, unknown>,
+        { type: answer.type, sdp: answer.sdp },
       );
     } else if (signal.kind === "answer") {
       await pc.setRemoteDescription(
@@ -423,6 +453,28 @@ export function createCallSessionHost(
     } else if (signal.kind === "bye") {
       pc.close();
       peers.delete(participantId);
+    }
+  }
+
+  /**
+   * Aplica una oferta ajena, cediendo la propia si hace falta.
+   *
+   * Los navegadores actuales hacen el rollback solos cuando la oferta llega
+   * en `have-local-offer`. El rollback explícito queda sólo como respaldo
+   * para un navegador que no lo haga, y sólo en el estado en que es legal:
+   * pedirlo en `stable` es justo el `InvalidStateError` que dejaba la
+   * llamada en «Conectando…» para siempre.
+   */
+  async function applyRemoteOffer(
+    pc: RTCPeerConnection,
+    description: RTCSessionDescriptionInit,
+  ) {
+    try {
+      await pc.setRemoteDescription(description);
+    } catch (error) {
+      if (pc.signalingState !== "have-local-offer") throw error;
+      await pc.setLocalDescription({ type: "rollback" });
+      await pc.setRemoteDescription(description);
     }
   }
 

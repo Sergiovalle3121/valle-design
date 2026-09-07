@@ -114,6 +114,21 @@ test.describe("Llamada WebRTC real: dos contextos de navegador", () => {
   let organizationId = "";
   let documentId = "";
 
+  // La consola de cada navegador, recogida desde el primer `goto`. El
+  // anfitrión de la llamada ya dice POR QUÉ una negociación se atasca
+  // (`[llamada] señal … no atendida`, `[llamada] negociación … no iniciada`),
+  // pero esta suite tiraba ese renglón: cada rojo del paso 4 se reconstruía a
+  // ciegas como «"En curso" no apareció» (BACKLOG L-7). Sólo se adjunta al
+  // fallar; no cambia ningún plazo.
+  const consolaA: string[] = [];
+  const consolaB: string[] = [];
+  function recogerConsola(page: Page, consola: string[]) {
+    page.on("console", (message) => {
+      if (message.type() === "error") consola.push(message.text());
+    });
+    page.on("pageerror", (error) => consola.push(`pageerror: ${String(error)}`));
+  }
+
   test.beforeAll(async ({ browser }) => {
     contextA = await browser.newContext({
       baseURL: BASE_URL,
@@ -125,6 +140,8 @@ test.describe("Llamada WebRTC real: dos contextos de navegador", () => {
     });
     pageA = await contextA.newPage();
     pageB = await contextB.newPage();
+    recogerConsola(pageA, consolaA);
+    recogerConsola(pageB, consolaB);
   });
 
   test.afterAll(async () => {
@@ -221,10 +238,34 @@ test.describe("Llamada WebRTC real: dos contextos de navegador", () => {
     test.setTimeout(90_000);
     await pageB.getByTestId("call-start-button").click();
 
-    await expect(pageA.getByText("En curso")).toBeVisible({ timeout: 60_000 });
-    await expect(pageB.getByText("En curso")).toBeVisible({ timeout: 60_000 });
-    await expect(pageA.getByText("2 participantes")).toBeVisible();
-    await expect(pageB.getByText("2 participantes")).toBeVisible();
+    try {
+      await expect(pageA.getByText("En curso")).toBeVisible({ timeout: 60_000 });
+      await expect(pageB.getByText("En curso")).toBeVisible({ timeout: 60_000 });
+      await expect(pageA.getByText("2 participantes")).toBeVisible();
+      await expect(pageB.getByText("2 participantes")).toBeVisible();
+    } catch (error) {
+      // El rojo se va con la consola de los dos extremos pegada: en el informe
+      // (adjuntos) y en el propio mensaje, que es lo que se lee en el log de CI.
+      const diagnostico = [
+        `Consola de A (${consolaA.length}):`,
+        consolaA.join("\n") || "(vacía)",
+        `Consola de B (${consolaB.length}):`,
+        consolaB.join("\n") || "(vacía)",
+      ].join("\n");
+      await test.info().attach("consola-A", {
+        body: consolaA.join("\n") || "(vacía)",
+        contentType: "text/plain",
+      });
+      await test.info().attach("consola-B", {
+        body: consolaB.join("\n") || "(vacía)",
+        contentType: "text/plain",
+      });
+      if (error instanceof Error) {
+        error.message = `${error.message}\n\n${diagnostico}`;
+        throw error;
+      }
+      throw new Error(`${String(error)}\n\n${diagnostico}`);
+    }
   });
 
   test("5 · A prende la cámara y B recibe VIDEO REAL — píxeles, no sólo estado", async () => {
