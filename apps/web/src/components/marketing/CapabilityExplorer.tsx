@@ -470,7 +470,17 @@ export function CapabilityExplorerPanels({
               data-testid={`capability-panel-${tab.id}`}
               className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]"
             >
-              <div>
+              {/*
+                `min-w-0` en LAS DOS columnas, no cosmético: sin `grid-cols`
+                explícito (por debajo de `lg:`) la columna implícita se mide
+                por el contenido más ancho, y un `<Image>` con `width={2880}`
+                cuenta su tamaño INTRÍNSECO para ese cálculo antes de que
+                `w-full` pueda aplicar — el mismo "grid blowout" que
+                ProductFrame.tsx ya documenta para el halo. Medido: la columna
+                se estiraba a 541 px en un viewport de 390, tumbando
+                `mobile-accessibility.spec.ts` (scrollWidth 561 contra 390).
+              */}
+              <div className="min-w-0">
                 <p className="flex items-center gap-3 type-eyebrow text-primary-ink">
                   <span className="type-sheet-number opacity-85">
                     {tab.numero}
@@ -501,7 +511,7 @@ export function CapabilityExplorerPanels({
                   </p>
                 ) : null}
               </div>
-              <div>
+              <div className="min-w-0">
                 {tab.id === "toolsets" ? (
                   <ToolsetVisual templates={toolsetTemplates} />
                 ) : Visual ? (
