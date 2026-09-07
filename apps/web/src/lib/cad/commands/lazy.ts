@@ -13,19 +13,21 @@
  * haya resuelto, así que cuando hay algo que aplicar el módulo ya está aquí;
  * si no lo estuviera, el editor lo dice en vez de fingir que aplicó.
  */
+import { createLazySingleton } from "./lazy-singleton";
+
 export type CadNlCommands = typeof import("./parser") & typeof import("./executor");
 
-let loaded: CadNlCommands | null = null;
-let pending: Promise<CadNlCommands> | null = null;
+const nlCommands = createLazySingleton<CadNlCommands>(() =>
+  Promise.all([import("./parser"), import("./executor")]).then(([parser, executor]) => ({
+    ...parser,
+    ...executor,
+  })),
+);
 
 export function loadCadNlCommands(): Promise<CadNlCommands> {
-  pending ??= Promise.all([import("./parser"), import("./executor")]).then(([parser, executor]) => {
-    loaded = { ...parser, ...executor };
-    return loaded;
-  });
-  return pending;
+  return nlCommands.get();
 }
 
 export function cadNlCommandsIfLoaded(): CadNlCommands | null {
-  return loaded;
+  return nlCommands.loadedValue();
 }

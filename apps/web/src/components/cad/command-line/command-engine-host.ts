@@ -146,6 +146,7 @@ const MAX_HISTORY = 60;
 export class CadCommandEngineHost {
   private state: CadCommandEngineState = EMPTY_CAD_COMMAND_ENGINE;
   private history: CadCommandLineEntry[] = [];
+  private nextHistoryId = 0; // `id` de renglón: el porqué, en `CadCommandLineEntry`.
   private snapshot: CadCommandEngineSnapshot = {
     prompt: null,
     history: [],
@@ -306,7 +307,8 @@ export class CadCommandEngineHost {
     // Un prompt repetido —al reanudar un transparente, por ejemplo— no debe
     // llenar el diálogo con la misma línea dos veces seguidas.
     if (last && last.level === level && last.text === text) return;
-    this.history = [...this.history, { text, level }].slice(-MAX_HISTORY);
+    const entry = { id: this.nextHistoryId++, text, level };
+    this.history = [...this.history, entry].slice(-MAX_HISTORY);
   }
 
   /** Texto tecleado en la línea de comandos. */

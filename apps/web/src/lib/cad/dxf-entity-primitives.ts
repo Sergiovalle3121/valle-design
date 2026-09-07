@@ -17,15 +17,18 @@ import type { CadDocument, CadEntity, CadPoint3 } from "./cad-document";
 import type { CadDxfPoint, CadDxfPrimitive } from "./dxf-import";
 import { cadEntityToSchema4Primitive } from "./dxf-schema4-primitives";
 import { wallFootprint } from "./wall-geometry";
+import { wallJoinedFootprint, wallJoins } from "./wall-joins";
+import { wallAxisFrame, wallFaces, wallOpeningJambs, wallOpeningSpan, wallOpeningSymbolPaths } from "./wall-openings";
 
 /**
- * `document` sólo hace falta para IMAGE, que referencia una definición del
- * catálogo del documento igual que un INSERT referencia un bloque. El resto de
- * las entidades se traducen con lo que llevan dentro.
+ * `document` hace falta para IMAGE (referencia una definición del catálogo,
+ * igual que un INSERT referencia un bloque) y para WALL (sus vecinos deciden
+ * el inglete de la esquina). El resto de las entidades se traducen con lo que
+ * llevan dentro.
  */
 export function cadEntityToDxfPrimitive(
   entity: CadEntity,
-  document?: Pick<CadDocument, "imageDefinitions">,
+  document?: Pick<CadDocument, "imageDefinitions" | "entities">,
 ): CadDxfPrimitive | null {
   const primitive = entityGeometryPrimitive(entity, document);
   if (!primitive) return null;
@@ -50,7 +53,7 @@ function dxfPoint(point: CadPoint3): CadDxfPoint {
 
 function entityGeometryPrimitive(
   entity: CadEntity,
-  document?: Pick<CadDocument, "imageDefinitions">,
+  document?: Pick<CadDocument, "imageDefinitions" | "entities">,
 ): CadDxfPrimitive | null {
   if (entity.type === "arc") {
     return {
@@ -110,11 +113,19 @@ function entityGeometryPrimitive(
   }
   if (entity.type === "wall") {
     // El DXF plano no tiene entidad de muro: viaja el CONTORNO en planta como
-    // polilínea cerrada — la misma que deriva `wallFootprint` para el dibujo,
-    // así que lo exportado coincide con lo que el usuario ve. La receta
-    // paramétrica se pierde y el manifiesto lo declara; una receta degenerada
-    // no produce contorno y cae al descarte genérico.
-    const footprint = wallFootprint(entity);
+    // polilínea cerrada — pero el de INGLETE RESUELTO (T-34), no el aislado:
+    // `wallFootprint` por sí solo ignora a los vecinos y deja una esquina de
+    // ±125 en un muro de 250 donde el producto SÍ dibuja la esquina limpia
+    // contra el muro contiguo. Es el mismo contorno que ve el usuario en
+    // pantalla y el que usan las jambas de un hueco (`opening-entity-
+    // adapter.ts`), así que lo exportado deja de ser el único disidente.
+    const others = (document?.entities ?? []).filter(
+      (candidate): candidate is typeof entity =>
+        candidate.type === "wall" && candidate.id !== entity.id,
+    );
+    const joins = wallJoins(entity, others);
+    const footprint =
+      others.length > 0 ? (wallJoinedFootprint(entity, joins) ?? wallFootprint(entity)) : wallFootprint(entity);
     if (!footprint) return null;
     return {
       kind: "polyline",
@@ -132,4 +143,53 @@ function entityGeometryPrimitive(
     };
   }
   return cadEntityToSchema4Primitive(entity, document);
+}
+
+/**
+ * OPENING (T-34): puerta o ventana, sin coordenadas propias — se derivan del
+ * EJE de su muro anfitrión, igual que en pantalla
+ * (`opening-entity-adapter.ts`). Devuelve VARIAS polilíneas (jambas + símbolo
+ * de fábrica), así que no encaja en `CadDxfPrimitive` (uno por entidad); por
+ * eso vive aparte y quien ensambla el DXF la llama con `flatMap`.
+ *
+ * `symbolBlock` (un bloque propio del estudio) NO se resuelve aquí — exigiría
+ * el catálogo de bloques completo, y esta ficha ya cierra el defecto central
+ * (huecos ausentes): siempre sale el símbolo de fábrica, y el manifiesto de
+ * pérdidas declara la degradación cuando el hueco pedía uno.
+ *
+ * Sin anfitrión, o con una receta de muro degenerada, no hay dónde poner las
+ * jambas: cero primitivas, nunca un marcador inventado en el origen.
+ */
+export function cadOpeningToDxfPrimitives(
+  entity: Extract<CadEntity, { type: "opening" }>,
+  document?: Pick<CadDocument, "entities">,
+): CadDxfPrimitive[] {
+  const entities = document?.entities ?? [];
+  const host = entities.find(
+    (candidate): candidate is Extract<CadEntity, { type: "wall" }> =>
+      candidate.type === "wall" && candidate.id === entity.hostId,
+  );
+  if (!host) return [];
+  const frame = wallAxisFrame(host);
+  if (!frame) return [];
+  const others = entities.filter(
+    (candidate): candidate is Extract<CadEntity, { type: "wall" }> =>
+      candidate.type === "wall" && candidate.id !== host.id,
+  );
+  const footprint =
+    others.length > 0
+      ? (wallJoinedFootprint(host, wallJoins(host, others)) ?? wallFootprint(host))
+      : wallFootprint(host);
+  if (!footprint) return [];
+  const faces = wallFaces(frame, footprint);
+  const span = wallOpeningSpan(entity);
+  const paths = [...wallOpeningJambs(faces, span), ...wallOpeningSymbolPaths(frame, entity)];
+  return paths
+    .filter((path) => path.points.length >= 2)
+    .map((path) => ({
+      kind: "polyline" as const,
+      layer: entity.layer,
+      points: path.points.map((point) => ({ x: point.x, y: point.y })),
+      closed: path.closed,
+    }));
 }

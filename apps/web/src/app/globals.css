@@ -588,8 +588,39 @@
   --grid-major: 64px;
 }
 
-/* Respeta prefers-reduced-motion en TODA animación (CSS + scroll). Framer Motion
-   se desactiva aparte vía useReducedMotion en los componentes. */
+/* ===========================================================================
+   T-73(j): `forced-colors` y `prefers-contrast` no existían en ningún punto
+   del árbol — contra una app nativa (a la que el Modo de alto contraste de
+   Windows le reasigna los colores gratis) esto es una regresión, no un
+   empate. Van SIN `@layer` a propósito, igual que el bloque de abajo: una
+   regla sin capa gana siempre sobre cualquier regla en `@layer base` o
+   `@layer utilities` (cascada de capas), que es la única forma de que esto
+   vuelva a pintar foco cuando un componente ya puso `outline-none` y sólo
+   ofrece un `ring-*` de sombra — invisible en `forced-colors`, que no
+   reescribe `box-shadow`.
+
+   Esto NO es soporte completo de alto contraste (eso es rediseñar cada
+   superficie custom — cinta, paletas, lienzo — contra `Canvas`/`CanvasText`,
+   trabajo de una ola completa). Es la pieza mínima verificable hoy: que el
+   foco de teclado, la señal de la que depende TODO lo demás en T-73, se siga
+   viendo cuando el sistema operativo reasigna colores o pide más contraste. */
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 2px solid Highlight !important;
+    outline-offset: 2px !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :focus-visible {
+    outline-width: 3px;
+    outline-color: hsl(var(--primary));
+  }
+}
+
+/* Respeta prefers-reduced-motion en TODA animación (CSS + scroll). Es la única
+   capa de movimiento del sitio: Framer Motion salió del cascarón cuando el
+   proveedor de avisos —su único importador— pasó a keyframes (valle-toast-*). */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1102,6 +1133,39 @@
   }
 }
 
+/* Las tarjetas de aviso (ToastContext): entran desde arriba y salen hacia la
+   derecha, con la curva y la duración base del sistema. En CSS y no en Framer
+   Motion a propósito: el proveedor vive en el layout raíz, y la librería
+   pesaba ~40 KB gzip en la primera carga de TODAS las rutas para esto. La
+   salida mantiene la tarjeta montada hasta `animationend` (ToastContext.tsx
+   la desmonta ahí, con un temporizador de cinturón de 220 ms + margen). */
+@keyframes valle-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes valle-toast-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateX(24px) scale(0.96);
+  }
+}
+.valle-toast-in {
+  animation: valle-toast-in var(--duration-base) var(--ease-out-expo) both;
+}
+.valle-toast-out {
+  animation: valle-toast-out 220ms var(--ease-out-expo) both;
+}
+
 /* Fondo ambiental de la portada y del embudo de alta.
    Tres veladuras muy tenues en las esquinas sobre el fondo base del tema, con
    la base anclada a `--background` para que no haya una segunda fuente de
@@ -1262,13 +1326,72 @@
   filter: blur(60px);
 }
 
+/* ===========================================================================
+   EL CUBO 3D DE LA INSIGNIA DEL HERO (Brep3DBadge)
+   ---------------------------------------------------------------------------
+   Seis caras reales en `preserve-3d`, con un lado fijo de 24px — 2/3 de los
+   36px de la insignia del hero (`h-9 w-9`), inscrito con margen dentro del
+   círculo que recorta el contenedor para que sus facetas se vean en
+   cualquier ángulo de giro (ver el comentario en `Brep3DBadge.tsx`). Cada
+   cara traslada la mitad del lado, 12px. Si el tamaño del cubo cambia, ese
+   valor cambia con él — no es una constante libre.
+   Ver el comentario de `Brep3DBadge.tsx` para el porqué de CSS y no WebGL.
+   =========================================================================== */
+.brep-cube {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  transform-style: preserve-3d;
+  animation: brep-cube-spin 9s linear infinite;
+}
+@keyframes brep-cube-spin {
+  from {
+    transform: rotateX(-20deg) rotateY(0deg);
+  }
+  to {
+    transform: rotateX(-20deg) rotateY(360deg);
+  }
+}
+.brep-cube-face {
+  position: absolute;
+  inset: 0;
+  background: var(--valle-accent);
+  border: 1px solid rgba(23, 19, 15, 0.25);
+}
+/* Una cara por dirección, con su propio matiz — la ilusión de sombreado que
+   convierte seis rectángulos planos en un sólido. */
+.brep-cube-face--front {
+  transform: translateZ(12px);
+}
+.brep-cube-face--back {
+  transform: rotateY(180deg) translateZ(12px);
+  filter: brightness(0.65);
+}
+.brep-cube-face--right {
+  transform: rotateY(90deg) translateZ(12px);
+  filter: brightness(0.8);
+}
+.brep-cube-face--left {
+  transform: rotateY(-90deg) translateZ(12px);
+  filter: brightness(0.8);
+}
+.brep-cube-face--top {
+  transform: rotateX(90deg) translateZ(12px);
+  filter: brightness(1.25);
+}
+.brep-cube-face--bottom {
+  transform: rotateX(-90deg) translateZ(12px);
+  filter: brightness(0.55);
+}
+
 /* Respeta prefers-reduced-motion: nada se mueve. */
 @media (prefers-reduced-motion: reduce) {
   .hero-orb-1,
   .hero-orb-2,
   .hero-orb-3,
   .hero-conic,
-  .float-slow {
+  .float-slow,
+  .brep-cube {
     animation: none !important;
   }
 }

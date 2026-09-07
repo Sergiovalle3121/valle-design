@@ -135,7 +135,7 @@ export function CadSelectionPalette(props: CadSelectionPaletteProps) {
             aria-label="Filtrar por tipo"
             value={props.quickType}
             onChange={(event) => props.onQuickTypeChange(event.target.value)}
-            className="rounded-control border border-border bg-surface px-2 py-1 type-micro text-foreground outline-none"
+            className="rounded-control border border-border bg-surface px-2 py-1 type-micro text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <option value="">Todos los tipos</option>
             {props.entityTypes.map((type) => (
@@ -148,7 +148,7 @@ export function CadSelectionPalette(props: CadSelectionPaletteProps) {
             aria-label="Filtrar por capa"
             value={props.quickLayer}
             onChange={(event) => props.onQuickLayerChange(event.target.value)}
-            className="rounded-control border border-border bg-surface px-2 py-1 type-micro text-foreground outline-none"
+            className="rounded-control border border-border bg-surface px-2 py-1 type-micro text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <option value="">Todas las capas</option>
             {props.layers.map((layer) => (

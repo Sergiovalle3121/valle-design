@@ -4,7 +4,7 @@ Ocho horas en cascada con un solo objetivo: que este repositorio deje de arrastr
 que nació y quede centrado, en el código y en la palabra, en lo que Valle Design es — un **CAD 2D
 general y universal** que compite con AutoCAD.
 
-Bitácora operativa completa en [`CAMPANA_IDENTIDAD_20260822.md`](CAMPANA_IDENTIDAD_20260822.md).
+Bitácora operativa completa en [`CAMPANA_IDENTIDAD_20260822.md`](../history/execution/CAMPANA_IDENTIDAD_20260822.md).
 La declaración de identidad que ordena todo esto vive ahora en la raíz: [`IDENTITY.md`](../../IDENTITY.md).
 
 ---
@@ -225,7 +225,7 @@ Cosas que no estaban en el plan y que la campaña destapó al pasar:
 más: `21-cad-xrefs`, `47-cad-lisp-appload`, `47-cad-solids`, `53-cad-bim-wall`,
 `54-cad-bim-wall-joins` y `55-cad-anchored-comments`. La lista coincide literalmente con la que la
 campaña de diseño publicó tras comprobarla sobre `main` limpio con una corrida de control
-(`CAMPANA_DISENO_20260821.md`). Sus aserciones son de dominio CAD —`saved.meta.schema` esperando 6,
+(`docs/history/execution/CAMPANA_DISENO_20260821.md`). Sus aserciones son de dominio CAD —`saved.meta.schema` esperando 6,
 el contador de comandos LISP, dos tiempos de espera de paleta—, ninguna tiene que ver con esta
 campaña. **Regresiones introducidas: cero.**
 

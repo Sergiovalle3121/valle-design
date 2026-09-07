@@ -68,7 +68,7 @@ borrador contra `main`: F3 (bucle 2D), F4 (papel y entrega), F5 (toolsets),
 F8 (despacho), F9 (cimientos y piel), F10 (evidencia independiente), F11
 (inventario AutoCAD 2027 vs Valle). F4 y F11 pidieron confirmación del encargo
 y la recibieron por rutina de sesión. Territorios y rangos de goldens en
-`docs/execution/frentes/README.md`.
+`docs/history/execution/frentes-lunes-20260906/README.md`.
 
 ### Corrección tras la suite de web (08:12 UTC)
 `npx turbo run test --filter=web` sobre el árbol quieto: 623/624. El rojo era

@@ -85,10 +85,7 @@ import { cadEntityIsTextOnly, cadTextQuadRequestsFor } from "./text-requests";
 import { cadLinetypeTextRequestsFor } from "./linetype-text-requests";
 
 export type { CadOffThreadTessellator, CadRenderTessellationSource, CadRenderOrigin };
-export {
-  CAD_RENDER_DEFAULT_COLOR,
-  CAD_RENDER_DEFAULT_HALF_WIDTH_PX,
-} from "./render-style";
+export { CAD_RENDER_DEFAULT_COLOR, CAD_RENDER_DEFAULT_HALF_WIDTH_PX } from "./render-style";
 
 /**
  * Segmentos que materializa como mucho una tarea del planificador.
@@ -325,6 +322,9 @@ export class CadRenderPipeline {
   get tileSize(): number {
     return this.index.tileSize;
   }
+
+  /** La entidad residente por id — O(1) para quien ya sabe QUÉ tocó (la selección del anfitrión), sin rehacer un mapa del documento. */
+  entity(id: string): CadNativeEntity | undefined { return this.entities.get(id); }
 
   /** Origen flotante vigente — lo necesita quien más empaqueta geometría contra el mismo marco. */
   get renderOrigin(): CadRenderOrigin {

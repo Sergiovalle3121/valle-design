@@ -2,7 +2,7 @@
 
 Cierre del coordinador (F0/F1) a las 22:25 UTC, actualizado a las 23:22 UTC con el estado del CI. La orden completa está en
 `docs/execution/auditoria-fable/PROMPT_MAESTRO_FABLE.md`; el diario entrada por
-entrada en `CAMPANA_LUNES_20260906.md`; las decisiones tomadas sin preguntar,
+entrada en `docs/history/execution/CAMPANA_LUNES_20260906.md`; las decisiones tomadas sin preguntar,
 con sus cuatro campos, en `DECISIONES_20260906.md`. Rama `claude/valle-design-auditoria-bhin78`,
 PR #194 contra `main`. Ninguna cifra de este informe se escribió a mano: cada
 una se transcribe de la salida del script que la computa, con la hora, y se

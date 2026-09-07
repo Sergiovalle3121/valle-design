@@ -92,7 +92,9 @@ const NO_OPERAN_POR_ESTAR_ACTIVOS: Record<string, string> = {
   // la de inactivo en «3D».
   "Vista de plano 2D (superior, solo paneo y zoom)":
     "el estudio carga ya en vista de planta",
-  Model: "la pestaña de espacio modelo ya está seleccionada",
+  // Era «Model» (rótulo en inglés en una barra en español); la pestaña se
+  // llama «Modelo» desde el pulido del editor. La razón no cambia.
+  Modelo: "la pestaña de espacio modelo ya está seleccionada",
   // Sin «(V)»: el lienzo dejó de robar la V (alias VIEW) y el título ya no la anuncia.
   "Seleccionar / mover": "es la herramienta activa al cargar",
   // Antes era "Puntos" (compatibilidad con estaciones heredadas del

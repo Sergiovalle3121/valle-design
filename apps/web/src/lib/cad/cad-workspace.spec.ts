@@ -48,6 +48,12 @@ assert.equal(robado.find((shortcut) => shortcut.id === 'select')?.key, '', 'sele
 assert.equal(robado.find((shortcut) => shortcut.id === 'polyline')?.key, '', 'polyline:P no se arma (P=PAN)');
 assert.deepEqual(cadWorkspaceAliasCollisions({ shortcutOverrides: { select: 'm', polyline: 'P', line: 'Ctrl+Shift+L' } }), ['polyline:p→PAN', 'select:m→MOVE']);
 assert.equal(normalizeCadWorkspacePreferences(null).profile, CAD_WORKSPACE_DEFAULTS.profile);
+// El riel de la biblioteca: colapsado de fábrica es `false` (panel entero
+// visible) y sólo un booleano explícito lo cambia — igual que `leftDock`.
+assert.equal(CAD_WORKSPACE_DEFAULTS.leftDockCollapsed, false);
+assert.equal(normalizeCadWorkspacePreferences({}).leftDockCollapsed, false);
+assert.equal(normalizeCadWorkspacePreferences({ leftDockCollapsed: true }).leftDockCollapsed, true);
+assert.equal(normalizeCadWorkspacePreferences({ leftDockCollapsed: 'yes' }).leftDockCollapsed, false);
 // Arrastre sobre el fondo: ventana de fábrica; sólo 'pan' explícito la quita.
 assert.equal(CAD_WORKSPACE_DEFAULTS.backgroundDrag, 'marquee');
 assert.equal(normalizeCadWorkspacePreferences({}).backgroundDrag, 'marquee');

@@ -46,6 +46,17 @@ export interface PersonalDataExport {
   activity: Array<{ action: string; createdAt: string }>;
 }
 
+/**
+ * Tope de sesiones en la exportación. Cada inicio de sesión inserta una fila y
+ * ninguna ruta las borra (revocar sólo estampa `revoked_at`), así que sin tope
+ * la consulta crecía con la vida entera de la cuenta — a diferencia de
+ * `listSessions` (100) y de la actividad de aquí abajo (200). Van las MÁS
+ * RECIENTES primero, que es lo que quien exporta puede querer revisar; mil
+ * cubre años de uso diario (hallazgo «GET /v1/auth/export lists sessions
+ * without a bound»).
+ */
+export const PERSONAL_DATA_EXPORT_SESSION_LIMIT = 1000;
+
 export async function exportPersonalData(
   deps: {
     dataSource: DataSource;
@@ -58,7 +69,11 @@ export async function exportPersonalData(
 ): Promise<PersonalDataExport> {
   const user = await deps.users.findOneByOrFail({ id: userId });
   const [sessions, memberships, mfaStatus, activity] = await Promise.all([
-    deps.sessions.find({ where: { userId }, order: { createdAt: 'DESC' } }),
+    deps.sessions.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+      take: PERSONAL_DATA_EXPORT_SESSION_LIMIT,
+    }),
     deps.dataSource.getRepository(Membership).findBy({ userId }),
     deps.mfa.mfaStatus(userId),
     deps.audit.find({

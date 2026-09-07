@@ -150,7 +150,7 @@ Non-redundancy guardrails:
 - Coordinate drafting reuses `parseCadCommand`, `previewCadCommand`, and
   `executeCadCommand`; no alternate command runner was introduced.
   (`applyCommandOperation` was removed as dead code in the 2026-09-06 monolith
-  cleanup — see `docs/execution/frentes/F1-monolito.md`.)
+  cleanup — see `docs/history/execution/frentes-lunes-20260906/F1-monolito.md`.)
 - Walls continue to be normal `wall` assets on the architecture layer; rooms and
   zones continue through the existing editable asset model.
 

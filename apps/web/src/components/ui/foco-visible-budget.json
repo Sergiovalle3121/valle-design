@@ -1,5 +1,5 @@
 {
   "descripcion": "Clases con `outline-none` y ningún sustituto visible del anillo de foco. Sólo baja.",
-  "maximo": 27,
-  "nota": "Casi todas viven en las paletas del editor CAD. Se bajan sacando cada paleta a su componente y dándole el anillo del sistema; ver P1-FE5 en docs/execution/BACKLOG.md."
+  "maximo": 0,
+  "nota": "F9 P-05 (2026-09-07): las 9 que quedaban dentro de Layout3DEditor.tsx llevan ya `focus-visible:ring-2 focus-visible:ring-ring` (ocho en el monolito y la caja de buscar de la paleta Ctrl+K, que se mudó a CadCommandPalette.tsx). Trinquete en cero: cualquier `outline-none` nuevo sin sustituto visible es rojo."
 }

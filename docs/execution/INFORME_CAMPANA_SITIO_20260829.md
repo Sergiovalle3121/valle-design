@@ -5,7 +5,7 @@
 > Regla del documento (la misma de la bitácora): toda cifra fue medida en este
 > contenedor o leída de un artefacto committeado. Lo no medido se declara
 > pendiente; nada se estima. La bitácora con el detalle por ítem vive en
-> `CAMPANA_SITIO_20260829.md`.
+> `docs/history/execution/CAMPANA_SITIO_20260829.md`.
 
 ---
 

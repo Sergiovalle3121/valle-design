@@ -174,7 +174,7 @@ export function Modal({
         aria-label={title}
         tabIndex={-1}
         className={cx(
-          "w-full rounded-surface border border-border bg-card text-card-foreground shadow-floating outline-none",
+          "w-full rounded-surface border border-border bg-card text-card-foreground shadow-floating outline-none focus-visible:ring-2 focus-visible:ring-ring",
           SIZES[size],
           className,
         )}

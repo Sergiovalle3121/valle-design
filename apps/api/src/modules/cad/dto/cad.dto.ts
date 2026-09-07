@@ -17,7 +17,9 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateBy,
   ValidateNested,
+  type ValidationOptions,
 } from 'class-validator';
 import { IsCadCommentAnchor } from '../cad-comment-anchor';
 
@@ -28,6 +30,42 @@ import { IsCadCommentAnchor } from '../cad-comment-anchor';
  * definición de bloque, ancla) se declaran @IsObject y los valida el dominio
  * (cad-document-validation / CadBlocksService), no la pipe.
  */
+
+/* ─────────────────────────── Topes de `layers` ─────────────────────────── */
+
+/**
+ * `layers` son registros pequeños (id/nombre/color/visible/bloqueado) que
+ * viajan en CADA fila de la lista y en cada apertura del documento, así que un
+ * arreglo sin tope —hasta los 16 MB del cuerpo— lo pagaba todo el inquilino
+ * en cada `GET /v1/cad/documents`. Los dos topes son validación del SERVIDOR:
+ * el contrato no declara `maxItems` y no se toca aquí (hallazgo «PATCH
+ * /v1/cad/documents/:id accepts an unbounded layers array»).
+ */
+export const MAX_CAD_DOCUMENT_LAYERS = 1000;
+export const MAX_CAD_DOCUMENT_LAYERS_BYTES = 256 * 1024;
+
+/** Tope en bytes del valor serializado; `ArrayMaxSize` no acota el peso. */
+function MaxSerializedBytes(max: number, options?: ValidationOptions) {
+  return ValidateBy(
+    {
+      name: 'maxSerializedBytes',
+      constraints: [max],
+      validator: {
+        validate: (value: unknown) => {
+          try {
+            return (
+              Buffer.byteLength(JSON.stringify(value) ?? '', 'utf8') <= max
+            );
+          } catch {
+            return false;
+          }
+        },
+        defaultMessage: () => `supera los ${max} bytes serializados`,
+      },
+    },
+    options,
+  );
+}
 
 /* ─────────────────────────────── Paginación ────────────────────────────── */
 
@@ -150,6 +188,8 @@ export class UpdateCadDocumentMetaDto {
 
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(MAX_CAD_DOCUMENT_LAYERS)
+  @MaxSerializedBytes(MAX_CAD_DOCUMENT_LAYERS_BYTES)
   layers?: Record<string, unknown>[] | null;
 }
 

@@ -334,7 +334,7 @@ conviene leerla antes de nada:
   2026-09-06 contra `https://pypi.org/pypi/hypothesis/6.167.1/json`,
   `license_expression: "MPL-2.0"`) y `CORPUS_POLICY.md` prohíbe MPL «sin
   excepción y sin discusión». Ver petición de corrección en
-  `docs/execution/frentes/F10-peticiones.md`.
+  `docs/history/execution/frentes-lunes-20260906/F10-peticiones.md`.
 - **Lenguaje:** Python 3.11 (extensión nativa que envuelve libFuzzer)
 - **Autor / titular:** Google
 - **Licencia:** Apache-2.0

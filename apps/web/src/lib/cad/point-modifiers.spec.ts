@@ -2,7 +2,7 @@
  * `point-modifiers.ts` — la aritmética pura de DESDE, M2P y TT (T-22). Lo que
  * NO se prueba aquí, a propósito, es la sub-captura completa: eso vive en
  * `command-engine-host.ts`, fuera del territorio de F3 (ver la petición
- * P-03 en `docs/execution/frentes/F3-peticiones.md`).
+ * P-03 en `docs/history/execution/frentes-lunes-20260906/F3-peticiones.md`).
  */
 import { strict as assert } from "node:assert";
 import {

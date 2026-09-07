@@ -25,6 +25,8 @@ import {
   type CadDocument,
   type CadEntity,
 } from "@/lib/cad/cad-document";
+import { packedContrastRatio } from "@/lib/cad/render/render-style";
+import { THEMES } from "@/components/cad/studio/editor-presentation";
 
 let checks = 0;
 function ok(condition: boolean, message: string): void {
@@ -370,8 +372,74 @@ assert.ok(
   Math.abs(Math.max(...excludedDepths) - 0.9 * (1 - 2 * (0.5 / 7))) < 1e-4,
   "el orden de dibujo se renumera sobre las entidades que quedan",
 );
+// Seleccionar el INSERT excluido no puede colarlo en el pipeline por lotes: la
+// entidad del upsert sale del pipeline (que no lo tiene), no del documento.
+// Antes, `setSelection` rehacía un mapa del documento entero y lo metía.
+excluded.setSelection(["insert-1"], document);
+settle(excluded);
+assert.equal(
+  excluded.diagnostics().total,
+  7,
+  "seleccionar un INSERT excluido no lo mete en el pipeline por lotes",
+);
+// Y recargar por un cambio de fondo respeta la exclusión del último `replace`.
+excluded.setBackground(THEMES.light.bg);
+settle(excluded);
+assert.equal(excluded.diagnostics().total, 7, "recargar por el fondo respeta la exclusión de INSERT");
 excluded.dispose();
-ok(true, "excluir un INSERT batcheado no deja huecos en el orden de dibujo");
+ok(true, "excluir un INSERT batcheado no deja huecos en el orden de dibujo, ni al seleccionarlo ni al cambiar de fondo");
+
+// ---------------------------------------------------------------------------
+// 5b. F9 P-01: el FONDO real del lienzo llega a la tinta por defecto. Antes el
+//     anfitrión nunca lo pasaba, y `legibleDefaultInk` (T-13) corregía contra
+//     el preset «Oscuro» aunque el lienzo fuese el «Claro»: ACI 7 blanco sobre
+//     un fondo casi blanco.
+// ---------------------------------------------------------------------------
+function colorsOf(hostUnderTest: CadViewportRenderHost): Set<number> {
+  const colors = new Set<number>();
+  for (const child of hostUnderTest.group.children) {
+    if (child.userData.cadLineBatch !== true) continue;
+    const geometry = (child as THREE.Mesh).geometry as THREE.InstancedBufferGeometry;
+    const style = geometry.getAttribute("instanceStyle");
+    for (let index = 0; index < geometry.instanceCount; index += 1) colors.add(style.getX(index));
+  }
+  return colors;
+}
+const ACI7_WHITE = 0xffffff;
+const inkParent = new THREE.Group();
+const inkHost = new CadViewportRenderHost({ parent: inkParent, viewport });
+const inkDocument: CadDocument = {
+  ...mixedDocument(),
+  entities: [
+    {
+      id: "blanca",
+      type: "line",
+      start: { x: 0, y: 0, z: 0 },
+      end: { x: 400, y: 0, z: 0 },
+      layer: "0",
+      context: { presentation: { color: { value: "#ffffff", source: "layer" } } },
+    } as unknown as CadEntity,
+  ],
+  modelSpace: { ...mixedDocument().modelSpace, entityIds: ["blanca"] },
+};
+inkHost.replace(inkDocument);
+settle(inkHost);
+ok(colorsOf(inkHost).has(ACI7_WHITE), "con el fondo por defecto (preset «Oscuro») el blanco de ACI 7 se dibuja blanco: cero regresión");
+inkHost.setBackground(THEMES.light.bg);
+assert.equal(inkHost.diagnostics().rendered, 0, "un fondo nuevo recarga el pipeline: la tinta se resuelve al teselar");
+settle(inkHost);
+const lightInks = colorsOf(inkHost);
+ok(lightInks.size > 0 && !lightInks.has(ACI7_WHITE), "sobre el preset «Claro» no queda ninguna instancia blanca");
+ok(
+  [...lightInks].every((color) => packedContrastRatio(color, THEMES.light.bg) >= 3),
+  `y toda tinta cumple el piso gráfico de 3:1 sobre ese fondo (${[...lightInks].map((c) => c.toString(16)).join(", ")})`,
+);
+assert.equal(inkHost.diagnostics().total, 1, "recargar por el fondo no pierde entidades");
+// El MISMO fondo dos veces es un no-op: no vacía el detalle ni reencola nada.
+inkHost.setBackground(THEMES.light.bg);
+assert.equal(inkHost.diagnostics().rendered, inkHost.diagnostics().visible, "repetir el mismo fondo no recarga");
+inkHost.dispose();
+ok(true, "el fondo del lienzo llega a la tinta por defecto y cambiar de tema recarga una sola vez");
 
 // ---------------------------------------------------------------------------
 // 6. Editar entra por `invalidate` y se ve. Y una BAJA es una baja.

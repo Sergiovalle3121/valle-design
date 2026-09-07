@@ -107,6 +107,12 @@ function withSchemaDefaults(doc: Partial<CadDocument>): CadDocument {
     ...(Array.isArray(doc.cells) ? { cells: doc.cells } : {}),
     ...(Array.isArray(doc.imageDefinitions) ? { imageDefinitions: doc.imageDefinitions } : {}),
     ...(Array.isArray(doc.layerStates) ? { layerStates: doc.layerStates } : {}),
+    // T-11(c): las pérdidas del DXF DE FONDO viajan con el documento en vez de
+    // vivir sólo en estado de React. Documento sin sección (nunca cargó un DXF
+    // de fondo, o lo cargó antes de esta ficha) sigue sin ella.
+    ...(Array.isArray(doc.dxfBackgroundLossManifest)
+      ? { dxfBackgroundLossManifest: doc.dxfBackgroundLossManifest }
+      : {}),
   };
 }
 

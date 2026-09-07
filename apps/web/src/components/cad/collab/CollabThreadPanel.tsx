@@ -223,7 +223,7 @@ export default function CollabThreadPanel({
               <span
                 className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full type-micro font-bold ${
                   thread.resolved
-                    ? "bg-success/15 text-gray-950"
+                    ? "bg-success/15 text-success-ink"
                     : "bg-amber-400 text-gray-950"
                 }`}
               >

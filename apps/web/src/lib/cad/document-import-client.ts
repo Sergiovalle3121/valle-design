@@ -93,12 +93,54 @@ export function splitDocumentSelection(files: readonly File[]): {
   };
 }
 
+/**
+ * T-75(f): el reloj de ATASCO, aislado de `importDocumentFile` para poder
+ * probarlo sin un `Worker` real (Node no tiene la API de Worker del
+ * navegador). A diferencia de un plazo total, `arm()` se llama en cada señal
+ * de vida (cada `onProgress`) y REINICIA la cuenta: sólo dispara cuando pasan
+ * `stallMs` sin que nadie vuelva a llamar `arm()`.
+ */
+export function createStallWatchdog(stallMs: number, onFire: () => void) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let stopped = false;
+  const arm = () => {
+    if (stopped) return;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      if (!stopped) onFire();
+    }, stallMs);
+  };
+  const stop = () => {
+    stopped = true;
+    if (timer) clearTimeout(timer);
+  };
+  return { arm, stop };
+}
+
 export function importDocumentFile(
   file: File,
   options: {
     signal?: AbortSignal;
     timeoutMs?: number;
     onProgress?: (progress: number, stage: string) => void;
+    /**
+     * T-75(f): la importación moría a los 45 s aunque estuviera avanzando —
+     * un reloj de PLAZO TOTAL, no de ATASCO. Un plano grande que sigue
+     * mandando progreso legítimamente pasado ese plazo moría igual que uno
+     * de verdad colgado, y el mensaje ("excedió 45 segundos") no distinguía
+     * los dos casos.
+     *
+     * Con `onStalled`, el reloj deja de medir el total y pasa a medir
+     * SILENCIO: se reinicia en cada `onProgress`, y sólo dispara cuando no
+     * llega NINGÚN progreso durante `stallMs` (el mismo valor de
+     * `timeoutMs`, renombrado en la intención). Al dispararse NO rechaza la
+     * promesa — llama a `onStalled(resume)` y espera: quien lo escucha
+     * decide "Seguir esperando" (llama a `resume()`, que reinicia el reloj)
+     * o "Cancelar" (aborta por `signal`, el camino que ya existía). Sin
+     * `onStalled` el comportamiento es EXACTAMENTE el de antes —un plazo
+     * fijo que rechaza solo— para no romper a quien no pidió el cambio.
+     */
+    onStalled?: (resume: () => void) => void;
     /** Acompañantes del `.shp`. Vacío para DXF y JSON. */
     sidecars?: { shx?: File; dbf?: File; prj?: File; cpg?: File };
   } = {},
@@ -108,6 +150,7 @@ export function importDocumentFile(
   const dwg3dWireframeBetaEnabled = isDwg3dWireframeImportBetaEnabled();
   const dwgModernBetaEnabled = isDwgModernImportBetaEnabled();
   validateImportFile(file.name, file.size, dwgBetaEnabled);
+  const stallMs = options.timeoutMs ?? 45_000;
   return new Promise((resolve, reject) => {
     const worker = new Worker(
       new URL("./document-import.worker.ts", import.meta.url),
@@ -119,7 +162,7 @@ export function importDocumentFile(
     const finish = (action: () => void) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timeout);
+      watchdog.stop();
       options.signal?.removeEventListener("abort", abort);
       worker.terminate();
       action();
@@ -128,14 +171,21 @@ export function importDocumentFile(
       finish(() =>
         reject(new DOMException("Importación cancelada.", "AbortError")),
       );
-    const timeout = setTimeout(
-      () =>
-        finish(() => reject(new Error("La importación excedió 45 segundos."))),
-      options.timeoutMs ?? 45_000,
-    );
+    const watchdog = createStallWatchdog(stallMs, () => {
+      if (options.onStalled) {
+        // No se rechaza: la decisión es de quien escucha el atasco.
+        options.onStalled(watchdog.arm);
+      } else {
+        finish(() =>
+          reject(new Error(`La importación no avanzó en ${Math.round(stallMs / 1000)} segundos.`)),
+        );
+      }
+    });
+    watchdog.arm();
     worker.onmessage = (event: MessageEvent<WorkerEvent>) => {
       const message = event.data;
       if (message.type === "progress") {
+        watchdog.arm();
         options.onProgress?.(message.progress, message.stage);
       } else if (message.type === "complete") {
         finish(() => resolve(message.report));

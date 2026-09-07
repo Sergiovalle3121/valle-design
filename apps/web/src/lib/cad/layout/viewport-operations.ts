@@ -281,20 +281,26 @@ export function createCadPolygonalViewport(
 ): CadPolygonalViewportResult | null {
   if (input.boundary.length < 3) return null;
   const bounds = boundsOfPoints(input.boundary);
-  const viewport = createCadRectangularViewport({
-    space: input.space,
-    id: input.id,
-    name: input.name ?? "Ventana poligonal",
-    paperBounds: {
-      x: bounds.minX,
-      y: bounds.minY,
-      width: bounds.maxX - bounds.minX,
-      height: bounds.maxY - bounds.minY,
-    },
-    modelBounds: input.modelBounds,
-    ...(input.scale !== undefined ? { scale: input.scale } : {}),
-    ...(input.lock !== undefined ? { lock: input.lock } : {}),
-  });
+  const viewport: CadPaperViewport = {
+    ...createCadRectangularViewport({
+      space: input.space,
+      id: input.id,
+      name: input.name ?? "Ventana poligonal",
+      paperBounds: {
+        x: bounds.minX,
+        y: bounds.minY,
+        width: bounds.maxX - bounds.minX,
+        height: bounds.maxY - bounds.minY,
+      },
+      modelBounds: input.modelBounds,
+      ...(input.scale !== undefined ? { scale: input.scale } : {}),
+      ...(input.lock !== undefined ? { lock: input.lock } : {}),
+    }),
+    // T-19·4: el contorno REAL viaja con la ventana — antes sólo se guardaba
+    // el rectángulo envolvente y el contorno verdadero se perdía en silencio
+    // para cualquier consumidor que no fuera a buscar la polilínea aparte.
+    clipPolygon: input.boundary,
+  };
   const clip: CadNativeEntity = {
     id: input.clipEntityId,
     type: "polyline",

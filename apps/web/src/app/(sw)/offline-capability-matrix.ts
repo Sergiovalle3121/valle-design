@@ -132,8 +132,9 @@ export const MATRIZ_SIN_RED: readonly FilaSinRed[] = [
       "apps/web/src/lib/brep/index.ts",
     ],
     porque:
-      "El motor 2D, el registro de frases y el B-rep facetado son TypeScript que corre en la pestaña. Ninguno consulta al servidor para trazar una línea, resolver una referencia a objeto o extruir una cara.",
-    seNota: "Nada. Es el único trozo del producto donde la red no se echa de menos.",
+      "El motor 2D, el registro de frases y el B-rep facetado son TypeScript que corre en la pestaña. Ninguno consulta al servidor para trazar una línea, resolver una referencia a objeto o extruir una cara. Con una condición que hay que decir entera, igual que en `abre-el-estudio-sin-red`: esto es cierto para el código que YA se descargó. Los comandos viven en 108 módulos de carga diferida (T-72a/T-75d) y el service worker no precarga ninguno — sólo cachea `/_next/static/*` DESPUÉS de que el navegador ya lo pidió una vez (`service-worker-policy.ts`, sección de inmutables). Un comando que nunca se usó en esta pestaña, tecleado sin red, falla al intentar descargar su módulo.",
+    seNota:
+      "Para lo YA usado en esta sesión: nada. Para un comando que nunca se tecleó antes de perder la conexión: el mismo fallo de red que cualquier `import()` que no puede completarse — no un mensaje que lo explique como tal.",
   },
   {
     id: "diario-de-recuperacion",

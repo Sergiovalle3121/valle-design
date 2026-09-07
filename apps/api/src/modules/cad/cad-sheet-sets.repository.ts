@@ -4,6 +4,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { FindOptionsWhere, IsNull } from 'typeorm';
+import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import {
   TenantScopedRepository,
   getTenantRepositoryToken,
@@ -84,13 +86,19 @@ const DEFAULT_NUMBERING: SheetSetContent['numbering'] = {
  * Todas las lecturas y escrituras van por el repositorio TENANT-SCOPED: el
  * tenant sale del contexto autenticado, nunca del cliente.
  *
- * ## El CAS no es opcional
+ * ## El CAS no es opcional — y vive en el SQL
  *
- * `save` compara `expectedVersion` con la versión almacenada y responde 409 con
- * la vigente cuando no coinciden. Es la misma disciplina que el documento
- * canónico y por la misma razón: reordenar un conjunto reescribe el número de
- * casi todas sus hojas, así que dos guardados concurrentes sin CAS no pierden
- * un campo — pierden la numeración entera de una de las dos personas.
+ * `save` responde 409 con la versión vigente cuando `expectedVersion` no
+ * coincide con la almacenada. Es la misma disciplina que el documento canónico
+ * y por la misma razón: reordenar un conjunto reescribe el número de casi
+ * todas sus hojas, así que dos guardados concurrentes sin CAS no pierden un
+ * campo — pierden la numeración entera de una de las dos personas.
+ *
+ * Quien arbitra es el predicado `version = expectedVersion` del `UPDATE`, no
+ * una comparación en memoria: comparar después de releer y guardar con
+ * `save()` (que emite `UPDATE … WHERE id = $1`, sin versión) dejaba pasar a dos
+ * escritores que habían leído la misma versión — exactamente la pérdida que el
+ * CAS promete impedir (hallazgo «Sheet-set CAS is check-then-write»).
  */
 @Injectable()
 export class CadSheetSetsRepository {
@@ -140,9 +148,13 @@ export class CadSheetSetsRepository {
   /**
    * Guarda el conjunto entero con CAS.
    *
-   * Se relee la fila DENTRO de la misma operación y se compara la versión antes
-   * de escribir. Sin la relectura, `expectedVersion` compararía contra lo que
-   * el cliente creía y no contra lo que hay, que es no comprobar nada.
+   * La relectura previa sólo sirve para el 404, el mensaje amable del 409 y
+   * el relleno de `fields`/`numbering` cuando no vienen. El árbitro es el
+   * `UPDATE … WHERE version = expectedVersion`: exactamente UNA fila en la
+   * versión esperada avanza, y el escritor desfasado —aunque haya leído la
+   * misma versión que el ganador un instante antes— no afecta ninguna fila y
+   * recibe 409 con la vigente. Se devuelve la fila releída, no la de memoria:
+   * `updated_at` lo estampa el motor y la versión ya avanzó en SQL.
    */
   async save(
     sheetSetId: string,
@@ -150,13 +162,7 @@ export class CadSheetSetsRepository {
   ): Promise<CadSheetSet> {
     const row = await this.get(sheetSetId);
     if (row.version !== input.expectedVersion)
-      throw new ConflictException({
-        error: 'version_conflict',
-        message:
-          'El conjunto de planos cambió desde la última lectura; vuelve a cargarlo antes de guardar.',
-        currentVersion: row.version,
-        expectedVersion: input.expectedVersion,
-      });
+      throw this.versionConflict(row.version, input.expectedVersion);
     if (input.sheets.length > MAX_SHEETS_PER_SET)
       throw new ConflictException({
         error: 'too_many_sheets',
@@ -171,11 +177,51 @@ export class CadSheetSetsRepository {
       ...(input.subsets ? { subsets: input.subsets } : {}),
     };
 
-    row.content = content as unknown as Record<string, unknown>;
-    row.version = row.version + 1;
-    if (input.name !== undefined) row.name = input.name;
-    if (input.description !== undefined) row.description = input.description;
-    return this.sheetSets.save(row);
+    const result = await this.sheetSets.update(
+      { ...this.mutationScope(sheetSetId), version: input.expectedVersion },
+      {
+        content,
+        version: () => 'version + 1',
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.description !== undefined
+          ? { description: input.description }
+          : {}),
+      } as unknown as QueryDeepPartialEntity<CadSheetSet>,
+    );
+    if (result.affected !== 1) {
+      // Alguien avanzó la versión entre la relectura y el UPDATE (o el
+      // conjunto desapareció: `get` responde 404 en ese caso).
+      const current = await this.get(sheetSetId);
+      throw this.versionConflict(current.version, input.expectedVersion);
+    }
+    return this.get(sheetSetId);
+  }
+
+  /**
+   * Ámbito de mutación para el UPDATE directo: TenantScopedRepository scopea
+   * las LECTURAS, pero `update()` puentea esos overrides, así que el predicado
+   * lleva el tenant explícito y falla cerrado — el mismo patrón que
+   * `CadDocumentsRepository.mutationScope`.
+   */
+  private mutationScope(id: string): FindOptionsWhere<CadSheetSet> {
+    return {
+      id,
+      tenant_id: this.tenantCtx.getTenantId() ?? IsNull(),
+      deleted_at: IsNull(),
+    };
+  }
+
+  private versionConflict(
+    currentVersion: number,
+    expectedVersion: number,
+  ): ConflictException {
+    return new ConflictException({
+      error: 'version_conflict',
+      message:
+        'El conjunto de planos cambió desde la última lectura; vuelve a cargarlo antes de guardar.',
+      currentVersion,
+      expectedVersion,
+    });
   }
 
   /**

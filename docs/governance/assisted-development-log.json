@@ -3349,6 +3349,218 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "VALLE-DESIGN-F9-CIMIENTOS-PIEL-20260906",
+      "date": "2026-09-06",
+      "initiative": "Frente F9 · Cimientos y piel, de la campaña «El lunes de un arquitecto» (docs/execution/auditoria-fable/PROMPT_MAESTRO_FABLE.md, encargo del titular 2026-09-05/06). Territorio: scripts/design/, check-lint-budget.mjs y lint-budget.json, scripts/cad/{check-ribbon-coverage,ui-command-reach}.mjs, lib/cad/{render/, plot/aci-palette.ts, commands/lazy.ts}, document-lifecycle/, el recovery de IndexedDB, components/cad/{ribbon/, studio/, command-line/, palettes/CadHatchPalette.tsx, viewport-hints.tsx}, components/collab/{ReviewPlanView,CollabThreadPanel}.tsx, components/ui/, app/studio/, app/dashboard/ (sólo borrar plano), el service worker, goldens 160-169. Trabajo en `claude/f9-cimientos-piel`, sin tocar Layout3DEditor.tsx (exclusivo de F1) ni los archivos compartidos del coordinador (rubric.json, ESCALERA.md, BACKLOG.md, monolith-budget.json, manifiesto.json). T-72(e): lazy.ts ya no cachea la promesa rechazada de un chunk caído (createLazySingleton, testeado sin mockear import() dinámico). T-24·3: describeCadSaveFailure clasifica el 400 permanente de documento sobre el límite junto al 413, con salida explícita en vez de \"espera y reintenta\". T-13: legibleDefaultInk (render-style.ts) invierte la tinta por defecto del dibujo cuando su contraste contra el fondo del lienzo cae bajo el piso; check-contrast.mjs ampliado para medirla contra los cuatro presets de THEMES y para los cuatro pares de UI que el escéptico midió a mano, arreglados con tokens; petición escrita para el wiring del fondo real en render-pipeline-host.ts (F7) y el forzado de tema en Layout3DEditor.tsx (F1/coordinador). T-72(f): check-lint-budget.mjs endurecido a presupuesto por archivo, no sólo por regla y workspace. T-72(h): ErrorBoundary alrededor del editor en CadStudioHost.tsx (fuera del monolito), con checkpoint de emergencia al diario de recuperación en el instante del fallo (wrapDocumentPortForCrashRecovery) y descarga del último punto de recuperación en DXF (EditorCrashRecoveryAction, nuevo prop extraActions en ErrorBoundary). T-75(c): openDatabase maneja onblocked con CadRecoveryBlockedError en vez de colgar la promesa para siempre en silencio. T-75(b): abrir un plano caído ofrece Reintentar y el borrador local. T-75(g): botón de borrar documento en el tablero (borrado suave, exige cad:admin) con confirmación — documentsRepository.archive no tenía llamador. T-75(f): createStallWatchdog reemplaza el plazo fijo de 45s de la importación por un reloj de atasco con \"Seguir esperando\"/\"Cancelar\". T-75(h): ToastContext gana aria-live y role por tarjeta, colores de Tailwind crudos reemplazados por tokens del sistema. T-75(d): la fila dibujar-acotar-modelar de la matriz sin red corregida para no afirmar que nada se nota sin red cuando un comando sin precachear sí falla; el precacheo real del núcleo de comandos se propone a BACKLOG.md (demasiado grande y arriesgado para esta ola sin revisión del coordinador). Regresión encontrada y corregida en el propio trabajo: al añadir el botón de borrar y el reloj de atasco, dashboard/page.tsx llegó a 882 líneas y check-monolith-budget.mjs lo cazó (techo 800 para archivo no presupuestado); corregido extrayendo useImportDocument a import-status.tsx y el borrado a archive-document.tsx, mismo patrón que esa extracción ya usaba.",
+      "branch": "claude/f9-cimientos-piel",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate, vía el encargo escrito de la campaña «El lunes de un arquitecto» (PROMPT_MAESTRO_FABLE.md) y la asignación explícita del frente F9 con su territorio exclusivo, sus prohibiciones (no tocar Layout3DEditor.tsx, no relajar gates/umbrales/goldens, no renombrar identificadores persistidos, fix-or-hide) y su régimen de sesión larga sin preguntar, con la opción conservadora ante cualquier duda no cubierta por la tabla de decisión.",
+      "firstPartyInputs": [
+        "docs/execution/auditoria-fable/PROMPT_MAESTRO_FABLE.md (§0, §1, fichas T-13, T-72, T-73, T-74, T-75, T-24·3, §3, §4, §5.2-5.4, §6.3)",
+        "AGENTS.md entero, en particular la sección Design system",
+        "docs/execution/auditoria-fable/00-PUNTO-DE-PARTIDA-VERIFICADO.md",
+        "docs/execution/auditoria-fable/dimensiones/00c-CUADRO-DE-MANDO.md, sección Diseño visual",
+        "docs/design/DESIGN_SYSTEM.md",
+        "El árbol real en el punto de partida de la campaña (2fd2bfd) y origin/main vuelto a fusionar tras el aviso del coordinador (4800017, PR #193)"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "apps/web/src/lib/cad/commands/{lazy.ts,lazy-singleton.ts}",
+        "apps/web/src/components/cad/document-lifecycle/save-failure.ts",
+        "apps/web/src/lib/cad/render/render-style.ts",
+        "scripts/design/check-contrast.mjs",
+        "apps/web/src/components/cad/{studio/viewport-hints.tsx,collab/ReviewPlanView.tsx,collab/CollabThreadPanel.tsx,palettes/CadHatchPalette.tsx,studio/field-controls.tsx}",
+        "scripts/check-lint-budget.mjs y scripts/lint-budget.json",
+        "apps/web/src/components/ui/ErrorBoundary.tsx",
+        "apps/web/src/components/cad/{CadStudioHost.tsx,document-lifecycle/crash-recovery-port.ts,studio/EditorCrashRecoveryAction.tsx}",
+        "apps/web/src/lib/cad/cad-recovery.ts",
+        "apps/web/src/app/studio/[documentId]/page.tsx",
+        "apps/web/src/app/dashboard/{page.tsx,archive-document.tsx,import-status.tsx}",
+        "apps/web/src/lib/cad/document-import-client.ts",
+        "apps/web/src/contexts/ToastContext.tsx",
+        "apps/web/src/app/(sw)/offline-capability-matrix.ts",
+        "apps/web/e2e/golden/{160-cad-borrar-documento,161-cad-plano-caido-reintentar}.spec.ts",
+        "docs/execution/frentes/{F9.md,F9-peticiones.md}"
+      ],
+      "fixtures": "Ninguno con datos ajenos.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "PR borrador contra main con la rama claude/f9-cimientos-piel. typecheck (Node 20, monorepo entero) limpio en cada lote; npx turbo run test --filter=web en 631/631 specs verdes tras fusionar origin/main; check:contrast, check:lint-budget y check-monolith-budget.mjs en verde; goldens 160-161 verdes contra build de producción (E2E_PROD=1). Pendiente de revisión y merge por el titular o el coordinador de la campaña."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "F4-PAPEL-Y-ENTREGA-20260906",
+      "date": "2026-09-06",
+      "initiative": "Frente F4 «Papel y entrega» de la campaña multi-frente «El lunes de un arquitecto»: corrección del export DXF R12 del servidor (boxOf discriminaba después del tipo e inventaba rectángulos; capas y textos se recortaban sin aviso), documentación de la decisión de unificar los dos emisores de PDF del producto (renderCadPlotPdf frente al jsPDF a mano de Layout3DEditor.tsx) y peticiones al coordinador para lo que vive en el monolito.",
+      "branch": "claude/f4-papel-entrega",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular vía coordinador multi-frente"
+      ],
+      "authority": "El encargo llegó como mensaje de arranque de una sesión hija creada por la sesión coordinadora 'Valle Design campaña de auditoría' (origin web_claude_ai, iniciada por Sergio Valle Zárate), confirmada por notificación de una Routine ('Poke F4 · Papel y entrega') y verificada independientemente antes de actuar consultando get_session/list_sessions: la sesión coordinadora y siete sesiones hermanas (F3, F5, F8, F9, F10, F11) existen con el mismo origen y etiqueta de campaña 'campana-lunes-20260906'. Ningún mensaje directo del titular llegó a esta sesión hija; la autorización de fusión queda pendiente de revisión humana del PR.",
+      "firstPartyInputs": [
+        "El código propio del monorepo (apps/api/src/modules/cad, packages/contracts, packages/design-sdk) y sus specs existentes.",
+        "El resumen de fichas T-11/T-19/T-30–T-36 inlineado en el mensaje de arranque de la sesión — los documentos de referencia docs/execution/auditoria-fable/*.md no existían aún en main ni en ninguna rama remota al abrir la sesión (ver docs/execution/frentes/F4.md, nota de arranque)."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. El arreglo se escribió sobre el código propio del repositorio (apps/api/src/modules/cad/cad-dxf-export.ts, cad.controller.ts, el contrato OpenAPI y el SDK generado).",
+      "derivedAreas": [
+        "apps/api/src/modules/cad/cad-dxf-export.ts (discriminación por tipo antes de boxOf, manifiesto de pérdidas layer_truncated/text_truncated/entity_unmapped)",
+        "apps/api/src/modules/cad/cad.controller.ts (ruta exportDxf: lossManifest en la respuesta)",
+        "packages/contracts/specs/design-api.v1.yaml + packages/design-sdk (DxfExport.lossManifest, DxfExportLossWarning — aditivo)",
+        "docs/execution/frentes/F4.md y F4-peticiones.md (bitácora y peticiones al coordinador)"
+      ],
+      "fixtures": "Ninguno nuevo. Se clonó localmente valle-design-dwg-conformance (solo lectura, como espejo VALLE_DWG_CORPUS_MIRROR) sin modificarlo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: revisión humana del PR de la rama claude/f4-papel-entrega. Evidencia local: specs de cad-dxf-export (6/6), cad.controller (14/14), design-sdk (9/9), typecheck y check:cad verdes sobre el SHA de esta rama."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "SALTO-10-10-OLA1-2026-09-07",
+      "date": "2026-09-07",
+      "initiative": "Ola 1 de la campaña «El salto al 10/10» (docs/execution/CAMPANA_SALTO_20260907.md), encargo del titular de nueve frentes hacia 10/10 en funcionalidad y estética. Sesión única atada a una sola rama: los seis frentes de la Ola 1 corrieron como agentes paralelos de un Workflow sobre el mismo checkout, en territorios de archivo disjuntos, con integración y gates únicos de esta sesión (coordinador). Entregables reales: (1) DWG-Corpus — expediente de candidatos de terceros para el corpus DWG/DXF, cero admitidos (bloqueo de red del entorno a todo dominio salvo github.com/raw.githubusercontent.com; los únicos candidatos alcanzables, ejemplos de QCAD/LibreCAD/FreeCAD, tienen licencia GPL/LGPL prohibida por CORPUS_POLICY.md), sin descargar ningún byte ni tocar bundles/; (2) DWG-Encendido — paquete de encendido que enlaza la evidencia viva de dwg-decoder-matrix.json y documenta que la beta NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA (firmada 2026-08-24, ADR-0009) es distinta del flag general DWG_IMPORT_FLAG, y que DWG_EXPORT_FLAG no tiene ningún consumidor de UI hoy; ningún flag se tocó; (3) Kernel3D — spike medido de manifold-3d (Apache-2.0, corrección de un supuesto erróneo del encargo que decía MIT) vs opencascade.js (LGPL-2.1+excepción), con benchmarks reales en /tmp fuera del repo, ADR-0017 aceptado sin autorizar ninguna integración; (4) Portada — CapabilityExplorer.tsx, explorador de capacidades por pestañas que reemplaza la retícula de tarjetas, reutilizando activos reales del producto; (5) EditorUX — tres estorbos de UX arreglados y verificados con Playwright contra el editor real (recorrido tapando la línea de comandos, etiqueta «Seleccionar» encimada, biblioteca de plantillas sin colapsar), con extracción de CadLeftDockPanel.tsx para mantener el presupuesto del monolito (un intento inicial de subir el techo con --allow-growth fue revertido por esta sesión antes de integrar, siguiendo AGENTS.md: «a listed file may only shrink»); (6) Arquitectura-Hueco — investigación que confirmó, con 127+37+51 aserciones reales ejecutadas, que el hueco de puerta/ventana YA recorta el muro de verdad en planta y en 3D; no se tocó código, y se corrigió la premisa errónea del encargo original.",
+      "branch": "claude/valle-design-10-10-fq3nl3",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular, orquestando seis subagentes paralelos vía la herramienta Workflow más un subagente de corrección de presupuesto"
+      ],
+      "authority": "Sergio Valle Zárate, encargo directo de la campaña «El salto al 10/10» con sus nueve frentes; adaptado por esta sesión a lo que un checkout único y una sola rama permiten, documentado en docs/execution/CAMPANA_SALTO_20260907.md. Reglas no negociables respetadas: ningún gate/umbral/golden/presupuesto relajado (la violación de presupuesto que un subagente introdujo se corrigió antes de integrar, no se toleró), CORPUS_POLICY.md respetada al pie de la letra (cero admisiones sin los dos revisores humanos que exige), DWG_IMPORT_FLAG/DWG_EXPORT_FLAG sin tocar, ningún identificador persistido renombrado, ningún data-testid existente renombrado.",
+      "firstPartyInputs": [
+        "docs/execution/CAMPANA_SALTO_20260907.md (encargo de la Ola 1, con la verificación previa de los dos «arreglos urgentes» de portada que resultaron no ser reales)",
+        "AGENTS.md (sección Native/WASM entry gate para el spike de kernel; sección de presupuesto del monolito, cuya violación inicial se corrigió; sección de sistema de diseño para CapabilityExplorer)",
+        "IDENTITY.md, ADR-0016 (límite del kernel facetado, condición de reapertura citada en ADR-0017)",
+        "CORPUS_POLICY.md del repositorio valle-design-dwg-conformance, íntegra, incluida la enmienda 2026-08-20",
+        "docs/adr/0007, 0009, 0012, 0014, 0015 y docs/cad/evidence/dwg-decoder-matrix.json (cifras reales citadas, no inventadas, en el paquete de encendido)",
+        "scripts/check-dependency-licenses.mjs (ancla objetiva del veredicto de licencia del spike de kernel)"
+      ],
+      "externalSources": [
+        {
+          "location": "https://github.com/qcad/qcad (LICENSE.txt), https://github.com/LibreCAD/LibreCAD (LICENSE), https://github.com/FreeCAD/FreeCAD (LICENSE)",
+          "terms": "GPLv3 / GPLv2 / LGPLv2.1 respectivamente",
+          "fact": "Verificados como ÚNICOS candidatos de corpus DWG/DXF alcanzables desde este entorno; RECHAZADOS por CORPUS_POLICY.md (lista explícita de licencias prohibidas). Ningún byte de sus archivos de ejemplo se descargó ni se usó."
+        },
+        {
+          "location": "npm: manifold-3d@latest, opencascade.js@1.1.1 (instalados en /tmp/kernel-spike-20260907, fuera del repositorio, nunca en package.json/package-lock.json del producto)",
+          "terms": "Apache-2.0 (manifold-3d, corregido de la suposición inicial de MIT) / LGPL-2.1 con Open CASCADE Exception 1.0 (opencascade.js)",
+          "fact": "Medidos con benchmarks propios (tamaño de WASM, tiempo de init, tiempo de booleana, exactitud contra volúmenes analíticos) para ADR-0017. Ninguno se integró al producto."
+        },
+        {
+          "location": "https://raw.githubusercontent.com/Open-Cascade-SAS/OCCT/master/OCCT_LGPL_EXCEPTION.txt",
+          "terms": "Open CASCADE Exception 1.0",
+          "fact": "Texto verbatim citado en la sección legal de ADR-0017 (el paquete npm de opencascade.js no incluye el texto de la excepción)."
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna implementación externa se copió, tradujo, portó ni adaptó. Los dos kernels evaluados en el spike se instalaron y midieron como dependencias externas candidatas, no como código consultado para escribir código propio; el spike no integra ningún kernel al producto.",
+      "derivedAreas": [
+        "docs/cad/evidence/DWG_PAQUETE_ENCENDIDO_20260907.md (nuevo)",
+        "docs/adr/0017-kernel-3d-exacto-spike.md (nuevo) y docs/adr/README.md (fila del índice)",
+        "apps/web/src/components/marketing/CapabilityExplorer.tsx y su spec (nuevos); apps/web/src/app/page.tsx (sección Capacidades); apps/web/src/app/public-pages.spec.ts (CapabilityExplorer.tsx añadido al escaneo de honestidad pública)",
+        "apps/web/src/components/cad/onboarding/CadGuidedTourDock.tsx (pliegue del recorrido guiado); apps/web/src/components/cad/command-line/CadCommandLineDock.tsx (separación del hueco); apps/web/src/components/cad/editor/CadToolPalette.tsx (etiqueta «Seleccionar»)",
+        "apps/web/src/components/cad/editor/CadLeftDockPanel.tsx (nuevo, extraído de Layout3DEditor.tsx) y Layout3DEditor.tsx (16961 líneas, por debajo del presupuesto original de 17235); scripts/cad/monolith-budget.json actualizado por extracción, no por --allow-growth",
+        "apps/web/src/lib/cad/cad-workspace.ts y su spec (preferencia leftDockCollapsed)",
+        "apps/web/e2e/golden/211, 212, 213 (nuevos, verificados contra el editor real con Playwright)",
+        "valle-design-dwg-conformance/docs/CANDIDATOS_TERCEROS_20260907.md (nuevo; cero bundles admitidos)"
+      ],
+      "fixtures": "Ninguno con datos ajenos ni de clientes. El expediente de candidatos DWG/DXF de terceros documenta candidatos RECHAZADOS o NO VERIFICABLES; no se incorporó ningún archivo DWG/DXF de terceros al corpus.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "npm run typecheck (turbo, 0 errores), npm run lint (turbo, 0 errores, warnings preexistentes sin relación con los archivos tocados), npm test (turbo, 650/650 specs verdes), npm run check:cad completo con VALLE_DWG_CORPUS_MIRROR (33 sub-checks verdes: monolito 16961/16961, rúbrica 256/309 con 35 pt de evidencia independiente, galería de plantillas 149/149, corpus DXF/PDF al día, 110 operaciones de API sincronizadas). Además, específico de esta ola: node scripts/cad/check-monolith-budget.mjs tras la extracción de CadLeftDockPanel.tsx (16961 líneas, sin --allow-growth); npx playwright test sobre los goldens 211/212/213 contra el editor real (7/7 verdes en Chromium); npx tsx sobre wall-openings.spec.ts/wall-solid.spec.ts/flatshot-solids.spec.ts (127+37+51 aserciones verdes) que confirmaron sin tocar código que el hueco de puerta/ventana ya recorta el muro de verdad."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "LANDING-3D-COPY-GAP-20260907",
+      "date": "2026-09-07",
+      "initiative": "Encargo del titular vía tarea remota: \"landing page de clase mundial\" (rediseño del hero, animaciones, copy técnico, rendimiento y marca) sobre apps/web/src/app/page.tsx y componentes de marketing. El encargo original pedía, entre otras cosas, un H1 con \"DWG nativo\", una insignia de métricas fijas (\"9,407 líneas\", \"<50ms\", \"100% ODA\"), animaciones con Framer Motion en vez de la primitiva RevealOnScroll ya existente y un rebrand completo a paleta oscura/naranja. Antes de escribir código se leyó IDENTITY.md, ADR-0016, CAPABILITIES.md de dwg-codec, public-pages.spec.ts y globals.css: el H1 pedido habría afirmado soporte nativo de DWG que CAPABILITIES.md marca productionAvailable:false (beta con flags apagados por defecto) y que la propia portada ya niega deliberadamente (\"No abrimos ni escribimos DWG\", guardado por public-pages.spec.ts); las métricas fijas no tienen artefacto de evidencia en build como exige site-evidence.ts; Framer Motion habría duplicado la primitiva única de aparición por scroll que RevealOnScroll ya declara con esa regla explícita (\"todas las públicas usan ESTA en vez de inventar variantes\"); y el rebrand tocaría tokens de marca (--valle-accent, etc.) usados en todo el producto, no sólo en esta página. Se adaptó el encargo en vez de seguirlo literalmente: se cerró un hueco real y verificable —el hero nunca decía que el producto también modela en 3D directo, capacidad de identidad ampliada desde ADR-0016— con una insignia 3D real (Three.js crudo, carga perezosa client-side, respeta prefers-reduced-motion y visibilidad), un H1/subtítulo honestos, una ficha nueva de capacidad \"Modelado 3D directo\" con su límite (facetado, sin push/pull por mouse todavía, citando ADR-0016) y la extensión de RevealOnScroll —ya usado sólo en EngineeringEvidence— a las demás retículas de tarjetas de la portada. CORRECCIÓN EN LA MISMA SESIÓN (2026-09-07, tras el push inicial): la primera versión de Brep3DBadge usaba Three.js/WebGL, y CI (gate de Lighthouse móvil, PR #203) midió una regresión real — `/` cayó de 77-81 a 64-67 (umbral 78), TBT de ~150ms a 561-582ms, sólo en la ruta con la insignia. Diferir el arranque con requestIdleCallback no lo arregló. Diagnosticado localmente reconstruyendo el build y corriendo scripts/perf/lighthouse-gate.mjs contra ambas versiones en el mismo entorno: el runner no tiene GPU real (rasteriza WebGL por software, igual que el resto del CI) y compilar el shader de un WebGLRenderer es un costo fijo caro ahí, agravado por la ralentización 4x de CPU del emulado móvil. Se reemplazó el canvas por un cubo CSS real (seis caras, transform-style: preserve-3d, sombreado por filter:brightness) — lo compone el hilo de composición, no JavaScript principal, así que no cuenta contra el TBT. Ya no usa Three.js ni ningún canvas; es Server Component. Verificado localmente: TBT vuelve a 166ms (línea base en este mismo entorno: 154ms).",
+      "branch": "claude/landing-page-world-class-7ndajo",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate, vía tarea remota de Claude Code on the web pidiendo el rediseño de la portada pública. Sin instrucción explícita de relajar ningún gate; donde el encargo entraba en conflicto con un candado existente (honestidad de claims públicos, primitiva única de motion, tokens de marca compartidos) se documentó la desviación en el cuerpo del PR en vez de aplicarla o de preguntar sin necesidad, siguiendo la regla de sesión conservadora: decidir con evidencia del propio repositorio cuando basta para decidir.",
+      "firstPartyInputs": [
+        "IDENTITY.md (identidad ampliada a 'CAD 2D general y universal, y modelador 3D de modelado directo')",
+        "docs/adr/0016-modelado-directo-sobre-brep-facetado.md (kernel facetado, límite de push/pull por mouse, cifra de líneas del kernel)",
+        "packages/dwg-codec/CAPABILITIES.md (productionAvailable:false para DWG)",
+        "apps/web/src/app/public-pages.spec.ts (regla de honestidad de claims públicos)",
+        "apps/web/src/components/marketing/RevealOnScroll.tsx y su comentario de primitiva única de motion",
+        "apps/web/src/app/globals.css (tokens de marca --valle-accent/--brand-primary usados en toda la app)",
+        "apps/web/src/lib/brep/tolerance.ts (tolerancia real 1e-7, no la cifra inventada del encargo)",
+        "apps/web/src/lib/cad/ribbon.ts (comandos de sólidos ya en producción sin feature flag, a diferencia de DWG)"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. Versión final: Brep3DBadge es CSS 3D puro (seis `<span>` con transform-style:preserve-3d, sin JavaScript ni dependencia de three). La primera versión sí usaba Three.js crudo (siguiendo la convención de lib/cad/*-three.ts) pero se descartó por la regresión de Lighthouse medida en CI — ver la nota de corrección en `initiative`.",
+      "derivedAreas": [
+        "apps/web/src/components/marketing/Brep3DBadge.tsx (nuevo; reescrito de WebGL/Three.js a CSS 3D puro en la misma sesión)",
+        "apps/web/src/app/globals.css (.brep-cube y sus seis caras, con su entrada en el bloque prefers-reduced-motion)",
+        "apps/web/src/app/page.tsx (H1/subtítulo del hero, insignia 3D, ficha de capacidad 'Modelado 3D directo', featureList, RevealOnScroll en capabilities/licensing/limits/audiences)"
+      ],
+      "fixtures": "Ninguno: sin datos de terceros ni corpus nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "npx tsc --noEmit (sin errores nuevos en los archivos tocados; los preexistentes son de paquetes de workspace sin build, ajenos a este cambio), npx eslint sobre page.tsx y Brep3DBadge.tsx (0 errores), public-pages.spec.ts, check-no-industrial-domain.mjs, check-monolith-budget.mjs, bim-claim-boundary.spec.ts, no-ai-boundary.spec.ts, check-proprietary-governance.mjs — todos verdes. Verificación visual real en navegador (Chromium vía Playwright) a 1440px y 390px, sin overflow horizontal ni errores de consola. Además: CI (PR #203) reportó una regresión real de Lighthouse móvil con la primera versión (WebGL/Three.js) — diagnosticada reproduciendo `npx turbo run build --filter=web` + `node scripts/perf/lighthouse-gate.mjs` localmente contra ambas versiones en el mismo entorno antes y después del cambio a CSS 3D, confirmando que el TBT vuelve a la línea base (166ms vs 154ms) antes de empujar la corrección. Pendiente de revisión y merge por Sergio, y de que la corrida de CI en el head actual del PR confirme el mismo resultado."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "REPO-OPTIMIZATION-CLEANUP-20260907",
+      "date": "2026-09-07",
+      "initiative": "Encargo del titular: analizar el repositorio, cerrar todas las ramas y PR abiertos (integrar lo útil, borrar lo que no) y pulir/optimizar la aplicación. Triaje: F8 y F11 estaban byte a byte dentro de main (#194) y F3/F5/F10 sólo diferían en lo que main superó (verificado con merge-tree contra el árbol de main); #173 quedó superado por la decisión del 2026-09-04 de reportar el espacio del DWG con el campo `space` sin mover la entidad. Integración en una sola rama: F9 (#200) y F4 (#196) resueltos a mano (dashboard/page.tsx, lint-budget.json por archivo, libro mayor), #202 limpio, #203 sobre el explorador de #202 (insignia 3D + H1, sin la retícula sustituida), las doce subidas de dependabot (#175) aplicadas con npm sobre el árbol actual porque su lockfile estaba inconsistente. El rojo de F4 en el trinquete de tamaño se pagó por extracción (paper-space-render.ts, cad-document-serialize.ts) y no subiendo techos; el oráculo OpenAPI se re-censó con la misma rueda. Pulido: el PDF del botón «Publicar» honra el recorte poligonal y lo dibujado en papel (F4 #1 parcial); PROPERTIES/PR abre la paleta montada (F9 P-09); las advertencias del DXF de fondo sobreviven a reabrir (F4 #2); framer-motion sale del cascarón (ToastContext a keyframes CSS: −40 KB gzip en toda ruta, Lighthouse móvil de la portada 78→80 local) con el trinquete de bundle re-apretado; y una ronda de investigación con verificación adversarial (seis frentes) cuyos hallazgos confirmados se implementaron por territorios: recorte real del PDF (estilo nulo antes de W n), comandos de papel con tabla de plumas, previsualización exacta con polígono, negociación WebRTC sin rollback explícito en «stable», goldens 27 y llamada más robustos sin relajar tiempos, recuperación tras cuelgue sin pisar el checkpoint más nuevo y con búsqueda por ámbito, CAS condicional de conjuntos de hojas, sin parser urlencoded (CSRF en login), lectura de un bloque sin cargar la biblioteca, cotas al DTO de capas y a la exportación de sesiones, micro-rendimiento (useMemo del API de avisos, Map de bloques en DXF, entity(id) en el pipeline, identidad en el sincronizador), paleta Ctrl+K extraída con role=dialog y foco atrapado, nueve anillos de foco, «Modelo», y archivo de la campaña «El lunes de un arquitecto» con sus enlaces. Cierre en GitHub: los seis PR (#173, #175, #196, #200, #202, #203) quedaron cerrados con nota que enlaza a #204; el borrado de las ramas remotas lo rechazó la política de egreso de la sesión (403 en git push --delete), así que lo hace el titular: git push origin --delete de las diez ramas claude/* listadas en el PR (la de dependabot la borró su bot al cerrar).",
+      "branch": "claude/repo-optimization-cleanup-pxrml2",
+      "assistants": [
+        "Claude Code (Anthropic), sesión remota operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate, vía tarea remota de Claude Code on the web («cierra todas las ramas y PR abiertos, integra lo útil, borra lo que no, y pule/optimiza la app»). Ningún gate, golden, umbral ni presupuesto se relajó: donde un PR integrado lo exigía (monolith-budget) se resolvió por extracción; los techos que se tocaron bajaron (bundle-budget --write, monolith --update, foco-visible).",
+      "firstPartyInputs": [
+        "AGENTS.md, CONTRIBUTING.md (política de ramas), docs/history/README.md (regla de archivo)",
+        "Los seis PR abiertos y las once ramas remotas, sus bitácoras y buzones de peticiones (docs/execution/frentes/*)",
+        "docs/execution/auditoria-fable/PROMPT_MAESTRO_FABLE.md y el informe INFORME_LUNES_20260906.md",
+        "scripts/perf/lighthouse-gate.mjs, lighthouserc.mobile.json y los informes locales de Lighthouse (LCP del hero con 92 % de render delay anclado a la hidratación)",
+        "El corpus de conformidad DWG (clon de sólo lectura del repo hermano al commit fijado) para correr check:dwg"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. La negociación WebRTC sigue el patrón público «perfect negotiation» de la especificación W3C/MDN (idea de protocolo, no código copiado).",
+      "derivedAreas": [
+        "Fusiones de F9/F4/#202/#203 y subidas de dependencias; extracciones paper-space-render.ts y cad-document-serialize.ts; docs/cad/corpus/oraculos/openapi-spec-validator-0.9.0.json re-censado",
+        "components/cad/editor/sheet-set-pdf.ts (+spec), Layout3DEditor.tsx (PROPERTIES, manifiesto DXF de fondo, anillos de foco, «Modelo», paleta extraída), palettes/palette-targets-mounted.spec.ts, lib/cad/dxf-background-loss-manifest.ts",
+        "contexts/ToastContext.tsx y globals.css (keyframes valle-toast-*), scripts/perf/bundle-budget.json, docs/design/DESIGN_SYSTEM.md",
+        "lib/cad/plot/{plot-pdf,plot-job,plot-stroke-text}.ts, palettes/CadLayoutManager.tsx, calls/call-session-host.ts, e2e/golden/27 y e2e/real/llamada-webrtc-real, lib/cad/cad-recovery.ts, CadStudioHost.tsx, EditorCrashRecoveryAction.tsx, render-style.ts, render-pipeline-host.ts, entity-runtime.ts, dxf-export.ts",
+        "apps/api: main.ts (bodyParser:false), cad-sheet-sets.repository.ts (CAS condicional), cad.controller.ts + servicio de bloques (findOne), dto/cad.dto.ts (cota de capas), identity-export.ts (cota de sesiones)",
+        "docs/history/execution/{CAMPANA_LUNES_20260906.md, frentes-lunes-20260906/} y los enlaces que apuntaban ahí; package.json (evidence:document-limits)",
+        "apps/api/src/common/tenant/tenant.interceptor.ts (+spec): el envoltorio de tenant no reenviaba la desuscripción al observable del handler, así que al cerrarse un @Sse la limpieza nunca corría (latido huérfano, oyente muerto que se tragaba las señales WebRTC en vez de dejarlas en el buzón); hallado al investigar el rojo intermitente del paso 4 de la llamada real que sobrevivió al primer arreglo. e2e/real/cables-sueltos.spec.ts: la declaración «Model» pasa a «Modelo»."
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Sobre el árbol quieto del head final y con VALLE_DWG_CORPUS_MIRROR: typecheck (8/8), lint (2/2), check-lint-budget (327/490), npm test (7/7 workspaces: web con los specs nuevos, API 810 + nuevos, códec 487, SDK), check:cad completo, check:dwg, check:governance y build, todos verdes (bitácora de gates de la sesión). Cada territorio del pulido corrió sus specs en rojo sin el arreglo y en verde con él. Lighthouse local (misma metodología del gate) antes/después del recorte de framer-motion: portada móvil 78 → 80, /precios 85 → 92. CI del PR #204 sobre el head anterior (256681f): Contrato·Build·Test·Lint·Smoke, Despliegue y E2E 4/4 verdes; el head final se verifica en CI antes de fusionar. CI del PR sobre d2c9a6e (corrida 34102393042): Contrato·Build·Test·Lint·Smoke (Lighthouse y bundle incluidos), Despliegue y Gitleaks verdes; los cuatro fragmentos E2E pasaron sus recorridos (93/93, 93/93, 87/87 y 80/80 con un flaky en WebRTC paso 4 que pasó al reintento) y fallaron sólo en la declaración huérfana «Model» del barrido, corregida en a38db93. El arreglo del interceptor corrió su spec en rojo sin el cambio (el proceso ni siquiera termina: el latido sigue vivo) y en verde con él, junto con los specs del módulo de llamadas (24/24).",
+        "review": "PR borrador #204; revisión del titular sobre el diff completo."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

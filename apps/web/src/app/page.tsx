@@ -1,20 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  ArrowRight,
-  Blocks,
-  CloudUpload,
-  DraftingCompass,
-  FileDown,
-  Printer,
-  Ruler,
-  Terminal,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { PRODUCT_LABEL } from "@/config/brand";
 import { DOC_GUIDES, PRICING_PATH, docGuidePath } from "@/config/site-routes";
 import { JsonLd } from "@/components/JsonLd";
 import { PublicNav } from "@/components/PublicNav";
 import { SkipLink } from "@/components/SkipLink";
+import { CapabilityExplorer } from "@/components/marketing/CapabilityExplorer";
+import { TOOLSET_TEMPLATE_IDS } from "@/components/marketing/capability-explorer-shared";
+import { Brep3DBadge } from "@/components/marketing/Brep3DBadge";
 import { EngineeringEvidence } from "@/components/marketing/EngineeringEvidence";
 import { FaqCenter } from "@/components/marketing/FaqCenter";
 import { FeaturedTemplates } from "@/components/gallery/FeaturedTemplates";
@@ -23,13 +17,14 @@ import { FreeLaunchNote } from "@/components/marketing/FreeLaunchNote";
 import { HeroBackdrop } from "@/components/marketing/HeroBackdrop";
 import { PlanViewport } from "@/components/marketing/PlanViewport";
 import { ProductFrame } from "@/components/marketing/ProductFrame";
+import { RevealOnScroll } from "@/components/marketing/RevealOnScroll";
 import { SiteFooter } from "@/components/marketing/SiteFooter";
 import { buttonClass } from "@/components/ui";
 import {
   FAQ_COUNT,
   FAQ_FOR_STRUCTURED_DATA,
 } from "@/lib/marketing/faq";
-import { galleryTemplates } from "@/lib/marketing/template-gallery";
+import { galleryTemplate, galleryTemplates } from "@/lib/marketing/template-gallery";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import {
   faqPageJsonLd,
@@ -139,61 +134,6 @@ const proof = [
 ] as const;
 
 /**
- * Capacidades. `limite` no es letra pequeña: se pinta con el mismo tamaño que
- * el resto y por eso está en la misma estructura de datos. Una ficha sin límite
- * es una ficha cuya capacidad está cerrada de punta a punta.
- */
-const capabilities = [
-  {
-    icon: DraftingCompass,
-    title: "Dibujo 2D con la precisión que exige un plano",
-    text: "Líneas, polilíneas con arcos, círculos, arcos, rectángulos, polígonos, elipses y splines. Referencias a objetos indexadas, rastreo polar, entrada por coordenadas y línea de comandos con la tabla de alias de siempre: escribes L, C o TR y responde.",
-    limite: null,
-  },
-  {
-    icon: Ruler,
-    title: "Cotas asociativas y anotación",
-    text: "Cota lineal, alineada, angular, de radio y de diámetro, con estilos de cota aplicables al plano entregado. La cota queda amarrada a la geometría que mide: mueves el muro y el número cambia solo.",
-    limite: null,
-  },
-  {
-    icon: Blocks,
-    title: "Capas, bloques, sombreado y texto",
-    text: "Gestor de capas con color, tipo de línea y grosor; biblioteca de bloques con atributos, compartida por organización; sombreado asociativo al contorno; texto de párrafo con maquetación real. Muros que resuelven su unión en L, en T y en continuación colineal al dibujarlos.",
-    limite:
-      "Sin bloques dinámicos ni comportamiento anotativo, y el sombreado resuelve contornos poligonales: las islas anidadas y los contornos curvos siguen pendientes.",
-  },
-  {
-    icon: Printer,
-    title: "Espacio papel e impresión a escala",
-    text: "Presentaciones con varias ventanas, cada una a su escala, con capas congeladas por ventana. Papeles A4 a A0, carta y tabloide; escalas normalizadas de 1:1 a 1:5000; tablas de plumas CTB y STB que deciden color y grosor de cada trazo. La lámina sale a PDF con el tamaño de página exacto, cajetín y escala gráfica.",
-    limite:
-      "El emisor deja escrito qué fuentes incrustó y cuáles sustituyó por una estándar; todavía no publicamos una medición de fidelidad tipográfica.",
-  },
-  {
-    icon: FileDown,
-    title: "DXF de ida y de vuelta",
-    text: "DXF de texto —el formato estándar de intercambio que cualquier programa de dibujo abre— importado y exportado con comprobación previa y un manifiesto de pérdidas que dice, entidad por entidad, qué no viajó igual. Casi nada se degrada en silencio, y lo que sí, está listado abajo.",
-    limite:
-      "Se escribe DXF en la versión AC1015 y sólo geometría plana: la Z se aplana. La importación admite hasta 12 MB y 50.000 entidades por archivo, y el corpus de ida y vuelta es propio: aún no hay uno de archivos de terceros con licencia para publicar una matriz de interoperabilidad.",
-  },
-  {
-    icon: Terminal,
-    title: "Automatización con LISP en el navegador",
-    text: "Un intérprete del dialecto LISP del dibujo técnico —lector, evaluador, funciones de entidad por códigos DXF, conjuntos de selección y diálogos DCL— ejecutándose en tu navegador dentro de un entorno aislado con presupuesto de pasos y de tiempo. Las rutinas que automatizan tu trabajo repetitivo dejan de estar atadas a una instalación de escritorio.",
-    limite:
-      "Es un subconjunto del lenguaje: una rutina que dependa de funciones fuera de esa superficie necesita adaptarse. Tus rutinas se guardan en el navegador, no en el servidor, así que hoy no viajan solas a otra computadora.",
-  },
-  {
-    icon: CloudUpload,
-    title: "Proyectos en la nube, con red debajo",
-    text: "Los documentos viven en el servidor, aislados por organización, con guardado explícito y autoguardado sobre la misma cola de escritura, versiones consultables y comparación entre ellas. Para revisar, enlaces con caducidad y revocación, y comentarios anclados a la geometría.",
-    limite:
-      "La revisión es asíncrona: dos personas comentan y se turnan sobre el documento, no dibujan a la vez con cursores simultáneos. Los borradores de recuperación se guardan en tu navegador durante siete días, no en el servidor.",
-  },
-] as const;
-
-/**
  * EL ARGUMENTO DEL MODELO. Compara MODELOS de licencia, no importes: los
  * importes viven en `/precios`, que los lee del catálogo vigente del producto.
  * Cada fila describe algo comprobable sobre cómo funciona esto, no una promesa
@@ -278,6 +218,7 @@ const audiences = [
 
 const featureList = [
   "Dibujo 2D con referencias a objetos y línea de comandos",
+  "Modelado 3D directo con kernel B-rep propio (booleanas, extrusión, redondeo)",
   "Cotas asociativas con estilos de cota",
   "Capas, bloques con atributos, sombreado asociativo y texto de párrafo",
   "Espacio papel con varias ventanas y escalas",
@@ -332,6 +273,14 @@ function SectionHead({
 }
 
 export default function LandingPage() {
+  // Resuelto aquí, en el servidor: `CapabilityExplorer` lleva "use client" y
+  // llamar a `galleryTemplate` (catálogo de 149 plantillas) desde ahí metía
+  // ese catálogo entero en el JS de la portada. Ver la nota en
+  // CapabilityExplorer.tsx junto a `TOOLSET_TEMPLATE_IDS`.
+  const toolsetTemplates = TOOLSET_TEMPLATE_IDS.flatMap((id) => {
+    const template = galleryTemplate(id);
+    return template ? [template] : [];
+  });
   return (
     <>
       <SkipLink />
@@ -356,16 +305,33 @@ export default function LandingPage() {
                 <span className="type-sheet-number opacity-85">00</span>
                 CAD profesional en tu navegador
               </p>
+              {/*
+                LA INSIGNIA 3D. El hero llevaba meses sin decir que el
+                producto también modela en 3D —capacidad real desde ADR-0016,
+                no una promesa— así que esto no es adorno: cierra un hueco
+                entre lo que el producto YA hace y lo que su propio hero
+                contaba. El sólido gira dentro de la insignia; el texto nombra
+                la capacidad para quien no vea o no quiera el WebGL.
+              */}
+              <div className="mt-4 inline-flex max-w-full items-center gap-3 rounded-full border border-border bg-card/70 py-1.5 pl-1.5 pr-4 shadow-resting backdrop-blur">
+                <Brep3DBadge className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-muted" />
+                <span className="type-small text-muted-foreground">
+                  <span className="font-semibold text-foreground">Nuevo:</span>{" "}
+                  modelado 3D directo, sobre el mismo documento que tu plano
+                </span>
+              </div>
               <h1 id="hero-title" className="type-display mt-5 max-w-2xl">
-                Dibuja tus planos en el navegador. Sin instalar nada.
+                Dibuja en 2D. Modela en 3D directo. En tu navegador.
               </h1>
               <p className="type-lead mt-6 max-w-xl text-muted-foreground">
                 {PRODUCT_LABEL.design} es un software de dibujo técnico que corre
                 donde ya trabajas: precisión de dibujo con referencias a objetos
                 y línea de comandos, capas, bloques, cotas asociativas, espacio
-                papel e intercambio DXF, con tus proyectos guardados en la nube
-                en vez de en una computadora concreta. Entras, dibujas y
-                entregas.
+                papel e intercambio DXF — y, sobre el mismo documento, un
+                modelador 3D de modelado directo con un kernel B-rep propio:
+                sólidos, booleanas, extrusión y redondeo. Tus proyectos se
+                guardan en la nube, no en una computadora concreta. Entras,
+                dibujas y entregas.
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
                 <Link
@@ -479,14 +445,15 @@ export default function LandingPage() {
             lead="La diferencia con un CAD de escritorio no es sólo el precio: es dónde vive el programa, dónde vive el dibujo y qué pasa el día que cambias de equipo."
           />
           <dl className="mt-12 grid gap-5 sm:grid-cols-2">
-            {licensing.map(([title, text]) => (
-              <div
+            {licensing.map(([title, text], index) => (
+              <RevealOnScroll
                 key={title}
+                delayMs={index * 90}
                 className="rounded-card border border-border bg-card p-6 shadow-resting"
               >
                 <dt className="type-heading">{title}</dt>
                 <dd className="type-body mt-3 text-muted-foreground">{text}</dd>
-              </div>
+              </RevealOnScroll>
             ))}
           </dl>
           <Link
@@ -503,29 +470,10 @@ export default function LandingPage() {
           <SectionHead
             id="capacidades"
             eyebrow="Capacidades"
-            title="Lo que ya puedes hacer hoy"
-            lead="Cada punto de esta lista corresponde a algo implementado y probado en el producto. Donde falta terminar algo, está dicho en la misma ficha."
+            title="Lo que ya puedes hacer hoy, por disciplina"
+            lead="Dibujo, anotación, entrega, 3D, toolsets y colaboración: elige tu pestaña. Cada una corresponde a algo implementado y probado en el producto, y donde falta terminar algo, está dicho en el mismo panel."
           />
-          <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {capabilities.map(({ icon: Icon, title, text, limite }) => (
-              <article
-                key={title}
-                className="flex flex-col rounded-card border border-border bg-card p-6 shadow-resting"
-              >
-                <Icon aria-hidden="true" className="h-7 w-7 text-primary-ink" />
-                <h3 className="type-heading mt-5">{title}</h3>
-                <p className="type-body mt-3 text-muted-foreground">{text}</p>
-                {limite ? (
-                  <p className="type-small mt-auto border-t border-border pt-4 text-muted-foreground">
-                    <span className="font-semibold text-foreground">
-                      Límite actual:{" "}
-                    </span>
-                    {limite}
-                  </p>
-                ) : null}
-              </article>
-            ))}
-          </div>
+          <CapabilityExplorer toolsetTemplates={toolsetTemplates} />
         </Band>
 
         {/* ── PARA QUIÉN ─────────────────────────────────────────────────── */}
@@ -537,14 +485,16 @@ export default function LandingPage() {
             lead="Si tu día termina con una lámina que alguien firma, esto se construyó mirando tu mesa de trabajo."
           />
           <div className="mt-12 grid gap-5 sm:grid-cols-2">
-            {audiences.map(({ title, text }) => (
-              <article
+            {audiences.map(({ title, text }, index) => (
+              <RevealOnScroll
                 key={title}
+                as="article"
+                delayMs={index * 90}
                 className="rounded-card border border-border p-6"
               >
                 <h3 className="type-heading">{title}</h3>
                 <p className="type-body mt-3 text-muted-foreground">{text}</p>
-              </article>
+              </RevealOnScroll>
             ))}
           </div>
         </Band>
@@ -558,14 +508,15 @@ export default function LandingPage() {
             lead="Prefieres enterarte aquí que en tu primera entrega. Esta lista se acorta con el producto, no con el copy."
           />
           <dl className="mt-12 grid gap-6 sm:grid-cols-2">
-            {limits.map(([title, text]) => (
-              <div
+            {limits.map(([title, text], index) => (
+              <RevealOnScroll
                 key={title}
+                delayMs={index * 90}
                 className="rounded-card border border-border bg-card p-6"
               >
                 <dt className="type-heading">{title}</dt>
                 <dd className="type-body mt-3 text-muted-foreground">{text}</dd>
-              </div>
+              </RevealOnScroll>
             ))}
           </dl>
         </Band>

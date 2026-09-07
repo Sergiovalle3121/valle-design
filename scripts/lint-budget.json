@@ -1,18 +1,99 @@
 {
   "apps/web": {
-    "react-hooks/set-state-in-effect": 10,
-    "react-hooks/refs": 163,
-    "react-hooks/exhaustive-deps": 6,
-    "react-hooks/purity": 1,
-    "react-hooks/immutability": 3,
-    "@typescript-eslint/no-unused-vars": 3
+    "react-hooks/set-state-in-effect": {
+      "src/app/dashboard/page.tsx": 1,
+      "src/app/studio/[documentId]/page.tsx": 1,
+      "src/components/ThemeToggle.tsx": 1,
+      "src/components/cad/editor/Layout3DEditor.tsx": 4,
+      "src/components/cad/messaging/use-team-messaging.ts": 1,
+      "src/components/cad/palettes/CadMTextEditor.tsx": 1,
+      "src/contexts/DesignAuthContext.tsx": 1
+    },
+    "react-hooks/refs": {
+      "src/components/cad/CadStudioHost.tsx": 1,
+      "src/components/cad/command-line/use-command-engine.ts": 9,
+      "src/components/cad/editor/Layout3DEditor.tsx": 148,
+      "src/components/cad/lisp/use-lisp.ts": 3,
+      "src/components/cad/palette-actions.ts": 1,
+      "src/components/cad/palettes/use-layer-actions.ts": 1,
+      "src/components/cad/palettes/use-style-actions.ts": 1
+    },
+    "react-hooks/exhaustive-deps": {
+      "src/components/cad/command-line/use-command-engine.ts": 1,
+      "src/components/cad/editor/Layout3DEditor.tsx": 4,
+      "src/components/cad/palettes/CadMTextEditor.tsx": 1
+    },
+    "@typescript-eslint/no-unused-vars": {
+      "src/components/cad/editor/Layout3DEditor.tsx": 11,
+      "src/i18n/coverage.ts": 2,
+      "src/lib/cad/pick3d/face-push.spec.ts": 1
+    },
+    "react-hooks/purity": {
+      "src/components/cad/editor/Layout3DEditor.tsx": 1
+    },
+    "react-hooks/immutability": {
+      "src/components/cad/editor/Layout3DEditor.tsx": 3
+    }
   },
   "apps/api": {
-    "@typescript-eslint/no-unsafe-argument": 2,
-    "@typescript-eslint/no-unsafe-return": 12,
-    "@typescript-eslint/no-unsafe-assignment": 44,
-    "@typescript-eslint/no-unsafe-member-access": 210,
-    "@typescript-eslint/no-unsafe-call": 22,
-    "@typescript-eslint/no-base-to-string": 2
+    "@typescript-eslint/no-unsafe-argument": {
+      "src/common/tenant/tenant-scoped.repository.ts": 1,
+      "src/modules/cad/cad-review.controller.spec.ts": 1
+    },
+    "@typescript-eslint/no-unsafe-return": {
+      "src/common/tenant/tenant-scoped.repository.ts": 1,
+      "src/modules/cad/cad-documents.repository.spec.ts": 2,
+      "src/modules/cad/dto/cad.dto.ts": 6,
+      "src/modules/commercial/cfdi-issuance.pg.spec.ts": 1,
+      "src/modules/commercial/cfdi-issuance.service.ts": 1,
+      "src/modules/organizations/organizations.controller.ts": 1
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "src/common/tenant/tenant.interceptor.ts": 2,
+      "src/migration-cli/archive.spec.ts": 1,
+      "src/migrations/20260802140000-PurgeReviewLinkTokens.pg.spec.ts": 2,
+      "src/migrations/20260802180000-NormalizeCadIdentifiers.pg.spec.ts": 2,
+      "src/migrations/20260820120000-TenantIntegrityRls.pg.spec.ts": 4,
+      "src/migrations/20260823120000-TenantRuntimeRoleAndDesignBlobsRls.pg.spec.ts": 2,
+      "src/migrations/migration-chain.pg.spec.ts": 3,
+      "src/modules/cad/cad-comment-anchor.ts": 1,
+      "src/modules/cad/cad-review.controller.spec.ts": 3,
+      "src/modules/cad/cad-tenant-isolation.pg.spec.ts": 8,
+      "src/modules/cad/cad.controller.spec.ts": 4,
+      "src/modules/commercial/cfdi-issuance.pg.spec.ts": 1,
+      "src/modules/commercial/cfdi-issuance.service.ts": 3,
+      "src/modules/identity/api-rate-limit.service.spec.ts": 2,
+      "src/modules/identity/identity.integration.spec.ts": 2,
+      "src/modules/messaging/messaging.controller.spec.ts": 4
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "src/common/tenant/tenant.interceptor.ts": 1,
+      "src/migration-cli/archive.spec.ts": 1,
+      "src/migration-cli/source.ts": 1,
+      "src/migrations/20260802140000-PurgeReviewLinkTokens.pg.spec.ts": 2,
+      "src/migrations/20260802180000-NormalizeCadIdentifiers.pg.spec.ts": 8,
+      "src/migrations/20260820120000-TenantIntegrityRls.pg.spec.ts": 2,
+      "src/modules/cad/cad-commercial-wiring.spec.ts": 1,
+      "src/modules/cad/cad-review.controller.spec.ts": 50,
+      "src/modules/cad/cad-sheet-set.controller.spec.ts": 33,
+      "src/modules/cad/cad-tenant-isolation.pg.spec.ts": 23,
+      "src/modules/cad/cad.controller.spec.ts": 50,
+      "src/modules/commercial/cfdi-issuance.pg.spec.ts": 1,
+      "src/modules/commercial/cfdi-issuance.service.ts": 3,
+      "src/modules/identity/identity.integration.spec.ts": 6,
+      "src/modules/messaging/messaging.controller.spec.ts": 28
+    },
+    "@typescript-eslint/no-unsafe-call": {
+      "src/migrations/20260802180000-NormalizeCadIdentifiers.pg.spec.ts": 5,
+      "src/migrations/20260820120000-TenantIntegrityRls.pg.spec.ts": 2,
+      "src/modules/cad/cad-sheet-set.controller.spec.ts": 3,
+      "src/modules/cad/cad-tenant-isolation.pg.spec.ts": 3,
+      "src/modules/identity/identity.integration.spec.ts": 2,
+      "src/modules/messaging/messaging.controller.spec.ts": 7
+    },
+    "@typescript-eslint/no-base-to-string": {
+      "src/modules/outbox-receiver/adapters/resend-email.sender.spec.ts": 1,
+      "src/modules/outbox-receiver/outbox-receiver.circuit.pg.spec.ts": 1
+    }
   }
 }

@@ -596,4 +596,4 @@ navegación y escondía que **la portada se desplaza en horizontal en un teléfo
 y que **no había forma de iniciar sesión desde el móvil sin abrir la
 hamburguesa**. Los dos están arreglados y medidos.
 
-**F.4** → [`INFORME_CAMPANA_PULIDO_20260822.md`](INFORME_CAMPANA_PULIDO_20260822.md).
+**F.4** → [`INFORME_CAMPANA_PULIDO_20260822.md`](../../execution/INFORME_CAMPANA_PULIDO_20260822.md).

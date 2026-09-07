@@ -13,10 +13,14 @@ buscar sus anclas por texto antes de cortar.**
 | Paso | Qué | Estado |
 | --- | --- | --- |
 | 0 | Once símbolos muertos y su cascada (−555) | HECHO · `ba975d3` |
-| 1 | `export-host.ts` (PNG/GLB/DXF + estado del cuadro de exportación; −5 `useState`) | en curso |
-| 2 | `versions-host.ts` (−6 `useState`) | pendiente |
+| 1 | `export-host.ts` (PNG/GLB/DXF + estado del cuadro de exportación; −5 `useState`) | HECHO · `ca1cd96` |
+| 2 | `versions-host.ts` (−6 `useState`) | HECHO · `ca1cd96` |
 | 3 | `dxf-backdrop-host.ts` (−4 `useState`) | pendiente |
 | 4 | `recovery-host.ts` (opcional) | pendiente |
+
+Esta ficha se archivó el 2026-09-07 con la campaña: el registro vivo del
+monolito es `docs/execution/DEUDA-MONOLITO.md`; los pasos 3-4
+(`dxf-backdrop-host.ts`, `recovery-host.ts`) siguen siendo el plan pendiente.
 
 Regla de cada paso: sin cambio de comportamiento; `typecheck`, eslint del
 fichero, `check-monolith-budget --update` y `check-lint-budget` en el mismo

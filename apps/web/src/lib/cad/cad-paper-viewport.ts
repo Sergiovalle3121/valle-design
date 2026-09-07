@@ -55,7 +55,7 @@
  * abrir. Es fallo cerrado aplicado al esquema: el default deja de ser
  * implícito y pasa a estar escrito.
  */
-import type { CadPoint3 } from "./cad-document";
+import type { CadPoint2, CadPoint3 } from "./cad-document";
 
 /**
  * De qué clase es la vista. No es decoración: decide qué dibuja SOLDRAW.
@@ -240,6 +240,8 @@ export interface CadPaperViewport {
   derivation?: CadViewportDerivation;
   layerVisibility?: Record<string, boolean>;
   layerOverrides?: Record<string, { color?: string; linetype?: string; lineweight?: number }>;
+  /** Contorno REAL de MVIEW Poligonal/Objeto, en papel. Ausente = rectangular. */
+  clipPolygon?: readonly CadPoint2[];
 }
 
 /**

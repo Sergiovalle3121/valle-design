@@ -13,7 +13,11 @@ import {
   createThreeSheetDemo,
   fitCadViewportScale,
   reorderCadPaperSpaces,
+  type CadVectorCommand,
 } from "./paper-space";
+import { cadPlanViewport } from "./cad-paper-viewport";
+import { cadLayerShown } from "./cad-layer-visibility";
+import { setCadViewportOn } from "./layout/viewport-operations";
 
 const entities: CadEntity[] = [
   {
@@ -346,5 +350,305 @@ assert.deepEqual(
   [],
   "persistencia conserva registro de publicaciones",
 );
+
+// T-19·3: una capa "no imprime" (`plot: false`) se ve en pantalla pero NUNCA
+// debe salir en el PDF, en NINGUNA ventana, aunque esa ventana no anule su
+// visibilidad. `buildCadPublishPlan` es el plan que consumen los DOS
+// emisores de PDF (PLOT/PUBLISH y el editor), así que arreglarlo aquí arregla
+// los dos a la vez.
+{
+  const noPlotBase = layoutToCadDocument(
+    {
+      layers: [
+        { id: "normal", name: "Normal", color: "#000000", visible: true, locked: false },
+        { id: "no-plot", name: "NoPlot", color: "#ff0000", visible: true, locked: false },
+      ],
+    },
+    { unit: "mm" },
+  );
+  // `LayoutLayerInput` (modelo histórico) no tiene `plot`: se añade después,
+  // sobre el documento canónico ya construido — igual que hace la spec de
+  // arriba con `lineweight`.
+  noPlotBase.layers = noPlotBase.layers.map((layer) =>
+    layer.id === "no-plot" ? { ...layer, plot: false } : layer,
+  );
+  const noPlotEntities: CadEntity[] = [
+    { id: "e-normal", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 100, y: 0, z: 0 }, layer: "normal" },
+    { id: "e-no-plot", type: "line", start: { x: 0, y: 50, z: 0 }, end: { x: 100, y: 50, z: 0 }, layer: "no-plot" },
+  ];
+  const viewport = cadPlanViewport(
+    "vp-1",
+    { x: 10, y: 10, width: 180, height: 180 },
+    { x: -10, y: -10, width: 200, height: 200 },
+    1,
+  );
+  const noPlotDocument: CadDocument = {
+    ...noPlotBase,
+    entities: noPlotEntities,
+    modelSpace: { entityIds: noPlotEntities.map((entity) => entity.id) },
+    paperSpaces: [
+      {
+        id: "sheet-1",
+        name: "A-101",
+        entityIds: [],
+        page: { width: 210, height: 297, unit: "mm", orientation: "portrait" },
+        viewports: [viewport],
+      },
+    ],
+  };
+  const noPlotPlan = buildCadPublishPlan(noPlotDocument, "2026-09-06T00:00:00.000Z");
+  const publishedEntityIds = new Set(
+    noPlotPlan.sheets[0]!.viewports[0]!.commands.map((command) => command.entityId),
+  );
+  assert.ok(publishedEntityIds.has("e-normal"), "la capa normal SÍ imprime");
+  assert.ok(
+    !publishedEntityIds.has("e-no-plot"),
+    "T-19·3: una capa `plot:false` NUNCA imprime, aunque se vea en pantalla",
+  );
+
+  // La MISMA capa, vista en pantalla, sigue mostrándose: `plot:false` no es
+  // `visible:false`. Si esto fallara, el arreglo habría confundido las dos.
+  assert.equal(
+    cadLayerShown(noPlotDocument.layers.find((layer) => layer.id === "no-plot")!),
+    true,
+    "`plot:false` no apaga la capa en el lienzo",
+  );
+}
+
+// T-19·4 (fuga de espacio papel): una entidad que pertenece a una presentación
+// (`paperSpace.entityIds` — el contorno de una ventana poligonal, un cajetín)
+// puede quedar TAMBIÉN en `modelSpace.entityIds` por cómo el aplicador
+// genérico de "insert" añade toda entidad nueva al dibujo. Sin filtro, esa
+// entidad se proyecta como geometría de MODELO —con sus coordenadas de
+// PAPEL— dentro de CADA ventana del documento.
+{
+  const leakBase = layoutToCadDocument({ layers: [{ id: "0", name: "0", color: "#000000", visible: true, locked: false }] }, { unit: "mm" });
+  const leakEntities: CadEntity[] = [
+    { id: "e-model", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 100, y: 0, z: 0 }, layer: "0" },
+    // Contorno de una ventana poligonal: vive en `paperSpace.entityIds`, pero
+    // el aplicador genérico lo dejó TAMBIÉN en `modelSpace.entityIds`.
+    { id: "e-clip", type: "polyline", closed: true, vertices: [{ x: 20, y: 20, z: 0 }, { x: 80, y: 20, z: 0 }, { x: 50, y: 60, z: 0 }], layer: "0" },
+  ];
+  const viewport = cadPlanViewport(
+    "vp-leak",
+    { x: 10, y: 10, width: 180, height: 180 },
+    { x: -10, y: -10, width: 200, height: 200 },
+    1,
+  );
+  const leakDocument: CadDocument = {
+    ...leakBase,
+    entities: leakEntities,
+    modelSpace: { entityIds: leakEntities.map((entity) => entity.id) },
+    paperSpaces: [
+      {
+        id: "sheet-leak",
+        name: "A-101",
+        entityIds: ["e-clip"],
+        page: { width: 210, height: 297, unit: "mm", orientation: "portrait" },
+        viewports: [viewport],
+      },
+    ],
+  };
+  const leakPlan = buildCadPublishPlan(leakDocument, "2026-09-06T00:00:00.000Z");
+  const leakPublishedIds = new Set(
+    leakPlan.sheets[0]!.viewports[0]!.commands.map((command) => command.entityId),
+  );
+  assert.ok(leakPublishedIds.has("e-model"), "la entidad de modelo real SÍ imprime");
+  assert.ok(
+    !leakPublishedIds.has("e-clip"),
+    "T-19·4: una entidad de PAPEL nunca se proyecta como geometría de modelo",
+  );
+  assert.ok(
+    leakPlan.warnings.some(
+      (warning) =>
+        warning.code === "paper_space_entity_excluded_from_model" && warning.entityId === "e-clip",
+    ),
+    "la exclusión se declara, nunca en silencio",
+  );
+}
+
+// T-36: la escala anotativa se resuelve POR VENTANA, sin mutar la entidad. La
+// MISMA entidad, vista en DOS ventanas a escalas distintas, mide lo mismo
+// sobre el papel en las dos (esa es la promesa de "anotativa": tamaño fijo
+// en papel) — y `entity.height` en el documento NUNCA cambia, ni siquiera
+// tras trazar las dos ventanas.
+{
+  const annoBase = layoutToCadDocument(
+    { layers: [{ id: "0", name: "0", color: "#000000", visible: true, locked: false }] },
+    { unit: "mm" },
+  );
+  const annoEntity: CadEntity = {
+    id: "e-rotulo",
+    type: "mtext",
+    insertion: { x: 50, y: 50, z: 0 },
+    text: "PLANTA",
+    // Deliberadamente ABSURDA: si el arreglo mutara/leyera esto, el tamaño
+    // trazado no podría salir cerca de 2,5 mm en ninguna ventana.
+    height: 999_999,
+    layer: "0",
+    context: { metadata: { annotativeHeightMm: 2.5 } },
+  } as CadEntity;
+  const viewportGeneral = cadPlanViewport(
+    "vp-general",
+    { x: 10, y: 10, width: 180, height: 90 },
+    { x: 0, y: 0, width: 10_000, height: 5_000 },
+    100,
+  );
+  const viewportDetalle = cadPlanViewport(
+    "vp-detalle",
+    { x: 10, y: 110, width: 180, height: 90 },
+    { x: 0, y: 0, width: 500, height: 250 },
+    5,
+  );
+  const annoDocument: CadDocument = {
+    ...annoBase,
+    entities: [annoEntity],
+    modelSpace: { entityIds: ["e-rotulo"] },
+    paperSpaces: [
+      {
+        id: "sheet-anno",
+        name: "A-101",
+        entityIds: [],
+        page: { width: 210, height: 297, unit: "mm", orientation: "portrait" },
+        viewports: [viewportGeneral, viewportDetalle],
+      },
+    ],
+  };
+  const annoPlan = buildCadPublishPlan(annoDocument, "2026-09-06T00:00:00.000Z");
+  const sizeIn = (viewportId: string) =>
+    annoPlan.sheets[0]!.viewports
+      .find((viewport) => viewport.id === viewportId)!
+      .commands.find((command) => command.kind === "text" && command.entityId === "e-rotulo") as
+      | Extract<CadVectorCommand, { kind: "text" }>
+      | undefined;
+  const generalText = sizeIn("vp-general");
+  const detailText = sizeIn("vp-detalle");
+  assert.ok(generalText && detailText, "el rótulo aparece en las dos ventanas");
+  assert.ok(
+    Math.abs(generalText!.size - 2.5) < 1e-6,
+    `T-36: 1:100 debe medir 2,5 mm en papel, midió ${generalText!.size}`,
+  );
+  assert.ok(
+    Math.abs(detailText!.size - 2.5) < 1e-6,
+    `T-36: 1:5 debe medir TAMBIÉN 2,5 mm en papel (la misma marca), midió ${detailText!.size}`,
+  );
+  assert.equal(
+    (annoDocument.entities[0] as { height: number }).height,
+    999_999,
+    "T-36: la altura persistida de la entidad NUNCA se toca, ni tras trazar las dos ventanas",
+  );
+}
+
+// T-30: dibujar directamente sobre el papel (línea y texto), publicar, y que
+// salgan en el PDF SIN pasar por ninguna ventana. La ventana del sheet tiene
+// un modelo vacío: si el texto/línea aparecieran ahí en vez de en
+// `paperCommands`, esta prueba lo delataría (la ventana quedaría vacía).
+{
+  const paperBase = layoutToCadDocument(
+    { layers: [{ id: "0", name: "0", color: "#000000", visible: true, locked: false }] },
+    { unit: "mm" },
+  );
+  const paperLine: CadEntity = {
+    id: "e-linea-papel",
+    type: "line",
+    start: { x: 20, y: 270, z: 0 },
+    end: { x: 190, y: 270, z: 0 },
+    layer: "0",
+  };
+  const paperText: CadEntity = {
+    id: "e-texto-papel",
+    type: "text",
+    x: 20,
+    y: 260,
+    text: "NOTAS GENERALES",
+    layer: "0",
+  } as CadEntity;
+  const emptyViewport = cadPlanViewport(
+    "vp-vacio",
+    { x: 10, y: 10, width: 100, height: 100 },
+    { x: 0, y: 0, width: 1000, height: 1000 },
+    100,
+  );
+  const paperDocument: CadDocument = {
+    ...paperBase,
+    entities: [paperLine, paperText],
+    modelSpace: { entityIds: [] },
+    paperSpaces: [
+      {
+        id: "sheet-papel",
+        name: "A-101",
+        // Dibujado en PAPEL: entityIds de la presentación, nunca de modelSpace.
+        entityIds: ["e-linea-papel", "e-texto-papel"],
+        page: { width: 210, height: 297, unit: "mm", orientation: "portrait" },
+        viewports: [emptyViewport],
+      },
+    ],
+  };
+  const paperPlan = buildCadPublishPlan(paperDocument, "2026-09-06T00:00:00.000Z");
+  const sheet = paperPlan.sheets[0]!;
+  const paperIds = new Set((sheet.paperCommands ?? []).map((command) => command.entityId));
+  assert.ok(paperIds.has("e-linea-papel"), "T-30: la línea de papel sale en paperCommands");
+  assert.ok(paperIds.has("e-texto-papel"), "T-30: el texto de papel sale en paperCommands");
+  assert.equal(
+    sheet.viewports[0]!.commands.length,
+    0,
+    "T-30: nada de lo dibujado en papel se cuela en la ventana (modelo vacío)",
+  );
+  // El PDF-de-verdad (renderCadPlotPdf + lectura de bytes) se comprueba en
+  // plot-output.spec.ts, que ya corre asíncrono; este archivo es síncrono.
+}
+
+// T-31·d: `MVIEW Desactivada` también en PUBLISH — antes sólo PLOT
+// (`plot-job.ts`) la respetaba; `buildCadPublishPlan` (que PUBLISH y el
+// botón del editor comparten) dibujaba igual una ventana apagada.
+{
+  const offBase = layoutToCadDocument(
+    { layers: [{ id: "0", name: "0", color: "#000000", visible: true, locked: false }] },
+    { unit: "mm" },
+  );
+  const offEntity: CadEntity = {
+    id: "e-off",
+    type: "line",
+    start: { x: 0, y: 0, z: 0 },
+    end: { x: 100, y: 0, z: 0 },
+    layer: "0",
+  };
+  const viewportOn = cadPlanViewport(
+    "vp-on",
+    { x: 10, y: 10, width: 80, height: 80 },
+    { x: -10, y: -10, width: 200, height: 200 },
+    1,
+  );
+  const viewportOff = cadPlanViewport(
+    "vp-off",
+    { x: 10, y: 100, width: 80, height: 80 },
+    { x: -10, y: -10, width: 200, height: 200 },
+    1,
+  );
+  const offSpace = setCadViewportOn(
+    {
+      id: "sheet-off",
+      name: "A-101",
+      entityIds: [],
+      page: { width: 210, height: 297, unit: "mm", orientation: "portrait" },
+      viewports: [viewportOn, viewportOff],
+    },
+    "vp-off",
+    false,
+  );
+  const offDocument: CadDocument = {
+    ...offBase,
+    entities: [offEntity],
+    modelSpace: { entityIds: ["e-off"] },
+    paperSpaces: [offSpace],
+  };
+  const offPlan = buildCadPublishPlan(offDocument, "2026-09-06T00:00:00.000Z");
+  const publishedViewportIds = offPlan.sheets[0]!.viewports.map((viewport) => viewport.id);
+  assert.deepEqual(
+    publishedViewportIds,
+    ["vp-on"],
+    "T-31·d: la ventana apagada (MVIEW OFF) no sale en el plan de publicación",
+  );
+}
 
 console.log("cad paper space specs passed");

@@ -3,7 +3,7 @@
 Campaña en cascada sobre `valle-design`, desde `946c5db`, en la rama
 `claude/valle-design-3d-campaign-t0zzad` (el entorno de esta sesión remota
 exige rama dedicada + PR en vez de push directo a `main`; desviación del
-prompt original documentada en `CAMPANA_3D_M1_20260824.md` §0). Encargo:
+prompt original documentada en `docs/history/execution/CAMPANA_3D_M1_20260824.md` §0). Encargo:
 llevar el milestone 3D-M1 — una vista arquitectónica 3D paramétrica para un
 edificio de un solo nivel — a un estado terminado y honesto: muros con
 volumen real y vanos recortados, piso/cielorraso/cubierta derivados,
@@ -49,7 +49,7 @@ que no tenían sentido juntos. Resuelto comparando ambos lados a mano
 | Presupuesto de monolito (`Layout3DEditor.tsx`) | 20245 líneas en `946c5db` (verificado; ya en su techo antes de empezar) | 20235/20245 — 10 líneas POR DEBAJO de donde empezó, pese a agregar funcionalidad real (material, geometría inválida, presets): una pieza (Corte F) hubiera excedido el techo y se resolvió con una extracción real (`camera-view-presets.ts`), no un recorte cosmético |
 | Trinquete de lint (`apps/web`) | 547 | 547 — sin regresión en toda la campaña |
 
-## Lo hecho, por corte (bitácora completa: `CAMPANA_3D_M1_20260824.md`)
+## Lo hecho, por corte (bitácora completa: `docs/history/execution/CAMPANA_3D_M1_20260824.md`)
 
 - **Auditoría (Corte A)** — tres agentes de exploración read-only en paralelo
   sobre `946c5db`, antes de escribir una línea: qué de "vista 3D" ya existía

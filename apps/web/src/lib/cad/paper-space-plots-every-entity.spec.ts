@@ -6,7 +6,7 @@ import type { CadDocument } from "./cad-document";
 /*
  * LO QUE SE DIBUJA SE IMPRIME.
  *
- * `renderEntity` de `paper-space.ts` era una escalera de ramas por tipo escrita
+ * `renderEntity` (hoy en `paper-space-render.ts`) era una escalera de ramas por tipo escrita
  * cuando el documento iba por el esquema 3, y nunca creció. Todo lo que llegó
  * después —los ocho tipos del esquema 4, SOLID3D y REGION del 5, el MURO del 6
  * y el HUECO del 7— caía en un `return []` final: la entidad desaparecía de la
@@ -114,10 +114,16 @@ assert.ok(
  * el fallo sería otra vez invisible: el plano sale, sólo que incompleto.
  */
 import { readFileSync } from "node:fs";
-const ladder = readFileSync("src/lib/cad/paper-space.ts", "utf8");
+// La escalera vive en `paper-space-render.ts` desde que `renderEntity` salió de
+// `paper-space.ts` por el trinquete de tamaño; `buildCadPublishPlan` la llama.
+const ladder = readFileSync("src/lib/cad/paper-space-render.ts", "utf8");
 assert.ok(
   ladder.includes("plotEntityFromRegistry("),
   "la escalera de ramas sigue terminando en el respaldo del registro",
+);
+assert.ok(
+  readFileSync("src/lib/cad/paper-space.ts", "utf8").includes("renderEntity("),
+  "y el plan de publicación sigue trazando cada entidad por esa escalera",
 );
 const fallback = readFileSync(
   "src/lib/cad/paper-space-registry-fallback.ts",

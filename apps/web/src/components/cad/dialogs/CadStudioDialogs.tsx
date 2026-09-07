@@ -264,7 +264,7 @@ export function CadCellsDialog({
                       // perdía en el guardado — con el autosave respondiendo 200.
                       if (v && v !== c.name) onRenombrar(c.id, v);
                     }}
-                    className="w-full bg-transparent type-small font-medium outline-none focus:bg-muted/60 rounded px-1"
+                    className="w-full bg-transparent type-small font-medium outline-none focus:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring rounded px-1"
                   />
                   <div className="type-micro text-muted-foreground dark:text-muted-foreground px-1">
                     {c.stationIds.length} puntos

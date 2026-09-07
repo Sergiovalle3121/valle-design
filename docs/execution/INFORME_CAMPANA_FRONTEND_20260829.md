@@ -3,7 +3,7 @@
 **Fecha:** 2026-08-29 · **Repositorio:** `valle-design` ·
 **Rama:** `claude/valle-design-premium-identity-4hnemt` · **Base:** `main @ ad3c32a`
 
-La bitácora por olas está en [`CAMPANA_FRONTEND_20260829.md`](CAMPANA_FRONTEND_20260829.md).
+La bitácora por olas está en [`CAMPANA_FRONTEND_20260829.md`](../history/execution/CAMPANA_FRONTEND_20260829.md).
 Esto es el resumen: qué se decidió, qué se midió, qué quedó fuera y qué sigue.
 
 ---

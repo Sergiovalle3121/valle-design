@@ -166,6 +166,21 @@ function styleCommand(
 }
 
 /**
+ * Todos los comandos de una hoja: los de cada ventana y, DETRÁS, los de papel.
+ *
+ * El recuento de fuentes y la previa iteraban sólo `sheet.viewports`, y lo
+ * dibujado directamente sobre el papel (T-30, `paperCommands`) no contaba ni
+ * se enseñaba. El papel va después de las ventanas porque ése es el orden en
+ * que lo pinta `plot-pdf.ts`; la previa tiene que enseñar lo mismo.
+ */
+function sheetCommands(sheet: CadPublishSheet): CadVectorCommand[] {
+  return [
+    ...sheet.viewports.flatMap((viewport) => viewport.commands),
+    ...(sheet.paperCommands ?? []),
+  ];
+}
+
+/**
  * Fuentes de área de trazado de una hoja concreta.
  *
  * La zona imprimible es la de la CONFIGURACIÓN de página, no la de la hoja del
@@ -227,6 +242,18 @@ export function buildCadPlotJob(input: CadPlotJobInput): CadPlotJob {
       colorMode: input.pageSetup.colorMode,
       lineweightScale: input.pageSetup.lineweightScale,
       viewports,
+      // T-30: lo dibujado sobre el papel pasa por la MISMA tabla de plumas,
+      // el mismo monocromo y el mismo factor de grosores que la ventana.
+      // Antes `...sheet` lo dejaba pasar crudo: un plano en monocromo salía
+      // con sus notas de papel en el color de la capa. Se conserva la forma
+      // (el campo sigue ausente cuando venía ausente).
+      ...(sheet.paperCommands
+        ? {
+            paperCommands: sheet.paperCommands.map((command) =>
+              styleCommand(command, table, input.pageSetup),
+            ),
+          }
+        : {}),
     };
   });
 
@@ -257,17 +284,16 @@ export function buildCadPlotJob(input: CadPlotJobInput): CadPlotJob {
   const fontByEntity = cadDocumentFontByEntity(document);
   const counts = new Map<string, CadPlotFontUsage>();
   for (const sheet of sheets)
-    for (const viewport of sheet.viewports)
-      for (const command of viewport.commands) {
-        if (command.kind !== "text") continue;
-        const family =
-          fontByEntity.get(command.entityId) ??
-          fontByEntity.get(command.entityId.split(":attribute:")[0]) ??
-          "Arial";
-        const entry = counts.get(family) ?? { family, usageCount: 0 };
-        entry.usageCount += 1;
-        counts.set(family, entry);
-      }
+    for (const command of sheetCommands(sheet)) {
+      if (command.kind !== "text") continue;
+      const family =
+        fontByEntity.get(command.entityId) ??
+        fontByEntity.get(command.entityId.split(":attribute:")[0]) ??
+        "Arial";
+      const entry = counts.get(family) ?? { family, usageCount: 0 };
+      entry.usageCount += 1;
+      counts.set(family, entry);
+    }
   // Un dibujo sin un solo rótulo sigue teniendo cajetín, y el cajetín lleva
   // texto: la familia implícita se declara aunque el modelo no la use.
   if (counts.size === 0) counts.set("Arial", { family: "Arial", usageCount: 0 });
@@ -337,24 +363,23 @@ export function buildCadPlotPreview(input: CadPlotJobInput): CadPlotPreview {
   const sheets = job.sheets.map((sheet): CadPlotPreviewSheet => {
     const strokes: CadPlotPreviewSheet["strokes"] = [];
     const labels: CadPlotPreviewSheet["labels"] = [];
-    for (const viewport of sheet.viewports)
-      for (const command of viewport.commands) {
-        if (command.kind === "path")
-          strokes.push({
-            points: command.points,
-            closed: command.closed,
-            color: command.style.stroke,
-            lineWidth: command.style.lineWidth,
-          });
-        else if (command.kind === "text")
-          labels.push({
-            x: command.point.x,
-            y: command.point.y,
-            text: command.text,
-            size: command.size,
-            color: command.color,
-          });
-      }
+    for (const command of sheetCommands(sheet)) {
+      if (command.kind === "path")
+        strokes.push({
+          points: command.points,
+          closed: command.closed,
+          color: command.style.stroke,
+          lineWidth: command.style.lineWidth,
+        });
+      else if (command.kind === "text")
+        labels.push({
+          x: command.point.x,
+          y: command.point.y,
+          text: command.text,
+          size: command.size,
+          color: command.color,
+        });
+    }
     return {
       sheetId: sheet.id,
       name: sheet.name,

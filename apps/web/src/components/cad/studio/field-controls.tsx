@@ -30,8 +30,7 @@ export function T3Btn({
       onClick={onClick}
       title={title}
       disabled={disabled}
-      className={`p-1.5 rounded-control transition-colors disabled:opacity-30 disabled:hover:bg-transparent ${active ? "text-foreground" : "text-muted-foreground dark:text-muted-foreground hover:bg-muted"}`}
-      style={active ? { background: "#0e7490" } : undefined}
+      className={`p-1.5 rounded-control transition-colors disabled:opacity-30 disabled:hover:bg-transparent ${active ? "bg-accent text-accent-foreground" : "text-muted-foreground dark:text-muted-foreground hover:bg-muted"}`}
     >
       {children}
     </button>

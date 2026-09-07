@@ -118,6 +118,36 @@ function schema3Document(): Record<string, unknown> {
   assert.equal(migrated.cells, undefined, "`cells` sigue sin existir");
   assert.ok(!serializeCadDocument(migrated).includes("imageDefinitions"));
   assert.ok(!serializeCadDocument(migrated).includes('"cells"'));
+  // T-11(c): mismo trato — un documento que nunca cargó un DXF de fondo (o lo
+  // cargó antes de esta ficha) no gana la sección de la nada.
+  assert.equal(
+    migrated.dxfBackgroundLossManifest,
+    undefined,
+    "`dxfBackgroundLossManifest` no se materializa",
+  );
+  assert.ok(!serializeCadDocument(migrated).includes("dxfBackgroundLossManifest"));
+}
+
+// --- T-11(c): el manifiesto de pérdidas del DXF de fondo sobrevive a un viaje
+// completo (migrar → commit → serializar → reabrir) y se clona en profundidad
+{
+  const base = migrateCadDocument(schema3Document());
+  const withBackground: CadDocument = {
+    ...base,
+    dxfBackgroundLossManifest: [
+      { code: "dxf_unsupported_entity", severity: "warning", sourceType: "SOLID3D", detail: "SOLID3D sin traducción." },
+    ],
+  };
+
+  const reopened = parseCadDocument(serializeCadDocument(withBackground));
+  assert.equal(reopened.dxfBackgroundLossManifest?.length, 1);
+  assert.equal(reopened.dxfBackgroundLossManifest?.[0].code, "dxf_unsupported_entity");
+
+  // `commitChange` clona en profundidad: editar el commit no puede mutar el
+  // documento anterior, o deshacer dejaría de devolver lo que había.
+  const committed = commitChange(withBackground, "prueba");
+  committed.dxfBackgroundLossManifest![0].detail = "otra cosa";
+  assert.equal(withBackground.dxfBackgroundLossManifest![0].detail, "SOLID3D sin traducción.", "el clon es profundo");
 }
 
 // --- idempotencia: complemento, no la prueba principal ------------------------

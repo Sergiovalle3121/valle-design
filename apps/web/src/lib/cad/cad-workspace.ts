@@ -39,6 +39,17 @@ export interface CadWorkspacePreferences {
   schema: 1;
   profile: CadWorkspaceProfile;
   leftDock: boolean;
+  /**
+   * El dock izquierdo VISIBLE se plegaba a un cuarto fijo de pantalla
+   * (`w-60`, 240 px) sin ningún control propio: la única forma de recuperar
+   * ese ancho era la casilla `leftDock` de este mismo panel — enterrada en
+   * «Workspace profesional» — que además lo OCULTA entero, no lo angosta.
+   * Un arquitecto con un monitor de 13" no iba a encontrarla a mitad de
+   * dibujar. Este flag es la mitad que faltaba: colapsa el dock a un riel de
+   * 2,25rem con un solo botón visible en su propia cabecera, y se guarda en
+   * la MISMA preferencia que ya persiste `leftDock` — no una clave nueva.
+   */
+  leftDockCollapsed: boolean;
   rightDock: boolean;
   commandDock: boolean;
   minimap: boolean;
@@ -58,6 +69,7 @@ export const CAD_WORKSPACE_DEFAULTS: CadWorkspacePreferences = {
   schema: 1,
   profile: 'drafting',
   leftDock: true,
+  leftDockCollapsed: false,
   rightDock: true,
   commandDock: true,
   // Apagado de fábrica desde 2026-09-02. El minimapa es una capa que vive
@@ -107,6 +119,7 @@ export function normalizeCadWorkspacePreferences(value: unknown): CadWorkspacePr
     schema: 1,
     profile,
     leftDock: typeof raw.leftDock === 'boolean' ? raw.leftDock : CAD_WORKSPACE_DEFAULTS.leftDock,
+    leftDockCollapsed: typeof raw.leftDockCollapsed === 'boolean' ? raw.leftDockCollapsed : CAD_WORKSPACE_DEFAULTS.leftDockCollapsed,
     rightDock: typeof raw.rightDock === 'boolean' ? raw.rightDock : CAD_WORKSPACE_DEFAULTS.rightDock,
     commandDock: typeof raw.commandDock === 'boolean' ? raw.commandDock : CAD_WORKSPACE_DEFAULTS.commandDock,
     minimap: typeof raw.minimap === 'boolean' ? raw.minimap : CAD_WORKSPACE_DEFAULTS.minimap,

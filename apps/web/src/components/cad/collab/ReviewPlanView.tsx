@@ -248,7 +248,7 @@ export default function ReviewPlanView({
           style={{ transform: `translate3d(${placement.x}px, ${placement.y}px, 0)` }}
           className={`absolute left-0 top-0 -ml-3 -mt-3 flex h-6 w-6 items-center justify-center rounded-full border type-micro font-bold shadow-lg ${
             placement.resolved
-              ? "border-emerald-200/60 bg-success/15 text-gray-950"
+              ? "border-emerald-200/60 bg-success/15 text-success-ink"
               : "border-amber-200/70 bg-amber-400 text-gray-950"
           } ${placement.offscreen ? "opacity-70 ring-2 ring-ring" : ""} ${
             activeId === placement.id ? "ring-2 ring-indigo-300" : ""

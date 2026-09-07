@@ -11,10 +11,12 @@
  * Lo que dibuja, sin cambios: marco de hoja, cada ventana recortada a su clip
  * con sus trazos y sus textos (máscara de fondo, subrayado, alineación), el
  * rótulo de escala de la ventana, el cajetín de ocho celdas en es-MX y el pie
- * con el producto y «n/N».
+ * con el producto y «n/N». Desde F4 recorta con el contorno REAL de una
+ * ventana poligonal (T-19·4) y traza lo dibujado sobre el papel (T-30),
+ * igual que `plot-pdf.ts`: las dos salidas leen el mismo plan.
  */
 import type { CadDocument } from "@/lib/cad/cad-document";
-import type { CadPublishPlan } from "@/lib/cad/paper-space";
+import type { CadPublishPlan, CadVectorCommand } from "@/lib/cad/paper-space";
 import { cadDocumentFontByEntity } from "@/lib/cad/plot/plot-fonts";
 import { cadStrokeSheetText } from "@/lib/cad/plot/plot-stroke-text";
 
@@ -38,6 +40,7 @@ export async function renderCadSheetSetPdf(
   plan: CadPublishPlan,
   meta: CadSheetSetPdfMeta,
   document?: CadDocument,
+  options: { compress?: boolean } = {},
 ): Promise<ArrayBuffer> {
   const { jsPDF } = await import("jspdf");
   const sheets = cadStrokeSheetText(
@@ -49,7 +52,7 @@ export async function renderCadSheetSetPdf(
     orientation: first.orientation,
     unit: "mm",
     format: [first.width, first.height],
-    compress: true,
+    compress: options.compress ?? true,
     putOnlyUsedFonts: true,
   });
   const color = (hex: string): [number, number, number] => {
@@ -68,106 +71,119 @@ export async function renderCadSheetSetPdf(
     pdf.setDrawColor(17, 24, 39);
     pdf.setLineWidth(0.45);
     pdf.rect(6, 6, sheet.width - 12, sheet.height - 12);
+    // Un solo trazador para lo que va DENTRO de una ventana y para lo que va
+    // DIRECTAMENTE sobre el papel (T-30): la única diferencia es el ancho
+    // contra el que se acota un texto sin `maxWidth` propio.
+    const drawCommand = (command: CadVectorCommand, clipWidth: number) => {
+      if (command.kind === "path") {
+        if (command.points.length < 2) return;
+        const [strokeR, strokeG, strokeB] = color(command.style.stroke);
+        pdf.setDrawColor(strokeR, strokeG, strokeB);
+        pdf.setLineWidth(command.style.lineWidth);
+        pdf.setLineDashPattern(command.style.dash ?? [], 0);
+        if (command.style.fill) {
+          const [fillR, fillG, fillB] = color(command.style.fill);
+          pdf.setFillColor(fillR, fillG, fillB);
+        }
+        const [origin, ...rest] = command.points;
+        const deltas = rest.map((point, index) => [
+          point.x - command.points[index].x,
+          point.y - command.points[index].y,
+        ]);
+        const style: "S" | "FD" = command.style.fill ? "FD" : "S";
+        pdf.lines(
+          deltas,
+          origin.x,
+          origin.y,
+          [1, 1],
+          style,
+          command.closed,
+        );
+      } else if (command.kind === "text") {
+        const [r, g, b] = color(command.color);
+        const maxWidth = Math.max(
+          1,
+          Math.min(
+            command.maxWidth ?? clipWidth,
+            clipWidth,
+          ),
+        );
+        const lines = command.text.replace(/\r\n?/g, "\n").split("\n");
+        const lineHeight = command.size * 0.4;
+        const alignOffset =
+          command.align === "center"
+            ? maxWidth / 2
+            : command.align === "right"
+              ? maxWidth
+              : 0;
+        if (command.backgroundMask) {
+          const [mr, mg, mb] = color(
+            command.backgroundColor ?? "#ffffff",
+          );
+          pdf.setFillColor(mr, mg, mb);
+          pdf.rect(
+            command.point.x - alignOffset - 0.8,
+            command.point.y - command.size * 0.32,
+            maxWidth + 1.6,
+            Math.max(lineHeight, lines.length * lineHeight) + 1.2,
+            "F",
+          );
+        }
+        pdf.setTextColor(r, g, b);
+        pdf.setFont(
+          "helvetica",
+          command.bold && command.italic
+            ? "bolditalic"
+            : command.bold
+              ? "bold"
+              : command.italic
+                ? "italic"
+                : "normal",
+        );
+        pdf.setFontSize(command.size);
+        pdf.text(command.text, command.point.x, command.point.y, {
+          align: command.align ?? "left",
+          angle: command.rotation,
+          maxWidth,
+        });
+        if (command.underline && Math.abs(command.rotation) < 1e-9) {
+          pdf.setDrawColor(r, g, b);
+          pdf.setLineWidth(Math.max(0.08, command.size * 0.015));
+          lines.forEach((line, index) => {
+            const width = Math.min(maxWidth, pdf.getTextWidth(line));
+            const x =
+              command.point.x -
+              (command.align === "center"
+                ? width / 2
+                : command.align === "right"
+                  ? width
+                  : 0);
+            const y = command.point.y + index * lineHeight + 0.5;
+            pdf.line(x, y, x + width, y);
+          });
+        }
+      }
+    };
     sheet.viewports.forEach((viewport) => {
       pdf.saveGraphicsState();
-      pdf.rect(
-        viewport.clip.x,
-        viewport.clip.y,
-        viewport.clip.width,
-        viewport.clip.height,
-      );
+      // T-19·4: el contorno REAL de una ventana poligonal recorta; sin él, el
+      // rectángulo envolvente de siempre. Misma regla que `plot-pdf.ts`, y el
+      // mismo estilo `null` (T-19·5): el camino del recorte se construye SIN
+      // pintar, porque con el estilo por defecto jsPDF emitía `S` antes de
+      // `W` y el recorte se aplicaba sobre un camino ya consumido — nada.
+      if (viewport.clipPolygon && viewport.clipPolygon.length >= 3) {
+        const [origin, ...rest] = viewport.clipPolygon;
+        const deltas = rest.map((vertex, index) => [
+          vertex.x - (rest[index - 1] ?? origin).x,
+          vertex.y - (rest[index - 1] ?? origin).y,
+        ]);
+        pdf.lines(deltas, origin.x, origin.y, [1, 1], null, true);
+      } else {
+        pdf.rect(viewport.clip.x, viewport.clip.y, viewport.clip.width, viewport.clip.height, null);
+      }
       pdf.clip();
       pdf.discardPath();
-      viewport.commands.forEach((command) => {
-        if (command.kind === "path") {
-          if (command.points.length < 2) return;
-          const [strokeR, strokeG, strokeB] = color(command.style.stroke);
-          pdf.setDrawColor(strokeR, strokeG, strokeB);
-          pdf.setLineWidth(command.style.lineWidth);
-          pdf.setLineDashPattern(command.style.dash ?? [], 0);
-          if (command.style.fill) {
-            const [fillR, fillG, fillB] = color(command.style.fill);
-            pdf.setFillColor(fillR, fillG, fillB);
-          }
-          const [origin, ...rest] = command.points;
-          const deltas = rest.map((point, index) => [
-            point.x - command.points[index].x,
-            point.y - command.points[index].y,
-          ]);
-          const style: "S" | "FD" = command.style.fill ? "FD" : "S";
-          pdf.lines(
-            deltas,
-            origin.x,
-            origin.y,
-            [1, 1],
-            style,
-            command.closed,
-          );
-        } else if (command.kind === "text") {
-          const [r, g, b] = color(command.color);
-          const maxWidth = Math.max(
-            1,
-            Math.min(
-              command.maxWidth ?? viewport.clip.width,
-              viewport.clip.width,
-            ),
-          );
-          const lines = command.text.replace(/\r\n?/g, "\n").split("\n");
-          const lineHeight = command.size * 0.4;
-          const alignOffset =
-            command.align === "center"
-              ? maxWidth / 2
-              : command.align === "right"
-                ? maxWidth
-                : 0;
-          if (command.backgroundMask) {
-            const [mr, mg, mb] = color(
-              command.backgroundColor ?? "#ffffff",
-            );
-            pdf.setFillColor(mr, mg, mb);
-            pdf.rect(
-              command.point.x - alignOffset - 0.8,
-              command.point.y - command.size * 0.32,
-              maxWidth + 1.6,
-              Math.max(lineHeight, lines.length * lineHeight) + 1.2,
-              "F",
-            );
-          }
-          pdf.setTextColor(r, g, b);
-          pdf.setFont(
-            "helvetica",
-            command.bold && command.italic
-              ? "bolditalic"
-              : command.bold
-                ? "bold"
-                : command.italic
-                  ? "italic"
-                  : "normal",
-          );
-          pdf.setFontSize(command.size);
-          pdf.text(command.text, command.point.x, command.point.y, {
-            align: command.align ?? "left",
-            angle: command.rotation,
-            maxWidth,
-          });
-          if (command.underline && Math.abs(command.rotation) < 1e-9) {
-            pdf.setDrawColor(r, g, b);
-            pdf.setLineWidth(Math.max(0.08, command.size * 0.015));
-            lines.forEach((line, index) => {
-              const width = Math.min(maxWidth, pdf.getTextWidth(line));
-              const x =
-                command.point.x -
-                (command.align === "center"
-                  ? width / 2
-                  : command.align === "right"
-                    ? width
-                    : 0);
-              const y = command.point.y + index * lineHeight + 0.5;
-              pdf.line(x, y, x + width, y);
-            });
-          }
-        }
-      });
+      viewport.commands.forEach((command) => drawCommand(command, viewport.clip.width));
       pdf.restoreGraphicsState();
       pdf.setLineDashPattern([], 0);
       pdf.setDrawColor(100, 116, 139);
@@ -187,6 +203,9 @@ export async function renderCadSheetSetPdf(
         viewport.clip.y + 4,
       );
     });
+    // T-30: lo dibujado DIRECTAMENTE sobre el papel —fuera de toda ventana,
+    // así que sin recorte de ventana— llega también al PDF del botón.
+    (sheet.paperCommands ?? []).forEach((command) => drawCommand(command, sheet.width));
     // Las CLAVES del cajetín (PROJECT, TITLE…) son contrato del documento
     // y no se tocan; lo que se IMPRIME para el cliente va en es-MX.
     const titleBlockEntries = [

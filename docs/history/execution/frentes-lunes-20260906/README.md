@@ -23,4 +23,4 @@ exclusivo** (§5.2 del prompt maestro). Escribe aquí dos ficheros:
 | F8 · El despacho | `apps/api/src/modules/{organizations,commercial,identity,outbox-receiver,audit-log,support,feedback}`, la landing, el alta, `faq.ts`, `PricingCatalog.tsx`, `app/layout.tsx`, contrato OpenAPI y SDK | `claude/f8-despacho` | 150-159 |
 | F9 · Cimientos y piel | `scripts/design/`, `check-lint-budget.mjs`, `lib/cad/render/`, `plot/aci-palette.ts`, `components/cad/ribbon/`, `lazy.ts`, `save-failure.ts`, `document-lifecycle/`, recovery, a11y specs | `claude/f9-cimientos-piel` | 160-169 |
 | F10 · Evidencia independiente | `docs/cad/evidence/`, `docs/cad/corpus/oraculos/`, `lib/cad/verification/`, `scripts/cad/` (nuevos) | `claude/f10-evidencia-independiente` | 170-179 |
-| F11 · Inventario AutoCAD | sólo `docs/execution/frentes/F11*.md` | `claude/f11-inventario-autocad` | — |
+| F11 · Inventario AutoCAD | sólo `docs/history/execution/frentes-lunes-20260906/F11*.md` | `claude/f11-inventario-autocad` | — |

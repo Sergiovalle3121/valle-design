@@ -29,7 +29,7 @@
  * avisar de nada, y se apaga en cuanto el recorrido se cierra.
  */
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { Check, ChevronRight, PartyPopper } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, ChevronUp, PartyPopper } from "lucide-react";
 import { Button, ProgressBar, cx } from "@/components/ui";
 import {
   CAD_GUIDED_TOUR_STEPS,
@@ -72,6 +72,18 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
     document: CadCommandDocumentView | null;
     now: number;
   }>({ document: null, now: 0 });
+  /**
+   * Plegado, no persistido. La cabecera SIEMPRE se ve — el usuario nunca
+   * pierde el hilo de en qué paso va— pero el cuerpo (barra de progreso,
+   * lista de pasos) se puede quitar de en medio: medido en un lienzo de
+   * 1.280×720 con el paso «Sigue dibujando» activo, el acompañante
+   * completo deja sólo 4 px de aire sobre la línea de comandos —visualmente
+   * pegados, aunque el rectángulo no llegue a tocarla—. Plegado baja la
+   * altura del panel a una sola línea y multiplica ese margen. No se guarda
+   * en `localStorage` a propósito: es un gesto de «ahora estorba», no una
+   * preferencia — la próxima vez que el recorrido se abra, se abre entero.
+   */
+  const [minimized, setMinimized] = useState(false);
 
   // El aviso de trazado se escucha SIEMPRE que el recorrido esté vivo, esté o no
   // desplegado: alguien puede plegar el panel, trazar y volver a abrirlo.
@@ -153,10 +165,14 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
         contenedor: era el color de «correcto» gastado en un panel entero, y por
         eso los pasos ya terminados no destacaban dentro de él.
       */
-      className="pointer-events-none max-h-[32vh] w-full overflow-y-auto rounded-card border border-border bg-popover/95 p-3.5 text-popover-foreground shadow-floating backdrop-blur"
+      data-collapsed={minimized ? "true" : "false"}
+      className={cx(
+        "pointer-events-none w-full overflow-y-auto rounded-card border border-border bg-popover/95 text-popover-foreground shadow-floating backdrop-blur",
+        minimized ? "p-2" : "max-h-[32vh] p-3.5",
+      )}
     >
       {/*
-        La cabecera NO reclama el ratón: sólo su botón.
+        La cabecera NO reclama el ratón: sólo sus botones.
 
         `pointer-events-auto` en una fila `flex` de ancho completo no deja pasar
         el puntero por el TÍTULO ni por el hueco entre el título y el botón, y
@@ -169,7 +185,7 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
 
         Un botón de 83 px sí puede reclamarlo; la fila que lo contiene, no.
       */}
-      <header className="mb-3 flex items-start justify-between gap-3">
+      <header className={cx("flex items-start justify-between gap-3", !minimized && "mb-3")}>
         <span className="min-w-0">
           <span className="type-eyebrow block text-primary-ink">
             Primeros cinco minutos
@@ -187,18 +203,49 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
                 })()}
           </span>
         </span>
-        {/* Sólo el BOTÓN reclama el puntero, nunca la fila que lo envuelve:
+        {/* Sólo los BOTONES reclaman el puntero, nunca la fila que los envuelve:
             ver la nota de arriba sobre el telón. */}
-        <Button
-          variant="ghost"
-          size="sm"
-          data-testid="cad-guided-tour-skip"
-          onClick={() => cadTourHost.dispatch({ type: "skip", now: Date.now() })}
-          className="pointer-events-auto shrink-0"
-        >
-          Saltar
-        </Button>
+        <span className="flex shrink-0 items-center gap-1">
+          {/*
+            EL PLIEGUE. Con el paso «Sigue dibujando» activo y el panel
+            entero desplegado, el hueco sobre la línea de comandos medía 4 px
+            en 1.280×720 — el rectángulo no llega a tocarla, pero el ojo no
+            distingue dos tarjetas de 4 px de por medio: se lee como una
+            sola. Este botón pliega el cuerpo (progreso + pasos) y deja sólo
+            la cabecera, que es una línea — el hueco pasa de 4 px a más de
+            200 px sin mover ni un dato del recorrido.
+          */}
+          <Button
+            variant="ghost"
+            size="sm"
+            data-testid="cad-guided-tour-toggle"
+            onClick={() => setMinimized((value) => !value)}
+            aria-expanded={!minimized}
+            title={minimized ? "Mostrar el recorrido guiado" : "Minimizar el recorrido guiado"}
+            className="pointer-events-auto shrink-0 px-1.5"
+          >
+            {minimized ? (
+              <ChevronUp aria-hidden="true" className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
+            )}
+            <span className="sr-only">
+              {minimized ? "Mostrar el recorrido guiado" : "Minimizar el recorrido guiado"}
+            </span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            data-testid="cad-guided-tour-skip"
+            onClick={() => cadTourHost.dispatch({ type: "skip", now: Date.now() })}
+            className="pointer-events-auto shrink-0"
+          >
+            Saltar
+          </Button>
+        </span>
       </header>
+      {!minimized && (
+      <>
       <ProgressBar
         data-testid="cad-guided-tour-progress"
         value={progress.doneStepIds.length}
@@ -299,6 +346,8 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
           Llevas {formatCadTourDuration(elapsed)}.
         </p>
       ) : null}
+      </>
+      )}
     </section>
   );
 }

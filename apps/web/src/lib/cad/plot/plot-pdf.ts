@@ -303,7 +303,27 @@ export async function renderCadPlotPdf(
     pdf.setLineCap("butt");
     pdf.setLineJoin("miter");
 
+    // T-19·5: la ventana SIEMPRE recorta — antes ninguna lo hacía y el aviso
+    // de arriba lo daba por hecho. Rectangular por defecto; con el contorno
+    // REAL (T-19·4, `clipPolygon`) cuando la ventana no es un rectángulo.
+    // El camino se construye SIN pintar (estilo `null`, como el recorte de
+    // imagen de abajo): con el estilo por defecto jsPDF emitía `S` antes de
+    // `W`, el trazo consumía el camino, el recorte se aplicaba sobre nada y
+    // el marco de la ventana salía trazado con la pluma que quedara puesta.
     for (const viewport of sheet.viewports) {
+      pdf.saveGraphicsState();
+      if (viewport.clipPolygon && viewport.clipPolygon.length >= 3) {
+        const [origin, ...rest] = viewport.clipPolygon;
+        const deltas = rest.map((vertex, index) => [
+          vertex.x - (rest[index - 1] ?? origin).x,
+          vertex.y - (rest[index - 1] ?? origin).y,
+        ]);
+        pdf.lines(deltas, origin.x, origin.y, [1, 1], null, true);
+      } else {
+        pdf.rect(viewport.clip.x, viewport.clip.y, viewport.clip.width, viewport.clip.height, null);
+      }
+      pdf.clip();
+      pdf.discardPath();
       for (const command of viewport.commands)
         drawCommand(
           pdf,
@@ -312,7 +332,19 @@ export async function renderCadPlotPdf(
           styleFor,
           warnings,
         );
+      pdf.restoreGraphicsState();
     }
+
+    // T-30: lo dibujado DIRECTAMENTE sobre el papel — nunca dentro de una
+    // ventana, así que sin recorte de ventana.
+    for (const command of sheet.paperCommands ?? [])
+      drawCommand(
+        pdf,
+        command,
+        command.kind === "text" ? pickFont(familyOf(command.entityId)) : bodyFont,
+        styleFor,
+        warnings,
+      );
 
     // Sin cajetín compuesto, se compone aquí con los atributos que la hoja ya
     // trae. Degradar a un marco vacío dejaría la lámina SIN número de plano, y
@@ -406,7 +438,14 @@ function drawCommand(
         points[0].x - points[points.length - 1].x,
         points[0].y - points[points.length - 1].y,
       ]);
-    pdf.lines(deltas, points[0].x, points[0].y, [1, 1], "S", false);
+    // T-31·b: el sombreado sólido, la máscara y el wipeout marcan su color de
+    // relleno en `style.fill` (`paper-space.ts`), pero el estilo aquí estaba
+    // FIJO en "S" (sólo trazo): el relleno se calculaba y nunca se pintaba.
+    if (command.style.fill) {
+      const [fr, fg, fb] = rgb(command.style.fill);
+      pdf.setFillColor(fr, fg, fb);
+    }
+    pdf.lines(deltas, points[0].x, points[0].y, [1, 1], command.style.fill ? "F" : "S", false);
     return;
   }
 
@@ -419,6 +458,19 @@ function drawCommand(
   // El tamaño del plan viene en milímetros de papel; `setFontSize` habla en
   // puntos.
   pdf.setFontSize(Math.max(0.5, command.size) * MM_TO_POINTS);
+  // T-31·b: la máscara de fondo de un MTEXT se declaraba (`backgroundMask`/
+  // `backgroundColor` viajan en el comando desde `paper-space.ts`) y nunca
+  // se pintaba — el rótulo salía siempre sobre el fondo de lo que hubiera
+  // debajo, no sobre su propio rectángulo opaco.
+  if (command.backgroundMask && command.backgroundColor) {
+    const width = pdf.getTextWidth(command.text);
+    const height = command.size * 1.2;
+    const left =
+      command.align === "center" ? command.point.x - width / 2 : command.align === "right" ? command.point.x - width : command.point.x;
+    const [mr, mg, mb] = rgb(command.backgroundColor);
+    pdf.setFillColor(mr, mg, mb);
+    pdf.rect(left, command.point.y - height * 0.8, width, height, "F");
+  }
   pdf.text(command.text, command.point.x, command.point.y, {
     align: command.align === "justify" ? "left" : (command.align ?? "left"),
     // El giro del plan es el del DIBUJO: antihorario y con la Y hacia arriba,

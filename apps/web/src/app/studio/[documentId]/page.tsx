@@ -2,11 +2,14 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { use, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useMemo, useState } from "react";
 import { isDocumentId } from "@/lib/cad/document-identity";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
 import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
 import { CadStudioSkeleton } from "@/components/cad/studio/CadStudioSkeleton";
+import { Button } from "@/components/ui";
+import { EditorCrashRecoveryAction } from "@/components/cad/studio/EditorCrashRecoveryAction";
+import type { CadRecoveryScope } from "@/lib/cad/cad-recovery";
 
 const CadStudioHost = dynamic(() => import("@/components/cad/CadStudioHost"), {
   ssr: false,
@@ -38,6 +41,14 @@ export default function DocumentStudioPage({
   const { documentId } = use(params);
   const auth = useDesignAuth();
   const [state, setState] = useState<State>({ kind: "loading" });
+  /**
+   * T-75(b): abrir un plano caído no ofrecía ni reintentar ni el borrador
+   * local — sólo un enlace de vuelta al tablero, es decir, abandonar. Un
+   * contador de intento es lo mínimo que hace falta para volver a disparar
+   * el efecto de abajo sin duplicar su lógica en un manejador aparte.
+   */
+  const [retryToken, setRetryToken] = useState(0);
+  const retry = useCallback(() => setRetryToken((n) => n + 1), []);
 
   useEffect(() => {
     if (!isDocumentId(documentId)) {
@@ -75,7 +86,32 @@ export default function DocumentStudioPage({
     return () => {
       active = false;
     };
-  }, [auth.isAuthenticated, auth.isLoading, documentId]);
+  }, [auth.isAuthenticated, auth.isLoading, documentId, retryToken]);
+
+  /**
+   * T-75(b), la segunda mitad: si el servidor no responde, ¿qué queda del
+   * lado del cliente? El mismo diario de recuperación que ya usa el editor
+   * (`EditorCrashRecoveryAction`, T-72h) — un documento que se guardó antes
+   * de la caída actual, si lo hay. `model`/`revision` son los mismos valores
+   * fijos con los que `CadStudioHost` abriría este documento si el servidor
+   * respondiera (ver más abajo). El `projectId` NO se puede saber aquí: viene
+   * en la respuesta que acaba de fallar, y el editor lo lleva en la clave del
+   * diario, así que la acción busca por documento bajo cualquier proyecto
+   * (`matchAnyWorkspace`); por clave exacta nunca encontraba nada.
+   */
+  const authUser = auth.user;
+  const recoveryScope = useMemo<CadRecoveryScope | null>(
+    () =>
+      auth.tenantId && authUser?.id
+        ? {
+            tenantId: auth.tenantId,
+            userId: authUser.id,
+            model: documentId,
+            revision: "DOCUMENT",
+          }
+        : null,
+    [auth.tenantId, authUser, documentId],
+  );
 
   // Cargar NO es un error: es la primera mitad de una apertura que va a salir
   // bien. Enseñar la misma tarjeta centrada para «cargando» y para «no tienes
@@ -108,6 +144,22 @@ export default function DocumentStudioPage({
           >
             {messages[state.kind]}
           </p>
+          {/*
+            T-75(b): "offline" y "error" son los dos casos en que el
+            documento puede seguir intacto en el servidor y sólo la
+            CONEXIÓN falló — a diferencia de "deleted"/"forbidden", donde
+            reintentar no puede cambiar nada. Ahí sí tiene sentido ofrecer
+            reintentar y el borrador local; en los demás sería prometer una
+            salida que no existe.
+          */}
+          {(state.kind === "offline" || state.kind === "error") && (
+            <div className="mt-4 flex flex-col items-center gap-3">
+              <Button variant="secondary" size="sm" onClick={retry}>
+                Reintentar
+              </Button>
+              <EditorCrashRecoveryAction scope={recoveryScope} matchAnyWorkspace />
+            </div>
+          )}
           <Link
             className="type-small mt-6 inline-block font-semibold text-primary-ink underline underline-offset-4"
             href="/dashboard"
