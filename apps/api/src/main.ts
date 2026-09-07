@@ -21,6 +21,7 @@ import {
   type ErrorReporter,
 } from './observability/error-reporter.port';
 import { educationModeStatus } from './modules/education/education-mode';
+import { NEST_APP_OPTIONS } from './nest-app-options';
 
 function parseAllowedOrigins(raw: string): string[] {
   const value = (raw || '').trim();
@@ -48,9 +49,13 @@ function parseAllowedOrigins(raw: string): string[] {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    cors: false,
-  });
+  // `bodyParser: false` cierra el login CSRF por formulario cross-site: el
+  // único parser de cuerpo es el JSON explícito de abajo más los crudos por
+  // ruta. El porqué completo está en `nest-app-options.ts`.
+  const app = await NestFactory.create<NestExpressApplication>(
+    AppModule,
+    NEST_APP_OPTIONS,
+  );
 
   // El webhook de la pasarela necesita los BYTES CRUDOS para verificar su
   // firma HMAC, así que su parser se monta ANTES del JSON global y SÓLO en su

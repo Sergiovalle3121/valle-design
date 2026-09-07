@@ -30,6 +30,16 @@ export interface CadBlockAssetInput {
   layer?: string;
 }
 
+/** Lo que la lista y la lectura por id devuelven: UNA sola proyección. */
+export interface CadBlockView {
+  id: string;
+  name: string;
+  assets: LayoutAsset[];
+  definition: Record<string, unknown> | null;
+  version: number;
+  createdAt: Date;
+}
+
 const MAX_BLOCKS_PER_TENANT = 200;
 /**
  * Techo del carril de sistema. Es un número del PRODUCTO, no del cliente, así
@@ -101,6 +111,38 @@ export class CadBlocksService {
     return row;
   }
 
+  private view(b: SfCadBlock): CadBlockView {
+    return {
+      id: b.id,
+      name: b.name,
+      assets: b.assets ?? [],
+      definition: b.definition ?? null,
+      version: b.version ?? 1,
+      createdAt: b.created_at,
+    };
+  }
+
+  /**
+   * Un bloque por id, en el carril del inquilino O en el de sistema.
+   *
+   * Es la misma búsqueda de dos carriles que `findForMutation`, sin el rechazo
+   * de sólo lectura: LEER un bloque de fábrica es legítimo. Existe porque
+   * `GET /v1/cad/blocks/:id` cargaba la biblioteca entera —hasta 400 filas con
+   * definiciones de 1 MB— para quedarse con una (hallazgo «GET /v1/cad/blocks/
+   * :blockId loads the entire library»). Lo ajeno sigue siendo `null`, que el
+   * controlador responde como 404: lo único que puede decirse sin confirmar
+   * que existe.
+   */
+  async findOne(id: string): Promise<CadBlockView | null> {
+    const row = await this.blocks.findOne({
+      where: [
+        { id, ...this.tenantWhere() },
+        { id, ...this.systemLaneWhere() },
+      ],
+    });
+    return row ? this.view(row) : null;
+  }
+
   private safeDefinition(value: Record<string, unknown> | undefined) {
     if (!value) return null;
     const serialized = JSON.stringify(value);
@@ -122,16 +164,7 @@ export class CadBlocksService {
     return copy;
   }
 
-  async list(query = ''): Promise<
-    {
-      id: string;
-      name: string;
-      assets: LayoutAsset[];
-      definition: Record<string, unknown> | null;
-      version: number;
-      createdAt: Date;
-    }[]
-  > {
+  async list(query = ''): Promise<CadBlockView[]> {
     const own = await this.blocks.find({
       where: this.tenantWhere(),
       order: { name: 'ASC' },
@@ -151,14 +184,7 @@ export class CadBlocksService {
     );
     const terms = query.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
     return rows
-      .map((b) => ({
-        id: b.id,
-        name: b.name,
-        assets: b.assets ?? [],
-        definition: b.definition ?? null,
-        version: b.version ?? 1,
-        createdAt: b.created_at,
-      }))
+      .map((b) => this.view(b))
       .filter((row) => {
         if (!terms.length) return true;
         const definition = row.definition ?? {};

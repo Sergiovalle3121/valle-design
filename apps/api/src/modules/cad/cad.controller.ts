@@ -372,7 +372,9 @@ export class CadController {
   @Get('blocks/:blockId')
   @RequirePermissions('cad:view')
   async getBlock(@Param('blockId', ParseUUIDPipe) blockId: string) {
-    const row = (await this.blocks.list()).find((b) => b.id === blockId);
+    // Una fila por id (carril propio o de sistema), no la biblioteca entera
+    // filtrada en memoria.
+    const row = await this.blocks.findOne(blockId);
     if (!row) throw new NotFoundException('Bloque no encontrado.');
     return row;
   }
