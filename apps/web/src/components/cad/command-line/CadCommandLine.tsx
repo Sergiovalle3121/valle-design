@@ -20,8 +20,41 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CadPrompt } from "@/lib/cad/engine/command-types";
 import { formatCadKeyword, formatCadPrompt } from "@/lib/cad/engine/prompt";
+import { buildCadPaletteEntries } from "@/lib/cad/command-palette";
+
+/**
+ * T-74(c): «la línea de comandos no sugiere nada mientras escribo, y el
+ * buscador ya existe» — el buscador es Ctrl+K (`command-palette.ts`,
+ * indexado ahí mismo por el monolito), así que esto reutiliza el MISMO
+ * registro estático en vez de inventar uno nuevo que pudiera divergir del
+ * de la paleta. Es una excepción puntual, documentada, a «no conoce el
+ * motor»: lo que se lee es el CATÁLOGO estático de nombres (mismo dato que
+ * ya usa Ctrl+K), nunca el documento ni una instancia del motor en marcha.
+ * Ya vive en el bundle del estudio de todos modos —el propio Ctrl+K lo
+ * importa de forma estática—, así que no hay nada nuevo que pagar en cada
+ * visita.
+ */
+const COMANDOS_SUGERIBLES = buildCadPaletteEntries()
+  .filter((entry) => entry.kind === "engine")
+  .map((entry) => ({ nombre: entry.label, descripcion: entry.description }));
+
+function sugerirComandos(valorCrudo: string): readonly { nombre: string; descripcion: string }[] {
+  const valor = valorCrudo.trim().toUpperCase();
+  if (!valor) return [];
+  return COMANDOS_SUGERIBLES.filter((c) => c.nombre.startsWith(valor)).slice(0, 6);
+}
 
 export interface CadCommandLineEntry {
+  /**
+   * Identidad estable del renglón, ajena a su posición. `history` se recorta
+   * a los últimos `MAX_HISTORY` (`command-engine-host.ts`) — con una clave
+   * de React basada en el índice, CADA renglón cambia de índice al caer el
+   * más viejo del principio, así que React remonta el diálogo COMPLETO en
+   * cada paso de cada comando. Para un lector de pantalla en la región viva
+   * (`role="log"`, `aria-live="polite"`) eso significa volver a anunciar los
+   * sesenta renglones enteros por cada línea nueva, no sólo la que se sumó.
+   */
+  id: number;
   /** Lo que se escribió, o el prompt que se resolvió. */
   text: string;
   level: "prompt" | "input" | "info" | "error";
@@ -65,6 +98,7 @@ export function CadCommandLine({
 }: CadCommandLineProps) {
   const [value, setValue] = useState("");
   const [recallIndex, setRecallIndex] = useState<number | null>(null);
+  const [suggestionIndex, setSuggestionIndex] = useState(0);
   const localInputRef = useRef<HTMLInputElement | null>(null);
   const inputRef = externalInputRef ?? localInputRef;
   const logRef = useRef<HTMLDivElement | null>(null);
@@ -75,6 +109,20 @@ export function CadCommandLine({
     [history],
   );
 
+  // T-74(c): sólo mientras se escribe el NOMBRE del comando — con un prompt
+  // activo (coordenada, opción) o un espacio ya tecleado (argumentos), lo
+  // que sigue no es un nombre de comando y sugerir aquí sería ruido, no
+  // ayuda.
+  const suggestions = useMemo(
+    () => (prompt || value.includes(" ") ? [] : sugerirComandos(value)),
+    [prompt, value],
+  );
+  // Sin efecto para "reiniciar" el índice en cada tecla (evita el aviso de
+  // `react-hooks/set-state-in-effect` y una cascada de renders): en vez de
+  // guardar un índice que hay que mantener sincronizado, se AJUSTA al leerlo
+  // — válido siempre que haya sugerencias, sin más estado que sincronizar.
+  const activeSuggestionIndex = suggestions.length > 0 ? suggestionIndex % suggestions.length : 0;
+
   useEffect(() => {
     // El diálogo se lee de abajo arriba, como cualquier consola.
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
@@ -82,6 +130,19 @@ export function CadCommandLine({
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === "F2") {
+        // T-73(h): «el prompt vivo no se puede volver a leer» — no había
+        // forma de repasar el diálogo con teclado, y F2 (la tecla de
+        // AutoCAD para esto) no existía. No abre una ventana de texto nueva
+        // —eso es una superficie completa, fuera de este arreglo—: mueve el
+        // foco al propio diálogo (ya es `role="log"`), que con `tabIndex`
+        // pasa a poder leerse con el lector de pantalla y desplazarse con
+        // las flechas sin robarle el ratón al lienzo (`pointer-events-none`
+        // sigue intacto: eso sólo afecta al puntero, no al teclado).
+        event.preventDefault();
+        logRef.current?.focus();
+        return;
+      }
       if (event.key === "Escape") {
         event.preventDefault();
         // Esc con texto escrito lo borra; sin texto, cancela el comando. Es la
@@ -94,6 +155,27 @@ export function CadCommandLine({
           inputRef.current?.blur();
         }
         setRecallIndex(null);
+        return;
+      }
+      // T-74(c): con sugerencias a la vista, las flechas navegan la lista
+      // (como Ctrl+K) en vez de recuperar historial — las dos comparten
+      // tecla y sólo una decisión tiene sentido a la vez: si hay nombres
+      // que completar, eso es lo que se está mirando.
+      if (suggestions.length > 0 && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
+        event.preventDefault();
+        const total = suggestions.length;
+        setSuggestionIndex((i) => {
+          const next = event.key === "ArrowDown" ? i + 1 : i - 1;
+          return ((next % total) + total) % total;
+        });
+        return;
+      }
+      if (suggestions.length > 0 && event.key === "Tab") {
+        // Tab completa sin ejecutar — el gesto de autocompletar de toda la
+        // vida, para quien quiere revisar u ordenar argumentos antes de
+        // Intro.
+        event.preventDefault();
+        setValue(suggestions[activeSuggestionIndex].nombre);
         return;
       }
       if (event.key === "ArrowUp" || event.key === "ArrowDown") {
@@ -125,10 +207,12 @@ export function CadCommandLine({
         onSubmit(submitted);
       }
     },
-    [inputRef, onCancel, onRepeat, onSubmit, recallIndex, typed, value],
+    [activeSuggestionIndex, inputRef, onCancel, onRepeat, onSubmit, recallIndex, suggestions, typed, value],
   );
 
   const line = prompt ? formatCadPrompt(prompt) : "";
+  const suggestionListId = "cad-command-line-suggestions";
+  const logId = "cad-command-line-log";
 
   return (
     <div
@@ -152,6 +236,7 @@ export function CadCommandLine({
     >
       <div
         ref={logRef}
+        id={logId}
         data-testid="cad-command-line-log"
         // Región viva para lectores de pantalla: cada paso del comando se
         // anuncia sin robar el foco (polite, no assertive — un dibujante
@@ -159,16 +244,32 @@ export function CadCommandLine({
         role="log"
         aria-live="polite"
         aria-label="Diálogo de la línea de comandos"
+        // T-73(h): sin `tabIndex` el diálogo no podía recibir foco — F2
+        // (arriba) ahora lo manda aquí para releerlo o desplazarlo con las
+        // flechas. Escape lo devuelve a la caja: quedarse atrapado en un
+        // registro de sólo lectura sería peor que no poder entrar.
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            inputRef.current?.focus();
+          }
+        }}
         // `pointer-events-none`: el diálogo es texto de SÓLO LECTURA y el
         // muelle flota sobre el lienzo y sobre la barra inferior. Con el
         // puntero enrutado al motor, cada paso de cada comando deja su renglón
         // y el diálogo crece hasta su tope, tapando lo que hay debajo: Undo, la
         // entrada dinámica y los botones de la barra dejaban de poder pulsarse.
         // Sólo la entrada y las palabras clave necesitan recibir el ratón.
+        // (El bloqueo es sólo de PUNTERO: el foco y el teclado —F2, flechas,
+        // Escape— no pasan por `pointer-events` y siguen funcionando. Y esta
+        // clase NO apaga el anillo del sistema (nada de outline-none aquí):
+        // el foco visible por defecto —el mismo `:focus-visible` de toda la
+        // app— es justo lo que hace falta, no uno nuevo.)
         className="pointer-events-none max-h-24 overflow-y-auto px-2 py-1 font-mono leading-snug"
       >
-        {history.map((entry, index) => (
-          <div key={`${index}-${entry.text}`} className={LEVEL_CLASS[entry.level]}>
+        {history.map((entry) => (
+          <div key={entry.id} className={LEVEL_CLASS[entry.level]}>
             {entry.level === "input" ? `> ${entry.text}` : entry.text}
           </div>
         ))}
@@ -197,6 +298,44 @@ export function CadCommandLine({
         </div>
       )}
 
+      {suggestions.length > 0 && (
+        // T-74(c): patrón combobox estándar — el `input` de abajo declara
+        // `aria-controls`/`aria-activedescendant` hacia este `listbox`, así
+        // que un lector de pantalla anuncia cuántas hay y cuál está
+        // resaltada sin depender del color para saberlo.
+        <ul
+          id={suggestionListId}
+          role="listbox"
+          aria-label="Comandos sugeridos"
+          className="pointer-events-auto flex flex-col gap-0.5 border-t border-border px-1 py-1"
+        >
+          {suggestions.map((s, i) => (
+            <li key={s.nombre}>
+              <button
+                type="button"
+                id={`${suggestionListId}-${i}`}
+                role="option"
+                aria-selected={i === activeSuggestionIndex}
+                data-testid={`cad-command-suggestion-${s.nombre}`}
+                onMouseEnter={() => setSuggestionIndex(i)}
+                onClick={() => {
+                  setValue("");
+                  setRecallIndex(null);
+                  onSubmit(s.nombre);
+                  inputRef.current?.focus();
+                }}
+                className={`flex w-full items-baseline gap-2 rounded px-1.5 py-0.5 text-left font-mono type-micro ${
+                  i === activeSuggestionIndex ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/60"
+                }`}
+              >
+                <span className="text-primary-ink">{s.nombre}</span>
+                <span className="truncate text-muted-foreground">{s.descripcion}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
       <div className="pointer-events-none flex items-center gap-1 border-t border-border px-2 py-1">
         <span className="font-mono text-muted-foreground">{prompt ? "»" : "Comando:"}</span>
         <input
@@ -208,7 +347,14 @@ export function CadCommandLine({
           onKeyDown={handleKeyDown}
           spellCheck={false}
           autoComplete="off"
+          role="combobox"
           aria-label="Línea de comandos CAD"
+          aria-describedby={logId}
+          aria-autocomplete="list"
+          aria-haspopup="listbox"
+          aria-expanded={suggestions.length > 0}
+          aria-controls={suggestions.length > 0 ? suggestionListId : undefined}
+          aria-activedescendant={suggestions.length > 0 ? `${suggestionListId}-${activeSuggestionIndex}` : undefined}
           placeholder={
             prompt
               ? "coordenada, distancia u opción"
@@ -216,7 +362,7 @@ export function CadCommandLine({
                 ? `escribe un comando · Espacio repite ${lastCommand}`
                 : "escribe un comando (L, C, TR, MI…)"
           }
-          className="pointer-events-auto min-w-0 flex-1 bg-transparent font-mono text-foreground outline-none placeholder:text-muted-foreground"
+          className="pointer-events-auto min-w-0 flex-1 bg-transparent font-mono text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring placeholder:text-muted-foreground"
         />
       </div>
     </div>

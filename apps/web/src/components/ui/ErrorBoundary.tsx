@@ -53,6 +53,13 @@ type Props = {
    */
   onError?: (error: Error, zona: string) => void;
   className?: string;
+  /**
+   * Acciones propias de la zona, junto a Reintentar y Reportar — p. ej. una
+   * salida de recuperación específica (T-72h: la del editor ofrece el último
+   * punto de recuperación en DXF). Ignorado en modo `compacta`: ahí sólo cabe
+   * un botón antes de romper el layout.
+   */
+  extraActions?: React.ReactNode;
 };
 
 type State = { error: Error | null };
@@ -130,6 +137,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
             error={error}
             documentId={this.props.documentId}
           />
+          {this.props.extraActions}
         </div>
       </div>
     );

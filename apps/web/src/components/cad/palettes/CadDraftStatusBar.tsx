@@ -100,7 +100,7 @@ export const CadDraftStatusBar = React.memo(function CadDraftStatusBar({
         data-testid="cad-draft-status-polar-increment"
         value={settings.polarIncrement}
         onChange={(event) => onPolarIncrement(Number(event.target.value))}
-        className="type-micro rounded-control bg-surface/60 px-1.5 py-0.5 text-foreground outline-none @max-[40rem]:hidden"
+        className="type-micro rounded-control bg-surface/60 px-1.5 py-0.5 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring @max-[40rem]:hidden"
       >
         {polarIncrements.map((value) => (
           <option key={value} value={value} className="text-foreground">

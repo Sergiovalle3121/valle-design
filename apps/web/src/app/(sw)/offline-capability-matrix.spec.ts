@@ -495,6 +495,30 @@ const resumen = resumenSinRed();
   ok();
 }
 
+/* ── 14 · T-75(d): «dibujar-acotar-modelar» NO PUEDE DECIR «NADA» ────────────
+   El defecto medido: 108 módulos de comandos en carga diferida y el service
+   worker no precarga ninguno (`service-worker-policy.ts`: `SW_PRECACHE_URLS`
+   sólo lleva el cascarón; `/_next/static/*` se cachea DESPUÉS de pedirse, no
+   antes). Un comando nunca usado en la pestaña, tecleado sin red, falla al
+   descargar su chunk. La fila decía `seNota: "Nada."` — la mentira exacta que
+   esta casa prohíbe. Este bloque falla si alguien la revierte a esa frase sin
+   corregir también el hueco real de precacheo. */
+{
+  const fila = filaPorId("dibujar-acotar-modelar");
+  assert.ok(fila, "la fila dibujar-acotar-modelar desapareció de la matriz");
+  assert.doesNotMatch(
+    fila!.seNota,
+    /^Nada\.?$/,
+    "«dibujar-acotar-modelar» vuelve a decir que no se nota nada sin red, y un comando sin cachear SÍ falla",
+  );
+  assert.match(
+    fila!.porque,
+    /carga diferida|precache|precarga/iu,
+    "«dibujar-acotar-modelar» dejó de explicar la condición del código ya descargado",
+  );
+  ok();
+}
+
 console.log(
   `offline-capability-matrix: ${comprobaciones} bloques verdes; ${resumen.endpoints}/${declaradas.length} endpoints del contrato clasificados en ${resumen.filas} filas ` +
     `(${resumen.funcionaSinRed} funcionan sin red, ${resumen.degradaYReintenta} degradan y reintentan, ${resumen.requiereBackend} requieren backend); ` +

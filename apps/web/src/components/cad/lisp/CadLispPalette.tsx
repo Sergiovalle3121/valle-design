@@ -275,7 +275,7 @@ export function CadLispPalette({ runtime, snapshot, host, disabled }: CadLispPal
           autoComplete="off"
           aria-label="Consola AutoLISP"
           placeholder={disabled ? "dibujo en sólo lectura" : "(setq a 5)"}
-          className="min-w-0 flex-1 bg-transparent font-mono text-foreground outline-none placeholder:text-muted-foreground"
+          className="min-w-0 flex-1 bg-transparent font-mono text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring placeholder:text-muted-foreground"
         />
       </div>
     </div>

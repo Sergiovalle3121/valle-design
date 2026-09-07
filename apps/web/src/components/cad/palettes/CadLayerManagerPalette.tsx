@@ -207,7 +207,7 @@ const LayerRow = React.memo(function LayerRow({
           }
           onChange={(event) => onLinetype(row.id, event.target.value)}
           disabled={readOnly}
-          className="min-w-0 rounded-control border border-border bg-surface/80 px-1 py-0.5 type-micro text-foreground outline-none disabled:opacity-50"
+          className="min-w-0 rounded-control border border-border bg-surface/80 px-1 py-0.5 type-micro text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
           title="Tipo de línea"
         >
           {CAD_LINETYPE_NAMES.map((name) => (
@@ -221,7 +221,7 @@ const LayerRow = React.memo(function LayerRow({
           value={row.lineweight}
           onChange={(event) => onLineweight(row.id, Number(event.target.value))}
           disabled={readOnly}
-          className="min-w-0 rounded-control border border-border bg-surface/80 px-1 py-0.5 type-micro text-foreground outline-none disabled:opacity-50"
+          className="min-w-0 rounded-control border border-border bg-surface/80 px-1 py-0.5 type-micro text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
           title="Grosor de línea"
         >
           {CAD_LINEWEIGHTS.map((value) => (
@@ -377,7 +377,7 @@ export const CadLayerManagerPalette = React.memo(
                 event.target.value as CadLayerFilterProperty,
               )
             }
-            className="rounded-control border border-border bg-surface/80 px-1 py-1 type-micro text-foreground outline-none"
+            className="rounded-control border border-border bg-surface/80 px-1 py-1 type-micro text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {FILTER_ORDER.map((property) => (
               <option key={property} value={property} className="text-gray-900">

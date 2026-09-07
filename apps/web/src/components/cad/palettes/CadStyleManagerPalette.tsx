@@ -90,7 +90,7 @@ function Field({
           value={String(row.values[field.key])}
           disabled={readOnly}
           onChange={(event) => onEdit(row.name, field.key, event.target.value)}
-          className="mt-0.5 w-full rounded-control border border-border bg-surface/80 px-1.5 py-1 type-micro text-foreground outline-none disabled:opacity-50"
+          className="mt-0.5 w-full rounded-control border border-border bg-surface/80 px-1.5 py-1 type-micro text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
         >
           {(field.options ?? []).map((option) => (
             <option key={option} value={option} className="text-gray-900">

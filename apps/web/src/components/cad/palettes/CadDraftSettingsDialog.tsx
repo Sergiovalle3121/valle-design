@@ -241,7 +241,7 @@ export const CadDraftSettingsDialog = React.memo(
                     onChange={(event) =>
                       onPolarIncrement(Number(event.target.value))
                     }
-                    className="rounded bg-surface/80 px-1.5 py-0.5 type-micro text-foreground outline-none"
+                    className="rounded bg-surface/80 px-1.5 py-0.5 type-micro text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {polarIncrements.map((value) => (
                       <option

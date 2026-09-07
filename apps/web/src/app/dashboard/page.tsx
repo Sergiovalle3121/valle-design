@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FilePlus2, FolderPlus, Upload } from "lucide-react";
+import { FilePlus2, FolderPlus, Trash2, Upload } from "lucide-react";
 import { SkipLink } from "@/components/SkipLink";
 import { Button, Surface, cx } from "@/components/ui";
 import { DashboardHeader } from "./DashboardHeader";
@@ -21,21 +21,16 @@ import { TrialBanner } from "@/components/commercial/TrialBanner";
 import { trialStatus } from "@/lib/commercial/trial-phase";
 import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
 import {
-  importDocumentFile,
   isDwgNativeImportBetaEnabled,
   splitDocumentSelection,
 } from "@/lib/cad/document-import-client";
+import { ArchiveDocumentDialog, useArchiveDocument } from "./archive-document";
 import { EMPTY_CAD_STARTER_CHOICE } from "./starter-choice";
 import { Status } from "./Status";
 import { abrirPlanoDeEjemplo } from "./sample-plan";
 import { prefetchCadStudio } from "@/components/cad/prefetch-studio";
 
-import {
-  abortError,
-  gzipDocument,
-  ImportStatus,
-  type ImportState,
-} from "./import-status";
+import { ImportStatus, useImportDocument } from "./import-status";
 import {
   StartNotes,
   startDocumentContent,
@@ -94,10 +89,6 @@ export default function DashboardPage() {
   // otra mitad del hueco además del estado vacío (`FirstMinute.tsx`).
   const [draggingOverBoard, setDraggingOverBoard] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [importState, setImportState] = useState<ImportState>({
-    status: "idle",
-  });
-  const importAbort = useRef<AbortController | null>(null);
   /**
    * «Crea un plano en blanco» NO abre otro formulario: lleva el foco al que ya
    * está en la página. Duplicar el formulario habría duplicado también las seis
@@ -115,6 +106,16 @@ export default function DashboardPage() {
    */
   const canEdit =
     auth.permissions.includes("cad:edit") && trialStatus(subscription).canEdit;
+  /**
+   * T-75(g): `DELETE /v1/cad/documents/:id` exige `cad:admin`, no `cad:edit`
+   * — un editor cualquiera no puede borrar el plano de otro. El estado y la
+   * confirmación viven en `archive-document.tsx` (presupuesto de tamaño de
+   * esta página, ver su cabecera).
+   */
+  const canArchive = auth.permissions.includes("cad:admin");
+  const archive = useArchiveDocument((documentId) =>
+    setDocuments((items) => items.filter((item) => item.id !== documentId)),
+  );
 
   const load = useCallback(async () => {
     if (auth.isLoading) return;
@@ -339,107 +340,16 @@ export default function DashboardPage() {
     }
   };
 
-  const importDocument = async (
-    file: File,
-    sidecars: { shx?: File; dbf?: File; prj?: File; cpg?: File } = {},
-  ) => {
-    if (!canEdit || !selectedProject || busy) return;
-    const controller = new AbortController();
-    importAbort.current?.abort();
-    importAbort.current = controller;
-    setBusy(true);
-    setImportState({
-      status: "running",
-      progress: 0,
-      stage: "Preparando importación",
-      canCancel: true,
-    });
-    let created: Document | null = null;
-    try {
-      const report = await importDocumentFile(file, {
-        sidecars,
-        signal: controller.signal,
-        onProgress: (progress, stage) =>
-          setImportState({
-            status: "running",
-            progress: progress * 0.65,
-            stage,
-            canCancel: true,
-          }),
-      });
-      if (controller.signal.aborted) throw abortError();
-      setImportState({
-        status: "running",
-        progress: 0.7,
-        stage: "Creando documento",
-        canCancel: false,
-      });
-      created = await designClient.documents.create({
-        name: file.name
-          .replace(/\.[^.]+$/, "")
-          .trim()
-          .slice(0, 160),
-        projectId: selectedProject,
-      });
-
-      const { serializeCadDocument } = await import("@/lib/cad/cad-document");
-      const serialized = serializeCadDocument(report.document);
-      const serializedBytes = new Blob([serialized]).size;
-      if (serializedBytes > 1_000_000) {
-        setImportState({
-          status: "running",
-          progress: 0.82,
-          stage: "Comprimiendo documento grande",
-          canCancel: false,
-        });
-        const archive = await gzipDocument(serialized);
-        await designClient.documents.saveArchive(created.id, archive, 0);
-      } else {
-        setImportState({
-          status: "running",
-          progress: 0.86,
-          stage: "Guardando contenido",
-          canCancel: false,
-        });
-        await designClient.documents.saveContent(
-          created.id,
-          report.document as unknown as CadDocumentInline,
-          0,
-        );
-      }
-      setDocuments((items) => [created!, ...items]);
+  const { importState, importDocument, cancelImport } = useImportDocument({
+    canEdit,
+    selectedProject,
+    busy,
+    setBusy,
+    onImported: (document) => {
+      setDocuments((items) => [document, ...items]);
       setState("ready");
-      setImportState({
-        status: "success",
-        report,
-        documentId: created.id,
-      });
-    } catch (error) {
-      let rollbackFailed = false;
-      if (created) {
-        try {
-          await designClient.documents.discardProvisional(created.id);
-        } catch {
-          rollbackFailed = true;
-        }
-      }
-      const message =
-        error instanceof DOMException && error.name === "AbortError"
-          ? "Importación cancelada."
-          : error instanceof Error
-            ? error.message
-            : "No se pudo importar el documento.";
-      setImportState({
-        status: "error",
-        message: rollbackFailed
-          ? `${message} No se pudo descartar el documento provisional; revisa el dashboard.`
-          : message,
-      });
-    } finally {
-      if (importAbort.current === controller) importAbort.current = null;
-      setBusy(false);
-    }
-  };
+    },
+  });
 
   if (state === "loading") return <DashboardSkeleton />;
   if (state === "organization-required") {
@@ -636,7 +546,7 @@ export default function DashboardPage() {
                 </label>
                 <ImportStatus
                   state={importState}
-                  onCancel={() => importAbort.current?.abort()}
+                  onCancel={cancelImport}
                   onOpen={(documentId) => router.push(`/studio/${documentId}`)}
                 />
               </Surface>
@@ -718,23 +628,36 @@ export default function DashboardPage() {
               </p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {documents.map((document) => (
-                  <button
-                    key={document.id}
-                    onClick={() => router.push(`/studio/${document.id}`)}
-                    className={cx(
-                      "rounded-card border border-border bg-card p-4 text-left",
-                      "transition-[border-color,box-shadow] duration-200 ease-out-expo",
-                      "hover:border-primary/50 hover:shadow-elevated",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                  <div key={document.id} className="relative">
+                    <button
+                      onClick={() => router.push(`/studio/${document.id}`)}
+                      className={cx(
+                        "w-full rounded-card border border-border bg-card p-4 text-left",
+                        "transition-[border-color,box-shadow] duration-200 ease-out-expo",
+                        "hover:border-primary/50 hover:shadow-elevated",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                        canArchive ? "pr-11" : "",
+                      )}
+                    >
+                      <strong className="type-small block font-semibold text-foreground">
+                        {document.name}
+                      </strong>
+                      <span className="type-mono type-micro mt-2 block truncate text-muted-foreground">
+                        {document.id}
+                      </span>
+                    </button>
+                    {canArchive && (
+                      <button
+                        type="button"
+                        onClick={() => archive.setTarget(document)}
+                        title={`Borrar «${document.name}»`}
+                        aria-label={`Borrar «${document.name}»`}
+                        className="absolute right-2 top-2 rounded-control p-1.5 text-muted-foreground transition-colors hover:bg-danger/10 hover:text-danger-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+                      >
+                        <Trash2 aria-hidden="true" className="h-4 w-4" />
+                      </button>
                     )}
-                  >
-                    <strong className="type-small block font-semibold text-foreground">
-                      {document.name}
-                    </strong>
-                    <span className="type-mono type-micro mt-2 block truncate text-muted-foreground">
-                      {document.id}
-                    </span>
-                  </button>
+                  </div>
                 ))}
               </div>
               {documents.length === 0 && (
@@ -746,6 +669,13 @@ export default function DashboardPage() {
           )}
         </div>
       </main>
+      <ArchiveDocumentDialog
+        target={archive.target}
+        archiving={archive.archiving}
+        error={archive.error}
+        onCancel={() => archive.setTarget(null)}
+        onConfirm={() => void archive.confirm()}
+      />
     </>
   );
 }

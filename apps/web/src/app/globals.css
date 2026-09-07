@@ -588,6 +588,36 @@
   --grid-major: 64px;
 }
 
+/* ===========================================================================
+   T-73(j): `forced-colors` y `prefers-contrast` no existían en ningún punto
+   del árbol — contra una app nativa (a la que el Modo de alto contraste de
+   Windows le reasigna los colores gratis) esto es una regresión, no un
+   empate. Van SIN `@layer` a propósito, igual que el bloque de abajo: una
+   regla sin capa gana siempre sobre cualquier regla en `@layer base` o
+   `@layer utilities` (cascada de capas), que es la única forma de que esto
+   vuelva a pintar foco cuando un componente ya puso `outline-none` y sólo
+   ofrece un `ring-*` de sombra — invisible en `forced-colors`, que no
+   reescribe `box-shadow`.
+
+   Esto NO es soporte completo de alto contraste (eso es rediseñar cada
+   superficie custom — cinta, paletas, lienzo — contra `Canvas`/`CanvasText`,
+   trabajo de una ola completa). Es la pieza mínima verificable hoy: que el
+   foco de teclado, la señal de la que depende TODO lo demás en T-73, se siga
+   viendo cuando el sistema operativo reasigna colores o pide más contraste. */
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 2px solid Highlight !important;
+    outline-offset: 2px !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :focus-visible {
+    outline-width: 3px;
+    outline-color: hsl(var(--primary));
+  }
+}
+
 /* Respeta prefers-reduced-motion en TODA animación (CSS + scroll). Framer Motion
    se desactiva aparte vía useReducedMotion en los componentes. */
 @media (prefers-reduced-motion: reduce) {

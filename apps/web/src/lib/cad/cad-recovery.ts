@@ -109,6 +109,27 @@ export class CadRecoveryQuotaError extends Error {
   }
 }
 
+/**
+ * T-75(c): `indexedDB.open` con una versión más nueva no dispara NI
+ * `onsuccess` NI `onerror` mientras otra pestaña tenga abierta una conexión
+ * a la versión anterior — dispara `onblocked`, y sin manejarlo la promesa se
+ * queda sin resolver PARA SIEMPRE. Como `saveCadRecovery` se llama desde una
+ * cola de fondo (`createCadCheckpointQueue`) sin que nadie espere el
+ * resultado, el efecto medido era: el checkpoint deja de escribirse y nada
+ * lo dice — el recovery se cuelga en silencio. Rechazar aquí convierte ese
+ * cuelgue mudo en un error con nombre que el llamador YA sabe mostrar (el
+ * `onError` de la cola de checkpoint ya cae al aviso genérico para
+ * cualquier error que no sea `CadRecoveryQuotaError`).
+ */
+export class CadRecoveryBlockedError extends Error {
+  constructor() {
+    super(
+      'La recuperación local está bloqueada porque otra pestaña de Valle Design tiene una versión distinta abierta. Cierra las demás pestañas y recarga ésta.',
+    );
+    this.name = 'CadRecoveryBlockedError';
+  }
+}
+
 function part(value: string | null | undefined): string {
   return encodeURIComponent((value ?? '-').trim() || '-');
 }
@@ -125,11 +146,39 @@ export function cadRecoveryScopeKey(scope: CadRecoveryScope): string {
   ].join(':');
 }
 
-function openDatabase(): Promise<IDBDatabase> {
-  if (typeof indexedDB === 'undefined')
-    return Promise.reject(new Error('IndexedDB no está disponible.'));
+/**
+ * Justo lo que `openDatabase` toca de un `IDBOpenDBRequest`, aislado para
+ * poder construir uno de mentira en la prueba: Node no tiene `indexedDB` y
+ * este repo no trae un polyfill, así que una prueba que exigiera el objeto
+ * real del DOM no podría correr en la suite `tsx`. Con esta forma mínima,
+ * `openDatabaseRequestSettled` se prueba con un objeto de cuatro campos que
+ * simula el `onblocked` que Node no puede disparar de verdad.
+ */
+export interface OpenDatabaseRequestLike {
+  result: IDBDatabase;
+  error: DOMException | null;
+  onupgradeneeded: (() => void) | null;
+  onsuccess: (() => void) | null;
+  onerror: (() => void) | null;
+  onblocked: (() => void) | null;
+}
+
+/**
+ * Cablea la promesa alrededor de un `IDBOpenDBRequest` (o de su forma
+ * mínima, en la prueba). T-75(c): sin `onblocked`, un `indexedDB.open` con
+ * versión nueva NO dispara ni `onsuccess` ni `onerror` mientras otra
+ * pestaña tenga abierta la versión anterior — la promesa no se asienta
+ * NUNCA, y como `saveCadRecovery` se llama desde una cola de fondo sin que
+ * nadie la espere, el efecto medido era: el checkpoint deja de escribirse y
+ * nada lo dice. Rechazar aquí convierte ese cuelgue mudo en un error con
+ * nombre que el llamador YA sabe mostrar (el `onError` de la cola de
+ * checkpoint cae al aviso genérico para cualquier error que no sea
+ * `CadRecoveryQuotaError`).
+ */
+export function openDatabaseRequestSettled(
+  request: OpenDatabaseRequestLike,
+): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
     request.onupgradeneeded = () => {
       const database = request.result;
       if (!database.objectStoreNames.contains(LEGACY_STORE_NAME))
@@ -142,7 +191,24 @@ function openDatabase(): Promise<IDBDatabase> {
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error ?? new Error('No se pudo abrir la recuperación CAD.'));
+    // Sin desconectar nada tras el rechazo: si la otra pestaña cierra más
+    // tarde, `onsuccess` puede seguir llegando, y resolver/rechazar una
+    // promesa ya asentada es un no-op seguro.
+    request.onblocked = () => reject(new CadRecoveryBlockedError());
   });
+}
+
+function openDatabase(): Promise<IDBDatabase> {
+  if (typeof indexedDB === 'undefined')
+    return Promise.reject(new Error('IndexedDB no está disponible.'));
+  const request = indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
+  // El `IDBOpenDBRequest` real trae `this` y el tipo de evento exactos de
+  // cada manejador; `OpenDatabaseRequestLike` sólo declara la forma mínima
+  // que este módulo consume (ver su comentario), así que el molde no calza
+  // sin aplanar esos dos tipos — la conversión es segura porque los cuatro
+  // campos que se usan (`result`, `error`, los tres `on*` y `onblocked`)
+  // existen tal cual en el objeto real.
+  return openDatabaseRequestSettled(request as unknown as OpenDatabaseRequestLike);
 }
 
 function requestResult<T>(request: IDBRequest<T>): Promise<T> {

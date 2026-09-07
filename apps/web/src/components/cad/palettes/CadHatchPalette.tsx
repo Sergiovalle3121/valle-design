@@ -64,7 +64,7 @@ export function CadHatchPalette({
               event.target.value as "normal" | "outer" | "ignore",
             )
           }
-          className="mt-1 w-full rounded-control border border-border bg-surface px-2 py-1 text-foreground outline-none"
+          className="mt-1 w-full rounded-control border border-border bg-surface px-2 py-1 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <option value="normal">Normal · par/impar</option>
           <option value="outer">Outer · primer nivel</option>
@@ -74,7 +74,7 @@ export function CadHatchPalette({
       <button
         data-testid="cad-hatch-pick-point"
         onClick={() => onPickModeChange(!pickMode)}
-        className={`mb-2 w-full rounded-control px-2 py-1.5 font-semibold ${pickMode ? "bg-amber-300 text-gray-950" : "bg-violet-500/20 text-violet-100 hover:bg-violet-500/30"}`}
+        className={`mb-2 w-full rounded-control px-2 py-1.5 font-semibold ${pickMode ? "bg-amber-300 text-gray-950" : "bg-accent/15 text-primary-ink hover:bg-accent/25"}`}
       >
         {pickMode ? "Cancelar pick point" : "Pick point en región"}
       </button>

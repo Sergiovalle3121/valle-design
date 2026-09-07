@@ -100,7 +100,7 @@ export function CadDxfExportDialog({
           <input
             value={opciones.fileName}
             onChange={(e) => onOpcionChange({ fileName: e.target.value })}
-            className="mt-1 w-full rounded-lg border border-border bg-surface/80 px-2.5 py-2 text-foreground outline-none"
+            className="mt-1 w-full rounded-lg border border-border bg-surface/80 px-2.5 py-2 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </label>
         <div className="grid grid-cols-2 gap-2">
@@ -115,7 +115,7 @@ export function CadDxfExportDialog({
                   scope: e.target.value as CadDxfExportOptions["scope"],
                 })
               }
-              className="w-full bg-transparent text-foreground outline-none"
+              className="w-full bg-transparent text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <option className="text-foreground" value="all">
                 Todo
@@ -136,7 +136,7 @@ export function CadDxfExportDialog({
                   units: e.target.value as CadDxfExportOptions["units"],
                 })
               }
-              className="w-full bg-transparent text-foreground outline-none"
+              className="w-full bg-transparent text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <option className="text-foreground" value="mm">
                 mm

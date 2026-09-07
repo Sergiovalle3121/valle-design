@@ -23,20 +23,66 @@ function fijarTema(page: Page, tema: (typeof TEMAS)[number]) {
   }, tema);
 }
 
+/**
+ * T-73(e): este gate sólo miraba `serious|critical` — `page-has-heading-one`
+ * y `region` son impacto `moderate` y se colaban imprimiéndose, nunca
+ * reprobando.
+ *
+ * `page-has-heading-one` ya está RESUELTO (no en el filtro de abajo, a
+ * propósito): `CadStudioHost.tsx` — fuera del monolito — ahora envuelve todo
+ * en `<main>` con un `<h1 className="sr-only">`.
+ *
+ * `region` sigue pendiente, y por una razón concreta que ese mismo `<main>`
+ * NO alcanza a tapar: `Layout3DEditor.tsx` pinta TODO su marcado con
+ * `createPortal(..., document.body)` (línea ~18451, para escapar el
+ * `backdrop-filter` que si no atraparía sus overlays `position:fixed` dentro
+ * de su propio contenedor). Un portal de React sale del árbol del DOM aunque
+ * siga dentro del árbol de React — así que el `<main>` de `CadStudioHost`
+ * envuelve el `<h1>` y las capas de colaboración, pero NO el editor
+ * portado, que queda pintado como hijo directo de `<body>`, fuera de
+ * cualquier landmark. Arreglo real: que el portal apunte a un contenedor
+ * que YA sea (o esté dentro de) un landmark, en vez de a `document.body` a
+ * secas — cambiar el segundo argumento de ese `createPortal` es una línea,
+ * pero esa línea vive en el monolito. Petición P-07 en
+ * `docs/execution/frentes/F9-peticiones.md`, con el diff exacto.
+ *
+ * Hasta que esa petición se aplique, contar `region` como grave pondría
+ * este gate en rojo por algo que no puedo arreglar yo mismo, y el
+ * fix-or-hide de la campaña es «arréglalo o escóndelo», no «rompe el CI de
+ * quien no lo puede arreglar». Es UNA excepción nombrada, con su arreglo ya
+ * escrito, no una lista que crece — el resto de `moderate` YA reprueba, y
+ * es ESE resto el trinquete real de este cambio.
+ */
+const MODERADAS_PENDIENTES_DE_PETICION = new Set(['region']);
+
 async function auditar(page: Page, etiqueta: string) {
   const resultado = await new AxeBuilder({ page }).analyze();
   const graves = resultado.violations.filter(
-    (violation) => violation.impact === 'serious' || violation.impact === 'critical',
+    (violation) =>
+      violation.impact === 'serious' ||
+      violation.impact === 'critical' ||
+      (violation.impact === 'moderate' && !MODERADAS_PENDIENTES_DE_PETICION.has(violation.id)),
   );
   const leves = resultado.violations.filter(
-    (violation) => violation.impact === 'moderate' || violation.impact === 'minor',
+    (violation) =>
+      violation.impact === 'minor' ||
+      (violation.impact === 'moderate' && MODERADAS_PENDIENTES_DE_PETICION.has(violation.id)),
   );
   if (leves.length > 0) {
-    console.log(
-      `[axe-estudio] ${etiqueta} · ${leves.length} avisos no bloqueantes: ${leves
-        .map((violation) => violation.id)
-        .join(', ')}`,
-    );
+    // Con el `target` de un par de nodos por aviso, un «region» suelto deja
+    // de ser una etiqueta muda: dice EXACTAMENTE qué elemento quedó fuera de
+    // landmark, que es lo que hizo falta para diagnosticar el portal de
+    // arriba en minutos y no adivinando.
+    const detalle = leves
+      .map((violation) => {
+        const nodos = violation.nodes
+          .slice(0, 3)
+          .map((node) => node.target.join(' '))
+          .join(' || ');
+        return `${violation.id} [${nodos}]`;
+      })
+      .join(', ');
+    console.log(`[axe-estudio] ${etiqueta} · ${leves.length} avisos no bloqueantes: ${detalle}`);
   }
   expect(
     graves.map((violation) => `${violation.impact}/${violation.id}: ${violation.nodes

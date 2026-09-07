@@ -219,6 +219,14 @@ export interface CadRibbonCommand {
   aliases: readonly string[];
   summary: string;
   panel: string;
+  /**
+   * T-74(i): en un dibujo de sólo lectura, la cinta apagaba el tira ENTERA
+   * de golpe (`CadRibbon.tsx`, `pointer-events-none` sobre el contenedor) —
+   * incluidos comandos que no tocan el documento (LIST, DIST, ID…). El
+   * registro ya sabe cuáles mutan (`CadCommandDescriptor.mutates`); sólo
+   * faltaba que llegara hasta aquí para apagar SÓLO ésos.
+   */
+  mutates: boolean;
 }
 
 export interface CadRibbonPanel {
@@ -257,6 +265,7 @@ function buildRibbonTabs(): CadRibbonTab[] {
       aliases: descriptor.aliases,
       summary: cadCommandSummary(descriptor.name),
       panel: panelLabel,
+      mutates: descriptor.mutates,
     };
     commands.push(command);
     byName.set(command.name, command);

@@ -1,10 +1,54 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronUp, ChevronDown } from "lucide-react";
 import { cx, Tabs, TabPanel } from "@/components/ui";
 import { CAD_RIBBON_DATA, type CadRibbonTabId } from "@/lib/cad/ribbon";
 import { CadRibbonPanel } from "./CadRibbonPanel";
+
+/**
+ * T-74(j): «la cinta no recuerda nada» — cada carga volvía a Inicio y
+ * desplegada, aunque quien dibuja viva en Anotar o prefiera la cinta
+ * minimizada. Una clave de `localStorage` sin repartir por tenant/usuario a
+ * propósito: es cosmético (qué pestaña se ve), no un dato — el mismo nivel
+ * que `render-pipeline-preference.ts`, no el de `guided-tour.ts` (que sí
+ * necesita saber QUIÉN ya vio algo).
+ */
+const RIBBON_ACTIVE_TAB_KEY = "valle_cad_ribbon_active_tab";
+const RIBBON_COLLAPSED_KEY = "valle_cad_ribbon_collapsed";
+
+function leerPestanaGuardada(): CadRibbonTabId | null {
+  try {
+    const stored = window.localStorage.getItem(RIBBON_ACTIVE_TAB_KEY);
+    return stored && CAD_RIBBON_DATA.some((tab) => tab.id === stored)
+      ? (stored as CadRibbonTabId)
+      : null;
+  } catch {
+    // Privado, bloqueado o inexistente: se sigue con el defecto, nunca se rompe la cinta por esto.
+    return null;
+  }
+}
+
+function leerColapsoGuardado(): boolean | null {
+  try {
+    const stored = window.localStorage.getItem(RIBBON_COLLAPSED_KEY);
+    return stored === null ? null : stored === "true";
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Todos los nombres de comando que SÍ tocan el documento — calculado una vez,
+ * no en cada render: el registro entero no cambia en caliente.
+ */
+const CAD_MUTATING_COMMANDS: ReadonlySet<string> = new Set(
+  CAD_RIBBON_DATA.flatMap((tab) =>
+    tab.panels.flatMap((panel) =>
+      panel.commands.filter((command) => command.mutates).map((command) => command.name),
+    ),
+  ),
+);
 
 /**
  * LA CINTA. Pestañas al estilo AutoCAD sobre el registro real de comandos —
@@ -28,8 +72,45 @@ export function CadRibbon({
   disabledCommands?: ReadonlySet<string>;
   className?: string;
 }) {
-  const [activeTab, setActiveTab] = useState<CadRibbonTabId>("inicio");
-  const [collapsed, setCollapsed] = useState(false);
+  // T-74(j): la lectura de `localStorage` va en el INICIALIZADOR perezoso
+  // de `useState`, no en un efecto — `CadStudioHost` monta `Layout3DEditor`
+  // (y por tanto esta cinta) con `ssr: false` en las dos rutas que existen
+  // (`app/studio/[documentId]/page.tsx`, `app/demo/DemoStudio.tsx`), así que
+  // este componente NUNCA se renderiza en el servidor: no hay HTML de
+  // servidor con el que desajustarse al hidratar. Sincronizar desde un
+  // efecto habría disparado `react-hooks/set-state-in-effect` (la regla
+  // NO distingue «restaurar una vez al montar» de un `setState` reactivo) y
+  // habría costado un re-render extra visible al abrir el estudio.
+  const [activeTab, setActiveTab] = useState<CadRibbonTabId>(() => leerPestanaGuardada() ?? "inicio");
+  const [collapsed, setCollapsed] = useState<boolean>(() => leerColapsoGuardado() ?? false);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(RIBBON_ACTIVE_TAB_KEY, activeTab);
+    } catch {
+      // Almacenamiento privado o lleno: recordar la pestaña es una
+      // comodidad, no una promesa — no hay nada que avisar aquí.
+    }
+  }, [activeTab]);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(RIBBON_COLLAPSED_KEY, String(collapsed));
+    } catch {
+      // Igual que arriba.
+    }
+  }, [collapsed]);
+
+  // T-74(i): sólo lectura apagaba la cinta ENTERA (`pointer-events-none`
+  // sobre la tira completa) — incluidos comandos como LIST o DIST, que no
+  // tocan el documento y deberían seguir funcionando igual que en un dibujo
+  // editable. Ahora sólo se apagan los que SÍ mutan, botón por botón, con la
+  // misma señal visual (`disabled:opacity-40`) que ya usa `CadRibbonButton`
+  // para cualquier otro comando deshabilitado.
+  const effectiveDisabledCommands = useMemo(() => {
+    if (!readOnly) return disabledCommands;
+    if (!disabledCommands || disabledCommands.size === 0) return CAD_MUTATING_COMMANDS;
+    return new Set([...CAD_MUTATING_COMMANDS, ...disabledCommands]);
+  }, [disabledCommands, readOnly]);
 
   const tabs = CAD_RIBBON_DATA.map((tab) => ({
     id: tab.id,
@@ -82,7 +163,6 @@ export function CadRibbon({
               className={cx(
                 "flex items-stretch overflow-x-auto px-1 py-0",
                 "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-                readOnly && "pointer-events-none opacity-60",
               )}
             >
               {tab.panels.map((panel) => (
@@ -90,7 +170,7 @@ export function CadRibbon({
                   key={panel.label}
                   panel={panel}
                   onRun={dispatch}
-                  disabledCommands={disabledCommands}
+                  disabledCommands={effectiveDisabledCommands}
                 />
               ))}
             </div>

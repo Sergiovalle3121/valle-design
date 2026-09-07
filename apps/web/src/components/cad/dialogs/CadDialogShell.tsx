@@ -73,7 +73,12 @@ export function CadDialogShell({
   useEffect(() => {
     const alPulsar = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        event.stopPropagation();
+        // `stopPropagation` sólo frena la burbuja hacia arriba; este manejador
+        // y el de cualquier otro `CadDialogShell` montado a la vez escuchan
+        // los DOS en `document`, así que un Escape con dos cuadros abiertos
+        // los cerraba a los dos de un tirón. `stopImmediatePropagation` para
+        // el resto de manejadores en ESTE mismo nodo, no sólo a los de arriba.
+        event.stopImmediatePropagation();
         onClose();
         return;
       }
