@@ -183,8 +183,13 @@ function fakePeerConnection(opciones: { rollbackImplicito?: boolean } = {}) {
       });
     },
     // El anfitrión abre un canal de datos para que la negociación arranque sin
-    // esperar a que haya medios; aquí basta con que exista.
-    createDataChannel: () => ({ close() {} }),
+    // esperar a que haya medios. Se anota QUIÉN lo abre: abrirlo en los dos
+    // lados es lo que provocaba colisión de ofertas en todas las llamadas.
+    canalesAbiertos: [] as string[],
+    createDataChannel: (etiqueta: string) => {
+      pc.canalesAbiertos.push(etiqueta);
+      return { close() {} };
+    },
     addTrack: () => ({}) as RTCRtpSender,
     getSenders: () => [],
     close() {
@@ -481,6 +486,34 @@ async function main() {
       process.off("unhandledRejection", anotarRechazo);
       host.dispose();
     }
+  }
+
+  // --- N · sólo el DESCORTÉS abre el canal que arranca la negociación --------
+  //
+  // Abrirlo en los dos lados hacía que los dos dispararan `negotiationneeded`
+  // y los dos ofertaran: colisión en TODAS las llamadas. La negociación
+  // perfecta la resuelve, pero medido contra el stack real (API NestJS +
+  // PostgreSQL + dos contextos de Chromium) una de cada cinco veces el
+  // recolector de ICE del cortés se quedaba muerto tras el rollback y no
+  // emitía ni un candidato: los dos extremos en «Conectando…» para siempre y
+  // sin un error en consola. Con un solo ofertante no hay rollback en la
+  // primera negociación.
+  {
+    const cortes = await montar(createCallSessionHost, "a"); // "a" < "b" → cortés
+    eq(
+      cortes.pc.canalesAbiertos.length,
+      0,
+      "el cortés NO abre el canal: si lo abre, oferta, y vuelve la colisión en toda llamada",
+    );
+    cortes.host.dispose();
+
+    const descortes = await montar(createCallSessionHost, "c"); // "c" > "b" → descortés
+    eq(
+      descortes.pc.canalesAbiertos.join(","),
+      "valle-calls-bootstrap",
+      "el descortés SÍ lo abre: sin él, una llamada sin cámara ni micro no negocia nunca",
+    );
+    descortes.host.dispose();
   }
 
   console.log(
