@@ -51,12 +51,21 @@ import {
   CAPABILITY_TABS,
   CapabilityExplorer,
   CapabilityExplorerPanels,
+  TOOLSET_TEMPLATE_IDS,
   type CapabilityTabId,
 } from "./CapabilityExplorer";
 import { galleryTemplate } from "@/lib/marketing/template-gallery";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const webRoot = path.resolve(here, "../../../");
+
+// El spec corre en Node puro (tsx), no en el navegador: importar
+// `galleryTemplate` aquí es gratis. En el componente es justo lo prohibido —
+// ver la nota junto a `TOOLSET_TEMPLATE_IDS` en CapabilityExplorer.tsx.
+const TEST_TOOLSET_TEMPLATES = TOOLSET_TEMPLATE_IDS.flatMap((id) => {
+  const template = galleryTemplate(id);
+  return template ? [template] : [];
+});
 
 /* ── 1 · LAS SEIS PESTAÑAS EXISTEN, EN EL ORDEN PEDIDO ───────────────────── */
 {
@@ -89,7 +98,11 @@ const webRoot = path.resolve(here, "../../../");
 
 /* ── 2 · EL CONTRATO DE TECLADO DE LA LISTA DE PESTAÑAS ──────────────────── */
 {
-  const html = render(createElement(CapabilityExplorer, {}));
+  const html = render(
+    createElement(CapabilityExplorer, {
+      toolsetTemplates: TEST_TOOLSET_TEMPLATES,
+    }),
+  );
   assert.match(
     html,
     /role="tablist"/,
@@ -151,7 +164,12 @@ const webRoot = path.resolve(here, "../../../");
     ["colaboracion", "Proyectos en la nube, con red debajo"],
   ];
   for (const [activeId, tituloEsperado] of casos) {
-    const html = render(createElement(CapabilityExplorerPanels, { activeId }));
+    const html = render(
+      createElement(CapabilityExplorerPanels, {
+        activeId,
+        toolsetTemplates: TEST_TOOLSET_TEMPLATES,
+      }),
+    );
     assert.match(
       html,
       new RegExp(`data-testid="capability-panel-${activeId}"`),
@@ -203,21 +221,50 @@ const webRoot = path.resolve(here, "../../../");
 
   // Las tres plantillas de Toolsets existen en el catálogo real: si el id
   // estuviera mal escrito o la plantilla se retirase, esto lo dice.
-  for (const id of [
-    "civil-site-utilities",
-    "structural-grid-core",
-    "mep-plantroom",
-  ]) {
+  for (const id of TOOLSET_TEMPLATE_IDS) {
     assert.ok(
       galleryTemplate(id),
       `${id} no existe en el catálogo real de plantillas`,
     );
   }
 
+  // El panel de Toolsets pinta las tres plantillas resueltas por prop — el
+  // contrato que evita que el componente vuelva a resolverlas por su cuenta
+  // (y arrastre el catálogo entero de 149 al bundle del cliente).
+  const panelToolsets = render(
+    createElement(CapabilityExplorerPanels, {
+      activeId: "toolsets" as CapabilityTabId,
+      toolsetTemplates: TEST_TOOLSET_TEMPLATES,
+    }),
+  );
+  assert.match(
+    panelToolsets,
+    /data-testid="capability-visual-toolsets"/,
+    "el panel de Toolsets debe pintar su visual",
+  );
+  for (const template of TEST_TOOLSET_TEMPLATES) {
+    assert.match(
+      panelToolsets,
+      new RegExp(`/plantillas/${template.id}`),
+      `falta el enlace a la plantilla ${template.id}`,
+    );
+  }
+  assert.equal(
+    render(
+      createElement(CapabilityExplorerPanels, {
+        activeId: "toolsets" as CapabilityTabId,
+        toolsetTemplates: [],
+      }),
+    ).match(/plan-render-/g),
+    null,
+    "sin plantillas resueltas, el panel no debe inventar ni fallar: pinta la retícula vacía",
+  );
+
   // El panel de 3D es un diagrama y lo dice: nunca finge ser una captura.
   const panel3d = render(
     createElement(CapabilityExplorerPanels, {
       activeId: "3d" as CapabilityTabId,
+      toolsetTemplates: TEST_TOOLSET_TEMPLATES,
     }),
   );
   assert.match(
@@ -232,6 +279,7 @@ const webRoot = path.resolve(here, "../../../");
   const panelColab = render(
     createElement(CapabilityExplorerPanels, {
       activeId: "colaboracion" as CapabilityTabId,
+      toolsetTemplates: TEST_TOOLSET_TEMPLATES,
     }),
   );
   assert.ok(

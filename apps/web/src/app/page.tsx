@@ -6,7 +6,10 @@ import { DOC_GUIDES, PRICING_PATH, docGuidePath } from "@/config/site-routes";
 import { JsonLd } from "@/components/JsonLd";
 import { PublicNav } from "@/components/PublicNav";
 import { SkipLink } from "@/components/SkipLink";
-import { CapabilityExplorer } from "@/components/marketing/CapabilityExplorer";
+import {
+  CapabilityExplorer,
+  TOOLSET_TEMPLATE_IDS,
+} from "@/components/marketing/CapabilityExplorer";
 import { EngineeringEvidence } from "@/components/marketing/EngineeringEvidence";
 import { FaqCenter } from "@/components/marketing/FaqCenter";
 import { FeaturedTemplates } from "@/components/gallery/FeaturedTemplates";
@@ -21,7 +24,7 @@ import {
   FAQ_COUNT,
   FAQ_FOR_STRUCTURED_DATA,
 } from "@/lib/marketing/faq";
-import { galleryTemplates } from "@/lib/marketing/template-gallery";
+import { galleryTemplate, galleryTemplates } from "@/lib/marketing/template-gallery";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import {
   faqPageJsonLd,
@@ -269,6 +272,14 @@ function SectionHead({
 }
 
 export default function LandingPage() {
+  // Resuelto aquí, en el servidor: `CapabilityExplorer` lleva "use client" y
+  // llamar a `galleryTemplate` (catálogo de 149 plantillas) desde ahí metía
+  // ese catálogo entero en el JS de la portada. Ver la nota en
+  // CapabilityExplorer.tsx junto a `TOOLSET_TEMPLATE_IDS`.
+  const toolsetTemplates = TOOLSET_TEMPLATE_IDS.flatMap((id) => {
+    const template = galleryTemplate(id);
+    return template ? [template] : [];
+  });
   return (
     <>
       <SkipLink />
@@ -443,7 +454,7 @@ export default function LandingPage() {
             title="Lo que ya puedes hacer hoy, por disciplina"
             lead="Dibujo, anotación, entrega, 3D, toolsets y colaboración: elige tu pestaña. Cada una corresponde a algo implementado y probado en el producto, y donde falta terminar algo, está dicho en el mismo panel."
           />
-          <CapabilityExplorer />
+          <CapabilityExplorer toolsetTemplates={toolsetTemplates} />
         </Band>
 
         {/* ── PARA QUIÉN ─────────────────────────────────────────────────── */}

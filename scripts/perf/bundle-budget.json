@@ -10,7 +10,8 @@
   },
   "rutas": {
     "/": {
-      "gzipKB": 295.2
+      "gzipKB": 306.4,
+      "justificacion": "2026-09-07: la sección Capacidades pasó de una retícula estática de tarjetas (cero JS) a CapabilityExplorer, un explorador por pestañas interactivo y accesible (foco de teclado, ARIA tablist real). Subida real y esperada por una capacidad nueva, no una fuga: se detectó y corrigió primero una fuga real de 53 KB (el componente resolvía `galleryTemplate` —el catálogo de 149 plantillas— dentro de código cliente; ahora se resuelve en el servidor en page.tsx y baja como prop, igual que ya hacía FeaturedTemplates.tsx). Medido tras esa corrección: 297.5 KB. Techo = 297.5 × 1.03, misma fórmula de margen que --write, redondeado a una decimal."
     },
     "/register": {
       "gzipKB": 296

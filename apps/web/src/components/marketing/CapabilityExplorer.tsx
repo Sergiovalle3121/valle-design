@@ -13,7 +13,7 @@ import {
 import { PlanRender } from "@/components/gallery/PlanRender";
 import { ProductFrame } from "./ProductFrame";
 import { Badge, Surface, Tabs, TabPanel, cx } from "@/components/ui";
-import { galleryTemplate } from "@/lib/marketing/template-gallery";
+import type { GalleryTemplate } from "@/lib/marketing/template-gallery";
 
 /**
  * EL EXPLORADOR DE CAPACIDADES POR PESTAÑAS.
@@ -183,6 +183,16 @@ const CAPABILITY_TABS: readonly CapabilityTabDef[] = [
  * son las tres plantillas técnicas (civil, estructura, instalaciones) que la
  * portada, hasta hoy, no enseñaba nunca.
  */
+/**
+ * Sólo los IDS viven aquí — la RESOLUCIÓN real (`galleryTemplate`) la hace
+ * `page.tsx` en el servidor y baja el resultado ya plano como prop
+ * `toolsetTemplates`. Este archivo lleva "use client": llamar aquí a
+ * `galleryTemplate` (que arrastra el catálogo entero de 149 plantillas,
+ * `CAD_LAYOUT_TEMPLATES`) metía ese catálogo completo en el JS de la
+ * portada — 53 KB gzip que nadie pedía, y el presupuesto de bundle de `/`
+ * los detectó de inmediato. `FeaturedTemplates.tsx` (servidor puro) ya
+ * resolvía esto bien; aquí se sigue el mismo patrón.
+ */
 const TOOLSET_TEMPLATE_IDS = [
   "civil-site-utilities",
   "structural-grid-core",
@@ -321,11 +331,7 @@ function SolidFacetDiagram() {
   );
 }
 
-function ToolsetVisual() {
-  const templates = TOOLSET_TEMPLATE_IDS.flatMap((id) => {
-    const template = galleryTemplate(id);
-    return template ? [template] : [];
-  });
+function ToolsetVisual({ templates }: { templates: readonly GalleryTemplate[] }) {
   return (
     <div data-testid="capability-visual-toolsets">
       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -440,12 +446,11 @@ function CollaborationMock() {
   );
 }
 
-const VISUALS: Record<CapabilityTabId, () => ReactNode> = {
+const STATIC_VISUALS: Partial<Record<CapabilityTabId, () => ReactNode>> = {
   dibujo: DibujoVisual,
   anotacion: AnotacionVisual,
   entrega: EntregaVisual,
   "3d": SolidFacetDiagram,
-  toolsets: ToolsetVisual,
   colaboracion: CollaborationMock,
 };
 
@@ -461,13 +466,15 @@ const VISUALS: Record<CapabilityTabId, () => ReactNode> = {
  */
 export function CapabilityExplorerPanels({
   activeId,
+  toolsetTemplates,
 }: {
   activeId: CapabilityTabId;
+  toolsetTemplates: readonly GalleryTemplate[];
 }) {
   return (
     <>
       {CAPABILITY_TABS.map((tab) => {
-        const Visual = VISUALS[tab.id];
+        const Visual = STATIC_VISUALS[tab.id];
         return (
           <TabPanel
             key={tab.id}
@@ -511,7 +518,11 @@ export function CapabilityExplorerPanels({
                 ) : null}
               </div>
               <div>
-                <Visual />
+                {tab.id === "toolsets" ? (
+                  <ToolsetVisual templates={toolsetTemplates} />
+                ) : Visual ? (
+                  <Visual />
+                ) : null}
               </div>
             </div>
           </TabPanel>
@@ -532,9 +543,15 @@ export function CapabilityExplorerPanels({
 export function CapabilityExplorer({
   className,
   initialTabId = CAPABILITY_TABS[0].id,
+  toolsetTemplates,
 }: {
   className?: string;
   initialTabId?: CapabilityTabId;
+  /**
+   * Resuelto en el SERVIDOR por `page.tsx` (`galleryTemplate` por id) y
+   * bajado ya plano — ver la nota sobre `TOOLSET_TEMPLATE_IDS` arriba.
+   */
+  toolsetTemplates: readonly GalleryTemplate[];
 }) {
   const [activeId, setActiveId] = useState<CapabilityTabId>(initialTabId);
 
@@ -555,10 +572,13 @@ export function CapabilityExplorer({
           "data-testid": `capability-tab-${tab.id}`,
         }))}
       />
-      <CapabilityExplorerPanels activeId={activeId} />
+      <CapabilityExplorerPanels
+        activeId={activeId}
+        toolsetTemplates={toolsetTemplates}
+      />
     </div>
   );
 }
 
-export { CAPABILITY_TABS };
+export { CAPABILITY_TABS, TOOLSET_TEMPLATE_IDS };
 export type { CapabilityTabId };
