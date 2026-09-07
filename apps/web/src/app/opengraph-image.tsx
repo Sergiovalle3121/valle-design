@@ -15,7 +15,7 @@ export const contentType = SOCIAL_CARD_CONTENT_TYPE;
 export default function Image() {
   return socialCard({
     eyebrow: "CAD en línea · Arquitectura e ingeniería",
-    title: "Dibuja tus planos en el navegador. Sin instalar nada.",
+    title: "Dibuja en 2D. Modela en 3D directo. En tu navegador.",
     footnote: "Capas · Cotas asociativas · Espacio papel · DXF · PDF a escala",
   });
 }
