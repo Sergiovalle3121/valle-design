@@ -3,6 +3,7 @@ import Link from "next/link";
 import {
   ArrowRight,
   Blocks,
+  Box,
   CloudUpload,
   DraftingCompass,
   FileDown,
@@ -15,6 +16,7 @@ import { DOC_GUIDES, PRICING_PATH, docGuidePath } from "@/config/site-routes";
 import { JsonLd } from "@/components/JsonLd";
 import { PublicNav } from "@/components/PublicNav";
 import { SkipLink } from "@/components/SkipLink";
+import { Brep3DBadge } from "@/components/marketing/Brep3DBadge";
 import { EngineeringEvidence } from "@/components/marketing/EngineeringEvidence";
 import { FaqCenter } from "@/components/marketing/FaqCenter";
 import { FeaturedTemplates } from "@/components/gallery/FeaturedTemplates";
@@ -23,6 +25,7 @@ import { FreeLaunchNote } from "@/components/marketing/FreeLaunchNote";
 import { HeroBackdrop } from "@/components/marketing/HeroBackdrop";
 import { PlanViewport } from "@/components/marketing/PlanViewport";
 import { ProductFrame } from "@/components/marketing/ProductFrame";
+import { RevealOnScroll } from "@/components/marketing/RevealOnScroll";
 import { SiteFooter } from "@/components/marketing/SiteFooter";
 import { buttonClass } from "@/components/ui";
 import {
@@ -149,6 +152,13 @@ const capabilities = [
     title: "Dibujo 2D con la precisión que exige un plano",
     text: "Líneas, polilíneas con arcos, círculos, arcos, rectángulos, polígonos, elipses y splines. Referencias a objetos indexadas, rastreo polar, entrada por coordenadas y línea de comandos con la tabla de alias de siempre: escribes L, C o TR y responde.",
     limite: null,
+  },
+  {
+    icon: Box,
+    title: "Modelado 3D directo, sobre el mismo documento",
+    text: "Sólidos con operaciones booleanas (unión, resta, intersección), extrusión, barrido, solevado, redondeo y chaflán, sobre un kernel B-rep propio de topología half-edge escrito para este producto. El sólido y la lámina que lo documenta viven en el mismo archivo: no hay un modelo por un lado y un plano por otro que mantener sincronizados a mano.",
+    limite:
+      "El kernel es facetado, no un kernel 3D exacto: un cilindro se representa como un prisma de muchos lados, y un STEP o IGES exportado conserva esa faceta, no la superficie curva que la generó — decisión tomada y documentada en ADR-0016, no un descuido. Empujar una cara con el ratón directamente en el visor 3D todavía no está disponible: hoy los sólidos se construyen por comando.",
   },
   {
     icon: Ruler,
@@ -278,6 +288,7 @@ const audiences = [
 
 const featureList = [
   "Dibujo 2D con referencias a objetos y línea de comandos",
+  "Modelado 3D directo con kernel B-rep propio (booleanas, extrusión, redondeo)",
   "Cotas asociativas con estilos de cota",
   "Capas, bloques con atributos, sombreado asociativo y texto de párrafo",
   "Espacio papel con varias ventanas y escalas",
@@ -356,16 +367,33 @@ export default function LandingPage() {
                 <span className="type-sheet-number opacity-85">00</span>
                 CAD profesional en tu navegador
               </p>
+              {/*
+                LA INSIGNIA 3D. El hero llevaba meses sin decir que el
+                producto también modela en 3D —capacidad real desde ADR-0016,
+                no una promesa— así que esto no es adorno: cierra un hueco
+                entre lo que el producto YA hace y lo que su propio hero
+                contaba. El sólido gira dentro de la insignia; el texto nombra
+                la capacidad para quien no vea o no quiera el WebGL.
+              */}
+              <div className="mt-4 inline-flex max-w-full items-center gap-3 rounded-full border border-border bg-card/70 py-1.5 pl-1.5 pr-4 shadow-resting backdrop-blur">
+                <Brep3DBadge className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-muted" />
+                <span className="type-small text-muted-foreground">
+                  <span className="font-semibold text-foreground">Nuevo:</span>{" "}
+                  modelado 3D directo, sobre el mismo documento que tu plano
+                </span>
+              </div>
               <h1 id="hero-title" className="type-display mt-5 max-w-2xl">
-                Dibuja tus planos en el navegador. Sin instalar nada.
+                Dibuja en 2D. Modela en 3D directo. En tu navegador.
               </h1>
               <p className="type-lead mt-6 max-w-xl text-muted-foreground">
                 {PRODUCT_LABEL.design} es un software de dibujo técnico que corre
                 donde ya trabajas: precisión de dibujo con referencias a objetos
                 y línea de comandos, capas, bloques, cotas asociativas, espacio
-                papel e intercambio DXF, con tus proyectos guardados en la nube
-                en vez de en una computadora concreta. Entras, dibujas y
-                entregas.
+                papel e intercambio DXF — y, sobre el mismo documento, un
+                modelador 3D de modelado directo con un kernel B-rep propio:
+                sólidos, booleanas, extrusión y redondeo. Tus proyectos se
+                guardan en la nube, no en una computadora concreta. Entras,
+                dibujas y entregas.
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
                 <Link
@@ -479,14 +507,15 @@ export default function LandingPage() {
             lead="La diferencia con un CAD de escritorio no es sólo el precio: es dónde vive el programa, dónde vive el dibujo y qué pasa el día que cambias de equipo."
           />
           <dl className="mt-12 grid gap-5 sm:grid-cols-2">
-            {licensing.map(([title, text]) => (
-              <div
+            {licensing.map(([title, text], index) => (
+              <RevealOnScroll
                 key={title}
+                delayMs={index * 90}
                 className="rounded-card border border-border bg-card p-6 shadow-resting"
               >
                 <dt className="type-heading">{title}</dt>
                 <dd className="type-body mt-3 text-muted-foreground">{text}</dd>
-              </div>
+              </RevealOnScroll>
             ))}
           </dl>
           <Link
@@ -507,10 +536,12 @@ export default function LandingPage() {
             lead="Cada punto de esta lista corresponde a algo implementado y probado en el producto. Donde falta terminar algo, está dicho en la misma ficha."
           />
           <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {capabilities.map(({ icon: Icon, title, text, limite }) => (
-              <article
+            {capabilities.map(({ icon: Icon, title, text, limite }, index) => (
+              <RevealOnScroll
                 key={title}
-                className="flex flex-col rounded-card border border-border bg-card p-6 shadow-resting"
+                as="article"
+                delayMs={(index % 3) * 90}
+                className="flex h-full flex-col rounded-card border border-border bg-card p-6 shadow-resting"
               >
                 <Icon aria-hidden="true" className="h-7 w-7 text-primary-ink" />
                 <h3 className="type-heading mt-5">{title}</h3>
@@ -523,7 +554,7 @@ export default function LandingPage() {
                     {limite}
                   </p>
                 ) : null}
-              </article>
+              </RevealOnScroll>
             ))}
           </div>
         </Band>
@@ -537,14 +568,16 @@ export default function LandingPage() {
             lead="Si tu día termina con una lámina que alguien firma, esto se construyó mirando tu mesa de trabajo."
           />
           <div className="mt-12 grid gap-5 sm:grid-cols-2">
-            {audiences.map(({ title, text }) => (
-              <article
+            {audiences.map(({ title, text }, index) => (
+              <RevealOnScroll
                 key={title}
+                as="article"
+                delayMs={index * 90}
                 className="rounded-card border border-border p-6"
               >
                 <h3 className="type-heading">{title}</h3>
                 <p className="type-body mt-3 text-muted-foreground">{text}</p>
-              </article>
+              </RevealOnScroll>
             ))}
           </div>
         </Band>
@@ -558,14 +591,15 @@ export default function LandingPage() {
             lead="Prefieres enterarte aquí que en tu primera entrega. Esta lista se acorta con el producto, no con el copy."
           />
           <dl className="mt-12 grid gap-6 sm:grid-cols-2">
-            {limits.map(([title, text]) => (
-              <div
+            {limits.map(([title, text], index) => (
+              <RevealOnScroll
                 key={title}
+                delayMs={index * 90}
                 className="rounded-card border border-border bg-card p-6"
               >
                 <dt className="type-heading">{title}</dt>
                 <dd className="type-body mt-3 text-muted-foreground">{text}</dd>
-              </div>
+              </RevealOnScroll>
             ))}
           </dl>
         </Band>
