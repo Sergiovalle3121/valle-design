@@ -1262,13 +1262,72 @@
   filter: blur(60px);
 }
 
+/* ===========================================================================
+   EL CUBO 3D DE LA INSIGNIA DEL HERO (Brep3DBadge)
+   ---------------------------------------------------------------------------
+   Seis caras reales en `preserve-3d`, con un lado fijo de 24px — 2/3 de los
+   36px de la insignia del hero (`h-9 w-9`), inscrito con margen dentro del
+   círculo que recorta el contenedor para que sus facetas se vean en
+   cualquier ángulo de giro (ver el comentario en `Brep3DBadge.tsx`). Cada
+   cara traslada la mitad del lado, 12px. Si el tamaño del cubo cambia, ese
+   valor cambia con él — no es una constante libre.
+   Ver el comentario de `Brep3DBadge.tsx` para el porqué de CSS y no WebGL.
+   =========================================================================== */
+.brep-cube {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  transform-style: preserve-3d;
+  animation: brep-cube-spin 9s linear infinite;
+}
+@keyframes brep-cube-spin {
+  from {
+    transform: rotateX(-20deg) rotateY(0deg);
+  }
+  to {
+    transform: rotateX(-20deg) rotateY(360deg);
+  }
+}
+.brep-cube-face {
+  position: absolute;
+  inset: 0;
+  background: var(--valle-accent);
+  border: 1px solid rgba(23, 19, 15, 0.25);
+}
+/* Una cara por dirección, con su propio matiz — la ilusión de sombreado que
+   convierte seis rectángulos planos en un sólido. */
+.brep-cube-face--front {
+  transform: translateZ(12px);
+}
+.brep-cube-face--back {
+  transform: rotateY(180deg) translateZ(12px);
+  filter: brightness(0.65);
+}
+.brep-cube-face--right {
+  transform: rotateY(90deg) translateZ(12px);
+  filter: brightness(0.8);
+}
+.brep-cube-face--left {
+  transform: rotateY(-90deg) translateZ(12px);
+  filter: brightness(0.8);
+}
+.brep-cube-face--top {
+  transform: rotateX(90deg) translateZ(12px);
+  filter: brightness(1.25);
+}
+.brep-cube-face--bottom {
+  transform: rotateX(-90deg) translateZ(12px);
+  filter: brightness(0.55);
+}
+
 /* Respeta prefers-reduced-motion: nada se mueve. */
 @media (prefers-reduced-motion: reduce) {
   .hero-orb-1,
   .hero-orb-2,
   .hero-orb-3,
   .hero-conic,
-  .float-slow {
+  .float-slow,
+  .brep-cube {
     animation: none !important;
   }
 }
