@@ -567,3 +567,15 @@ Verificado en los dos builds: con la beta apagada (3 pasan) y reconstruida
 con la beta encendida (3 pasan); eslint. Fragmentos 1/4 y 4/4 verdes en esa
 cabeza; 3/4 en curso. `DWG_IMPORT_FLAG`/`DWG_EXPORT_FLAG` siguen en false:
 la beta del build no enciende el runtime (ADR-0009 §7).
+
+### CI: la intermitencia conocida de `llamada-webrtc-real` (fragmento 4/4) · REGISTRADO (00:04 UTC, 2026-09-07)
+Sobre la cabeza 0789886 el fragmento 4/4 cayó en `e2e/real/llamada-webrtc-real.spec.ts:220`
+(paso 4: «En curso» no apareció en 60 s, dos intentos); los otros 77 casos del
+fragmento pasaron y el mismo fragmento estaba verde una hora antes en ffef872
+con el mismo código de la llamada. Es la intermitencia anotada en BACKLOG L-7
+y en la bitácora de F5 sobre #199: no es de esta rama (el diff no toca la
+señalización). Relanzar sólo ese job desde aquí devolvió 403 (la integración
+no tiene el permiso); el titular puede hacerlo desde Actions («Re-run failed
+jobs»). No se empuja ningún commit vacío: este registro es el siguiente commit
+y el CI corre entero con él. Si vuelve a caer, se trata como real y se
+investiga la señalización antes de fusionar.
