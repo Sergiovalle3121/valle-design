@@ -10,47 +10,47 @@
   },
   "rutas": {
     "/": {
-      "gzipKB": 306.4,
-      "justificacion": "2026-09-07: la sección Capacidades pasó de una retícula estática de tarjetas (cero JS) a CapabilityExplorer, un explorador por pestañas interactivo y accesible (foco de teclado, ARIA tablist real). Subida real y esperada por una capacidad nueva, no una fuga: se detectó y corrigió primero una fuga real de 53 KB (el componente resolvía `galleryTemplate` —el catálogo de 149 plantillas— dentro de código cliente; ahora se resuelve en el servidor en page.tsx y baja como prop, igual que ya hacía FeaturedTemplates.tsx). Medido tras esa corrección: 297.5 KB. Techo = 297.5 × 1.03, misma fórmula de margen que --write, redondeado a una decimal."
+      "gzipKB": 265.3,
+      "justificacion": "2026-09-07: la sección Capacidades pasó de una retícula estática de tarjetas (cero JS) a CapabilityExplorer, un explorador por pestañas interactivo y accesible (foco de teclado, ARIA tablist real). Subida real y esperada por una capacidad nueva, no una fuga: se detectó y corrigió primero una fuga real de 53 KB (el componente resolvía `galleryTemplate` —el catálogo de 149 plantillas— dentro de código cliente; ahora se resuelve en el servidor en page.tsx y baja como prop, igual que ya hacía FeaturedTemplates.tsx). Medido tras esa corrección: 297.5 KB. Techo = 297.5 × 1.03, misma fórmula de margen que --write, redondeado a una decimal. · 2026-09-07 (tarde): framer-motion salió del cascarón (ToastContext pasó a keyframes CSS) y la portada bajó a 257.6 KB; techo re-apretado con --write."
     },
     "/register": {
-      "gzipKB": 296
+      "gzipKB": 246
     },
     "/login": {
-      "gzipKB": 296
+      "gzipKB": 246
     },
     "/precios": {
-      "gzipKB": 299.8
+      "gzipKB": 251
     },
     "/contact": {
-      "gzipKB": 281.3
+      "gzipKB": 240.8
     },
     "/docs": {
-      "gzipKB": 280.5
+      "gzipKB": 240.8
     },
     "/dashboard": {
-      "gzipKB": 314
+      "gzipKB": 268.4
     },
     "/studio": {
-      "gzipKB": 283.1
+      "gzipKB": 232.8
     },
     "/studio/demo-123": {
-      "gzipKB": 288.8
+      "gzipKB": 240.1
     },
     "/cuenta": {
-      "gzipKB": 292
+      "gzipKB": 243.6
     },
     "/educacion": {
-      "gzipKB": 280.5
+      "gzipKB": 240.8
     },
     "/plantillas": {
-      "gzipKB": 294.2
+      "gzipKB": 243.1
     },
     "/plantillas/taqueria": {
-      "gzipKB": 280.7
+      "gzipKB": 240.8
     },
     "/demo": {
-      "gzipKB": 289.2
+      "gzipKB": 239
     }
   }
 }

@@ -26,7 +26,6 @@
     "@valle-design/dwg-codec": "*",
     "@valle/design-sdk": "*",
     "dxf-parser": "^1.1.2",
-    "framer-motion": "^13.1.0",
     "jspdf": "^4.2.1",
     "lucide-react": "^1.41.0",
     "next": "^16.2.12",

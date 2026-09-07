@@ -618,8 +618,9 @@
   }
 }
 
-/* Respeta prefers-reduced-motion en TODA animación (CSS + scroll). Framer Motion
-   se desactiva aparte vía useReducedMotion en los componentes. */
+/* Respeta prefers-reduced-motion en TODA animación (CSS + scroll). Es la única
+   capa de movimiento del sitio: Framer Motion salió del cascarón cuando el
+   proveedor de avisos —su único importador— pasó a keyframes (valle-toast-*). */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1130,6 +1131,39 @@
   to {
     opacity: 1;
   }
+}
+
+/* Las tarjetas de aviso (ToastContext): entran desde arriba y salen hacia la
+   derecha, con la curva y la duración base del sistema. En CSS y no en Framer
+   Motion a propósito: el proveedor vive en el layout raíz, y la librería
+   pesaba ~40 KB gzip en la primera carga de TODAS las rutas para esto. La
+   salida mantiene la tarjeta montada hasta `animationend` (ToastContext.tsx
+   la desmonta ahí, con un temporizador de cinturón de 220 ms + margen). */
+@keyframes valle-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes valle-toast-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateX(24px) scale(0.96);
+  }
+}
+.valle-toast-in {
+  animation: valle-toast-in var(--duration-base) var(--ease-out-expo) both;
+}
+.valle-toast-out {
+  animation: valle-toast-out 220ms var(--ease-out-expo) both;
 }
 
 /* Fondo ambiental de la portada y del embudo de alta.

@@ -1,7 +1,6 @@
 'use client';
 
 import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
 type Kind = 'success' | 'error' | 'info';
@@ -11,6 +10,8 @@ interface ToastItem {
   kind: Kind;
   title?: string;
   message: string;
+  /** Saliendo: la tarjeta sigue montada mientras dura su animación de salida. */
+  leaving?: boolean;
 }
 
 interface ToastApi {
@@ -24,9 +25,16 @@ const ToastCtx = createContext<ToastApi | null>(null);
 
 /**
  * Notificaciones estilo Apple: tarjetas limpias arriba a la derecha, con blur,
- * borde sutil y entrada/salida con spring. Los acuses se descartan solos a los
- * ~3.5 s; los ERRORES viven cuatro veces más, porque piden una decisión. Respeta
- * prefers-reduced-motion. Reutilizable en toda la app vía useToast().
+ * borde sutil y entrada/salida animadas. Los acuses se descartan solos a los
+ * ~3.5 s; los ERRORES viven cuatro veces más, porque piden una decisión.
+ * Reutilizable en toda la app vía useToast().
+ *
+ * La entrada y la salida son dos keyframes de `globals.css` (`valle-toast-in`
+ * / `valle-toast-out`), no Framer Motion: este proveedor vive en el layout raíz
+ * y era el ÚNICO importador de la librería, así que ~40 KB gzip viajaban en el
+ * cascarón de TODAS las rutas —la portada incluida, donde Lighthouse los medía
+ * 85 % sin usar— para animar una tarjeta que la mayoría de las sesiones no ve.
+ * `prefers-reduced-motion` la aplasta desde la regla global, como al resto.
  */
 /**
  * Cuánto vive una tarjeta, según lo que tenga que hacer quien la lee.
@@ -45,8 +53,10 @@ const LIFETIME_MS: Record<Kind, number> = {
   error: 12_000,
 };
 
+/** Duración de `valle-toast-out` en `globals.css`; si cambia allí, cambia aquí. */
+const LEAVE_MS = 220;
+
 export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const reduce = useReducedMotion();
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   // Tarjetas visibles por contenido, con su temporizador. Dos caminos de código
   // pueden anunciar EXACTAMENTE lo mismo casi a la vez (dos guardados en vuelo
@@ -54,14 +64,30 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   // informa dos veces, sólo duplica. La repetida renueva el temporizador.
   const liveRef = useRef(new Map<string, { id: number; timer: ReturnType<typeof setTimeout> }>());
 
-  const remove = useCallback((id: number) => {
+  // Tarjetas en salida, con el cinturón que las desmonta si `animationend`
+  // no llegara (una pestaña en segundo plano no pinta y no dispara el evento).
+  const leavingRef = useRef(new Map<number, ReturnType<typeof setTimeout>>());
+
+  const unmount = useCallback((id: number) => {
+    const pending = leavingRef.current.get(id);
+    if (pending !== undefined) clearTimeout(pending);
+    leavingRef.current.delete(id);
     setToasts((t) => t.filter((x) => x.id !== id));
-    for (const [key, entry] of liveRef.current)
-      if (entry.id === id) {
-        clearTimeout(entry.timer);
-        liveRef.current.delete(key);
-      }
   }, []);
+
+  const remove = useCallback(
+    (id: number) => {
+      for (const [key, entry] of liveRef.current)
+        if (entry.id === id) {
+          clearTimeout(entry.timer);
+          liveRef.current.delete(key);
+        }
+      if (leavingRef.current.has(id)) return;
+      setToasts((t) => t.map((x) => (x.id === id ? { ...x, leaving: true } : x)));
+      leavingRef.current.set(id, setTimeout(() => unmount(id), LEAVE_MS + 60));
+    },
+    [unmount],
+  );
 
   const show = useCallback(
     (message: string, opts?: { kind?: Kind; title?: string }) => {
@@ -108,11 +134,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         intercalados como siempre.
       */}
       <div className="fixed top-4 right-4 z-[300] flex flex-col gap-2 w-[min(380px,calc(100vw-2rem))] pointer-events-none">
-        <AnimatePresence>
-          {toasts.map((t) => (
-            <Toast key={t.id} toast={t} reduce={reduce} onClose={() => remove(t.id)} />
-          ))}
-        </AnimatePresence>
+        {toasts.map((t) => (
+          <Toast key={t.id} toast={t} onClose={() => remove(t.id)} onLeft={() => unmount(t.id)} />
+        ))}
       </div>
     </ToastCtx.Provider>
   );
@@ -120,15 +144,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
 function Toast({
   toast: t,
-  reduce,
   onClose,
+  onLeft,
 }: {
   toast: ToastItem;
-  reduce: boolean | null;
   onClose: () => void;
+  /** La animación de salida terminó: ya se puede desmontar. */
+  onLeft: () => void;
 }) {
   return (
-    <motion.div
+    <div
       // Identificador NUEVO (no renombra ninguno): la OLA 2.4 mide los
       // mensajes de error contra el stack real, y hasta ahora la única
       // forma de encontrarlos era buscar su texto literal — lo que
@@ -143,16 +168,14 @@ function Toast({
       // no hace falta que el CONTENEDOR sea la región viva.
       aria-live={t.kind === 'error' ? 'assertive' : 'polite'}
       aria-atomic="true"
-      layout
-      initial={reduce ? { opacity: 0 } : { opacity: 0, y: -16, scale: 0.96 }}
-      animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
-      exit={reduce ? { opacity: 0 } : { opacity: 0, x: 24, scale: 0.96 }}
-      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+      onAnimationEnd={(event) => {
+        if (t.leaving && event.target === event.currentTarget) onLeft();
+      }}
       // El contenedor flota sobre la barra de herramientas del CAD.
       // Una notificación transitoria NUNCA debe robar un clic a un
       // control real: la tarjeta no captura puntero y sólo el botón de
       // cerrar vuelve a habilitarlo.
-      className="pointer-events-none flex items-start gap-3 rounded-card px-4 py-3 bg-popover/85 backdrop-blur-xl border border-border shadow-floating"
+      className={`${t.leaving ? 'valle-toast-out' : 'valle-toast-in'} pointer-events-none flex items-start gap-3 rounded-card px-4 py-3 bg-popover/85 backdrop-blur-xl border border-border shadow-floating`}
     >
       <ToastIcon kind={t.kind} />
       <div className="min-w-0 flex-1">
@@ -166,7 +189,7 @@ function Toast({
       >
         <X className="w-3.5 h-3.5" />
       </button>
-    </motion.div>
+    </div>
   );
 }
 

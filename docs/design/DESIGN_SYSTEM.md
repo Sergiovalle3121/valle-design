@@ -226,9 +226,11 @@ producto: lo que hace, contado por lo que hace.
 
 ### `prefers-reduced-motion`: respetarlo NO es apagarlo
 
-Se respeta en dos capas que ya existían: una regla global en `globals.css` que
-neutraliza toda animación y transición CSS, y `useReducedMotion` de Framer
-Motion en los componentes que animan con JS.
+Se respeta en una sola capa: la regla global de `globals.css` que neutraliza
+toda animación y transición CSS. (Hubo una segunda —`useReducedMotion` de
+Framer Motion— hasta que el proveedor de avisos, su único consumidor, pasó a
+keyframes CSS y la librería salió del cascarón: ~40 KB gzip menos en la
+primera carga de todas las rutas.)
 
 **Y una excepción que hubo que escribir a mano.** Un trazo animado que
 simplemente deja de animarse DESAPARECE: `stroke-dashoffset` se queda en su
