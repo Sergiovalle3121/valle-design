@@ -105,6 +105,7 @@ import {
 import dynamic from "next/dynamic";
 import { CadToolPalette } from "@/components/cad/editor/CadToolPalette";
 import { CadLeftDockPanel } from "@/components/cad/editor/CadLeftDockPanel";
+import { CadCommandPalette } from "@/components/cad/editor/CadCommandPalette";
 
 // Las paletas que se abren A DEMANDA viajan en su chunk y no en el del
 // estudio: medido el 2026-09-02 con source maps, las nueve sumaban 75 KB del
@@ -182,7 +183,6 @@ import {
 import {
   type CadToolbarActionId,
 } from "@/lib/cad/toolbar";
-import { searchCadPalette } from "@/lib/cad/command-palette";
 import {
   rememberCadPaletteAction,
   useCadPaletteActions,
@@ -2205,6 +2205,7 @@ export default function Layout3DEditor({
     if (!sc || !ctx) return;
     const th = THEMES[themeRef.current];
     sc.background = new THREE.Color(th.bg);
+    renderPipelineHostRef.current?.setBackground(th.bg); // T-13 / F9 P-01: la tinta por defecto sabe contra qué fondo se dibuja
     if (sc.fog instanceof THREE.Fog) sc.fog.color.setHex(th.fog);
     const ground = groundRef.current;
     if (ground)
@@ -5959,13 +5960,12 @@ export default function Layout3DEditor({
         parent: nativeGroup,
         viewport: { scale: s, width: W, height: H, elevation: 0.11 },
         yScreenSign: 1,
-        // 4 ms de 16,7 es el defecto del planificador y está pensado para que
-        // el usuario no note nada mientras dibuja. Cargar un plano de 100.000
-        // entidades con ese presupuesto tarda minutos, y durante la carga NO
-        // hay nadie dibujando: lo que hay es alguien esperando a ver su plano.
-        // 8 ms sigue dejando la mitad del cuadro libre.
+        // 4 ms de 16,7 es el defecto del planificador, pensado para que nadie
+        // note nada mientras dibuja; cargar 100.000 entidades con ese presupuesto
+        // tarda minutos y durante la carga nadie dibuja. 8 ms deja medio cuadro libre.
         frameBudgetMs: 8,
       });
+      host.setBackground(THEMES[themeRef.current].bg); // antes del primer syncNativeScene: la tinta ya nace legible
       renderPipelineHostRef.current = host;
       renderPipelineSlotRef.current?.set(host);
     }
@@ -12738,7 +12738,6 @@ export default function Layout3DEditor({
     diameter: dynamicGridDefault * 2,
     offset: dynamicGridDefault,
   };
-  const paletteResults = searchCadPalette(paletteQuery).slice(0, 9);
   const tray = (data?.stations ?? []).filter((s) => !placedIds.has(s.id));
   const cadTitle = title?.trim() || branding.productLabel;
   const cadSubtitle =
@@ -13535,7 +13534,7 @@ export default function Layout3DEditor({
             onClick={() => setShowSheetPackage(false)}
             className={`px-2 py-1 ${!showSheetPackage ? "bg-brand-strong text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
           >
-            Model
+            Modelo
           </button>
           {orderedPaperSpaces.slice(0, 3).map((space) => (
             <button
@@ -14170,7 +14169,7 @@ export default function Layout3DEditor({
               onChange={(e) =>
                 setApprovalStatus(e.target.value as ApprovalStatus)
               }
-              className="type-caption rounded-md px-1.5 py-1 bg-muted/60 border border-border outline-none"
+              className="type-caption rounded-md px-1.5 py-1 bg-muted/60 border border-border outline-none focus-visible:ring-2 focus-visible:ring-ring"
               style={{ color: APPROVAL_META[approval.status].color }}
             >
               <option value="draft" className="text-foreground">
@@ -14753,80 +14752,20 @@ export default function Layout3DEditor({
                         : "select"
               }
             />
+            {/* F9 P-06 · La paleta Ctrl+K vive en su propio archivo: el rol de
+                diálogo, su nombre y el atrapador de foco no cabían en un
+                monolito que sólo puede bajar. El estado se queda aquí. */}
             {showPalette && (
-              <div className="absolute top-3 right-3 z-30 w-[22rem] rounded-2xl border border-indigo-400/20 bg-surface/80 p-3 shadow-2xl backdrop-blur">
-                <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-2.5 py-2">
-                  <Search className="h-4 w-4 text-primary-ink" />
-                  <input
-                    autoFocus
-                    value={paletteQuery}
-                    onChange={(e) => setPaletteQuery(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Escape") {
-                        e.preventDefault();
-                        setShowPalette(false);
-                        setPaletteQuery("");
-                      }
-                    }}
-                    placeholder="Buscar comando, herramienta o símbolo..."
-                    className="min-w-0 flex-1 bg-transparent type-small text-foreground placeholder:text-muted-foreground outline-none"
-                  />
-                  <span className="rounded-md border border-border px-1.5 py-0.5 type-micro text-muted-foreground">
-                    Ctrl K
-                  </span>
-                </div>
-                {recentPaletteActions.length > 0 && !paletteQuery.trim() && (
-                  <div className="mt-2 flex flex-wrap gap-1 border-b border-border pb-2">
-                    <span className="mr-1 self-center type-micro uppercase tracking-wide text-muted-foreground">
-                      Recientes
-                    </span>
-                    {recentPaletteActions.map((key) => {
-                      const [, id] = key.split(":");
-                      return (
-                        <span
-                          key={key}
-                          className="rounded-full bg-muted/60 px-2 py-0.5 type-micro text-muted-foreground dark:text-muted-foreground"
-                        >
-                          {id}
-                        </span>
-                      );
-                    })}
-                  </div>
-                )}
-                <div className="mt-2 max-h-80 overflow-y-auto space-y-1">
-                  {paletteResults.map((entry) => (
-                    <button
-                      key={`${entry.kind}-${entry.id}`}
-                      onClick={() => runPaletteEntry(entry)}
-                      className="flex w-full items-center justify-between gap-3 rounded-xl px-2.5 py-2 text-left hover:bg-muted/60"
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate type-small font-semibold text-foreground">
-                          {entry.label}
-                        </span>
-                        <span className="block truncate type-micro text-muted-foreground dark:text-muted-foreground">
-                          {entry.description}
-                        </span>
-                      </span>
-                      <span className="shrink-0 text-right">
-                        <span className="block rounded-full border border-border px-2 py-0.5 type-micro uppercase tracking-wide text-primary-ink">
-                          {entry.kind}
-                        </span>
-                        {entry.shortcut && (
-                          <span className="mt-1 block type-micro text-muted-foreground">
-                            {entry.shortcut}
-                          </span>
-                        )}
-                      </span>
-                    </button>
-                  ))}
-                  {paletteResults.length === 0 && (
-                    <div className="px-2 py-6 text-center type-caption text-muted-foreground">
-                      Sin resultados CAD.
-                    </div>
-                  )}
-                </div>
-              </div>
+              <CadCommandPalette
+                query={paletteQuery}
+                onQueryChange={setPaletteQuery}
+                onClose={() => {
+                  setShowPalette(false);
+                  setPaletteQuery("");
+                }}
+                recent={recentPaletteActions}
+                onRun={runPaletteEntry}
+              />
             )}
             {/* 5.3 · Icono + etiqueta + atajo, extraído a su propio archivo:
                 el monolito sólo puede bajar, así que la mejora se paga sacando
@@ -15639,7 +15578,7 @@ export default function Layout3DEditor({
                             onChange={(e) =>
                               setAisleWidth(Number(e.target.value) || 1200)
                             }
-                            className="w-20 rounded-md bg-muted/60 px-2 py-1 text-right outline-none"
+                            className="w-20 rounded-md bg-muted/60 px-2 py-1 text-right outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           />
                           <button
                             onClick={createAisleBetweenSelection}
@@ -15853,7 +15792,7 @@ export default function Layout3DEditor({
                                 )
                                   applyWallDimension("length", v);
                               }}
-                              className="w-full rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground outline-none"
+                              className="w-full rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             />
                           </label>
                           <label className="block type-micro text-muted-foreground dark:text-muted-foreground">
@@ -15881,7 +15820,7 @@ export default function Layout3DEditor({
                                 )
                                   applyWallDimension("angle", v);
                               }}
-                              className="w-full rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground outline-none"
+                              className="w-full rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             />
                           </label>
                         </div>
@@ -15926,7 +15865,7 @@ export default function Layout3DEditor({
                               }
                               onBlur={endFieldEdit}
                               placeholder="Nombre del equipo o zona"
-                              className="w-full rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground placeholder:text-muted-foreground outline-none"
+                              className="w-full rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground placeholder:text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             />
                           </label>
                         ) : (
@@ -15943,7 +15882,7 @@ export default function Layout3DEditor({
                                 e.target.value as CadLayerId,
                               )
                             }
-                            className="w-full rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground outline-none"
+                            className="w-full rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           >
                             {cadLayers.map((layer) => (
                               <option
@@ -15965,7 +15904,7 @@ export default function Layout3DEditor({
                             onChange={(e) => updateSelectedTags(e.target.value)}
                             onBlur={endFieldEdit}
                             placeholder="fachada, planta baja, revisión…"
-                            className="w-full rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground placeholder:text-muted-foreground outline-none"
+                            className="w-full rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground placeholder:text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           />
                         </label>
                         <label className="block type-micro text-muted-foreground dark:text-muted-foreground">
@@ -15979,7 +15918,7 @@ export default function Layout3DEditor({
                             onBlur={endFieldEdit}
                             rows={2}
                             placeholder="Owner, restriccion, pendiente..."
-                            className="w-full resize-none rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground placeholder:text-muted-foreground outline-none"
+                            className="w-full resize-none rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground placeholder:text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           />
                         </label>
                         <div className="grid grid-cols-2 gap-2">

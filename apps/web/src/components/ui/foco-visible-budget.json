@@ -1,5 +1,5 @@
 {
   "descripcion": "Clases con `outline-none` y ningún sustituto visible del anillo de foco. Sólo baja.",
-  "maximo": 9,
-  "nota": "F9 (2026-09-06): las 18 que vivían en paletas/diálogos ya extraídos del monolito llevan ahora `focus-visible:ring-2 focus-visible:ring-ring`. Las 9 restantes están TODAS dentro de Layout3DEditor.tsx (líneas 15408, 16267, 17137, 17351, 17379, 17424, 17441, 17463, 17477) — bajar de aquí exige tocar el monolito; petición P-05 en docs/execution/frentes/F9-peticiones.md con el diff exacto."
+  "maximo": 0,
+  "nota": "F9 P-05 (2026-09-07): las 9 que quedaban dentro de Layout3DEditor.tsx llevan ya `focus-visible:ring-2 focus-visible:ring-ring` (ocho en el monolito y la caja de buscar de la paleta Ctrl+K, que se mudó a CadCommandPalette.tsx). Trinquete en cero: cualquier `outline-none` nuevo sin sustituto visible es rojo."
 }
