@@ -1,8 +1,10 @@
 import { strict as assert } from "node:assert";
 import { layoutToCadDocument } from "@/lib/cad/cad-document";
 import type { DocumentLifecyclePort } from "./controller";
+import type { CadRecoveryRecord, saveCadRecovery } from "@/lib/cad/cad-recovery";
 import {
   wrapDocumentPortForCrashRecovery,
+  writeCrashRecovery,
   type LastSavedSnapshot,
 } from "./crash-recovery-port";
 
@@ -110,6 +112,37 @@ async function main() {
     });
     const receipt = await wrapped.saveContent("doc-5", doc, 1);
     assert.equal(receipt.cadDocumentVersion, 2, "el guardado real no se ve afectado por un callback roto");
+  }
+
+  // Revisión de T-72(h): el registro de emergencia se sella con la hora del
+  // guardado capturado, NO con la de la caída. Sellado con la hora de la
+  // caída era el más nuevo del carril y tapaba el checkpoint posterior con
+  // las ediciones sin guardar (todo el orden del diario es por `savedAtMs`).
+  // Y generación 0: no captura nada que el guardado no llevara ya.
+  {
+    const sink = capturingSink();
+    const wrapped = wrapDocumentPortForCrashRecovery(fakePort(), sink.onSaveContent);
+    await wrapped.saveContent("doc-6", doc, 3);
+    const snapshot = sink.captured[0];
+    const calls: Parameters<typeof saveCadRecovery>[] = [];
+    const save: typeof saveCadRecovery = async (...args) => {
+      calls.push(args);
+      return {} as CadRecoveryRecord;
+    };
+    const scope = { tenantId: "t", userId: "u", projectId: "p", model: "doc-6", revision: "DOCUMENT" };
+    await writeCrashRecovery(save, scope, snapshot);
+    assert.equal(calls.length, 1, "un solo registro de emergencia por caída");
+    const [calledScope, document, version, editGeneration, options] = calls[0];
+    assert.equal(calledScope, scope, "el ámbito es el del editor, con projectId");
+    assert.equal(document, doc, "el documento es el último que viajó al servidor");
+    assert.equal(version, 3, "la versión base es la ESPERADA en ese guardado");
+    assert.equal(editGeneration, 0, "generación 0: nada más allá de lo que el guardado ya llevaba");
+    assert.deepEqual(
+      options,
+      { savedAtMs: snapshot.savedAtMs },
+      "el sello es la hora del guardado capturado, no la de la caída",
+    );
+    assert.ok(Number.isFinite(snapshot.savedAtMs), "el snapshot trae un sello con el que estampar");
   }
 }
 

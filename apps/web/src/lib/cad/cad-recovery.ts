@@ -130,13 +130,17 @@ export class CadRecoveryBlockedError extends Error {
   }
 }
 
+const SCOPE_KEY_PREFIX = 'cad-recovery-v1';
+/** Prefijo + tenant, usuario, edificio, proyecto, modelo y revisión. */
+const SCOPE_KEY_PARTS = 7;
+
 function part(value: string | null | undefined): string {
   return encodeURIComponent((value ?? '-').trim() || '-');
 }
 
 export function cadRecoveryScopeKey(scope: CadRecoveryScope): string {
   return [
-    'cad-recovery-v1',
+    SCOPE_KEY_PREFIX,
     part(scope.tenantId),
     part(scope.userId),
     part(scope.buildingId),
@@ -144,6 +148,39 @@ export function cadRecoveryScopeKey(scope: CadRecoveryScope): string {
     part(scope.model),
     part(scope.revision),
   ].join(':');
+}
+
+/** Lo que identifica un documento SIN su espacio de trabajo (edificio/proyecto). */
+export type CadRecoveryDocumentScope = Pick<
+  CadRecoveryScope,
+  'tenantId' | 'userId' | 'model' | 'revision'
+>;
+
+/**
+ * ¿Pertenece esta clave de ámbito a ESTE documento, bajo cualquier
+ * edificio/proyecto?
+ *
+ * Revisión de T-75(b): el editor escribe sus checkpoints con el `projectId`
+ * del documento en la clave, pero la pantalla de «no pudimos cargar el
+ * documento» no puede conocer ese `projectId` —es justo lo que el servidor
+ * no devolvió—, así que su búsqueda por clave exacta nunca coincidía y el
+ * botón siempre decía «no hay ningún punto de recuperación». Comparar por
+ * partes es seguro porque `part()` percent-codifica los dos puntos: la
+ * clave se parte siempre en exactamente siete trozos.
+ */
+export function matchesCadRecoveryDocument(
+  scopeKey: string,
+  scope: CadRecoveryDocumentScope,
+): boolean {
+  const parts = scopeKey.split(':');
+  return (
+    parts.length === SCOPE_KEY_PARTS &&
+    parts[0] === SCOPE_KEY_PREFIX &&
+    parts[1] === part(scope.tenantId) &&
+    parts[2] === part(scope.userId) &&
+    parts[5] === part(scope.model) &&
+    parts[6] === part(scope.revision)
+  );
 }
 
 /**
@@ -283,11 +320,59 @@ async function putJournalRecord(
   await transactionDone(transaction);
 }
 
+export interface SaveCadRecoveryOptions {
+  /**
+   * Instante que se estampa como `savedAtMs` en lugar del reloj de la
+   * escritura. Revisión de T-72(h): el registro de emergencia que escribe la
+   * frontera de error lleva el ÚLTIMO documento que viajó al servidor, y si
+   * se estampara con la hora de la caída quedaría por delante —todo el orden
+   * del diario es por `savedAtMs`— de un checkpoint posterior con ediciones
+   * sin guardar, que es justo el que hay que ofrecer. Con la hora del
+   * guardado que capturó, ese checkpoint sigue siendo el primero y el de
+   * emergencia sólo sale cuando el carril no tenía nada más nuevo.
+   */
+  savedAtMs?: number;
+}
+
+/**
+ * Sello y secuencia de un registro nuevo dentro de su carril. Puro para
+ * poder probarse sin IndexedDB, como las decisiones de `cad-recovery-journal`.
+ *
+ * La secuencia avanza dentro del CARRIL. Contarla sobre el ámbito entero
+ * hacía que dos pestañas leyesen el mismo máximo y calculasen el mismo
+ * número, dejando un journal cuya numeración no describe ninguna historia. Y
+ * se toma el MÁXIMO del carril, no el del registro más reciente por reloj:
+ * con un sello anterior al último checkpoint (ver `savedAtMs` arriba) ambos
+ * dejan de coincidir.
+ */
+export function stampCadRecoveryEntry(
+  existing: readonly Pick<StoredCadRecoveryRecord, 'lane' | 'journalSequence'>[],
+  scopeKey: string,
+  lane: string,
+  options: SaveCadRecoveryOptions = {},
+  now = Date.now(),
+): Pick<StoredCadRecoveryRecord, 'key' | 'savedAtMs' | 'journalSequence'> {
+  const savedAtMs =
+    options.savedAtMs !== undefined && Number.isFinite(options.savedAtMs)
+      ? options.savedAtMs
+      : now;
+  const journalSequence =
+    existing
+      .filter((record) => (record.lane || LEGACY_LANE) === lane)
+      .reduce((max, record) => Math.max(max, record.journalSequence), 0) + 1;
+  return {
+    key: `${scopeKey}:l:${lane}:j:${String(journalSequence).padStart(8, '0')}:${savedAtMs}`,
+    savedAtMs,
+    journalSequence,
+  };
+}
+
 export async function saveCadRecovery(
   scope: CadRecoveryScope,
   document: CadDocument,
   baseCadDocumentVersion: number,
   editGeneration = 0,
+  options: SaveCadRecoveryOptions = {},
 ): Promise<CadRecoveryRecord> {
   const encoded = await encodeCadRecoveryOffThread(document);
   const database = await openDatabase();
@@ -296,14 +381,14 @@ export async function saveCadRecovery(
     if (await storageLikelyFull(encoded.storedBytes)) await pruneJournal(database, true);
     const lane = cadRecoveryLaneId();
     const existing = await scopeJournal(database, scopeKey);
-    const savedAtMs = Date.now();
-    // La secuencia avanza dentro del CARRIL. Contarla sobre el ámbito entero
-    // hacía que dos pestañas leyesen el mismo máximo y calculasen el mismo
-    // número, dejando un journal cuya numeración no describe ninguna historia.
-    const journalSequence =
-      (existing.find((record) => (record.lane || LEGACY_LANE) === lane)?.journalSequence ?? 0) + 1;
+    const { key, savedAtMs, journalSequence } = stampCadRecoveryEntry(
+      existing,
+      scopeKey,
+      lane,
+      options,
+    );
     const stored: StoredCadRecoveryRecord = {
-      key: `${scopeKey}:l:${lane}:j:${String(journalSequence).padStart(8, '0')}:${savedAtMs}`,
+      key,
       scopeKey,
       lane,
       editGeneration,
@@ -337,38 +422,51 @@ export async function saveCadRecovery(
   }
 }
 
+/**
+ * Primer candidato legible, en el orden recibido; los caducados y los que no
+ * decodifican se borran por el camino. Compartido por las dos lecturas para
+ * que la búsqueda por documento no reimplemente la verificación de hash.
+ */
+async function firstReadableRecord(
+  database: IDBDatabase,
+  records: readonly StoredCadRecoveryRecord[],
+): Promise<CadRecoveryRecord | null> {
+  const expiredKeys: string[] = [];
+  for (const record of records) {
+    if (!Number.isFinite(record.savedAtMs) || Date.now() - record.savedAtMs > MAX_RECOVERY_AGE_MS) {
+      expiredKeys.push(record.key);
+      continue;
+    }
+    try {
+      // El hash guardado se COMPRUEBA aquí. Si no cuadra, el registro se
+      // trata como dañado: se descarta y el bucle continúa con el checkpoint
+      // anterior, en vez de devolver al usuario un plano que no es el suyo.
+      const document = await decodeCadRecoveryOffThread(
+        record.format,
+        await record.payload.arrayBuffer(),
+        record.sha256,
+      );
+      if (expiredKeys.length) await deleteJournalKeys(database, expiredKeys);
+      return { ...record, document };
+    } catch {
+      expiredKeys.push(record.key);
+    }
+  }
+  if (expiredKeys.length) await deleteJournalKeys(database, expiredKeys);
+  return null;
+}
+
 export async function loadCadRecovery(
   scope: CadRecoveryScope,
 ): Promise<CadRecoveryRecord | null> {
   const database = await openDatabase();
   const scopeKey = cadRecoveryScopeKey(scope);
   try {
-    const records = orderCadRecoveryCandidates(
-      await scopeJournal(database, scopeKey),
-      cadRecoveryLaneId(),
+    const found = await firstReadableRecord(
+      database,
+      orderCadRecoveryCandidates(await scopeJournal(database, scopeKey), cadRecoveryLaneId()),
     );
-    const expiredKeys: string[] = [];
-    for (const record of records) {
-      if (!Number.isFinite(record.savedAtMs) || Date.now() - record.savedAtMs > MAX_RECOVERY_AGE_MS) {
-        expiredKeys.push(record.key);
-        continue;
-      }
-      try {
-        // El hash guardado se COMPRUEBA aquí. Si no cuadra, el registro se
-        // trata como dañado: se descarta y el bucle continúa con el checkpoint
-        // anterior, en vez de devolver al usuario un plano que no es el suyo.
-        const document = await decodeCadRecoveryOffThread(
-          record.format,
-          await record.payload.arrayBuffer(),
-          record.sha256,
-        );
-        if (expiredKeys.length) await deleteJournalKeys(database, expiredKeys);
-        return { ...record, document };
-      } catch {
-        expiredKeys.push(record.key);
-      }
-    }
-    if (expiredKeys.length) await deleteJournalKeys(database, expiredKeys);
+    if (found) return found;
 
     const legacyTransaction = database.transaction(LEGACY_STORE_NAME, 'readonly');
     const legacy = await requestResult(
@@ -384,6 +482,38 @@ export async function loadCadRecovery(
       uncompressedBytes: 0,
       storedBytes: 0,
     };
+  } finally {
+    database.close();
+  }
+}
+
+/**
+ * Último borrador legible de un documento, escrito bajo CUALQUIER
+ * edificio/proyecto de este tenant y usuario (ver
+ * `matchesCadRecoveryDocument`). Es la lectura de la pantalla de error del
+ * estudio, que no conoce el `projectId` con el que el editor escribió.
+ *
+ * Recorre el almacén entero a propósito: la poda lo acota a unas pocas
+ * decenas de registros, y un rango sobre el índice compuesto sería
+ * aritmética de claves que ninguna prueba de esta suite puede ejercitar (Node
+ * no tiene IndexedDB). Sin el almacén heredado: va por clave exacta y es
+ * anterior a T-75, así que no tiene nada que este camino pueda encontrar.
+ */
+export async function loadCadRecoveryForDocument(
+  scope: CadRecoveryDocumentScope,
+): Promise<CadRecoveryRecord | null> {
+  const database = await openDatabase();
+  try {
+    const transaction = database.transaction(JOURNAL_STORE_NAME, 'readonly');
+    const records = (await requestResult(
+      transaction.objectStore(JOURNAL_STORE_NAME).getAll(),
+    ) as StoredCadRecoveryRecord[]).filter((record) =>
+      matchesCadRecoveryDocument(record.scopeKey, scope),
+    );
+    return await firstReadableRecord(
+      database,
+      orderCadRecoveryCandidates(records, cadRecoveryLaneId()),
+    );
   } finally {
     database.close();
   }

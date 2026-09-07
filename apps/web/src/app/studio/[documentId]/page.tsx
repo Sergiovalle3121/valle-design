@@ -94,7 +94,10 @@ export default function DocumentStudioPage({
    * (`EditorCrashRecoveryAction`, T-72h) — un documento que se guardó antes
    * de la caída actual, si lo hay. `model`/`revision` son los mismos valores
    * fijos con los que `CadStudioHost` abriría este documento si el servidor
-   * respondiera (ver más abajo).
+   * respondiera (ver más abajo). El `projectId` NO se puede saber aquí: viene
+   * en la respuesta que acaba de fallar, y el editor lo lleva en la clave del
+   * diario, así que la acción busca por documento bajo cualquier proyecto
+   * (`matchAnyWorkspace`); por clave exacta nunca encontraba nada.
    */
   const authUser = auth.user;
   const recoveryScope = useMemo<CadRecoveryScope | null>(
@@ -154,7 +157,7 @@ export default function DocumentStudioPage({
               <Button variant="secondary" size="sm" onClick={retry}>
                 Reintentar
               </Button>
-              <EditorCrashRecoveryAction scope={recoveryScope} />
+              <EditorCrashRecoveryAction scope={recoveryScope} matchAnyWorkspace />
             </div>
           )}
           <Link

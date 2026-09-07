@@ -15,7 +15,7 @@
 import { strict as assert } from "node:assert";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { EditorCrashRecoveryAction } from "./EditorCrashRecoveryAction";
+import { EditorCrashRecoveryAction, pickCadRecoveryLoader } from "./EditorCrashRecoveryAction";
 
 // Sin scope (sin tenantId/userId resueltos) no hay diario que leer: el
 // componente no pinta nada en vez de un botón que siempre fallaría.
@@ -43,4 +43,30 @@ import { EditorCrashRecoveryAction } from "./EditorCrashRecoveryAction";
   assert.doesNotMatch(html, /No se pudo leer/, "no adelanta un error antes de pedirlo");
 }
 
-console.log("EditorCrashRecoveryAction: 2/2");
+// Revisión de T-75(b): la pantalla de error del estudio no conoce el
+// `projectId` con el que el editor escribió (es lo que el servidor no
+// devolvió), así que con la clave exacta nunca encontraba nada. Sólo con
+// `matchAnyWorkspace` se usa la búsqueda por documento; por defecto —la
+// frontera de error del editor, que SÍ conoce el proyecto— sigue la exacta.
+{
+  const exact = async () => null;
+  const anyWorkspace = async () => null;
+  const recovery = { loadCadRecovery: exact, loadCadRecoveryForDocument: anyWorkspace };
+  assert.equal(pickCadRecoveryLoader(recovery, false), exact, "por defecto, clave exacta");
+  assert.equal(pickCadRecoveryLoader(recovery, true), anyWorkspace, "sin projectId conocido, por documento");
+}
+
+// La bandera no cambia lo que se ofrece antes del clic: mismo botón, sin
+// adelantar resultado.
+{
+  const html = renderToStaticMarkup(
+    createElement(EditorCrashRecoveryAction, {
+      scope: { tenantId: "t1", userId: "u1", model: "doc-1", revision: "DOCUMENT" },
+      matchAnyWorkspace: true,
+    }),
+  );
+  assert.match(html, /Descargar el último punto de recuperación/, "ofrece la acción también en la pantalla de error del estudio");
+  assert.doesNotMatch(html, /No hay ningún punto de recuperación/, "no adelanta 'ninguno' antes de pedirlo");
+}
+
+console.log("EditorCrashRecoveryAction: 4/4");

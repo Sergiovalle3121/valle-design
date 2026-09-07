@@ -26,7 +26,11 @@
 import { useState } from "react";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui";
-import type { CadRecoveryScope } from "@/lib/cad/cad-recovery";
+import type {
+  CadRecoveryDocumentScope,
+  CadRecoveryRecord,
+  CadRecoveryScope,
+} from "@/lib/cad/cad-recovery";
 import type { CadDxfDocumentExportSource } from "@/lib/cad/dxf-document-export";
 
 type RecoveryState =
@@ -36,10 +40,41 @@ type RecoveryState =
   | { kind: "ready"; savedAt: string }
   | { kind: "error" };
 
+/** Las dos lecturas del diario que la acción puede usar (forma del `import()`). */
+type CadRecoveryLoaders = {
+  loadCadRecovery: (scope: CadRecoveryScope) => Promise<CadRecoveryRecord | null>;
+  loadCadRecoveryForDocument: (
+    scope: CadRecoveryDocumentScope,
+  ) => Promise<CadRecoveryRecord | null>;
+};
+
+/**
+ * Qué lectura del diario usa la acción. Revisión de T-75(b): el editor
+ * escribe sus checkpoints con el `projectId` en la clave, y la pantalla de
+ * «no pudimos cargar el documento» no puede saberlo —es lo que el servidor no
+ * devolvió—, así que por clave exacta nunca encontraba nada. Ese llamador
+ * pide la búsqueda por documento; la frontera de error del editor, que sí
+ * conoce el proyecto, sigue con la clave exacta. Pura y exportada para que el
+ * spec la fije sin DOM.
+ */
+export function pickCadRecoveryLoader(
+  recovery: CadRecoveryLoaders,
+  matchAnyWorkspace: boolean,
+): (scope: CadRecoveryScope) => Promise<CadRecoveryRecord | null> {
+  return matchAnyWorkspace ? recovery.loadCadRecoveryForDocument : recovery.loadCadRecovery;
+}
+
 export function EditorCrashRecoveryAction({
   scope,
+  matchAnyWorkspace = false,
 }: {
   scope: CadRecoveryScope | null;
+  /**
+   * Buscar el borrador bajo cualquier edificio/proyecto del documento (ver
+   * `pickCadRecoveryLoader`). Sólo lo activa quien no puede conocer el
+   * `projectId`; por defecto se respeta la clave exacta.
+   */
+  matchAnyWorkspace?: boolean;
 }) {
   const [state, setState] = useState<RecoveryState>({ kind: "idle" });
 
@@ -48,11 +83,11 @@ export function EditorCrashRecoveryAction({
   const descargar = async () => {
     setState({ kind: "loading" });
     try {
-      const [{ loadCadRecovery }, { exportCadDocumentDxf }] = await Promise.all([
+      const [recovery, { exportCadDocumentDxf }] = await Promise.all([
         import("@/lib/cad/cad-recovery"),
         import("@/lib/cad/dxf-document-export"),
       ]);
-      const record = await loadCadRecovery(scope);
+      const record = await pickCadRecoveryLoader(recovery, matchAnyWorkspace)(scope);
       if (!record) {
         setState({ kind: "none" });
         return;

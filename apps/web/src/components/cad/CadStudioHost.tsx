@@ -39,6 +39,7 @@ import { cadTourHost } from "@/components/cad/onboarding/tour-host";
 import { createDesignDocumentPort } from "@/components/cad/document-lifecycle/design-port";
 import {
   wrapDocumentPortForCrashRecovery,
+  writeCrashRecovery,
   type LastSavedSnapshot,
 } from "@/components/cad/document-lifecycle/crash-recovery-port";
 import type { CadRecoveryScope } from "@/lib/cad/cad-recovery";
@@ -125,11 +126,14 @@ export default function CadStudioHost({
   // de documentos —la única puerta de red del editor— se envuelve para
   // guardar una copia del último documento que de verdad viajó al servidor,
   // y si el editor se cae, la frontera escribe esa copia en el diario de
-  // recuperación (IndexedDB) en el instante del fallo y ofrece descargarla en
-  // DXF. No sustituye al checkpoint continuo que ya escribe la cola interna
-  // del editor mientras el documento está sucio: es un segundo intento,
-  // fuera del monolito, para el caso en que la caída ocurrió antes de que esa
-  // cola alcanzara a escribir.
+  // recuperación (IndexedDB) y ofrece descargarla en DXF. Es un segundo
+  // intento, fuera del monolito, para el caso en que la caída ocurrió antes
+  // de que la cola interna del editor alcanzara a escribir un checkpoint —
+  // y NO debe suplantar a ese checkpoint cuando sí existe: por eso el
+  // registro se sella con la hora del guardado que capturó y no con la de la
+  // caída (`writeCrashRecovery`, revisión de T-72h). Sellado con la hora de
+  // la caída era el más nuevo del carril y `loadCadRecovery` devolvía el
+  // documento ya guardado en vez del checkpoint con las ediciones perdidas.
   const crashSnapshotRef = useRef<LastSavedSnapshot | null>(null);
   const onSaveContent = useCallback((snapshot: LastSavedSnapshot) => {
     crashSnapshotRef.current = snapshot;
@@ -163,9 +167,7 @@ export default function CadStudioHost({
     // toda visita, se caiga o no. Fuego y olvido: si esto también falla, la
     // frontera de error ya se está pintando de todos modos.
     void import("@/lib/cad/cad-recovery")
-      .then(({ saveCadRecovery }) =>
-        saveCadRecovery(recoveryScope, snapshot.document, snapshot.version),
-      )
+      .then(({ saveCadRecovery }) => writeCrashRecovery(saveCadRecovery, recoveryScope, snapshot))
       .catch(() => undefined);
   }, [recoveryScope]);
 

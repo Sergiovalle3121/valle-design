@@ -21,6 +21,7 @@
  */
 import type { DocumentLifecyclePort } from "./controller";
 import type { CadDocument } from "@/lib/cad/cad-document";
+import type { CadRecoveryScope, saveCadRecovery } from "@/lib/cad/cad-recovery";
 
 export interface LastSavedSnapshot {
   documentId: string;
@@ -64,4 +65,28 @@ export function wrapDocumentPortForCrashRecovery(
       return port.saveContent(documentId, document, expectedVersion);
     },
   };
+}
+
+/**
+ * Escribe el snapshot en el diario de recuperación como registro de
+ * emergencia. Recibe `saveCadRecovery` por argumento: el llamador lo trae por
+ * `import()` (presupuesto de bytes del estudio) y así el cableado se prueba
+ * sin IndexedDB.
+ *
+ * Revisión de T-72(h): el sello es `snapshot.savedAtMs` —la hora del guardado
+ * que capturó—, no la de la caída. Todo el orden del diario es por
+ * `savedAtMs`, así que estampado con la hora de la caída este registro (que
+ * lleva contenido YA enviado al servidor) se ponía por delante del checkpoint
+ * que la cola del editor escribió después con ediciones sin guardar, y la
+ * recuperación devolvía el documento rancio. Generación 0 a propósito: no
+ * captura ninguna edición que el guardado no llevara ya.
+ */
+export function writeCrashRecovery(
+  save: typeof saveCadRecovery,
+  scope: CadRecoveryScope,
+  snapshot: LastSavedSnapshot,
+): ReturnType<typeof saveCadRecovery> {
+  return save(scope, snapshot.document, snapshot.version, 0, {
+    savedAtMs: snapshot.savedAtMs,
+  });
 }
