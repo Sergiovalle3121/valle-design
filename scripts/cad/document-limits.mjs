@@ -31,7 +31,9 @@
  * publica **mediana de 3**, no la mejor pasada: en una máquina con carga
  * vecina la mejor pasada es una anécdota.
  *
- * Uso:
+ * Uso (`npm run evidence:document-limits` es el alias en package.json — se
+ * registró porque este era el único script de scripts/ que nada nombraba, y un
+ * artefacto cuyo generador no figura en ningún índice no se puede reproducir):
  *   node scripts/cad/document-limits.mjs
  *   node scripts/cad/document-limits.mjs --tiers 2000,10000,40000 --repeat 3
  *   node scripts/cad/document-limits.mjs --output docs/cad/evidence/x.json

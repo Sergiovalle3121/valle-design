@@ -47,7 +47,7 @@ afirmar hechos falsos.
 | Onboarding | Nada | PRIMER-DIA, MAPA, GATES, CONVENCIONES + índice de 12 ADR |
 | ADRs | 10 sueltas | 12 indexadas con estado (nuevas: 0011 migración aditiva invariante, 0012 DWG a doble vía) |
 
-## Lo hecho, por ola (bitácora completa: `CAMPANA_CIMIENTOS_20260822.md`)
+## Lo hecho, por ola (bitácora completa: `docs/history/execution/CAMPANA_CIMIENTOS_20260822.md`)
 
 - **OLA 0** — 36 ramas remotas borradas con lista publicada; #86 partido con
   evidencia (TS7 revienta contracts; @nestjs 11.2 duplica el core y rompe

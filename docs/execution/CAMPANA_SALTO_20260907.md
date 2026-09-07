@@ -6,7 +6,7 @@ worktrees con nueve ramas remotas reales: el harness la ata a una sola rama
 (`claude/valle-design-10-10-fq3nl3`) y a un solo checkout por repo. La
 adaptación real: los "frentes" corren como agentes paralelos de un Workflow
 sobre el mismo checkout, en territorios de archivo disjuntos (misma disciplina
-que `docs/execution/frentes/README.md` de la campaña anterior, sin las ramas
+que `docs/history/execution/frentes-lunes-20260906/README.md` de la campaña anterior, sin las ramas
 separadas); yo integro, corro la suite completa, y hago un solo push por ola.
 
 No se relajó ningún gate, ratchet ni bandera. `DWG_IMPORT_FLAG` y

@@ -2,7 +2,7 @@
 
 **Fechas:** 2026-08-21 → 2026-08-22
 **Territorio:** `apps/web` (capa visual), `apps/web/public/`, `docs/design/`
-**Bitácora completa:** [`CAMPANA_DISENO_20260821.md`](CAMPANA_DISENO_20260821.md)
+**Bitácora completa:** [`CAMPANA_DISENO_20260821.md`](../history/execution/CAMPANA_DISENO_20260821.md)
 
 ---
 

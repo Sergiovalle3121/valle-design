@@ -1,7 +1,7 @@
 # Informe — Campaña autónoma de pulido
 
 **Fecha:** 22–23 de agosto de 2026 · **Base de arranque:** `fc9ba23` ·
-**Bitácora completa:** [`CAMPANA_PULIDO_20260822.md`](CAMPANA_PULIDO_20260822.md)
+**Bitácora completa:** [`CAMPANA_PULIDO_20260822.md`](../history/execution/CAMPANA_PULIDO_20260822.md)
 
 La cola pedía cerrar la deuda de las tres campañas anteriores «para que no quede
 una sola pieza del producto de la que haya que dar explicaciones al enseñarlo».

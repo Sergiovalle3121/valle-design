@@ -6,7 +6,7 @@
 > elegir lo otro— que convierte «no preguntar» en «preguntar en diferido».
 >
 > Prompt maestro: `docs/execution/auditoria-fable/PROMPT_MAESTRO_FABLE.md`.
-> Bitácora: `docs/execution/CAMPANA_LUNES_20260906.md`.
+> Bitácora: `docs/history/execution/CAMPANA_LUNES_20260906.md`.
 
 ## D-01 · El techo del manifiesto de auditoría: 14, no 11
 Qué se dudó ......  El prompt maestro ordena «bajar el techo de 28 a 11». El gate

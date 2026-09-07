@@ -747,7 +747,7 @@ frente. §2 aporta 94 filas (53 SÍ, 29 PARCIAL, 10 NO, 2 sin verificar) y
 ```
 $ python3 -c "
 import re
-text = open('docs/execution/frentes/F11-inventario-autocad.md', encoding='utf-8').read()
+text = open('docs/history/execution/frentes-lunes-20260906/F11-inventario-autocad.md', encoding='utf-8').read()
 counts = {'SI':0,'PARCIAL':0,'NO':0,'NOVERIF':0}
 for line in text.split(chr(10)):
     if not line.startswith('|') or line.startswith('| ---') or 'Capacidad AutoCAD' in line:

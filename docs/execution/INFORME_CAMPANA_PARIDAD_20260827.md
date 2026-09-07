@@ -3,7 +3,7 @@
 **Fecha:** 27 de agosto de 2026 · **Base de arranque:** `main` @ `51538db`
 (CI #504 verde), sesión sobre `claude/valle-design-10-10-program-bmvvcf` tras
 fusionar el PR #112 (`e6bc845`) · **Bitácora completa:**
-[`CAMPANA_PARIDAD_20260827.md`](CAMPANA_PARIDAD_20260827.md)
+[`CAMPANA_PARIDAD_20260827.md`](../history/execution/CAMPANA_PARIDAD_20260827.md)
 
 Tesis de la campaña: la paridad no se construye agregando comandos, se
 construye haciendo que cada capacidad sea digna de confianza y no vuelva a

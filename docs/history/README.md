@@ -60,6 +60,22 @@ describen CIDE, retirado según `IDENTITY.md` y bloqueado por
 `apps/web/src/lib/cad/no-ai-boundary.spec.ts`. Se conserva entero, con su
 banner original.
 
+Dos tandas más que este índice no nombraba y que también viven aquí. El
+2026-09-05, al abrir la auditoría de veinte dimensiones (#192), bajaron las
+bitácoras de las campañas de ingeniería frontend y de sitio comercial del 29-08
+(`CAMPANA_FRONTEND_20260829.md`, `CAMPANA_SITIO_20260829.md`) y la del
+coordinador de «Superar a AutoCAD completo» del 04-09
+(`CAMPANA_SUPERAR_20260904.md`) con su carpeta `frentes-superar-20260904/`: las
+once fichas de frente y sus once buzones de peticiones; sus informes son
+`docs/execution/INFORME_CAMPANA_FRONTEND_20260829.md`,
+`INFORME_CAMPANA_SITIO_20260829.md` e `INFORME_CAMPANA_SUPERAR_20260904.md`. El
+2026-09-07, ya integrados los dos frentes que su informe dejó abiertos (F4 #196
+y F9 #200), se archivó el diario de «El lunes de un arquitecto»
+(`CAMPANA_LUNES_20260906.md`) con su carpeta `frentes-lunes-20260906/`: el
+README de territorios, las fichas F1/F3/F4/F5/F8/F9/F10/F11 y sus seis buzones;
+el informe de cierre sigue en `docs/execution/INFORME_LUNES_20260906.md` y las
+decisiones tomadas sin preguntar en `docs/execution/DECISIONES_20260906.md`.
+
 Cuidado al leerlos: uno de ellos cita un baseline de 8 761 líneas para
 `Layout3DEditor.tsx` que el archivo real multiplicaba ya entonces (la cifra viva
 la imprime `node scripts/cad/check-monolith-budget.mjs`; el registro con fecha

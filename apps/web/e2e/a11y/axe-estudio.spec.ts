@@ -44,7 +44,7 @@ function fijarTema(page: Page, tema: (typeof TEMAS)[number]) {
  * que YA sea (o esté dentro de) un landmark, en vez de a `document.body` a
  * secas — cambiar el segundo argumento de ese `createPortal` es una línea,
  * pero esa línea vive en el monolito. Petición P-07 en
- * `docs/execution/frentes/F9-peticiones.md`, con el diff exacto.
+ * `docs/history/execution/frentes-lunes-20260906/F9-peticiones.md`, con el diff exacto.
  *
  * Hasta que esa petición se aplique, contar `region` como grave pondría
  * este gate en rojo por algo que no puedo arreglar yo mismo, y el

@@ -1,7 +1,7 @@
 # BACKLOG — ordenado por lo que impide vender
 
 Actualizado: 2026-09-06, campaña «El lunes de un arquitecto» (T-0D; bitácora
-`docs/execution/CAMPANA_LUNES_20260906.md`).
+`docs/history/execution/CAMPANA_LUNES_20260906.md`).
 Cada entrada dice qué falla,
 dónde, cómo se reproduce, qué criterio la cierra y qué prueba lo fija. El
 orden dentro de cada nivel es el orden recomendado de ataque. Una entrada que
@@ -566,7 +566,7 @@ exige retirarla al sanar).
   sobre una premisa no verificada o perderse en silencio.
 - **Primera pasada sistemática:** la campaña «El lunes de un arquitecto»
   (T-0D, 2026-09-06) corrió la primera auditoría de este tipo; bitácora en
-  `docs/execution/CAMPANA_LUNES_20260906.md`.
+  `docs/history/execution/CAMPANA_LUNES_20260906.md`.
 - **Alcance si se retoma:** pasada doc por doc bajo `docs/` contra el
   código/tests reales (no asumir, verificar cada afirmación como el resto de
   esta campaña).
