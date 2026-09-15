@@ -387,6 +387,7 @@ Orden de prioridad: primero lo que más nota sube (3D, peor nota), después tool
 | T4 | PARCIAL | edge-ray.ts + solid-edge-ref.ts creados; pendiente CAD_ACCEPT_EDGE_PICK, pointer-router, FILLETEDGE acumula |
 | D-1 (interop) | HECHA | MLEADER exportado como MULTILEADER con AcDbEntity |
 | D5 (MEP/Plant) | HECHA | Análisis de choques optimizado (bucle exterior sobre rutas filtradas) |
+| D-6 (calidad) | HECHA | Ciclo A de importación eliminado |
 | CI fix | PARCIAL | next+sharp arreglados; multer requiere NestJS 12 |
 
 ---
