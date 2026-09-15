@@ -124,6 +124,50 @@ const VSCURRENT: CadCommandDescriptor<State> = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// PERSPECTIVE — conmutar entre perspectiva y paralela en 3D
+// ---------------------------------------------------------------------------
+
+const PARALLEL = { keyword: "Paralela", shortcut: "P" } as const;
+const PERSP = { keyword: "Perspectiva", shortcut: "PE" } as const;
+
+const perspectiveCommand = {
+  name: "PERSPECTIVE",
+  aliases: ["PERS"],
+  kind: "view",
+  transparent: true,
+  selection: "none",
+  repeatable: true,
+  mutates: false,
+  cursor: "none",
+  begin: () => ({
+    state: {},
+    prompt: {
+      message: "Proyección 3D (Paralela/Perspectiva)",
+      options: [PARALLEL, PERSP],
+      defaultOption: PERSP.keyword,
+    },
+    accepts: CAD_ACCEPT_KEYWORD,
+  }),
+  step: (_state: State, input: { kind: string; keyword?: string }) => {
+    if (input.kind === "cancel")
+      return { state: {}, prompt: { message: "", options: [] }, accepts: 0, result: { kind: "none" } };
+    const mode = input.kind === "keyword" && input.keyword === PARALLEL.keyword
+      ? "parallel" : "perspective";
+    return {
+      state: {},
+      prompt: { message: "", options: [] },
+      accepts: 0,
+      result: {
+        kind: "variables",
+        patch: { PERSPECTIVE: mode === "perspective" ? 1 : 0 },
+        text: `Proyección: ${mode === "perspective" ? "Perspectiva" : "Paralela"}.`,
+      },
+    };
+  },
+};
+
 export const CAD_VIEW_VISUAL_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(VSCURRENT),
+  asCadCommand(perspectiveCommand as CadCommandDescriptor<Record<string, never>>),
 ];

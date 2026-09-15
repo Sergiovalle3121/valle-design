@@ -172,6 +172,9 @@ export const CAD_SYSTEM_VARIABLES: readonly CadSystemVariableDef[] = [
   real("TEXTSIZE", 2.5, "Altura de texto por defecto", { min: 1e-6 }),
   real("DIMSCALE", 1, "Escala general de las cotas", { min: 1e-6 }),
 
+  // --- vista 3D ---------------------------------------------------------------
+  int("PERSPECTIVE", 1, "Proyección 3D: 0 paralela (ortográfica), 1 perspectiva", { enumerated: [0, 1] }),
+
   // --- resultados de las consultas ------------------------------------------
   real("AREA", 0, "Última área calculada por AREA o LIST", { readOnly: true }),
   real("PERIMETER", 0, "Último perímetro calculado por AREA o LIST", { readOnly: true }),

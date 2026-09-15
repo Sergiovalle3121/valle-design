@@ -42,6 +42,8 @@ export const CAD_VIEW_MAX_PIXELS_PER_UNIT = 1e5;
 
 export interface CadView {
   mode: "2d" | "3d";
+  /** Proyección 3D: perspectiva (por defecto) o paralela (ortográfica). */
+  projection?: "perspective" | "parallel";
   /** Centro de la vista, en unidades de DIBUJO (no de escena THREE). */
   centerX: number;
   centerY: number;

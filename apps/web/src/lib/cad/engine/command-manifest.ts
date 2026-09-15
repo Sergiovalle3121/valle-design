@@ -1,5 +1,5 @@
 /**
- * METADATOS de los 296 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 297 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
  * 110 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
@@ -329,6 +329,7 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "3DZOOM", aliases: ["3DZ"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-navigation-3d" },
   { name: "VPOINT", aliases: ["VP"], kind: "view", transparent: true, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/view-navigation-3d" },
   { name: "VSCURRENT", aliases: ["SHADEMODE", "VS"], kind: "view", transparent: true, selection: "none", repeatable: false, mutates: false, module: "commands/view-visual" },
+  { name: "PERSPECTIVE", aliases: ["PERS"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-visual" },
   { name: "XREF", aliases: ["XR", "EXTERNALREFERENCES"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: true, cursor: "none", module: "commands/xrefs" },
   { name: "XATTACH", aliases: ["XA"], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/xrefs" },
   { name: "XBIND", aliases: ["XB"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: true, cursor: "none", module: "commands/xrefs" },

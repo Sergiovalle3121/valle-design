@@ -190,6 +190,20 @@ export class CadViewController {
     this.emit();
   }
 
+  /**
+   * Proyección 3D: perspectiva o paralela (ortográfica).
+   *
+   * En modo 3D, la conmutación no cambia la posición ni el objetivo de la
+   * cámara: sólo alterna entre `PerspectiveCamera` y `OrthographicCamera`
+   * apuntando al mismo punto. La altura de la ortográfica se deriva del FOV
+   * y la distancia actuales para que la conmutación no dé salto.
+   */
+  setProjection(projection: "perspective" | "parallel"): void {
+    if (this.current.mode !== "3d") return;
+    this.current = { ...this.current, projection };
+    this.emit();
+  }
+
   setView(next: CadView): void {
     this.current = { ...next, pixelsPerUnit: clampPixelsPerUnit(next.pixelsPerUnit) };
     if (this.current.mode === "2d") this.applyOrthographic();
