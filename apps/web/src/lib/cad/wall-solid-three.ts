@@ -145,6 +145,14 @@ export function buildCadWallSolidGeometryWithDiagnostics(
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
   geometry.setIndex(Array.from(mesh.indices));
+  // Reflexión (x,y,z)→(x,z,y): invertir giro de cada triángulo (defecto 4.1).
+  const idx = geometry.getIndex()!;
+  for (let i = 0; i < idx.count; i += 3) {
+    const tmp = idx.getX(i);
+    idx.setX(i, idx.getX(i + 2));
+    idx.setX(i + 2, tmp);
+  }
+  idx.needsUpdate = true;
   geometry.computeBoundingSphere();
   return { geometry, diagnostics };
 }
