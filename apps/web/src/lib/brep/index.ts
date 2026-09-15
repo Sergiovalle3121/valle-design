@@ -8,11 +8,11 @@
  * sólidos con adyacencias en tiempo constante, operaciones de modelado, y un
  * validador que comprueba que lo que sale sigue siendo un sólido.
  *
- * QUÉ NO ESTÁ CONECTADO. Nada de esto toca el visor todavía, y es deliberado:
- * un kernel a medias enchufado al render es imposible de depurar porque no se
- * sabe si falla la geometría o la proyección. `tessellateBody` devuelve
- * posiciones, normales e índices — el formato que espera `entity-three.ts`— y
- * conectarlo es un cambio de una función, el día que se decida.
+ * QUÉ NO ESTÁ CONECTADO. `tessellateBody` devuelve posiciones, normales e
+ * índices — el formato que espera `entity-three.ts`— y el visor ya lo
+ * consume: `solid3d-three.ts`, `wall-solid-three.ts`, `room-solid-three.ts`,
+ * `flatshot-solids.ts`, `solview-model.ts`, `pick3d/face-ray.ts` y
+ * `solid-snap-host.ts` importan de aquí. El kernel SÍ toca el producto.
  *
  * DECISIÓN DE FONDO, Y SUS CONSECUENCIAS. El kernel es FACETADO: la revolución,
  * el barrido y el solevado aproximan la curvatura al construir, y a partir de
