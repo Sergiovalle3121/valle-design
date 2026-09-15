@@ -3751,6 +3751,43 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "NOCHE-MIMO-SUPERAR-AUTOCAD-20260914",
+      "date": "2026-09-14",
+      "initiative": "Encargo nocturno del titular: sesión autónoma sin supervisión para que Valle Design sea la mejor opción desde el navegador frente a AutoCAD completo (2027 y sus siete toolsets). Tarea T0: mapa de lo construido y cola ordenada de 25 tareas atómicas, priorizando 3D y toolsets.",
+      "branch": "claude/noche-mimo-razones-para-pagar",
+      "assistants": [
+        "MiMo Code 0.1.14 (Xiaomi) con el modelo xiaomi/mimo-v2.5-pro del Token Plan del titular"
+      ],
+      "authority": "Sergio Valle Zárate, en encargo directo por fichero .mimocode/prompt-noche.md. Ningún gate, golden, umbral ni presupuesto se relajó.",
+      "firstPartyInputs": [
+        "AGENTS.md, IDENTITY.md, CONTRIBUTING.md, docs/governance/ASSISTED_DEVELOPMENT.md",
+        "git log --oneline -40",
+        "docs/execution/CAMPANA_SALTO_20260907.md",
+        "docs/competitive/liston-autocad-completo.md",
+        "docs/competitive/rubric.json",
+        "docs/execution/auditoria-fable/00c-CUADRO-DE-MANDO.md",
+        "docs/execution/auditoria-fable/dimensiones/01-3d-modelado.md",
+        "docs/execution/auditoria-fable/dimensiones/02-3d-visual.md",
+        "docs/execution/auditoria-fable/dimensiones/06-toolset-architecture.md",
+        "docs/execution/auditoria-fable/dimensiones/08-toolset-mech-elec.md"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "docs/execution/NOCHE_MIMO_20260914.md"
+      ],
+      "fixtures": "Ninguno.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Tarea T0: documentación y planificación sin código de producto tocado. No hay gates que correr sobre este commit."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }
