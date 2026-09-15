@@ -91,6 +91,7 @@ function step(state: Rotate3dState): CadCommandStep<Rotate3dState> {
 function done(
   commands: readonly CadEntityCommand[],
   label: string,
+  message?: string,
 ): CadCommandStep<Rotate3dState> {
   return {
     state: EMPTY,
@@ -99,7 +100,9 @@ function done(
     result:
       commands.length > 0
         ? { kind: "document", commands, label }
-        : { kind: "none" },
+        : message
+          ? { kind: "message", text: message }
+          : { kind: "none" },
   };
 }
 
@@ -221,8 +224,10 @@ function rotate3dCommands(
 
   const commands: CadEntityCommand[] = [];
   for (const entityId of state.selection) {
+    // Sólo transformar sólidos3D.
     const existing = context.entity?.(entityId);
-    const current = (existing as { placement?: Record<string, number> })?.placement ?? {};
+    if (!existing || (existing as { type?: string }).type !== "solid3d") continue;
+    const current = (existing as { placement?: Record<string, number> }).placement ?? {};
     const currentPlacement = {
       a: current.a ?? 1, b: current.b ?? 0, c: current.c ?? 0,
       d: current.d ?? 1, e: current.e ?? 0, f: current.f ?? 0,
@@ -259,7 +264,7 @@ const rotate3dCommand: CadCommandDescriptor<Rotate3dState> = {
         selection: [...new Set([...state.selection, input.entityId])],
       });
     if (input.kind === "enter" && state.selection.length === 0)
-      return done([], "3DROTATE: necesita al menos un objeto designado.");
+      return done([], "3DROTATE", "3DROTATE: necesita al menos un sólido designado.");
 
     if (input.kind === "keyword") {
       const axis = input.keyword === X_AXIS.keyword ? "x"
@@ -301,7 +306,7 @@ const rotate3dCommand: CadCommandDescriptor<Rotate3dState> = {
       if (input.kind !== "point") return step(state);
       const p2 = cadLiftPoint(input.point, state.axisPoint1);
       if (Math.hypot(p2.x - state.axisPoint1.x, p2.y - state.axisPoint1.y, p2.z - state.axisPoint1.z) < 1e-9)
-        return done([], "Los dos puntos del eje son el mismo: no definen un eje de giro.");
+        return done([], "3DROTATE", "Los dos puntos del eje son el mismo: no definen un eje de giro.");
       return step({ ...state, axisPoint2: p2 });
     }
 

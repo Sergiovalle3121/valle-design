@@ -57,6 +57,7 @@ function step(state: Move3dState): CadCommandStep<Move3dState> {
 function done(
   commands: readonly CadEntityCommand[],
   label: string,
+  message?: string,
 ): CadCommandStep<Move3dState> {
   return {
     state: EMPTY,
@@ -65,7 +66,9 @@ function done(
     result:
       commands.length > 0
         ? { kind: "document", commands, label }
-        : { kind: "none" },
+        : message
+          ? { kind: "message", text: message }
+          : { kind: "none" },
   };
 }
 
@@ -82,11 +85,13 @@ function move3dCommands(
     return [];
   const commands: CadEntityCommand[] = [];
   for (const entityId of state.selection) {
+    // Sólo transformar sólidos3D.
+    const existing = context.entity?.(entityId);
+    if (!existing || (existing as { type?: string }).type !== "solid3d") continue;
     const target = state.copy ? context.newEntityId() : entityId;
     if (state.copy) commands.push({ type: "copy", entityId, newEntityId: target });
     // Obtener la colocación existente para componer.
-    const existing = context.entity?.(entityId);
-    const current = (existing as { placement?: Record<string, number> })?.placement ?? {};
+    const current = (existing as { placement?: Record<string, number> }).placement ?? {};
     commands.push({
       type: "transform3d",
       entityId: target,
@@ -129,7 +134,7 @@ const move3dCommand: CadCommandDescriptor<Move3dState> = {
         selection: [...new Set([...state.selection, input.entityId])],
       });
     if (input.kind === "enter" && state.selection.length === 0)
-      return done([], "3DMOVE: necesita al menos un objeto designado.");
+      return done([], "3DMOVE", "3DMOVE: necesita al menos un sólido designado.");
 
     if (input.kind === "keyword") {
       if (input.keyword === COPY_OPTION.keyword)
@@ -145,7 +150,8 @@ const move3dCommand: CadCommandDescriptor<Move3dState> = {
     }
 
     const dest = cadLiftPoint(input.point, state.base);
-    return done(move3dCommands(state, dest, context), "3DMOVE");
+    const cmds = move3dCommands(state, dest, context);
+    return done(cmds, "3DMOVE", cmds.length === 0 ? "3DMOVE: la selección no contiene sólidos3D." : undefined);
   },
 };
 

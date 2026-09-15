@@ -502,7 +502,7 @@ export function executeCadEntityCommandBatch(
         regenerationSourceIds.push(...(source.references ?? []).map((reference) => reference.entityId));
     } else if (command.type === "transform3d") {
       if (source.type !== "solid3d")
-        throw new Error("3DMOVE/3DROTATE/3DALIGN/MIRROR3D sólo aplica a SOLID3D.");
+        throw new Error("La transformación3D sólo aplica a SOLID3D.");
       const existing = source.placement ?? {};
       present.set(source.id, {
         ...source,
