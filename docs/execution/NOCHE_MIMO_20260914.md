@@ -391,6 +391,7 @@ Orden de prioridad: primero lo que más nota sube (3D, peor nota), después tool
 | D-4 (comp3) | HECHA | begin() con try/catch como step() |
 | D7 (MEP/Plant) | HECHA | Ruta sin diámetro declarada en sinDiametro |
 | D5 (colab) | HECHA | Selector de markup Cloud/Arrow/Note oculto (fix-or-hide) |
+| D-1 (raster) | HECHA | Campos de IMAGE readonly en paleta de propiedades |
 | CI fix | PARCIAL | next+sharp arreglados; multer requiere NestJS 12 |
 
 ---
