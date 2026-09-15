@@ -390,6 +390,7 @@ Orden de prioridad: primero lo que más nota sube (3D, peor nota), después tool
 | D-6 (calidad) | HECHA | Ciclo A de importación eliminado |
 | D-4 (comp3) | HECHA | begin() con try/catch como step() |
 | D7 (MEP/Plant) | HECHA | Ruta sin diámetro declarada en sinDiametro |
+| D5 (colab) | HECHA | Selector de markup Cloud/Arrow/Note oculto (fix-or-hide) |
 | CI fix | PARCIAL | next+sharp arreglados; multer requiere NestJS 12 |
 
 ---
