@@ -352,7 +352,9 @@ Orden de prioridad: primero lo que más nota sube (3D, peor nota), después tool
 |---|---|---|
 | T0 | HECHA | Mapa + cola (esta bitácora) |
 | T1 | HECHA | 3DMOVE + 3DROTATE + esquema3D afín 3×4 |
-| T2–T25 | EN COLA | |
+| T2 | HECHA | SLICE/SECTION con planos XY/YZ/ZX |
+| T3 | YA ESTABA | horizontalProfileFromEntity ya rechaza inclinados |
+| T4–T25 | EN COLA | |
 
 ---
 
@@ -372,3 +374,15 @@ Orden de prioridad: primero lo que más nota sube (3D, peor nota), después tool
 - Commits: `2f222b8f` (parcial: esquema + 3DMOVE), `0e684821` (3DROTATE + limpieza m10/m11)
 - Gates: `typecheck` verde, `transform-3d.spec.ts` 20 aserciones, `solid3d.spec.ts` 59 aserciones, `solid3d-frontera.spec.ts` 279 aserciones, `command-manifest.mjs --check` OK (296 comandos/110 módulos)
 - Decisiones para Sergio: el esquema3D usa los campos `a,b,c,d` existentes para la parte2×2 superior-izquierda y añade `m02,m12,m20,m21,m22` para la tercera fila/columna, con `tx,ty,tz` como traslación3D. Los campos `m10` y `m11` se eliminaron porque son redundantes con `b` y `d`. MIRROR3D se puede implementar sobre el mismo esquema (determinante negativo + reverseBody ya funciona).
+
+### T2 — SLICE y SECTION con planos XY/YZ/ZX (2026-09-14)
+- Estado: **hecha**
+- Qué hueco cierra: H7 del modelado3D — «SLICE y SECTION sólo cortan por un plano vertical de dos puntos en planta»
+- Código reutilizado: el nodo `slice` del B-rep ya llevaba `CadSolidPlane` completo con normal3D; `solids-modify.ts` ampliado con `coordinatePlane()` y palabras clave XY/YZ/ZX
+- Commits: `c43f0871`
+- Gates: `typecheck` verde, `slice-coordinate-planes.spec.ts` 6 aserciones, `solid3d.spec.ts` 59, `solid3d-frontera.spec.ts` 279
+
+### T3 — EXTRUDE rechaza perfiles inclinados (2026-09-14)
+- Estado: **ya estaba**
+- Qué hueco cierra: D2 del modelado3D — «profileFromEntity aplana en silencio un perfil no horizontal»
+- Prueba: `solid3d-profiles.spec.ts` (29 aserciones) ya verifica que `horizontalProfileFromEntity` devuelve motivo con la desviación medida. El defecto D2 del informe de auditoría estaba caducado.
