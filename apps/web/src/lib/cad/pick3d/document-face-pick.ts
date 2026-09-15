@@ -21,11 +21,14 @@
  * huella geométrica, con el índice dentro sólo como vía rápida que
  * `cadResolveFaceRef` comprueba antes de creerse.
  */
-import type { CadDocument, CadEntity, CadPoint3 } from "../cad-document";
+import type { CadDocument, CadEntity, CadPoint2, CadPoint3 } from "../cad-document";
 import type { CadSolid3dEntity, CadSolidFaceRef } from "../cad-entities-v5";
+import { halfEdgeSegment } from "../../brep";
 import { solid3dBody } from "../solid3d-build";
 import { cadFaceRayHit, type CadPickRay } from "./face-ray";
+import { hitEdge } from "./edge-ray";
 import { cadFaceRefFromBody } from "./solid-face-ref";
+import { cadEdgeRefFromBody } from "./solid-edge-ref";
 
 export interface CadDocumentFacePick {
   /** Entidad `solid3d` a la que pertenece la cara. */
@@ -75,6 +78,56 @@ export function cadDocumentFaceUnderRay(
       point: { x: hit.point.x, y: hit.point.y, z: hit.point.z },
       normal: { x: hit.normal.x, y: hit.normal.y, z: hit.normal.z },
       distance: hit.t,
+    };
+  }
+  return best;
+}
+
+// ---------------------------------------------------------------------------
+// Edge picking: la arista más cercana al rayo en todo el documento
+// ---------------------------------------------------------------------------
+
+export interface CadDocumentEdgePick {
+  entityId: string;
+  edge: number;
+  from: CadPoint3;
+  to: CadPoint3;
+  point: CadPoint2;
+  distance: number;
+}
+
+/**
+ * La arista más cercana al rayo en todo el documento, o `null`.
+ *
+ * Mismo patrón que `cadDocumentFaceUnderRay`: recorre los `solid3d`, lanza el
+ * rayo contra cada uno y devuelve el impacto más cercano. Un sólido cuyo árbol
+ * no evalúa se salta.
+ */
+export function cadDocumentEdgeUnderRay(
+  document: CadDocument,
+  ray: CadPickRay,
+): CadDocumentEdgePick | null {
+  let best: CadDocumentEdgePick | null = null;
+  for (const entity of document.entities) {
+    if (!isSolid(entity)) continue;
+    let body;
+    let hit;
+    try {
+      body = solid3dBody(entity);
+      hit = hitEdge(body, ray);
+    } catch {
+      continue;
+    }
+    if (!hit) continue;
+    if (best && hit.distance >= best.distance) continue;
+    const seg = halfEdgeSegment(body, body.edges[hit.edge].a);
+    best = {
+      entityId: entity.id,
+      edge: hit.edge,
+      from: { x: seg.from.x, y: seg.from.y, z: seg.from.z },
+      to: { x: seg.to.x, y: seg.to.y, z: seg.to.z },
+      point: { x: hit.point.x, y: hit.point.y },
+      distance: hit.distance,
     };
   }
   return best;

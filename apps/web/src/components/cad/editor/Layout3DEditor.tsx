@@ -459,7 +459,7 @@ import { CAD_SHARED_CLIPBOARD } from "@/lib/cad/clipboard";
 import { formatCadPrompt } from "@/lib/cad/engine/prompt";
 import { useCadStudioCommandEngine } from "@/components/cad/command-line/use-command-engine";
 import { cadStudioEngineBridges } from "@/components/cad/command-line/studio-engine-bridges";
-import { cadFacePickerFor, cadHonorSnapOverride, CAD_FACE_PICK_BIT } from "@/lib/cad/pick3d/scene-ray";
+import { cadFacePickerFor, cadEdgePickerFor, cadHonorSnapOverride, CAD_FACE_PICK_BIT } from "@/lib/cad/pick3d/scene-ray";
 import { cadLocalPoint, cadPointerWorldTolerance } from "@/components/cad/viewport/pointer-geometry";
 import {
   CadOverlayLegends,
@@ -6597,6 +6597,14 @@ export default function Layout3DEditor({
         return null;
       },
       hitFace: cadFacePickerFor({
+        mode: () => viewController.mode,
+        document: () => loadedCadDocumentRef.current,
+        frame: () => ctxRef.current,
+        sceneRay: (e) => (
+          setPtr(e as PointerEvent), raycaster.setFromCamera(ptr, activeCamera()), raycaster.ray
+        ),
+      }),
+      hitEdge: cadEdgePickerFor({
         mode: () => viewController.mode,
         document: () => loadedCadDocumentRef.current,
         frame: () => ctxRef.current,

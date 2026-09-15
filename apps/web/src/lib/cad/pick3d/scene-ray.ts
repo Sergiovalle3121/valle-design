@@ -24,7 +24,7 @@
  * grande y un rayo oblicuo.
  */
 import type { CadPickRay } from "./face-ray";
-import { cadDocumentFaceUnderRay } from "./document-face-pick";
+import { cadDocumentFaceUnderRay, cadDocumentEdgeUnderRay } from "./document-face-pick";
 
 /** Escala y medio lienzo lógico: lo que el editor llama `ctx`. */
 export interface CadSceneFrame {
@@ -143,3 +143,28 @@ export function cadHonorSnapOverride<TSnap extends string>(
  * sólo baja, y una línea es una línea.
  */
 export { CAD_ACCEPT_FACE_PICK as CAD_FACE_PICK_BIT } from "../engine/command-types";
+
+/**
+ * Crea una función que resuelve qué ARISTA hay bajo el evento del ratón.
+ *
+ * Mismo patrón que `cadFacePickerFor`: convierte el rayo de escena a
+ * coordenadas de dibujo y busca la arista más cercana en el documento.
+ * Se usa para FILLETEDGE y CHAMFEREDGE cuando el paso activo acepta EDGE_PICK.
+ */
+export function cadEdgePickerFor(deps: {
+  mode: () => "2d" | "3d";
+  document: () => import("../cad-document").CadDocument | null;
+  frame: () => CadSceneFrame | null;
+  sceneRay: (event: PointerEvent | MouseEvent) => CadSceneRay;
+}) {
+  return (event: PointerEvent | MouseEvent) => {
+    if (deps.mode() !== "3d") return null;
+    const documento = deps.document();
+    const frame = deps.frame();
+    if (!documento || !frame) return null;
+    return cadDocumentEdgeUnderRay(
+      documento,
+      cadSceneRayToDrawing(deps.sceneRay(event), frame),
+    );
+  };
+}
