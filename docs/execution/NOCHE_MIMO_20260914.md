@@ -375,14 +375,14 @@ Orden de prioridad: primero lo que más nota sube (3D, peor nota), después tool
 | D-06 | HECHA | unitToMm conoce pies (ft) |
 | D-1 (Elec) | HECHA | cadCheckCircuits normaliza a mayúsculas |
 | D-2 (Elec) | HECHA | cadEntityRunLength mide arcos con bulge |
-| T19 | PARCIAL | STEELSHAPE pregunta longitud, muestra peso; BOM pendiente |
+| T19 | HECHA | STEELSHAPE longitud + BOM con peso |
 | D2 (MEP) | HECHA | Manifiesto declara pérdida de metadatos en DXF |
 | H-11 | HECHA | Columna «Fase» en cuadro de muros (Existente/Demoler/—) |
 | D5 (ribbon) | HECHA | Cinta ya no lanza excepción si un espejo desaparece |
 | T16 | HECHA | 12 símbolos IEC 60617 de esquema eléctrico + AESYMBOL |
-| T19 | HECHA | BOM con peso (Peso unit. y Peso total calculados con cadSteelKgPerMetre) |
 | T25 | HECHA | .ctb y .lin persisten en localStorage |
-| D-05 (f2d) | HECHA | Entrada dinámica conoce todas las unidades (mm/cm/m/in/ft) |
+| D-04 (vis3d) | HECHA | VSCURRENT honesto (0 objetos → lo dice) |
+| D-05 (f2d) | HECHA | Entrada dinámica conoce todas las unidades |
 | D-08 (f2d) | HECHA | mleader con altura anotativa |
 | D-1 (interop) | HECHA | MLEADER exportado como MULTILEADER con AcDbEntity |
 | CI fix | PARCIAL | next+sharp arreglados; multer requiere NestJS 12 |
