@@ -44,6 +44,7 @@ import {
   buildBody,
   chamferEdges,
   compareMassProperties,
+  edgeDihedralAngle,
   extrudeProfile,
   halfEdgeDestination,
   halfEdgeSegment,
@@ -462,13 +463,20 @@ export function preferredFeatureEdges(body: BrepBody): number[] {
     const dy = segment.to.y - segment.from.y;
     const dz = segment.to.z - segment.from.z;
     const length = Math.hypot(dx, dy, dz) || 1;
+    // Filtrar aristas CÓNCAVAS: el kernel las rechaza en filletEdges porque
+    // redondear un rincón entrante exige añadir material. Incluirlas en el
+    // juego «preferido» hace que FILLETEDGE falle entero citando una arista
+    // que el usuario no designó (D-04 de la auditoría).
+    const dihedral = edgeDihedralAngle(body, index);
+    const concave = dihedral !== null && dihedral > Math.PI + 1e-9;
     return {
       index,
       vertical: Math.abs(dz) / length > 0.999,
       from: body.halfEdges[edge.a].origin,
       to: halfEdgeDestination(body, edge.a),
+      concave,
     };
-  });
+  }).filter((c) => !c.concave);
   candidates.sort((a, b) =>
     a.vertical === b.vertical ? a.index - b.index : a.vertical ? -1 : 1,
   );
