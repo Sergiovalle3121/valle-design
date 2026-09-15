@@ -350,11 +350,25 @@ Orden de prioridad: primero lo que más nota sube (3D, peor nota), después tool
 
 | Tarea | Estado | Nota |
 |---|---|---|
-| T0 | EN PROGRESO | Mapa + cola (esta bitácora) |
-| T1–T25 | EN COLA | |
+| T0 | HECHA | Mapa + cola (esta bitácora) |
+| T1 | HECHA | 3DMOVE + 3DROTATE + esquema3D afín 3×4 |
+| T2–T25 | EN COLA | |
 
 ---
 
 ## Bitácora de ejecución
 
-(Se irá rellenando tras cada tarea completada.)
+### T0 — Mapa y cola (2026-09-14)
+- Estado: **hecha**
+- Qué hueco cierra: documentación y planificación
+- Código reutilizado: toda la auditoría, la rúbrica y el listón
+- Commits: `18241c28`
+- Gates: `check:governance` verde
+
+### T1 — Transformaciones 3D (2026-09-14)
+- Estado: **hecha** (3DMOVE y 3DROTATE; MIRROR3D queda para ampliación futura del mismo esquema)
+- Qué hueco cierra: H1 del modelado3D — «no existe ninguna transformación3D»
+- Código reutilizado: `CadSolidPlacement` ampliado (no reescrito), `placeBody` ampliado con camino3D, `entity-commands.ts` con nuevo tipo `transform3d`, patrón de `modify-mirror.ts` y `modify-transform.ts` para los comandos
+- Commits: `2f222b8f` (parcial: esquema + 3DMOVE), `0e684821` (3DROTATE + limpieza m10/m11)
+- Gates: `typecheck` verde, `transform-3d.spec.ts` 20 aserciones, `solid3d.spec.ts` 59 aserciones, `solid3d-frontera.spec.ts` 279 aserciones, `command-manifest.mjs --check` OK (296 comandos/110 módulos)
+- Decisiones para Sergio: el esquema3D usa los campos `a,b,c,d` existentes para la parte2×2 superior-izquierda y añade `m02,m12,m20,m21,m22` para la tercera fila/columna, con `tx,ty,tz` como traslación3D. Los campos `m10` y `m11` se eliminaron porque son redundantes con `b` y `d`. MIRROR3D se puede implementar sobre el mismo esquema (determinante negativo + reverseBody ya funciona).
