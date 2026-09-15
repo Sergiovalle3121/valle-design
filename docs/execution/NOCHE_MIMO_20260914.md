@@ -363,7 +363,10 @@ Orden de prioridad: primero lo que más nota sube (3D, peor nota), después tool
 | T10 | HECHA | Aristas cóncavas filtradas de preferredFeatureEdges (D-04) |
 | T11 | HECHA | STEP/IGES descargable (Blob + enlace de descarga) |
 | T12 | HECHA | Orientación de caras corregida (defecto 4.1) |
-| T13–T25 | EN COLA | |
+| T13 | YA ESTABA | FLATSHOT ya acepta wall (flatshot-solids.spec 51 aserciones) |
+| T14 | HECHA | Cuadros arquitectura con unidad correcta (D-01, D-02) |
+| T15 | YA ESTABA | DXF ya exporta muros con uniones y puertas |
+| T25 | PARCIAL | .ctb persisten en localStorage; .lin pendiente |
 | CI fix | PARCIAL | next+sharp arreglados; multer requiere NestJS 12 |
 
 ---
