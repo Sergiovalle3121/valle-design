@@ -109,7 +109,7 @@ export function clearCadAnnotativeCommand(entityId: string): CadEntityCommand {
  * comando que dice haber reescalado veinte rótulos sin haber tocado ninguno es
  * peor que uno que reescala los cinco que puede y lo dice.
  */
-const HEIGHT_BEARING_TYPES = new Set(["mtext", "text", "attdef"]);
+const HEIGHT_BEARING_TYPES = new Set(["mtext", "text", "attdef", "mleader"]);
 
 export function cadEntitySupportsAnnotativeHeight(entity: CadEntity): boolean {
   return HEIGHT_BEARING_TYPES.has(entity.type) || entity.type === "dimension";
