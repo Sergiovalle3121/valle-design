@@ -106,7 +106,12 @@ test('DXF import remains editable/exportable and persists an explicit loss manif
     // —que se vuelve a resolver en cada reintento— nombra la causa real en
     // el próximo rojo, con los mismos plazos de siempre.
     await expect(page.getByTestId('cad-native-properties')).toContainText('ARC');
-    await expect(centerX).toHaveValue(String(before + 100));
+    // reintenta con `poll`, lectura acotada a 1 s (no espera sin límite),
+    // NaN si se desmonta (Playwright 1.56 aborta en vez de reintentar una
+    // excepción), y `toBeCloseTo` para absorber el redondeo de Firefox.
+    await expect
+      .poll(() => centerX.inputValue({ timeout: 1_000 }).then(Number, () => Number.NaN))
+      .toBeCloseTo(before + 100, 6);
   });
 
   await saveAndSettle(page, backend);
