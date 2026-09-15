@@ -3561,6 +3561,47 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "MAIN-VERDE-FIREFOX-SPECS-20260913",
+      "date": "2026-09-13",
+      "initiative": "Encargo del titular en una sesión local de Claude Code: preparar MiMo Code (Xiaomi) como agente de programación sobre este repositorio y ponerlo a trabajar. Primera tarea, elegida porque bloquea todo lo demás: el CI de main estaba en rojo desde el 2026-09-07 (runs 34071199351 y 34163398034) por el job E2E Playwright 3/4, sólo en Firefox. Causa confirmada en los logs y en el código: golden/27-cad-dxf-loss-manifest.spec.ts comparaba como texto el double de un input type=number (CadPropertiesPalette.tsx mete String(row.value) sin formatear y Firefox lo serializa con 15 cifras significativas: esperado 6038.311108595175, recibido 6038.31110859518); golden/211-cad-recorrido-no-tapa-comandos.spec.ts exigía una separación >= 8 px y Firefox mide 7.99993896484375 por redondeo de subpíxel. MiMo propuso un primer arreglo; la revisión de Claude lo rechazó en el 27 porque leía el valor una sola vez tras el clic y perdía el reintento que 4d5eeaed introdujo a propósito (el poll original de b2e87a37 esperaba sin límite a un campo desmontado). Adoptado en la segunda vuelta de MiMo: expect.poll con lectura acotada a 1 s que devuelve NaN si el campo se desmonta, y toBeCloseTo(before + 100, 6); en el 211, tolerancia de medio píxel. El formato del panel de propiedades no se tocó: queda como decisión de producto aparte.",
+      "branch": "claude/main-verde-firefox-specs",
+      "assistants": [
+        "MiMo Code 0.1.14 (Xiaomi) con el modelo xiaomi/mimo-v2.5-pro del Token Plan del titular, en modo headless (mimo run) lanzado por la sesión de Claude Code: redactó el cambio de los dos specs",
+        "Claude Code (Anthropic), sesión local operada por el titular: diagnóstico, prompts, revisión del diff, corrección de la primera propuesta y gates"
+      ],
+      "authority": "Sergio Valle Zárate, en la sesión local de Claude Code («ya me suscribí a MiMo… tú le puedes dar la tarea»). Ningún gate, golden, umbral ni presupuesto se relajó: las dos aserciones siguen probando lo mismo, con tolerancia numérica de 1e-6 y de 0,5 px.",
+      "firstPartyInputs": [
+        "Logs del CI de main (runs 34071199351 y 34163398034, E2E Playwright 3/4 en Firefox)",
+        "AGENTS.md, CONTRIBUTING.md (política de ramas) y docs/governance/ASSISTED_DEVELOPMENT.md",
+        "apps/web/e2e/golden/27-cad-dxf-loss-manifest.spec.ts y su historial (b2e87a37, 4d5eeaed)",
+        "apps/web/e2e/golden/211-cad-recorrido-no-tapa-comandos.spec.ts",
+        "apps/web/src/components/cad/palettes/CadPropertiesPalette.tsx",
+        "apps/web/playwright.config.ts (expect.timeout de 15 s)"
+      ],
+      "externalSources": [
+        {
+          "location": "node_modules/playwright/lib/matchers/expect.js (pollMatcher) y node_modules/playwright-core/lib/utils/isomorphic/timeoutRunner.js (pollAgainstDeadline), de @playwright/test 1.56.0 ya instalado",
+          "terms": "Apache-2.0",
+          "fact": "Leídos sólo para confirmar que una excepción dentro del generador de expect.poll aborta en vez de reintentar; de ahí que la lectura acotada devuelva NaN. No se copió código."
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna implementación copiada ni portada; sólo la lectura de comportamiento de Playwright declarada en externalSources.",
+      "derivedAreas": [
+        "apps/web/e2e/golden/27-cad-dxf-loss-manifest.spec.ts (paso 43, aserción de centerX)",
+        "apps/web/e2e/golden/211-cad-recorrido-no-tapa-comandos.spec.ts (separación con el recorrido plegado)"
+      ],
+      "fixtures": "Ninguno.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Sobre el árbol exacto del commit, corridos por la sesión de Claude aparte de lo que declaró MiMo: typecheck, lint, test, check:cad, check:dwg, build y check:governance (resultado por gate en la descripción del PR). Prettier ya marcaba ambos ficheros en main antes del cambio (el CI no comprueba formato) y no se reformatearon para no mezclar ruido en el diff. La prueba de fondo, el E2E en Firefox, sólo existe en CI: la adopción es el merge del PR con los checks requeridos verdes sobre el SHA exacto candidato."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

@@ -117,8 +117,12 @@ test("el recorrido guiado y la línea de comandos nunca se solapan, y dejan aire
   // dejaba sólo 4 px sobre la línea de comandos.
   const cmdTrasPlegar = (await cmd.boundingBox())!;
   expect(sinSolapeVertical(tourPlegado, cmdTrasPlegar)).toBe(true);
+  // Comparación con tolerancia de medio píxel: `boundingBox()` en Firefox
+  // devuelve valores de subpíxel (p.ej. 7.99993896484375 en vez de 8) por
+  // redondeo interno del motor de composición, así que la igualdad estricta
+  // del mismo `gap-2` falla en un margen que no es un fallo de layout.
   const separacionPlegada = hueco(tourPlegado, cmdTrasPlegar);
-  expect(separacionPlegada).toBeGreaterThanOrEqual(separacion);
+  expect(separacionPlegada).toBeGreaterThanOrEqual(separacion - 0.5);
 
   /* ── Se puede volver a abrir ──────────────────────────────────────────── */
   await toggle.click();
