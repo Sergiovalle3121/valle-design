@@ -237,11 +237,19 @@ function edgeFeatureDescriptor(
 interface PlaneState extends SolidSelectionState {
   first: CadPoint2 | null;
   second: CadPoint2 | null;
+  /** Modo de plano elegido: por dos puntos (null) o por plano coordenado. */
+  planeMode: "XY" | "YZ" | "ZX" | null;
+  /** Cota del plano coordenado, cuando planeMode no es null. */
+  planeElevation: number | null;
 }
 
 const KEEP_LEFT = { keyword: "Izquierda", shortcut: "I" } as const;
 const KEEP_RIGHT = { keyword: "Derecha", shortcut: "D" } as const;
 const KEEP_BOTH = { keyword: "Ambos", shortcut: "A" } as const;
+const PLANE_XY = { keyword: "XY", shortcut: "XY" } as const;
+const PLANE_YZ = { keyword: "YZ", shortcut: "YZ" } as const;
+const PLANE_ZX = { keyword: "ZX", shortcut: "ZX" } as const;
+const PLANE_OPTIONS = [PLANE_XY, PLANE_YZ, PLANE_ZX] as const;
 
 /**
  * Plano VERTICAL que pasa por dos puntos del dibujo.
@@ -261,16 +269,41 @@ function verticalPlane(first: CadPoint2, second: CadPoint2) {
   };
 }
 
+/**
+ * Plano coordenado: XY (horizontal), YZ (vertical lateral) o ZX (vertical frontal).
+ *
+ * En AutoCAD, `SLICE XY 3000` corta por el plano horizontal a cota 3000.
+ * La normal apunta en la dirección positiva del eje perpendicular al plano.
+ */
+function coordinatePlane(mode: "XY" | "YZ" | "ZX", elevation: number) {
+  if (mode === "XY")
+    return { origin: { x: 0, y: 0, z: elevation }, normal: { x: 0, y: 0, z: 1 } };
+  if (mode === "YZ")
+    return { origin: { x: elevation, y: 0, z: 0 }, normal: { x: 1, y: 0, z: 0 } };
+  // ZX
+  return { origin: { x: 0, y: elevation, z: 0 }, normal: { x: 0, y: 1, z: 0 } };
+}
+
 function planeStep<S extends PlaneState>(state: S, prompt: string, final: string): CadCommandStep<S> {
   if (state.selection.length === 0) return designate(state, prompt);
-  if (!state.first)
-    return { state, prompt: { message: "Precise el primer punto del plano de corte", options: [] }, accepts: CAD_ACCEPT_POINT };
+  if (state.planeMode && state.planeElevation === null)
+    return {
+      state,
+      prompt: { message: `Precise la cota del plano ${state.planeMode}`, options: [] },
+      accepts: CAD_ACCEPT_DISTANCE | CAD_ACCEPT_POINT,
+    };
+  if (!state.first && !state.planeMode)
+    return {
+      state,
+      prompt: { message: "Precise el primer punto del plano de corte", options: [...PLANE_OPTIONS] },
+      accepts: CAD_ACCEPT_POINT | CAD_ACCEPT_KEYWORD,
+    };
   if (!state.second)
     return {
       state,
       prompt: { message: "Precise el segundo punto del plano de corte", options: [] },
       accepts: CAD_ACCEPT_POINT,
-      preview: [{ points: [state.first, state.first] }],
+      preview: [{ points: [state.first!, state.first!] }],
     };
   return {
     state,
@@ -290,13 +323,30 @@ const sliceCommand: CadCommandDescriptor<PlaneState> = {
   repeatable: true,
   mutates: true,
   cursor: "pick",
-  begin: (context) => planeStep({ selection: context.selection, first: null, second: null }, slicePrompt, "¿Qué lado se conserva?"),
+  begin: (context) => planeStep({ selection: context.selection, first: null, second: null, planeMode: null, planeElevation: null }, slicePrompt, "¿Qué lado se conserva?"),
   step: (state, input, context) => {
     if (input.kind === "cancel") return solidCancelled(state);
     if (input.kind === "selection")
       return planeStep({ ...state, selection: input.entityIds }, slicePrompt, "¿Qué lado se conserva?");
     if (input.kind === "entityPick")
       return planeStep({ ...state, selection: [...new Set([...state.selection, input.entityId])] }, slicePrompt, "¿Qué lado se conserva?");
+
+    // Palabras clave XY/YZ/ZX: elegir plano coordenado.
+    if (input.kind === "keyword" && !state.first && !state.planeMode) {
+      const mode = input.keyword === PLANE_XY.keyword ? "XY"
+        : input.keyword === PLANE_YZ.keyword ? "YZ"
+          : input.keyword === PLANE_ZX.keyword ? "ZX" : null;
+      if (mode)
+        return planeStep({ ...state, planeMode: mode }, slicePrompt, "¿Qué lado se conserva?");
+    }
+
+    // Cota del plano coordenado.
+    if (state.planeMode && state.planeElevation === null) {
+      const elevation = input.kind === "distance" ? input.value : 0;
+      if (elevation === null) return planeStep(state, slicePrompt, "¿Qué lado se conserva?");
+      return planeStep({ ...state, planeElevation: elevation }, slicePrompt, "¿Qué lado se conserva?");
+    }
+
     if (input.kind === "point") {
       if (!state.first) return planeStep({ ...state, first: input.point }, slicePrompt, "¿Qué lado se conserva?");
       if (!state.second) {
@@ -306,7 +356,7 @@ const sliceCommand: CadCommandDescriptor<PlaneState> = {
       }
       return planeStep(state, slicePrompt, "¿Qué lado se conserva?");
     }
-    if (!state.first || !state.second) {
+    if (!state.planeMode && (!state.first || !state.second)) {
       if (input.kind === "enter" && state.selection.length === 0) return solidMessage(state, NO_SOLIDS);
       return planeStep(state, slicePrompt, "¿Qué lado se conserva?");
     }
@@ -315,7 +365,9 @@ const sliceCommand: CadCommandDescriptor<PlaneState> = {
     const keyword = input.kind === "keyword" ? input.keyword : KEEP_LEFT.keyword;
     const solids = selectedSolids(context, state.selection);
     if (solids.length === 0) return solidMessage(state, NO_SOLIDS);
-    const plane = verticalPlane(state.first, state.second);
+    const plane = state.planeMode
+      ? coordinatePlane(state.planeMode, state.planeElevation ?? 0)
+      : verticalPlane(state.first!, state.second!);
     const sides: ("positive" | "negative")[] =
       keyword === KEEP_BOTH.keyword
         ? ["positive", "negative"]
@@ -357,13 +409,30 @@ const sectionCommand: CadCommandDescriptor<PlaneState> = {
   repeatable: true,
   mutates: true,
   cursor: "pick",
-  begin: (context) => planeStep({ selection: context.selection, first: null, second: null }, sectionPrompt, "Pulse Intro para crear la región de sección"),
+  begin: (context) => planeStep({ selection: context.selection, first: null, second: null, planeMode: null, planeElevation: null }, sectionPrompt, "Pulse Intro para crear la región de sección"),
   step: (state, input, context) => {
     if (input.kind === "cancel") return solidCancelled(state);
     if (input.kind === "selection")
       return planeStep({ ...state, selection: input.entityIds }, sectionPrompt, "Pulse Intro para crear la región de sección");
     if (input.kind === "entityPick")
       return planeStep({ ...state, selection: [...new Set([...state.selection, input.entityId])] }, sectionPrompt, "Pulse Intro para crear la región de sección");
+
+    // Palabras clave XY/YZ/ZX: elegir plano coordenado.
+    if (input.kind === "keyword" && !state.first && !state.planeMode) {
+      const mode = input.keyword === PLANE_XY.keyword ? "XY"
+        : input.keyword === PLANE_YZ.keyword ? "YZ"
+          : input.keyword === PLANE_ZX.keyword ? "ZX" : null;
+      if (mode)
+        return planeStep({ ...state, planeMode: mode }, sectionPrompt, "Pulse Intro para crear la región de sección");
+    }
+
+    // Cota del plano coordenado.
+    if (state.planeMode && state.planeElevation === null) {
+      const elevation = input.kind === "distance" ? input.value : 0;
+      if (elevation === null) return planeStep(state, sectionPrompt, "Pulse Intro para crear la región de sección");
+      return planeStep({ ...state, planeElevation: elevation }, sectionPrompt, "Pulse Intro para crear la región de sección");
+    }
+
     if (input.kind === "point") {
       if (!state.first) return planeStep({ ...state, first: input.point }, sectionPrompt, "Pulse Intro para crear la región de sección");
       if (!state.second) {
@@ -373,7 +442,7 @@ const sectionCommand: CadCommandDescriptor<PlaneState> = {
       }
       return planeStep(state, sectionPrompt, "Pulse Intro para crear la región de sección");
     }
-    if (!state.first || !state.second) {
+    if (!state.planeMode && (!state.first || !state.second)) {
       if (input.kind === "enter" && state.selection.length === 0) return solidMessage(state, NO_SOLIDS);
       return planeStep(state, sectionPrompt, "Pulse Intro para crear la región de sección");
     }
@@ -385,7 +454,9 @@ const sectionCommand: CadCommandDescriptor<PlaneState> = {
     // reemplaza, así que extenderlo aquí no toca su naturaleza paramétrica.
     const solids = selectedFlattenableBodies(context, state.selection);
     if (solids.length === 0) return solidMessage(state, NO_SOLIDS);
-    const plane = verticalPlane(state.first, state.second);
+    const plane = state.planeMode
+      ? coordinatePlane(state.planeMode, state.planeElevation ?? 0)
+      : verticalPlane(state.first!, state.second!);
     const commands: CadEntityCommand[] = [];
     for (const source of solids) {
       let loops;
