@@ -70,7 +70,7 @@ import {
   cadActiveUcsIsTilted,
   type CadSystemVariableValue,
 } from "@/lib/cad/system-variables";
-import { downloadCadFile } from "./plot-host";
+import { handleClipboardRequest, handleDownloadRequest } from "./command-engine-host-helpers";
 import type { CadNamedUcs } from "@/lib/cad/ucs";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
 import { CAD_SHARED_CLIPBOARD, cadClipboardContent, type CadClipboard } from "@/lib/cad/clipboard";
@@ -216,29 +216,7 @@ export class CadCommandEngineHost {
    * diálogo enseña, con la negativa cuando no había nada canónico que copiar.
    */
   private clipboardRequest(request: Extract<CadHostRequest, { kind: "clipboard" }>): string {
-    const context = this.bridge.context();
-    const entities = request.entityIds.flatMap((id) => {
-      const entity = context.entity?.(id);
-      return entity ? [entity] : [];
-    });
-    const content = cadClipboardContent(
-      entities,
-      context.blocks?.() ?? [],
-      request.basePoint,
-      request.op,
-      context.document?.(),
-    );
-    if (typeof content === "string") return `${request.op === "cut" ? "CUTCLIP" : "COPYCLIP"}: ${content}`;
-    this.clipboard.write(content);
-    if (request.op === "cut")
-      this.bridge.apply(
-        content.entities.map((entity): CadEntityCommand => ({ type: "delete", entityId: entity.id })),
-        "CUTCLIP",
-      );
-    const base = `${content.basePoint.x}, ${content.basePoint.y}`;
-    return request.op === "cut"
-      ? `${content.entities.length} objeto(s) cortado(s) al portapapeles; punto base ${base}.`
-      : `${content.entities.length} objeto(s) copiado(s) al portapapeles; punto base ${base}.`;
+    return handleClipboardRequest(request, this.bridge.context(), this.clipboard, (cmds, lbl) => this.bridge.apply(cmds, lbl));
   }
 
   /**
@@ -376,7 +354,15 @@ export class CadCommandEngineHost {
     this.dispatch({ kind: "input", input: { kind: "facePick", ...input } });
   }
 
-  pickEdge(input: { entityId: string; edge: number; from: CadPoint3; to: CadPoint3; point: CadPoint2 }): void { this.dispatch({ kind: "input", input: { kind: "edgePick", ...input } }); }
+  pickEdge(input: {
+    entityId: string;
+    edge: number;
+    from: CadPoint3;
+    to: CadPoint3;
+    point: CadPoint2;
+  }): void {
+    this.dispatch({ kind: "input", input: { kind: "edgePick", ...input } });
+  }
 
   select(entityIds: readonly string[]): void {
     // «Previo» (T-21): el motor es puro; el ÚLTIMO conjunto lo anota el anfitrión.
@@ -737,9 +723,7 @@ export class CadCommandEngineHost {
           return;
         }
         if (effect.request.kind === "download") {
-          const { filename, mime, content } = effect.request;
-          try { downloadCadFile(filename, new TextEncoder().encode(content), mime); this.log(`${effect.label}: ${filename} descargado.`, "info"); }
-          catch { this.log(`${effect.label}: no se pudo descargar ${filename}.`, "error"); }
+          handleDownloadRequest(effect.request, effect.label, (msg, lvl) => this.log(msg, lvl));
           return;
         }
         const answered = this.bridge.host?.(effect.request) ?? null;
