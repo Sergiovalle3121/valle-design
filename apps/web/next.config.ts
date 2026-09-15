@@ -137,6 +137,29 @@ const nextConfig: NextConfig = {
    * internet desactualizada convierte en media hora de build roto.
    */
   reactCompiler: process.env.VALLE_REACT_COMPILER === "1",
+  /**
+   * EL TYPE-CHECK DEL BUILD MIRA SÓLO LO QUE VIAJA EN LA IMAGEN.
+   *
+   * `next build` type-chequea el proyecto de `tsconfig.json`, que incluye
+   * `scripts/**`, `e2e/**` y los `*.spec.ts`. Dos de esos ficheros importan
+   * fuera de lo que `apps/web/Dockerfile` copia —`scripts/` de la raíz y
+   * `apps/api/src/`— así que la imagen moría con dos TS2307 por código que no
+   * se publica. Medido sobre TODOS los imports de apps/web: son exactamente
+   * esos dos, y CERO código de aplicación sale del contexto.
+   *
+   * Cubrirlo copiando `apps/api` entero al stage de build del web sería lo
+   * contrario de lo que este Dockerfile declara: la imagen del web no debe
+   * necesitar el código de la API para construirse.
+   *
+   * Aquí no se pierde cobertura. `npm run typecheck` sigue con
+   * `tsconfig.json` —specs, e2e y scripts incluidos— y es lo que ejecuta el
+   * paso «Typecheck (web, incluye specs y e2e)» del CI. `ignoreBuildErrors`
+   * NO se toca: el build sigue fallando ante cualquier error de tipos del
+   * código que sí se sirve.
+   */
+  typescript: {
+    tsconfigPath: "tsconfig.build.json",
+  },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
