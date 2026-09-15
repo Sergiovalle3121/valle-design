@@ -380,6 +380,7 @@ Orden de prioridad: primero lo que más nota sube (3D, peor nota), después tool
 | H-11 | HECHA | Columna «Fase» en cuadro de muros (Existente/Demoler/—) |
 | D5 (ribbon) | HECHA | Cinta ya no lanza excepción si un espejo desaparece |
 | T16 | HECHA | 12 símbolos IEC 60617 de esquema eléctrico + AESYMBOL |
+| T19 | HECHA | BOM con peso (Peso unit. y Peso total calculados con cadSteelKgPerMetre) |
 | CI fix | PARCIAL | next+sharp arreglados; multer requiere NestJS 12 |
 
 ---
