@@ -379,6 +379,7 @@ Orden de prioridad: primero lo que más nota sube (3D, peor nota), después tool
 | D2 (MEP) | HECHA | Manifiesto declara pérdida de metadatos en DXF |
 | H-11 | HECHA | Columna «Fase» en cuadro de muros (Existente/Demoler/—) |
 | D5 (ribbon) | HECHA | Cinta ya no lanza excepción si un espejo desaparece |
+| T16 | HECHA | 12 símbolos IEC 60617 de esquema eléctrico + AESYMBOL |
 | CI fix | PARCIAL | next+sharp arreglados; multer requiere NestJS 12 |
 
 ---
