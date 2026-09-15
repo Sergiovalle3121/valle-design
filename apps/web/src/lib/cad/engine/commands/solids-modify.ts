@@ -52,6 +52,7 @@
 import type { CadPoint2 } from "../../cad-document";
 import type { CadSolidNode } from "../../cad-entities-v5";
 import type { CadEntityCommand } from "../../entity-commands";
+import { cadSolidWorldPlaneToLocal } from "../../solid3d-build";
 import { sectionLoopsOfSolid } from "../../solid3d-section";
 import {
   CAD_ACCEPT_DISTANCE,
@@ -399,10 +400,13 @@ const sliceCommand: CadCommandDescriptor<PlaneState> = {
 
     const commands: CadEntityCommand[] = [];
     for (const source of solids) {
+      // Transformar el plano a coordenadas locales del sólido para que el
+      // corte ocurra a la cota correcta cuando hay colocación (tz, dz, etc.).
+      const localPlane = cadSolidWorldPlaneToLocal(plane, source.placement);
       const halves = sides.map((keep, index) => {
         const nodes: CadSolidNode[] = [...source.nodes];
         const rootId = `slice:${index}`;
-        nodes.push({ id: rootId, op: "slice", operand: source.root, plane, keep });
+        nodes.push({ id: rootId, op: "slice", operand: source.root, plane: localPlane, keep });
         return {
           ...makeSolidEntity(index === 0 ? source.id : context.newEntityId(), nodes, rootId, source.layer, source.name),
           ...(source.placement ? { placement: source.placement } : {}),
