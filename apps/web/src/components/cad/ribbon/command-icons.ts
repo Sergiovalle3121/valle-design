@@ -430,6 +430,7 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   VIEW: View,
   VPOINT: Compass,
   VSCURRENT: Sun,
+  PERSPECTIVE: Eye,
   REGEN: Repeat,
   REGENALL: Repeat2,
   UCS: Axis3d,

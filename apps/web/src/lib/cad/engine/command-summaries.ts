@@ -306,6 +306,7 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   UNITS: "Unidades y precisión del dibujo.",
   VIEW: "Vistas con nombre: guarda y restituye encuadres.",
   VPLAYER: "Congela o descongela capas SÓLO en una ventana de la presentación.",
+  PERSPECTIVE: "Conmuta la vista 3D entre proyección paralela y perspectiva.",
   VPOINT: "Punto de vista 3D por vector.",
   U: "Deshace la última operación. Sin preguntar, como en AutoCAD.",
   UNDO: "Deshace varias operaciones de una vez; una por defecto.",

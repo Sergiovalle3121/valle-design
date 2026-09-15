@@ -456,10 +456,16 @@ function rectangle(id: string, x: number, y: number, w: number, h: number, z = 0
     assert.equal(eulerCounts(body).characteristic, 2, `${format}: χ = 2 tras la ida y vuelta`);
   }
 
-  // Y por el COMANDO, que es como lo teclea un usuario.
-  const exported = messageOf(run("EXPORT", [select(solid.id), keyword("STEP")], document, [solid.id]));
-  assert.match(exported, /ISO-10303-21/, "EXPORT devuelve el archivo STEP");
-  const payload = exported.slice(exported.indexOf("ISO-10303-21") - 1);
+  // EXPORT ahora devuelve una petición de descarga al anfitrión.
+  const exportResult = run("EXPORT", [select(solid.id), keyword("STEP")], document, [solid.id]);
+  assert.ok(exportResult && exportResult.kind === "host", "EXPORT devuelve kind host");
+  if (exportResult.kind !== "host") throw new Error("tipo");
+  const downloadRequest = exportResult.request;
+  assert.equal(downloadRequest.kind, "download", "la petición es de descarga");
+  assert.equal(downloadRequest.filename, "export.stp", "el nombre es export.stp");
+  assert.equal(downloadRequest.mime, "application/step", "el MIME es application/step");
+  assert.match(downloadRequest.content, /ISO-10303-21/, "EXPORT devuelve el archivo STEP");
+  const payload = downloadRequest.content.slice(downloadRequest.content.indexOf("ISO-10303-21") - 1);
   const importResult = run("IMPORT", [text(payload)], documentWith([]));
   assert.ok(importResult && importResult.kind === "document", "IMPORT escribe el sólido en el documento");
   if (importResult.kind !== "document") throw new Error("tipo");
