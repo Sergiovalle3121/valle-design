@@ -711,7 +711,22 @@ export function cadPipeClashReport(
       if (a.entityId > b.entityId) continue;
       const ra = radioDe(a, unit);
       const rb = radioDe(b, unit);
-      if (ra === null || rb === null) continue;
+      // D7: una conducción sin diámetro se declara en `sinDiametro` en vez de
+      // descartarse en silencio. El pase contra obstáculos ya lo hace (línea
+      // 625-635); el pase ruta-contra-ruta no lo hacía.
+      if (ra === null && rb === null) {
+        sinDiametro.push({ entityId: a.entityId, reason: `${a.line} no tiene diámetro: no se puede medir contra ${b.line}` });
+        sinDiametro.push({ entityId: b.entityId, reason: `${b.line} no tiene diámetro: no se puede medir contra ${a.line}` });
+        continue;
+      }
+      if (ra === null) {
+        sinDiametro.push({ entityId: a.entityId, reason: `${a.line} no tiene diámetro: no se puede medir contra ${b.line}` });
+        continue;
+      }
+      if (rb === null) {
+        sinDiametro.push({ entityId: b.entityId, reason: `${b.line} no tiene diámetro: no se puede medir contra ${a.line}` });
+        continue;
+      }
       if (seEmpalman(a, b)) continue;
       let peor: { gap: number; at: CadPoint3 } | null = null;
       for (let m = 1; m < a.points.length; m += 1)
