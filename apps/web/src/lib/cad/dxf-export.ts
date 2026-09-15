@@ -746,7 +746,8 @@ function pushMleader(lines: string[], entity: CadDxfExportMleader): boolean {
   const geometry = buildCadMleaderGeometry({ id: "dxf-mleader", type: "mleader", ...entity });
   if (!geometry) return false;
   const layer = safeLayerName(entity.layer ?? TEXT_LAYER);
-  pushPair(lines, 0, "MLEADER");
+  pushPair(lines, 0, "MULTILEADER");
+  pushPair(lines, 100, "AcDbEntity");
   pushPair(lines, 8, layer);
   pushPair(lines, 100, "AcDbMLeader");
   pushPair(lines, 270, 2);
