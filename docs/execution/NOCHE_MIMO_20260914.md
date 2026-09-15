@@ -370,6 +370,7 @@ Orden de prioridad: primero lo que más nota sube (3D, peor nota), después tool
 | D-05 | HECHA | EXTRUDE por punto usa componente Y (permite negativo) |
 | D-07 | HECHA | Cabecera del kernel B-rep actualizada |
 | D-08 | HECHA | SHELL eliminado de la cinta |
+| T18 | HECHA | CENTERMARK y CENTERLINE (ejes y cruces de centro) |
 | CI fix | PARCIAL | next+sharp arreglados; multer requiere NestJS 12 |
 
 ---
