@@ -76,6 +76,7 @@ import {
   cadNomVoltageDrop,
 } from "./nom-conductors";
 import { cadWiresOf } from "./wire-numbering";
+import { cadEntityCurves, curveLength } from "../curve-model";
 
 /** Protección del circuito, en amperes. */
 export const CAD_IE_BREAKER = "ie:proteccion";
@@ -130,6 +131,23 @@ const readNumber = (entity: CadEntity, key: string): number | null => {
 
 /** Longitud recorrida por una entidad, en unidades de dibujo. */
 export function cadEntityRunLength(entity: CadEntity): number {
+  // Usar cadEntityCurves + curveLength para medir arcos reales (con bulge),
+  // no la cuerda. Un tramo curvo que rodea una columna mide πR, no 2R.
+  // La longitud Z se suma aparte porque curveLength es 2D.
+  const curves = cadEntityCurves(entity);
+  if (curves && curves.length > 0) {
+    let total = 0;
+    for (const curve of curves) total += curveLength(curve);
+    // Añadir componente Z si la entidad tiene cotas distintas.
+    if (entity.type === "polyline" && entity.vertices.length >= 2) {
+      for (let i = 1; i < entity.vertices.length; i += 1) {
+        const dz = (entity.vertices[i].z ?? 0) - (entity.vertices[i - 1].z ?? 0);
+        if (Math.abs(dz) > 1e-9) total += Math.abs(dz);
+      }
+    }
+    return total;
+  }
+  // Fallback para entidades sin curvas (line).
   const puntos: CadPoint3[] =
     entity.type === "polyline"
       ? entity.vertices
