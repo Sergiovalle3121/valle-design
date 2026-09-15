@@ -280,7 +280,7 @@ function buildRibbonTabs(): CadRibbonTab[] {
     const commands = inicio.get(panelLabel) ?? [];
     for (const name of names) {
       const original = byName.get(name);
-      if (!original) throw new Error(`ribbon: el espejo «${name}» no existe en el registro`);
+      if (!original) continue; // D5: degradación correcta, no excepción en producción
       commands.push({ ...original, panel: panelLabel });
     }
     inicio.set(panelLabel, commands);
