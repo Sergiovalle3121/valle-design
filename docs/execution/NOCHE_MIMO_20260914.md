@@ -358,7 +358,11 @@ Orden de prioridad: primero lo que más nota sube (3D, peor nota), después tool
 | T5 | HECHA | Cuadros arquitectura con unidad correcta (D-01, D-02) |
 | T6 | HECHA | Alzados verdaderos (unlockPolarAngleForCommand) |
 | T7 | PARCIAL | VISUALSTYLES: tabla ampliada a 7 estilos; render pendiente |
-| T8–T25 | EN COLA | |
+| T8 | YA ESTABA | cadWireNumberLabel ya existe en electrical-wire.ts |
+| T9 | YA ESTABA | Atributos MEP ya declarados en mep-symbols.ts |
+| T10 | HECHA | Aristas cóncavas filtradas de preferredFeatureEdges (D-04) |
+| T11 | HECHA | STEP/IGES descargable (Blob + enlace de descarga) |
+| T12–T25 | EN COLA | |
 
 ---
 
