@@ -354,7 +354,7 @@ Orden de prioridad: primero lo que más nota sube (3D, peor nota), después tool
 | T1 | HECHA | 3DMOVE + 3DROTATE + esquema3D afín 3×4 |
 | T2 | HECHA | SLICE/SECTION con planos XY/YZ/ZX |
 | T3 | YA ESTABA | horizontalProfileFromEntity ya rechaza inclinados |
-| T4 | PARCIAL | edge-ray.ts + solid-edge-ref.ts creados; pendiente CAD_ACCEPT_EDGE_PICK, pointer-router, FILLETEDGE acumula |
+| T4 | PARCIAL | edge-ray + solid-edge-ref + CAD_ACCEPT_EDGE_PICK + pointer-router; pendiente hitEdge en Layout3DEditor, FILLETEDGE acumula |
 | T5 | HECHA | Cuadros arquitectura con unidad correcta (D-01, D-02) |
 | T6 | HECHA | Alzados verdaderos (unlockPolarAngleForCommand) |
 | T7 | PARCIAL | VISUALSTYLES: tabla ampliada a 7 estilos; render pendiente |
@@ -384,7 +384,7 @@ Orden de prioridad: primero lo que más nota sube (3D, peor nota), después tool
 | D-04 (vis3d) | HECHA | VSCURRENT honesto (0 objetos → lo dice) |
 | D-05 (f2d) | HECHA | Entrada dinámica conoce todas las unidades |
 | D-08 (f2d) | HECHA | mleader con altura anotativa |
-| T4 | PARCIAL | edge-ray.ts + solid-edge-ref.ts creados; pendiente CAD_ACCEPT_EDGE_PICK, pointer-router, FILLETEDGE acumula |
+| T4 | PARCIAL | edge-ray + solid-edge-ref + CAD_ACCEPT_EDGE_PICK + pointer-router; pendiente hitEdge en Layout3DEditor, FILLETEDGE acumula |
 | D-1 (interop) | HECHA | MLEADER exportado como MULTILEADER con AcDbEntity |
 | D5 (MEP/Plant) | HECHA | Análisis de choques optimizado (bucle exterior sobre rutas filtradas) |
 | D-6 (calidad) | HECHA | Ciclo A de importación eliminado |
