@@ -698,12 +698,17 @@ export function cadPipeClashReport(
 
   // Ruta contra ruta. Cada par una sola vez, y sólo si las dos entran en el
   // filtro o al menos una de ellas: un choque es de las dos.
-  for (let i = 0; i < todas.length; i += 1)
-    for (let j = i + 1; j < todas.length; j += 1) {
-      const a = todas[i];
+  // D5: el bucle exterior itera sólo sobre `mias` (las rutas filtradas) en
+  // vez de `todas`, para que cuando hay `routeIds` no se recorran todos los
+  // pares del documento. El interior sigue sobre `todas` para detectar choques
+  // contra rutas que no están en el filtro.
+  for (let i = 0; i < mias.length; i += 1)
+    for (let j = 0; j < todas.length; j += 1) {
+      const a = mias[i];
       const b = todas[j];
-      if (options.routeIds && !options.routeIds.includes(a.entityId) && !options.routeIds.includes(b.entityId))
-        continue;
+      if (a.entityId === b.entityId) continue;
+      // Evitar duplicados: sólo procesar si a <= b en entityId.
+      if (a.entityId > b.entityId) continue;
       const ra = radioDe(a, unit);
       const rb = radioDe(b, unit);
       if (ra === null || rb === null) continue;
