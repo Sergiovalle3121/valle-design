@@ -533,6 +533,7 @@ import type { CadCommandEngineHost } from "@/components/cad/command-line/command
 import {
   applyCadCameraPolicy,
   applyInitialCameraFraming,
+  unlockPolarAngleForCommand,
 } from "@/components/cad/viewport/camera-policy";
 import {
   resolveCadRenderPipeline,
@@ -6072,6 +6073,10 @@ export default function Layout3DEditor({
       camera,
     );
     viewControllerRef.current = publishCadViewport(viewController, mount);
+    // Desbloquear el tope polar cuando un comando (VPOINT, VIEW) coloque la
+    // cámara en un alzado o en la vista inferior. Sin esto, OrbitControls.update()
+    // recorta φ a 87,8° en el siguiente cuadro y la vista pedida se deshace.
+    viewController.onBeforeCommandedView = () => unlockPolarAngleForCommand(controls);
     let batchedViewBounds: CadBounds | null = null;
     let batchedViewDirty = true;
     const unsubscribeBatchedView = viewController.onChange(() => {

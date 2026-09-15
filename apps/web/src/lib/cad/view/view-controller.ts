@@ -113,6 +113,16 @@ export class CadViewController {
    */
   private readonly perspectiveTarget = new THREE.Vector3();
 
+  /**
+   * Callback que el editor puede fijar para desbloquear el tope polar antes
+   * de que un comando coloque la cámara en un alzado o en la vista inferior.
+   * Sin esto, `OrbitControls.update()` recorta φ a 87,8° en el siguiente
+   * cuadro y la vista pedida se deshace en silencio.
+   *
+   * Ver `unlockPolarAngleForCommand` en `camera-policy.ts`.
+   */
+  onBeforeCommandedView?: () => (() => void) | undefined;
+
   constructor(
     transform: CadDrawingTransform,
     widthPx: number,
@@ -358,6 +368,9 @@ export class CadViewController {
     const view = cadStandardView(id);
     const target = this.perspectiveTarget;
     const distance = this.perspective.position.distanceTo(target) || 1;
+    // Desbloquear el tope polar temporalmente para que OrbitControls adopte la
+    // pose sin recortar φ a 87,8°. El cierre se llama después de lookAt.
+    const lock = this.onBeforeCommandedView?.();
     this.perspective.position.set(
       target.x + view.offset.x * distance,
       target.y + view.offset.y * distance,
@@ -368,6 +381,7 @@ export class CadViewController {
     this.perspective.updateMatrixWorld();
     this.syncFromPerspective();
     this.emit();
+    lock?.();
     return view;
   }
 

@@ -240,3 +240,24 @@ export function applyInitialCameraFraming(
   controls.update();
   return { s, W, H };
 }
+
+/**
+ * Desbloquea temporalmente el tope polar para que un comando pueda colocar la
+ * cámara en un alzado verdadero (φ = 90°) o en la vista inferior (φ = 180°).
+ *
+ * El tope de 87,8° existe para que el arrastre no degenere la matriz de vista
+ * en el rasante. Un COMANDO no arrastra: coloca la cámara de golpe, y OrbitControls
+ * la adopta en el siguiente `update()`. Si el tope sigue activo, `update()` recorta
+ * φ a 87,8° y la vista pedida se deshace en silencio.
+ *
+ * Llamar ANTES de `applyStandardView` o de colocar la cámara. La función devuelve
+ * una función de cierre que RESTAURA el tope de arrastre: llamar después de que
+ * OrbitControls haya hecho su `update()`.
+ */
+export function unlockPolarAngleForCommand(controls: OrbitControls): () => void {
+  const dragLimit = controls.maxPolarAngle;
+  controls.maxPolarAngle = Math.PI - 1e-4;
+  return () => {
+    controls.maxPolarAngle = dragLimit;
+  };
+}
