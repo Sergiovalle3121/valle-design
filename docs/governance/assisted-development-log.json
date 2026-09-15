@@ -3611,6 +3611,69 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "RAILWAY-IMAGEN-NPM-PREPARE-Y-TURBOPACK-ROOT-20260915",
+      "date": "2026-09-15",
+      "initiative": "Encargo del titular en dos prompts de una sesión de Claude Code: dejar `main` en un estado del que Railway pueda construir una imagen. Los dos Dockerfiles de producción no habían construido NUNCA, y resultaron ser dos fallos independientes, el segundo tapado por el primero.\n\nFALLO 1 · el `npm ci` de los dos Dockerfiles. `npm ci --ignore-scripts` SÍ ejecuta el `prepare` de los workspaces LOCALES (bug de npm). `packages/contracts` es el único workspace con `prepare` y es `tsc -p tsconfig.json`; en ese punto del build sólo se han copiado los `package.json`, así que el tsconfig no existe y el build muere con TS5058. El comentario del propio archivo afirmaba lo contrario —que `--ignore-scripts` bastaba— y se ha corregido. Reproducido sobre el lockfile REAL y el orden de COPY exacto del Dockerfile (sólo manifests, sin tsconfig ni src): npm 10.9.7 falla con «error TS5058: The specified path does not exist: 'tsconfig.json'» en `packages/contracts`, firma idéntica a la de Railway; npm 11.19.1 instala 1217 paquetes, no ejecuta `prepare` (no aparece `packages/contracts/dist`) y deja el árbol sin dependencias inválidas ni ausentes, con los enlaces de workspace que copia el stage de runtime.\n\nEl titular propuso anclar npm@12.0.2, verificado en su máquina. NO sirve aquí y la razón está medida: npm 12.0.2 declara `engines.node: ^22.22.2 || ^24.15.0 || >=26.0.0`, y la base anclada por digest en los dos Dockerfiles es Node 20.20.2 (el digest sha256:2cf067cf… resuelve a las etiquetas 20.20.2-bookworm-slim / 20-bookworm-slim en el registro). `.nvmrc` pide 20 y la invariante `node-nvmrc` de scripts/deploy/validate-dockerfiles.mjs obliga a que coincidan, así que subir la base no era una opción silenciosa. Se ancla npm@11.19.1, que declara `^20.17.0 || >=22.9.0` —satisfecho por 20.20.2— y que en la reproducción arregla el bug igual que la 12. La versión va exacta para que la imagen siga siendo derivable del commit. La forma de la línea también importa: la invariante `npm-ci` prohíbe `npm install`/`npm i` con el regex `/\\bnpm\\s+(?:install|i)\\b(?!\\s*-g)/`, cuyo lookahead sólo tolera `-g` inmediatamente tras el verbo; `npm i -g npm@11.19.1` pasa, y variantes como `npm i --global` o `npm i npm@11.19.1 -g` romperían el gate.\n\nFALLO 2 · el build del `web`, que el fallo 1 tenía tapado. Lo destapó el titular cambiando el builder a Railpack: los cuatro workspaces compilaron y sólo murió `web`, con «Can't resolve '../../../../../docs/cad/evidence/{cad-math-cases,command-integrity,template-gallery}.json'». El PR #208 subió `next` a 16.3.5 por dos avisos críticos, y Next 16 compila con Turbopack, que sólo resuelve dentro de la raíz del workspace. Esa raíz la INFIERE `next/dist/lib/find-root.js`, y descarta el candidato si es el directorio home o está por encima, o si queda por encima de la frontera de git: la raíz depende del ENTORNO de build, no sólo del repositorio, y de ahí que el mismo commit compile en un portátil y no en un contenedor. Medido en este árbol: `npm run build --workspace=web` pasa en un checkout normal y falla con `HOME=<raíz del repo>` imprimiendo «Next.js ignored package.json in … because it would include your home directory. To use this directory, set `turbopack.root` in your Next.js config». Aplicada esa receta: `turbopack.root` absoluto vía `path.join(__dirname, \"../..\")`. La opción es de nivel superior y se verificó contra el PAQUETE INSTALADO (16.3.5), no contra una guía: `turbopack?: TurbopackOptions` con `root?: string` en dist/server/config-shared.d.ts, y `experimental.turbo` ya no existe en ese tipo. Con el cambio, el mismo build que fallaba pasa (EXIT=0, sin avisos de raíz ignorada ni de «should be absolute»).\n\nSegunda mitad del fallo 2, independiente: `apps/web/Dockerfile` no copiaba `docs/` en absoluto, así que la imagen no tendría esos tres artefactos ni con la raíz arreglada. Añadido `COPY docs/cad/evidence docs/cad/evidence` junto a los otros COPY de fuente, y sólo ese subárbol para no meter la prosa del repositorio en el contexto. Se conservó la propiedad que hace creíble la sección «ingeniería que puedes auditar» de la portada —si el artefacto falta, el build revienta en vez de publicar humo— y se comprobó moviendo command-integrity.json fuera del árbol: el build falla con la firma exacta «Module not found: Can't resolve '../../../../../docs/cad/evidence/command-integrity.json'». Ni se quitaron imports, ni se pusieron cifras a mano, ni se añadió tolerancia a la ausencia.\n\nCIERRE DEL HUECO. `check:deploy` verifica 31 invariantes de FORMA sobre los tres archivos y las pasaba todas mientras la imagen no construía: eso es el hueco real, no un fallo del validador. Se añade al job «Contrato · Build · Test · Lint · Smoke» el build REAL de las dos imágenes con docker/build-push-action (push y load en false: se prueba que COMPILA y la imagen se descarta), con caché de capas de Actions en ámbitos separados para no pagar los dos árboles y un `next build` en cada PR. Va en ese job y no en «Despliegue · Imagen reproducible + arranque productivo», que es donde encajaría por nombre, porque sólo el primero es check requerido en docs/governance/repository-protection-baseline.json: ahí el build bloquea el merge. Los cinco NEXT_PUBLIC_* del web son valores de CI (ci.valle-design.dev), no de producción, y son los cinco que `check:production-config` exige de verdad; se verificaron ejecutando el gate. El techo del job sube de 45/75 a 60/90 minutos porque se añade trabajo: no se relaja ningún umbral, y un techo que cancela es peor que uno holgado. Antes de nada se fusionó el PR #208 (squash fa137622), que estaba verde y sin fusionar, para no nacer de un `main` en rojo ni confundir su rojo con el propio.",
+      "branch": "claude/happy-noether-ri6u8h",
+      "assistants": [
+        "Claude Code (Anthropic), sesión remota operada por el titular: diagnóstico, reproducción medida de los dos fallos, elección de la versión de npm contra el Node de la base anclada, cambios en los dos Dockerfiles, next.config.ts y ci.yml, y ejecución de los gates"
+      ],
+      "authority": "Sergio Valle Zárate, en dos prompts de la sesión: «Necesito que dejes main en un estado del que Railway pueda construir una imagen» y «el segundo bug, el que estaba escondido detrás del primero». El titular pidió expresamente revisar y fusionar el PR #208 antes de abrir rama, y dejó elegir entre dos caminos en cada fallo pidiendo que la razón quedara en el commit. En el fallo 1 se tomó su camino preferido (anclar npm) corrigiendo la VERSIÓN por incompatibilidad medida con el Node de la base; en el fallo 2 se tomó su camino preferido A completo (raíz declarada + COPY). Ningún gate, umbral, presupuesto ni trinquete se relajó.",
+      "firstPartyInputs": [
+        "apps/api/Dockerfile y apps/web/Dockerfile (stage build, orden de COPY y comentario corregido)",
+        "packages/contracts/package.json (único workspace con `prepare`)",
+        "package-lock.json y package.json (workspaces, overrides)",
+        ".nvmrc (20) y scripts/deploy/validate-dockerfiles.mjs (invariantes `node-nvmrc` y `npm-ci`)",
+        "apps/web/src/lib/marketing/site-evidence.ts y src/components/marketing/EngineeringEvidence.tsx",
+        "docs/cad/evidence/{cad-math-cases,command-integrity,template-gallery}.json",
+        "apps/web/next.config.ts y apps/web/src/config/production-readiness.ts",
+        ".github/workflows/ci.yml, .github/workflows/release.yml y .dockerignore",
+        "docs/governance/repository-protection-baseline.json (checks requeridos)"
+      ],
+      "externalSources": [
+        {
+          "location": "Metadatos públicos del registro de npm: `npm view npm@11.19.1 engines` y `npm view npm@12.0.2 engines`",
+          "terms": "Metadatos públicos del registro",
+          "fact": "npm 12.0.2 declara `^22.22.2 || ^24.15.0 || >=26.0.0` y npm 11.19.1 declara `^20.17.0 || >=22.9.0`. De ahí que se ancle la 11 y no la 12 sobre una base Node 20. No se copió código."
+        },
+        {
+          "location": "Comportamiento OBSERVADO de los binarios npm 10.9.7, 11.19.1 y 12.0.2 ejecutando `npm ci --no-audit --no-fund --ignore-scripts` sobre un monorepo sintético y sobre el lockfile real del repositorio",
+          "terms": "Artistic-2.0 (npm CLI), ejecutado, no leído",
+          "fact": "npm 10.9.7 ejecuta el `prepare` de un workspace local pese a `--ignore-scripts`; 11.19.1 y 12.0.2 no. Medición propia; no se leyó ni copió el código fuente de npm."
+        },
+        {
+          "location": "API del registro de imágenes de Docker Hub (library/node, etiquetas y digests)",
+          "terms": "API pública de consulta",
+          "fact": "El digest sha256:2cf067cf… anclado en los dos Dockerfiles corresponde a las etiquetas 20.20.2-slim / 20.20.2-bookworm-slim / 20-bookworm-slim, es decir Node 20.20.2. Es el dato que descarta npm 12."
+        },
+        {
+          "location": "Código INSTALADO de next 16.3.5: dist/server/config-shared.d.ts, dist/server/config.js y dist/lib/find-root.js",
+          "terms": "MIT",
+          "fact": "`turbopack` es opción de nivel superior con `root?: string` y `experimental.turbo` ya no existe; Next resuelve una raíz relativa contra el cwd avisando «should be absolute»; y la inferencia de raíz descarta candidatos que sean el home o estén por encima de él o de la frontera de git. Leído para saber CÓMO se llama y CUÁNDO falla la inferencia. No se copió código."
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna implementación copiada, traducida ni portada. Del lado externo sólo hay medición del comportamiento de npm, consulta de metadatos de versiones y lectura del tipo y de la lógica de inferencia de raíz de Next, todo declarado en externalSources.",
+      "derivedAreas": [
+        "apps/api/Dockerfile (comentario corregido + `RUN npm i -g npm@11.19.1` antes del `npm ci`)",
+        "apps/web/Dockerfile (el mismo bloque + `COPY docs/cad/evidence docs/cad/evidence`)",
+        "apps/web/next.config.ts (`turbopack.root` absoluto e `import path from \"node:path\"`; comentario de la raíz de trazado puesto al día)",
+        ".github/workflows/ci.yml (build real de las dos imágenes en el job requerido, Buildx con caché por ámbito, y techo 45/75 → 60/90)",
+        "docs/governance/assisted-development-log.json (esta entrada)"
+      ],
+      "fixtures": "Ninguno.",
+      "dependenciesAdded": [
+        "npm@11.19.1 — sólo como herramienta de build DENTRO de los dos Dockerfiles (`npm i -g`), anclada a versión exacta. No entra en package.json ni en el lockfile, y no viaja en la imagen final: el stage de runtime sólo recibe dist/, node_modules podado y los package.json."
+      ],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "NO SE CONSTRUYERON LAS IMÁGENES: este entorno tiene el cliente de Docker pero no hay demonio (`/var/run/docker.sock` no existe), así que el `docker build` que el titular pide como prueba de aceptación no se pudo ejecutar y el veredicto sobre la imagen lo dan el build de Railway y los dos pasos nuevos de CI. Lo que SÍ se midió sobre el árbol exacto del commit, y es la parte que sustituye al build en lo que puede: (1) el `npm ci` del Dockerfile reproducido fuera de Docker replicando su layout exacto —sólo los seis package.json y el lockfile, sin tsconfig ni src— donde npm 10.9.7 falla con el TS5058 de Railway y npm 11.19.1 instala 1217 paquetes sin ejecutar `prepare` y sin dependencias inválidas; (2) el digest de la base resuelto a Node 20.20.2 contra el registro, que es lo que descarta npm 12.0.2 por engines; (3) `npm run build --workspace=web` fallando con HOME=<raíz> ANTES del cambio y pasando DESPUÉS, que es exactamente la condición de contenedor que rompía el build del web; (4) el build `standalone` —el que hace la imagen— en verde y con el layout que los COPY del runtime esperan (.next/standalone/apps/web/server.js, .next/static, public); (5) las cinco cifras de la portada inlinadas con sus valores reales (5421 casos matemáticos, 0 fuera de tolerancia, 294 comandos, 0 éxitos falsos, 149 plantillas), y el acoplamiento aún mordiendo: sin command-integrity.json el build falla con su «Can't resolve» exacto; (6) los cinco NEXT_PUBLIC_* de CI validados ejecutando `check:production-config` con NODE_ENV=production (verde con ellos, cinco fallos sin ellos). Gates: check:deploy (31 invariantes) verde tras los dos cambios de Dockerfile, typecheck 8/8, lint, test, check:dwg, check:governance y check:cad verdes. check:cad y check:dwg exigen el espejo del corpus DWG: sin `VALLE_DWG_CORPUS_MIRROR` check:dwg-evidence falla por `bundlesQueLoCubren: 0` —fallo de entorno, no del cambio— y con el espejo apuntado al repo hermano, como hace CI, pasa (28 comprobaciones, 7 bundles admitidos). El E2E completo y los dos `docker build` sólo existen en CI: la adopción es el merge del PR con los checks requeridos verdes sobre el SHA exacto candidato."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
