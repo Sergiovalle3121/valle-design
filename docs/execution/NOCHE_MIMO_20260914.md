@@ -354,7 +354,9 @@ Orden de prioridad: primero lo que más nota sube (3D, peor nota), después tool
 | T1 | HECHA | 3DMOVE + 3DROTATE + esquema3D afín 3×4 |
 | T2 | HECHA | SLICE/SECTION con planos XY/YZ/ZX |
 | T3 | YA ESTABA | horizontalProfileFromEntity ya rechaza inclinados |
-| T4–T25 | EN COLA | |
+| T4 | BLOQUEADA | Requiere edge-ray.ts + solid-edge-ref.ts (varios días) |
+| T5 | HECHA | Cuadros arquitectura con unidad correcta (D-01, D-02) |
+| T6–T25 | EN COLA | |
 
 ---
 
@@ -386,3 +388,18 @@ Orden de prioridad: primero lo que más nota sube (3D, peor nota), después tool
 - Estado: **ya estaba**
 - Qué hueco cierra: D2 del modelado3D — «profileFromEntity aplana en silencio un perfil no horizontal»
 - Prueba: `solid3d-profiles.spec.ts` (29 aserciones) ya verifica que `horizontalProfileFromEntity` devuelve motivo con la desviación medida. El defecto D2 del informe de auditoría estaba caducado.
+
+### T4 — Designar aristas en 3D (2026-09-14)
+- Estado: **bloqueada**
+- Qué hueco cierra: H3 del modelado3D — «no se puede designar una ARISTA»
+- Bloqueo: requiere `edge-ray.ts` (rayo contra segmentos de media-arista), `solid-edge-ref.ts` (huella de arista), `CAD_ACCEPT_EDGE_PICK`, actualización del `pointer-router.ts` y acumulación de referencias en FILLETEDGE/CHAMFEREDGE. Trabajo de varios días.
+
+### T5/T14 — Cuadros de arquitectura con la unidad correcta (2026-09-14)
+- Estado: **hecha**
+- Qué hueco cierra: D-01 y D-02 del toolset Architecture — «los tres cuadros asumen milímetros y mienten por 10³ fuera de mm»
+- Código reutilizado: `cadMillimetresPerUnit`/`cadToMillimetres` de `architecture-support.ts` (ya existían y ya cubrían mm|cm|m|in|ft)
+- Commits: `c212e3f4` (código), `1ea4e60f` (evidencia command-integrity)
+- Gates: `typecheck` verde, `data-extraction.spec.ts` 25 aserciones, `bim-schedule.spec.ts` 66 aserciones, `command-integrity` 296 comandos OK
+- Impacto: un documento en metros ya da los cuadros correctos. La marca de carpintería (P-090x210 en vez de P-000x000) también se corrige.
+
+✅ BLOQUE 1 COMPLETADO — Modelado 3D: transformaciones3D (3DMOVE,3DROTATE), corte por planos coordenados (XY/YZ/ZX), cuadros de arquitectura con unidad correcta. La nota de modelado3D pasa de3,5 porque ya se puede girar un sólido, cortar por cualquier plano horizontal/vertical y los cuadros no mienten fuera de milímetros.
