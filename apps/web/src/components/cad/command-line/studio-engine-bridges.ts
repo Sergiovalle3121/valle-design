@@ -163,6 +163,10 @@ export function cadStudioEngineBridges(
     visualStyle: (styleId) => {
       const label = solidShadeHost.current?.applyVisualStyle(styleId) ?? null;
       nativeMassHosts?.current?.applyVisualStyle(styleId);
+      // D-04 (visualización 3D): VSCURRENT confirma éxito aunque no haya
+      // cambiado nada. Si no hay ningún objeto sombreable, lo dice.
+      if (label && !solidShadeHost.current && !nativeMassHosts?.current)
+        return `${label} (0 objetos: este dibujo no tiene sólidos sombreables)`;
       return label;
     },
     // VSCURRENT + Intro sin teclear nada CONSULTA el vigente (T-10a): antes
