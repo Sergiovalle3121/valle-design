@@ -556,6 +556,12 @@ function radioDe(route: CadPipeRoute, unit: string): number | null {
  * informe de falsos justo en los sitios donde el proyecto está bien.
  */
 function seEmpalman(a: CadPipeRoute, b: CadPipeRoute): boolean {
+  return empalmePoints(a, b).length > 0;
+}
+
+/** Puntos donde las dos rutas se tocan (dentro de CAD_PL_JOIN_TOLERANCE). */
+function empalmePoints(a: CadPipeRoute, b: CadPipeRoute): CadPoint3[] {
+  const puntos: CadPoint3[] = [];
   const puntas = (route: CadPipeRoute) =>
     [route.points[0], route.points[route.points.length - 1]].filter(
       (punto): punto is CadPoint3 => !!punto,
@@ -572,10 +578,13 @@ function seEmpalman(a: CadPipeRoute, b: CadPipeRoute): boolean {
     }
     return false;
   };
-  return (
-    puntas(a).some((punta) => tocaCuerpo(punta, b)) ||
-    puntas(b).some((punta) => tocaCuerpo(punta, a))
-  );
+  for (const punta of puntas(a)) {
+    if (tocaCuerpo(punta, b)) puntos.push(punta);
+  }
+  for (const punta of puntas(b)) {
+    if (tocaCuerpo(punta, a)) puntos.push(punta);
+  }
+  return puntos;
 }
 
 function severidad(gap: number, clearance: number): CadPipeClashKind | null {
@@ -727,7 +736,11 @@ export function cadPipeClashReport(
         sinDiametro.push({ entityId: b.entityId, reason: `${b.line} no tiene diámetro: no se puede medir contra ${a.line}` });
         continue;
       }
-      if (seEmpalman(a, b)) continue;
+      // D4: no exentar el par entero cuando las rutas se tocan en un punto.
+      // En vez de `if (seEmpalman(a, b)) continue;`, se encuentran los puntos
+      // de empalme y se comprueba por segmento: sólo se salta si el punto más
+      // cercano está cerca de un empalme.
+      const joinPoints = empalmePoints(a, b);
       let peor: { gap: number; at: CadPoint3 } | null = null;
       for (let m = 1; m < a.points.length; m += 1)
         for (let n = 1; n < b.points.length; n += 1) {
@@ -741,6 +754,13 @@ export function cadPipeClashReport(
           if (!peor || gap < peor.gap) peor = { gap, at };
         }
       if (!peor) continue;
+      // D4: si el punto más cercano está cerca de un empalme, no es choque.
+      if (joinPoints.length > 0) {
+        const nearJoin = joinPoints.some((jp) =>
+          Math.hypot(peor!.at.x - jp.x, peor!.at.y - jp.y, (peor!.at.z ?? 0) - (jp.z ?? 0)) < 2 * (ra + rb)
+        );
+        if (nearJoin) continue;
+      }
       const kind = severidad(peor.gap, clearance);
       if (!kind) continue;
       clashes.push({
