@@ -70,6 +70,7 @@ import {
   cadActiveUcsIsTilted,
   type CadSystemVariableValue,
 } from "@/lib/cad/system-variables";
+import { downloadCadFile } from "./plot-host";
 import type { CadNamedUcs } from "@/lib/cad/ucs";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
 import { CAD_SHARED_CLIPBOARD, cadClipboardContent, type CadClipboard } from "@/lib/cad/clipboard";
@@ -755,15 +756,7 @@ export class CadCommandEngineHost {
         if (effect.request.kind === "download") {
           const { filename, mime, content } = effect.request;
           try {
-            const blob = new Blob([content], { type: mime });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
+            downloadCadFile(filename, new TextEncoder().encode(content), mime);
             this.log(`${effect.label}: ${filename} descargado.`, "info");
           } catch {
             this.log(`${effect.label}: no se pudo descargar ${filename}.`, "error");

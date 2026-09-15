@@ -265,7 +265,7 @@ export class CadPlotHost {
     if (request.kind === "compare-fetch")
       return "Este espacio de trabajo no sabe traer dibujos del inquilino para compararlos: falta el anfitrión de comparación.";
     if (request.kind === "download")
-      return ""; // Lo atiende command-engine-host directamente.
+      return "La descarga de archivos la atiende el anfitrión del motor, no el de trazado.";
 
     const document = this.bridge.document();
     if (!document) return "No hay ningún dibujo abierto que trazar.";
