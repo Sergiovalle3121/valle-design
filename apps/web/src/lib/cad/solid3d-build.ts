@@ -98,13 +98,23 @@ const identityPlacement: Required<CadSolidPlacement> = {
   e: 0,
   f: 0,
   dz: 0,
+  m02: 0,
+  m10: 0,
+  m11: 1,
+  m12: 0,
+  m20: 0,
+  m21: 0,
+  m22: 1,
+  tx: 0,
+  ty: 0,
+  tz: 0,
 };
 
 /** Colocación completa, con los valores por defecto ya resueltos. */
 export function resolveSolidPlacement(
   placement?: CadSolidPlacement,
 ): Required<CadSolidPlacement> {
-  if (!placement) return { ...identityPlacement };
+  if (!placement) return { ...identityPlacement, m02: 0, m10: 0, m11: 1, m12: 0, m20: 0, m21: 0, m22: 1, tx: 0, ty: 0, tz: 0 };
   return {
     a: placement.a,
     b: placement.b,
@@ -113,6 +123,16 @@ export function resolveSolidPlacement(
     e: placement.e,
     f: placement.f,
     dz: placement.dz ?? 0,
+    m02: placement.m02 ?? 0,
+    m10: placement.m10 ?? 0,
+    m11: placement.m11 ?? 1,
+    m12: placement.m12 ?? 0,
+    m20: placement.m20 ?? 0,
+    m21: placement.m21 ?? 0,
+    m22: placement.m22 ?? 1,
+    tx: placement.tx ?? 0,
+    ty: placement.ty ?? 0,
+    tz: placement.tz ?? 0,
   };
 }
 
@@ -547,6 +567,39 @@ export function placeBody(
   placement?: CadSolidPlacement,
 ): BrepBody {
   const m = resolveSolidPlacement(placement);
+
+  const has3D =
+    m.m02 !== 0 || m.m10 !== 0 || m.m11 !== 1 || m.m12 !== 0 ||
+    m.m20 !== 0 || m.m21 !== 0 || m.m22 !== 1 ||
+    m.tx !== 0 || m.ty !== 0 || m.tz !== 0;
+
+  if (has3D) {
+    // Afín 3×4 completa: x' = a*x + c*y + m02*z + tx, etc.
+    const det3 =
+      m.a * (m.m11 * m.m22 - m.m12 * m.m21) -
+      m.c * (m.m10 * m.m22 - m.m12 * m.m20) +
+      m.m02 * (m.m10 * m.m21 - m.m11 * m.m20);
+    if (!(Math.abs(det3) > 0)) {
+      throw new Error(
+        "La colocación 3D de un SOLID3D es singular: aplastaría el sólido a un plano.",
+      );
+    }
+    const points = body.vertices.map((vertex) =>
+      vec3(
+        m.a * vertex.point.x + m.c * vertex.point.y + m.m02 * vertex.point.z + m.tx,
+        m.m10 * vertex.point.x + m.m11 * vertex.point.y + m.m12 * vertex.point.z + m.ty,
+        m.m20 * vertex.point.x + m.m21 * vertex.point.y + m.m22 * vertex.point.z + m.tz,
+      ),
+    );
+    const specs: FaceSpec[] = bodyToFaceSpecs(body).map((spec) => ({
+      outer: [...spec.outer],
+      inners: spec.inners?.map((ring) => [...ring]),
+    }));
+    const moved = attachPlanarSurfaces(buildBody(points, specs));
+    return det3 < 0 ? attachPlanarSurfaces(reverseBody(moved)) : moved;
+  }
+
+  // Afín 2D original (compatibilidad hacia atrás).
   const determinant = m.a * m.d - m.b * m.c;
   if (
     m.a === 1 &&

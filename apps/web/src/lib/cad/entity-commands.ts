@@ -58,6 +58,7 @@ import {
 
 export type CadEntityCommand =
   | { type: "transform"; entityId: string; transform: CadEntityTransform }
+  | { type: "transform3d"; entityId: string; transform3d: import("./cad-entities-v5").CadSolidPlacement }
   | { type: "properties"; entityId: string; patch: Partial<CadPropertyBag> }
   | { type: "grip"; entityId: string; gripId: string; point: CadPoint2 }
   | {
@@ -499,6 +500,15 @@ export function executeCadEntityCommandBatch(
       });
       if (command.associative)
         regenerationSourceIds.push(...(source.references ?? []).map((reference) => reference.entityId));
+    } else if (command.type === "transform3d") {
+      if (source.type !== "solid3d")
+        throw new Error("3DMOVE/3DROTATE/3DALIGN/MIRROR3D sólo aplica a SOLID3D.");
+      const existing = source.placement ?? {};
+      present.set(source.id, {
+        ...source,
+        placement: { ...existing, ...command.transform3d },
+      });
+      regenerationSourceIds.push(source.id);
     } else {
       present.set(
         source.id,

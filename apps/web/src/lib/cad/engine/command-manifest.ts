@@ -1,8 +1,8 @@
 /**
- * METADATOS de los 294 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 295 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
- * 108 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
+ * 109 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
  * `npm run check:cad`— falla si lo committeado deja de coincidir con lo que los
  * descriptores dicen hoy. Regla 4 de la campaña de cimientos: ninguna cifra vive
  * en dos lugares, y un comando nuevo no puede entrar sin aparecer aquí.
@@ -312,6 +312,7 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "PRESSPULL", aliases: [], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/solids-push-face" },
   { name: "SOLVIEW", aliases: ["SOLV", "VISTASOL"], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: true, spatial: true, cursor: "crosshair", module: "commands/solview-commands" },
   { name: "SOLDRAW", aliases: ["SOLD", "DIBUJOSOL"], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "none", module: "commands/solview-commands" },
+  { name: "3DMOVE", aliases: ["3M"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, spatial: "elevation", cursor: "pick", module: "commands/transform-3d" },
   { name: "UCS", aliases: ["SCU"], kind: "manage", transparent: true, selection: "none", repeatable: false, mutates: false, spatial: true, cursor: "crosshair", module: "commands/ucs-commands" },
   { name: "UCSICON", aliases: [], kind: "view", transparent: true, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/ucs-view-commands" },
   { name: "PLAN", aliases: [], kind: "view", transparent: true, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/ucs-view-commands" },

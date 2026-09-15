@@ -1,5 +1,5 @@
 /**
- * Los 108 módulos de comandos, con `import` ESTÁTICO. GENERADO — no se edita a mano.
+ * Los 109 módulos de comandos, con `import` ESTÁTICO. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` y `--check`
  * lo verifica, del mismo tirón que `command-manifest.ts`.
@@ -121,13 +121,14 @@ import * as m097 from "./commands/solids-modify";
 import * as m098 from "./commands/solids-primitives";
 import * as m099 from "./commands/solids-push-face";
 import * as m100 from "./commands/solview-commands";
-import * as m101 from "./commands/ucs-commands";
-import * as m102 from "./commands/ucs-view-commands";
-import * as m103 from "./commands/vectorize-raster";
-import * as m104 from "./commands/view-navigation";
-import * as m105 from "./commands/view-navigation-3d";
-import * as m106 from "./commands/view-visual";
-import * as m107 from "./commands/xrefs";
+import * as m101 from "./commands/transform-3d";
+import * as m102 from "./commands/ucs-commands";
+import * as m103 from "./commands/ucs-view-commands";
+import * as m104 from "./commands/vectorize-raster";
+import * as m105 from "./commands/view-navigation";
+import * as m106 from "./commands/view-navigation-3d";
+import * as m107 from "./commands/view-visual";
+import * as m108 from "./commands/xrefs";
 
 cadRegisterCommandModules([
   m000,
@@ -238,4 +239,5 @@ cadRegisterCommandModules([
   m105,
   m106,
   m107,
+  m108,
 ]);

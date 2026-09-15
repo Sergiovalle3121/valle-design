@@ -122,6 +122,7 @@ export const CAD_COMMAND_MODULE_LOADERS = {
   "commands/modify-pedit": () => import("./commands/modify-pedit"),
   "commands/modify-stretch": () => import("./commands/modify-stretch"),
   "commands/modify-transform": () => import("./commands/modify-transform"),
+  "commands/transform-3d": () => import("./commands/transform-3d"),
   "commands/parametric-dimensions": () => import("./commands/parametric-dimensions"),
   "commands/parametric-geometry": () => import("./commands/parametric-geometry"),
   "commands/pdf-underlay-commands": () => import("./commands/pdf-underlay-commands"),
