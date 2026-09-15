@@ -264,6 +264,8 @@ export class CadPlotHost {
     // falta en vez de caer en la rama de PLOT y pedir una hoja.
     if (request.kind === "compare-fetch")
       return "Este espacio de trabajo no sabe traer dibujos del inquilino para compararlos: falta el anfitrión de comparación.";
+    if (request.kind === "download")
+      return ""; // Lo atiende command-engine-host directamente.
 
     const document = this.bridge.document();
     if (!document) return "No hay ningún dibujo abierto que trazar.";

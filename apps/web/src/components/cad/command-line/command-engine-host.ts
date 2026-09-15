@@ -742,6 +742,24 @@ export class CadCommandEngineHost {
           this.log(answered, answered.includes(": no ") || answered.includes(": lo ") ? "error" : "info");
           return;
         }
+        if (effect.request.kind === "download") {
+          const { filename, mime, content } = effect.request;
+          try {
+            const blob = new Blob([content], { type: mime });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+            this.log(`${effect.label}: ${filename} descargado.`, "info");
+          } catch {
+            this.log(`${effect.label}: no se pudo descargar ${filename}.`, "error");
+          }
+          return;
+        }
         const answered = this.bridge.host?.(effect.request) ?? null;
         this.log(
           answered ?? `${effect.label} no está disponible en este contexto.`,

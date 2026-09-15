@@ -143,8 +143,6 @@ const exportCommand: CadCommandDescriptor<ExportState> = {
         parts.push(
           exportSolidEntity(solid, {
             format,
-            // Marca de tiempo fija: un archivo que cambia con el reloj no se
-            // puede comparar byte a byte entre dos corridas.
             timestamp: format === "step" ? CAD_INTEROP_EPOCH : "19700101.000000",
           }),
         );
@@ -152,10 +150,20 @@ const exportCommand: CadCommandDescriptor<ExportState> = {
         return solidMessage(state, `EXPORT: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
-    return solidMessage(
-      state,
-      `${solids.length} sólido(s) exportados a ${format.toUpperCase()}:\n${parts.join("\n")}`,
-    );
+    const content = parts.join("\n");
+    const ext = format === "step" ? "stp" : "igs";
+    const filename = `export.${ext}`;
+    const mime = format === "step" ? "application/step" : "application/iges";
+    return {
+      state: { selection: [] },
+      prompt: { message: "", options: [] },
+      accepts: 0,
+      result: {
+        kind: "host",
+        request: { kind: "download", filename, mime, content },
+        label: `EXPORT ${format.toUpperCase()}`,
+      },
+    };
   },
 };
 

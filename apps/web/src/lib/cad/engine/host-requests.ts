@@ -193,4 +193,17 @@ export type CadHostRequest =
       kind: "chain-command";
       command: string;
       variables: Readonly<Record<string, CadSystemVariableValue>>;
+    }
+  /**
+   * Descarga un archivo generado por un comando (STEP, IGES, STL, etc.).
+   *
+   * El motor genera el contenido como texto; el anfitrión lo empaqueta en un
+   * `Blob` y dispara la descarga del navegador. Va por aquí porque crear un
+   * `Blob` y un enlace de descarga es I/O de navegador, y el motor es puro.
+   */
+  | {
+      kind: "download";
+      filename: string;
+      mime: string;
+      content: string;
     };
