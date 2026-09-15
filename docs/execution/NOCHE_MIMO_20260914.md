@@ -381,6 +381,9 @@ Orden de prioridad: primero lo que más nota sube (3D, peor nota), después tool
 | D5 (ribbon) | HECHA | Cinta ya no lanza excepción si un espejo desaparece |
 | T16 | HECHA | 12 símbolos IEC 60617 de esquema eléctrico + AESYMBOL |
 | T19 | HECHA | BOM con peso (Peso unit. y Peso total calculados con cadSteelKgPerMetre) |
+| D-05 (f2d) | HECHA | Entrada dinámica conoce todas las unidades (mm/cm/m/in/ft) |
+| D-08 (f2d) | HECHA | mleader con altura anotativa |
+| D-1 (interop) | HECHA | MLEADER exportado como MULTILEADER con AcDbEntity |
 | CI fix | PARCIAL | next+sharp arreglados; multer requiere NestJS 12 |
 
 ---
