@@ -392,5 +392,27 @@ export function cadDocumentDxfExportLosses(
     });
   }
 
+  // 6. Metadatos de dominio (context.metadata): la información que los módulos
+  //    eléctrico, mecánico y de planta guardan en las entidades —número de
+  //    conductor, circuito, calibre, protección, número de línea, etiqueta de
+  //    equipo— NO viaja al DXF. El DXF plano no tiene XDATA propia de Valle,
+  //    y el exportador no la escribe. Esta entrada convierte una pérdida
+  //    silenciosa en una declarada (D2 de la auditoría MEP).
+  let metadataEntities = 0;
+  for (const entity of document.entities) {
+    if (entity.context?.metadata && Object.keys(entity.context.metadata).length > 0)
+      metadataEntities += 1;
+  }
+  if (metadataEntities > 0) {
+    losses.push({
+      code: "dxf_export_metadata_not_transported",
+      severity: "warning",
+      detail:
+        `${metadataEntities} entidad(es) llevan metadatos de dominio (circuito, calibre, número de línea, ` +
+        "etiqueta de equipo…): los metadatos NO viajan al DXF y no se recuperan al reimportar. " +
+        "La información vive sólo en el documento de Valle Design.",
+    });
+  }
+
   return losses;
 }
