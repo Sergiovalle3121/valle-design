@@ -67,6 +67,7 @@ export const CAD_COMMAND_MODULE_LOADERS = {
   "commands/blocks-burst": () => import("./commands/blocks-burst"),
   "commands/blocks-edit": () => import("./commands/blocks-edit"),
   "commands/clipboard": () => import("./commands/clipboard"),
+  "commands/center-marks": () => import("./commands/center-marks"),
   "commands/compare-drawings": () => import("./commands/compare-drawings"),
   "commands/data-extraction-commands": () => import("./commands/data-extraction-commands"),
   "commands/delivery-review": () => import("./commands/delivery-review"),
