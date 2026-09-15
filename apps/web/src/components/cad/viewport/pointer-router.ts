@@ -37,6 +37,7 @@ import type { CadPreviewPath } from "@/lib/cad/engine/command-types";
 import {
   CAD_ACCEPT_ENTITY_PICK,
   CAD_ACCEPT_FACE_PICK,
+  CAD_ACCEPT_EDGE_PICK,
   CAD_ACCEPT_SELECTION,
   CAD_ACCEPT_POINT,
 } from "@/lib/cad/engine/command-types";
@@ -178,6 +179,22 @@ export interface CadEnginePointerBridge {
     face: CadSolidFaceRef;
     point: CadPoint3;
     normal: CadPoint3;
+  } | null;
+  /**
+   * ARISTA de sólido bajo el evento, resuelta con el rayo de cámara.
+   *
+   * Opcional como `hitFace`: sólo el lienzo 3D puede responderla. Se consulta
+   * SÓLO cuando el paso activo acepta EDGE_PICK (T-4). La arista va antes que
+   * la cara en el orden de precedencia: un sólido tiene caras y aristas, y
+   * preguntar primero por cara haría que FILLETEDGE designara la cara y no la
+   * arista que el usuario está mirando.
+   */
+  hitEdge?(event: PointerEvent | MouseEvent): {
+    entityId: string;
+    edge: number;
+    from: CadPoint3;
+    to: CadPoint3;
+    point: CadPoint2;
   } | null;
   /** Publica el cursor vivo; es lo que el contexto del motor devuelve. */
   setCursor(point: CadPoint2 | null): void;
@@ -335,6 +352,19 @@ export class CadEnginePointerRouter {
     // como exige MOVE, cuyo paso de designación se tragaría el punto como
     // punto base si llegara hasta él.
     const accepts = this.bridge.host.accepts;
+    // La ARISTA va antes que la cara: un sólido tiene caras y aristas, y
+    // preguntar primero por cara haría que FILLETEDGE designara el sólido
+    // entero y no la arista que el usuario está mirando.
+    if (accepts & CAD_ACCEPT_EDGE_PICK) {
+      const edge = this.bridge.hitEdge?.(event) ?? null;
+      if (edge) {
+        this.bridge.host.pickEdge(edge);
+        this.afterDispatch();
+        return true;
+      }
+      if (!(accepts & (CAD_ACCEPT_FACE_PICK | CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_POINT | CAD_ACCEPT_SELECTION)))
+        return true;
+    }
     // La CARA va antes que la entidad, y el orden importa: un sólido es también
     // una entidad, así que preguntar primero por entidad haría que PRESSPULL
     // designara el sólido entero y no la cara que el usuario está mirando.

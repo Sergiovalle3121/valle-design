@@ -76,7 +76,7 @@ import { CAD_SHARED_CLIPBOARD, cadClipboardContent, type CadClipboard } from "@/
 import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
 import type { SnapType } from "@/lib/cad/snap-engine";
 import type { CadSolidFaceRef } from "@/lib/cad/cad-entities-v5";
-import type { CadPoint3 } from "@/lib/cad/cad-document";
+import type { CadPoint2, CadPoint3 } from "@/lib/cad/cad-document";
 import type { CadViewRequest } from "@/lib/cad/view/view-navigation";
 import type { CadCommandLineEntry } from "./CadCommandLine";
 
@@ -382,6 +382,16 @@ export class CadCommandEngineHost {
     normal: CadPoint3;
   }): void {
     this.dispatch({ kind: "input", input: { kind: "facePick", ...input } });
+  }
+
+  pickEdge(input: {
+    entityId: string;
+    edge: number;
+    from: CadPoint3;
+    to: CadPoint3;
+    point: CadPoint2;
+  }): void {
+    this.dispatch({ kind: "input", input: { kind: "edgePick", ...input } });
   }
 
   select(entityIds: readonly string[]): void {
