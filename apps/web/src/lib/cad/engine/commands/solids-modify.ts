@@ -314,12 +314,12 @@ function planeStep<S extends PlaneState>(state: S, prompt: string, final: string
       prompt: { message: "Precise el primer punto del plano de corte", options: [...PLANE_OPTIONS] },
       accepts: CAD_ACCEPT_POINT | CAD_ACCEPT_KEYWORD,
     };
-  if (!state.second)
+  if (!state.planeMode && !state.second)
     return {
       state,
       prompt: { message: "Precise el segundo punto del plano de corte", options: [] },
       accepts: CAD_ACCEPT_POINT,
-      preview: [{ points: [state.first!, state.first!] }],
+      preview: state.first ? [{ points: [state.first, state.first] }] : undefined,
     };
   return {
     state,
@@ -358,9 +358,17 @@ const sliceCommand: CadCommandDescriptor<PlaneState> = {
 
     // Cota del plano coordenado.
     if (state.planeMode && state.planeElevation === null) {
-      const elevation = input.kind === "distance" ? input.value : 0;
-      if (elevation === null) return planeStep(state, slicePrompt, "¿Qué lado se conserva?");
-      return planeStep({ ...state, planeElevation: elevation }, slicePrompt, "¿Qué lado se conserva?");
+      if (input.kind === "distance") {
+        return planeStep({ ...state, planeElevation: input.value }, slicePrompt, "¿Qué lado se conserva?");
+      }
+      if (input.kind === "point") {
+        const elevation = state.planeMode === "YZ" ? input.point.x
+          : state.planeMode === "ZX" ? input.point.y
+            : (input.point as { z?: number }).z ?? 0;
+        return planeStep({ ...state, planeElevation }, slicePrompt, "¿Qué lado se conserva?");
+      }
+      // Enter, text u otra entrada: no avanzar.
+      return planeStep(state, slicePrompt, "¿Qué lado se conserva?");
     }
 
     if (input.kind === "point") {
@@ -444,9 +452,16 @@ const sectionCommand: CadCommandDescriptor<PlaneState> = {
 
     // Cota del plano coordenado.
     if (state.planeMode && state.planeElevation === null) {
-      const elevation = input.kind === "distance" ? input.value : 0;
-      if (elevation === null) return planeStep(state, sectionPrompt, "Pulse Intro para crear la región de sección");
-      return planeStep({ ...state, planeElevation: elevation }, sectionPrompt, "Pulse Intro para crear la región de sección");
+      if (input.kind === "distance") {
+        return planeStep({ ...state, planeElevation: input.value }, sectionPrompt, "Pulse Intro para crear la región de sección");
+      }
+      if (input.kind === "point") {
+        const elevation = state.planeMode === "YZ" ? input.point.x
+          : state.planeMode === "ZX" ? input.point.y
+            : (input.point as { z?: number }).z ?? 0;
+        return planeStep({ ...state, planeElevation }, sectionPrompt, "Pulse Intro para crear la región de sección");
+      }
+      return planeStep(state, sectionPrompt, "Pulse Intro para crear la región de sección");
     }
 
     if (input.kind === "point") {
