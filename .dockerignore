@@ -62,6 +62,15 @@ npm-debug.log*
 
 # Documentación y evidencia de auditoría
 docs
+# ...salvo los TRES artefactos que el build del web inlina de verdad
+# (`apps/web/src/lib/marketing/site-evidence.ts`). `docs` entero se queda
+# fuera —1,6 MB de evidencia que la imagen no usa—; estos tres pesan 44 KB y
+# sin ellos `next build` revienta a propósito: una cifra pública de la portada
+# sale de un artefacto medido o no sale. La lista es explícita y no un
+# comodín: si alguien añade un cuarto import, el build falla y se ve aquí.
+!docs/cad/evidence/cad-math-cases.json
+!docs/cad/evidence/command-integrity.json
+!docs/cad/evidence/template-gallery.json
 *.md
 !README.md
 sbom.cdx.json

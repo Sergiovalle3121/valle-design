@@ -68,12 +68,19 @@ COPY packages/design-sdk packages/design-sdk
 COPY packages/dwg-codec packages/dwg-codec
 COPY apps/web apps/web
 # La portada inlina TRES artefactos de evidencia en tiempo de build
-# (`src/lib/marketing/site-evidence.ts`): cad-math-cases.json,
-# command-integrity.json y template-gallery.json. Sin ellos el build revienta,
-# y revienta A PROPÓSITO: una cifra pública sale de un artefacto medido o no
-# sale. Copiar sólo `docs/cad/evidence` y no `docs/` entero mantiene el
-# contexto —y la imagen— sin la prosa del repositorio.
-COPY docs/cad/evidence docs/cad/evidence
+# (`src/lib/marketing/site-evidence.ts`). Sin ellos el build revienta, y
+# revienta A PROPÓSITO: una cifra pública sale de un artefacto medido o no
+# sale.
+#
+# Se nombran los tres, uno por uno, y no el directorio: `.dockerignore` excluye
+# `docs` entero —1,6 MB de evidencia que la imagen no usa— y reincluye
+# EXACTAMENTE estos tres (44 KB). Las dos listas dicen lo mismo a propósito: si
+# alguien añade un cuarto import a site-evidence.ts y no lo declara en los dos
+# sitios, el build falla en vez de publicar un hueco.
+COPY docs/cad/evidence/cad-math-cases.json \
+     docs/cad/evidence/command-integrity.json \
+     docs/cad/evidence/template-gallery.json \
+     docs/cad/evidence/
 
 # El origen PÚBLICO exacto de la API. No tiene default: un valor por omisión
 # produciría una imagen que apunta a localhost y falla sólo en el navegador
