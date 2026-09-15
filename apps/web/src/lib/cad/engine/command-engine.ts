@@ -205,7 +205,15 @@ function begin(
     suspended.push(state.active);
   }
 
-  const step = descriptor.begin(context) as CadCommandStep<unknown>;
+  let step: CadCommandStep<unknown>;
+  try {
+    step = descriptor.begin(context) as CadCommandStep<unknown>;
+  } catch (error) {
+    return {
+      state: { ...state, osnapOverride: null },
+      effects: [{ kind: "message", text: `${descriptor.name}: ${error instanceof Error ? error.message : String(error)}`, level: "error" }],
+    };
+  }
   const active: CadActiveCommand = { name: descriptor.name, step, transparent };
 
   // Un comando puede terminar en su primer paso: ERASE sobre una selección
