@@ -371,6 +371,10 @@ Orden de prioridad: primero lo que más nota sube (3D, peor nota), después tool
 | D-07 | HECHA | Cabecera del kernel B-rep actualizada |
 | D-08 | HECHA | SHELL eliminado de la cinta |
 | T18 | HECHA | CENTERMARK y CENTERLINE (ejes y cruces de centro) |
+| D-03 | HECHA | Snaps de esquina de muro ocultos (fix-or-hide) |
+| D-06 | HECHA | unitToMm conoce pies (ft) |
+| D-1 (Elec) | HECHA | cadCheckCircuits normaliza a mayúsculas |
+| D-2 (Elec) | HECHA | cadEntityRunLength mide arcos con bulge |
 | CI fix | PARCIAL | next+sharp arreglados; multer requiere NestJS 12 |
 
 ---
