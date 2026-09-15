@@ -359,10 +359,12 @@ Orden de prioridad: primero lo que más nota sube (3D, peor nota), después tool
 | T6 | HECHA | Alzados verdaderos (unlockPolarAngleForCommand) |
 | T7 | PARCIAL | VISUALSTYLES: tabla ampliada a 7 estilos; render pendiente |
 | T8 | YA ESTABA | cadWireNumberLabel ya existe en electrical-wire.ts |
-| T9 | YA ESTABA | Atributos MEP ya declarados en mep-symbols.ts |
+| T9 | HECHA | Proyección paralela (PERSPECTIVE 0/1) |
 | T10 | HECHA | Aristas cóncavas filtradas de preferredFeatureEdges (D-04) |
 | T11 | HECHA | STEP/IGES descargable (Blob + enlace de descarga) |
-| T12–T25 | EN COLA | |
+| T12 | HECHA | Orientación de caras corregida (defecto 4.1) |
+| T13–T25 | EN COLA | |
+| CI fix | PARCIAL | next+sharp arreglados; multer requiere NestJS 12 |
 
 ---
 
@@ -409,3 +411,24 @@ Orden de prioridad: primero lo que más nota sube (3D, peor nota), después tool
 - Impacto: un documento en metros ya da los cuadros correctos. La marca de carpintería (P-090x210 en vez de P-000x000) también se corrige.
 
 ✅ BLOQUE 1 COMPLETADO — Modelado 3D: transformaciones3D (3DMOVE,3DROTATE), corte por planos coordenados (XY/YZ/ZX), cuadros de arquitectura con unidad correcta. La nota de modelado3D pasa de3,5 porque ya se puede girar un sólido, cortar por cualquier plano horizontal/vertical y los cuadros no mienten fuera de milímetros.
+
+### CI fix — Vulnerabilidades de dependencias (2026-09-15)
+- Estado: **parcial** (next y sharp arreglados; multer requiere NestJS 12)
+- Causa: `npm audit --omit=dev --audit-level=high` fallaba en CI con 7 vulnerabilidades (1 critical, 5 high, 1 moderate)
+- Arreglo: `next` actualizado a 16.3.5 (fuera de rango RCE crítico GHSA-p293, GHSA-2xp9), `sharp` override a 0.35.4 (fuera de GHSA-rgj7). Las 4 restantes de `multer` viven en `@nestjs/platform-express@11.2.3` que fija `multer@2.2.0` — el arreglo requiere NestJS 12 (breaking change).
+- Commit: `b26a3fa5`
+- Decisión para Sergio: la migración a NestJS 12 es necesaria para cerrar el audit. Los overrides de NestJS en la raíz no aplican sobre las dependencias del workspace `valle-design-api`.
+
+### T12 — Orientación de caras corregida (2026-09-14)
+- Estado: **hecha**
+- Qué hueco cierra: defecto 4.1 de la auditoría de visualización 3D — «los tres constructores invierten el giro de todas las caras»
+- Código reutilizado: una línea por módulo (invertir orden de triángulos al copiar índices)
+- Commits: `1321ade6`
+- Gates: `face-orientation-fix.spec.ts` 3 aserciones, `solid3d.spec.ts` 59, `solid3d-frontera.spec.ts` 279
+
+### T9 — Proyección paralela (2026-09-14)
+- Estado: **hecha**
+- Qué hueco cierra: H-11 de la visualización 3D — «el 3D es siempre perspectiva de 50°»
+- Código reutilizado: la ortográfica ya estaba en `view-controller.ts`, `system-variables.ts` ya tenía el mecanismo
+- Commits: `445352d8`
+- Gates: `typecheck` verde, `command-manifest` 297 comandos, `view-3d.spec.ts` 131 aserciones
