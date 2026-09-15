@@ -29,7 +29,7 @@
  */
 
 /** Los estilos, con el nombre que teclea el usuario. */
-export type CadVisualStyleId = "wireframe" | "hidden" | "shaded" | "shaded-edges" | "conceptual" | "xray" | "grayscale";
+export type CadVisualStyleId = "wireframe" | "hidden" | "shaded" | "shaded-edges" | "xray";
 
 export interface CadVisualStyle {
   id: CadVisualStyleId;
@@ -104,15 +104,6 @@ export const CAD_VISUAL_STYLES: readonly CadVisualStyle[] = [
     opacity: 1,
   },
   {
-    id: "conceptual",
-    label: "Conceptual",
-    faces: true,
-    edges: true,
-    occludes: true,
-    removesHiddenEdges: true,
-    opacity: 1,
-  },
-  {
     id: "xray",
     label: "Rayos X",
     faces: true,
@@ -120,15 +111,6 @@ export const CAD_VISUAL_STYLES: readonly CadVisualStyle[] = [
     occludes: false,
     removesHiddenEdges: false,
     opacity: 0.35,
-  },
-  {
-    id: "grayscale",
-    label: "Tonos de gris",
-    faces: true,
-    edges: true,
-    occludes: true,
-    removesHiddenEdges: true,
-    opacity: 1,
   },
 ];
 

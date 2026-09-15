@@ -34,9 +34,7 @@ const STYLE_SHORTCUTS: Record<CadVisualStyleId, string> = {
   hidden: "O",
   shaded: "S",
   "shaded-edges": "C",
-  conceptual: "N",
   xray: "R",
-  grayscale: "G",
 };
 
 const STYLE_KEYWORDS = CAD_VISUAL_STYLES.map((style) => ({
