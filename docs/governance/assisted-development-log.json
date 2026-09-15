@@ -3676,6 +3676,44 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "CI-CORPUS-TOKEN-REPO-PRIVADO-20260915",
+      "date": "2026-09-15",
+      "initiative": "Encargo del titular: dejar https://vallecad.com sirviendo la app. El dominio ya estaba cableado (Domain Connect sobre Cloudflare, CNAME proxied, `vallecad.com` → servicio web:3000 y `api.vallecad.com` → api:4000) y el «Not Found» de Railway probaba que la cadena Cloudflare → Railway → servicio funcionaba entera: faltaba un contenedor vivo detrás. Lo que impedía llegar ahí era el CI, y no por el código de las imágenes.\n\nEL BLOQUEO. El job «Contrato · Build · Test · Lint · Smoke» moría en el paso «Checkout del espejo del corpus DWG» con «repository not found» tras tres reintentos, y arrastraba en cascada el agregado de E2E (sus cuatro fragmentos quedan `skipped`, que este workflow trata como rojo a propósito). Causa: los dos repositorios pasaron a privados el 2026-09-15 —cierre del P0-1, correcto— y ese `actions/checkout` clonaba el repo hermano SIN `token:`, cosa que sólo funciona mientras el repositorio es público, porque el GITHUB_TOKEN por defecto alcanza únicamente el repo donde corre el workflow. `main` estaba rojo por lo mismo (corrida 34938921823 sobre fa137622), así que no era un fallo de la rama.\n\nEL ARREGLO, en los DOS sitios. El paso existe dos veces —en `quality-gates` y en `e2e-shard`, que es otro runner y no hereda ni el checkout ni `VALLE_DWG_CORPUS_MIRROR`— y el encargo sólo mencionaba uno; arreglar uno solo habría dejado el E2E rojo exactamente igual. Los dos reciben ahora `token: ${{ secrets.CORPUS_TOKEN }}` y, delante, una comprobación que falla diciendo la verdad —qué secreto falta y cómo crearlo— en vez del «repository not found», que no explica nada. NO se usó `continue-on-error`: el corpus es una entrada real de los gates de DWG y saltárselo en silencio los dejaría verdes sin haber medido nada, que es el modo de fallo que este repositorio existe para impedir.\n\nDOS DESVIACIONES DEL ENCARGO, las dos medidas. (1) El encargo pedía `actions/checkout@v5`; se mantiene el SHA anclado `11d5960a…` porque `scripts/check-proprietary-governance.mjs` (líneas 251-263) compara cada uso de `actions/{checkout,setup-node,upload-artifact,cache}` contra un mapa de SHA revisados, y una etiqueta móvil habría hecho fallar `check:governance` con «usa un SHA no revisado: v5». Queda anotado en el propio YAML para que nadie lo «arregle» a v5 más adelante. (2) El secreto se pasa por `env:` en lugar de interpolarlo dentro del `if`: GitHub enmascara el valor en el log, pero meterlo en el texto del script lo somete a la expansión del shell y rompe con caracteres especiales.\n\nEFECTO SECUNDARIO ÚTIL: con esto empujado, el propio CI responde si el secreto existe. Si `CORPUS_TOKEN` está, el checkout pasa y el job sigue; si no está, la comprobación nueva falla con el mensaje que dice exactamente qué crear. No hizo falta listar secretos —cosa que esta sesión no puede hacer— para saberlo.",
+      "branch": "claude/happy-noether-ri6u8h",
+      "assistants": [
+        "Claude Code (Anthropic), sesión remota operada por el titular: diagnóstico del checkout sin token, arreglo en los dos jobs, comprobación previa con mensaje accionable, y verificación de los gates afectados"
+      ],
+      "authority": "Sergio Valle Zárate, en el encargo «Cerrar el despliegue de vallecad.com», que fija explícitamente los límites: no volver los repositorios públicos para arreglar el CI («ese es el bug, no la solución»), no usar `continue-on-error`, no relajar ningún gate, umbral, presupuesto ni trinquete, no encender DWG_IMPORT_FLAG ni DWG_EXPORT_FLAG, y no cambiar variables de Railway desde el repositorio. Ninguno se tocó. El secreto CORPUS_TOKEN lo crea el titular, no esta sesión.",
+      "firstPartyInputs": [
+        ".github/workflows/ci.yml (los dos pasos «Checkout del espejo del corpus DWG», líneas 312 y 789 antes del cambio)",
+        "scripts/check-proprietary-governance.mjs (mapa de SHA anclados de actions/*, líneas 251-263)",
+        "scripts/dwg/corpus-pin.json (pin del corpus y `credentialEnv: VALLE_DWG_CORPUS_TOKEN`)",
+        "Logs del CI: corrida 34946415712 (PR #211) y 34938921823 (main) — misma firma en el mismo paso"
+      ],
+      "externalSources": [
+        {
+          "location": "API de GitHub: metadatos del repositorio Sergiovalle3121/valle-design-dwg-conformance",
+          "terms": "API pública de consulta, sobre repositorio propio",
+          "fact": "`visibility: private` y `updated_at` 2026-09-15T06:29:53Z — entre el último CI verde (06:00) y el primer rojo (06:52). Es el dato que fecha la causa. No se copió código."
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna implementación copiada, traducida ni portada.",
+      "derivedAreas": [
+        ".github/workflows/ci.yml (token del corpus + comprobación previa en `quality-gates` y en `e2e-shard`)",
+        "docs/governance/assisted-development-log.json (esta entrada)"
+      ],
+      "fixtures": "Ninguno.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "NO HAY CÓDIGO HTTP DE https://vallecad.com EN ESTA ENTRADA, y no por omisión: la política de egreso de esta sesión bloquea el dominio (`curl` a vallecad.com y a api.vallecad.com devuelven 403 en el CONNECT del proxy, la misma clase de bloqueo que impidió construir las imágenes aquí). Por lo tanto los dos `curl` de aceptación y `npm run smoke:railway` NO se pudieron ejecutar desde esta sesión y el veredicto sobre la app viva lo tiene que dar el titular desde su máquina. Se dice en vez de afirmar que funciona.\n\nLo que SÍ se verificó sobre el árbol exacto del commit: `check:governance` en verde tras el cambio —es el gate que habría reventado con `@v5`, y se comprobó además con un control propio que los ocho usos de `actions/checkout` siguen anclados al SHA revisado— y `check:deploy` en verde (31 invariantes sobre los tres archivos). El YAML parsea y el orden de pasos es el correcto en los dos jobs (comprobación → checkout → exportar). Las dos listas `paths:` siguen siendo exactamente dos y byte a byte idénticas, que es lo que exige el gate de gobernanza.\n\nDel PR #211, ya medido antes de esta entrada: las DOS imágenes de producción construyen en CI (corrida 34948912736, «Imagen api construye de verdad» y «Imagen web construye de verdad», ambas success, la del web en 5 m 07 s), que era la prueba de fondo pendiente. La adopción de ESTA entrada es: crear el secreto CORPUS_TOKEN, ver el job en verde sobre el SHA exacto candidato, fusionar, y comprobar desde una máquina con salida a Internet que https://vallecad.com devuelve 200 y que https://api.vallecad.com/health/ready contesta `{\"status\":\"ready\"}`."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
