@@ -367,6 +367,9 @@ Orden de prioridad: primero lo que más nota sube (3D, peor nota), después tool
 | T14 | HECHA | Cuadros arquitectura con unidad correcta (D-01, D-02) |
 | T15 | YA ESTABA | DXF ya exporta muros con uniones y puertas |
 | T25 | PARCIAL | .ctb persisten en localStorage; .lin pendiente |
+| D-05 | HECHA | EXTRUDE por punto usa componente Y (permite negativo) |
+| D-07 | HECHA | Cabecera del kernel B-rep actualizada |
+| D-08 | HECHA | SHELL eliminado de la cinta |
 | CI fix | PARCIAL | next+sharp arreglados; multer requiere NestJS 12 |
 
 ---
