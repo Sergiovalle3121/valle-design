@@ -225,6 +225,86 @@ jobs:
       # una regresión de código, es que CI nunca vio el corpus. El repo
       # hermano es público hoy, así que el checkout no necesita credencial;
       # se fija al commit exacto del pin para no depender de su HEAD.
+      # ─────────────────────────────────────────────────────────────────────
+      # ¿COMPILA la imagen? — el hueco exacto que dejó pasar el fallo de
+      # Railway.
+      #
+      # `check:deploy` verifica 31 INVARIANTES DE FORMA sobre los tres
+      # archivos y las pasaba TODAS: usuario no root, NODE_ENV=production,
+      # HEALTHCHECK, `npm ci` contra el lockfile, cero secretos embebidos,
+      # digest inmutable de la base. Lo que nunca hizo fue construir una
+      # imagen. Y un archivo puede cumplir 31 invariantes de forma y no
+      # compilar: los dos Dockerfiles de producción murieron en Railway las
+      # dos veces, en el mismo `npm ci`, con este gate en verde. No es un
+      # fallo del validador —mide lo que dice medir— es que faltaba la única
+      # prueba que no admite interpretación: construir.
+      #
+      # Va ANTES del espejo del corpus DWG, y esa posición está pagada: el
+      # 2026-09-15 el repo hermano del corpus pasó a privado, su checkout
+      # empezó a fallar con «Repository not found» —el GITHUB_TOKEN por
+      # defecto no lee otro repositorio— y se llevó el job entero en `main` y
+      # en todo PR. Con estos pasos al final, el build de imagen NO llegaba a
+      # ejecutarse nunca: un fallo que no tiene nada que ver con la imagen
+      # tapaba justo la prueba que este job existe para dar. El build no
+      # necesita el corpus, ni Postgres, ni el artefacto de `api-dist`: sólo
+      # el contexto del repositorio, así que va detrás de los gates baratos y
+      # delante de todo lo que dependa de algo externo.
+      #
+      # Va en ESTE job y no en `deploy-readiness`, que es donde encajaría por
+      # nombre, porque «Contrato · Build · Test · Lint · Smoke» SÍ es un check
+      # requerido para fusionar (docs/governance/repository-protection-
+      # baseline.json) y `deploy-readiness` no lo es. Aquí el build bloquea el
+      # merge; allí sólo lo contaría después.
+      #
+      # Con caché de capas de Actions y un ámbito por imagen: mientras el
+      # lockfile no cambie se reutiliza la capa de `npm ci`, que es la cara.
+      # Sin caché, cada PR pagaría los dos árboles completos más un
+      # `next build`, y la cuota de runner de este repo ya se agotó una vez
+      # a mitad de ciclo (por eso el filtro `paths` de arriba existe).
+      - name: Preparar Buildx (caché de capas)
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Imagen api construye de verdad
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: false
+          load: false
+          provenance: false
+          cache-from: type=gha,scope=ci-api
+          cache-to: type=gha,mode=max,scope=ci-api
+
+      # Toda `NEXT_PUBLIC_*` se INCRUSTA en el bundle durante `next build`, así
+      # que sin ellas el build del web no termina: primero el `test -n` del
+      # Dockerfile y después `check:production-config`, que rechaza `*.invalid`,
+      # `*.test`, `*.example`, `*.localhost` y los subdominios de
+      # `example.com/.org/.net`. Por eso aquí no sirve un placeholder.
+      #
+      # SON VALORES DE CI, NO DE PRODUCCIÓN. `ci.valle-design.dev` no es un
+      # despliegue ni apunta a ninguno: existe para que el gate de marca tenga
+      # un valor real que validar y el build pueda llegar al final. La imagen
+      # que sale de aquí se construye y se descarta (`push: false`,
+      # `load: false`) — lo que se prueba es que COMPILA. Las URLs y correos
+      # reales viven en las variables de Railway y en release.yml, que es el
+      # único sitio que publica imágenes.
+      - name: Imagen web construye de verdad
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: false
+          load: false
+          provenance: false
+          cache-from: type=gha,scope=ci-web
+          cache-to: type=gha,mode=max,scope=ci-web
+          build-args: |
+            NEXT_PUBLIC_API_URL=https://api.ci.valle-design.dev
+            NEXT_PUBLIC_BRAND_WEBSITE_URL=https://ci.valle-design.dev
+            NEXT_PUBLIC_BRAND_SUPPORT_EMAIL=support@ci.valle-design.dev
+            NEXT_PUBLIC_BRAND_SALES_EMAIL=sales@ci.valle-design.dev
+            NEXT_PUBLIC_BRAND_PRIVACY_EMAIL=privacy@ci.valle-design.dev
+
       - name: Leer el pin del corpus DWG
         id: dwg-corpus-pin
         run: echo "commit=$(node -p "require('./scripts/dwg/corpus-pin.json').commit")" >> "$GITHUB_OUTPUT"
@@ -476,75 +556,6 @@ jobs:
             packages/design-sdk/dist
           if-no-files-found: error
           retention-days: 1
-
-      # ─────────────────────────────────────────────────────────────────────
-      # ¿COMPILA la imagen? — el hueco exacto que dejó pasar el fallo de
-      # Railway.
-      #
-      # `check:deploy` verifica 31 INVARIANTES DE FORMA sobre los tres
-      # archivos y las pasaba TODAS: usuario no root, NODE_ENV=production,
-      # HEALTHCHECK, `npm ci` contra el lockfile, cero secretos embebidos,
-      # digest inmutable de la base. Lo que nunca hizo fue construir una
-      # imagen. Y un archivo puede cumplir 31 invariantes de forma y no
-      # compilar: los dos Dockerfiles de producción murieron en Railway las
-      # dos veces, en el mismo `npm ci`, con este gate en verde. No es un
-      # fallo del validador —mide lo que dice medir— es que faltaba la única
-      # prueba que no admite interpretación: construir.
-      #
-      # Va en ESTE job y no en `deploy-readiness`, que es donde encajaría por
-      # nombre, porque «Contrato · Build · Test · Lint · Smoke» SÍ es un check
-      # requerido para fusionar (docs/governance/repository-protection-
-      # baseline.json) y `deploy-readiness` no lo es. Aquí el build bloquea el
-      # merge; allí sólo lo contaría después.
-      #
-      # Con caché de capas de Actions y un ámbito por imagen: mientras el
-      # lockfile no cambie se reutiliza la capa de `npm ci`, que es la cara.
-      # Sin caché, cada PR pagaría los dos árboles completos más un
-      # `next build`, y la cuota de runner de este repo ya se agotó una vez
-      # a mitad de ciclo (por eso el filtro `paths` de arriba existe).
-      - name: Preparar Buildx (caché de capas)
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
-
-      - name: Imagen api construye de verdad
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
-        with:
-          context: .
-          file: apps/api/Dockerfile
-          push: false
-          load: false
-          provenance: false
-          cache-from: type=gha,scope=ci-api
-          cache-to: type=gha,mode=max,scope=ci-api
-
-      # Toda `NEXT_PUBLIC_*` se INCRUSTA en el bundle durante `next build`, así
-      # que sin ellas el build del web no termina: primero el `test -n` del
-      # Dockerfile y después `check:production-config`, que rechaza `*.invalid`,
-      # `*.test`, `*.example`, `*.localhost` y los subdominios de
-      # `example.com/.org/.net`. Por eso aquí no sirve un placeholder.
-      #
-      # SON VALORES DE CI, NO DE PRODUCCIÓN. `ci.valle-design.dev` no es un
-      # despliegue ni apunta a ninguno: existe para que el gate de marca tenga
-      # un valor real que validar y el build pueda llegar al final. La imagen
-      # que sale de aquí se construye y se descarta (`push: false`,
-      # `load: false`) — lo que se prueba es que COMPILA. Las URLs y correos
-      # reales viven en las variables de Railway y en release.yml, que es el
-      # único sitio que publica imágenes.
-      - name: Imagen web construye de verdad
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
-        with:
-          context: .
-          file: apps/web/Dockerfile
-          push: false
-          load: false
-          provenance: false
-          cache-from: type=gha,scope=ci-web
-          cache-to: type=gha,mode=max,scope=ci-web
-          build-args: |
-            NEXT_PUBLIC_API_URL=https://api.ci.valle-design.dev
-            NEXT_PUBLIC_BRAND_WEBSITE_URL=https://ci.valle-design.dev
-            NEXT_PUBLIC_BRAND_SUPPORT_EMAIL=support@ci.valle-design.dev
-            NEXT_PUBLIC_BRAND_SALES_EMAIL=sales@ci.valle-design.dev
-            NEXT_PUBLIC_BRAND_PRIVACY_EMAIL=privacy@ci.valle-design.dev
 
   # ───────────────────────────────────────────────────────────────────────────
   # ¿Se puede DESPLEGAR esto?
