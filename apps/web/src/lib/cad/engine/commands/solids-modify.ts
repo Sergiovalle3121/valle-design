@@ -366,7 +366,7 @@ const sliceCommand: CadCommandDescriptor<PlaneState> = {
         const elevation = state.planeMode === "YZ" ? input.point.x
           : state.planeMode === "ZX" ? input.point.y
             : (input.point as { z?: number }).z ?? 0;
-        return planeStep({ ...state, planeElevation }, slicePrompt, "¿Qué lado se conserva?");
+        return planeStep({ ...state, planeElevation: elevation }, slicePrompt, "¿Qué lado se conserva?");
       }
       // Enter, text u otra entrada: no avanzar.
       return planeStep(state, slicePrompt, "¿Qué lado se conserva?");
@@ -463,7 +463,7 @@ const sectionCommand: CadCommandDescriptor<PlaneState> = {
         const elevation = state.planeMode === "YZ" ? input.point.x
           : state.planeMode === "ZX" ? input.point.y
             : (input.point as { z?: number }).z ?? 0;
-        return planeStep({ ...state, planeElevation }, sectionPrompt, "Pulse Intro para crear la región de sección");
+        return planeStep({ ...state, planeElevation: elevation }, sectionPrompt, "Pulse Intro para crear la región de sección");
       }
       return planeStep(state, sectionPrompt, "Pulse Intro para crear la región de sección");
     }
