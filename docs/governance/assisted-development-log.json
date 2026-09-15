@@ -3714,6 +3714,43 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "CI-CORPUS-TOKEN-OPCIONAL-REPO-PUBLICO-20260915",
+      "date": "2026-09-15",
+      "initiative": "El titular volvió PÚBLICOS los dos repositorios (valle-design y valle-design-dwg-conformance) hacia las 11:05 de México del 2026-09-15. Primero eligió esa opción en una sesión local de Claude Code, cuando se le preguntó cómo dar acceso del CI al corpus, y después lo confirmó: «ya son públicos mis repos». Con eso, la comprobación que añadió CI-CORPUS-TOKEN-REPO-PRIVADO-20260915 dejaba el CI rojo para siempre. Exigía el secreto CORPUS_TOKEN aunque el corpus ya se lee sin credencial (el commit del pin responde 200 de forma anónima), y la corrida 34987411058 de esta rama murió justo en ese paso. Se quitan las dos comprobaciones obligatorias, en `quality-gates` y en `e2e-shard`, y los dos checkout usan `token: ${{ secrets.CORPUS_TOKEN || github.token }}`. Con el corpus público basta el token por defecto; si el corpus vuelve a ser privado, crear CORPUS_TOKEN lo arregla sin tocar el YAML. NO se usa `continue-on-error` ni se salta el corpus: si falta el acceso, el checkout falla y el job con él. Se conserva el SHA anclado de actions/checkout que exige check:governance.",
+      "branch": "claude/happy-noether-ri6u8h",
+      "assistants": [
+        "Claude Code (Anthropic), sesión local operada por el titular: diagnóstico del paso que exigía el secreto, cambio en los dos jobs de ci.yml y esta entrada"
+      ],
+      "authority": "Sergio Valle Zárate. En la sesión local eligió «Volver público el corpus» ante la pregunta de cómo dar acceso al CI, y confirmó después que los dos repositorios son públicos. Esa decisión contradice el límite «no volver los repositorios públicos» que fijó en el encargo de CI-CORPUS-TOKEN-REPO-PRIVADO-20260915, y se le señala expresamente para que decida la política duradera. El cambio es compatible con las dos políticas: con repositorios privados basta crear CORPUS_TOKEN. Ningún gate, umbral, presupuesto ni trinquete se relajó.",
+      "firstPartyInputs": [
+        ".github/workflows/ci.yml (los dos pasos «El corpus exige token desde que el repo es privado» y los dos «Checkout del espejo del corpus DWG»)",
+        "Corrida 34987411058 de la PR #211 (fallo en «El corpus exige token desde que el repo es privado»)",
+        "scripts/dwg/corpus-pin.json (commit del pin 0688fb9c)"
+      ],
+      "externalSources": [
+        {
+          "location": "API de GitHub: metadatos de Sergiovalle3121/valle-design y Sergiovalle3121/valle-design-dwg-conformance",
+          "terms": "API pública de consulta, sobre repositorios propios",
+          "fact": "Los dos devuelven `visibility: public` el 2026-09-15 tras el cambio del titular, y el commit del pin del corpus responde 200 sin credencial. No se copió código."
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna implementación copiada, traducida ni portada.",
+      "derivedAreas": [
+        ".github/workflows/ci.yml (quality-gates y e2e-shard: sin la comprobación obligatoria del secreto; token del checkout con respaldo al token por defecto)",
+        "docs/governance/assisted-development-log.json (esta entrada)"
+      ],
+      "fixtures": "Ninguno.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Verificado antes del commit: los dos repositorios devuelven `visibility: public` por API, y el commit del pin del corpus (0688fb9c) responde 200 sin credencial, que es lo que hace el checkout con el token por defecto. Los dos checkout siguen anclados al SHA revisado 11d5960a. El veredicto del job lo da el CI de esta PR sobre el SHA exacto candidato."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

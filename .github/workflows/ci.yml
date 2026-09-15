@@ -309,31 +309,18 @@ jobs:
         id: dwg-corpus-pin
         run: echo "commit=$(node -p "require('./scripts/dwg/corpus-pin.json').commit")" >> "$GITHUB_OUTPUT"
 
-      # El repo hermano del corpus es PRIVADO desde el 2026-09-15 —cierre del
-      # P0-1, y está bien cerrado—. Un `actions/checkout` sin `token:` sólo
-      # funciona mientras el repositorio es público: el GITHUB_TOKEN por
-      # defecto alcanza únicamente el repo donde corre el workflow. Desde ese
-      # cambio, el paso de abajo devolvía «repository not found» —un mensaje
-      # que no dice la verdad— y se llevaba el job entero, aquí y en `main`.
+      # Visibilidad del repo hermano del corpus (2026-09-15): pasó a PRIVADO
+      # por la mañana y el titular lo volvió PÚBLICO hacia las 11:05 (hora de
+      # México) para que el CI lo lea sin credencial. Un `actions/checkout`
+      # con el GITHUB_TOKEN por defecto sólo alcanza otro repo si es público.
       #
-      # Esta comprobación falla ANTES y dice qué falta y cómo se arregla. NO
-      # es `continue-on-error` a propósito: el corpus es una entrada real de
-      # los gates de DWG, y saltárselo en silencio los dejaría verdes sin
-      # haber medido nada — justo el modo de fallo que este repo existe para
-      # impedir.
-      #
-      # El secreto va por `env:` y no interpolado dentro del `if`: GitHub
-      # enmascara el valor en el log, pero meterlo en el texto del script lo
-      # somete a la expansión del shell y rompe con caracteres especiales.
-      - name: El corpus exige token desde que el repo es privado
-        env:
-          CORPUS_TOKEN: ${{ secrets.CORPUS_TOKEN }}
-        run: |
-          if [ -z "$CORPUS_TOKEN" ]; then
-            echo "::error::Falta el secreto CORPUS_TOKEN. El repo hermano valle-design-dwg-conformance es privado desde 2026-09-15 y el GITHUB_TOKEN por defecto no lo alcanza. Crear un fine-grained token de solo lectura (Repository access: only valle-design-dwg-conformance; Permissions: Contents Read-only) y guardarlo como CORPUS_TOKEN en Settings -> Secrets and variables -> Actions de este repositorio."
-            exit 1
-          fi
-
+      # Por eso el checkout usa `CORPUS_TOKEN` si existe y, si no, el token
+      # por defecto. Si alguien vuelve a hacer privado el corpus, este paso
+      # falla con «repository not found»; el arreglo es un fine-grained token
+      # de sólo lectura (Contents: Read-only, sólo valle-design-dwg-conformance)
+      # guardado como CORPUS_TOKEN en los secretos de Actions. NO es
+      # `continue-on-error`: el corpus es una entrada real de los gates de DWG,
+      # y saltárselo en silencio los dejaría verdes sin haber medido nada.
       - name: Checkout del espejo del corpus DWG (repo hermano, sólo lectura)
         # SHA anclado a propósito, NO `@v5`: `check:governance` compara este
         # valor contra su mapa de SHA revisados y una etiqueta móvil lo rompe.
@@ -341,7 +328,7 @@ jobs:
         with:
           repository: Sergiovalle3121/valle-design-dwg-conformance
           ref: ${{ steps.dwg-corpus-pin.outputs.commit }}
-          token: ${{ secrets.CORPUS_TOKEN }}
+          token: ${{ secrets.CORPUS_TOKEN || github.token }}
           path: .dwg-corpus-mirror
 
       - name: Exportar VALLE_DWG_CORPUS_MIRROR
@@ -814,18 +801,9 @@ jobs:
         id: dwg-corpus-pin
         run: echo "commit=$(node -p "require('./scripts/dwg/corpus-pin.json').commit")" >> "$GITHUB_OUTPUT"
 
-      # Mismo motivo que en `quality-gates`: el repo hermano es privado y el
-      # GITHUB_TOKEN por defecto no lo alcanza. Este job es OTRO runner, así
-      # que necesita su propia comprobación y su propio token.
-      - name: El corpus exige token desde que el repo es privado
-        env:
-          CORPUS_TOKEN: ${{ secrets.CORPUS_TOKEN }}
-        run: |
-          if [ -z "$CORPUS_TOKEN" ]; then
-            echo "::error::Falta el secreto CORPUS_TOKEN (ver el mismo paso en quality-gates: fine-grained token de solo lectura sobre valle-design-dwg-conformance)."
-            exit 1
-          fi
-
+      # Mismo criterio que en `quality-gates`: el corpus es público y el token
+      # por defecto basta; si vuelve a ser privado, CORPUS_TOKEN lo cubre. Este
+      # job es OTRO runner y no hereda el checkout de aquél.
       - name: Checkout del espejo del corpus DWG (repo hermano, sólo lectura)
         # SHA anclado a propósito, NO `@v5`: `check:governance` compara este
         # valor contra su mapa de SHA revisados y una etiqueta móvil lo rompe.
@@ -833,7 +811,7 @@ jobs:
         with:
           repository: Sergiovalle3121/valle-design-dwg-conformance
           ref: ${{ steps.dwg-corpus-pin.outputs.commit }}
-          token: ${{ secrets.CORPUS_TOKEN }}
+          token: ${{ secrets.CORPUS_TOKEN || github.token }}
           path: .dwg-corpus-mirror
 
       - name: Exportar VALLE_DWG_CORPUS_MIRROR
