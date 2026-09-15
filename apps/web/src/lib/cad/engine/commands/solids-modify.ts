@@ -55,6 +55,7 @@ import type { CadEntityCommand } from "../../entity-commands";
 import { sectionLoopsOfSolid } from "../../solid3d-section";
 import {
   CAD_ACCEPT_DISTANCE,
+  CAD_ACCEPT_EDGE_PICK,
   CAD_ACCEPT_ENTITY_PICK,
   CAD_ACCEPT_KEYWORD,
   CAD_ACCEPT_POINT,
@@ -166,7 +167,10 @@ function booleanDescriptor(
 // FILLETEDGE / CHAMFEREDGE
 // ---------------------------------------------------------------------------
 
-type EdgeFeatureState = SolidSelectionState;
+type EdgeFeatureState = SolidSelectionState & {
+  /** Aristas designadas por el usuario. Vacío = usar preferredFeatureEdges. */
+  pickedEdges: { entityId: string; edge: number }[];
+};
 
 function edgeFeatureDescriptor(
   name: string,
@@ -176,10 +180,13 @@ function edgeFeatureDescriptor(
   const prompt = `Designe los sólidos cuyas aristas ${op === "fillet" ? "redondear" : "achaflanar"}`;
   const step = (state: EdgeFeatureState): CadCommandStep<EdgeFeatureState> => {
     if (state.selection.length === 0) return designate(state, prompt);
+    const edgeInfo = state.pickedEdges.length > 0
+      ? ` (${state.pickedEdges.length} arista(s) designada(s))`
+      : " (se aplica al juego de aristas compatibles)";
     return {
       state,
-      prompt: { message: `Precise ${magnitude} (se aplica al juego de aristas compatibles)`, options: [] },
-      accepts: CAD_ACCEPT_DISTANCE | CAD_ACCEPT_POINT,
+      prompt: { message: `Precise ${magnitude}${edgeInfo}`, options: [] },
+      accepts: CAD_ACCEPT_DISTANCE | CAD_ACCEPT_POINT | CAD_ACCEPT_EDGE_PICK,
     };
   };
   return {
@@ -191,12 +198,16 @@ function edgeFeatureDescriptor(
     repeatable: true,
     mutates: true,
     cursor: "pick",
-    begin: (context) => step({ selection: context.selection }),
+    begin: (context) => step({ selection: context.selection, pickedEdges: [] }),
     step: (state, input, context) => {
       if (input.kind === "cancel") return solidCancelled(state);
       if (input.kind === "selection") return step({ ...state, selection: input.entityIds });
       if (input.kind === "entityPick")
         return step({ ...state, selection: [...new Set([...state.selection, input.entityId])] });
+      if (input.kind === "edgePick") {
+        // Acumular la arista designada. El índice se mapea al cuerpo evaluado.
+        return step({ ...state, pickedEdges: [...state.pickedEdges, { entityId: input.entityId, edge: input.edge }] });
+      }
       if (input.kind !== "distance") {
         if (input.kind === "enter" && state.selection.length === 0) return solidMessage(state, NO_SOLIDS);
         return step(state);
@@ -210,10 +221,15 @@ function edgeFeatureDescriptor(
       for (const source of solids) {
         const nodes: CadSolidNode[] = [...source.nodes];
         const rootId = `${op}:${nodes.length}`;
+        // Si el usuario designó aristas, usarlas; si no, dejar que
+        // preferredFeatureEdges elija (edges: [] = auto-selección).
+        const pickedForSource = state.pickedEdges
+          .filter((e) => e.entityId === source.id)
+          .map((e) => e.edge);
         nodes.push(
           op === "fillet"
-            ? { id: rootId, op: "fillet", operand: source.root, edges: [], radius: size, segments: 8 }
-            : { id: rootId, op: "chamfer", operand: source.root, edges: [], distance: size },
+            ? { id: rootId, op: "fillet", operand: source.root, edges: pickedForSource, radius: size, segments: 8 }
+            : { id: rootId, op: "chamfer", operand: source.root, edges: pickedForSource, distance: size },
         );
         const next = {
           ...makeSolidEntity(source.id, nodes, rootId, source.layer, source.name),
