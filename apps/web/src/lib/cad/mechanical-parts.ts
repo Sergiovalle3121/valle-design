@@ -479,23 +479,30 @@ export function cadMechanicalSteelShape(kind: CadSteelShapeKind, values: Record<
 export const CAD_MECHANICAL_BLOCK_PREFIX = "MECH-";
 const DESCRIPTION_SEPARATOR = " · ";
 
-/** La definición de bloque: base en el origen, geometría en capa 0, denominación y norma en `description`. */
+/** La definición de bloque: base en el origen, geometría en capa 0, denominación, norma y área en `description`. */
 export function cadMechanicalBlockDefinition(part: CadMechanicalPart): CadBlockDefinition {
+  const areaPart = part.areaMm2 ? `${DESCRIPTION_SEPARATOR}${part.areaMm2}` : "";
   return {
     id: part.id,
     name: part.id,
     basePoint: { x: 0, y: 0, z: 0 },
     entities: part.entities,
-    description: `${part.name}${DESCRIPTION_SEPARATOR}${part.standard}`,
+    description: `${part.name}${DESCRIPTION_SEPARATOR}${part.standard}${areaPart}`,
     keywords: ["MECH", part.family],
   };
 }
 
-/** Denominación y norma de un bloque `MECH-…`, leídas de su `description`; `null` si no es normalizado. */
-export function cadMechanicalPartOf(block: Pick<CadBlockDefinition, "id" | "name" | "description"> | undefined): { name: string; standard: string } | null {
+/** Denominación, norma y área de un bloque `MECH-…`, leídas de su `description`; `null` si no es normalizado. */
+export function cadMechanicalPartOf(block: Pick<CadBlockDefinition, "id" | "name" | "description"> | undefined): { name: string; standard: string; areaMm2: number | null } | null {
   if (!block || !block.id.startsWith(CAD_MECHANICAL_BLOCK_PREFIX)) return null;
   const description = block.description ?? "";
   const separator = description.indexOf(DESCRIPTION_SEPARATOR);
-  if (separator < 0) return { name: description || block.name || block.id, standard: "—" };
-  return { name: description.slice(0, separator), standard: description.slice(separator + DESCRIPTION_SEPARATOR.length) || "—" };
+  if (separator < 0) return { name: description || block.name || block.id, standard: "—", areaMm2: null };
+  const rest = description.slice(separator + DESCRIPTION_SEPARATOR.length);
+  const secondSep = rest.indexOf(DESCRIPTION_SEPARATOR);
+  if (secondSep < 0) return { name: description.slice(0, separator), standard: rest || "—", areaMm2: null };
+  const standard = rest.slice(0, secondSep);
+  const areaStr = rest.slice(secondSep + DESCRIPTION_SEPARATOR.length);
+  const area = parseFloat(areaStr);
+  return { name: description.slice(0, separator), standard: standard || "—", areaMm2: Number.isFinite(area) ? area : null };
 }

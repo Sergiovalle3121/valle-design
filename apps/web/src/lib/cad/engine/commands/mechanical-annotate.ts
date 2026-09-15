@@ -198,8 +198,8 @@ function mismasCeldas(a: BomTable, b: BomTable): boolean {
  * columnas, y el bolsillo de `context` con sus otras claves. Reconstruir sin
  * esto sería devolver una tabla ajena en el sitio de la suya.
  */
-function relistar(table: BomTable, bom: ReturnType<typeof buildCadMechanicalBom>, newEntityId: () => string): BomTable {
-  const rebuilt = buildCadMechanicalBomTable(bom, { x: table.insertion.x, y: table.insertion.y }, table.layer, newEntityId, table.id);
+function relistar(table: BomTable, bom: ReturnType<typeof buildCadMechanicalBom>, newEntityId: () => string, blocks?: readonly { id: string; name: string; description?: string }[]): BomTable {
+  const rebuilt = buildCadMechanicalBomTable(bom, { x: table.insertion.x, y: table.insertion.y }, table.layer, newEntityId, table.id, blocks);
   return {
     ...rebuilt,
     ...(table.rotation === undefined ? {} : { rotation: table.rotation }),
@@ -218,7 +218,7 @@ function actualizarBom(state: Record<string, never>, context: CadCommandContext)
   const bom = buildCadMechanicalBom(view);
   const units = bom.rows.reduce((sum, row) => sum + row.count, 0);
   const ahora = `${bom.rows.length} posición(es) y ${units} unidad(es)`;
-  const relistadas = tables.map((table) => ({ antes: table, ahora: relistar(table, bom, context.newEntityId) }));
+  const relistadas = tables.map((table) => ({ antes: table, ahora: relistar(table, bom, context.newEntityId, view.blocks) }));
   const cambiadas = relistadas.filter((pareja) => !mismasCeldas(pareja.antes, pareja.ahora));
   if (cambiadas.length === 0)
     return cadCommandRefused(state, `BOM Actualizar: la lista ya estaba al día (${ahora}); no se ha escrito nada.`);
@@ -272,7 +272,7 @@ const bomCommand: CadCommandDescriptor<Record<string, never>> = {
     const bom = buildCadMechanicalBom(view);
     if (bom.rows.length === 0)
       return cadCommandRefused(state, "El dibujo no tiene normalizados (bloques MECH-) ni globos: no hay lista de materiales que insertar.");
-    const table = buildCadMechanicalBomTable(bom, input.point, context.activeLayer, context.newEntityId);
+    const table = buildCadMechanicalBomTable(bom, input.point, context.activeLayer, context.newEntityId, undefined, view.blocks);
     const units = bom.rows.reduce((sum, row) => sum + row.count, 0);
     const written = cadCommandWrites(state, [{ type: "insert", entity: table }], "BOM");
     return {
