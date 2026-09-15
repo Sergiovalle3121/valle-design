@@ -24,6 +24,7 @@ import type { CadBimSchedule, CadWallQuantityRow, CadOpeningQuantityRow, CadRoom
 import type { CadDeviceTag } from "../electrical/device-tags";
 import type { CadWireConnection, CadWireEnd } from "../electrical/wire-connections";
 import { cadMillimetresPerUnit, cadToMillimetres } from "../engine/commands/architecture-support";
+import { cadRenovationPhase } from "../standards/mexican-layers";
 
 type CadTableEntity = Extract<CadNativeEntity, { type: "table" }>;
 
@@ -34,12 +35,13 @@ function fmt(value: number, decimals = 2): string {
   return value.toFixed(decimals);
 }
 
-const WALL_HEADERS = ["Capa", "Espesor (mm)", "Cant.", "Longitud (m)", "Área paramento (m²)", "Volumen (m³)"];
+const WALL_HEADERS = ["Capa", "Espesor (mm)", "Cant.", "Longitud (m)", "Área paramento (m²)", "Volumen (m³)", "Fase"];
 const OPENING_HEADERS = ["Marca", "Tipo", "Ancho (mm)", "Alto (mm)", "Antepecho (mm)", "Cant."];
 const ROOM_HEADERS = ["Local", "Uso", "Área a ejes (m²)", "Área útil (m²)", "Área construida (m²)", "Perímetro (m)"];
 
 function wallRowValues(row: CadWallQuantityRow, unit?: string): string[] {
   const mm = cadMillimetresPerUnit(unit);
+  const phase = cadRenovationPhase(row.layer);
   return [
     row.layer,
     fmt(cadToMillimetres(row.thickness, unit), 0),
@@ -47,6 +49,7 @@ function wallRowValues(row: CadWallQuantityRow, unit?: string): string[] {
     fmt((row.length * mm) / 1000, 3),
     fmt((row.faceArea * mm * mm) / 1_000_000, 3),
     fmt((row.volume * mm * mm * mm) / 1_000_000_000, 4),
+    phase === "existente" ? "Existente" : phase === "demoler" ? "Demoler" : phase === "nuevo" ? "Nuevo" : "—",
   ];
 }
 
