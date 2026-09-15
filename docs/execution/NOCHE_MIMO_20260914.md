@@ -462,3 +462,7 @@ Orden de prioridad: primero lo que más nota sube (3D, peor nota), después tool
 - Código reutilizado: la ortográfica ya estaba en `view-controller.ts`, `system-variables.ts` ya tenía el mecanismo
 - Commits: `445352d8`
 - Gates: `typecheck` verde, `command-manifest` 297 comandos, `view-3d.spec.ts` 131 aserciones
+
+---
+
+**Bitácora cerrada.** Continúa en `docs/execution/CAMPANA_MIMO_20260915.md`.
