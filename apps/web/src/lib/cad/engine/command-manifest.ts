@@ -1,8 +1,8 @@
 /**
- * METADATOS de los 299 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 300 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
- * 111 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
+ * 112 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
  * `npm run check:cad`— falla si lo committeado deja de coincidir con lo que los
  * descriptores dicen hoy. Regla 4 de la campaña de cimientos: ninguna cifra vive
  * en dos lugares, y un comando nuevo no puede entrar sin aparecer aquí.
@@ -124,6 +124,7 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "BLOQUEDINDEF", aliases: ["PARAMETRODEF", "DYNPARAM"], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/dynamic-block" },
   { name: "AECIRCUIT", aliases: ["CIRCUITO"], kind: "modify", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "none", module: "commands/electrical-circuit" },
   { name: "AECHECK", aliases: ["REVISARNOM", "NOMCHECK"], kind: "inquiry", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/electrical-circuit" },
+  { name: "AESYMBOL", aliases: ["SIMBOLOESQUEMA"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/electrical-schematic-symbol" },
   { name: "AETAG", aliases: ["ETIQUETA", "AECOMPONENT"], kind: "modify", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/electrical-tag" },
   { name: "AETAGLIST", aliases: ["LISTAETIQUETAS"], kind: "inquiry", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/electrical-tag" },
   { name: "AEWIRE", aliases: ["CONDUCTOR", "WIRENUMBER"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/electrical-wire" },

@@ -88,6 +88,7 @@ export const CAD_COMMAND_MODULE_LOADERS = {
   "commands/drawing-fields": () => import("./commands/drawing-fields"),
   "commands/dynamic-block": () => import("./commands/dynamic-block"),
   "commands/electrical-circuit": () => import("./commands/electrical-circuit"),
+  "commands/electrical-schematic-symbol": () => import("./commands/electrical-schematic-symbol"),
   "commands/electrical-tag": () => import("./commands/electrical-tag"),
   "commands/electrical-wire": () => import("./commands/electrical-wire"),
   "commands/etransmit-commands": () => import("./commands/etransmit-commands"),
