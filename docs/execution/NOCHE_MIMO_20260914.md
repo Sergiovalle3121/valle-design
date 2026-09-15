@@ -389,6 +389,7 @@ Orden de prioridad: primero lo que más nota sube (3D, peor nota), después tool
 | D5 (MEP/Plant) | HECHA | Análisis de choques optimizado (bucle exterior sobre rutas filtradas) |
 | D-6 (calidad) | HECHA | Ciclo A de importación eliminado |
 | D-4 (comp3) | HECHA | begin() con try/catch como step() |
+| D7 (MEP/Plant) | HECHA | Ruta sin diámetro declarada en sinDiametro |
 | CI fix | PARCIAL | next+sharp arreglados; multer requiere NestJS 12 |
 
 ---
