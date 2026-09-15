@@ -572,17 +572,9 @@ export function CadCollaborationPalette({
             placeholder="Assign to"
             className={input}
           />
-          <select
-            data-testid="cad-review-markup"
-            disabled={reviewReadOnly}
-            value={markup}
-            onChange={(event) => setMarkup(event.target.value as typeof markup)}
-            className={input}
-          >
-            <option value="cloud">Cloud</option>
-            <option value="arrow">Arrow</option>
-            <option value="note">Note</option>
-          </select>
+          {/* D5: selector de markup oculto — Cloud/Arrow/Note no dibujan nada.
+              Fix-or-hide: se elimina el selector hasta que las opciones generen
+              geometría real. El valor por defecto "note" se mantiene como metadata. */}
           <button
             data-testid="cad-review-add"
             disabled={reviewReadOnly || !commentBody.trim()}
