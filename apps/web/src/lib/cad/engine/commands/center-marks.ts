@@ -57,13 +57,15 @@ function markStep(state: MarkState): CadCommandStep<MarkState> {
 function markDone(
   commands: CadEntityCommand[],
   label: string,
+  message?: string,
 ): CadCommandStep<MarkState> {
   return {
     state: EMPTY_MARK,
     prompt: { message: "", options: [] },
     accepts: 0,
-    result:
-      commands.length > 0
+    result: message
+      ? { kind: "message", text: message }
+      : commands.length > 0
         ? { kind: "document", commands, label }
         : { kind: "none" },
   };
@@ -137,25 +139,36 @@ const centerMarkCommand: CadCommandDescriptor<MarkState> = {
   step: (state, input, context) => {
     if (input.kind === "cancel") return markDone([], "CENTERMARK");
 
-    if (input.kind === "entityPick" && !state.pick) {
-      const entity = context.entity?.(input.entityId);
-      if (!entity || (entity.type !== "circle" && entity.type !== "arc"))
-        return markDone([], "CENTERMARK: sólo admite CIRCLE y ARC.");
-      return markStep({ ...state, pick: input.entityId });
-    }
-
-    if (input.kind === "distance" && state.pick)
+    if (input.kind === "distance" && !state.pick)
       return markStep({ ...state, overshoot: Math.abs(input.value) });
 
-    if ((input.kind === "enter" || input.kind === "distance") && state.pick) {
-      const entity = context.entity?.(state.pick);
-      if (!entity) return markDone([], "CENTERMARK: la entidad ya no existe.");
+    if (input.kind === "entityPick") {
+      const entity = context.entity?.(input.entityId);
+      if (!entity || (entity.type !== "circle" && entity.type !== "arc"))
+        return markDone([], "CENTERMARK", "CENTERMARK: sólo admite CIRCLE y ARC.");
+      // Completar inmediatamente con el overshoot actual (por defecto 3).
       const commands = cadCenterMarkEntities(
         entity,
         state.overshoot,
         CENTER_LAYER,
         context.newEntityId,
       );
+      if (commands.length === 0)
+        return markDone([], "CENTERMARK", "CENTERMARK: no se pudo generar la marca de centro.");
+      return markDone(commands, "CENTERMARK");
+    }
+
+    if (input.kind === "enter" && state.pick) {
+      const entity = context.entity?.(state.pick);
+      if (!entity) return markDone([], "CENTERMARK", "CENTERMARK: la entidad ya no existe.");
+      const commands = cadCenterMarkEntities(
+        entity,
+        state.overshoot,
+        CENTER_LAYER,
+        context.newEntityId,
+      );
+      if (commands.length === 0)
+        return markDone([], "CENTERMARK", "CENTERMARK: no se pudo generar la marca de centro.");
       return markDone(commands, "CENTERMARK");
     }
 
