@@ -208,19 +208,22 @@ function rotate3dCommands(
 
   const base = state.base!;
   let axis: CadPoint3;
+  let center: CadPoint3;
   if (state.worldAxis) {
     axis = state.worldAxis === "x"
       ? { x: 1, y: 0, z: 0 }
       : state.worldAxis === "y"
         ? { x: 0, y: 1, z: 0 }
         : { x: 0, y: 0, z: 1 };
+    center = base; // Con ejes de mundo, el punto base es el centro.
   } else {
     const p1 = state.axisPoint1!;
     const p2 = state.axisPoint2!;
     axis = { x: p2.x - p1.x, y: p2.y - p1.y, z: p2.z - p1.z };
+    center = p1; // Con eje por dos puntos, el primer punto es el centro.
   }
 
-  const rot = rotationMatrix3x4(base, axis, angleRad);
+  const rot = rotationMatrix3x4(center, axis, angleRad);
 
   const commands: CadEntityCommand[] = [];
   for (const entityId of state.selection) {
