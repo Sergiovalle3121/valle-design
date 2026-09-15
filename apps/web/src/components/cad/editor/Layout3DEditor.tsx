@@ -14644,7 +14644,7 @@ export default function Layout3DEditor({
                 dynamicInput={{
                   kind: dynamicInputKind,
                   anchor: dynamicAnchor,
-                  documentUnit: data?.footprint.unit === "m" ? "m" : "mm",
+                  documentUnit: (["mm", "cm", "m", "in", "ft"].includes(data?.footprint.unit) ? data?.footprint.unit : "mm") as "mm" | "cm" | "m" | "in" | "ft",
                   locale: "es-MX",
                   defaults: dynamicInputDefaults,
                   onCommit: commitDynamicInput,

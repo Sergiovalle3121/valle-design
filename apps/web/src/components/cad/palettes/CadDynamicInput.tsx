@@ -11,7 +11,7 @@ import { DEFAULT_REGION_PROFILE } from "@/lib/cad/region";
 interface CadDynamicInputProps {
   kind: "point" | "radius" | "offset";
   anchor: { x: number; y: number } | null;
-  documentUnit: "mm" | "m";
+  documentUnit: "mm" | "cm" | "m" | "in" | "ft";
   locale?: string;
   defaults?: CadDynamicInputContext["defaults"];
   onCommit: (result: Extract<CadDynamicInputResult, { ok: true }>) => void;
