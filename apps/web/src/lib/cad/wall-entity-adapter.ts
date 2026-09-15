@@ -288,13 +288,11 @@ const wallAdapter: CadEntityAdapter<WallEntity> = {
       { kind: "endpoint", point: { x: entity.start.x, y: entity.start.y }, label: "Inicio del eje" },
       { kind: "endpoint", point: { x: entity.end.x, y: entity.end.y }, label: "Fin del eje" },
       { kind: "midpoint", point: wallMidpoint(entity), label: "Punto medio del eje" },
-      // Las esquinas del contorno son a lo que se engancha quien acota el
-      // muro terminado: la cara, no el eje.
-      ...(wallFootprint(entity) ?? []).map((corner) => ({
-        kind: "endpoint" as const,
-        point: corner,
-        label: "Esquina del muro",
-      })),
+      // Las esquinas del contorno unido (wallJoinedFootprint) son las
+      // correctas, pero requieren el documento para calcular las uniones L/T.
+      // Sin documento, wallFootprint devuelve el contorno BASE que no coincide
+      // con lo dibujado en pantalla (D-03: ±125 mm de error en esquinas).
+      // Se ocultan hasta que CadSnapProvider acepte document?: fix-or-hide.
     ],
   },
   properties: {
