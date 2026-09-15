@@ -393,6 +393,7 @@ Orden de prioridad: primero lo que más nota sube (3D, peor nota), después tool
 | D5 (colab) | HECHA | Selector de markup Cloud/Arrow/Note oculto (fix-or-hide) |
 | D-1 (raster) | HECHA | Campos de IMAGE readonly en paleta de propiedades |
 | D4 (MEP/Plant) | HECHA | Conducciones que se tocan no exentas en toda su longitud |
+| D3 (MEP/Plant) | HECHA | Isométrico deduce accesorios de todas las rutas |
 | CI fix | PARCIAL | next+sharp arreglados; multer requiere NestJS 12 |
 
 ---
