@@ -356,7 +356,9 @@ Orden de prioridad: primero lo que más nota sube (3D, peor nota), después tool
 | T3 | YA ESTABA | horizontalProfileFromEntity ya rechaza inclinados |
 | T4 | BLOQUEADA | Requiere edge-ray.ts + solid-edge-ref.ts (varios días) |
 | T5 | HECHA | Cuadros arquitectura con unidad correcta (D-01, D-02) |
-| T6–T25 | EN COLA | |
+| T6 | HECHA | Alzados verdaderos (unlockPolarAngleForCommand) |
+| T7 | PARCIAL | VISUALSTYLES: tabla ampliada a 7 estilos; render pendiente |
+| T8–T25 | EN COLA | |
 
 ---
 
