@@ -299,10 +299,6 @@ export interface CadSolidPlacement {
 
   /** Fila 0, columna 2: contribución de Z a X. */
   m02?: number;
-  /** Fila 1, columna 0: contribución de X a Y. */
-  m10?: number;
-  /** Fila 1, columna 1: contribución de Y a Y. */
-  m11?: number;
   /** Fila 1, columna 2: contribución de Z a Y. */
   m12?: number;
   /** Fila 2, columna 0: contribución de X a Z. */

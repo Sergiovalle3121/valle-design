@@ -95,8 +95,8 @@ function move3dCommands(
         a: current.a ?? 1, b: current.b ?? 0, c: current.c ?? 0,
         d: current.d ?? 1, e: current.e ?? 0, f: current.f ?? 0,
         dz: current.dz ?? 0,
-        // Componer la traslación3D.
-        m02: current.m02 ?? 0, m10: current.m10 ?? 0, m11: current.m11 ?? 1, m12: current.m12 ?? 0,
+        // Componer la traslación 3D.
+        m02: current.m02 ?? 0, m12: current.m12 ?? 0,
         m20: current.m20 ?? 0, m21: current.m21 ?? 0, m22: current.m22 ?? 1,
         tx: (current.tx ?? 0) + dx,
         ty: (current.ty ?? 0) + dy,

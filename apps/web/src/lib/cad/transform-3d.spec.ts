@@ -97,19 +97,11 @@ function box(
   const expectedVolume = w * d * h;
 
   // Giro 90° alrededor de X: (x,y,z) → (x, -z, y)
-  // Matriz 3×4:
-  //   [1, 0, 0, 0]
-  //   [0, 0,-1, 0]
-  //   [0, 1, 0, 0]
-  // En la notación actual del esquema:
-  //   a=1, b=0, c=0, d=0 (fila XY de la afín 2D)
-  //   Nuevos campos para la3ª fila y columna:
-  //   m02=0, m10=0, m11=0, m12=-1, m20=0, m21=1, m22=0
-  //   tx=0, ty=0, tz=0
   const placed = box("rotX", w, d, h, {
     a: 1, b: 0, c: 0, d: 0, e: 0, f: 0,
-    // Nuevos campos3D:
-    m02: 0, m10: 0, m11: 0, m12: -1,
+    // Nuevos campos 3D: b=0 (row1,col0 from rotation), d=0 (row1,col1)
+    // m02=0, m12=-1 (row1,col2), m20=0, m21=1 (row2,col1), m22=0
+    m02: 0, m12: -1,
     m20: 0, m21: 1, m22: 0,
     tx: 0, ty: 0, tz: 0,
   });
@@ -135,7 +127,7 @@ function box(
 
   const placed = box("mirror", w, d, h, {
     a: 1, b: 0, c: 0, d: 1, e: 0, f: 0,
-    m02: 0, m10: 0, m11: 1, m12: 0,
+    m02: 0, m12: 0,
     m20: 0, m21: 0, m22: -1,
     tx: 0, ty: 0, tz: 0,
   });
@@ -173,7 +165,7 @@ function box(
   clearSolidCache();
   const original = box("rt", 100, 100, 100, {
     a: 1, b: 0, c: 0, d: 0, e: 0, f: 0,
-    m02: 0, m10: 0, m11: 0, m12: -1,
+    m02: 0, m12: -1,
     m20: 0, m21: 1, m22: 0,
     tx: 0, ty: 0, tz: 0,
   });
@@ -212,6 +204,42 @@ function box(
     const mass = solid3dMassProperties(reloaded);
     check("round-trip3D: volumen conservado tras reload", Math.abs(mass.volume - 100 * 100 * 100) < 1, `volumen=${mass.volume}`);
   }
+}
+
+// ---------------------------------------------------------------------------
+// 6. 3DROTATE: giro de 90° alrededor de Z por el centro de la caja
+//    Sólo campos3D: la afín2D queda en identidad.
+// ---------------------------------------------------------------------------
+{
+  clearSolidCache();
+  const s = 200;
+  // Caja sin colocación2D: perfil de 0..200 × 0..200, altura200
+  const placed = box("rotZ", s, s, s);
+  const massBefore = solid3dMassProperties(placed);
+  const expectedVolume = s * s * s;
+
+  // Giro90° alrededor de Z por el centro de la caja (100,100,100):
+  // Rodrigues u=(0,0,1), angle=π/2:   r00=0, r01=-1, r10=1, r11=0
+  // Centro (100,100,100): tx = 100-(0*100+(-1)*100+0*100) = 200
+  //                       ty = 100-(1*100+0*100+0*100) = 0
+  //                       tz = 100-(0+0+1*100) = 0
+  const cx = 100, cy = 100, cz = 100;
+  const placedRotated = box("rotZr", s, s, s, {
+    a: 0, b: 1, c: -1, d: 0, e: 0, f: 0, dz: 0,
+    m02: 0, m12: 0,
+    m20: 0, m21: 0, m22: 1,
+    tx: cx - (0 * cx + (-1) * cy + 0 * cz),
+    ty: cy - (1 * cx + 0 * cy + 0 * cz),
+    tz: cz - (0 * cx + 0 * cy + 1 * cz),
+  });
+  const massAfter = solid3dMassProperties(placedRotated);
+
+  check("3DROTATE Z 90°: volumen conservado", Math.abs(massAfter.volume - expectedVolume) < 1, `volumen=${massAfter.volume}`);
+  // Centroide original: (100,100,100). Después de giro90° Z alrededor de (100,100,100):
+  // el centro está en el eje de giro → no se mueve.
+  check("3DROTATE Z 90°: centroide X ≈ 100", Math.abs(massAfter.centroid.x - 100) < 1, `x=${massAfter.centroid.x}`);
+  check("3DROTATE Z 90°: centroide Y ≈ 100", Math.abs(massAfter.centroid.y - 100) < 1, `y=${massAfter.centroid.y}`);
+  check("3DROTATE Z 90°: centroide Z ≈ 100", Math.abs(massAfter.centroid.z - 100) < 1, `z=${massAfter.centroid.z}`);
 }
 
 report("transform-3d");

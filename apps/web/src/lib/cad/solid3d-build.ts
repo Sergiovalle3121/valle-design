@@ -99,8 +99,6 @@ const identityPlacement: Required<CadSolidPlacement> = {
   f: 0,
   dz: 0,
   m02: 0,
-  m10: 0,
-  m11: 1,
   m12: 0,
   m20: 0,
   m21: 0,
@@ -114,7 +112,7 @@ const identityPlacement: Required<CadSolidPlacement> = {
 export function resolveSolidPlacement(
   placement?: CadSolidPlacement,
 ): Required<CadSolidPlacement> {
-  if (!placement) return { ...identityPlacement, m02: 0, m10: 0, m11: 1, m12: 0, m20: 0, m21: 0, m22: 1, tx: 0, ty: 0, tz: 0 };
+  if (!placement) return { ...identityPlacement };
   return {
     a: placement.a,
     b: placement.b,
@@ -124,8 +122,6 @@ export function resolveSolidPlacement(
     f: placement.f,
     dz: placement.dz ?? 0,
     m02: placement.m02 ?? 0,
-    m10: placement.m10 ?? 0,
-    m11: placement.m11 ?? 1,
     m12: placement.m12 ?? 0,
     m20: placement.m20 ?? 0,
     m21: placement.m21 ?? 0,
@@ -569,16 +565,20 @@ export function placeBody(
   const m = resolveSolidPlacement(placement);
 
   const has3D =
-    m.m02 !== 0 || m.m10 !== 0 || m.m11 !== 1 || m.m12 !== 0 ||
+    m.m02 !== 0 || m.m12 !== 0 ||
     m.m20 !== 0 || m.m21 !== 0 || m.m22 !== 1 ||
     m.tx !== 0 || m.ty !== 0 || m.tz !== 0;
 
   if (has3D) {
     // Afín 3×4 completa: x' = a*x + c*y + m02*z + tx, etc.
+    // La matriz3×3 incluye la afín2D en las dos primeras columnas:
+    //   | a    c   m02 |     Fila0: contribución a x'
+    //   | b    d   m12 |     Fila1: contribución a y'
+    //   | m20 m21 m22  |     Fila2: contribución a z'
     const det3 =
-      m.a * (m.m11 * m.m22 - m.m12 * m.m21) -
-      m.c * (m.m10 * m.m22 - m.m12 * m.m20) +
-      m.m02 * (m.m10 * m.m21 - m.m11 * m.m20);
+      m.a * (m.d * m.m22 - m.m12 * m.m21) -
+      m.c * (m.b * m.m22 - m.m12 * m.m20) +
+      m.m02 * (m.b * m.m21 - m.d * m.m20);
     if (!(Math.abs(det3) > 0)) {
       throw new Error(
         "La colocación 3D de un SOLID3D es singular: aplastaría el sólido a un plano.",
@@ -587,7 +587,7 @@ export function placeBody(
     const points = body.vertices.map((vertex) =>
       vec3(
         m.a * vertex.point.x + m.c * vertex.point.y + m.m02 * vertex.point.z + m.tx,
-        m.m10 * vertex.point.x + m.m11 * vertex.point.y + m.m12 * vertex.point.z + m.ty,
+        m.b * vertex.point.x + m.d * vertex.point.y + m.m12 * vertex.point.z + m.ty,
         m.m20 * vertex.point.x + m.m21 * vertex.point.y + m.m22 * vertex.point.z + m.tz,
       ),
     );
