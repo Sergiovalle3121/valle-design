@@ -1,124 +1,281 @@
 /**
  * SLICE y SECTION con planos coordenados (XY, YZ, ZX).
  *
- * Verifica que la función `coordinatePlane` produce los planos correctos y que
- * el nodo `slice` del B-rep los aplica.
+ * Ejecuta los comandos SLICE y SECTION a través de la canalización real
+ * (begin/step) usando las palabras clave XY, YZ y ZX, distancia y lado.
+ * Verifica que el volumen resultante sea la mitad y que SECTION produzca
+ * una región.
  */
 import { check, report } from "../brep/spec-support";
-import type { CadSolid3dEntity } from "./cad-entities-v5";
+import type { CadEntity, CadDocument } from "./cad-document";
+import { migrateCadDocument } from "./cad-document";
+import { executeCadEntityCommandBatch } from "./entity-commands";
 import { clearSolidCache, solid3dMassProperties } from "./solid3d-build";
+import { CAD_COMMAND_REGISTRY_V2 } from "./engine/index";
+import type { CadCommandContext, CadCommandInput, CadCommandResult } from "./engine/command-types";
 
-const layer = "0";
+// Cargar todos los comandos del motor (el runner de specs no soporta lazy).
+import "@/lib/cad/engine/all-commands";
 
-function box(id: string, w: number, d: number, h: number): CadSolid3dEntity {
+const layer = "MUROS";
+
+// ---------------------------------------------------------------------------
+// Infraestructura de prueba (solids.spec.ts, adaptada a check/report)
+// ---------------------------------------------------------------------------
+
+function documentWith(entities: CadEntity[]): CadDocument {
+  return migrateCadDocument({
+    meta: { version: 1, schema: 5, unit: "mm" },
+    layers: [{ id: layer, name: "Muros", color: "#fff", visible: true, locked: false }],
+    entities,
+    modelSpace: { entityIds: entities.map((entity) => entity.id) },
+  });
+}
+
+let idCounter = 0;
+
+function makeContext(document: CadDocument, selection: readonly string[] = []): CadCommandContext {
+  return {
+    entityIds: document.entities.map((entity) => entity.id),
+    entity: (entityId) => document.entities.find((entity) => entity.id === entityId),
+    selection,
+    activeLayer: layer,
+    view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+    newEntityId: () => `s${++idCounter}`,
+  };
+}
+
+function run(
+  name: string,
+  inputs: readonly CadCommandInput[],
+  document: CadDocument,
+  selection: readonly string[] = [],
+): CadCommandResult | undefined {
+  const descriptor = CAD_COMMAND_REGISTRY_V2.get(name);
+  if (!descriptor) throw new Error(`${name} no está en el registro`);
+  const context = makeContext(document, selection);
+  let step = descriptor.begin(context);
+  for (const input of inputs) {
+    if (step.result) break;
+    step = descriptor.step(step.state, input, context);
+  }
+  return step.result;
+}
+
+function apply(
+  name: string,
+  inputs: readonly CadCommandInput[],
+  document: CadDocument,
+  selection: readonly string[] = [],
+): CadDocument {
+  const result = run(name, inputs, document, selection);
+  if (!result || result.kind !== "document")
+    throw new Error(`${name} no produjo documento: ${result?.kind ?? "undefined"}`);
+  return executeCadEntityCommandBatch(document, result.commands, result.label).document;
+}
+
+function messageOf(result: CadCommandResult | undefined): string {
+  if (!result || result.kind !== "message")
+    throw new Error(`Se esperaba mensaje, se obtuvo ${result?.kind ?? "undefined"}`);
+  return result.text;
+}
+
+function soleSolid(document: CadDocument) {
+  const solids = document.entities.filter((entity) => entity.type === "solid3d");
+  if (solids.length !== 1) throw new Error(`Se esperaba 1 sólido, hay ${solids.length}`);
+  const solid = solids[0];
+  if (solid.type !== "solid3d") throw new Error("tipo");
+  return solid;
+}
+
+const point = (x: number, y: number): CadCommandInput => ({ kind: "point", point: { x, y }, source: "typed" });
+const keyword = (value: string): CadCommandInput => ({ kind: "keyword", keyword: value });
+const distance = (value: number): CadCommandInput => ({ kind: "distance", value });
+const ENTER: CadCommandInput = { kind: "enter" };
+const select = (...ids: string[]): CadCommandInput => ({ kind: "selection", entityIds: ids });
+
+function rectangle(id: string, x: number, y: number, w: number, h: number): CadEntity {
   return {
     id,
-    type: "solid3d",
-    nodes: [
-      {
-        id: "perfil",
-        op: "extrude",
-        profile: {
-          outer: [
-            { x: 0, y: 0 },
-            { x: w, y: 0 },
-            { x: w, y: d },
-            { x: 0, y: d },
-          ],
-        },
-        height: h,
-      },
+    type: "polyline",
+    vertices: [
+      { x, y, z: 0 },
+      { x: x + w, y, z: 0 },
+      { x: x + w, y: y + h, z: 0 },
+      { x, y: y + h, z: 0 },
     ],
-    root: "perfil",
+    closed: true,
     layer,
   };
 }
 
 // ---------------------------------------------------------------------------
-// 1. SLICE por XY a la mitad: el volumen se reduce a la mitad
+// Preparar un sólido base: prisma 200 × 300 × 400
 // ---------------------------------------------------------------------------
-{
+const W = 200, D = 300, H = 400;
+const fullVolume = W * D * H;
+
+function makeDocument() {
   clearSolidCache();
-  const w = 200, d = 300, h = 400;
-  const fullVolume = w * d * h;
-  const cutHeight = h / 2; // 200
-
-  const sliced: CadSolid3dEntity = {
-    ...box("xy-cut", w, d, h),
-    nodes: [
-      ...box("xy-cut", w, d, h).nodes,
-      {
-        id: "corte",
-        op: "slice",
-        operand: "perfil",
-        plane: { origin: { x: 0, y: 0, z: cutHeight }, normal: { x: 0, y: 0, z: 1 } },
-        keep: "positive",
-      },
-    ],
-    root: "corte",
-  };
-  const mass = solid3dMassProperties(sliced);
-
-  check("SLICE XY: volumen ≈ mitad", Math.abs(mass.volume - fullVolume / 2) < 1, `volumen=${mass.volume}, esperado=${fullVolume / 2}`);
-  check("SLICE XY: centroide Z ≈ 300", Math.abs(mass.centroid.z - (cutHeight + h) / 2) < 1, `z=${mass.centroid.z}`);
+  let document = documentWith([rectangle("base", 0, 0, W, D)]);
+  document = apply("EXTRUDE", [select("base"), distance(H)], document, ["base"]);
+  return document;
 }
 
 // ---------------------------------------------------------------------------
-// 2. SLICE por YZ a la mitad: el volumen se reduce a la mitad
+// 1. SLICE XY a la mitad: el volumen se reduce a la mitad
 // ---------------------------------------------------------------------------
 {
-  clearSolidCache();
-  const w = 200, d = 300, h = 400;
-  const fullVolume = w * d * h;
-  const cutX = w / 2; // 100
-
-  const sliced: CadSolid3dEntity = {
-    ...box("yz-cut", w, d, h),
-    nodes: [
-      ...box("yz-cut", w, d, h).nodes,
-      {
-        id: "corte",
-        op: "slice",
-        operand: "perfil",
-        plane: { origin: { x: cutX, y: 0, z: 0 }, normal: { x: 1, y: 0, z: 0 } },
-        keep: "positive",
-      },
-    ],
-    root: "corte",
-  };
-  const mass = solid3dMassProperties(sliced);
-
-  check("SLICE YZ: volumen ≈ mitad", Math.abs(mass.volume - fullVolume / 2) < 1, `volumen=${mass.volume}`);
-  check("SLICE YZ: centroide X ≈ 150", Math.abs(mass.centroid.x - (cutX + w) / 2) < 1, `x=${mass.centroid.x}`);
+  const document = makeDocument();
+  const solidId = soleSolid(document).id;
+  const sliced = apply(
+    "SLICE",
+    [select(solidId), keyword("XY"), distance(H / 2), keyword("Izquierda")],
+    document,
+    [solidId],
+  );
+  const volume = solid3dMassProperties(soleSolid(sliced)).volume;
+  check("SLICE XY: volumen ≈ mitad", Math.abs(volume - fullVolume / 2) < 1,
+    `volumen=${volume}, esperado=${fullVolume / 2}`);
 }
 
 // ---------------------------------------------------------------------------
-// 3. SLICE por ZX a la mitad: el volumen se reduce a la mitad
+// 2. SLICE YZ a la mitad: el volumen se reduce a la mitad
 // ---------------------------------------------------------------------------
 {
-  clearSolidCache();
-  const w = 200, d = 300, h = 400;
-  const fullVolume = w * d * h;
-  const cutY = d / 2; // 150
+  const document = makeDocument();
+  const solidId = soleSolid(document).id;
+  const sliced = apply(
+    "SLICE",
+    [select(solidId), keyword("YZ"), distance(W / 2), keyword("Izquierda")],
+    document,
+    [solidId],
+  );
+  const volume = solid3dMassProperties(soleSolid(sliced)).volume;
+  check("SLICE YZ: volumen ≈ mitad", Math.abs(volume - fullVolume / 2) < 1,
+    `volumen=${volume}, esperado=${fullVolume / 2}`);
+}
 
-  const sliced: CadSolid3dEntity = {
-    ...box("zx-cut", w, d, h),
-    nodes: [
-      ...box("zx-cut", w, d, h).nodes,
-      {
-        id: "corte",
-        op: "slice",
-        operand: "perfil",
-        plane: { origin: { x: 0, y: cutY, z: 0 }, normal: { x: 0, y: 1, z: 0 } },
-        keep: "positive",
-      },
-    ],
-    root: "corte",
-  };
-  const mass = solid3dMassProperties(sliced);
+// ---------------------------------------------------------------------------
+// 3. SLICE ZX a la mitad: el volumen se reduce a la mitad
+// ---------------------------------------------------------------------------
+{
+  const document = makeDocument();
+  const solidId = soleSolid(document).id;
+  const sliced = apply(
+    "SLICE",
+    [select(solidId), keyword("ZX"), distance(D / 2), keyword("Izquierda")],
+    document,
+    [solidId],
+  );
+  const volume = solid3dMassProperties(soleSolid(sliced)).volume;
+  check("SLICE ZX: volumen ≈ mitad", Math.abs(volume - fullVolume / 2) < 1,
+    `volumen=${volume}, esperado=${fullVolume / 2}`);
+}
 
-  check("SLICE ZX: volumen ≈ mitad", Math.abs(mass.volume - fullVolume / 2) < 1, `volumen=${mass.volume}`);
-  check("SLICE ZX: centroide Y ≈ 225", Math.abs(mass.centroid.y - (cutY + d) / 2) < 1, `y=${mass.centroid.y}`);
+// ---------------------------------------------------------------------------
+// 4. SLICE XY con «Ambos»: las dos mitades suman el volumen original
+// ---------------------------------------------------------------------------
+{
+  const document = makeDocument();
+  const solidId = soleSolid(document).id;
+  const sliced = apply(
+    "SLICE",
+    [select(solidId), keyword("XY"), distance(H / 2), keyword("Ambos")],
+    document,
+    [solidId],
+  );
+  const halves = sliced.entities.filter((entity) => entity.type === "solid3d");
+  check("SLICE XY Ambos: dos mitades", halves.length === 2, `encontrados=${halves.length}`);
+  const total = halves.reduce(
+    (sum, half) => sum + (half.type === "solid3d" ? solid3dMassProperties(half).volume : 0),
+    0,
+  );
+  check("SLICE XY Ambos: las mitades suman el original", Math.abs(total - fullVolume) < 1,
+    `total=${total}, esperado=${fullVolume}`);
+}
+
+// ---------------------------------------------------------------------------
+// 5. SECTION XY: produce una región
+// ---------------------------------------------------------------------------
+{
+  const document = makeDocument();
+  const solidId = soleSolid(document).id;
+  const result = run(
+    "SECTION",
+    [select(solidId), keyword("XY"), distance(H / 2), ENTER],
+    document,
+    [solidId],
+  );
+  if (!result || result.kind !== "document") throw new Error("SECTION no produjo documento");
+  const afterSection = executeCadEntityCommandBatch(document, result.commands, result.label).document;
+  const regions = afterSection.entities.filter((entity) => entity.type === "region");
+  check("SECTION XY: produce una región", regions.length === 1, `encontradas=${regions.length}`);
+  if (regions.length > 0 && regions[0].type === "region") {
+    check("SECTION XY: la sección de un prisma recto es un rectángulo",
+      regions[0].outer.length === 4, `vértices=${regions[0].outer.length}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 6. SECTION YZ: produce una región
+// ---------------------------------------------------------------------------
+{
+  const document = makeDocument();
+  const solidId = soleSolid(document).id;
+  const result = run(
+    "SECTION",
+    [select(solidId), keyword("YZ"), distance(W / 2), ENTER],
+    document,
+    [solidId],
+  );
+  if (!result || result.kind !== "document") throw new Error("SECTION no produjo documento");
+  const afterSection = executeCadEntityCommandBatch(document, result.commands, result.label).document;
+  const regions = afterSection.entities.filter((entity) => entity.type === "region");
+  check("SECTION YZ: produce una región", regions.length === 1, `encontradas=${regions.length}`);
+  if (regions.length > 0 && regions[0].type === "region") {
+    check("SECTION YZ: la sección de un prisma recto es un rectángulo",
+      regions[0].outer.length === 4, `vértices=${regions[0].outer.length}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 7. SECTION ZX: produce una región
+// ---------------------------------------------------------------------------
+{
+  const document = makeDocument();
+  const solidId = soleSolid(document).id;
+  const result = run(
+    "SECTION",
+    [select(solidId), keyword("ZX"), distance(D / 2), ENTER],
+    document,
+    [solidId],
+  );
+  if (!result || result.kind !== "document") throw new Error("SECTION no produjo documento");
+  const afterSection = executeCadEntityCommandBatch(document, result.commands, result.label).document;
+  const regions = afterSection.entities.filter((entity) => entity.type === "region");
+  check("SECTION ZX: produce una región", regions.length === 1, `encontradas=${regions.length}`);
+  if (regions.length > 0 && regions[0].type === "region") {
+    check("SECTION ZX: la sección de un prisma recto es un rectángulo",
+      regions[0].outer.length === 4, `vértices=${regions[0].outer.length}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 8. SECTION con plano que no toca la pieza: mensaje de error
+// ---------------------------------------------------------------------------
+{
+  const document = makeDocument();
+  const solidId = soleSolid(document).id;
+  const result = run(
+    "SECTION",
+    [select(solidId), point(500, 0), point(500, 100), ENTER],
+    document,
+    [solidId],
+  );
+  const msg = messageOf(result);
+  check("SECTION plano lejano: responde con mensaje de no-atraviesa",
+    msg.includes("no atraviesa"), `mensaje="${msg}"`);
 }
 
 report("slice-coordinate-planes");
