@@ -161,11 +161,14 @@ function compose3dPlacements(
   overlay: Pick<CadSolidPlacement, "a" | "b" | "c" | "d" | "m02" | "m12" | "m20" | "m21" | "m22" | "tx" | "ty" | "tz">,
 ): CadSolidPlacement {
   // Matriz base: [a,c,m02; b,d,m12; m20,m21,m22]
+  // Traslación efectiva: e/f/dz (legado2D) + tx/ty/tz (3D).
   const bm = {
     r00: base.a, r01: base.c, r02: base.m02 ?? 0,
     r10: base.b, r11: base.d, r12: base.m12 ?? 0,
     r20: base.m20 ?? 0, r21: base.m21 ?? 0, r22: base.m22 ?? 1,
-    tx: base.tx ?? 0, ty: base.ty ?? 0, tz: base.tz ?? 0,
+    tx: (base.e ?? 0) + (base.tx ?? 0),
+    ty: (base.f ?? 0) + (base.ty ?? 0),
+    tz: (base.dz ?? 0) + (base.tz ?? 0),
   };
   // Matriz overlay
   const om = {
@@ -175,8 +178,9 @@ function compose3dPlacements(
     tx: overlay.tx ?? 0, ty: overlay.ty ?? 0, tz: overlay.tz ?? 0,
   };
   // Producto de matrices 3×4: overlay × base (primero base, después overlay)
+  // e=f=dz=0: la traslación efectiva ya está en tx/ty/tz.
   return {
-    e: base.e, f: base.f, dz: base.dz,
+    e: 0, f: 0, dz: 0,
     a: om.r00 * bm.r00 + om.r01 * bm.r10 + om.r02 * bm.r20,
     c: om.r00 * bm.r01 + om.r01 * bm.r11 + om.r02 * bm.r21,
     m02: om.r00 * bm.r02 + om.r01 * bm.r12 + om.r02 * bm.r22,

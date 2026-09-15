@@ -592,11 +592,15 @@ export function placeBody(
         "La colocación 3D de un SOLID3D es singular: aplastaría el sólido a un plano.",
       );
     }
+    // Traslación efectiva: la2D (e, f, dz) + la3D (tx, ty, tz).
+    const etx = m.e + m.tx;
+    const ety = m.f + m.ty;
+    const etz = m.dz + m.tz;
     const points = body.vertices.map((vertex) =>
       vec3(
-        m.a * vertex.point.x + m.c * vertex.point.y + m.m02 * vertex.point.z + m.tx,
-        m.b * vertex.point.x + m.d * vertex.point.y + m.m12 * vertex.point.z + m.ty,
-        m.m20 * vertex.point.x + m.m21 * vertex.point.y + m.m22 * vertex.point.z + m.tz,
+        m.a * vertex.point.x + m.c * vertex.point.y + m.m02 * vertex.point.z + etx,
+        m.b * vertex.point.x + m.d * vertex.point.y + m.m12 * vertex.point.z + ety,
+        m.m20 * vertex.point.x + m.m21 * vertex.point.y + m.m22 * vertex.point.z + etz,
       ),
     );
     const specs: FaceSpec[] = bodyToFaceSpecs(body).map((spec) => ({

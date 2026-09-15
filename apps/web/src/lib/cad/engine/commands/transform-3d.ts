@@ -93,14 +93,14 @@ function move3dCommands(
       transform3d: {
         // Conservar la afín 2D existente.
         a: current.a ?? 1, b: current.b ?? 0, c: current.c ?? 0,
-        d: current.d ?? 1, e: current.e ?? 0, f: current.f ?? 0,
-        dz: current.dz ?? 0,
-        // Componer la traslación 3D.
+        d: current.d ?? 1,
+        // e/f/dz se incorporan a tx/ty/tz como traslación efectiva.
+        e: 0, f: 0, dz: 0,
         m02: current.m02 ?? 0, m12: current.m12 ?? 0,
         m20: current.m20 ?? 0, m21: current.m21 ?? 0, m22: current.m22 ?? 1,
-        tx: (current.tx ?? 0) + dx,
-        ty: (current.ty ?? 0) + dy,
-        tz: (current.tz ?? 0) + dz,
+        tx: (current.e ?? 0) + (current.tx ?? 0) + dx,
+        ty: (current.f ?? 0) + (current.ty ?? 0) + dy,
+        tz: (current.dz ?? 0) + (current.tz ?? 0) + dz,
       },
     });
   }
