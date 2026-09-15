@@ -217,6 +217,13 @@ const READONLY_KEYS = new Set([
   "label",
   "associationStatus",
   "block",
+  // IMAGE: campos derivados que el adaptador lee pero no escribe (D-1 raster).
+  "definition",
+  "pixelWidth",
+  "pixelHeight",
+  "drawnWidth",
+  "drawnHeight",
+  "rotation",
 ]);
 
 /**
