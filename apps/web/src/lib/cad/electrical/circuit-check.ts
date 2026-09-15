@@ -204,7 +204,7 @@ export function cadCheckCircuits(
   for (const wire of cadWiresOf(document)) {
     const entity = porId.get(wire.entityId);
     if (!entity) continue;
-    const entrada = porCircuito.get(wire.circuit) ?? {
+    const entrada = porCircuito.get(wire.circuit.trim().toUpperCase()) ?? {
       gauges: new Set<string>(),
       entities: [],
       lengthM: 0,
@@ -212,7 +212,7 @@ export function cadCheckCircuits(
     if (wire.gauge) entrada.gauges.add(wire.gauge);
     entrada.entities.push(entity);
     entrada.lengthM += cadEntityRunLength(entity) / unidadesPorMetro;
-    porCircuito.set(wire.circuit, entrada);
+    porCircuito.set(wire.circuit.trim().toUpperCase(), entrada);
   }
 
   const filas: CadCircuitCheck[] = [];
