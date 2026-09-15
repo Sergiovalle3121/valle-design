@@ -51,7 +51,13 @@ export function cadBuiltinPlotStyleTables(): Map<string, CadPlotStyleTable> {
 }
 
 export class CadPlotStyleCatalog {
-  private readonly loaded = cadBuiltinPlotStyleTables();
+  private readonly loaded: Map<string, CadPlotStyleTable>;
+
+  constructor() {
+    this.loaded = cadBuiltinPlotStyleTables();
+    // Restaurar tablas cargadas en sesiones anteriores desde localStorage.
+    this.restoreFromStorage();
+  }
 
   /** Nombre de archivo de una tabla: `Estudio-2004` + su clase. */
   private static fileName(table: CadPlotStyleTable): string {
@@ -62,6 +68,7 @@ export class CadPlotStyleCatalog {
   load(table: CadPlotStyleTable): string {
     const key = CadPlotStyleCatalog.fileName(table);
     this.loaded.set(key, table);
+    this.saveToStorage();
     return key;
   }
 
@@ -78,5 +85,36 @@ export class CadPlotStyleCatalog {
   /** La tabla de un nombre, con la regla de nombre compartida. */
   find(name: string): CadPlotStyleTable | null {
     return cadFindPlotStyleTable(this.loaded, name);
+  }
+
+  private static readonly STORAGE_KEY = "valle:cad:plot-style-tables";
+
+  /**
+   * Tablas NO de fábrica serializadas en localStorage.
+   *
+   * Sólo persisten las que el usuario cargó: las tres de fábrica se
+   * reconstruyen en cada sesión y no merecen el ruido de serialización.
+   */
+  private saveToStorage(): void {
+    const custom: Record<string, unknown> = {};
+    for (const [key, table] of this.loaded) {
+      if (!cadBuiltinPlotStyleTables().has(key)) custom[key] = table;
+    }
+    try {
+      localStorage.setItem(CadPlotStyleCatalog.STORAGE_KEY, JSON.stringify(custom));
+    } catch { /* localStorage lleno o bloqueado: no es fatal */ }
+  }
+
+  private restoreFromStorage(): void {
+    try {
+      const raw = localStorage.getItem(CadPlotStyleCatalog.STORAGE_KEY);
+      if (!raw) return;
+      const custom = JSON.parse(raw) as Record<string, CadPlotStyleTable>;
+      for (const [key, table] of Object.entries(custom)) {
+        if (table && typeof table === "object" && "name" in table && "kind" in table) {
+          this.loaded.set(key, table);
+        }
+      }
+    } catch { /* JSON corrupto o localStorage bloqueado */ }
   }
 }
