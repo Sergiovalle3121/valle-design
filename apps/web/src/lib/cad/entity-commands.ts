@@ -62,17 +62,8 @@ export type CadEntityCommand =
   | { type: "properties"; entityId: string; patch: Partial<CadPropertyBag> }
   | { type: "grip"; entityId: string; gripId: string; point: CadPoint2 }
   | {
-      type: "copy";
-      entityId: string;
-      newEntityId: string;
-      offset?: CadPoint2;
-      /**
-       * T-19·2: nuevo `hostId` de un HUECO copiado cuyo anfitrión viaja en la
-       * MISMA ronda. Lo calcula quien genera el comando —ver
-       * `cadOpeningRehostId` en `wall-openings.ts`—, no este ejecutor: un
-       * muro puede copiarse varias veces en un lote y sólo el generador sabe
-       * cuál copia es la de esta ronda.
-       */
+      type: "copy"; entityId: string; newEntityId: string; offset?: CadPoint2;
+      /** T-19·2: hostId de hueco copiado cuyo anfitrión viaja en la misma ronda. */
       rehostId?: string;
     }
   /**
@@ -501,13 +492,8 @@ export function executeCadEntityCommandBatch(
       if (command.associative)
         regenerationSourceIds.push(...(source.references ?? []).map((reference) => reference.entityId));
     } else if (command.type === "transform3d") {
-      if (source.type !== "solid3d")
-        throw new Error("La transformación3D sólo aplica a SOLID3D.");
-      const existing = source.placement ?? {};
-      present.set(source.id, {
-        ...source,
-        placement: { ...existing, ...command.transform3d },
-      });
+      if (source.type !== "solid3d") throw new Error("La transformación3D sólo aplica a SOLID3D.");
+      present.set(source.id, { ...source, placement: { ...(source.placement ?? {}), ...command.transform3d } });
       regenerationSourceIds.push(source.id);
     } else {
       present.set(

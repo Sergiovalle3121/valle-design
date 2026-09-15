@@ -366,16 +366,7 @@ export class CadCommandEngineHost {
     this.dispatch({ kind: "input", input: { kind: "entityPick", entityId, point } });
   }
 
-  /**
-   * Designación de una CARA de sólido, ya resuelta por el rayo de cámara.
-   *
-   * Entra por la MISMA puerta que todo lo demás —`dispatch`— y no por un canal
-   * propio: el enrutador del puntero tiene una regla dura, «cuando el motor
-   * tiene un comando activo, la máquina heredada no recibe nada», y un segundo
-   * canal sería una segunda máquina escuchando el clic. La huella y la normal
-   * las calcula quien ve la geometría (el anfitrión de designación 3D); aquí
-   * sólo viajan.
-   */
+  /** Designación de cara de sólido. Entra por dispatch, no por canal propio. */
   pickFace(input: {
     entityId: string;
     face: CadSolidFaceRef;
@@ -385,15 +376,7 @@ export class CadCommandEngineHost {
     this.dispatch({ kind: "input", input: { kind: "facePick", ...input } });
   }
 
-  pickEdge(input: {
-    entityId: string;
-    edge: number;
-    from: CadPoint3;
-    to: CadPoint3;
-    point: CadPoint2;
-  }): void {
-    this.dispatch({ kind: "input", input: { kind: "edgePick", ...input } });
-  }
+  pickEdge(input: { entityId: string; edge: number; from: CadPoint3; to: CadPoint3; point: CadPoint2 }): void { this.dispatch({ kind: "input", input: { kind: "edgePick", ...input } }); }
 
   select(entityIds: readonly string[]): void {
     // «Previo» (T-21): el motor es puro; el ÚLTIMO conjunto lo anota el anfitrión.
@@ -755,12 +738,8 @@ export class CadCommandEngineHost {
         }
         if (effect.request.kind === "download") {
           const { filename, mime, content } = effect.request;
-          try {
-            downloadCadFile(filename, new TextEncoder().encode(content), mime);
-            this.log(`${effect.label}: ${filename} descargado.`, "info");
-          } catch {
-            this.log(`${effect.label}: no se pudo descargar ${filename}.`, "error");
-          }
+          try { downloadCadFile(filename, new TextEncoder().encode(content), mime); this.log(`${effect.label}: ${filename} descargado.`, "info"); }
+          catch { this.log(`${effect.label}: no se pudo descargar ${filename}.`, "error"); }
           return;
         }
         const answered = this.bridge.host?.(effect.request) ?? null;

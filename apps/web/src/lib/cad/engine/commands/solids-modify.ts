@@ -52,7 +52,7 @@
 import type { CadPoint2 } from "../../cad-document";
 import type { CadSolidNode } from "../../cad-entities-v5";
 import type { CadEntityCommand } from "../../entity-commands";
-import { cadSolidWorldPlaneToLocal } from "../../solid3d-build";
+import { cadSolidWorldPlaneToLocal } from "../../solid3d-plane";
 import { sectionLoopsOfSolid } from "../../solid3d-section";
 import {
   CAD_ACCEPT_DISTANCE,
