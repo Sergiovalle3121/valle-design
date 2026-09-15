@@ -468,15 +468,17 @@ export function preferredFeatureEdges(body: BrepBody): number[] {
     // juego «preferido» hace que FILLETEDGE falle entero citando una arista
     // que el usuario no designó (D-04 de la auditoría).
     const dihedral = edgeDihedralAngle(body, index);
-    const concave = dihedral !== null && dihedral > Math.PI + 1e-9;
+    // Excluir cóncavas (>π), planas (≈π) y de borde (null): el kernel las
+    // rechaza en filletEdges/chamferEdges (fillet.ts:103,213).
+    const rejected = dihedral === null || dihedral >= Math.PI - 1e-9 || dihedral <= 1e-9;
     return {
       index,
       vertical: Math.abs(dz) / length > 0.999,
       from: body.halfEdges[edge.a].origin,
       to: halfEdgeDestination(body, edge.a),
-      concave,
+      rejected,
     };
-  }).filter((c) => !c.concave);
+  }).filter((c) => !c.rejected);
   candidates.sort((a, b) =>
     a.vertical === b.vertical ? a.index - b.index : a.vertical ? -1 : 1,
   );
