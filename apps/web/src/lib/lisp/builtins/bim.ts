@@ -34,7 +34,8 @@ import { defsubr, type BuiltinTable } from "./define";
 import { requireHost } from "./entities";
 
 function schedule(ctx: LispCallContext, name: string) {
-  return buildCadBimSchedule(requireHost(ctx, name).document());
+  const document = requireHost(ctx, name).document();
+  return buildCadBimSchedule(document, document.meta?.unit);
 }
 
 export function installBimFunctions(table: BuiltinTable): void {

@@ -45,12 +45,9 @@
  *  - No hay puertas de dos hojas, corredizas ni abatibles dobles: la anchura
  *    del catálogo es la del HUECO de obra, y una de dos hojas de 1,60 no está.
  *  - No hay ventanales ni cancelería de piso a techo (antepecho 0).
- *  - La marca (`openingMark`) lee sus números como milímetros, así que el
- *    cuadro de carpintería de un documento en metros o en pies imprime hoy
- *    P-000x000. Es un límite VIEJO de `bim-schedule.ts`, anterior a este
- *    catálogo, y sigue en pie: aquí sólo se garantiza que la marca del
- *    catálogo y la de un hueco tecleado a mano coinciden, no que sea legible
- *    en cualquier unidad.
+ *  - La marca (`openingMark`) convierte a mm con `cadToMillimetres` cuando se
+ *    pasa la unidad. Sin unidad se asumen mm. El cuadro de DATAEXTRACTION
+ *    pasa `context.unit`, así que la marca sale correcta en cualquier unidad.
  */
 import { openingMark } from "./bim-schedule";
 import type { CadOpeningKind } from "./cad-entities-v7";

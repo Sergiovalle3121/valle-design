@@ -140,7 +140,7 @@ const dataExtractionCommand: CadCommandDescriptor<DataExtractionState> = {
         const content = buildCadDataExtractionCsv(schedule, {
           wires: cadWireConnectionReport(view, { unit: context.unit }).connections,
           tags: cadDeviceTagsOf(view),
-        });
+        }, context.unit);
         return {
           state: { output: "csv" },
           prompt: { message: "", options: [] },
