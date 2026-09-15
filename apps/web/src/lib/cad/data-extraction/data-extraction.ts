@@ -23,6 +23,7 @@ import type { CadNativeEntity } from "../entity-runtime";
 import type { CadBimSchedule, CadWallQuantityRow, CadOpeningQuantityRow, CadRoomAreaRow } from "../bim-schedule";
 import type { CadDeviceTag } from "../electrical/device-tags";
 import type { CadWireConnection, CadWireEnd } from "../electrical/wire-connections";
+import { cadMillimetresPerUnit, cadToMillimetres } from "../engine/commands/architecture-support";
 
 type CadTableEntity = Extract<CadNativeEntity, { type: "table" }>;
 
@@ -37,31 +38,35 @@ const WALL_HEADERS = ["Capa", "Espesor (mm)", "Cant.", "Longitud (m)", "Área pa
 const OPENING_HEADERS = ["Marca", "Tipo", "Ancho (mm)", "Alto (mm)", "Antepecho (mm)", "Cant."];
 const ROOM_HEADERS = ["Local", "Uso", "Área a ejes (m²)", "Área útil (m²)", "Área construida (m²)", "Perímetro (m)"];
 
-function wallRowValues(row: CadWallQuantityRow): string[] {
+function wallRowValues(row: CadWallQuantityRow, unit?: string): string[] {
+  const mm = cadMillimetresPerUnit(unit);
   return [
     row.layer,
-    fmt(row.thickness, 0),
+    fmt(cadToMillimetres(row.thickness, unit), 0),
     String(row.count),
-    fmt(row.length / 1000, 3),
-    fmt(row.faceArea / 1_000_000, 3),
-    fmt(row.volume / 1_000_000_000, 4),
+    fmt((row.length * mm) / 1000, 3),
+    fmt((row.faceArea * mm * mm) / 1_000_000, 3),
+    fmt((row.volume * mm * mm * mm) / 1_000_000_000, 4),
   ];
 }
 
-function openingRowValues(row: CadOpeningQuantityRow): string[] {
-  return [row.mark, row.kind === "door" ? "Puerta" : "Ventana", fmt(row.width, 0), fmt(row.height, 0), fmt(row.sill, 0), String(row.count)];
+function openingRowValues(row: CadOpeningQuantityRow, unit?: string): string[] {
+  return [row.mark, row.kind === "door" ? "Puerta" : "Ventana",
+    fmt(cadToMillimetres(row.width, unit), 0),
+    fmt(cadToMillimetres(row.height, unit), 0),
+    fmt(cadToMillimetres(row.sill, unit), 0),
+    String(row.count)];
 }
 
-function roomRowValues(row: CadRoomAreaRow): string[] {
+function roomRowValues(row: CadRoomAreaRow, unit?: string): string[] {
+  const mm = cadMillimetresPerUnit(unit);
   return [
-    // El nombre que el dibujante escribió dentro del local; sin rótulo, la
-    // clave geométrica (L-01…), que es la verdad y no un invento.
     row.name ?? row.id,
     row.use ?? "—",
-    fmt(row.axisArea / 1_000_000, 2),
-    row.clearArea === undefined ? "—" : fmt(row.clearArea / 1_000_000, 2),
-    row.builtArea === undefined ? "—" : fmt(row.builtArea / 1_000_000, 2),
-    fmt(row.perimeter / 1000, 2),
+    fmt((row.axisArea * mm * mm) / 1_000_000, 2),
+    row.clearArea === undefined ? "—" : fmt((row.clearArea * mm * mm) / 1_000_000, 2),
+    row.builtArea === undefined ? "—" : fmt((row.builtArea * mm * mm) / 1_000_000, 2),
+    fmt((row.perimeter * mm) / 1000, 2),
   ];
 }
 
@@ -109,6 +114,7 @@ export interface CadDataExtractionElectricalExtras {
 export function buildCadDataExtractionCsv(
   schedule: CadBimSchedule,
   electrical?: CadDataExtractionElectricalExtras,
+  unit?: string,
 ): string {
   const csvValue = (value: string): string =>
     /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
@@ -118,17 +124,17 @@ export function buildCadDataExtractionCsv(
   lines.push("MUROS");
   lines.push(`# ${CAD_DATA_EXTRACTION_VOLUME_CAVEAT}`);
   lines.push(line(WALL_HEADERS));
-  for (const row of schedule.walls) lines.push(line(wallRowValues(row)));
+  for (const row of schedule.walls) lines.push(line(wallRowValues(row, unit)));
   lines.push("");
 
   lines.push("CARPINTERÍA");
   lines.push(line(OPENING_HEADERS));
-  for (const row of schedule.openings) lines.push(line(openingRowValues(row)));
+  for (const row of schedule.openings) lines.push(line(openingRowValues(row, unit)));
   lines.push("");
 
   lines.push("LOCALES");
   lines.push(line(ROOM_HEADERS));
-  for (const row of schedule.rooms) lines.push(line(roomRowValues(row)));
+  for (const row of schedule.rooms) lines.push(line(roomRowValues(row, unit)));
 
   if (schedule.problems.length > 0) {
     lines.push("");
@@ -204,11 +210,12 @@ export function buildCadRoomScheduleTable(
   insertion: CadPoint2,
   layer: string,
   newEntityId: () => string,
+  unit?: string,
 ): CadTableEntity {
   return scheduleTable(
     "Cuadro de superficies — a ejes de muro; útil con los lados metidos medio grosor; construida a cara exterior del muro perimetral",
     ROOM_HEADERS,
-    schedule.rooms.map(roomRowValues),
+    schedule.rooms.map((r) => roomRowValues(r, unit)),
     insertion,
     layer,
     newEntityId,
@@ -222,11 +229,12 @@ export function buildCadOpeningScheduleTable(
   insertion: CadPoint2,
   layer: string,
   newEntityId: () => string,
+  unit?: string,
 ): CadTableEntity {
   return scheduleTable(
     "Cuadro de carpintería — huecos de obra alojados en muro",
     OPENING_HEADERS,
-    schedule.openings.map(openingRowValues),
+    schedule.openings.map((o) => openingRowValues(o, unit)),
     insertion,
     layer,
     newEntityId,
@@ -239,6 +247,7 @@ export function buildCadDataExtractionTable(
   insertion: CadPoint2,
   layer: string,
   newEntityId: () => string,
+  unit?: string,
 ): CadTableEntity {
   const rows = schedule.walls.length + 2; // cabecera + aviso + una por muro
   const columns = WALL_HEADERS.length;
@@ -255,7 +264,7 @@ export function buildCadDataExtractionTable(
     cells.push({ row: 1, column, text: header, textHeight: 100 });
   });
   schedule.walls.forEach((row, index) => {
-    wallRowValues(row).forEach((value, column) => {
+    wallRowValues(row, unit).forEach((value, column) => {
       cells.push({ row: index + 2, column, text: value, textHeight: 90 });
     });
   });

@@ -132,7 +132,7 @@ const dataExtractionCommand: CadCommandDescriptor<DataExtractionState> = {
       if (input.keyword === "CSV") {
         const view = context.document?.();
         if (!view) return cadCommandRefused({ output: "csv" }, NO_DOCUMENT_VIEW);
-        const schedule = buildCadBimSchedule(view);
+        const schedule = buildCadBimSchedule(view, context.unit);
         // T-35: el CSV es el único fichero que DATAEXTRACTION entrega, así
         // que lleva la lista COMPLETA de conductores y etiquetas — no el
         // renglón truncado de AEWIRELIST/AETAGLIST. Documentos sin nada
@@ -165,11 +165,11 @@ const dataExtractionCommand: CadCommandDescriptor<DataExtractionState> = {
     if (input.kind !== "point") return ask(state);
     const view = context.document?.();
     if (!view) return cadCommandRefused(state, NO_DOCUMENT_VIEW);
-    const schedule = buildCadBimSchedule(view);
+    const schedule = buildCadBimSchedule(view, context.unit);
     if (state.output === "rooms") {
       if (schedule.rooms.length === 0)
         return cadCommandRefused(state, "Los muros no cierran ningún local: no hay cuadro de superficies que insertar. Rotule cada local con un TEXT dentro para que salga con su nombre.");
-      const table = buildCadRoomScheduleTable(schedule, input.point, context.activeLayer, context.newEntityId);
+      const table = buildCadRoomScheduleTable(schedule, input.point, context.activeLayer, context.newEntityId, context.unit);
       return cadCommandWrites(state, [{ type: "insert", entity: table }], "DATAEXTRACTION Superficies");
     }
     if (state.output === "mep") {
@@ -189,7 +189,7 @@ const dataExtractionCommand: CadCommandDescriptor<DataExtractionState> = {
     if (state.output === "openings") {
       if (schedule.openings.length === 0)
         return cadCommandRefused(state, "El dibujo no tiene puertas ni ventanas alojadas en muro: no hay cuadro de carpintería que insertar.");
-      const table = buildCadOpeningScheduleTable(schedule, input.point, context.activeLayer, context.newEntityId);
+      const table = buildCadOpeningScheduleTable(schedule, input.point, context.activeLayer, context.newEntityId, context.unit);
       return cadCommandWrites(state, [{ type: "insert", entity: table }], "DATAEXTRACTION Carpintería");
     }
     if (state.output === "plant-lines") {
@@ -207,7 +207,7 @@ const dataExtractionCommand: CadCommandDescriptor<DataExtractionState> = {
     }
     if (schedule.walls.length === 0)
       return cadCommandRefused(state, "El dibujo no tiene ningún muro que contar: no hay tabla que insertar.");
-    const table = buildCadDataExtractionTable(schedule, input.point, context.activeLayer, context.newEntityId);
+    const table = buildCadDataExtractionTable(schedule, input.point, context.activeLayer, context.newEntityId, context.unit);
     return cadCommandWrites(state, [{ type: "insert", entity: table }], "DATAEXTRACTION");
   },
 };
