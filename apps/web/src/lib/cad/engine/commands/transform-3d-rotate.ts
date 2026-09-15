@@ -294,7 +294,8 @@ const rotate3dCommand: CadCommandDescriptor<Rotate3dState> = {
           : null;
       if (degrees === null) return step(state);
       const rad = degrees * (Math.PI / 180);
-      return done(rotate3dCommands(state, rad, context), "3DROTATE");
+      const cmds = rotate3dCommands(state, rad, context);
+      return done(cmds, "3DROTATE", cmds.length === 0 ? "3DROTATE: la selección no contiene sólidos3D." : undefined);
     }
 
     // Eje por dos puntos.
@@ -316,7 +317,8 @@ const rotate3dCommand: CadCommandDescriptor<Rotate3dState> = {
         : null;
     if (degrees === null) return step(state);
     const rad = degrees * (Math.PI / 180);
-    return done(rotate3dCommands(state, rad, context), "3DROTATE");
+    const cmds = rotate3dCommands(state, rad, context);
+    return done(cmds, "3DROTATE", cmds.length === 0 ? "3DROTATE: la selección no contiene sólidos3D." : undefined);
   },
 };
 
