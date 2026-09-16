@@ -780,7 +780,7 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
   const blockProperties = Object.fromEntries(
     Object.entries(properties.blocks).map(([name, entries]) => [name, dxfPropertyIndex(entries)]),
   );
-  const blocks = semanticBlocks(parsedBlocks, blockXdata, warnings, blockProperties);
+  const blocks = semanticBlocks(parsedBlocks, blockXdata, warnings, blockProperties, mapDxfEntityToPrimitive);
   const entityPresentationAt = dxfPropertyIndex(properties.entities);
   const inserts = entities
     .filter((entity) => String(entity?.type || "").toUpperCase() === "INSERT")

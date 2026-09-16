@@ -13,7 +13,6 @@ import type {
   CadDxfImportWarning,
   CadDxfPrimitive,
 } from "./dxf-import";
-import { mapDxfEntityToPrimitive } from "./dxf-import";
 import { dxfPropertyIndex } from "./dxf-read-properties";
 
 const DEFAULT_LAYER = "0";
@@ -47,6 +46,7 @@ export function semanticBlocks(
   xdata: RawBlockXdata,
   warnings: CadDxfImportWarning[],
   blockProperties: Record<string, ReturnType<typeof dxfPropertyIndex>>,
+  mapDxfEntityToPrimitive: (entity: any) => { primitive?: CadDxfPrimitive; warning?: CadDxfImportWarning },
 ): CadDxfSemanticBlock[] {
   return Object.entries(parsedBlocks).filter(([name]) => !name.startsWith('*')).map(([name, raw]) => {
     const primitives: CadDxfPrimitive[] = [];
