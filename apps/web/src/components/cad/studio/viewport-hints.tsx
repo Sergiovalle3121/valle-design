@@ -110,9 +110,14 @@ export function CadOverlayLegends({ gaps }: CadOverlayLegendsProps) {
 /** Aviso inferior: qué se puede hacer con el ratón en este modo. */
 export function CadViewportHint({ kind }: CadViewportHintProps) {
   return (
-    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-surface/90 backdrop-blur border border-border type-micro text-foreground inline-flex items-center gap-2 pointer-events-none">
-      <Move3d className="w-3.5 h-3.5" />
-      {HINTS[kind]}
+    <div
+      data-testid="cad-viewport-hint"
+      className="@container absolute bottom-3 right-3 max-w-[22rem] px-3 py-1.5 rounded-card bg-surface/90 backdrop-blur border border-border type-micro text-foreground pointer-events-none @max-[50rem]:hidden"
+    >
+      <span className="inline-flex items-start gap-2">
+        <Move3d className="w-3.5 h-3.5 shrink-0 mt-px" />
+        <span>{HINTS[kind]}</span>
+      </span>
     </div>
   );
 }
