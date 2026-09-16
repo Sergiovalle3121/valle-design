@@ -63,3 +63,4 @@ Todas hechas antes de esta sesión (commits `4359ef50`–`bd86c7e5`).
 | T9.5 | hecha — specs caducos: CadLienzoAncho, CadToolPaletteAncho (grep→clase actual), import-report-view (@/→relativo) | `4b4cdb86` |
 | T9.6 | ya hecha (sesión anterior) — revertir severity y filtro | `e8fa3565` |
 | T9.7 | hecha — check-brand-literal cableado en check:surface | `1cc92c1f` |
+| ci-fallo.md (lint-budget) | resuelta: 3× unused-vars en dxf-import.ts (decodeComponent, insertSignature, RawBlockXdata) + 1× exhaustive-deps innecesario en CadCommandLine.tsx (navigated). check:lint-budget, check:cad-math, typecheck verdes. | pendiente de commit |

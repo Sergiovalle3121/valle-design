@@ -125,7 +125,7 @@ export function CadCommandLine({
   const [suggestionIndex, setSuggestionIndex] = useState(0);
   // El usuario navegó las sugerencias con flechas: sólo entonces Enter
   // "entrega" la sugerencia activa en vez de ejecutar lo tecleado.
-  const [navigated, setNavigated] = useState(false);
+  const [_navigated, setNavigated] = useState(false);
   const localInputRef = useRef<HTMLInputElement | null>(null);
   const inputRef = externalInputRef ?? localInputRef;
   const logRef = useRef<HTMLDivElement | null>(null);
@@ -239,7 +239,7 @@ export function CadCommandLine({
         onSubmit(submitted);
       }
     },
-    [activeSuggestionIndex, inputRef, navigated, onCancel, onRepeat, onSubmit, recallIndex, suggestions, typed, value],
+    [activeSuggestionIndex, inputRef, onCancel, onRepeat, onSubmit, recallIndex, suggestions, typed, value],
   );
 
   const line = prompt ? formatCadPrompt(prompt) : "";

@@ -18,12 +18,7 @@ import type { CadDxfSchema4Kind, CadDxfSchema4Payload } from "./dxf-schema4";
 import { normalizeDxfHeaderBooleans, num, pt, rawDxfPairs } from "./dxf-read-core";
 import { conCotaDeclarada, conExtrusionCruda, enElMundo } from "./dxf-import-cota";
 import { declaraLoQueNoLlegaAlDocumento } from "./dxf-import-declaraciones";
-import {
-  decodeComponent,
-  insertSignature,
-  parseRawBlockXdata,
-  type RawBlockXdata,
-} from "./dxf-block-xdata";
+import { parseRawBlockXdata } from "./dxf-block-xdata";
 import { semanticBlocks, semanticInsert } from "./dxf-semantic-blocks";
 import {
   parseRawDxfMTexts,
