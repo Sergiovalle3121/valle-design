@@ -17,23 +17,41 @@ import {
 
 /**
  * `OrbitControls` real exige un `domElement` y engancha listeners — de más
- * para probar aritmética de posición. Sólo hace falta lo que
- * `applyCadCameraViewPreset` toca: `target` (un Vector3 real, mutado en
- * sitio) y `update()`.
+ * para probar aritmética de posición. Reproduce el recorte polar que
+ * OrbitControls.update() aplica en producción: maxPolarAngle por defecto es
+ * π/2 (el tope que camera-policy.ts fija para 3D).
  */
-function fakeControls(): OrbitControls & { updateCalls: number } {
+function fakeControls(camera?: THREE.PerspectiveCamera): OrbitControls & { updateCalls: number; maxPolarAngle: number; minPolarAngle: number } {
+  const cam = camera ?? new THREE.PerspectiveCamera();
   const controls: {
     target: THREE.Vector3;
     updateCalls: number;
+    maxPolarAngle: number;
+    minPolarAngle: number;
     update: () => void;
   } = {
     target: new THREE.Vector3(),
     updateCalls: 0,
+    maxPolarAngle: Math.PI / 2,
+    minPolarAngle: 0,
     update: () => {
       controls.updateCalls += 1;
+      const offset = cam.position.clone().sub(controls.target);
+      const r = offset.length();
+      if (r < 1e-10) return;
+      const phi = Math.acos(offset.y / r);
+      const clamped = Math.min(controls.maxPolarAngle, Math.max(controls.minPolarAngle, phi));
+      if (Math.abs(phi - clamped) > 1e-10) {
+        const sinPhi = Math.sin(clamped);
+        cam.position.set(
+          controls.target.x + r * sinPhi * (offset.x / (r * Math.sin(phi) || 1)),
+          controls.target.y + r * Math.cos(clamped),
+          controls.target.z + r * sinPhi * (offset.z / (r * Math.sin(phi) || 1)),
+        );
+      }
     },
   };
-  return controls as unknown as OrbitControls & { updateCalls: number };
+  return controls as unknown as OrbitControls & { updateCalls: number; maxPolarAngle: number; minPolarAngle: number };
 }
 
 // Contexto de escena conocido: d = max(W, H) * s = max(4, 3) * 1 = 4.
@@ -41,7 +59,7 @@ const ctx = { s: 1, W: 4, H: 3 };
 
 function apply(preset: CadCameraViewPreset) {
   const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
-  const controls = fakeControls();
+  const controls = fakeControls(camera);
   applyCadCameraViewPreset(camera, controls, ctx, preset);
   return { camera, controls };
 }
@@ -59,7 +77,7 @@ function apply(preset: CadCameraViewPreset) {
 }
 {
   const { camera } = apply("front");
-  checkPointClose("front: cámara en +Z", camera.position, { x: 0, y: 2, z: 5.2 });
+  checkPointClose("front: alzado horizontal en +Z", camera.position, { x: 0, y: 0, z: 5.2 });
 }
 {
   const { camera } = apply("iso");
@@ -76,19 +94,32 @@ function apply(preset: CadCameraViewPreset) {
   checkPointClose(
     "back: el espejo exacto de front, en -Z",
     camera.position,
-    { x: 0, y: 2, z: -5.2 },
+    { x: 0, y: 0, z: -5.2 },
   );
 }
 {
   const { camera } = apply("left");
-  checkPointClose("left: cámara en -X", camera.position, { x: -5.2, y: 2, z: 0 });
+  checkPointClose("left: alzado en -X", camera.position, { x: -5.2, y: 0, z: 0 });
 }
 {
   const { camera } = apply("right");
   checkPointClose(
     "right: el espejo exacto de left, en +X",
     camera.position,
-    { x: 5.2, y: 2, z: 0 },
+    { x: 5.2, y: 0, z: 0 },
+  );
+}
+
+// --- los cuatro alzados están a la altura del objetivo -----------------------
+for (const preset of ["front", "back", "left", "right"] as const) {
+  const { camera, controls } = apply(preset);
+  check(
+    `${preset}: camera.y === target.y (alzado sin inclinación)`,
+    Math.abs(camera.position.y - controls.target.y) < 1e-9,
+  );
+  check(
+    `${preset}: maxPolarAngle restaurado a π/2 tras el preset`,
+    controls.maxPolarAngle === Math.PI / 2,
   );
 }
 
@@ -109,7 +140,7 @@ function apply(preset: CadCameraViewPreset) {
   checkPointClose(
     "front con content SUPERPUESTO: mismo resultado que sin content",
     camera.position,
-    { x: 0, y: 2, z: 5.2 },
+    { x: 0, y: 0, z: 5.2 },
   );
 }
 
@@ -128,7 +159,7 @@ function apply(preset: CadCameraViewPreset) {
   checkPointClose(
     "front con content DISJUNTO: encuadra el contenido, no el footprint vacío",
     front.position,
-    { x: cx, y: d * 0.5, z: cz + d * 1.3 },
+    { x: cx, y: 0, z: cz + d * 1.3 },
   );
   checkPointClose(
     "front con content disjunto: el target es el centro del contenido",
@@ -167,4 +198,4 @@ function apply(preset: CadCameraViewPreset) {
   );
 }
 
-report("camera-view-presets", 16);
+report("camera-view-presets", 24);
