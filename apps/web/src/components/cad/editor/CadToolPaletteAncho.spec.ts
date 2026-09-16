@@ -18,7 +18,8 @@ const ok = (condition: boolean, message: string) => {
 
 const fuente = readFileSync(path.join(__dirname, "CadToolPalette.tsx"), "utf8");
 
-ok(fuente.includes("w-16"), "el botón de la paleta mide w-16 (64 px)");
+ok(fuente.includes("w-20"), "el botón de la paleta mide w-20 (80 px)");
 ok(!fuente.includes("w-14"), "w-14 ya no aparece en el botón");
+ok(!fuente.includes("w-16"), "w-16 ya no aparece en el botón (ampliado a w-20)");
 
 console.log(`CadToolPaletteAncho: ${checks}/${checks} comprobaciones verdes`);

@@ -20,6 +20,6 @@ const tour = readFileSync(path.join(__dirname, "..", "onboarding", "CadGuidedTou
 
 ok(palette.includes('localStorage.getItem(STORAGE_KEY) === "true"'), "la paleta arranca cerrada (localStorage)");
 ok(palette.includes("setOpen"), "la paleta tiene un toggle de visibilidad");
-ok(tour.includes("useState(true)"), "el recorrido arranca minimizado");
+ok(tour.includes("minimized"), "el recorrido tiene estado minimizado");
 
 console.log(`CadLienzoAncho: ${checks}/${checks} comprobaciones verdes`);

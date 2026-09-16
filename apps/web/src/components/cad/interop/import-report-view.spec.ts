@@ -20,12 +20,12 @@
 import { strict as assert } from "node:assert";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { exportCadDxf } from "@/lib/cad/dxf-export";
-import { importDxfPrimitives } from "@/lib/cad/dxf-import";
+import { exportCadDxf } from "../../../lib/cad/dxf-export";
+import { importDxfPrimitives } from "../../../lib/cad/dxf-import";
 import {
   buildCadDxfImportReport,
   type CadDxfImportReport,
-} from "@/lib/cad/dxf-import-report";
+} from "../../../lib/cad/dxf-import-report";
 import { CadDxfImportReportPanel } from "./CadDxfImportReport";
 import {
   cadDxfImportTone,
