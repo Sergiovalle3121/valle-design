@@ -89,3 +89,30 @@ Base: contiene `claude/main-verde-firefox-specs @ 0a5f5600`
 - **Hallazgos medios restantes**: t1-3, t2-4, vista-1, vista-3, vista-4, geometria-3
 - **Hallazgos bajos**: t1-8, t23-4
 - **Siguiente**: intercalar hallazgos medios con Fase 1 de la hoja de ruta (cuando exista)
+
+## T0 — Fix CI lint-budget (2026-09-16)
+
+El CI de PR #209 fallaba en `check:lint-budget`: 18 warnings ESLint nuevos en 9 archivos que excedían su presupuesto de 0.
+
+### Causa
+Variables e imports sin usar (16 `@typescript-eslint/no-unused-vars`) y un ref leído durante render (2 `react-hooks/refs`) en CadCommandLine.tsx.
+
+### Arreglo (1 commit)
+- **CadCommandLine.tsx**: `navigatedRef` (useRef) → `navigated` (useState). El ref se leía en JSX para `aria-activedescendant`, lo que viola la regla de hooks. Convierte a estado para que el aria refleje correctamente si el usuario navegó con flechas. Añade `navigated` al `useCallback` deps.
+- **command-engine-host.ts**: elimina import no usado `cadClipboardContent`
+- **CadCollaborationPalette.tsx**: `setMarkup` → `_setMarkup` (setter no usado aún)
+- **brep-raycast.ts**: elimina import no usado `v3Length`
+- **center-marks.ts**: elimina imports no usados `CadPoint2`, `CAD_ACCEPT_KEYWORD`, `CadCommandContext` y constante `CENTER_LINESTYLE`
+- **document-face-pick.ts**: elimina import no usado `cadEdgeRefFromBody`
+- **clash.ts**: `seEmpalman` → `_seEmpalman` (función no usada aún)
+- **selection-context.spec.ts**: elimina import no usado `CadSelectionContext` (tipo)
+- **transform-3d.spec.ts**: elimina imports no usados `checkClose`, `evaluateSolidTree`, `resolveSolidPlacement`; elimina asignaciones no usadas `body` y `massBefore`
+
+### Evidencia
+- `npm run check:lint-budget`: OK (327 avisos dentro del presupuesto de 490)
+- `npm run check:surface`: OK (pasa localmente; el CI log era de versión anterior)
+
+### Hallazgo colateral
+- `check:precision-evidence` fallaba en Windows por `new URL().pathname` que produce `/D:/` paths. Arreglado con `fileURLToPath()`.
+- DWG evidence JSON stale: regenerado con `dwg-evidence.mjs`.
+- `large-coordinate-precision.json` faltaba en working tree: restaurado de git.

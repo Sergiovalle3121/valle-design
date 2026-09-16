@@ -9,7 +9,6 @@ import { check, report } from "../brep/spec-support";
 import {
   EMPTY_SELECTION_CONTEXT,
   deriveSelectionContext,
-  type CadSelectionContext,
 } from "./selection-context";
 
 /* ── 1. Selección vacía ──────────────────────────────────────────────── */

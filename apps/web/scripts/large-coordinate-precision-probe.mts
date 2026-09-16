@@ -315,10 +315,11 @@ const summary = {
   reports,
 };
 
-const DEFAULT_ARTIFACT = new URL(
+import { fileURLToPath } from "node:url";
+const DEFAULT_ARTIFACT = fileURLToPath(new URL(
   "../../../docs/cad/evidence/large-coordinate-precision.json",
   import.meta.url,
-).pathname;
+));
 
 const args = process.argv.slice(2);
 const json = JSON.stringify(summary, null, 2);

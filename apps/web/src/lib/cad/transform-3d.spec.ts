@@ -17,12 +17,10 @@
  * al evaluar el árbol. `resolveSolidPlacement` la completa con valores por
  * defecto.
  */
-import { check, checkClose, report } from "../brep/spec-support";
+import { check, report } from "../brep/spec-support";
 import type { CadSolid3dEntity } from "./cad-entities-v5";
 import {
   clearSolidCache,
-  evaluateSolidTree,
-  resolveSolidPlacement,
   solid3dBody,
   solid3dMassProperties,
 } from "./solid3d-build";
@@ -75,7 +73,7 @@ function box(
     a: 1, b: 0, c: 0, d: 1, e: 0, f: 0,
     dz: 500,
   });
-  const body = solid3dBody(placed);
+  solid3dBody(placed);
   const mass = solid3dMassProperties(placed);
 
   check("traslación Z: volumen conservado", Math.abs(mass.volume - expectedVolume) < 1, `volumen=${mass.volume}, esperado=${expectedVolume}`);
@@ -105,7 +103,7 @@ function box(
     m20: 0, m21: 1, m22: 0,
     tx: 0, ty: 0, tz: 0,
   });
-  const body = solid3dBody(placed);
+  solid3dBody(placed);
   const mass = solid3dMassProperties(placed);
 
   check("giro X 90°: volumen conservado", Math.abs(mass.volume - expectedVolume) < 1, `volumen=${mass.volume}`);
@@ -215,7 +213,7 @@ function box(
   const s = 200;
   // Caja sin colocación2D: perfil de 0..200 × 0..200, altura200
   const placed = box("rotZ", s, s, s);
-  const massBefore = solid3dMassProperties(placed);
+  solid3dMassProperties(placed);
   const expectedVolume = s * s * s;
 
   // Giro90° alrededor de Z por el centro de la caja (100,100,100):

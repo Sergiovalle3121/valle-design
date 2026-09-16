@@ -125,7 +125,7 @@ export function CadCommandLine({
   const [suggestionIndex, setSuggestionIndex] = useState(0);
   // El usuario navegó las sugerencias con flechas: sólo entonces Enter
   // "entrega" la sugerencia activa en vez de ejecutar lo tecleado.
-  const navigatedRef = useRef(false);
+  const [navigated, setNavigated] = useState(false);
   const localInputRef = useRef<HTMLInputElement | null>(null);
   const inputRef = externalInputRef ?? localInputRef;
   const logRef = useRef<HTMLDivElement | null>(null);
@@ -146,7 +146,7 @@ export function CadCommandLine({
   );
   // Cada tecla reinicia la navegación del desplegable: el usuario no ha
   // pulsado flechas sobre las nuevas sugerencias hasta que lo haga.
-  useEffect(() => { navigatedRef.current = false; }, [value]);
+  useEffect(() => { setNavigated(false); }, [value]); // eslint-disable-line react-hooks/set-state-in-effect -- resetear navegación al teclear es intencional, no un error de sincronización
   // Sin efecto para "reiniciar" el índice en cada tecla (evita el aviso de
   // `react-hooks/set-state-in-effect` y una cascada de renders): en vez de
   // guardar un índice que hay que mantener sincronizado, se AJUSTA al leerlo
@@ -193,7 +193,7 @@ export function CadCommandLine({
       // que completar, eso es lo que se está mirando.
       if (suggestions.length > 0 && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
         event.preventDefault();
-        navigatedRef.current = true;
+        setNavigated(true);
         const total = suggestions.length;
         setSuggestionIndex((i) => {
           const next = event.key === "ArrowDown" ? i + 1 : i - 1;
@@ -236,20 +236,20 @@ export function CadCommandLine({
         // El desplegable solo se queda el Enter si el usuario movió la
         // selección con las flechas. Sin navegación, Enter ejecuta SIEMPRE
         // lo tecleado, resuelto por la tabla de alias en el motor.
-        if (navigatedRef.current && suggestions.length > 0) {
+        if (navigated && suggestions.length > 0) {
           const elegida = suggestions[activeSuggestionIndex].nombre;
           setValue("");
-          navigatedRef.current = false;
+          setNavigated(false);
           onSubmit(elegida);
         } else {
           const submitted = value;
           setValue("");
-          navigatedRef.current = false;
+          setNavigated(false);
           onSubmit(submitted);
         }
       }
     },
-    [activeSuggestionIndex, inputRef, onCancel, onRepeat, onSubmit, recallIndex, suggestions, typed, value],
+    [activeSuggestionIndex, inputRef, navigated, onCancel, onRepeat, onSubmit, recallIndex, suggestions, typed, value],
   );
 
   const line = prompt ? formatCadPrompt(prompt) : "";
@@ -396,7 +396,7 @@ export function CadCommandLine({
           aria-haspopup="listbox"
           aria-expanded={suggestions.length > 0}
           aria-controls={suggestions.length > 0 ? suggestionListId : undefined}
-          aria-activedescendant={navigatedRef.current && suggestions.length > 0 ? `${suggestionListId}-${activeSuggestionIndex}` : undefined}
+          aria-activedescendant={navigated && suggestions.length > 0 ? `${suggestionListId}-${activeSuggestionIndex}` : undefined}
           placeholder={
             prompt
               ? "coordenada, distancia u opción"

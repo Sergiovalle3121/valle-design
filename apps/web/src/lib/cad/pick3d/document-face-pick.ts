@@ -28,7 +28,6 @@ import { solid3dBody } from "../solid3d-build";
 import { cadFaceRayHit, type CadPickRay } from "./face-ray";
 import { hitEdge } from "./edge-ray";
 import { cadFaceRefFromBody } from "./solid-face-ref";
-import { cadEdgeRefFromBody } from "./solid-edge-ref";
 
 export interface CadDocumentFacePick {
   /** Entidad `solid3d` a la que pertenece la cara. */

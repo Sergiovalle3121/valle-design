@@ -555,7 +555,7 @@ function radioDe(route: CadPipeRoute, unit: string): number | null {
  * quien las cuenta es `cadPipeFittings`. Acusarlas de choque sería llenar el
  * informe de falsos justo en los sitios donde el proyecto está bien.
  */
-function seEmpalman(a: CadPipeRoute, b: CadPipeRoute): boolean {
+function _seEmpalman(a: CadPipeRoute, b: CadPipeRoute): boolean {
   return empalmePoints(a, b).length > 0;
 }
 

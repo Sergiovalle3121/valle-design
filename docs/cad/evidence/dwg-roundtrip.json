@@ -3,44 +3,39 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-roundtrip-v1",
   "generadoPor": "node scripts/dwg/dwg-evidence.mjs",
-  "generadoEn": "2026-09-01T07:08:33.710Z",
+  "generadoEn": "2026-09-16T08:40:18.477Z",
   "environment": {
-    "node": "v22.22.2",
-    "platform": "linux",
+    "node": "v22.18.0",
+    "platform": "win32",
     "architecture": "x64",
-    "osType": "Linux",
-    "osRelease": "6.18.44-fc-v22",
-    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.10GHz",
-    "logicalCpuCount": 4,
-    "totalMemoryBytes": 16856133632,
-    "declaredMachine": "Intel(R) Xeon(R) Processor @ 2.10GHz (4 hilos lógicos), 16.9 GB de RAM, Linux 6.18.44-fc-v22"
+    "osType": "Windows_NT",
+    "osRelease": "10.0.26200",
+    "cpuModel": "AMD Ryzen 5 5500U with Radeon Graphics         ",
+    "logicalCpuCount": 12,
+    "totalMemoryBytes": 7896625152,
+    "declaredMachine": "AMD Ryzen 5 5500U with Radeon Graphics (12 hilos lógicos), 7.9 GB de RAM, Windows_NT 10.0.26200"
   },
   "declaracion": "Round-trips verificados contra un lector externo autorizado; la medición cruda vive en `oraculoExterno.fuente`.",
   "porQueNoCuentaElPropio": "El writer y el reader de Valle salen del mismo código y comparten sus errores: si el writer emite un campo mal y el reader lo lee igual de mal, el round-trip cierra y no ha demostrado nada. Por eso la cifra que se publica exige un lector independiente autorizado.",
   "disponibilidadEnProducto": false,
   "corpus": {
-    "estado": "verified",
-    "origen": "/home/user/valle-design-dwg-conformance",
+    "estado": "unavailable",
+    "origen": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance.git",
     "commitFijado": "0688fb9c395b9cac4169d1ee9c23a7370cc28cf3",
-    "indiceSha256": "59c69c1ba3a9524a5ca5fb246c7b0226e9980e0c3b9cdbdc2d6e2180d49ee07a",
-    "bundlesAdmitidos": 7,
-    "validacionesIndependientes": 14,
-    "oraculosIndependientes": 71,
-    "fixtures": 57,
-    "versionesCubiertas": [
-      "AC1015",
-      "AC1018",
-      "AC1024",
-      "AC1027",
-      "AC1032"
-    ]
+    "indiceSha256": null,
+    "bundlesAdmitidos": 0,
+    "validacionesIndependientes": 0,
+    "oraculosIndependientes": 0,
+    "fixtures": 0,
+    "versionesCubiertas": [],
+    "motivo": "sin VALLE_DWG_CORPUS_MIRROR y sin VALLE_DWG_CORPUS_TOKEN: no se descargó nada y no se afirma nada"
   },
   "resumen": {
-    "bundlesAdmitidos": 7,
+    "bundlesAdmitidos": 0,
     "lectoresExternosAutorizados": 1,
     "roundTripsVerificadosPorLectorExterno": 4,
     "roundTripsDeLaboratorio": 1,
-    "oraculosIndependientes": 71
+    "oraculosIndependientes": 0
   },
   "oraculoExterno": {
     "fuente": "docs/cad/evidence/dwg-oda-roundtrip.json",
@@ -69,11 +64,5 @@
     "roundTrip": "external-oracle-verified",
     "limite": "Corpus generado por el mismo laboratorio: prueba consistencia interna, no compatibilidad con archivos DWG reales ni con software de terceros."
   },
-  "versionesCubiertas": [
-    "AC1015",
-    "AC1018",
-    "AC1024",
-    "AC1027",
-    "AC1032"
-  ]
+  "versionesCubiertas": []
 }

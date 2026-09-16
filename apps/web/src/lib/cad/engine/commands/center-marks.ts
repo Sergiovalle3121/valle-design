@@ -13,21 +13,18 @@
  * Inspirados en `mechanical-symbols.ts` y `mechanical-annotate.ts`, que ya
  * resolvieron el patrón de «geometría suelta con marca».
  */
-import type { CadEntity, CadPoint2 } from "../../cad-document";
+import type { CadEntity } from "../../cad-document";
 import type { CadEntityCommand } from "../../entity-commands";
 import {
   CAD_ACCEPT_ENTITY_PICK,
-  CAD_ACCEPT_KEYWORD,
   CAD_ACCEPT_DISTANCE,
   asCadCommand,
   type CadAnyCommandDescriptor,
-  type CadCommandContext,
   type CadCommandDescriptor,
   type CadCommandStep,
 } from "../command-types";
 
 const CENTER_LAYER = "CENTER";
-const CENTER_LINESTYLE = "CENTER";
 
 interface MarkState {
   pick: string | null;

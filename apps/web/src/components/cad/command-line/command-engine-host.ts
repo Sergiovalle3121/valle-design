@@ -73,7 +73,7 @@ import {
 import { handleClipboardRequest, handleDownloadRequest } from "./command-engine-host-helpers";
 import type { CadNamedUcs } from "@/lib/cad/ucs";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
-import { CAD_SHARED_CLIPBOARD, cadClipboardContent, type CadClipboard } from "@/lib/cad/clipboard";
+import { CAD_SHARED_CLIPBOARD, type CadClipboard } from "@/lib/cad/clipboard";
 import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
 import type { SnapType } from "@/lib/cad/snap-engine";
 import type { CadSolidFaceRef } from "@/lib/cad/cad-entities-v5";

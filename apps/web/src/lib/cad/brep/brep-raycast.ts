@@ -19,7 +19,7 @@ import {
   loopPoints,
   type BrepBody,
 } from "../../brep/topology";
-import { v3Sub, v3Dot, v3Cross, v3Add, v3Scale, v3Length, type Vec3 } from "../../brep/vec3";
+import { v3Sub, v3Dot, v3Cross, v3Add, v3Scale, type Vec3 } from "../../brep/vec3";
 
 /** Un rayo en el espacio. `direction` no necesita ser unitario. */
 export interface Ray {

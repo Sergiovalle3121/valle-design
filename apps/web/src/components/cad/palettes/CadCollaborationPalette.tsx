@@ -105,7 +105,7 @@ export function CadCollaborationPalette({
   const [message, setMessage] = useState<string | null>(null);
   const [commentBody, setCommentBody] = useState("");
   const [assignee, setAssignee] = useState("");
-  const [markup, setMarkup] = useState<"note" | "arrow" | "cloud">("cloud");
+  const [markup, _setMarkup] = useState<"note" | "arrow" | "cloud">("cloud");
   const [linkLabel, setLinkLabel] = useState("Authenticated design review");
   // Token en claro devuelto por el servidor: vive SOLO en memoria de este
   // componente, se muestra una vez para copiarlo y desaparece al cerrarlo.
