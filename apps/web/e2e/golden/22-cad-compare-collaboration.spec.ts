@@ -106,7 +106,7 @@ test('canonical Base/Mine/Theirs compare, collision review, comments, links and 
   await expect(page.getByTestId('cad-merge-summary')).toContainText('1 auto · 0 collision · 0 unresolved');
   await expect(page.getByTestId('cad-diff-selected')).toContainText('Geometry: radius');
   await page.getByTestId('cad-diff-overlay').click();
-  await expect(page.getByText('Highlights 2')).toBeVisible();
+  await expect(page.getByText('Resaltados 2')).toBeVisible();
   await page.getByTestId('cad-merge-apply').click();
   await expect(page.getByTestId('cad-collaboration-message')).toContainText('Three-way merge applied');
 

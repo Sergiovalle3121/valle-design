@@ -13120,7 +13120,7 @@ export default function Layout3DEditor({
       label: "CAD validation",
       value: cadValidationReport
         ? cadValidationReport.severity === "critical"
-          ? "Critico"
+          ? "Crítico"
           : cadValidationReport.severity === "warning"
             ? "Con avisos"
             : "OK"
@@ -13144,8 +13144,8 @@ export default function Layout3DEditor({
     {
       label: "Holguras",
       value: clearanceIssues.length
-        ? `${clearanceIssues.length} bajo minimo`
-        : "Dentro de minimo",
+        ? `${clearanceIssues.length} bajo mínimo`
+        : "Dentro de mínimo",
       tone: clearanceIssues.length ? "text-warning-ink" : "text-success-ink",
     },
     {
