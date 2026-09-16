@@ -175,6 +175,18 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
           : "Accede a tus dibujos, revisiones y entregables."
       }
       error={error}
+      hint={!register && error ? (
+        <>
+          ¿Acabas de crear la cuenta y no has confirmado tu correo?{" "}
+          <Link
+            className="font-semibold text-primary-ink underline-offset-4 hover:underline"
+            href="/resend-verification"
+          >
+            Reenvía el enlace
+          </Link>
+          .
+        </>
+      ) : undefined}
       // El panel del producto, sólo en el embudo de alta y sólo en escritorio.
       // Responde las dos preguntas que se hace quien está a punto de teclear su
       // correo —«¿qué es esto?» y «¿puedo fiarme?»— justo mientras las piensa.

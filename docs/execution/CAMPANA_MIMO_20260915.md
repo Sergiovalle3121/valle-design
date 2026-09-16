@@ -134,3 +134,11 @@ Variables e imports sin usar (16 `@typescript-eslint/no-unused-vars`) y un ref l
 **Arreglo:** `assertEmailSenderConfigured` en `email-sender.config.ts`, siguiendo el patrón de identity-security.ts/identity-mfa.ts (assert al cargar módulo). Actualizado `.env.example` (comentario), `production-startup-smoke.mjs` (4 vars al base env + caso nuevo) y `email-sender.config.spec.ts` (2 casos: prod lanza, dev no).
 
 **Verificación:**9 tests pasan (7 existentes +2 nuevos). Módulo carga OK en desarrollo.
+
+## D03 — Hint de verificación tras login fallido (2026-09-16)
+
+**Problema:** Login con contraseña correcta pero correo sin verificar respondía «Credenciales inválidas» — el mismo mensaje que contraseña mala. El usuario no sabe que debe verificar.
+
+**Arreglo:** Web-side only (API stays 401 to avoid enumeration). Added `hint?: ReactNode` prop to `AuthShell.tsx`. In `AuthPage.tsx`, when `!register && error`, shows: «¿Acabas de crear la cuenta y no has confirmado tu correo? Reenvía el enlace.» with Link to `/resend-verification`. Hint only appears on login errors, not register mode, not before submission.
+
+**Verificación:** typecheck passes, no API changes, existing integration spec untouched.
