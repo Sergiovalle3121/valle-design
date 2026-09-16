@@ -7,6 +7,11 @@ import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
 import { loginRequiresMfa } from "@valle/design-sdk";
 import { localReturnTo } from "@/lib/session";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
+import {
+  authFailureMessage,
+  loginPayload,
+  registerPayload,
+} from "@/lib/identity-actions";
 import { AuthShell } from "@/components/AuthShell";
 import { FreeLaunchNote } from "@/components/marketing/FreeLaunchNote";
 import { ResendTimerButton } from "@/components/ResendTimerButton";
@@ -79,18 +84,27 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting.current) return;
+
+    // Se valida en español ANTES de salir del navegador. La validación nativa
+    // del formulario habla en el idioma del navegador, y lo que la pasa —un
+    // correo con espacios, un nombre más largo que el techo— volvía como el
+    // 400 en inglés del API. `registerPayload`/`loginPayload` cortan aquí.
+    const form = new FormData(event.currentTarget);
+    const values = {
+      displayName: String(form.get("displayName") ?? ""),
+      email: String(form.get("email") ?? ""),
+      password: String(form.get("password") ?? ""),
+    };
+    const payload = register ? registerPayload(values) : loginPayload(values);
+    if (!payload.ok) {
+      setError(payload.message);
+      return;
+    }
+    const body = payload.body;
+
     submitting.current = true;
     setBusy(true);
     setError(null);
-
-    const form = new FormData(event.currentTarget);
-    const body = {
-      email: String(form.get("email") ?? "").trim(),
-      password: String(form.get("password") ?? ""),
-      ...(register
-        ? { displayName: String(form.get("displayName") ?? "").trim() }
-        : {}),
-    };
 
     try {
       if (register) {
@@ -128,20 +142,11 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
         router.refresh();
       }
     } catch (cause) {
-      const detail =
-        cause instanceof DesignApiError
-          ? Array.isArray(cause.body?.message)
-            ? cause.body.message.join(" ")
-            : cause.body?.message
-          : undefined;
-      setError(
-        detail ||
-          (cause instanceof DesignApiError && cause.status === 429
-            ? "Demasiados intentos. Espera un momento."
-            : cause instanceof Error
-              ? cause.message
-              : "No se pudo conectar con el servicio de identidad."),
-      );
+      // Nunca el `message` crudo del servidor ni del navegador: el 400 de
+      // class-validator viene en inglés, el 500 dice «Internal server error»
+      // y un fallo de red dice «Failed to fetch». Lo que se enseña es siempre
+      // nuestro, en español, y dice qué hacer ahora.
+      setError(authFailureMessage(cause, mode));
     } finally {
       submitting.current = false;
       setBusy(false);
@@ -270,6 +275,10 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
             required
             checked={acceptedTerms}
             onChange={(event) => setAcceptedTerms(event.target.checked)}
+            // El botón «Crear cuenta» está deshabilitado hasta marcarla (golden
+            // 197). Un botón muerto sin explicación parece un fallo del
+            // producto; la pista dice por qué, enlazada por aria-describedby.
+            hint="Necesaria para crear la cuenta."
             label={
               <>
                 Acepto los{" "}
