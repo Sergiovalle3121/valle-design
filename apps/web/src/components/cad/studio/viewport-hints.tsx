@@ -112,7 +112,7 @@ export function CadViewportHint({ kind }: CadViewportHintProps) {
   return (
     <div
       data-testid="cad-viewport-hint"
-      className="@container absolute bottom-3 right-3 max-w-[22rem] px-3 py-1.5 rounded-card bg-surface/90 backdrop-blur border border-border type-micro text-foreground pointer-events-none @max-[50rem]:hidden"
+      className="@container absolute bottom-3 right-3 max-w-[calc(100%-32rem)] px-3 py-1.5 rounded-card bg-surface/90 backdrop-blur border border-border type-micro text-foreground pointer-events-none @max-[50rem]:hidden"
     >
       <span className="inline-flex items-start gap-2">
         <Move3d className="w-3.5 h-3.5 shrink-0 mt-px" />

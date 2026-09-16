@@ -255,3 +255,11 @@ Variables e imports sin usar (16 `@typescript-eslint/no-unused-vars`) y un ref l
 - Comentario reescrito explicando que `top-[11.5rem]` es la columna del muelle izquierdo, no el lienzo.
 
 **Verificación:** Typecheck OK.
+
+## D14 — Viewport hint max-width responsivo (2026-09-16)
+
+**Problema:** D11 usó `max-w-[22rem]` fijo. D14 requiere `max-w-[calc(100%-32rem)]` para reservar espacio dinámico según el ancho real de la línea de comandos (`left-3` + `w-[min(30rem,42vw)]` + holgura).
+
+**Arreglo:** `max-w-[22rem]` → `max-w-[calc(100%-32rem)]` en `CadViewportHint`. El `data-testid` y el ancla `right-3` ya estaban de D11.
+
+**Verificación:** Typecheck OK.
