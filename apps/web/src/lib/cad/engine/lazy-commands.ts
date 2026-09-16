@@ -161,6 +161,7 @@ export const CAD_COMMAND_MODULE_LOADERS = {
   "commands/xrefs": () => import("./commands/xrefs"),
   "commands/viewbase-commands": () => import("./commands/viewbase-commands"),
   "commands/surfaces": () => import("./commands/surfaces"),
+  "commands/meshes": () => import("./commands/meshes"),
 } as const;
 
 export type CadCommandModuleId = keyof typeof CAD_COMMAND_MODULE_LOADERS;

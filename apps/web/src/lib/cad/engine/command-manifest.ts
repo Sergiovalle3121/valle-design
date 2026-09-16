@@ -1,8 +1,8 @@
 /**
- * METADATOS de los 317 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 336 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
- * 114 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
+ * 115 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
  * `npm run check:cad`— falla si lo committeado deja de coincidir con lo que los
  * descriptores dicen hoy. Regla 4 de la campaña de cimientos: ninguna cifra vive
  * en dos lugares, y un comando nuevo no puede entrar sin aparecer aquí.
@@ -171,6 +171,25 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "PIPE", aliases: ["PIPEADD", "TUBERIA"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, spatial: true, cursor: "crosshair", module: "commands/mep-tracing" },
   { name: "DUCT", aliases: ["DUCTADD", "DUCTO"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, spatial: "elevation", cursor: "crosshair", module: "commands/mep-tracing" },
   { name: "CABLETRAY", aliases: ["CABLETRAYADD", "CHAROLA"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, spatial: "elevation", cursor: "crosshair", module: "commands/mep-tracing" },
+  { name: "MESH", aliases: ["MALLA"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/meshes" },
+  { name: "CONVTOMESH", aliases: ["CVM", "CONVERTIRAMALLA"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/meshes" },
+  { name: "CONVTOSOLID", aliases: ["CVSOLID", "CONVERTIRASOLIDO"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/meshes" },
+  { name: "MESHSMOOTH", aliases: ["MSMOOTH", "SUAVIZARMALLA"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/meshes" },
+  { name: "MESHSMOOTHMORE", aliases: ["MSMOOTH+", "SUAVIZARMALLA+"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/meshes" },
+  { name: "MESHSMOOTHLESS", aliases: ["MSMOOTH-", "SUAVIZARMALLA-"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/meshes" },
+  { name: "MESHREFINE", aliases: ["MREF", "REFINARMALLA"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/meshes" },
+  { name: "MESHSPLIT", aliases: ["MSPLIT", "DIVIDIRMALLA"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/meshes" },
+  { name: "MESHCREASE", aliases: ["MCREASE", "PLEGARMALLA"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/meshes" },
+  { name: "MESHUNCREASE", aliases: ["MUNCREASE", "DESPLEGARMALLA"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/meshes" },
+  { name: "MESHCOLLAPSE", aliases: ["MCOLL", "COLAPSARMALLA"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/meshes" },
+  { name: "MESHEXTRUDE", aliases: ["MEXT", "EXTRUIRMALLA"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/meshes" },
+  { name: "MESHMERGE", aliases: ["MMERGE", "FUSIONARMALLA"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/meshes" },
+  { name: "MESHCAP", aliases: ["MCAP", "TAPARMALLA"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/meshes" },
+  { name: "RULESURF", aliases: ["RUSF", "SUPERFICIEREGLADA"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/meshes" },
+  { name: "TABSURF", aliases: ["TASF", "SUPERFICIETRASLACION"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/meshes" },
+  { name: "REVSURF", aliases: ["RESF", "SUPERFICIEREVOLUCION"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/meshes" },
+  { name: "EDGESURF", aliases: ["EDSF", "SUPERFICIEBORDES"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/meshes" },
+  { name: "3DFACE", aliases: ["F3D", "CARA3D"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/meshes" },
   { name: "ALIGN", aliases: ["AL"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-align" },
   { name: "MATCHPROP", aliases: ["MA"], kind: "modify", transparent: false, selection: "command-first", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-align" },
   { name: "ARRAY", aliases: ["AR", "ARR"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-array" },
