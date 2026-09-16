@@ -303,6 +303,7 @@ const RAW_ONLY_ENTITY_TYPES = new Set([
   "HATCH",
   "MTEXT",
   "MLEADER",
+  "MULTILEADER",
   "VERTEX",
   "SEQEND",
   "ATTRIB",
@@ -949,7 +950,7 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
     if (primitives.length >= remainingEntityCapacity) break;
     const type = String(entity?.type || "").toUpperCase();
     flushSchema4Upto(type);
-    if (type === "MLEADER") {
+    if (type === "MLEADER" || type === "MULTILEADER") {
       mleaderOrdinal += 1;
       if (semanticMleaderOrdinals.has(mleaderOrdinal)) continue;
     }
