@@ -73,7 +73,7 @@ export const LEGAL_DOCUMENTS: readonly LegalDocumentVersion[] = [
     url: '/terms',
     requiereAceptacion: true,
     contentHash:
-      '65f3a1f125dddfbe4059384de6346f740d415a785df55d152534fcc4aac7f02f',
+      '2580b460cc609d0a5e03afbf9821ca806df6acaa6257b218580a6b5cb55dfbea',
   },
   // 2026-09-16 (campaña MiMo): sustituye a la versión 2026-08-27.2 — la marca
   // pasa de «Valle Design» a «VALLECAD» en la metadata. Una versión publicada
@@ -85,7 +85,7 @@ export const LEGAL_DOCUMENTS: readonly LegalDocumentVersion[] = [
     url: '/privacy',
     requiereAceptacion: false,
     contentHash:
-      '28a3052351e90bd61a1af0a61da609a7ddc3e7a162dfe5faae1d65f82c5e8956',
+      'bd9d75e4bbd0448e2502778f9bdad6da20b8263c1d574471e70b10e87fb83b05',
   },
 ] as const;
 
