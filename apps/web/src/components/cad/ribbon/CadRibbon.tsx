@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronUp, ChevronDown } from "lucide-react";
 import { cx, Tabs, TabPanel } from "@/components/ui";
 import { CAD_RIBBON_DATA, type CadRibbonTabId } from "@/lib/cad/ribbon";
+import { planCadRibbonLayout } from "@/lib/cad/ribbon-layout";
 import { CadRibbonPanel } from "./CadRibbonPanel";
 
 /**
@@ -16,6 +17,8 @@ import { CadRibbonPanel } from "./CadRibbonPanel";
  */
 const RIBBON_ACTIVE_TAB_KEY = "valle_cad_ribbon_active_tab";
 const RIBBON_COLLAPSED_KEY = "valle_cad_ribbon_collapsed";
+/** Paneles plegados a mano, como «pestaña/panel»; misma naturaleza cosmética. */
+const RIBBON_PANELS_KEY = "valle_cad_ribbon_panels_collapsed";
 
 function leerPestanaGuardada(): CadRibbonTabId | null {
   try {
@@ -37,6 +40,31 @@ function leerColapsoGuardado(): boolean | null {
     return null;
   }
 }
+
+function leerPanelesPlegados(): ReadonlySet<string> {
+  try {
+    const stored = window.localStorage.getItem(RIBBON_PANELS_KEY);
+    const parsed: unknown = stored ? JSON.parse(stored) : [];
+    return new Set(Array.isArray(parsed) ? parsed.filter((entry): entry is string => typeof entry === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * Ancho inicial de la tira ANTES de que el ResizeObserver mida: la cinta
+ * ocupa todo el ancho del estudio (`cad-shell` es `fixed inset-0`), así que
+ * la ventana es la mejor estimación y evita pintar un primer cuadro con todos
+ * los paneles desplegados y luego plegarlos. En el servidor no hay ventana
+ * (y este componente no se renderiza ahí), pero `renderToStaticMarkup` en
+ * las specs sí lo llama: 1280, el viewport de los goldens.
+ */
+function anchoInicial(): number {
+  return typeof window === "undefined" ? 1280 : window.innerWidth;
+}
+
+/** `px-1` de la tira de paneles: lo que la ventana no da a los paneles. */
+const STRIP_PADDING = 8;
 
 /**
  * Todos los nombres de comando que SÍ tocan el documento — calculado una vez,
@@ -60,6 +88,15 @@ const CAD_MUTATING_COMMANDS: ReadonlySet<string> = new Set(
  * `dispatch` es el MISMO punto de entrada que la línea de comandos
  * (`commandEngineRef.current.invoke`): un clic en un botón de la cinta no es
  * un camino nuevo, es el camino de siempre con un mouse en vez de un teclado.
+ *
+ * ## Sin scroll horizontal
+ *
+ * La tira de paneles medía ~10 700 px con la barra de scroll oculta. Ahora
+ * un `ResizeObserver` mide el ancho real y `planCadRibbonLayout` decide qué
+ * paneles pierden columnas, se reducen a sus botones grandes o se pliegan a
+ * un botón (de derecha a izquierda, como AutoCAD). La tira conserva
+ * `overflow-x-auto` sólo como red para ventanas de tableta, donde ni el
+ * plan mínimo cabe: ahí se desplaza en vez de amputar botones.
  */
 export function CadRibbon({
   dispatch,
@@ -83,6 +120,9 @@ export function CadRibbon({
   // habría costado un re-render extra visible al abrir el estudio.
   const [activeTab, setActiveTab] = useState<CadRibbonTabId>(() => leerPestanaGuardada() ?? "inicio");
   const [collapsed, setCollapsed] = useState<boolean>(() => leerColapsoGuardado() ?? false);
+  const [manuallyCollapsed, setManuallyCollapsed] = useState<ReadonlySet<string>>(() => leerPanelesPlegados());
+  const [stripWidth, setStripWidth] = useState<number>(anchoInicial);
+  const stripRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try {
@@ -99,6 +139,28 @@ export function CadRibbon({
       // Igual que arriba.
     }
   }, [collapsed]);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(RIBBON_PANELS_KEY, JSON.stringify([...manuallyCollapsed]));
+    } catch {
+      // Igual que arriba.
+    }
+  }, [manuallyCollapsed]);
+
+  // El ancho real de la tira, medido; el `setState` va en la llamada del
+  // observador, no en el cuerpo del efecto. El envoltorio observado
+  // sobrevive al cambio de pestaña y al minimizado, así que se observa una
+  // sola vez al montar.
+  useEffect(() => {
+    const element = stripRef.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width;
+      if (width) setStripWidth(width);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   // T-74(i): sólo lectura apagaba la cinta ENTERA (`pointer-events-none`
   // sobre la tira completa) — incluidos comandos como LIST o DIST, que no
@@ -112,10 +174,35 @@ export function CadRibbon({
     return new Set([...CAD_MUTATING_COMMANDS, ...disabledCommands]);
   }, [disabledCommands, readOnly]);
 
+  const activeTabData = CAD_RIBBON_DATA.find((tab) => tab.id === activeTab) ?? CAD_RIBBON_DATA[0];
+  const manualForTab = useMemo(
+    () =>
+      new Set(
+        [...manuallyCollapsed]
+          .filter((entry) => entry.startsWith(`${activeTabData.id}/`))
+          .map((entry) => entry.slice(activeTabData.id.length + 1)),
+      ),
+    [activeTabData.id, manuallyCollapsed],
+  );
+  const plan = useMemo(
+    () => planCadRibbonLayout(activeTabData, stripWidth - STRIP_PADDING, manualForTab),
+    [activeTabData, manualForTab, stripWidth],
+  );
+  const togglePanel = (label: string) => {
+    const key = `${activeTabData.id}/${label}`;
+    setManuallyCollapsed((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  // Sin insignia de conteo en la pestaña: AutoCAD no la tiene, y «159» al
+  // lado de «Inicio» era ruido que no ayudaba a encontrar nada.
   const tabs = CAD_RIBBON_DATA.map((tab) => ({
     id: tab.id,
     label: tab.label,
-    count: tab.commandCount,
     "data-testid": `cad-ribbon-tab-${tab.id}`,
   }));
 
@@ -123,8 +210,12 @@ export function CadRibbon({
     <div
       data-testid="cad-ribbon"
       data-collapsed={collapsed ? "true" : "false"}
+      // `z-[25]`: por encima de las capas del lienzo (la paleta de
+      // herramientas es `z-20` y cae justo donde se abre el desplegable de
+      // Dibujo) y por debajo de la barra superior (`z-30`), cuyos menús
+      // caen sobre la cinta.
       className={cx(
-        "relative z-20 flex shrink-0 flex-col border-b border-border bg-surface/90 backdrop-blur",
+        "relative z-[25] flex shrink-0 flex-col border-b border-border bg-surface/90 backdrop-blur",
         className,
       )}
     >
@@ -155,27 +246,35 @@ export function CadRibbon({
           )}
         </button>
       </div>
-      {!collapsed &&
-        CAD_RIBBON_DATA.map((tab) => (
-          <TabPanel key={tab.id} id={tab.id} active={tab.id === activeTab}>
-            <div
-              data-testid={`cad-ribbon-panels-${tab.id}`}
-              className={cx(
-                "flex items-stretch overflow-x-auto px-1 py-0",
-                "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-              )}
-            >
-              {tab.panels.map((panel) => (
-                <CadRibbonPanel
-                  key={panel.label}
-                  panel={panel}
-                  onRun={dispatch}
-                  disabledCommands={effectiveDisabledCommands}
-                />
-              ))}
-            </div>
-          </TabPanel>
-        ))}
+      <div ref={stripRef} className="w-full">
+        {!collapsed &&
+          CAD_RIBBON_DATA.map((tab) => (
+            <TabPanel key={tab.id} id={tab.id} active={tab.id === activeTab}>
+              {tab.id === activeTab ? (
+                <div
+                  data-testid={`cad-ribbon-panels-${tab.id}`}
+                  data-strip-width={Math.round(stripWidth)}
+                  className={cx(
+                    "flex items-stretch overflow-x-auto px-1 py-0",
+                    "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+                  )}
+                >
+                  {tab.panels.map((panel) => (
+                    <CadRibbonPanel
+                      key={panel.label}
+                      panel={panel}
+                      onRun={dispatch}
+                      disabledCommands={effectiveDisabledCommands}
+                      layout={plan.get(panel.label)}
+                      manuallyCollapsed={manualForTab.has(panel.label)}
+                      onToggleCollapsed={() => togglePanel(panel.label)}
+                    />
+                  ))}
+                </div>
+              ) : null}
+            </TabPanel>
+          ))}
+      </div>
     </div>
   );
 }

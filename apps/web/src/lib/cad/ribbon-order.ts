@@ -47,9 +47,12 @@ export const CAD_RIBBON_COMMAND_ORDER: Readonly<Record<string, readonly string[]
     "HATCH", "XLINE", "RAY", "POINT", "DIVIDE", "MEASURE", "DONUT", "REGION", "SOLID",
     "GRADIENT", "BOUNDARY",
   ],
+  // Tras los dos grandes (MOVE, COPY), la primera columna de pequeños es
+  // Girar · Recortar · Borrar: es la que sobrevive a 1280 px (ribbon-layout)
+  // y la que el golden 86 exige a la vista.
   Modificar: [
-    "MOVE", "COPY", "ROTATE", "SCALE", "MIRROR", "OFFSET", "TRIM", "EXTEND",
-    "FILLET", "CHAMFER", "ARRAY", "STRETCH", "ERASE", "EXPLODE", "BREAK", "JOIN",
+    "MOVE", "COPY", "ROTATE", "TRIM", "ERASE", "SCALE", "MIRROR", "OFFSET",
+    "EXTEND", "FILLET", "CHAMFER", "ARRAY", "STRETCH", "EXPLODE", "BREAK", "JOIN",
     "LENGTHEN", "PEDIT", "ALIGN", "BLEND", "DRAWORDER",
   ],
   Anotación: ["TEXT", "MTEXT", "DIMLINEAR", "DIMALIGNED", "MLEADER", "TABLE"],

@@ -5,8 +5,11 @@
  * deshabilita botón por botón, y sólo los que SÍ tocan el documento
  * (`CadCommandDescriptor.mutates`).
  *
- * LINE muta (dibuja); LIST no (es de consulta, `mutates: false` en
- * `command-manifest.ts`) — el par real que demuestra la diferencia.
+ * LINE muta (dibuja); LAYER no (abre el gestor, `mutates: false` en
+ * `command-manifest.ts`) — el par real que demuestra la diferencia, y los
+ * dos son botones grandes de Inicio, a la vista a 1280 px (el ancho que la
+ * cinta asume sin ventana; LIST vive en Utilidades, que a ese ancho está
+ * plegado y sólo se monta al abrir su desplegable).
  *
  * Correr: npx tsx src/components/cad/ribbon/CadRibbon.spec.ts
  */
@@ -44,8 +47,8 @@ function disabledAttr(html: string, testId: string): boolean {
     "sin sólo-lectura, LINE (muta) está habilitado",
   );
   ok(
-    !disabledAttr(htmlEditable, "cad-ribbon-command-LIST"),
-    "sin sólo-lectura, LIST (no muta) está habilitado",
+    !disabledAttr(htmlEditable, "cad-ribbon-command-LAYER"),
+    "sin sólo-lectura, LAYER (no muta) está habilitado",
   );
   ok(
     !htmlEditable.includes("opacity-60"),
@@ -62,8 +65,8 @@ function disabledAttr(html: string, testId: string): boolean {
     "en sólo-lectura, LINE (muta el documento) queda deshabilitado",
   );
   ok(
-    !disabledAttr(htmlReadOnly, "cad-ribbon-command-LIST"),
-    "en sólo-lectura, LIST (sólo consulta) SIGUE habilitado — la regresión real que esto arregla",
+    !disabledAttr(htmlReadOnly, "cad-ribbon-command-LAYER"),
+    "en sólo-lectura, LAYER (sólo consulta) SIGUE habilitado — la regresión real que esto arregla",
   );
   ok(
     !htmlReadOnly.includes("opacity-60"),
@@ -93,6 +96,22 @@ function disabledAttr(html: string, testId: string): boolean {
     ),
     "no se reintroduce un efecto que llame a setActiveTab/setCollapsed al montar",
   );
+}
+
+// Sin scroll: a 1280 px (el ancho que la cinta asume sin ventana) Inicio se
+// monta con Dibujo y Modificar desplegados, Capas reducido a su botón grande
+// y el resto plegado a un botón; nada de insignias de conteo en las pestañas.
+{
+  const html = renderToStaticMarkup(createElement(CadRibbon, { dispatch: () => undefined }));
+  ok(html.includes('data-strip-width="1280"'), "sin ventana la tira asume 1280 px, el viewport de los goldens");
+  ok(!/rounded-full px-1\.5 py-px/.test(html), "las pestañas ya no llevan la insignia con el conteo de botones");
+  for (const name of ["LINE", "CIRCLE", "ARC", "MOVE", "COPY", "ROTATE", "TRIM", "ERASE", "LAYER"]) {
+    ok(html.includes(`data-testid="cad-ribbon-command-${name}"`), `${name} está montado sin abrir nada a 1280 px`);
+  }
+  ok(!html.includes('data-testid="cad-ribbon-command-LIST"'), "LIST (Utilidades, plegado) no está en el DOM hasta abrir el desplegable");
+  ok(html.includes('data-testid="cad-ribbon-panel-toggle-Utilidades"'), "Utilidades se pliega a un botón que abre su desplegable");
+  ok(!html.includes("cad-ribbon-panel-flyout-"), "ningún desplegable está abierto en reposo");
+  ok(html.includes('data-testid="cad-ribbon-panel-Capas"') && /data-testid="cad-ribbon-panel-Capas"[^>]*data-layout="reduced"/.test(html), "Capas queda reducido a su botón grande a 1280 px");
 }
 
 console.log(`CadRibbon: ${checks}/${checks} comprobaciones verdes`);
