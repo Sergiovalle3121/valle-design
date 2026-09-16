@@ -78,26 +78,31 @@ export interface BrandManifest {
  * permite renombrar sin tocar base de datos ni APIs.
  */
 const DEFAULT_PRODUCT_NAMES: Record<ProductCode, string> = {
-  design: "VALLE Design",
+  // «VALLECAD» desde 2026-09-16 por decisión del titular: es la marca que
+  // vive en vallecad.com. El código interno sigue siendo `design`; sólo cambia
+  // el valor visible, que es exactamente para lo que existe este contrato.
+  design: "VALLECAD",
 };
 
 /** Año base del copyright; el resolvedor lo puede sobrescribir por entorno. */
 const DEFAULT_COPYRIGHT_YEAR = 2026;
 
 export const DEFAULT_BRAND_MANIFEST: BrandManifest = {
-  brandName: "VALLE",
+  brandName: "VALLECAD",
   legalEntityName: "Sergio Valle Enterprise Software",
   founderName: "Sergio Valle",
-  descriptor: "Diseño arquitectónico",
+  descriptor: "CAD en el navegador",
   productNames: DEFAULT_PRODUCT_NAMES,
   // La promesa describe SÓLO lo que el producto hace y está probado: dibujo
-  // arquitectónico 2D con capas, bloques, cotas e intercambio DXF. Nada de
-  // DWG, 3D ni interoperabilidad que no exista (ver `docs/` y el gate de
-  // marca): una promesa sin comportamiento detrás es una afirmación falsa,
-  // no un texto de marketing.
+  // 2D con capas, bloques y cotas asociativas, sólidos 3D de modelado directo
+  // sobre el mismo documento (ADR-0016) e intercambio DXF. Nada de DWG aquí:
+  // su lectura es una beta gobernada por bandera de despliegue y el texto que
+  // la anuncia se deriva de esa bandera (`lib/marketing/dwg-claim.ts`), no de
+  // un manifiesto estático. Una promesa sin comportamiento detrás es una
+  // afirmación falsa, no un texto de marketing.
   tagline: {
-    en: "2D architectural design in the browser: layers, blocks, dimensions and DXF exchange.",
-    es: "Diseño arquitectónico 2D en el navegador: capas, bloques, cotas e intercambio DXF.",
+    en: "2D drafting and 3D solids in the browser: layers, blocks, associative dimensions and DXF exchange.",
+    es: "Dibujo 2D y sólidos 3D en el navegador: capas, bloques, cotas asociativas e intercambio DXF.",
   },
   supportEmail: "support@example.invalid",
   salesEmail: "sales@example.invalid",
