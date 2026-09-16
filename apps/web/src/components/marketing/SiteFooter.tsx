@@ -65,8 +65,8 @@ export function SiteFooter() {
         <div>
           <Logo />
           <p className="type-small mt-3 max-w-xs text-muted-foreground">
-            CAD 2D profesional en el navegador: dibuja, acota y publica láminas
-            a escala sin instalar nada.
+            CAD 2D y 3D en el navegador: dibuja, acota, modela sólidos y publica
+            láminas a escala sin instalar nada.
           </p>
           <p className="type-small mt-4 text-muted-foreground">{BRAND.copyright}</p>
         </div>

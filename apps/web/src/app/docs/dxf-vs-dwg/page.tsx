@@ -6,6 +6,7 @@ import {
   guideMetadata,
 } from "../GuideShell";
 import { PRODUCT_LABEL } from "@/config/brand";
+import { dwgClaim } from "@/lib/marketing/dwg-claim";
 
 /**
  * Guía de captación #2, y la más delicada del conjunto.
@@ -84,18 +85,29 @@ export default function Page() {
 
       <GuideSection title="Qué NO hace, dicho sin rodeos">
         <p>
-          <strong>{PRODUCT_LABEL.design} no abre ni escribe archivos DWG.</strong> No es
+          <strong>{PRODUCT_LABEL.design} no escribe archivos DWG.</strong> No es
           una limitación temporal disfrazada: es una decisión documentada. Sin
-          una biblioteca con licencia del titular del formato, cualquier lectura
-          de DWG sería una reconstrucción aproximada, y un plano aproximado es
-          peor que un plano que no abre, porque el error no se ve hasta que ya
-          está en obra.
+          una biblioteca con licencia del titular del formato, escribir DWG
+          sería una reconstrucción aproximada, y un plano aproximado es peor que
+          un plano que no abre, porque el error no se ve hasta que ya está en
+          obra.
+        </p>
+        {/*
+          La LECTURA es distinta y depende de cómo se construyó este
+          despliegue: hay dos betas de sólo importación firmadas por el titular
+          (AC1015 y AC1018) que se encienden por variable de build. El párrafo
+          sale de `dwg-claim.ts`, el mismo módulo que alimenta la portada y el
+          FAQ, para que la guía no diga una cosa y el hero otra.
+        */}
+        <p>
+          <strong>La lectura está acotada por despliegue.</strong>{" "}
+          {dwgClaim().long}
         </p>
         <p>
-          Por eso el editor <em>detecta</em> el formato y lo rechaza con un
-          mensaje claro en lugar de intentarlo. Renombrar un archivo tampoco
-          sirve: cambiarle la extensión a un DXF no lo convierte en DWG, ni al
-          revés.
+          Cuando la lectura está apagada, el editor <em>detecta</em> el formato
+          y lo rechaza con un mensaje claro en lugar de intentarlo. Renombrar
+          un archivo tampoco sirve: cambiarle la extensión a un DXF no lo
+          convierte en DWG, ni al revés.
         </p>
       </GuideSection>
 
