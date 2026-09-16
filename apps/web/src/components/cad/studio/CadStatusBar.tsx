@@ -337,7 +337,7 @@ export function CadStatusBar({
           onClick={validation.onOpenChecks}
           className={`${validation.releaseTone} hover:text-foreground`}
         >
-          Release {validation.releaseState}
+          Revisión {validation.releaseState}
         </button>
       )}
       {validation.report && (

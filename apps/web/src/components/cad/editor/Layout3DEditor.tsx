@@ -8483,7 +8483,7 @@ export default function Layout3DEditor({
     select(items);
     rebuildAll();
     focusViewportItems(items);
-    toast.success(issue.actionLabel, "CAD validation");
+    toast.success(issue.actionLabel, "Validación CAD");
   };
   // Design-check / validation review of the current (possibly unsaved) state (Fase 63).
   const openChecks = useCallback(() => {
@@ -13111,7 +13111,7 @@ export default function Layout3DEditor({
               : "text-muted-foreground dark:text-muted-foreground",
     },
     {
-      label: "CAD validation",
+      label: "Validación CAD",
       value: cadValidationReport
         ? cadValidationReport.severity === "critical"
           ? "Crítico"
