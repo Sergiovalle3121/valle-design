@@ -263,3 +263,11 @@ Variables e imports sin usar (16 `@typescript-eslint/no-unused-vars`) y un ref l
 **Arreglo:** `max-w-[22rem]` → `max-w-[calc(100%-32rem)]` en `CadViewportHint`. El `data-testid` y el ancla `right-3` ya estaban de D11.
 
 **Verificación:** Typecheck OK.
+
+## D15 — /sla imprime ruta del repositorio al cliente (2026-09-16)
+
+**Problema:** El texto visible de `/sla` contenía literalmente `` `docs/ops/SLA.md` `` con backticks sin renderizar — una ruta interna del repositorio en superficie comercial.
+
+**Arreglo:** Eliminada la referencia a `docs/ops/SLA.md` del párrafo visible. Añadida regresión en `sla-surface.spec.ts` que extrae texto visible de `<p>/<li>` en SlaPage, terms y privacy y prohíbe backticks y rutas `docs/`/`apps/`.
+
+**Verificación:** sla-surface.spec OK.

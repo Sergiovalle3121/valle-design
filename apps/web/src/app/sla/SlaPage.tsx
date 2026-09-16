@@ -228,8 +228,7 @@ export function SlaPage() {
       <PublicSection title="Borrador pendiente de revisión legal">
         <p>
           Este texto lo redactó el equipo de producto a partir de lo que el
-          sistema puede medir hoy (`docs/ops/SLA.md`, con sus consultas y
-          procedimientos ejecutables).{" "}
+          sistema puede medir hoy.{" "}
           <strong>No ha pasado revisión legal profesional</strong> y no
           sustituye el acuerdo escrito que requiere un compromiso de
           disponibilidad vinculante.

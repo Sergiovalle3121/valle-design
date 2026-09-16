@@ -75,6 +75,46 @@ assert.match(
   "/terms debería enlazar al SLA que ahora sí se publica",
 );
 
+// ── La superficie pública no imprime rutas del repositorio ni markdown sin
+//    renderizar. Sobre los <p>/<li> de SlaPage.tsx se prohíben los backticks
+//    y las rutas tipo docs/ o apps/.
+const BACKTICK = /`/u;
+const REPO_PATH = /docs\/|apps\/|\.md\b/iu;
+
+for (const [name, source] of [
+  ["SlaPage.tsx", slaPage],
+  ["terms/page.tsx", terms],
+  ["privacy/page.tsx", read("src/app/privacy/page.tsx")],
+] as const) {
+  // Extraer texto de párrafos: contenido entre > y < en líneas que no son
+  // imports, comentarios ni atributos JSX. Evita falsos positivos de imports
+  // como `../docs/PublicPageShell` y template literals en atributos.
+  const lines = source.split("\n");
+  const textLines: string[] = [];
+  let inComment = false;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("import ")) continue;
+    if (trimmed.startsWith("//")) continue;
+    if (trimmed.startsWith("/*")) { inComment = true; continue; }
+    if (inComment) { if (trimmed.includes("*/")) inComment = false; continue; }
+    // Extraer nodos de texto: contenido entre > y <
+    const textParts = [...line.matchAll(/>([^<{]+)</g)].map((m) => m[1]);
+    textLines.push(...textParts);
+  }
+  const visibleText = textLines.join(" ");
+  assert.doesNotMatch(
+    visibleText,
+    BACKTICK,
+    `${name}: la superficie pública no debe imprimir backticks sin renderizar`,
+  );
+  assert.doesNotMatch(
+    visibleText,
+    REPO_PATH,
+    `${name}: la superficie pública no debe imprimir rutas del repositorio`,
+  );
+}
+
 console.log(
   "sla-surface: /sla ata sus tres columnas al catálogo real por código, sin nombres de plan escritos a mano; /terms ya no lo niega.",
 );
