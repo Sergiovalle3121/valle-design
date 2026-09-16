@@ -3,39 +3,44 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-decoder-matrix-v1",
   "generadoPor": "node scripts/dwg/dwg-evidence.mjs",
-  "generadoEn": "2026-09-16T08:40:18.474Z",
+  "generadoEn": "2026-09-01T07:08:33.709Z",
   "environment": {
-    "node": "v22.18.0",
-    "platform": "win32",
+    "node": "v22.22.2",
+    "platform": "linux",
     "architecture": "x64",
-    "osType": "Windows_NT",
-    "osRelease": "10.0.26200",
-    "cpuModel": "AMD Ryzen 5 5500U with Radeon Graphics         ",
-    "logicalCpuCount": 12,
-    "totalMemoryBytes": 7896625152,
-    "declaredMachine": "AMD Ryzen 5 5500U with Radeon Graphics (12 hilos lógicos), 7.9 GB de RAM, Windows_NT 10.0.26200"
+    "osType": "Linux",
+    "osRelease": "6.18.44-fc-v22",
+    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "logicalCpuCount": 4,
+    "totalMemoryBytes": 16856133632,
+    "declaredMachine": "Intel(R) Xeon(R) Processor @ 2.10GHz (4 hilos lógicos), 16.9 GB de RAM, Linux 6.18.44-fc-v22"
   },
-  "declaracion": "CERO BUNDLES ADMITIDOS, CERO CAPACIDADES PROMOVIDAS. No hay decodificador DWG en el producto, no hay importación DWG y no se afirma compatibilidad con ningún archivo ni con ningún software de terceros. Este artefacto existe para que la ausencia sea MEDIBLE y para que la evidencia se genere sola el día que haya corpus con derechos.",
+  "declaracion": "Capacidades promovidas con corpus independiente admitido; ver `capacidades` y `entidades` para el alcance exacto.",
   "reglaDePromocion": "Una capacidad se promueve sólo si el laboratorio la declara `supported` Y hay ≥1 bundle admitido Y ≥2 validaciones independientes autorizadas. El reader y el writer de Valle nunca son el único oráculo (CORPUS_POLICY.md).",
   "limiteDeLaEvidencia": "Sin corpus independiente admitido: lo que el laboratorio decodifica está verificado sólo contra fixtures que genera él mismo, y eso prueba consistencia interna, no compatibilidad con ningún archivo ni con ningún software ajeno.",
   "disponibilidadEnProducto": false,
   "corpus": {
-    "estado": "unavailable",
-    "origen": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance.git",
+    "estado": "verified",
+    "origen": "/home/user/valle-design-dwg-conformance",
     "commitFijado": "0688fb9c395b9cac4169d1ee9c23a7370cc28cf3",
-    "indiceSha256": null,
-    "bundlesAdmitidos": 0,
-    "validacionesIndependientes": 0,
-    "oraculosIndependientes": 0,
-    "fixtures": 0,
-    "versionesCubiertas": [],
-    "motivo": "sin VALLE_DWG_CORPUS_MIRROR y sin VALLE_DWG_CORPUS_TOKEN: no se descargó nada y no se afirma nada"
+    "indiceSha256": "59c69c1ba3a9524a5ca5fb246c7b0226e9980e0c3b9cdbdc2d6e2180d49ee07a",
+    "bundlesAdmitidos": 7,
+    "validacionesIndependientes": 14,
+    "oraculosIndependientes": 71,
+    "fixtures": 57,
+    "versionesCubiertas": [
+      "AC1015",
+      "AC1018",
+      "AC1024",
+      "AC1027",
+      "AC1032"
+    ]
   },
   "resumen": {
-    "bundlesAdmitidos": 0,
-    "validacionesIndependientes": 0,
+    "bundlesAdmitidos": 7,
+    "validacionesIndependientes": 14,
     "capacidadesEvaluadas": 11,
-    "capacidadesPromovidas": 0,
+    "capacidadesPromovidas": 2,
     "tiposDecodificadosEnLaboratorio": 65,
     "tiposVerificadosIndependientemente": 51,
     "geometriasNeutrales": 24
@@ -44,29 +49,21 @@
     {
       "id": "signatureDetection",
       "estadoLaboratorio": "supported",
-      "promovida": false,
-      "bloqueos": [
-        "cero bundles admitidos en el corpus independiente",
-        "faltan dos validaciones independientes autorizadas"
-      ]
+      "promovida": true,
+      "bloqueos": []
     },
     {
       "id": "boundedBinaryPrimitives",
       "estadoLaboratorio": "supported",
-      "promovida": false,
-      "bloqueos": [
-        "cero bundles admitidos en el corpus independiente",
-        "faltan dos validaciones independientes autorizadas"
-      ]
+      "promovida": true,
+      "bloqueos": []
     },
     {
       "id": "ac1015Envelope",
       "estadoLaboratorio": "experimental-lab",
       "promovida": false,
       "bloqueos": [
-        "el laboratorio la declara \"experimental-lab\"",
-        "cero bundles admitidos en el corpus independiente",
-        "faltan dos validaciones independientes autorizadas"
+        "el laboratorio la declara \"experimental-lab\""
       ]
     },
     {
@@ -74,9 +71,7 @@
       "estadoLaboratorio": "experimental-lab",
       "promovida": false,
       "bloqueos": [
-        "el laboratorio la declara \"experimental-lab\"",
-        "cero bundles admitidos en el corpus independiente",
-        "faltan dos validaciones independientes autorizadas"
+        "el laboratorio la declara \"experimental-lab\""
       ]
     },
     {
@@ -84,9 +79,7 @@
       "estadoLaboratorio": "experimental-lab",
       "promovida": false,
       "bloqueos": [
-        "el laboratorio la declara \"experimental-lab\"",
-        "cero bundles admitidos en el corpus independiente",
-        "faltan dos validaciones independientes autorizadas"
+        "el laboratorio la declara \"experimental-lab\""
       ]
     },
     {
@@ -94,9 +87,7 @@
       "estadoLaboratorio": "experimental-lab",
       "promovida": false,
       "bloqueos": [
-        "el laboratorio la declara \"experimental-lab\"",
-        "cero bundles admitidos en el corpus independiente",
-        "faltan dos validaciones independientes autorizadas"
+        "el laboratorio la declara \"experimental-lab\""
       ]
     },
     {
@@ -104,9 +95,7 @@
       "estadoLaboratorio": "experimental-lab",
       "promovida": false,
       "bloqueos": [
-        "el laboratorio la declara \"experimental-lab\"",
-        "cero bundles admitidos en el corpus independiente",
-        "faltan dos validaciones independientes autorizadas"
+        "el laboratorio la declara \"experimental-lab\""
       ]
     },
     {
@@ -114,9 +103,7 @@
       "estadoLaboratorio": "product-beta-flag-gated",
       "promovida": false,
       "bloqueos": [
-        "el laboratorio la declara \"product-beta-flag-gated\"",
-        "cero bundles admitidos en el corpus independiente",
-        "faltan dos validaciones independientes autorizadas"
+        "el laboratorio la declara \"product-beta-flag-gated\""
       ]
     },
     {
@@ -124,9 +111,7 @@
       "estadoLaboratorio": "product-beta-flag-gated",
       "promovida": false,
       "bloqueos": [
-        "el laboratorio la declara \"product-beta-flag-gated\"",
-        "cero bundles admitidos en el corpus independiente",
-        "faltan dos validaciones independientes autorizadas"
+        "el laboratorio la declara \"product-beta-flag-gated\""
       ]
     },
     {
@@ -134,9 +119,7 @@
       "estadoLaboratorio": "experimental-lab-writer",
       "promovida": false,
       "bloqueos": [
-        "el laboratorio la declara \"experimental-lab-writer\"",
-        "cero bundles admitidos en el corpus independiente",
-        "faltan dos validaciones independientes autorizadas"
+        "el laboratorio la declara \"experimental-lab-writer\""
       ]
     },
     {
@@ -144,9 +127,7 @@
       "estadoLaboratorio": "external-oracle-verified",
       "promovida": false,
       "bloqueos": [
-        "el laboratorio la declara \"external-oracle-verified\"",
-        "cero bundles admitidos en el corpus independiente",
-        "faltan dos validaciones independientes autorizadas"
+        "el laboratorio la declara \"external-oracle-verified\""
       ]
     }
   ],
@@ -158,7 +139,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "text",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "ATTRIB",
@@ -167,7 +148,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "attrib",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "ATTDEF",
@@ -176,7 +157,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "attdef",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "BLOCK",
@@ -185,7 +166,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "block-definitions",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "ENDBLK",
@@ -194,7 +175,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "block-definitions",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "SEQEND",
@@ -203,7 +184,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
       "claveDeVerificacion": "seqend",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "INSERT",
@@ -212,7 +193,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "insert",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "VERTEX_2D",
@@ -221,7 +202,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "lwpolyline",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "VERTEX_3D",
@@ -230,7 +211,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "polyline3d",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "VERTEX_MESH",
@@ -239,7 +220,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "polymesh",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "VERTEX_PFACE",
@@ -248,7 +229,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "polyfaceMesh",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "VERTEX_PFACE_FACE",
@@ -257,7 +238,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "polyfaceMesh",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "POLYLINE_2D",
@@ -266,7 +247,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "lwpolyline",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "POLYLINE_3D",
@@ -275,7 +256,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "polyline3d",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "ARC",
@@ -284,7 +265,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "arc",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "CIRCLE",
@@ -293,7 +274,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "circle",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "LINE",
@@ -302,7 +283,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "line",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "DIM_ORDINATE",
@@ -311,7 +292,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "dimension",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "DIM_LINEAR",
@@ -320,7 +301,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "dimension",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "DIM_ALIGNED",
@@ -329,7 +310,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "dimension",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "DIM_ANGULAR_3PT",
@@ -338,7 +319,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "dimension",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "DIM_ANGULAR_2LN",
@@ -347,7 +328,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "dimension",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "DIM_RADIUS",
@@ -356,7 +337,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "dimension",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "DIM_DIAMETER",
@@ -365,7 +346,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "dimension",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "POINT",
@@ -374,7 +355,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "point",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "3DFACE",
@@ -383,7 +364,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "face3d",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "POLYLINE_PFACE",
@@ -392,7 +373,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "polyfaceMesh",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "POLYLINE_MESH",
@@ -401,7 +382,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "polymesh",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "SOLID",
@@ -410,7 +391,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "solid",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "TRACE",
@@ -419,7 +400,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "trace",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "VIEWPORT",
@@ -428,7 +409,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "viewport",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "ELLIPSE",
@@ -437,7 +418,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "ellipse",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "SPLINE",
@@ -446,7 +427,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "spline",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "RAY",
@@ -455,7 +436,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "ray",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "XLINE",
@@ -464,7 +445,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "xline",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "DICTIONARY",
@@ -473,7 +454,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
       "claveDeVerificacion": "dictionary",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "MTEXT",
@@ -482,7 +463,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "mtext",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "LEADER",
@@ -491,7 +472,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "leader",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "TOLERANCE",
@@ -500,7 +481,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "tolerance",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "MLINE",
@@ -509,7 +490,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "mline",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "BLOCK_CONTROL",
@@ -518,7 +499,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "block-definitions",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "BLOCK_HEADER",
@@ -527,7 +508,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "block-definitions",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "LAYER_CONTROL",
@@ -536,7 +517,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "layer-table",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "LAYER",
@@ -545,7 +526,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "layer-table",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "STYLE_CONTROL",
@@ -554,7 +535,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "style-table",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "STYLE",
@@ -563,7 +544,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "style-table",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "LTYPE_CONTROL",
@@ -572,7 +553,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "ltype-table",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "LTYPE",
@@ -581,7 +562,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "ltype-table",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "VIEW_CONTROL",
@@ -590,7 +571,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
       "claveDeVerificacion": "view_control",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "VIEW",
@@ -599,7 +580,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
       "claveDeVerificacion": "view",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "UCS_CONTROL",
@@ -608,7 +589,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
       "claveDeVerificacion": "ucs_control",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "UCS",
@@ -617,7 +598,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
       "claveDeVerificacion": "ucs",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "VPORT_CONTROL",
@@ -626,7 +607,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
       "claveDeVerificacion": "vport_control",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "VPORT",
@@ -635,7 +616,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
       "claveDeVerificacion": "vport",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "APPID_CONTROL",
@@ -644,7 +625,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
       "claveDeVerificacion": "appid_control",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "APPID",
@@ -653,7 +634,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
       "claveDeVerificacion": "appid",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "DIMSTYLE_CONTROL",
@@ -662,7 +643,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "dimstyle-table",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "DIMSTYLE",
@@ -671,7 +652,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "dimstyle-table",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "VP_ENT_HDR_CONTROL",
@@ -680,7 +661,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
       "claveDeVerificacion": "vp_ent_hdr_control",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "VP_ENT_HDR",
@@ -689,7 +670,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
       "claveDeVerificacion": "vp_ent_hdr",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "GROUP",
@@ -698,7 +679,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
       "claveDeVerificacion": "group",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "MLINESTYLE",
@@ -707,7 +688,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "mlinestyle-table",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "LWPOLYLINE",
@@ -716,7 +697,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "lwpolyline",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "HATCH",
@@ -725,7 +706,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": true,
       "claveDeVerificacion": "hatch",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     },
     {
       "tipo": "XRECORD",
@@ -734,7 +715,7 @@
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
       "claveDeVerificacion": "xrecord",
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 7
     }
   ],
   "geometriasNeutrales": [
