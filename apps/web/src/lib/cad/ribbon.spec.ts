@@ -46,6 +46,7 @@ for (const tab of CAD_RIBBON_DATA) {
     assert.ok(panel.commands.length > 0, `panel vacío: ${tab.id}/${panel.label}`);
     for (const command of panel.commands) {
       assert.ok(command.summary.length > 0, `${command.name} sin resumen`);
+      assert.ok(command.label.length > 0 && command.label !== command.name, `${command.name} sin rótulo en español`);
       // El icono del botón sale de `command.panel`: un espejo compartido con
       // el objeto de Anotar saldría con el icono de Cotas dentro de Inicio.
       assert.equal(command.panel, panel.label, `${command.name} dice panel «${command.panel}» y está montado en «${panel.label}»`);

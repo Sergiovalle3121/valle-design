@@ -38,6 +38,7 @@ import {
   type CadCommandDescriptor,
   type CadCommandKind,
 } from "./engine";
+import { cadCommandLabel } from "./engine/command-labels";
 import { cadCommandSummary } from "./engine/command-summaries";
 import {
   CAD_RIBBON_COMMAND_ORDER,
@@ -233,6 +234,8 @@ export function cadRibbonPanelFallbacks(): readonly string[] {
 export interface CadRibbonCommand {
   name: string;
   aliases: readonly string[];
+  /** Rótulo del botón en español (`command-labels.ts`): «Línea», no LINE. */
+  label: string;
   summary: string;
   panel: string;
   /**
@@ -285,6 +288,7 @@ function buildRibbonTabs(): CadRibbonTab[] {
     const command: CadRibbonCommand = {
       name: descriptor.name,
       aliases: descriptor.aliases,
+      label: cadCommandLabel(descriptor.name),
       summary: cadCommandSummary(descriptor.name),
       panel: panelLabel,
       mutates: descriptor.mutates,
