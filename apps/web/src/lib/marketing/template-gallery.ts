@@ -29,7 +29,7 @@ import {
 
 export { TEMPLATE_GIROS } from "./template-giros";
 export type { GalleryTemplate, TemplateGiro } from "./template-giros";
-import { PRODUCT_LABEL } from "@/config/brand";
+import { PRODUCT_LABEL } from "../../config/brand";
 
 const GIRO_LABEL = new Map(TEMPLATE_GIROS.map((giro) => [giro.id, giro.label]));
 
