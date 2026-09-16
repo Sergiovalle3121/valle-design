@@ -188,10 +188,10 @@ void (async () => {
       titleText.length >= TITLE_MIN && titleText.length <= TITLE_MAX,
       `${path}: title de ${titleText.length} caracteres, fuera de [${TITLE_MIN}, ${TITLE_MAX}]`,
     );
-    // El layout raíz ya añade "· Valle Design": repetirlo aquí duplicaría marca.
+    // El layout raíz ya añade "· VALLECAD": repetirlo aquí duplicaría marca.
     assert.doesNotMatch(
       titleText,
-      /· Valle Design/,
+      /· VALLECAD/,
       `${path}: el title no debe repetir el sufijo de marca que pone la plantilla`,
     );
 

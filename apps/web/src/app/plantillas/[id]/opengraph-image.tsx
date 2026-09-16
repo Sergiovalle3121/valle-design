@@ -6,7 +6,7 @@ import { galleryTemplate } from "@/lib/marketing/template-gallery";
  * ve el giro y el dato duro, no una tarjeta genérica. Sin cifras de precio ni
  * promesas: huella y objetos salen del catálogo.
  */
-export const alt = "Plantilla de plano CAD de Valle Design";
+export const alt = "Plantilla de plano CAD de VALLECAD";
 export const size = SOCIAL_CARD_SIZE;
 export const contentType = SOCIAL_CARD_CONTENT_TYPE;
 

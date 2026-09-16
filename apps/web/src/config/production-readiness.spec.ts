@@ -12,11 +12,11 @@ import {
  * configurar NEXT_PUBLIC_BRAND_* seguiría publicando.
  */
 const PLACEHOLDER_MANIFEST: BrandManifest = {
-  brandName: "VALLE",
+  brandName: "VALLECAD",
   legalEntityName: "Sergio Valle Enterprise Software",
   founderName: "Sergio Valle",
   descriptor: "Diseño arquitectónico",
-  productNames: { design: "VALLE Design" },
+  productNames: { design: "VALLECAD" },
   tagline: {
     en: "2D architectural design in the browser.",
     es: "Diseño arquitectónico 2D en el navegador.",

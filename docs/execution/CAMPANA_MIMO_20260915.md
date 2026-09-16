@@ -43,6 +43,7 @@ Base: contiene `claude/main-verde-firefox-specs @ 0a5f5600`
 | T22 | PARCIAL | Aristas cóncavas filtradas + planas/borde; spec pendiente (hallazgo geometria-3) |
 | T23 | PARCIAL | STEP/IGES: spec corregido, Firefox fix, multi-sólido rechazado; falta unidad INSUNITS (t23-4) |
 | T-1.1 | HECHA | Contexto de selección publicado (selection-context.ts, 22 aserciones) |
+| D20 | HECHA | Renombrar marca de 'VALLE Design'/'VALLE' a 'VALLECAD': brand.ts, env files, SVGs, production-readiness spec, E2E fixtures, user-facing strings (31 archivos) |
 
 ## Hallazgos de revisión abiertos
 

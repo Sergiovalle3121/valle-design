@@ -89,7 +89,7 @@ const withText = sources.map((file) => ({ file, text: readFileSync(file, "utf8")
   assert.deepEqual(
     offenders,
     [],
-    "Acento fuera de la marca. El acento de Valle Design es índigo; usa " +
+    "Acento fuera de la marca. El acento de VALLECAD es índigo; usa " +
       "text-primary / bg-brand-strong / text-primary-ink.",
   );
 }

@@ -45,7 +45,7 @@ function plan(sheet: CadPublishSheet): CadPublishPlan {
   } as unknown as CadPublishPlan;
 }
 
-const meta = { model: "casa", revision: "A", productLabel: "Valle Design" };
+const meta = { model: "casa", revision: "A", productLabel: "VALLECAD" };
 
 async function bytesOf(sheet: CadPublishSheet): Promise<Uint8Array> {
   return new Uint8Array(await renderCadSheetSetPdf(plan(sheet), meta, undefined, { compress: false }));

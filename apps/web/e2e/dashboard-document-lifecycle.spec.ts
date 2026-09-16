@@ -93,7 +93,7 @@ test("crea proyecto y documentos con IDs propios, guarda CAS y reabre tras una n
   });
 
   await page.goto("/dashboard");
-  await expect(page.getByText("Valle Design E2E")).toBeVisible();
+  await expect(page.getByText("VALLECAD E2E")).toBeVisible();
   await page
     .getByLabel("Nombre del proyecto")
     .fill("Organización / Proyecto Alfa");

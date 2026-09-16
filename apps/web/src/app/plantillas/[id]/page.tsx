@@ -120,7 +120,7 @@ export default async function PlantillaPage({
                 className="block overflow-hidden rounded-card border border-border shadow-resting"
               />
               <p className="type-micro mt-3 text-muted-foreground">
-                Dibujado por el motor de Valle Design a escala 1:
+                Dibujado por el motor de VALLECAD a escala 1:
                 {built.scaleDenominator}. El plano cambia de tema contigo.
               </p>
             </div>

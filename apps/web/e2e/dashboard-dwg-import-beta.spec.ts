@@ -172,7 +172,7 @@ test("beta DWG_NATIVE_IMPORT: sube un .dwg real, el worker lo lee y el documento
   });
 
   await page.goto("/dashboard");
-  await expect(page.getByText("Valle Design E2E")).toBeVisible();
+  await expect(page.getByText("VALLECAD E2E")).toBeVisible();
   await page.getByLabel("Nombre del proyecto").fill("Organización / Beta DWG");
   await page.getByLabel("Crear proyecto").click();
 

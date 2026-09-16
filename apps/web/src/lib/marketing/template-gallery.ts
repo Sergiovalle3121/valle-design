@@ -142,7 +142,7 @@ export function templateSeoTitle(template: GalleryTemplate): string {
 
 export function templateSeoDescription(template: GalleryTemplate): string {
   return (
-    `${template.description} Ábrela en Valle Design con capas de norma mexicana, ` +
+    `${template.description} Ábrela en VALLECAD con capas de norma mexicana, ` +
     `cotas y cajetín listos: ${template.widthM} × ${template.heightM} m, ` +
     `${template.objects} objetos editables. Sin instalar nada.`
   );

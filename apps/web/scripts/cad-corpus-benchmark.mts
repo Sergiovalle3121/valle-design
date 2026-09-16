@@ -343,7 +343,7 @@ function benchmarkProfile(profile: CadBenchmarkProfile) {
   const dxfExportStarted = performance.now();
   const exported = exportCadDxf(
     { primitives: dxfSample },
-    { units: "mm", fileComment: "Valle Design deterministic benchmark corpus" },
+    { units: "mm", fileComment: "VALLECAD deterministic benchmark corpus" },
   );
   const dxfExportMs = round(performance.now() - dxfExportStarted);
   const dxfImportStarted = performance.now();

@@ -27,7 +27,7 @@ export const OWNER_EMAIL = process.env.E2E_OWNER_EMAIL || 'sergiovallezarate@gma
 export const OWNER_USER_ID = '10000000-0000-4000-8000-000000000001';
 export const OWNER_SESSION_ID = '10000000-0000-4000-8000-000000000002';
 export const ORGANIZATION_ID = '10000000-0000-4000-8000-000000000003';
-export const ORGANIZATION_NAME = 'Valle Design E2E';
+export const ORGANIZATION_NAME = 'VALLECAD E2E';
 export const ORGANIZATION_SLUG = 'valle-design-e2e';
 
 export const SESSION_COOKIE = 'valle_session';

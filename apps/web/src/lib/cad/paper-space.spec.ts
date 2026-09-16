@@ -185,7 +185,7 @@ const paperSpaces = createThreeSheetDemo({
   bounds: { x: 0, y: 0, width: 200, height: 220 },
   unit: "mm",
   metadata: {
-    project: "Valle Design Demo",
+    project: "VALLECAD Demo",
     drawingNumber: "AX-CAD-001",
     revision: "P01",
     discipline: "Manufacturing",
@@ -342,7 +342,7 @@ assert.equal(
 );
 assert.equal(
   roundTrip.paperSpaces[0].titleBlock?.attributes.PROJECT,
-  "Valle Design Demo",
+  "VALLECAD Demo",
   "persistencia conserva cajetin",
 );
 assert.deepEqual(

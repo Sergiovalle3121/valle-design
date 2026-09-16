@@ -410,7 +410,7 @@ export function cadDocumentDxfExportLosses(
       detail:
         `${metadataEntities} entidad(es) llevan metadatos de dominio (circuito, calibre, número de línea, ` +
         "etiqueta de equipo…): los metadatos NO viajan al DXF y no se recuperan al reimportar. " +
-        "La información vive sólo en el documento de Valle Design.",
+        "La información vive sólo en el documento de VALLECAD.",
     });
   }
 
