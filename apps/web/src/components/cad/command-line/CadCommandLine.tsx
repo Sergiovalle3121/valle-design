@@ -58,7 +58,14 @@ function sugerirComandos(valorCrudo: string): readonly { nombre: string; descrip
       return 0;
     });
   }
-  return coincidencias.slice(0, 6);
+  // Deduplicar por nombre: el manifiesto y la paleta pueden producir
+  // entradas con el mismo label.
+  const vistos = new Set<string>();
+  return coincidencias.filter((c) => {
+    if (vistos.has(c.nombre)) return false;
+    vistos.add(c.nombre);
+    return true;
+  }).slice(0, 6);
 }
 
 export interface CadCommandLineEntry {
