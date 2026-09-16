@@ -126,3 +126,11 @@ Variables e imports sin usar (16 `@typescript-eslint/no-unused-vars`) y un ref l
 **E2E:** Añadido `test.step` a `197-auditoria-terminos-al-alta.spec.ts` que hace click en la caja (no en el texto) y verifica que la casilla se marca y el botón se habilita.
 
 **Verificación:** `renderToStaticMarkup` confirma que `type=checkbox` y `<label>` siguen presentes y `sr-only` ya no aparece.
+
+## D02 — Guard EMAIL_SENDER_* obligatorio en producción (2026-09-16)
+
+**Problema:** Sin las 4 variables EMAIL_SENDER_*, producción arrancaba con NullEmailSender. Nadie verificaba su cuenta y el login bloqueaba para siempre.
+
+**Arreglo:** `assertEmailSenderConfigured` en `email-sender.config.ts`, siguiendo el patrón de identity-security.ts/identity-mfa.ts (assert al cargar módulo). Actualizado `.env.example` (comentario), `production-startup-smoke.mjs` (4 vars al base env + caso nuevo) y `email-sender.config.spec.ts` (2 casos: prod lanza, dev no).
+
+**Verificación:**9 tests pasan (7 existentes +2 nuevos). Módulo carga OK en desarrollo.

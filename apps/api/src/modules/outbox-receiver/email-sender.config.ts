@@ -8,6 +8,12 @@
  * correos de verificación con enlaces rotos, que es peor que no mandarlos —
  * el usuario cree que el producto falla, no que falta configuración. Las dos
  * situaciones fallan al ARRANCAR, no en el primer registro.
+ *
+ * En producción (`NODE_ENV=production`) las cuatro variables son
+ * OBLIGATORIAS: `assertEmailSenderConfigured` mata el arranque si faltan,
+ * porque sin proveedor de correo nadie verifica su cuenta y el login exige
+ * `emailVerifiedAt`. Fuera de producción devuelve null (adaptador nulo,
+ * receptor 503).
  */
 
 export const EMAIL_SENDER_CONFIGURATION = Symbol('EMAIL_SENDER_CONFIGURATION');
@@ -103,3 +109,13 @@ function secureLinkBaseUrl(raw: string, nodeEnv: string | undefined): string {
   }
   return url.origin + url.pathname.replace(/\/+$/, '');
 }
+
+export function assertEmailSenderConfigured(environment: NodeJS.ProcessEnv): void {
+  if (environment.NODE_ENV !== 'production') return;
+  if (resolveEmailSenderConfiguration(environment) !== null) return;
+  throw new EmailSenderConfigurationError(
+    'Production requires EMAIL_SENDER_PROVIDER, EMAIL_SENDER_API_KEY, EMAIL_SENDER_FROM and OUTBOX_EMAIL_LINK_BASE_URL so verification, reset and invitation email cannot remain stranded.',
+  );
+}
+
+assertEmailSenderConfigured(process.env);
