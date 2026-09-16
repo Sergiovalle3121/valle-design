@@ -263,6 +263,14 @@ interface PlaneState extends SolidSelectionState {
 const KEEP_LEFT = { keyword: "Izquierda", shortcut: "I" } as const;
 const KEEP_RIGHT = { keyword: "Derecha", shortcut: "D" } as const;
 const KEEP_BOTH = { keyword: "Ambos", shortcut: "A" } as const;
+// Keywords para planos coordenados: "Izquierda"/"Derecha" no significan nada
+// en XY (arriba/abajo) ni en YZ/ZX (positivo/negativo del eje perpendicular).
+const KEEP_UP = { keyword: "Arriba", shortcut: "AR" } as const;
+const KEEP_DOWN = { keyword: "Abajo", shortcut: "AB" } as const;
+const KEEP_POS_X = { keyword: "Positivo X", shortcut: "PX" } as const;
+const KEEP_NEG_X = { keyword: "Negativo X", shortcut: "NX" } as const;
+const KEEP_POS_Y = { keyword: "Positivo Y", shortcut: "PY" } as const;
+const KEEP_NEG_Y = { keyword: "Negativo Y", shortcut: "NY" } as const;
 const PLANE_XY = { keyword: "XY", shortcut: "XY" } as const;
 const PLANE_YZ = { keyword: "YZ", shortcut: "YZ" } as const;
 const PLANE_ZX = { keyword: "ZX", shortcut: "ZX" } as const;
@@ -322,9 +330,20 @@ function planeStep<S extends PlaneState>(state: S, prompt: string, final: string
       accepts: CAD_ACCEPT_POINT,
       preview: state.first ? [{ points: [state.first, state.first] }] : undefined,
     };
+  // Keywords dependen del tipo de plano: Izquierda/Derecha sólo tiene sentido
+  // en planos verticales (verticalPlane). Para coordenados se usan Arriba/Abajo
+  // o Positivo/Negativo del eje perpendicular.
+  const sideOptions = state.planeMode === "XY"
+    ? [KEEP_UP, KEEP_DOWN, KEEP_BOTH] as const
+    : state.planeMode === "YZ"
+      ? [KEEP_POS_X, KEEP_NEG_X, KEEP_BOTH] as const
+      : state.planeMode === "ZX"
+        ? [KEEP_POS_Y, KEEP_NEG_Y, KEEP_BOTH] as const
+        : [KEEP_LEFT, KEEP_RIGHT, KEEP_BOTH] as const;
+  const defaultSide = sideOptions[0].keyword;
   return {
     state,
-    prompt: { message: final, options: [KEEP_LEFT, KEEP_RIGHT, KEEP_BOTH], defaultOption: KEEP_LEFT.keyword },
+    prompt: { message: final, options: [...sideOptions], defaultOption: defaultSide },
     accepts: CAD_ACCEPT_KEYWORD,
   };
 }
@@ -387,16 +406,24 @@ const sliceCommand: CadCommandDescriptor<PlaneState> = {
     }
     if (input.kind !== "keyword" && input.kind !== "enter") return planeStep(state, slicePrompt, "¿Qué lado se conserva?");
 
-    const keyword = input.kind === "keyword" ? input.keyword : KEEP_LEFT.keyword;
+    // Default keyword depende del plano coordenado.
+    const defaultKeyword = state.planeMode === "XY" ? KEEP_UP.keyword
+      : state.planeMode === "YZ" ? KEEP_POS_X.keyword
+        : state.planeMode === "ZX" ? KEEP_POS_Y.keyword
+          : KEEP_LEFT.keyword;
+    const keyword = input.kind === "keyword" ? input.keyword : defaultKeyword;
     const solids = selectedSolids(context, state.selection);
     if (solids.length === 0) return solidMessage(state, NO_SOLIDS);
     const plane = state.planeMode
       ? coordinatePlane(state.planeMode, state.planeElevation ?? 0)
       : verticalPlane(state.first!, state.second!);
+    // Traducir keyword a lado positivo/negativo.
+    const isNegativeSide = keyword === KEEP_RIGHT.keyword || keyword === KEEP_DOWN.keyword
+      || keyword === KEEP_NEG_X.keyword || keyword === KEEP_NEG_Y.keyword;
     const sides: ("positive" | "negative")[] =
       keyword === KEEP_BOTH.keyword
         ? ["positive", "negative"]
-        : [keyword === KEEP_RIGHT.keyword ? "negative" : "positive"];
+        : [isNegativeSide ? "negative" : "positive"];
 
     const commands: CadEntityCommand[] = [];
     for (const source of solids) {
