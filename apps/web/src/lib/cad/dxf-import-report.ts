@@ -32,6 +32,7 @@
  * los dos puede describir el mismo fichero de dos maneras distintas.
  */
 import type { CadDxfImportResult, CadDxfImportWarning } from "./dxf-import";
+import { cadDrawingUnitFromInsunits } from "./units-imperial";
 
 export type CadDxfFidelity = "kept" | "degraded" | "lost";
 
@@ -105,7 +106,7 @@ function primitiveLabel(kind: string, count: number): string {
  */
 interface WarningRule {
   fidelity: CadDxfFidelity;
-  detail: (count: number, types: readonly string[]) => string;
+  detail: (count: number, types: readonly string[], rawDetails?: readonly string[]) => string;
 }
 
 const TYPES = (types: readonly string[]) =>
@@ -235,6 +236,13 @@ const WARNING_RULES: Readonly<Record<string, WarningRule>> = {
     detail: (count) =>
       `${count} entidad(es) de espacio PAPEL (cajetín, marco, hojas) no entraron: este importador trae ` +
       "SOLO espacio modelo — el archivo de origen sigue teniendo sus hojas intactas.",
+  },
+  dxf_unit_assumed: {
+    fidelity: "degraded",
+    detail: (_count, _types, rawDetails) => {
+      if (rawDetails && rawDetails.length > 0) return rawDetails[0];
+      return "El DXF no declara una unidad de dibujo reconocible: se asumieron milímetros.";
+    },
   },
   // No es `lost`: no falta NADA del dibujo, porque en estas capas no había nada
   // pintado. Falta su definición si el archivo vuelve al remitente, y ésa es la
@@ -419,6 +427,31 @@ export function buildCadDxfImportReport(
       count: paperSpaceExcluded,
       detail: rule.detail(paperSpaceExcluded, []),
     });
+  }
+
+  // --- unidad de dibujo: asumida cuando el fichero no la declara -------------
+  {
+    const rule = WARNING_RULES.dxf_unit_assumed;
+    if (result.insunits === undefined) {
+      rows.push({
+        fidelity: rule.fidelity,
+        code: "dxf_unit_assumed",
+        count: 1,
+        detail: rule.detail(1, []),
+      });
+    } else if (
+      result.insunits === 0 ||
+      !cadDrawingUnitFromInsunits(result.insunits)
+    ) {
+      rows.push({
+        fidelity: rule.fidelity,
+        code: "dxf_unit_assumed",
+        count: 1,
+        detail: rule.detail(1, [], [
+          `El DXF declara INSUNITS=${result.insunits}, que no es una unidad representable: se asumió milímetros.`,
+        ]),
+      });
+    }
   }
 
   // --- lo que entró íntegro --------------------------------------------------

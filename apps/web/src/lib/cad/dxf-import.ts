@@ -247,6 +247,8 @@ export interface CadDxfImportResult {
   layerDefinitions: CadDxfLayerDefinition[];
   /** $LTSCALE. Ausente cuando el fichero no la declara. */
   linetypeScale?: number;
+  /** $INSUNITS: código de unidad de dibujo (1=in, 2=ft, 4=mm, 5=cm, 6=m). Ausente cuando el fichero no lo declara. */
+  insunits?: number;
   /** Tabla DIMSTYLE del fichero: la norma de acotación del remitente. */
   dimensionStyles?: Record<string, import("./dimension-style").CadDimensionStyleDefinition>;
 }
@@ -875,6 +877,7 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
       linetypes: properties.linetypes, layerDefinitions: properties.layers,
     ...(Object.keys(properties.dimensionStyles).length ? { dimensionStyles: properties.dimensionStyles } : {}),
       ...(properties.linetypeScale !== undefined ? { linetypeScale: properties.linetypeScale } : {}),
+      ...(properties.insunits !== undefined ? { insunits: properties.insunits } : {}),
       layers: [...new Set([...rawHatchResult.hatches.map((hatch) => hatch.layer), ...rawMTexts.map((mtext) => mtext.layer), ...semanticDimensions.map((dimension) => dimension.layer), ...mleaders.map((mleader) => mleader.layer)])].sort(),
       warnings: [
         ...warnings,
@@ -1064,6 +1067,7 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
     linetypes: properties.linetypes, layerDefinitions: properties.layers,
     ...(Object.keys(properties.dimensionStyles).length ? { dimensionStyles: properties.dimensionStyles } : {}),
     ...(properties.linetypeScale !== undefined ? { linetypeScale: properties.linetypeScale } : {}),
+    ...(properties.insunits !== undefined ? { insunits: properties.insunits } : {}),
     warnings: avisosSinCotasFantasma, layers: [...layers].sort(),
   };
 }

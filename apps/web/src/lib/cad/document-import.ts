@@ -20,6 +20,7 @@ import {
   type CadDxfImportReport,
 } from "./dxf-import-report";
 import { scopeDxfImportToModelSpace } from "./dxf-model-space-scope";
+import { cadDrawingUnitFromInsunits } from "./units-imperial";
 import { shapefileToCadEntities } from "./geo-cad-document";
 import { geoUtmCrs, geoUtmZoneForLongitude, readGeoDataset } from "../geo";
 import { dwgNeutralDatabaseToCadDocument } from "./dwg-document-bridge";
@@ -233,7 +234,10 @@ function importDxfDocument(content: string): DocumentImportReport {
     throw new Error("El DXF no contiene entidades compatibles para importar.");
   }
 
-  const empty = layoutToCadDocument({}, { unit: "mm" });
+  const unit = imported.insunits === undefined
+    ? "mm"
+    : (cadDrawingUnitFromInsunits(imported.insunits) ?? "mm");
+  const empty = layoutToCadDocument({}, { unit });
   const lossManifest: CadLossManifestEntry[] = imported.warnings.map(
     (warning) => ({
       code: warning.code,
@@ -251,6 +255,26 @@ function importDxfDocument(content: string): DocumentImportReport {
         `${scoped.excludedCount} entidad(es) de espacio papel del DXF no se importaron: este ` +
         "importador trae SOLO espacio modelo — el archivo de origen sigue teniendo sus hojas intactas.",
     });
+  if (imported.insunits === undefined) {
+    lossManifest.push({
+      code: "dxf_unit_assumed",
+      sourceType: "HEADER",
+      severity: "warning",
+      detail:
+        "El DXF no declara $INSUNITS: se asumió milímetros. Si el dibujo estaba en otra unidad, la escala no será correcta.",
+    });
+  } else if (imported.insunits === 0 || cadDrawingUnitFromInsunits(imported.insunits) === null) {
+    const label = imported.insunits === 0
+      ? "INSUNITS=0 (sin unidad)"
+      : `INSUNITS=${imported.insunits}`;
+    lossManifest.push({
+      code: "dxf_unit_assumed",
+      sourceType: "HEADER",
+      severity: "warning",
+      detail:
+        `El DXF declara ${label}, que no es una unidad representable: se asumió milímetros.`,
+    });
+  }
   const linetypeCatalog = Object.fromEntries(
     imported.linetypes.map((entry) => [
       entry.name,
