@@ -751,16 +751,15 @@ export function cadPipeClashReport(
             b.points[n],
           );
           const gap = distance - ra - rb;
+          // D4: descartar por PUNTO, no por par. Si el candidato está
+          // en un empalme, se salta; si no, compite por ser el peor.
+          const enEmpalme = joinPoints.some((jp) =>
+            Math.hypot(at.x - jp.x, at.y - jp.y, (at.z ?? 0) - (jp.z ?? 0)) <= CAD_PL_JOIN_TOLERANCE + ra + rb
+          );
+          if (enEmpalme) continue;
           if (!peor || gap < peor.gap) peor = { gap, at };
         }
       if (!peor) continue;
-      // D4: si el punto más cercano está cerca de un empalme, no es choque.
-      if (joinPoints.length > 0) {
-        const nearJoin = joinPoints.some((jp) =>
-          Math.hypot(peor!.at.x - jp.x, peor!.at.y - jp.y, (peor!.at.z ?? 0) - (jp.z ?? 0)) < 2 * (ra + rb)
-        );
-        if (nearJoin) continue;
-      }
       const kind = severidad(peor.gap, clearance);
       if (!kind) continue;
       clashes.push({
