@@ -90,7 +90,18 @@ for (const [name, source] of [
   );
 }
 
-// ── /terms deja de afirmar que no se publica ningún SLA, y enlaza al real ──
+// ── /terms enlaza a /sla con nombre visible, no con la ruta ────────────────
+assert.ok(terms.includes('href="/sla"'), "/terms debe seguir enlazando a /sla");
+assert.match(
+  terms,
+  />Niveles de servicio<\/Link>/u,
+  "/terms debe usar 'Niveles de servicio' como texto del enlace a /sla",
+);
+assert.doesNotMatch(
+  terms,
+  />\s*\/sla\s*<\/Link>/u,
+  "/terms no debe usar la ruta '/sla' como texto visible del enlace",
+);
 assert.doesNotMatch(
   terms,
   /no se publica un nivel de servicio/iu,

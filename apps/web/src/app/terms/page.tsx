@@ -65,7 +65,7 @@ export default function TermsPage() {
         <p>
           Las tarifas que la página de precios publica las sirve el catálogo
           real y describen lo que costará un plan cuando el cobro se active; hoy no hay contratación en línea disponible. Los niveles de
-          servicio informativos están en <Link href="/sla">/sla</Link>, con la
+          servicio informativos están en <Link href="/sla">Niveles de servicio</Link>, con la
           misma advertencia de este borrador: un compromiso de disponibilidad
           VINCULANTE requiere un acuerdo escrito con el titular. La página de
           estado sólo es autoritativa cuando se configura una fuente real de
