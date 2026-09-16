@@ -12,6 +12,20 @@
  *     ver `product-catalog.ts`. Sobreviven a cualquier cambio de nombre.
  *   • Los NOMBRES VISIBLES viven aquí y son provisionales hasta que exista
  *     registro marcario.
+ *   • Los IDENTIFICADORES CONGELADOS SÍ contienen la cadena «valle» pero NO
+ *     se renombran en un rebranding porque son estado o formato ya escrito,
+ *     no superficie visible. Son tres grupos:
+ *     (a) nombres de paquete npm — `valle-design`, `valle-design-api`,
+ *     `@valle-design/contracts`, `@valle-design/dwg-codec` y
+ *     `@valle/design-sdk` (dos scopes distintos) —, fijados por el lockfile
+ *     y por ~153 líneas de import;
+ *     (b) bases y volúmenes Postgres `valle_design_*` (dev, test, ci, e2e,
+ *     deploy, staging, y los volúmenes valle_design_pgdata /
+ *     valle_design_minio), que viven en Railway y en el VPS y cuyo
+ *     renombrado es una operación de producción;
+ *     (c) APPID de XDATA `VALLE_DIM`, `VALLE_MLEADER` y `VALLE_BLOCK`,
+ *     que viajan dentro de DXF ya exportados a discos de clientes y están
+ *     fijadas por dxf-xdata-app-names.spec.ts y dxf-xdata-golden.spec.ts.
  *
  * Estado marcario: la marca NO está registrada. Por eso el símbolo por defecto
  * es CADENA VACÍA. `®` sólo es representable con `trademarkStatus:"registered"`
