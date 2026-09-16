@@ -91,7 +91,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
           </span>
           <label
             htmlFor={id}
-            className="type-small flex cursor-pointer items-start gap-2.5 text-foreground"
+            className="type-small cursor-pointer text-foreground"
           >
             {label}
           </label>
