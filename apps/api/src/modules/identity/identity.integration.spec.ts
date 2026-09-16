@@ -52,8 +52,8 @@ function setCookieHeaders(response: request.Response): string[] {
 
 function cookieValue(response: request.Response, name: string): string {
   const prefix = `${name}=`;
-  const header = setCookieHeaders(response).find((entry) =>
-    entry.startsWith(prefix),
+  const header = setCookieHeaders(response).find(
+    (entry) => entry.startsWith(prefix) && !entry.startsWith(`${prefix};`),
   );
   if (!header) throw new Error(`Missing ${name} response cookie.`);
   return decodeURIComponent(header.slice(prefix.length).split(';', 1)[0]);
@@ -382,5 +382,151 @@ describe('first-party identity HTTP integration', () => {
     }
     expect(knownForgot.body).toEqual(unknownForgot.body);
     expect(knownResend.body).toEqual(unknownResend.body);
+  });
+});
+
+describe('CSRF cookie domain integration', () => {
+  jest.setTimeout(30_000);
+
+  let app: NestExpressApplication;
+  const originalDomain = process.env.CSRF_COOKIE_DOMAIN;
+  const originalAllowed = process.env.ALLOWED_ORIGIN;
+  const originalHarness = process.env.IDENTITY_TEST_HARNESS;
+  const originalHarnessKey = process.env.IDENTITY_TEST_HARNESS_KEY;
+
+  beforeAll(async () => {
+    process.env.CSRF_COOKIE_DOMAIN = '.ejemplo.test';
+    process.env.ALLOWED_ORIGIN = 'https://app.ejemplo.test';
+    process.env.IDENTITY_TEST_HARNESS = 'true';
+    process.env.IDENTITY_TEST_HARNESS_KEY = 'csrf-domain-harness-key-at-least-32';
+
+    const moduleRef = await Test.createTestingModule({
+      imports: [
+        TypeOrmModule.forRoot({
+          type: 'better-sqlite3',
+          database: ':memory:',
+          dropSchema: true,
+          synchronize: true,
+          autoLoadEntities: true,
+          entities: [
+            User,
+            Credential,
+            Session,
+            OneTimeToken,
+            IdentityAuditEvent,
+            Organization,
+            Membership,
+            Invitation,
+            PlanCatalog,
+            PlanEntitlement,
+            Subscription,
+            UsageLedger,
+            DomainOutbox,
+            EmailOutbox,
+          ],
+        }),
+        IdentityModule,
+      ],
+    }).compile();
+
+    app = moduleRef.createNestApplication<NestExpressApplication>();
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        transform: true,
+        forbidNonWhitelisted: true,
+        transformOptions: { enableImplicitConversion: true },
+      }),
+    );
+    await app.init();
+  });
+
+  afterAll(async () => {
+    if (app) await app.close();
+    const restore = (
+      key: string,
+      original: string | undefined,
+    ) => {
+      if (original === undefined) delete process.env[key];
+      else process.env[key] = original;
+    };
+    restore('CSRF_COOKIE_DOMAIN', originalDomain);
+    restore('ALLOWED_ORIGIN', originalAllowed);
+    restore('IDENTITY_TEST_HARNESS', originalHarness);
+    restore('IDENTITY_TEST_HARNESS_KEY', originalHarnessKey);
+  });
+
+  it('sets CSRF cookie with Domain and clears the host-only legacy cookie on login', async () => {
+    const server = app.getHttpServer();
+    const EMAIL = 'csrf-domain-flow@example.test';
+    const PASSWORD = 'Csrf-domain-test-2026!';
+
+    await request(server)
+      .post('/v1/auth/register')
+      .send({ email: EMAIL, password: PASSWORD, displayName: 'CSRF Test' })
+      .expect(202);
+
+    const verificationEmail = await request(server)
+      .get('/_development/email-outbox')
+      .set('x-valle-test-harness', 'csrf-domain-harness-key-at-least-32')
+      .query({ recipient: EMAIL })
+      .expect(200);
+    const token = (verificationEmail.body as EmailHarnessBody).payload.token;
+    await request(server)
+      .post('/v1/auth/verify-email')
+      .send({ token })
+      .expect(201);
+
+    const login = await request(server)
+      .post('/v1/auth/login')
+      .send({ email: EMAIL, password: PASSWORD })
+      .expect(200);
+
+    const headers = setCookieHeaders(login);
+    const csrfHeaders = headers.filter((h) =>
+      h.startsWith(`${CSRF_COOKIE}=`),
+    );
+    expect(csrfHeaders.length).toBeGreaterThanOrEqual(1);
+
+    const withDomain = csrfHeaders.find((h) =>
+      h.includes('Domain=.ejemplo.test'),
+    );
+    expect(withDomain).toBeDefined();
+
+    const clearing = csrfHeaders.find(
+      (h) =>
+        h.includes('Expires=') && !h.includes('Domain='),
+    );
+    expect(clearing).toBeDefined();
+
+    const sessionHeader = headers.find((h) =>
+      h.startsWith(`${DEVELOPMENT_SESSION_COOKIE}=`),
+    );
+    expect(sessionHeader).toBeDefined();
+    expect(sessionHeader).not.toContain('Domain=');
+
+    const csrf = cookieValue(login, CSRF_COOKIE);
+    const sessionCookie = cookieValue(login, DEVELOPMENT_SESSION_COOKIE);
+    // Debug: verify cookies are extracted
+    expect(csrf).toMatch(/^[A-Za-z0-9_-]{43}$/u);
+    expect(sessionCookie).toBeTruthy();
+    const logout = await request(server)
+      .post('/v1/auth/logout')
+      .set('Cookie', `${CSRF_COOKIE}=${csrf}; ${DEVELOPMENT_SESSION_COOKIE}=${sessionCookie}`)
+      .set('x-csrf-token', csrf)
+      .expect(204);
+
+    const logoutHeaders = setCookieHeaders(logout);
+    const logoutCsrf = logoutHeaders.filter((h) =>
+      h.startsWith(`${CSRF_COOKIE}=;`),
+    );
+    const logoutWithDomain = logoutCsrf.find((h) =>
+      h.includes('Domain=.ejemplo.test'),
+    );
+    const logoutWithoutDomain = logoutCsrf.find(
+      (h) => !h.includes('Domain='),
+    );
+    expect(logoutWithDomain).toBeDefined();
+    expect(logoutWithoutDomain).toBeDefined();
   });
 });

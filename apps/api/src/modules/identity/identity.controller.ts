@@ -31,6 +31,7 @@ import { IDENTITY_RATE_LIMIT_STORE } from './identity-rate-limit.store';
 import type { IdentityRateLimitStore } from './identity-rate-limit.store';
 import {
   createOpaqueRateLimitKey,
+  csrfCookieDomain,
   CSRF_COOKIE,
   DEVELOPMENT_SESSION_COOKIE,
   MAX_DISPLAY_NAME_LENGTH,
@@ -342,12 +343,21 @@ export class IdentityController {
       path: '/',
       maxAge: 30 * 86_400_000,
     });
+    const domain = csrfCookieDomain(process.env.CSRF_COOKIE_DOMAIN);
+    if (domain) {
+      res.clearCookie(CSRF_COOKIE, {
+        path: '/',
+        sameSite: 'lax',
+        secure: policy.secure,
+      });
+    }
     res.cookie(CSRF_COOKIE, csrf, {
       httpOnly: false,
       sameSite: 'lax',
       secure: policy.secure,
       path: '/',
       maxAge: 30 * 86_400_000,
+      ...(domain ? { domain } : {}),
     });
   }
 
@@ -360,6 +370,10 @@ export class IdentityController {
     };
     res.clearCookie(policy.name, options);
     res.clearCookie(CSRF_COOKIE, options);
+    const domain = csrfCookieDomain(process.env.CSRF_COOKIE_DOMAIN);
+    if (domain) {
+      res.clearCookie(CSRF_COOKIE, { ...options, domain });
+    }
   }
 
   private async current(req: Request) {

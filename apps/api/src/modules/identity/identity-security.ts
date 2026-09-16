@@ -37,6 +37,52 @@ export const DUMMY_PASSWORD_HASH =
 const PHC_PATTERN =
   /^\$argon2id\$v=(\d+)\$m=(\d+),t=(\d+),p=(\d+)\$([A-Za-z0-9+/]+)\$([A-Za-z0-9+/]+)$/u;
 
+export function csrfCookieDomain(
+  raw: string | undefined,
+): string | undefined {
+  if (!raw) return undefined;
+  const domain = raw.trim().toLowerCase();
+  if (!domain) return undefined;
+  if (!domain.startsWith('.')) {
+    throw new Error(
+      `CSRF_COOKIE_DOMAIN must start with a dot (received "${domain}").`,
+    );
+  }
+  const afterDot = domain.slice(1);
+  const labels = afterDot.split('.');
+  if (labels.length < 2 || labels.some((l) => !l)) {
+    throw new Error(
+      `CSRF_COOKIE_DOMAIN must have at least two labels after the leading dot (received "${domain}").`,
+    );
+  }
+  if (!/^[a-z0-9.-]+$/u.test(domain)) {
+    throw new Error(
+      `CSRF_COOKIE_DOMAIN contains invalid characters (received "${domain}").`,
+    );
+  }
+  return domain;
+}
+
+export function assertCsrfCookieDomainAgainstOrigins(
+  domain: string,
+  allowedOrigins: string[],
+): void {
+  const suffix = domain;
+  const matches = allowedOrigins.some((origin) => {
+    try {
+      const host = new URL(origin).hostname;
+      return host === suffix.slice(1) || host.endsWith(suffix);
+    } catch {
+      return false;
+    }
+  });
+  if (!matches) {
+    throw new Error(
+      `CSRF_COOKIE_DOMAIN "${domain}" is not a suffix of any ALLOWED_ORIGIN host.`,
+    );
+  }
+}
+
 export function assertIdentitySecurityConfiguration(
   environment: NodeJS.ProcessEnv,
 ): void {
@@ -48,6 +94,15 @@ export function assertIdentitySecurityConfiguration(
     throw new Error(
       'Production requires IDENTITY_RATE_LIMIT_KEY_SECRET with at least 32 characters so every API replica derives the same opaque keys.',
     );
+  }
+  const domain = csrfCookieDomain(environment.CSRF_COOKIE_DOMAIN);
+  if (domain) {
+    const raw = environment.ALLOWED_ORIGIN?.trim() ?? '';
+    const origins = raw
+      .split(/[,\n;]+/)
+      .map((e) => e.trim().replace(/^['"]|['"]$/g, '').replace(/\/+$/, ''))
+      .filter(Boolean);
+    assertCsrfCookieDomainAgainstOrigins(domain, origins);
   }
 }
 
