@@ -58,3 +58,8 @@ Todas hechas antes de esta sesión (commits `4359ef50`–`bd86c7e5`).
 | T11 | hecha — presupuesto de monolito dxf-import.ts (1070→959) | `1cbb28c9`, `b2295ea5` |
 | T11b | hecha — regenerar matriz de rúbrica | `51a2b024` |
 | check:dwg-evidence | bloqueada por entorno (sin VALLE_DWG_CORPUS_MIRROR) | — |
+| ci-fallo.md | resuelto: monolith-budget y check:surface pasan en local, `.mimocode/ci-fallo.md` borrado | — |
+| T9.4 | hecha — lint web: 3× no-explicit-any en dxf-semantic-blocks.ts → interfaces minimas | `a96d449a` |
+| T9.5 | hecha — specs caducos: CadLienzoAncho, CadToolPaletteAncho (grep→clase actual), import-report-view (@/→relativo) | `4b4cdb86` |
+| T9.6 | ya hecha (sesión anterior) — revertir severity y filtro | `e8fa3565` |
+| T9.7 | hecha — check-brand-literal cableado en check:surface | `1cc92c1f` |
