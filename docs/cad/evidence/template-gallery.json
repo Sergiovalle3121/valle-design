@@ -10,8 +10,8 @@
       "entidades": 47,
       "trazos": 47,
       "docHash": "e400859007187294",
-      "svgOscuro": "ed104ff9e051c26d",
-      "svgClaro": "112e32a487bc0e95"
+      "svgOscuro": "4f482d5190b94d34",
+      "svgClaro": "07f19d8a42336711"
     },
     {
       "id": "civil-site-utilities",
@@ -20,8 +20,8 @@
       "entidades": 20,
       "trazos": 20,
       "docHash": "3647b1878e870701",
-      "svgOscuro": "0e9b0dc59c80c6cf",
-      "svgClaro": "368f51ffb5eb90f9"
+      "svgOscuro": "9f33baa015d1dbff",
+      "svgClaro": "ab71e6d201d927d1"
     },
     {
       "id": "structural-grid-core",
@@ -30,8 +30,8 @@
       "entidades": 68,
       "trazos": 68,
       "docHash": "80aa71412ff37ff5",
-      "svgOscuro": "a486f4a54fb123ce",
-      "svgClaro": "fd5f7f6380f16e44"
+      "svgOscuro": "de4b6a67b193b894",
+      "svgClaro": "85be74fa04862e81"
     },
     {
       "id": "mep-plantroom",
@@ -40,8 +40,8 @@
       "entidades": 20,
       "trazos": 20,
       "docHash": "037efc1654265347",
-      "svgOscuro": "e640d546fe56221a",
-      "svgClaro": "0b11bcbfb5aaea4e"
+      "svgOscuro": "8f8808aa50c95792",
+      "svgClaro": "cfd8ed929327fb01"
     },
     {
       "id": "casa-habitacion",
@@ -50,8 +50,8 @@
       "entidades": 22,
       "trazos": 22,
       "docHash": "50ceb7abb1fcb428",
-      "svgOscuro": "ddf65f71c463c626",
-      "svgClaro": "580943351c7f9ab4"
+      "svgOscuro": "666a78ea196f5b04",
+      "svgClaro": "a6322d45e4274afd"
     },
     {
       "id": "local-comercial",
@@ -60,8 +60,8 @@
       "entidades": 16,
       "trazos": 16,
       "docHash": "90ef3f497045fb58",
-      "svgOscuro": "0c2198e11f3d3258",
-      "svgClaro": "a600cc970c0c4845"
+      "svgOscuro": "ea55061a7d7381ad",
+      "svgClaro": "314b4b85227778a1"
     },
     {
       "id": "consultorio",
@@ -70,8 +70,8 @@
       "entidades": 15,
       "trazos": 15,
       "docHash": "418999034075d6a6",
-      "svgOscuro": "78850c81d006d7d4",
-      "svgClaro": "92b2a10bb317644f"
+      "svgOscuro": "294cf9602a95119e",
+      "svgClaro": "83f977cbf289bf0b"
     },
     {
       "id": "restaurante",
@@ -80,8 +80,8 @@
       "entidades": 22,
       "trazos": 22,
       "docHash": "e5094bf8117e9e5c",
-      "svgOscuro": "2c962b6cf3ab5a87",
-      "svgClaro": "b879156d325b5aed"
+      "svgOscuro": "e4f5509979a82f06",
+      "svgClaro": "f8a6385eea2c8663"
     },
     {
       "id": "aula-escolar",
@@ -90,8 +90,8 @@
       "entidades": 20,
       "trazos": 20,
       "docHash": "4259f12533910ee6",
-      "svgOscuro": "73917956912c46ba",
-      "svgClaro": "3d6957b3d08ac21c"
+      "svgOscuro": "65c0705db9724c3f",
+      "svgClaro": "91fd6c98744c27ce"
     },
     {
       "id": "gimnasio",
@@ -100,8 +100,8 @@
       "entidades": 17,
       "trazos": 17,
       "docHash": "d97705d593777ead",
-      "svgOscuro": "e03bb1d80f9420f7",
-      "svgClaro": "469a543fd900daa4"
+      "svgOscuro": "34b75a6e01c52770",
+      "svgClaro": "87eef6bd42f1704c"
     },
     {
       "id": "oficina-coworking",
@@ -110,8 +110,8 @@
       "entidades": 20,
       "trazos": 20,
       "docHash": "03a2d79ea176d1c6",
-      "svgOscuro": "2d597b6fa26c18cd",
-      "svgClaro": "0520b00a2437bf96"
+      "svgOscuro": "8f3193c548336462",
+      "svgClaro": "85cb8845c9a06103"
     },
     {
       "id": "bodega-pyme",
@@ -120,8 +120,8 @@
       "entidades": 22,
       "trazos": 22,
       "docHash": "f0be40cd96d80927",
-      "svgOscuro": "01a23850344b549a",
-      "svgClaro": "222253a7be055e53"
+      "svgOscuro": "be28e1f2f9acbf98",
+      "svgClaro": "a7307a3459c260bb"
     },
     {
       "id": "taller-mecanico",
@@ -130,8 +130,8 @@
       "entidades": 25,
       "trazos": 25,
       "docHash": "2c5fc5e65484ca2f",
-      "svgOscuro": "3aa0a5e1e884fdb1",
-      "svgClaro": "665ccca461ff555a"
+      "svgOscuro": "7563a50bce7a2381",
+      "svgClaro": "959ccfb897d638a2"
     },
     {
       "id": "cafeteria",
@@ -140,8 +140,8 @@
       "entidades": 23,
       "trazos": 23,
       "docHash": "87cf5284b17c8f90",
-      "svgOscuro": "01fd316d5a0caa1c",
-      "svgClaro": "5b85a921a8e647d2"
+      "svgOscuro": "1271cc61164a41d8",
+      "svgClaro": "a324e59aa38dac36"
     },
     {
       "id": "salon-belleza",
@@ -150,8 +150,8 @@
       "entidades": 20,
       "trazos": 20,
       "docHash": "5893d2848d1fd5d8",
-      "svgOscuro": "55160120b619375e",
-      "svgClaro": "742afeef87cd11bf"
+      "svgOscuro": "2529700632cd6c21",
+      "svgClaro": "876e3fa06151bba9"
     },
     {
       "id": "farmacia",
@@ -160,8 +160,8 @@
       "entidades": 14,
       "trazos": 14,
       "docHash": "7984eeff6e3b92c5",
-      "svgOscuro": "4fcb3d52e551c853",
-      "svgClaro": "ed9a687177fc6684"
+      "svgOscuro": "d1f339959cf59008",
+      "svgClaro": "439221653ae92d6a"
     },
     {
       "id": "jardin-eventos",
@@ -170,8 +170,8 @@
       "entidades": 25,
       "trazos": 25,
       "docHash": "a72eec5078f848ab",
-      "svgOscuro": "d3e468cbfc8af0ee",
-      "svgClaro": "e46eed3d554dc5ad"
+      "svgOscuro": "944cdcaeb0b5d71a",
+      "svgClaro": "fa996a0b26df0ab9"
     },
     {
       "id": "panaderia",
@@ -180,8 +180,8 @@
       "entidades": 18,
       "trazos": 18,
       "docHash": "db695b095ad9a927",
-      "svgOscuro": "33ac5a187f1f9377",
-      "svgClaro": "434b5cd58cce05a8"
+      "svgOscuro": "8fe04952be9f23f7",
+      "svgClaro": "d811031f997bea3f"
     },
     {
       "id": "veterinaria",
@@ -190,8 +190,8 @@
       "entidades": 20,
       "trazos": 20,
       "docHash": "d3b295d8eb901983",
-      "svgOscuro": "3c5d149d568910a8",
-      "svgClaro": "3690d9ad2654703a"
+      "svgOscuro": "5109fe90141685ac",
+      "svgClaro": "ee96cb121aa790e0"
     },
     {
       "id": "lavanderia",
@@ -200,8 +200,8 @@
       "entidades": 17,
       "trazos": 17,
       "docHash": "d71ecede045e83ea",
-      "svgOscuro": "3f0135f202d9abec",
-      "svgClaro": "433fa9794caf59be"
+      "svgOscuro": "7d6f24ff9dd9256e",
+      "svgClaro": "17c5f48b3d869fee"
     },
     {
       "id": "guarderia",
@@ -210,8 +210,8 @@
       "entidades": 17,
       "trazos": 17,
       "docHash": "a1f052e32ea175cd",
-      "svgOscuro": "bf69fac430c316b2",
-      "svgClaro": "eaea61d3a46fa1ff"
+      "svgOscuro": "b74d5a033e7fdb05",
+      "svgClaro": "8eca6c3c1c28f1bf"
     },
     {
       "id": "ferreteria",
@@ -220,8 +220,8 @@
       "entidades": 16,
       "trazos": 16,
       "docHash": "31c7ba1df166976c",
-      "svgOscuro": "15f19f63000d962b",
-      "svgClaro": "acff262c76dcb974"
+      "svgOscuro": "bc66f4de94734c67",
+      "svgClaro": "a2c27c6d3616cff7"
     },
     {
       "id": "habitacion-hotel",
@@ -230,8 +230,8 @@
       "entidades": 17,
       "trazos": 17,
       "docHash": "8d234231590b8997",
-      "svgOscuro": "ef16f1abdd8c4b05",
-      "svgClaro": "6b8207942cf9c225"
+      "svgOscuro": "0bafeca64c7a49e5",
+      "svgClaro": "dd5004288e6c0a20"
     },
     {
       "id": "consultorio-dental",
@@ -240,8 +240,8 @@
       "entidades": 16,
       "trazos": 16,
       "docHash": "f3278fa5cff504df",
-      "svgOscuro": "e330da6674a96f92",
-      "svgClaro": "93099a495f559bed"
+      "svgOscuro": "b0af0759d6b8c1a1",
+      "svgClaro": "59cce97267834e4c"
     },
     {
       "id": "estacionamiento",
@@ -250,8 +250,8 @@
       "entidades": 19,
       "trazos": 19,
       "docHash": "4d117c66ba8cba09",
-      "svgOscuro": "06f9f550acc325e9",
-      "svgClaro": "3ee243338e7015df"
+      "svgOscuro": "192d1edb349237d3",
+      "svgClaro": "8e0327e46584e77d"
     },
     {
       "id": "cancha-futbol",
@@ -260,8 +260,8 @@
       "entidades": 16,
       "trazos": 16,
       "docHash": "a03e28a55aeced34",
-      "svgOscuro": "9fa7713bdff30e9a",
-      "svgClaro": "192d83bf1a6cbeed"
+      "svgOscuro": "aac61028c989e83e",
+      "svgClaro": "b90b4c3ec05ccb3f"
     },
     {
       "id": "salon-fiestas",
@@ -270,8 +270,8 @@
       "entidades": 21,
       "trazos": 21,
       "docHash": "4b4fa8002eb210a5",
-      "svgOscuro": "4474337a67de173b",
-      "svgClaro": "09fbaf160c3f292a"
+      "svgOscuro": "f9a007c29eec9ad7",
+      "svgClaro": "bae5318b76af7ccf"
     },
     {
       "id": "iglesia",
@@ -280,8 +280,8 @@
       "entidades": 28,
       "trazos": 28,
       "docHash": "77cb5b9942fb79d1",
-      "svgOscuro": "8bb0b85e77c47e7d",
-      "svgClaro": "1822701a6fe052cc"
+      "svgOscuro": "276e6f23d1ee289f",
+      "svgClaro": "ec608afeda6fa95c"
     },
     {
       "id": "minisuper",
@@ -290,8 +290,8 @@
       "entidades": 21,
       "trazos": 21,
       "docHash": "2f88ebba0ee4572e",
-      "svgOscuro": "574b6a7e348d26e6",
-      "svgClaro": "5e6c8207f88259f7"
+      "svgOscuro": "d6f5a3f4175fe268",
+      "svgClaro": "68e523275855bd22"
     },
     {
       "id": "taqueria",
@@ -300,8 +300,8 @@
       "entidades": 22,
       "trazos": 22,
       "docHash": "fd1eb73e5cb2fb4e",
-      "svgOscuro": "4775dfa80c79cc2b",
-      "svgClaro": "3b64740ea82cbd90"
+      "svgOscuro": "7a8018a873dd19ac",
+      "svgClaro": "cdf67bd206c5fae1"
     },
     {
       "id": "carniceria",
@@ -310,8 +310,8 @@
       "entidades": 17,
       "trazos": 17,
       "docHash": "69eeb66da42e81d5",
-      "svgOscuro": "0dc145c5c02d46cf",
-      "svgClaro": "92192364cd1fa902"
+      "svgOscuro": "f65c8da38d397a1d",
+      "svgClaro": "d4ede919c76b351c"
     },
     {
       "id": "fruteria",
@@ -320,8 +320,8 @@
       "entidades": 20,
       "trazos": 20,
       "docHash": "b1414b9f22b6fec8",
-      "svgOscuro": "9b561f40561ffa0c",
-      "svgClaro": "892d61c8e248f83e"
+      "svgOscuro": "1175f98b10b77472",
+      "svgClaro": "34938b43dbb4b47f"
     },
     {
       "id": "barberia",
@@ -330,8 +330,8 @@
       "entidades": 19,
       "trazos": 19,
       "docHash": "3e60da83e4bb00b5",
-      "svgOscuro": "2e6194528c6f2031",
-      "svgClaro": "c0a26092bd2235b0"
+      "svgOscuro": "6fb484cb328c4dc6",
+      "svgClaro": "085af23efd39f6ae"
     },
     {
       "id": "tortilleria",
@@ -340,8 +340,8 @@
       "entidades": 16,
       "trazos": 16,
       "docHash": "d08c06c5c7dd52e2",
-      "svgOscuro": "8f441e5bc25a7f52",
-      "svgClaro": "83b2d472c719a71e"
+      "svgOscuro": "019bab9cdd01e064",
+      "svgClaro": "71d929e052134d0a"
     },
     {
       "id": "papeleria",
@@ -350,8 +350,8 @@
       "entidades": 14,
       "trazos": 14,
       "docHash": "f4ce66e12d5b0ff8",
-      "svgOscuro": "7fdd7184ea8b9c7e",
-      "svgClaro": "7b4fbdf6e8f1c050"
+      "svgOscuro": "f0cd0bfad029d088",
+      "svgClaro": "6f3f0ce185a30a4c"
     },
     {
       "id": "fondita",
@@ -360,8 +360,8 @@
       "entidades": 22,
       "trazos": 22,
       "docHash": "42b2060d20e93bf2",
-      "svgOscuro": "fa3fc3af9714e5a8",
-      "svgClaro": "2c7b95a72608900b"
+      "svgOscuro": "d58c33a96d2b1572",
+      "svgClaro": "93b80bbeab6cf65c"
     },
     {
       "id": "estetica-canina",
@@ -370,8 +370,8 @@
       "entidades": 20,
       "trazos": 20,
       "docHash": "3dad476ba4f8ce1e",
-      "svgOscuro": "c512a509fa675078",
-      "svgClaro": "5bf41a3a5006cfc2"
+      "svgOscuro": "44225db53c32fd63",
+      "svgClaro": "b1aefd95f8d17adc"
     },
     {
       "id": "fisioterapia",
@@ -380,8 +380,8 @@
       "entidades": 20,
       "trazos": 20,
       "docHash": "a253e1a53b4ff827",
-      "svgOscuro": "014cf1325b578f61",
-      "svgClaro": "e11ca26a181965a7"
+      "svgOscuro": "f0bf667cbc98fb31",
+      "svgClaro": "793c245a383b3c3a"
     },
     {
       "id": "spa",
@@ -390,8 +390,8 @@
       "entidades": 22,
       "trazos": 22,
       "docHash": "b7103f7cbf6f19bf",
-      "svgOscuro": "560830aa2144bc3b",
-      "svgClaro": "ae9c5f1287bc9446"
+      "svgOscuro": "8356355e2d8d087f",
+      "svgClaro": "7981153041d3dd48"
     },
     {
       "id": "cibercafe",
@@ -400,8 +400,8 @@
       "entidades": 23,
       "trazos": 23,
       "docHash": "136d3b8c59a0ff85",
-      "svgOscuro": "f6be0b1d1115e135",
-      "svgClaro": "c78a9a2a105b3053"
+      "svgOscuro": "8734624b656f3f49",
+      "svgClaro": "f00526b9355481d2"
     },
     {
       "id": "gimnasio-box",
@@ -410,8 +410,8 @@
       "entidades": 22,
       "trazos": 22,
       "docHash": "2a5301cbb1065c9d",
-      "svgOscuro": "5dc6ffc4a7528263",
-      "svgClaro": "08fc0b4b80d189b6"
+      "svgOscuro": "9c65aec88961d66f",
+      "svgClaro": "49a48bf66ff12cf3"
     },
     {
       "id": "polleria",
@@ -420,8 +420,8 @@
       "entidades": 16,
       "trazos": 16,
       "docHash": "4bb9fd1f7925e244",
-      "svgOscuro": "6c2b2cb245658361",
-      "svgClaro": "025a0d76f16df1ce"
+      "svgOscuro": "733c704d4432d6b2",
+      "svgClaro": "654bdc2fc52ddaa0"
     },
     {
       "id": "floreria",
@@ -430,8 +430,8 @@
       "entidades": 16,
       "trazos": 16,
       "docHash": "bf9afa1ce685eedb",
-      "svgOscuro": "dfd3623e6d9dad94",
-      "svgClaro": "788f2e86e149b8f3"
+      "svgOscuro": "4ac90c52de971ef9",
+      "svgClaro": "7548365ba7dc8f9e"
     },
     {
       "id": "cremeria",
@@ -440,8 +440,8 @@
       "entidades": 16,
       "trazos": 16,
       "docHash": "3d76d3329194259d",
-      "svgOscuro": "72d5b7b229006566",
-      "svgClaro": "6ed00bacf9d97347"
+      "svgOscuro": "2db6cccf01a4683f",
+      "svgClaro": "5af8aa7b3cf9c58d"
     },
     {
       "id": "neveria",
@@ -450,8 +450,8 @@
       "entidades": 15,
       "trazos": 15,
       "docHash": "92adca2ffa2809f1",
-      "svgOscuro": "33c36574a82f707f",
-      "svgClaro": "01f0239605f207f1"
+      "svgOscuro": "3b90fb8da9f23e79",
+      "svgClaro": "953fb4e4273deed1"
     },
     {
       "id": "jugueria",
@@ -460,8 +460,8 @@
       "entidades": 16,
       "trazos": 16,
       "docHash": "f08f589259541e7e",
-      "svgOscuro": "88c757383594aaf8",
-      "svgClaro": "cb61b40868ea73ed"
+      "svgOscuro": "bb584048a46f2e37",
+      "svgClaro": "55f6e305fb9d7f40"
     },
     {
       "id": "pescaderia",
@@ -470,8 +470,8 @@
       "entidades": 16,
       "trazos": 16,
       "docHash": "8fa672fe290f22a5",
-      "svgOscuro": "8e7662a03d9e99d3",
-      "svgClaro": "dbb047c2a843dc07"
+      "svgOscuro": "f1836a32e7fd065c",
+      "svgClaro": "3a008719d92fbb91"
     },
     {
       "id": "boutique",
@@ -480,8 +480,8 @@
       "entidades": 18,
       "trazos": 18,
       "docHash": "6277cbc7742eadc7",
-      "svgOscuro": "c5e645bc6a311f38",
-      "svgClaro": "a7634af179b8f148"
+      "svgOscuro": "69cc5ac8abd9abe1",
+      "svgClaro": "29407f708df0796a"
     },
     {
       "id": "hostal",
@@ -490,8 +490,8 @@
       "entidades": 22,
       "trazos": 22,
       "docHash": "352e6c4e2c11b275",
-      "svgOscuro": "daa945f9126db0f6",
-      "svgClaro": "4fdd2b9124416b4d"
+      "svgOscuro": "8103253495f60b8c",
+      "svgClaro": "717db8d3e2f3e6bd"
     },
     {
       "id": "autolavado",
@@ -500,8 +500,8 @@
       "entidades": 19,
       "trazos": 19,
       "docHash": "948c52bd8f095e8b",
-      "svgOscuro": "510b6f9823e4b85a",
-      "svgClaro": "218512e2274ad24d"
+      "svgOscuro": "db0b3d628f36cfaf",
+      "svgClaro": "635a64bd5a586903"
     },
     {
       "id": "llantera",
@@ -510,8 +510,8 @@
       "entidades": 19,
       "trazos": 19,
       "docHash": "81de10f57a12a2cd",
-      "svgOscuro": "8ee934ff4c7ccde6",
-      "svgClaro": "93d94dd2c4b20a2f"
+      "svgOscuro": "f3659837693bed52",
+      "svgClaro": "fbd14825c49d2c08"
     },
     {
       "id": "purificadora",
@@ -520,8 +520,8 @@
       "entidades": 17,
       "trazos": 17,
       "docHash": "409ac197a8f2c45a",
-      "svgOscuro": "7917ece883c071a1",
-      "svgClaro": "32844ca0361b29ff"
+      "svgOscuro": "1f0aff381cccd969",
+      "svgClaro": "d72184311925f572"
     },
     {
       "id": "optica",
@@ -530,8 +530,8 @@
       "entidades": 18,
       "trazos": 18,
       "docHash": "2ff04673dd97f5d4",
-      "svgOscuro": "df1535e4e91d5d38",
-      "svgClaro": "44433e8a58efc5a8"
+      "svgOscuro": "422755b934918c39",
+      "svgClaro": "700adfcb0d643e1e"
     },
     {
       "id": "departamento",
@@ -540,8 +540,8 @@
       "entidades": 25,
       "trazos": 25,
       "docHash": "794c2bcc188842db",
-      "svgOscuro": "3846500dbe772dee",
-      "svgClaro": "a1ff6a12c83e436c"
+      "svgOscuro": "8b1793738c9a8508",
+      "svgClaro": "e077b638a4905102"
     },
     {
       "id": "rosticeria",
@@ -550,8 +550,8 @@
       "entidades": 16,
       "trazos": 16,
       "docHash": "4e55393df3e64158",
-      "svgOscuro": "3eb55bb609946323",
-      "svgClaro": "2499f682a9e75682"
+      "svgOscuro": "75dd23a536609ae7",
+      "svgClaro": "cb1ae0373f57be0c"
     },
     {
       "id": "terraza-jardin",
@@ -560,8 +560,8 @@
       "entidades": 17,
       "trazos": 17,
       "docHash": "d1ef8a20b751e4c4",
-      "svgOscuro": "1f216e0c5ecf906c",
-      "svgClaro": "15a8b1ea5ea26805"
+      "svgOscuro": "53c75f3d78981dcd",
+      "svgClaro": "384c61d31db2806d"
     },
     {
       "id": "vinateria",
@@ -570,8 +570,8 @@
       "entidades": 16,
       "trazos": 16,
       "docHash": "7d6e0b95a2ae4591",
-      "svgOscuro": "93c3785570a5e969",
-      "svgClaro": "fefbf48ed1a7f7a3"
+      "svgOscuro": "8c100b3ffd0cf280",
+      "svgClaro": "41f7e07edba765ae"
     },
     {
       "id": "pasteleria",
@@ -580,8 +580,8 @@
       "entidades": 17,
       "trazos": 17,
       "docHash": "7bfb59d9b057aa33",
-      "svgOscuro": "1a98b5617cc9ab71",
-      "svgClaro": "ebb8a3829ee2972a"
+      "svgOscuro": "0ae0812851f5d352",
+      "svgClaro": "7d82af18ed449d42"
     },
     {
       "id": "academia-baile",
@@ -590,8 +590,8 @@
       "entidades": 17,
       "trazos": 17,
       "docHash": "da089837a62e9383",
-      "svgOscuro": "c6de23b78dd7bc80",
-      "svgClaro": "458cbbcad0bdde0d"
+      "svgOscuro": "7378e9a1da6ae3d1",
+      "svgClaro": "825ddfb360b3d6be"
     },
     {
       "id": "refaccionaria",
@@ -600,8 +600,8 @@
       "entidades": 16,
       "trazos": 16,
       "docHash": "6741aff97c856ebd",
-      "svgOscuro": "bfb5f2f286b63836",
-      "svgClaro": "70f8188604eb391b"
+      "svgOscuro": "f239a3ff62d23501",
+      "svgClaro": "193d1499cdf5270c"
     },
     {
       "id": "imprenta",
@@ -610,8 +610,8 @@
       "entidades": 17,
       "trazos": 17,
       "docHash": "eca22048d382fec6",
-      "svgOscuro": "ecc633f9bb5bee89",
-      "svgClaro": "9876bba388d7f218"
+      "svgOscuro": "9bedd8674bc911a0",
+      "svgClaro": "5efa8a31bb33039e"
     },
     {
       "id": "salon-unas",
@@ -620,8 +620,8 @@
       "entidades": 19,
       "trazos": 19,
       "docHash": "60f2af4cdffd559a",
-      "svgOscuro": "c7e39b8859ed8ba3",
-      "svgClaro": "12a7a3263010235d"
+      "svgOscuro": "aec0f2f36fe3ae84",
+      "svgClaro": "e0b2f3435618d15d"
     },
     {
       "id": "taller-celulares",
@@ -630,8 +630,8 @@
       "entidades": 16,
       "trazos": 16,
       "docHash": "64e1daeda6a7aa0e",
-      "svgOscuro": "601c505dd94965be",
-      "svgClaro": "c40cb77f0ffdbd6f"
+      "svgOscuro": "8553aacbe6a83336",
+      "svgClaro": "cf3627e7a1f1b2a0"
     },
     {
       "id": "mercado",
@@ -640,8 +640,8 @@
       "entidades": 23,
       "trazos": 23,
       "docHash": "64aaa2675b0083bd",
-      "svgOscuro": "e6214849a4040f69",
-      "svgClaro": "005dc542aadadb0e"
+      "svgOscuro": "3e074f5396dbd67c",
+      "svgClaro": "28b75d5097dc7336"
     },
     {
       "id": "parque-vecinal",
@@ -650,8 +650,8 @@
       "entidades": 19,
       "trazos": 19,
       "docHash": "d409d92c2ca9324c",
-      "svgOscuro": "75f68565c4fe53a1",
-      "svgClaro": "a00ad3b94ae041c6"
+      "svgOscuro": "b2e046f534d7455f",
+      "svgClaro": "c01fec4db579e098"
     },
     {
       "id": "estancia-adultos",
@@ -660,8 +660,8 @@
       "entidades": 28,
       "trazos": 28,
       "docHash": "7211da10971f8e01",
-      "svgOscuro": "e724efc459c0c077",
-      "svgClaro": "cf810461f45928ee"
+      "svgOscuro": "f11be4f496e38a23",
+      "svgClaro": "fe9f3116535ea2f0"
     },
     {
       "id": "salon-fiestas-infantil",
@@ -670,8 +670,8 @@
       "entidades": 22,
       "trazos": 22,
       "docHash": "004e0bf979417155",
-      "svgOscuro": "5a08b1f0f6c83c9f",
-      "svgClaro": "abc74ceb53d03f70"
+      "svgOscuro": "88831a3798d7f8ca",
+      "svgClaro": "10e3f05d5604f5e3"
     },
     {
       "id": "marisqueria",
@@ -680,8 +680,8 @@
       "entidades": 25,
       "trazos": 25,
       "docHash": "804f42968478de59",
-      "svgOscuro": "f5d5ca1d06e4d676",
-      "svgClaro": "fe9c6259f8e20c8d"
+      "svgOscuro": "a4841808c83d2e6b",
+      "svgClaro": "ed8aab02c8c81081"
     },
     {
       "id": "hamburgueseria",
@@ -690,8 +690,8 @@
       "entidades": 25,
       "trazos": 25,
       "docHash": "6ae7c8e50c5e933c",
-      "svgOscuro": "4562e340623bba15",
-      "svgClaro": "00d84c1f49970886"
+      "svgOscuro": "5fb7c914c8fe7b16",
+      "svgClaro": "b6f72ba31da6425b"
     },
     {
       "id": "laboratorio-clinico",
@@ -700,8 +700,8 @@
       "entidades": 23,
       "trazos": 23,
       "docHash": "f4de1d802d1a354c",
-      "svgOscuro": "ac313acf7b3d7b26",
-      "svgClaro": "f049eba3fc0c41bc"
+      "svgOscuro": "d65214df84b39a02",
+      "svgClaro": "f885c30342ca2e4d"
     },
     {
       "id": "funeraria",
@@ -710,8 +710,8 @@
       "entidades": 25,
       "trazos": 25,
       "docHash": "a4aef77f5814e9c6",
-      "svgOscuro": "e4d684efaaab7183",
-      "svgClaro": "689ea3d3915ac82c"
+      "svgOscuro": "8747ba2579359b93",
+      "svgClaro": "d4dd3215ec7bb9d8"
     },
     {
       "id": "notaria",
@@ -720,8 +720,8 @@
       "entidades": 24,
       "trazos": 24,
       "docHash": "f12a82289cbc50c3",
-      "svgOscuro": "abe7afef4eff7308",
-      "svgClaro": "9825890da25b427e"
+      "svgOscuro": "1ac4cfe6f9f6a720",
+      "svgClaro": "e171e85223e43028"
     },
     {
       "id": "despacho-contable",
@@ -730,8 +730,8 @@
       "entidades": 25,
       "trazos": 25,
       "docHash": "de6967efca8baee9",
-      "svgOscuro": "50033813a401c2bc",
-      "svgClaro": "8eac7edb385cd75e"
+      "svgOscuro": "bd3aeb8c92a1ad22",
+      "svgClaro": "96b0c43c23cea5e4"
     },
     {
       "id": "inmobiliaria",
@@ -740,8 +740,8 @@
       "entidades": 24,
       "trazos": 24,
       "docHash": "f4f27225aaa9d964",
-      "svgOscuro": "62497a111c928cec",
-      "svgClaro": "2639295153876e9f"
+      "svgOscuro": "707c8e99ab710693",
+      "svgClaro": "c40d48b3413f9af7"
     },
     {
       "id": "banco-sucursal",
@@ -750,8 +750,8 @@
       "entidades": 26,
       "trazos": 26,
       "docHash": "cb27f4fce7ab54e5",
-      "svgOscuro": "d5d7bff78a581a86",
-      "svgClaro": "0c1f59449319174f"
+      "svgOscuro": "a1fe223b278e68a6",
+      "svgClaro": "75de75f2ed988308"
     },
     {
       "id": "casa-empeno",
@@ -760,8 +760,8 @@
       "entidades": 22,
       "trazos": 22,
       "docHash": "979dec8475935c87",
-      "svgOscuro": "ad1dde8d00ce4364",
-      "svgClaro": "aebf87ce9a58393e"
+      "svgOscuro": "3e0640ea1953bc62",
+      "svgClaro": "ebc01ccd635812f5"
     },
     {
       "id": "biblioteca",
@@ -770,8 +770,8 @@
       "entidades": 23,
       "trazos": 23,
       "docHash": "e53d243ea881403a",
-      "svgOscuro": "7d11fad33f29d436",
-      "svgClaro": "1a0f5c70ce10207e"
+      "svgOscuro": "c830a6d8a9441d2e",
+      "svgClaro": "ccade3755b2f14a0"
     },
     {
       "id": "cine-sala",
@@ -780,8 +780,8 @@
       "entidades": 21,
       "trazos": 21,
       "docHash": "39cc1e01645202c2",
-      "svgOscuro": "f0d44a0eec4c989f",
-      "svgClaro": "4b356470db568eb6"
+      "svgOscuro": "3288164720a111b4",
+      "svgClaro": "3b4a05fb6a013506"
     },
     {
       "id": "estudio-fotografico",
@@ -790,8 +790,8 @@
       "entidades": 25,
       "trazos": 25,
       "docHash": "b7603d70d4502565",
-      "svgOscuro": "4908ab818790e613",
-      "svgClaro": "8c014451cdfcfb4e"
+      "svgOscuro": "dc45d1a6e6e0bd8c",
+      "svgClaro": "2c758a77d0d8ea7c"
     },
     {
       "id": "estudio-tatuajes",
@@ -800,8 +800,8 @@
       "entidades": 24,
       "trazos": 24,
       "docHash": "86675e1f9a4bebae",
-      "svgOscuro": "054f259c9e25d651",
-      "svgClaro": "4be3d149501defe9"
+      "svgOscuro": "3037645accac7df3",
+      "svgClaro": "3f08de5bfa6273db"
     },
     {
       "id": "taller-carpinteria",
@@ -810,8 +810,8 @@
       "entidades": 25,
       "trazos": 25,
       "docHash": "4c52cb7872eaec34",
-      "svgOscuro": "edc03f09e8a59de0",
-      "svgClaro": "4d729c8348ae0360"
+      "svgOscuro": "328a0a8a34d20900",
+      "svgClaro": "05c1c3ee9f29e14f"
     },
     {
       "id": "zapateria",
@@ -820,8 +820,8 @@
       "entidades": 22,
       "trazos": 22,
       "docHash": "bca9cc51655650b9",
-      "svgOscuro": "2208ab60dc4f3315",
-      "svgClaro": "767831770374c4e6"
+      "svgOscuro": "d7a5ddcfbecd842b",
+      "svgClaro": "308457be948149b4"
     },
     {
       "id": "joyeria",
@@ -830,8 +830,8 @@
       "entidades": 21,
       "trazos": 21,
       "docHash": "e65121b15d1e55a2",
-      "svgOscuro": "70f5eedafe24f6cf",
-      "svgClaro": "156c9d475ce5522f"
+      "svgOscuro": "4ab6c4b65d767f08",
+      "svgClaro": "a3f243e4bb77f6ad"
     },
     {
       "id": "muebleria",
@@ -840,8 +840,8 @@
       "entidades": 24,
       "trazos": 24,
       "docHash": "2dc20b9edcb5215e",
-      "svgOscuro": "f6885c2238a5488f",
-      "svgClaro": "ba3785f7b0b05e58"
+      "svgOscuro": "027ef40891e96453",
+      "svgClaro": "ca3620fc4f6bb0f5"
     },
     {
       "id": "tienda-deportes",
@@ -850,8 +850,8 @@
       "entidades": 22,
       "trazos": 22,
       "docHash": "42e5b7a255f14cba",
-      "svgOscuro": "0051580822c72ceb",
-      "svgClaro": "526f951ad021fa24"
+      "svgOscuro": "81a306198b1e7aab",
+      "svgClaro": "24ee18510f139afa"
     },
     {
       "id": "cocina-fantasma",
@@ -860,8 +860,8 @@
       "entidades": 23,
       "trazos": 23,
       "docHash": "494ce16734892970",
-      "svgOscuro": "f640aab5e355098e",
-      "svgClaro": "95822e5eb770efd5"
+      "svgOscuro": "76fe57f8de1b2fca",
+      "svgClaro": "57c6251e2420d761"
     },
     {
       "id": "estudio-yoga",
@@ -870,8 +870,8 @@
       "entidades": 23,
       "trazos": 23,
       "docHash": "3bf1ba80f8c32265",
-      "svgOscuro": "59c57e7e0f4b7f29",
-      "svgClaro": "621d0f207674654b"
+      "svgOscuro": "e9c3508866695fdb",
+      "svgClaro": "9604886ae843e3a5"
     },
     {
       "id": "taller-bicicletas",
@@ -880,8 +880,8 @@
       "entidades": 23,
       "trazos": 23,
       "docHash": "d562ec570bd4828c",
-      "svgOscuro": "661f9159ee21365e",
-      "svgClaro": "a024b466c45ad610"
+      "svgOscuro": "f6f3dc14a62d55f9",
+      "svgClaro": "066623e6e8e5819d"
     },
     {
       "id": "consultorio-psicologia",
@@ -890,8 +890,8 @@
       "entidades": 24,
       "trazos": 24,
       "docHash": "9fe60e0dca428f9b",
-      "svgOscuro": "8df0d9965d784662",
-      "svgClaro": "73d81918a020e292"
+      "svgOscuro": "3be212851ba0b69b",
+      "svgClaro": "b4f8b90374a08959"
     },
     {
       "id": "vivero",
@@ -900,8 +900,8 @@
       "entidades": 23,
       "trazos": 23,
       "docHash": "dd71835718e0d77e",
-      "svgOscuro": "d3186d57130c2ef7",
-      "svgClaro": "27339ca48cbf9078"
+      "svgOscuro": "15d4658a3adc64e0",
+      "svgClaro": "18fa36ea5555ab4e"
     },
     {
       "id": "cerrajeria",
@@ -910,8 +910,8 @@
       "entidades": 21,
       "trazos": 21,
       "docHash": "4e468074accaaafc",
-      "svgOscuro": "6823dd228b910e3b",
-      "svgClaro": "507ed6d9493ac0f5"
+      "svgOscuro": "a945201b53289d58",
+      "svgClaro": "ff3e3df640b00079"
     },
     {
       "id": "material-construccion",
@@ -920,8 +920,8 @@
       "entidades": 23,
       "trazos": 23,
       "docHash": "fb5a5258a31b9139",
-      "svgOscuro": "c90e38760ecf3ab3",
-      "svgClaro": "872fea468baadd6d"
+      "svgOscuro": "552f823e8ad287ca",
+      "svgClaro": "f9960ea9953ba214"
     },
     {
       "id": "bar-cantina",
@@ -930,8 +930,8 @@
       "entidades": 22,
       "trazos": 22,
       "docHash": "0e371085927f3e86",
-      "svgOscuro": "06ad1033387b70d9",
-      "svgClaro": "e993550bcd667c0e"
+      "svgOscuro": "086384d392a74fd7",
+      "svgClaro": "ab07026134bdf0c2"
     },
     {
       "id": "gasolinera",
@@ -940,8 +940,8 @@
       "entidades": 25,
       "trazos": 25,
       "docHash": "e93e18f675343bde",
-      "svgOscuro": "b23993d28d8cf8ad",
-      "svgClaro": "6151b0c0820bf68b"
+      "svgOscuro": "c5cd618532cf039f",
+      "svgClaro": "0951f5eff0c39890"
     },
     {
       "id": "agencia-autos",
@@ -950,8 +950,8 @@
       "entidades": 25,
       "trazos": 25,
       "docHash": "8cd0840b4566291d",
-      "svgOscuro": "2bf0ead9e04e63fa",
-      "svgClaro": "f90ed1ab419a27fe"
+      "svgOscuro": "74464bfb0d8eecb7",
+      "svgClaro": "a205a9d94951ab45"
     },
     {
       "id": "escuela-primaria",
@@ -960,8 +960,8 @@
       "entidades": 28,
       "trazos": 28,
       "docHash": "13ee05279743aeab",
-      "svgOscuro": "6db8f1225df196b5",
-      "svgClaro": "1d8f0d66eb165016"
+      "svgOscuro": "206a82319db9867b",
+      "svgClaro": "37aa85b71c8302b3"
     },
     {
       "id": "gimnasio-crossfit",
@@ -970,8 +970,8 @@
       "entidades": 28,
       "trazos": 28,
       "docHash": "60df64f47c2fa110",
-      "svgOscuro": "49c98b99e9efec75",
-      "svgClaro": "3db56781c1ce9c86"
+      "svgOscuro": "60d94643105a121c",
+      "svgClaro": "b71da28082d430bd"
     },
     {
       "id": "alberca-publica",
@@ -980,8 +980,8 @@
       "entidades": 26,
       "trazos": 26,
       "docHash": "7a9db1288d60be27",
-      "svgOscuro": "e74adf13ceb932fe",
-      "svgClaro": "65429841fbe51ae6"
+      "svgOscuro": "e00ba1415e95a10b",
+      "svgClaro": "2e16e7b2c061fbda"
     },
     {
       "id": "boliche",
@@ -990,8 +990,8 @@
       "entidades": 24,
       "trazos": 24,
       "docHash": "008e8751afd2c229",
-      "svgOscuro": "95ae3bbdf6d9064b",
-      "svgClaro": "bc53ad0e1c5ea589"
+      "svgOscuro": "f5b11ef7d1b77491",
+      "svgClaro": "1de73f5f2917daaa"
     },
     {
       "id": "teatro",
@@ -1000,8 +1000,8 @@
       "entidades": 24,
       "trazos": 24,
       "docHash": "adbddcd172c8c39f",
-      "svgOscuro": "a6049cf6d007bef8",
-      "svgClaro": "8f002dfefa3c84e9"
+      "svgOscuro": "78d238df25ecb646",
+      "svgClaro": "c881b03f36cb281a"
     },
     {
       "id": "clinica-dental",
@@ -1010,8 +1010,8 @@
       "entidades": 27,
       "trazos": 27,
       "docHash": "07d94bc1c9c3bbd5",
-      "svgOscuro": "22e63971b5fbbe3b",
-      "svgClaro": "dd7d1ba312e905cc"
+      "svgOscuro": "b8d2f3db4b0a24d6",
+      "svgClaro": "57d98f6296289b82"
     },
     {
       "id": "clinica-urgencias",
@@ -1020,8 +1020,8 @@
       "entidades": 29,
       "trazos": 29,
       "docHash": "9af0ad7059b60d01",
-      "svgOscuro": "2bbf91d273fa44b0",
-      "svgClaro": "24d63aeedd0b6c55"
+      "svgOscuro": "a14b84d4232084a2",
+      "svgClaro": "b3b6eb8d495cbfe6"
     },
     {
       "id": "kinder",
@@ -1030,8 +1030,8 @@
       "entidades": 27,
       "trazos": 27,
       "docHash": "8f5def46f93ba2a2",
-      "svgOscuro": "bb0152dd793fa432",
-      "svgClaro": "a7802f8175553403"
+      "svgOscuro": "4339bd75109d50bb",
+      "svgClaro": "da444f1cec61cde1"
     },
     {
       "id": "nave-industrial",
@@ -1040,8 +1040,8 @@
       "entidades": 26,
       "trazos": 26,
       "docHash": "8303fb91e981b0c8",
-      "svgOscuro": "262b96816df1c98d",
-      "svgClaro": "88c1502a7fff2df5"
+      "svgOscuro": "b880b626cef04706",
+      "svgClaro": "51943d1b6dbd9edc"
     },
     {
       "id": "call-center",
@@ -1050,8 +1050,8 @@
       "entidades": 26,
       "trazos": 26,
       "docHash": "8cc39231bd117572",
-      "svgOscuro": "25ec750098fbcd0d",
-      "svgClaro": "532454ab83b5f0ec"
+      "svgOscuro": "ba1c7c198e37d76b",
+      "svgClaro": "7d2cb478219b4abf"
     },
     {
       "id": "cerveceria-artesanal",
@@ -1060,8 +1060,8 @@
       "entidades": 27,
       "trazos": 27,
       "docHash": "3b4c6b799962cb73",
-      "svgOscuro": "30ba915909cd19da",
-      "svgClaro": "809c43d997704dc1"
+      "svgOscuro": "ebbabba67fdf4f26",
+      "svgClaro": "7637f812b2a0750b"
     },
     {
       "id": "karaoke-bar",
@@ -1070,8 +1070,8 @@
       "entidades": 30,
       "trazos": 30,
       "docHash": "812028ee6febccef",
-      "svgOscuro": "2fefca9b6bcbc544",
-      "svgClaro": "3924acce8b89326e"
+      "svgOscuro": "d7a9c93b3f47ff11",
+      "svgClaro": "2399a512cf7703a5"
     },
     {
       "id": "estacion-bomberos",
@@ -1080,8 +1080,8 @@
       "entidades": 26,
       "trazos": 26,
       "docHash": "83a4b282f5f813b1",
-      "svgOscuro": "44a80f248b586105",
-      "svgClaro": "3b0cd32616a1b618"
+      "svgOscuro": "c73d88874d8dc144",
+      "svgClaro": "d8de18adbd519fca"
     },
     {
       "id": "plaza-comidas",
@@ -1090,8 +1090,8 @@
       "entidades": 29,
       "trazos": 29,
       "docHash": "1820b36947cb9c35",
-      "svgOscuro": "201824f2bb4cc70c",
-      "svgClaro": "2d24a77605f6cc6d"
+      "svgOscuro": "1b289031155871b5",
+      "svgClaro": "f538571b319e07e5"
     },
     {
       "id": "estacion-policia",
@@ -1100,8 +1100,8 @@
       "entidades": 28,
       "trazos": 28,
       "docHash": "1d6ee25a93754805",
-      "svgOscuro": "f1653bc1007ae2fc",
-      "svgClaro": "bab4e32fd3353a29"
+      "svgOscuro": "0fa1b1ef35caf0e8",
+      "svgClaro": "7869492a326c96ee"
     },
     {
       "id": "invernadero",
@@ -1110,8 +1110,8 @@
       "entidades": 24,
       "trazos": 24,
       "docHash": "3a83650031b04d40",
-      "svgOscuro": "5e021ab3f37e50bf",
-      "svgClaro": "c49d561050954638"
+      "svgOscuro": "987992bacab7dba0",
+      "svgClaro": "a58875c39a986d11"
     },
     {
       "id": "taller-soldadura",
@@ -1120,8 +1120,8 @@
       "entidades": 26,
       "trazos": 26,
       "docHash": "e5c4f4da5b67b46a",
-      "svgOscuro": "c8187ac72b605116",
-      "svgClaro": "b2fb7a8d6df34a8f"
+      "svgOscuro": "ae63161d0399dfe1",
+      "svgClaro": "5de58d7146ddabb1"
     },
     {
       "id": "hotel-lobby",
@@ -1130,8 +1130,8 @@
       "entidades": 28,
       "trazos": 28,
       "docHash": "679ff5dc8bf63ab7",
-      "svgOscuro": "e61d89dd29705530",
-      "svgClaro": "cf6126a7d55bc2f6"
+      "svgOscuro": "ee392553dd974620",
+      "svgClaro": "80fea8bf8298e141"
     },
     {
       "id": "supermercado",
@@ -1140,8 +1140,8 @@
       "entidades": 28,
       "trazos": 28,
       "docHash": "c2fca6a9a0937ec7",
-      "svgOscuro": "715ce40a3184524a",
-      "svgClaro": "4ca4a20d129a5c5f"
+      "svgOscuro": "4753fa01a0c24c75",
+      "svgClaro": "083bf27954d9d579"
     },
     {
       "id": "central-autobuses",
@@ -1150,8 +1150,8 @@
       "entidades": 26,
       "trazos": 26,
       "docHash": "445e030c8d92e7f3",
-      "svgOscuro": "d3765333019b4a1d",
-      "svgClaro": "4b618ce510ea8929"
+      "svgOscuro": "9d9e8b30ccf324bd",
+      "svgClaro": "4ac3faefe123e3fd"
     },
     {
       "id": "tienda-departamental",
@@ -1160,8 +1160,8 @@
       "entidades": 27,
       "trazos": 27,
       "docHash": "59fc81def66a616f",
-      "svgOscuro": "123b961b15a09c13",
-      "svgClaro": "c9eb12d3a8354db0"
+      "svgOscuro": "3102e59d1986f7f3",
+      "svgClaro": "0423b0fd941b52c1"
     },
     {
       "id": "universidad-facultad",
@@ -1170,8 +1170,8 @@
       "entidades": 30,
       "trazos": 30,
       "docHash": "7aea012057bd491b",
-      "svgOscuro": "a12b8ddeec5b7cf4",
-      "svgClaro": "e1dcd4f08fa24dca"
+      "svgOscuro": "b0c26990c51e4ed8",
+      "svgClaro": "4609b008ba3966ba"
     },
     {
       "id": "hospital-veterinario",
@@ -1180,8 +1180,8 @@
       "entidades": 31,
       "trazos": 31,
       "docHash": "d879b7504c5874a1",
-      "svgOscuro": "632f6323b927d98f",
-      "svgClaro": "39839390c29011fa"
+      "svgOscuro": "e9644c3221f7c18c",
+      "svgClaro": "7f405949dfbaf1ee"
     },
     {
       "id": "laboratorio-dental",
@@ -1190,8 +1190,8 @@
       "entidades": 28,
       "trazos": 28,
       "docHash": "487b31e23df6d05d",
-      "svgOscuro": "c4f91621485a636a",
-      "svgClaro": "2bcb0dbd63c71914"
+      "svgOscuro": "7093f6cde739bd99",
+      "svgClaro": "50ce04a62c2bb5af"
     },
     {
       "id": "taller-textil",
@@ -1200,8 +1200,8 @@
       "entidades": 27,
       "trazos": 27,
       "docHash": "957d656c3d43233e",
-      "svgOscuro": "f95c0e1d2d6c02bd",
-      "svgClaro": "dafd0fd5f333bcb6"
+      "svgOscuro": "ef568c71d2d37d5e",
+      "svgClaro": "4cb4547a6737f5f3"
     },
     {
       "id": "estacionamiento-multinivel",
@@ -1210,8 +1210,8 @@
       "entidades": 28,
       "trazos": 28,
       "docHash": "cf4bb3c1fc146d48",
-      "svgOscuro": "c0f6e7bd6f35aea4",
-      "svgClaro": "361bcd2b29d85066"
+      "svgOscuro": "6089aec28f93c942",
+      "svgClaro": "9340a9d3a7a49113"
     },
     {
       "id": "rastro-frigorifico",
@@ -1220,8 +1220,8 @@
       "entidades": 29,
       "trazos": 29,
       "docHash": "3ad6af9b0ef6b26f",
-      "svgOscuro": "ef051342c3770ac3",
-      "svgClaro": "54ab77a07761f1d6"
+      "svgOscuro": "b370e6a81e8511f3",
+      "svgClaro": "0f935f2f46630273"
     },
     {
       "id": "clinica-estetica",
@@ -1230,8 +1230,8 @@
       "entidades": 29,
       "trazos": 29,
       "docHash": "6ba69f4b3cc11461",
-      "svgOscuro": "6d75bc62254f446e",
-      "svgClaro": "8cb27b438e20dec0"
+      "svgOscuro": "7222f3fbf4f97f72",
+      "svgClaro": "e3ec8e465c6c8dc5"
     },
     {
       "id": "centro-datos",
@@ -1240,8 +1240,8 @@
       "entidades": 29,
       "trazos": 29,
       "docHash": "136fcb0adcdb54ea",
-      "svgOscuro": "eb73ab960a9f5840",
-      "svgClaro": "3a887f9bb821094e"
+      "svgOscuro": "9da35ba0191fa4d2",
+      "svgClaro": "f802d75a35c1b870"
     },
     {
       "id": "recicladora",
@@ -1250,8 +1250,8 @@
       "entidades": 28,
       "trazos": 28,
       "docHash": "717f7845128c21f5",
-      "svgOscuro": "22dd1ded2ca8008d",
-      "svgClaro": "c6f81eae0ce499df"
+      "svgOscuro": "e173f96171859bfc",
+      "svgClaro": "9c536b057b9c2fdd"
     },
     {
       "id": "estudio-tv",
@@ -1260,8 +1260,8 @@
       "entidades": 31,
       "trazos": 31,
       "docHash": "eb6d4d5ae61c9354",
-      "svgOscuro": "6603ec36a0665151",
-      "svgClaro": "e8c7c8f5c2d8dcdc"
+      "svgOscuro": "f532f463f70c3889",
+      "svgClaro": "fa4ce844df2fe89a"
     },
     {
       "id": "club-deportivo",
@@ -1270,8 +1270,8 @@
       "entidades": 28,
       "trazos": 28,
       "docHash": "f348da3d0709a7dc",
-      "svgOscuro": "e198b709b1fb5f8a",
-      "svgClaro": "678ea14c300ed308"
+      "svgOscuro": "2d07184877d298d9",
+      "svgClaro": "49d7e2b33f966fb7"
     },
     {
       "id": "antro-discoteca",
@@ -1280,8 +1280,8 @@
       "entidades": 29,
       "trazos": 29,
       "docHash": "50f8ecefb0bfbb17",
-      "svgOscuro": "0e90c9e1107da82e",
-      "svgClaro": "e47024dd6f160cba"
+      "svgOscuro": "8e1c0833ff24dd4a",
+      "svgClaro": "2151be4d7ef10737"
     },
     {
       "id": "tienda-mascotas",
@@ -1290,8 +1290,8 @@
       "entidades": 27,
       "trazos": 27,
       "docHash": "acaec5f524f46217",
-      "svgOscuro": "079f239ae9be21a6",
-      "svgClaro": "894c95ad88136259"
+      "svgOscuro": "68724d6d232cb11f",
+      "svgClaro": "5e4496b19f9a35ec"
     },
     {
       "id": "museo",
@@ -1300,8 +1300,8 @@
       "entidades": 31,
       "trazos": 31,
       "docHash": "5911faf26fc40c1b",
-      "svgOscuro": "7f7e3e55f13eeeb3",
-      "svgClaro": "d5263f88c4d24c5b"
+      "svgOscuro": "df4ab080eabea601",
+      "svgClaro": "9ce0477aae8baa3b"
     },
     {
       "id": "autoescuela",
@@ -1310,8 +1310,8 @@
       "entidades": 26,
       "trazos": 26,
       "docHash": "3e34cf8f3ba1d4b6",
-      "svgOscuro": "3a90c4c5b6909833",
-      "svgClaro": "31dac286aedcc936"
+      "svgOscuro": "dae5a9323cf4161e",
+      "svgClaro": "9bb667cddca711aa"
     },
     {
       "id": "balneario",
@@ -1320,8 +1320,8 @@
       "entidades": 27,
       "trazos": 27,
       "docHash": "a7398b524f3333db",
-      "svgOscuro": "5bcd4986574f3831",
-      "svgClaro": "52a6667a8d2c76ad"
+      "svgOscuro": "1a04c26be099c5f4",
+      "svgClaro": "d549f0fabbafe55c"
     },
     {
       "id": "planta-tratamiento-agua",
@@ -1330,8 +1330,8 @@
       "entidades": 28,
       "trazos": 28,
       "docHash": "4ddcdf3fbc2c5eda",
-      "svgOscuro": "deeb124d544db434",
-      "svgClaro": "fb373eb4cb1869c9"
+      "svgOscuro": "8c850f9274ddfb4a",
+      "svgClaro": "d1fc6b9a92e199b5"
     },
     {
       "id": "planta-embotelladora",
@@ -1340,8 +1340,8 @@
       "entidades": 30,
       "trazos": 30,
       "docHash": "7b15948a1f38a340",
-      "svgOscuro": "c2d996f26ba7dfe6",
-      "svgClaro": "2242b9d3e982d1e5"
+      "svgOscuro": "43964728c64c20ca",
+      "svgClaro": "7f268cf6a4bb49e0"
     },
     {
       "id": "establo-lecheria",
@@ -1350,8 +1350,8 @@
       "entidades": 29,
       "trazos": 29,
       "docHash": "74f1b5bfa6e1efab",
-      "svgOscuro": "51d6624364118bf2",
-      "svgClaro": "1e84c09ff8afcfc2"
+      "svgOscuro": "a7d99a0aeaa6b879",
+      "svgClaro": "3d782a1e16114c18"
     },
     {
       "id": "casino",
@@ -1360,8 +1360,8 @@
       "entidades": 28,
       "trazos": 28,
       "docHash": "00413d428af115c3",
-      "svgOscuro": "a77c35f0ce70839c",
-      "svgClaro": "1a9ba0648fd540d0"
+      "svgOscuro": "e745e0c86016b434",
+      "svgClaro": "80f22d3b8f60f688"
     },
     {
       "id": "centro-rehabilitacion",
@@ -1370,8 +1370,8 @@
       "entidades": 31,
       "trazos": 31,
       "docHash": "491a8ca428b76594",
-      "svgOscuro": "111f04d54dc6d2ee",
-      "svgClaro": "24cc600fa233de88"
+      "svgOscuro": "991ba1bd87b789b8",
+      "svgClaro": "1265a090866ae2da"
     },
     {
       "id": "centro-distribucion",
@@ -1380,8 +1380,8 @@
       "entidades": 27,
       "trazos": 27,
       "docHash": "cccc095f6e7b4a58",
-      "svgOscuro": "845f1acdaa8be097",
-      "svgClaro": "9a7fda7336a70e24"
+      "svgOscuro": "4082e0328d091d47",
+      "svgClaro": "1ecb00f6cc667433"
     },
     {
       "id": "granja-avicola",
@@ -1390,8 +1390,8 @@
       "entidades": 28,
       "trazos": 28,
       "docHash": "6165530844acdd38",
-      "svgOscuro": "22dee60839077a63",
-      "svgClaro": "909edc43d7c91477"
+      "svgOscuro": "0f3338f1d001c4f5",
+      "svgClaro": "817ba593de9d6f34"
     },
     {
       "id": "torre-corporativa",
@@ -1400,8 +1400,8 @@
       "entidades": 29,
       "trazos": 29,
       "docHash": "7ba0361f7395d18b",
-      "svgOscuro": "3c42b7f783a8d5e6",
-      "svgClaro": "ffdaae605a2a186c"
+      "svgOscuro": "93d0690681438142",
+      "svgClaro": "c8de27b060e60192"
     },
     {
       "id": "clinica-oftalmologica",
@@ -1410,8 +1410,8 @@
       "entidades": 30,
       "trazos": 30,
       "docHash": "5b577fc871182d69",
-      "svgOscuro": "bfce5a6173e40660",
-      "svgClaro": "3320211d48cde457"
+      "svgOscuro": "0f675fd176cf8bfb",
+      "svgClaro": "e82b2bd6d65d2145"
     },
     {
       "id": "estacion-tren",
@@ -1420,8 +1420,8 @@
       "entidades": 27,
       "trazos": 27,
       "docHash": "8780e493f2dd4aa4",
-      "svgOscuro": "3cd26b5ad6450e89",
-      "svgClaro": "2c1a6568e0e44ebb"
+      "svgOscuro": "a52c351f39953f10",
+      "svgClaro": "55d2fbb78fe4a096"
     },
     {
       "id": "estudio-grabacion",
@@ -1430,8 +1430,8 @@
       "entidades": 28,
       "trazos": 28,
       "docHash": "18cf36fd60e5fa9e",
-      "svgOscuro": "6a70a13b64f78e45",
-      "svgClaro": "ddcf0b0587bce583"
+      "svgOscuro": "62dc279e70de088c",
+      "svgClaro": "0fe473dec0f63655"
     },
     {
       "id": "herbolaria",
@@ -1440,8 +1440,8 @@
       "entidades": 23,
       "trazos": 23,
       "docHash": "c008c8007f545d29",
-      "svgOscuro": "21e4387c7e1881dd",
-      "svgClaro": "3086623f474a81d0"
+      "svgOscuro": "1658514785901af1",
+      "svgClaro": "19dba4d5e43cbabd"
     },
     {
       "id": "centro-idiomas",
@@ -1450,8 +1450,8 @@
       "entidades": 30,
       "trazos": 30,
       "docHash": "78c8aaf6168ca474",
-      "svgOscuro": "eeb080336e67d369",
-      "svgClaro": "1376387275c66caa"
+      "svgOscuro": "9c15cbbdc788ee85",
+      "svgClaro": "512804253abb3b01"
     },
     {
       "id": "pieza-mecanica",
@@ -1460,8 +1460,8 @@
       "entidades": 16,
       "trazos": 16,
       "docHash": "9979d16e94beb067",
-      "svgOscuro": "995714db4cb045f9",
-      "svgClaro": "f4c855585d30a973"
+      "svgOscuro": "9a87c3645829945c",
+      "svgClaro": "0d02b4bc671b883d"
     },
     {
       "id": "diagrama-unifilar",
@@ -1470,8 +1470,8 @@
       "entidades": 16,
       "trazos": 16,
       "docHash": "faf1b6e8854a50c8",
-      "svgOscuro": "623554c4791dee08",
-      "svgClaro": "395bd0c9ca04fd0d"
+      "svgOscuro": "66b13659ffb1a47d",
+      "svgClaro": "c5f77d83d350faef"
     },
     {
       "id": "levantamiento-predio",
@@ -1480,8 +1480,8 @@
       "entidades": 24,
       "trazos": 24,
       "docHash": "99c3c3d0273510c1",
-      "svgOscuro": "db4e1fdcb84482eb",
-      "svgClaro": "b23a94e6578d5155"
+      "svgOscuro": "5c4132f2627c68fd",
+      "svgClaro": "7889033936fc16d4"
     },
     {
       "id": "despiece-carpinteria",
@@ -1490,8 +1490,8 @@
       "entidades": 21,
       "trazos": 21,
       "docHash": "6c0fc953d4648eaa",
-      "svgOscuro": "4ab1ce50a198a9ea",
-      "svgClaro": "5565231022a40b19"
+      "svgOscuro": "78927de6f7becc41",
+      "svgClaro": "377f422e58b7cb4d"
     }
   ]
 }
