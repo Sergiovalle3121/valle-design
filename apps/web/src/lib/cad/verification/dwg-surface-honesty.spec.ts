@@ -82,7 +82,7 @@ for (const file of files) {
   const source = readFileSync(file, "utf8");
   if (!/\bDWG\b/u.test(source)) continue;
 
-  if (LIMIT_DOCUMENTS.has(file)) {
+  if (LIMIT_DOCUMENTS.has(file.replace(/\\/gu, "/"))) {
     // La guía «DXF vs DWG» existe justamente para explicar la diferencia: se
     // lee entera y basta con que declare el límite una vez.
     ok(

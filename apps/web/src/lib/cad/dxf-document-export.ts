@@ -139,9 +139,9 @@ export function exportCadDocumentDxf(
   const scopedPaperCount = document.entities.filter(
     (entity) => paperIds.has(entity.id) && (filter ? filter(entity) : true),
   ).length;
-  const losses = cadDocumentDxfExportLosses(document, modelSpaceOnly);
+  const allLosses = cadDocumentDxfExportLosses(document, modelSpaceOnly);
   if (scopedPaperCount > 0)
-    losses.push({
+    allLosses.push({
       code: "dxf_export_paper_space_excluded",
       sourceType: "PAPER_SPACE",
       severity: "warning",
@@ -150,6 +150,7 @@ export function exportCadDocumentDxf(
         "DXF: este exportador escribe SOLO espacio modelo — las hojas siguen " +
         "intactas en el documento y en el PDF.",
     });
+  const losses = allLosses.filter((l) => l.severity !== "info");
   return {
     content: exported.content,
     entityCount: exported.entityCount,
