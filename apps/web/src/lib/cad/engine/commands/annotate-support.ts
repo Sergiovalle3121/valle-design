@@ -63,9 +63,13 @@ export function cadCommandWrites<S>(
  * vértices de una polilínea sale NO asociativo. Ampliar el vocabulario toca
  * `cad-document.ts`, que es de otra sesión; queda anotado en vez de resuelto a
  * medias.
+ *
+ * **Wall SÍ está:** ofrece `start` y `end` (extremos del eje), igual que
+ * `line`.
  */
 const ANCHORS_BY_TYPE: Readonly<Record<string, readonly CadAssociationAnchor[]>> = {
   line: ["start", "end"],
+  wall: ["start", "end"],
   circle: ["center", "arc-start", "arc-end"],
   arc: ["center", "arc-start", "arc-end"],
   ellipse: ["center", "major-start", "major-end"],

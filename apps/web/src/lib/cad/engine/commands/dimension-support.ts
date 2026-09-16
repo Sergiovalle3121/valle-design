@@ -88,6 +88,11 @@ export function cadDimensionEnds(entity: CadEntity): [CadDimensionPick, CadDimen
     const end = pick("end");
     return start && end ? [start, end] : null;
   }
+  if (entity.type === "wall") {
+    const start = pick("start");
+    const end = pick("end");
+    return start && end ? [start, end] : null;
+  }
   if (entity.type === "arc" || entity.type === "circle") {
     const start = pick("arc-start");
     const end = pick("arc-end");

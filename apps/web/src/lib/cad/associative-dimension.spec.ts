@@ -57,4 +57,35 @@ const broken = regenerateAssociativeDimensions([associated], ['line']);
 assert.deepEqual(broken.brokenIds, ['associated']);
 assert.equal(broken.entities[0].type === 'dimension' ? broken.entities[0].associationStatus : null, 'broken');
 
-console.log("associative-dimension: la cota sigue a su geometría y se marca broken al perderla");
+// --- muro: los anclajes start/end resuelven a los extremos del eje -----------
+const wall: CadEntity = {
+  id: 'wall-1',
+  type: 'wall',
+  start: { x: 0, y: 0, z: 0 },
+  end: { x: 5000, y: 0, z: 0 },
+  thickness: 200,
+  height: 3000,
+  layer: 'MUROS',
+};
+const wallDim = dimension('aligned', {
+  id: 'wall-dim',
+  associative: true,
+  references: [
+    { entityId: 'wall-1', anchor: 'start' },
+    { entityId: 'wall-1', anchor: 'end' },
+  ],
+  associationStatus: 'associated',
+});
+const wallRegen = regenerateAssociativeDimensions([wall, wallDim], ['wall-1']);
+assert.deepEqual(wallRegen.regeneratedIds, ['wall-dim']);
+const wallNext = wallRegen.entities.find((entity) => entity.id === 'wall-dim');
+assert.equal(wallNext?.type === 'dimension' ? wallNext.associationStatus : null, 'associated');
+if (wallNext?.type === 'dimension') {
+  assert.deepEqual(wallNext.a, { x: 0, y: 0 });
+  assert.deepEqual(wallNext.b, { x: 5000, y: 0 });
+  // La medida coincide con la longitud del eje del muro.
+  const geom = buildCadDimensionGeometry(wallNext);
+  assert.ok(Math.abs((geom?.measurement ?? 0) - 5000) < 1e-6, `medida=${geom?.measurement}`);
+}
+
+console.log("associative-dimension: la cota sigue a su geometría y se marca broken al perderla; el muro ofrece sus extremos como anclajes");
