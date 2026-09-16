@@ -94,6 +94,65 @@ assert.ok(licenses.includes("THIRD_PARTY_NOTICES.md"));
 const status = readFileSync("src/app/status/page.tsx", "utf8");
 assert.match(status, /No se declara ningún estado operativo/);
 
+// ── La superficie pública no habla como instalación operada por tercero ────
+// "despliegue" y "el operador" son vocabulario de auto-hospedaje que no
+// corresponde a un SaaS. Se comprueba SÓLO texto visible (nodos JSX y props
+// title/intro/description), nunca comentarios de desarrollador.
+const DEPLOYMENT_COPY = /\bdespliegue\b/iu;
+const OPERATOR_COPY = /\bel operador\b/iu;
+
+function extractVisibleText(source: string): string {
+  const lines = source.split("\n");
+  const textParts: string[] = [];
+  let inComment = false;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("import ")) continue;
+    if (trimmed.startsWith("//")) continue;
+    if (trimmed.startsWith("/*")) { inComment = true; continue; }
+    if (inComment) { if (trimmed.includes("*/")) inComment = false; continue; }
+    // Props title/intro/description
+    for (const m of line.matchAll(/(?:title|intro|description)[^"]*"([^"]+)"/g)) {
+      textParts.push(m[1]);
+    }
+    // Nodos de texto JSX (entre > y <)
+    for (const m of line.matchAll(/>([^<{]+)</g)) {
+      textParts.push(m[1]);
+    }
+  }
+  return textParts.join(" ");
+}
+
+for (const route of ["contact", "privacy", "status", "support", "terms"]) {
+  const source = readFileSync(`src/app/${route}/page.tsx`, "utf8");
+  const visible = extractVisibleText(source);
+  assert.doesNotMatch(
+    visible,
+    DEPLOYMENT_COPY,
+    `/${route}: el texto visible no debe decir "despliegue"`,
+  );
+  assert.doesNotMatch(
+    visible,
+    OPERATOR_COPY,
+    `/${route}: el texto visible no debe decir "el operador"`,
+  );
+}
+// PricingCatalog.tsx vive en /precios
+{
+  const source = readFileSync("src/app/precios/PricingCatalog.tsx", "utf8");
+  const visible = extractVisibleText(source);
+  assert.doesNotMatch(
+    visible,
+    DEPLOYMENT_COPY,
+    "/precios: el texto visible no debe decir \"despliegue\"",
+  );
+  assert.doesNotMatch(
+    visible,
+    OPERATOR_COPY,
+    "/precios: el texto visible no debe decir \"el operador\"",
+  );
+}
+
 console.log(
   "public-pages: rutas, enlaces y claims públicos verificados (portada + centro de preguntas)",
 );

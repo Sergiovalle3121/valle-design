@@ -230,7 +230,7 @@ export function PricingCatalog() {
       {state.status === "ready" && state.catalog.items.length === 0 && (
         <PublicSection title="Todavía no hay planes publicados">
           <p role="status" data-testid="pricing-empty">
-            Este despliegue no tiene ningún plan marcado como publicable. No
+            Todavía no hay ningún plan publicado. No
             inventamos uno: escríbenos y te contamos las condiciones vigentes.
           </p>
           <a className={publicActionClass} href={COMMERCIAL_LINKS.sales}>
@@ -251,7 +251,7 @@ export function PricingCatalog() {
               data-testid="checkout-external-note"
               className="rounded-card border border-warning/40 bg-warning/10 px-5 py-4 type-small text-warning-ink"
             >
-              La compra en línea todavía no está habilitada en este despliegue:
+              La compra en línea todavía no está habilitada:
               no hay pasarela de pago configurada. Los precios de abajo son los
               reales y vigentes; la contratación se cierra con el equipo
               comercial, que te confirmará alta y facturación.

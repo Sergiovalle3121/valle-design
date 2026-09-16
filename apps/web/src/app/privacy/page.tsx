@@ -13,7 +13,7 @@ export const metadata: Metadata = publicPageMetadata({
   path: "/privacy",
   title: "Aviso de privacidad",
   description:
-    "Aviso técnico sobre los datos que trata VALLECAD, dónde viven los documentos y qué debe completar el operador de cada despliegue.",
+    "Aviso técnico sobre los datos que trata VALLECAD, dónde viven los documentos y qué falta por completar en este aviso de privacidad.",
 });
 
 export default function PrivacyPage() {
@@ -21,7 +21,7 @@ export default function PrivacyPage() {
     <PublicPageShell
       eyebrow="Información legal"
       title="Aviso básico de privacidad"
-      intro={`Este aviso describe la superficie técnica de ${BRAND.productNames.design}. El operador de cada despliegue debe completar los plazos, bases jurídicas y derechos aplicables antes de prestar un servicio público.`}
+      intro={`Este aviso describe la superficie técnica de ${BRAND.productNames.design}. Todavía no ha pasado revisión legal profesional; lo completaremos con plazos, bases jurídicas y derechos aplicables.`}
     >
       <PublicSection title="Datos necesarios para operar una cuenta">
         <p>
@@ -39,13 +39,13 @@ export default function PrivacyPage() {
       <PublicSection title="Finalidad y responsabilidad">
         <p>
           Estos datos permiten autenticar usuarios, aplicar permisos, abrir y
-          guardar el trabajo y diagnosticar errores del servicio. El operador
-          del despliegue determina su infraestructura, retención, respaldos y
-          proveedores, y debe informar de ello en su aviso definitivo.
+          guardar el trabajo y diagnosticar errores del servicio. La
+          infraestructura, retención, respaldos y proveedores se detallarán en
+          el aviso definitivo.
         </p>
         <p>
           Esta página no declara una certificación de seguridad ni cumplimiento
-          normativo para todos los despliegues.
+          normativo.
         </p>
       </PublicSection>
 
@@ -101,8 +101,8 @@ export default function PrivacyPage() {
         <p>
           Este aviso lo redactó el equipo de producto describiendo lo que el
           software hace de verdad. <strong>No ha pasado revisión legal
-          profesional</strong>: el operador debe completar plazos, bases
-          jurídicas y derechos aplicables antes de prestar un servicio público.
+          profesional</strong>: lo completaremos con plazos, bases jurídicas y
+          derechos aplicables.
         </p>
       </PublicSection>
 
@@ -116,8 +116,8 @@ export default function PrivacyPage() {
           </a>
         ) : (
           <p>
-            No se ha configurado un correo público de privacidad. El operador
-            debe habilitar un canal antes de ofrecer el servicio a terceros.
+            Todavía no tenemos un correo de privacidad publicado aquí.
+            Estamos configurando el canal.
           </p>
         )}
       </PublicSection>

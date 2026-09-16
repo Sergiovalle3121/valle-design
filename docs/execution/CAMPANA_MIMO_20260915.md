@@ -271,3 +271,19 @@ Variables e imports sin usar (16 `@typescript-eslint/no-unused-vars`) y un ref l
 **Arreglo:** Eliminada la referencia a `docs/ops/SLA.md` del párrafo visible. Añadida regresión en `sla-surface.spec.ts` que extrae texto visible de `<p>/<li>` en SlaPage, terms y privacy y prohíbe backticks y rutas `docs/`/`apps/`.
 
 **Verificación:** sla-surface.spec OK.
+
+## D16 — /sla intro atribuye compromisos al catálogo (2026-09-16)
+
+**Problema:** La intro de `/sla` decía «con la misma fuente que usa el resto del producto: el catálogo real», pero solo los nombres de columna vienen del catálogo. Los compromisos vienen de la política operativa.
+
+**Arreglo:** Intro reescrita: «Los nombres de columna se leen del catálogo público; los compromisos vienen de la política operativa». Regresión en sla-surface.spec que verifica que «catálogo» se liga a «nombres» en la intro.
+
+**Verificación:** sla-surface.spec OK.
+
+## D17 — «Operador del despliegue» en superficie pública (2026-09-16)
+
+**Problema:** Las páginas públicas hablaban como instalación auto-hospedada («el operador de este despliegue»). Para un visitante de vallecad.com, eso dice que el sitio es una instalación de prueba.
+
+**Arreglo:** Reescritura de copia visible en6 ficheros: contact, privacy, status, precios, support, terms. Voz cambiada de tercera persona («el operador debe») a primera persona («lo completaremos»). Fallbacks de canal no configurado reescritos como mensajes al cliente. Añadida regresión en public-pages.spec.ts que extrae texto visible y prohíbe «despliegue» y «el operador».
+
+**Verificación:** Typecheck OK. public-pages.spec OK.
