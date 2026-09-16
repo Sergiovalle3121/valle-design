@@ -37,6 +37,7 @@ export function CadRibbonButton({
       <button
         type="button"
         data-testid={`cad-ribbon-command-${command.name}`}
+        data-primary={command.primary ? "true" : undefined}
         disabled={disabled}
         onClick={() => onRun(command.name)}
         title={`${command.name}${shortcut ? ` (${shortcut})` : ""} — ${command.summary}`}
@@ -45,8 +46,13 @@ export function CadRibbonButton({
           // con la barra de estado en dos renglones el lienzo bajaba a 511 px,
           // por debajo de los 520 que el golden 19 exige a 720 de alto. Medido
           // el 2026-09-02 con e2e/scratch antes de ajustar.
-          "group/ribbon flex w-16 shrink-0 flex-col items-center gap-0.5 rounded-control px-1.5 py-0.5",
-          "text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground",
+          // D33: primary usa w-20 (80 px) en vez de w-16 (64 px), sin subir la
+          // altura — golden 19 exige lienzo > 520 px a 720 de alto.
+          "group/ribbon flex shrink-0 flex-col items-center gap-0.5 rounded-control px-1.5 py-0.5",
+          command.primary
+            ? "w-20 bg-muted/50 font-semibold text-foreground"
+            : "w-16 text-muted-foreground",
+          "transition-colors duration-150 hover:bg-muted hover:text-foreground",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           "disabled:pointer-events-none disabled:opacity-40",
         )}

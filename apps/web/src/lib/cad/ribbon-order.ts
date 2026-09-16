@@ -84,6 +84,18 @@ export const CAD_RIBBON_INICIO_ESPEJOS: Readonly<Record<string, readonly string[
   Anotación: ["TEXT", "MTEXT", "DIMLINEAR", "DIMALIGNED", "MLEADER", "TABLE"],
 };
 
+/**
+ * Comandos del primer día del oficio: los que un arquitecto usa en su primera
+ * sesión. Más ancho y más visible en la cinta. La selección es por oficio, no
+ * por telemetría — el mismo razonamiento que encabeza `CAD_RIBBON_COMMAND_ORDER`.
+ */
+export const CAD_RIBBON_PRIMARY: ReadonlySet<string> = new Set([
+  "LINE", "PLINE", "RECTANG", "CIRCLE", "ARC",
+  "OFFSET", "TRIM", "EXTEND", "COPY", "MOVE", "MIRROR", "ERASE",
+  "LAYER", "DIMLINEAR", "MTEXT", "HATCH", "INSERT",
+  "PAN", "ZOOM", "PLOT",
+]);
+
 /** Orden declarado primero; lo que no está en la lista va detrás, alfabético es-MX. */
 export function compareDeclared(order: readonly string[] | undefined, a: string, b: string): number {
   const ia = order ? order.indexOf(a) : -1;
