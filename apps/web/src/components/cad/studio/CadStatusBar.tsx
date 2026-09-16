@@ -332,12 +332,14 @@ export function CadStatusBar({
       >
         {documentInfo.model} · {documentInfo.revision} · v{documentInfo.version}
       </span>
-      <button
-        onClick={validation.onOpenChecks}
-        className={`${validation.releaseTone} hover:text-foreground`}
-      >
-        Release {validation.releaseState}
-      </button>
+      {validation.report && (
+        <button
+          onClick={validation.onOpenChecks}
+          className={`${validation.releaseTone} hover:text-foreground`}
+        >
+          Release {validation.releaseState}
+        </button>
+      )}
       {validation.report && (
         <span
           className={`@max-[40rem]:hidden ${
