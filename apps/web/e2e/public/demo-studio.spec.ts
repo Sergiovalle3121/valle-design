@@ -53,11 +53,39 @@ test.describe('Demostración sin cuenta', () => {
     expect(before, 'la casa habitación llega con entidades dibujadas').toBeGreaterThanOrEqual(5);
 
     // El banner permanente con el CTA que se lleva el dibujo al registro.
-    await expect(page.getByTestId('demo-banner')).toBeVisible();
-    await expect(page.getByTestId('demo-register-cta')).toHaveAttribute(
+    // Verificación de oclusión: elementFromPoint en el centro de cada superficie
+    // debe devolver ese elemento o un descendiente, confirmando que nada lo tapa.
+    const cta = page.getByTestId('demo-register-cta');
+    await expect(cta).toHaveAttribute(
       'href',
       /returnTo=%2Fdashboard%3Fdemo%3D1/,
     );
+    await expect(async () => {
+      const ctaBox = await cta.boundingBox();
+      expect(ctaBox, 'el CTA debe ser visible en pantalla').not.toBeNull();
+      const hit = await page.evaluate(
+        ({ cx, cy }) => {
+          const el = document.elementFromPoint(cx, cy);
+          return el?.getAttribute('data-testid') ?? el?.closest('[data-testid]')?.getAttribute('data-testid') ?? null;
+        },
+        { cx: ctaBox!.x + ctaBox!.width / 2, cy: ctaBox!.y + ctaBox!.height / 2 },
+      );
+      expect(hit).toBe('demo-register-cta');
+    }).toPass({ timeout: 10_000 });
+
+    const commandInput = page.getByTestId('cad-command-input');
+    await expect(async () => {
+      const inputBox = await commandInput.boundingBox();
+      expect(inputBox, 'la línea de comandos debe ser visible').not.toBeNull();
+      const hit = await page.evaluate(
+        ({ cx, cy }) => {
+          const el = document.elementFromPoint(cx, cy);
+          return el?.getAttribute('data-testid') ?? el?.closest('[data-testid]')?.getAttribute('data-testid') ?? null;
+        },
+        { cx: inputBox!.x + inputBox!.width / 2, cy: inputBox!.y + inputBox!.height / 2 },
+      );
+      expect(hit).toBe('cad-command-input');
+    }).toPass({ timeout: 10_000 });
 
     // Dibujar de verdad: una línea por la línea de comandos. El protocolo es
     // un token por Enter — comando, luego cada punto — como en el producto.
