@@ -759,20 +759,11 @@ const CAD_CLIPBOARD: {
   }[];
 } = { items: [] };
 
-// Approval / sign-off (ported from the 2D host, unify)
-type ApprovalStatus = "draft" | "in_review" | "approved";
-interface LayoutApproval {
-  status: ApprovalStatus;
-  by: string | null;
-  at: string | null;
-  note: string | null;
-}
-const APPROVAL_META: Record<ApprovalStatus, { label: string; color: string }> =
-  {
-    draft: { label: "Borrador", color: "#94a3b8" },
-    in_review: { label: "En revisión", color: "#f59e0b" },
-    approved: { label: "Aprobado", color: "#10b981" },
-  };
+import {
+  APPROVAL_META,
+  type ApprovalStatus,
+  type LayoutApproval,
+} from "./layout-approval";
 
 export interface St {
   id: string;
@@ -872,20 +863,7 @@ interface Snapshot {
   /** Nota por objeto: sin esto no se guardaba en ningún sitio, en absoluto. */
   notes?: Record<string, string>;
 }
-/**
- * ¿Dos mapas de cadenas por objeto tienen el MISMO contenido?
- *
- * Sirve para no disparar un re-render cuando una restauración devuelve lo que
- * ya había. Comparación superficial y suficiente: los valores son cadenas.
- */
-function sameStringMap(
-  a: Readonly<Record<string, string>>,
-  b: Readonly<Record<string, string>>,
-): boolean {
-  const keys = Object.keys(a);
-  if (keys.length !== Object.keys(b).length) return false;
-  return keys.every((key) => a[key] === b[key]);
-}
+import { sameStringMap } from "./same-string-map";
 
 /** El preview del copiloto; la forma vive con las acciones de la paleta. */
 type CommandPreviewState = CadPalettePreviewState;
