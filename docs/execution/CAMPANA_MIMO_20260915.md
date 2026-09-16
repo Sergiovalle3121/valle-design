@@ -300,3 +300,19 @@ Variables e imports sin usar (16 `@typescript-eslint/no-unused-vars`) y un ref l
 - **Regresión nueva**: cad-status-bar-locale.spec.ts con 25 comprobaciones (negativas inglesas, positivas españolas, enums mapeados).
 
 **Verificación:** Typecheck OK. cad-status-bar-locale.spec: 25 comprobaciones OK.
+
+## D20 — Renombrar marca a VALLECAD (2026-09-16)
+
+**Problema:** `brand.ts` ya decía "VALLECAD" pero 32 ficheros aguas abajo (env examples, specs, SVGs, fixtures, strings de producción) seguían con "Valle Design" / "VALLE".
+
+**Arreglo:** Subagente actualizó production-readiness.spec.ts, .env.example (raíz y web), 7 SVGs regenerados, 11 strings de producción, 7 ficheros de test, page-metadata.ts. Verificado con `check:surface` y `build-brand-assets.mjs --check`.
+
+**Verificación:** Typecheck OK. check:surface OK. check:legal requirió commit separado para actualizar hashes.
+
+## check:legal — Hashes de documentos legales actualizados (2026-09-16)
+
+D17 y D19 modificaron terms/privacy sin actualizar los SHA-256 en legal-documents.ts. Commit separado con los hashes nuevos.
+
+## D21 — SALTADA: requiere editar package.json (2026-09-16)
+
+**Hallazgo:** D21 requiere añadir scripts a `package.json`, pero tanto la instrucción del usuario como la cola prohíben tocarlo. Soltada hasta que el titular la autorice explícitamente.
