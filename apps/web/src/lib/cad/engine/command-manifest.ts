@@ -1,8 +1,8 @@
 /**
- * METADATOS de los 336 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 348 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
- * 115 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
+ * 117 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
  * `npm run check:cad`— falla si lo committeado deja de coincidir con lo que los
  * descriptores dicen hoy. Regla 4 de la campaña de cimientos: ninguna cifra vive
  * en dos lugares, y un comando nuevo no puede entrar sin aparecer aquí.
@@ -346,6 +346,10 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "SURFNETWORK", aliases: ["SNET", "REDDESUPERFICIES"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/surfaces" },
   { name: "SURFSCULPT", aliases: ["SSCULPT", "ESCULPIRSUPERFICIE"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/surfaces" },
   { name: "3DMOVE", aliases: ["3M"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, spatial: "elevation", cursor: "pick", module: "commands/transform-3d" },
+  { name: "3DALIGN", aliases: ["3AL", "ALINEAR3D"], kind: "modify", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/transform-3d-extra" },
+  { name: "3DSCALE", aliases: ["3SC", "ESCALAR3D"], kind: "modify", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/transform-3d-extra" },
+  { name: "MIRROR3D", aliases: ["M3D", "ESPEJO3D"], kind: "modify", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/transform-3d-extra" },
+  { name: "3DARRAY", aliases: ["3AR", "MATRIZ3D"], kind: "modify", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/transform-3d-extra" },
   { name: "3DROTATE", aliases: ["3R"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, spatial: "elevation", cursor: "pick", module: "commands/transform-3d-rotate" },
   { name: "UCS", aliases: ["SCU"], kind: "manage", transparent: true, selection: "none", repeatable: false, mutates: false, spatial: true, cursor: "crosshair", module: "commands/ucs-commands" },
   { name: "UCSICON", aliases: [], kind: "view", transparent: true, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/ucs-view-commands" },
@@ -363,6 +367,14 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "VPOINT", aliases: ["VP"], kind: "view", transparent: true, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/view-navigation-3d" },
   { name: "VSCURRENT", aliases: ["SHADEMODE", "VS"], kind: "view", transparent: true, selection: "none", repeatable: false, mutates: false, module: "commands/view-visual" },
   { name: "PERSPECTIVE", aliases: ["PERS"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-visual" },
+  { name: "3DWALK", aliases: ["3W", "CAMINAR3D"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-visualization" },
+  { name: "3DFLY", aliases: ["3F", "VOLAR3D"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-visualization" },
+  { name: "3DSWIVEL", aliases: ["3SW", "GIRAR3D"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-visualization" },
+  { name: "CAMERA", aliases: ["CAM", "CAMARA"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "crosshair", module: "commands/view-visualization" },
+  { name: "DVIEW", aliases: ["DV", "VISTADINAMICA"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "crosshair", module: "commands/view-visualization" },
+  { name: "NAVVCUBE", aliases: ["NVC", "CUBONAVEGACION"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-visualization" },
+  { name: "NAVBAR", aliases: ["NB", "BARRANAVEGACION"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-visualization" },
+  { name: "VISUALSTYLES", aliases: ["VST", "ESTILOVISUAL"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-visualization" },
   { name: "VIEWBASE", aliases: ["VBASE", "VISTABASE"], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: true, spatial: true, cursor: "crosshair", module: "commands/viewbase-commands" },
   { name: "VIEWPROJ", aliases: ["VPRJ", "VISTAPROY"], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: true, spatial: true, cursor: "crosshair", module: "commands/viewbase-commands" },
   { name: "VIEWSECTION", aliases: ["VSECCION", "VISTACORTE"], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: true, spatial: true, cursor: "crosshair", module: "commands/viewbase-commands" },
