@@ -127,10 +127,11 @@
   ],
   "overrides": {
     "postcss": "8.5.25",
-    "sharp": "0.35.3",
+    "sharp": "0.35.4",
     "@nestjs/core": "^11.2.1",
     "@nestjs/common": "^11.2.1",
     "@nestjs/platform-express": "^11.2.1",
-    "rxjs": "^7.8.2"
+    "rxjs": "^7.8.2",
+    "multer": "2.3.0"
   }
 }
