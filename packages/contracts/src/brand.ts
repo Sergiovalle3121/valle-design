@@ -16,9 +16,12 @@
  *     se renombran en un rebranding porque son estado o formato ya escrito,
  *     no superficie visible. Son tres grupos:
  *     (a) nombres de paquete npm — `valle-design`, `valle-design-api`,
- *     `@valle-design/contracts`, `@valle-design/dwg-codec` y
- *     `@valle/design-sdk` (dos scopes distintos) —, fijados por el lockfile
- *     y por ~153 líneas de import;
+ *     `@valle-design/contracts`, el paquete del laboratorio DWG que vive en
+ *     ese mismo scope y `@valle/design-sdk` (dos scopes distintos) —,
+ *     fijados por el lockfile y por ~153 líneas de import. El nombre exacto
+ *     del laboratorio no se escribe aquí: el gate de frontera de producto
+ *     (`scripts/dwg/check-product-boundary.mjs`) reserva esa cadena para los
+ *     dos ficheros que ADR-0009 autoriza, y un comentario no es excepción;
  *     (b) bases y volúmenes Postgres `valle_design_*` (dev, test, ci, e2e,
  *     deploy, staging, y los volúmenes valle_design_pgdata /
  *     valle_design_minio), que viven en Railway y en el VPS y cuyo
