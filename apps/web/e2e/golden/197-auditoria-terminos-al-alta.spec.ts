@@ -54,6 +54,18 @@ test("la cuenta no se crea sin aceptar la versión vigente de los términos", as
     expect(altas).toEqual([]);
   });
 
+  await test.step("la caja dibujada se marca con un clic del ratón", async () => {
+    const casilla = page.getByTestId("register-accept-terms");
+    const caja = await casilla.boundingBox();
+    expect(caja?.width, "el input real mide lo que se dibuja, no 1x1 px").toBeGreaterThan(16);
+    expect(caja?.height).toBeGreaterThan(16);
+    await casilla.click();
+    await expect(casilla).toBeChecked();
+    await expect(page.getByRole("button", { name: "Crear cuenta" })).toBeEnabled();
+    await casilla.click();
+    await expect(casilla).not.toBeChecked();
+  });
+
   await test.step("marcada, el alta viaja", async () => {
     await page.getByText(/^Acepto los/).click();
     await expect(page.getByLabel(/^Acepto los Términos de Servicio/)).toBeChecked();

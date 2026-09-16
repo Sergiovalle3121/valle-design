@@ -24,11 +24,12 @@ export interface CheckboxProps extends Omit<
 /**
  * Casilla de verificación.
  *
- * El `<input>` real sigue ahí, `sr-only` pero PRESENTE: es lo que hace que el
- * teclado, el formulario, el autocompletado y el lector de pantalla funcionen
- * sin escribir una línea de ARIA. Lo que se dibuja es un hermano decorativo que
- * lee el estado con `peer-checked`. Una casilla hecha con `<div onClick>` se ve
- * igual y no la puede usar la mitad de la gente.
+ * El `<input>` real ES la caja —transparente y superpuesta a los 20×20
+ * dibujados— para que el ratón lo alcance. Con `sr-only` vivía a 1×1 px
+ * fuera del `<label>`, de modo que el cuadrito pintado no era pulsable.
+ * No se resuelve envolviendo todo en un `<label>` más ancho porque la
+ * etiqueta de /register lleva `<Link>` dentro y anidarlos haría que abrir
+ * los Términos marcara además la casilla.
  */
 export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
   function Checkbox(
@@ -53,7 +54,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
                 type="checkbox"
                 aria-describedby={describedBy}
                 aria-invalid={Boolean(error) || undefined}
-                className={cx("peer sr-only", className)}
+                className={cx("peer absolute inset-0 m-0 h-5 w-5 cursor-pointer appearance-none opacity-0 disabled:cursor-not-allowed", className)}
               />
               <span
                 aria-hidden="true"

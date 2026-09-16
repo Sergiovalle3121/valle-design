@@ -116,3 +116,13 @@ Variables e imports sin usar (16 `@typescript-eslint/no-unused-vars`) y un ref l
 - `check:precision-evidence` fallaba en Windows por `new URL().pathname` que produce `/D:/` paths. Arreglado con `fileURLToPath()`.
 - DWG evidence JSON stale: regenerado con `dwg-evidence.mjs`.
 - `large-coordinate-precision.json` faltaba en working tree: restaurado de git.
+
+## D01 — Casilla de Términos pulsable con ratón (2026-09-16)
+
+**Problema:** El `<input type=checkbox>` llevaba `sr-only` (1×1 px, clip), así que el cuadrito visual de 20×20 no era pulsable con ratón. En /register dejaba el botón «Crear cuenta» permanentemente deshabilitado.
+
+**Arreglo:** Cambiado `sr-only` por `absolute inset-0 m-0 h-5 w-5 cursor-pointer appearance-none opacity-0 disabled:cursor-not-allowed` en Toggle.tsx:56. El input real ahora cubre toda la caja dibujada, transparente, y recibe clics directos. Actualizado el comentario que describía el diseño anterior.
+
+**E2E:** Añadido `test.step` a `197-auditoria-terminos-al-alta.spec.ts` que hace click en la caja (no en el texto) y verifica que la casilla se marca y el botón se habilita.
+
+**Verificación:** `renderToStaticMarkup` confirma que `type=checkbox` y `<label>` siguen presentes y `sr-only` ya no aparece.
