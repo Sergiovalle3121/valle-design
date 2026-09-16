@@ -1,5 +1,7 @@
 "use client";
 
+import { createPortal } from "react-dom";
+
 /**
  * «ALGO SALIÓ MAL» — el camino de vuelta.
  *
@@ -33,6 +35,7 @@ import { useState } from "react";
 import { APP_VERSION } from "@/config/launch";
 import { designClient } from "@/lib/cad/repositories/client";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
+import { useStudioTraySlot } from "@/components/cad/studio/use-studio-tray";
 
 export interface CadIncidentReporterProps {
   /** Versión del estudio. Por defecto la del build, que es la que hace falta. */
@@ -92,77 +95,76 @@ export function CadIncidentReporter({
     }
   };
 
-  if (estado === "cerrado")
+  const tray = useStudioTraySlot();
+
+  const pillButtons = (
+    <>
+      <button
+        type="button"
+        data-testid="cad-incident-open"
+        onClick={() => setEstado("abierto")}
+        title="Algo salió mal — cuéntanoslo sin salir del plano"
+        className={
+          className ??
+          "rounded-lg border border-border bg-surface/80 px-2.5 py-1 type-micro text-muted-foreground shadow hover:text-foreground"
+        }
+      >
+        Algo salió mal
+      </button>
+      <button
+        type="button"
+        data-testid="cad-feedback-open"
+        onClick={() => setComentarios(true)}
+        title="Una idea, una duda o algo que podríamos hacer mejor"
+        className="rounded-lg border border-border bg-surface/80 px-2.5 py-1 type-micro text-muted-foreground shadow hover:text-foreground"
+      >
+        Comentarios
+      </button>
+    </>
+  );
+
+  if (estado === "cerrado") {
+    /*
+      En el estudio la barra vive en la BANDEJA de la barra de estado
+      (`cad-status-tray`, ver `CadStatusBar.tsx:392-400`): los botones son
+      elementos más de la barra, como la barra de llamada
+      (`TeamMessagingHost.tsx:50-56`). La posición anterior, `fixed left-3
+      top-[11.5rem]`, caía dentro del muelle izquierdo (`w-60`, 240 px, abierto
+      de fábrica) porque `fixed` se mide contra el viewport, no contra el lienzo.
+    */
+    if (tray)
+      return (
+        <>
+          {createPortal(
+            <span className="relative inline-flex items-center gap-1.5">
+              {pillButtons}
+            </span>,
+            tray,
+          )}
+          <FeedbackDialog
+            open={comentarios}
+            onClose={() => setComentarios(false)}
+            documentId={documentId}
+          />
+        </>
+      );
+
+    // Sin bandeja (el estudio sin editor, o antes de que monte): la posición
+    // fija de siempre. `z-[75]` porque el editor se monta en `fixed inset-0
+    // z-[70]` y crea su propio contexto de apilamiento.
     return (
-      /*
-        LOS DOS CANALES, JUNTOS. Este botón reporta un INCIDENTE —algo se rompió
-        y alguien tiene que mirarlo hoy— y manda un correo. El de al lado abre el
-        centro de comentarios, que GUARDA con estado y sirve para lo otro: la
-        sugerencia, la duda, la falla pequeña que no justifica un incidente.
-
-        Van pegados a propósito. Son dos cosas distintas y el usuario no tiene
-        por qué saber cuál es cuál antes de decidir escribir: encuentra el sitio
-        donde se habla con nosotros, y elige ahí.
-
-        Y van AQUÍ, en el mismo montaje, porque `Layout3DEditor.tsx` sólo puede
-        encoger: cada línea que no se le añade cuenta, y este componente ya
-        estaba montado con una sola.
-      */
-      /*
-        `left-3 top-[11.5rem]`, y el número está MEDIDO, no elegido.
-
-        Este par vivía en `bottom-14 left-3` desde antes de que existiera la
-        mensajería. Después, el dock de equipo se montó en `left-3 bottom-16`
-        con `z-[75]` — encima, y en la misma columna. Medido del DOM a
-        1280×720: el botón «Algo salió mal» ocupa y 639–664 y el borde inferior
-        del dock cae en y 656, así que el dock responde justo en el CENTRO del
-        botón (y 651). Playwright reintentó el clic 426 veces durante cinco
-        minutos antes de rendirse; un usuario habría desistido mucho antes, y
-        con él la vía por la que nos cuenta que algo se rompió.
-
-        Bajarlo no vale: los dos docks anclan su borde inferior en `bottom-16`
-        y crecen HACIA ARRIBA sin tope (`max-h-[min(60vh,32rem)]`), así que
-        cualquier hueco por debajo se lo come la barra de estado. La banda alta
-        del lienzo es la única libre —la barra superior ocupa y 0–48 y la cinta
-        y 48–162— y ahí ya vive la barra de llamada, en el lado derecho a la
-        misma altura. Éste toma el izquierdo: misma altura, esquina opuesta.
-
-        `z-[75]` porque el editor se monta en `fixed inset-0 z-[70]` y crea su
-        propio contexto de apilamiento; el chrome flotante necesita ese piso.
-
-        Y el envoltorio no intercepta el puntero, sólo su contenido: un
-        rectángulo invisible que se traga clics sobre el dibujo es la otra
-        mitad del mismo defecto.
-      */
-      <div className="pointer-events-none fixed left-3 top-[11.5rem] z-[75] flex items-center gap-1.5 [&>*]:pointer-events-auto">
-        <button
-          type="button"
-          data-testid="cad-incident-open"
-          onClick={() => setEstado("abierto")}
-          title="Algo salió mal — cuéntanoslo sin salir del plano"
-          className={
-            className ??
-            "rounded-lg border border-border bg-surface/80 px-2.5 py-1 type-micro text-muted-foreground shadow hover:text-foreground"
-          }
-        >
-          Algo salió mal
-        </button>
-        <button
-          type="button"
-          data-testid="cad-feedback-open"
-          onClick={() => setComentarios(true)}
-          title="Una idea, una duda o algo que podríamos hacer mejor"
-          className="rounded-lg border border-border bg-surface/80 px-2.5 py-1 type-micro text-muted-foreground shadow hover:text-foreground"
-        >
-          Comentarios
-        </button>
+      <>
+        <div className="pointer-events-none fixed left-3 top-[11.5rem] z-[75] flex items-center gap-1.5 [&>*]:pointer-events-auto">
+          {pillButtons}
+        </div>
         <FeedbackDialog
           open={comentarios}
           onClose={() => setComentarios(false)}
           documentId={documentId}
         />
-      </div>
+      </>
     );
+  }
 
   return (
     <div
