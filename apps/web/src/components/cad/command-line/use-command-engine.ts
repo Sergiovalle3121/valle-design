@@ -206,6 +206,15 @@ export interface CadStudioCommandEngineOptions {
    */
   openPageSetup?(layoutId: string): void;
   /**
+   * Superficie para la vista previa de trazado (PLOT modo preview).
+   *
+   * Opcional: sin él, el anfitrión responde honestamente «La vista previa de
+   * trazado no está disponible en esta versión». Con él, PLOT en modo
+   * `preview` le entrega un `CadPlotPreview` con la hoja, los trazos, las
+   * etiquetas y los issues para que lo pinte.
+   */
+  plotPreview?(preview: import("@/lib/cad/plot/plot-job").CadPlotPreview): void;
+  /**
    * La pila de deshacer del editor, un paso cada vez (`U`, `UNDO`, `REDO`).
    *
    * Opcional: un guion o una prueba sin editor no tiene historial, y entonces
@@ -264,7 +273,7 @@ export function useCadStudioNavigation(
 export function useCadStudioPlotHost(
   options: Pick<
     CadStudioCommandEngineOptions,
-    "document" | "visualStyle" | "setSpace" | "setProjection" | "openPageSetup"
+    "document" | "visualStyle" | "setSpace" | "setProjection" | "openPageSetup" | "plotPreview"
   > & {
     /** Adónde va el renglón del trazado cuando termina. */
     note?: (text: string, level: "info" | "error") => void;
@@ -333,6 +342,12 @@ export function useCadStudioPlotHost(
               live.current.openPageSetup?.(layoutId),
           }
         : {}),
+      ...(options.plotPreview
+        ? {
+            preview: (p: import("@/lib/cad/plot/plot-job").CadPlotPreview) =>
+              live.current.plotPreview?.(p),
+          }
+        : {}),
     });
   }, []);
 }
@@ -379,6 +394,7 @@ export function useCadStudioCommandEngine(
     ...(options.setSpace ? { setSpace: options.setSpace } : {}),
     ...(options.setProjection ? { setProjection: options.setProjection } : {}),
     ...(options.openPageSetup ? { openPageSetup: options.openPageSetup } : {}),
+    ...(options.plotPreview ? { plotPreview: options.plotPreview } : {}),
   });
   const live = useRef(options);
   live.current = options;
