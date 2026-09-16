@@ -48,6 +48,33 @@ for (const code of ["standalone-trial", "individual", "despacho"]) {
   );
 }
 
+// ── La intro atribuye correctamente: catálogo → nombres, compromisos → política ──
+const introMatch = slaPage.match(/intro="([^"]+)"/u);
+assert.ok(introMatch, "SlaPage.tsx debe tener un atributo intro");
+const introText = introMatch![1];
+// Si menciona el catálogo, debe ser para los nombres, no para los compromisos.
+if (/cat[áa]logo/iu.test(introText)) {
+  assert.match(
+    introText,
+    /nombre/iu,
+    "la intro menciona el catálogo pero no lo liga a los nombres de columna",
+  );
+  // Si la intro menciona compromisos, deben estar separados del catálogo:
+  // el catálogo aporta nombres, la política aporta compromisos.
+  if (/compromiso/iu.test(introText)) {
+    // Verificar que "catálogo" aparece en la cláusula de nombres, no en la
+    // de compromisos: la palabra después de "catálogo" debe ser algo del
+    // catálogo (nombre/público/columna), nunca "compromiso".
+    const catalogIdx = introText.search(/cat[áa]logo/iu);
+    const afterCatalog = introText.slice(catalogIdx);
+    assert.doesNotMatch(
+      afterCatalog,
+      /^cat[áa]logo[^;.]*compromiso/iu,
+      "la intro no debe ligar 'catálogo' directamente a 'compromisos'",
+    );
+  }
+}
+
 // ── Los nombres viejos (de un documento interno, no del catálogo) no
 //    pueden reaparecer en ningún sitio público ni en la fuente que este
 //    spec no controla directamente (SLA.md, /terms).

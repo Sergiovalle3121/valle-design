@@ -116,7 +116,7 @@ export function SlaPage() {
     <PublicPageShell
       eyebrow="Operación"
       title="Niveles de servicio"
-      intro="Compromisos de disponibilidad, respaldo y respuesta, con la misma fuente que usa el resto del producto: el catálogo real, no una propuesta aparte."
+      intro="Compromisos de disponibilidad, respaldo y respuesta por plan. Los nombres de columna se leen del catálogo público; los compromisos vienen de la política operativa."
     >
       <PublicSection title="Disponibilidad y respaldo por plan">
         <Tabla
