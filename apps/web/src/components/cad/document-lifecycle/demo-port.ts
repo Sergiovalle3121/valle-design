@@ -67,6 +67,7 @@ export function buildDemoDocument(): CadDocument {
               ...space.titleBlock,
               attributes: {
                 ...space.titleBlock?.attributes,
+                // Literal: demo-port no importa @/config/brand; el host le pasa la etiqueta.
                 PROJECT: "Demostración · VALLECAD",
                 CLIENTE: "Demostración",
               },

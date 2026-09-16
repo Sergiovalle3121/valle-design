@@ -1030,7 +1030,10 @@ export interface Layout3DEditorProps extends Layout3DEditorPlatformProps {
   readOnly?: boolean;
 }
 
-/** Marca por defecto cuando el editor se monta sin plataforma (nunca en enterprise). */
+/**
+ * Marca por defecto cuando el editor se monta sin plataforma (nunca en enterprise).
+ * Literales a propósito: el kernel CAD extraído no puede importar @/config/brand.
+ */
 const DEFAULT_BRANDING: NonNullable<Layout3DEditorPlatformProps["branding"]> = {
   brandName: "VALLECAD",
   legalEntityName: "",
@@ -14334,7 +14337,7 @@ export default function Layout3DEditor({
                   <p className="type-caption leading-relaxed text-foreground/70">
                     {webglUnavailable === "contexto-perdido"
                       ? "El navegador soltó el contexto de dibujo — suele pasar cuando la tarjeta gráfica se reinicia o se queda sin memoria. El documento, las capas, las propiedades y el guardado siguen funcionando, y el dibujo vuelve solo en cuanto el navegador devuelva el contexto."
-                      : "VALLECAD necesita WebGL para dibujar en pantalla. El documento, las capas, las propiedades y el guardado siguen funcionando, pero no verás la geometría hasta que actives WebGL o uses un navegador con aceleración disponible."}
+                      : `${branding.productLabel} necesita WebGL para dibujar en pantalla. El documento, las capas, las propiedades y el guardado siguen funcionando, pero no verás la geometría hasta que actives WebGL o uses un navegador con aceleración disponible.`}
                   </p>
                 </div>
               </div>

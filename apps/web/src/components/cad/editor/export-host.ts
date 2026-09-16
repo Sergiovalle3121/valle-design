@@ -727,6 +727,7 @@ export function useCadExportActions(
       setDxfPreflightAccepted(null);
       toast.success(
         exportLosses.length
+          // Literal: export-host no importa @/config/brand; el host le pasa la etiqueta.
           ? `Layout exportado a DXF (${exported.entityCount} entidades) con ${exportLosses.length} pérdida(s) aceptada(s). Conserva el documento de VALLECAD como original.`
           : `Layout exportado a DXF (${exported.entityCount} entidades).`,
         "DXF",

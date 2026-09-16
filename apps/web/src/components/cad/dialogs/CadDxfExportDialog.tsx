@@ -1,6 +1,7 @@
 "use client";
 
 import { CircleAlert, CircleCheck, FileDown } from "lucide-react";
+import { PRODUCT_LABEL } from "@/config/brand";
 import type {
   CadDxfExportLayerSummary,
   CadDxfExportReadinessIssue,
@@ -308,7 +309,7 @@ export function CadDxfExportDialog({
               />
               <span>
                 Entiendo lo que este DXF no representa y quiero
-                descargarlo igualmente. El documento de VALLECAD sigue
+                descargarlo igualmente. El documento de {PRODUCT_LABEL.design} sigue
                 siendo el original.
               </span>
             </label>
