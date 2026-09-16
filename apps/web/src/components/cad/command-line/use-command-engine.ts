@@ -311,6 +311,14 @@ export function useCadStudioPlotHost(
     // monochrome` dejaba escrita en la hoja una tabla que PLOT no podía
     // encontrar, y trazar esa hoja pasaba a ser imposible.
     const plotStyles = options.plotStyles ?? new CadPlotStyleCatalog();
+    // Fuentes OFL disponibles para incrustar en el PDF. Se cargan bajo demanda
+    // con fetch + base64 para no inflar el bundle de /studio (techo 232,8 KB
+    // gzip). La caché vive fuera del useMemo para sobrevivir a los renders.
+    const oflFontCache = new Map<string, import("@/lib/cad/plot/plot-pdf").CadPlotFontProgram>();
+    const oflFonts: Array<{ family: string; fileName: string }> = [
+      { family: "JetBrainsMono", fileName: "JetBrainsMono-wght.ttf" },
+      { family: "SpaceGrotesk", fileName: "SpaceGrotesk-wght.ttf" },
+    ];
     return new CadPlotHost({
       document: () => live.current.document.current,
       download: downloadCadFile,
@@ -348,6 +356,34 @@ export function useCadStudioPlotHost(
               live.current.plotPreview?.(p),
           }
         : {}),
+      fonts: async () => {
+        const result: import("@/lib/cad/plot/plot-pdf").CadPlotFontProgram[] = [];
+        for (const spec of oflFonts) {
+          if (oflFontCache.has(spec.family)) {
+            result.push(oflFontCache.get(spec.family)!);
+            continue;
+          }
+          try {
+            const res = await fetch(`/fonts/${spec.fileName}`);
+            if (!res.ok) continue;
+            const buf = await res.arrayBuffer();
+            const base64 = btoa(
+              Array.from(new Uint8Array(buf), (b) => String.fromCharCode(b)).join(""),
+            );
+            const program: import("@/lib/cad/plot/plot-pdf").CadPlotFontProgram = {
+              family: spec.family,
+              style: "normal",
+              fileName: spec.fileName,
+              base64,
+            };
+            oflFontCache.set(spec.family, program);
+            result.push(program);
+          } catch {
+            // fetch falló (offline, CSP, etc.): la familia sale como sustituida.
+          }
+        }
+        return result;
+      },
     });
   }, []);
 }

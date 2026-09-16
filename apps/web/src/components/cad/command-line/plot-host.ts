@@ -41,8 +41,8 @@ export interface CadPlotHostBridge {
   document(): CadDocument | null;
   /** Tablas de plumas cargadas, por nombre. */
   plotStyleTables?(): ReadonlyMap<string, CadPlotStyleTable>;
-  /** Programas de fuente para incrustar. Sin ellos se usan las estándar. */
-  fonts?(): readonly CadPlotFontProgram[];
+  /** Programas de fuente para incrustar. Puede ser async para carga bajo demanda. */
+  fonts?(): readonly CadPlotFontProgram[] | Promise<readonly CadPlotFontProgram[]>;
   /** Entrega el archivo al usuario. Inyectado para poder probarlo en Node. */
   download(fileName: string, bytes: Uint8Array, mimeType: string): void;
   /** Muestra la vista previa. */
@@ -457,7 +457,7 @@ export class CadPlotHost {
   private async emit(job: CadPlotJob, fileName: string): Promise<void> {
     try {
       const result: CadPlotPdfResult = await renderCadPlotPdf(job.sheets, {
-        ...(this.bridge.fonts ? { fonts: this.bridge.fonts() } : {}),
+        ...(this.bridge.fonts ? { fonts: await this.bridge.fonts() } : {}),
         // El cajetín y las familias de fuente vienen del trabajo de trazado,
         // que es quien leyó el documento. El anfitrión no los recompone: si lo
         // hiciera, el PDF descargado y la vista previa podrían discrepar.
