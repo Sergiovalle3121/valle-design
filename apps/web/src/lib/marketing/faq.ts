@@ -1,5 +1,6 @@
 import { DOC_GUIDES, PRICING_PATH, docGuidePath } from "@/config/site-routes";
 import { COMMERCIAL_LINKS } from "@/config/commercial";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 /**
  * EL CENTRO DE PREGUNTAS.
@@ -224,7 +225,7 @@ export const FAQ_ENTRIES: readonly FaqEntry[] = [
     categoria: "dibujo",
     pregunta: "¿Hay 3D?",
     respuesta:
-      "Hay una vista tridimensional del modelo para comprobar el volumen de lo dibujado, no un modelador. Valle Design es un CAD 2D: su trabajo es producir planos correctos, y el 3D está para verificar, no para diseñar. Todo documento abre en 2D salvo que tú hayas dejado otra vista activa.",
+      `Hay una vista tridimensional del modelo para comprobar el volumen de lo dibujado, no un modelador. ${PRODUCT_LABEL.design} es un CAD 2D: su trabajo es producir planos correctos, y el 3D está para verificar, no para diseñar. Todo documento abre en 2D salvo que tú hayas dejado otra vista activa.`,
   },
   {
     categoria: "dibujo",
@@ -244,7 +245,7 @@ export const FAQ_ENTRIES: readonly FaqEntry[] = [
     categoria: "archivos",
     pregunta: "¿Cómo intercambio planos con quien usa otro programa?",
     respuesta:
-      "En DXF de texto, que es el formato estándar de intercambio que cualquier programa de dibujo sabe abrir y escribir. Valle Design lo importa y lo exporta con comprobación previa y un manifiesto de pérdidas que dice, entidad por entidad, qué no viajó igual. Pide a tus colaboradores una copia en DXF y entrégales DXF: es el terreno común.",
+      `En DXF de texto, que es el formato estándar de intercambio que cualquier programa de dibujo sabe abrir y escribir. ${PRODUCT_LABEL.design} lo importa y lo exporta con comprobación previa y un manifiesto de pérdidas que dice, entidad por entidad, qué no viajó igual. Pide a tus colaboradores una copia en DXF y entrégales DXF: es el terreno común.`,
     enlace: guia("dxf-vs-dwg", "Qué significa cada formato para tu despacho"),
   },
   {

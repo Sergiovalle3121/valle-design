@@ -4,12 +4,13 @@ import { PublicPageShell, PublicSection } from "../docs/PublicPageShell";
 import { Badge, buttonClass } from "@/components/ui";
 import { COMMERCIAL_LINKS } from "@/config/commercial";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 export const metadata: Metadata = publicPageMetadata({
   path: "/status",
   title: "Estado del servicio",
   description:
-    "Fuente pública de estado de Valle Design. Esta página no declara disponibilidad que no pueda demostrar con telemetría configurada.",
+    `Fuente pública de estado de ${PRODUCT_LABEL.design}. Esta página no declara disponibilidad que no pueda demostrar con telemetría configurada.`,
 });
 
 export default function StatusPage() {

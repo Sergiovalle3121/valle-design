@@ -21,6 +21,7 @@ import {
   breadcrumbJsonLd,
   templateCreativeWorkJsonLd,
 } from "@/lib/seo/structured-data";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 /**
  * La FICHA de una plantilla: el plano en grande, lo que trae de verdad
@@ -120,7 +121,7 @@ export default async function PlantillaPage({
                 className="block overflow-hidden rounded-card border border-border shadow-resting"
               />
               <p className="type-micro mt-3 text-muted-foreground">
-                Dibujado por el motor de Valle Design a escala 1:
+                Dibujado por el motor de {PRODUCT_LABEL.design} a escala 1:
                 {built.scaleDenominator}. El plano cambia de tema contigo.
               </p>
             </div>

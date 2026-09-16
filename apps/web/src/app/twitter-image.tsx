@@ -1,4 +1,5 @@
 import { socialCard, SOCIAL_CARD_SIZE, SOCIAL_CARD_CONTENT_TYPE } from "@/lib/seo/social-card";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 /**
  * La misma tarjeta para X/Twitter.
@@ -9,7 +10,7 @@ import { socialCard, SOCIAL_CARD_SIZE, SOCIAL_CARD_CONTENT_TYPE } from "@/lib/se
  * encuadre de X ajustable el día que haga falta sin tocar el de WhatsApp, que
  * es el canal que de verdad vende aquí.
  */
-export const alt = "Valle Design · CAD en línea para dibujar planos en el navegador";
+export const alt = `${PRODUCT_LABEL.design} · CAD en línea para dibujar planos en el navegador`;
 export const size = SOCIAL_CARD_SIZE;
 export const contentType = SOCIAL_CARD_CONTENT_TYPE;
 
