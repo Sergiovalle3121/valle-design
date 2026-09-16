@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { isUniqueViolation } from '../../common/database/unique-violation';
 import {
   EMAIL_SERVICE,
@@ -35,6 +35,7 @@ import {
 import { IdentityMfaService } from './identity-mfa.service';
 import { exportPersonalData, type PersonalDataExport } from './identity-export';
 import {
+  consumeRemainingTokensWithManager,
   consumeTokenWithManager,
   enqueueIdentityEmail,
   issueIdentityEmailToken,
@@ -44,6 +45,14 @@ import {
 } from './identity-token-issuance';
 
 export { CSRF_COOKIE, SESSION_COOKIE } from './identity-security';
+
+/** Lo que pasó al canjear un enlace de verificación (ver `verifyEmail`). */
+export type EmailVerificationOutcome =
+  | { outcome: 'verified'; email: string }
+  | { outcome: 'already_verified'; email: string }
+  | { outcome: 'superseded' }
+  | { outcome: 'expired' }
+  | { outcome: 'invalid' };
 
 const SESSION_COOKIE_PATTERN =
   /^([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\.([A-Za-z0-9_-]{43})$/iu;
@@ -365,6 +374,14 @@ export class IdentityService {
     };
   }
 
+  /**
+   * Reenvío de la verificación del alta. Rotación `acumular`: el correo que ya
+   * está en la bandeja SIGUE valiendo hasta caducar. Antes el reenvío
+   * consumía el token anterior, y como el primer correo suele llegar antes
+   * que el segundo, quien pulsaba «enviar otro» mientras esperaba abría el
+   * primero y veía «enlace inválido». Cada token sigue siendo de un solo uso,
+   * y verificar con cualquiera consume los demás (`verifyEmail`).
+   */
   async sendVerificationEmail(email: string): Promise<void> {
     const user = await this.findUserByEmail(email);
     if (!user || user.emailVerifiedAt) return;
@@ -376,6 +393,7 @@ export class IdentityService {
       24 * 3_600_000,
       'identity.verify-email',
       '/verify-email',
+      'acumular',
     );
   }
 
@@ -393,26 +411,59 @@ export class IdentityService {
     );
   }
 
-  async verifyEmail(raw: string): Promise<boolean> {
-    if (!validOpaqueToken(raw)) return false;
+  /**
+   * Canje del enlace de verificación. Un solo `false` no le sirve a nadie:
+   * abrir por segunda vez un enlace que YA verificó, o abrir el enlace viejo
+   * tras un cambio de correo, parecían fallos del producto («token inválido»).
+   * Cada resultado dice lo que pasó para que el web diga qué hacer; el correo
+   * viaja en los dos resultados buenos para que el inicio de sesión llegue
+   * ya rellenado. `already_verified` es idempotente: no toca nada.
+   */
+  async verifyEmail(raw: string): Promise<EmailVerificationOutcome> {
+    if (!validOpaqueToken(raw)) return { outcome: 'invalid' };
     return this.dataSource.transaction(async (manager) => {
       const token = await consumeTokenWithManager(manager, raw, 'verify_email');
-      if (!token) return false;
-      const result = await manager.update(User, token.subjectId, {
-        emailVerifiedAt: new Date(),
-      });
-      if (!result.affected) {
+      if (!token) return this.explainUnusableVerification(manager, raw);
+      const user = await manager.findOneBy(User, { id: token.subjectId });
+      if (!user) {
         throw new Error('Identity invariant violated: token subject missing.');
       }
+      await manager.update(User, user.id, { emailVerifiedAt: new Date() });
+      // Los reenvíos acumulan tokens vigentes; verificado el correo, el resto
+      // de enlaces que sigan en la bandeja dejan de abrir nada.
+      await consumeRemainingTokensWithManager(manager, user.id, 'verify_email');
       await manager.save(
         IdentityAuditEvent,
         manager.create(IdentityAuditEvent, {
-          actorUserId: token.subjectId,
+          actorUserId: user.id,
           action: 'identity.email_verified',
         }),
       );
-      return true;
+      return { outcome: 'verified', email: user.email };
     });
+  }
+
+  /**
+   * Por qué un token de verificación no se pudo canjear. Se mira DESPUÉS de
+   * intentar consumirlo, nunca antes: el UPDATE condicional sigue siendo la
+   * única puerta, y esto sólo pone nombre a la negativa.
+   */
+  private async explainUnusableVerification(
+    manager: EntityManager,
+    raw: string,
+  ): Promise<EmailVerificationOutcome> {
+    const token = await manager.findOne(OneTimeToken, {
+      where: { tokenHash: this.hashToken(raw), purpose: 'verify_email' },
+    });
+    if (!token) return { outcome: 'invalid' };
+    const user = await manager.findOneBy(User, { id: token.subjectId });
+    if (user?.emailVerifiedAt) {
+      return { outcome: 'already_verified', email: user.email };
+    }
+    // Consumido sin que la cuenta esté verificada: lo reemplazó un cambio de
+    // correo. El enlace que vale es el del correo más reciente.
+    if (token.consumedAt) return { outcome: 'superseded' };
+    return { outcome: 'expired' };
   }
 
   async resetPassword(raw: string, password: string): Promise<boolean> {
@@ -623,15 +674,7 @@ export class IdentityService {
     const expiresAt = new Date(Date.now() + 5 * 60_000);
     await this.dataSource.transaction(async (manager) => {
       await lockIdentitySubject(this.dataSource, manager, user.id);
-      await manager
-        .createQueryBuilder()
-        .update(OneTimeToken)
-        .set({ consumedAt: new Date() })
-        .where(
-          'subjectId = :userId AND purpose = :purpose AND consumedAt IS NULL',
-          { userId: user.id, purpose: 'mfa_challenge' },
-        )
-        .execute();
+      await consumeRemainingTokensWithManager(manager, user.id, 'mfa_challenge');
       await manager.save(
         OneTimeToken,
         manager.create(OneTimeToken, {

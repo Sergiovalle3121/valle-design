@@ -619,10 +619,28 @@ export class IdentityController {
   @Post('verify-email')
   async verify(@Body() body: TokenDto, @Req() req: Request) {
     await this.limit('verify-email.ip', [req.ip || 'unknown'], 10);
-    if (!(await this.identity.verifyEmail(body.token))) {
-      throw new BadRequestException('Token inválido o expirado.');
+    const result = await this.identity.verifyEmail(body.token);
+    switch (result.outcome) {
+      case 'verified':
+        return { verified: true, email: result.email };
+      case 'already_verified':
+        // Idempotente: abrir dos veces el mismo enlace, o el enlace de otro
+        // correo tras verificar con el primero, no es un error del usuario.
+        return { verified: true, alreadyVerified: true, email: result.email };
+      case 'superseded':
+        throw new BadRequestException({
+          code: 'verification_token_superseded',
+          message:
+            'Este enlace ya no sirve: abre el correo más reciente o pide otro.',
+        });
+      case 'expired':
+        throw new BadRequestException({
+          code: 'verification_token_expired',
+          message: 'Este enlace caducó. Pide otro correo de verificación.',
+        });
+      default:
+        throw new BadRequestException('Token inválido o expirado.');
     }
-    return { verified: true };
   }
 
   @Public()

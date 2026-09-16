@@ -141,4 +141,65 @@ describePostgres('Identity registration atomicity', () => {
       }),
     ).resolves.toBe(4);
   });
+
+  it('acumula los reenvíos de verificación: cada correo enviado sigue valiendo y verificar con el primero cierra los demás', async () => {
+    const email = 'concurrent.verify@example.test';
+    await identity.register(
+      email,
+      'Correct-password-verify-2026!',
+      'Verify User',
+    );
+    const user = await harness.dataSource
+      .getRepository(User)
+      .findOneByOrFail({ email });
+
+    await Promise.all(
+      Array.from({ length: 4 }, () => identity.sendVerificationEmail(email)),
+    );
+
+    const tokens = harness.dataSource.getRepository(OneTimeToken);
+    // El del alta más los cuatro reenvíos: los CINCO siguen vigentes. Antes el
+    // reenvío consumía el anterior y el primer correo —el que llega antes—
+    // moría en la bandeja.
+    await expect(
+      tokens.countBy({ subjectId: user.id, purpose: 'verify_email' }),
+    ).resolves.toBe(5);
+    await expect(
+      tokens.countBy({
+        subjectId: user.id,
+        purpose: 'verify_email',
+        consumedAt: IsNull(),
+      }),
+    ).resolves.toBe(5);
+
+    const emails = await harness.dataSource.getRepository(EmailOutbox).find({
+      where: { recipient: email, template: 'identity.verify-email' },
+      order: { createdAt: 'ASC' },
+    });
+    expect(emails).toHaveLength(5);
+    const rawTokens = emails.map(
+      (row) => (row.payload as { token: string }).token,
+    );
+
+    // El PRIMER correo verifica…
+    await expect(identity.verifyEmail(rawTokens[0])).resolves.toEqual(
+      expect.objectContaining({ outcome: 'verified', email }),
+    );
+    await expect(
+      harness.dataSource.getRepository(User).findOneByOrFail({ email }),
+    ).resolves.toMatchObject({ emailVerifiedAt: expect.any(Date) });
+    // …y consume el resto: ningún enlace de verificación sigue abierto.
+    await expect(
+      tokens.countBy({
+        subjectId: user.id,
+        purpose: 'verify_email',
+        consumedAt: IsNull(),
+      }),
+    ).resolves.toBe(0);
+    // Los demás enlaces ya no verifican nada, pero dicen la verdad: la cuenta
+    // ya estaba verificada.
+    await expect(identity.verifyEmail(rawTokens[4])).resolves.toEqual(
+      expect.objectContaining({ outcome: 'already_verified', email }),
+    );
+  });
 });

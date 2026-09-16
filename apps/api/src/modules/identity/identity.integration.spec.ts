@@ -25,7 +25,11 @@ import {
   User,
 } from './entities/identity.entity';
 import { IdentityModule } from './identity.module';
-import { CSRF_COOKIE, DEVELOPMENT_SESSION_COOKIE } from './identity-security';
+import {
+  CSRF_COOKIE,
+  DEVELOPMENT_SESSION_COOKIE,
+  hashOpaqueToken,
+} from './identity-security';
 
 const TEST_HARNESS_KEY = 'identity-harness-key-with-at-least-32-chars';
 const EMAIL = 'flow.user+identity@example.test';
@@ -215,11 +219,15 @@ describe('first-party identity HTTP integration', () => {
       .post('/v1/auth/verify-email')
       .send({ token: verification.payload.token })
       .expect(201)
-      .expect({ verified: true });
+      .expect({ verified: true, email: EMAIL });
+    // Segundo canje del MISMO enlace: sigue siendo de un solo uso (no cambia
+    // nada), pero la respuesta dice la verdad —ya estaba verificado— en vez
+    // de un 400 que parecía un fallo del producto.
     await request(server)
       .post('/v1/auth/verify-email')
       .send({ token: verification.payload.token })
-      .expect(400);
+      .expect(201)
+      .expect({ verified: true, alreadyVerified: true, email: EMAIL });
 
     const verifiedUser = await dataSource
       .getRepository(User)
@@ -382,6 +390,101 @@ describe('first-party identity HTTP integration', () => {
     }
     expect(knownForgot.body).toEqual(unknownForgot.body);
     expect(knownResend.body).toEqual(unknownResend.body);
+  });
+
+  it('el reenvío no mata el correo anterior, y cada negativa dice por qué', async () => {
+    const server = app.getHttpServer();
+    const email = 'resend.user+identity@example.test';
+    await request(server)
+      .post('/v1/auth/register')
+      .send({ email, password: OLD_PASSWORD, displayName: 'Resend Flow' })
+      .expect(202);
+    await request(server)
+      .post('/v1/auth/verify-email/resend')
+      .send({ email })
+      .expect(202);
+    await request(server)
+      .post('/v1/auth/verify-email/resend')
+      .send({ email })
+      .expect(202);
+
+    const outbox = await dataSource.getRepository(EmailOutbox).find({
+      where: { recipient: email, template: 'identity.verify-email' },
+      order: { createdAt: 'ASC' },
+    });
+    expect(outbox).toHaveLength(3);
+    const tokens = outbox.map(
+      (row) => (row.payload as EmailHarnessBody['payload']).token,
+    );
+    expect(new Set(tokens).size).toBe(3);
+
+    const user = await dataSource.getRepository(User).findOneByOrFail({ email });
+    const oneTimeTokens = dataSource.getRepository(OneTimeToken);
+    await expect(
+      oneTimeTokens.countBy({
+        subjectId: user.id,
+        purpose: 'verify_email',
+        consumedAt: IsNull(),
+      }),
+    ).resolves.toBe(3);
+
+    // Un enlace caducado (aún sin consumir) lo dice con su código propio.
+    // Por hash y no por orden: SQLite guarda `createdAt` con precisión de
+    // segundo y tres filas del mismo segundo no tienen orden estable.
+    const secondToken = await oneTimeTokens.findOneByOrFail({
+      tokenHash: hashOpaqueToken(tokens[1]),
+    });
+    await oneTimeTokens.update(secondToken.id, {
+      expiresAt: new Date(Date.now() - 1_000),
+    });
+    const expired = await request(server)
+      .post('/v1/auth/verify-email')
+      .send({ token: tokens[1] })
+      .expect(400);
+    expect(expired.body).toMatchObject({ code: 'verification_token_expired' });
+
+    // Un enlace consumido por un reemplazo (cambio de correo) sin que la
+    // cuenta esté verificada: «abre el correo más reciente».
+    await oneTimeTokens.update(secondToken.id, {
+      expiresAt: new Date(Date.now() + 3_600_000),
+      consumedAt: new Date(),
+    });
+    const superseded = await request(server)
+      .post('/v1/auth/verify-email')
+      .send({ token: tokens[1] })
+      .expect(400);
+    expect(superseded.body).toMatchObject({
+      code: 'verification_token_superseded',
+    });
+
+    // El PRIMER correo —el que llegó antes— sigue verificando tras dos
+    // reenvíos. Antes moría con el primer «enviar otro».
+    await request(server)
+      .post('/v1/auth/verify-email')
+      .send({ token: tokens[0] })
+      .expect(201)
+      .expect({ verified: true, email });
+    await expect(
+      oneTimeTokens.countBy({
+        subjectId: user.id,
+        purpose: 'verify_email',
+        consumedAt: IsNull(),
+      }),
+    ).resolves.toBe(0);
+    // El tercero ya no abre nada, pero tampoco asusta: ya estaba verificado.
+    await request(server)
+      .post('/v1/auth/verify-email')
+      .send({ token: tokens[2] })
+      .expect(201)
+      .expect({ verified: true, alreadyVerified: true, email });
+    // Un token que nunca existió sigue siendo el 400 genérico.
+    await request(server)
+      .post('/v1/auth/verify-email')
+      .send({ token: 'x'.repeat(43) })
+      .expect(400)
+      .expect((response) => {
+        expect(response.body.code).toBeUndefined();
+      });
   });
 });
 
