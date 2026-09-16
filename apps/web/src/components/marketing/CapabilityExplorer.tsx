@@ -187,7 +187,7 @@ function DibujoVisual() {
   return (
     <ProductFrame
       src="/product/paleta-propiedades.png"
-      alt="La paleta de propiedades de Valle Design con un muro seleccionado"
+      alt="La paleta de propiedades de VALLECAD con un muro seleccionado"
       caption="Cada muro expone su geometría exacta —arranque, fin, espesor— y se edita por número, no a ojo."
       float={false}
     />
@@ -198,7 +198,7 @@ function AnotacionVisual() {
   return (
     <ProductFrame
       src="/product/linea-de-comandos.png"
-      alt="La línea de comandos de Valle Design a media ejecución del comando DLI"
+      alt="La línea de comandos de VALLECAD a media ejecución del comando DLI"
       caption="El alias de siempre: escribes DLI (cota lineal) y el editor pide el origen de la línea de referencia. La cota nace del comando, no de un menú."
       float={false}
     />

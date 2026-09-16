@@ -65,7 +65,7 @@ class IgesWriter {
   }
 
   build(header: { name: string; timestamp: string; author: string; organization: string; maxCoordinate: number }): string {
-    const startLines = [pad72("Valle Design - B-rep facetado exportado a IGES 5.3")];
+    const startLines = [pad72("VALLECAD - B-rep facetado exportado a IGES 5.3")];
 
     const global = [
       "1H,",
@@ -256,8 +256,8 @@ export function exportIges(body: BrepBody, options: IgesExportOptions = {}): str
   return writer.build({
     name: options.name ?? "VALLE_DESIGN_SOLID",
     timestamp: options.timestamp ?? "19700101.000000",
-    author: options.author ?? "Valle Design",
-    organization: options.organization ?? "Valle Design",
+    author: options.author ?? "VALLECAD",
+    organization: options.organization ?? "VALLECAD",
     maxCoordinate,
   });
 }

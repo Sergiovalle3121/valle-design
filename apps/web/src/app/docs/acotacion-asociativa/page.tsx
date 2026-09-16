@@ -42,7 +42,7 @@ export default function Page() {
         <p>
           La consecuencia es la que buscas: cuando mueves, estiras o giras esa
           geometría, la cota se regenera sola. No hay que acordarse, ni revisar,
-          ni volver a acotar. En Valle Design esa regeneración no es una utilidad
+          ni volver a acotar. En VALLECAD esa regeneración no es una utilidad
           aparte que haya que invocar: está en el camino por el que pasan todas
           las modificaciones de entidades, de modo que cualquier comando que
           cambie la geometría deja las cotas al día.
@@ -66,7 +66,7 @@ export default function Page() {
           impecable y estaría mintiendo.
         </p>
         <p>
-          Lo que hace Valle Design es marcar esa cota como{" "}
+          Lo que hace VALLECAD es marcar esa cota como{" "}
           <strong>desasociada</strong>. La cota sigue ahí —no se borra tu
           trabajo— pero queda señalada como lo que es: un número que ya no está
           respaldado por nada. Revisar las cotas desasociadas antes de publicar
@@ -145,8 +145,8 @@ export default function Page() {
       <GuideSection title="Qué esperar al intercambiar el archivo">
         <p>
           Las cotas viajan en la exportación DXF y vuelven a entrar en la
-          importación, con la información propia que Valle Design registra para
-          reconstruir el enganche. En un ida y vuelta dentro de Valle Design la
+          importación, con la información propia que VALLECAD registra para
+          reconstruir el enganche. En un ida y vuelta dentro de VALLECAD la
           asociatividad se conserva.
         </p>
         <GuideLimit>

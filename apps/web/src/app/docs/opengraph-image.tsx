@@ -7,7 +7,7 @@ import { socialCard, SOCIAL_CARD_SIZE, SOCIAL_CARD_CONTENT_TYPE } from "@/lib/se
  * archivos casi idénticos, y el titular de una guía ya viaja en `og:title`. Lo
  * que la imagen aporta aquí es reconocimiento de marca, no información nueva.
  */
-export const alt = "Valle Design · Guías de dibujo técnico";
+export const alt = "VALLECAD · Guías de dibujo técnico";
 export const size = SOCIAL_CARD_SIZE;
 export const contentType = SOCIAL_CARD_CONTENT_TYPE;
 

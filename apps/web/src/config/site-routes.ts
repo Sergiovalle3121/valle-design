@@ -75,9 +75,9 @@ export const DOC_GUIDES = [
     slug: "dxf-vs-dwg",
     title: "DXF y DWG: qué significa cada formato para tu despacho",
     description:
-      "En qué se diferencian DXF y DWG, qué formato pedir a tus colaboradores y qué hace exactamente Valle Design con cada uno de los dos.",
+      "En qué se diferencian DXF y DWG, qué formato pedir a tus colaboradores y qué hace exactamente VALLECAD con cada uno de los dos.",
     summary:
-      "La diferencia real entre los dos formatos y el límite exacto de lo que Valle Design abre y entrega.",
+      "La diferencia real entre los dos formatos y el límite exacto de lo que VALLECAD abre y entrega.",
   },
   {
     slug: "automatizar-con-autolisp",
@@ -91,7 +91,7 @@ export const DOC_GUIDES = [
     slug: "acotacion-asociativa",
     title: "Acotación asociativa: por qué tus cotas deben moverse con el dibujo",
     description:
-      "Qué es una cota asociativa, por qué una medida escrita a mano acaba mintiendo en obra y cómo acotar en Valle Design para que no pase.",
+      "Qué es una cota asociativa, por qué una medida escrita a mano acaba mintiendo en obra y cómo acotar en VALLECAD para que no pase.",
     summary:
       "La diferencia entre una cota que mide y un número escrito encima de una línea.",
   },

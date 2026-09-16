@@ -12,7 +12,7 @@ import { PricingCatalog } from "./PricingCatalog";
 export const metadata: Metadata = {
   title: "Precios",
   description:
-    "Planes y precios publicados de Valle Design, leídos del catálogo real del producto.",
+    "Planes y precios publicados de VALLECAD, leídos del catálogo real del producto.",
 };
 
 export default function PricingPage() {

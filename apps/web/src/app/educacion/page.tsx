@@ -35,9 +35,9 @@ import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 export const metadata: Metadata = publicPageMetadata({
   path: "/educacion",
-  title: "Valle Design para escuelas y universidades",
+  title: "VALLECAD para escuelas y universidades",
   description:
-    "Cómo un taller de proyectos puede usar Valle Design hoy: organización del grupo, invitaciones y revisión sobre el plano, más el plan educativo que preparamos.",
+    "Cómo un taller de proyectos puede usar VALLECAD hoy: organización del grupo, invitaciones y revisión sobre el plano, más el plan educativo que preparamos.",
 });
 
 const hoy = [
@@ -66,7 +66,7 @@ export default function EducacionPage() {
     <PublicPageShell
       eyebrow="Educación"
       title="Para escuelas y talleres de proyectos"
-      intro="Un taller de dibujo puede usar Valle Design hoy con las mismas herramientas que un despacho: la organización del grupo, las invitaciones por correo y la revisión sobre el plano. Y estamos preparando un plan educativo gratuito por correo institucional."
+      intro="Un taller de dibujo puede usar VALLECAD hoy con las mismas herramientas que un despacho: la organización del grupo, las invitaciones por correo y la revisión sobre el plano. Y estamos preparando un plan educativo gratuito por correo institucional."
     >
       <PublicSection title="Lo que ya funciona hoy">
         <div className="grid gap-5 sm:grid-cols-2">

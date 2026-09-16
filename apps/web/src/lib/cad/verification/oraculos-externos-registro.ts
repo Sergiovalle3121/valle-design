@@ -331,7 +331,7 @@ export const ORACULOS: Oraculo[] = [
     licencia: "LGPL-3.0-or-later",
     admisible: false,
     porQueAdmisible:
-      "NO admisible: LGPL está en la lista prohibida de CORPUS_POLICY.md. Y aunque no lo estuviera, no habría contra qué medir: Valle Design NO es BIM y no exporta IFC (bim-claim-boundary.spec.ts es el gate que lo sostiene). Un oráculo sin superficie de producto no es un pendiente, es una confusión de alcance.",
+      "NO admisible: LGPL está en la lista prohibida de CORPUS_POLICY.md. Y aunque no lo estuviera, no habría contra qué medir: VALLECAD NO es BIM y no exporta IFC (bim-claim-boundary.spec.ts es el gate que lo sostiene). Un oráculo sin superficie de producto no es un pendiente, es una confusión de alcance.",
     sonda: { tipo: "python-import", comando: 'python3 -c "import ifcopenshell"', objetivo: "ifcopenshell" },
     disponibleAlDeclarar: false,
     arnes: [],

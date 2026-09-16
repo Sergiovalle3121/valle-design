@@ -32,7 +32,7 @@ export function PlanRender({
   priority?: boolean;
 }) {
   const size = cadTemplateSvgSize(widthM * 1000, heightM * 1000);
-  const alt = `Plano de ${label} — plantilla CAD de Valle Design`;
+  const alt = `Plano de ${label} — plantilla CAD de VALLECAD`;
   const loading = priority ? "eager" : "lazy";
   const common = {
     width: size.width,

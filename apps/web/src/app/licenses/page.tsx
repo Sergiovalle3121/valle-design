@@ -13,7 +13,7 @@ export const metadata: Metadata = publicPageMetadata({
   path: "/licenses",
   title: "Licencias y avisos de terceros",
   description:
-    "Licencia propietaria de Valle Design y avisos de las dependencias de terceros que utiliza el producto.",
+    "Licencia propietaria de VALLECAD y avisos de las dependencias de terceros que utiliza el producto.",
 });
 
 export default function LicensesPage() {
@@ -23,7 +23,7 @@ export default function LicensesPage() {
       title="Licencias y avisos de terceros"
       intro="Los textos versionados en el repositorio son la fuente autoritativa. Esta página sólo ayuda a encontrarlos y no modifica sus condiciones."
     >
-      <PublicSection title="Valle Design">
+      <PublicSection title="VALLECAD">
         <p>
           El repositorio declara el producto como software propietario. La
           licencia indica que una evaluación, piloto o utilización comercial

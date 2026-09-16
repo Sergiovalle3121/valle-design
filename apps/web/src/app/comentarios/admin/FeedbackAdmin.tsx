@@ -122,7 +122,7 @@ export function FeedbackAdmin() {
       <Marco>
         <Surface padded="lg">
           <p className="type-heading">
-            Esta vista es para quien opera Valle Design
+            Esta vista es para quien opera VALLECAD
           </p>
           <p className="type-body mt-3 text-muted-foreground">
             Si deberías tener acceso, tu correo tiene que estar en la lista de

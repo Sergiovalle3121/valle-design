@@ -44,7 +44,7 @@ export default function Page() {
         <p>
           Ese conocimiento está escrito en AutoLISP. No migra solo, no lo
           reemplaza un botón nuevo, y un despacho que cambia de herramienta y lo
-          pierde acaba trabajando más lento que antes. Por eso Valle Design trae
+          pierde acaba trabajando más lento que antes. Por eso VALLECAD trae
           su propio intérprete AutoLISP, y por eso corre donde ya estás: en el
           navegador.
         </p>

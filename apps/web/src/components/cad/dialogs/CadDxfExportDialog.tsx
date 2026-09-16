@@ -308,7 +308,7 @@ export function CadDxfExportDialog({
               />
               <span>
                 Entiendo lo que este DXF no representa y quiero
-                descargarlo igualmente. El documento de Valle Design sigue
+                descargarlo igualmente. El documento de VALLECAD sigue
                 siendo el original.
               </span>
             </label>

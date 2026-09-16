@@ -195,7 +195,7 @@ const FACTORY_FILES: readonly LispLibraryFile[] = CAD_LISP_FACTORY_ROUTINES.map(
     version: 1,
     fingerprint: fingerprintLispSource(routine.source),
     updatedAt: "",
-    updatedBy: "Valle Design",
+    updatedBy: "VALLECAD",
     autoload: true,
     // Una rutina de fábrica con la sintaxis rota no ofrece comandos, y la spec
     // lo cazará; lo que no puede hacer es tumbar el arranque del subsistema.

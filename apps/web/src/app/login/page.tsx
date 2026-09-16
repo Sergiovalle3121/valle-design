@@ -11,7 +11,7 @@ export const metadata: Metadata = publicPageMetadata({
   path: "/login",
   title: "Iniciar sesión",
   description:
-    "Entra a tu cuenta de Valle Design y abre tus proyectos de CAD en línea desde el navegador, sin instalar nada.",
+    "Entra a tu cuenta de VALLECAD y abre tus proyectos de CAD en línea desde el navegador, sin instalar nada.",
 });
 
 export default function LoginPage() {

@@ -15,7 +15,7 @@ import { BRAND } from "@/config/brand";
  *
  * Comercialmente además es lo correcto: un producto que se define contra otro
  * le regala el marco al otro. El comprador recuerda la marca grande y el
- * pequeño queda como su sucedáneo. Valle Design se describe solo — CAD
+ * pequeño queda como su sucedáneo. VALLECAD se describe solo — CAD
  * profesional en el navegador, sus capacidades, su precio — y donde hace falta
  * hablar de interoperabilidad se habla del FORMATO, no de quién lo publica.
  *

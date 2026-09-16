@@ -1,5 +1,5 @@
 /**
- * LA GEOMETRÍA DEL ISOTIPO DE VALLE DESIGN — una sola fuente.
+ * LA GEOMETRÍA DEL ISOTIPO DE VALLECAD — una sola fuente.
  *
  * EL DIBUJO. Tres elementos, ninguno decorativo:
  *
@@ -72,4 +72,4 @@ export const BRAND_INK = {
   accent: "#6b4def",
 } as const;
 
-export const WORDMARK = "Valle Design";
+export const WORDMARK = "VALLECAD";

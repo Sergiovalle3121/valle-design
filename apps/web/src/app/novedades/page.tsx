@@ -26,7 +26,7 @@ export const metadata: Metadata = publicPageMetadata({
   path: "/novedades",
   title: "Novedades del producto",
   description:
-    "Lo que ha cambiado en Valle Design, fechado y en producción: novedades, mejoras y arreglos del editor CAD en línea.",
+    "Lo que ha cambiado en VALLECAD, fechado y en producción: novedades, mejoras y arreglos del editor CAD en línea.",
 });
 
 /** Fecha larga en es-MX, calculada en el servidor: misma cadena para todos. */

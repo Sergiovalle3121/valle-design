@@ -11,7 +11,7 @@ export const metadata: Metadata = publicPageMetadata({
   path: "/register",
   title: "Crear cuenta",
   description:
-    "Crea tu cuenta y empieza a dibujar planos en línea con Valle Design: proyectos en la nube, intercambio DXF e impresión a PDF a escala.",
+    "Crea tu cuenta y empieza a dibujar planos en línea con VALLECAD: proyectos en la nube, intercambio DXF e impresión a PDF a escala.",
 });
 
 export default function RegisterPage() {

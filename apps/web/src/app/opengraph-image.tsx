@@ -8,7 +8,7 @@ import { socialCard, SOCIAL_CARD_SIZE, SOCIAL_CARD_CONTENT_TYPE } from "@/lib/se
  * esto en WhatsApp está decidiendo si toca el enlace, y "dibuja tus planos en
  * el navegador" responde esa pregunta; "plataforma CAD en la nube" no.
  */
-export const alt = "Valle Design · CAD en línea para dibujar planos en el navegador";
+export const alt = "VALLECAD · CAD en línea para dibujar planos en el navegador";
 export const size = SOCIAL_CARD_SIZE;
 export const contentType = SOCIAL_CARD_CONTENT_TYPE;
 

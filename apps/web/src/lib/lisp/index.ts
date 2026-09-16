@@ -1,5 +1,5 @@
 /**
- * El subsistema AutoLISP de Valle Design: puerta de entrada.
+ * El subsistema AutoLISP de VALLECAD: puerta de entrada.
  *
  * ## Por qué existe
  *

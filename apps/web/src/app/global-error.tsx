@@ -63,7 +63,7 @@ export default function GlobalError({
               letterSpacing: "-0.024em",
             }}
           >
-            Valle Design no pudo arrancar
+            VALLECAD no pudo arrancar
           </h1>
           <p
             style={{

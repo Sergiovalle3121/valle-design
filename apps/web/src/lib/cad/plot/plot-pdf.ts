@@ -269,10 +269,10 @@ export async function renderCadPlotPdf(
   const metadata = options.metadata ?? {};
   pdf.setProperties({
     title: metadata.title ?? first.name,
-    subject: metadata.subject ?? "Plano trazado con Valle Design",
-    author: metadata.author ?? "Valle Design",
+    subject: metadata.subject ?? "Plano trazado con VALLECAD",
+    author: metadata.author ?? "VALLECAD",
     keywords: metadata.keywords ?? "CAD, plano, trazado",
-    creator: "Valle Design",
+    creator: "VALLECAD",
   });
 
   const pages: CadPlotPdfResult["pages"] = [];

@@ -1,5 +1,5 @@
 /**
- * LAS PRIMITIVAS DE VALLE DESIGN.
+ * LAS PRIMITIVAS DE VALLECAD.
  *
  * Punto único de importación: `import { Button, Input, Surface } from
  * "@/components/ui"`. Antes de esto, este directorio tenía UN archivo

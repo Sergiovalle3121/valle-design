@@ -26,7 +26,7 @@ export default function DocumentationPage() {
   return (
     <PublicPageShell
       eyebrow="Documentación"
-      title="Guías y documentación de Valle Design"
+      title="Guías y documentación de VALLECAD"
       intro="Aquí se explica cómo se trabaja de verdad con el producto y dónde están sus límites hoy. Las guías están escritas desde lo que el editor hace, no desde lo que nos gustaría que hiciera."
     >
       <PublicSection title="Guías paso a paso">
@@ -104,7 +104,7 @@ export default function DocumentationPage() {
 
       <PublicSection title="Archivos y compatibilidad">
         <p>
-          Valle Design importa y exporta DXF de texto. El resultado de una
+          VALLECAD importa y exporta DXF de texto. El resultado de una
           exportación incluye un manifiesto de pérdidas que enumera, entidad por
           entidad, qué se degradó al escribir el archivo; revísalo antes de
           entregar.

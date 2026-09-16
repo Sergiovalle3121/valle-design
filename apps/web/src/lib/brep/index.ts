@@ -1,5 +1,5 @@
 /**
- * Kernel B-rep de Valle Design: la puerta de entrada del subsistema.
+ * Kernel B-rep de VALLECAD: la puerta de entrada del subsistema.
  *
  * QUÉ ES ESTO. Un modelador de sólidos por representación de fronteras, escrito
  * desde cero y sin dependencias. El CAD 2D ya tenía un modelo canónico y un

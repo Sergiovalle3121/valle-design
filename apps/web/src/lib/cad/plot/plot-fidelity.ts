@@ -186,7 +186,7 @@ export function buildCadFidelityFixture(input: CadFidelityFixtureInput): CadDocu
       sheetNumber: "F-001",
       revision: "A",
       discipline: "Arquitectura",
-      preparedBy: "Valle Design",
+      preparedBy: "VALLECAD",
     },
     scale: input.scaleDenominator,
   });

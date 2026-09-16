@@ -141,7 +141,7 @@ export default function Page() {
           cambia las anchuras y descoloca los rótulos del cajetín.
         </p>
         <p>
-          Valle Design hace las dos cosas: si recibe el programa de la fuente, la
+          VALLECAD hace las dos cosas: si recibe el programa de la fuente, la
           incrusta; si no, mapea la familia a la estándar más cercana y{" "}
           <strong>lo deja escrito en el resultado del trazado</strong>. Nunca
           afirma haber incrustado una fuente que no tenía.

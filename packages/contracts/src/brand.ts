@@ -78,14 +78,14 @@ export interface BrandManifest {
  * permite renombrar sin tocar base de datos ni APIs.
  */
 const DEFAULT_PRODUCT_NAMES: Record<ProductCode, string> = {
-  design: "VALLE Design",
+  design: "VALLECAD",
 };
 
 /** Año base del copyright; el resolvedor lo puede sobrescribir por entorno. */
 const DEFAULT_COPYRIGHT_YEAR = 2026;
 
 export const DEFAULT_BRAND_MANIFEST: BrandManifest = {
-  brandName: "VALLE",
+  brandName: "VALLECAD",
   legalEntityName: "Sergio Valle Enterprise Software",
   founderName: "Sergio Valle",
   descriptor: "Diseño arquitectónico",

@@ -54,9 +54,9 @@ export default function Page() {
         </p>
       </GuideSection>
 
-      <GuideSection title="Qué hace exactamente Valle Design">
+      <GuideSection title="Qué hace exactamente VALLECAD">
         <p>
-          Valle Design importa y exporta <strong>DXF de texto</strong>. La
+          VALLECAD importa y exporta <strong>DXF de texto</strong>. La
           exportación escribe DXF de AutoCAD 2000, que es la versión mínima capaz
           de representar honestamente las entidades que emitimos —una elipse, por
           ejemplo, no existe en versiones anteriores—.
@@ -83,7 +83,7 @@ export default function Page() {
 
       <GuideSection title="Qué NO hace, dicho sin rodeos">
         <p>
-          <strong>Valle Design no abre ni escribe archivos DWG.</strong> No es
+          <strong>VALLECAD no abre ni escribe archivos DWG.</strong> No es
           una limitación temporal disfrazada: es una decisión documentada. Sin
           una biblioteca con licencia del titular del formato, cualquier lectura
           de DWG sería una reconstrucción aproximada, y un plano aproximado es
@@ -160,13 +160,13 @@ export default function Page() {
         </GuideLimit>
         <p>
           Si tu flujo de trabajo depende de entregar el archivo nativo de
-          AutoCAD, hoy Valle Design no es la herramienta. Si lo que necesitas es
+          AutoCAD, hoy VALLECAD no es la herramienta. Si lo que necesitas es
           producir planos y entregarlos en un formato que cualquiera pueda abrir,
           el intercambio en DXF cubre ese camino con las pérdidas escritas
           delante.
         </p>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          AutoCAD y DWG son marcas de Autodesk, Inc. Valle Design no está
+          AutoCAD y DWG son marcas de Autodesk, Inc. VALLECAD no está
           afiliado a Autodesk ni respaldado por Autodesk.
         </p>
       </GuideSection>

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * ThemeProvider de Valle Design — adaptación del origen.
+ * ThemeProvider de VALLECAD — adaptación del origen.
  *
  * Conserva EXACTAMENTE la superficie que consume el workbench CAD extraído
  * (`useTheme` → { colorScheme, resolvedScheme, setColorScheme, toggleTheme }

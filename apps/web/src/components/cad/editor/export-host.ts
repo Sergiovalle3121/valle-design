@@ -727,7 +727,7 @@ export function useCadExportActions(
       setDxfPreflightAccepted(null);
       toast.success(
         exportLosses.length
-          ? `Layout exportado a DXF (${exported.entityCount} entidades) con ${exportLosses.length} pérdida(s) aceptada(s). Conserva el documento de Valle Design como original.`
+          ? `Layout exportado a DXF (${exported.entityCount} entidades) con ${exportLosses.length} pérdida(s) aceptada(s). Conserva el documento de VALLECAD como original.`
           : `Layout exportado a DXF (${exported.entityCount} entidades).`,
         "DXF",
       );

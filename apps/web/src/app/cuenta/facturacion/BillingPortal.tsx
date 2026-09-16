@@ -380,8 +380,8 @@ export function BillingPortal() {
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
             {subscription.status === "past_due"
-              ? "Tu último cobro no prosperó. Actualiza tu tarjeta en el portal de nuestro proveedor de pagos: los datos de tu tarjeta nunca pasan por Valle Design."
-              : "Cambia tu tarjeta o revisa tus cobros en el portal de nuestro proveedor de pagos. Los datos de tu tarjeta nunca pasan por Valle Design."}
+              ? "Tu último cobro no prosperó. Actualiza tu tarjeta en el portal de nuestro proveedor de pagos: los datos de tu tarjeta nunca pasan por VALLECAD."
+              : "Cambia tu tarjeta o revisa tus cobros en el portal de nuestro proveedor de pagos. Los datos de tu tarjeta nunca pasan por VALLECAD."}
           </p>
           {portal.status === "failed" && (
             <p role="alert" className="mt-3 text-sm text-rose-600">

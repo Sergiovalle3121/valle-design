@@ -89,7 +89,7 @@ export function socialCard({
               letterSpacing: -0.6,
             }}
           >
-            Valle Design
+            VALLECAD
           </span>
         </div>
 

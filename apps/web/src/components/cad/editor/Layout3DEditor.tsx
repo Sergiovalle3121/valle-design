@@ -629,12 +629,12 @@ import {
   type CadViewportBookmark,
 } from "@/lib/cad/viewport-bookmarks";
 // Aquí NO se instala analítica industrial (flujo, balanceo, ruta de material):
-// Valle Design dibuja planos, no opera fábricas (ver IDENTITY.md). Sin registro,
+// VALLECAD dibuja planos, no opera fábricas (ver IDENTITY.md). Sin registro,
 // los comandos de análisis del kernel degradan con su aviso contractual
 // (`analysis_pack_missing`) — comportamiento probado en analysis-extensions.spec.
 
 /**
- * El editor: el lienzo de dibujo de Valle Design, en 2D y en 3D sobre el mismo
+ * El editor: el lienzo de dibujo de VALLECAD, en 2D y en 3D sobre el mismo
  * documento.
  *
  * Dibuja CUALQUIER plano —arquitectónico, mecánico, eléctrico, civil, de
@@ -1032,9 +1032,9 @@ export interface Layout3DEditorProps extends Layout3DEditorPlatformProps {
 
 /** Marca por defecto cuando el editor se monta sin plataforma (nunca en enterprise). */
 const DEFAULT_BRANDING: NonNullable<Layout3DEditorPlatformProps["branding"]> = {
-  brandName: "Valle Design",
+  brandName: "VALLECAD",
   legalEntityName: "",
-  productLabel: "Valle Design",
+  productLabel: "VALLECAD",
 };
 
 export default function Layout3DEditor({
@@ -5860,7 +5860,7 @@ export default function Layout3DEditor({
       });
     } catch (cause) {
       console.error(
-        "Valle Design: WebGL no disponible en este navegador",
+        "VALLECAD: WebGL no disponible en este navegador",
         cause,
       );
       sceneRef.current = null;
@@ -14334,7 +14334,7 @@ export default function Layout3DEditor({
                   <p className="type-caption leading-relaxed text-foreground/70">
                     {webglUnavailable === "contexto-perdido"
                       ? "El navegador soltó el contexto de dibujo — suele pasar cuando la tarjeta gráfica se reinicia o se queda sin memoria. El documento, las capas, las propiedades y el guardado siguen funcionando, y el dibujo vuelve solo en cuanto el navegador devuelva el contexto."
-                      : "Valle Design necesita WebGL para dibujar en pantalla. El documento, las capas, las propiedades y el guardado siguen funcionando, pero no verás la geometría hasta que actives WebGL o uses un navegador con aceleración disponible."}
+                      : "VALLECAD necesita WebGL para dibujar en pantalla. El documento, las capas, las propiedades y el guardado siguen funcionando, pero no verás la geometría hasta que actives WebGL o uses un navegador con aceleración disponible."}
                   </p>
                 </div>
               </div>

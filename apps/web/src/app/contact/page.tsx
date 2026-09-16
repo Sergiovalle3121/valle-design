@@ -11,7 +11,7 @@ export const metadata: Metadata = publicPageMetadata({
   path: "/contact",
   title: "Contacto y canales de atención",
   description:
-    "Canales públicos configurados para hablar con el equipo de Valle Design: comercial, soporte del producto y privacidad.",
+    "Canales públicos configurados para hablar con el equipo de VALLECAD: comercial, soporte del producto y privacidad.",
 });
 
 const channelLabels = {

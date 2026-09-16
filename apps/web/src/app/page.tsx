@@ -118,7 +118,7 @@ export const metadata: Metadata = publicPageMetadata({
 const proof = [
   {
     src: "/product/estudio-dark.png",
-    alt: "El estudio de Valle Design con una planta arquitectónica acotada",
+    alt: "El estudio de VALLECAD con una planta arquitectónica acotada",
     nota: "Muros que resuelven su unión en la esquina, sombreado de corte y cotas amarradas a la geometría que miden. Todo dibujado con la línea de comandos, con los alias de siempre.",
   },
   {

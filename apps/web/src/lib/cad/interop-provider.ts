@@ -1,5 +1,5 @@
 /**
- * Contrato de interoperabilidad de Valle Design CAD (CAD-NEXT-061).
+ * Contrato de interoperabilidad de VALLECAD CAD (CAD-NEXT-061).
  *
  * Regla del programa (D5 — "DWG honesto"): NO se hace ingeniería inversa del
  * formato DWG y NUNCA se declara importación/exportación DWG funcionando sin un

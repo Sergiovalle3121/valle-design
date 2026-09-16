@@ -10,7 +10,7 @@ export const metadata: Metadata = publicPageMetadata({
   path: "/support",
   title: "Soporte técnico",
   description:
-    "Canales de ayuda de Valle Design y qué información incluir para que un problema se pueda reproducir y resolver.",
+    "Canales de ayuda de VALLECAD y qué información incluir para que un problema se pueda reproducir y resolver.",
 });
 
 export default function SupportPage() {

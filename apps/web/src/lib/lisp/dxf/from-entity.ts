@@ -280,7 +280,7 @@ export function cadEntityToDxf(entity: CadEntity): LispValue | null {
         entity.style ? dxfString(3, entity.style) : null,
         entity.radius === undefined ? null : dxfReal(40, entity.radius),
         /**
-         * EXTENSIÓN de Valle Design, y conviene saberlo: en DXF la
+         * EXTENSIÓN de VALLECAD, y conviene saberlo: en DXF la
          * asociatividad de una cota vive en un diccionario de extensión que
          * `entget` no devuelve, así que en AutoCAD no hay forma cómoda de
          * preguntarla desde LISP. Aquí el modelo canónico la tiene como campo

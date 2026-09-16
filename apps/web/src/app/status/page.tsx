@@ -9,7 +9,7 @@ export const metadata: Metadata = publicPageMetadata({
   path: "/status",
   title: "Estado del servicio",
   description:
-    "Fuente pública de estado de Valle Design. Esta página no declara disponibilidad que no pueda demostrar con telemetría configurada.",
+    "Fuente pública de estado de VALLECAD. Esta página no declara disponibilidad que no pueda demostrar con telemetría configurada.",
 });
 
 export default function StatusPage() {

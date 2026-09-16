@@ -67,7 +67,7 @@ export function buildDemoDocument(): CadDocument {
               ...space.titleBlock,
               attributes: {
                 ...space.titleBlock?.attributes,
-                PROJECT: "Demostración · Valle Design",
+                PROJECT: "Demostración · VALLECAD",
                 CLIENTE: "Demostración",
               },
             },

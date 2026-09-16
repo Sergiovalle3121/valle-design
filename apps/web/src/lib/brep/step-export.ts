@@ -208,8 +208,8 @@ export function exportStep(body: BrepBody, options: StepExportOptions = {}): str
   return [
     "ISO-10303-21;",
     "HEADER;",
-    `FILE_DESCRIPTION(('Valle Design B-rep'),'2;1');`,
-    `FILE_NAME('${name}','${timestamp}',('${options.author ?? "Valle Design"}'),('${options.organization ?? "Valle Design"}'),'valle-design-brep','valle-design','');`,
+    `FILE_DESCRIPTION(('VALLECAD B-rep'),'2;1');`,
+    `FILE_NAME('${name}','${timestamp}',('${options.author ?? "VALLECAD"}'),('${options.organization ?? "VALLECAD"}'),'valle-design-brep','valle-design','');`,
     `FILE_SCHEMA(('${SCHEMA_NAMES[schema]}'));`,
     "ENDSEC;",
     "DATA;",

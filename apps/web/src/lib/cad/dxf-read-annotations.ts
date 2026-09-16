@@ -33,7 +33,7 @@ const DIMENSION_ARROWS = new Set<NonNullable<CadDxfSemanticDimension["arrowhead"
 ]);
 
 /**
- * Valle Design dimensions use ordinary DIMENSION entities plus registered XDATA. The
+ * VALLECAD dimensions use ordinary DIMENSION entities plus registered XDATA. The
  * metadata retains semantic formatting while the anonymous *D block keeps the
  * drawing visible in CAD readers that do not understand the XDATA.
  */

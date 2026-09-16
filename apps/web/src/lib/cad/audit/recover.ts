@@ -3,7 +3,7 @@
  *
  * ## El límite, dicho antes que el código
  *
- * Esto recupera el documento CANÓNICO de Valle Design (el JSON que persiste
+ * Esto recupera el documento CANÓNICO de VALLECAD (el JSON que persiste
  * `/v1/cad/documents`), no un DWG ni un DXF binario corrupto — reconstruir un
  * formato binario ajeno es trabajo de `lib/cad/interop/` y del lector DWG
  * nativo autorizado, con su propia frontera legal (ADR-0009). «Todavía no»
