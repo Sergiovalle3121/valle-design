@@ -245,3 +245,13 @@ Variables e imports sin usar (16 `@typescript-eslint/no-unused-vars`) y un ref l
 - `CadGuidedTourDock.tsx`: `useState(true)` → `record.minimized`, `setMinimized` → `cadTourHost.dispatch({ type: "minimize" })`.
 
 **Verificación:** guided-tour.spec 27 comprobaciones, tour-host.spec 4 comprobaciones + caso de persistencia tras reset+attach.
+
+## D13 — Incident reporter: estilo de bandeja y comentario de posición (2026-09-16)
+
+**Problema:** Los botones «Algo salió mal» y «Comentarios» en la bandeja de la barra de estado usaban el estilo pesado (`rounded-lg`, `shadow`, `px-2.5`) que no encaja con el resto de la barra. El comentario de la posición fija no explicaba que `top-[11.5rem]` cae sobre el muelle izquierdo, no sobre el lienzo.
+
+**Arreglo:**
+- `CadIncidentReporter.tsx`: botones de bandeja con estilo `rounded-control border border-border bg-surface px-1.5 py-0.5 type-micro` (patrón CallBar). Rótulos con `@max-[40rem]:hidden` para evitar cuarto renglón. Fallback fijo conserva estilo original.
+- Comentario reescrito explicando que `top-[11.5rem]` es la columna del muelle izquierdo, no el lienzo.
+
+**Verificación:** Typecheck OK.

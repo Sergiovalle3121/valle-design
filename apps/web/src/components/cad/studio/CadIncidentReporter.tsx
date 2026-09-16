@@ -97,7 +97,31 @@ export function CadIncidentReporter({
 
   const tray = useStudioTraySlot();
 
-  const pillButtons = (
+  const trayButtonStyle =
+    "inline-flex items-center rounded-control border border-border bg-surface px-1.5 py-0.5 type-micro text-muted-foreground hover:text-foreground";
+  const pillButtons = tray ? (
+    <>
+      <button
+        type="button"
+        data-testid="cad-incident-open"
+        onClick={() => setEstado("abierto")}
+        title="Algo salió mal — cuéntanoslo sin salir del plano"
+        className={className ?? trayButtonStyle}
+      >
+        <span className="@max-[40rem]:hidden">Algo salió mal</span>
+        <span className="sr-only @max-[40rem]:not-sr-only">Reportar</span>
+      </button>
+      <button
+        type="button"
+        data-testid="cad-feedback-open"
+        onClick={() => setComentarios(true)}
+        title="Una idea, una duda o algo que podríamos hacer mejor"
+        className={trayButtonStyle}
+      >
+        <span className="@max-[40rem]:hidden">Comentarios</span>
+      </button>
+    </>
+  ) : (
     <>
       <button
         type="button"
@@ -150,8 +174,11 @@ export function CadIncidentReporter({
       );
 
     // Sin bandeja (el estudio sin editor, o antes de que monte): la posición
-    // fija de siempre. `z-[75]` porque el editor se monta en `fixed inset-0
-    // z-[70]` y crea su propio contexto de apilamiento.
+    // fija de siempre. `top-[11.5rem]` NO es lienzo: es la columna del muelle
+    // izquierdo (`CadLeftDockPanel.tsx:122`, `w-60` anclado en x=0 bajo la
+    // cinta). Sin editor no existe el muelle, así que la posición fija no tapa
+    // nada. `z-[75]` porque el editor se monta en `fixed inset-0 z-[70]` y
+    // crea su propio contexto de apilamiento.
     return (
       <>
         <div className="pointer-events-none fixed left-3 top-[11.5rem] z-[75] flex items-center gap-1.5 [&>*]:pointer-events-auto">
