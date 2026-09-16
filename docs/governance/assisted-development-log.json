@@ -3751,6 +3751,43 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "REGISTRO-CASILLA-Y-ERRORES-20260916",
+      "date": "2026-09-16",
+      "initiative": "Frente «registro»: que un ingeniero pueda crear su cuenta en /register con el ratón y, si algo falla, vea un error claro y verdadero en español. Cuatro causas, todas en el web y ninguna en el API: (1) la casilla de Términos no se podía marcar con el ratón porque el <input> real llevaba `sr-only` (1×1 px) y el cuadro dibujado era un <span aria-hidden> hermano; ahora el input transparente ES la caja (Toggle.tsx) y primitives-contract.spec.ts fija que no vuelva `sr-only`; (2) «Crear cuenta» quedaba deshabilitado sin explicación: la casilla lleva la pista «Necesaria para crear la cuenta.» y el contrato del golden 197 (botón deshabilitado hasta marcar) se conserva; (3) el catch de AuthPage enseñaba `body.message` crudo (400 de class-validator en inglés, «Internal server error») o «Failed to fetch»: ahora `authFailureMessage` clasifica red/400 por campo/401/429 con retryAfterSeconds/≥500 y nunca reexpone el mensaje del servidor; el alta y el inicio de sesión validan en español antes del fetch (`registerPayload`/`loginPayload`); (4) el reenvío de verificación tragaba errores y arrancaba el temporizador igual: ahora el 429 y el fallo de red se dicen por la región role=alert de AuthShell y el temporizador sólo arranca si se envió. El golden 197 pulsa además la caja dibujada (boundingBox > 16 px, click directo → marcada, segundo click → desmarcada).",
+      "branch": "claude/vc-registro",
+      "assistants": [
+        "Claude Code (Anthropic), modelo Claude Fable 5.1, sesión local operada por el titular: lectura del frente, reimplementación de la casilla, validación y mensajes en español, adaptación del reenvío, specs y esta entrada"
+      ],
+      "authority": "Sergio Valle Zárate. Encargo: «un ingeniero de cualquier país entra a vallecad.com/login, elige Crear cuenta, marca la casilla de Términos con el ratón, envía, y la cuenta queda creada (o ve un error claro y verdadero)». Ningún gate, umbral, presupuesto ni trinquete se relajó; el botón sigue deshabilitado hasta marcar la casilla y el embudo sigue siendo tres campos y una casilla.",
+      "firstPartyInputs": [
+        "apps/web/src/components/ui/Toggle.tsx, apps/web/src/components/AuthPage.tsx, apps/web/src/components/AuthShell.tsx, apps/web/src/components/ResendTimerButton.tsx, apps/web/src/lib/identity-actions.ts (main b90a9a42)",
+        "apps/web/e2e/golden/197-auditoria-terminos-al-alta.spec.ts, apps/web/e2e/real/free-launch-funnel.spec.ts (contratos que se conservan)",
+        "apps/api/src/modules/identity/identity.controller.ts e identity.service.ts (RegisterDto, 202 uniforme, 429 con retryAfterSeconds, 401 «Credenciales inválidas.» también para cuentas sin verificar)",
+        "Commits de la rama claude/noche-mimo-razones-para-pagar evaluados: 4359ef50 (D01, idea adoptada y reimplementada a mano sobre main), eeb918b3 (D08, cherry-pick -x con ajuste de token de tinta), 103a01a3 (T1), d6f9bcf6 (D03), 273531c3 (D06), 36feaf61 (D02), be24bcd6 (D04), d0f1ac5c y dd1dbb76 descartados por estar fuera del frente o debilitar la geometría que pulsan las pruebas reales"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación copiada, traducida ni portada.",
+      "derivedAreas": [
+        "apps/web/src/components/ui/Toggle.tsx (el input real es la caja; peer-hover en el cuadro)",
+        "apps/web/src/components/ui/primitives-contract.spec.ts (sin sr-only; opacity-0 y h-5 w-5 en el input)",
+        "apps/web/e2e/golden/197-auditoria-terminos-al-alta.spec.ts (paso que pulsa la caja dibujada)",
+        "apps/web/src/lib/identity-actions.ts y .spec.ts (validateDisplayName, loginPayload, registerPayload, authFailureMessage)",
+        "apps/web/src/components/AuthPage.tsx (validación previa, catch sin mensajes crudos, pista de la casilla, error de reenvío por AuthShell)",
+        "apps/web/src/components/ResendTimerButton.tsx (onResend devuelve boolean)",
+        "docs/governance/assisted-development-log.json (esta entrada)"
+      ],
+      "fixtures": "Ninguno.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Local: typecheck web, specs tocadas (primitives-contract, foco-visible, design-system, identity-actions), lint web, test:specs web y los check:* del root ejecutados de uno en uno (ver la PR). Playwright no corre en esta laptop (sin navegadores instalados): el golden 197 y las suites reales las juzga el CI sobre el SHA exacto candidato. La adopción es el merge de la PR por el titular tras revisar el diff."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
