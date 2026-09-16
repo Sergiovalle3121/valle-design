@@ -465,7 +465,7 @@ function rectangle(id: string, x: number, y: number, w: number, h: number, z = 0
   assert.equal(downloadRequest.filename, "export.stp", "el nombre es export.stp");
   assert.equal(downloadRequest.mime, "application/step", "el MIME es application/step");
   assert.match(downloadRequest.content, /ISO-10303-21/, "EXPORT devuelve el archivo STEP");
-  const payload = downloadRequest.content.slice(downloadRequest.content.indexOf("ISO-10303-21") - 1);
+  const payload = downloadRequest.content.slice(Math.max(0, downloadRequest.content.indexOf("ISO-10303-21") - 1));
   const importResult = run("IMPORT", [text(payload)], documentWith([]));
   assert.ok(importResult && importResult.kind === "document", "IMPORT escribe el sólido en el documento");
   if (importResult.kind !== "document") throw new Error("tipo");
