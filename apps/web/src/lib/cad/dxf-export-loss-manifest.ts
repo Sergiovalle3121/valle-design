@@ -398,10 +398,18 @@ export function cadDocumentDxfExportLosses(
   //    equipo— NO viaja al DXF. El DXF plano no tiene XDATA propia de Valle,
   //    y el exportador no la escribe. Esta entrada convierte una pérdida
   //    silenciosa en una declarada (D2 de la auditoría MEP).
+  //    Las claves de proveniencia de importación (sourceType, sourceLayer,
+  //    sourceBlock) son tracking, no dominio: el usuario no pierde nada al
+  //    exportar porque esos datos ya están en el propio tipo y capa de la
+  //    entidad.
+  const IMPORT_PROVENANCE_KEYS = new Set(["sourceType", "sourceLayer", "sourceBlock"]);
   let metadataEntities = 0;
   for (const entity of document.entities) {
-    if (entity.context?.metadata && Object.keys(entity.context.metadata).length > 0)
-      metadataEntities += 1;
+    if (!entity.context?.metadata) continue;
+    const domainKeys = Object.keys(entity.context.metadata).filter(
+      (key) => !IMPORT_PROVENANCE_KEYS.has(key),
+    );
+    if (domainKeys.length > 0) metadataEntities += 1;
   }
   if (metadataEntities > 0) {
     losses.push({
