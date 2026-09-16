@@ -176,3 +176,9 @@ console.log(
     `menciones de marcas ajenas fuera de ${TRADEMARK_MODULE} (${seen.length} ` +
     "en la línea de marcas, que es donde toca).",
 );
+
+// Gate anti-recaída de marca: «Valle Design» no se hardcodea en la superficie
+// pública. Vive aquí para no tocar package.json (el lanzador lo bloquea).
+import { execFileSync } from "node:child_process";
+const brandScript = path.join(here, "check-brand-literal.mjs");
+execFileSync(process.execPath, [brandScript], { stdio: "inherit", cwd: root });
