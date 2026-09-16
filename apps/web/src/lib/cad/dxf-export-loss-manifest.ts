@@ -406,7 +406,7 @@ export function cadDocumentDxfExportLosses(
   if (metadataEntities > 0) {
     losses.push({
       code: "dxf_export_metadata_not_transported",
-      severity: "info",
+      severity: "warning",
       detail:
         `${metadataEntities} entidad(es) llevan metadatos de dominio (circuito, calibre, número de línea, ` +
         "etiqueta de equipo…): los metadatos NO viajan al DXF y no se recuperan al reimportar. " +

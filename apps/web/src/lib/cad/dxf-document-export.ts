@@ -150,7 +150,7 @@ export function exportCadDocumentDxf(
         "DXF: este exportador escribe SOLO espacio modelo — las hojas siguen " +
         "intactas en el documento y en el PDF.",
     });
-  const losses = allLosses.filter((l) => l.severity !== "info");
+  const losses = allLosses;
   return {
     content: exported.content,
     entityCount: exported.entityCount,
