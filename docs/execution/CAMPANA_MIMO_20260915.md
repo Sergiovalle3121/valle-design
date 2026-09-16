@@ -63,4 +63,8 @@ Todas hechas antes de esta sesión (commits `4359ef50`–`bd86c7e5`).
 | T9.5 | hecha — specs caducos: CadLienzoAncho, CadToolPaletteAncho (grep→clase actual), import-report-view (@/→relativo) | `4b4cdb86` |
 | T9.6 | ya hecha (sesión anterior) — revertir severity y filtro | `e8fa3565` |
 | T9.7 | hecha — check-brand-literal cableado en check:surface | `1cc92c1f` |
-| ci-fallo.md (lint-budget) | resuelta: 3× unused-vars en dxf-import.ts (decodeComponent, insertSignature, RawBlockXdata) + 1× exhaustive-deps innecesario en CadCommandLine.tsx (navigated). check:lint-budget, check:cad-math, typecheck verdes. | pendiente de commit |
+| ci-fallo.md (lint-budget) | resuelta: 3× unused-vars en dxf-import.ts (decodeComponent, insertSignature, RawBlockXdata) + 1× exhaustive-deps innecesario en CadCommandLine.tsx (navigated). check:lint-budget, check:cad-math, typecheck verdes. | `40cbd8af` |
+| T13.1 | hecha — mechanical.spec.ts: BOM ahora tiene7 columnas (peso unit./total); STEELSHAPE añadió prompt de longitud. Spec actualizado. | `4a47669d` |
+| T13.2 | hecha — ribbon.spec.ts: CENTERMARK, CENTERLINE → Cotas; AESYMBOL → Instalaciones; 3DMOVE, 3DROTATE → Modificar; PERSPECTIVE → Vistas 3D. 300 comandos únicos. | `eafb749f` |
+| T13.3 | hecha — solids.spec.ts: payload STEP tenía length=1 porque `slice(idx-1)` con idx=0 daba `slice(-1)`. Corregido con `Math.max(0, idx-1)`. | `f5343390` |
+| T13.4 | hecha — service-worker-harness.spec.ts: regex `/(?:^|\/)/` no coincidía con `\` de Windows en `readdirSync`. Corregido a `[\\/]`. 12 bloques verdes. | `ae283d40` |
