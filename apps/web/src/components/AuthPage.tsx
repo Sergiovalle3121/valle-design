@@ -331,6 +331,7 @@ function legalLinksFor(documents: LegalLink[] | null): { terms: LegalLink; priva
  * pantallas distintas del mismo paso, no dos estados de un mismo formulario.
  */
 function CheckYourInbox({ email }: { email: string }) {
+  const [resendError, setResendError] = useState<string | null>(null);
   return (
     <AuthShell
       titleId="check-inbox-title"
@@ -383,16 +384,32 @@ function CheckYourInbox({ email }: { email: string }) {
           */}
           <ResendTimerButton
             onResend={async () => {
-              await designClient.identity
-                .resendVerification(email)
-                .catch(() => {
-                  /* La API responde igual exista o no la cuenta: no se filtra
-                   quién está registrado, y un fallo de red aquí no debe
-                   convertirse en un error rojo que asuste — el usuario ya tiene
-                   el primer correo en camino. */
-                });
+              setResendError(null);
+              try {
+                await designClient.identity.resendVerification(email);
+                return true;
+              } catch (error) {
+                if (error instanceof DesignApiError && error.status === 429) {
+                  setResendError(
+                    "Demasiadas solicitudes. Espera un momento antes de intentarlo de nuevo.",
+                  );
+                  return false;
+                }
+                if (error instanceof TypeError) {
+                  setResendError(
+                    "No se pudo conectar con el servicio de identidad. Intenta de nuevo.",
+                  );
+                  return false;
+                }
+                return true;
+              }
             }}
           />
+          {resendError ? (
+            <p role="alert" className="type-small text-center text-destructive">
+              {resendError}
+            </p>
+          ) : null}
           <p className="type-small text-center text-muted-foreground">
             <Link
               className="underline underline-offset-4 hover:text-foreground"
