@@ -1,7 +1,11 @@
 import { strict as assert } from "node:assert";
 import {
+  authFailureMessage,
   cleanIdentityUrl,
   identityActionPayload,
+  loginPayload,
+  registerPayload,
+  validateDisplayName,
   identityFailureMessage,
   identitySuccessMessage,
   initialIdentityToken,
@@ -128,8 +132,131 @@ async function main() {
   assert.equal(initialIdentityToken([token, "ignored"]), token);
   assert.equal(initialIdentityToken("x".repeat(257)), "");
 
+  /* ── El alta y el inicio de sesión: validación en español antes del fetch ── */
+  assert.deepEqual(
+    registerPayload({
+      displayName: "  Arquitecta fundadora ",
+      email: " Arquitecta@Despacho.MX ",
+      password,
+    }),
+    {
+      ok: true,
+      body: {
+        email: "arquitecta@despacho.mx",
+        password,
+        displayName: "Arquitecta fundadora",
+      },
+    },
+  );
+  assert.deepEqual(validateDisplayName("   "), {
+    ok: false,
+    message: "Escribe tu nombre.",
+  });
+  const nombreLargo = registerPayload({
+    displayName: "n".repeat(121),
+    email: "a@b.mx",
+    password,
+  });
+  assert.equal(nombreLargo.ok, false);
+  assert.match(!nombreLargo.ok ? nombreLargo.message : "", /120 caracteres/u);
+  const correoConEspacios = registerPayload({
+    displayName: "Alguien",
+    email: "arqui tecta@despacho.mx",
+    password,
+  });
+  assert.deepEqual(correoConEspacios, {
+    ok: false,
+    message: "Escribe un correo electrónico válido.",
+  });
+  const contrasenaCorta = loginPayload({ email: "a@b.mx", password: "corta" });
+  assert.equal(contrasenaCorta.ok, false);
+  assert.match(
+    !contrasenaCorta.ok ? contrasenaCorta.message : "",
+    /entre 12 y 128 caracteres/u,
+  );
+  assert.deepEqual(loginPayload({ email: "A@B.mx", password }), {
+    ok: true,
+    body: { email: "a@b.mx", password },
+  });
+
+  /* ── Mensajes de fallo: siempre nuestros, nunca el `message` del servidor ── */
+  const failedToFetch = authFailureMessage(
+    new TypeError("Failed to fetch"),
+    "register",
+  );
+  assert.match(failedToFetch, /No se pudo conectar/u);
+  assert.doesNotMatch(failedToFetch, /Failed to fetch/u);
+
+  const validacionEnIngles = {
+    status: 400,
+    body: {
+      statusCode: 400,
+      message: [
+        "password must be longer than or equal to 12 characters",
+        "password must be a string",
+      ],
+      error: "Bad Request",
+    },
+  };
+  const contrasenaRechazada = authFailureMessage(validacionEnIngles, "register");
+  assert.match(contrasenaRechazada, /contraseña debe tener entre 12 y 128/u);
+  assert.doesNotMatch(contrasenaRechazada, /must be/u);
+  assert.match(
+    authFailureMessage(
+      { status: 400, body: { message: ["email must be an email"] } },
+      "register",
+    ),
+    /correo electrónico válido/u,
+  );
+  assert.match(
+    authFailureMessage(
+      {
+        status: 400,
+        body: { message: ["displayName must be shorter than or equal to 160 characters"] },
+      },
+      "register",
+    ),
+    /nombre/u,
+  );
+  assert.equal(
+    authFailureMessage({ status: 400, body: { message: "Bad Request" } }, "login"),
+    "Revisa los datos del formulario e inténtalo de nuevo.",
+  );
+  assert.equal(
+    authFailureMessage(
+      { status: 401, body: { message: "Credenciales inválidas." } },
+      "login",
+    ),
+    "Correo o contraseña incorrectos, o la cuenta aún no está verificada.",
+  );
+  assert.equal(
+    authFailureMessage(
+      {
+        status: 429,
+        body: { message: "Demasiados intentos; inténtalo más tarde.", retryAfterSeconds: 37 },
+      },
+      "register",
+    ),
+    "Demasiados intentos. Espera 37 segundos e inténtalo de nuevo.",
+  );
+  assert.match(
+    authFailureMessage({ status: 429, body: null }, "login"),
+    /^Demasiados intentos\. Espera un momento/u,
+  );
+  const errorInterno = authFailureMessage(
+    { status: 500, body: { statusCode: 500, message: "Internal server error" } },
+    "register",
+  );
+  assert.match(errorInterno, /no respondió/u);
+  assert.doesNotMatch(errorInterno, /Internal server error/u);
+  assert.match(
+    authFailureMessage(new Error("algo raro"), "register"),
+    /no respondió/u,
+  );
+  assert.doesNotMatch(authFailureMessage(new Error("algo raro"), "register"), /algo raro/u);
+
   console.log(
-    "identity-actions: validación y transporte SDK seguro de secretos verificados",
+    "identity-actions: validación, transporte SDK seguro de secretos y mensajes de fallo en español verificados",
   );
 }
 
