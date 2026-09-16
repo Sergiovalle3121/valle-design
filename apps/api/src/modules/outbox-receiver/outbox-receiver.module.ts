@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { resolveProductBrand } from '../../common/brand/product-brand';
 import { NullEmailSender } from './adapters/null-email.sender';
 import { ResendEmailSender } from './adapters/resend-email.sender';
 import {
@@ -67,6 +68,9 @@ import { EMAIL_SENDER, type EmailSender } from './ports/email-sender.port';
           database,
           sender,
           configuration?.linkBaseUrl ?? null,
+          // Quién firma los correos: BRAND_PRODUCT_NAME_DESIGN / BRAND_NAME y
+          // BRAND_SUPPORT_EMAIL (o SUPPORT_EMAIL) del servicio api.
+          resolveProductBrand(process.env),
         ),
       inject: [DataSource, EMAIL_SENDER_CONFIGURATION, EMAIL_SENDER],
     },

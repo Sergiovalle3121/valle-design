@@ -674,7 +674,11 @@ export class IdentityService {
     const expiresAt = new Date(Date.now() + 5 * 60_000);
     await this.dataSource.transaction(async (manager) => {
       await lockIdentitySubject(this.dataSource, manager, user.id);
-      await consumeRemainingTokensWithManager(manager, user.id, 'mfa_challenge');
+      await consumeRemainingTokensWithManager(
+        manager,
+        user.id,
+        'mfa_challenge',
+      );
       await manager.save(
         OneTimeToken,
         manager.create(OneTimeToken, {

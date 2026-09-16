@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import { DataSource } from 'typeorm';
 import { isUniqueViolation } from '../../common/database/unique-violation';
 import {
+  DEFAULT_EMAIL_BRAND,
+  type EmailBrand,
   EmailTemplateError,
   renderEmailTemplate,
   type RenderedEmail,
@@ -50,6 +52,8 @@ export class OutboxReceiverService {
     private readonly sender: EmailSender,
     /** null cuando no hay configuración de correo (el controller ya 503-ea). */
     private readonly linkBaseUrl: string | null,
+    /** Quién firma los correos: resuelto de `BRAND_*` por el módulo. */
+    private readonly brand: EmailBrand = DEFAULT_EMAIL_BRAND,
   ) {}
 
   async processEmail(
@@ -71,6 +75,7 @@ export class OutboxReceiverService {
         delivery.template,
         delivery.payload,
         this.requireLinkBaseUrl(),
+        this.brand,
       );
     } catch (error) {
       if (!(error instanceof EmailTemplateError)) throw error;

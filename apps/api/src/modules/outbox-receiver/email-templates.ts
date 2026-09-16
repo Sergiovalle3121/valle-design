@@ -17,7 +17,7 @@
  * fuera del producto y un enlace relativo no lleva a ninguna parte.
  */
 
-import { PRODUCT_DISPLAY_NAME } from '../../common/brand/product-brand';
+import { resolveProductBrand } from '../../common/brand/product-brand';
 
 export interface RenderedEmail {
   subject: string;
@@ -37,48 +37,63 @@ export class EmailTemplateError extends Error {
   }
 }
 
-const PRODUCT_NAME = PRODUCT_DISPLAY_NAME;
+/**
+ * Quién firma el correo. El nombre del producto NO se escribe aquí: sale del
+ * manifiesto de marca de `@valle-design/contracts` resuelto con las variables
+ * `BRAND_*` del servicio api (`resolveProductBrand`), igual que el web
+ * resuelve el suyo con `NEXT_PUBLIC_BRAND_*`. Un despliegue que se llame
+ * VALLECAD firma «VALLECAD» sin tocar código; el valor por defecto es el del
+ * manifiesto, para que ningún correo salga sin firma.
+ */
+export interface EmailBrand {
+  productName: string;
+  /** Buzón de soporte visible en el pie, o null si no hay uno real. */
+  supportEmail?: string | null;
+}
+
+export const DEFAULT_EMAIL_BRAND: EmailBrand = resolveProductBrand({});
 
 export function renderEmailTemplate(
   template: string,
   payload: unknown,
   linkBaseUrl: string,
+  brand: EmailBrand = DEFAULT_EMAIL_BRAND,
 ): RenderedEmail {
   switch (template) {
     case 'identity.verify-email':
-      return renderIdentityEmail(payload, linkBaseUrl, {
-        subject: `Confirma tu correo — ${PRODUCT_NAME}`,
+      return renderIdentityEmail(payload, linkBaseUrl, brand, {
+        subject: `Confirma tu correo — ${brand.productName}`,
         intro:
           `Alguien (esperamos que tú) registró esta dirección en ` +
-          `${PRODUCT_NAME}. Confírmala abriendo este enlace:`,
+          `${brand.productName}. Confírmala abriendo este enlace:`,
         action: 'Confirmar mi correo',
         outro:
           'Si no fuiste tú, ignora este mensaje: sin confirmación la cuenta ' +
           'no puede usarse.',
       });
     case 'identity.reset-password':
-      return renderIdentityEmail(payload, linkBaseUrl, {
-        subject: `Restablece tu contraseña — ${PRODUCT_NAME}`,
+      return renderIdentityEmail(payload, linkBaseUrl, brand, {
+        subject: `Restablece tu contraseña — ${brand.productName}`,
         intro:
           `Recibimos una solicitud para restablecer la contraseña de tu ` +
-          `cuenta en ${PRODUCT_NAME}. Continúa con este enlace:`,
+          `cuenta en ${brand.productName}. Continúa con este enlace:`,
         action: 'Restablecer mi contraseña',
         outro:
           'Si no pediste el cambio, ignora este correo: tu contraseña actual ' +
           'sigue siendo válida.',
       });
     case 'organization.invitation':
-      return renderInvitationEmail(payload, linkBaseUrl);
+      return renderInvitationEmail(payload, linkBaseUrl, brand);
     case 'commercial.renewal-reminder':
-      return renderRenewalReminderEmail(payload, linkBaseUrl);
+      return renderRenewalReminderEmail(payload, linkBaseUrl, brand);
     case 'identity.new-sign-in':
-      return renderNewSignInEmail(payload, linkBaseUrl);
+      return renderNewSignInEmail(payload, linkBaseUrl, brand);
     case 'commercial.trial-expiry':
-      return renderTrialExpiryEmail(payload, linkBaseUrl);
+      return renderTrialExpiryEmail(payload, linkBaseUrl, brand);
     case 'product.feedback':
-      return renderProductFeedbackEmail(payload);
+      return renderProductFeedbackEmail(payload, brand);
     case 'support.incident':
-      return renderSupportIncidentEmail(payload);
+      return renderSupportIncidentEmail(payload, brand);
     default:
       throw new EmailTemplateError(
         'unknown_template',
@@ -97,6 +112,7 @@ interface IdentityEmailCopy {
 function renderIdentityEmail(
   payload: unknown,
   linkBaseUrl: string,
+  brand: EmailBrand,
   copy: IdentityEmailCopy,
 ): RenderedEmail {
   const path = readString(payload, 'path');
@@ -132,7 +148,7 @@ function renderIdentityEmail(
     `El enlace caduca el ${deadline}.`,
     copy.outro,
   ].join('\n');
-  const html = htmlLayout(copy.subject, [
+  const html = htmlLayout(brand, copy.subject, [
     paragraph(escapeHtml(copy.intro)),
     actionButton(link, copy.action),
     paragraph(
@@ -148,10 +164,11 @@ function renderIdentityEmail(
 function renderInvitationEmail(
   payload: unknown,
   linkBaseUrl: string,
+  brand: EmailBrand,
 ): RenderedEmail {
   const token = readString(payload, 'token');
   const organizationName = readString(payload, 'organizationName');
-  const subject = `Te invitaron a «${organizationName}» en ${PRODUCT_NAME}`;
+  const subject = `Te invitaron a «${organizationName}» en ${brand.productName}`;
   // Honestidad sobre el estado real del producto: NO existe todavía una
   // página web que acepte la invitación con un clic (el canje vive en la API,
   // POST /v1/organizations/invitations/accept). Enlazar a una página
@@ -159,7 +176,7 @@ function renderInvitationEmail(
   // sí es durable — el código — y apunta al producto real. Cuando exista la
   // página, esta plantilla gana su enlace directo.
   const intro =
-    `${organizationName} te invitó a colaborar en ${PRODUCT_NAME}. ` +
+    `${organizationName} te invitó a colaborar en ${brand.productName}. ` +
     `Entra con tu cuenta (o crea una con este mismo correo) y ten a mano ` +
     `este código de invitación:`;
   const outro =
@@ -168,12 +185,12 @@ function renderInvitationEmail(
   const text = ['Hola:', '', intro, '', token, '', linkBaseUrl, '', outro].join(
     '\n',
   );
-  const html = htmlLayout(subject, [
+  const html = htmlLayout(brand, subject, [
     paragraph(escapeHtml(intro)),
     `<p style="margin:16px 0;padding:12px 16px;background:#f4f4f5;` +
       `border-radius:6px;font-family:monospace;font-size:16px;">` +
       `${escapeHtml(token)}</p>`,
-    actionButton(linkBaseUrl, `Abrir ${PRODUCT_NAME}`),
+    actionButton(linkBaseUrl, `Abrir ${brand.productName}`),
     paragraph(escapeHtml(outro)),
   ]);
   return { subject, html, text };
@@ -193,6 +210,7 @@ function renderInvitationEmail(
 function renderRenewalReminderEmail(
   payload: unknown,
   linkBaseUrl: string,
+  brand: EmailBrand,
 ): RenderedEmail {
   const organizationName = readString(payload, 'organizationName');
   const currentPeriodEnd = readString(payload, 'currentPeriodEnd');
@@ -203,10 +221,10 @@ function renderRenewalReminderEmail(
       'El campo `currentPeriodEnd` no es una fecha válida.',
     );
   }
-  const subject = `Tu suscripción vence pronto — ${PRODUCT_NAME}`;
+  const subject = `Tu suscripción vence pronto — ${brand.productName}`;
   const deadline = formatDeadline(new Date(endsAtMs));
   const intro =
-    `La suscripción de «${organizationName}» en ${PRODUCT_NAME} se pagó ` +
+    `La suscripción de «${organizationName}» en ${brand.productName} se pagó ` +
     `con un pago único (OXXO o transferencia SPEI), así que no se renueva ` +
     `sola: vence el ${deadline}.`;
   const action =
@@ -220,7 +238,7 @@ function renderRenewalReminderEmail(
     'hasta que el pago entre.';
   const link = `${linkBaseUrl}/cuenta/facturacion`;
   const text = ['Hola:', '', intro, '', action, '', link, '', outro].join('\n');
-  const html = htmlLayout(subject, [
+  const html = htmlLayout(brand, subject, [
     paragraph(escapeHtml(intro)),
     paragraph(escapeHtml(action)),
     actionButton(link, 'Renovar mi suscripción'),
@@ -253,6 +271,7 @@ const SIGN_IN_METHOD_LABELS: Record<string, string> = {
 function renderNewSignInEmail(
   payload: unknown,
   linkBaseUrl: string,
+  brand: EmailBrand,
 ): RenderedEmail {
   const method = readString(payload, 'method');
   const methodLabel = SIGN_IN_METHOD_LABELS[method];
@@ -271,11 +290,11 @@ function renderNewSignInEmail(
     );
   }
   const userAgent = readOptionalString(payload, 'userAgent');
-  const subject = `Alguien entró en tu cuenta desde un dispositivo nuevo — ${PRODUCT_NAME}`;
+  const subject = `Alguien entró en tu cuenta desde un dispositivo nuevo — ${brand.productName}`;
   const when = formatDeadline(new Date(atMs));
   const link = `${linkBaseUrl}/cuenta`;
   const intro =
-    `Detectamos un inicio de sesión en tu cuenta de ${PRODUCT_NAME} el ` +
+    `Detectamos un inicio de sesión en tu cuenta de ${brand.productName} el ` +
     `${when}, usando ${methodLabel}.`;
   const device = userAgent
     ? `Dispositivo o navegador: ${userAgent}.`
@@ -284,7 +303,7 @@ function renderNewSignInEmail(
     'Si fuiste tú, no tienes que hacer nada más. Si no reconoces este ' +
     'acceso, entra a tu cuenta ahora mismo y cambia tu contraseña.';
   const text = ['Hola:', '', intro, device, '', warning, '', link].join('\n');
-  const html = htmlLayout(subject, [
+  const html = htmlLayout(brand, subject, [
     paragraph(escapeHtml(intro)),
     paragraph(escapeHtml(device)),
     paragraph(escapeHtml(warning)),
@@ -301,6 +320,7 @@ function renderNewSignInEmail(
 function renderTrialExpiryEmail(
   payload: unknown,
   linkBaseUrl: string,
+  brand: EmailBrand,
 ): RenderedEmail {
   const organizationName = readString(payload, 'organizationName');
   const trialEndsAt = readString(payload, 'trialEndsAt');
@@ -322,14 +342,14 @@ function renderTrialExpiryEmail(
   const deadline = formatDeadline(new Date(endsAtMs));
   const subject =
     daysLeft === 1
-      ? `Tu prueba termina mañana — ${PRODUCT_NAME}`
-      : `Tu prueba termina en una semana — ${PRODUCT_NAME}`;
+      ? `Tu prueba termina mañana — ${brand.productName}`
+      : `Tu prueba termina en una semana — ${brand.productName}`;
   const urgency =
     daysLeft === 1
       ? 'Tu prueba gratuita termina MAÑANA.'
       : 'Tu prueba gratuita termina en 7 días.';
   const intro =
-    `${urgency} La prueba de «${organizationName}» en ${PRODUCT_NAME} ` +
+    `${urgency} La prueba de «${organizationName}» en ${brand.productName} ` +
     `vence el ${deadline}.`;
   const action =
     'Activa un plan antes de esa fecha para seguir editando sin ' +
@@ -345,7 +365,7 @@ function renderTrialExpiryEmail(
   const text = ['Hola:', '', intro, '', action, '', link, '', consequence].join(
     '\n',
   );
-  const html = htmlLayout(subject, [
+  const html = htmlLayout(brand, subject, [
     paragraph(escapeHtml(intro)),
     paragraph(escapeHtml(action)),
     actionButton(link, 'Activar mi plan'),
@@ -360,14 +380,17 @@ function renderTrialExpiryEmail(
  * `feedback.service.ts:111`. El contexto técnico ya viene saneado a cinco
  * campos por `sanearContexto`; aquí sólo se enseña, no se vuelve a filtrar.
  */
-function renderProductFeedbackEmail(payload: unknown): RenderedEmail {
+function renderProductFeedbackEmail(
+  payload: unknown,
+  brand: EmailBrand,
+): RenderedEmail {
   const id = readString(payload, 'id');
   const kind = readString(payload, 'kind');
   const message = readString(payload, 'message');
   const from = readString(payload, 'from');
   const organizationId = readOptionalString(payload, 'organizationId');
   const context = readOptionalRecord(payload, 'context');
-  const subject = `Comentario nuevo (${kind}) — ${PRODUCT_NAME}`;
+  const subject = `Comentario nuevo (${kind}) — ${brand.productName}`;
   const contextLines = context
     ? Object.entries(context).map(([key, value]) => `${key}: ${String(value)}`)
     : [];
@@ -382,7 +405,7 @@ function renderProductFeedbackEmail(payload: unknown): RenderedEmail {
       ? ['', 'Contexto técnico:', ...contextLines]
       : []),
   ].join('\n');
-  const html = htmlLayout(subject, [
+  const html = htmlLayout(brand, subject, [
     paragraph(`<strong>Tipo:</strong> ${escapeHtml(kind)}`),
     paragraph(`<strong>De:</strong> ${escapeHtml(from)}`),
     paragraph(
@@ -410,7 +433,10 @@ function renderProductFeedbackEmail(payload: unknown): RenderedEmail {
  * regla de privacidad ya la aplicó el servidor antes de encolar—, y nunca
  * viaja el contenido del plano, sólo su identificador.
  */
-function renderSupportIncidentEmail(payload: unknown): RenderedEmail {
+function renderSupportIncidentEmail(
+  payload: unknown,
+  brand: EmailBrand,
+): RenderedEmail {
   const summary = readString(payload, 'summary');
   const appVersion = readString(payload, 'appVersion');
   const userAgent = readString(payload, 'userAgent');
@@ -425,7 +451,7 @@ function renderSupportIncidentEmail(payload: unknown): RenderedEmail {
   const when = Number.isNaN(reportedAtMs)
     ? reportedAt
     : formatDeadline(new Date(reportedAtMs));
-  const subject = `Reporte de incidente — ${PRODUCT_NAME}`;
+  const subject = `Reporte de incidente — ${brand.productName}`;
   const lines = [
     `Reportado por: ${reportedBy}`,
     `Organización: ${organizationId ?? 'sin organización'}`,
@@ -444,6 +470,7 @@ function renderSupportIncidentEmail(payload: unknown): RenderedEmail {
   ];
   const text = lines.join('\n');
   const html = htmlLayout(
+    brand,
     subject,
     lines.map((line) => paragraph(escapeHtml(line))),
   );
@@ -561,7 +588,16 @@ function actionButton(link: string, label: string): string {
  * clientes de correo bloquean o usan para rastrear. `lang="es"` porque el
  * producto habla español y los lectores de pantalla lo agradecen.
  */
-function htmlLayout(title: string, blocks: string[]): string {
+function htmlLayout(
+  brand: EmailBrand,
+  title: string,
+  blocks: string[],
+): string {
+  const signature = brand.supportEmail
+    ? `${escapeHtml(brand.productName)} · ` +
+      `<a href="mailto:${escapeHtml(brand.supportEmail)}" ` +
+      `style="color:#6b7280;">${escapeHtml(brand.supportEmail)}</a>`
+    : escapeHtml(brand.productName);
   return (
     `<!doctype html><html lang="es"><head><meta charset="utf-8">` +
     `<title>${escapeHtml(title)}</title></head>` +
@@ -571,7 +607,7 @@ function htmlLayout(title: string, blocks: string[]): string {
     `<p style="margin:12px 0;">Hola:</p>` +
     blocks.join('') +
     `<p style="margin:24px 0 0;color:#6b7280;font-size:13px;">` +
-    `${escapeHtml(PRODUCT_NAME)}</p>` +
+    `${signature}</p>` +
     `</div></body></html>`
   );
 }

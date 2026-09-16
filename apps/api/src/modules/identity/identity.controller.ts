@@ -51,21 +51,24 @@ export {
   sessionCookiePolicy,
   type SessionCookiePolicy,
 };
+import { resolveProductBrand } from '../../common/brand/product-brand';
 import { totpUri } from './identity-mfa';
 import { IdentityMfaService } from './identity-mfa.service';
 import { IdentityService } from './identity.service';
-import { PRODUCT_DISPLAY_NAME } from '../../common/brand/product-brand';
 
 /**
  * El emisor que ve el usuario en su aplicación de autenticación.
  *
  * Configurable porque un despliegue con marca propia no puede llamarse igual
  * que el nuestro en la lista del teléfono de su cliente; con un valor por
- * defecto porque olvidarlo no puede dejar la entrada sin nombre. Se recorta a
+ * defecto porque olvidarlo no puede dejar la entrada sin nombre. El default
+ * es el nombre del producto del manifiesto de marca
+ * (BRAND_PRODUCT_NAME_DESIGN), el mismo que firma los correos. Se recorta a
  * lo que cabe en una línea de esa lista.
  */
 const MFA_ISSUER = (
-  process.env.IDENTITY_MFA_ISSUER?.trim() || PRODUCT_DISPLAY_NAME
+  process.env.IDENTITY_MFA_ISSUER?.trim() ||
+  resolveProductBrand(process.env).productName
 ).slice(0, 48);
 
 const RATE_LIMIT_WINDOW_MS = 60_000;

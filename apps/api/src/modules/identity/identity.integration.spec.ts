@@ -418,7 +418,9 @@ describe('first-party identity HTTP integration', () => {
     );
     expect(new Set(tokens).size).toBe(3);
 
-    const user = await dataSource.getRepository(User).findOneByOrFail({ email });
+    const user = await dataSource
+      .getRepository(User)
+      .findOneByOrFail({ email });
     const oneTimeTokens = dataSource.getRepository(OneTimeToken);
     await expect(
       oneTimeTokens.countBy({
