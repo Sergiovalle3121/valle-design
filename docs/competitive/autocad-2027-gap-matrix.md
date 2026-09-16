@@ -1,130 +1,11 @@
-# Matriz de brechas y rúbrica frente a AutoCAD 2027
-
-La puntuación y la tabla fila a fila de este documento las calcula
-`scripts/cad/rubric.mjs` leyendo `docs/competitive/rubric.json` y verificando
-cada evidencia contra el árbol; se regeneran con
-`node scripts/cad/rubric.mjs --markdown` (lo hace `npm run check:cad`).
-AutoCAD 2027 se usa sólo como referencia de categorías; no existe afiliación,
-certificación ni claim de paridad.
-
-## Por qué este documento cambió de forma (dos veces)
-
-La primera versión era honesta y estaba desactualizada, que son cosas
-compatibles. Decía que el modelador B-rep no existía —existía—, decía que los
-plugins AutoLISP estaban «Ausente» —había un intérprete completo— y citaba
-25.275 ms de primer detalle cuando el benchmark versionado ya reportaba 750 ms.
-De ahí salió la rúbrica con denominador publicado y el script que la calcula.
-
-La segunda lección llegó el 2026-08-20 y fue en la dirección contraria: **la
-rúbrica se estaba inflando**. El script imprimía 189/200 con 21 de 25 filas en
-su tope, violando su propia regla de que ninguna fila toca el máximo mientras
-exista un gap. El mecanismo del inflado era concreto: criterios que cobraban
-por la EXISTENCIA de un artefacto sin leer su contenido. El caso más grave:
-`performance.browser-slo` concedía 2 puntos porque `browser-slo-100k.json`
-existía, cuando ese mismo archivo medía **48,2 segundos** hasta el detalle
-completo y **1,4 fps** de paneo. El artefacto desmentía el punto que concedía.
-
-La corrección fue estructural, no cosmética:
-
-1. La evidencia de existencia se re-basó a **contenido** (checker `jsonValue`
-   y `metric` sobre las cifras del propio artefacto). Un criterio de ≥2 puntos
-   cuya única evidencia sea que un archivo existe es ahora un **error de
-   definición** que `rubric.spec.mjs` bloquea en CI.
-2. Los gaps documentados que no puntuaban se volvieron **criterios que
-   fallan**: capas sin `frozen` en el documento canónico, PAGESETUP que no
-   recoloca la ventana gráfica, sombreado sin patrón en el PDF, BEDIT
-   inexistente, F7/F9/F12 ausentes, ninguna `.shx` resuelta, y el kernel WASM
-   que nadie importa.
-3. La prosa fila a fila de este documento pasó a ser **generada** entre los
-   marcadores de abajo, porque envejeció dos veces y en las dos direcciones.
-
-## Criterio
-
-- **Completa:** todos los criterios declarados para la fila —incluidos los que
-  nombran gaps— verifican contra el árbol.
-- **Parcial:** hay implementación real, pero al menos un criterio no verifica.
-- **Ausente:** ningún criterio de la fila verifica.
-
-Reglas que el documento se dio a sí mismo y que no se negocian:
-
-1. Una fila sólo llega a su tope si **todos** sus criterios verifican, y los
-   gaps conocidos se declaran como criterios que fallan, no como notas al pie.
-   La coletilla de «filas en su tope» la calcula el script; no es una frase
-   fija que pueda quedarse mintiendo.
-2. Que un golden, un unit test o un endpoint pase **no compensa** un criterio
-   faltante.
-3. Nunca se redondea al tope mientras exista un gap declarado.
-4. Si se cita un número de rendimiento, **se cita también la máquina**.
-5. Sin evidencia, cero. No hay puntos de oficio.
-6. **Un módulo que nadie importa no cuenta como implementado.**
-7. **La existencia de un artefacto no es evidencia de su contenido.** Si el
-   criterio cita cifras, el script lee las cifras.
-
-La sexta regla no es teórica: la ola 1 entregó el pipeline de render, el
-intérprete AutoLISP y el kernel B-rep terminados, probados y sin un solo
-importador. Hoy los tres están enchufados y sus filas lo reflejan; el que
-sigue huérfano es el kernel Rust/WASM, y su fila lo dice. La séptima tampoco:
-es la regla que faltó para impedir el 189 inflado.
-
-## Los 200 puntos, y por qué están repartidos así
-
-El reparto es por **peso comercial**, no por esfuerzo de implementación. Es una
-decisión discutible y por eso está escrita: un kernel B-rep es muchísimo más
-caro de construir que un comando `HATCH`, y aun así vale menos puntos, porque un
-delineante no compra un kernel B-rep si no puede acotar. La pregunta que ordena
-la tabla no es «¿qué nos ha costado más?», sino «¿qué impide firmar el pedido?».
-
-| Grupo                        | Puntos | Qué representa                                                                      |
-| ---------------------------- | -----: | ----------------------------------------------------------------------------------- |
-| Núcleo del plano entregable  |    110 | Dibujar, anotar, organizar y entregar una lámina. Sin esto no hay producto.         |
-| Productividad profesional    |     44 | Lo que separa «se puede hacer» de «se hace rápido»: línea de comandos, 100k, xrefs  |
-| Extensibilidad e integración |     26 | API, SDK, plugins, eventos, almacenamiento                                          |
-| Frontera avanzada            |     20 | DWG, sólidos, WASM, GIS                                                             |
-| **Total**                    |    200 |                                                                                      |
-
-El argumento del 55 % al núcleo: un CAD 2D se compra para producir una lámina
-que alguien firma. Todo lo que ocurre entre abrir el archivo y entregar el PDF o
-el DXF es el producto; lo demás es diferenciación. Dentro del núcleo, las cotas
-(12) pesan más que HATCH (10) y HATCH más que MTEXT (9) porque ése es el orden
-en que un plano deja de ser entregable: una lámina sin cotas no se puede
-fabricar, una sin sombreado se lee peor, y una con texto pobre se entrega
-igualmente.
-
-El argumento del 22 % a productividad: la fila más gorda del grupo es la línea
-de comandos (12), porque la memoria muscular de un dibujante veterano tiene
-décadas y es intransferible: si `TR` no recorta, el producto se siente ajeno
-por completo que esté el resto.
-
-El argumento del 13 % a extensibilidad: es lo que decide si un cliente grande
-puede automatizar, y su fila más gorda son los plugins (8) porque un despacho
-con veinte años de rutinas LISP no migra sin ellas.
-
-El argumento del 10 % a la frontera: DWG (8) es la única de las cuatro con
-demanda comercial real y directa. B-rep (7) la tiene indirecta —vende en el
-comparativo, no en el uso diario—. WASM (2) es una optimización condicionada y
-GIS (3) es otro producto.
-
-Desde el corte 2026-09-02 el denominador de DESTINO suma dos grupos más y por
-eso los repartos de arriba (55/22/13/10 %) se leen sobre 216, la base anterior:
-**reconocimiento** (14 pt, alcance de HOY) mide en pantalla lo que un dibujante
-de AutoCAD reconoce en cinco minutos —el texto se ve, la cinta está donde la
-espera, teclea sin pulsar la caja, arrastra para designar, nada le tapa el
-plano y los ejes se ven a trazo y punto—, y **los siete toolsets** (28 pt, alcance de DESTINO) declaran una fila
-por vertical aunque hoy valgan cero, con Electrical y Plant 3D fuera de alcance
-por escrito. Una nota de la auditoría del 2026-09-01 lo dejó medido: el
-producto sumaba 88,6 % del alcance de HOY y «no se parecía en nada» a AutoCAD,
-porque el instrumento no tenía ni una fila para el reconocimiento.
-
-## Capacidades: las 25 filas al día
-
-<!-- rubric:begin -->
+# Matriz de brechas y rúbrica frente a AutoCAD 2027  La puntuación y la tabla fila a fila de este documento las calcula `scripts/cad/rubric.mjs` leyendo `docs/competitive/rubric.json` y verificando cada evidencia contra el árbol; se regeneran con `node scripts/cad/rubric.mjs --markdown` (lo hace `npm run check:cad`). AutoCAD 2027 se usa sólo como referencia de categorías; no existe afiliación, certificación ni claim de paridad.  ## Por qué este documento cambió de forma (dos veces)  La primera versión era honesta y estaba desactualizada, que son cosas compatibles. Decía que el modelador B-rep no existía —existía—, decía que los plugins AutoLISP estaban «Ausente» —había un intérprete completo— y citaba 25.275 ms de primer detalle cuando el benchmark versionado ya reportaba 750 ms. De ahí salió la rúbrica con denominador publicado y el script que la calcula.  La segunda lección llegó el 2026-08-20 y fue en la dirección contraria: **la rúbrica se estaba inflando**. El script imprimía 189/200 con 21 de 25 filas en su tope, violando su propia regla de que ninguna fila toca el máximo mientras exista un gap. El mecanismo del inflado era concreto: criterios que cobraban por la EXISTENCIA de un artefacto sin leer su contenido. El caso más grave: `performance.browser-slo` concedía 2 puntos porque `browser-slo-100k.json` existía, cuando ese mismo archivo medía **48,2 segundos** hasta el detalle completo y **1,4 fps** de paneo. El artefacto desmentía el punto que concedía.  La corrección fue estructural, no cosmética:  1. La evidencia de existencia se re-basó a **contenido** (checker `jsonValue`    y `metric` sobre las cifras del propio artefacto). Un criterio de ≥2 puntos    cuya única evidencia sea que un archivo existe es ahora un **error de    definición** que `rubric.spec.mjs` bloquea en CI. 2. Los gaps documentados que no puntuaban se volvieron **criterios que    fallan**: capas sin `frozen` en el documento canónico, PAGESETUP que no    recoloca la ventana gráfica, sombreado sin patrón en el PDF, BEDIT    inexistente, F7/F9/F12 ausentes, ninguna `.shx` resuelta, y el kernel WASM    que nadie importa. 3. La prosa fila a fila de este documento pasó a ser **generada** entre los    marcadores de abajo, porque envejeció dos veces y en las dos direcciones.  ## Criterio  - **Completa:** todos los criterios declarados para la fila —incluidos los que   nombran gaps— verifican contra el árbol. - **Parcial:** hay implementación real, pero al menos un criterio no verifica. - **Ausente:** ningún criterio de la fila verifica.  Reglas que el documento se dio a sí mismo y que no se negocian:  1. Una fila sólo llega a su tope si **todos** sus criterios verifican, y los    gaps conocidos se declaran como criterios que fallan, no como notas al pie.    La coletilla de «filas en su tope» la calcula el script; no es una frase    fija que pueda quedarse mintiendo. 2. Que un golden, un unit test o un endpoint pase **no compensa** un criterio    faltante. 3. Nunca se redondea al tope mientras exista un gap declarado. 4. Si se cita un número de rendimiento, **se cita también la máquina**. 5. Sin evidencia, cero. No hay puntos de oficio. 6. **Un módulo que nadie importa no cuenta como implementado.** 7. **La existencia de un artefacto no es evidencia de su contenido.** Si el    criterio cita cifras, el script lee las cifras.  La sexta regla no es teórica: la ola 1 entregó el pipeline de render, el intérprete AutoLISP y el kernel B-rep terminados, probados y sin un solo importador. Hoy los tres están enchufados y sus filas lo reflejan; el que sigue huérfano es el kernel Rust/WASM, y su fila lo dice. La séptima tampoco: es la regla que faltó para impedir el 189 inflado.  ## Los 200 puntos, y por qué están repartidos así  El reparto es por **peso comercial**, no por esfuerzo de implementación. Es una decisión discutible y por eso está escrita: un kernel B-rep es muchísimo más caro de construir que un comando `HATCH`, y aun así vale menos puntos, porque un delineante no compra un kernel B-rep si no puede acotar. La pregunta que ordena la tabla no es «¿qué nos ha costado más?», sino «¿qué impide firmar el pedido?».  | Grupo                        | Puntos | Qué representa                                                                      | | ---------------------------- | -----: | ----------------------------------------------------------------------------------- | | Núcleo del plano entregable  |    110 | Dibujar, anotar, organizar y entregar una lámina. Sin esto no hay producto.         | | Productividad profesional    |     44 | Lo que separa «se puede hacer» de «se hace rápido»: línea de comandos, 100k, xrefs  | | Extensibilidad e integración |     26 | API, SDK, plugins, eventos, almacenamiento                                          | | Frontera avanzada            |     20 | DWG, sólidos, WASM, GIS                                                             | | **Total**                    |    200 |                                                                                      |  El argumento del 55 % al núcleo: un CAD 2D se compra para producir una lámina que alguien firma. Todo lo que ocurre entre abrir el archivo y entregar el PDF o el DXF es el producto; lo demás es diferenciación. Dentro del núcleo, las cotas (12) pesan más que HATCH (10) y HATCH más que MTEXT (9) porque ése es el orden en que un plano deja de ser entregable: una lámina sin cotas no se puede fabricar, una sin sombreado se lee peor, y una con texto pobre se entrega igualmente.  El argumento del 22 % a productividad: la fila más gorda del grupo es la línea de comandos (12), porque la memoria muscular de un dibujante veterano tiene décadas y es intransferible: si `TR` no recorta, el producto se siente ajeno por completo que esté el resto.  El argumento del 13 % a extensibilidad: es lo que decide si un cliente grande puede automatizar, y su fila más gorda son los plugins (8) porque un despacho con veinte años de rutinas LISP no migra sin ellas.  El argumento del 10 % a la frontera: DWG (8) es la única de las cuatro con demanda comercial real y directa. B-rep (7) la tiene indirecta —vende en el comparativo, no en el uso diario—. WASM (2) es una optimización condicionada y GIS (3) es otro producto.  Desde el corte 2026-09-02 el denominador de DESTINO suma dos grupos más y por eso los repartos de arriba (55/22/13/10 %) se leen sobre 216, la base anterior: **reconocimiento** (14 pt, alcance de HOY) mide en pantalla lo que un dibujante de AutoCAD reconoce en cinco minutos —el texto se ve, la cinta está donde la espera, teclea sin pulsar la caja, arrastra para designar, nada le tapa el plano y los ejes se ven a trazo y punto—, y **los siete toolsets** (28 pt, alcance de DESTINO) declaran una fila por vertical aunque hoy valgan cero, con Electrical y Plant 3D fuera de alcance por escrito. Una nota de la auditoría del 2026-09-01 lo dejó medido: el producto sumaba 88,6 % del alcance de HOY y «no se parecía en nada» a AutoCAD, porque el instrumento no tenía ni una fila para el reconocimiento.  ## Capacidades: las 25 filas al día  <!-- rubric:begin -->
 
 > Esta sección la genera `node scripts/cad/rubric.mjs --markdown` desde
 > `docs/competitive/rubric.json` verificando cada evidencia contra el árbol.
 > Editarla a mano es reintroducir el defecto que motivó el script: la prosa
 > manual envejeció dos veces y en las dos direcciones.
 
-**Puntuación (rúbrica 2026-09-06.1).** **Alcance de HOY: 186/213 (87.3 %)** — el flujo diario de dibujo 2D técnico, la cifra que se enseña a un cliente. **Alcance de DESTINO: 253/309 (81.9 %)** — AutoCAD completo con sus verticales, la cifra que mide el camino; lo excluido de hoy es «todavía no», nunca «nunca». 32 pt provienen de evidencia INDEPENDIENTE y 221 pt sólo de evidencia propia; 14 fila(s) retienen 1 pt hasta tener evidencia independiente. 17 de 47 filas están en su tope: Dibujo 2D y precisión, Trabajo ajeno: tomar el plano de otro y trabajar sobre él, Cotas asociativas, HATCH asociativo, MTEXT y texto, Capas y propiedades, Bloques y atributos, Importación de JSON canónico, API y SDK de automatización, Eventos e integración asíncrona, Modelo 3D y sólidos B-rep FACETADO, Modelado 3D: primitivas, SOLIDEDIT y la cota, Kernel Rust/WASM, Nubes de puntos, raster georreferenciado y GIS, Integridad: el producto hace lo que dice, Capacidad de crecer: las puertas que no se cierran, Toolset Map 3D. Una fila sólo llega a su tope cuando TODOS sus criterios verifican, incluidos los que nombran gaps documentados; un gap conocido se declara como criterio que falla, no como nota al pie.
+**Puntuación (rúbrica 2026-09-06.1).** **Alcance de HOY: 186/213 (87.3 %)** — el flujo diario de dibujo 2D técnico, la cifra que se enseña a un cliente. **Alcance de DESTINO: 256/309 (82.8 %)** — AutoCAD completo con sus verticales, la cifra que mide el camino; lo excluido de hoy es «todavía no», nunca «nunca». 35 pt provienen de evidencia INDEPENDIENTE y 221 pt sólo de evidencia propia; 14 fila(s) retienen 1 pt hasta tener evidencia independiente. 17 de 47 filas están en su tope: Dibujo 2D y precisión, Trabajo ajeno: tomar el plano de otro y trabajar sobre él, Cotas asociativas, HATCH asociativo, MTEXT y texto, Capas y propiedades, Bloques y atributos, Importación de JSON canónico, API y SDK de automatización, Eventos e integración asíncrona, Modelo 3D y sólidos B-rep FACETADO, Modelado 3D: primitivas, SOLIDEDIT y la cota, Kernel Rust/WASM, Nubes de puntos, raster georreferenciado y GIS, Integridad: el producto hace lo que dice, Capacidad de crecer: las puertas que no se cierran, Toolset Map 3D. Una fila sólo llega a su tope cuando TODOS sus criterios verifican, incluidos los que nombran gaps documentados; un gap conocido se declara como criterio que falla, no como nota al pie.
 
 ### Núcleo del plano entregable — 113/118
 
@@ -162,11 +43,11 @@ porque el instrumento no tenía ni una fila para el reconocimiento.
 | Eventos e integración asíncrona | 4/4 | Completa | Outbox transaccional con leases, reintentos y cola muerta; Contrato de eventos versionado; Evidencia operacional sostenida y replay auditado con receptor externo | Nada pendiente: todos los criterios declarados verifican |
 | Almacenamiento de objetos | 2/3 | Parcial | Puerto de blob store desacoplado del almacenamiento concreto; Adaptador BYTEA con aislamiento por organización y specs; Adaptador S3/MinIO cableado, con migración y operación documentadas | Nada pendiente: todos los criterios declarados verifican |
 
-### Frontera avanzada — 20/24
+### Frontera avanzada — 23/24
 
 | Categoría | Puntos | Estado | Qué verifica hoy | Qué falta exactamente |
 | --- | ---: | --- | --- | --- |
-| Import/export DWG | 3/7 | Parcial | Decisión de arquitectura publicada sobre DWG y el laboratorio clean-room; Exportación DWG con round-trip verificado por lector externo | Decoder productivo con corpus independiente y matriz de entidades (3 pt); Integración en runtime con gates legal, de seguridad y de fidelidad superados (1 pt) |
+| Import/export DWG | 6/7 | Parcial | Decisión de arquitectura publicada sobre DWG y el laboratorio clean-room; Decoder productivo con corpus independiente y matriz de entidades; Exportación DWG con round-trip verificado por lector externo | Integración en runtime con gates legal, de seguridad y de fidelidad superados (1 pt) |
 | Modelo 3D y sólidos B-rep FACETADO | 7/7 | Completa | Topología, tolerancia e invariantes verificadas; Extrusión, barrido, booleanas y redondeo con specs; NURBS, superficies y teselado; STEP e IGES en los dos sentidos; El editor lo usa: algo fuera de lib/brep lo importa | Nada pendiente: todos los criterios declarados verifican |
 | Modelado 3D: primitivas, SOLIDEDIT y la cota | 5/5 | Completa | BOX, WEDGE, CYLINDER, CONE, SPHERE, TORUS, PYRAMID y POLYSOLID tecleables, como UN nodo reeditable cada una, con el volumen medido en papel; SOLIDEDIT con Cara Extruir (nodo push), Cuerpo Comprobar y Cuerpo Separar, y sus otras once ramas declaradas en el propio diálogo; La cota cruza las fronteras del DXF: 30/31, elevación, polilínea 3D y SCU reflejado (lector de terceros como oráculo), y PLINE/RECTANG tecleados dibujan en el plano del SCU inclinado; Con el SCU apoyado en la fachada, el punto del RATÓN sale del plano de trabajo y no del suelo: LINE desde la paleta con dos clics deja el trazo en la fachada, defendido por un golden de navegador | Nada pendiente: todos los criterios declarados verifican |
 | Kernel Rust/WASM | 2/2 | Completa | Puerta de entrada publicada con condición de activación explícita; Kernel WASM con paridad numérica verde Y enchufado: alguien fuera de lib/cad/wasm lo importa (regla 6) | Nada pendiente: todos los criterios declarados verifican |
@@ -228,174 +109,12 @@ declarados. Reproducible con `node scripts/cad/rubric.mjs --priorities`.
 | 1 | 2 | 10 | Import/export DXF de texto | Corpus DXF de terceros, autorizado y diverso, con matriz por entidad y pérdidas aceptadas |
 | 2 | 1 | 5 | Selección y modificación | Estrés de navegador con trazos densos (100k) sobre selección y modificación, con artefacto versionado por corrida |
 | 3 | 1 | 8 | Rendimiento 10k/100k | La mezcla architecture@100k cumple el mismo SLO: detalle completo ≤5 s y paneo ≥30 fps p95 |
-| 4 | 3 | 60 | Import/export DWG | Decoder productivo con corpus independiente y matriz de entidades |
-| 5 | 1 | 20 | Import/export DWG | Integración en runtime con gates legal, de seguridad y de fidelidad superados |
-| 6 | 2 | 60 | Automatización: AutoLISP y plugins JS | Puente .NET/VBA para rutinas heredadas de despacho |
-| 7 | 1 | 0 | Sin ratón, sin vista y en dos idiomas | El gate de axe del estudio falla con impacto moderate, no sólo serious\|critical, y el estudio tiene su encabezado |
-| 8 | 1 | 0 | Sin ratón, sin vista y en dos idiomas | El prompt vivo se puede volver a leer: aria-describedby en la caja, el log recibe foco y F2 existe |
-| 9 | 1 | 0 | Sin ratón, sin vista y en dos idiomas | Ningún control se enfoca sin verse: el trinquete de foco visible está en cero |
-| 10 | 1 | 0 | Sin ratón, sin vista y en dos idiomas | forced-colors y prefers-contrast existen, con la misma disciplina que prefers-reduced-motion |
+| 4 | 1 | 20 | Import/export DWG | Integración en runtime con gates legal, de seguridad y de fidelidad superados |
+| 5 | 2 | 60 | Automatización: AutoLISP y plugins JS | Puente .NET/VBA para rutinas heredadas de despacho |
+| 6 | 1 | 0 | Sin ratón, sin vista y en dos idiomas | El gate de axe del estudio falla con impacto moderate, no sólo serious\|critical, y el estudio tiene su encabezado |
+| 7 | 1 | 0 | Sin ratón, sin vista y en dos idiomas | El prompt vivo se puede volver a leer: aria-describedby en la caja, el log recibe foco y F2 existe |
+| 8 | 1 | 0 | Sin ratón, sin vista y en dos idiomas | Ningún control se enfoca sin verse: el trinquete de foco visible está en cero |
+| 9 | 1 | 0 | Sin ratón, sin vista y en dos idiomas | forced-colors y prefers-contrast existen, con la misma disciplina que prefers-reduced-motion |
+| 10 | 1 | 0 | Sin ratón, sin vista y en dos idiomas | Cada panel de la cinta tiene role y aria-label, y la cinta se navega por flechas con un golden que lo defiende |
 
-<!-- rubric:end -->
-
-Los 6/7 puntos que DWG obtiene hoy merecen una nota, porque no son ya los 2 de
-«detecta y rechaza» de una versión anterior de esta matriz — esa nota quedó
-desactualizada cuando el laboratorio pasó de detectar DWG a decodificarlo de
-verdad. Hoy el decoder propio lee AC1015 (AutoCAD 2000) y AC1018 (2004) con
-cero discrepancias contra un corpus independiente, y el writer propio escribe
-archivos que un lector externo (ODA File Converter, nunca el propio código
-como oráculo) acepta en round-trip — ambos con evidencia real, no fabricada
-(`docs/cad/evidence/dwg-decoder-matrix.json`, `dwg-roundtrip.json`). El único
-punto que falta, `dwg.gates`, no es trabajo de laboratorio pendiente: exige
-una revisión jurídica externa que el dueño aún no ha encargado (ADR-0009 §5) y
-que es, por diseño, una decisión suya, no de ingeniería. Dos cosas concretas
-siguen SIN autorizar por el propio dueño, aun con toda esa evidencia en
-verde: disponibilidad general del import (hoy vive apagado por defecto detrás
-de dos flags de beta, `NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA` y
-`NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA`) y la exportación DWG en el producto (el
-writer y su verificación externa existen íntegros en el laboratorio; nadie
-los ha conectado a una ruta que un usuario pueda tocar) — ver ADR-0009
-§6-bis, línea «Lo que esta firma NO autoriza». Puntuar 6/7 es puntuar
-progreso real y verificado; el 1/7 que falta puntúa una firma pendiente, no
-una carencia de código.
-
-## Benchmarks que sí existen, y qué máquina los produjo
-
-**El pipeline de render por lotes y tiles**, medido por
-`apps/web/scripts/cad-render-benchmark.mts` y versionado en
-`docs/cad/evidence/cad-render-benchmark-100k.json`:
-
-| Métrica sobre 100.000 entidades   | Pipeline nuevo (`next`) | Camino heredado (`legacy`) |
-| --------------------------------- | ----------------------: | -------------------------: |
-| Primer detalle                    |                750,5 ms |                    73,4 ms |
-| Asentado del zoom                 |                 23,3 ms |                    39,1 ms |
-| Cuadro de paneo p95               |                  7,2 ms |                    64,1 ms |
-| Entidades detalladas en reposo    |                 100.000 |                      2.500 |
-| Crecimiento del montón (3 ciclos) |                 0,01 MB |                          — |
-
-Máquina: **Node v22.22.2 sobre Linux x64, Intel Xeon a 2,80 GHz, 4 CPU lógicas,
-16,8 GB de RAM, límite de montón 4,3 GB**, corrida del 2026-08-09T07:30Z, corpus
-de 100.000 entidades con sha256 `1ba7300d…`.
-
-Tres advertencias que hacen que estos números **no** sean un SLA:
-
-1. Son de **Node, no de navegador**. El propio artefacto declara que no mide GPU,
-   llamadas de dibujo, composición ni cuadros por segundo.
-2. El artefacto entra como `report-only`: es una métrica sin línea base
-   versionada debajo.
-3. El pipeline ya está enchufado al editor (la fila de rendimiento lo verifica
-   con la regla 6), pero **la experiencia medida EN NAVEGADOR sigue sin cumplir
-   el SLO**: la corrida versionada de `browser-slo-100k.json` (2026-08-09,
-   Chromium con GPU por software SwiftShader) registra 48,2 s hasta el detalle
-   completo y 1,4 fps de paneo sobre el corpus `architecture`. Por eso
-   `performance.browser-slo` **falla y debe fallar**: la fila de rendimiento no
-   toca su tope mientras esa cifra sea la vigente. Nota del corte 2026-08-20:
-   la evidencia es ANTERIOR al presupuesto adaptativo del scheduler
-   (2026-08-16); la primera acción es re-medir, no optimizar a ciegas —
-   `fullDetailCpuMs` es 539 ms sobre 48 s de reloj, así que el cuello es la
-   cadencia de cuadros en GPU-software, no el cómputo.
-
-**El benchmark Node de OSNAP profesional**
-(`apps/web/src/lib/cad/professional-snap-query-benchmark.spec.ts`) usa 100.000
-entidades y un gate p95 <12 ms. La corrida del corte 2026-08-09, en la máquina
-declarada arriba, dio **p50 1,45 ms y p95 3,03 ms**. Mide consulta indexada, no
-latencia end-to-end del puntero, del render ni del comando.
-
-La CI ejecuta Chromium y Firefox contra API y PostgreSQL reales. Los números
-históricos son de Chromium; que pasen los dos navegadores es gate de release, no
-evidencia de igualdad de rendimiento entre ellos.
-
-## Cómo se calcula, y por qué no es un gate
-
-```
-npm run check:rubric               # informe con el desglose
-npm run check:rubric:spec          # la spec del script (ésta SÍ bloquea)
-node scripts/cad/rubric.mjs --verbose --priorities --history
-node scripts/cad/rubric.mjs --run-specs   # además EJECUTA las specs citadas
-node scripts/cad/rubric.mjs --markdown    # regenera la sección fila a fila
-```
-
-`npm run check:cad` ejecuta las dos cosas: la spec del script como gate (es un
-test, y un test roto es un fallo) y el informe como **informativo**, regenerando
-de paso la sección fila a fila de este documento. El informe sale siempre con
-código 0 aunque la nota baje. Una rúbrica que bloquea el merge se convierte, en
-dos semanas, en una rúbrica que la gente infla para poder mergear; el día que la
-nota sea la diferencia entre desplegar y no desplegar, alguien encontrará el
-modo de subirla sin escribir una línea de producto. Ya pasó una vez con la
-evidencia de existencia, y por eso el lint que la prohíbe vive en la spec, que
-sí bloquea.
-
-Lo que el script comprueba solo: que el archivo exista y tenga cuerpo, que la
-spec esté dentro del glob del runner (y con `--run-specs`, que pase y que
-imprima algo), que el golden exista, que el comando esté en el registro real
-—arrancando el registro con `tsx`, no con `grep`—, que el alias resuelva, que
-alguien importe el módulo, que un texto aparezca en la fuente, que un número
-medido esté dentro de su umbral **y venga con la máquina declarada**, y —desde
-el corte 2026-08-20— que un valor leído de DENTRO del artefacto (`jsonValue`)
-cumpla lo que el criterio afirma.
-
-Lo que no se puede automatizar se declara `manual` con `verifiedBy` y
-`verifiedAt`, y **caduca a los 180 días**. Hoy hay dos evidencias manuales
-declaradas y ninguna firmada, así que ninguna concede puntos:
-`dxf.corpus-external` y `dwg.gates`.
-
-Cuando algo no se puede verificar en el entorno —por ejemplo, sin `npm ci` el
-registro de comandos no arranca— el criterio se marca `no-verificable` y **no se
-concede**. Preferimos una nota baja y explicada a una nota alta y falsa.
-
-## Histórico
-
-Cada corrida con `--history` deja `docs/competitive/history/<fecha>-<commit>.json`
-con el total y el desglose por categoría, incluyendo qué criterios quedaron sin
-otorgar. Guardar el desglose y no sólo el total importa: un total plano puede
-esconder que una categoría subió cuatro puntos y otra se cayó cuatro.
-
-| Fecha      | Commit    |    Nota |      % | Nota                              |
-| ---------- | --------- | ------: | -----: | --------------------------------- |
-| 2026-08-09 | `8be49a5` | 131/200 | 65,5 % | Primer corte con rúbrica puntuada |
-| 2026-08-18 | `986176b` | 166/200 |   83 % | Olas 1-7 y embudo comercial. Núcleo 96/110, productividad 39/44, extensibilidad 21/26, frontera 10/20 |
-| 2026-08-19 | `702bc68` | 171/200 | 85,5 % | Olas A, B, C y la red de seguridad offline. Núcleo 101/110, productividad 39/44, extensibilidad 21/26, frontera 10/20 |
-| 2026-08-20 | —         | 189/200 | 94,5 % | **Nota inflada, nunca publicada como válida**: 21/25 filas al tope por evidencia de sólo-existencia. Es el motivo de la re-base de este mismo día |
-| 2026-08-20 | `545a70d` | 178/200 |   89 % | Re-base de integridad: evidencia de contenido (`jsonValue`), lint de existencia, y los gaps documentados como criterios que fallan (SLO navegador, frozen, PAGESETUP, hatch-PDF, BEDIT, F7/F9/F12, .shx, WASM huérfano, artefacto denso sin versionar). Núcleo 101/110, productividad 39/44, extensibilidad 25/26, frontera 13/20 |
-
-## Gaps P0 que bloquean claims superiores
-
-1. **Cumplir el SLO de navegador**, no sólo publicarlo: 48,2 s de detalle
-   completo y 1,4 fps de paneo en la corrida versionada. Re-medir primero (la
-   evidencia es anterior al presupuesto adaptativo del scheduler) y optimizar
-   la cadencia de presentación después.
-2. Enchufar el kernel Rust/WASM o dejar de contarlo: paridad verde y cero
-   importadores es exactamente el patrón que la regla 6 existe para detectar.
-3. `frozen` en el documento canónico, PAGESETUP que recoloque la ventana
-   gráfica y el patrón de sombreado en el PDF: los tres están medidos o
-   declarados por los propios artefactos de evidencia.
-4. BEDIT y BLEND: los 2 alias colgantes de la tabla acad.pgp.
-5. Construir un corpus DXF autorizado y diverso de terceros con matriz por
-   entidad, round-trip y pérdidas aceptadas. No promover DXF por un único
-   archivo feliz.
-6. Si DWG es requisito comercial, validar la implementación clean-room contra
-   ADR-0007 (corpus independiente primero) o seleccionar un proveedor
-   autorizado y completar los gates legal, de seguridad y de fidelidad. Sin ADR
-   posterior de promoción, sigue ausente del producto.
-7. Mantener como gate bloqueante identidad→organización→trial→documento→CAS→
-   logout/login/reset→aislamiento A/B→archivo grande→DXF con API y PostgreSQL
-   reales en Chromium y Firefox, sin interceptar `/v1`.
-
-## Regla de actualización
-
-Toda promoción enlaza código, prueba y artefacto del límite relevante, **y se
-declara como evidencia comprobable en `rubric.json`**. No se aceptan como única
-evidencia documentos de ejecución, mocks de toda la API, tests unitarios o
-microbenchmarks. Una regresión baja el estado; no se relajan umbrales ni se
-reescribe un golden sólo para conservar una etiqueta.
-
-Dos reglas nuevas, aprendidas por las malas:
-
-- **La evidencia se declara en el JSON, no en la prosa.** La prosa de este
-  archivo puede envejecer; la sección generada no puede, porque la escribe el
-  mismo script que puntúa.
-- **Si el criterio cita un artefacto, la evidencia lee el artefacto.** Un
-  criterio de ≥2 puntos cuya única evidencia sea la existencia de un archivo es
-  un error de definición y `check:cad` lo bloquea. La existencia de
-  `browser-slo-100k.json` valió 2 puntos durante once días mientras su contenido
-  medía 48 segundos; que no vuelva a pasar no depende de la memoria de nadie.
+<!-- rubric:end -->  Los 6/7 puntos que DWG obtiene hoy merecen una nota, porque no son ya los 2 de «detecta y rechaza» de una versión anterior de esta matriz — esa nota quedó desactualizada cuando el laboratorio pasó de detectar DWG a decodificarlo de verdad. Hoy el decoder propio lee AC1015 (AutoCAD 2000) y AC1018 (2004) con cero discrepancias contra un corpus independiente, y el writer propio escribe archivos que un lector externo (ODA File Converter, nunca el propio código como oráculo) acepta en round-trip — ambos con evidencia real, no fabricada (`docs/cad/evidence/dwg-decoder-matrix.json`, `dwg-roundtrip.json`). El único punto que falta, `dwg.gates`, no es trabajo de laboratorio pendiente: exige una revisión jurídica externa que el dueño aún no ha encargado (ADR-0009 §5) y que es, por diseño, una decisión suya, no de ingeniería. Dos cosas concretas siguen SIN autorizar por el propio dueño, aun con toda esa evidencia en verde: disponibilidad general del import (hoy vive apagado por defecto detrás de dos flags de beta, `NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA` y `NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA`) y la exportación DWG en el producto (el writer y su verificación externa existen íntegros en el laboratorio; nadie los ha conectado a una ruta que un usuario pueda tocar) — ver ADR-0009 §6-bis, línea «Lo que esta firma NO autoriza». Puntuar 6/7 es puntuar progreso real y verificado; el 1/7 que falta puntúa una firma pendiente, no una carencia de código.  ## Benchmarks que sí existen, y qué máquina los produjo  **El pipeline de render por lotes y tiles**, medido por `apps/web/scripts/cad-render-benchmark.mts` y versionado en `docs/cad/evidence/cad-render-benchmark-100k.json`:  | Métrica sobre 100.000 entidades   | Pipeline nuevo (`next`) | Camino heredado (`legacy`) | | --------------------------------- | ----------------------: | -------------------------: | | Primer detalle                    |                750,5 ms |                    73,4 ms | | Asentado del zoom                 |                 23,3 ms |                    39,1 ms | | Cuadro de paneo p95               |                  7,2 ms |                    64,1 ms | | Entidades detalladas en reposo    |                 100.000 |                      2.500 | | Crecimiento del montón (3 ciclos) |                 0,01 MB |                          — |  Máquina: **Node v22.22.2 sobre Linux x64, Intel Xeon a 2,80 GHz, 4 CPU lógicas, 16,8 GB de RAM, límite de montón 4,3 GB**, corrida del 2026-08-09T07:30Z, corpus de 100.000 entidades con sha256 `1ba7300d…`.  Tres advertencias que hacen que estos números **no** sean un SLA:  1. Son de **Node, no de navegador**. El propio artefacto declara que no mide GPU,    llamadas de dibujo, composición ni cuadros por segundo. 2. El artefacto entra como `report-only`: es una métrica sin línea base    versionada debajo. 3. El pipeline ya está enchufado al editor (la fila de rendimiento lo verifica    con la regla 6), pero **la experiencia medida EN NAVEGADOR sigue sin cumplir    el SLO**: la corrida versionada de `browser-slo-100k.json` (2026-08-09,    Chromium con GPU por software SwiftShader) registra 48,2 s hasta el detalle    completo y 1,4 fps de paneo sobre el corpus `architecture`. Por eso    `performance.browser-slo` **falla y debe fallar**: la fila de rendimiento no    toca su tope mientras esa cifra sea la vigente. Nota del corte 2026-08-20:    la evidencia es ANTERIOR al presupuesto adaptativo del scheduler    (2026-08-16); la primera acción es re-medir, no optimizar a ciegas —    `fullDetailCpuMs` es 539 ms sobre 48 s de reloj, así que el cuello es la    cadencia de cuadros en GPU-software, no el cómputo.  **El benchmark Node de OSNAP profesional** (`apps/web/src/lib/cad/professional-snap-query-benchmark.spec.ts`) usa 100.000 entidades y un gate p95 <12 ms. La corrida del corte 2026-08-09, en la máquina declarada arriba, dio **p50 1,45 ms y p95 3,03 ms**. Mide consulta indexada, no latencia end-to-end del puntero, del render ni del comando.  La CI ejecuta Chromium y Firefox contra API y PostgreSQL reales. Los números históricos son de Chromium; que pasen los dos navegadores es gate de release, no evidencia de igualdad de rendimiento entre ellos.  ## Cómo se calcula, y por qué no es un gate  ``` npm run check:rubric               # informe con el desglose npm run check:rubric:spec          # la spec del script (ésta SÍ bloquea) node scripts/cad/rubric.mjs --verbose --priorities --history node scripts/cad/rubric.mjs --run-specs   # además EJECUTA las specs citadas node scripts/cad/rubric.mjs --markdown    # regenera la sección fila a fila ```  `npm run check:cad` ejecuta las dos cosas: la spec del script como gate (es un test, y un test roto es un fallo) y el informe como **informativo**, regenerando de paso la sección fila a fila de este documento. El informe sale siempre con código 0 aunque la nota baje. Una rúbrica que bloquea el merge se convierte, en dos semanas, en una rúbrica que la gente infla para poder mergear; el día que la nota sea la diferencia entre desplegar y no desplegar, alguien encontrará el modo de subirla sin escribir una línea de producto. Ya pasó una vez con la evidencia de existencia, y por eso el lint que la prohíbe vive en la spec, que sí bloquea.  Lo que el script comprueba solo: que el archivo exista y tenga cuerpo, que la spec esté dentro del glob del runner (y con `--run-specs`, que pase y que imprima algo), que el golden exista, que el comando esté en el registro real —arrancando el registro con `tsx`, no con `grep`—, que el alias resuelva, que alguien importe el módulo, que un texto aparezca en la fuente, que un número medido esté dentro de su umbral **y venga con la máquina declarada**, y —desde el corte 2026-08-20— que un valor leído de DENTRO del artefacto (`jsonValue`) cumpla lo que el criterio afirma.  Lo que no se puede automatizar se declara `manual` con `verifiedBy` y `verifiedAt`, y **caduca a los 180 días**. Hoy hay dos evidencias manuales declaradas y ninguna firmada, así que ninguna concede puntos: `dxf.corpus-external` y `dwg.gates`.  Cuando algo no se puede verificar en el entorno —por ejemplo, sin `npm ci` el registro de comandos no arranca— el criterio se marca `no-verificable` y **no se concede**. Preferimos una nota baja y explicada a una nota alta y falsa.  ## Histórico  Cada corrida con `--history` deja `docs/competitive/history/<fecha>-<commit>.json` con el total y el desglose por categoría, incluyendo qué criterios quedaron sin otorgar. Guardar el desglose y no sólo el total importa: un total plano puede esconder que una categoría subió cuatro puntos y otra se cayó cuatro.  | Fecha      | Commit    |    Nota |      % | Nota                              | | ---------- | --------- | ------: | -----: | --------------------------------- | | 2026-08-09 | `8be49a5` | 131/200 | 65,5 % | Primer corte con rúbrica puntuada | | 2026-08-18 | `986176b` | 166/200 |   83 % | Olas 1-7 y embudo comercial. Núcleo 96/110, productividad 39/44, extensibilidad 21/26, frontera 10/20 | | 2026-08-19 | `702bc68` | 171/200 | 85,5 % | Olas A, B, C y la red de seguridad offline. Núcleo 101/110, productividad 39/44, extensibilidad 21/26, frontera 10/20 | | 2026-08-20 | —         | 189/200 | 94,5 % | **Nota inflada, nunca publicada como válida**: 21/25 filas al tope por evidencia de sólo-existencia. Es el motivo de la re-base de este mismo día | | 2026-08-20 | `545a70d` | 178/200 |   89 % | Re-base de integridad: evidencia de contenido (`jsonValue`), lint de existencia, y los gaps documentados como criterios que fallan (SLO navegador, frozen, PAGESETUP, hatch-PDF, BEDIT, F7/F9/F12, .shx, WASM huérfano, artefacto denso sin versionar). Núcleo 101/110, productividad 39/44, extensibilidad 25/26, frontera 13/20 |  ## Gaps P0 que bloquean claims superiores  1. **Cumplir el SLO de navegador**, no sólo publicarlo: 48,2 s de detalle    completo y 1,4 fps de paneo en la corrida versionada. Re-medir primero (la    evidencia es anterior al presupuesto adaptativo del scheduler) y optimizar    la cadencia de presentación después. 2. Enchufar el kernel Rust/WASM o dejar de contarlo: paridad verde y cero    importadores es exactamente el patrón que la regla 6 existe para detectar. 3. `frozen` en el documento canónico, PAGESETUP que recoloque la ventana    gráfica y el patrón de sombreado en el PDF: los tres están medidos o    declarados por los propios artefactos de evidencia. 4. BEDIT y BLEND: los 2 alias colgantes de la tabla acad.pgp. 5. Construir un corpus DXF autorizado y diverso de terceros con matriz por    entidad, round-trip y pérdidas aceptadas. No promover DXF por un único    archivo feliz. 6. Si DWG es requisito comercial, validar la implementación clean-room contra    ADR-0007 (corpus independiente primero) o seleccionar un proveedor    autorizado y completar los gates legal, de seguridad y de fidelidad. Sin ADR    posterior de promoción, sigue ausente del producto. 7. Mantener como gate bloqueante identidad→organización→trial→documento→CAS→    logout/login/reset→aislamiento A/B→archivo grande→DXF con API y PostgreSQL    reales en Chromium y Firefox, sin interceptar `/v1`.  ## Regla de actualización  Toda promoción enlaza código, prueba y artefacto del límite relevante, **y se declara como evidencia comprobable en `rubric.json`**. No se aceptan como única evidencia documentos de ejecución, mocks de toda la API, tests unitarios o microbenchmarks. Una regresión baja el estado; no se relajan umbrales ni se reescribe un golden sólo para conservar una etiqueta.  Dos reglas nuevas, aprendidas por las malas:  - **La evidencia se declara en el JSON, no en la prosa.** La prosa de este   archivo puede envejecer; la sección generada no puede, porque la escribe el   mismo script que puntúa. - **Si el criterio cita un artefacto, la evidencia lee el artefacto.** Un   criterio de ≥2 puntos cuya única evidencia sea la existencia de un archivo es   un error de definición y `check:cad` lo bloquea. La existencia de   `browser-slo-100k.json` valió 2 puntos durante once días mientras su contenido   medía 48 segundos; que no vuelva a pasar no depende de la memoria de nadie.
