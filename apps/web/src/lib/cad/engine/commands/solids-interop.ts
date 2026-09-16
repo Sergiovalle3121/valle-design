@@ -135,6 +135,8 @@ const exportCommand: CadCommandDescriptor<ExportState> = {
     const solids = selectedSolids(context, state.selection);
     if (solids.length === 0)
       return solidMessage(state, "EXPORT necesita SOLID3D designados.");
+    if (solids.length > 1)
+      return solidMessage(state, "EXPORT: designe un solo sólido; varios sólidos en un archivo aún no se admiten.");
     const format = input.kind === "keyword" && input.keyword === FORMAT_IGES.keyword ? "iges" : "step";
     const parts: string[] = [];
     for (const solid of solids) {
