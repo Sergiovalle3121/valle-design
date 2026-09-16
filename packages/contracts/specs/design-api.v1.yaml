@@ -426,6 +426,13 @@ paths:
       operationId: verifyIdentityEmail
       tags: [identity]
       summary: Consume una vez un token opaco de verificacion.
+      description: >-
+        Los reenvíos acumulan enlaces vigentes (cada uno de un solo uso);
+        verificar con cualquiera consume los demás. Un enlace que ya no abre
+        nada responde 201 con `alreadyVerified` si la cuenta ya está
+        verificada, y 400 con `code` `verification_token_superseded` (lo
+        reemplazó un cambio de correo: abre el correo más reciente) o
+        `verification_token_expired` si no.
       security: []
       requestBody:
         required: true
@@ -434,7 +441,7 @@ paths:
             schema: { $ref: "#/components/schemas/OneTimeTokenRequest" }
       responses:
         "201":
-          description: Correo verificado.
+          description: Correo verificado (o ya lo estaba).
           content:
             application/json:
               schema: { $ref: "#/components/schemas/EmailVerificationResponse" }
@@ -3690,6 +3697,18 @@ components:
       required: [verified]
       properties:
         verified: { type: boolean, const: true }
+        alreadyVerified:
+          type: boolean
+          description: >-
+            Presente y `true` cuando el enlace ya no abre nada porque la cuenta
+            YA estaba verificada (segundo canje del mismo enlace, o el enlace
+            de otro correo tras verificar con el primero). Idempotente: no
+            cambia estado.
+        email:
+          type: string
+          format: email
+          description: >-
+            Correo verificado, para que el inicio de sesión llegue rellenado.
     PasswordResetResponse:
       type: object
       additionalProperties: false
@@ -4924,7 +4943,8 @@ components:
             `cad_publications_server_managed`, `entitlement_required`,
             `review_token_invalid`, `review_token_expired`,
             `review_token_revoked`, `review_session_closed`,
-            `review_read_only`, `review_comments_disabled`, `rate_limited`.
+            `review_read_only`, `review_comments_disabled`, `rate_limited`,
+            `verification_token_superseded`, `verification_token_expired`.
         details: {}
         requestId:
           type: string
