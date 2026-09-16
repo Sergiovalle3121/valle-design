@@ -243,8 +243,12 @@ export interface CadRibbonCommand {
    * faltaba que llegara hasta aquí para apagar SÓLO ésos.
    */
   mutates: boolean;
-  /** Comando del primer día del oficio: más ancho y más visible en la cinta. */
-  primary?: boolean;
+  /**
+   * Botón GRANDE del panel (`CAD_RIBBON_PRIMARY`, uno o dos por panel): se
+   * pinta con icono grande y rótulo, y siempre a la vista aunque el panel se
+   * reduzca; los demás son botones pequeños o van al desplegable del panel.
+   */
+  primary: boolean;
 }
 
 export interface CadRibbonPanel {
@@ -284,7 +288,7 @@ function buildRibbonTabs(): CadRibbonTab[] {
       summary: cadCommandSummary(descriptor.name),
       panel: panelLabel,
       mutates: descriptor.mutates,
-      primary: CAD_RIBBON_PRIMARY.has(descriptor.name),
+      primary: (CAD_RIBBON_PRIMARY[panelLabel] ?? []).includes(descriptor.name),
     };
     commands.push(command);
     byName.set(command.name, command);
@@ -300,7 +304,11 @@ function buildRibbonTabs(): CadRibbonTab[] {
     for (const name of names) {
       const original = byName.get(name);
       if (!original) throw new Error(`ribbon: el espejo «${name}» no existe en el registro`);
-      commands.push({ ...original, panel: panelLabel });
+      commands.push({
+        ...original,
+        panel: panelLabel,
+        primary: (CAD_RIBBON_PRIMARY[panelLabel] ?? []).includes(name),
+      });
     }
     inicio.set(panelLabel, commands);
   }
