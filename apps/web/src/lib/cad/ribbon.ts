@@ -52,6 +52,7 @@ export type CadRibbonTabId =
   | "anotar"
   | "parametrico"
   | "vista"
+  | "solidos3d"
   | "salida"
   | "administrar";
 
@@ -66,6 +67,10 @@ export const CAD_RIBBON_TABS: readonly CadRibbonTabMeta[] = [
   { id: "anotar", label: "Anotar" },
   { id: "parametrico", label: "Paramétrico" },
   { id: "vista", label: "Vista" },
+  // «Sólidos 3D» es pestaña propia, como en AutoCAD: antes sus 23 comandos
+  // eran el 13.º panel de Inicio, invisible sin desplazar la cinta (medido:
+  // ~10 700 px de tira a 1366 px de ventana).
+  { id: "solidos3d", label: "Sólidos 3D" },
   { id: "salida", label: "Salida" },
   { id: "administrar", label: "Administrar" },
 ];
@@ -89,6 +94,10 @@ const CAD_KIND_TAB: Readonly<Record<CadCommandKind, CadRibbonTabId>> = {
  * `LINETYPE` en «Dibujo» (medido antes de anclar).
  */
 const CAD_TAB_NAME_PATTERNS: readonly [RegExp, CadRibbonTabId][] = [
+  [
+    /^(BOX|SPHERE|CYLINDER|CONE|WEDGE|TORUS|PYRAMID|POLYSOLID|EXTRUDE|REVOLVE|SWEEP|LOFT|PRESSPULL|UNION|SUBTRACT|INTERSECT|INTERFERE|SLICE|FILLETEDGE|CHAMFEREDGE|SOLIDEDIT|SECTION|MASSPROP)$/,
+    "solidos3d",
+  ],
   [
     /^(GC[A-Z]+|DC(LINEAR|ANGULAR|RADIUS|DIAMETER)|AUTOCONSTRAIN|GEOMCONSTRAINT|DELCONSTRAINT|DIMCONSTRAINT|PARAMETERS)$/,
     "parametrico",
@@ -140,7 +149,6 @@ const CAD_PANEL_NAME_PATTERNS: readonly [RegExp, string][] = [
   [/^(-?STYLE|-?DIMSTYLE|-?MLEADERSTYLE|TABLESTYLE)$/, "Estilos"],
   [/^(-?DIM[A-Z]*|QDIM)$/, "Cotas"],
   [/^(-?LEADER|MLEADER|QLEADER)$/, "Directrices"],
-  [/^(-?HATCH|GRADIENT|-?BOUNDARY)$/, "Sombreado"],
   [/^(-?TEXT|MTEXT|DTEXT|SPELL|-?TABLE|TABLEDIT|DDEDIT|TEXTALIGN|FIELD|UPDATEFIELD|TCOUNT|TXT2MTXT)$/, "Texto y tablas"],
   [/^TOLERANCE$/, "Tolerancias"],
   [/^(-?WALL|DOOR|WINDOW|-?OPENING|STAIR|ROOF|SLAB)$/, "Arquitectura"],
@@ -149,17 +157,23 @@ const CAD_PANEL_NAME_PATTERNS: readonly [RegExp, string][] = [
   [/^(STDPART|STEELSHAPE)$/, "Normalizados"],
   [/^(BALLOON|BOM|WELDSYMBOL|SURFACESYMBOL)$/, "Mecánica"],
   [
-    /^(LINE|XLINE|RAY|-?PLINE|POLYGON|RECTANG|CIRCLE|ARC|ELLIPSE|-?SPLINE|DONUT|-?POINT|DIVIDE|MEASURE|-?REGION|SOLID|REVCLOUD|WIPEOUT|BREAKLINE)$/,
+    // El sombreado va en Dibujo, como en el panel Draw de AutoCAD (HATCH,
+    // GRADIENT y BOUNDARY son `kind: draw`); un panel «Sombreado» aparte era
+    // uno de los trece de Inicio, y a 1366 px no caben trece.
+    /^(LINE|XLINE|RAY|-?PLINE|POLYGON|RECTANG|CIRCLE|ARC|ELLIPSE|-?SPLINE|DONUT|-?POINT|DIVIDE|MEASURE|-?REGION|SOLID|REVCLOUD|WIPEOUT|BREAKLINE|-?HATCH|GRADIENT|-?BOUNDARY)$/,
     "Dibujo",
   ],
   [
     /^(MOVE|COPY|ROTATE|SCALE|MIRROR|-?ARRAY|ARRAYEDIT|-?ALIGN|STRETCH|TRIM|EXTEND|FILLET|CHAMFER|BREAK|JOIN|BLEND|-?PEDIT|SPLINEDIT|OFFSET|EXPLODE|XPLODE|NCOPY|ERASE|LENGTHEN|OVERKILL|DRAWORDER|FLATTEN)$/,
     "Modificar",
   ],
-  [
-    /^(BOX|SPHERE|CYLINDER|CONE|WEDGE|TORUS|PYRAMID|POLYSOLID|EXTRUDE|REVOLVE|SWEEP|LOFT|UNION|SUBTRACT|INTERSECT|SLICE|SOLIDEDIT|MASSPROP|PRESSPULL|FILLETEDGE|CHAMFEREDGE|SECTION|INTERFERE)$/,
-    "Sólidos",
-  ],
+  // Pestaña Sólidos 3D: los paneles Primitivas · Sólido · Booleanas · Edición
+  // de sólidos · Consulta 3D de la pestaña Solid de AutoCAD.
+  [/^(BOX|SPHERE|CYLINDER|CONE|WEDGE|TORUS|PYRAMID|POLYSOLID)$/, "Primitivas"],
+  [/^(EXTRUDE|REVOLVE|SWEEP|LOFT|PRESSPULL)$/, "Sólido"],
+  [/^(UNION|SUBTRACT|INTERSECT|INTERFERE)$/, "Booleanas"],
+  [/^(SLICE|FILLETEDGE|CHAMFEREDGE|SOLIDEDIT|SECTION)$/, "Edición de sólidos"],
+  [/^MASSPROP$/, "Consulta 3D"],
   // COMPARE: la pestaña Colaborar de AutoCAD no existe aquí; Administrar es la
   // equivalente, y comparar dos dibujos merece su propio panel.
   [/^COMPARE$/, "Comparar"],
@@ -197,6 +211,7 @@ export const CAD_RIBBON_FALLBACK_PANEL: Readonly<Record<CadRibbonTabId, string>>
   anotar: "Anotación",
   parametrico: "Geométricas",
   vista: "Vistas",
+  solidos3d: "Sólido",
   salida: "Trazar y publicar",
   administrar: "Herramientas",
 };
