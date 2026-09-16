@@ -287,3 +287,15 @@ Variables e imports sin usar (16 `@typescript-eslint/no-unused-vars`) y un ref l
 **Arreglo:** Reescritura de copia visible en6 ficheros: contact, privacy, status, precios, support, terms. Voz cambiada de tercera persona («el operador debe») a primera persona («lo completaremos»). Fallbacks de canal no configurado reescritos como mensajes al cliente. Añadida regresión en public-pages.spec.ts que extrae texto visible y prohíbe «despliegue» y «el operador».
 
 **Verificación:** Typecheck OK. public-pages.spec OK.
+
+## D18 — Traducir barra de estado CAD al español (2026-09-16)
+
+**Problema:** La barra de estado del editor CAD mostraba etiquetas en inglés ("Layer", "Clearance", "Safety", "Highlights", "Recovery local activo", "API online/offline", "Grilla on/off") y enums sin mapear ("ok", "warn", "critical" como texto visible). Además, `Layout3DEditor.tsx` tenía "Crítico", "bajo mínimo" y "Dentro de mínimo" sin acentos.
+
+**Arreglo:**
+- **CadStatusBar.tsx**: 10 cambios de texto visible — Recovery → Recuperación, API online/offline → API en línea/sin conexión, Layer → Capa, Grilla on/off → Rejilla activada/desactivada, Snap grid/free → Forzcursor rejilla/libre, Validación score mapeado a correcta/con avisos/con errores, CAD severity mapeado a CAD crítico/con avisos/Correcto, Clearance → Holguras, Safety → Seguridad, Highlights → Resaltados. DXF sin tocar.
+- **Layout3DEditor.tsx**: Acentos corregidos — Critico → Crítico, bajo minimo → bajo mínimo, Dentro de minimo → Dentro de mínimo.
+- **Goldens actualizados**: 11-cad-recovery-journal.spec.ts (2 textos), 22-cad-compare-collaboration.spec.ts (1 texto).
+- **Regresión nueva**: cad-status-bar-locale.spec.ts con 25 comprobaciones (negativas inglesas, positivas españolas, enums mapeados).
+
+**Verificación:** Typecheck OK. cad-status-bar-locale.spec: 25 comprobaciones OK.

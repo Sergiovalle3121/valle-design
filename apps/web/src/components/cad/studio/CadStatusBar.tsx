@@ -266,12 +266,12 @@ export function CadStatusBar({
       />
       {saveState.dirty && saveState.recoverySavedAt && (
         <span className="text-primary-ink" title={saveState.recoverySavedAt}>
-          Recovery local activo
+          Recuperación local activa
         </span>
       )}
       {saveState.dirty && saveState.recoveryWarning && (
         <span className="text-danger-ink" title={saveState.recoveryWarning}>
-          Recovery local en riesgo
+          Recuperación local en riesgo
         </span>
       )}
       <span
@@ -284,13 +284,13 @@ export function CadStatusBar({
         }`}
       >
         {saveState.connectionState === "online"
-          ? "API online"
+          ? "API en línea"
           : saveState.connectionState === "offline"
-            ? "API offline"
+            ? "API sin conexión"
             : "API…"}
       </span>
       <span>
-        Layer{" "}
+        Capa{" "}
         {layersInfo.cadLayers.find((layer) => layer.id === layersInfo.activeCadLayer)
           ?.label ?? layersInfo.activeCadLayer}
       </span>
@@ -306,8 +306,8 @@ export function CadStatusBar({
         </span>
       )}
       <span className="@max-[40rem]:hidden">
-        Grilla {layersInfo.gridOn ? "on" : "off"} / Snap{" "}
-        {layersInfo.snapOn ? "grid" : "free"}
+        Rejilla {layersInfo.gridOn ? "activada" : "desactivada"} / Forzcursor{" "}
+        {layersInfo.snapOn ? "rejilla" : "libre"}
       </span>
       <CadAnnotationScaleSelect onChange={onAnnotationScale} />
       <CadDraftStatusBar
@@ -350,7 +350,7 @@ export function CadStatusBar({
                 : "text-success-ink"
           }`}
         >
-          Validación {validation.report.score}
+          Validación {validation.report.score === "ok" ? "correcta" : validation.report.score === "warn" ? "con avisos" : "con errores"}
         </span>
       )}
       {validation.cadValidationReport && (
@@ -363,17 +363,17 @@ export function CadStatusBar({
                 : "text-success-ink"
           }`}
         >
-          CAD {validation.cadValidationReport.severity}
+          {validation.cadValidationReport.severity === "critical" ? "CAD crítico" : validation.cadValidationReport.severity === "warning" ? "CAD con avisos" : "CAD correcto"}
         </span>
       )}
       {validation.clearanceIssuesCount > 0 && (
         <span className="text-warning-ink @max-[40rem]:hidden">
-          Clearance {validation.clearanceIssuesCount}
+          Holguras {validation.clearanceIssuesCount}
         </span>
       )}
       {validation.safetyIssuesCount > 0 && (
         <span className="text-warning-ink @max-[40rem]:hidden">
-          Safety {validation.safetyIssuesCount}
+          Seguridad {validation.safetyIssuesCount}
         </span>
       )}
       {validation.validationHighlightCount > 0 && (
@@ -381,7 +381,7 @@ export function CadStatusBar({
           onClick={validation.onClearHighlights}
           className="text-danger-ink hover:text-foreground"
         >
-          Highlights {validation.validationHighlightCount}
+          Resaltados {validation.validationHighlightCount}
         </button>
       )}
       {misc.dxfWarningsCount > 0 && (
