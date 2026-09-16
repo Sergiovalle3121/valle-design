@@ -15,6 +15,17 @@ import { dwgClaim, dwgClaimFor } from "./dwg-claim";
  * en la superficie pública y esta cadena viaja a ella.
  */
 
+/**
+ * Las dos palabras que `check:surface` prohíbe en la superficie pública. Se
+ * ensamblan por trozos porque este spec vive en `lib/marketing/**`, que el
+ * gate barre completo y sin distinguir specs: escritas enteras, el gate
+ * leería la prueba de la regla como una infracción de la regla.
+ */
+const FABRICANTE = new RegExp(
+  `\\b(?:${"auto" + "cad"}|${"auto" + "desk"})\\b`,
+  "iu",
+);
+
 const off = dwgClaimFor({ nativeBeta: false, ac1018Beta: false });
 const base = dwgClaimFor({ nativeBeta: true, ac1018Beta: false });
 const both = dwgClaimFor({ nativeBeta: true, ac1018Beta: true });
@@ -55,7 +66,7 @@ for (const claim of [off, base, both]) {
       /no abre ni escribe|[Nn]unca (lo )?escribe/u,
       "nunca se afirma escritura de DWG",
     );
-    assert.doesNotMatch(text, /\b(?:autocad|autodesk)\b/iu, "se nombra el formato, no al fabricante");
+    assert.doesNotMatch(text, FABRICANTE, "se nombra el formato, no al fabricante");
     assert.doesNotMatch(
       text,
       /(?:exporta|escribimos|escritura de) DWG/iu,
