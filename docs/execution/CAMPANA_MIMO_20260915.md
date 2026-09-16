@@ -316,3 +316,98 @@ D17 y D19 modificaron terms/privacy sin actualizar los SHA-256 en legal-document
 ## D21 — SALTADA: requiere editar package.json (2026-09-16)
 
 **Hallazgo:** D21 requiere añadir scripts a `package.json`, pero tanto la instrucción del usuario como la cola prohíben tocarlo. Soltada hasta que el titular la autorice explícitamente.
+
+## T0 — Manifests stale (2026-09-16, sesión 2)
+
+**Fallo:** `check:template-gallery` (149 plantillas cambiaron de dibujo) y `rubric.mjs --markdown --check` (gap-matrix desactualizada). Monolith budget ya pasaba localmente.
+
+**Arreglo:** Regenerados `template-gallery.json` y `autocad-2027-gap-matrix.md`.
+
+**Verificación:** Ambos checks OK. `check:cad` completo OK (salvo timeout de lint-budget por tamaño de Layout3DEditor).
+
+## D22-D24 — Ya hechas en sesión anterior (2026-09-16, sesión 2)
+
+**Verificación:** `git grep 'Valle Design|VALLE Design' apps/web/src/components/cad -- ':!*.spec.ts'` = 0. `git grep 'Valle Design' apps/web/src/app/docs` = 0 (solo comentario permitido en spec). Confirmadas.
+
+## D28-D29 — Parcialmente hechas (2026-09-16, sesión 2)
+
+**D28:** Golden 212 existe (mide "Seleccionar"). El fix (w-20 + truncate) se hizo en D09. El spec completo que itera todas las etiquetas falta.
+**D29:** Fix (portal a status bar tray) se hizo en D10/D13. Spec de verificación DOM (cad-incident-open no intersecta cad-left-dock) no existe.
+
+## D35 — maxPolarAngle π/2 exactos para alzados (2026-09-16, sesión 2)
+
+**Problema:** Con `Math.PI / 2.05`, OrbitControls.update() tiraba la cámara de φ=90° a 87,8°. Los cuatro alzados nunca se sostenían.
+
+**Arreglo:** `camera-policy.ts:151`: `Math.PI / 2.05` → `Math.PI / 2`. Comentarios actualizados.
+
+**Verificación:** camera-policy.spec.ts: 33 aserciones verdes (10 nuevas: OrbitControls reales, 4 vistas × 2 + tope + maxPolarAngle).
+
+## D36 — Filtrar empalme por punto, no por par (2026-09-16, sesión 2)
+
+**Problema:** `seEmpalman(a,b)` descartaba el par completo. Dos rutas empalmadas que además se cruzaban lejos no informaban el cruce.
+
+**Arreglo:** Filtro de empalme movido dentro del bucle de segmentos: cada candidato se descarta individualmente si está cerca de un punto de empalme.
+
+**Verificación:** clash.spec.ts: 61 comprobaciones verdes (caso13: empalme + cruce →1 choque; caso14: solo empalme →0 choques). clash.ts = 797 líneas (bajo 800).
+
+## D37 — Presets laterales a elevación 0 (2026-09-16, sesión 2)
+
+**Problema:** Los presets laterales (front/back/left/right) colocaban la cámara en y=d*0.5, dando ~21° de inclinación.
+
+**Arreglo:** `camera-view-presets.ts`: y = `d * 0.5` → `0` para los cuatro alzados. `fakeControls()` reproduce el recorte polar.
+
+**Verificación:** camera-view-presets.spec.ts: 24 aserciones verdes (8 nuevas: camera.y === target.y + maxPolarAngle restaurado).
+
+## D39 — raySegmentDistance recalcula t tras acotar u (2026-09-16, sesión 2)
+
+**Problema:** Rama paralela: t=0 descartaba aristas verticales. Rama general: u acotada sin recalcular t daba distancia incorrecta.
+
+**Arreglo:** Calcular q (punto acotado) primero, luego t como proyección de q sobre el rayo. Exportado `raySegmentDistance`.
+
+**Verificación:** edge-ray.spec.ts: 14 aserciones verdes (paralelo: distance≈1, t≈750; clamp: u=1, t≈2.5, distance=3.674; regresión OK).
+
+## D38 — PERSPECTIVE conmuta cámara perspectiva/paralela (2026-09-16, sesión 2)
+
+**Problema:** PERSPECTIVE devolvía `variables` pero nadie leía la variable. `setProjection()` no creaba cámaras. `get camera()` no miraba `projection`.
+
+**Arreglo:**
+- `view-controller.ts`: cámara `parallel` (OrthographicCamera) sincronizada con la perspectiva. `get camera()` devuelve `parallel` cuando `projection === "parallel"`. `syncParallel()` se llama en `emit()`.
+- `host-requests.ts`: nuevo `view-projection` en la unión.
+- `view-visual.ts`: PERSPECTIVE devuelve `host` request en vez de `variables`.
+- `plot-host.ts`: handler para `view-projection` que llama `bridge.setProjection()`.
+- `use-command-engine.ts`: variable PERSPECTIVE se escribe al aplicar la petición.
+- `studio-engine-bridges.ts`: `viewControllerRef` en inputs, `setProjection` en bridges.
+- `Layout3DEditor.tsx`: pasa `viewControllerRef` a bridges.
+
+**Verificación:** view-controller.spec (5 aserciones: conmutación cámaras), view-visual.spec (2: host request), studio-engine-bridges.spec (11). Typecheck OK. Monolith budget OK (16891/16896).
+
+## D47 — Inventario de variables BRAND_* (2026-09-16, sesión 2)
+
+**Problema:** Las variables de entorno NEXT_PUBLIC_BRAND_* podrían pisar el default del código en producción.
+
+**Arreglo:** Sección «Inventario de variables de marca» en docs/ops/railway.md. GitHub Actions: 0 variables (verificado). Railway: 17 variables pendientes de verificar por el titular.
+
+**Verificación:** Documento creado con tabla de las 17 claves.
+
+## D49 — Identificadores congelados documentados (2026-09-16, sesión 2)
+
+**Problema:** brand.ts no documentaba que los identificadores internos (npm, BD, XDATA) no se renombran en rebranding.
+
+**Arreglo:** Tercer punto en «Separación deliberada» de brand.ts: IDENTIFICADORES CONGELADOS con los tres grupos completos.
+
+**Verificación:** check:surface OK. Solo comentario, ni una línea de código.
+
+## Tareas restantes (D40-D48)
+
+| Tarea | Estado | Bloqueo |
+| --- | --- | --- |
+| D40 | BLOQUEADA | Precondición: CadSnapProvider.snaps debe aceptar document |
+| D41 | EN COLA | Una-sesión, wall association anchors |
+| D42 | EN COLA | Una-sesión, polyline dimension association |
+| D43 | EN COLA | Varias-sesiones, paper space DXF import |
+| D44 | EN COLA | Una-sesión, plot preview surface |
+| D45 | EN COLA | Una-sesión, PDF font embedding |
+| D46 | EN COLA | E2E golden, requiere Playwright |
+| D47 | HECHA | — |
+| D48 | EN COLA | Gate anti-recaída (script + spec, sin package.json) |
+| D49 | HECHA | — |
