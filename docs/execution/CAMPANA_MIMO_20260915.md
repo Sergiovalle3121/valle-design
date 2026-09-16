@@ -68,3 +68,4 @@ Todas hechas antes de esta sesión (commits `4359ef50`–`bd86c7e5`).
 | T13.2 | hecha — ribbon.spec.ts: CENTERMARK, CENTERLINE → Cotas; AESYMBOL → Instalaciones; 3DMOVE, 3DROTATE → Modificar; PERSPECTIVE → Vistas 3D. 300 comandos únicos. | `eafb749f` |
 | T13.3 | hecha — solids.spec.ts: payload STEP tenía length=1 porque `slice(idx-1)` con idx=0 daba `slice(-1)`. Corregido con `Math.max(0, idx-1)`. | `f5343390` |
 | T13.4 | hecha — service-worker-harness.spec.ts: regex `/(?:^|\/)/` no coincidía con `\` de Windows en `readdirSync`. Corregido a `[\\/]`. 12 bloques verdes. | `ae283d40` |
+| 2.1 VIEWBASE | hecha — familia VIEWBASE completa: VIEWBASE, VIEWPROJ, VIEWSECTION, VIEWDETAIL, VIEWEDIT, VIEWUPDATE. Delegan en SOLVIEW/SOLDRAW. Spec con 12 comprobaciones. 306 comandos en el registro. | `a34b6722` |
