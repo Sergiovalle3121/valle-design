@@ -31,7 +31,7 @@ Todas hechas antes de esta sesión (commits `4359ef50`–`bd86c7e5`).
 - **D32, D33, D35–D39, D41, D42:** hechas en sesiones anteriores.
 - **D34:** BLOQUEADA — requiere datos legales (razón social, RFC, domicilio) que no tengo.
 - **D40:** BLOQUEADA — precondición no cumplida: `CadSnapProvider.snaps` no acepta `document`.
-- **D43:** pendiente — "varias-sesiones", importación de espacio papel DXF.
+- **D43:** parcial (2/3) — `splitDxfImportBySpace` + `document-import` construye Presentación1 con entidades de papel. Commits `32d60450` y `36d86e5c`. Falta: VIEWPORT como `lost` en el informe, y ampliar el spec para afirmar el `lossManifest` de presentación única.
 - **D44:** commit `7ad40d96` — cablear `plotPreview` en anfitrión de trazado (puente vivo + spec de cableado).
 - **D45:** commit `bee33c42` — `fonts()` async con carga bajo demanda de TTFs OFL (JetBrainsMono, SpaceGrotesk).
 
@@ -51,7 +51,7 @@ Todas hechas antes de esta sesión (commits `4359ef50`–`bd86c7e5`).
 | D30–D31 | ya hechas | sesiones anteriores |
 | D34 | bloqueada (datos legales) | — |
 | D40 | bloqueada (precondición) | — |
-| D43 | pendiente (varias-sesiones) | — |
+| D43 | parcial (2/3) | `32d60450`, `36d86e5c` |
 | D44 | hecha | `7ad40d96` |
 | D45 | hecha | `bee33c42` |
 | D46 | hecha | `b7106dd2` |
