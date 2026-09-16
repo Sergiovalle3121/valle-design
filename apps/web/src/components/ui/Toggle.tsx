@@ -41,40 +41,35 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
     return (
       <div className={cx("flex flex-col gap-1.5", wrapperClassName)}>
         <div className="flex items-start gap-2.5">
-          <span className="relative flex h-5 w-5 shrink-0 items-center justify-center">
-            <input
-              {...rest}
-              ref={ref}
-              id={id}
-              type="checkbox"
-              aria-describedby={describedBy}
-              aria-invalid={Boolean(error) || undefined}
-              className={cx("peer sr-only", className)}
-            />
-            <span
-              aria-hidden="true"
-              className={cx(
-                "flex h-5 w-5 items-center justify-center rounded-[0.3125rem] border",
-                motionBase,
-                error ? "border-danger" : "border-input",
-                "bg-card peer-checked:border-brand-strong peer-checked:bg-brand-strong",
-                "peer-disabled:opacity-50",
-                "peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background",
-                // La palomita se revela por COLOR, no por opacidad, y el color
-                // lo pone este contenedor —que sí es hermano del input— para
-                // que `peer-checked` alcance. `peer-*` genera un selector de
-                // hermano (`~`): sobre un nieto del hermano no engancha, y la
-                // palomita quedaría visible siempre.
-                "text-transparent peer-checked:text-primary-foreground",
-              )}
-            >
-              <Check className="h-3.5 w-3.5 text-current" />
-            </span>
-          </span>
           <label
             htmlFor={id}
-            className="type-small cursor-pointer text-foreground"
+            className="type-small flex cursor-pointer items-start gap-2.5 text-foreground"
           >
+            <span className="relative flex h-5 w-5 shrink-0 items-center justify-center">
+              <input
+                {...rest}
+                ref={ref}
+                id={id}
+                type="checkbox"
+                aria-describedby={describedBy}
+                aria-invalid={Boolean(error) || undefined}
+                className={cx("peer sr-only", className)}
+              />
+              <span
+                aria-hidden="true"
+                className={cx(
+                  "flex h-5 w-5 items-center justify-center rounded-[0.3125rem] border",
+                  motionBase,
+                  error ? "border-danger" : "border-input",
+                  "bg-card peer-checked:border-brand-strong peer-checked:bg-brand-strong",
+                  "peer-disabled:opacity-50",
+                  "peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background",
+                  "text-transparent peer-checked:text-primary-foreground",
+                )}
+              >
+                <Check className="h-3.5 w-3.5 text-current" />
+              </span>
+            </span>
             {label}
           </label>
         </div>
