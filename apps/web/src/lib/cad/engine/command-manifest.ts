@@ -1,8 +1,8 @@
 /**
- * METADATOS de los 300 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 306 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
- * 112 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
+ * 113 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
  * `npm run check:cad`— falla si lo committeado deja de coincidir con lo que los
  * descriptores dicen hoy. Regla 4 de la campaña de cimientos: ninguna cifra vive
  * en dos lugares, y un comando nuevo no puede entrar sin aparecer aquí.
@@ -333,6 +333,12 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "VPOINT", aliases: ["VP"], kind: "view", transparent: true, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/view-navigation-3d" },
   { name: "VSCURRENT", aliases: ["SHADEMODE", "VS"], kind: "view", transparent: true, selection: "none", repeatable: false, mutates: false, module: "commands/view-visual" },
   { name: "PERSPECTIVE", aliases: ["PERS"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-visual" },
+  { name: "VIEWBASE", aliases: ["VBASE", "VISTABASE"], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: true, spatial: true, cursor: "crosshair", module: "commands/viewbase-commands" },
+  { name: "VIEWPROJ", aliases: ["VPRJ", "VISTAPROY"], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: true, spatial: true, cursor: "crosshair", module: "commands/viewbase-commands" },
+  { name: "VIEWSECTION", aliases: ["VSECCION", "VISTACORTE"], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: true, spatial: true, cursor: "crosshair", module: "commands/viewbase-commands" },
+  { name: "VIEWDETAIL", aliases: ["VD", "VISTADETALLE"], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: true, spatial: true, cursor: "crosshair", module: "commands/viewbase-commands" },
+  { name: "VIEWEDIT", aliases: ["VE", "VISTAEDIT"], kind: "inquiry", transparent: false, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/viewbase-commands" },
+  { name: "VIEWUPDATE", aliases: ["VU", "VISTAATUALIZA"], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "none", module: "commands/viewbase-commands" },
   { name: "XREF", aliases: ["XR", "EXTERNALREFERENCES"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: true, cursor: "none", module: "commands/xrefs" },
   { name: "XATTACH", aliases: ["XA"], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/xrefs" },
   { name: "XBIND", aliases: ["XB"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: true, cursor: "none", module: "commands/xrefs" },

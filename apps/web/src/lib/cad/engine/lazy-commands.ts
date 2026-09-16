@@ -159,6 +159,7 @@ export const CAD_COMMAND_MODULE_LOADERS = {
   "commands/view-navigation-3d": () => import("./commands/view-navigation-3d"),
   "commands/view-visual": () => import("./commands/view-visual"),
   "commands/xrefs": () => import("./commands/xrefs"),
+  "commands/viewbase-commands": () => import("./commands/viewbase-commands"),
 } as const;
 
 export type CadCommandModuleId = keyof typeof CAD_COMMAND_MODULE_LOADERS;

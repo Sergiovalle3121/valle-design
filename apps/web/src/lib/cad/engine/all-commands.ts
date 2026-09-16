@@ -1,5 +1,5 @@
 /**
- * Los 112 módulos de comandos, con `import` ESTÁTICO. GENERADO — no se edita a mano.
+ * Los 113 módulos de comandos, con `import` ESTÁTICO. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` y `--check`
  * lo verifica, del mismo tirón que `command-manifest.ts`.
@@ -131,7 +131,8 @@ import * as m107 from "./commands/vectorize-raster";
 import * as m108 from "./commands/view-navigation";
 import * as m109 from "./commands/view-navigation-3d";
 import * as m110 from "./commands/view-visual";
-import * as m111 from "./commands/xrefs";
+import * as m111 from "./commands/viewbase-commands";
+import * as m112 from "./commands/xrefs";
 
 cadRegisterCommandModules([
   m000,
@@ -246,4 +247,5 @@ cadRegisterCommandModules([
   m109,
   m110,
   m111,
+  m112,
 ]);
