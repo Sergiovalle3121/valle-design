@@ -17,6 +17,8 @@
  * fuera del producto y un enlace relativo no lleva a ninguna parte.
  */
 
+import { PRODUCT_DISPLAY_NAME } from '../../common/brand/product-brand';
+
 export interface RenderedEmail {
   subject: string;
   html: string;
@@ -35,7 +37,7 @@ export class EmailTemplateError extends Error {
   }
 }
 
-const PRODUCT_NAME = 'Valle Design';
+const PRODUCT_NAME = PRODUCT_DISPLAY_NAME;
 
 export function renderEmailTemplate(
   template: string,

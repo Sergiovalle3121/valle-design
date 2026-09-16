@@ -22,6 +22,7 @@ import {
 } from './observability/error-reporter.port';
 import { educationModeStatus } from './modules/education/education-mode';
 import { NEST_APP_OPTIONS } from './nest-app-options';
+import { PRODUCT_DISPLAY_NAME } from './common/brand/product-brand';
 
 function parseAllowedOrigins(raw: string): string[] {
   const value = (raw || '').trim();
@@ -223,7 +224,7 @@ async function bootstrap() {
   applyServerTimeouts(server, timeouts);
 
   console.log(
-    `Valle Design API escuchando en :${port} (NODE_ENV=${env}) allowedOrigins=${originsToValidate.join(', ')}`,
+    `${PRODUCT_DISPLAY_NAME} API escuchando en :${port} (NODE_ENV=${env}) allowedOrigins=${originsToValidate.join(', ')}`,
   );
   console.log(
     `Timeouts: keepAlive=${timeouts.keepAliveTimeoutMs}ms headers=${timeouts.headersTimeoutMs}ms request=${timeouts.requestTimeoutMs}ms; apagado: drenaje=${timeouts.drainDelayMs}ms techo=${timeouts.shutdownGraceMs}ms`,
