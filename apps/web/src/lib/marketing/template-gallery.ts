@@ -134,4 +134,3 @@ export const FEATURED_TEMPLATE_IDS: readonly CadLayoutTemplateId[] = [
   "gimnasio",
   "taller-mecanico",
 ];
-
