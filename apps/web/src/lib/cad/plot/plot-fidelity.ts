@@ -46,6 +46,7 @@ import {
   cadPdfSegmentsOutsidePage,
   type CadPdfMeasurement,
 } from "./pdf-measure";
+import { DEFAULT_BRAND_MANIFEST } from "@valle-design/contracts";
 
 /** Recorte que `buildCadPublishPlan` aplica a la altura de todo rótulo, en mm. */
 export const CAD_TEXT_HEIGHT_CLAMP_MM = { min: 1.5, max: 12 } as const;
@@ -186,7 +187,7 @@ export function buildCadFidelityFixture(input: CadFidelityFixtureInput): CadDocu
       sheetNumber: "F-001",
       revision: "A",
       discipline: "Arquitectura",
-      preparedBy: "VALLECAD",
+      preparedBy: DEFAULT_BRAND_MANIFEST.productNames.design,
     },
     scale: input.scaleDenominator,
   });

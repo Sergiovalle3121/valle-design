@@ -42,6 +42,7 @@ import {
   type BrepBody,
 } from "./topology";
 import { v3Basis, v3Distance, v3Normalize, v3Sub, type Vec3 } from "./vec3";
+import { DEFAULT_BRAND_MANIFEST } from "@valle-design/contracts";
 
 export type StepSchema = "AP203" | "AP214";
 
@@ -208,8 +209,8 @@ export function exportStep(body: BrepBody, options: StepExportOptions = {}): str
   return [
     "ISO-10303-21;",
     "HEADER;",
-    `FILE_DESCRIPTION(('VALLECAD B-rep'),'2;1');`,
-    `FILE_NAME('${name}','${timestamp}',('${options.author ?? "VALLECAD"}'),('${options.organization ?? "VALLECAD"}'),'valle-design-brep','valle-design','');`,
+    `FILE_DESCRIPTION(('${DEFAULT_BRAND_MANIFEST.productNames.design.replace(/'/g, "''")} B-rep'),'2;1');`,
+    `FILE_NAME('${name}','${timestamp}',('${(options.author ?? DEFAULT_BRAND_MANIFEST.productNames.design).replace(/'/g, "''")}'),('${(options.organization ?? DEFAULT_BRAND_MANIFEST.productNames.design).replace(/'/g, "''")}'),'valle-design-brep','valle-design','');`,
     `FILE_SCHEMA(('${SCHEMA_NAMES[schema]}'));`,
     "ENDSEC;",
     "DATA;",
