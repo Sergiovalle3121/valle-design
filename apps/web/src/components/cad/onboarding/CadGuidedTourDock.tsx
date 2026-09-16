@@ -83,7 +83,7 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
    * en `localStorage` a propósito: es un gesto de «ahora estorba», no una
    * preferencia — la próxima vez que el recorrido se abra, se abre entero.
    */
-  const [minimized, setMinimized] = useState(false);
+  const [minimized, setMinimized] = useState(true);
 
   // El aviso de trazado se escucha SIEMPRE que el recorrido esté vivo, esté o no
   // desplegado: alguien puede plegar el panel, trazar y volver a abrirlo.

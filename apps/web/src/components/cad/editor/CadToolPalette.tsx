@@ -15,7 +15,10 @@ import {
   Type,
   Undo2,
   Waypoints,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import {
   CAD_TOOLBAR_ACTIONS,
   type CadToolbarAction,
@@ -72,6 +75,8 @@ const ICONS: Record<CadToolbarActionId, typeof Circle> = {
   redo: Redo2,
 };
 
+const STORAGE_KEY = "cad-tool-palette-open";
+
 export function CadToolPalette({
   activeTool,
   readOnly,
@@ -92,32 +97,55 @@ export function CadToolPalette({
   canRedo: boolean;
   onRun: (id: CadToolbarActionId) => void;
 }) {
+  // Arranca cerrado. La paleta repite comandos que ya están en la cinta y
+  // ocupaba espacio sobre el lienzo. Recuerda si el usuario la abre/cierra.
+  const [open, setOpen] = useState(() => {
+    try { return localStorage.getItem(STORAGE_KEY) === "true"; }
+    catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, String(open)); }
+    catch { /* storage no disponible */ }
+  }, [open]);
   const unavailable = (id: CadToolbarActionId): boolean =>
     (id === "undo" && !canUndo) || (id === "redo" && !canRedo);
   return (
     <div
       data-testid="cad-toolbar"
-      className="absolute top-3 left-3 z-20 rounded-card border border-border bg-surface/90 p-1.5 shadow-floating backdrop-blur"
+      className="absolute top-3 left-3 z-20 flex flex-col items-start gap-1"
     >
-      {/* `cad-tool-grid`: en una ventana baja (≤820 px) la columna de 16
-          botones no cabe en el lienzo y los últimos quedaban bajo la barra de
-          estado —el golden 67 los midió tapados a 720 px—; ahí la rejilla pasa
-          a dos columnas (`globals.css`). Todos los botones siguen a la vista. */}
-      <div className="cad-tool-grid grid grid-cols-1 gap-0.5">
-        {CAD_TOOLBAR_ACTIONS.map((action) => (
-          <ToolButton
-            key={action.id}
-            action={action}
-            active={activeTool === action.id}
-            disabled={
-              (readOnly && !isReadOnlyAllowed(action.id)) ||
-              unavailable(action.id)
-            }
-            readOnlyAllowed={isReadOnlyAllowed(action.id)}
-            onRun={onRun}
-          />
-        ))}
-      </div>
+      <button
+        type="button"
+        data-testid="cad-toolbar-toggle"
+        onClick={() => setOpen((v) => !v)}
+        title={open ? "Cerrar paleta de herramientas" : "Abrir paleta de herramientas"}
+        className="rounded-control border border-border bg-surface/90 p-1.5 text-muted-foreground shadow-floating backdrop-blur hover:text-foreground"
+      >
+        {open ? <PanelLeftClose aria-hidden="true" className="h-4 w-4" /> : <PanelLeftOpen aria-hidden="true" className="h-4 w-4" />}
+      </button>
+      {open && (
+        <div className="rounded-card border border-border bg-surface/90 p-1.5 shadow-floating backdrop-blur">
+          {/* `cad-tool-grid`: en una ventana baja (≤820 px) la columna de 16
+              botones no cabe en el lienzo y los últimos quedaban bajo la barra de
+              estado —el golden 67 los midió tapados a 720 px—; ahí la rejilla pasa
+              a dos columnas (`globals.css`). Todos los botones siguen a la vista. */}
+          <div className="cad-tool-grid grid grid-cols-1 gap-0.5">
+            {CAD_TOOLBAR_ACTIONS.map((action) => (
+              <ToolButton
+                key={action.id}
+                action={action}
+                active={activeTool === action.id}
+                disabled={
+                  (readOnly && !isReadOnlyAllowed(action.id)) ||
+                  unavailable(action.id)
+                }
+                readOnlyAllowed={isReadOnlyAllowed(action.id)}
+                onRun={onRun}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
