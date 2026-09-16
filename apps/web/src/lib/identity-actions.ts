@@ -4,6 +4,8 @@ export const IDENTITY_FIELD_LIMITS = {
   tokenMax: 256,
   passwordMin: 12,
   passwordMax: 128,
+  /** Techo del campo «Nombre» del alta (el API admite hasta 160). */
+  displayName: 120,
 } as const;
 
 export type IdentityAction = "verify" | "resend" | "forgot" | "reset";
@@ -37,7 +39,7 @@ function characterCount(value: string): number {
   return Array.from(value).length;
 }
 
-function validateEmail(rawEmail: string | undefined): FieldValidation {
+export function validateEmail(rawEmail: string | undefined): FieldValidation {
   const email = (rawEmail ?? "").trim().toLowerCase();
   if (
     !email ||
@@ -64,7 +66,7 @@ function validateToken(rawToken: string | undefined): FieldValidation {
   return { ok: true, value: token };
 }
 
-function validatePassword(password: string | undefined): FieldValidation {
+export function validatePassword(password: string | undefined): FieldValidation {
   const value = password ?? "";
   const length = characterCount(value);
   if (
@@ -77,6 +79,137 @@ function validatePassword(password: string | undefined): FieldValidation {
     };
   }
   return { ok: true, value };
+}
+
+export function validateDisplayName(
+  rawName: string | undefined,
+): FieldValidation {
+  const value = (rawName ?? "").trim();
+  if (!value) {
+    return { ok: false, message: "Escribe tu nombre." };
+  }
+  if (characterCount(value) > IDENTITY_FIELD_LIMITS.displayName) {
+    return {
+      ok: false,
+      message: `El nombre no puede superar ${IDENTITY_FIELD_LIMITS.displayName} caracteres.`,
+    };
+  }
+  return { ok: true, value };
+}
+
+export interface AuthFormValues {
+  displayName?: string;
+  email?: string;
+  password?: string;
+}
+
+/**
+ * Cuerpo del inicio de sesión, validado ANTES de salir del navegador.
+ *
+ * La validación nativa del formulario (`required`, `type=email`, `minLength`)
+ * habla en el idioma del navegador; lo que la pasa —un correo con espacios,
+ * una contraseña de 200 caracteres— revienta en el 400 del API, que viene en
+ * inglés. Aquí se corta antes y se explica en español.
+ */
+export function loginPayload(
+  values: AuthFormValues,
+):
+  | { ok: true; body: { email: string; password: string } }
+  | { ok: false; message: string } {
+  const email = validateEmail(values.email);
+  if (!email.ok) return { ok: false, message: email.message };
+  const password = validatePassword(values.password);
+  if (!password.ok) return { ok: false, message: password.message };
+  return { ok: true, body: { email: email.value, password: password.value } };
+}
+
+/** Cuerpo del alta: los tres campos del embudo, validados en español. */
+export function registerPayload(
+  values: AuthFormValues,
+):
+  | {
+      ok: true;
+      body: { email: string; password: string; displayName: string };
+    }
+  | { ok: false; message: string } {
+  const displayName = validateDisplayName(values.displayName);
+  if (!displayName.ok) return { ok: false, message: displayName.message };
+  const login = loginPayload(values);
+  if (!login.ok) return login;
+  return { ok: true, body: { ...login.body, displayName: displayName.value } };
+}
+
+/**
+ * Lo que se le dice a la persona cuando el alta o el inicio de sesión fallan.
+ *
+ * Nunca se reexpone `body.message` ni `Error.message`: el 400 del
+ * ValidationPipe llega en inglés («password must be longer than or equal to
+ * 12 characters»), un 500 llega como «Internal server error» y un fallo de
+ * red es «Failed to fetch» del navegador. Ninguno de los tres le sirve a un
+ * ingeniero que sólo quiere saber qué hacer ahora. El cuerpo del error se
+ * mira sólo para CLASIFICAR (qué campo rechazó el API, cuántos segundos pide
+ * el 429); el texto que se enseña es siempre nuestro.
+ */
+export function authFailureMessage(
+  cause: unknown,
+  mode: "login" | "register",
+): string {
+  if (cause instanceof TypeError) {
+    return "No se pudo conectar con el servicio de identidad. Revisa tu conexión e intenta de nuevo.";
+  }
+  const status = httpStatusOf(cause);
+  const body = httpBodyOf(cause);
+  if (status === 429) {
+    const retryAfter = body?.retryAfterSeconds;
+    return typeof retryAfter === "number" && Number.isFinite(retryAfter)
+      ? `Demasiados intentos. Espera ${Math.max(1, Math.ceil(retryAfter))} segundos e inténtalo de nuevo.`
+      : "Demasiados intentos. Espera un momento antes de intentarlo de nuevo.";
+  }
+  if (status === 400) {
+    const detail = validationDetail(body?.message);
+    if (/displayName/u.test(detail)) {
+      return `Revisa el nombre: no puede estar vacío ni superar ${IDENTITY_FIELD_LIMITS.displayName} caracteres.`;
+    }
+    if (/email/u.test(detail)) {
+      return "Escribe un correo electrónico válido.";
+    }
+    if (/password/u.test(detail)) {
+      return `La contraseña debe tener entre ${IDENTITY_FIELD_LIMITS.passwordMin} y ${IDENTITY_FIELD_LIMITS.passwordMax} caracteres.`;
+    }
+    return "Revisa los datos del formulario e inténtalo de nuevo.";
+  }
+  if (status === 401 && mode === "login") {
+    return "Correo o contraseña incorrectos, o la cuenta aún no está verificada.";
+  }
+  return "El servicio de identidad no respondió. Intenta de nuevo en unos minutos.";
+}
+
+function httpStatusOf(cause: unknown): number | null {
+  return cause &&
+    typeof cause === "object" &&
+    "status" in cause &&
+    typeof cause.status === "number"
+    ? cause.status
+    : null;
+}
+
+function httpBodyOf(
+  cause: unknown,
+): { message?: unknown; retryAfterSeconds?: unknown } | null {
+  if (!cause || typeof cause !== "object" || !("body" in cause)) return null;
+  const body = cause.body;
+  return body && typeof body === "object"
+    ? (body as { message?: unknown; retryAfterSeconds?: unknown })
+    : null;
+}
+
+/** El `message` de class-validator es una lista de frases; se une para buscar el campo. */
+function validationDetail(message: unknown): string {
+  return Array.isArray(message)
+    ? message.filter((item) => typeof item === "string").join(" ")
+    : typeof message === "string"
+      ? message
+      : "";
 }
 
 export function identityActionPayload(

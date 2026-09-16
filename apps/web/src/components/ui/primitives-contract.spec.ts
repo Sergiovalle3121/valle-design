@@ -148,6 +148,12 @@ import { Checkbox, Switch } from "./Toggle";
   assert.match(html, /type="checkbox"/);
   assert.match(html, /Adjuntar contexto/);
   assert.match(html, /<label/, "la casilla se activa pulsando su texto");
+  // El input real ES la caja. Con `sr-only` medía 1×1 px y el cuadro pintado
+  // —un span decorativo— no era pulsable: sólo marcaba el texto de la etiqueta.
+  const input = html.match(/<input[^>]*type="checkbox"[^>]*>/u)?.[0] ?? "";
+  assert.doesNotMatch(input, /\bsr-only\b/u, "el input no se recorta a 1×1 px");
+  assert.match(input, /\bopacity-0\b/u, "el input es transparente sobre la caja dibujada");
+  assert.match(input, /\bh-5 w-5\b/u, "y mide exactamente lo que se dibuja");
 }
 {
   const html = render(
