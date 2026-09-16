@@ -233,20 +233,10 @@ export function CadCommandLine({
           onRepeat();
           return;
         }
-        // El desplegable solo se queda el Enter si el usuario movió la
-        // selección con las flechas. Sin navegación, Enter ejecuta SIEMPRE
-        // lo tecleado, resuelto por la tabla de alias en el motor.
-        if (navigated && suggestions.length > 0) {
-          const elegida = suggestions[activeSuggestionIndex].nombre;
-          setValue("");
-          setNavigated(false);
-          onSubmit(elegida);
-        } else {
-          const submitted = value;
-          setValue("");
-          setNavigated(false);
-          onSubmit(submitted);
-        }
+        const submitted = value;
+        setValue("");
+        setNavigated(false);
+        onSubmit(submitted);
       }
     },
     [activeSuggestionIndex, inputRef, navigated, onCancel, onRepeat, onSubmit, recallIndex, suggestions, typed, value],
@@ -396,7 +386,7 @@ export function CadCommandLine({
           aria-haspopup="listbox"
           aria-expanded={suggestions.length > 0}
           aria-controls={suggestions.length > 0 ? suggestionListId : undefined}
-          aria-activedescendant={navigated && suggestions.length > 0 ? `${suggestionListId}-${activeSuggestionIndex}` : undefined}
+          aria-activedescendant={suggestions.length > 0 ? `${suggestionListId}-${activeSuggestionIndex}` : undefined}
           placeholder={
             prompt
               ? "coordenada, distancia u opción"

@@ -106,8 +106,8 @@ const ok = (condition: boolean, message: string) => {
   ok(
     fuente.includes("role=\"combobox\"") &&
       fuente.includes("aria-controls={suggestions.length > 0 ? suggestionListId : undefined}") &&
-      fuente.includes("aria-activedescendant={navigatedRef.current && suggestions.length > 0 ?"),
-    "el combobox enlaza con la lista y con la opción resaltada sólo cuando el usuario navegó con flechas",
+      fuente.includes("aria-activedescendant={suggestions.length > 0 ?"),
+    "el combobox enlaza con la lista y con la opción resaltada cuando hay sugerencias",
   );
   ok(
     !/useEffect\(\(\) => \{\s*setSuggestionIndex/.test(fuente),
