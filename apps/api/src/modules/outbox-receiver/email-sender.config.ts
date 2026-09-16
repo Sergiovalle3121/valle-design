@@ -110,7 +110,9 @@ function secureLinkBaseUrl(raw: string, nodeEnv: string | undefined): string {
   return url.origin + url.pathname.replace(/\/+$/, '');
 }
 
-export function assertEmailSenderConfigured(environment: NodeJS.ProcessEnv): void {
+export function assertEmailSenderConfigured(
+  environment: NodeJS.ProcessEnv,
+): void {
   if (environment.NODE_ENV !== 'production') return;
   if (resolveEmailSenderConfiguration(environment) !== null) return;
   throw new EmailSenderConfigurationError(

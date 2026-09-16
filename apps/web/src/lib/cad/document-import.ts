@@ -246,11 +246,20 @@ function importDxfDocument(content: string): DocumentImportReport {
     idPrefix: "dxf-paper",
     provider: "native-dxf",
   });
+  // Los bloques de un DXF son UN catálogo del documento, no uno por espacio:
+  // reusar blockParts.blocks y resolver los inserts de papel contra ese catálogo.
   const paperBlockParts = cadDxfBlocksToCadDocumentParts(
     imported.blocks,
     split.paper.inserts,
     { idPrefix: "dxf-paper", provider: "native-dxf" },
   );
+  const paperToModelBlockId = new Map(
+    paperBlockParts.blocks.map((pb, i) => [pb.id, blockParts.blocks[i].id]),
+  );
+  const paperInsertsResolved = paperBlockParts.inserts.map((insert) => ({
+    ...insert,
+    block: paperToModelBlockId.get(insert.block) ?? insert.block,
+  }));
   const paperEntities = [
     ...paperPrimitiveEntities,
     ...cadDxfHatchesToNativeEntities(split.paper.hatches, {
@@ -269,7 +278,7 @@ function importDxfDocument(content: string): DocumentImportReport {
       idPrefix: "dxf-paper",
       provider: "native-dxf",
     }),
-    ...paperBlockParts.inserts,
+    ...paperInsertsResolved,
   ];
   const paperSpaces = paperEntities.length > 0
     ? [{ ...createCadPaperSpace({
@@ -377,7 +386,7 @@ function importDxfDocument(content: string): DocumentImportReport {
     // dibujo del fichero de origen. Ordenarlo por id descartaba esa fidelidad.
     modelSpace: { entityIds: entities.map((entity) => entity.id) },
     paperSpaces,
-    blocks: [...blockParts.blocks, ...paperBlockParts.blocks],
+    blocks: blockParts.blocks,
     // Catálogo de imágenes: sin él, las entidades IMAGE importadas apuntarían
     // a una definición que no existe y el documento quedaría roto en el mismo
     // acto de importarlo. Sección OPCIONAL: sólo se escribe si hay imágenes.

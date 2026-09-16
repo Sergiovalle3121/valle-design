@@ -307,7 +307,9 @@ describe('CSRF cookie domain', () => {
   });
 
   it('rejects a domain without a leading dot', () => {
-    expect(() => csrfCookieDomain('ejemplo.com')).toThrow(/must start with a dot/u);
+    expect(() => csrfCookieDomain('ejemplo.com')).toThrow(
+      /must start with a dot/u,
+    );
   });
 
   it('rejects a public suffix like .com', () => {
@@ -315,8 +317,12 @@ describe('CSRF cookie domain', () => {
   });
 
   it('rejects a domain with invalid characters or scheme', () => {
-    expect(() => csrfCookieDomain('.ejemplo.com:3000')).toThrow(/invalid characters/u);
-    expect(() => csrfCookieDomain('https://.ejemplo.com')).toThrow(/must start with a dot/u);
+    expect(() => csrfCookieDomain('.ejemplo.com:3000')).toThrow(
+      /invalid characters/u,
+    );
+    expect(() => csrfCookieDomain('https://.ejemplo.com')).toThrow(
+      /must start with a dot/u,
+    );
   });
 
   it('validates against ALLOWED_ORIGIN at startup', () => {

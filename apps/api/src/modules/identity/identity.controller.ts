@@ -45,7 +45,12 @@ import {
   SESSION_COOKIE,
 } from './identity-security';
 
-export { cookie, parseCookieHeader, sessionCookiePolicy, type SessionCookiePolicy };
+export {
+  cookie,
+  parseCookieHeader,
+  sessionCookiePolicy,
+  type SessionCookiePolicy,
+};
 import { totpUri } from './identity-mfa';
 import { IdentityMfaService } from './identity-mfa.service';
 import { IdentityService } from './identity.service';

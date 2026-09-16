@@ -398,7 +398,8 @@ describe('CSRF cookie domain integration', () => {
     process.env.CSRF_COOKIE_DOMAIN = '.ejemplo.test';
     process.env.ALLOWED_ORIGIN = 'https://app.ejemplo.test';
     process.env.IDENTITY_TEST_HARNESS = 'true';
-    process.env.IDENTITY_TEST_HARNESS_KEY = 'csrf-domain-harness-key-at-least-32';
+    process.env.IDENTITY_TEST_HARNESS_KEY =
+      'csrf-domain-harness-key-at-least-32';
 
     const moduleRef = await Test.createTestingModule({
       imports: [
@@ -443,10 +444,7 @@ describe('CSRF cookie domain integration', () => {
 
   afterAll(async () => {
     if (app) await app.close();
-    const restore = (
-      key: string,
-      original: string | undefined,
-    ) => {
+    const restore = (key: string, original: string | undefined) => {
       if (original === undefined) delete process.env[key];
       else process.env[key] = original;
     };
@@ -483,9 +481,7 @@ describe('CSRF cookie domain integration', () => {
       .expect(200);
 
     const headers = setCookieHeaders(login);
-    const csrfHeaders = headers.filter((h) =>
-      h.startsWith(`${CSRF_COOKIE}=`),
-    );
+    const csrfHeaders = headers.filter((h) => h.startsWith(`${CSRF_COOKIE}=`));
     expect(csrfHeaders.length).toBeGreaterThanOrEqual(1);
 
     const withDomain = csrfHeaders.find((h) =>
@@ -494,8 +490,7 @@ describe('CSRF cookie domain integration', () => {
     expect(withDomain).toBeDefined();
 
     const clearing = csrfHeaders.find(
-      (h) =>
-        h.includes('Expires=') && !h.includes('Domain='),
+      (h) => h.includes('Expires=') && !h.includes('Domain='),
     );
     expect(clearing).toBeDefined();
 
@@ -512,7 +507,10 @@ describe('CSRF cookie domain integration', () => {
     expect(sessionCookie).toBeTruthy();
     const logout = await request(server)
       .post('/v1/auth/logout')
-      .set('Cookie', `${CSRF_COOKIE}=${csrf}; ${DEVELOPMENT_SESSION_COOKIE}=${sessionCookie}`)
+      .set(
+        'Cookie',
+        `${CSRF_COOKIE}=${csrf}; ${DEVELOPMENT_SESSION_COOKIE}=${sessionCookie}`,
+      )
       .set('x-csrf-token', csrf)
       .expect(204);
 
@@ -523,9 +521,7 @@ describe('CSRF cookie domain integration', () => {
     const logoutWithDomain = logoutCsrf.find((h) =>
       h.includes('Domain=.ejemplo.test'),
     );
-    const logoutWithoutDomain = logoutCsrf.find(
-      (h) => !h.includes('Domain='),
-    );
+    const logoutWithoutDomain = logoutCsrf.find((h) => !h.includes('Domain='));
     expect(logoutWithDomain).toBeDefined();
     expect(logoutWithoutDomain).toBeDefined();
   });

@@ -141,9 +141,7 @@ export const DUMMY_PASSWORD_HASH =
 const PHC_PATTERN =
   /^\$argon2id\$v=(\d+)\$m=(\d+),t=(\d+),p=(\d+)\$([A-Za-z0-9+/]+)\$([A-Za-z0-9+/]+)$/u;
 
-export function csrfCookieDomain(
-  raw: string | undefined,
-): string | undefined {
+export function csrfCookieDomain(raw: string | undefined): string | undefined {
   if (!raw) return undefined;
   const domain = raw.trim().toLowerCase();
   if (!domain) return undefined;
@@ -204,7 +202,12 @@ export function assertIdentitySecurityConfiguration(
     const raw = environment.ALLOWED_ORIGIN?.trim() ?? '';
     const origins = raw
       .split(/[,\n;]+/)
-      .map((e) => e.trim().replace(/^['"]|['"]$/g, '').replace(/\/+$/, ''))
+      .map((e) =>
+        e
+          .trim()
+          .replace(/^['"]|['"]$/g, '')
+          .replace(/\/+$/, ''),
+      )
       .filter(Boolean);
     assertCsrfCookieDomainAgainstOrigins(domain, origins);
   }
