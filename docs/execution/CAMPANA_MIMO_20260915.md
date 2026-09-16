@@ -55,3 +55,6 @@ Todas hechas antes de esta sesión (commits `4359ef50`–`bd86c7e5`).
 | D44 | hecha | `7ad40d96` |
 | D45 | hecha | `bee33c42` |
 | D46 | hecha | `b7106dd2` |
+| T11 | hecha — presupuesto de monolito dxf-import.ts (1070→959) | `1cbb28c9`, `b2295ea5` |
+| T11b | hecha — regenerar matriz de rúbrica | `51a2b024` |
+| check:dwg-evidence | bloqueada por entorno (sin VALLE_DWG_CORPUS_MIRROR) | — |
