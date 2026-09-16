@@ -7,6 +7,7 @@ import {
   type CfdiProvider,
   type CfdiReceiver,
 } from './ports/cfdi-provider.port';
+import { PRODUCT_DISPLAY_NAME } from '../../common/brand/brand';
 
 /**
  * Emisión de CFDI a partir de los cobros confirmados — el ciclo completo:
@@ -170,8 +171,8 @@ export class CfdiIssuanceService {
         currency: receipt.currency,
         issuedAt: invoice?.issuedAt ?? now,
         concept: invoice?.number
-          ? `Suscripción Valle Design (${invoice.number})`
-          : 'Suscripción Valle Design',
+          ? `Suscripción ${PRODUCT_DISPLAY_NAME} (${invoice.number})`
+          : `Suscripción ${PRODUCT_DISPLAY_NAME}`,
         receiver,
       });
     }

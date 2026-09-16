@@ -46,6 +46,7 @@ import CollabThreadPanel from "./CollabThreadPanel";
 import ReviewPlanView from "./ReviewPlanView";
 import { useCadComments, type CadCommentSource } from "./use-cad-comments";
 import { useCadPresence } from "./use-cad-presence";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 interface RedeemedReview {
   token: string;
@@ -271,7 +272,7 @@ export default function ReviewLinkClient() {
           presenceConnected={presence.connected}
         />
         <p className="mt-2 shrink-0 type-micro text-muted-foreground">
-          Valle Design · Este enlace da acceso únicamente a este plano.
+          {PRODUCT_LABEL.design} · Este enlace da acceso únicamente a este plano.
         </p>
       </aside>
     </main>

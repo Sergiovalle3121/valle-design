@@ -1,3 +1,4 @@
+import { PRODUCT_DISPLAY_NAME } from '../../common/brand/brand';
 import { EmailTemplateError, renderEmailTemplate } from './email-templates';
 
 describe('renderEmailTemplate', () => {
@@ -18,7 +19,9 @@ describe('renderEmailTemplate', () => {
       identityPayload,
       base,
     );
-    expect(rendered.subject).toBe('Confirma tu correo — Valle Design');
+    expect(rendered.subject).toBe(
+      `Confirma tu correo — ${PRODUCT_DISPLAY_NAME}`,
+    );
     const expectedLink = `${base}${identityPayload.path}`;
     expect(rendered.text).toContain(expectedLink);
     // En HTML el enlace vive escapado como atributo (& → &amp;).
@@ -40,7 +43,9 @@ describe('renderEmailTemplate', () => {
       payload,
       base,
     );
-    expect(rendered.subject).toBe('Restablece tu contraseña — Valle Design');
+    expect(rendered.subject).toBe(
+      `Restablece tu contraseña — ${PRODUCT_DISPLAY_NAME}`,
+    );
     expect(rendered.text).toContain(`${base}/reset-password?token=abc`);
     expect(rendered.text).toContain('tu contraseña actual sigue siendo válida');
   });
@@ -78,7 +83,9 @@ describe('renderEmailTemplate', () => {
       },
       base,
     );
-    expect(rendered.subject).toBe('Tu suscripción vence pronto — Valle Design');
+    expect(rendered.subject).toBe(
+      `Tu suscripción vence pronto — ${PRODUCT_DISPLAY_NAME}`,
+    );
     // OXXO/SPEI: el correo dice POR QUÉ no se renueva sola.
     expect(rendered.text).toContain('no se renueva');
     expect(rendered.text).toContain('OXXO');
