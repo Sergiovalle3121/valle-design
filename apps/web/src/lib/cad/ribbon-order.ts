@@ -24,12 +24,13 @@ export const CAD_RIBBON_PANEL_ORDER: Readonly<Record<CadRibbonTabId, readonly st
   // final—.
   inicio: [
     "Dibujo", "Modificar", "Anotación", "Capas", "Bloque", "Propiedades",
-    "Grupos", "Utilidades", "Portapapeles", "Sombreado", "Arquitectura", "Instalaciones", "Sólidos",
+    "Grupos", "Utilidades", "Portapapeles", "Arquitectura", "Instalaciones",
   ],
   insertar: ["Referencias", "Importar y extraer", "Ubicación", "Normalizados", "Paletas"],
   anotar: ["Texto y tablas", "Cotas", "Directrices", "Tolerancias", "Mecánica", "Estilos"],
   parametrico: ["Geométricas", "Dimensionales", "Gestionar"],
   vista: ["Encuadre y zoom", "Vistas 3D", "Estilos visuales", "SCU", "Ventanas", "Paletas", "Vistas"],
+  solidos3d: ["Primitivas", "Sólido", "Booleanas", "Edición de sólidos", "Consulta 3D"],
   salida: ["Trazar y publicar", "Exportar", "Ventanas"],
   administrar: ["Normas y reparación", "Variables", "AutoLISP y scripts"],
 };
@@ -43,7 +44,8 @@ export const CAD_RIBBON_PANEL_ORDER: Readonly<Record<CadRibbonTabId, readonly st
 export const CAD_RIBBON_COMMAND_ORDER: Readonly<Record<string, readonly string[]>> = {
   Dibujo: [
     "LINE", "PLINE", "CIRCLE", "ARC", "RECTANG", "POLYGON", "ELLIPSE", "SPLINE",
-    "XLINE", "RAY", "POINT", "DIVIDE", "MEASURE", "DONUT", "REGION", "SOLID",
+    "HATCH", "XLINE", "RAY", "POINT", "DIVIDE", "MEASURE", "DONUT", "REGION", "SOLID",
+    "GRADIENT", "BOUNDARY",
   ],
   Modificar: [
     "MOVE", "COPY", "ROTATE", "SCALE", "MIRROR", "OFFSET", "TRIM", "EXTEND",
@@ -72,6 +74,11 @@ export const CAD_RIBBON_COMMAND_ORDER: Readonly<Record<string, readonly string[]
     "GCEQUAL", "GEOMCONSTRAINT",
   ],
   Dimensionales: ["DCLINEAR", "DCANGULAR", "DCRADIUS", "DCDIAMETER", "DIMCONSTRAINT"],
+  // Sólidos 3D, en el orden de la pestaña Solid de AutoCAD.
+  Primitivas: ["BOX", "CYLINDER", "SPHERE", "CONE", "WEDGE", "TORUS", "PYRAMID", "POLYSOLID"],
+  Sólido: ["EXTRUDE", "PRESSPULL", "REVOLVE", "SWEEP", "LOFT"],
+  Booleanas: ["UNION", "SUBTRACT", "INTERSECT", "INTERFERE"],
+  "Edición de sólidos": ["SLICE", "FILLETEDGE", "CHAMFEREDGE", "SOLIDEDIT", "SECTION"],
 };
 
 /**
