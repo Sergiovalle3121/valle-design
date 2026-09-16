@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { PRODUCT_DISPLAY_NAME } from '../../common/brand/brand';
 import {
   createPostgresHarness,
   describePostgres,
@@ -201,7 +202,9 @@ describePostgres('Receptor de outbox: circuito completo', () => {
     expect(sends[0].idempotencyKey).toBe(
       'identity.verify-email:token-circuito',
     );
-    expect(sends[0].subject).toBe('Confirma tu correo — Valle Design');
+    expect(sends[0].subject).toBe(
+      `Confirma tu correo — ${PRODUCT_DISPLAY_NAME}`,
+    );
     expect(sends[0].html).toContain(
       'https://design.example.test/verify-email?token=tok_circuito',
     );
