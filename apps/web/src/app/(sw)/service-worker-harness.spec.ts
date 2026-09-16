@@ -742,7 +742,7 @@ async function principal(): Promise<void> {
   {
     const raizApp = path.resolve("src/app");
     const paginas = readdirSync(raizApp, { recursive: true, encoding: "utf8" }).filter(
-      (relativa) => /(?:^|\/)(?:page|layout)\.tsx$/.test(relativa),
+      (relativa) => /(?:^|[\\/])(?:page|layout)\.tsx$/.test(relativa),
     );
     assert.ok(paginas.length > 20, `sólo se encontraron ${paginas.length} páginas: el barrido falló`);
 
