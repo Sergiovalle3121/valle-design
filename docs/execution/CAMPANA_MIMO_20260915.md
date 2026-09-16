@@ -142,3 +142,84 @@ Variables e imports sin usar (16 `@typescript-eslint/no-unused-vars`) y un ref l
 **Arreglo:** Web-side only (API stays 401 to avoid enumeration). Added `hint?: ReactNode` prop to `AuthShell.tsx`. In `AuthPage.tsx`, when `!register && error`, shows: «¿Acabas de crear la cuenta y no has confirmado tu correo? Reenvía el enlace.» with Link to `/resend-verification`. Hint only appears on login errors, not register mode, not before submission.
 
 **Verificación:** typecheck passes, no API changes, existing integration spec untouched.
+
+## T0 · CI rojo — resuelto (2026-09-16)
+
+**Fallo:** PR #209, corrida 35061036006. Paso «CAD contract and legacy-route gates» con `deepStrictEqual` en comparación de evidencia DWG stale + E2E Playwright cascading `skipped`.
+
+**Causa raíz:** Artefactos de evidencia (`independencia-por-fila.json`, `steputils-0.1.json`) desalineados con el árbol tras renombrado de marca T7, más pérdida manifest que clasificaba metadata como `data` en vez de `info`.
+
+**Arreglo:** Commit `ef069027` (ya existente en la rama, creado por sesión anterior):
+- Normaliza separadores de ruta en `dwg-surface-honesty.spec.ts`
+- Alinea nombre de marca en `oraculos-externos-registro.ts`
+- Regenera `independencia-por-fila.json` y `steputils-0.1.json`
+- Demueve pérdida de metadata a severidad `info` en `dxf-export-loss-manifest.ts`
+- Filtra entradas `info` del array `losses` en `dxf-document-export.ts`
+
+**Verificación local:** `check:cad-math`, `check:dwg-evidence`, `check:monolith-budget`, `check:command-integrity`, `check:design-contract` — todos verdes. Layout3DEditor.tsx = 16887 líneas (bajo 16896). Push bloqueado por URL de seguridad; la rama remota está en `d6f9bcf6`, un commit detrás.
+
+## D04 — CSRF cookie cross-domain (2026-09-16)
+
+**Problema:** La cookie `valle_csrf` se escribía sin `Domain`, quedando como host-only de `api.vallecad.com`. El JavaScript de `vallecad.com` no podía leerla, causando `csrf_invalid` (403) en todo método no seguro tras login.
+
+**Arreglo:** Nuevo `CSRF_COOKIE_DOMAIN` env var (ej. `.vallecad.com`). Función pura `csrfCookieDomain()` en `identity-security.ts` con validación de formato y contra `ALLOWED_ORIGIN`. En `setCookies`, limpia la cookie host-only antes de establecer la nueva con `Domain`. En `clearCookies`, borra en ambos ámbitos. Cookie de sesión (`__Host-`) sin cambios.
+
+**Verificación:** 8 unit tests + 1 integration test verdes. Typecheck OK.
+
+## D05 — CTA de registro de /demo detrás del editor (2026-09-16)
+
+**Problema:** Banner de demo con `z-40/bottom-3` quedaba debajo del editor (`z-70` con fondo opaco). CTA de conversión invisible.
+
+**Arreglo:** `z-40` → `z-[75]`, `bottom-3` → `bottom-24`. E2e actualizado con `elementFromPoint` para verificar oclusión real.
+
+**Verificación:** Typecheck OK. E2e requiere Playwright en vivo (no ejecutable en headless local sin servidor).
+
+## D06 — Legales: marca a VALLECAD con versión nueva (2026-09-16)
+
+**Problema:** Metadata de terms/privacy decía "Valle Design"; cambiarla sin publicar versión nueva violaba el candado legal.
+
+**Arreglo:** "Valle Design" → "VALLECAD" en metadata de ambas páginas. Nuevas versiones 2026-09-16 con hashes actualizados. Comentario obsoleto en legal-documents.ts corregido (el hook del web ya existe).
+
+**Verificación:** `check:legal` Candado OK. `legal-documents.spec.ts` 7/7 verdes.
+
+## D07 — DXF import ignores $INSUNITS (2026-09-16)
+
+**Problema:** `document-import.ts` hardcodaba `unit: "mm"`. DXF en metros (común en México) entraba como mm, escalas anotativas 1000x erradas.
+
+**Arreglo:** Leer `$INSUNITS` (group code 70) del HEADER. Propagar a `CadDxfImportResult`. Resolver con `cadDrawingUnitFromInsunits()` de `units-imperial.ts`. Aviso `dxf_unit_assumed` para tres casos (ausente, sin unidad, no representable).
+
+**Verificación:** Typecheck OK. `check:dxf-props` OK. 4 aserciones nuevas en `document-import.spec.ts`.
+
+## D08 — Reenviar correo traga errores (2026-09-16)
+
+**Problema:** `.catch(() => {})` descartaba 429, fallos de red y todo. El usuario veía confirmación aunque nada se enviara.
+
+**Arreglo:** `ResendTimerButton.onResend` ahora devuelve `boolean`. Timer sólo arranca si `true`. Clasificación de errores: 429 → mensaje de espera, TypeError → mensaje de red, otros → silenciados (no filtrar si la cuenta existe). Error con `role="alert"`.
+
+**Verificación:** Typecheck OK.
+
+## D09 — Paleta parte palabras (2026-09-16)
+
+**Problema:** Botones `w-16` (56 px útiles) partían palabras como «Seleccionar», «Ajustar todo».
+
+**Arreglo:** `w-16` → `w-20` (80 px, 72 px útiles). `break-words` → `truncate` (elipsis en vez de corte).
+
+**Verificación:** Typecheck OK.
+
+## D10 — «Algo salió mal» sobre panel Biblioteca (2026-09-16)
+
+**Problema:** Botones con `fixed left-3 top-[11.5rem]` caían dentro del muelle izquierdo (240 px).
+
+**Arreglo:** Migrados a `useStudioTraySlot` + `createPortal` (patrón CallBar). Fallback `fixed` para antes de que monte la barra de estado.
+
+**Verificación:** Typecheck OK.
+
+## T0 · CI rojo — check:authz path relativo vs apiRoot (2026-09-16)
+
+**Fallo:** `npm run check:authz` fallaba con 52 fallos (handlers no encontrados + exenciones huérfanas). La spec usaba fixtures en directorio temporal pero `auditHandlerAuthorization` calculaba `path.relative(REPO_ROOT, file)` en vez de `path.relative(apiRoot, file)`. En Windows esto producía paths absolutos `C:/...` que no coincidían con las claves de exención.
+
+**Arreglo:**
+- `check-handler-authorization.mjs:130`: `REPO_ROOT` → `apiRoot` en el cálculo de ruta relativa.
+- `handler-authorization-exemptions.json`: todas las claves renombradas quitando prefijo `apps/api/src/` (26 claves).
+
+**Verificación:** `check:authz` OK (13 comprobaciones spec + 119 handlers auditados, 26 exenciones verificadas).
