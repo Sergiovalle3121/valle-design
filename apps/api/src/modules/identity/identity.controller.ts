@@ -30,18 +30,22 @@ import { Public } from '../auth/decorators/public.decorator';
 import { IDENTITY_RATE_LIMIT_STORE } from './identity-rate-limit.store';
 import type { IdentityRateLimitStore } from './identity-rate-limit.store';
 import {
+  cookie,
   createOpaqueRateLimitKey,
   csrfCookieDomain,
   CSRF_COOKIE,
-  DEVELOPMENT_SESSION_COOKIE,
   MAX_DISPLAY_NAME_LENGTH,
   MAX_EMAIL_LENGTH,
   MAX_PASSWORD_LENGTH,
   MAX_TOKEN_LENGTH,
   MIN_PASSWORD_LENGTH,
-  SECURE_SESSION_COOKIE,
+  parseCookieHeader,
+  sessionCookiePolicy,
+  type SessionCookiePolicy,
   SESSION_COOKIE,
 } from './identity-security';
+
+export { cookie, parseCookieHeader, sessionCookiePolicy, type SessionCookiePolicy };
 import { totpUri } from './identity-mfa';
 import { IdentityMfaService } from './identity-mfa.service';
 import { IdentityService } from './identity.service';
@@ -58,9 +62,6 @@ const MFA_ISSUER = (
   process.env.IDENTITY_MFA_ISSUER?.trim() || 'Valle Design'
 ).slice(0, 48);
 
-const MAX_COOKIE_HEADER_LENGTH = 8_192;
-const MAX_COOKIE_VALUE_LENGTH = 1_024;
-const MAX_COOKIE_PAIRS = 64;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 
 export class LoginDto {
@@ -174,106 +175,6 @@ export class UpdateProfileDto {
   @MinLength(MIN_PASSWORD_LENGTH)
   @MaxLength(MAX_PASSWORD_LENGTH)
   currentPassword?: string;
-}
-
-export interface SessionCookiePolicy {
-  name: string;
-  secure: boolean;
-  transportAllowed: boolean;
-}
-
-export function sessionCookiePolicy(
-  environment: string | undefined,
-  requestIsSecure: boolean,
-): SessionCookiePolicy {
-  if (environment === 'production') {
-    return {
-      name: SECURE_SESSION_COOKIE,
-      secure: true,
-      transportAllowed: requestIsSecure,
-    };
-  }
-
-  return {
-    name: DEVELOPMENT_SESSION_COOKIE,
-    secure: false,
-    transportAllowed: true,
-  };
-}
-
-function containsControlCharacter(value: string): boolean {
-  for (let index = 0; index < value.length; index += 1) {
-    const code = value.charCodeAt(index);
-    if (code <= 31 || code === 127) {
-      return true;
-    }
-  }
-  return false;
-}
-
-export function parseCookieHeader(
-  header: string | undefined,
-  name: string,
-): string | undefined {
-  if (
-    !header ||
-    header.length > MAX_COOKIE_HEADER_LENGTH ||
-    !/^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/u.test(name)
-  ) {
-    return undefined;
-  }
-
-  const pairs = header.split(';');
-  if (pairs.length > MAX_COOKIE_PAIRS) {
-    return undefined;
-  }
-
-  let found: string | undefined;
-  for (const pair of pairs) {
-    const separator = pair.indexOf('=');
-    if (separator < 1 || pair.slice(0, separator).trim() !== name) {
-      continue;
-    }
-
-    // Duplicate cookie names are ambiguous and can indicate cookie tossing.
-    if (found !== undefined) {
-      return undefined;
-    }
-
-    let encodedValue = pair.slice(separator + 1).trim();
-    if (encodedValue.startsWith('"') || encodedValue.endsWith('"')) {
-      if (
-        encodedValue.length < 2 ||
-        !encodedValue.startsWith('"') ||
-        !encodedValue.endsWith('"')
-      ) {
-        return undefined;
-      }
-      encodedValue = encodedValue.slice(1, -1);
-    }
-    if (encodedValue.length > MAX_COOKIE_VALUE_LENGTH) {
-      return undefined;
-    }
-
-    try {
-      const decoded = decodeURIComponent(encodedValue);
-      if (
-        decoded.length > MAX_COOKIE_VALUE_LENGTH ||
-        containsControlCharacter(decoded)
-      ) {
-        return undefined;
-      }
-      found = decoded;
-    } catch {
-      return undefined;
-    }
-  }
-
-  return found;
-}
-
-export function cookie(req: Request, name: string): string | undefined {
-  return parseCookieHeader(req.headers.cookie, name);
 }
 
 @Controller('v1/auth')

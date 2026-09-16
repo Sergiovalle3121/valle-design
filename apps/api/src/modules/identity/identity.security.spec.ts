@@ -9,10 +9,8 @@ import {
 } from './entities/identity.entity';
 import {
   EmailDto,
-  parseCookieHeader,
   RegisterDto,
   ResetDto,
-  sessionCookiePolicy,
   TokenDto,
 } from './identity.controller';
 import { BoundedMemoryIdentityRateLimitStore } from './identity-rate-limit.store';
@@ -27,7 +25,9 @@ import {
   MAX_EMAIL_LENGTH,
   MAX_PASSWORD_LENGTH,
   MAX_TOKEN_LENGTH,
+  parseCookieHeader,
   SECURE_SESSION_COOKIE,
+  sessionCookiePolicy,
 } from './identity-security';
 import { IdentityService } from './identity.service';
 

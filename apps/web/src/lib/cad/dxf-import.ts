@@ -350,7 +350,6 @@ function rawEntityTypeCounts(text: string): Map<string, number> {
   return counts;
 }
 
-
 function closeEnough(a: number, b: number, tol = 1e-6) {
   return Math.abs(a - b) <= tol;
 }
@@ -608,7 +607,6 @@ export const mapDxfEntityToPrimitive = (entity: any) =>
   conCotaDeclarada(entity, enElMundo(entity, mapDxfEntityToPrimitiveEnElPlano(entity)));
 
 const MAX_INSERT_DEPTH = 4;
-
 /**
  * Expande un INSERT a las primitivas de su bloque, transformadas (posición +
  * rotación + escala). Los INSERT anidados se expanden recursivamente hasta
@@ -819,8 +817,6 @@ function semanticBlocks(
     };
   }).sort((a, b) => a.name.localeCompare(b.name));
 }
-
-
 
 export function importDxfPrimitives(text: string): CadDxfImportResult {
   const rawHatchResult = parseRawDxfHatches(text);
