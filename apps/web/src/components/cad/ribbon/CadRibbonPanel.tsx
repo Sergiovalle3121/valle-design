@@ -30,7 +30,7 @@ export function CadRibbonPanel({
       // rótulo + 11 de márgenes); a 720 px de alto el lienzo necesita cada uno.
       className="flex shrink-0 flex-col gap-0.5 border-r border-border/60 px-2 pb-0 pt-0.5 last:border-r-0"
     >
-      <div className="flex flex-1 flex-wrap content-start gap-0.5">
+      <div className="flex h-[4.75rem] flex-col flex-wrap content-start gap-0.5">
         {panel.commands.map((command) => (
           <CadRibbonButton
             key={command.name}
