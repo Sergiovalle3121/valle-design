@@ -249,6 +249,7 @@ export interface CadTourRecord {
   finishedAt: number;
   acknowledged: boolean;
   plotted: boolean;
+  minimized: boolean;
 }
 
 export const EMPTY_CAD_TOUR_RECORD: CadTourRecord = {
@@ -257,6 +258,7 @@ export const EMPTY_CAD_TOUR_RECORD: CadTourRecord = {
   finishedAt: 0,
   acknowledged: false,
   plotted: false,
+  minimized: false,
 };
 
 /**
@@ -294,6 +296,7 @@ export type CadTourAction =
   | { type: "start"; now: number }
   | { type: "acknowledge" }
   | { type: "plot"; now: number }
+  | { type: "minimize"; minimized: boolean }
   | { type: "skip"; now: number }
   | { type: "complete"; now: number }
   | { type: "reset" };
@@ -327,6 +330,10 @@ export function cadGuidedTourReduce(
     return record.acknowledged ? record : { ...record, acknowledged: true };
   if (action.type === "plot")
     return record.plotted ? record : { ...record, plotted: true };
+  if (action.type === "minimize")
+    return record.minimized === action.minimized
+      ? record
+      : { ...record, minimized: action.minimized };
   if (action.type === "skip")
     return { ...record, status: "skipped", finishedAt: action.now };
   return { ...record, status: "completed", finishedAt: action.now };
@@ -347,6 +354,7 @@ export function parseCadTourRecord(raw: string | null): CadTourRecord {
       finishedAt: Number.isFinite(parsed.finishedAt) ? Number(parsed.finishedAt) : 0,
       acknowledged: parsed.acknowledged === true,
       plotted: parsed.plotted === true,
+      minimized: parsed.minimized === true,
     };
   } catch {
     // Un registro corrupto NO puede tirar el editor ni dejar al usuario sin

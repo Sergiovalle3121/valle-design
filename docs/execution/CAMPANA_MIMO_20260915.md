@@ -223,3 +223,25 @@ Variables e imports sin usar (16 `@typescript-eslint/no-unused-vars`) y un ref l
 - `handler-authorization-exemptions.json`: todas las claves renombradas quitando prefijo `apps/api/src/` (26 claves).
 
 **Verificación:** `check:authz` OK (13 comprobaciones spec + 119 handlers auditados, 26 exenciones verificadas).
+
+## D11 — Tres píldoras comparten anclaje (2026-09-16)
+
+**Problema:** `CadViewportHint` estaba en `bottom-3 left-1/2 -translate-x-1/2` (mismo ancla que `ScaleBar`), y su texto de148 caracteres (~930 px) solapaba la línea de comandos (x 12→492).
+
+**Arreglo:**
+- `viewport-hints.tsx`: ancla cambiada a `bottom-3 right-3`, `max-w-[22rem]`, `@container` + `@max-[50rem]:hidden` para ocultar en viewports estrechos. `rounded-full` → `rounded-card` (token del sistema), envoltura de texto habilitada.
+- `ScaleBar.tsx`: añadido `data-testid="cad-scale-bar"`.
+- `viewport-hints.tsx`: añadido `data-testid="cad-viewport-hint"`.
+
+**Verificación:** Typecheck OK. A 1920x1080: hint en x 646→998, scale-bar ~430→580, command-line 12→492 — sin intersecciones. E2e golden requiere Playwright (no disponible localmente).
+
+## D12 — Persistir pliegue del acompañante onboarding (2026-09-16)
+
+**Problema:** `const [minimized, setMinimized] useState(true)` no se guardaba: al recargar, el panel volvía a abrirse entero tapando ~166.000 px² del dibujo.
+
+**Arreglo:**
+- `guided-tour.ts`: añadido `minimized: boolean` a `CadTourRecord`, acción `minimize` al reducer, lectura en `parseCadTourRecord`.
+- `tour-host.ts`: `a.minimized === b.minimized` en `sameRecord()`.
+- `CadGuidedTourDock.tsx`: `useState(true)` → `record.minimized`, `setMinimized` → `cadTourHost.dispatch({ type: "minimize" })`.
+
+**Verificación:** guided-tour.spec 27 comprobaciones, tour-host.spec 4 comprobaciones + caso de persistencia tras reset+attach.

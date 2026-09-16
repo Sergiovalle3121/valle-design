@@ -280,13 +280,43 @@ const dimension = {
     finishedAt: 305,
     acknowledged: true,
     plotted: true,
+    minimized: true,
   });
   const leido = parseCadTourRecord(guardado);
   assert.equal(leido.status, "completed");
+  assert.equal(leido.minimized, true);
   assert.equal(cadGuidedTourDuration(leido), 300);
   // Un registro a medias no se cuela con `true` de regalo.
   assert.equal(parseCadTourRecord('{"status":"running"}').acknowledged, false);
   assert.equal(parseCadTourRecord('{"status":"running"}').startedAt, 0);
+  assert.equal(parseCadTourRecord('{"status":"running"}').minimized, false);
+}
+
+// --- 7. PLIEGUE PERSISTIDO ---------------------------------------------------
+{
+  let record: CadTourRecord = { ...EMPTY_CAD_TOUR_RECORD };
+  assert.equal(record.minimized, false);
+
+  // Conmuta minimized.
+  record = cadGuidedTourReduce(record, { type: "minimize", minimized: true });
+  assert.equal(record.minimized, true);
+
+  // Mismo valor devuelve la MISMA referencia (no publica cambio inexistente).
+  const same = cadGuidedTourReduce(record, { type: "minimize", minimized: true });
+  assert.equal(same, record);
+
+  // Desplegar vuelve a false.
+  record = cadGuidedTourReduce(record, { type: "minimize", minimized: false });
+  assert.equal(record.minimized, false);
+
+  // Saltado ignora minimize: ya cerrado.
+  record = cadGuidedTourReduce({ ...EMPTY_CAD_TOUR_RECORD }, { type: "skip", now: 1 });
+  const afterSkip = cadGuidedTourReduce(record, { type: "minimize", minimized: true });
+  assert.equal(afterSkip, record);
+
+  // Reset devuelve minimized: false.
+  const reset = cadGuidedTourReduce(record, { type: "reset" });
+  assert.equal(reset.minimized, false);
 }
 
 // Regla 3 (AGENTS.md): ninguna capacidad se anuncia sin evidencia. El primer

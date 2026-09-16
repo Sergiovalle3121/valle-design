@@ -100,7 +100,8 @@ function sameRecord(a: CadTourRecord, b: CadTourRecord): boolean {
     a.startedAt === b.startedAt &&
     a.finishedAt === b.finishedAt &&
     a.acknowledged === b.acknowledged &&
-    a.plotted === b.plotted
+    a.plotted === b.plotted &&
+    a.minimized === b.minimized
   );
 }
 
