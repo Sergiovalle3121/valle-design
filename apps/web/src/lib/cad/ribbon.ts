@@ -43,6 +43,7 @@ import {
   CAD_RIBBON_COMMAND_ORDER,
   CAD_RIBBON_INICIO_ESPEJOS,
   CAD_RIBBON_PANEL_ORDER,
+  CAD_RIBBON_PRIMARY,
   compareDeclared,
 } from "./ribbon-order";
 
@@ -242,6 +243,8 @@ export interface CadRibbonCommand {
    * faltaba que llegara hasta aquí para apagar SÓLO ésos.
    */
   mutates: boolean;
+  /** Comando del primer día del oficio: más ancho y más visible en la cinta. */
+  primary?: boolean;
 }
 
 export interface CadRibbonPanel {
@@ -281,6 +284,7 @@ function buildRibbonTabs(): CadRibbonTab[] {
       summary: cadCommandSummary(descriptor.name),
       panel: panelLabel,
       mutates: descriptor.mutates,
+      primary: CAD_RIBBON_PRIMARY.has(descriptor.name),
     };
     commands.push(command);
     byName.set(command.name, command);
