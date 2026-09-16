@@ -68,11 +68,12 @@ import { planCadDxfImport } from "./engine/commands/interop-dxf";
     "0", "SECTION", "2", "ENTITIES",
     "0", "LINE", "8", "MUROS", "10", "0", "20", "0", "11", "100", "21", "0",
     "0", "LINE", "8", "CAJETIN", "67", "1", "10", "9999", "20", "9999", "11", "9999", "21", "9998",
+    "0", "VIEWPORT", "8", "VP", "67", "1", "10", "5000", "20", "5000",
     "0", "ENDSEC", "0", "EOF",
   ].join("\n");
 
   const imported = importDocumentText("plano.dxf", rawWithPaperSpace);
-  assert.equal(imported.importedEntityCount, 2, "modelo y papel entran al documento");
+  assert.equal(imported.importedEntityCount, 2, "modelo y papel entran al documento (VIEWPORT no cuenta: es unsupported)");
   assert.equal(
     imported.document.modelSpace.entityIds.length,
     1,
@@ -112,6 +113,13 @@ import { planCadDxfImport } from "./engine/commands/interop-dxf";
   const keptLine = imported.dxfReport?.rows.find((row) => row.code === "kept_line");
   assert.equal(keptLine?.count, 1, "el recuento de líneas conservadas NO incluye la de papel");
 
+  // (d) VIEWPORT en espacio papel aparece como pérdida en el informe.
+  const vpRow = imported.dxfReport?.rows.find(
+    (row) => row.code === "unsupported_entity" && row.detail.includes("VIEWPORT"),
+  );
+  assert.ok(vpRow, "VIEWPORT aparece en el informe como unsupported_entity");
+  assert.equal(vpRow!.fidelity, "lost", "VIEWPORT tiene fidelity 'lost'");
+
   // Prueba negativa: SIN el código 67 (o en 0), las dos líneas entran.
   const rawAllModel = [
     "0", "SECTION", "2", "ENTITIES",
@@ -133,6 +141,7 @@ import { planCadDxfImport } from "./engine/commands/interop-dxf";
     "0", "SECTION", "2", "ENTITIES",
     "0", "LINE", "8", "MUROS", "10", "0", "20", "0", "11", "100", "21", "0",
     "0", "LINE", "8", "CAJETIN", "67", "1", "10", "9999", "20", "9999", "11", "9999", "21", "9998",
+    "0", "VIEWPORT", "8", "VP", "67", "1", "10", "5000", "20", "5000",
     "0", "ENDSEC", "0", "EOF",
   ].join("\n");
   let ids = 0;
