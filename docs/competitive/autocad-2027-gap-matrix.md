@@ -124,7 +124,7 @@ porque el instrumento no tenía ni una fila para el reconocimiento.
 > Editarla a mano es reintroducir el defecto que motivó el script: la prosa
 > manual envejeció dos veces y en las dos direcciones.
 
-**Puntuación (rúbrica 2026-09-06.1).** **Alcance de HOY: 186/213 (87.3 %)** — el flujo diario de dibujo 2D técnico, la cifra que se enseña a un cliente. **Alcance de DESTINO: 256/309 (82.8 %)** — AutoCAD completo con sus verticales, la cifra que mide el camino; lo excluido de hoy es «todavía no», nunca «nunca». 35 pt provienen de evidencia INDEPENDIENTE y 221 pt sólo de evidencia propia; 14 fila(s) retienen 1 pt hasta tener evidencia independiente. 17 de 47 filas están en su tope: Dibujo 2D y precisión, Trabajo ajeno: tomar el plano de otro y trabajar sobre él, Cotas asociativas, HATCH asociativo, MTEXT y texto, Capas y propiedades, Bloques y atributos, Importación de JSON canónico, API y SDK de automatización, Eventos e integración asíncrona, Modelo 3D y sólidos B-rep FACETADO, Modelado 3D: primitivas, SOLIDEDIT y la cota, Kernel Rust/WASM, Nubes de puntos, raster georreferenciado y GIS, Integridad: el producto hace lo que dice, Capacidad de crecer: las puertas que no se cierran, Toolset Map 3D. Una fila sólo llega a su tope cuando TODOS sus criterios verifican, incluidos los que nombran gaps documentados; un gap conocido se declara como criterio que falla, no como nota al pie.
+**Puntuación (rúbrica 2026-09-06.1).** **Alcance de HOY: 186/213 (87.3 %)** — el flujo diario de dibujo 2D técnico, la cifra que se enseña a un cliente. **Alcance de DESTINO: 253/309 (81.9 %)** — AutoCAD completo con sus verticales, la cifra que mide el camino; lo excluido de hoy es «todavía no», nunca «nunca». 32 pt provienen de evidencia INDEPENDIENTE y 221 pt sólo de evidencia propia; 14 fila(s) retienen 1 pt hasta tener evidencia independiente. 17 de 47 filas están en su tope: Dibujo 2D y precisión, Trabajo ajeno: tomar el plano de otro y trabajar sobre él, Cotas asociativas, HATCH asociativo, MTEXT y texto, Capas y propiedades, Bloques y atributos, Importación de JSON canónico, API y SDK de automatización, Eventos e integración asíncrona, Modelo 3D y sólidos B-rep FACETADO, Modelado 3D: primitivas, SOLIDEDIT y la cota, Kernel Rust/WASM, Nubes de puntos, raster georreferenciado y GIS, Integridad: el producto hace lo que dice, Capacidad de crecer: las puertas que no se cierran, Toolset Map 3D. Una fila sólo llega a su tope cuando TODOS sus criterios verifican, incluidos los que nombran gaps documentados; un gap conocido se declara como criterio que falla, no como nota al pie.
 
 ### Núcleo del plano entregable — 113/118
 
@@ -162,11 +162,11 @@ porque el instrumento no tenía ni una fila para el reconocimiento.
 | Eventos e integración asíncrona | 4/4 | Completa | Outbox transaccional con leases, reintentos y cola muerta; Contrato de eventos versionado; Evidencia operacional sostenida y replay auditado con receptor externo | Nada pendiente: todos los criterios declarados verifican |
 | Almacenamiento de objetos | 2/3 | Parcial | Puerto de blob store desacoplado del almacenamiento concreto; Adaptador BYTEA con aislamiento por organización y specs; Adaptador S3/MinIO cableado, con migración y operación documentadas | Nada pendiente: todos los criterios declarados verifican |
 
-### Frontera avanzada — 23/24
+### Frontera avanzada — 20/24
 
 | Categoría | Puntos | Estado | Qué verifica hoy | Qué falta exactamente |
 | --- | ---: | --- | --- | --- |
-| Import/export DWG | 6/7 | Parcial | Decisión de arquitectura publicada sobre DWG y el laboratorio clean-room; Decoder productivo con corpus independiente y matriz de entidades; Exportación DWG con round-trip verificado por lector externo | Integración en runtime con gates legal, de seguridad y de fidelidad superados (1 pt) |
+| Import/export DWG | 3/7 | Parcial | Decisión de arquitectura publicada sobre DWG y el laboratorio clean-room; Exportación DWG con round-trip verificado por lector externo | Decoder productivo con corpus independiente y matriz de entidades (3 pt); Integración en runtime con gates legal, de seguridad y de fidelidad superados (1 pt) |
 | Modelo 3D y sólidos B-rep FACETADO | 7/7 | Completa | Topología, tolerancia e invariantes verificadas; Extrusión, barrido, booleanas y redondeo con specs; NURBS, superficies y teselado; STEP e IGES en los dos sentidos; El editor lo usa: algo fuera de lib/brep lo importa | Nada pendiente: todos los criterios declarados verifican |
 | Modelado 3D: primitivas, SOLIDEDIT y la cota | 5/5 | Completa | BOX, WEDGE, CYLINDER, CONE, SPHERE, TORUS, PYRAMID y POLYSOLID tecleables, como UN nodo reeditable cada una, con el volumen medido en papel; SOLIDEDIT con Cara Extruir (nodo push), Cuerpo Comprobar y Cuerpo Separar, y sus otras once ramas declaradas en el propio diálogo; La cota cruza las fronteras del DXF: 30/31, elevación, polilínea 3D y SCU reflejado (lector de terceros como oráculo), y PLINE/RECTANG tecleados dibujan en el plano del SCU inclinado; Con el SCU apoyado en la fachada, el punto del RATÓN sale del plano de trabajo y no del suelo: LINE desde la paleta con dos clics deja el trazo en la fachada, defendido por un golden de navegador | Nada pendiente: todos los criterios declarados verifican |
 | Kernel Rust/WASM | 2/2 | Completa | Puerta de entrada publicada con condición de activación explícita; Kernel WASM con paridad numérica verde Y enchufado: alguien fuera de lib/cad/wasm lo importa (regla 6) | Nada pendiente: todos los criterios declarados verifican |
@@ -228,13 +228,13 @@ declarados. Reproducible con `node scripts/cad/rubric.mjs --priorities`.
 | 1 | 2 | 10 | Import/export DXF de texto | Corpus DXF de terceros, autorizado y diverso, con matriz por entidad y pérdidas aceptadas |
 | 2 | 1 | 5 | Selección y modificación | Estrés de navegador con trazos densos (100k) sobre selección y modificación, con artefacto versionado por corrida |
 | 3 | 1 | 8 | Rendimiento 10k/100k | La mezcla architecture@100k cumple el mismo SLO: detalle completo ≤5 s y paneo ≥30 fps p95 |
-| 4 | 1 | 20 | Import/export DWG | Integración en runtime con gates legal, de seguridad y de fidelidad superados |
-| 5 | 2 | 60 | Automatización: AutoLISP y plugins JS | Puente .NET/VBA para rutinas heredadas de despacho |
-| 6 | 1 | 0 | Sin ratón, sin vista y en dos idiomas | El gate de axe del estudio falla con impacto moderate, no sólo serious\|critical, y el estudio tiene su encabezado |
-| 7 | 1 | 0 | Sin ratón, sin vista y en dos idiomas | El prompt vivo se puede volver a leer: aria-describedby en la caja, el log recibe foco y F2 existe |
-| 8 | 1 | 0 | Sin ratón, sin vista y en dos idiomas | Ningún control se enfoca sin verse: el trinquete de foco visible está en cero |
-| 9 | 1 | 0 | Sin ratón, sin vista y en dos idiomas | forced-colors y prefers-contrast existen, con la misma disciplina que prefers-reduced-motion |
-| 10 | 1 | 0 | Sin ratón, sin vista y en dos idiomas | Cada panel de la cinta tiene role y aria-label, y la cinta se navega por flechas con un golden que lo defiende |
+| 4 | 3 | 60 | Import/export DWG | Decoder productivo con corpus independiente y matriz de entidades |
+| 5 | 1 | 20 | Import/export DWG | Integración en runtime con gates legal, de seguridad y de fidelidad superados |
+| 6 | 2 | 60 | Automatización: AutoLISP y plugins JS | Puente .NET/VBA para rutinas heredadas de despacho |
+| 7 | 1 | 0 | Sin ratón, sin vista y en dos idiomas | El gate de axe del estudio falla con impacto moderate, no sólo serious\|critical, y el estudio tiene su encabezado |
+| 8 | 1 | 0 | Sin ratón, sin vista y en dos idiomas | El prompt vivo se puede volver a leer: aria-describedby en la caja, el log recibe foco y F2 existe |
+| 9 | 1 | 0 | Sin ratón, sin vista y en dos idiomas | Ningún control se enfoca sin verse: el trinquete de foco visible está en cero |
+| 10 | 1 | 0 | Sin ratón, sin vista y en dos idiomas | forced-colors y prefers-contrast existen, con la misma disciplina que prefers-reduced-motion |
 
 <!-- rubric:end -->
 
