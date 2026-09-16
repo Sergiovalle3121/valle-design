@@ -15,10 +15,34 @@ import type {
 } from "./dxf-import";
 import { dxfPropertyIndex } from "./dxf-read-properties";
 
+interface DxfRawEntity {
+  type?: string;
+  name?: string;
+  block?: string;
+  position?: { x?: number; y?: number };
+  rotation?: number;
+  xScale?: number;
+  yScale?: number;
+  layer?: string;
+  inPaperSpace?: boolean;
+  tag?: string;
+  text?: string;
+  prompt?: string;
+  startPoint?: { x?: number; y?: number };
+  textHeight?: number;
+  invisible?: boolean;
+  constant?: boolean;
+}
+
+interface DxfRawBlock {
+  position?: { x?: number; y?: number };
+  entities?: DxfRawEntity[];
+}
+
 const DEFAULT_LAYER = "0";
 
 export function semanticInsert(
-  entity: any,
+  entity: DxfRawEntity,
   xdata: RawBlockXdata,
   presentation?: CadEntityPresentation,
 ): CadDxfSemanticInsert {
@@ -42,11 +66,11 @@ export function semanticInsert(
 }
 
 export function semanticBlocks(
-  parsedBlocks: Record<string, any>,
+  parsedBlocks: Record<string, DxfRawBlock>,
   xdata: RawBlockXdata,
   warnings: CadDxfImportWarning[],
   blockProperties: Record<string, ReturnType<typeof dxfPropertyIndex>>,
-  mapDxfEntityToPrimitive: (entity: any) => { primitive?: CadDxfPrimitive; warning?: CadDxfImportWarning },
+  mapDxfEntityToPrimitive: (entity: DxfRawEntity) => { primitive?: CadDxfPrimitive; warning?: CadDxfImportWarning },
 ): CadDxfSemanticBlock[] {
   return Object.entries(parsedBlocks).filter(([name]) => !name.startsWith('*')).map(([name, raw]) => {
     const primitives: CadDxfPrimitive[] = [];
