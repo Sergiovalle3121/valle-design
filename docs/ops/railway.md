@@ -139,3 +139,47 @@ que exigen cero errores de consola. La API sirve las suyas en
    receptor es `/v1/outbox/*` de la propia API (ADR-0008).
 4. `OWNER ACTION: SENTRY` — DSN si se contrata observabilidad externa.
 5. `OWNER ACTION: STRIPE LIVE` — claves live y autorización de cobro real.
+
+## Inventario de variables de marca (2026-09-16)
+
+### GitHub Actions
+
+Verificado contra `gh api repos/Sergiovalle3121/valle-design/actions/variables`
+sobre main (6ae2ad62): `{"variables":[],"total_count":0}`. El owner es
+`"type":"User"` (no hay variables de organización). El job `release` de
+`.github/workflows/release.yml:58` no declara `environment:`, así que el
+environment `honest-possibility / production` no aporta `vars` a los
+build-args.
+
+**Conclusión GitHub:** todas las `vars.RELEASE_BRAND_*` resuelven a vacío →
+el default del código manda en los builds de CI.
+
+### Railway (OWNER ACTION: RAILWAY pendiente)
+
+Las 17 variables `NEXT_PUBLIC_BRAND_*` que `resolveBrandManifest` acepta
+(como ARG en `apps/web/Dockerfile:90,105`):
+
+| Clave | GitHub | Railway staging | Railway production |
+| --- | --- | --- | --- |
+| `NEXT_PUBLIC_BRAND_NAME` | vacía | **PENDIENTE** | **PENDIENTE** |
+| `NEXT_PUBLIC_BRAND_LEGAL_ENTITY` | vacía | **PENDIENTE** | **PENDIENTE** |
+| `NEXT_PUBLIC_BRAND_FOUNDER` | vacía | **PENDIENTE** | **PENDIENTE** |
+| `NEXT_PUBLIC_BRAND_DESCRIPTOR` | vacía | **PENDIENTE** | **PENDIENTE** |
+| `NEXT_PUBLIC_BRAND_TAGLINE_EN` | vacía | **PENDIENTE** | **PENDIENTE** |
+| `NEXT_PUBLIC_BRAND_TAGLINE_ES` | vacía | **PENDIENTE** | **PENDIENTE** |
+| `NEXT_PUBLIC_BRAND_SUPPORT_EMAIL` | vacía | **PENDIENTE** | **PENDIENTE** |
+| `NEXT_PUBLIC_BRAND_SALES_EMAIL` | vacía | **PENDIENTE** | **PENDIENTE** |
+| `NEXT_PUBLIC_BRAND_PRIVACY_EMAIL` | vacía | **PENDIENTE** | **PENDIENTE** |
+| `NEXT_PUBLIC_BRAND_WEBSITE_URL` | vacía | **PENDIENTE** | **PENDIENTE** |
+| `NEXT_PUBLIC_BRAND_COPYRIGHT` | vacía | **PENDIENTE** | **PENDIENTE** |
+| `NEXT_PUBLIC_BRAND_COPYRIGHT_YEAR` | vacía | **PENDIENTE** | **PENDIENTE** |
+| `NEXT_PUBLIC_BRAND_TRADEMARK_STATUS` | vacía | **PENDIENTE** | **PENDIENTE** |
+| `NEXT_PUBLIC_BRAND_TRADEMARK_SYMBOL` | vacía | **PENDIENTE** | **PENDIENTE** |
+| `NEXT_PUBLIC_BRAND_LOGO_MARK` | vacía | **PENDIENTE** | **PENDIENTE** |
+| `NEXT_PUBLIC_BRAND_LOGO_ICON` | vacía | **PENDIENTE** | **PENDIENTE** |
+| `NEXT_PUBLIC_BRAND_PRODUCT_NAME_DESIGN` | vacía | **PENDIENTE** | **PENDIENTE** |
+
+**Conclusión provisional:** en GitHub ninguna variable pisa el default. En
+Railway falta verificar; si alguna `NEXT_PUBLIC_BRAND_*` fija «Valle Design»,
+el default del código NO manda en producción. **No cambiar variables hasta
+tener el inventario completo.**
