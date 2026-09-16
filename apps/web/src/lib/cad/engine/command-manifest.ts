@@ -1,8 +1,8 @@
 /**
- * METADATOS de los 348 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 361 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
- * 117 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
+ * 118 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
  * `npm run check:cad`— falla si lo committeado deja de coincidir con lo que los
  * descriptores dicen hoy. Regla 4 de la campaña de cimientos: ninguna cifra vive
  * en dos lugares, y un comando nuevo no puede entrar sin aparecer aquí.
@@ -266,6 +266,19 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "REFEDIT", aliases: ["EDITARREF"], kind: "manage", transparent: false, selection: "optional", repeatable: false, mutates: true, cursor: "pick", module: "commands/reference-edit" },
   { name: "REFSET", aliases: ["CONJUNTOREF"], kind: "manage", transparent: false, selection: "required", repeatable: true, mutates: true, cursor: "none", module: "commands/reference-edit" },
   { name: "REFCLOSE", aliases: ["CERRARREF"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: true, cursor: "none", module: "commands/reference-edit" },
+  { name: "RENDER", aliases: ["RDR", "RENDERIZAR"], kind: "view", transparent: false, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/render-commands" },
+  { name: "RENDERCROP", aliases: ["RCROP", "RENDERCORTE"], kind: "view", transparent: false, selection: "none", repeatable: true, mutates: false, cursor: "crosshair", module: "commands/render-commands" },
+  { name: "RENDERWIN", aliases: ["RWIN", "VENTANARENDER"], kind: "view", transparent: false, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/render-commands" },
+  { name: "RENDERPRESETS", aliases: ["RPRES", "PREDETRENDER"], kind: "view", transparent: false, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/render-commands" },
+  { name: "RENDEREXPOSURE", aliases: ["REXP", "EXPOSICIONRENDER"], kind: "view", transparent: false, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/render-commands" },
+  { name: "RENDERENVIRONMENT", aliases: ["RENV", "ENTORNORENDER"], kind: "view", transparent: false, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/render-commands" },
+  { name: "MATERIALS", aliases: ["MAT", "MATERIALES"], kind: "view", transparent: false, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/render-commands" },
+  { name: "MATERIALMAP", aliases: ["MMAP", "MAPEOMATERIAL"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/render-commands" },
+  { name: "MATERIALATTACH", aliases: ["MATT", "ADJUNTARMATERIAL"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/render-commands" },
+  { name: "POINTLIGHT", aliases: ["PLIGHT", "LUZPUNTUAL"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/render-commands" },
+  { name: "SPOTLIGHT", aliases: ["SLIGHT", "LUZFOCO"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/render-commands" },
+  { name: "DISTANTLIGHT", aliases: ["DLIGHT", "LUZDISTANTE"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/render-commands" },
+  { name: "SUNPROPERTIES", aliases: ["SUN", "PROPIEDADESSOL"], kind: "view", transparent: false, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/render-commands" },
   { name: "QSELECT", aliases: [], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "none", module: "commands/select-query" },
   { name: "FILTER", aliases: ["FI"], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "none", module: "commands/select-query" },
   { name: "SELECTSIMILAR", aliases: [], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "pick", module: "commands/select-similar" },
