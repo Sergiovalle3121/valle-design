@@ -157,9 +157,9 @@ const perspectiveCommand = {
       prompt: { message: "", options: [] },
       accepts: 0,
       result: {
-        kind: "variables",
-        patch: { PERSPECTIVE: mode === "perspective" ? 1 : 0 },
-        text: `Proyección: ${mode === "perspective" ? "Perspectiva" : "Paralela"}.`,
+        kind: "host",
+        request: { kind: "view-projection", projection: mode },
+        label: `PERSPECTIVE ${mode === "parallel" ? "Paralela" : "Perspectiva"}`,
       },
     };
   },

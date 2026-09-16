@@ -57,6 +57,8 @@ export interface CadPlotHostBridge {
   setSpace?(space: "model" | "paper", layoutId?: string): boolean;
   /** Cambia el estilo visual del visor (VSCURRENT). Devuelve el aplicado. */
   setVisualStyle?(styleId: CadVisualStyleId): string | null;
+  /** Cambia la proyección 3D (PERSPECTIVE). Devuelve si cambió. */
+  setProjection?(projection: "perspective" | "parallel"): boolean;
   /**
    * Conjunto de planos ya cargado, con los dibujos que necesitan sus hojas.
    *
@@ -176,6 +178,15 @@ export class CadPlotHost {
       return applied
         ? `Estilo visual: ${applied}.`
         : "Este espacio de trabajo no tiene visor de estilos visuales.";
+    }
+
+    if (request.kind === "view-projection") {
+      if (!this.bridge.setProjection)
+        return "La conmutación de proyección no está disponible en este espacio de trabajo.";
+      const switched = this.bridge.setProjection(request.projection);
+      if (!switched)
+        return "La proyección sólo se puede cambiar en modo 3D.";
+      return `Proyección: ${request.projection === "parallel" ? "Paralela" : "Perspectiva"}.`;
     }
 
     if (request.kind === "space") {

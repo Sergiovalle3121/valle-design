@@ -94,6 +94,8 @@ const ORTHO_ELEVATION = 1000;
 export class CadViewController {
   readonly perspective: THREE.PerspectiveCamera;
   readonly orthographic: THREE.OrthographicCamera;
+  /** Cámara ortográfica para la proyección paralela en 3D. */
+  readonly parallel: THREE.OrthographicCamera;
 
   private transform: CadDrawingTransform;
   private current: CadView;
@@ -134,6 +136,7 @@ export class CadViewController {
       perspective ?? new THREE.PerspectiveCamera(50, widthPx / Math.max(1, heightPx), 0.1, 4000);
     this.orthographic = new THREE.OrthographicCamera(-1, 1, 1, -1, -1, 1);
     this.orthographic.up.set(0, 0, -1);
+    this.parallel = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 4000);
     this.current = cadViewFromViewport(
       widthPx,
       heightPx,
@@ -150,7 +153,8 @@ export class CadViewController {
   }
 
   get camera(): THREE.Camera {
-    return this.current.mode === "2d" ? this.orthographic : this.perspective;
+    if (this.current.mode === "2d") return this.orthographic;
+    return this.current.projection === "parallel" ? this.parallel : this.perspective;
   }
 
   /** Instantánea inmutable del estado de vista. */
@@ -180,7 +184,30 @@ export class CadViewController {
 
   private emit(): void {
     this.changes += 1;
+    if (this.current.mode === "3d") this.syncParallel();
     for (const listener of this.listeners) listener();
+  }
+
+  /**
+   * Sincroniza la cámara paralela con la perspectiva: misma posición,
+   * orientación y objetivo, pero frustum ortográfico derivado del FOV y la
+   * distancia para que la conmutación no dé salto.
+   */
+  private syncParallel(): void {
+    this.parallel.position.copy(this.perspective.position);
+    this.parallel.quaternion.copy(this.perspective.quaternion);
+    this.parallel.up.copy(this.perspective.up);
+    const distance = this.perspective.position.distanceTo(this.perspectiveTarget) || 1;
+    const halfH = distance * Math.tan((this.perspective.fov * Math.PI) / 360);
+    const halfW = halfH * this.perspective.aspect;
+    this.parallel.left = -halfW;
+    this.parallel.right = halfW;
+    this.parallel.top = halfH;
+    this.parallel.bottom = -halfH;
+    this.parallel.near = 0.1;
+    this.parallel.far = 4000;
+    this.parallel.updateProjectionMatrix();
+    this.parallel.updateMatrixWorld();
   }
 
   setMode(mode: "2d" | "3d"): void {
@@ -191,16 +218,17 @@ export class CadViewController {
   }
 
   /**
-   * Proyección 3D: perspectiva o paralela (ortográfica).
+   * Proyección 3D: perspectiva o paralela.
    *
-   * En modo 3D, la conmutación no cambia la posición ni el objetivo de la
-   * cámara: sólo alterna entre `PerspectiveCamera` y `OrthographicCamera`
-   * apuntando al mismo punto. La altura de la ortográfica se deriva del FOV
-   * y la distancia actuales para que la conmutación no dé salto.
+   * En modo 3D, alterna entre la `PerspectiveCamera` y una `OrthographicCamera`
+   * sincronizada (`parallel`) que apunta al mismo punto. La altura del frustum
+   * ortográfico se deriva del FOV y la distancia actuales para que la
+   * conmutación no dé salto. En modo 2D no tiene efecto.
    */
   setProjection(projection: "perspective" | "parallel"): void {
     if (this.current.mode !== "3d") return;
     this.current = { ...this.current, projection };
+    this.syncParallel();
     this.emit();
   }
 

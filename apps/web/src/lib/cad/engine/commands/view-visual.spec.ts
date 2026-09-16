@@ -174,4 +174,21 @@ function errors(effects: readonly CadCommandEffect[]): string[] {
   );
 }
 
-console.log("view-visual.spec: VSCURRENT emite la petición de estilo visual correcta, y consulta el vigente con Intro");
+// --- PERSPECTIVE emite petición de proyección --------------------------------
+{
+  const paralela = type(["PERSPECTIVE", "Paralela"]);
+  assert.deepEqual(
+    hostRequests(paralela.effects),
+    [{ kind: "view-projection", projection: "parallel" }],
+    "PERSPECTIVE Paralela → host request con projection: parallel",
+  );
+
+  const perspectiva = type(["PERSPECTIVE", "Perspectiva"]);
+  assert.deepEqual(
+    hostRequests(perspectiva.effects),
+    [{ kind: "view-projection", projection: "perspective" }],
+    "PERSPECTIVE Perspectiva → host request con projection: perspective",
+  );
+}
+
+console.log("view-visual.spec: VSCURRENT emite la petición de estilo visual correcta, y consulta el vigente con Intro; PERSPECTIVE emite petición de proyección");

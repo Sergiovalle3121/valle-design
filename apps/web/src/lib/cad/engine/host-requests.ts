@@ -112,6 +112,12 @@ export type CadHostRequest =
    */
   | { kind: "visual-style"; styleId: CadVisualStyleId }
   /**
+   * Cambia la proyección 3D: perspectiva o paralela.
+   *
+   * Estado del visor, igual que `visual-style`: no ensucia el dibujo.
+   */
+  | { kind: "view-projection"; projection: "perspective" | "parallel" }
+  /**
    * Entrega el DXF que produjo `DXFOUT`.
    *
    * El fichero VIENE HECHO. Escribir DXF es aritmética sobre cadenas y el motor

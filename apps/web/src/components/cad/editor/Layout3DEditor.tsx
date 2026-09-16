@@ -4773,6 +4773,7 @@ export default function Layout3DEditor({
       syncRedefinedBlock: (blockId) => syncRedefinedBlockLibraryRef.current(blockId),
       cursor: engineCursorPointRef,
       drawPreview: (paths) => enginePreviewRef.current?.draw(paths),
+      viewControllerRef,
     }),
     attachXref: cadStudioXrefBridge(attachXrefRef, commandEngineRef),
   });

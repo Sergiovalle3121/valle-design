@@ -197,6 +197,8 @@ export interface CadStudioCommandEngineOptions {
    * el cambio no está disponible en vez de afirmarlo.
    */
   setSpace?(space: "model" | "paper", layoutId?: string): boolean;
+  /** Cambia la proyección 3D (PERSPECTIVE). Devuelve si cambió. */
+  setProjection?(projection: "perspective" | "parallel"): boolean;
   /**
    * Lleva al usuario a la configuración de página de esa presentación
    * (PAGESETUP por cuadro). Sin él, PAGESETUP lo dice y ofrece sus opciones
@@ -262,7 +264,7 @@ export function useCadStudioNavigation(
 export function useCadStudioPlotHost(
   options: Pick<
     CadStudioCommandEngineOptions,
-    "document" | "visualStyle" | "setSpace" | "openPageSetup"
+    "document" | "visualStyle" | "setSpace" | "setProjection" | "openPageSetup"
   > & {
     /** Adónde va el renglón del trazado cuando termina. */
     note?: (text: string, level: "info" | "error") => void;
@@ -309,6 +311,12 @@ export function useCadStudioPlotHost(
       loadSheetSet: (sheetSetId) => sheetSets.loadSheetSet(sheetSetId, note),
       saveSheetSet: (set) => sheetSets.saveSheetSet(set, note),
       setVisualStyle: (styleId) => live.current.visualStyle?.(styleId) ?? null,
+      ...(options.setProjection
+        ? {
+            setProjection: (projection: "perspective" | "parallel") =>
+              live.current.setProjection?.(projection) ?? false,
+          }
+        : {}),
       // Los puentes de espacio y de configuración de página sólo existen si
       // el editor los aporta: pasarlos como funciones que devuelven «no» los
       // convertiría en éxitos falsos otra vez, que es lo que se acaba de
@@ -369,6 +377,7 @@ export function useCadStudioCommandEngine(
     plotStyles: session.plotStyles,
     visualStyle: options.visualStyle,
     ...(options.setSpace ? { setSpace: options.setSpace } : {}),
+    ...(options.setProjection ? { setProjection: options.setProjection } : {}),
     ...(options.openPageSetup ? { openPageSetup: options.openPageSetup } : {}),
   });
   const live = useRef(options);
@@ -454,18 +463,28 @@ export function useCadStudioCommandEngine(
     // mismo que DXFOUT ya usa— así que llegan al dibujo REAL sin que
     // `Layout3DEditor.tsx` tenga que aportar nada nuevo: ese archivo está en
     // su techo exacto (19.002/19.002 líneas) y `check:cad` prohíbe tocarlo.
-    host: (request) =>
-      live.current.host?.(request) ??
-      handleCadXrefHostRequest(request, live.current.attachXref ?? null) ??
-      handleCadHistoryHostRequest(request, {
-        undo: () => live.current.history?.undo() ?? false,
-        redo: () => live.current.history?.redo() ?? false,
-      }) ??
-      handleCadUcsPlanRequest(request, { controller: () => live.current.view.current ?? null }) ??
-      handleCadDxfHostRequest(request, { download: downloadCadFile }) ??
-      handleCadEtransmitHostRequest(request, { download: downloadCadFile }) ??
-      handleCadDataExtractionHostRequest(request, { download: downloadCadFile }) ??
-      plot.handle(request),
+    host: (request) => {
+      if (request.kind === "view-projection") {
+        // PERSPECTIVE es espejo del controlador: la variable se escribe aquí,
+        // al aplicar la petición, para que SETVAR PERSPECTIVE refleje el estado
+        // real. La alternativa —dejarla escrita por el comando y leída por
+        // nadie— ya estuvo así y fue un éxito falso.
+        variables.publish("PERSPECTIVE", request.projection === "perspective" ? 1 : 0);
+      }
+      return (
+        live.current.host?.(request) ??
+        handleCadXrefHostRequest(request, live.current.attachXref ?? null) ??
+        handleCadHistoryHostRequest(request, {
+          undo: () => live.current.history?.undo() ?? false,
+          redo: () => live.current.history?.redo() ?? false,
+        }) ??
+        handleCadUcsPlanRequest(request, { controller: () => live.current.view.current ?? null }) ??
+        handleCadDxfHostRequest(request, { download: downloadCadFile }) ??
+        handleCadEtransmitHostRequest(request, { download: downloadCadFile }) ??
+        handleCadDataExtractionHostRequest(request, { download: downloadCadFile }) ??
+        plot.handle(request)
+      );
+    },
     // Previsualización, captura forzada y forma del cursor pertenecen al
     // puntero, y el puntero YA llegó: las tres las sirve el enrutador del
     // viewport a través de estas opciones. Sin enrutador —un guion, una

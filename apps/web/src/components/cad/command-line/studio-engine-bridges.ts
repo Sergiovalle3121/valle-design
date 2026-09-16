@@ -72,6 +72,8 @@ export interface CadStudioEngineBridgeInputs {
   nativeMassHosts?: {
     current: { applyVisualStyle(style: CadVisualStyleId): string; visualStyle: CadVisualStyleId } | null;
   };
+  /** Controlador de vista, para PERSPECTIVE. */
+  viewControllerRef: { current: { setProjection?(p: "perspective" | "parallel"): void } | null };
   /** LTSCALE es del DOCUMENTO: se lee de `meta` y se escribe por la fachada. */
   setLinetypeScale: (value: number) => void;
   /** ¿La orden en curso la arrancó el PUNTERO (barra) o el teclado? */
@@ -93,6 +95,7 @@ export function cadStudioEngineBridges(
   | "activeLayout"
   | "setSelection"
   | "setSpace"
+  | "setProjection"
   | "openPageSetup"
   | "history"
   | "osnapOverride"
@@ -120,6 +123,7 @@ export function cadStudioEngineBridges(
     syncRedefinedBlock,
     cursor,
     drawPreview,
+    viewControllerRef,
   } = inputs;
   /** Da un paso y dice si de verdad lo dio: la profundidad tiene que bajar. */
   const step = (direction: "undo" | "redo", run: () => void) => (): boolean => {
@@ -188,6 +192,10 @@ export function cadStudioEngineBridges(
           spaces[0]);
       if (!target) return false;
       setActivePaperSpaceId(target.id);
+      return true;
+    },
+    setProjection: (projection) => {
+      viewControllerRef.current?.setProjection?.(projection);
       return true;
     },
     openPageSetup: (layoutId) => {
