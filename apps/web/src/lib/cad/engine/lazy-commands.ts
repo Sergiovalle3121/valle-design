@@ -160,6 +160,7 @@ export const CAD_COMMAND_MODULE_LOADERS = {
   "commands/view-visual": () => import("./commands/view-visual"),
   "commands/xrefs": () => import("./commands/xrefs"),
   "commands/viewbase-commands": () => import("./commands/viewbase-commands"),
+  "commands/surfaces": () => import("./commands/surfaces"),
 } as const;
 
 export type CadCommandModuleId = keyof typeof CAD_COMMAND_MODULE_LOADERS;
