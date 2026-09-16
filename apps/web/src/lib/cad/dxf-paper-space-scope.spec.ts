@@ -72,24 +72,39 @@ import { planCadDxfImport } from "./engine/commands/interop-dxf";
   ].join("\n");
 
   const imported = importDocumentText("plano.dxf", rawWithPaperSpace);
-  assert.equal(imported.importedEntityCount, 1, "solo la línea de modelo entra al documento");
+  assert.equal(imported.importedEntityCount, 2, "modelo y papel entran al documento");
   assert.equal(
     imported.document.modelSpace.entityIds.length,
-    imported.document.entities.length,
-    "modelSpace no referencia más entidades de las que el documento realmente trae",
+    1,
+    "modelSpace solo referencia la entidad de modelo",
+  );
+  assert.equal(
+    imported.document.paperSpaces.length,
+    1,
+    "hay una presentación de papel",
+  );
+  assert.equal(
+    imported.document.paperSpaces[0].name,
+    "Presentación1",
+    "la presentación se llama Presentación1",
   );
   const paperLine = imported.document.entities.find(
     (entity) => entity.type === "line" && "start" in entity && (entity as { start: { x: number } }).start.x === 9_999,
   );
-  assert.equal(paperLine, undefined, "la línea de espacio papel NO está en el documento");
+  assert.ok(paperLine, "la línea de espacio papel SÍ está en el documento");
+  assert.ok(
+    imported.document.paperSpaces[0].entityIds.includes(paperLine!.id),
+    "la línea de papel vive en paperSpaces[0].entityIds",
+  );
 
-  const docLoss = imported.document.lossManifest.find((entry) => entry.code === "dxf_paper_space_excluded");
-  assert.ok(docLoss, "la exclusión se declara en el manifiesto de pérdidas del documento");
+  const docLoss = imported.document.lossManifest.find(
+    (entry) => entry.code === "dxf_paper_space_single_layout",
+  );
+  assert.ok(docLoss, "el manifiesto declara la presentación única sin ventanas gráficas");
 
   const reportRow = imported.dxfReport?.rows.find((row) => row.code === "dxf_paper_space_excluded");
-  assert.ok(reportRow, "el informe en español también la declara");
+  assert.ok(reportRow, "el informe de importación aún declara las entidades excluidas del espacio modelo");
   assert.equal(reportRow!.count, 1);
-  assert.equal(reportRow!.fidelity, "lost");
 
   // El recuento de "conservado" cuenta la línea de MUROS (1), NO las dos: si
   // contara 2, el informe diría "2 líneas con su geometría exacta" mintiendo
