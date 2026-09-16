@@ -346,6 +346,10 @@ function CheckYourInbox({ email }: { email: string }) {
       titleId="check-inbox-title"
       title="Revisa tu correo"
       description="El último paso es confirmar que la dirección es tuya."
+      // El fallo del reenvío sale por la región `role="alert"` de la cáscara,
+      // con la tinta de peligro del sistema (`text-danger-ink`); el relleno
+      // `destructive` no es tinta y no se usa como tal.
+      error={resendError}
       // El resultado se anuncia con `role="status"`, no sólo se pinta: quien usa
       // lector de pantalla acaba de pulsar un botón y la página no ha navegado,
       // así que sin una región viva no se entera de que la cuenta ya existe.
@@ -397,17 +401,17 @@ function CheckYourInbox({ email }: { email: string }) {
               try {
                 await designClient.identity.resendVerification(email);
                 return true;
-              } catch (error) {
-                if (error instanceof DesignApiError && error.status === 429) {
-                  setResendError(
-                    "Demasiadas solicitudes. Espera un momento antes de intentarlo de nuevo.",
-                  );
-                  return false;
-                }
-                if (error instanceof TypeError) {
-                  setResendError(
-                    "No se pudo conectar con el servicio de identidad. Intenta de nuevo.",
-                  );
+              } catch (cause) {
+                // Antes se tragaba TODO y el temporizador arrancaba igual: un
+                // 429 o un fallo de red parecían un reenvío exitoso. Ahora los
+                // dos se dicen y el botón sigue disponible. Lo demás se sigue
+                // tratando como enviado: la API responde igual exista o no la
+                // cuenta —no se filtra quién está registrado— y el primer
+                // correo ya va en camino.
+                const rateLimited =
+                  cause instanceof DesignApiError && cause.status === 429;
+                if (rateLimited || cause instanceof TypeError) {
+                  setResendError(authFailureMessage(cause, "register"));
                   return false;
                 }
                 return true;
