@@ -29,7 +29,6 @@ import {
 
 export { TEMPLATE_GIROS } from "./template-giros";
 export type { GalleryTemplate, TemplateGiro } from "./template-giros";
-import { PRODUCT_LABEL } from "../../config/brand";
 
 const GIRO_LABEL = new Map(TEMPLATE_GIROS.map((giro) => [giro.id, giro.label]));
 
@@ -136,15 +135,3 @@ export const FEATURED_TEMPLATE_IDS: readonly CadLayoutTemplateId[] = [
   "taller-mecanico",
 ];
 
-/** Título SEO de la ficha: cómo se busca, no cómo se llama la entidad. */
-export function templateSeoTitle(template: GalleryTemplate): string {
-  return `Plano de ${template.label.toLowerCase()} — plantilla CAD gratuita en el navegador`;
-}
-
-export function templateSeoDescription(template: GalleryTemplate): string {
-  return (
-    `${template.description} Ábrela en ${PRODUCT_LABEL.design} con capas de norma mexicana, ` +
-    `cotas y cajetín listos: ${template.widthM} × ${template.heightM} m, ` +
-    `${template.objects} objetos editables. Sin instalar nada.`
-  );
-}

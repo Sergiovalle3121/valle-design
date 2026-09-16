@@ -13,9 +13,11 @@ import { CAD_LAYOUT_TEMPLATES, type CadLayoutTemplateId } from "@/lib/cad/templa
 import {
   galleryTemplate,
   galleryTemplates,
+} from "@/lib/marketing/template-gallery";
+import {
   templateSeoDescription,
   templateSeoTitle,
-} from "@/lib/marketing/template-gallery";
+} from "@/lib/marketing/template-seo";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import {
   breadcrumbJsonLd,
