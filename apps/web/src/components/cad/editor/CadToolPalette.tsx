@@ -145,7 +145,7 @@ function ToolButton({
       // un lector de pantalla y lo que sobrevive si el CSS no carga.
       title={`${action.label}${action.shortcut ? ` · ${action.shortcut}` : ""} — ${action.description}`}
       className={cx(
-        "group/tool relative flex w-14 flex-col items-center gap-0.5 rounded-control px-1 py-1.5",
+        "group/tool relative flex w-16 flex-col items-center gap-0.5 rounded-control px-1 py-1.5",
         "transition-colors duration-150",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         "disabled:pointer-events-none disabled:opacity-40",
