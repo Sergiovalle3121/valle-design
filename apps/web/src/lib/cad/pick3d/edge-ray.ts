@@ -73,7 +73,7 @@ function scaleOf(body: BrepBody, options: CadEdgeRayOptions): number {
  * - `u`: parámetro sobre el segmento, acotado a [0, 1]
  * - `distance`: distancia euclidiana
  */
-function raySegmentDistance(
+export function raySegmentDistance(
   rayOrigin: Vec3,
   rayDir: Vec3,
   segFrom: Vec3,
@@ -102,7 +102,6 @@ function raySegmentDistance(
 
   if (Math.abs(denom) < RELATIVE_EPSILON * a * c) {
     // Rayos casi paralelos: usar el punto medio del segmento
-    t = 0;
     u = 0.5;
   } else {
     t = (b * e - c * d) / denom;
@@ -111,15 +110,20 @@ function raySegmentDistance(
     u = Math.max(0, Math.min(1, u));
   }
 
+  // Punto más cercano sobre el segmento (u ya acotada)
+  const qx = segFrom.x + u * ux;
+  const qy = segFrom.y + u * uy;
+  const qz = segFrom.z + u * uz;
+
+  // t = proyección de q sobre el rayo (válido tanto en la rama paralela como
+  // en la general: cuando u se acota, t recalculada ya no es la del problema
+  // sin restricción, sino la del punto real más cercano).
+  t = ((qx - rayOrigin.x) * rayDir.x + (qy - rayOrigin.y) * rayDir.y + (qz - rayOrigin.z) * rayDir.z) / a;
+
   // Punto más cercano sobre el rayo
   const px = rayOrigin.x + t * rayDir.x;
   const py = rayOrigin.y + t * rayDir.y;
   const pz = rayOrigin.z + t * rayDir.z;
-
-  // Punto más cercano sobre el segmento
-  const qx = segFrom.x + u * ux;
-  const qy = segFrom.y + u * uy;
-  const qz = segFrom.z + u * uz;
 
   const dx = px - qx;
   const dy = py - qy;
