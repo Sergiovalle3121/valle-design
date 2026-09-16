@@ -58,11 +58,9 @@ export function cadCommandWrites<S>(
  * función: si la tabla de anclajes viviera dos veces, un día darían puntos
  * distintos y la cota se recalcularía a un sitio donde nunca se dibujó.
  *
- * **POLYLINE no aparece, y se nota.** El vocabulario no tiene un anclaje de
- * vértice de polilínea (`control` es sólo de spline), así que acotar entre dos
- * vértices de una polilínea sale NO asociativo. Ampliar el vocabulario toca
- * `cad-document.ts`, que es de otra sesión; queda anotado en vez de resuelto a
- * medias.
+ * **POLYLINE ofrece `start` y `end`** (extremos del primer y último vértice).
+ * Los vértices interiores no están en el vocabulario del esquema — el anclaje
+ * `vertex` con `index` es trabajo futuro separado.
  *
  * **Wall SÍ está:** ofrece `start` y `end` (extremos del eje), igual que
  * `line`.
@@ -70,6 +68,7 @@ export function cadCommandWrites<S>(
 const ANCHORS_BY_TYPE: Readonly<Record<string, readonly CadAssociationAnchor[]>> = {
   line: ["start", "end"],
   wall: ["start", "end"],
+  polyline: ["start", "end"],
   circle: ["center", "arc-start", "arc-end"],
   arc: ["center", "arc-start", "arc-end"],
   ellipse: ["center", "major-start", "major-end"],

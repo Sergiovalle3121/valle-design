@@ -88,4 +88,35 @@ if (wallNext?.type === 'dimension') {
   assert.ok(Math.abs((geom?.measurement ?? 0) - 5000) < 1e-6, `medida=${geom?.measurement}`);
 }
 
-console.log("associative-dimension: la cota sigue a su geometría y se marca broken al perderla; el muro ofrece sus extremos como anclajes");
+// --- polilínea: extremos como anclajes start/end ---------------------------
+const poly: CadEntity = {
+  id: 'poly-1',
+  type: 'polyline',
+  vertices: [
+    { x: 0, y: 0 },
+    { x: 100, y: 0 },
+    { x: 100, y: 200 },
+    { x: 0, y: 200 },
+  ],
+  closed: true,
+  layer: '0',
+};
+const polyDim = dimension('aligned', {
+  id: 'poly-dim',
+  associative: true,
+  references: [
+    { entityId: 'poly-1', anchor: 'start' },
+    { entityId: 'poly-1', anchor: 'end' },
+  ],
+  associationStatus: 'associated',
+});
+const polyRegen = regenerateAssociativeDimensions([poly, polyDim], ['poly-1']);
+assert.deepEqual(polyRegen.regeneratedIds, ['poly-dim']);
+const polyNext = polyRegen.entities.find((entity) => entity.id === 'poly-dim');
+if (polyNext?.type === 'dimension') {
+  assert.equal(polyNext.associationStatus, 'associated');
+  assert.deepEqual(polyNext.a, { x: 0, y: 0 });
+  assert.deepEqual(polyNext.b, { x: 0, y: 200 });
+}
+
+console.log("associative-dimension: la cota sigue a su geometría y se marca broken al perderla; el muro ofrece sus extremos como anclajes; la polilínea también");

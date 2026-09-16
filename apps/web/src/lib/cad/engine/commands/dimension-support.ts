@@ -104,12 +104,9 @@ export function cadDimensionEnds(entity: CadEntity): [CadDimensionPick, CadDimen
     return start && end ? [start, end] : null;
   }
   if (entity.type === "polyline" && entity.vertices.length >= 2) {
-    // Sin anclaje de vértice de polilínea en el vocabulario del esquema, esta
-    // cota nace SUELTA. Se dice aquí y en `annotate-support.ts`: es mejor una
-    // cota honesta que no se actualiza que una que finge estar enganchada.
-    const first = entity.vertices[0];
-    const last = entity.vertices[entity.vertices.length - 1];
-    return [{ point: { x: first.x, y: first.y } }, { point: { x: last.x, y: last.y } }];
+    const start = pick("start");
+    const end = pick("end");
+    return start && end ? [start, end] : null;
   }
   return null;
 }
