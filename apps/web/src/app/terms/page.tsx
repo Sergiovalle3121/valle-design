@@ -13,7 +13,7 @@ export const metadata: Metadata = publicPageMetadata({
   path: "/terms",
   title: "Términos de uso",
   description:
-    "Condiciones básicas para evaluar y usar Valle Design, y los límites operativos que la web declara de forma expresa.",
+    "Condiciones básicas para evaluar y usar VALLECAD, y los límites operativos que la web declara de forma expresa.",
 });
 
 export default function TermsPage() {

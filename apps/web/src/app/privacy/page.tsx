@@ -13,7 +13,7 @@ export const metadata: Metadata = publicPageMetadata({
   path: "/privacy",
   title: "Aviso de privacidad",
   description:
-    "Aviso técnico sobre los datos que trata Valle Design, dónde viven los documentos y qué debe completar el operador de cada despliegue.",
+    "Aviso técnico sobre los datos que trata VALLECAD, dónde viven los documentos y qué debe completar el operador de cada despliegue.",
 });
 
 export default function PrivacyPage() {

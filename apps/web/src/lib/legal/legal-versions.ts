@@ -11,8 +11,8 @@
  * pone el CI en rojo.
  */
 export const LEGAL_PAGE_VERSIONS = {
-  terms: { version: "2026-09-06", publicadoEn: "2026-09-06" },
-  privacy: { version: "2026-08-27.2", publicadoEn: "2026-08-27" },
+  terms: { version: "2026-09-16", publicadoEn: "2026-09-16" },
+  privacy: { version: "2026-09-16", publicadoEn: "2026-09-16" },
 } as const;
 
 export function legalVersionLine(
