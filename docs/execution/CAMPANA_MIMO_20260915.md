@@ -409,5 +409,21 @@ D17 y D19 modificaron terms/privacy sin actualizar los SHA-256 en legal-document
 | D45 | EN COLA | Una-sesión, PDF font embedding |
 | D46 | EN COLA | E2E golden, requiere Playwright |
 | D47 | HECHA | — |
-| D48 | EN COLA | Gate anti-recaída (script + spec, sin package.json) |
+| D48 | HECHA | Script + spec creados. No enchufado a package.json (cola) |
 | D49 | HECHA | — |
+
+## D41 — Anclajes de asociatividad para muros (2026-09-16, sesión 2)
+
+**Problema:** ANCHORS_BY_TYPE no tenía `wall`. Una cota sobre un muro nacía suelta.
+
+**Arreglo:** Añadido `wall: ["start", "end"]` en annotate-support.ts, associative-dimension.ts, associative-mleader.ts y dimension-support.ts.
+
+**Verificación:** associative-dimension.spec: cota sobre muro se regenera, associationStatus='associated', medida=5000.
+
+## D42 — Cota sobre polilínea asociativa (2026-09-16, sesión 2)
+
+**Problema:** cadDimensionEnds devolvía puntos sin referencia para polilíneas. Toda cota nacía suelta.
+
+**Arreglo:** Añadido `polyline: ["start", "end"]` a ANCHORS_BY_TYPE y resolución en associative-dimension.ts. Rama especial de polilínea en dimension-support.ts sustituida por camino genérico.
+
+**Verificación:** associative-dimension.spec: cota sobre polilínea se regenera, associationStatus='associated'.
