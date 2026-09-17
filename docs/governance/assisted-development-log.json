@@ -3831,6 +3831,39 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "SONDA-INTEGRIDAD-R1-R4-20260917",
+      "date": "2026-09-17",
+      "initiative": "Endurecimiento del gate de integridad de comandos (check:command-integrity) contra cuatro trampas medidas en la rama de MiMo (claude/noche-mimo-razones-para-pagar @427084a0), que con la sonda de main daba 0 ROJO: (1) stubs mutates:true que responden sin lote y sin declarar límite (THICKEN «superficie espesada… pendiente de kernel») caían en `informa`; (2) mensajes que afirman y limitan a la vez («POINTLIGHT creada… — requiere WebGL») salían `honesto-limitado` porque el «requiere» anulaba el «creada»; (3) MESH y PLANESURF insertaban un solid3d con un brep vacío y contaban como `muta`; (4) DVIEW se exentó citando un spec que sólo lo cancela, y el gate nunca leía la razón. Cambios: el árbol de decisión sale a scripts/cad/command-integrity-rules.mjs con su spec (100 comprobaciones, que el gate ejecuta antes de la sonda); R1 mutante sin lote ni límite ni lectura = ROJO; R2 entidad tocada sin geometría evaluable = ROJO; R3 análisis por cláusulas con negaciones y requisitos; R4 exenciones {razon, spec, conduce, comprueba} verificadas contra el spec real. Se corrige la cita inexistente «solids-modify.spec.ts» de CHAMFEREDGE y FILLETEDGE. Ninguna exención añadida ni retirada; la evidencia no cambia.",
+      "branch": "claude/vc-sonda",
+      "assistants": [
+        "Claude Code (Anthropic), como subagente constructor de una orquestación local del titular: implementación en cuatro commits (uno por regla), gates locales y esta entrada, a partir de un análisis previo con prototipo de solo lectura"
+      ],
+      "authority": "Sergio Valle Zárate. Encargó endurecer la sonda con las reglas R1-R4, un commit por regla con su prueba, sin relajar el gate, sin añadir exenciones, sin tocar package.json ni D:/dev/valle-design (sólo lectura) y con auto-merge sin --admin.",
+      "firstPartyInputs": [
+        "apps/web/scripts/command-integrity-probe.mts, scripts/cad/check-command-integrity.mjs, scripts/cad/command-integrity-exemptions.json y docs/cad/evidence/command-integrity.json en main 6f0a0bd7",
+        "Specs que conducen las 9 exenciones: engine/commands/{blocks,solids,geo-cogo,solids-flatshot,modify-transform,view-navigation-3d,view-visual}.spec.ts",
+        "apps/web/src/lib/cad/solid3d-build.ts (solid3dMesh, solid3dMassProperties) y solid3d-adapter.ts (regionArea)",
+        "Rama de MiMo claude/noche-mimo-razones-para-pagar @427084a0 (surfaces.ts, meshes.ts, render-commands.ts, transform-3d-viz.spec.ts, exenciones), leída y sondeada en solo lectura"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "scripts/cad/command-integrity-rules.mjs y command-integrity-rules.spec.mjs (nuevos)",
+        "scripts/cad/check-command-integrity.mjs, scripts/cad/command-integrity-exemptions.json, apps/web/scripts/command-integrity-probe.mts",
+        "docs/onboarding/GATES.md; docs/governance/assisted-development-log.json (esta entrada)"
+      ],
+      "fixtures": "Ninguno en disco. El spec lleva en línea las frases y entidades trampa y un texto mínimo que imita transform-3d-viz.spec.ts.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Gates locales uno a uno sobre la rama: check:command-integrity en verde tras cada commit (294 comandos · muta 83 · delegado 48 · informa 22 · honesto-limitado 132 · no-concluyente 9 · ROJO 0, idéntico a la evidencia de main); spec de reglas 100 comprobaciones; typecheck web en verde; lint web 0 errores (avisos preexistentes, ninguno en ficheros tocados). La sonda final contra el árbol de MiMo (solo lectura) pasa de 0 a 42 ROJO (32 por R1, 8 por R3, 2 por R2) y validarExencion rechaza su DVIEW. El veredicto lo dan los checks requeridos del CI sobre el SHA exacto candidato."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }
