@@ -20,8 +20,8 @@
   "loQueNoAcredita": "Que el contrato tenga sentido de negocio, que el SDK generado lo respete byte a byte, o que la API real implemente lo declarado. Esas tres cosas las verifican otros gates de este repositorio (check-design-contract.mjs, la generaci\u00f3n del SDK, api-sdk-*.spec.ts).",
   "contrato": {
     "ruta": "packages/contracts/specs/design-api.v1.yaml",
-    "sha256": "b49cf909506ac9aa2481b846b88749aceaaa448585da805cae1aea40cd5ff4e1",
-    "bytes": 229015,
+    "sha256": "2b8bbe242d90cf92d15a1b8281fb6e266d664eda3cebd4b538c83ee8a3f34733",
+    "bytes": 230043,
     "openapiVersionDeclarada": "3.1.0"
   },
   "dictamen": {
