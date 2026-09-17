@@ -3,7 +3,7 @@
  * Gate de INTEGRIDAD del registro de comandos.
  *
  * Corre la sonda (`apps/web/scripts/command-integrity-probe.mts`) sobre los
- * ~192 comandos del registro real y falla si alguno queda en ROJO: terminó
+ * ~294 comandos del registro real y falla si alguno queda en ROJO: terminó
  * afirmando o insinuando éxito sin ningún efecto verificable en el documento,
  * las variables, la selección o una petición a un anfitrión — o terminó en
  * silencio absoluto ante una entrada sustantiva. Un «Hecho» vacío rompe la
@@ -13,23 +13,55 @@
  * término — se toleran SOLO si están declarados con razón en
  * `command-integrity-exemptions.json`. Un comando nuevo que la sonda no sepa
  * terminar obliga a declararlo, con lo que la lista de exentos es visible y
- * revisable en cada PR en vez de crecer en silencio.
+ * revisable en cada PR en vez de crecer en silencio. Y no basta con escribir
+ * una razón: cada exención nombra el spec que CI ejecuta, el fragmento que
+ * CONDUCE el comando con entradas reales y la aserción que COMPRUEBA su
+ * efecto, y el gate verifica las tres cosas (`validarExencion`).
+ *
+ * Antes de la sonda corre `command-integrity-rules.spec.mjs`: el árbol de
+ * decisión tiene que seguir atrapando las trampas conocidas aunque el registro
+ * de hoy no contenga ninguna.
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { validarExencion } from "./command-integrity-rules.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "../..");
 const web = path.join(root, "apps/web");
 const probe = path.join(web, "scripts/command-integrity-probe.mts");
+const rulesSpec = path.join(here, "command-integrity-rules.spec.mjs");
 const exemptionsPath = path.join(here, "command-integrity-exemptions.json");
 
+const require = createRequire(import.meta.url);
+const tsx = require.resolve("tsx/cli");
+
+/**
+ * El spec de las reglas va por tsx y desde apps/web porque algunas de sus
+ * pruebas evalúan entidades con los evaluadores reales del producto.
+ */
+function runRulesSpec() {
+  try {
+    const stdout = execFileSync(process.execPath, [tsx, rulesSpec], {
+      cwd: web,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: 120_000,
+    });
+    // Salir con 0 sin anunciar el final no prueba nada (ver run-specs.mjs).
+    if (!/comprobaciones OK/.test(stdout)) throw Object.assign(new Error("el spec no anunció su final"), { stdout });
+    process.stdout.write(stdout);
+  } catch (error) {
+    console.error("Gate de integridad de comandos: FALLÓ el spec de las reglas");
+    console.error(String(error.stdout ?? ""), String(error.stderr ?? error));
+    process.exit(1);
+  }
+}
+
 function runProbe() {
-  const require = createRequire(import.meta.url);
-  const tsx = require.resolve("tsx/cli");
   const stdout = execFileSync(process.execPath, [tsx, probe], {
     cwd: web,
     encoding: "utf8",
@@ -44,8 +76,23 @@ function runProbe() {
 const exemptions = JSON.parse(readFileSync(exemptionsPath, "utf8"));
 const declared = new Set(Object.keys(exemptions.noConcluyentes ?? {}));
 
-const report = runProbe();
+runRulesSpec();
 const failures = [];
+
+// R4. Antes sólo se leían las CLAVES: la razón y su «Spec:» nunca se
+// comprobaban, y una exención podía citar un spec que sólo cancela el comando
+// (o uno que no existe: CHAMFEREDGE y FILLETEDGE citaban «solids-modify.spec.ts»).
+const webSrc = path.join(web, "src");
+const leerSpec = (spec) => {
+  const absoluto = path.resolve(web, spec);
+  if (!absoluto.startsWith(webSrc + path.sep) || !existsSync(absoluto)) return null;
+  return readFileSync(absoluto, "utf8");
+};
+for (const [name, entry] of Object.entries(exemptions.noConcluyentes ?? {})) {
+  failures.push(...validarExencion(name, entry, leerSpec));
+}
+
+const report = runProbe();
 
 const rojos = report.outcomes.filter((outcome) => outcome.verdict === "ROJO");
 for (const outcome of rojos) {
