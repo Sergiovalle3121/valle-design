@@ -3,6 +3,7 @@ import { BrandGlyph } from "@/components/brand/BrandGlyph";
 import {
   BRAND_INK,
 } from "@/components/brand/logo-geometry";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 /**
  * LA TARJETA SOCIAL — una sola, parametrizada por ruta.
@@ -89,7 +90,7 @@ export function socialCard({
               letterSpacing: -0.6,
             }}
           >
-            Valle Design
+            {PRODUCT_LABEL.design}
           </span>
         </div>
 

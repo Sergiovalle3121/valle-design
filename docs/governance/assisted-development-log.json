@@ -3788,6 +3788,49 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "LANDING-VALLECAD-20260916",
+      "date": "2026-09-16",
+      "initiative": "vallecad.com dejaba de decir VALLE Design y dejaba de verse barato y saturado. Diagnóstico: la marca visible salía del default del manifiesto compartido (`packages/contracts/src/brand.ts`, «VALLE Design») porque Railway no define NEXT_PUBLIC_BRAND_*, y además 33 ficheros de la web y 5 de la API escribían el literal a mano; la portada apilaba 12 bandas y ~30 tarjetas con un hero a dos columnas, lámina SVG animada, insignia WebGL, orbes y halo; el copy se contradecía (2D vs 3D, «el muro no recorta su hueco» cuando `wall-openings.ts` sí lo hace, «no abrimos DWG» cuando `dwg-interop-flag.ts` tiene firmadas dos betas de sólo importación gobernadas por bandera). Cambios: (1) default del manifiesto a VALLECAD con tagline honesta (2D + sólidos 3D + DXF); (2) ninguna superficie pública escribe el nombre (PRODUCT_LABEL.design en la web, resolveBrandManifest en la API); (3) wordmark alineado y los 7 SVG de `public/brand/` regenerados con `scripts/brand/build-brand-assets.mjs` (verificado con --check dos veces); (4) candado anti-recaída en `public-pages.spec.ts` (corre en test:specs); (5) `lib/marketing/dwg-claim.ts`: el texto de DWG se deriva de las banderas de la build y nunca afirma escritura; FAQ, precios y guía DXF/DWG lo llaman; (6) barra pública de cinco ítems; (7) portada de siete secciones: hero oscuro con captura real a lo ancho, tres pilares, estudio grande, comparativa en `<table>` contra «CAD de escritorio tradicional» sin nombrar marcas ajenas (decisión del titular del 2026-08-28 vigente; `check:surface` la impone), precios sin cifras, FAQ con h2#faq, CTA final; (8) estudio y API leen el manifiesto. Fuera del alcance, a decisión expresa del titular: /terms y /privacy (exigen versión legal nueva), el pie de las 149 plantillas (`template-render.ts`, regenera 298 hashes), `Layout3DEditor.tsx` (otros frentes) y nombrar la marca ajena en la comparativa (exige revocar por escrito la decisión del 2026-08-28 y ampliar en commit aparte la lista blanca del gate a un único fichero).",
+      "branch": "claude/vc-landing",
+      "assistants": [
+        "Claude Code (Anthropic), modelo Claude Fable 5.1, como subagente del frente «landing» de una orquestación local del titular: lectura del árbol en b90a9a42, plan, implementación en commits pequeños, ejecución de gates locales y esta entrada"
+      ],
+      "authority": "Sergio Valle Zárate. Encargó por escrito el objetivo (vallecad.com deja de decir VALLE Design y deja de verse barato y saturado, con la landing de un CAD de escritorio como referencia de disposición) y las reglas: sin cherry-pick mecánico de la rama de MiMo, sin tocar package.json ni evidencia, sin debilitar gates, comparativa sólo con lo que el código hace (DWG sólo AC1015/AC1018). La decisión del 2026-08-28 («que la página diga lo que hace, no contra quién compite») no se revocó: la comparativa no nombra marcas ajenas y queda registrado que nombrarlas exige su decisión escrita y un commit aparte. De la rama de MiMo (PR #209) se tomó con `cherry-pick -x` sólo 57d634e2 (comentario sobre identificadores congelados); el resto se rehízo desde el manifiesto porque no aplicaba sobre main o sustituía un literal por otro literal.",
+      "firstPartyInputs": [
+        "packages/contracts/src/brand.ts (manifiesto compartido) y apps/web/src/config/brand.ts (resolución NEXT_PUBLIC_BRAND_*)",
+        "apps/web/src/app/page.tsx en b90a9a42 (614 líneas, 12 bandas) y sus componentes de marketing",
+        "apps/web/src/lib/cad/dwg-interop-flag.ts (betas AC1015_MODELSPACE_2D_V3 y AC1018_MODELSPACE_2D_V1 firmadas, ADR-0009), apps/web/src/lib/cad/document-import-client.ts (banderas NEXT_PUBLIC_DWG_*), apps/web/src/lib/cad/wall-openings.ts, apps/web/src/lib/brep/ (ADR-0016)",
+        "scripts/design/check-public-surface.mjs, apps/web/src/app/public-pages.spec.ts, seo-surface.spec.ts, e2e/public/mobile-accessibility.spec.ts, lib/cad/verification/dwg-surface-honesty.spec.ts (contratos que la portada debe respetar)",
+        "Commits de la rama claude/noche-mimo-razones-para-pagar (dd1dbb76, 2dbf4abc, 9059dd1b, 4532ef44, 57d634e2, 7559f7f2, fd670773) como inventario, no como parche",
+        "public/product/*.png generadas por apps/web/scripts/capture-product-shots.mts (no se regeneraron: el estudio de main no cambió)"
+      ],
+      "externalSources": [
+        {
+          "location": "Página pública del producto de un CAD de escritorio de un tercero, señalada por el titular como referencia de disposición",
+          "terms": "Consulta visual de una página pública; no se copió texto, imagen, código ni estilos",
+          "fact": "Sólo como referencia de DISPOSICIÓN: hero oscuro con captura del producto a lo ancho, un titular, dos llamadas a la acción, navegación corta y mucho aire. Todo el texto y la maquetación de la portada son propios y cada afirmación se verificó en el código de este repositorio."
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna implementación copiada, traducida ni portada.",
+      "derivedAreas": [
+        "packages/contracts/src/brand.ts; apps/web/src/config/production-readiness.spec.ts; .env.example; apps/web/.env.example",
+        "apps/web/src/app/** (portada, precios, guías, alta, acceso, estado, licencias, plantillas, tarjetas OG, global-error, facturación), apps/web/src/components/marketing/** (Comparison.tsx nuevo, ProductFrame, SiteFooter), components/PublicNav.tsx, components/brand/logo-geometry.ts, public/brand/*.svg regenerados, lib/marketing/{faq,template-gallery,dwg-claim(.spec)}.ts, lib/seo/social-card.tsx, config/site-routes.ts, components/gallery/PlanRender.tsx, app/public-pages.spec.ts, app/seo-surface.spec.ts",
+        "apps/web/src/components/cad/{CadStudioHost,collab/ReviewLinkClient,dialogs/CadDxfExportDialog}.tsx",
+        "apps/api/src/common/brand/brand.ts (nuevo), modules/outbox-receiver/email-templates(.spec).ts, modules/identity/identity.controller.ts, modules/commercial/cfdi-issuance.service.ts, modules/organizations/organizations.controller.ts, main.ts",
+        "docs/governance/assisted-development-log.json (esta entrada)"
+      ],
+      "fixtures": "Ninguno nuevo. Las capturas de public/product/ ya existían y salen del propio editor.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Gates locales ejecutados uno a uno sobre la rama antes del push: check:json-keys, doctor, fonts, contrast, surface, conventions, legal, e2e-localizadores, auditoria, deploy, no-industrial-domain, no-line-engineering, monolith-budget y governance en verde; typecheck web y api en verde; lint web 0 errores (38 avisos preexistentes, ninguno en ficheros tocados) y lint:check api 0 errores; specs web tocadas (public-pages, seo-surface, design-system, production-readiness, dwg-claim, CapabilityExplorer, commercial-surface, template-gallery, i18n/coverage, structured-data-browser-claim, route-language) en verde; jest api email-templates 15/15 e identity-mfa 41/41; `build-brand-assets.mjs --check` dos veces. dwg-surface-honesty.spec.ts da en esta laptop el falso rojo conocido de rutas con backslash sobre la guía DXF/DWG (LIMIT_DOCUMENTS), verde en Linux. El veredicto lo dan los tres checks requeridos del CI sobre el SHA exacto candidato; la adopción es la revisión del diff y el merge por el titular."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

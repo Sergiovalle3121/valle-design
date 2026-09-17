@@ -11,6 +11,7 @@
  * cuando llegan los planos — CLS 0 por construcción.
  */
 import { cadTemplateSvgSize } from "@/lib/cad/template-svg-size";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 export function PlanRender({
   id,
@@ -32,7 +33,7 @@ export function PlanRender({
   priority?: boolean;
 }) {
   const size = cadTemplateSvgSize(widthM * 1000, heightM * 1000);
-  const alt = `Plano de ${label} — plantilla CAD de Valle Design`;
+  const alt = `Plano de ${label} — plantilla CAD de ${PRODUCT_LABEL.design}`;
   const loading = priority ? "eager" : "lazy";
   const common = {
     width: size.width,

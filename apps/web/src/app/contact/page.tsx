@@ -6,12 +6,13 @@ import {
 } from "../docs/PublicPageShell";
 import { COMMERCIAL_CONTACTS } from "@/config/commercial";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 export const metadata: Metadata = publicPageMetadata({
   path: "/contact",
   title: "Contacto y canales de atención",
   description:
-    "Canales públicos configurados para hablar con el equipo de Valle Design: comercial, soporte del producto y privacidad.",
+    `Canales públicos configurados para hablar con el equipo de ${PRODUCT_LABEL.design}: comercial, soporte del producto y privacidad.`,
 });
 
 const channelLabels = {

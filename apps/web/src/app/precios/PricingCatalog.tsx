@@ -29,6 +29,7 @@ import {
   fetchPublicCatalog,
   type CatalogState,
 } from "@/lib/commercial/public-catalog";
+import { dwgClaim } from "@/lib/marketing/dwg-claim";
 
 /**
  * Lo que trae CUALQUIER plan. No es una lista de marketing: cada punto
@@ -39,7 +40,9 @@ const INCLUDED = [
   "Editor CAD 2D en el navegador: capas, geometría, acotación y bloques",
   "Espacio papel con varias ventanas y su escala, e impresión a PDF",
   "Importación y exportación DXF con informe de lo que se pierde",
-  "Valle Design no lee ni escribe DWG — se dice aquí, no en la letra pequeña",
+  // La línea de DWG se deriva de las banderas de ESTA build (`dwg-claim.ts`):
+  // apagada dice que no abre; encendida nombra las versiones exactas que lee.
+  `${dwgClaim().short} Se dice aquí, no en la letra pequeña.`,
   "Proyectos y documentos por organización, con permisos por rol",
   "Enlaces de revisión con caducidad y comentarios anclados a la geometría",
 ] as const;

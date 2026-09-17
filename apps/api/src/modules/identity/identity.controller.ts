@@ -44,6 +44,7 @@ import {
 import { totpUri } from './identity-mfa';
 import { IdentityMfaService } from './identity-mfa.service';
 import { IdentityService } from './identity.service';
+import { PRODUCT_DISPLAY_NAME } from '../../common/brand/brand';
 
 /**
  * El emisor que ve el usuario en su aplicación de autenticación.
@@ -54,7 +55,7 @@ import { IdentityService } from './identity.service';
  * lo que cabe en una línea de esa lista.
  */
 const MFA_ISSUER = (
-  process.env.IDENTITY_MFA_ISSUER?.trim() || 'Valle Design'
+  process.env.IDENTITY_MFA_ISSUER?.trim() || PRODUCT_DISPLAY_NAME
 ).slice(0, 48);
 
 const MAX_COOKIE_HEADER_LENGTH = 8_192;

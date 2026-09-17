@@ -12,14 +12,14 @@ import {
  * configurar NEXT_PUBLIC_BRAND_* seguiría publicando.
  */
 const PLACEHOLDER_MANIFEST: BrandManifest = {
-  brandName: "VALLE",
+  brandName: "VALLECAD",
   legalEntityName: "Sergio Valle Enterprise Software",
   founderName: "Sergio Valle",
-  descriptor: "Diseño arquitectónico",
-  productNames: { design: "VALLE Design" },
+  descriptor: "CAD en el navegador",
+  productNames: { design: "VALLECAD" },
   tagline: {
-    en: "2D architectural design in the browser.",
-    es: "Diseño arquitectónico 2D en el navegador.",
+    en: "2D drafting and 3D solids in the browser: layers, blocks, associative dimensions and DXF exchange.",
+    es: "Dibujo 2D y sólidos 3D en el navegador: capas, bloques, cotas asociativas e intercambio DXF.",
   },
   supportEmail: "support@example.invalid",
   salesEmail: "sales@example.invalid",

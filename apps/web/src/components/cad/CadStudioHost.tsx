@@ -33,7 +33,7 @@ import { useDesignAuth } from "@/contexts/DesignAuthContext";
 import StudioCollaborationLayer from "@/components/cad/collab/StudioCollaborationLayer";
 import TeamMessagingHost from "@/components/cad/messaging/TeamMessagingHost";
 import { CallBar } from "@/components/cad/calls/CallBar";
-import { BRAND } from "@/config/brand";
+import { BRAND, PRODUCT_LABEL } from "@/config/brand";
 import { ErrorBoundary } from "@/components/ui";
 import { cadTourHost } from "@/components/cad/onboarding/tour-host";
 import { createDesignDocumentPort } from "@/components/cad/document-lifecycle/design-port";
@@ -105,9 +105,9 @@ export default function CadStudioHost({
     NonNullable<Layout3DEditorPlatformProps["branding"]>
   >(
     () => ({
-      brandName: "Valle Design",
+      brandName: BRAND.brandName,
       legalEntityName: BRAND.legalEntityName,
-      productLabel: "Valle Design",
+      productLabel: PRODUCT_LABEL.design,
     }),
     [],
   );
@@ -183,7 +183,7 @@ export default function CadStudioHost({
     // barra de estado — repetirlo en pantalla sería ruido, pero un lector de
     // pantalla sin él no tiene ningún encabezado del que partir.
     <main className="contents" aria-label="Estudio de dibujo">
-      <h1 className="sr-only">Editor de planos — Valle Design</h1>
+      <h1 className="sr-only">Editor de planos — {PRODUCT_LABEL.design}</h1>
       <ErrorBoundary zona="El editor" documentId={documentId} onError={handleEditorCrash} extraActions={<EditorCrashRecoveryAction scope={recoveryScope} />}>
         <Layout3DEditor
           {...props}
