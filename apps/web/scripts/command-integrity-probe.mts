@@ -21,7 +21,8 @@
  * clasifica:
  *
  * - `muta`: aplicó un lote y el documento CAMBIÓ de verdad (se compara la
- *   serialización canónica antes/después).
+ *   serialización canónica antes/después) y cada entidad añadida o cambiada
+ *   tiene geometría evaluable; un cascarón vacío es ROJO.
  * - `delegado`: emitió una petición a un anfitrión (vista, trazado, interfaz,
  *   variables, selección). La honestidad de ESA capa la prueban los specs de
  *   los anfitriones; aquí basta con que el efecto exista.
@@ -63,7 +64,15 @@ import { executeCadEntityCommandBatch } from "../src/lib/cad/entity-commands";
 import { cadExpandSelectionByGroup } from "../src/lib/cad/blocks/cad-groups";
 import { CadSystemVariableStore } from "../src/lib/cad/system-variables";
 import { cadDocumentExtents } from "../src/lib/cad/view/document-extents";
-import { clasificar } from "../../../scripts/cad/command-integrity-rules.mjs";
+import { solid3dMassProperties, solid3dMesh } from "../src/lib/cad/solid3d-build";
+import { regionArea } from "../src/lib/cad/solid3d-adapter";
+import {
+  clasificar,
+  entidadesTocadas,
+  sinGeometria,
+} from "../../../scripts/cad/command-integrity-rules.mjs";
+
+const EVALUADORES = { solid3dMesh, solid3dMassProperties, regionArea };
 
 /** Documento de prueba: geometría variada, capas, bloque, hoja y restricción. */
 function probeDocument(): CadDocument {
@@ -132,6 +141,7 @@ function runCommand(name: string): ProbeOutcome {
   const registry = CAD_COMMAND_REGISTRY_V2;
   const descriptor = registry.get(name)!;
   let document = probeDocument();
+  const initial = document;
   const variables = new CadSystemVariableStore();
   let selection: readonly string[] = [];
   let ids = 0;
@@ -284,6 +294,13 @@ function runCommand(name: string): ProbeOutcome {
   const changed = after !== before;
   const lastMessages = messages.slice(-4).map((entry) => `${entry.level}:${entry.text}`);
   const delegated = hostRequests.length + viewRequests + uiRequests + variablePatches + selectionEffects > 0;
+  const vacias =
+    applied > 0 && changed
+      ? entidadesTocadas(initial.entities, document.entities).flatMap((entity) => {
+          const motivo = sinGeometria(entity, EVALUADORES);
+          return motivo ? [{ id: entity.id, motivo }] : [];
+        })
+      : [];
   const { verdict, note } = clasificar({
     steps,
     maxSteps: MAX_STEPS,
@@ -294,6 +311,7 @@ function runCommand(name: string): ProbeOutcome {
     inputTrace,
     probeAborted,
     mutates: descriptor.mutates === true,
+    vacias,
   });
 
   return {

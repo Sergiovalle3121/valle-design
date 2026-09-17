@@ -5,10 +5,18 @@
  * La sonda en vivo sólo mide el registro de HOY; estas reglas existen por las
  * trampas que el registro de hoy no contiene. Cada regla lleva aquí su trampa
  * (la frase o la entidad real que se colaba) y su gemelo legítimo (un comando
- * de main que tiene que seguir en verde). El gate lo ejecuta antes de la sonda.
+ * de main que tiene que seguir en verde). El gate lo ejecuta antes de la sonda,
+ * con tsx y desde apps/web: las pruebas de R2 evalúan las entidades con los
+ * evaluadores REALES del producto, no con dobles.
  */
 import assert from "node:assert/strict";
-import { clasificar } from "./command-integrity-rules.mjs";
+import { clasificar, entidadesTocadas, sinGeometria } from "./command-integrity-rules.mjs";
+
+const { solid3dMesh, solid3dMassProperties } = await import(
+  "../../apps/web/src/lib/cad/solid3d-build.ts"
+);
+const { regionArea } = await import("../../apps/web/src/lib/cad/solid3d-adapter.ts");
+const EVALUADORES = { solid3dMesh, solid3dMassProperties, regionArea };
 
 let checks = 0;
 const eq = (actual, expected, message) => {
@@ -87,5 +95,66 @@ eq(
   "informa",
   "R1: una consulta sin límite sigue informando",
 );
+
+// ─── R2: un lote que sólo inserta un cascarón no «muta» ──────────────────────
+
+const P = (x, y, z = 0) => ({ x, y, z });
+const linea = { id: "l1", type: "line", layer: "0", start: { x: 0, y: 0 }, end: { x: 100, y: 0 } };
+// Trampa: MESH y PLANESURF de la rama de MiMo (meshes.ts, surfaces.ts).
+const cascaron = {
+  id: "probe1",
+  type: "solid3d",
+  layer: "0",
+  root: "m",
+  nodes: [{ id: "m", op: "brep", points: [], faces: [] }],
+};
+const caja = {
+  id: "probe2",
+  type: "solid3d",
+  layer: "0",
+  root: "n",
+  nodes: [{ id: "n", op: "box", min: P(0, 0, 0), max: P(10, 10, 10) }],
+};
+const region = { id: "probe3", type: "region", layer: "0", outer: [P(0, 0), P(10, 0), P(10, 10)] };
+const regionPlana = { id: "probe4", type: "region", layer: "0", outer: [P(0, 0), P(10, 0), P(20, 0)] };
+
+eq(sinGeometria(cascaron, EVALUADORES)?.startsWith("no se puede evaluar"), true, "R2: el brep vacío no evalúa");
+eq(sinGeometria(caja, EVALUADORES), null, "R2: una caja de verdad tiene geometría");
+eq(sinGeometria(region, EVALUADORES), null, "R2: una región con área");
+eq(sinGeometria(regionPlana, EVALUADORES), "región de área 0", "R2: una región degenerada");
+eq(sinGeometria(linea, EVALUADORES), null, "R2: una línea no tiene arrays que vaciar");
+eq(
+  sinGeometria({ id: "m1", type: "mesh", vertices: [], faces: [] }, EVALUADORES),
+  "mesh.faces vacío",
+  "R2: cualquier array de geometría vacío",
+);
+eq(
+  entidadesTocadas([linea], [linea, cascaron]).map((entity) => entity.id),
+  ["probe1"],
+  "R2: sólo se examina lo que el lote añadió",
+);
+eq(
+  entidadesTocadas([linea], [{ ...linea, layer: "MURO" }]).map((entity) => entity.id),
+  ["l1"],
+  "R2: y lo que cambió",
+);
+
+const tras = (antes, despues) => ({
+  ...sinEfecto([]),
+  applied: 1,
+  changed: true,
+  vacias: entidadesTocadas(antes, despues).flatMap((entity) => {
+    const motivo = sinGeometria(entity, EVALUADORES);
+    return motivo ? [{ id: entity.id, motivo }] : [];
+  }),
+});
+eq(veredicto(tras([linea], [linea, cascaron])), "ROJO", "R2: MESH con el cascarón es ROJO");
+eq(
+  veredicto(tras([linea], [linea, cascaron, { ...linea, id: "relleno" }])),
+  "ROJO",
+  "R2: una línea de relleno no esconde el cascarón",
+);
+eq(veredicto(tras([linea], [linea, caja])), "muta", "R2: BOX con geometría sigue mutando");
+eq(veredicto(tras([linea], [])), "muta", "R2: borrar no deja entidades que evaluar y muta");
 
 console.log(`command-integrity-rules.spec: ${checks} comprobaciones OK`);

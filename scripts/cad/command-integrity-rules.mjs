@@ -48,6 +48,61 @@ export const declaraLimiteMutante = (text) =>
   HONESTY.test(text) || LIMITE_MUTANTE.test(text);
 
 /**
+ * R2 — entidades que un lote añadió o cambió: se comparan por id y por su
+ * JSON. Sólo éstas se examinan; lo que el lote no tocó no es asunto suyo.
+ *
+ * @template {{id: string}} E
+ * @param {readonly E[]} antes
+ * @param {readonly E[]} despues
+ * @returns {E[]}
+ */
+export function entidadesTocadas(antes, despues) {
+  const previas = new Map(antes.map((entity) => [entity.id, JSON.stringify(entity)]));
+  return despues.filter((entity) => previas.get(entity.id) !== JSON.stringify(entity));
+}
+
+const ARRAYS_DE_GEOMETRIA = ["points", "faces", "vertices", "positions", "indices"];
+
+/**
+ * R2 — ¿esta entidad es un cascarón sin geometría?
+ *
+ * «muta» comparaba sólo la serialización: insertar un solid3d cuyo único nodo
+ * es un `brep` con `points: []` y `faces: []` cambia el texto del documento y
+ * contaba como mutación verificada (MESH y PLANESURF de la rama de MiMo). Aquí
+ * se EVALÚA lo insertado con los evaluadores del producto. No se usa la caja
+ * envolvente: la de un sólido roto es la del marcador que lo sustituye y nunca
+ * sale vacía.
+ *
+ * @param {any} entity
+ * @param {{
+ *   solid3dMesh: (entity: any) => {indices: ArrayLike<number>},
+ *   solid3dMassProperties: (entity: any) => {area: number},
+ *   regionArea: (entity: any) => number,
+ * }} evaluadores
+ * @returns {string | null} el motivo, o null si tiene geometría
+ */
+export function sinGeometria(entity, evaluadores) {
+  try {
+    if (entity.type === "solid3d") {
+      const mesh = evaluadores.solid3dMesh(entity);
+      if (!mesh || mesh.indices.length === 0) return "solid3d sin triángulos";
+      if (!(evaluadores.solid3dMassProperties(entity).area > 0)) return "solid3d de área 0";
+      return null;
+    }
+    if (entity.type === "region") {
+      return evaluadores.regionArea(entity) > 0 ? null : "región de área 0";
+    }
+  } catch (error) {
+    // Lo que el producto no sabe evaluar tampoco es geometría que enseñar.
+    return `no se puede evaluar: ${String(error).slice(0, 80)}`;
+  }
+  for (const key of ARRAYS_DE_GEOMETRIA) {
+    if (Array.isArray(entity[key]) && entity[key].length === 0) return `${entity.type}.${key} vacío`;
+  }
+  return null;
+}
+
+/**
  * @typedef {"muta" | "delegado" | "informa" | "honesto-limitado" | "no-concluyente" | "ROJO"} Veredicto
  */
 
@@ -64,6 +119,7 @@ export const declaraLimiteMutante = (text) =>
  * @param {string[]} o.inputTrace   tipos de entrada, en orden
  * @param {boolean} o.probeAborted  la sonda canceló por prompts repetidos
  * @param {boolean} o.mutates       el descriptor promete mutar
+ * @param {{id: string, motivo: string}[]} [o.vacias]  R2: entidades tocadas sin geometría
  * @returns {{verdict: Veredicto, note?: string}}
  */
 export function clasificar(o) {
@@ -77,6 +133,7 @@ export function clasificar(o) {
     inputTrace,
     probeAborted,
     mutates,
+    vacias = [],
   } = o;
   const honest = messages.some((entry) => HONESTY.test(entry.text));
   const claims = messages.some(
@@ -86,7 +143,19 @@ export function clasificar(o) {
   if (steps >= maxSteps) {
     return { verdict: "no-concluyente", note: "el auto-respondedor no lo llevó a término" };
   }
-  if (applied > 0 && changed) return { verdict: "muta" };
+  if (applied > 0 && changed) {
+    // R2. Basta con UNA entidad tocada sin geometría: si no, una línea de
+    // relleno junto al cascarón vacío bastaría para esconderlo.
+    if (vacias.length > 0) {
+      return {
+        verdict: "ROJO",
+        note:
+          "aplicó un lote cuyo cambio incluye entidades sin geometría: " +
+          vacias.map(({ id, motivo }) => `${id} (${motivo})`).join(", "),
+      };
+    }
+    return { verdict: "muta" };
+  }
   if (applied > 0 && !changed) {
     return { verdict: "ROJO", note: "aplicó un lote pero el documento canónico quedó idéntico" };
   }
