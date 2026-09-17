@@ -91,7 +91,6 @@ function array3dCommands(state: Array3dState, context: CadCommandContext): CadEn
   if (rows < 2 && cols < 2 && levels < 2) return [];
 
   const commands: CadEntityCommand[] = [];
-  let copyIdx = 0;
 
   for (let l = 0; l < levels; l++) {
     for (let c = 0; c < cols; c++) {
@@ -105,7 +104,6 @@ function array3dCommands(state: Array3dState, context: CadCommandContext): CadEn
           if (!existing || (existing as { type?: string }).type !== "solid3d")
             continue;
           const newId = context.newEntityId();
-          copyIdx++;
           commands.push({ type: "copy", entityId, newEntityId: newId });
           const current =
             (existing as { placement?: Record<string, number> }).placement ?? {};

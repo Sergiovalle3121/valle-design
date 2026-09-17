@@ -11,7 +11,6 @@ import {
   type CadEntity,
 } from "../../cad-document";
 import { executeCadEntityCommandBatch } from "../../entity-commands";
-import { solid3dMassProperties } from "../../solid3d-build";
 import { CAD_COMMAND_REGISTRY_V2 } from "../index";
 import type {
   CadCommandContext,
