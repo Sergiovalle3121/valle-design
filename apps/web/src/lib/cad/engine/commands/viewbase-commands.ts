@@ -152,9 +152,9 @@ const noSuchView = (key: string) =>
 
 type ViewbaseState =
   | { step: "direction" }
-  | { step: "cut-height" }
-  | { step: "name" }
-  | { step: "scale" };
+  | { step: "cut-height"; dir: string }
+  | { step: "name"; dir: string; cutHeight?: number }
+  | { step: "scale"; dir: string; cutHeight?: number; name: string };
 
 const DIRECTION_OPTIONS = [
   { keyword: "Planta", shortcut: "P" },
@@ -191,22 +191,15 @@ const viewbaseCommand: CadCommandDescriptor<ViewbaseState> = {
         input.kind === "keyword" ? input.keyword : "Planta";
       if (dir === "Planta")
         return {
-          state: { step: "cut-height" },
+          state: { step: "cut-height", dir },
           prompt: {
             message: `Altura de corte (mm; Intro = ${PLAN_CUT_DEFAULT} mm, el antepecho)`,
             options: [],
           },
           accepts: CAD_ACCEPT_DISTANCE | CAD_ACCEPT_TEXT,
         };
-      if (dir === "Alzado")
-        return {
-          state: { step: "name" },
-          prompt: { message: "Nombre de la vista", options: [] },
-          accepts: CAD_ACCEPT_TEXT,
-        };
-      // Isométrica: la vista base es una planta + un alzado
       return {
-        state: { step: "name" },
+        state: { step: "name", dir },
         prompt: { message: "Nombre de la vista", options: [] },
         accepts: CAD_ACCEPT_TEXT,
       };
@@ -215,7 +208,15 @@ const viewbaseCommand: CadCommandDescriptor<ViewbaseState> = {
     if (state.step === "cut-height") {
       if (input.kind === "enter") {
         return {
-          state: { step: "name" },
+          state: { step: "name", dir: state.dir },
+          prompt: { message: "Nombre de la vista", options: [] },
+          accepts: CAD_ACCEPT_TEXT,
+        };
+      }
+      if (input.kind === "distance") {
+        const altura = input.value;
+        return {
+          state: { step: "name", dir: state.dir, cutHeight: altura },
           prompt: { message: "Nombre de la vista", options: [] },
           accepts: CAD_ACCEPT_TEXT,
         };
@@ -224,7 +225,7 @@ const viewbaseCommand: CadCommandDescriptor<ViewbaseState> = {
         const escrito = input.value.trim().replace(",", ".");
         if (escrito === "") {
           return {
-            state: { step: "name" },
+            state: { step: "name", dir: state.dir },
             prompt: { message: "Nombre de la vista", options: [] },
             accepts: CAD_ACCEPT_TEXT,
           };
@@ -233,12 +234,10 @@ const viewbaseCommand: CadCommandDescriptor<ViewbaseState> = {
         if (!Number.isFinite(altura))
           return say(`«${input.value}» no es una altura de corte.`);
         return {
-          state: { step: "name" } as ViewbaseState,
+          state: { step: "name", dir: state.dir, cutHeight: altura },
           prompt: { message: "Nombre de la vista", options: [] },
           accepts: CAD_ACCEPT_TEXT,
-          // Store the cut height for later — we'll use a closure trick below
-          _cutHeight: altura,
-        } as never;
+        };
       }
       return say("VIEWBASE: escriba una altura o pulse Intro.");
     }
@@ -249,19 +248,17 @@ const viewbaseCommand: CadCommandDescriptor<ViewbaseState> = {
       const name = input.value.trim();
       if (!name) return say("VIEWBASE: el nombre no puede estar vacío.");
       return {
-        state: { step: "scale" } as ViewbaseState,
+        state: { step: "scale", dir: state.dir, cutHeight: state.cutHeight, name },
         prompt: {
           message: "Escala de la vista (1:n; Intro = ajustar al papel)",
           options: [],
         },
         accepts: CAD_ACCEPT_DISTANCE | CAD_ACCEPT_TEXT,
-        _name: name,
-      } as never;
+      };
     }
 
     // step === "scale"
-    const name = (state as never as { _name?: string })._name ?? "Vista";
-    const cutHeight = (state as never as { _cutHeight?: number })._cutHeight;
+    const { name, cutHeight, dir } = state;
     const scale =
       input.kind === "distance" && input.value > 0 ? input.value : undefined;
 
@@ -270,12 +267,19 @@ const viewbaseCommand: CadCommandDescriptor<ViewbaseState> = {
     const space = activeSpace(context);
     if (!space) return say(NO_LAYOUT);
 
-    const camera = cutHeight !== undefined
+    const orthoMap: Record<string, CadViewportOrthoName> = {
+      Planta: "planta",
+      Alzado: "frontal",
+      Isométrica: "frontal",
+    };
+    const ortho: CadViewportOrthoName = orthoMap[dir] ?? "planta";
+
+    const camera = cutHeight !== undefined && ortho === "planta"
       ? (() => {
           const r = cadViewportPlanCutView({ cutHeight });
-          return "ok" in r ? cadViewportOrthoView("planta", { x: 0, y: 0, z: 0 }) : r;
+          return "ok" in r ? cadViewportOrthoView(ortho, { x: 0, y: 0, z: 0 }) : r;
         })()
-      : cadViewportOrthoView("planta", { x: 0, y: 0, z: 0 });
+      : cadViewportOrthoView(ortho, { x: 0, y: 0, z: 0 });
 
     const created = createCadSolView({
       document: view,
@@ -672,7 +676,7 @@ const viewupdateCommand: CadCommandDescriptor<never> = {
 // ---------------------------------------------------------------------------
 
 export const CAD_VIEWBASE_COMMANDS: readonly CadAnyCommandDescriptor[] = [
-  // VIEWBASE retirado (T18): la sonda lo marca ROJO — pendiente de arreglo (T18C)
+  asCadCommand(viewbaseCommand),
   asCadCommand(viewprojCommand),
   asCadCommand(viewsectionCommand),
   asCadCommand(viewdetailCommand),

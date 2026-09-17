@@ -367,7 +367,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   UPDATEFIELD: "Actualizar campo",
   VECTORIZE: "Vectorizar",
   VIEW: "Vista guardada",
-
+  VIEWBASE: "Vista base",
   VIEWDETAIL: "Detalle",
   VIEWEDIT: "Editar vista",
   VIEWPROJ: "Proyección",

@@ -111,13 +111,12 @@ let doc = documentWith([rect]);
 // --- VIEWBASE: planta por defecto con corte a 1200 mm -------------------------
 {
   const result = run("VIEWBASE", [enter, enter, text("Planta baja"), enter], doc);
-  if (result?.kind === "document") {
-    assert.ok(result.commands.length > 0, "VIEWBASE genera comandos de inserción");
-    doc = executeCadEntityCommandBatch(doc, result.commands, result.label).document;
-  } else {
-    // Si no hay modelo sólido suficiente, VIEWBASE devuelve mensaje.
-    assert.ok(result?.kind === "message", `VIEWBASE responde: ${result?.kind}`);
-  }
+  assert.ok(result?.kind === "document", "VIEWBASE produce documento");
+  assert.ok(result.commands.length > 0, "VIEWBASE genera comandos de inserción");
+  doc = executeCadEntityCommandBatch(doc, result.commands, result.label).document;
+  const vps = doc.paperSpaces[0]?.viewports ?? [];
+  const vp = vps.find((v) => v.name === "Planta baja");
+  assert.ok(vp, "VIEWBASE crea viewport con nombre «Planta baja»");
 }
 
 // --- VIEWPROJ: proyectar la planta hacia frontal --------------------------------
