@@ -267,3 +267,117 @@ export function clasificar(o) {
     ? { verdict: "ROJO", note: "terminó al invocarse, sin efecto y sin mensaje" }
     : { verdict: "informa" };
 }
+
+// ─── R4: una exención sólo vale si su spec conduce el comando y comprueba ────
+
+/** Los specs que CI ejecuta: `src/**\/*.spec.ts` de apps/web (run-specs.mjs). */
+export const SPEC_EJECUTADO_EN_CI = /^src\/(?:[\w.-]+\/)*[\w.-]+\.spec\.ts$/;
+
+/** Consultas que no conducen nada: registro, alias o bucles sobre nombres. */
+const SOLO_CONSULTA = /\bregistry\.get\b|REGISTRY_V2\.get\b|resolveCadCommandAlias|\bfor\s*\(/;
+
+/** Entradas que consisten sólo en cancelar. */
+const SOLO_CANCELAR = /^\s*\[\s*(?:cancel|CANCEL|\{\s*kind\s*:\s*"cancel"\s*\})\s*\]/;
+const PASO_CANCELAR = /\.step\([^,]*,\s*(?:cancel|CANCEL|\{\s*kind\s*:\s*"cancel"\s*\})\s*[,)]/;
+
+const ASERCION = /\bassert\.|\bok\(|\beq\(|\bnear\(/;
+const HABLA_DE_EFECTO = /document|commands|effects|requests|layers|blocks|entities|volume|attributes/i;
+const VENTANA_DE_COMPROBACION = 30;
+
+const escapar = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * ¿La línea `indice` conduce `nombre` con entradas de verdad?
+ * @returns {string | null} el motivo del rechazo, o null si conduce
+ */
+function rechazoDeConduccion(nombre, conduce, lineas, indice) {
+  if (SOLO_CONSULTA.test(conduce)) return "«conduce» es una consulta de registro, de alias o un bucle, no una conducción";
+  const directo = new RegExp(`\\b\\w+\\(\\s*\\[?\\s*"${escapar(nombre)}"\\s*,`).exec(conduce);
+  if (directo) {
+    const entradas = conduce.slice(directo.index + directo[0].length);
+    return SOLO_CANCELAR.test(entradas) ? "«conduce» sólo cancela el comando" : null;
+  }
+  // Por identificador: `const X = command("NOMBRE")` o `.get("NOMBRE")`, la
+  // ligadura MÁS CERCANA antes de la línea, usada con `.step(` o `f(X, …)`.
+  for (const [, id] of conduce.matchAll(/\b([A-Za-z_$][\w$]*)\b/g)) {
+    const uso = new RegExp(`\\b${escapar(id)}\\s*\\.\\s*step\\(|\\b\\w+\\(\\s*${escapar(id)}\\s*,`);
+    if (!uso.test(conduce)) continue;
+    const ligadura = new RegExp(`\\b(?:const|let|var)\\s+${escapar(id)}\\s*=`);
+    for (let j = indice; j >= 0; j -= 1) {
+      if (!ligadura.test(lineas[j])) continue;
+      const nombra = new RegExp(`(?:\\b\\w*command|\\.get)\\(\\s*"${escapar(nombre)}"\\s*\\)`, "i");
+      if (!nombra.test(lineas[j])) break;
+      return PASO_CANCELAR.test(conduce) ? "«conduce» sólo cancela el comando" : null;
+    }
+  }
+  return `«conduce» no nombra ${nombre} con entradas (ni "${nombre}" como primer argumento ni un identificador ligado a command("${nombre}"))`;
+}
+
+/**
+ * ¿`comprueba` está en la ventana tras la línea `indice` y es una aserción
+ * sobre un efecto? La aserción puede abrir en la línea anterior (`assert.ok(`
+ * con el argumento debajo).
+ */
+function compruebaEnVentana(comprueba, lineas, indice) {
+  if (!HABLA_DE_EFECTO.test(comprueba)) return false;
+  const fin = Math.min(lineas.length - 1, indice + VENTANA_DE_COMPROBACION);
+  for (let j = indice; j <= fin; j += 1) {
+    if (!lineas[j].includes(comprueba)) continue;
+    if (ASERCION.test(lineas[j])) return true;
+    const previa = lineas[j - 1]?.trim() ?? "";
+    if (previa.endsWith("(") && ASERCION.test(previa)) return true;
+  }
+  return false;
+}
+
+/**
+ * Valida una exención de `command-integrity-exemptions.json`.
+ *
+ * Antes el gate sólo leía la CLAVE: el texto «Spec: …» nunca se comprobaba, y
+ * DVIEW entró citando un spec que sólo lo cancela. Ahora cada exención es
+ * `{razon, spec, conduce, comprueba}` y vale sólo si:
+ * - `spec` es un `src/**\/*.spec.ts` de apps/web que existe (CI lo ejecuta);
+ * - `conduce` aparece literal en el spec y conduce el comando con entradas
+ *   que no son sólo cancelar (no vale una consulta de registro ni un bucle);
+ * - `comprueba` aparece literal en las 30 líneas siguientes y es una aserción
+ *   sobre un efecto (documento, comandos, efectos, peticiones, capas…).
+ *
+ * @param {string} nombre
+ * @param {unknown} entrada
+ * @param {(spec: string) => string | null} leerSpec  texto del spec o null si no existe
+ * @returns {string[]} motivos de rechazo; vacío si vale
+ */
+export function validarExencion(nombre, entrada, leerSpec) {
+  const campos = ["razon", "spec", "conduce", "comprueba"];
+  if (
+    !entrada ||
+    typeof entrada !== "object" ||
+    campos.some((campo) => typeof entrada[campo] !== "string" || entrada[campo].trim() === "")
+  ) {
+    return [`${nombre}: exención sin justificación verificable — hace falta {${campos.join(", ")}}`];
+  }
+  const { spec, conduce, comprueba } = entrada;
+  if (!SPEC_EJECUTADO_EN_CI.test(spec) || spec.split("/").includes("..")) {
+    return [`${nombre}: exención sin justificación verificable — «${spec}» no es un src/**/*.spec.ts de apps/web`];
+  }
+  const texto = leerSpec(spec);
+  if (texto === null) {
+    return [`${nombre}: exención sin justificación verificable — el spec «${spec}» no existe`];
+  }
+  const lineas = texto.split(/\r?\n/);
+  const apariciones = lineas.flatMap((linea, indice) => (linea.includes(conduce) ? [indice] : []));
+  if (apariciones.length === 0) {
+    return [`${nombre}: exención sin justificación verificable — «conduce» no aparece en ${spec}`];
+  }
+  let motivo = "";
+  for (const indice of apariciones) {
+    const rechazo = rechazoDeConduccion(nombre, conduce, lineas, indice);
+    if (rechazo) {
+      motivo = rechazo;
+      continue;
+    }
+    if (compruebaEnVentana(comprueba, lineas, indice)) return [];
+    motivo = `«comprueba» no es una aserción sobre un efecto en las ${VENTANA_DE_COMPROBACION} líneas que siguen a «conduce»`;
+  }
+  return [`${nombre}: exención sin justificación verificable — ${motivo} (${spec})`];
+}

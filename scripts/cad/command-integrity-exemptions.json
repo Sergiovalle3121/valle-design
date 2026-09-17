@@ -1,14 +1,59 @@
 {
-  "$comment": "Comandos que la sonda de integridad no lleva a término con su auto-respondedor. NO son comandos rotos: cada uno tiene spec de familia propio; lo que no tienen es un guion automático que los complete. Añadir un comando aquí exige razón escrita. Quitar entradas es progreso; añadirlas, deuda declarada.",
+  "$comment": "Comandos que la sonda de integridad no lleva a término con su auto-respondedor. NO son comandos rotos: cada uno tiene un spec que CI ejecuta y que lo CONDUCE hasta un efecto. Cada entrada es {razon, spec, conduce, comprueba}: `spec` es la ruta dentro de apps/web (src/**/*.spec.ts), `conduce` es un fragmento literal de ese spec que ejecuta el comando con entradas que no son sólo cancelar, y `comprueba` es un fragmento literal, en las 30 líneas siguientes, que asierta sobre el efecto. El gate lo verifica (scripts/cad/command-integrity-rules.mjs, validarExencion); una razón sin esas tres pruebas se rechaza. Quitar entradas es progreso; añadirlas, deuda declarada.",
   "noConcluyentes": {
-    "ATTEDIT": "pide atributos de una inserción concreta; el documento de sonda no lleva bloque con atributos. Spec: blocks.spec.ts",
-    "CHAMFEREDGE": "es la variante 3D por aristas: exige designar aristas de un sólido que la sonda 2D no fabrica. Spec: solids-modify.spec.ts",
-    "COGO": "pide un punto y luego TEXTO con un rumbo y una distancia («N 45°30'20\" E 25.40»); el auto-respondedor no lo fabrica. Spec: engine/commands/geo-cogo.spec.ts, que lo conduce hasta escribir la polilínea de 6 vértices y su versión compensada.",
-    "FILLETEDGE": "misma razón que CHAMFEREDGE. Spec: solids-modify.spec.ts",
-    "FLATSHOT": "necesita un sólido 3D que aplanar; la sonda es 2D. Spec: solids-flatshot.spec.ts",
-    "SCALE": "su prompt de factor acepta punto y referencia; el auto-respondedor entra en el ciclo de referencia y lo cancela. Spec: modify-transform.spec.ts",
-    "SOLPROF": "necesita un sólido 3D del que perfilar; la sonda es 2D. Spec: solids-flatshot.spec.ts",
-    "VPOINT": "pide un vector de vista 3D con formato propio que el auto-respondedor no fabrica. Spec: view-navigation-3d.spec.ts",
-    "VSCURRENT": "espera el nombre exacto de un estilo visual del catálogo; la sonda alimenta texto genérico. Spec: view-visual.spec.ts"
+    "ATTEDIT": {
+      "razon": "pide atributos de una inserción concreta; el documento de sonda no lleva bloque con atributos.",
+      "spec": "src/lib/cad/engine/commands/blocks.spec.ts",
+      "conduce": "descriptor.step(first.state as never, text(\"950\"), context).result",
+      "comprueba": "assert.ok(result && result.kind === \"document\");"
+    },
+    "CHAMFEREDGE": {
+      "razon": "es la variante 3D por aristas: exige designar un sólido que la sonda 2D no fabrica.",
+      "spec": "src/lib/cad/engine/commands/solids.spec.ts",
+      "conduce": "apply(\"CHAMFEREDGE\", [select(solidId), distance(10)], document, [solidId])",
+      "comprueba": "solid3dMassProperties(chamferedSolid).volume < original,"
+    },
+    "COGO": {
+      "razon": "pide un punto y luego TEXTO con un rumbo y una distancia («N 45°30'20\" E 25.40»); el auto-respondedor no lo fabrica.",
+      "spec": "src/lib/cad/engine/commands/geo-cogo.spec.ts",
+      "conduce": "drive(COGO, [point(0, 0), text(CUADRO_PEGADO), keyword(\"Terminar\"), keyword(\"Sí\")])",
+      "comprueba": "assert.ok(result && result.kind === \"document\""
+    },
+    "FILLETEDGE": {
+      "razon": "misma razón que CHAMFEREDGE.",
+      "spec": "src/lib/cad/engine/commands/solids.spec.ts",
+      "conduce": "apply(\"FILLETEDGE\", [select(solidId), distance(10)], document, [solidId])",
+      "comprueba": "assert.ok(filletedVolume < original, \"redondear también retira material\");"
+    },
+    "FLATSHOT": {
+      "razon": "necesita un sólido 3D que aplanar; la sonda es 2D.",
+      "spec": "src/lib/cad/engine/commands/solids-flatshot.spec.ts",
+      "conduce": "apply(\"FLATSHOT\", [select(\"muro\"), point(0, 0)], start, { ucs: ELEVATION_UCS })",
+      "comprueba": "(block?.entities ?? []).every((entity) => entity.type === \"line\"),"
+    },
+    "SCALE": {
+      "razon": "su prompt de factor acepta punto y referencia; el auto-respondedor entra en el ciclo de referencia y lo cancela.",
+      "spec": "src/lib/cad/engine/commands/modify-transform.spec.ts",
+      "conduce": "run(\"SCALE\", [point(0, 0), distance(2)], [\"a\"])",
+      "comprueba": "assert.ok(result && result.kind === \"document\");"
+    },
+    "SOLPROF": {
+      "razon": "necesita un sólido 3D del que perfilar; la sonda es 2D.",
+      "spec": "src/lib/cad/engine/commands/solids-flatshot.spec.ts",
+      "conduce": "apply(\"SOLPROF\", [select(\"muro\", \"detras\"), point(0, 0)], start, { ucs: ELEVATION_UCS })",
+      "comprueba": "ok(layers.includes(\"PV-MODELO\"), \"el perfil visto va a PV-…\");"
+    },
+    "VPOINT": {
+      "razon": "pide un vector de vista 3D con formato propio que el auto-respondedor no fabrica.",
+      "spec": "src/lib/cad/engine/commands/view-navigation-3d.spec.ts",
+      "conduce": "type([\"VPOINT\", \"isometrica ne\"])",
+      "comprueba": "assert.deepEqual(viewRequests(type([\"VPOINT\", \"isometrica ne\"]).effects), ["
+    },
+    "VSCURRENT": {
+      "razon": "espera el nombre exacto de un estilo visual del catálogo; la sonda alimenta texto genérico.",
+      "spec": "src/lib/cad/engine/commands/view-visual.spec.ts",
+      "conduce": "type([\"VSCURRENT\", \"A\"])",
+      "comprueba": "assert.deepEqual(hostRequests(type([\"VSCURRENT\", \"A\"]).effects), ["
+    }
   }
 }
