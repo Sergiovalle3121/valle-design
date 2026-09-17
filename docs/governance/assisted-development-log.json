@@ -3858,7 +3858,7 @@
       "adoption": {
         "required": true,
         "status": "proposed",
-        "adopter": "Sergio Valle Zarate",
+        "adopter": "Sergio Valle Zárate",
         "evidence": "Local: spec dwg-native-reader-modern.spec.ts pasa con ownerSigned=true. typecheck web y lint web verdes. La adopcion es el merge de la PR por el titular tras revisar el diff."
       },
       "aiCoAuthorTrailers": true,
