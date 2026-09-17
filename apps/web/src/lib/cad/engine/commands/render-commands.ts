@@ -9,7 +9,6 @@
  * no mutan el documento directamente.
  */
 import {
-  asCadCommand,
   CAD_ACCEPT_KEYWORD,
   CAD_ACCEPT_DISTANCE,
   CAD_ACCEPT_POINT,
@@ -221,14 +220,8 @@ const cmdgeolocation: CadCommandDescriptor<null> = {
 // ---------------------------------------------------------------------------
 
 export const CAD_RENDER_COMMANDS: readonly CadAnyCommandDescriptor[] = [
-  asCadCommand(cmdrender),
-  asCadCommand(cmdrendercrop),
-  asCadCommand(cmdrenderwin),
-  asCadCommand(cmdrenderpresets),
-  asCadCommand(cmdrenderexposure),
-  asCadCommand(cmdrenderenvironment),
-  asCadCommand(cmdmaterials),
-  asCadCommand(cmdmaterialmap),
-  asCadCommand(cmdmaterialattach),
-  asCadCommand(cmdsunproperties),
+  // Stubs de render retirados (T18B): RENDER, RENDERCROP, RENDERWIN, RENDERPRESETS,
+  // RENDEREXPOSURE, RENDERENVIRONMENT, MATERIALS, MATERIALMAP, MATERIALATTACH,
+  // POINTLIGHT, SPOTLIGHT, DISTANTLIGHT, SUNPROPERTIES — todos dicen «requiere WebGL»
+  // sin crear nada. Volverán cuando el pipeline WebGL esté operativo.
 ];

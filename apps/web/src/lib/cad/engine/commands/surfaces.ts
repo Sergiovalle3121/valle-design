@@ -21,8 +21,7 @@
  * Las variantes de LOFT, SWEEP y REVOLVE para superficies se marcan como
  * modo "superficie" de los comandos ya existentes.
  */
-import type { CadEntity, CadPoint2 } from "../../cad-document";
-import type { CadEntityCommand } from "../../entity-commands";
+import type { CadEntity } from "../../cad-document";
 import {
   asCadCommand,
   CAD_ACCEPT_ENTITY_PICK,
@@ -30,7 +29,6 @@ import {
   CAD_ACCEPT_POINT,
   CAD_ACCEPT_DISTANCE,
   CAD_ACCEPT_SELECTION,
-  CAD_ACCEPT_TEXT,
   type CadAnyCommandDescriptor,
   type CadCommandContext,
   type CadCommandDescriptor,
@@ -47,19 +45,6 @@ function say(text: string): CadCommandStep<never> {
     prompt: { message: "", options: [] },
     accepts: 0,
     result: { kind: "message", text },
-  };
-}
-
-function documentResult(
-  commands: readonly CadEntityCommand[],
-  label: string,
-  notice?: string,
-): CadCommandStep<never> {
-  return {
-    state: undefined as never,
-    prompt: { message: "", options: [] },
-    accepts: 0,
-    result: { kind: "document", commands, label, ...(notice ? { notice } : {}) },
   };
 }
 
@@ -103,21 +88,9 @@ const planesurfCommand: CadCommandDescriptor<{ selection: readonly string[] } | 
     const entities = ids.map((id) => context.entity!(id)).filter((e): e is CadEntity => !!e);
     if (entities.length === 0) return say("PLANESURF: no se encontraron las entidades designadas.");
 
-    // Crear una superficie plana como un SOLID3D de espesor cero (open shell).
-    const surfaceId = context.newEntityId();
-    const surfaceEntity = {
-      type: "solid3d" as const,
-      id: surfaceId,
-      layer: context.activeLayer,
-      root: "s",
-      nodes: [{ id: "s", op: "brep" as const, points: [] as { x: number; y: number; z: number }[], faces: [] as { outer: number[] }[] }],
-    };
-
-    return documentResult(
-      [{ type: "insert" as const, entity: surfaceEntity as never }],
-      "PLANESURF",
-      `PLANESURF: superficie plana creada a partir de ${entities.length} entidad(es).`,
-    );
+    // PLANESURF requiere teselación del contorno cerrado para generar la malla
+    // de superficie. Hasta que el kernel lo soporte, rechaza la orden.
+    return say(`PLANESURF: ${entities.length} entidad(es) detectadas — teselación de superficie plana pendiente del kernel.`);
   },
 };
 
@@ -451,14 +424,7 @@ const thickenCommand: CadCommandDescriptor<{ picked?: boolean }> = {
 
 export const CAD_SURFACE_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(planesurfCommand),
-  asCadCommand(convtosurfaceCommand),
-  asCadCommand(surfoffsetCommand),
-  asCadCommand(surftrimCommand),
-  asCadCommand(surfuntrimCommand),
-  asCadCommand(surfextendCommand),
-  asCadCommand(surffilletCommand),
-  asCadCommand(surfblendCommand),
-  asCadCommand(surfpatchCommand),
-  asCadCommand(surfnetworkCommand),
-  asCadCommand(surfsculptCommand),
+  // Stubs de superficie retirados (T18B): CONVTOSURFACE, SURFOFFSET, SURFTRIM,
+  // SURFUNTRIM, SURFEXTEND, SURFFILLET, SURFBLEND, SURFPATCH, SURFNETWORK,
+  // SURFSCULPT — todos pendientes del kernel de superficies.
 ];

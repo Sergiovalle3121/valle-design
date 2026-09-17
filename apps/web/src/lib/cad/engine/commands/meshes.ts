@@ -11,14 +11,12 @@
  *          MESHMERGE, MESHCAP.
  * Mallas clásicas: RULESURF, TABSURF, REVSURF, EDGESURF, 3DFACE.
  */
-import type { CadEntity } from "../../cad-document";
 import type { CadEntityCommand } from "../../entity-commands";
 import {
   asCadCommand,
   CAD_ACCEPT_ENTITY_PICK,
   CAD_ACCEPT_KEYWORD,
   CAD_ACCEPT_DISTANCE,
-  CAD_ACCEPT_SELECTION,
   CAD_ACCEPT_POINT,
   CAD_ACCEPT_TEXT,
   type CadAnyCommandDescriptor,
@@ -229,22 +227,8 @@ const face3dCommand: CadCommandDescriptor<Face3dState> = {
 
 export const CAD_MESH_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(meshCommand),
-  asCadCommand(cvtMesh),
-  asCadCommand(cvtSolid),
-  asCadCommand(meshModifyCommand("MESHSMOOTH", ["MSMOOTH", "SUAVIZARMALLA"], "suavizar")),
-  asCadCommand(meshModifyCommand("MESHSMOOTHMORE", ["MSMOOTH+", "SUAVIZARMALLA+"], "suavizar más")),
-  asCadCommand(meshModifyCommand("MESHSMOOTHLESS", ["MSMOOTH-", "SUAVIZARMALLA-"], "suavizar menos")),
-  asCadCommand(meshModifyCommand("MESHREFINE", ["MREF", "REFINARMALLA"], "refinar")),
-  asCadCommand(meshEditCommand("MESHSPLIT", ["MSPLIT", "DIVIDIRMALLA"], "dividir")),
-  asCadCommand(meshEditCommand("MESHCREASE", ["MCREASE", "PLEGARMALLA"], "crear pliegue")),
-  asCadCommand(meshEditCommand("MESHUNCREASE", ["MUNCREASE", "DESPLEGARMALLA"], "quitar pliegue")),
-  asCadCommand(meshEditCommand("MESHCOLLAPSE", ["MCOLL", "COLAPSARMALLA"], "colapsar borde")),
-  asCadCommand(meshEditCommand("MESHEXTRUDE", ["MEXT", "EXTRUIRMALLA"], "extruir cara")),
-  asCadCommand(meshEditCommand("MESHMERGE", ["MMERGE", "FUSIONARMALLA"], "fusionar mallas")),
-  asCadCommand(meshEditCommand("MESHCAP", ["MCAP", "TAPARMALLA"], "tapar hueco")),
-  asCadCommand(ruledSurfCommand("RULESURF", ["RUSF", "SUPERFICIEREGLADA"], "Primera curva directriz", "Segunda curva directriz")),
-  asCadCommand(ruledSurfCommand("TABSURF", ["TASF", "SUPERFICIETRASLACION"], "Curva generatriz", "Dirección de traslación")),
-  asCadCommand(ruledSurfCommand("REVSURF", ["RESF", "SUPERFICIEREVOLUCION"], "Curva generatriz", "Eje de revolución")),
-  asCadCommand(ruledSurfCommand("EDGESURF", ["EDSF", "SUPERFICIEBORDES"], "Primer borde", "Segundo borde")),
-  asCadCommand(face3dCommand),
+  // Stubs de malla retirados (T18B): CONVTOMESH, CONVTOSOLID, MESHSMOOTH,
+  // MESHSMOOTHMORE, MESHSMOOTHLESS, MESHREFINE, MESHSPLIT, MESHCREASE,
+  // MESHUNCREASE, MESHCOLLAPSE, MESHEXTRUDE, MESHMERGE, MESHCAP, RULESURF,
+  // TABSURF, REVSURF, EDGESURF, 3DFACE — todos pendientes de kernel de mallas.
 ];
