@@ -28,8 +28,6 @@ const enter: CadCommandInput = { kind: "enter" };
 const keyword = (v: string): CadCommandInput => ({ kind: "keyword", keyword: v });
 const distance = (v: number): CadCommandInput => ({ kind: "distance", value: v });
 const point = (x: number, y: number): CadCommandInput => ({ kind: "point", point: { x, y }, source: "typed" });
-const pick = (id: string): CadCommandInput => ({ kind: "entityPick", entityId: id, point: { x: 0, y: 0 } });
-
 const RENDER_NAMES = [
   "RENDER", "RENDERCROP", "RENDERWIN", "RENDERPRESETS", "RENDEREXPOSURE",
   "RENDERENVIRONMENT", "MATERIALS", "MATERIALMAP", "MATERIALATTACH",

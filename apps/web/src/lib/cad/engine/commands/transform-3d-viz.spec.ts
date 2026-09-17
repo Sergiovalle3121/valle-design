@@ -32,7 +32,6 @@ function runCommands(name: string, inputs: readonly CadCommandInput[], ctx?: Cad
 }
 
 const pick = (id: string): CadCommandInput => ({ kind: "entityPick", entityId: id, point: { x: 0, y: 0 } });
-const enter: CadCommandInput = { kind: "enter" };
 const cancel: CadCommandInput = { kind: "cancel" };
 const keyword = (v: string): CadCommandInput => ({ kind: "keyword", keyword: v });
 const point = (x: number, y: number): CadCommandInput => ({ kind: "point", point: { x, y }, source: "typed" });
@@ -169,9 +168,6 @@ for (const name of NAMES) {
 
 // --- 3DROTATE: eje por dos puntos ------------------------------------------
 {
-  const cmds = runCommands("3DROTATE", [
-    pick("s1"), point(0, 0), point(0, 0, ), point(0, 0), point(1, 0), angle(90),
-  ], ctxWithSolid());
   // Dos puntos idénticos del eje → aviso
   const result = run("3DROTATE", [
     pick("s1"), point(0, 0), point(0, 0), point(0, 0), angle(90),

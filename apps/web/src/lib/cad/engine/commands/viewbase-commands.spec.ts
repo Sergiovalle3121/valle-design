@@ -78,11 +78,6 @@ const distance = (value: number): CadCommandInput => ({ kind: "distance", value 
 const point = (x: number, y: number): CadCommandInput => ({ kind: "point", point: { x, y }, source: "typed" });
 const enter: CadCommandInput = { kind: "enter" };
 
-function messageOf(result: CadCommandResult | undefined): string {
-  assert.ok(result && result.kind === "message", `debía responder con mensaje, dio ${result?.kind}`);
-  return result.text;
-}
-
 // --- Modelo de prueba: un rectángulo extruido ---------------------------------
 const rect: CadEntity = {
   id: "base",

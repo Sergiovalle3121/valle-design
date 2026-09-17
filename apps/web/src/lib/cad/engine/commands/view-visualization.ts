@@ -7,7 +7,6 @@
 import {
   asCadCommand,
   CAD_ACCEPT_KEYWORD,
-  CAD_ACCEPT_DISTANCE,
   CAD_ACCEPT_POINT,
   type CadAnyCommandDescriptor,
   type CadCommandDescriptor,
@@ -51,35 +50,6 @@ const cmdcamera: CadCommandDescriptor<{ gotPos?: boolean }> = {
     if (input.kind === "point" && state.gotPos)
       return say("CAMERA: cámara definida — requiere anfitrión con visor 3D.");
     return say("CAMERA: indique la posición.");
-  },
-};
-
-// ---------------------------------------------------------------------------
-// DVIEW — vista dinámica
-// ---------------------------------------------------------------------------
-
-const DVIEW_OPTIONS = [
-  { keyword: "CAmara", shortcut: "CA" },
-  { keyword: "DObjetivo", shortcut: "DO" },
-  { keyword: "DistanCia", shortcut: "DI" },
-  { keyword: "Orientar", shortcut: "O" },
-  { keyword: "Perspectiva", shortcut: "P" },
-  { keyword: "Desplazar", shortcut: "DS" },
-  { keyword: "Zoom", shortcut: "Z" },
-  { keyword: "Recortar", shortcut: "R" },
-  { keyword: "Ocultar", shortcut: "OC" },
-] as const;
-
-const cmddview: CadCommandDescriptor<null> = {
-  name: "DVIEW",
-  aliases: ["DV", "VISTADINAMICA"],
-  kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "crosshair",
-  begin: () => ({ state: null, prompt: { message: "Seleccione objetos o Intro para todo el dibujo", options: [] }, accepts: 0 }),
-  step: (_s, input) => {
-    if (input.kind === "cancel") return say("DVIEW cancelado.");
-    if (input.kind === "enter" || input.kind === "keyword")
-      return { state: null, prompt: { message: "Opción de vista dinámica", options: DVIEW_OPTIONS }, accepts: CAD_ACCEPT_KEYWORD };
-    return say("DVIEW: seleccione objetos o pulse Intro.");
   },
 };
 

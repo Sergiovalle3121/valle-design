@@ -2,7 +2,6 @@
  * Mallas: los 19 comandos de la familia MESH.
  */
 import { strict as assert } from "node:assert";
-import { migrateCadDocument, type CadDocument, type CadEntity } from "../../cad-document";
 import { CAD_COMMAND_REGISTRY_V2 } from "../index";
 import type { CadCommandContext, CadCommandInput, CadCommandResult } from "../command-types";
 import "@/lib/cad/engine/all-commands";
@@ -27,7 +26,6 @@ function run(name: string, inputs: readonly CadCommandInput[]): CadCommandResult
 const pick = (id: string): CadCommandInput => ({ kind: "entityPick", entityId: id, point: { x: 0, y: 0 } });
 const enter: CadCommandInput = { kind: "enter" };
 const cancel: CadCommandInput = { kind: "cancel" };
-const keyword = (v: string): CadCommandInput => ({ kind: "keyword", keyword: v });
 const point = (x: number, y: number): CadCommandInput => ({ kind: "point", point: { x, y }, source: "typed" });
 const distance = (v: number): CadCommandInput => ({ kind: "distance", value: v });
 
