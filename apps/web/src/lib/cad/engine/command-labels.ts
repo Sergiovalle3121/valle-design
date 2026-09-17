@@ -265,7 +265,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   PIDROUTE: "Tubería 3D",
   PIPE: "Tubería",
   PLAN: "Planta",
-
+  PLANESURF: "Superficie plana",
   PLINE: "Polilínea",
   PLOT: "Trazar a PDF",
   POINT: "Punto",

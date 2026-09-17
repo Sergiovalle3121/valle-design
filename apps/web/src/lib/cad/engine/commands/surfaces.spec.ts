@@ -1,49 +1,70 @@
 /**
- * Superficies: los 11 comandos de la familia SURFACE.
+ * PLANESURF — spec que conduce el comando contra el motor real.
  *
- * Se comprueba que cada comando está en el registro, acepta su flujo de
- * entrada esperado, y produce un resultado (documento o mensaje). La
- * geometría de superficie propiamente dicha depende del kernel B-rep y se
- * prueba en los módulos de `brep/`.
+ * Verifica que PLANESURF crea un sólido B-rep válido (cerrado, área
+ * positiva) a partir de una polilínea cerrada. Usa `finishedSolid`
+ * para validar antes de escribir.
  */
 import { strict as assert } from "node:assert";
-import { migrateCadDocument, type CadDocument, type CadEntity } from "../../cad-document";
+import {
+  migrateCadDocument,
+  type CadDocument,
+  type CadEntity,
+} from "../../cad-document";
+import { executeCadEntityCommandBatch } from "../../entity-commands";
+import { solid3dMassProperties } from "../../solid3d-build";
 import { CAD_COMMAND_REGISTRY_V2 } from "../index";
-import type { CadCommandContext, CadCommandInput, CadCommandResult } from "../command-types";
+import type {
+  CadCommandContext,
+  CadCommandInput,
+  CadCommandResult,
+} from "../command-types";
 
 import "@/lib/cad/engine/all-commands";
 
-const layer = "0";
+const layer = "SUPERFICIES";
 
 function documentWith(entities: CadEntity[]): CadDocument {
   return migrateCadDocument({
     meta: { version: 1, schema: 5, unit: "mm" },
-    layers: [{ id: layer, name: "0", color: "#fff", visible: true, locked: false }],
+    layers: [
+      {
+        id: layer,
+        name: "Superficies",
+        color: "#0ff",
+        visible: true,
+        locked: false,
+      },
+    ],
     entities,
     modelSpace: { entityIds: entities.map((e) => e.id) },
   });
 }
 
-let ids = 0;
-function makeContext(document: CadDocument, selection: readonly string[] = []): CadCommandContext {
+let idCounter = 0;
+
+function makeContext(
+  document: CadDocument,
+  selection: readonly string[] = [],
+): CadCommandContext {
   return {
     entityIds: document.entities.map((e) => e.id),
     entity: (id) => document.entities.find((e) => e.id === id),
     selection,
     activeLayer: layer,
     view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
-    newEntityId() { return `s${++ids}`; },
+    newEntityId: () => `surf${++idCounter}`,
   };
 }
 
 function run(
   name: string,
   inputs: readonly CadCommandInput[],
-  document = documentWith([]),
+  document: CadDocument,
   selection: readonly string[] = [],
 ): CadCommandResult | undefined {
   const descriptor = CAD_COMMAND_REGISTRY_V2.get(name);
-  assert.ok(descriptor, `${name} registrado`);
+  assert.ok(descriptor, `${name} debe estar en el registro`);
   const context = makeContext(document, selection);
   let step = descriptor.begin(context);
   for (const input of inputs) {
@@ -53,74 +74,156 @@ function run(
   return step.result;
 }
 
-const pick = (id: string): CadCommandInput => ({ kind: "entityPick", entityId: id, point: { x: 0, y: 0 } });
-const enter: CadCommandInput = { kind: "enter" };
-const cancel: CadCommandInput = { kind: "cancel" };
-const distance = (v: number): CadCommandInput => ({ kind: "distance", value: v });
-
-// --- Registro ---------------------------------------------------------------
-const SURFACE_NAMES = [
-  "PLANESURF", "CONVTOSURFACE", "THICKEN", "SURFOFFSET", "SURFTRIM", "SURFUNTRIM",
-  "SURFEXTEND", "SURFFILLET", "SURFBLEND", "SURFPATCH", "SURFNETWORK", "SURFSCULPT",
-];
-for (const name of SURFACE_NAMES) {
-  assert.ok(CAD_COMMAND_REGISTRY_V2.get(name), `${name} en el registro`);
+function apply(
+  name: string,
+  inputs: readonly CadCommandInput[],
+  document: CadDocument,
+  selection: readonly string[] = [],
+): CadDocument {
+  const result = run(name, inputs, document, selection);
+  assert.ok(result, `${name} no termino`);
+  assert.equal(
+    result.kind,
+    "document",
+    `${name} debia escribir: ${result.kind === "message" ? result.text : result.kind}`,
+  );
+  if (result.kind !== "document") throw new Error("tipo");
+  return executeCadEntityCommandBatch(document, result.commands, result.label)
+    .document;
 }
 
-// --- Cancelación limpia -----------------------------------------------------
-for (const name of SURFACE_NAMES) {
-  const result = run(name, [cancel]);
+function messageOf(result: CadCommandResult | undefined): string {
   assert.ok(
-    result?.kind === "message" && result.text.toLowerCase().includes("cancelado"),
-    `${name} se cancela limpiamente`,
+    result && result.kind === "message",
+    `debía responder con un mensaje, dio ${result?.kind}`,
+  );
+  if (result.kind !== "message") throw new Error("tipo");
+  return result.text;
+}
+
+const ENTER: CadCommandInput = { kind: "enter" };
+const select = (...ids: string[]): CadCommandInput => ({
+  kind: "selection",
+  entityIds: ids,
+});
+
+/** Rectángulo cerrado como polilínea. */
+function rectangle(
+  id: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): CadEntity {
+  return {
+    id,
+    type: "polyline",
+    vertices: [
+      { x, y, z: 0 },
+      { x: x + w, y, z: 0 },
+      { x: x + w, y: y + h, z: 0 },
+      { x, y: y + h, z: 0 },
+    ],
+    closed: true,
+    layer,
+  };
+}
+
+const near = (actual: number, expected: number, label: string, eps = 0.1) =>
+  assert.ok(
+    Math.abs(actual - expected) <= eps,
+    `${label}: ${actual}, se esperaba ${expected}`,
+  );
+
+// --- PLANESURF crea superficie real desde polilinea ---
+{
+  const rect = rectangle("r1", 0, 0, 400, 300);
+  const document = documentWith([rect]);
+  const next = apply("PLANESURF", [select("r1"), ENTER], document, ["r1"]);
+
+  const solids = next.entities.filter((e) => e.type === "solid3d");
+  assert.equal(solids.length, 1, "debe crear un solid3d");
+
+  const solid = solids[0];
+  if (solid.type !== "solid3d") throw new Error("tipo");
+  assert.equal(solid.nodes.length, 1, "el arbol tiene un nodo");
+  assert.equal(solid.nodes[0].op, "extrude", "el nodo es extrude");
+
+  const props = solid3dMassProperties(solid);
+  assert.ok(props.area > 0, "area positiva");
+  // Area total = 2 caras (arriba + abajo) de 400*300 + caras laterales.
+  near(props.area, 240_000, "area total de la superficie 400x300", 2);
+  // Volumen = area_base * espesor = 120000 * 0.001 = 120.
+  near(props.volume, 120, "volumen de la superficie delgada", 1);
+}
+
+// --- PLANESURF con triangulo ---
+{
+  const triangle: CadEntity = {
+    id: "tri",
+    type: "polyline",
+    vertices: [
+      { x: 0, y: 0, z: 0 },
+      { x: 100, y: 0, z: 0 },
+      { x: 50, y: 86.6, z: 0 },
+    ],
+    closed: true,
+    layer,
+  };
+  const document = documentWith([triangle]);
+  const next = apply("PLANESURF", [select("tri"), ENTER], document, ["tri"]);
+  const solid = next.entities.find((e) => e.type === "solid3d");
+  assert.ok(solid, "triangulo crea superficie");
+  if (solid?.type !== "solid3d") throw new Error("tipo");
+  const props = solid3dMassProperties(solid);
+  assert.ok(props.area > 0, "area del triangulo positiva");
+  // Area total = 2 * (0.5 * 100 * 86.6) + laterales ≈ 8660
+  near(props.area, 8_660, "area total del triangulo", 5);
+}
+
+// --- PLANESURF se niega sin entidades ---
+{
+  const document = documentWith([]);
+  const result = run("PLANESURF", [ENTER], document);
+  assert.match(
+    messageOf(result),
+    /al menos una entidad/,
+    "rechaza sin seleccion",
   );
 }
 
-// --- PLANESURF: crea superficie plana ---------------------------------------
+// --- PLANESURF cancelado ---
 {
-  const rect: CadEntity = {
-    id: "r1", type: "polyline", closed: true,
-    vertices: [{ x: 0, y: 0, z: 0 }, { x: 100, y: 0, z: 0 }, { x: 100, y: 50, z: 0 }, { x: 0, y: 50, z: 0 }],
+  const rect = rectangle("r2", 0, 0, 100, 100);
+  const document = documentWith([rect]);
+  const cancel: CadCommandInput = { kind: "cancel" };
+  const result = run("PLANESURF", [cancel], document);
+  assert.match(messageOf(result), /cancelado/, "cancelacion responde");
+}
+
+// --- PLANESURF con alias PLSURF ---
+{
+  const rect = rectangle("r3", 0, 0, 200, 200);
+  const document = documentWith([rect]);
+  const next = apply("PLSURF", [select("r3"), ENTER], document, ["r3"]);
+  const solids = next.entities.filter((e) => e.type === "solid3d");
+  assert.equal(solids.length, 1, "alias PLSURF crea superficie");
+}
+
+// --- PLANESURF rechaza entidad no soportada ---
+{
+  const line: CadEntity = {
+    id: "ln1",
+    type: "line",
+    start: { x: 0, y: 0, z: 0 },
+    end: { x: 100, y: 0, z: 0 },
     layer,
   };
-  const doc = documentWith([rect]);
-  const result = run("PLANESURF", [pick("r1"), enter], doc);
-  assert.ok(result?.kind === "document", "PLANESURF produce documento");
-  if (result?.kind === "document") {
-    assert.ok(result.commands.length > 0, "PLANESURF genera comandos");
-    assert.ok(result.notice?.includes("PLANESURF"), "el aviso menciona PLANESURF");
-  }
+  const document = documentWith([line]);
+  const result = run("PLANESURF", [select("ln1"), ENTER], document, ["ln1"]);
+  assert.match(
+    messageOf(result),
+    /requiere una polilinea/,
+    "rechaza linea",
+  );
 }
-
-// --- PLANESURF sin entidades se niega ---------------------------------------
-{
-  const result = run("PLANESURF", [enter]);
-  assert.ok(result?.kind === "message", "PLANESURF sin entidades se niega");
-}
-
-// --- SURFOFFSET: flujo completo ---------------------------------------------
-{
-  const result = run("SURFOFFSET", [pick("any"), distance(10)]);
-  assert.ok(result?.kind === "message", "SURFOFFSET produce mensaje (no implementado)");
-}
-
-// --- SURFTRIM: flujo con dos superficies ------------------------------------
-{
-  const result = run("SURFTRIM", [pick("s1"), pick("s2")]);
-  assert.ok(result?.kind === "message", "SURFTRIM produce mensaje (no implementado)");
-}
-
-// --- CONVTOSURFACE: selección + Intro ---------------------------------------
-{
-  const rect: CadEntity = { id: "c1", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 100, y: 0, z: 0 }, layer };
-  const result = run("CONVTOSURFACE", [pick("c1"), enter], documentWith([rect]));
-  assert.ok(result?.kind === "message", "CONVTOSURFACE produce mensaje");
-}
-
-// --- THICKEN: flujo completo ------------------------------------------------
-{
-  const result = run("THICKEN", [pick("s1"), distance(5)]);
-  assert.ok(result?.kind === "message", "THICKEN produce mensaje");
-}
-
-console.log(`✅ surfaces.spec: ${SURFACE_NAMES.length} comandos verificados — 20 comprobaciones`);
