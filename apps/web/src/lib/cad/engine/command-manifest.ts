@@ -371,7 +371,7 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "ZOOM", aliases: ["Z"], kind: "view", transparent: true, selection: "optional", repeatable: true, mutates: false, cursor: "crosshair", module: "commands/view-navigation" },
   { name: "PAN", aliases: ["P"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "crosshair", module: "commands/view-navigation" },
   { name: "VIEW", aliases: ["V"], kind: "view", transparent: true, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/view-navigation" },
-  { name: "REGEN", aliases: ["RE"], kind: "view", transparent: false, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-navigation" },
+  { name: "REGEN", aliases: ["RE", "REGEN3D"], kind: "view", transparent: false, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-navigation" },
   { name: "REGENALL", aliases: ["REA"], kind: "view", transparent: false, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-navigation" },
   { name: "3DORBIT", aliases: ["3DO", "ORBIT"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-navigation-3d" },
   { name: "3DFORBIT", aliases: ["3DF", "FORBIT"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-navigation-3d" },
