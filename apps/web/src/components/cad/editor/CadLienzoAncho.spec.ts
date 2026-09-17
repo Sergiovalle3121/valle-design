@@ -16,10 +16,10 @@ const ok = (condition: boolean, message: string) => {
 };
 
 const palette = readFileSync(path.join(__dirname, "CadToolPalette.tsx"), "utf8");
-const tour = readFileSync(path.join(__dirname, "..", "onboarding", "CadGuidedTourDock.tsx"), "utf8");
+const tour = readFileSync(path.join(__dirname, "../../..", "lib", "cad", "onboarding", "guided-tour.ts"), "utf8");
 
 ok(palette.includes('localStorage.getItem(STORAGE_KEY) === "true"'), "la paleta arranca cerrada (localStorage)");
 ok(palette.includes("setOpen"), "la paleta tiene un toggle de visibilidad");
-ok(tour.includes("minimized"), "el recorrido tiene estado minimizado");
+ok(tour.includes("minimized: true"), "el recorrido arranca minimizado (EMPTY_CAD_TOUR_RECORD)");
 
 console.log(`CadLienzoAncho: ${checks}/${checks} comprobaciones verdes`);

@@ -258,7 +258,7 @@ export const EMPTY_CAD_TOUR_RECORD: CadTourRecord = {
   finishedAt: 0,
   acknowledged: false,
   plotted: false,
-  minimized: false,
+  minimized: true,
 };
 
 /**
