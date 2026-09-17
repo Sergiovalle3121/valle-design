@@ -34,6 +34,9 @@
  *   spec propio.
  * - `ROJO`: terminó «bien» sin efecto y sin declarar límite, siendo un comando
  *   que promete mutar. Ésos son los que el gate no deja pasar.
+ *
+ * El árbol de decisión vive en `scripts/cad/command-integrity-rules.mjs`, con
+ * su spec: cada regla tiene ahí su trampa atrapada y su caso legítimo en verde.
  */
 import { writeFileSync } from "node:fs";
 import { CAD_COMMAND_REGISTRY_V2, cadWarmAllCommands } from "../src/lib/cad/engine";
@@ -60,6 +63,7 @@ import { executeCadEntityCommandBatch } from "../src/lib/cad/entity-commands";
 import { cadExpandSelectionByGroup } from "../src/lib/cad/blocks/cad-groups";
 import { CadSystemVariableStore } from "../src/lib/cad/system-variables";
 import { cadDocumentExtents } from "../src/lib/cad/view/document-extents";
+import { clasificar } from "../../../scripts/cad/command-integrity-rules.mjs";
 
 /** Documento de prueba: geometría variada, capas, bloque, hoja y restricción. */
 function probeDocument(): CadDocument {
@@ -109,20 +113,6 @@ interface ProbeOutcome {
   lastMessages: string[];
   note?: string;
 }
-
-/**
- * Mensajes que declaran un límite o un rechazo: el comando explicó por qué NO
- * hizo nada. Eso es integridad, no fallo — lo contrario del «Hecho» vacío.
- */
-const HONESTY =
-  /no est[aá]|no puede|no pued|no hay|no se |no lo es|no es |no son |no parece|no toca|no queda|no encierra|no pertenece|no lleva|no forma|no aporta|no sostiene|no tiene|no existe|falta|todav[ií]a no|sin (un )?anfitri[oó]n|se neg[oó]|requiere|necesita|ya est[aá]|debe ser|must be|s[oó]lo se|es para |admite |vocabulario|cancelad|abierta: no|convierten primero|nada de lo|s[oó]lo mide|use /i;
-
-/**
- * Mensajes que AFIRMAN una acción consumada. Si aparecen sin ning[uú]n efecto
- * verificable, eso es exactamente el «éxito falso» que este gate persigue.
- */
-const CLAIMS =
-  /cread[oa]|dibujad[oa]|aplicad[oa]|hech[oa]|guardad[oa]|trazad[oa]|abiert[oa]|cambiad[oa]|designad[oa]|actualizad[oa]|publicad[oa]|insertad[oa]|definid[oa]|modificad[oa]|borrad[oa]|eliminad[oa]|renombrad[oa]|movid[oa]|girad[oa]|copiad[oa]|restaurad[oa]|cargad[oa]|activad[oa]\.|listo\b|completad[oa]/i;
 
 /** Puntos variados: cerca de la geometría del documento y separados entre sí. */
 const POINTS = [
@@ -294,52 +284,17 @@ function runCommand(name: string): ProbeOutcome {
   const changed = after !== before;
   const lastMessages = messages.slice(-4).map((entry) => `${entry.level}:${entry.text}`);
   const delegated = hostRequests.length + viewRequests + uiRequests + variablePatches + selectionEffects > 0;
-  const honest = messages.some((entry) => HONESTY.test(entry.text));
-
-  const claims = messages.some(
-    (entry) => entry.level === "info" && CLAIMS.test(entry.text) && !HONESTY.test(entry.text),
-  );
-
-  let verdict: ProbeOutcome["verdict"];
-  let note: string | undefined;
-  if (steps >= MAX_STEPS) {
-    verdict = "no-concluyente";
-    note = "el auto-respondedor no lo llevó a término";
-  } else if (applied > 0 && changed) {
-    verdict = "muta";
-  } else if (applied > 0 && !changed) {
-    verdict = "ROJO";
-    note = "aplicó un lote pero el documento canónico quedó idéntico";
-  } else if (delegated) {
-    verdict = "delegado";
-  } else if (claims) {
-    verdict = "ROJO";
-    note = "afirma una acción consumada sin ningún efecto verificable";
-  } else if (
-    messages.length === 0 &&
-    steps > 0 &&
-    inputTrace[inputTrace.length - 1] === "enter"
-  ) {
-    // Cerró tras un Enter del auto-respondedor: es la salida normal de un
-    // comando repetitivo (OFFSET, PURGE, MATCHPROP…), no un éxito falso.
-    verdict = "informa";
-    note = "cierre normal con Enter, sin afirmación";
-  } else if (messages.length === 0 && steps > 0 && probeAborted) {
-    verdict = "no-concluyente";
-    note = "la sonda lo canceló tras prompts repetidos; terminó sin mensaje";
-  } else if (messages.length === 0 && steps > 0) {
-    verdict = "ROJO";
-    note = "terminó en silencio absoluto: sin efecto, sin mensaje, sin límite declarado — entradas: " + inputTrace.join("→");
-  } else if (honest) {
-    verdict = "honesto-limitado";
-  } else if (messages.length > 0) {
-    verdict = "informa";
-  } else {
-    // Cero pasos y cero mensajes: el comando terminó en su `begin` sin decir
-    // nada. Para uno que promete mutar, eso es un no-op silencioso.
-    verdict = descriptor.mutates ? "ROJO" : "informa";
-    if (descriptor.mutates) note = "terminó al invocarse, sin efecto y sin mensaje";
-  }
+  const { verdict, note } = clasificar({
+    steps,
+    maxSteps: MAX_STEPS,
+    applied,
+    changed,
+    delegated,
+    messages,
+    inputTrace,
+    probeAborted,
+    mutates: descriptor.mutates === true,
+  });
 
   return {
     command: name,
