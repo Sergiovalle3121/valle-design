@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { PRODUCT_DISPLAY_NAME } from '../../common/brand/brand';
 import {
   createPostgresHarness,
   describePostgres,
