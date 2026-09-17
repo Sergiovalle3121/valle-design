@@ -78,3 +78,5 @@ Todas hechas antes de esta sesión (commits `4359ef50`–`bd86c7e5`).
 | C16 | hecha — iconos para61 comandos mudos: VIEWBASE(6), Superficies(11), Mallas(19), Visualización(8), Render(13), Transformar3D(4). command-icons.spec:361 comandos,199 dibujos distintos,0 mudos. | `b2e95c83` |
 | C24 | hecha — ViewCube muestra la vista activa: activeViewPreset en Layout3DEditor, pasado como prop active al CadViewCube. | `cf568fe5` |
 | C23 | hecha — ROTATE3D como alias de 3DROTATE en el registro. | `e6cdeffd` |
+| B9 | hecha — REGEN3D como alias de REGEN. | `49faa574` |
+| P10 | hecha — realce visual de comandos primarios en la cinta: bg-brand-strong/5 y text-foreground. | `f8a9f1c0` |
