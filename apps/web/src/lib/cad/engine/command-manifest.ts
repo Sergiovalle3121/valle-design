@@ -1,5 +1,5 @@
 /**
- * METADATOS de los 361 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 362 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
  * 118 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
@@ -349,7 +349,6 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "SOLDRAW", aliases: ["SOLD", "DIBUJOSOL"], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "none", module: "commands/solview-commands" },
   { name: "PLANESURF", aliases: ["PLSURF", "SUPERFICIEPLANA"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/surfaces" },
   { name: "CONVTOSURFACE", aliases: ["CVS", "CONVERTIRSUPERFICIE"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/surfaces" },
-  { name: "THICKEN", aliases: ["TH", "ESPEZAR"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/surfaces" },
   { name: "SURFOFFSET", aliases: ["SOFF", "DESPLAZARSUPERFICIE"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/surfaces" },
   { name: "SURFTRIM", aliases: ["STRIM", "RECORTARSUPERFICIE"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/surfaces" },
   { name: "SURFUNTRIM", aliases: ["SUT", "RESTAURARSUPERFICIE"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/surfaces" },
@@ -359,12 +358,13 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "SURFPATCH", aliases: ["SPATCH", "PARCHARSUPERFICIE"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/surfaces" },
   { name: "SURFNETWORK", aliases: ["SNET", "REDDESUPERFICIES"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/surfaces" },
   { name: "SURFSCULPT", aliases: ["SSCULPT", "ESCULPIRSUPERFICIE"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/surfaces" },
+  { name: "THICKEN", aliases: ["TH", "ESPEZAR"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/surfaces" },
   { name: "3DMOVE", aliases: ["3M"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, spatial: "elevation", cursor: "pick", module: "commands/transform-3d" },
   { name: "3DALIGN", aliases: ["3AL", "ALINEAR3D"], kind: "modify", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/transform-3d-extra" },
   { name: "3DSCALE", aliases: ["3SC", "ESCALAR3D"], kind: "modify", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/transform-3d-extra" },
   { name: "MIRROR3D", aliases: ["M3D", "ESPEJO3D"], kind: "modify", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/transform-3d-extra" },
   { name: "3DARRAY", aliases: ["3AR", "MATRIZ3D"], kind: "modify", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/transform-3d-extra" },
-  { name: "3DROTATE", aliases: ["3R", "ROTATE3D"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, spatial: "elevation", cursor: "pick", module: "commands/transform-3d-rotate" },
+  { name: "3DROTATE", aliases: ["3R"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, spatial: "elevation", cursor: "pick", module: "commands/transform-3d-rotate" },
   { name: "UCS", aliases: ["SCU"], kind: "manage", transparent: true, selection: "none", repeatable: false, mutates: false, spatial: true, cursor: "crosshair", module: "commands/ucs-commands" },
   { name: "UCSICON", aliases: [], kind: "view", transparent: true, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/ucs-view-commands" },
   { name: "PLAN", aliases: [], kind: "view", transparent: true, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/ucs-view-commands" },
@@ -372,7 +372,7 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "ZOOM", aliases: ["Z"], kind: "view", transparent: true, selection: "optional", repeatable: true, mutates: false, cursor: "crosshair", module: "commands/view-navigation" },
   { name: "PAN", aliases: ["P"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "crosshair", module: "commands/view-navigation" },
   { name: "VIEW", aliases: ["V"], kind: "view", transparent: true, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/view-navigation" },
-  { name: "REGEN", aliases: ["RE", "REGEN3D"], kind: "view", transparent: false, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-navigation" },
+  { name: "REGEN", aliases: ["RE"], kind: "view", transparent: false, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-navigation" },
   { name: "REGENALL", aliases: ["REA"], kind: "view", transparent: false, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-navigation" },
   { name: "3DORBIT", aliases: ["3DO", "ORBIT"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-navigation-3d" },
   { name: "3DFORBIT", aliases: ["3DF", "FORBIT"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-navigation-3d" },

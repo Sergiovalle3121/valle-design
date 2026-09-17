@@ -81,3 +81,4 @@ Todas hechas antes de esta sesión (commits `4359ef50`–`bd86c7e5`).
 | B9 | hecha — REGEN3D como alias de REGEN. | `49faa574` |
 | P10 | hecha — realce visual de comandos primarios en la cinta: bg-brand-strong/5 y text-foreground. | `f8a9f1c0` |
 | D6 | hecha — THICKEN: superficie→sólido con espesor. Flujo pick+distancia, icono MoveVertical, rótulo «Espesar», resumen, panel Superficies. Spec con20 comprobaciones.362 comandos,180 botones en Inicio,12 superficies. | `eb75aa1b`, `4e793b9b` |
+| ci-fallo (monolith-budget) | resuelto: Layout3DEditor.tsx tenía 119 useState (techo 118). Fusionado `hatchPickMode`+`hatchPickSolid` en un solo `hatchPick` con `{mode, solid}`. Regenerado command-manifest.ts (362 comandos) y ui-command-reach.json. check:cad, typecheck y lint verdes. | `beef2481` |

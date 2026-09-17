@@ -1431,9 +1431,8 @@ export default function Layout3DEditor({
   const [quickSelectionText, setQuickSelectionText] = useState("");
   const [professionalSelection, setProfessionalSelection] =
     useState<CadSelectionState>(EMPTY_CAD_SELECTION);
-  const [hatchPickMode, setHatchPickMode] = useState(false);
+  const [hatchPick, setHatchPick] = useState<{ mode: boolean; solid: boolean }>({ mode: false, solid: false });
   const [showHatchPalette, setShowHatchPalette] = useState(false);
-  const [hatchPickSolid, setHatchPickSolid] = useState(false);
   const [hatchIslandStyle, setHatchIslandStyle] = useState<
     "normal" | "outer" | "ignore"
   >("normal");
@@ -1885,8 +1884,8 @@ export default function Layout3DEditor({
     selectionOperationRef.current = selectionOperation;
   }, [selectionOperation]);
   useEffect(() => {
-    hatchPickModeRef.current = hatchPickMode;
-  }, [hatchPickMode]);
+    hatchPickModeRef.current = hatchPick.mode;
+  }, [hatchPick.mode]);
   /**
    * Núcleo de precisión (Fase 66 cableada, ADR §216): OSNAP por modo, orto
    * 0/90/180/270, rastreo polar y OTRACK.
@@ -9065,8 +9064,8 @@ export default function Layout3DEditor({
       const hatch: CadNativeEntity = {
         id: newId("hatch"),
         type: "hatch",
-        pattern: hatchPickSolid ? "SOLID" : "ANSI31",
-        solid: hatchPickSolid,
+        pattern: hatchPick.solid ? "SOLID" : "ANSI31",
+        solid: hatchPick.solid,
         boundaries: region.boundaries.map((boundary) =>
           boundary.map((vertex) => ({ ...vertex, z: 0 })),
         ),
@@ -9089,10 +9088,10 @@ export default function Layout3DEditor({
       if (
         insertNativeEntities(
           [hatch],
-          `create:hatch:pick:${hatchPickSolid ? "solid" : "ANSI31"}`,
+          `create:hatch:pick:${hatchPick.solid ? "solid" : "ANSI31"}`,
         )
       ) {
-        setHatchPickMode(false);
+        setHatchPick(prev => ({ ...prev, mode: false }));
         hatchPickModeRef.current = false;
         toast.success(
           `HATCH por punto creado con ${region.boundaries.length} loop(s).`,
@@ -9104,7 +9103,7 @@ export default function Layout3DEditor({
       activeCadLayer,
       data?.footprint.gridSize,
       hatchIslandStyle,
-      hatchPickSolid,
+      hatchPick.solid,
       insertNativeEntities,
       toast,
     ],
@@ -12305,7 +12304,7 @@ export default function Layout3DEditor({
         switch (action.step) {
           case "exit-hatch-pick":
             hatchPickModeRef.current = false;
-            setHatchPickMode(false);
+            setHatchPick(prev => ({ ...prev, mode: false }));
             return;
           case "close-palette":
             setShowPalette(false);
@@ -13249,14 +13248,14 @@ export default function Layout3DEditor({
     ) : activeProfessionalDock === "hatch" ? (
       <CadHatchPalette
         docked
-        pickMode={hatchPickMode}
-        solid={hatchPickSolid}
+        pickMode={hatchPick.mode}
+        solid={hatchPick.solid}
         islandStyle={hatchIslandStyle}
-        onSolidChange={setHatchPickSolid}
+        onSolidChange={(solid) => setHatchPick(prev => ({ ...prev, solid }))}
         onIslandStyleChange={setHatchIslandStyle}
         onPickModeChange={(active) => {
           hatchPickModeRef.current = active;
-          setHatchPickMode(active);
+          setHatchPick(prev => ({ ...prev, mode: active }));
           if (active) setShowHatchPalette(false);
         }}
         onCreateAtPoint={(point) => {
@@ -13599,7 +13598,7 @@ export default function Layout3DEditor({
         </T3Btn>
         <div className="relative">
           <T3Btn
-            active={showHatchPalette || hatchPickMode}
+            active={showHatchPalette || hatchPick.mode}
             onClick={() => toggleProfessionalDock("hatch")}
             title="HATCH: selección, pick point, islands y asociatividad"
           >
@@ -14599,9 +14598,9 @@ export default function Layout3DEditor({
                 )}
               </div>
             )}
-            {hatchPickMode && (
+            {hatchPick.mode && (
               <div className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full bg-violet-600/95 px-3 py-1.5 type-caption font-semibold text-foreground">
-                HATCH {hatchPickSolid ? "SOLID" : "ANSI31"} · clic dentro de una
+                HATCH {hatchPick.solid ? "SOLID" : "ANSI31"} · clic dentro de una
                 región cerrada · islands {hatchIslandStyle}
               </div>
             )}
@@ -14680,7 +14679,7 @@ export default function Layout3DEditor({
                 golden 61: en `bottom-3 left-1/2` quedaba debajo de la línea de
                 comandos (`bottom-3 left-3`, 30 rem) en un lienzo de ~780 px y
                 Playwright no podía pulsarlo. */}
-            {!walk && engineCommand && !hatchPickMode && !(tool === "wall" || isCadDrawTool(tool)) && (
+            {!walk && engineCommand && !hatchPick.mode && !(tool === "wall" || isCadDrawTool(tool)) && (
               <button
                 type="button"
                 data-testid="cad-engine-command-finish"
