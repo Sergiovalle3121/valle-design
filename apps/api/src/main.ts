@@ -22,7 +22,7 @@ import {
 } from './observability/error-reporter.port';
 import { educationModeStatus } from './modules/education/education-mode';
 import { NEST_APP_OPTIONS } from './nest-app-options';
-import { PRODUCT_DISPLAY_NAME } from './common/brand/product-brand';
+import { PRODUCT_DISPLAY_NAME } from './common/brand/brand';
 
 function parseAllowedOrigins(raw: string): string[] {
   const value = (raw || '').trim();

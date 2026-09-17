@@ -10,6 +10,7 @@ import { CadStudioSkeleton } from "@/components/cad/studio/CadStudioSkeleton";
 import { Button } from "@/components/ui";
 import { EditorCrashRecoveryAction } from "@/components/cad/studio/EditorCrashRecoveryAction";
 import type { CadRecoveryScope } from "@/lib/cad/cad-recovery";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 const CadStudioHost = dynamic(() => import("@/components/cad/CadStudioHost"), {
   ssr: false,
@@ -137,7 +138,7 @@ export default function DocumentStudioPage({
       // producto que no se parecía al producto.
       <main className="grid min-h-screen place-items-center bg-background p-6">
         <section className="max-w-md rounded-surface border border-border bg-card p-8 text-center shadow-raised">
-          <h1 className="type-heading">VALLECAD Studio</h1>
+          <h1 className="type-heading">{PRODUCT_LABEL.design} Studio</h1>
           <p
             role={state.kind === "error" ? "alert" : "status"}
             className="type-body mt-3 text-muted-foreground"

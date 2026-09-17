@@ -11,9 +11,8 @@ import {
   TEMPLATE_GIROS,
   galleryTemplate,
   galleryTemplates,
-  templateSeoDescription,
-  templateSeoTitle,
 } from "./template-gallery";
+import { templateSeoDescription, templateSeoTitle } from "./template-seo";
 
 const all = galleryTemplates();
 assert.equal(all.length, CAD_LAYOUT_TEMPLATES.length, "la galería cubre el catálogo entero");

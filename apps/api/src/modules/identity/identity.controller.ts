@@ -30,47 +30,37 @@ import { Public } from '../auth/decorators/public.decorator';
 import { IDENTITY_RATE_LIMIT_STORE } from './identity-rate-limit.store';
 import type { IdentityRateLimitStore } from './identity-rate-limit.store';
 import {
-  cookie,
   createOpaqueRateLimitKey,
-  csrfCookieDomain,
   CSRF_COOKIE,
+  DEVELOPMENT_SESSION_COOKIE,
   MAX_DISPLAY_NAME_LENGTH,
   MAX_EMAIL_LENGTH,
   MAX_PASSWORD_LENGTH,
   MAX_TOKEN_LENGTH,
   MIN_PASSWORD_LENGTH,
-  parseCookieHeader,
-  sessionCookiePolicy,
-  type SessionCookiePolicy,
+  SECURE_SESSION_COOKIE,
   SESSION_COOKIE,
 } from './identity-security';
-
-export {
-  cookie,
-  parseCookieHeader,
-  sessionCookiePolicy,
-  type SessionCookiePolicy,
-};
-import { resolveProductBrand } from '../../common/brand/product-brand';
 import { totpUri } from './identity-mfa';
 import { IdentityMfaService } from './identity-mfa.service';
 import { IdentityService } from './identity.service';
+import { PRODUCT_DISPLAY_NAME } from '../../common/brand/brand';
 
 /**
  * El emisor que ve el usuario en su aplicación de autenticación.
  *
  * Configurable porque un despliegue con marca propia no puede llamarse igual
  * que el nuestro en la lista del teléfono de su cliente; con un valor por
- * defecto porque olvidarlo no puede dejar la entrada sin nombre. El default
- * es el nombre del producto del manifiesto de marca
- * (BRAND_PRODUCT_NAME_DESIGN), el mismo que firma los correos. Se recorta a
+ * defecto porque olvidarlo no puede dejar la entrada sin nombre. Se recorta a
  * lo que cabe en una línea de esa lista.
  */
 const MFA_ISSUER = (
-  process.env.IDENTITY_MFA_ISSUER?.trim() ||
-  resolveProductBrand(process.env).productName
+  process.env.IDENTITY_MFA_ISSUER?.trim() || PRODUCT_DISPLAY_NAME
 ).slice(0, 48);
 
+const MAX_COOKIE_HEADER_LENGTH = 8_192;
+const MAX_COOKIE_VALUE_LENGTH = 1_024;
+const MAX_COOKIE_PAIRS = 64;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 
 export class LoginDto {
@@ -186,6 +176,106 @@ export class UpdateProfileDto {
   currentPassword?: string;
 }
 
+export interface SessionCookiePolicy {
+  name: string;
+  secure: boolean;
+  transportAllowed: boolean;
+}
+
+export function sessionCookiePolicy(
+  environment: string | undefined,
+  requestIsSecure: boolean,
+): SessionCookiePolicy {
+  if (environment === 'production') {
+    return {
+      name: SECURE_SESSION_COOKIE,
+      secure: true,
+      transportAllowed: requestIsSecure,
+    };
+  }
+
+  return {
+    name: DEVELOPMENT_SESSION_COOKIE,
+    secure: false,
+    transportAllowed: true,
+  };
+}
+
+function containsControlCharacter(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code <= 31 || code === 127) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function parseCookieHeader(
+  header: string | undefined,
+  name: string,
+): string | undefined {
+  if (
+    !header ||
+    header.length > MAX_COOKIE_HEADER_LENGTH ||
+    !/^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/u.test(name)
+  ) {
+    return undefined;
+  }
+
+  const pairs = header.split(';');
+  if (pairs.length > MAX_COOKIE_PAIRS) {
+    return undefined;
+  }
+
+  let found: string | undefined;
+  for (const pair of pairs) {
+    const separator = pair.indexOf('=');
+    if (separator < 1 || pair.slice(0, separator).trim() !== name) {
+      continue;
+    }
+
+    // Duplicate cookie names are ambiguous and can indicate cookie tossing.
+    if (found !== undefined) {
+      return undefined;
+    }
+
+    let encodedValue = pair.slice(separator + 1).trim();
+    if (encodedValue.startsWith('"') || encodedValue.endsWith('"')) {
+      if (
+        encodedValue.length < 2 ||
+        !encodedValue.startsWith('"') ||
+        !encodedValue.endsWith('"')
+      ) {
+        return undefined;
+      }
+      encodedValue = encodedValue.slice(1, -1);
+    }
+    if (encodedValue.length > MAX_COOKIE_VALUE_LENGTH) {
+      return undefined;
+    }
+
+    try {
+      const decoded = decodeURIComponent(encodedValue);
+      if (
+        decoded.length > MAX_COOKIE_VALUE_LENGTH ||
+        containsControlCharacter(decoded)
+      ) {
+        return undefined;
+      }
+      found = decoded;
+    } catch {
+      return undefined;
+    }
+  }
+
+  return found;
+}
+
+export function cookie(req: Request, name: string): string | undefined {
+  return parseCookieHeader(req.headers.cookie, name);
+}
+
 @Controller('v1/auth')
 export class IdentityController {
   constructor(
@@ -253,21 +343,12 @@ export class IdentityController {
       path: '/',
       maxAge: 30 * 86_400_000,
     });
-    const domain = csrfCookieDomain(process.env.CSRF_COOKIE_DOMAIN);
-    if (domain) {
-      res.clearCookie(CSRF_COOKIE, {
-        path: '/',
-        sameSite: 'lax',
-        secure: policy.secure,
-      });
-    }
     res.cookie(CSRF_COOKIE, csrf, {
       httpOnly: false,
       sameSite: 'lax',
       secure: policy.secure,
       path: '/',
       maxAge: 30 * 86_400_000,
-      ...(domain ? { domain } : {}),
     });
   }
 
@@ -280,10 +361,6 @@ export class IdentityController {
     };
     res.clearCookie(policy.name, options);
     res.clearCookie(CSRF_COOKIE, options);
-    const domain = csrfCookieDomain(process.env.CSRF_COOKIE_DOMAIN);
-    if (domain) {
-      res.clearCookie(CSRF_COOKIE, { ...options, domain });
-    }
   }
 
   private async current(req: Request) {
@@ -622,28 +699,10 @@ export class IdentityController {
   @Post('verify-email')
   async verify(@Body() body: TokenDto, @Req() req: Request) {
     await this.limit('verify-email.ip', [req.ip || 'unknown'], 10);
-    const result = await this.identity.verifyEmail(body.token);
-    switch (result.outcome) {
-      case 'verified':
-        return { verified: true, email: result.email };
-      case 'already_verified':
-        // Idempotente: abrir dos veces el mismo enlace, o el enlace de otro
-        // correo tras verificar con el primero, no es un error del usuario.
-        return { verified: true, alreadyVerified: true, email: result.email };
-      case 'superseded':
-        throw new BadRequestException({
-          code: 'verification_token_superseded',
-          message:
-            'Este enlace ya no sirve: abre el correo más reciente o pide otro.',
-        });
-      case 'expired':
-        throw new BadRequestException({
-          code: 'verification_token_expired',
-          message: 'Este enlace caducó. Pide otro correo de verificación.',
-        });
-      default:
-        throw new BadRequestException('Token inválido o expirado.');
+    if (!(await this.identity.verifyEmail(body.token))) {
+      throw new BadRequestException('Token inválido o expirado.');
     }
+    return { verified: true };
   }
 
   @Public()

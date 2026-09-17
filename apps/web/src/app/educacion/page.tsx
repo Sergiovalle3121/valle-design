@@ -5,6 +5,7 @@ import { PublicPageShell, PublicSection } from "../docs/PublicPageShell";
 import { Surface, buttonClass } from "@/components/ui";
 import { COMMERCIAL_LINKS } from "@/config/commercial";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 /**
  * EDUCACIÓN — la propuesta para escuelas, contada sin adelantar nada.
@@ -35,9 +36,9 @@ import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 export const metadata: Metadata = publicPageMetadata({
   path: "/educacion",
-  title: "VALLECAD para escuelas y universidades",
+  title: `${PRODUCT_LABEL.design} para escuelas y universidades`,
   description:
-    "Cómo un taller de proyectos puede usar VALLECAD hoy: organización del grupo, invitaciones y revisión sobre el plano, más el plan educativo que preparamos.",
+    `Cómo un taller de proyectos puede usar ${PRODUCT_LABEL.design} hoy: organización del grupo, invitaciones y revisión sobre el plano, más el plan educativo que preparamos.`,
 });
 
 const hoy = [
@@ -66,7 +67,7 @@ export default function EducacionPage() {
     <PublicPageShell
       eyebrow="Educación"
       title="Para escuelas y talleres de proyectos"
-      intro="Un taller de dibujo puede usar VALLECAD hoy con las mismas herramientas que un despacho: la organización del grupo, las invitaciones por correo y la revisión sobre el plano. Y estamos preparando un plan educativo gratuito por correo institucional."
+      intro={`Un taller de dibujo puede usar ${PRODUCT_LABEL.design} hoy con las mismas herramientas que un despacho: la organización del grupo, las invitaciones por correo y la revisión sobre el plano. Y estamos preparando un plan educativo gratuito por correo institucional.`}
     >
       <PublicSection title="Lo que ya funciona hoy">
         <div className="grid gap-5 sm:grid-cols-2">

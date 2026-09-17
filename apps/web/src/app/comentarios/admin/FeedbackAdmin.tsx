@@ -5,6 +5,7 @@ import { designClient } from "@/lib/cad/repositories/client";
 import { Button, Select, Surface, cx } from "@/components/ui";
 import { formatRegionDateTime } from "@/lib/cad/region";
 import { getClientRegion } from "@/lib/cad/region/client";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 /**
  * EL PANEL DE QUIEN OPERA EL PRODUCTO.
@@ -122,7 +123,7 @@ export function FeedbackAdmin() {
       <Marco>
         <Surface padded="lg">
           <p className="type-heading">
-            Esta vista es para quien opera VALLECAD
+            Esta vista es para quien opera {PRODUCT_LABEL.design}
           </p>
           <p className="type-body mt-3 text-muted-foreground">
             Si deberías tener acceso, tu correo tiene que estar en la lista de

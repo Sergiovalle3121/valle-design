@@ -6,12 +6,13 @@ import {
 } from "../docs/PublicPageShell";
 import { COMMERCIAL_CONTACTS } from "@/config/commercial";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 export const metadata: Metadata = publicPageMetadata({
   path: "/contact",
   title: "Contacto y canales de atención",
   description:
-    "Canales públicos configurados para hablar con el equipo de VALLECAD: comercial, soporte del producto y privacidad.",
+    `Canales públicos configurados para hablar con el equipo de ${PRODUCT_LABEL.design}: comercial, soporte del producto y privacidad.`,
 });
 
 const channelLabels = {
@@ -29,7 +30,7 @@ export default function ContactPage() {
   return (
     <PublicPageShell
       eyebrow="Contacto"
-      title="Habla con nosotros"
+      title="Habla con el operador de este despliegue"
       intro="Los canales aparecen sólo cuando se han configurado con una dirección pública real. Esta página no contiene un formulario simulado ni almacena mensajes."
     >
       <PublicSection title="Canales disponibles">
@@ -54,8 +55,9 @@ export default function ContactPage() {
           </ul>
         ) : (
           <p role="status">
-            Todavía no tenemos un correo público publicado aquí.
-            Escríbenos a través de los canales disponibles cuando aparezcan.
+            Este despliegue todavía no tiene un correo público configurado.
+            Solicita al operador que defina las variables de contacto de la
+            marca antes de publicar esta página como canal de atención.
           </p>
         )}
       </PublicSection>

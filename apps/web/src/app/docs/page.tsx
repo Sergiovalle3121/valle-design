@@ -8,6 +8,7 @@ import {
 } from "./PublicPageShell";
 import { DOC_GUIDES, PRICING_PATH, docGuidePath } from "@/config/site-routes";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 /**
  * El índice de documentación deja de ser sólo una nota de alcance y pasa a ser
@@ -26,7 +27,7 @@ export default function DocumentationPage() {
   return (
     <PublicPageShell
       eyebrow="Documentación"
-      title="Guías y documentación de VALLECAD"
+      title={`Guías y documentación de ${PRODUCT_LABEL.design}`}
       intro="Aquí se explica cómo se trabaja de verdad con el producto y dónde están sus límites hoy. Las guías están escritas desde lo que el editor hace, no desde lo que nos gustaría que hiciera."
     >
       <PublicSection title="Guías paso a paso">
@@ -104,7 +105,7 @@ export default function DocumentationPage() {
 
       <PublicSection title="Archivos y compatibilidad">
         <p>
-          VALLECAD importa y exporta DXF de texto. El resultado de una
+          {PRODUCT_LABEL.design} importa y exporta DXF de texto. El resultado de una
           exportación incluye un manifiesto de pérdidas que enumera, entidad por
           entidad, qué se degradó al escribir el archivo; revísalo antes de
           entregar.

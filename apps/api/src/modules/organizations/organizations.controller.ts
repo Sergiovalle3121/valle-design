@@ -60,7 +60,7 @@ import {
   SeatEntitlementService,
   seatDenialMessage,
 } from '../commercial/seat-entitlement.service';
-import { PRODUCT_DISPLAY_NAME } from '../../common/brand/product-brand';
+import { PRODUCT_DISPLAY_NAME } from '../../common/brand/brand';
 
 class OrganizationDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))

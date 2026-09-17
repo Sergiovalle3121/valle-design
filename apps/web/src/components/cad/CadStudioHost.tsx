@@ -14,7 +14,7 @@
  * - scope: el proyecto CAD lo pasa la página (en Design no hay
  *   building/project enterprise; el alcance ES el proyecto de dibujo).
  * - theme/onNotify: ThemeContext + ToastContext de Design (mapeo 1:1).
- * - branding: VALLECAD (legalEntityName desde el manifiesto/env).
+ * - branding: Valle Design (legalEntityName desde el manifiesto/env).
  * - SIN `analysisPanels`: edición Design pura. Los 17 paneles industriales
  *   son ENTERPRISE_OWNED; sin descriptores el menú "Análisis" no se
  *   renderiza y los comandos de análisis del kernel degradan con su aviso
@@ -183,7 +183,7 @@ export default function CadStudioHost({
     // barra de estado — repetirlo en pantalla sería ruido, pero un lector de
     // pantalla sin él no tiene ningún encabezado del que partir.
     <main className="contents" aria-label="Estudio de dibujo">
-      <h1 className="sr-only">{`Editor de planos — ${PRODUCT_LABEL.design}`}</h1>
+      <h1 className="sr-only">Editor de planos — {PRODUCT_LABEL.design}</h1>
       <ErrorBoundary zona="El editor" documentId={documentId} onError={handleEditorCrash} extraActions={<EditorCrashRecoveryAction scope={recoveryScope} />}>
         <Layout3DEditor
           {...props}

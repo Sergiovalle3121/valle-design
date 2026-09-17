@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AuthPage } from "@/components/AuthPage";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 /**
  * Es la página al final del embudo: casi todos los CTA de la landing y de las
@@ -11,7 +12,7 @@ export const metadata: Metadata = publicPageMetadata({
   path: "/register",
   title: "Crear cuenta",
   description:
-    "Crea tu cuenta y empieza a dibujar planos en línea con VALLECAD: proyectos en la nube, intercambio DXF e impresión a PDF a escala.",
+    `Crea tu cuenta y empieza a dibujar planos en línea con ${PRODUCT_LABEL.design}: proyectos en la nube, intercambio DXF e impresión a PDF a escala.`,
 });
 
 export default function RegisterPage() {

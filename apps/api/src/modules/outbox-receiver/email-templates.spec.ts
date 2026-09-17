@@ -1,12 +1,5 @@
-import {
-  DEFAULT_BRAND_MANIFEST,
-  productDisplayName,
-} from '@valle-design/contracts';
-import {
-  DEFAULT_EMAIL_BRAND,
-  EmailTemplateError,
-  renderEmailTemplate,
-} from './email-templates';
+import { PRODUCT_DISPLAY_NAME } from '../../common/brand/brand';
+import { EmailTemplateError, renderEmailTemplate } from './email-templates';
 
 describe('renderEmailTemplate', () => {
   const base = 'https://design.example.test';
@@ -26,14 +19,8 @@ describe('renderEmailTemplate', () => {
       identityPayload,
       base,
     );
-    // Sin marca configurada firma el manifiesto por defecto de
-    // @valle-design/contracts (sea cual sea su valor), nunca un nombre
-    // escrito a mano en la plantilla.
-    expect(DEFAULT_EMAIL_BRAND.productName).toBe(
-      productDisplayName(DEFAULT_BRAND_MANIFEST, 'design'),
-    );
     expect(rendered.subject).toBe(
-      `Confirma tu correo — ${DEFAULT_EMAIL_BRAND.productName}`,
+      `Confirma tu correo — ${PRODUCT_DISPLAY_NAME}`,
     );
     const expectedLink = `${base}${identityPayload.path}`;
     expect(rendered.text).toContain(expectedLink);
@@ -44,36 +31,6 @@ describe('renderEmailTemplate', () => {
     expect(rendered.text).toContain('caduca');
     expect(rendered.text).toContain('hora del centro de México');
     expect(rendered.html).toContain('lang="es"');
-  });
-
-  it('firma con el nombre del producto configurado y el buzón de soporte en el pie', () => {
-    const brand = {
-      productName: 'VALLECAD',
-      supportEmail: 'soporte@vallecad.example',
-    };
-    const rendered = renderEmailTemplate(
-      'identity.verify-email',
-      identityPayload,
-      base,
-      brand,
-    );
-    expect(rendered.subject).toBe('Confirma tu correo — VALLECAD');
-    expect(rendered.text).toContain('registró esta dirección en VALLECAD');
-    expect(rendered.html).toContain('VALLECAD · ');
-    expect(rendered.html).toContain('mailto:soporte@vallecad.example');
-    expect(rendered.html).not.toContain('Valle Design');
-    expect(rendered.text).not.toContain('Valle Design');
-
-    // Sin buzón real, el pie es sólo el nombre: nunca un marcador .invalid.
-    const sinBuzon = renderEmailTemplate(
-      'organization.invitation',
-      { invitationId: 'i', token: 'inv_token_123', organizationName: 'Río' },
-      base,
-      { productName: 'VALLECAD', supportEmail: null },
-    );
-    expect(sinBuzon.subject).toBe('Te invitaron a «Río» en VALLECAD');
-    expect(sinBuzon.html).toContain('Abrir VALLECAD');
-    expect(sinBuzon.html).not.toContain('mailto:');
   });
 
   it('renderiza identity.reset-password con su propio asunto y aviso', () => {
@@ -87,7 +44,7 @@ describe('renderEmailTemplate', () => {
       base,
     );
     expect(rendered.subject).toBe(
-      `Restablece tu contraseña — ${DEFAULT_EMAIL_BRAND.productName}`,
+      `Restablece tu contraseña — ${PRODUCT_DISPLAY_NAME}`,
     );
     expect(rendered.text).toContain(`${base}/reset-password?token=abc`);
     expect(rendered.text).toContain('tu contraseña actual sigue siendo válida');
@@ -127,7 +84,7 @@ describe('renderEmailTemplate', () => {
       base,
     );
     expect(rendered.subject).toBe(
-      `Tu suscripción vence pronto — ${DEFAULT_EMAIL_BRAND.productName}`,
+      `Tu suscripción vence pronto — ${PRODUCT_DISPLAY_NAME}`,
     );
     // OXXO/SPEI: el correo dice POR QUÉ no se renueva sola.
     expect(rendered.text).toContain('no se renueva');

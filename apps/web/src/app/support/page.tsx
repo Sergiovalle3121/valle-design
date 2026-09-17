@@ -5,12 +5,13 @@ import { SupportSearch } from "@/components/marketing/SupportSearch";
 import { Surface, buttonClass } from "@/components/ui";
 import { COMMERCIAL_CONTACTS, COMMERCIAL_LINKS } from "@/config/commercial";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 export const metadata: Metadata = publicPageMetadata({
   path: "/support",
   title: "Soporte técnico",
   description:
-    "Canales de ayuda de VALLECAD y qué información incluir para que un problema se pueda reproducir y resolver.",
+    `Canales de ayuda de ${PRODUCT_LABEL.design} y qué información incluir para que un problema se pueda reproducir y resolver.`,
 });
 
 export default function SupportPage() {
@@ -104,8 +105,9 @@ export default function SupportPage() {
         ) : (
           <>
             <p>
-              Todavía no tenemos un correo de soporte publicado aquí.
-              Consulta la página de contacto para encontrar un canal disponible.
+              Este despliegue no ha configurado un correo público de soporte.
+              Consulta la página de contacto para encontrar un canal habilitado
+              por el operador.
             </p>
             <a
               className={buttonClass({ variant: "secondary" })}

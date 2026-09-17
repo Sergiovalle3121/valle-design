@@ -4,12 +4,13 @@ import { PublicPageShell, PublicSection } from "../docs/PublicPageShell";
 import { Badge, buttonClass } from "@/components/ui";
 import { COMMERCIAL_LINKS } from "@/config/commercial";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 export const metadata: Metadata = publicPageMetadata({
   path: "/status",
   title: "Estado del servicio",
   description:
-    "Fuente pública de estado de VALLECAD. Esta página no declara disponibilidad que no pueda demostrar con telemetría configurada.",
+    `Fuente pública de estado de ${PRODUCT_LABEL.design}. Esta página no declara disponibilidad que no pueda demostrar con telemetría configurada.`,
 });
 
 export default function StatusPage() {
@@ -33,8 +34,8 @@ export default function StatusPage() {
               Fuente externa configurada
             </Badge>
             <p>
-              Hay una página externa configurada como fuente pública de estado.
-              La telemetría vive ahí, no aquí.
+              Este despliegue tiene configurada una página externa como fuente
+              pública de estado. La telemetría vive ahí, no aquí.
             </p>
             <a
               className={buttonClass({ variant: "primary" })}
@@ -50,8 +51,8 @@ export default function StatusPage() {
               Sin telemetría pública
             </Badge>
             <p role="status">
-              No hay una fuente pública de telemetría configurada.
-              No se declara ningún estado operativo desde esta
+              No hay una fuente pública de telemetría configurada en este
+              despliegue. No se declara ningún estado operativo desde esta
               página: una página estática no demuestra que nada esté vivo.
             </p>
           </>

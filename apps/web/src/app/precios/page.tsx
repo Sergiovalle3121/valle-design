@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PricingCatalog } from "./PricingCatalog";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 /**
  * `/precios` — la puerta de entrada del embudo.
@@ -12,7 +13,7 @@ import { PricingCatalog } from "./PricingCatalog";
 export const metadata: Metadata = {
   title: "Precios",
   description:
-    "Planes y precios publicados de VALLECAD, leídos del catálogo real del producto.",
+    `Planes y precios publicados de ${PRODUCT_LABEL.design}, leídos del catálogo real del producto.`,
 };
 
 export default function PricingPage() {

@@ -3,12 +3,13 @@ import { PublicPageShell, PublicSection } from "../PublicPageShell";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { ApiConsole } from "./ApiConsole";
 import operations from "./operations.generated.json";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 /**
  * CONSOLA PÚBLICA de la API — la puerta del integrador.
  *
  * POR QUÉ ES UNA PÁGINA PÚBLICA Y NO UNA PANTALLA DEL PANEL. Quien evalúa si
- * puede automatizar VALLECAD todavía no tiene cuenta. Si para ver qué
+ * puede automatizar Valle Design todavía no tiene cuenta. Si para ver qué
  * operaciones existen hay que registrarse, la evaluación termina antes de
  * empezar: el despacho que compara herramientas cierra la pestaña y abre la de
  * la competencia. La superficie se publica entera —las 73 operaciones, con su
@@ -24,14 +25,14 @@ export const metadata: Metadata = publicPageMetadata({
   path: "/docs/api",
   title: "Consola de la API y automatización",
   description:
-    "Explora y prueba las operaciones de la API de VALLECAD: contrato OpenAPI 3.1, permisos por operación, SDK generado y política de extensiones de terceros.",
+    `Explora y prueba las operaciones de la API de ${PRODUCT_LABEL.design}: contrato OpenAPI 3.1, permisos por operación, SDK generado y política de extensiones de terceros.`,
 });
 
 export default function ApiConsolePage() {
   return (
     <PublicPageShell
       eyebrow="API"
-      title="Consola de la API de VALLECAD"
+      title={`Consola de la API de ${PRODUCT_LABEL.design}`}
       intro="Todas las operaciones publicadas del contrato v1, con su autenticación, su permiso y su entitlement. Puedes lanzarlas contra tu propio despliegue desde aquí: la consola no guarda credenciales ni envía nada a terceros."
     >
       <PublicSection title="Qué estás viendo">
@@ -87,7 +88,7 @@ export default function ApiConsolePage() {
 
       <PublicSection title="Extensiones de terceros">
         <p>
-          Lo que un tercero puede y no puede hacer hoy con VALLECAD está
+          Lo que un tercero puede y no puede hacer hoy con {PRODUCT_LABEL.design} está
           escrito, sin adornos, en{" "}
           <code>docs/cad/third-party-extension-policy.md</code>: qué superficies
           hay, con qué límites y qué garantías se dan. La primera línea dice lo

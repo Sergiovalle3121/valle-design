@@ -5,6 +5,7 @@ import {
   GuideSection,
   guideMetadata,
 } from "../GuideShell";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 /**
  * Guía de captación #5. Es el último metro del embudo y el primero donde un
@@ -141,7 +142,7 @@ export default function Page() {
           cambia las anchuras y descoloca los rótulos del cajetín.
         </p>
         <p>
-          VALLECAD hace las dos cosas: si recibe el programa de la fuente, la
+          {PRODUCT_LABEL.design} hace las dos cosas: si recibe el programa de la fuente, la
           incrusta; si no, mapea la familia a la estándar más cercana y{" "}
           <strong>lo deja escrito en el resultado del trazado</strong>. Nunca
           afirma haber incrustado una fuente que no tenía.

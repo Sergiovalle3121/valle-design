@@ -7,7 +7,7 @@ import {
   type CfdiProvider,
   type CfdiReceiver,
 } from './ports/cfdi-provider.port';
-import { PRODUCT_DISPLAY_NAME } from '../../common/brand/product-brand';
+import { PRODUCT_DISPLAY_NAME } from '../../common/brand/brand';
 
 /**
  * Emisión de CFDI a partir de los cobros confirmados — el ciclo completo:

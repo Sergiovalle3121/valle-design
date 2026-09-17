@@ -28,7 +28,6 @@
  * «modo demo», nunca un lienzo vacío que parezca un dibujo sin entidades.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { PRODUCT_LABEL } from "@/config/brand";
 import type { CadDocument, CadPoint2 } from "@/lib/cad/cad-document";
 import {
   cadCommentAnchor,
@@ -47,6 +46,7 @@ import CollabThreadPanel from "./CollabThreadPanel";
 import ReviewPlanView from "./ReviewPlanView";
 import { useCadComments, type CadCommentSource } from "./use-cad-comments";
 import { useCadPresence } from "./use-cad-presence";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 interface RedeemedReview {
   token: string;
@@ -272,7 +272,7 @@ export default function ReviewLinkClient() {
           presenceConnected={presence.connected}
         />
         <p className="mt-2 shrink-0 type-micro text-muted-foreground">
-          {`${PRODUCT_LABEL.design} · Este enlace da acceso únicamente a este plano.`}
+          {PRODUCT_LABEL.design} · Este enlace da acceso únicamente a este plano.
         </p>
       </aside>
     </main>

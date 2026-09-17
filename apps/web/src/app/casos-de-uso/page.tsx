@@ -9,6 +9,7 @@ import { SiteFooter } from "@/components/marketing/SiteFooter";
 import { USE_CASE_PROFILES } from "@/lib/marketing/use-cases";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { breadcrumbJsonLd, itemListJsonLd } from "@/lib/seo/structured-data";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 /**
  * /casos-de-uso — el índice por profesión. Cinco perfiles, cada uno con su
@@ -19,7 +20,7 @@ export const metadata: Metadata = publicPageMetadata({
   path: "/casos-de-uso",
   title: "Casos de uso: CAD por profesión",
   description:
-    "Cómo usan VALLECAD arquitectos, ingenieros civiles, interioristas, " +
+    `Cómo usan ${PRODUCT_LABEL.design} arquitectos, ingenieros civiles, interioristas, ` +
     "constructores y estudiantes: el flujo real, las plantillas de su giro y " +
     "sus preguntas respondidas.",
 });
@@ -46,7 +47,7 @@ export default function CasosDeUsoPage() {
               El mismo tablero, tu oficio
             </h1>
             <p className="type-lead mt-6 max-w-2xl text-muted-foreground">
-              Cinco maneras de trabajar con VALLECAD, contadas sin humo:
+              Cinco maneras de trabajar con {PRODUCT_LABEL.design}, contadas sin humo:
               el dolor que resuelve, el flujo paso a paso con lo que el
               producto hace HOY, y las plantillas de tu giro.
             </p>

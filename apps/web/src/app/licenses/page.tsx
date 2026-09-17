@@ -5,6 +5,7 @@ import {
   publicActionClass,
 } from "../docs/PublicPageShell";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 const repositoryBase =
   "https://github.com/Sergiovalle3121/valle-design/blob/main";
@@ -13,7 +14,7 @@ export const metadata: Metadata = publicPageMetadata({
   path: "/licenses",
   title: "Licencias y avisos de terceros",
   description:
-    "Licencia propietaria de VALLECAD y avisos de las dependencias de terceros que utiliza el producto.",
+    `Licencia propietaria de ${PRODUCT_LABEL.design} y avisos de las dependencias de terceros que utiliza el producto.`,
 });
 
 export default function LicensesPage() {
@@ -23,7 +24,7 @@ export default function LicensesPage() {
       title="Licencias y avisos de terceros"
       intro="Los textos versionados en el repositorio son la fuente autoritativa. Esta página sólo ayuda a encontrarlos y no modifica sus condiciones."
     >
-      <PublicSection title="VALLECAD">
+      <PublicSection title={PRODUCT_LABEL.design}>
         <p>
           El repositorio declara el producto como software propietario. La
           licencia indica que una evaluación, piloto o utilización comercial

@@ -27,16 +27,20 @@ import { buttonClass, cx, focusRing, motionBase } from "@/components/ui";
  */
 
 /**
- * Cuatro enlaces y ni uno más. La barra pública no es un mapa del sitio: es la
- * ruta corta a las cuatro cosas que decide un visitante —cuánto cuesta, cómo se
- * usa, si esto está vivo y si sirve para su escuela—. Todo lo demás vive en el
- * pie, que es donde se busca lo que no se decide.
+ * Cinco enlaces y ni uno más. La barra pública no es un mapa del sitio: es la
+ * ruta corta a lo que decide un visitante —qué es el producto, cómo se compara
+ * con lo que ya usa, cuánto cuesta, con qué plano arranca y cómo se usa—.
+ * Novedades y Educación salieron de aquí (2026-09-16) porque no son
+ * decisiones de compra: viven en el pie, que es donde se busca lo que no se
+ * decide. El conmutador de tema se fue con ellas, al pie y al menú móvil: en
+ * la barra competía con «Crear cuenta», que es la única razón de la barra.
  */
 const LINKS: ReadonlyArray<[label: string, href: string]> = [
+  ["Producto", "/#producto"],
+  ["Comparar", "/#comparativa"],
   ["Precios", PRICING_PATH],
+  ["Plantillas", "/plantillas"],
   ["Guías", "/docs"],
-  ["Novedades", "/novedades"],
-  ["Educación", "/educacion"],
 ];
 
 export function PublicNav() {
@@ -97,10 +101,12 @@ export function PublicNav() {
               {label}
             </Link>
           ))}
-          <Link href="/login" className={buttonClass({ variant: "ghost" })}>
+          <Link
+            href="/login"
+            className={cx(buttonClass({ variant: "ghost" }), "ml-2")}
+          >
             Iniciar sesión
           </Link>
-          <ThemeToggle className="ml-2" />
           <Link
             href="/register"
             className={cx(buttonClass({ variant: "primary" }), "ml-1")}
@@ -178,12 +184,12 @@ export function PublicNav() {
               ),
             )}
             {/*
-              El conmutador de tema vive AQUÍ en el teléfono, no en la barra.
-              A 390 px la barra no da para el logotipo, «Iniciar sesión» con su
-              objetivo táctil de 44 px, el conmutador y la hamburguesa: medido,
-              se iba a 412 px y la portada se desplazaba en horizontal. Entre
-              una PREFERENCIA y la acción del cliente que ya paga, la barra es
-              para la segunda.
+              El conmutador de tema vive AQUÍ en el teléfono y en el pie en
+              escritorio, nunca en la barra. A 390 px la barra no da para el
+              logotipo, «Iniciar sesión» con su objetivo táctil de 44 px, el
+              conmutador y la hamburguesa: medido, se iba a 412 px y la portada
+              se desplazaba en horizontal. Entre una PREFERENCIA y la acción
+              del cliente que ya paga, la barra es para la segunda.
             */}
             <li className="pt-1">
               <ThemeToggle className="w-full justify-start" />

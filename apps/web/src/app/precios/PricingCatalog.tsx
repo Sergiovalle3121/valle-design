@@ -29,6 +29,7 @@ import {
   fetchPublicCatalog,
   type CatalogState,
 } from "@/lib/commercial/public-catalog";
+import { dwgClaim } from "@/lib/marketing/dwg-claim";
 
 /**
  * Lo que trae CUALQUIER plan. No es una lista de marketing: cada punto
@@ -39,7 +40,9 @@ const INCLUDED = [
   "Editor CAD 2D en el navegador: capas, geometría, acotación y bloques",
   "Espacio papel con varias ventanas y su escala, e impresión a PDF",
   "Importación y exportación DXF con informe de lo que se pierde",
-  "VALLECAD no lee ni escribe DWG — se dice aquí, no en la letra pequeña",
+  // La línea de DWG se deriva de las banderas de ESTA build (`dwg-claim.ts`):
+  // apagada dice que no abre; encendida nombra las versiones exactas que lee.
+  `${dwgClaim().short} Se dice aquí, no en la letra pequeña.`,
   "Proyectos y documentos por organización, con permisos por rol",
   "Enlaces de revisión con caducidad y comentarios anclados a la geometría",
 ] as const;
@@ -230,7 +233,7 @@ export function PricingCatalog() {
       {state.status === "ready" && state.catalog.items.length === 0 && (
         <PublicSection title="Todavía no hay planes publicados">
           <p role="status" data-testid="pricing-empty">
-            Todavía no hay ningún plan publicado. No
+            Este despliegue no tiene ningún plan marcado como publicable. No
             inventamos uno: escríbenos y te contamos las condiciones vigentes.
           </p>
           <a className={publicActionClass} href={COMMERCIAL_LINKS.sales}>
@@ -251,7 +254,7 @@ export function PricingCatalog() {
               data-testid="checkout-external-note"
               className="rounded-card border border-warning/40 bg-warning/10 px-5 py-4 type-small text-warning-ink"
             >
-              La compra en línea todavía no está habilitada:
+              La compra en línea todavía no está habilitada en este despliegue:
               no hay pasarela de pago configurada. Los precios de abajo son los
               reales y vigentes; la contratación se cierra con el equipo
               comercial, que te confirmará alta y facturación.
