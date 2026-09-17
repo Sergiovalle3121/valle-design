@@ -699,10 +699,26 @@ export class IdentityController {
   @Post('verify-email')
   async verify(@Body() body: TokenDto, @Req() req: Request) {
     await this.limit('verify-email.ip', [req.ip || 'unknown'], 10);
-    if (!(await this.identity.verifyEmail(body.token))) {
-      throw new BadRequestException('Token inválido o expirado.');
+    const result = await this.identity.verifyEmail(body.token);
+    if (result.outcome === 'verified') {
+      return { verified: true, email: result.email };
     }
-    return { verified: true };
+    if (result.outcome === 'already_verified') {
+      return { verified: true, alreadyVerified: true, email: result.email };
+    }
+    if (result.outcome === 'expired') {
+      throw new BadRequestException({
+        message: 'Token inválido o expirado.',
+        code: 'verification_token_expired',
+      });
+    }
+    if (result.outcome === 'superseded') {
+      throw new BadRequestException({
+        message: 'Token inválido o expirado.',
+        code: 'verification_token_superseded',
+      });
+    }
+    throw new BadRequestException('Token inválido o expirado.');
   }
 
   @Public()
