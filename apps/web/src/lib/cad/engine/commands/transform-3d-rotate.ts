@@ -247,7 +247,7 @@ function rotate3dCommands(
 
 const rotate3dCommand: CadCommandDescriptor<Rotate3dState> = {
   name: "3DROTATE",
-  aliases: ["3R"],
+  aliases: ["3R", "ROTATE3D"],
   kind: "modify",
   transparent: false,
   selection: "optional",

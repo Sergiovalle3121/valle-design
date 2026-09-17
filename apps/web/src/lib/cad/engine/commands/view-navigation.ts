@@ -396,7 +396,7 @@ const viewCommand: CadCommandDescriptor<ViewState> = {
 function regenCommand(name: string, scope: "view" | "all"): CadCommandDescriptor<never> {
   return {
     name,
-    aliases: scope === "all" ? ["REA"] : ["RE"],
+    aliases: scope === "all" ? ["REA"] : ["RE", "REGEN3D"],
     kind: "view",
     transparent: false,
     selection: "none",
