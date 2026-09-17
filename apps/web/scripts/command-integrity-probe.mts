@@ -88,7 +88,7 @@ import { CadSystemVariableStore } from "../src/lib/cad/system-variables";
 import { cadDocumentExtents } from "../src/lib/cad/view/document-extents";
 import { solid3dMassProperties, solid3dMesh } from "../src/lib/cad/solid3d-build";
 import { regionArea } from "../src/lib/cad/solid3d-adapter";
-import { probeDocumentSeed } from "./command-integrity-probe-seed.mts";
+import { probeDocumentSeed } from "./command-integrity-probe-seed.mjs";
 import {
   clasificar,
   combinarPasadas,
@@ -100,7 +100,7 @@ import {
   comprobarProbeta,
   probetaDocument,
   probetaEvidencia,
-} from "./command-integrity-probeta.mts";
+} from "./command-integrity-probeta.mjs";
 
 const EVALUADORES = { solid3dMesh, solid3dMassProperties, regionArea };
 

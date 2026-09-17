@@ -249,6 +249,7 @@ export function sinGeometria(entity, evaluadores) {
  * @param {boolean} o.probeAborted  la sonda canceló por prompts repetidos
  * @param {boolean} o.mutates       el descriptor promete mutar
  * @param {{id: string, motivo: string}[]} [o.vacias]  R2: entidades tocadas sin geometría
+ * @param {{solidos?: number, lamina?: boolean}} [o.dotacion]  R5: lo que la pasada le puso delante
  * @returns {{verdict: Veredicto, note?: string}}
  */
 export function clasificar(o) {

@@ -129,6 +129,10 @@ export function probetaDocument(base: () => CadDocument): CadDocument {
   };
 
   const extents = cadDocumentExtents(conSolidos);
+  // Un documento con siete entidades 2D y dos sólidos SIEMPRE tiene envolvente.
+  // Si no la tiene, el fixture no es el que dice ser y la probeta muere aquí en
+  // vez de inventarse un papel.
+  if (!extents) throw new Error("la probeta no tiene envolvente: cadDocumentExtents devolvió null");
   const lamina = createCadLayout([], {
     id: "lam1",
     name: PROBETA_LAYOUT,
