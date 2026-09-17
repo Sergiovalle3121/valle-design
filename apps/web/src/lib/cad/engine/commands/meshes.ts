@@ -178,7 +178,7 @@ function ruledSurfCommand(name: string, aliases: string[], prompt1: string, prom
       if (input.kind === "entityPick" && !state?.first)
         return { state: { first: input.entityId }, prompt: { message: prompt2, options: [] }, accepts: CAD_ACCEPT_ENTITY_PICK };
       if (input.kind === "entityPick" && state?.first)
-        return say(`${name}: malla reglada creada — operación pendiente del kernel.`);
+        return say(`${name}: no disponible — requiere el kernel de superficies.`);
       return say(`${name}: designe la primera curva.`);
     },
   };
@@ -209,7 +209,7 @@ const face3dCommand: CadCommandDescriptor<Face3dState> = {
     if (input.kind === "point") {
       const points = [...state.points, input.point];
       if (points.length >= 3) {
-        return say(`3DFACE: cara de ${points.length} puntos — operación pendiente del kernel.`);
+        return say(`3DFACE: no disponible — requiere el kernel de superficies.`);
       }
       return {
         state: { points },
@@ -218,7 +218,7 @@ const face3dCommand: CadCommandDescriptor<Face3dState> = {
       };
     }
     if (input.kind === "enter" && state.points.length >= 3)
-      return say(`3DFACE: cara de ${state.points.length} puntos — operación pendiente del kernel.`);
+      return say("3DFACE: no disponible — requiere el kernel de superficies.");
     return say(`3DFACE: indique el ${state.points.length + 1}º punto.`);
   },
 };

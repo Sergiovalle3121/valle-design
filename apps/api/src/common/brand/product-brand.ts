@@ -41,3 +41,6 @@ export function resolveProductBrand(env: BrandEnv): ProductBrand {
     supportEmail,
   };
 }
+
+/** Nombre del producto para mensajes de consola y cabeceras. */
+export const PRODUCT_DISPLAY_NAME = resolveProductBrand(process.env).productName;

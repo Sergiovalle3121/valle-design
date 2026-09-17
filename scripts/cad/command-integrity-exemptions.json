@@ -9,6 +9,7 @@
     "SCALE": "su prompt de factor acepta punto y referencia; el auto-respondedor entra en el ciclo de referencia y lo cancela. Spec: modify-transform.spec.ts",
     "SOLPROF": "necesita un sólido 3D del que perfilar; la sonda es 2D. Spec: solids-flatshot.spec.ts",
     "VPOINT": "pide un vector de vista 3D con formato propio que el auto-respondedor no fabrica. Spec: view-navigation-3d.spec.ts",
-    "VSCURRENT": "espera el nombre exacto de un estilo visual del catálogo; la sonda alimenta texto genérico. Spec: view-visual.spec.ts"
+    "VSCURRENT": "espera el nombre exacto de un estilo visual del catálogo; la sonda alimenta texto genérico. Spec: view-visual.spec.ts",
+    "DVIEW": "comando interactivo de vista dinámica que cicla opciones de cámara sin producir geometría; el auto-respondedor no completa el flujo. Spec: transform-3d-viz.spec.ts"
   }
 }

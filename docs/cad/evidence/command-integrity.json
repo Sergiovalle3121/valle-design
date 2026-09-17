@@ -1,18 +1,19 @@
 {
   "generatedBy": "scripts/cad/check-command-integrity.mjs --write",
-  "total": 300,
+  "total": 361,
   "verdicts": {
-    "muta": 85,
+    "muta": 87,
     "delegado": 49,
-    "informa": 24,
-    "honesto-limitado": 133,
-    "no-concluyente": 9,
+    "informa": 60,
+    "honesto-limitado": 155,
+    "no-concluyente": 10,
     "ROJO": 0
   },
   "exemptions": [
     "ATTEDIT",
     "CHAMFEREDGE",
     "COGO",
+    "DVIEW",
     "FILLETEDGE",
     "FLATSHOT",
     "SCALE",
