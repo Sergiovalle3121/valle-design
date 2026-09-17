@@ -11573,12 +11573,14 @@ export default function Layout3DEditor({
     if (!boundsIntersect(content, { minX: 0, minY: 0, maxX: ctx.W, maxY: ctx.H }))
       fitToBounds(content);
   }, [open, data?.footprint.footprintW, data?.footprint.footprintH, worldBounds, fitToBounds]);
+  const [activeViewPreset, setActiveViewPreset] = useState<CadCameraViewPreset | undefined>();
   const viewPreset = (preset: CadCameraViewPreset) => {
     const cam = cameraRef.current;
     const ctrl = controlsRef.current;
     const ctx = ctxRef.current;
     if (!cam || !ctrl || !ctx) return;
     applyCadCameraViewPreset(cam, ctrl, ctx, preset, worldBounds("all"));
+    setActiveViewPreset(preset);
   };
   // ---- 2D⇄3D view toggle: the CAD unifica plano (2D) y modelo (3D) (unify) ----
   // 2D = vista superior bloqueada (solo pan+zoom), como un plano CAD; 3D = órbita libre.
@@ -14294,7 +14296,7 @@ export default function Layout3DEditor({
               {viewMode === "3d" && (
                 <div className="flex items-start gap-2">
                   <div className="pointer-events-auto">
-                    <CadViewCube onSelect={viewPreset} />
+                    <CadViewCube active={activeViewPreset} onSelect={viewPreset} />
                   </div>
                   <div className="pointer-events-auto">
                     <CadNavigationBar
