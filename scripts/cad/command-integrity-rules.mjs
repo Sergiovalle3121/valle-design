@@ -212,6 +212,72 @@ export function entidadesTocadas(antes, despues) {
 const ARRAYS_DE_GEOMETRIA = ["points", "faces", "vertices", "positions", "indices"];
 
 /**
+ * R2 — las coordenadas que cada tipo EXIGE para ser dibujable, tal como las
+ * declara la unión `CadEntity` de `apps/web/src/lib/cad/cad-document.ts`.
+ *
+ * `z` no se exige: la unión la pide en `CadPoint3` pero el migrador la rellena,
+ * y un documento guardado hace meses entra sin ella. Lo que se exige es lo que
+ * NINGÚN migrador puede inventar.
+ */
+const COORDENADAS_EXIGIDAS = {
+  text: ["x", "y"],
+  mtext: ["insertion.x", "insertion.y"],
+  line: ["start.x", "start.y", "end.x", "end.y"],
+  circle: ["center.x", "center.y", "radius"],
+  arc: ["center.x", "center.y", "radius", "startAngle", "endAngle"],
+};
+
+/** Los números no finitos que cuelgan de un valor, con su ruta. */
+function numerosNoFinitos(valor, ruta, encontrados) {
+  if (typeof valor === "number") {
+    if (!Number.isFinite(valor)) encontrados.push(`${ruta || "(raíz)"} = ${valor}`);
+    return;
+  }
+  if (Array.isArray(valor)) {
+    valor.forEach((item, indice) => numerosNoFinitos(item, `${ruta}[${indice}]`, encontrados));
+    return;
+  }
+  if (valor && typeof valor === "object") {
+    for (const [clave, item] of Object.entries(valor))
+      numerosNoFinitos(item, ruta ? `${ruta}.${clave}` : clave, encontrados);
+  }
+}
+
+const leerRuta = (entity, ruta) =>
+  ruta.split(".").reduce((valor, clave) => (valor == null ? undefined : valor[clave]), entity);
+
+/**
+ * R2 — ¿esta entidad ha quedado con números IMPOSIBLES?
+ *
+ * El agujero que cierra: TEXTALIGN ascendía a «muta» escribiendo NaN. Su lote
+ * entero era un `replace(t1)` y el cambio medido era `rotation` MÁS dos
+ * coordenadas basura (`x: NaN`, `y: NaN`, que en el JSON del documento salen
+ * como `null`); el texto NO se movía. `changed` era cierto porque la
+ * serialización cambiaba, y con eso el gate lo contaba como efecto verificado.
+ * Comparar serializaciones no basta: hay que mirar si lo tocado sigue siendo
+ * dibujable.
+ *
+ * Dos cosas descalifican a una entidad tocada: un número no finito en
+ * cualquier parte (NaN/Infinity) y la falta de las coordenadas que su tipo
+ * exige. La segunda es la que delata la CAUSA —un fixture o un comando que
+ * escriben el texto con `position` cuando el esquema pide `x`/`y`— en vez de
+ * esperar a que otro comando propague el NaN.
+ *
+ * @param {any} entity
+ * @returns {string | null} el motivo, o null si sus números son posibles
+ */
+export function coordenadasImposibles(entity) {
+  const noFinitos = [];
+  numerosNoFinitos(entity, "", noFinitos);
+  if (noFinitos.length > 0) return `número no finito: ${noFinitos.slice(0, 4).join(", ")}`;
+  const exigidas = COORDENADAS_EXIGIDAS[entity?.type] ?? [];
+  const faltan = exigidas.filter((ruta) => typeof leerRuta(entity, ruta) !== "number");
+  if (faltan.length > 0)
+    return `${entity.type} sin las coordenadas que su tipo exige: ${faltan.join(", ")}`;
+  return null;
+}
+
+/**
  * R2 — ¿esta entidad es un cascarón sin geometría?
  *
  * «muta» comparaba sólo la serialización: insertar un solid3d cuyo único nodo
@@ -230,6 +296,12 @@ const ARRAYS_DE_GEOMETRIA = ["points", "faces", "vertices", "positions", "indice
  * @returns {string | null} el motivo, o null si tiene geometría
  */
 export function sinGeometria(entity, evaluadores) {
+  // Antes de preguntar si tiene geometría: si sus números son imposibles, lo
+  // que el lote dejó en el documento no se puede dibujar. Va PRIMERO porque un
+  // sólido con un NaN dentro también evalúa (la caja envolvente de un sólido
+  // roto es la del marcador que lo sustituye y nunca sale vacía).
+  const imposibles = coordenadasImposibles(entity);
+  if (imposibles) return imposibles;
   try {
     if (entity.type === "solid3d") {
       const mesh = evaluadores.solid3dMesh(entity);

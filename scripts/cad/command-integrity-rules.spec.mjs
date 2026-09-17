@@ -17,6 +17,7 @@ import {
   clasificar,
   afirmacionSinCoartada,
   clausulasAfirmativas,
+  coordenadasImposibles,
   combinarPasadas,
   entidadesTocadas,
   limiteDesmentido,
@@ -201,6 +202,56 @@ eq(
 );
 eq(veredicto(tras([linea], [linea, caja])), "muta", "R2: BOX con geometría sigue mutando");
 eq(veredicto(tras([linea], [])), "muta", "R2: borrar no deja entidades que evaluar y muta");
+
+// ─── R2 ampliado: números IMPOSIBLES en lo que el lote tocó ─────────────────
+//
+// Trampa: TEXTALIGN ascendía a «muta» escribiendo NaN. Su lote entero era un
+// `replace(t1)` y el cambio medido era `rotation` MÁS dos coordenadas basura;
+// el texto NO se movía. `changed` era cierto porque la serialización cambiaba
+// —NaN sale como `null` en el JSON— y el gate lo contaba como efecto
+// verificado. La causa: el esquema define el texto nativo con x/y y la semilla
+// lo escribía con `position`, así que entity.x/entity.y eran undefined y la
+// proyección daba {NaN, NaN}. El mismo NaN lo propagaban ALIGN, MOVE, ROTATE,
+// COPY, MIRROR, ARRAY, y TCOUNT/LAYMCH/GROUP tocaban el texto sin coordenadas.
+const textoNaN = { id: "t1", type: "text", layer: "COTAS", x: NaN, y: NaN, rotation: 26.5, text: "PRUEBA" };
+const textoSinCoordenadas = { id: "t1", type: "text", layer: "COTAS", position: { x: 10, y: 80 }, text: "PRUEBA" };
+const textoBueno = { id: "t1", type: "text", layer: "COTAS", x: 10, y: 80, text: "PRUEBA", height: 5 };
+
+eq(
+  coordenadasImposibles(textoNaN),
+  "número no finito: x = NaN, y = NaN",
+  "R2: el NaN que TEXTALIGN escribía se ve y se dice dónde",
+);
+eq(
+  coordenadasImposibles(textoSinCoordenadas),
+  "text sin las coordenadas que su tipo exige: x, y",
+  "R2: la CAUSA —un texto con `position` en vez de x/y— se delata sola",
+);
+eq(
+  coordenadasImposibles({ ...linea, end: { x: Infinity, y: 0 } }),
+  "número no finito: end.x = Infinity",
+  "R2: el infinito también es imposible, y con su ruta",
+);
+eq(
+  coordenadasImposibles({ id: "c9", type: "circle", layer: "0", center: { x: 1, y: 2 }, radius: 3 }),
+  null,
+  "R2: un círculo con centro y radio es posible",
+);
+eq(coordenadasImposibles(textoBueno), null, "R2: gemelo legítimo — el texto del esquema");
+eq(coordenadasImposibles(linea), null, "R2: gemelo legítimo — la línea de la semilla, sin z");
+eq(coordenadasImposibles(caja), null, "R2: gemelo legítimo — un sólido de verdad");
+eq(sinGeometria(textoNaN, EVALUADORES), "número no finito: x = NaN, y = NaN", "R2: sinGeometria lo hereda");
+eq(veredicto(tras([textoBueno], [textoNaN])), "ROJO", "R2: el «muta» de TEXTALIGN con NaN es ROJO");
+eq(
+  veredicto(tras([textoSinCoordenadas], [{ ...textoSinCoordenadas, layer: "0" }])),
+  "ROJO",
+  "R2: tocar una entidad que ya venía sin coordenadas tampoco es mutar",
+);
+eq(
+  veredicto(tras([textoBueno], [{ ...textoBueno, x: 10, y: 10, rotation: 0 }])),
+  "muta",
+  "R2: mover el texto de verdad sigue mutando",
+);
 
 // ─── R3: un mensaje no puede ser a la vez éxito y límite ────────────────────
 
