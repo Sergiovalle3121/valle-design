@@ -50,7 +50,15 @@ export function probeDocumentSeed(): CadDocument {
           { x: 200, y: 40 },
         ],
       },
-      { id: "t1", type: "text", layer: "COTAS", position: { x: 10, y: 80 }, text: "PRUEBA", height: 5 },
+      // `x`/`y`, no `position`: la unión `CadEntity` define el texto nativo con
+      // x/y (cad-document.ts) y ningún migrador convierte `position`. Con
+      // `position`, t1 entraba en el documento SIN coordenadas, TEXTALIGN leía
+      // entity.x/entity.y → undefined, proyectaba {NaN, NaN} y lo escribía tal
+      // cual: el texto no se movía y el gate lo contaba como «muta». El mismo
+      // NaN se propagaba por ALIGN, MOVE, ROTATE, COPY, MIRROR, ARRAY, TCOUNT,
+      // LAYMCH y GROUP. Estaba así en main, heredado bit a bit; arreglarlo
+      // cambia la pasada plano2d, y por eso se vuelve a medir.
+      { id: "t1", type: "text", layer: "COTAS", x: 10, y: 80, text: "PRUEBA", height: 5 },
       { id: "a1", type: "arc", layer: "0", center: { x: 320, y: 20 }, radius: 20, startAngle: 0, endAngle: 180 },
     ],
   } as never);
