@@ -461,7 +461,13 @@ function rectangle(id: string, x: number, y: number, w: number, h: number, z = 0
 
   // Y por el COMANDO, que es como lo teclea un usuario.
   const exported = messageOf(run("EXPORT", [select(solid.id), keyword("STEP")], document, [solid.id]));
-  assert.match(exported, /ISO-10303-21/, "EXPORT devuelve el archivo STEP");
+  assert.match(exported, /ISO-10303-21/, "EXPORT devuelve el texto STEP");
+  // Y NO afirma haber exportado nada: no entrega archivo, y lo dice. Decía «1
+  // sólido(s) exportados a STEP» sin descarga, sin petición al anfitrión y sin
+  // tocar el documento; el gate de integridad lo destapó con la probeta de
+  // sólidos.
+  assert.match(exported, /^EXPORT no entrega ning[uú]n archivo/, "EXPORT declara que no entrega archivo");
+  assert.ok(!/exportad[oa]s?/i.test(exported.slice(0, exported.indexOf("ISO-10303-21"))), "EXPORT no afirma haber exportado");
   const payload = exported.slice(exported.indexOf("ISO-10303-21") - 1);
   const importResult = run("IMPORT", [text(payload)], documentWith([]));
   assert.ok(importResult && importResult.kind === "document", "IMPORT escribe el sólido en el documento");

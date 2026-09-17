@@ -10,10 +10,19 @@
  * · IMPORT recibe el contenido del archivo como texto. El anfitrión que ya sabe
  *   abrir un DXF puede pasárselo tal cual; pegarlo también funciona, y eso hace
  *   que la orden sea probable en Node sin montar medio navegador.
- * · EXPORT devuelve el archivo COMO MENSAJE. Es la única salida que el contrato
- *   del motor permite hoy, y se dice aquí en voz alta en vez de disimularlo: el
- *   botón de descarga es un cambio del anfitrión, no del motor, y va anotado en
- *   el PR junto al gancho del visor 3D.
+ * · EXPORT devuelve el TEXTO del archivo COMO MENSAJE. Es la única salida que el
+ *   contrato del motor permite hoy, y se dice aquí en voz alta en vez de
+ *   disimularlo: el botón de descarga es un cambio del anfitrión, no del motor,
+ *   y va anotado en el PR junto al gancho del visor 3D.
+ *
+ *   Y lo dice también EN EL MENSAJE, que es donde lo lee el dibujante. Decía «2
+ *   sólido(s) exportados a STEP» y no entregaba nada: ni descarga, ni petición
+ *   al anfitrión, ni una línea escrita en el documento. Con la probeta de
+ *   sólidos, el gate de integridad de comandos lo destapó como el único éxito
+ *   falso REAL de los tres que salieron. La orden no finge: declara que no
+ *   entrega archivo y entrega el texto. Ponerle una petición al anfitrión
+ *   habría sido peor mientras nadie la atiende — un `delegado` sin anfitrión es
+ *   otro verde falso, sólo que en otra capa.
  *
  * El formato de IMPORT se detecta por la cabecera; el de EXPORT se elige con una
  * palabra clave y el defecto es STEP AP214, que es lo que acepta cualquier
@@ -152,9 +161,16 @@ const exportCommand: CadCommandDescriptor<ExportState> = {
         return solidMessage(state, `EXPORT: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
+    // NO dice «exportados». Decía «2 sólido(s) exportados a STEP» y no entrega
+    // ningún archivo: ni descarga, ni petición al anfitrión, ni una línea
+    // escrita en el documento. El texto STEP es real y está aquí entero, pero
+    // «exportado» es lo que el dibujante entiende por «ya lo tengo en disco», y
+    // eso no ha pasado. La orden declara su límite y entrega el texto.
     return solidMessage(
       state,
-      `${solids.length} sólido(s) exportados a ${format.toUpperCase()}:\n${parts.join("\n")}`,
+      `EXPORT no entrega ningún archivo: el motor no puede descargarlo y el anfitrión que lo guarde ` +
+        `todavía no está montado. Éste es el texto ${format.toUpperCase()} de ${solids.length} sólido(s), ` +
+        `tal cual:\n${parts.join("\n")}`,
     );
   },
 };
