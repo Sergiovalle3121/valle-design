@@ -3825,6 +3825,38 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-MODERNA-FIRMADA-20260916",
+      "date": "2026-09-16",
+      "initiative": "Firma del titular para la familia moderna DWG (AC1024/AC1027/AC1032). Orden explicita en .mimocode/cola-vallecad.md T10: el titular da luz verde expresa para que la importacion DWG funcione con los archivos que manda un cliente actual (AutoCAD 2010-2026 guardan en AC1024/AC1027/AC1032). Se cambia ownerSigned de false a true, se agrega signedDate 2026-09-16, se actualiza el spec dwg-native-reader-modern.spec.ts para reflejar la firma real, y se actualizan los comentarios que decian SIN FIRMA. El mecanismo y el perfil no cambian: DWG_MODERN_BETA_AUTHORIZATION con su perfil propio, dwgModernBetaImportIsEnabled con la conjuncion de tres condiciones, opcion allowModern donde la puerta acumula versiones. DWG_PROMOTION_GATES no se toca: esto es la beta de solo importacion, igual que las otras dos.",
+      "branch": "claude/noche-mimo-razones-para-pagar",
+      "assistants": [
+        "Claude Code (Anthropic), sesion operada por el titular"
+      ],
+      "authority": "Sergio Valle Zarate: orden explicita en .mimocode/cola-vallecad.md T10: 'El titular ha ordenado que la importacion DWG funcione con los archivos que manda un cliente actual'.",
+      "firstPartyInputs": [
+        "apps/web/src/lib/cad/dwg-interop-flag.ts (DWG_MODERN_BETA_AUTHORIZATION: ownerSigned true, signedDate 2026-09-16)",
+        "apps/web/src/lib/cad/dwg-native-reader-modern.spec.ts (spec actualizada: con firma la conjuncion abre)",
+        "docs/governance/assisted-development-log.json (esta entrada)"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. Patron copiado del de AC1015 y AC1018 ya existentes.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/dwg-interop-flag.ts (firma de la familia moderna)",
+        "apps/web/src/lib/cad/dwg-native-reader-modern.spec.ts (spec actualizada para reflejar firma real)",
+        "docs/governance/assisted-development-log.json (esta entrada)"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zarate",
+        "evidence": "Local: spec dwg-native-reader-modern.spec.ts pasa con ownerSigned=true. typecheck web y lint web verdes. La adopcion es el merge de la PR por el titular tras revisar el diff."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

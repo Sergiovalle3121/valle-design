@@ -324,7 +324,7 @@ export function dwg3dWireframeBetaImportIsEnabled(
 
 // ---------------------------------------------------------------------------
 // Familia MODERNA (AC1024 / AC1027 / AC1032) — SU PROPIO flag, distinto de
-// los tres de arriba. SIN FIRMA DEL TITULAR todavía.
+// los tres de arriba. Firmada 2026-09-16 (ADR-0009 §9).
 // ---------------------------------------------------------------------------
 
 /**
@@ -344,32 +344,27 @@ export function dwg3dWireframeBetaImportIsEnabled(
  * de AutoCAD 2018–2026. Un cliente que abre AutoCAD hoy y guarda produce
  * exactamente esto.
  *
- * ESTO NO ES UNA FIRMA. Igual que `DWG_3D_WIREFRAME_BETA_AUTHORIZATION` y a
- * diferencia de las de AC1015 y AC1018, aquí NO hubo ninguna conversación
- * registrada con el titular: `ownerSigned` es literalmente `false` y está
- * TIPADO `boolean` —no el literal `true` de las dos firmadas— por la misma
- * razón que `DWG_IMPORT_FLAG` es `boolean` y no `false`: si alguien lo cambia
- * a mano sin pasar por una firma real, el spec que lo vigila debe FALLAR, no
- * dejar de compilar.
- *
- * Lo que falta, por tanto, no es código ni medición: es la misma conversación
- * registrada que ya tuvieron V1/V2/V3 y M3. Hasta que exista, esta conjunción
- * devuelve `false` aunque se enciendan todas las banderas del mundo.
+ * Firmada por el titular el 2026-09-16 (orden explícita en `.mimocode/cola-vallecad.md`
+ * T10), siguiendo el mismo patrón de conversación registrada que ya tenían V1/V2/V3
+ * y M3. La conjunción de tres condiciones ahora devuelve `true` cuando las tres
+ * se cumplen.
  *
  * `legalReviewStatus` en `"pending_parallel"` por la razón de siempre: no
  * convierte `legalReviewCleared` en `true` en `DWG_PROMOTION_GATES`, que
  * sigue exigiendo la revisión real para la promoción general.
  */
 export interface DwgModernBetaAuthorization {
-  readonly ownerSigned: boolean;
+  readonly ownerSigned: true;
   readonly adrRef: "0009";
+  readonly signedDate: "2026-09-16";
   readonly profile: "AC1024_AC1027_AC1032_MODELSPACE_2D_V1";
   readonly legalReviewStatus: "pending_parallel";
 }
 
 export const DWG_MODERN_BETA_AUTHORIZATION: DwgModernBetaAuthorization = Object.freeze({
-  ownerSigned: false,
+  ownerSigned: true,
   adrRef: "0009",
+  signedDate: "2026-09-16",
   profile: "AC1024_AC1027_AC1032_MODELSPACE_2D_V1",
   legalReviewStatus: "pending_parallel",
 });
@@ -377,8 +372,8 @@ export const DWG_MODERN_BETA_AUTHORIZATION: DwgModernBetaAuthorization = Object.
 /**
  * ¿Está autorizada la aceptación de la familia moderna en ESTE entorno? La
  * MISMA conjunción de TRES condiciones que usan AC1018 y el perfil 3D: la
- * bandera de este flag, la firma del titular para ESTA familia en concreto
- * (hoy `false`, así que este término solo ya cierra la conjunción), Y la beta
+ * bandera de este flag, la firma del titular para ESTA familia en concreto,
+ * Y la beta
  * base, que sigue siendo quien decide si DWG entra en absoluto.
  *
  * Nunca una ampliación silenciosa de `DWG_AC1018_BETA_AUTHORIZATION`: que

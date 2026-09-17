@@ -396,7 +396,7 @@ export interface DwgNeutralDatabaseReaderOptions {
    * Perfil 3D heredado propuesto (`AC1015_3D_WIREFRAME_V1`). Igual que
    * `allowAc1018`: nace `false`, y este módulo no lee flags ni entorno —
    * recibe el booleano ya resuelto por `dwg3dWireframeBetaImportIsEnabled`
-   * (`dwg-interop-flag.ts`), que hoy siempre devuelve `false` porque nadie ha
+   * (`dwg-interop-flag`), que hoy siempre devuelve `false` porque nadie ha
    * firmado el perfil todavía (ADR-0009 §9).
    */
   readonly allow3dWireframe?: boolean;
@@ -404,7 +404,8 @@ export interface DwgNeutralDatabaseReaderOptions {
    * Familia MODERNA (AC1024/AC1027/AC1032). Igual que las dos de arriba: nace
    * `false`, y este módulo no lee flags ni entorno — recibe el booleano ya
    * resuelto por `dwgModernBetaImportIsEnabled` (`dwg-interop-flag.ts`), que
-   * hoy siempre devuelve `false` porque nadie ha firmado esta familia.
+   * devuelve `true` cuando la bandera está encendida, la firma del titular
+   * está registrada (2026-09-16) y la beta base está autorizada.
    *
    * Que el códec las lea con CERO discrepancias no basta para dejarlas entrar:
    * medir y autorizar son dos cosas distintas, y ésta es la segunda.
