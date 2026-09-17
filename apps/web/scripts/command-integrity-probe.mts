@@ -182,6 +182,16 @@ const PASADAS: readonly Pasada[] = [
   },
 ];
 
+/**
+ * Prompts que piden un NÚMERO aunque el paso acepte texto libre.
+ *
+ * Se mira el texto del prompt y no el nombre del comando: la lista de comandos
+ * envejece, la pregunta no. Y no se contesta con el valor por defecto entre
+ * ángulos —eso sería un Enter con más pasos—, sino con un 10 tecleado, para que
+ * lo que se mida sea el valor que entra por el paso.
+ */
+const PROMPT_NUMERICO = /altura|cu[aá]ntas veces|escala|factor|espesor|grosor|radio|di[aá]metro/i;
+
 /** Puntos variados: cerca de la geometría del documento y separados entre sí. */
 const POINTS = [
   { x: 10, y: 10 },
@@ -333,7 +343,16 @@ function runPass(name: string, pasada: Pasada): PassOutcome {
     } else if (accepts & CAD_ACCEPT_KEYWORD && step.prompt.defaultOption) {
       input = { kind: "enter" };
     } else if (accepts & CAD_ACCEPT_TEXT) {
-      input = { kind: "text", value: `PROBE${steps}` };
+      // Algunos pasos aceptan TEXTO LIBRE y lo que piden es un número: la
+      // altura del corte de SOLVIEW, el zoom de un detalle, un factor. Darles
+      // «PROBE7» los mataba en «no es una altura de corte: escriba un número»,
+      // que es un límite honesto del comando ante una entrada absurda — pero un
+      // límite que la SONDA se estaba buscando. Esto es habilidad del
+      // auto-respondedor, no una exención: el comando sigue midiéndose con el
+      // mismo árbol.
+      input = PROMPT_NUMERICO.test(step.prompt.message)
+        ? { kind: "text", value: "10" }
+        : { kind: "text", value: `PROBE${steps}` };
     } else if (accepts & CAD_ACCEPT_KEYWORD && step.prompt.options?.length) {
       input = { kind: "keyword", keyword: step.prompt.options[0]!.keyword };
     } else {
