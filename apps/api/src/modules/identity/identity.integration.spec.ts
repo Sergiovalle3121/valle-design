@@ -254,7 +254,18 @@ describe('first-party identity HTTP integration', () => {
       primaryCookies.find((entry) => entry.startsWith(`${CSRF_COOKIE}=`)),
     ).not.toMatch(/HttpOnly/iu);
 
-    const primarySession = await primary.get('/v1/auth/session').expect(200);
+    const primarySession = (await primary
+      .get('/v1/auth/session')
+      .expect(200)) as {
+      body: {
+        session: { id: string };
+        user: {
+          id: string;
+          email: string;
+          emailVerified: boolean;
+        };
+      };
+    };
     expect(primarySession.body).toMatchObject({
       user: { id: verifiedUser.id, email: EMAIL, emailVerified: true },
     });
@@ -268,11 +279,18 @@ describe('first-party identity HTTP integration', () => {
     expect(cookieValue(secondaryLogin, CSRF_COOKIE)).toMatch(
       /^[A-Za-z0-9_-]{43}$/u,
     );
-    const secondarySession = await secondary
+    const secondarySession = (await secondary
       .get('/v1/auth/session')
-      .expect(200);
+      .expect(200)) as { body: { session: { id: string } } };
 
-    const listed = await primary.get('/v1/auth/sessions').expect(200);
+    interface SessionInfo {
+      id: string;
+      current: boolean;
+      userAgent: string;
+    }
+    const listed = (await primary.get('/v1/auth/sessions').expect(200)) as {
+      body: { sessions: SessionInfo[] };
+    };
     expect(listed.body.sessions).toHaveLength(2);
     expect(
       listed.body.sessions.filter(
@@ -294,11 +312,10 @@ describe('first-party identity HTTP integration', () => {
       .set('x-csrf-token', primaryCsrf)
       .expect(204);
     await secondary.get('/v1/auth/session').expect(401);
-    await expect(
-      dataSource.getRepository(Session).findOneByOrFail({
-        id: secondarySession.body.session.id,
-      }),
-    ).resolves.toMatchObject({ revokedAt: expect.any(Date) });
+    const revokedSession = await dataSource
+      .getRepository(Session)
+      .findOneByOrFail({ id: secondarySession.body.session.id });
+    expect(revokedSession.revokedAt).toBeInstanceOf(Date);
 
     await crossSecondBoundary();
     const forgot = await request(server)
@@ -484,7 +501,7 @@ describe('first-party identity HTTP integration', () => {
       .post('/v1/auth/verify-email')
       .send({ token: 'x'.repeat(43) })
       .expect(400)
-      .expect((response) => {
+      .expect((response: { body: Record<string, unknown> }) => {
         expect(response.body.code).toBeUndefined();
       });
   });

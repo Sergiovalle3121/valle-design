@@ -185,9 +185,10 @@ describePostgres('Identity registration atomicity', () => {
     await expect(identity.verifyEmail(rawTokens[0])).resolves.toEqual(
       expect.objectContaining({ outcome: 'verified', email }),
     );
-    await expect(
-      harness.dataSource.getRepository(User).findOneByOrFail({ email }),
-    ).resolves.toMatchObject({ emailVerifiedAt: expect.any(Date) });
+    const verifiedUser = await harness.dataSource
+      .getRepository(User)
+      .findOneByOrFail({ email });
+    expect(verifiedUser.emailVerifiedAt).toBeInstanceOf(Date);
     // …y consume el resto: ningún enlace de verificación sigue abierto.
     await expect(
       tokens.countBy({
