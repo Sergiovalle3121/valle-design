@@ -257,7 +257,7 @@ const rotate3dCommand: CadCommandDescriptor<Rotate3dState> = {
   spatial: "elevation",
   begin: (context) => step({ ...EMPTY, selection: context.selection }),
   step: (state, input, context) => {
-    if (input.kind === "cancel") return done([], "3DROTATE");
+    if (input.kind === "cancel") return done([], "3DROTATE", "3DROTATE cancelado.");
 
     if (input.kind === "selection")
       return step({ ...state, selection: input.entityIds });

@@ -124,7 +124,7 @@ const move3dCommand: CadCommandDescriptor<Move3dState> = {
   spatial: "elevation",
   begin: (context) => step({ ...EMPTY, selection: context.selection }),
   step: (state, input, context) => {
-    if (input.kind === "cancel") return done([], "3DMOVE");
+    if (input.kind === "cancel") return done([], "3DMOVE", "3DMOVE cancelado.");
 
     if (input.kind === "selection")
       return step({ ...state, selection: input.entityIds });
