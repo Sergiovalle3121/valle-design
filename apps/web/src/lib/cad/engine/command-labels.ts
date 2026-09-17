@@ -44,6 +44,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   "3DORBIT": "Órbita 3D",
   "3DPAN": "Encuadre 3D",
   "3DROTATE": "Rotar 3D",
+  "3DSCALE": "Escalar 3D",
 
   "3DSWIVEL": "Girar vista",
   "3DWALK": "Caminar 3D",

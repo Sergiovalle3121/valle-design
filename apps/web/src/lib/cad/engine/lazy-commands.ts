@@ -126,6 +126,7 @@ export const CAD_COMMAND_MODULE_LOADERS = {
   "commands/modify-transform": () => import("./commands/modify-transform"),
   "commands/transform-3d": () => import("./commands/transform-3d"),
   "commands/transform-3d-rotate": () => import("./commands/transform-3d-rotate"),
+  "commands/transform-3d-scale": () => import("./commands/transform-3d-scale"),
   "commands/parametric-dimensions": () => import("./commands/parametric-dimensions"),
   "commands/parametric-geometry": () => import("./commands/parametric-geometry"),
   "commands/pdf-underlay-commands": () => import("./commands/pdf-underlay-commands"),

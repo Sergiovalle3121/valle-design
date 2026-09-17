@@ -1,5 +1,5 @@
 /**
- * Los 115 módulos de comandos, con `import` ESTÁTICO. GENERADO — no se edita a mano.
+ * Los 116 módulos de comandos, con `import` ESTÁTICO. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` y `--check`
  * lo verifica, del mismo tirón que `command-manifest.ts`.
@@ -126,15 +126,16 @@ import * as m102 from "./commands/solview-commands";
 import * as m103 from "./commands/surfaces";
 import * as m104 from "./commands/transform-3d";
 import * as m105 from "./commands/transform-3d-rotate";
-import * as m106 from "./commands/ucs-commands";
-import * as m107 from "./commands/ucs-view-commands";
-import * as m108 from "./commands/vectorize-raster";
-import * as m109 from "./commands/view-navigation";
-import * as m110 from "./commands/view-navigation-3d";
-import * as m111 from "./commands/view-visual";
-import * as m112 from "./commands/view-visualization";
-import * as m113 from "./commands/viewbase-commands";
-import * as m114 from "./commands/xrefs";
+import * as m106 from "./commands/transform-3d-scale";
+import * as m107 from "./commands/ucs-commands";
+import * as m108 from "./commands/ucs-view-commands";
+import * as m109 from "./commands/vectorize-raster";
+import * as m110 from "./commands/view-navigation";
+import * as m111 from "./commands/view-navigation-3d";
+import * as m112 from "./commands/view-visual";
+import * as m113 from "./commands/view-visualization";
+import * as m114 from "./commands/viewbase-commands";
+import * as m115 from "./commands/xrefs";
 
 cadRegisterCommandModules([
   m000,
@@ -252,4 +253,5 @@ cadRegisterCommandModules([
   m112,
   m113,
   m114,
+  m115,
 ]);
