@@ -10,7 +10,12 @@
  * evaluadores REALES del producto, no con dobles.
  */
 import assert from "node:assert/strict";
-import { clasificar, entidadesTocadas, sinGeometria } from "./command-integrity-rules.mjs";
+import {
+  clasificar,
+  clausulasAfirmativas,
+  entidadesTocadas,
+  sinGeometria,
+} from "./command-integrity-rules.mjs";
 
 const { solid3dMesh, solid3dMassProperties } = await import(
   "../../apps/web/src/lib/cad/solid3d-build.ts"
@@ -60,8 +65,10 @@ eq(
 // ─── R1: prometer mutar y quedarse en la promesa ────────────────────────────
 
 // Trampa: THICKEN de la rama de MiMo (surfaces.ts), mutates:true, sin lote.
+// Su frase real («superficie espesada…») la atrapa además R3; aquí se quita el
+// participio para probar que R1 la atrapa sola.
 eq(
-  clasificar(sinEfecto(["THICKEN: superficie espesada 10 unidades — operación pendiente de kernel."])),
+  clasificar(sinEfecto(["THICKEN: espesor de 10 unidades — operación pendiente de kernel."])),
   { verdict: "ROJO", note: "promete mutar y terminó sin lote, sin delegar y sin declarar límite" },
   "R1: THICKEN sin lote y sin límite es ROJO",
 );
@@ -156,5 +163,50 @@ eq(
 );
 eq(veredicto(tras([linea], [linea, caja])), "muta", "R2: BOX con geometría sigue mutando");
 eq(veredicto(tras([linea], [])), "muta", "R2: borrar no deja entidades que evaluar y muta");
+
+// ─── R3: un mensaje no puede ser a la vez éxito y límite ────────────────────
+
+// Trampas de la rama de MiMo (render-commands.ts, transform-3d-viz…).
+for (const trampa of [
+  "POINTLIGHT creada con intensidad 1 — requiere WebGL.",
+  "SPOTLIGHT creada con intensidad 1 — requiere WebGL.",
+  "DISTANTLIGHT creada con intensidad 1 — requiere WebGL.",
+  "CAMERA: cámara definida — requiere el visor 3D.",
+  "NAVBAR activada — requiere el visor 3D.",
+  "NAVVCUBE activada (requiere el visor 3D).",
+  "RENDERPRESETS: preset seleccionado; no disponible sin WebGL.",
+  "THICKEN: superficie espesada 10 unidades — operación pendiente de kernel.",
+]) {
+  eq(clausulasAfirmativas(trampa).length > 0, true, `R3 atrapa: ${trampa}`);
+  eq(veredicto(sinEfecto([trampa], { mutates: false })), "ROJO", `R3 es ROJO aunque no prometa mutar: ${trampa}`);
+}
+eq(
+  veredicto({ ...sinEfecto(["POINTLIGHT creada — requiere WebGL."]), delegated: true }),
+  "delegado",
+  "R3 no toca lo que sí delegó",
+);
+// Legítimos de main que un vocabulario sin negaciones pondría en rojo.
+for (const legitimo of [
+  "UNION necesita DOS sólidos designados.",
+  "SUBTRACT necesita al menos un sólido seleccionado para restar.",
+  "EXPORT necesita un nombre de archivo; no se ha exportado nada.",
+  "SLICE: no se ha generado ningún corte.",
+  "MSPACE necesita una hoja con una ventana abierta.",
+  "LAYMCH: los objetos ya están en esa capa.",
+  "REGION: las líneas forman una cadena ABIERTA.",
+  "REVISA: quedan 2 ediciones abiertas.",
+  "TRIM: el punto designado no queda sobre ningún borde.",
+  "UCSICON: el icono está activado.",
+  "Si está activado, se dibuja en el origen.",
+  "¿Borrado definitivo? Pulse Intro.",
+  "Nombre   Estado\n0        activada",
+]) {
+  eq(clausulasAfirmativas(legitimo), [], `R3 no marca: ${legitimo}`);
+}
+eq(
+  veredicto(sinEfecto(["LAYMCH: los objetos ya están en esa capa."])),
+  "honesto-limitado",
+  "R3: un límite sin afirmación sigue siendo honesto",
+);
 
 console.log(`command-integrity-rules.spec: ${checks} comprobaciones OK`);

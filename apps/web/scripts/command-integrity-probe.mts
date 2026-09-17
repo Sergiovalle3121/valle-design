@@ -34,7 +34,9 @@
  *   fallo del comando; queda listado y exento con razón, y su familia tiene
  *   spec propio.
  * - `ROJO`: terminó «bien» sin efecto y sin declarar límite, siendo un comando
- *   que promete mutar. Ésos son los que el gate no deja pasar.
+ *   que promete mutar; o AFIRMÓ un resultado sin efecto, aunque en el mismo
+ *   mensaje declare también un límite («creada… — requiere WebGL»); o insertó
+ *   entidades sin geometría. Ésos son los que el gate no deja pasar.
  *
  * El árbol de decisión vive en `scripts/cad/command-integrity-rules.mjs`, con
  * su spec: cada regla tiene ahí su trampa atrapada y su caso legítimo en verde.

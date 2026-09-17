@@ -25,6 +25,51 @@ export const CLAIMS =
   /cread[oa]|dibujad[oa]|aplicad[oa]|hech[oa]|guardad[oa]|trazad[oa]|abiert[oa]|cambiad[oa]|designad[oa]|actualizad[oa]|publicad[oa]|insertad[oa]|definid[oa]|modificad[oa]|borrad[oa]|eliminad[oa]|renombrad[oa]|movid[oa]|girad[oa]|copiad[oa]|restaurad[oa]|cargad[oa]|activad[oa]\.|listo\b|completad[oa]/i;
 
 /**
+ * R3 — participios de éxito, por palabra entera. Es CLAIMS ampliado (espesad,
+ * establecid, seleccionad, generad…) y SIN «designad» ni «abiert»: en main
+ * describen la entrada o el estado («necesita DOS sólidos designados»,
+ * «ediciones abiertas»), no un resultado.
+ */
+export const PARTICIPIO_DE_EXITO =
+  /(?<![\p{L}])(?:cread|dibujad|aplicad|hech|guardad|trazad|cambiad|actualizad|publicad|insertad|definid|modificad|borrad|eliminad|renombrad|movid|girad|copiad|restaurad|cargad|activad|completad|espesad|establecid|seleccionad|generad|agregad|añadid|colocad|asignad|convertid|exportad|importad|recortad|extruid|ajustad|fijad|configurad|registrad|vinculad|adjuntad|anclad|escalad|orientad|calculad)[oa]s?(?![\p{L}])|(?<![\p{L}])listo(?![\p{L}])/iu;
+
+/**
+ * R3 — lo que, ANTES del participio y dentro de su cláusula, lo convierte en
+ * otra cosa: una negación («no se ha creado»), una condición («si está
+ * activado»), una pregunta, un requisito («necesita… designados») o un estado
+ * («ya están en esa capa», «forman una cadena», «objetos seleccionados»).
+ */
+export const PREVIO_QUE_ANULA =
+  /(?<![\p{L}])(?:no|ni|nada|ning[uú]n[oa]?|sin|nunca|jam[aá]s|si)(?![\p{L}])|ya est[aá]n?|todav[ií]a no|¿|necesit|requier|(?<![\p{L}])(?:hay|est[aá]n?|quedan?|siguen?|forman|sobre|objetos?)(?![\p{L}])/iu;
+
+const FILA_DE_TABLA = /\S {2,}\S/;
+
+/**
+ * R3 — las cláusulas de un mensaje que AFIRMAN un resultado.
+ *
+ * Antes bastaba con que el MISMO mensaje dijera también «requiere» para que la
+ * afirmación no contara: «POINTLIGHT creada con intensidad 1 — requiere WebGL»
+ * salía `honesto-limitado`. Decir que falta algo no anula haber dicho que se
+ * hizo, así que el mensaje se parte en cláusulas (por . ; : — – salto de línea,
+ * « - » y paréntesis) y cada una se juzga por separado. Las filas de tabla son
+ * lecturas y se saltan.
+ *
+ * @param {string} text
+ * @returns {string[]}
+ */
+export function clausulasAfirmativas(text) {
+  return text
+    .split(/[.;:—–\n]|\s-\s|[()]/)
+    .map((clausula) => clausula.trim())
+    .filter((clausula) => {
+      if (FILA_DE_TABLA.test(clausula)) return false;
+      const match = PARTICIPIO_DE_EXITO.exec(clausula);
+      if (!match) return false;
+      return !PREVIO_QUE_ANULA.test(clausula.slice(0, match.index));
+    });
+}
+
+/**
  * R1 — límites que un comando MUTANTE declara con palabras que `HONESTY` no
  * tiene («no reparó nada», «elija primero…», «el portapapeles está vacío»…).
  * Se mantienen aparte de `HONESTY` a propósito: fundirlos movería a
@@ -162,6 +207,17 @@ export function clasificar(o) {
   if (delegated) return { verdict: "delegado" };
   if (claims) {
     return { verdict: "ROJO", note: "afirma una acción consumada sin ningún efecto verificable" };
+  }
+  const afirmadas = messages
+    .filter((entry) => entry.level === "info")
+    .flatMap((entry) => clausulasAfirmativas(entry.text));
+  if (afirmadas.length > 0) {
+    // R3. Va ANTES de la rama `honest`: un límite en otra cláusula no borra
+    // la afirmación.
+    return {
+      verdict: "ROJO",
+      note: `afirma «${afirmadas[0]}» sin efecto; decir que falta algo no anula haber dicho que se hizo`,
+    };
   }
   if (messages.length === 0 && steps > 0 && inputTrace[inputTrace.length - 1] === "enter") {
     // Cerró tras un Enter del auto-respondedor: es la salida normal de un
