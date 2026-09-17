@@ -226,6 +226,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   MESHUNCREASE: "Quitar pliegue",
   MEPSYMBOL: "Símbolo MEP",
   MIRROR: "Simetría",
+  MIRROR3D: "Simetría 3D",
 
   MLEADER: "Directriz nota",
   MLEADERSTYLE: "Estilo directriz",
