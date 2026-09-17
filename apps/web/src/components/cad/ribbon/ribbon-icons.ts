@@ -13,6 +13,7 @@ import {
   Eye,
   GitCompare,
   Globe,
+  Grid3x3,
   Group,
   Layers,
   Layers2,
@@ -32,6 +33,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
+  Square,
   Tag,
   Target,
   Terminal,
@@ -63,6 +65,7 @@ export const CAD_RIBBON_PANEL_ICONS: Readonly<Record<string, LucideIcon>> = {
   Portapapeles: ClipboardPaste,
   Arquitectura: DoorOpen,
   Instalaciones: Droplets,
+  Superficies: Square,
   // Mechanical (Ola I): los normalizados en Insertar, el detallado en Anotar.
   Normalizados: Cog,
   Mecánica: Wrench,

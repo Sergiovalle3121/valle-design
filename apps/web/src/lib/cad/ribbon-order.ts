@@ -25,12 +25,12 @@ export const CAD_RIBBON_PANEL_ORDER: Readonly<Record<CadRibbonTabId, readonly st
   inicio: [
     "Dibujo", "Modificar", "Anotación", "Capas", "Bloque", "Propiedades",
     "Grupos", "Utilidades", "Portapapeles", "Arquitectura", "Instalaciones",
-    "Superficies", "Mallas", "Render",
+    "Superficies",
   ],
   insertar: ["Referencias", "Importar y extraer", "Ubicación", "Normalizados", "Paletas"],
   anotar: ["Texto y tablas", "Cotas", "Directrices", "Tolerancias", "Mecánica", "Estilos"],
   parametrico: ["Geométricas", "Dimensionales", "Gestionar"],
-  vista: ["Encuadre y zoom", "Vistas 3D", "Estilos visuales", "SCU", "Ventanas", "Paletas", "Vistas", "Render"],
+  vista: ["Encuadre y zoom", "Vistas 3D", "Estilos visuales", "SCU", "Ventanas", "Paletas", "Vistas"],
   solidos3d: ["Primitivas", "Sólido", "Booleanas", "Edición de sólidos", "Consulta 3D"],
   salida: ["Trazar y publicar", "Exportar", "Ventanas"],
   administrar: ["Normas y reparación", "Variables", "AutoLISP y scripts", "Comparar", "Vistas"],
@@ -83,21 +83,11 @@ export const CAD_RIBBON_COMMAND_ORDER: Readonly<Record<string, readonly string[]
   Sólido: ["EXTRUDE", "PRESSPULL", "REVOLVE", "SWEEP", "LOFT"],
   Booleanas: ["UNION", "SUBTRACT", "INTERSECT", "INTERFERE"],
   "Edición de sólidos": ["SLICE", "FILLETEDGE", "CHAMFEREDGE", "SOLIDEDIT", "SECTION"],
-  // Fase 2: superficies, mallas, render.
+  // Fase 2: superficies.
   Superficies: [
-    "PLANESURF", "CONVTOSURFACE", "SURFOFFSET", "SURFTRIM", "SURFUNTRIM",
-    "SURFEXTEND", "SURFFILLET", "SURFBLEND", "SURFPATCH", "SURFNETWORK", "SURFSCULPT",
+    "PLANESURF", "CONVTOSURFACE",
   ],
-  Mallas: [
-    "MESH", "CONVTOMESH", "CONVTOSOLID", "MESHSMOOTH", "MESHSMOOTHMORE", "MESHSMOOTHLESS",
-    "MESHREFINE", "MESHSPLIT", "MESHCREASE", "MESHUNCREASE", "MESHCOLLAPSE", "MESHEXTRUDE",
-    "MESHMERGE", "MESHCAP", "RULESURF", "TABSURF", "REVSURF", "EDGESURF", "3DFACE",
-  ],
-  Render: [
-    "RENDER", "RENDERCROP", "RENDERWIN", "RENDERPRESETS", "RENDEREXPOSURE",
-    "RENDERENVIRONMENT", "MATERIALS", "MATERIALMAP", "MATERIALATTACH",
-    "POINTLIGHT", "SPOTLIGHT", "DISTANTLIGHT", "SUNPROPERTIES",
-  ],
+  Render: [],
 };
 
 /**
@@ -178,10 +168,8 @@ export const CAD_RIBBON_PRIMARY: Readonly<Record<string, readonly string[]>> = {
   Variables: ["UNITS"],
   "AutoLISP y scripts": ["SCRIPT"],
   Comparar: ["COMPARE"],
-  // Superficies, Mallas, Render y Vistas (Fase 2 de cobertura).
-  Mallas: ["MESH"],
+  // Superficies y Vistas (Fase 2 de cobertura).
   Superficies: ["PLANESURF"],
-  Render: ["RENDER", "MATERIALS", "POINTLIGHT"],
   Vistas: ["VIEWBASE", "VIEWEDIT", "REGEN"],
 };
 
@@ -198,13 +186,13 @@ export const CAD_RIBBON_PRIMARY: Readonly<Record<string, readonly string[]>> = {
  */
 export const CAD_RIBBON_PANEL_COLLAPSE_ORDER: Readonly<Record<CadRibbonTabId, readonly string[]>> = {
   inicio: [
-    "Mallas", "Superficies", "Render", "Instalaciones", "Arquitectura", "Portapapeles", "Grupos", "Utilidades",
+    "Superficies", "Instalaciones", "Arquitectura", "Portapapeles", "Grupos", "Utilidades",
     "Propiedades", "Bloque", "Anotación",
   ],
   insertar: ["Paletas", "Normalizados", "Ubicación", "Importar y extraer"],
   anotar: ["Mecánica", "Tolerancias", "Estilos", "Directrices", "Texto y tablas"],
   parametrico: ["Gestionar", "Dimensionales"],
-  vista: ["Render", "Vistas", "Paletas", "Ventanas", "SCU", "Estilos visuales", "Vistas 3D"],
+  vista: ["Vistas", "Paletas", "Ventanas", "SCU", "Estilos visuales", "Vistas 3D"],
   solidos3d: ["Consulta 3D", "Edición de sólidos", "Booleanas", "Sólido"],
   salida: ["Ventanas", "Exportar"],
   administrar: ["Vistas", "Comparar", "AutoLISP y scripts", "Variables"],
