@@ -4,7 +4,8 @@
  */
 import { strict as assert } from "node:assert";
 import { CAD_COMMAND_REGISTRY_V2 } from "../index";
-import type { CadCommandContext, CadCommandInput, CadCommandResult, CadEntityCommand } from "../command-types";
+import type { CadCommandContext, CadCommandInput, CadCommandResult } from "../command-types";
+import type { CadEntityCommand } from "../../entity-commands";
 import "@/lib/cad/engine/all-commands";
 
 function run(name: string, inputs: readonly CadCommandInput[], ctx?: CadCommandContext): CadCommandResult | undefined {
