@@ -151,7 +151,6 @@ export const CAD_VIEW_VISUALIZATION_COMMANDS: readonly CadAnyCommandDescriptor[]
   asCadCommand(navCommand("3DFLY", ["3F", "VOLAR3D"], "Volar")),
   asCadCommand(navCommand("3DSWIVEL", ["3SW", "GIRAR3D"], "Girar cámara")),
   asCadCommand(cmdcamera),
-  asCadCommand(cmddview),
   asCadCommand(cmdnavvcube),
   asCadCommand(cmdnavbar),
   asCadCommand(cmdvisualstyles),

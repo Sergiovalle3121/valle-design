@@ -1,5 +1,5 @@
 /**
- * METADATOS de los 362 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 361 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
  * 118 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
@@ -385,7 +385,6 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "3DFLY", aliases: ["3F", "VOLAR3D"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-visualization" },
   { name: "3DSWIVEL", aliases: ["3SW", "GIRAR3D"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-visualization" },
   { name: "CAMERA", aliases: ["CAM", "CAMARA"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "crosshair", module: "commands/view-visualization" },
-  { name: "DVIEW", aliases: ["DV", "VISTADINAMICA"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "crosshair", module: "commands/view-visualization" },
   { name: "NAVVCUBE", aliases: ["NVC", "CUBONAVEGACION"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-visualization" },
   { name: "NAVBAR", aliases: ["NB", "BARRANAVEGACION"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-visualization" },
   { name: "VISUALSTYLES", aliases: ["VST", "ESTILOVISUAL"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-visualization" },
