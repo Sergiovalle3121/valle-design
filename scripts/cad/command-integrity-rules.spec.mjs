@@ -77,10 +77,41 @@ eq(
   "R1: THICKEN sin lote y sin límite es ROJO",
 );
 eq(
-  veredicto(sinEfecto(["3DMOVE: la selección no contiene sólidos3D."])),
+  veredicto(sinEfecto(["3DMOVE: desplazamiento de 10 unidades en Z."])),
   "ROJO",
-  "R1: sin palabra de éxito tampoco se libra un stub mutante (3DMOVE de MiMo)",
+  "R1: sin palabra de éxito tampoco se libra un stub mutante",
 );
+// Trampas: una locución con «no» que no niega el resultado no es un límite.
+for (const trampa of [
+  "THICKEN: operación pendiente de kernel; no olvide guardar.",
+  "THICKEN: operación pendiente de kernel, no obstante sigue en cola.",
+  "THICKEN: no dude en repetirlo cuando haya kernel.",
+  "THICKEN: no sólo espesa, también une — pendiente de kernel.",
+  "THICKEN: pendiente de kernel (nota)",
+  // Stubs de la rama de MiMo (surfaces.ts): la negación confiesa que el
+  // comando no existe, no un límite de la entrada.
+  "SURFBLEND: transición suave — operación aún no implementada en el kernel.",
+  "CONVTOSURFACE: 2 entidad(es) — conversión a superficie aún no implementada en el kernel.",
+  "SURFTRIM: la selección no contiene superficies; operación aún no implementada.",
+  "SURFPATCH: relleno no soportado por el kernel.",
+  "SURFOFFSET: offset no disponible sin kernel de superficies.",
+  "SURFSCULPT: operación sin implementar, no genera geometría.",
+  "SURFNETWORK: no genera superficie, pendiente de kernel.",
+]) {
+  eq(veredicto(sinEfecto([trampa])), "ROJO", `R1 sigue atrapando: ${trampa}`);
+}
+// Gemelos legítimos: 3DMOVE (transform-3d.ts) y 3DROTATE (transform-3d-rotate.ts)
+// de la rama de MiMo, implementados de verdad, sin sólidos en la selección del
+// documento 2D de la sonda. La lista cerrada de R1 los ponía en rojo.
+for (const legitimo of [
+  "3DMOVE: la selección no contiene sólidos3D.",
+  "3DROTATE: la selección no contiene sólidos3D.",
+  "La designación no incluye cotas.",
+  "FILLET: no encontró dos bordes que se corten.",
+  "OFFSET — no hubo intersección con el contorno",
+]) {
+  eq(veredicto(sinEfecto([legitimo])), "informa", `R1: una negación es límite: ${legitimo}`);
+}
 // Legítimos de main que la versión literal de R1 pondría en rojo.
 eq(veredicto(sinEfecto(["LENGTHEN: Longitud actual = 100"])), "informa", "R1: una lectura no es promesa (LENGTHEN)");
 eq(

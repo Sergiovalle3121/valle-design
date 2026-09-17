@@ -44,6 +44,9 @@ export const PREVIO_QUE_ANULA =
 
 const FILA_DE_TABLA = /\S {2,}\S/;
 
+/** Dónde acaba una cláusula: . ; : — – salto de línea, « - » y paréntesis. */
+const SEPARADOR_DE_CLAUSULAS = /[.;:—–\n]|\s-\s|[()]/;
+
 /**
  * R3 — las cláusulas de un mensaje que AFIRMAN un resultado.
  *
@@ -59,7 +62,7 @@ const FILA_DE_TABLA = /\S {2,}\S/;
  */
 export function clausulasAfirmativas(text) {
   return text
-    .split(/[.;:—–\n]|\s-\s|[()]/)
+    .split(SEPARADOR_DE_CLAUSULAS)
     .map((clausula) => clausula.trim())
     .filter((clausula) => {
       if (FILA_DE_TABLA.test(clausula)) return false;
@@ -88,9 +91,38 @@ export const LECTURA = /=\s*-?\d|\S {2,}\S/;
 
 export const esLectura = (text) => LECTURA.test(text);
 
+/**
+ * R1 — una negación que abre un predicado dentro de una cláusula («la selección
+ * no contiene sólidos3D», «no incluye cotas», «no encontró bordes»).
+ *
+ * `LIMITE_MUTANTE` era una lista cerrada: 3DMOVE y 3DROTATE de la rama de MiMo
+ * declaran su límite con «no contiene» y salían en ROJO. Una lista de verbos
+ * siempre llega tarde, así que se acepta la negación genérica (la misma idea
+ * que `PREVIO_QUE_ANULA`), por palabra entera y cláusula a cláusula. Quedan
+ * fuera las locuciones con «no» que no niegan el resultado: «no olvide…»,
+ * «no obstante», «no dude…», «no sólo… (sino)».
+ */
+export const NEGACION_DE_LIMITE =
+  /(?<![\p{L}])no\s+(?!(?:olvid|obstante|dud|s[oó]lo)(?:\p{L}|$|\s))\p{L}+/iu;
+
+/**
+ * R1 — lo que convierte la negación en la confesión de un stub: el mensaje no
+ * habla de la entrada o del documento sino del propio comando («operación aún
+ * no implementada en el kernel», «no soportado», «pendiente de kernel»). Eso es
+ * la misma promesa sin cumplir que la trampa de THICKEN, y la negación genérica
+ * no puede sacarla del rojo: con ella sola, SURFBLEND, SURFTRIM,
+ * CONVTOSURFACE… de la rama de MiMo pasaban de ROJO a `informa`.
+ */
+export const STUB_DECLARADO =
+  /(?<![\p{L}])(?:a[uú]n|todav[ií]a)\s+no(?![\p{L}])|(?<![\p{L}])(?:implementad|soportad|programad|disponible)|(?<![\p{L}])sin\s+implementar|pendiente/iu;
+
+export const niegaEnAlgunaClausula = (text) =>
+  !STUB_DECLARADO.test(text) &&
+  text.split(SEPARADOR_DE_CLAUSULAS).some((clausula) => NEGACION_DE_LIMITE.test(clausula));
+
 /** Límite declarado, con el vocabulario general o con el de R1. */
 export const declaraLimiteMutante = (text) =>
-  HONESTY.test(text) || LIMITE_MUTANTE.test(text);
+  HONESTY.test(text) || LIMITE_MUTANTE.test(text) || niegaEnAlgunaClausula(text);
 
 /**
  * R2 — entidades que un lote añadió o cambió: se comparan por id y por su
