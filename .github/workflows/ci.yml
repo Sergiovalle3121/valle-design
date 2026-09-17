@@ -334,6 +334,15 @@ jobs:
       - name: Exportar VALLE_DWG_CORPUS_MIRROR
         run: echo "VALLE_DWG_CORPUS_MIRROR=$GITHUB_WORKSPACE/.dwg-corpus-mirror" >> "$GITHUB_ENV"
 
+      # `check:template-gallery` carga `template-render.ts` →
+      # `@valle-design/contracts` vía `node --import tsx`, que NO intercepta
+      # `require()` con los paths de TypeScript y cae a la resolución estándar
+      # de Node (`dist/index.js`). Sin este paso, la puerta moría con
+      # `Cannot find module …/dist/index.js` en cada corrida con caché caliente
+      # (donde `npm ci` no ejecuta el script `prepare` de cada workspace).
+      - name: Compilar @valle-design/contracts (requerido por check:cad)
+        run: npm run build --workspace=@valle-design/contracts
+
       - name: CAD contract and legacy-route gates
         run: npm run check:cad
 
