@@ -349,6 +349,7 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "SOLDRAW", aliases: ["SOLD", "DIBUJOSOL"], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "none", module: "commands/solview-commands" },
   { name: "PLANESURF", aliases: ["PLSURF", "SUPERFICIEPLANA"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/surfaces" },
   { name: "CONVTOSURFACE", aliases: ["CVS", "CONVERTIRSUPERFICIE"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/surfaces" },
+  { name: "THICKEN", aliases: ["TH", "ESPEZAR"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/surfaces" },
   { name: "SURFOFFSET", aliases: ["SOFF", "DESPLAZARSUPERFICIE"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/surfaces" },
   { name: "SURFTRIM", aliases: ["STRIM", "RECORTARSUPERFICIE"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/surfaces" },
   { name: "SURFUNTRIM", aliases: ["SUT", "RESTAURARSUPERFICIE"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/surfaces" },

@@ -60,7 +60,7 @@ const distance = (v: number): CadCommandInput => ({ kind: "distance", value: v }
 
 // --- Registro ---------------------------------------------------------------
 const SURFACE_NAMES = [
-  "PLANESURF", "CONVTOSURFACE", "SURFOFFSET", "SURFTRIM", "SURFUNTRIM",
+  "PLANESURF", "CONVTOSURFACE", "THICKEN", "SURFOFFSET", "SURFTRIM", "SURFUNTRIM",
   "SURFEXTEND", "SURFFILLET", "SURFBLEND", "SURFPATCH", "SURFNETWORK", "SURFSCULPT",
 ];
 for (const name of SURFACE_NAMES) {
@@ -117,4 +117,10 @@ for (const name of SURFACE_NAMES) {
   assert.ok(result?.kind === "message", "CONVTOSURFACE produce mensaje");
 }
 
-console.log(`✅ surfaces.spec: ${SURFACE_NAMES.length} comandos verificados — 18 comprobaciones`);
+// --- THICKEN: flujo completo ------------------------------------------------
+{
+  const result = run("THICKEN", [pick("s1"), distance(5)]);
+  assert.ok(result?.kind === "message", "THICKEN produce mensaje");
+}
+
+console.log(`✅ surfaces.spec: ${SURFACE_NAMES.length} comandos verificados — 20 comprobaciones`);

@@ -566,6 +566,7 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   SURFPATCH: SquareDashed,
   SURFNETWORK: Network,
   SURFSCULPT: Hammer,
+  THICKEN: MoveVertical,
   // Mallas.
   MESH: Shapes,
   CONVTOMESH: ArrowLeftRight,

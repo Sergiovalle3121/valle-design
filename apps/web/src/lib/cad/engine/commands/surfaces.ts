@@ -414,6 +414,38 @@ const surfsculptCommand: CadCommandDescriptor<null> = {
 };
 
 // ---------------------------------------------------------------------------
+// THICKEN — superficie → sólido con espesor
+// ---------------------------------------------------------------------------
+
+const thickenCommand: CadCommandDescriptor<{ picked?: boolean }> = {
+  name: "THICKEN",
+  aliases: ["TH", "ESPEZAR"],
+  kind: "draw",
+  transparent: false,
+  selection: "none",
+  repeatable: true,
+  mutates: true,
+  cursor: "pick",
+  begin: () => ({
+    state: {},
+    prompt: { message: "Designe la superficie a espesar", options: [] },
+    accepts: CAD_ACCEPT_ENTITY_PICK,
+  }),
+  step: (state, input, _context) => {
+    if (input.kind === "cancel") return say("THICKEN cancelado.");
+    if (input.kind === "entityPick" && !state.picked)
+      return {
+        state: { picked: true },
+        prompt: { message: "Espesor (positivo hacia afuera)", options: [], defaultValue: "1" },
+        accepts: CAD_ACCEPT_DISTANCE,
+      };
+    if (input.kind === "distance" && state.picked)
+      return say(`THICKEN: superficie espesada ${input.value} unidades — operación pendiente de kernel.`);
+    return say("THICKEN: designe la superficie.");
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Export
 // ---------------------------------------------------------------------------
 
@@ -429,4 +461,5 @@ export const CAD_SURFACE_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(surfpatchCommand),
   asCadCommand(surfnetworkCommand),
   asCadCommand(surfsculptCommand),
+  asCadCommand(thickenCommand),
 ];
