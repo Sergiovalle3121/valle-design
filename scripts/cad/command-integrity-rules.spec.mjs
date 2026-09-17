@@ -268,6 +268,35 @@ for (const trampa of [
   eq(afirmacionSinCoartada(trampa) !== null, true, `afirmación: atrapa «${trampa}»`);
   eq(veredicto(sinEfecto([trampa])), "ROJO", `afirmación sin efecto es ROJO: «${trampa}»`);
 }
+// Trampas de LAVADO POR COMA: la rama no cortaba por coma, así que cualquier
+// palabra de PREVIO_QUE_RECHAZA_AFIRMACION puesta al principio de la frase
+// servía de coartada para la afirmación que venía DESPUÉS de la coma. Es una
+// receta de seis palabras para blanquear un «Hecho» vacío, y le servía a todo
+// comando con `mutates: false` —los de kind manage/query, que son los que
+// imprimen resultados y no tienen la red de R1—. En main, que leía el mensaje
+// entero, las seis eran ROJO.
+for (const trampa of [
+  "Sin tocar el documento, 3 objetos borrados.",
+  "Si designas más entidades, 3 objetos borrados.",
+  "Ningún error, 2 bloques insertados.",
+  "Nunca falla, capa renombrada.",
+  "Ni un solo aviso, sólido creado.",
+  "Sin sólidos nuevos, la cota ha sido actualizada.",
+]) {
+  eq(afirmacionSinCoartada(trampa) !== null, true, `afirmación: la coma no es coartada «${trampa}»`);
+  eq(
+    veredicto(sinEfecto([trampa], { mutates: false })),
+    "ROJO",
+    `afirmación: lavado por coma sin efecto es ROJO aunque no prometa mutar: «${trampa}»`,
+  );
+}
+// Y la coma NO se le añade a R3: «necesita DOS sólidos designados, y hay 0» es
+// una sola proposición y tiene que seguir leyéndose entera.
+eq(
+  clausulasAfirmativas("INTERFERE necesita DOS sólidos designados, y hay 0."),
+  [],
+  "la coma es sólo de la rama de afirmación: R3 sigue leyendo la cláusula entera",
+);
 // «3 objetos borrados» es el caso que obliga a dejar «objetos» FUERA de las
 // coartadas: con la lista completa de PREVIO_QUE_ANULA se escaparía por ahí, y
 // R3 tampoco lo atraparía por la misma razón.

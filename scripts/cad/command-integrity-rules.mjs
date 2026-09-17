@@ -61,7 +61,21 @@ const FILA_DE_TABLA = /\S {2,}\S/;
 
 /** Dónde acaba una cláusula: . ; : — – salto de línea, « - » y paréntesis. */
 const SEPARADOR_DE_CLAUSULAS = /[.;:—–\n]|\s-\s|[()]/;
-const SEPARADOR_GLOBAL = new RegExp(SEPARADOR_DE_CLAUSULAS.source, "g");
+
+/**
+ * Dónde acaba una cláusula PARA LA RAMA DE AFIRMACIÓN: lo mismo MÁS la coma.
+ *
+ * La coma no está en `SEPARADOR_DE_CLAUSULAS` a propósito —R3 necesita leer
+ * «necesita DOS sólidos designados, y hay 0» de una pieza— pero sin ella la
+ * rama de afirmación regalaba una coartada de seis palabras: bastaba abrir la
+ * frase con cualquier palabra de `PREVIO_QUE_RECHAZA_AFIRMACION` para lavar la
+ * afirmación que venía después de la coma. «Sin tocar el documento, 3 objetos
+ * borrados.» o «Ningún error, 2 bloques insertados.» salían `informa` sin
+ * ningún efecto; en la versión anterior de esta rama —que leía el mensaje
+ * entero— las dos eran ROJO. Con la coma dentro, cada proposición se juzga por
+ * sí misma y el lavado desaparece sin tocar R3.
+ */
+const SEPARADOR_DE_AFIRMACIONES = /[.;:—–,\n]|\s-\s|[()]/g;
 const CLAIMS_GLOBAL = new RegExp(CLAIMS.source, "gi");
 
 /**
@@ -82,13 +96,18 @@ const CLAIMS_GLOBAL = new RegExp(CLAIMS.source, "gi");
  * habría perdido—: se localiza el inicio de la cláusula que contiene la
  * palabra y se examina ese tramo.
  *
+ * Las cláusulas se cortan además por COMA (`SEPARADOR_DE_AFIRMACIONES`): sin
+ * eso, «Sin tocar el documento, 3 objetos borrados.» se lavaba con el «Sin»
+ * del principio, y eso vale para cualquier comando de kind `manage` o `query`
+ * —los que imprimen resultados— porque R1 sólo protege a los mutantes.
+ *
  * @param {string} text
  * @returns {string | null} la cláusula afirmativa, o null
  */
 export function afirmacionSinCoartada(text) {
   for (const match of text.matchAll(CLAIMS_GLOBAL)) {
     let inicio = 0;
-    for (const corte of text.slice(0, match.index).matchAll(SEPARADOR_GLOBAL)) {
+    for (const corte of text.slice(0, match.index).matchAll(SEPARADOR_DE_AFIRMACIONES)) {
       inicio = corte.index + corte[0].length;
     }
     const clausula = text.slice(inicio, match.index + match[0].length);
