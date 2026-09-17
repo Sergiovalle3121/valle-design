@@ -1999,7 +1999,7 @@ export default function Layout3DEditor({
         ...workspacePreferencesRef.current,
         rightDock: true,
       });
-  }, [updateWorkspacePreferences]);
+  }, [updateWorkspacePreferences, setShowHatchPalette]);
   const applyWorkspaceProfile = useCallback(
     (profile: CadWorkspaceProfile) => {
       updateWorkspacePreferences(
