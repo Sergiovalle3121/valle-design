@@ -300,6 +300,55 @@ export function clasificar(o) {
     : { verdict: "informa" };
 }
 
+// ─── Combinación de las DOS pasadas de la sonda ──────────────────────────────
+
+/**
+ * Lo único que ASCIENDE a un comando: un efecto verificado.
+ *
+ * `informa` y `honesto-limitado` no están aquí a propósito. La probeta de
+ * sólidos y lámina existe para quitarle a un comando la excusa de una
+ * precondición imposible, no para reetiquetar a los que ya eran honestos: si
+ * con la probeta un comando pasa de «declara su límite» a «informa», eso no es
+ * un efecto y no vale como mejora. Sólo `muta` (lote aplicado y documento
+ * cambiado) y `delegado` (petición a un anfitrión) suben.
+ */
+const RANGO_DE_EFECTO = { muta: 2, delegado: 1 };
+
+/**
+ * El veredicto de un comando a partir de sus DOS pasadas, con la regla
+ * MONÓTONA: nadie sale mejor clasificado sin efecto, y nadie sale peor por el
+ * cambio de fixture.
+ *
+ * - ROJO en cualquiera de las dos GANA sobre todo lo demás. Es lo que hace que
+ *   un comando que sigue sin producir efecto con la probeta salga PEOR, no
+ *   mejor: la precondición imposible ya no lo tapa.
+ * - Si una concluye y la otra no, vale la que concluye.
+ * - Si las dos concluyen, sólo se asciende cuando la segunda aporta un efecto
+ *   verificado (`muta`/`delegado`) mejor que el de la primera.
+ * - En cualquier otro caso MANDA la pasada base, que es el documento de
+ *   siempre. Por eso ningún comando 2D puede cambiar de veredicto por tener
+ *   sólidos y lámina delante: si la probeta lo degrada, su veredicto de la
+ *   pasada base queda intacto.
+ *
+ * No es «lo mejor de las dos»: un ROJO no se compensa nunca con el verde de
+ * la otra pasada.
+ *
+ * @template {{verdict: string, note?: string}} P
+ * @param {P} base      pasada sobre el documento de siempre
+ * @param {P} probeta   pasada sobre la probeta de sólidos y lámina
+ * @returns {P & {pasada: string}}
+ */
+export function combinarPasadas(base, probeta) {
+  const conBase = { ...base, pasada: "plano2d" };
+  const conProbeta = { ...probeta, pasada: "solidos3d" };
+  if (base.verdict === "ROJO") return conBase;
+  if (probeta.verdict === "ROJO") return conProbeta;
+  if (base.verdict === "no-concluyente" && probeta.verdict !== "no-concluyente") return conProbeta;
+  if (probeta.verdict === "no-concluyente") return conBase;
+  const sube = (RANGO_DE_EFECTO[probeta.verdict] ?? 0) > (RANGO_DE_EFECTO[base.verdict] ?? 0);
+  return sube ? conProbeta : conBase;
+}
+
 // ─── R4: una exención sólo vale si su spec conduce el comando y comprueba ────
 
 /** Los specs que CI ejecuta: `src/**\/*.spec.ts` de apps/web (run-specs.mjs). */

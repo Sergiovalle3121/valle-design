@@ -16,6 +16,7 @@ import { fileURLToPath } from "node:url";
 import {
   clasificar,
   clausulasAfirmativas,
+  combinarPasadas,
   entidadesTocadas,
   sinGeometria,
   validarExencion,
@@ -367,6 +368,103 @@ eq(
   validarExencion("CAMERA", exencion("CAM.step(null, point(0, 0), ctx).result", 'assert.ok(r?.kind === "document")'), leerFalso),
   [],
   "R4: un identificador ligado a command(\"CAMERA\") y conducido con .step vale",
+);
+
+// ─── La combinación de las DOS pasadas, y el fixture que la alimenta ────────
+//
+// La probeta de sólidos y lámina le quita a 27 comandos la excusa de una
+// precondición que la sonda nunca cumplía. El peligro del cambio es el
+// contrario del que cierra: con un documento rico, «muta» se concede en cuanto
+// un lote se aplica y la serialización cambia, así que una deriva del fixture
+// podría ASCENDER comandos sin que nadie lo viera. Las trampas van aquí.
+
+const pasada = (verdict, note) => ({ verdict, ...(note ? { note } : {}) });
+const combinado = (a, b) => combinarPasadas(pasada(a), pasada(b));
+
+// Trampa: un comando que con la probeta SIGUE sin producir efecto no puede
+// salir mejor. Ésta es la razón de ser de la regla: si con sólidos y lámina
+// delante un comando no hace nada, no hay verde que darle.
+eq(
+  combinado("honesto-limitado", "honesto-limitado").verdict,
+  "honesto-limitado",
+  "combinación: sin efecto en la probeta, NADIE sube a muta",
+);
+eq(
+  combinado("honesto-limitado", "informa").verdict,
+  "honesto-limitado",
+  "combinación: pasar de declarar el límite a informar NO es un efecto, no asciende",
+);
+eq(
+  combinado("informa", "honesto-limitado").verdict,
+  "informa",
+  "combinación: manda la pasada base cuando la probeta no aporta efecto",
+);
+// Trampa: un ROJO no se compensa nunca con el verde de la otra pasada, en
+// ninguno de los dos sentidos. Es lo que hace que la precondición imposible
+// deje de tapar a EXPORT, REVOLVE y SECTION.
+eq(
+  combinado("muta", "ROJO").verdict,
+  "ROJO",
+  "combinación: un ROJO en la probeta gana sobre el muta de la pasada base",
+);
+eq(
+  combinado("ROJO", "muta").verdict,
+  "ROJO",
+  "combinación: un ROJO en la pasada base gana sobre el muta de la probeta",
+);
+// Gemelos legítimos: un efecto verificado SÍ asciende, y una degradación por
+// el fixture (designar una región o un texto rompe la familia GC*) no le quita
+// a nadie el veredicto que la pasada base ya midió.
+eq(combinado("honesto-limitado", "muta").verdict, "muta", "combinación: un lote verificado asciende");
+eq(
+  combinado("honesto-limitado", "delegado").verdict,
+  "delegado",
+  "combinación: una petición al anfitrión asciende",
+);
+eq(combinado("muta", "honesto-limitado").verdict, "muta", "combinación: la probeta no degrada a nadie");
+eq(combinado("muta", "informa").verdict, "muta", "combinación: la probeta no degrada a nadie");
+eq(
+  combinado("no-concluyente", "muta").verdict,
+  "muta",
+  "combinación: si una concluye y la otra no, vale la que concluye",
+);
+eq(
+  combinado("honesto-limitado", "no-concluyente").verdict,
+  "honesto-limitado",
+  "combinación: que la probeta no lo termine no borra lo que la base midió",
+);
+eq(
+  combinado("no-concluyente", "no-concluyente").verdict,
+  "no-concluyente",
+  "combinación: sin conclusión en ninguna, sigue exigiendo su exención declarada",
+);
+eq(combinado("muta", "ROJO").pasada, "solidos3d", "combinación: se dice QUÉ pasada decidió");
+eq(combinado("honesto-limitado", "muta").pasada, "solidos3d", "combinación: se dice QUÉ pasada decidió");
+eq(combinado("informa", "informa").pasada, "plano2d", "combinación: se dice QUÉ pasada decidió");
+
+// Y el fixture no puede moverse por su cuenta: se construye DOS veces y se
+// exige el mismo texto canónico, los mismos triángulos, el mismo volumen, la
+// misma área y la misma región, medidos con los evaluadores del producto. Sin
+// esto, «muta» —que se concede comparando serializaciones— podría concederse
+// por una deriva del documento inicial y no por el comando.
+const { comprobarProbeta, probetaEvidencia, PROBETA_INVARIANTES } = await import(
+  "../../apps/web/scripts/command-integrity-probeta.mts"
+);
+const { probeDocumentSeed } = await import("../../apps/web/scripts/command-integrity-probe-seed.mts");
+eq(comprobarProbeta(probeDocumentSeed), [], "la probeta cumple sus invariantes y serializa igual dos veces");
+eq(
+  probetaEvidencia(probeDocumentSeed),
+  {
+    solidos: PROBETA_INVARIANTES.solidos,
+    triangulos: PROBETA_INVARIANTES.triangulosPorSolido,
+    volumen: PROBETA_INVARIANTES.volumenPorSolido,
+    area: PROBETA_INVARIANTES.areaPorSolido,
+    region: PROBETA_INVARIANTES.region,
+    lamina: PROBETA_INVARIANTES.lamina,
+    viewports: PROBETA_INVARIANTES.viewports,
+    vistasDerivadas: PROBETA_INVARIANTES.vistasDerivadas,
+  },
+  "lo que la probeta manda al artefacto es lo que sus invariantes declaran",
 );
 
 console.log(`command-integrity-rules.spec: ${checks} comprobaciones OK`);

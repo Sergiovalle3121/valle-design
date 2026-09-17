@@ -21,6 +21,13 @@
  * Antes de la sonda corre `command-integrity-rules.spec.mjs`: el árbol de
  * decisión tiene que seguir atrapando las trampas conocidas aunque el registro
  * de hoy no contenga ninguna.
+ *
+ * La sonda conduce cada comando DOS veces —el documento plano de siempre y la
+ * probeta con dos sólidos y una presentación abierta— y combina los dos
+ * veredictos de forma monótona: un ROJO en cualquiera de las dos gana, y sólo
+ * un efecto verificado asciende. El artefacto lleva el desglose de cada pasada
+ * y los invariantes MEDIDOS de la probeta, para que una deriva del fixture se
+ * vea como diff en un PR.
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -97,7 +104,8 @@ const report = runProbe();
 const rojos = report.outcomes.filter((outcome) => outcome.verdict === "ROJO");
 for (const outcome of rojos) {
   failures.push(
-    `${outcome.command}: ROJO — ${outcome.note ?? "sin nota"} · últimos mensajes: ${outcome.lastMessages.join(" § ") || "(ninguno)"}`,
+    `${outcome.command}: ROJO en la pasada «${outcome.pasada}» — ${outcome.note ?? "sin nota"} · ` +
+      `últimos mensajes: ${outcome.lastMessages.join(" § ").slice(0, 400) || "(ninguno)"}`,
   );
 }
 
@@ -143,6 +151,15 @@ const payload = {
   generatedBy: "scripts/cad/check-command-integrity.mjs --write",
   total: report.total,
   verdicts: report.verdicts,
+  // El desglose por pasada y los invariantes MEDIDOS del fixture. Van al
+  // artefacto por la misma razón que las cifras: la probeta de sólidos y lámina
+  // es lo que le quita a 27 comandos su precondición imposible, y «muta» se
+  // concede comparando serializaciones — un fixture que derivara podría
+  // ascender comandos. La sonda ya ABORTA si sus invariantes no cuadran; esto
+  // hace además que una deriva salga como diff en un PR y no sólo como
+  // excepción en consola.
+  pasadas: report.pasadas,
+  probeta: report.probeta,
   exemptions: Object.keys(exemptions.noConcluyentes ?? {}).sort(),
 };
 
@@ -162,6 +179,27 @@ if (process.argv.includes("--write")) {
       const before = onDisk.verdicts?.[key];
       const after = payload.verdicts?.[key];
       if (before !== after) fields.push(`verdicts.${key}: ${before} → ${after}`);
+    }
+    for (const pasada of new Set([
+      ...Object.keys(onDisk.pasadas ?? {}),
+      ...Object.keys(payload.pasadas ?? {}),
+    ])) {
+      for (const key of new Set([
+        ...Object.keys(onDisk.pasadas?.[pasada] ?? {}),
+        ...Object.keys(payload.pasadas?.[pasada] ?? {}),
+      ])) {
+        const before = onDisk.pasadas?.[pasada]?.[key];
+        const after = payload.pasadas?.[pasada]?.[key];
+        if (before !== after) fields.push(`pasadas.${pasada}.${key}: ${before} → ${after}`);
+      }
+    }
+    for (const key of new Set([
+      ...Object.keys(onDisk.probeta ?? {}),
+      ...Object.keys(payload.probeta ?? {}),
+    ])) {
+      const before = onDisk.probeta?.[key];
+      const after = payload.probeta?.[key];
+      if (before !== after) fields.push(`probeta.${key}: ${before} → ${after}`);
     }
     const beforeExemptions = new Set(onDisk.exemptions ?? []);
     const afterExemptions = new Set(payload.exemptions ?? []);
@@ -189,4 +227,17 @@ console.log(
     `${verdicts.muta} mutan verificado · ${verdicts.delegado} delegan · ` +
     `${verdicts.informa} informan · ${verdicts["honesto-limitado"]} declaran su límite · ` +
     `${verdicts["no-concluyente"]} exentos declarados · 0 éxitos falsos.`,
+);
+for (const [pasada, cifras] of Object.entries(report.pasadas ?? {})) {
+  console.log(
+    `  pasada ${pasada}: ${cifras.muta} mutan · ${cifras.delegado} delegan · ` +
+      `${cifras.informa} informan · ${cifras["honesto-limitado"]} declaran su límite · ` +
+      `${cifras["no-concluyente"]} no-concluyentes · ${cifras.ROJO} ROJOS.`,
+  );
+}
+const probeta = report.probeta ?? {};
+console.log(
+  `  probeta: ${probeta.solidos} sólidos de ${probeta.triangulos} triángulos · ` +
+    `volumen ${probeta.volumen} · área ${probeta.area} · región ${probeta.region} · ` +
+    `lámina ${probeta.lamina} con ${probeta.viewports} ventanas (${probeta.vistasDerivadas} derivada).`,
 );
