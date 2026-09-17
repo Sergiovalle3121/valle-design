@@ -352,6 +352,7 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   TCOUNT: "Numera los textos designados por X, por Y o por orden de designación, con prefijo, sufijo e incremento.",
   TEXT: "Texto de una sola línea.",
   TEXTALIGN: "Alinea texto existente sobre una recta definida por dos puntos.",
+  THICKEN: "Convierte una superficie en un sólido con espesor especificado.",
   TOLERANCE: "Marco de tolerancia geométrica (GD&T).",
   STDPART: "Normalizado como bloque: tornillo, tuerca y rondana ISO, rodamiento ISO 15 y chaveta paralela ISO 773.",
   STEELSHAPE: "Sección de perfil de acero como bloque: PTR, OC, LI, CPS, IPR por sus medidas.",

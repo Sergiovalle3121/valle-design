@@ -351,6 +351,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   TCOUNT: "Numerar textos",
   TEXT: "Texto",
   TEXTALIGN: "Alinear texto",
+  THICKEN: "Espesar",
   TOLERANCE: "Tolerancia",
   TOOLPALETTES: "Paletas",
   TORUS: "Toroide",
