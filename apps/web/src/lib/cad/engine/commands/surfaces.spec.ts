@@ -227,3 +227,88 @@ const near = (actual: number, expected: number, label: string, eps = 0.1) =>
     "rechaza linea",
   );
 }
+
+// === CONVTOSURFACE ===
+
+// --- CONVTOSURFACE informa propiedades de superficie de un solido ---
+{
+  const rect = rectangle("cs1", 0, 0, 400, 300);
+  const document = documentWith([rect]);
+  const withSolid = apply("PLANESURF", [select("cs1"), ENTER], document, [
+    "cs1",
+  ]);
+  const solid = withSolid.entities.find((e) => e.type === "solid3d");
+  assert.ok(solid, "debe existir un solido");
+  if (solid?.type !== "solid3d") throw new Error("tipo");
+
+  idCounter = 0;
+  const result = run(
+    "CONVTOSURFACE",
+    [select(solid.id), ENTER],
+    withSolid,
+    [solid.id],
+  );
+  const msg = messageOf(result);
+  assert.match(msg, /cara\(s\)/, "reporta caras");
+  assert.match(msg, /area/, "reporta area");
+  assert.match(msg, /volumen/, "reporta volumen");
+  // El area debe ser positiva y consistente con PLANESURF
+  const areaMatch = msg.match(/area ([\d.]+) mm/);
+  assert.ok(areaMatch, "el mensaje contiene area numerica");
+  assert.ok(parseFloat(areaMatch[1]) > 0, "area positiva");
+}
+
+// --- CONVTOSURFACE rechaza entidad que no es solido3d ---
+{
+  const rect = rectangle("cs2", 0, 0, 100, 100);
+  const document = documentWith([rect]);
+  const result = run("CONVTOSURFACE", [select("cs2"), ENTER], document, [
+    "cs2",
+  ]);
+  assert.match(
+    messageOf(result),
+    /solo aplica a solidos 3D/,
+    "rechaza polilinea",
+  );
+}
+
+// --- CONVTOSURFACE cancelado ---
+{
+  const rect = rectangle("cs3", 0, 0, 200, 200);
+  const document = documentWith([rect]);
+  const cancel: CadCommandInput = { kind: "cancel" };
+  const result = run("CONVTOSURFACE", [cancel], document);
+  assert.match(messageOf(result), /cancelado/, "cancelacion");
+}
+
+// --- CONVTOSURFACE rechaza sin seleccion ---
+{
+  const document = documentWith([]);
+  const result = run("CONVTOSURFACE", [ENTER], document);
+  assert.match(messageOf(result), /al menos un solido/, "rechaza vacio");
+}
+
+// --- CONVTOSURFACE con alias CVTSURF ---
+{
+  const rect = rectangle("cs4", 0, 0, 200, 200);
+  const document = documentWith([rect]);
+  const withSolid = apply("PLANESURF", [select("cs4"), ENTER], document, [
+    "cs4",
+  ]);
+  const solid = withSolid.entities.find((e) => e.type === "solid3d");
+  if (solid?.type !== "solid3d") throw new Error("tipo");
+  idCounter = 0;
+  const result = run(
+    "CVTSURF",
+    [select(solid.id), ENTER],
+    withSolid,
+    [solid.id],
+  );
+  assert.match(
+    messageOf(result),
+    /cara\(s\)/,
+    "alias CVTSURF funciona",
+  );
+}
+
+console.log("surfaces.spec: 11 comprobaciones OK");
