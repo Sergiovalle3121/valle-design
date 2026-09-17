@@ -35,8 +35,8 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   "-OSNAP": "Refent (línea)",
   "-TOOLPALETTES": "Paleta (línea)",
   "-UCSMAN": "SCU (línea)",
-  "3DALIGN": "Alinear 3D",
-  "3DARRAY": "Matriz 3D",
+
+
   "3DFACE": "Cara 3D",
   "3DFLY": "Volar 3D",
   "3DFORBIT": "Órbita libre",
@@ -44,7 +44,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   "3DORBIT": "Órbita 3D",
   "3DPAN": "Encuadre 3D",
   "3DROTATE": "Rotar 3D",
-  "3DSCALE": "Escalar 3D",
+
   "3DSWIVEL": "Girar vista",
   "3DWALK": "Caminar 3D",
   "3DZOOM": "Zoom 3D",
@@ -86,7 +86,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   BREAKLINE: "Línea de rotura",
   BURST: "Estallar",
   CABLETRAY: "Charola",
-  CAMERA: "Cámara",
+
   CELTSCALE: "Escala objeto",
   CENTERLINE: "Eje de centro",
   CENTERMARK: "Marca de centro",
@@ -211,7 +211,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   MATERIALMAP: "Mapear material",
   MATERIALS: "Materiales",
   MEASURE: "Graduar",
-  MESH: "Malla",
+
   MESHCAP: "Tapar",
   MESHCOLLAPSE: "Colapsar",
   MESHCREASE: "Pliegue",
@@ -225,15 +225,14 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   MESHUNCREASE: "Quitar pliegue",
   MEPSYMBOL: "Símbolo MEP",
   MIRROR: "Simetría",
-  MIRROR3D: "Espejo 3D",
+
   MLEADER: "Directriz nota",
   MLEADERSTYLE: "Estilo directriz",
   MOVE: "Desplazar",
   MSPACE: "Espacio modelo",
   MTEXT: "Texto multilínea",
   MVIEW: "Ventana gráfica",
-  NAVBAR: "Barra navegación",
-  NAVVCUBE: "Cubo de vista",
+
   NCOPY: "Copiar anidado",
   NORMAMX: "Norma mexicana",
   OFFSET: "Desfase",
@@ -266,7 +265,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   PIDROUTE: "Tubería 3D",
   PIPE: "Tubería",
   PLAN: "Planta",
-  PLANESURF: "Superficie plana",
+
   PLINE: "Polilínea",
   PLOT: "Trazar a PDF",
   POINT: "Punto",
@@ -368,7 +367,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   UPDATEFIELD: "Actualizar campo",
   VECTORIZE: "Vectorizar",
   VIEW: "Vista guardada",
-  VIEWBASE: "Vista base",
+
   VIEWDETAIL: "Detalle",
   VIEWEDIT: "Editar vista",
   VIEWPROJ: "Proyección",
