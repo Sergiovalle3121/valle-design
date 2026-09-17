@@ -46,7 +46,10 @@ import {
 
 export { CSRF_COOKIE, SESSION_COOKIE } from './identity-security';
 export { type EmailVerificationOutcome } from './identity-verification';
-import { performEmailVerification, type EmailVerificationOutcome } from './identity-verification';
+import {
+  performEmailVerification,
+  type EmailVerificationOutcome,
+} from './identity-verification';
 
 const SESSION_COOKIE_PATTERN =
   /^([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\.([A-Za-z0-9_-]{43})$/iu;
@@ -406,7 +409,11 @@ export class IdentityService {
   }
 
   async verifyEmail(raw: string): Promise<EmailVerificationOutcome> {
-    return performEmailVerification(this.dataSource, (t) => this.hashToken(t), raw);
+    return performEmailVerification(
+      this.dataSource,
+      (t) => this.hashToken(t),
+      raw,
+    );
   }
 
   async resetPassword(raw: string, password: string): Promise<boolean> {
