@@ -77,3 +77,4 @@ Todas hechas antes de esta sesión (commits `4359ef50`–`bd86c7e5`).
 | C15 | hecha — spec que conduce3DMOVE y3DROTATE contra el motor: traslación con verificación de tx/ty, copia, cancelación, rotación90°Z con verificación de matriz (a=0,c=-1,b=1,d=0), eje degenerado, sin sólidos. También:3DMOVE y3DROTATE ahora devuelven mensaje de cancelación en vez de `kind:none`.53 comprobaciones. | `cfcf2306` |
 | C16 | hecha — iconos para61 comandos mudos: VIEWBASE(6), Superficies(11), Mallas(19), Visualización(8), Render(13), Transformar3D(4). command-icons.spec:361 comandos,199 dibujos distintos,0 mudos. | `b2e95c83` |
 | C24 | hecha — ViewCube muestra la vista activa: activeViewPreset en Layout3DEditor, pasado como prop active al CadViewCube. | `cf568fe5` |
+| C23 | hecha — ROTATE3D como alias de 3DROTATE en el registro. | `e6cdeffd` |
