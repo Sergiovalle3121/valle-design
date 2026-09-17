@@ -230,8 +230,5 @@ export const CAD_RENDER_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(cmdmaterials),
   asCadCommand(cmdmaterialmap),
   asCadCommand(cmdmaterialattach),
-  asCadCommand(lightCommand("POINTLIGHT", ["PLIGHT", "LUZPUNTUAL"], "la luz puntual")),
-  asCadCommand(lightCommand("SPOTLIGHT", ["SLIGHT", "LUZFOCO"], "el foco")),
-  asCadCommand(lightCommand("DISTANTLIGHT", ["DLIGHT", "LUZDISTANTE"], "la luz distante")),
   asCadCommand(cmdsunproperties),
 ];

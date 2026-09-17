@@ -1,5 +1,5 @@
 /**
- * METADATOS de los 361 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 357 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
  * 118 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
@@ -275,9 +275,6 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "MATERIALS", aliases: ["MAT", "MATERIALES"], kind: "view", transparent: false, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/render-commands" },
   { name: "MATERIALMAP", aliases: ["MMAP", "MAPEOMATERIAL"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/render-commands" },
   { name: "MATERIALATTACH", aliases: ["MATT", "ADJUNTARMATERIAL"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/render-commands" },
-  { name: "POINTLIGHT", aliases: ["PLIGHT", "LUZPUNTUAL"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/render-commands" },
-  { name: "SPOTLIGHT", aliases: ["SLIGHT", "LUZFOCO"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/render-commands" },
-  { name: "DISTANTLIGHT", aliases: ["DLIGHT", "LUZDISTANTE"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/render-commands" },
   { name: "SUNPROPERTIES", aliases: ["SUN", "PROPIEDADESSOL"], kind: "view", transparent: false, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/render-commands" },
   { name: "QSELECT", aliases: [], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "none", module: "commands/select-query" },
   { name: "FILTER", aliases: ["FI"], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "none", module: "commands/select-query" },
@@ -358,7 +355,6 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "SURFPATCH", aliases: ["SPATCH", "PARCHARSUPERFICIE"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/surfaces" },
   { name: "SURFNETWORK", aliases: ["SNET", "REDDESUPERFICIES"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/surfaces" },
   { name: "SURFSCULPT", aliases: ["SSCULPT", "ESCULPIRSUPERFICIE"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/surfaces" },
-  { name: "THICKEN", aliases: ["TH", "ESPEZAR"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/surfaces" },
   { name: "3DMOVE", aliases: ["3M"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, spatial: "elevation", cursor: "pick", module: "commands/transform-3d" },
   { name: "3DALIGN", aliases: ["3AL", "ALINEAR3D"], kind: "modify", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/transform-3d-extra" },
   { name: "3DSCALE", aliases: ["3SC", "ESCALAR3D"], kind: "modify", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "pick", module: "commands/transform-3d-extra" },

@@ -461,5 +461,4 @@ export const CAD_SURFACE_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(surfpatchCommand),
   asCadCommand(surfnetworkCommand),
   asCadCommand(surfsculptCommand),
-  asCadCommand(thickenCommand),
 ];
