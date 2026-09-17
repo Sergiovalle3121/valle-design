@@ -15,6 +15,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   clasificar,
+  afirmacionSinCoartada,
   clausulasAfirmativas,
   combinarPasadas,
   entidadesTocadas,
@@ -243,6 +244,64 @@ eq(
   veredicto(sinEfecto(["LAYMCH: los objetos ya están en esa capa."])),
   "honesto-limitado",
   "R3: un límite sin afirmación sigue siendo honesto",
+);
+
+// ─── La rama de AFIRMACIÓN, por cláusulas ───────────────────────────────────
+//
+// Leía el mensaje entero: bastaba una palabra de CLAIMS en cualquier sitio, y
+// el único escape era que el mensaje dijera además algo de HONESTY. Eso ponía
+// en ROJO el rechazo legítimo de SECTION por la palabra «designados» —la misma
+// que PARTICIPIO_DE_EXITO ya excluyó a conciencia de R3—. Ahora se juzga
+// cláusula a cláusula, con las palabras que RECHAZAN la afirmación pero SIN
+// las de estado: «objetos» no puede ser coartada, o «3 objetos borrados» sin
+// efecto se escaparía.
+
+// Trampas: una afirmación sin efecto sigue siendo ROJO.
+for (const trampa of [
+  "3 objetos borrados.",
+  "Hecho.",
+  "Capa MURO renombrada a TABIQUE",
+  "Listo",
+  "Cota actualizada.",
+]) {
+  eq(afirmacionSinCoartada(trampa) !== null, true, `afirmación: atrapa «${trampa}»`);
+  eq(veredicto(sinEfecto([trampa])), "ROJO", `afirmación sin efecto es ROJO: «${trampa}»`);
+}
+// «3 objetos borrados» es el caso que obliga a dejar «objetos» FUERA de las
+// coartadas: con la lista completa de PREVIO_QUE_ANULA se escaparía por ahí, y
+// R3 tampoco lo atraparía por la misma razón.
+eq(clausulasAfirmativas("3 objetos borrados."), [], "«objetos» es coartada para R3 y no puede serlo aquí");
+eq(afirmacionSinCoartada("3 objetos borrados."), "3 objetos borrado", "y aquí sí se atrapa");
+// Gemelo legítimo: el rechazo de SECTION. La palabra «designados» describe la
+// ENTRADA, y la cláusula la niega antes de llegar a ella.
+eq(
+  afirmacionSinCoartada("El plano de corte no atraviesa ninguno de los sólidos designados."),
+  null,
+  "afirmación: el rechazo de SECTION no es una afirmación",
+);
+eq(
+  veredicto(sinEfecto(["El plano de corte no atraviesa ninguno de los sólidos designados."])),
+  "informa",
+  "afirmación: el rechazo de SECTION deja de ser ROJO",
+);
+for (const legitimo of [
+  "UNION necesita DOS sólidos designados.",
+  "Esta orden necesita SOLID3D designados. Crea uno con EXTRUDE, REVOLVE, SWEEP o LOFT.",
+  "INTERFERE necesita al menos DOS sólidos designados; hay 0.",
+  "No hay ninguna presentación abierta: crea una con LAYOUT.",
+  "¿Borrado definitivo? Pulse Intro.",
+  "Si está activado, se dibuja en el origen.",
+  "Nada designado: no se ha borrado ninguna entidad.",
+  "LAYMCH: los objetos ya están en esa capa.",
+]) {
+  eq(afirmacionSinCoartada(legitimo), null, `afirmación: no marca «${legitimo}»`);
+}
+// Y la coartada tiene que estar en LA MISMA cláusula: un límite en otra no
+// borra la afirmación. Es lo mismo que exige R3.
+eq(
+  afirmacionSinCoartada("Capa creada; no se pudo activar."),
+  "Capa creada",
+  "afirmación: un límite en otra cláusula no tapa la afirmación",
 );
 
 // ─── R4: una exención sólo vale si su spec conduce el comando y comprueba ────

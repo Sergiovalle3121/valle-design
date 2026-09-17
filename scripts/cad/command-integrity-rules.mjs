@@ -42,10 +42,62 @@ export const PARTICIPIO_DE_EXITO =
 export const PREVIO_QUE_ANULA =
   /(?<![\p{L}])(?:no|ni|nada|ning[uú]n[oa]?|sin|nunca|jam[aá]s|si)(?![\p{L}])|ya est[aá]n?|todav[ií]a no|¿|necesit|requier|(?<![\p{L}])(?:hay|est[aá]n?|quedan?|siguen?|forman|sobre|objetos?)(?![\p{L}])/iu;
 
+/**
+ * Lo que, ANTES de una afirmación y dentro de su cláusula, la convierte en otra
+ * cosa: una negación, una condición, una pregunta, un requisito o un estado ya
+ * alcanzado.
+ *
+ * Es `PREVIO_QUE_ANULA` SIN sus palabras de estado (`hay`, `están`, `quedan`,
+ * `siguen`, `forman`, `sobre`, `objetos`). La diferencia importa: R3 necesita
+ * esas palabras porque «objetos seleccionados» describe la entrada, pero la
+ * rama de AFIRMACIÓN no puede aceptarlas o «3 objetos borrados» sin efecto
+ * —el éxito falso que este gate persigue— se escaparía por la palabra
+ * «objetos».
+ */
+export const PREVIO_QUE_RECHAZA_AFIRMACION =
+  /(?<![\p{L}])(?:no|ni|nada|ning[uú]n[oa]?|sin|nunca|jam[aá]s|si)(?![\p{L}])|ya est[aá]n?|todav[ií]a no|¿|necesit|requier/iu;
+
 const FILA_DE_TABLA = /\S {2,}\S/;
 
 /** Dónde acaba una cláusula: . ; : — – salto de línea, « - » y paréntesis. */
 const SEPARADOR_DE_CLAUSULAS = /[.;:—–\n]|\s-\s|[()]/;
+const SEPARADOR_GLOBAL = new RegExp(SEPARADOR_DE_CLAUSULAS.source, "g");
+const CLAIMS_GLOBAL = new RegExp(CLAIMS.source, "gi");
+
+/**
+ * La primera AFIRMACIÓN del mensaje que no tiene coartada en su cláusula, o
+ * null.
+ *
+ * La rama de afirmación leía el mensaje ENTERO: bastaba con que en cualquier
+ * sitio apareciera una palabra de `CLAIMS` para darlo por éxito consumado, y el
+ * único escape era que el mensaje dijera también algo de `HONESTY`. Eso ponía
+ * en ROJO el rechazo legítimo de SECTION —«El plano de corte no atraviesa
+ * ninguno de los sólidos designados»— por la palabra «designados», que es
+ * exactamente la que `PARTICIPIO_DE_EXITO` ya excluyó a conciencia de R3
+ * porque en main describe la ENTRADA y no un resultado.
+ *
+ * Ahora se juzga por CLÁUSULAS, como R3: se busca cada palabra de `CLAIMS` y se
+ * mira lo que la precede DENTRO de su cláusula. No se parte el texto —`CLAIMS`
+ * tiene alternativas que incluyen el punto final, y partir por el punto las
+ * habría perdido—: se localiza el inicio de la cláusula que contiene la
+ * palabra y se examina ese tramo.
+ *
+ * @param {string} text
+ * @returns {string | null} la cláusula afirmativa, o null
+ */
+export function afirmacionSinCoartada(text) {
+  for (const match of text.matchAll(CLAIMS_GLOBAL)) {
+    let inicio = 0;
+    for (const corte of text.slice(0, match.index).matchAll(SEPARADOR_GLOBAL)) {
+      inicio = corte.index + corte[0].length;
+    }
+    const clausula = text.slice(inicio, match.index + match[0].length);
+    if (FILA_DE_TABLA.test(clausula)) continue;
+    if (PREVIO_QUE_RECHAZA_AFIRMACION.test(text.slice(inicio, match.index))) continue;
+    return clausula.trim();
+  }
+  return null;
+}
 
 /**
  * R3 — las cláusulas de un mensaje que AFIRMAN un resultado.
@@ -213,9 +265,10 @@ export function clasificar(o) {
     vacias = [],
   } = o;
   const honest = messages.some((entry) => HONESTY.test(entry.text));
-  const claims = messages.some(
-    (entry) => entry.level === "info" && CLAIMS.test(entry.text) && !HONESTY.test(entry.text),
-  );
+  const afirmacion = messages
+    .filter((entry) => entry.level === "info" && !HONESTY.test(entry.text))
+    .map((entry) => afirmacionSinCoartada(entry.text))
+    .find((clausula) => clausula !== null);
 
   if (steps >= maxSteps) {
     return { verdict: "no-concluyente", note: "el auto-respondedor no lo llevó a término" };
@@ -237,8 +290,11 @@ export function clasificar(o) {
     return { verdict: "ROJO", note: "aplicó un lote pero el documento canónico quedó idéntico" };
   }
   if (delegated) return { verdict: "delegado" };
-  if (claims) {
-    return { verdict: "ROJO", note: "afirma una acción consumada sin ningún efecto verificable" };
+  if (afirmacion !== undefined) {
+    return {
+      verdict: "ROJO",
+      note: `afirma «${afirmacion}» —una acción consumada— sin ningún efecto verificable`,
+    };
   }
   const afirmadas = messages
     .filter((entry) => entry.level === "info")
