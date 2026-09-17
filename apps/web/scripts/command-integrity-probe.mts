@@ -371,6 +371,17 @@ function runPass(name: string, pasada: Pasada): PassOutcome {
     probeAborted,
     mutates: registry.get(name)!.mutates === true,
     vacias,
+    // R5. Lo que ESTA pasada le puso delante de verdad. Los sólidos sólo
+    // cuentan si el auto-respondedor llegó a entregar la designación: si el
+    // comando nunca la pidió, decir que le faltan sigue siendo honesto.
+    dotacion: {
+      solidos: selectionFed
+        ? pasada.seleccion.filter(
+            (id) => initial.entities.find((entity) => entity.id === id)?.type === "solid3d",
+          ).length
+        : 0,
+      lamina: pasada.activeLayout !== undefined && (initial.paperSpaces ?? []).length > 0,
+    },
   });
 
   return {

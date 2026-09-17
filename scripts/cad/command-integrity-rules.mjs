@@ -263,6 +263,7 @@ export function clasificar(o) {
     probeAborted,
     mutates,
     vacias = [],
+    dotacion = {},
   } = o;
   const honest = messages.some((entry) => HONESTY.test(entry.text));
   const afirmacion = messages
@@ -305,6 +306,17 @@ export function clasificar(o) {
     return {
       verdict: "ROJO",
       note: `afirma «${afirmadas[0]}» sin efecto; decir que falta algo no anula haber dicho que se hizo`,
+    };
+  }
+  // R5. Va DESPUÉS de las ramas de efecto —un comando que aplicó un lote o
+  // delegó ya no está poniendo excusas— y ANTES de `honest`, que es la rama por
+  // la que estas frases se colaban como integridad.
+  const desmentido = limiteDesmentido(messages, dotacion);
+  if (desmentido) {
+    return {
+      verdict: "ROJO",
+      note:
+        `dijo faltarle ${desmentido.falta} y la probeta se lo dio: «${desmentido.texto.slice(0, 140)}»`,
     };
   }
   if (messages.length === 0 && steps > 0 && inputTrace[inputTrace.length - 1] === "enter") {
@@ -354,6 +366,56 @@ export function clasificar(o) {
   return mutates
     ? { verdict: "ROJO", note: "terminó al invocarse, sin efecto y sin mensaje" }
     : { verdict: "informa" };
+}
+
+// ─── R5: un límite que la probeta desmiente ──────────────────────────────────
+
+/**
+ * R5 — las precondiciones que la probeta SÍ cumple, con la frase con la que un
+ * comando diría que le faltan.
+ *
+ * El agujero que cierra: hasta la probeta, 18 comandos de sólidos y 9 de lámina
+ * declaraban un límite que la sonda nunca podía desmentir —«Esta orden necesita
+ * SOLID3D designados», «No hay ninguna presentación abierta»— y eso les valía
+ * `honesto-limitado`. Decir la verdad sobre algo que nunca se te da no cuesta
+ * nada. Ahora que se les da, la misma frase deja de ser honestidad y pasa a ser
+ * el mismo tipo de mentira que un «Hecho» vacío, sólo del revés: el comando
+ * afirma una carencia falsa para no hacer nada.
+ *
+ * `necesita` nombra la dotación de la pasada; la misma frase en una pasada que
+ * NO la trae sigue siendo honesta, y eso es lo que prueba el gemelo del spec.
+ */
+export const LIMITES_DESMENTIBLES = [
+  {
+    necesita: "solidos",
+    patron:
+      /no contiene s[oó]lidos|necesita\s+(?:al menos\s+)?(?:\w+\s+){0,3}SOLID3D|necesita\s+(?:al menos\s+)?(?:DOS|dos|un|una|alg[uú]n)\s+s[oó]lidos?|sin s[oó]lidos designad|no hay (?:ning[uú]n )?s[oó]lido/i,
+    falta: "sólidos 3D designados",
+  },
+  {
+    necesita: "lamina",
+    patron:
+      /no hay ninguna presentaci[oó]n abierta|necesita una presentaci[oó]n abierta|sin (?:ninguna )?presentaci[oó]n abierta|no hay (?:ninguna )?l[aá]mina/i,
+    falta: "una presentación abierta",
+  },
+];
+
+/**
+ * R5 — ¿algún mensaje dice faltarle lo que la probeta le dio?
+ *
+ * @param {{text: string, level: string}[]} messages
+ * @param {{solidos?: number, lamina?: boolean}} dotacion  lo que la pasada puso delante
+ * @returns {{falta: string, texto: string} | null}
+ */
+export function limiteDesmentido(messages, dotacion = {}) {
+  const tiene = { solidos: (dotacion.solidos ?? 0) > 0, lamina: dotacion.lamina === true };
+  for (const entry of messages) {
+    for (const limite of LIMITES_DESMENTIBLES) {
+      if (!tiene[limite.necesita]) continue;
+      if (limite.patron.test(entry.text)) return { falta: limite.falta, texto: entry.text };
+    }
+  }
+  return null;
 }
 
 // ─── Combinación de las DOS pasadas de la sonda ──────────────────────────────

@@ -19,6 +19,7 @@ import {
   clausulasAfirmativas,
   combinarPasadas,
   entidadesTocadas,
+  limiteDesmentido,
   sinGeometria,
   validarExencion,
 } from "./command-integrity-rules.mjs";
@@ -427,6 +428,74 @@ eq(
   validarExencion("CAMERA", exencion("CAM.step(null, point(0, 0), ctx).result", 'assert.ok(r?.kind === "document")'), leerFalso),
   [],
   "R4: un identificador ligado a command(\"CAMERA\") y conducido con .step vale",
+);
+
+// ─── R5: un límite que la probeta DESMIENTE es ROJO ─────────────────────────
+//
+// El agujero que cierra: hasta la probeta, 18 comandos de sólidos y 9 de lámina
+// declaraban un límite que la sonda nunca podía desmentir, y eso les valía
+// honesto-limitado. Decir la verdad sobre algo que nunca se te da no cuesta
+// nada. Ahora que se les da, la misma frase es una carencia FALSA para no hacer
+// nada — el «Hecho» vacío del revés.
+//
+// Verificado contra main: con la probeta nueva NADIE dice hoy estas frases, así
+// que R5 no mueve ninguna cifra. Es una trampa puesta para el futuro, y por eso
+// su valor está aquí y no en el recuento.
+
+const conDotacion = { solidos: 2, lamina: true };
+const sinDotacion = { solidos: 0, lamina: false };
+
+// Trampas: el comando que responde siempre la misma precondición sin
+// implementar nada, con la precondición ya cumplida.
+for (const trampa of [
+  "3DMOVE: la selección no contiene sólidos 3D.",
+  "Esta orden necesita SOLID3D designados. Crea uno con EXTRUDE, REVOLVE, SWEEP o LOFT.",
+  "EXPORT necesita SOLID3D designados.",
+  "INTERFERE necesita al menos DOS sólidos designados; hay 0.",
+  "No hay ninguna presentación abierta: crea una con LAYOUT.",
+  "MSPACE necesita una presentación abierta.",
+]) {
+  eq(
+    veredicto(sinEfecto([trampa], { dotacion: conDotacion })),
+    "ROJO",
+    `R5 atrapa el límite desmentido: ${trampa}`,
+  );
+  // Gemelo legítimo: la MISMA frase en la pasada que no trae ni sólidos ni
+  // lámina sigue siendo honestidad. La regla juzga la DOTACIÓN, no la frase.
+  eq(
+    veredicto(sinEfecto([trampa], { dotacion: sinDotacion })) !== "ROJO",
+    true,
+    `R5 no marca la misma frase sin dotación: ${trampa}`,
+  );
+}
+eq(
+  limiteDesmentido([{ text: "No hay ninguna presentación abierta.", level: "info" }], { solidos: 2 }),
+  null,
+  "R5: tener sólidos no desmiente un límite de lámina",
+);
+eq(
+  limiteDesmentido([{ text: "Esta orden necesita SOLID3D designados.", level: "info" }], { lamina: true }),
+  null,
+  "R5: tener lámina no desmiente un límite de sólidos",
+);
+// Y R5 no puede tocar a quien SÍ produjo un efecto: un comando que aplicó su
+// lote no está poniendo excusas, diga lo que diga en el camino.
+eq(
+  veredicto({
+    ...sinEfecto(["Esta orden necesita SOLID3D designados."], { dotacion: conDotacion }),
+    applied: 1,
+    changed: true,
+  }),
+  "muta",
+  "R5 va después de las ramas de efecto",
+);
+eq(
+  veredicto({
+    ...sinEfecto(["MSPACE necesita una presentación abierta."], { dotacion: conDotacion }),
+    delegated: true,
+  }),
+  "delegado",
+  "R5 no toca lo que delegó",
 );
 
 // ─── La combinación de las DOS pasadas, y el fixture que la alimenta ────────
