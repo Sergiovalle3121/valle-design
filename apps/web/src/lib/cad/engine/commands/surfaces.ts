@@ -91,7 +91,7 @@ const planesurfCommand: CadCommandDescriptor<{ selection: readonly string[] } | 
 };
 
 export const CAD_SURFACE_COMMANDS: readonly CadAnyCommandDescriptor[] = [
-  asCadCommand(planesurfCommand),
+  // PLANESURF retirado (T18): dice «pendiente del kernel» sin mutar, la sonda lo marca ROJO
   // Stubs de superficie retirados (T18B): CONVTOSURFACE, SURFOFFSET, SURFTRIM,
   // SURFUNTRIM, SURFEXTEND, SURFFILLET, SURFBLEND, SURFPATCH, SURFNETWORK,
   // SURFSCULPT — todos pendientes del kernel de superficies.

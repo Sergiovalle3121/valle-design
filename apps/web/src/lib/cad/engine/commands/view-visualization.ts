@@ -120,8 +120,6 @@ export const CAD_VIEW_VISUALIZATION_COMMANDS: readonly CadAnyCommandDescriptor[]
   asCadCommand(navCommand("3DWALK", ["3W", "CAMINAR3D"], "Caminar")),
   asCadCommand(navCommand("3DFLY", ["3F", "VOLAR3D"], "Volar")),
   asCadCommand(navCommand("3DSWIVEL", ["3SW", "GIRAR3D"], "Girar cámara")),
-  asCadCommand(cmdcamera),
-  asCadCommand(cmdnavvcube),
-  asCadCommand(cmdnavbar),
+  // CAMERA, NAVVCUBE, NAVBAR retirados (T18): afirman éxito sin efecto real
   asCadCommand(cmdvisualstyles),
 ];

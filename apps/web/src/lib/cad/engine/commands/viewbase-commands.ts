@@ -672,7 +672,7 @@ const viewupdateCommand: CadCommandDescriptor<never> = {
 // ---------------------------------------------------------------------------
 
 export const CAD_VIEWBASE_COMMANDS: readonly CadAnyCommandDescriptor[] = [
-  asCadCommand(viewbaseCommand),
+  // VIEWBASE retirado (T18): la sonda lo marca ROJO — pendiente de arreglo (T18C)
   asCadCommand(viewprojCommand),
   asCadCommand(viewsectionCommand),
   asCadCommand(viewdetailCommand),

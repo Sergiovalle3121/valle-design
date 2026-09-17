@@ -95,7 +95,7 @@ const meshCommand: CadCommandDescriptor<MeshState> = {
 };
 
 export const CAD_MESH_COMMANDS: readonly CadAnyCommandDescriptor[] = [
-  asCadCommand(meshCommand),
+  // MESH retirado (T18): crea brep con points/faces vacíos, la sonda lo marca ROJO
   // Stubs de malla retirados (T18B): CONVTOMESH, CONVTOSOLID, MESHSMOOTH,
   // MESHSMOOTHMORE, MESHSMOOTHLESS, MESHREFINE, MESHSPLIT, MESHCREASE,
   // MESHUNCREASE, MESHCOLLAPSE, MESHEXTRUDE, MESHMERGE, MESHCAP, RULESURF,

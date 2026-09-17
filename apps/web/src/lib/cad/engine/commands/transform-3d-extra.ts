@@ -113,8 +113,5 @@ const cmd3darray: CadCommandDescriptor<null> = {
 };
 
 export const CAD_TRANSFORM_3D_COMMANDS: readonly CadAnyCommandDescriptor[] = [
-  asCadCommand(cmd3dalign),
-  asCadCommand(cmd3dscale),
-  asCadCommand(cmdmirror3d),
-  asCadCommand(cmd3darray),
+  // 3DALIGN, 3DSCALE, MIRROR3D,3DARRAY retirados (T18): dicen «pendiente del kernel» sin mutar
 ];
