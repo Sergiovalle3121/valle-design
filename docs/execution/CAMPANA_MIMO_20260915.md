@@ -80,3 +80,4 @@ Todas hechas antes de esta sesión (commits `4359ef50`–`bd86c7e5`).
 | C23 | hecha — ROTATE3D como alias de 3DROTATE en el registro. | `e6cdeffd` |
 | B9 | hecha — REGEN3D como alias de REGEN. | `49faa574` |
 | P10 | hecha — realce visual de comandos primarios en la cinta: bg-brand-strong/5 y text-foreground. | `f8a9f1c0` |
+| D6 | hecha — THICKEN: superficie→sólido con espesor. Flujo pick+distancia, icono MoveVertical, spec con20 comprobaciones.362 comandos,12 superficies. | `eb75aa1b` |
