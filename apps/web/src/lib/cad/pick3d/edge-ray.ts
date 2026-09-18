@@ -115,10 +115,14 @@ export function raySegmentDistance(
   const qy = segFrom.y + u * uy;
   const qz = segFrom.z + u * uz;
 
-  // t = proyección de q sobre el rayo (válido tanto en la rama paralela como
-  // en la general: cuando u se acota, t recalculada ya no es la del problema
-  // sin restricción, sino la del punto real más cercano).
+  // t = proyección de q sobre el rayo.
+  // Cuando u se acota o el rayo es paralelo, recalculamos t para que sea la
+  // proyección real del punto Q sobre el rayo. Para aristas paralelas, forzamos
+  // t ≥ 0 para que no se descarten por la condición t > 0 del comparador.
   t = ((qx - rayOrigin.x) * rayDir.x + (qy - rayOrigin.y) * rayDir.y + (qz - rayOrigin.z) * rayDir.z) / a;
+  if (Math.abs(denom) < RELATIVE_EPSILON * a * c) {
+    t = Math.max(t, 0);
+  }
 
   // Punto más cercano sobre el rayo
   const px = rayOrigin.x + t * rayDir.x;
