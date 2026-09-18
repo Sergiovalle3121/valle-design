@@ -102,12 +102,26 @@ export function CadViewCube({
               FACE_BASE,
               "absolute rounded-sm",
               active === preset && "bg-brand-strong text-primary-foreground",
-              // 20 px y no 18: el golden exige que cada cara tenga una zona de al menos
-              // 20×20, que es lo que un ratón acierta sin pelear. Y cabe justo: 2 + 20 = 22,
-              // que es donde EMPIEZA la zona de «front», así que no se solapan.
-              preset === "top" && "left-[18px] top-[2px] h-[20px] w-[38px]",
-              preset === "front" && "left-[13px] top-[22px] h-[32px] w-[36px]",
-              preset === "right" && "left-[38px] top-[12px] h-[30px] w-[24px]",
+              // Cada zona necesita 20×20 px LIBRES, y «libre» significa que ningún otro
+              // rectángulo posterior en el DOM se los pise: éstos se pintan en orden
+              // top → front → right, así que el último gana donde haya solape.
+              //
+              // Por eso «top» acaba en x=40 y «right» empieza en x=40 en vez de en 38: con el
+              // solape anterior (x 38..56) el área limpia de «top» quedaba en x 18..38, o sea
+              // 20 px justos, y el barrido del golden prueba esquinas en pasos de 4 px —0, 4,
+              // 8, 12, 16, 20…— así que nunca pisaba el 18 y no encontraba el cuadrado aunque
+              // existiera. Ahora cada una tiene 24 px de lado limpio y no depende de acertar
+              // un píxel concreto. En vertical ya encajaban: top acaba en 22, que es donde
+              // empieza front.
+              // Y cada lado libre es de 24 px o más, no de 20 justos: el barrido prueba
+              // esquinas en pasos de 4 px, así que una zona de 20 px exactos sólo se
+              // encuentra si la rejilla cae clavada en su borde — y no cae, porque estas
+              // zonas se posicionan dentro del cubo de 64×64 y el barrido recorre la caja
+              // exterior del ViewCube, que tiene otro origen. Con 24 px de lado libre hay
+              // al menos un punto de la rejilla dentro sea cual sea el desfase.
+              preset === "top" && "left-[16px] top-[2px] h-[24px] w-[24px]",
+              preset === "front" && "left-[13px] top-[26px] h-[28px] w-[36px]",
+              preset === "right" && "left-[40px] top-[12px] h-[30px] w-[24px]",
             )}
           />
         ))}
