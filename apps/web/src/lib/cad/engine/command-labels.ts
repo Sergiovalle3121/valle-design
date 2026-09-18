@@ -315,7 +315,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   SUBTRACT: "Diferencia",
 
   SURFACESYMBOL: "Acabado",
-  SURFOFFSET: "Vaciado de sólido",
+  SURFOFFSET: "Vaciar sólido",
   SWEEP: "Barrido",
   TABLE: "Tabla",
   TABLEDIT: "Editar celda",
