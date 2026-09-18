@@ -86,7 +86,7 @@ export const CAD_RIBBON_COMMAND_ORDER: Readonly<Record<string, readonly string[]
   "Edición de sólidos": ["SLICE", "FILLETEDGE", "CHAMFEREDGE", "SOLIDEDIT", "SECTION"],
   // Fase 2: superficies.
   Superficies: [
-    "PLANESURF", "CONVTOSURFACE", "SURFOFFSET", "SURFTRIM", "SURFSCULPT", "SURFUNTRIM",
+    "PLANESURF", "CONVTOSURFACE", "SURFPATCH", "SURFNETWORK", "SURFOFFSET", "SURFTRIM", "SURFSCULPT", "SURFUNTRIM",
   ],
   Mallas: ["MESH"],
   Render: [],
@@ -172,7 +172,7 @@ export const CAD_RIBBON_PRIMARY: Readonly<Record<string, readonly string[]>> = {
   // Superficies, Arquitectura e Instalaciones (pestaña propia).
   Arquitectura: ["WALL"],
   Instalaciones: ["PIPE"],
-  Superficies: ["PLANESURF"],
+  Superficies: ["PLANESURF", "SURFPATCH"],
   Mallas: ["MESH"],
   Vistas: ["VIEWBASE", "VIEWEDIT", "REGEN"],
 };

@@ -1,5 +1,5 @@
 /**
- * Los 119 módulos de comandos, con `import` ESTÁTICO. GENERADO — no se edita a mano.
+ * Los 120 módulos de comandos, con `import` ESTÁTICO. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` y `--check`
  * lo verifica, del mismo tirón que `command-manifest.ts`.
@@ -125,20 +125,21 @@ import * as m101 from "./commands/solids-primitives";
 import * as m102 from "./commands/solids-push-face";
 import * as m103 from "./commands/solview-commands";
 import * as m104 from "./commands/surfaces";
-import * as m105 from "./commands/transform-3d";
-import * as m106 from "./commands/transform-3d-array";
-import * as m107 from "./commands/transform-3d-mirror";
-import * as m108 from "./commands/transform-3d-rotate";
-import * as m109 from "./commands/transform-3d-scale";
-import * as m110 from "./commands/ucs-commands";
-import * as m111 from "./commands/ucs-view-commands";
-import * as m112 from "./commands/vectorize-raster";
-import * as m113 from "./commands/view-navigation";
-import * as m114 from "./commands/view-navigation-3d";
-import * as m115 from "./commands/view-visual";
-import * as m116 from "./commands/view-visualization";
-import * as m117 from "./commands/viewbase-commands";
-import * as m118 from "./commands/xrefs";
+import * as m105 from "./commands/surfaces-ext";
+import * as m106 from "./commands/transform-3d";
+import * as m107 from "./commands/transform-3d-array";
+import * as m108 from "./commands/transform-3d-mirror";
+import * as m109 from "./commands/transform-3d-rotate";
+import * as m110 from "./commands/transform-3d-scale";
+import * as m111 from "./commands/ucs-commands";
+import * as m112 from "./commands/ucs-view-commands";
+import * as m113 from "./commands/vectorize-raster";
+import * as m114 from "./commands/view-navigation";
+import * as m115 from "./commands/view-navigation-3d";
+import * as m116 from "./commands/view-visual";
+import * as m117 from "./commands/view-visualization";
+import * as m118 from "./commands/viewbase-commands";
+import * as m119 from "./commands/xrefs";
 
 cadRegisterCommandModules([
   m000,
@@ -260,4 +261,5 @@ cadRegisterCommandModules([
   m116,
   m117,
   m118,
+  m119,
 ]);

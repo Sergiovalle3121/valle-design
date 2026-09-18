@@ -1,5 +1,5 @@
 /**
- * Familia Superficies: PLANESURF, CONVTOSURFACE, SURFOFFSET, SURFTRIM, SURFSCULPT, SURFUNTRIM.
+ * Familia Superficies: PLANESURF, CONVTOSURFACE, SURFOFFSET, SURFTRIM, SURFSCULPT, SURFUNTRIM, SURFPATCH, SURFNETWORK.
  *
  * PLANESURF y CONVTOSURFACE se prueban aquí contra el motor real.
  * SURFOFFSET vacía un sólido convexo con pared de espesor uniforme: el spec
@@ -105,7 +105,7 @@ assert.ok(solidId, "Hay un solido 3D en el documento");
 
 // --- Registro: los tres comandos existen -------------------------------------
 {
-  const names = ["PLANESURF", "CONVTOSURFACE", "SURFOFFSET", "SURFTRIM", "SURFSCULPT", "SURFUNTRIM"];
+  const names = ["PLANESURF", "CONVTOSURFACE", "SURFOFFSET", "SURFTRIM", "SURFSCULPT", "SURFUNTRIM", "SURFPATCH", "SURFNETWORK"];
   for (const name of names) {
     assert.ok(CAD_COMMAND_REGISTRY_V2.get(name), `${name} está en el registro`);
   }
@@ -352,6 +352,56 @@ assert.ok(solidId, "Hay un solido 3D en el documento");
   assert.ok(step.result.text.includes("cancelado"), "SURFSCULPT se cancela limpiamente");
 }
 
+// --- SURFPATCH: parche de superficie desde contorno cerrado -------------------------
+{
+  const patchDoc = documentWith([{ ...rect, id: "contorno" }]);
+  const result = run("SURFPATCH", [enter], patchDoc, ["contorno"]);
+  assert.ok(result?.kind === "document", "SURFPATCH produce documento");
+  const patchDoc2 = executeCadEntityCommandBatch(patchDoc, result.commands, result.label).document;
+  const patchSolid = patchDoc2.entities.find((e) => e.type === "solid3d");
+  assert.ok(patchSolid, "SURFPATCH crea un solido 3D");
+  const patchBody = solid3dBody(patchSolid as never);
+  assert.ok(patchBody.faces.length > 0, "SURFPATCH tiene caras");
+  const patchVolume = solid3dMassProperties(patchSolid as never).volume;
+  assert.ok(patchVolume > 0, `SURFPATCH tiene volumen positivo: ${patchVolume.toFixed(6)}`);
+}
+
+// --- SURFPATCH: cancelación ------------------------------------------------------
+{
+  const descriptor = CAD_COMMAND_REGISTRY_V2.get("SURFPATCH")!;
+  const context = makeContext(doc, ["contorno"]);
+  let step = descriptor.begin(context);
+  step = descriptor.step(step.state, { kind: "cancel" }, context);
+  assert.ok(step.result?.kind === "message", "SURFPATCH cancelado devuelve mensaje");
+  assert.ok(step.result.text.includes("cancelado"), "SURFPATCH se cancela limpiamente");
+}
+
+// --- SURFNETWORK: superficie desde red de curvas --------------------------------
+{
+  const line1: CadEntity = { id: "curva1", type: "polyline", closed: false, vertices: [{ x: 0, y: 0, z: 0 }, { x: 100, y: 0, z: 0 }], layer };
+  const line2: CadEntity = { id: "curva2", type: "polyline", closed: false, vertices: [{ x: 0, y: 100, z: 0 }, { x: 100, y: 100, z: 0 }], layer };
+  const netDoc = documentWith([line1, line2]);
+  const result = run("SURFNETWORK", [enter], netDoc, ["curva1", "curva2"]);
+  assert.ok(result?.kind === "document", "SURFNETWORK produce documento");
+  const netDoc2 = executeCadEntityCommandBatch(netDoc, result.commands, result.label).document;
+  const netSolid = netDoc2.entities.find((e) => e.type === "solid3d");
+  assert.ok(netSolid, "SURFNETWORK crea un solido 3D");
+  const netBody = solid3dBody(netSolid as never);
+  assert.ok(netBody.faces.length > 0, "SURFNETWORK tiene caras");
+  const netVolume = solid3dMassProperties(netSolid as never).volume;
+  assert.ok(netVolume > 0, `SURFNETWORK tiene volumen positivo: ${netVolume.toFixed(6)}`);
+}
+
+// --- SURFNETWORK: cancelación ---------------------------------------------------
+{
+  const descriptor = CAD_COMMAND_REGISTRY_V2.get("SURFNETWORK")!;
+  const context = makeContext(doc, ["curva1"]);
+  let step = descriptor.begin(context);
+  step = descriptor.step(step.state, { kind: "cancel" }, context);
+  assert.ok(step.result?.kind === "message", "SURFNETWORK cancelado devuelve mensaje");
+  assert.ok(step.result.text.includes("cancelado"), "SURFNETWORK se cancela limpiamente");
+}
+
 console.log(
-  "✅ surfaces.spec: PLANESURF (registro), CONVTOSURFACE, SURFOFFSET (vaciado, cancelación, cóncavo), SURFTRIM (recorte, cancelación), SURFSCULPT (esculpir, cancelación), SURFUNTRIM (restaurar) — 18 comprobaciones",
+  "✅ surfaces.spec: PLANESURF (registro), CONVTOSURFACE, SURFOFFSET (vaciado, cancelación, cóncavo), SURFTRIM (recorte, cancelación), SURFSCULPT (esculpir, cancelación), SURFUNTRIM (restaurar), SURFPATCH (parche, cancelación), SURFNETWORK (red, cancelación) — 22 comprobaciones",
 );

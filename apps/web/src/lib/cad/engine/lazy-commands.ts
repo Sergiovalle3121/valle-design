@@ -164,6 +164,7 @@ export const CAD_COMMAND_MODULE_LOADERS = {
   "commands/xrefs": () => import("./commands/xrefs"),
   "commands/viewbase-commands": () => import("./commands/viewbase-commands"),
   "commands/surfaces": () => import("./commands/surfaces"),
+  "commands/surfaces-ext": () => import("./commands/surfaces-ext"),
   "commands/meshes": () => import("./commands/meshes"),
   "commands/transform-3d-extra": () => import("./commands/transform-3d-extra"),
   "commands/view-visualization": () => import("./commands/view-visualization"),
