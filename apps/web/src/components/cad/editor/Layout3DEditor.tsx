@@ -14598,7 +14598,7 @@ export default function Layout3DEditor({
                   snapLabelRef={engineSnapLabelRef}
                 />
               )}
-            {!walk && (tool === "wall" || isCadDrawTool(tool)) && (
+            {!walk && (tool === "wall" || isCadDrawTool(tool) || engineCommand) && (
               <CadDraftToolbar
                 orthoLock={draftSettings.ortho}
                 onToggleOrtho={() => draftSettingsHost.toggleOrtho()}
