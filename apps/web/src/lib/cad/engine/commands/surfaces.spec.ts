@@ -105,7 +105,7 @@ assert.ok(solidId, "Hay un solido 3D en el documento");
 
 // --- Registro: los tres comandos existen -------------------------------------
 {
-  const names = ["PLANESURF", "CONVTOSURFACE", "SURFOFFSET", "SURFTRIM", "SURFSCULPT", "SURFUNTRIM", "SURFPATCH", "SURFNETWORK"];
+  const names = ["PLANESURF", "CONVTOSURFACE", "SURFOFFSET", "SURFTRIM", "SURFSCULPT", "SURFUNTRIM", "SURFPATCH", "SURFNETWORK", "SURFBLEND", "SURFEXTEND"];
   for (const name of names) {
     assert.ok(CAD_COMMAND_REGISTRY_V2.get(name), `${name} está en el registro`);
   }
@@ -402,6 +402,77 @@ assert.ok(solidId, "Hay un solido 3D en el documento");
   assert.ok(step.result.text.includes("cancelado"), "SURFNETWORK se cancela limpiamente");
 }
 
+// --- SURFBLEND: mezcla de dos superficies (bounding-box union) ------------------
+{
+  const rect2: CadEntity = {
+    id: "base2",
+    type: "polyline",
+    closed: true,
+    vertices: [
+      { x: 150, y: 0, z: 0 },
+      { x: 250, y: 0, z: 0 },
+      { x: 250, y: 100, z: 0 },
+      { x: 150, y: 100, z: 0 },
+    ],
+    layer,
+  };
+  let blendDoc = documentWith([rect, rect2]);
+  {
+    const r1 = run("EXTRUDE", [keyword("base"), distance(50)], blendDoc, ["base"]);
+    assert.ok(r1 && r1.kind === "document", "EXTRUDE base para blend");
+    blendDoc = executeCadEntityCommandBatch(blendDoc, r1.commands, r1.label).document;
+    const r2 = run("EXTRUDE", [keyword("base2"), distance(50)], blendDoc, ["base2"]);
+    assert.ok(r2 && r2.kind === "document", "EXTRUDE base2 para blend");
+    blendDoc = executeCadEntityCommandBatch(blendDoc, r2.commands, r2.label).document;
+  }
+  const solids = blendDoc.entities.filter((e) => e.type === "solid3d");
+  assert.ok(solids.length >= 2, "SURFBLEND: hay dos solidos");
+  const result = run("SURFBLEND", [enter], blendDoc, [solids[0].id, solids[1].id]);
+  assert.ok(result?.kind === "document", "SURFBLEND produce documento");
+  assert.ok(result.commands.length > 0, "SURFBLEND genera comandos");
+  const blendDoc2 = executeCadEntityCommandBatch(blendDoc, result.commands, result.label).document;
+  const blendSolid = blendDoc2.entities.filter((e) => e.type === "solid3d" && e.id !== solids[0].id && e.id !== solids[1].id);
+  assert.ok(blendSolid.length >= 1, "SURFBLEND añade un solido nuevo");
+  const blendBody = solid3dBody(blendSolid[blendSolid.length - 1] as never);
+  assert.ok(blendBody.faces.length > 0, "SURFBLEND tiene caras");
+  const blendVolume = solid3dMassProperties(blendSolid[blendSolid.length - 1] as never).volume;
+  assert.ok(blendVolume > 0, `SURFBLEND tiene volumen positivo: ${blendVolume.toFixed(1)}`);
+}
+
+// --- SURFBLEND: cancelación ---------------------------------------------------
+{
+  const descriptor = CAD_COMMAND_REGISTRY_V2.get("SURFBLEND")!;
+  const context = makeContext(doc, [solidId!]);
+  let step = descriptor.begin(context);
+  step = descriptor.step(step.state, { kind: "cancel" }, context);
+  assert.ok(step.result?.kind === "message", "SURFBLEND cancelado devuelve mensaje");
+  assert.ok(step.result.text.includes("cancelado"), "SURFBLEND se cancela limpiamente");
+}
+
+// --- SURFEXTEND: extensión de superficie --------------------------------------
+{
+  const result = run("SURFEXTEND", [distance(10), enter], doc, [solidId!]);
+  assert.ok(result?.kind === "document", "SURFEXTEND produce documento");
+  assert.ok(result.commands.length > 0, "SURFEXTEND genera comandos");
+  const extDoc = executeCadEntityCommandBatch(doc, result.commands, result.label).document;
+  const extSolid = extDoc.entities.filter((e) => e.type === "solid3d" && e.id !== solidId);
+  assert.ok(extSolid.length >= 1, "SURFEXTEND añade un solido nuevo");
+  const extBody = solid3dBody(extSolid[extSolid.length - 1] as never);
+  assert.ok(extBody.faces.length > 0, "SURFEXTEND tiene caras");
+  const extVolume = solid3dMassProperties(extSolid[extSolid.length - 1] as never).volume;
+  assert.ok(extVolume > 0, `SURFEXTEND tiene volumen positivo: ${extVolume.toFixed(1)}`);
+}
+
+// --- SURFEXTEND: cancelación --------------------------------------------------
+{
+  const descriptor = CAD_COMMAND_REGISTRY_V2.get("SURFEXTEND")!;
+  const context = makeContext(doc, [solidId!]);
+  let step = descriptor.begin(context);
+  step = descriptor.step(step.state, { kind: "cancel" }, context);
+  assert.ok(step.result?.kind === "message", "SURFEXTEND cancelado devuelve mensaje");
+  assert.ok(step.result.text.includes("cancelado"), "SURFEXTEND se cancela limpiamente");
+}
+
 console.log(
-  "✅ surfaces.spec: PLANESURF (registro), CONVTOSURFACE, SURFOFFSET (vaciado, cancelación, cóncavo), SURFTRIM (recorte, cancelación), SURFSCULPT (esculpir, cancelación), SURFUNTRIM (restaurar), SURFPATCH (parche, cancelación), SURFNETWORK (red, cancelación) — 22 comprobaciones",
+  "✅ surfaces.spec: PLANESURF (registro), CONVTOSURFACE, SURFOFFSET (vaciado, cancelación, cóncavo), SURFTRIM (recorte, cancelación), SURFSCULPT (esculpir, cancelación), SURFUNTRIM (restaurar), SURFPATCH (parche, cancelación), SURFNETWORK (red, cancelación), SURFBLEND (mezcla, cancelación), SURFEXTEND (extensión, cancelación) — 30 comprobaciones",
 );
