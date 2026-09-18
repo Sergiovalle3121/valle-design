@@ -293,6 +293,7 @@ function plineStep(state: PlineState, context: CadCommandContext): CadCommandSte
     // `CAD_ACCEPT_DISTANCE` aquí — se la comería antes de que llegue.
     accepts: CAD_ACCEPT_POINT | CAD_ACCEPT_KEYWORD,
     preview: [{ points: context.cursor ? [...outline, context.cursor] : outline }],
+    lastPoint: outline.length > 0 ? outline[outline.length - 1] : undefined,
   };
 }
 

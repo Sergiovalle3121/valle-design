@@ -507,6 +507,7 @@ export function cadCommandEngineReduce(
 function lastPointOf(state: CadCommandEngineState): { x: number; y: number } | null {
   const step = state.active?.step;
   if (!step) return null;
+  if (step.lastPoint) return step.lastPoint;
   const candidate = (step.state as { points?: { x: number; y: number }[] } | undefined)?.points;
   if (Array.isArray(candidate) && candidate.length > 0) return candidate[candidate.length - 1];
   return null;
