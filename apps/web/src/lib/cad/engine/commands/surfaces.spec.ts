@@ -1,10 +1,11 @@
 /**
- * Familia Superficies: PLANESURF, CONVTOSURFACE, SURFOFFSET, SURFTRIM.
+ * Familia Superficies: PLANESURF, CONVTOSURFACE, SURFOFFSET, SURFTRIM, SURFUNTRIM.
  *
  * PLANESURF y CONVTOSURFACE se prueban aquí contra el motor real.
  * SURFOFFSET vacía un sólido convexo con pared de espesor uniforme: el spec
  * comprueba que produce un cuerpo con más caras, menos volumen y dos cáscaras.
  * SURFTRIM recorta una superficie restando otro sólido 3D.
+ * SURFUNTRIM restaura la superficie completa a partir de su contorno.
  */
 import { strict as assert } from "node:assert";
 import {
@@ -103,7 +104,7 @@ assert.ok(solidId, "Hay un solido 3D en el documento");
 
 // --- Registro: los tres comandos existen -------------------------------------
 {
-  const names = ["PLANESURF", "CONVTOSURFACE", "SURFOFFSET", "SURFTRIM"];
+  const names = ["PLANESURF", "CONVTOSURFACE", "SURFOFFSET", "SURFTRIM", "SURFUNTRIM"];
   for (const name of names) {
     assert.ok(CAD_COMMAND_REGISTRY_V2.get(name), `${name} está en el registro`);
   }
@@ -300,6 +301,26 @@ assert.ok(solidId, "Hay un solido 3D en el documento");
   );
 }
 
+// --- SURFUNTRIM: restaurar superficie recortada ------------------------------
+{
+  const descriptor = CAD_COMMAND_REGISTRY_V2.get("SURFUNTRIM")!;
+  const context = makeContext(doc, [solidId!]);
+  let step = descriptor.begin(context);
+  step = descriptor.step(step.state, enter, context);
+  assert.ok(step.result?.kind === "document", "SURFUNTRIM produce documento");
+  assert.ok(step.result.commands.length > 0, "SURFUNTRIM genera comandos");
+
+  const afterDoc = executeCadEntityCommandBatch(doc, step.result.commands, step.result.label).document;
+  const restoredEntities = afterDoc.entities.filter((e) => e.type === "solid3d" && e.id !== solidId);
+  assert.ok(restoredEntities.length >= 1, "SURFUNTRIM añade un solido nuevo");
+
+  const restoredBody = solid3dBody(restoredEntities[restoredEntities.length - 1] as never);
+  assert.ok(restoredBody.faces.length > 0, "SURFUNTRIM restaurado tiene caras");
+
+  const restoredVolume = solid3dMassProperties(restoredEntities[restoredEntities.length - 1] as never).volume;
+  assert.ok(restoredVolume > 0, `SURFUNTRIM tiene volumen positivo: ${restoredVolume.toFixed(1)}`);
+}
+
 console.log(
-  "✅ surfaces.spec: PLANESURF (registro), CONVTOSURFACE, SURFOFFSET (vaciado, cancelación, cóncavo), SURFTRIM (recorte, cancelación) — 12 comprobaciones",
+  "✅ surfaces.spec: PLANESURF (registro), CONVTOSURFACE, SURFOFFSET (vaciado, cancelación, cóncavo), SURFTRIM (recorte, cancelación), SURFUNTRIM (restaurar) — 16 comprobaciones",
 );

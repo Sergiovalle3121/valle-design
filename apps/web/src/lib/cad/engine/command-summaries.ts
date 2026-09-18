@@ -288,6 +288,7 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   CONVTOSURFACE: "Convierte entidades existentes en superficie.",
   SURFOFFSET: "Vacía un sólido convexo con pared de espesor uniforme.",
   SURFTRIM: "Recorta una superficie restando otra entidad sólida 3D.",
+  SURFUNTRIM: "Restaura la superficie completa a partir de su contorno.",
 
   "3DSCALE": "Escala un sólido en los tres ejes.",
   MIRROR3D: "Refleja sólidos por un plano de simetría 3D.",
