@@ -284,6 +284,7 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   VIEWUPDATE: "Actualiza las vistas obsoletas de la lámina.",
   PLANESURF: "Superficie plana a partir de un contorno cerrado.",
   CONVTOMESH: "Convierte un sólido 3D a representación de malla.",
+  CONVTOSOLID: "Convierte una malla a sólido 3D.",
   CONVTOSURFACE: "Convierte entidades existentes en superficie.",
   SURFOFFSET: "Vacía un sólido convexo con pared de espesor uniforme.",
 

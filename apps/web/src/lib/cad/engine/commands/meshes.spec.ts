@@ -164,6 +164,52 @@ assert.ok(CAD_COMMAND_REGISTRY_V2.get("MESH"), "MESH está en el registro");
   );
 }
 
+// --- CONVTOSOLID: convertir malla a sólido -----------------------------------
+{
+  assert.ok(CAD_COMMAND_REGISTRY_V2.get("CONVTOSOLID"), "CONVTOSOLID está en el registro");
+
+  let doc = emptyDocument();
+  const meshResult = drive("MESH", [point(0, 0), point(200, 150), distance(100)], doc);
+  assert.ok(meshResult?.kind === "document", "MESH produce documento");
+  doc = executeCadEntityCommandBatch(doc, meshResult.commands, meshResult.label).document;
+  const meshId = doc.entities.find((e) => e.type === "solid3d")?.id;
+  assert.ok(meshId, "Hay una malla");
+
+  const meshBody = solid3dBody(doc.entities.find((e) => e.id === meshId!) as never);
+  const meshVolume = solid3dMassProperties(doc.entities.find((e) => e.id === meshId!) as never).volume;
+
+  const solResult = drive("CONVTOSOLID", [{ kind: "entityPick", entityId: meshId!, point: { x: 100, y: 75 } }, enter], doc);
+  assert.ok(solResult?.kind === "document", "CONVTOSOLID produce documento");
+
+  doc = executeCadEntityCommandBatch(doc, solResult.commands, solResult.label).document;
+  const solids = doc.entities.filter((e) => e.type === "solid3d" && e.id !== meshId);
+  assert.ok(solids.length >= 1, "CONVTOSOLID añade una entidad");
+
+  const solBody = solid3dBody(solids[solids.length - 1] as never);
+  const solVolume = solid3dMassProperties(solids[solids.length - 1] as never).volume;
+  assert.ok(
+    Math.abs(solVolume - meshVolume) / meshVolume < 0.01,
+    `CONVTOSOLID: volumen preservado (${solVolume.toFixed(1)} ≈ ${meshVolume.toFixed(1)})`,
+  );
+  assert.ok(
+    solBody.faces.length === meshBody.faces.length,
+    `CONVTOSOLID: caras preservadas (${solBody.faces.length})`,
+  );
+}
+
+// --- CONVTOSOLID: cancelación ------------------------------------------------
+{
+  const descriptor = CAD_COMMAND_REGISTRY_V2.get("CONVTOSOLID")!;
+  const doc = emptyDocument();
+  const context = makeContext(doc);
+  let step = descriptor.begin(context);
+  step = descriptor.step(step.state, { kind: "cancel" }, context);
+  assert.ok(
+    step.result?.kind === "message" && step.result.text.includes("cancelado"),
+    "CONVTOSOLID se cancela limpiamente",
+  );
+}
+
 console.log(
-  "✅ meshes.spec: MESH (10) + CONVTOMESH (7) — 17 comprobaciones",
+  "✅ meshes.spec: MESH (10) + CONVTOMESH (7) + CONVTOSOLID (7) — 24 comprobaciones",
 );

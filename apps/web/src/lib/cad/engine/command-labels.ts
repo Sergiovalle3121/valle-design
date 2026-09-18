@@ -101,6 +101,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   COMPARE: "Comparar",
   CONE: "Cono",
   CONVTOMESH: "A malla",
+  CONVTOSOLID: "A sólido",
   CONVTOSURFACE: "A superficie",
   COPY: "Copiar",
   COPYBASE: "Copiar con base",
