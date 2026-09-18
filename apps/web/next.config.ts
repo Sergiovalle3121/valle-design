@@ -75,6 +75,7 @@ const nextConfig: NextConfig = {
   // abajo. `standalone` recoge las dependencias del workspace desde esa misma
   // raíz; sólo hay un lockfile y está ahí.
   output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
+  poweredByHeader: false,
   /**
    * LA RAÍZ DEL MONOREPO, DECLARADA A MANO.
    *
