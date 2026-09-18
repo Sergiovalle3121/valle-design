@@ -152,12 +152,15 @@ function makeBoxSolid(doc: CadDocument, id: string): CadDocument {
   idCounter = 100;
   const mirrored = apply(
     "MIRROR3D",
-    [select(solid.id), point(0, 0), point(100, 0), point(0, 100)],
+    [select(solid.id), point(0, 0), point(100, 0), point(0, 100), ENTER],
     withSolid,
     [solid.id],
   );
-  const mirroredSolid = mirrored.entities.find((e) => e.type === "solid3d");
-  if (mirroredSolid?.type !== "solid3d") throw new Error("tipo");
+  // With copy: the mirrored doc has original + copy. Find the copy (new id).
+  const allSolids = mirrored.entities.filter((e) => e.type === "solid3d");
+  assert.equal(allSolids.length, 2, "sin borrar: original + reflejo");
+  const mirroredSolid = allSolids.find((e) => e.id !== solid.id);
+  if (!mirroredSolid || mirroredSolid.type !== "solid3d") throw new Error("tipo");
   const propsAfter = solid3dMassProperties(mirroredSolid);
 
   // Volumen se conserva en una reflexión
@@ -190,7 +193,7 @@ function makeBoxSolid(doc: CadDocument, id: string): CadDocument {
   idCounter = 200;
   const mirrored = apply(
     "MIRROR3",
-    [select(solid.id), point(0, 0), point(100, 0), point(0, 100)],
+    [select(solid.id), point(0, 0), point(100, 0), point(0, 100), ENTER],
     withSolid,
     [solid.id],
   );
@@ -218,4 +221,78 @@ function makeBoxSolid(doc: CadDocument, id: string): CadDocument {
   );
 }
 
-console.log("transform-3d-mirror.spec: 5 comprobaciones OK");
+// --- MIRROR3D con plano XY + punto ---
+{
+  const doc = documentWith([]);
+  const withSolid = makeBoxSolid(doc, "r4");
+  const solid = withSolid.entities.find((e) => e.type === "solid3d");
+  if (solid?.type !== "solid3d") throw new Error("tipo");
+  const keyword: CadCommandInput = { kind: "keyword", keyword: "XY" };
+  idCounter = 400;
+  const mirrored = apply(
+    "MIRROR3D",
+    [select(solid.id), keyword, point(0, 0), ENTER],
+    withSolid,
+    [solid.id],
+  );
+  const mSolid = mirrored.entities.find((e) => e.type === "solid3d");
+  assert.ok(mSolid, "plano XY + punto crea sólido reflejado");
+  const props = solid3dMassProperties(mSolid as CadEntity & { type: "solid3d" });
+  near(props.volume, 100 * 100 * 0.001, "volumen conservado con XY", 1);
+}
+
+// --- MIRROR3D con plano YZ + punto ---
+{
+  const doc = documentWith([]);
+  const withSolid = makeBoxSolid(doc, "r5");
+  const solid = withSolid.entities.find((e) => e.type === "solid3d");
+  if (solid?.type !== "solid3d") throw new Error("tipo");
+  const keyword: CadCommandInput = { kind: "keyword", keyword: "YZ" };
+  idCounter = 500;
+  const mirrored = apply(
+    "MIRROR3D",
+    [select(solid.id), keyword, point(0, 0), ENTER],
+    withSolid,
+    [solid.id],
+  );
+  const mSolid = mirrored.entities.find((e) => e.type === "solid3d");
+  assert.ok(mSolid, "plano YZ + punto crea sólido reflejado");
+}
+
+// --- MIRROR3D con borrar origen = Sí ---
+{
+  const doc = documentWith([]);
+  const withSolid = makeBoxSolid(doc, "r6");
+  const solid = withSolid.entities.find((e) => e.type === "solid3d");
+  if (solid?.type !== "solid3d") throw new Error("tipo");
+  idCounter = 600;
+  const delYes: CadCommandInput = { kind: "keyword", keyword: "Si" };
+  const mirrored = apply(
+    "MIRROR3D",
+    [select(solid.id), point(0, 0), point(100, 0), point(0, 100), delYes],
+    withSolid,
+    [solid.id],
+  );
+  // Con borrar origen: el documento tiene el reflejo pero NO el original.
+  const solids = mirrored.entities.filter((e) => e.type === "solid3d");
+  assert.equal(solids.length, 1, "con borrar=Sí queda1 sólido (el reflejo)");
+  assert.notEqual(solids[0].id, solid.id, "el reflejo tiene id distinto");
+}
+
+// --- MIRROR3D alias SIMETRIA3D ---
+{
+  const doc = documentWith([]);
+  const withSolid = makeBoxSolid(doc, "r7");
+  const solid = withSolid.entities.find((e) => e.type === "solid3d");
+  if (solid?.type !== "solid3d") throw new Error("tipo");
+  idCounter = 700;
+  const mirrored = apply(
+    "SIMETRIA3D",
+    [select(solid.id), point(0, 0), point(100, 0), point(0, 100), ENTER],
+    withSolid,
+    [solid.id],
+  );
+  assert.ok(mirrored.entities.some((e) => e.type === "solid3d"), "alias SIMETRIA3D funciona");
+}
+
+console.log("transform-3d-mirror.spec: 11 comprobaciones OK");

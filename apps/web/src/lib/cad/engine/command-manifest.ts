@@ -347,7 +347,7 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "3DMOVE", aliases: ["3M"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, spatial: "elevation", cursor: "pick", module: "commands/transform-3d" },
   { name: "3DALIGN", aliases: ["3AL"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, spatial: "elevation", cursor: "pick", module: "commands/transform-3d-align" },
   { name: "3DARRAY", aliases: ["3A"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, spatial: "elevation", cursor: "pick", module: "commands/transform-3d-array" },
-  { name: "MIRROR3D", aliases: ["MIRROR3"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, spatial: "elevation", cursor: "pick", module: "commands/transform-3d-mirror" },
+  { name: "MIRROR3D", aliases: ["MIRROR3", "SIMETRIA3D"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, spatial: "elevation", cursor: "pick", module: "commands/transform-3d-mirror" },
   { name: "3DROTATE", aliases: ["3R", "ROTATE3D"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, spatial: "elevation", cursor: "pick", module: "commands/transform-3d-rotate" },
   { name: "3DSCALE", aliases: ["3S"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, spatial: "elevation", cursor: "pick", module: "commands/transform-3d-scale" },
   { name: "UCS", aliases: ["SCU"], kind: "manage", transparent: true, selection: "none", repeatable: false, mutates: false, spatial: true, cursor: "crosshair", module: "commands/ucs-commands" },
