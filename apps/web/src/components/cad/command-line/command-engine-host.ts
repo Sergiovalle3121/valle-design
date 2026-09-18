@@ -70,6 +70,7 @@ import {
   cadActiveUcsIsTilted,
   type CadSystemVariableValue,
 } from "@/lib/cad/system-variables";
+import { CAD_COMMAND_ALIASES } from "@/lib/cad/engine/alias-table";
 import { handleClipboardRequest, handleDownloadRequest } from "./command-engine-host-helpers";
 import type { CadNamedUcs } from "@/lib/cad/ucs";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
@@ -293,6 +294,14 @@ export class CadCommandEngineHost {
   /** Texto tecleado en la línea de comandos. */
   submit(value: string): void {
     this.log(value, "input");
+    // AutoCAD eco: «L» → «LINE», «TR» → «TRIM». El alias se resuelve y el
+    // motor arranca el comando, pero el diálogo mostraba «> L» seguido del
+    // prompt sin decir QUÉ comando se abrió. Esto lo pone.
+    const raw = value.trim().toUpperCase().replace(/^'/, "");
+    const resolved = CAD_COMMAND_ALIASES[raw];
+    if (resolved && this.registry.get(resolved)) {
+      this.log(resolved, "info");
+    }
     this.dispatch({ kind: "token", value });
   }
 
