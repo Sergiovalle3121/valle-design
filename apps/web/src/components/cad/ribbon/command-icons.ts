@@ -263,6 +263,7 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   GRADIENT: Blend,
   U: Undo2,
   UNDO: History,
+  MREDO: Redo2,
   REDO: Redo2,
   MOVE: Move,
   "3DMOVE": Move,

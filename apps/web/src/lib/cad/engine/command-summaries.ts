@@ -254,6 +254,7 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   RAY: "Semirrecta: infinita hacia un solo lado.",
   RECOVER: "Rescata lo que se pueda de un documento canónico dañado, con manifiesto de lo perdido.",
   RECTANG: "Rectángulo por dos esquinas.",
+  MREDO: "Rehace varias operaciones de una vez; una por defecto.",
   REDO: "Rehace lo último deshecho.",
   REGEN: "Regenera la vista actual.",
   REGENALL: "Regenera todas las vistas.",

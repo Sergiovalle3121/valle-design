@@ -277,6 +277,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   RAY: "Rayo",
   RECOVER: "Recuperar",
   RECTANG: "Rectángulo",
+  MREDO: "Rehacer varios",
   REDO: "Rehacer",
   REFCLOSE: "Cerrar edición",
   REFEDIT: "Editar en sitio",

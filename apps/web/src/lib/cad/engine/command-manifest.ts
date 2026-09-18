@@ -1,5 +1,5 @@
 /**
- * METADATOS de los 342 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 343 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
  * 122 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
@@ -142,8 +142,9 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "UNGROUP", aliases: ["UNG"], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/groups" },
   { name: "PURGE", aliases: ["PU"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: true, cursor: "none", module: "commands/groups" },
   { name: "U", aliases: [], kind: "modify", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "none", module: "commands/history-commands" },
-  { name: "REDO", aliases: ["MREDO"], kind: "modify", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "none", module: "commands/history-commands" },
+  { name: "REDO", aliases: [], kind: "modify", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "none", module: "commands/history-commands" },
   { name: "UNDO", aliases: [], kind: "modify", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "none", module: "commands/history-commands" },
+  { name: "MREDO", aliases: [], kind: "modify", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "none", module: "commands/history-commands" },
   { name: "LIST", aliases: ["LI", "LS"], kind: "inquiry", transparent: false, selection: "required", repeatable: true, mutates: false, cursor: "pick", module: "commands/inquiry-list" },
   { name: "MASSPROP", aliases: ["MASS"], kind: "inquiry", transparent: false, selection: "required", repeatable: true, mutates: false, cursor: "pick", module: "commands/inquiry-list" },
   { name: "DIST", aliases: ["DI"], kind: "inquiry", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "crosshair", module: "commands/inquiry-measure" },
