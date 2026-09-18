@@ -277,6 +277,7 @@ export default function LandingPage() {
               halo={false}
               sizes="(min-width: 1280px) 72rem, 100vw"
               className="order-1 sm:order-none"
+              data-testid="hero-figure"
             />
             </div>
           </div>
