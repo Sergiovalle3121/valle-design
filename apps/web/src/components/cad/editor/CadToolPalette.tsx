@@ -97,11 +97,11 @@ export function CadToolPalette({
   canRedo: boolean;
   onRun: (id: CadToolbarActionId) => void;
 }) {
-  // Arranca cerrado. La paleta repite comandos que ya están en la cinta y
-  // ocupaba espacio sobre el lienzo. Recuerda si el usuario la abre/cierra.
+  // Arranca abierto: Encuadre·Space y los demás deben verse por defecto.
+  // El usuario puede cerrarla y se recuerda en localStorage.
   const [open, setOpen] = useState(() => {
-    try { return localStorage.getItem(STORAGE_KEY) === "true"; }
-    catch { return false; }
+    try { return localStorage.getItem(STORAGE_KEY) !== "false"; }
+    catch { return true; }
   });
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, String(open)); }

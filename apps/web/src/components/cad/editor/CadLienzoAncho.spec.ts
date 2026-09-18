@@ -26,10 +26,10 @@ const dock = readFileSync(
   "utf8",
 );
 
-// 1. La paleta arranca cerrada de fábrica (localStorage).
+// 1. La paleta arranca abierta de fábrica (localStorage).
 ok(
-  palette.includes('localStorage.getItem(STORAGE_KEY) === "true"'),
-  "la paleta arranca cerrada (localStorage)",
+  palette.includes('localStorage.getItem(STORAGE_KEY) !== "false"'),
+  "la paleta arranca abierta (localStorage)",
 );
 ok(palette.includes("setOpen"), "la paleta tiene un toggle de visibilidad");
 
