@@ -96,6 +96,7 @@ import {
   sinGeometria,
   soloBanderasDeMetadatos,
 } from "../../../scripts/cad/command-integrity-rules.mjs";
+import { geometriaReescritaSinCambio } from "../../../scripts/cad/command-integrity-geometria.mjs";
 import {
   PROBETA_LAYOUT,
   comprobarProbeta,
@@ -431,6 +432,14 @@ function runPass(name: string, pasada: Pasada): PassOutcome {
       loteAplicado,
       new Set(initial.entities.map((entity) => entity.id)),
     ),
+    // R7. Un lote que reescribe entidades y les deja la MISMA geometría
+    // evaluada tampoco es la geometría que un draw/modify/annotate prometió:
+    // es el caso de SLICE apilando un nodo `slice` con un plano que no
+    // atraviesa el sólido. Se mide con los evaluadores del producto.
+    sinCambioGeometrico:
+      applied > 0 && changed
+        ? geometriaReescritaSinCambio(initial.entities, document.entities, EVALUADORES)
+        : null,
     dotacion,
   });
 

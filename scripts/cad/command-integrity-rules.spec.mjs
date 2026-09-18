@@ -6,11 +6,12 @@
  * trampas que el registro de hoy no contiene. Cada regla lleva aquí su trampa
  * (la frase o la entidad real que se colaba) y su gemelo legítimo (un comando
  * de main que tiene que seguir en verde). El gate lo ejecuta antes de la sonda,
- * con tsx y desde apps/web: las pruebas de R2 evalúan las entidades con los
- * evaluadores REALES del producto, no con dobles.
+ * con tsx y desde apps/web: las pruebas de R2 y de R7 evalúan las entidades con
+ * los evaluadores REALES del producto, no con dobles.
  */
 import assert from "node:assert/strict";
 import { compruebaExenciones } from "./command-integrity-exenciones.spec.mjs";
+import { compruebaGeometria } from "./command-integrity-geometria.spec.mjs";
 import {
   clasificar,
   afirmacionSinCoartada,
@@ -339,6 +340,10 @@ eq(
   "muta",
   "R6: gemelo legítimo — un lote que sustituye geometría sigue mutando",
 );
+
+// R7 —el lote que reescribe la geometría y la deja igual— vive en su propio
+// archivo por el presupuesto de monolito, y se cuenta aquí con este mismo `eq`.
+compruebaGeometria(eq, { P, caja, cascaron, linea, EVALUADORES, veredicto, sinEfecto });
 
 // ─── R3: un mensaje no puede ser a la vez éxito y límite ────────────────────
 
