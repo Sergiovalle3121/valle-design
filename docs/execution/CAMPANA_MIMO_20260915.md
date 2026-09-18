@@ -149,3 +149,5 @@ Todas hechas antes de esta sesión (commits `4359ef50`–`bd86c7e5`).
 | CONTADOR 2026-09-20 12:00 | comandos en manifiesto 342 en 122 modulos. T11 cerrado (Nivel AutoCAD: muros cortados en DXF). Rotacion: Millar. |
 | C08 | hecha — solid3d y region no desaparecen del DXF. cadSolid3dToDxfPrimitives proyecta contornos de cara. 6 POLYLINE para caja, cero entity_dropped. Warning de perdidas declarado. | a0a18351 |
 | CONTADOR 2026-09-20 12:30 | comandos en manifiesto 342 en 122 modulos. C08 cerrado (3D: solid3d/region en DXF). Rotacion: UI+DWG. |
+| P06 | hecha — DWG version codes como fuente unica (dwg-interop-flag.ts) + nota '.dwg en beta' en dashboard. dwgAcceptedVersionCodes/describeDwgAcceptedVersions. | 72cf55e4 |
+| CONTADOR 2026-09-20 13:00 | comandos en manifiesto 342 en 122 modulos. P06 cerrado (DWG: versiones + nota dashboard). Rotacion: 6 frentes completados (Nivel+Millar+3D+UI+DWG+Bloqueador). |
