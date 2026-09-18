@@ -400,7 +400,13 @@ const plotCommand: CadCommandDescriptor<PlotState> = {
     if (input.kind === "enter") {
       if (!space) return say(NO_LAYOUT);
       if (state.askingFile) return plotRequest(space, state, space.name, "plot");
-      return plotStep({ ...state, askingFile: true, mode: "plot" });
+      // `corner1: undefined` ABANDONA la ventana a medias, igual que ya hacía
+      // la palabra clave «Trazar» (el caso `abandonedWindow` del spec). Sin
+      // eso, quien picaba la primera esquina y pulsaba Intro se quedaba en un
+      // bucle: `plotStep` mira `corner1` antes que `askingFile` y devolvía otra
+      // vez «Precise la esquina opuesta», sin más salida que cancelar. El área
+      // que se traza sigue siendo la que hubiera antes de picar.
+      return plotStep({ ...state, corner1: undefined, askingFile: true, mode: "plot" });
     }
 
     if (input.kind !== "text") return plotStep(state);

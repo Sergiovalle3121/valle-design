@@ -221,12 +221,15 @@ function rectangle(id: string, x: number, y: number, w: number, h: number, z = 0
   assert.equal(eulerCounts(solid3dBody(solid)).genus, 1, "un tubo tiene género 1");
 
   // Un perfil que CRUZA el eje se rechaza con su motivo, no con un error del
-  // kernel sobre coordenadas que el usuario nunca ha visto.
+  // kernel sobre coordenadas que el usuario nunca ha visto. Y el rechazo
+  // EMPIEZA diciendo que no giró nada: el motivo solo dejaba al lector sin
+  // saber si además había escrito algo.
   const crossing = documentWith([rectangle("cruza", -10, 0, 40, 20)]);
-  assert.match(
-    messageOf(run("REVOLVE", [select("cruza"), point(0, 0), point(0, 10), ENTER], crossing, ["cruza"])),
-    /CRUZA el eje/,
+  const cruzado = messageOf(
+    run("REVOLVE", [select("cruza"), point(0, 0), point(0, 10), ENTER], crossing, ["cruza"]),
   );
+  assert.match(cruzado, /^REVOLVE no giró nada:/);
+  assert.match(cruzado, /CRUZA el eje/);
 }
 
 // --- SWEEP --------------------------------------------------------------------

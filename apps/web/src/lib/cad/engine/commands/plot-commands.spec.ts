@@ -270,6 +270,16 @@ const messages = (effects: readonly CadCommandEffect[]) =>
   if (abandonedRequest.kind !== "plot") throw new Error("se esperaba una petición de trazado");
   assert.deepEqual(abandonedRequest.request.pageSetup.area, { kind: "layout" });
 
+  // Intro con la PRIMERA esquina ya picada abandona la ventana a medias, igual
+  // que la palabra clave «Trazar». Antes se quedaba en un bucle: `plotStep`
+  // mira `corner1` antes que `askingFile` y devolvía otra vez «Precise la
+  // esquina opuesta», sin más salida que cancelar.
+  const halfWindow = run(base, ["PLOT", "V", "0,0", "\r", "media-ventana"]);
+  const halfRequest = hosts(halfWindow.effects)[0];
+  if (halfRequest.kind !== "plot") throw new Error("se esperaba una petición de trazado");
+  assert.deepEqual(halfRequest.request.pageSetup.area, { kind: "layout" });
+  assert.equal(halfRequest.request.fileName, "media-ventana");
+
   // «Ajustar» es una escala válida y se dice así.
   const fitted = run(base, ["PLOT", "ESC", "ajustar", "T", "ajustado"]);
   const fittedRequest = hosts(fitted.effects)[0];

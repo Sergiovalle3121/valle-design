@@ -66,17 +66,30 @@ function regionResult(
         : "REGION: lo designado ya eran regiones; no hay nada que convertir.",
     );
 
-  const summary = [
-    `REGION: ${plan.created} región(es) creada(s), ${plan.tagged} contorno(s) ya cerrado(s) marcado(s).`,
-    ...plan.rejected,
-  ].join("\n");
+  // «0 región(es) creada(s)» era una manera rara de decir que no se creó
+  // ninguna: se dice con palabras, y el recuento sólo aparece cuando hay algo
+  // que contar. Lo que se afirma es lo que pasó.
+  const hecho = [
+    plan.created > 0 ? `${plan.created} región(es) creada(s)` : "ninguna región nueva",
+    ...(plan.tagged > 0 ? [`${plan.tagged} contorno(s) ya cerrado(s) marcado(s)`] : []),
+  ].join(", ");
+  const summary = [`REGION: ${hecho}.`, ...plan.rejected].join("\n");
   return {
     state,
     prompt: { message: "", options: [] },
     accepts: 0,
-    // El resumen viaja como etiqueta de la transacción, y los rechazos salen
-    // aparte: quien deshace ve «REGION» en la historia, no un párrafo.
-    result: { kind: "document", commands: plan.commands, label: summary.split("\n")[0] },
+    // La etiqueta de la transacción es la primera línea: quien deshace ve
+    // «REGION: …» en la historia, no un párrafo. Pero el resumen COMPLETO —el
+    // recuento y los rechazos— sale además como mensaje (`notice`), porque
+    // antes se tiraba: REGION podía devolver «0 región(es) creada(s)» con ocho
+    // contornos rechazados y el usuario no leía ni una línea, y la sonda
+    // tampoco recibía ningún mensaje en esa pasada.
+    result: {
+      kind: "document",
+      commands: plan.commands,
+      label: summary.split("\n")[0],
+      notice: summary,
+    },
   };
 }
 
