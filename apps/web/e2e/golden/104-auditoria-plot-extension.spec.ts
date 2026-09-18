@@ -93,7 +93,7 @@ test("PLOT: control (Presentación) contra caso (Extensión y Límites)", async 
   await test.step("hay una presentación que trazar", async () => {
     await page.getByTitle(/Paquete de entrega/).click();
     await page.getByRole("button", { name: "+ Hoja" }).click();
-    await expect(page.getByTestId("cad-layout-manager")).toContainText("Viewports · 1");
+    await expect(page.getByTestId("cad-layout-manager")).toContainText("Ventanas · 1");
     await page.getByLabel("Cerrar paquete de entrega").click();
     await expect(page.getByTestId("cad-sheet-package")).toHaveCount(0);
   });
