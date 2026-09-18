@@ -14,7 +14,8 @@
  *
  * ## Qué añade, y con qué
  *
- * DOS SÓLIDOS que se solapan (`s1`, `s2`), una REGIÓN (`r1`) y una LÁMINA
+ * DOS SÓLIDOS que se solapan (`s1`, `s2`), una REGIÓN (`r1`), un CONTORNO
+ * CERRADO de cuatro aristas sueltas (`e1`–`e4`) y una LÁMINA
  * con su ventana y una vista derivada de SOLVIEW. Nada escrito a mano: los
  * sólidos salen de `boxNode` + `makeSolidEntity` —las MISMAS funciones que usa
  * BOX—, la lámina de `createCadLayout` —la misma puerta que usa LAYOUT Nueva— y
@@ -40,6 +41,7 @@
  */
 import { migrateCadDocument, serializeCadDocument, type CadDocument } from "../src/lib/cad/cad-document";
 import type { CadRegionEntity, CadSolid3dEntity } from "../src/lib/cad/cad-entities-v5";
+import type { CadEntity } from "../src/lib/cad/cad-document";
 import { CAD_VIEWPORT_PLAN_VIEW, type CadPaperSpace } from "../src/lib/cad/cad-paper-viewport";
 import { executeCadEntityCommandBatch } from "../src/lib/cad/entity-commands";
 import { boxNode } from "../src/lib/cad/engine/commands/solids-primitive-shapes";
@@ -48,6 +50,7 @@ import { createCadLayout, upsertCadLayoutCommand } from "../src/lib/cad/layout/l
 import { createCadSolView } from "../src/lib/cad/layout/solview";
 import { regionArea } from "../src/lib/cad/solid3d-adapter";
 import { solid3dMassProperties, solid3dMesh } from "../src/lib/cad/solid3d-build";
+import { contourSignedArea } from "../src/lib/cad/inquiry/contours";
 import { cadDocumentExtents } from "../src/lib/cad/view/document-extents";
 import { sinGeometria } from "../../../scripts/cad/command-integrity-rules.mjs";
 
@@ -63,6 +66,16 @@ export const PROBETA_INVARIANTES = {
   areaPorSolido: 24_800,
   region: 4_800,
   /**
+   * El contorno cerrado de aristas SUELTAS: cuatro líneas que encadenan un
+   * rectángulo de 60×40. Sin él, REGION nunca ejercía el camino que CREA una
+   * región: con sólo los dos sólidos, la región ya hecha y la geometría 2D
+   * suelta, `planCadRegions` devolvía `created: 0` y su lote entero eran dos
+   * banderas de metadatos sobre `p1` y `c1` —contornos que ya estaban
+   * cerrados—. Eso le valía «muta» sin dibujar nada; ver R6.
+   */
+  aristasDelContorno: 4,
+  areaDelContorno: 2_400,
+  /**
    * A1, no A3: el papel no se elige, lo decide `createCadPaperSpace` a partir
    * de la envolvente del modelo (320×310 mm con los sólidos dentro). Está aquí
    * porque es lo MEDIDO, no porque se pida.
@@ -73,7 +86,35 @@ export const PROBETA_INVARIANTES = {
 } as const;
 
 /** Los ids que la probeta añade, en el orden en que se designan. */
-export const PROBETA_IDS = ["r1", "s1", "s2"] as const;
+export const PROBETA_IDS = ["r1", "s1", "s2", "e1", "e2", "e3", "e4"] as const;
+
+/**
+ * Las cuatro esquinas del contorno cerrado de aristas sueltas, dentro de la
+ * envolvente que ya tenía el documento (x 200–260, y 60–100) para que añadirlo
+ * NO mueva el papel que `createCadPaperSpace` elige.
+ */
+const ESQUINAS = [
+  { x: 200, y: 60 },
+  { x: 260, y: 60 },
+  { x: 260, y: 100 },
+  { x: 200, y: 100 },
+] as const;
+
+/**
+ * El contorno cerrado como CUATRO LÍNEAS sueltas, no como polilínea: lo que
+ * REGION tiene que saber hacer es encadenar bordes por sus extremos, y una
+ * polilínea cerrada ya encierra un área (se marcaría, no se crearía). Las
+ * aristas se dan en orden y cada una arranca donde acaba la anterior.
+ */
+function contornoCerrado(): CadEntity[] {
+  return ESQUINAS.map((esquina, indice) => ({
+    id: `e${indice + 1}`,
+    type: "line" as const,
+    layer: "0",
+    start: { x: esquina.x, y: esquina.y },
+    end: { ...ESQUINAS[(indice + 1) % ESQUINAS.length] },
+  })) as never as CadEntity[];
+}
 
 /** Nombre de la lámina que la probeta deja abierta (`context.activeLayout`). */
 export const PROBETA_LAYOUT = "PLANO";
@@ -125,7 +166,13 @@ export function probetaDocument(base: () => CadDocument): CadDocument {
   const semilla = base();
   const conSolidos: CadDocument = {
     ...semilla,
-    entities: [...semilla.entities, region() as never, caja("s1", 0, 200) as never, caja("s2", 60, 230) as never],
+    entities: [
+      ...semilla.entities,
+      region() as never,
+      caja("s1", 0, 200) as never,
+      caja("s2", 60, 230) as never,
+      ...(contornoCerrado() as never[]),
+    ],
   };
 
   const extents = cadDocumentExtents(conSolidos);
@@ -233,6 +280,28 @@ export function comprobarProbeta(base: () => CadDocument): string[] {
     if (motivo) fallos.push(`${id}: el gate lo daría por vacío — ${motivo}`);
   }
 
+  // El contorno cerrado: cuatro líneas que encadenan y encierran 2 400 mm².
+  // Se mide con `contourSignedArea`, el mismo evaluador que usa `regions.ts`,
+  // y no conduciendo REGION: el fixture no puede depender del comando que mide.
+  const aristas = PROBETA_IDS.filter((id) => id.startsWith("e")).map((id) =>
+    documento.entities.find((entity) => entity.id === id),
+  );
+  if (aristas.some((arista) => !arista || arista.type !== "line"))
+    fallos.push("el contorno cerrado no llegó al documento como cuatro líneas");
+  else {
+    if (aristas.length !== PROBETA_INVARIANTES.aristasDelContorno)
+      fallos.push(`aristas del contorno: ${aristas.length} en vez de ${PROBETA_INVARIANTES.aristasDelContorno}`);
+    const cadena = aristas as unknown as { start: { x: number; y: number }; end: { x: number; y: number } }[];
+    for (let indice = 0; indice < cadena.length; indice += 1) {
+      const siguiente = cadena[(indice + 1) % cadena.length]!;
+      if (cadena[indice]!.end.x !== siguiente.start.x || cadena[indice]!.end.y !== siguiente.start.y)
+        fallos.push(`la arista e${indice + 1} no encadena con la siguiente: el contorno no cierra`);
+    }
+    const area = Math.abs(contourSignedArea(cadena.map((arista) => arista.start)));
+    if (area !== PROBETA_INVARIANTES.areaDelContorno)
+      fallos.push(`área del contorno: ${area} en vez de ${PROBETA_INVARIANTES.areaDelContorno}`);
+  }
+
   const espacios = documento.paperSpaces ?? [];
   if (espacios.length !== 1) fallos.push(`presentaciones: ${espacios.length} en vez de 1`);
   const lamina = espacios[0];
@@ -273,6 +342,15 @@ export function probetaEvidencia(base: () => CadDocument) {
     volumen: solidos.length > 0 ? solid3dMassProperties(solidos[0] as never).volume : 0,
     area: solidos.length > 0 ? solid3dMassProperties(solidos[0] as never).area : 0,
     region: reg && reg.type === "region" ? regionArea(reg as never) : 0,
+    aristasDelContorno: documento.entities.filter((entity) => /^e[1-9]$/.test(entity.id)).length,
+    areaDelContorno: Math.abs(
+      contourSignedArea(
+        PROBETA_IDS.filter((id) => id.startsWith("e")).map((id) => {
+          const arista = documento.entities.find((entity) => entity.id === id);
+          return arista && arista.type === "line" ? arista.start : { x: 0, y: 0 };
+        }),
+      ),
+    ),
     lamina: lamina?.pageSetup?.paper ?? "?",
     viewports: (lamina?.viewports ?? []).length,
     vistasDerivadas: (lamina?.viewports ?? []).filter((viewport) => viewport.derivation).length,

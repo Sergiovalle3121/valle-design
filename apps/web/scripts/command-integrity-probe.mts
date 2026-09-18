@@ -94,6 +94,7 @@ import {
   combinarPasadas,
   entidadesTocadas,
   sinGeometria,
+  soloBanderasDeMetadatos,
 } from "../../../scripts/cad/command-integrity-rules.mjs";
 import {
   PROBETA_LAYOUT,
@@ -170,7 +171,11 @@ const PASADAS: readonly Pasada[] = [
     documento: () => probetaDocument(probeDocumentSeed),
     // Los sólidos van DELANTE de las líneas: `selectedSolids` respeta el orden
     // de designación y SUBTRACT resta del primero.
-    seleccion: ["s1", "s2", "p1", "c1", "r1", "l1", "l2", "l3", "a1", "t1"],
+    // Las cuatro aristas del contorno cerrado (`e1`–`e4`) van al FINAL: son lo
+    // que le da a REGION un contorno que CREAR en vez de dos banderas que
+    // marcar, y ponerlas delante cambiaría el orden que SUBTRACT y compañía ya
+    // miden.
+    seleccion: ["s1", "s2", "p1", "c1", "r1", "l1", "l2", "l3", "a1", "t1", "e1", "e2", "e3", "e4"],
     // El pool de designación de UNA entidad conserva el orden de la pasada
     // base y añade los tres nuevos al FINAL. Ponerlos delante degradaba
     // comandos 2D por el fixture y no por el producto: DIMLINEAR designaba el
@@ -245,6 +250,13 @@ function runPass(name: string, pasada: Pasada): PassOutcome {
   const messages: Array<{ text: string; level: string }> = [];
   const hostRequests: CadHostRequest[] = [];
   let applied = 0;
+  /**
+   * Los comandos de TODOS los lotes que llegaron a aplicarse. R6 los necesita:
+   * un lote cuyo cambio son sólo banderas de metadatos sobre entidades
+   * preexistentes no es la geometría que un comando de dibujo prometió, y eso
+   * no se ve comparando serializaciones.
+   */
+  const loteAplicado: { type: string; entityId?: string; patch?: Record<string, unknown> }[] = [];
   let selectionEffects = 0;
   let variablePatches = 0;
   let uiRequests = 0;
@@ -259,6 +271,7 @@ function runPass(name: string, pasada: Pasada): PassOutcome {
           const result = executeCadEntityCommandBatch(document, effect.commands, effect.label);
           document = result.document;
           applied += 1;
+          loteAplicado.push(...(effect.commands as never as typeof loteAplicado));
           effects.push(`execute:${effect.label}`);
         } catch (error) {
           messages.push({ text: `lote rechazado: ${String(error)}`, level: "error" });
@@ -390,6 +403,13 @@ function runPass(name: string, pasada: Pasada): PassOutcome {
     probeAborted,
     mutates: registry.get(name)!.mutates === true,
     vacias,
+    // R6. El contrato que el descriptor declara y si el lote se quedó en
+    // banderas: un `draw` que sólo marca metadatos no ha dibujado.
+    kind: registry.get(name)!.kind,
+    soloMetadatos: soloBanderasDeMetadatos(
+      loteAplicado,
+      new Set(initial.entities.map((entity) => entity.id)),
+    ),
     // R5. Lo que ESTA pasada le puso delante de verdad. Los sólidos sólo
     // cuentan si el auto-respondedor llegó a entregar la designación: si el
     // comando nunca la pidió, decir que le faltan sigue siendo honesto.
