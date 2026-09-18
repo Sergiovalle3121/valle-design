@@ -118,6 +118,15 @@ interface PassOutcome {
   steps: number;
   effects: string[];
   lastMessages: string[];
+  /**
+   * Los mensajes ENTEROS de la pasada y lo que la pasada le puso delante.
+   * `combinarPasadas` los necesita: cuando la pasada de la probeta no concluye,
+   * la base no puede quedarse con una excusa que la probeta desmiente, y para
+   * verlo hay que releer los mensajes de la base con la dotación de la probeta.
+   * `lastMessages` no sirve: va recortado y con el nivel pegado delante.
+   */
+  messages: { text: string; level: string }[];
+  dotacion: { solidos: number; lamina: boolean };
   note?: string;
 }
 
@@ -392,6 +401,18 @@ function runPass(name: string, pasada: Pasada): PassOutcome {
           return motivo ? [{ id: entity.id, motivo }] : [];
         })
       : [];
+  // R5. Lo que ESTA pasada le puso delante de verdad. Los sólidos sólo cuentan
+  // si el auto-respondedor llegó a entregar la designación: si el comando nunca
+  // la pidió, decir que le faltan sigue siendo honesto. Se calcula aparte
+  // porque viaja también en el PassOutcome, hasta `combinarPasadas`.
+  const dotacion = {
+    solidos: selectionFed
+      ? pasada.seleccion.filter(
+          (id) => initial.entities.find((entity) => entity.id === id)?.type === "solid3d",
+        ).length
+      : 0,
+    lamina: pasada.activeLayout !== undefined && (initial.paperSpaces ?? []).length > 0,
+  };
   const { verdict, note } = clasificar({
     steps,
     maxSteps: MAX_STEPS,
@@ -410,17 +431,7 @@ function runPass(name: string, pasada: Pasada): PassOutcome {
       loteAplicado,
       new Set(initial.entities.map((entity) => entity.id)),
     ),
-    // R5. Lo que ESTA pasada le puso delante de verdad. Los sólidos sólo
-    // cuentan si el auto-respondedor llegó a entregar la designación: si el
-    // comando nunca la pidió, decir que le faltan sigue siendo honesto.
-    dotacion: {
-      solidos: selectionFed
-        ? pasada.seleccion.filter(
-            (id) => initial.entities.find((entity) => entity.id === id)?.type === "solid3d",
-          ).length
-        : 0,
-      lamina: pasada.activeLayout !== undefined && (initial.paperSpaces ?? []).length > 0,
-    },
+    dotacion,
   });
 
   return {
@@ -428,6 +439,8 @@ function runPass(name: string, pasada: Pasada): PassOutcome {
     steps,
     effects: effects.slice(0, 8),
     lastMessages,
+    messages,
+    dotacion,
     ...(note ? { note } : {}),
   };
 }
@@ -485,6 +498,8 @@ for (const name of names) {
       steps: 0,
       effects: [],
       lastMessages: [String(error).slice(0, 200)],
+      messages: [],
+      dotacion: { solidos: 0, lamina: false },
       note: "la sonda reventó al ejecutarlo",
     };
     outcomes.push({
@@ -515,10 +530,29 @@ const contar = (leer: (outcome: ProbeOutcome) => string) =>
     ]),
   );
 
+/**
+ * Los comandos en los que UNA pasada no concluye y la otra sí.
+ *
+ * Van al artefacto con NOMBRE porque el recuento no basta: «solidos3d
+ * no-concluyente 10 vs plano2d 9» era exactamente PLOT, y el artefacto no lo
+ * decía. Un no-concluyente asimétrico es el sitio donde una pasada se queda con
+ * el veredicto de la otra sin que nadie mire por qué, así que tiene que verse
+ * como diff en un PR.
+ */
+const noConcluyentesDeUnaPasada = outcomes
+  .flatMap((outcome) => {
+    const sinConcluir = PASADAS.filter(
+      (pasada) => outcome.pasadas[pasada.id]!.verdict === "no-concluyente",
+    );
+    return sinConcluir.length === 1 ? [`${outcome.command}:${sinConcluir[0]!.id}`] : [];
+  })
+  .sort();
+
 const summary = {
   generatedBy: "apps/web/scripts/command-integrity-probe.mts",
   total: outcomes.length,
   verdicts: contar((outcome) => outcome.verdict),
+  noConcluyentesDeUnaPasada,
   /** El desglose de CADA pasada, para poder auditar la combinación. */
   pasadas: Object.fromEntries(
     PASADAS.map((pasada) => [pasada.id, contar((outcome) => outcome.pasadas[pasada.id]!.verdict)]),

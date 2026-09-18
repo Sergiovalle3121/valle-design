@@ -731,6 +731,63 @@ eq(
   "honesto-limitado",
   "combinación: que la probeta no lo termine no borra lo que la base midió",
 );
+// Trampa: el LAVADERO del no-concluyente, que ya tapaba un comando real. PLOT
+// decía en plano2d «No hay ninguna presentación abierta: crea una con LAYOUT»
+// —la frase EXACTA que R5 declara límite falso— y en la pasada con la lámina
+// abierta la sonda no lo llevaba a término, así que `clasificar` devolvía
+// no-concluyente en su PRIMERA rama, antes de R5. La combinación devolvía la
+// base y PLOT se quedaba con honesto-limitado sostenido por una precondición
+// que la probeta desmiente, sin pagar exención porque el veredicto combinado no
+// era no-concluyente. Que la sonda no sepa terminarlo no convierte la excusa en
+// verdad.
+const conMensajes = (verdict, messages = [], dotacion = {}) => ({
+  verdict,
+  messages: messages.map((text) => ({ text, level: "info" })),
+  dotacion,
+});
+const EXCUSA_DE_LAMINA = "No hay ninguna presentación abierta: crea una con LAYOUT.";
+eq(
+  combinarPasadas(
+    conMensajes("honesto-limitado", [EXCUSA_DE_LAMINA]),
+    conMensajes("no-concluyente", [], { solidos: 2, lamina: true }),
+  ).verdict,
+  "ROJO",
+  "combinación: la base no se queda con una excusa que la probeta desmiente",
+);
+eq(
+  combinarPasadas(
+    conMensajes("honesto-limitado", ["Esta orden necesita SOLID3D designados."]),
+    conMensajes("no-concluyente", [], { solidos: 2, lamina: true }),
+  ).verdict,
+  "ROJO",
+  "combinación: y lo mismo con la excusa de los sólidos",
+);
+// Gemelos legítimos: sin la dotación que la desmiente, la misma frase sigue
+// siendo honestidad; y un límite que la probeta NO desmiente tampoco cambia.
+eq(
+  combinarPasadas(
+    conMensajes("honesto-limitado", [EXCUSA_DE_LAMINA]),
+    conMensajes("no-concluyente", [], { solidos: 2, lamina: false }),
+  ).verdict,
+  "honesto-limitado",
+  "combinación: sin lámina en la probeta, la frase de lámina sigue siendo honesta",
+);
+eq(
+  combinarPasadas(
+    conMensajes("honesto-limitado", ["FILLET: no encontró dos bordes que se corten."]),
+    conMensajes("no-concluyente", [], { solidos: 2, lamina: true }),
+  ).verdict,
+  "honesto-limitado",
+  "combinación: un límite que la probeta no desmiente no se toca",
+);
+eq(
+  combinarPasadas(
+    conMensajes("muta", [EXCUSA_DE_LAMINA]),
+    conMensajes("no-concluyente", [], { solidos: 2, lamina: true }),
+  ).verdict,
+  "muta",
+  "combinación: R5 va después de las ramas de efecto, también aquí",
+);
 eq(
   combinado("no-concluyente", "no-concluyente").verdict,
   "no-concluyente",

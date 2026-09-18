@@ -159,6 +159,12 @@ const payload = {
   // hace además que una deriva salga como diff en un PR y no sólo como
   // excepción en consola.
   pasadas: report.pasadas,
+  // Los comandos en los que UNA pasada no concluye y la otra sí, con NOMBRE. El
+  // recuento por pasada no basta: «solidos3d no-concluyente 10 vs plano2d 9»
+  // era exactamente PLOT, que se quedaba con el honesto-limitado de la base
+  // sostenido por una precondición que la probeta desmiente, y el artefacto no
+  // decía quién era.
+  noConcluyentesDeUnaPasada: report.noConcluyentesDeUnaPasada ?? [],
   probeta: report.probeta,
   exemptions: Object.keys(exemptions.noConcluyentes ?? {}).sort(),
 };
@@ -201,6 +207,18 @@ if (process.argv.includes("--write")) {
       const after = payload.probeta?.[key];
       if (before !== after) fields.push(`probeta.${key}: ${before} → ${after}`);
     }
+    const antesAsimetricos = new Set(onDisk.noConcluyentesDeUnaPasada ?? []);
+    const ahoraAsimetricos = new Set(payload.noConcluyentesDeUnaPasada);
+    const asimetricosNuevos = payload.noConcluyentesDeUnaPasada.filter(
+      (entrada) => !antesAsimetricos.has(entrada),
+    );
+    const asimetricosIdos = (onDisk.noConcluyentesDeUnaPasada ?? []).filter(
+      (entrada) => !ahoraAsimetricos.has(entrada),
+    );
+    if (asimetricosNuevos.length > 0)
+      fields.push(`no-concluyentes de una sola pasada, nuevos: ${asimetricosNuevos.join(", ")}`);
+    if (asimetricosIdos.length > 0)
+      fields.push(`no-concluyentes de una sola pasada, resueltos: ${asimetricosIdos.join(", ")}`);
     const beforeExemptions = new Set(onDisk.exemptions ?? []);
     const afterExemptions = new Set(payload.exemptions ?? []);
     const added = payload.exemptions.filter((name) => !beforeExemptions.has(name));
@@ -235,9 +253,16 @@ for (const [pasada, cifras] of Object.entries(report.pasadas ?? {})) {
       `${cifras["no-concluyente"]} no-concluyentes · ${cifras.ROJO} ROJOS.`,
   );
 }
+const asimetricos = report.noConcluyentesDeUnaPasada ?? [];
+console.log(
+  asimetricos.length > 0
+    ? `  no-concluyentes de una sola pasada: ${asimetricos.join(", ")}`
+    : "  no-concluyentes de una sola pasada: ninguno.",
+);
 const probeta = report.probeta ?? {};
 console.log(
   `  probeta: ${probeta.solidos} sólidos de ${probeta.triangulos} triángulos · ` +
     `volumen ${probeta.volumen} · área ${probeta.area} · región ${probeta.region} · ` +
+    `contorno de ${probeta.aristasDelContorno} aristas y ${probeta.areaDelContorno} mm² · ` +
     `lámina ${probeta.lamina} con ${probeta.viewports} ventanas (${probeta.vistasDerivadas} derivada).`,
 );

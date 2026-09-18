@@ -616,7 +616,25 @@ const RANGO_DE_EFECTO = { muta: 2, delegado: 1 };
  * No es «lo mejor de las dos»: un ROJO no se compensa nunca con el verde de
  * la otra pasada.
  *
- * @template {{verdict: string, note?: string}} P
+ * ## La puerta del no-concluyente, cerrada
+ *
+ * `if (probeta.verdict === "no-concluyente") return conBase;` era un lavadero.
+ * PLOT decía en su pasada plano2d «No hay ninguna presentación abierta: crea
+ * una con LAYOUT» —la frase EXACTA que R5 declara límite falso— y en la pasada
+ * con la lámina abierta la sonda no lo llevaba a término, así que `clasificar`
+ * devolvía no-concluyente en su PRIMERA rama, antes de R5. Resultado: PLOT se
+ * quedaba con el `honesto-limitado` de la base, sostenido por una precondición
+ * que la probeta desmiente, y sin pagar exención, porque el veredicto combinado
+ * no era no-concluyente. Contaba entre los «declaran su límite» del artefacto
+ * por una excusa refutada.
+ *
+ * Ahora, cuando la probeta NO concluye, los mensajes de la BASE se pasan por
+ * `limiteDesmentido` con la DOTACIÓN de la probeta: si la frase es falsa en el
+ * mundo de la probeta, el veredicto es ROJO. Que la sonda no sepa terminar el
+ * comando no convierte la excusa en verdad. Por eso cada pasada tiene que
+ * llevar sus `messages` y su `dotacion` hasta aquí.
+ *
+ * @template {{verdict: string, note?: string, messages?: {text: string, level: string}[], dotacion?: {solidos?: number, lamina?: boolean}}} P
  * @param {P} base      pasada sobre el documento de siempre
  * @param {P} probeta   pasada sobre la probeta de sólidos y lámina
  * @returns {P & {pasada: string}}
@@ -627,7 +645,26 @@ export function combinarPasadas(base, probeta) {
   if (base.verdict === "ROJO") return conBase;
   if (probeta.verdict === "ROJO") return conProbeta;
   if (base.verdict === "no-concluyente" && probeta.verdict !== "no-concluyente") return conProbeta;
-  if (probeta.verdict === "no-concluyente") return conBase;
+  if (probeta.verdict === "no-concluyente") {
+    // Sólo si la base NO produjo efecto, por la misma razón por la que R5 va
+    // después de las ramas de efecto en `clasificar`: un comando que aplicó su
+    // lote o delegó no está poniendo excusas, diga lo que diga en el camino.
+    const desmentido =
+      RANGO_DE_EFECTO[base.verdict] === undefined
+        ? limiteDesmentido(base.messages ?? [], probeta.dotacion ?? {})
+        : null;
+    if (desmentido) {
+      return {
+        ...conBase,
+        verdict: "ROJO",
+        note:
+          `la probeta no lo llevó a término, y el límite que declaró en la pasada base es falso ` +
+          `con lo que la probeta le pone delante: dijo faltarle ${desmentido.falta} — ` +
+          `«${desmentido.texto.slice(0, 140)}»`,
+      };
+    }
+    return conBase;
+  }
   const sube = (RANGO_DE_EFECTO[probeta.verdict] ?? 0) > (RANGO_DE_EFECTO[base.verdict] ?? 0);
   return sube ? conProbeta : conBase;
 }
