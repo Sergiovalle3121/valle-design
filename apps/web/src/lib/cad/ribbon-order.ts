@@ -34,6 +34,7 @@ export const CAD_RIBBON_PANEL_ORDER: Readonly<Record<CadRibbonTabId, readonly st
   salida: ["Trazar y publicar", "Exportar", "Ventanas"],
   administrar: ["Normas y reparación", "Variables", "AutoLISP y scripts", "Comparar", "Vistas"],
   superficies: ["Superficies", "Arquitectura", "Instalaciones"],
+  mallas: ["Mallas"],
 };
 
 /**
@@ -87,6 +88,7 @@ export const CAD_RIBBON_COMMAND_ORDER: Readonly<Record<string, readonly string[]
   Superficies: [
     "PLANESURF", "CONVTOSURFACE", "SURFOFFSET",
   ],
+  Mallas: ["MESH"],
   Render: [],
 };
 
@@ -171,6 +173,7 @@ export const CAD_RIBBON_PRIMARY: Readonly<Record<string, readonly string[]>> = {
   Arquitectura: ["WALL"],
   Instalaciones: ["PIPE"],
   Superficies: ["PLANESURF"],
+  Mallas: ["MESH"],
   Vistas: ["VIEWBASE", "VIEWEDIT", "REGEN"],
 };
 
@@ -198,6 +201,7 @@ export const CAD_RIBBON_PANEL_COLLAPSE_ORDER: Readonly<Record<CadRibbonTabId, re
   salida: ["Ventanas", "Exportar"],
   administrar: ["Vistas", "Comparar", "AutoLISP y scripts", "Variables"],
   superficies: ["Instalaciones", "Arquitectura"],
+  mallas: [],
 };
 
 /** Orden declarado primero; lo que no está en la lista va detrás, alfabético es-MX. */

@@ -206,6 +206,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   MASSPROP: "Masa y volumen",
   MATCHPROP: "Igualar propiedades",
   MEASURE: "Graduar",
+  MESH: "Malla",
 
   MEPSYMBOL: "Símbolo MEP",
   MIRROR: "Simetría",

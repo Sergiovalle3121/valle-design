@@ -57,7 +57,8 @@ export type CadRibbonTabId =
   | "solidos3d"
   | "salida"
   | "administrar"
-  | "superficies";
+  | "superficies"
+  | "mallas";
 
 export interface CadRibbonTabMeta {
   id: CadRibbonTabId;
@@ -77,6 +78,7 @@ export const CAD_RIBBON_TABS: readonly CadRibbonTabMeta[] = [
   { id: "salida", label: "Salida" },
   { id: "administrar", label: "Administrar" },
   { id: "superficies", label: "Superficies" },
+  { id: "mallas", label: "Mallas" },
 ];
 
 /** Cae aquí cuando ningún patrón de nombre reclama el comando. */
@@ -109,6 +111,10 @@ const CAD_TAB_NAME_PATTERNS: readonly [RegExp, CadRibbonTabId][] = [
   [
     /^(-?WALL|DOOR|WINDOW|-?OPENING|STAIR|ROOF|SLAB|PIPE|DUCT|CABLETRAY|MEPSYMBOL|AEWIRE|AEWIRELIST|AECIRCUIT|AECHECK|AETAG|AETAGLIST|AESYMBOL|PIDLINE|PIDLIST|PIDEQUIP|PIDEQUIPLIST|PIDROUTE|PIDMTO|PIDISO|PLANESURF|SURF(?!ACE)[A-Z]+|CONVTOSURFACE)$/,
     "superficies",
+  ],
+  [
+    /^(MESH|CONVTOMESH|CONVTOSOLID|MESH[A-Z]+|RULESURF|TABSURF|REVSURF|EDGESURF|3DFACE)$/,
+    "mallas",
   ],
   [
     /^(-?LAYER|LAYERSTATE|LAY(?!OUT|TRANS)[A-Z]+|VPLAYER|PROPERTIES|MATCHPROP|COLOR|-?LINETYPE|LWEIGHT|LTSCALE|CELTSCALE|-?INSERT|BLOCK|-?BEDIT|WBLOCK|ATTDEF|ATTEDIT|ATTSYNC|BURST|BASE|BLOQUEDIN|BLOQUEDINSET|BLOQUEDINLIST|BLOQUEDINDEF|REFEDIT|REFSET|REFCLOSE|GROUP|UNGROUP|DRAWORDER|QSELECT|FILTER|SELECTSIMILAR|SETBYLAYER|CHPROP)$/,
@@ -201,6 +207,7 @@ const CAD_PANEL_NAME_PATTERNS: readonly [RegExp, string][] = [
   [/^(-?VISUALSTYLES?|SHADEMODE|VSCURRENT|VISUALSTYLES)$/, "Estilos visuales"],
   [/^(REGEN|REGENALL|VIEWBASE|VIEWPROJ|VIEWSECTION|VIEWDETAIL|VIEWEDIT|VIEWUPDATE)$/, "Vistas"],
   [/^(PLANESURF|SURF[A-Z]+|CONVTOSURFACE)$/, "Superficies"],
+  [/^(MESH|CONVTOMESH|CONVTOSOLID|MESH[A-Z]+|RULESURF|TABSURF|REVSURF|EDGESURF|3DFACE)$/, "Mallas"],
   [/^(UCS|UCSICON|-?UCSMAN)$/, "SCU"],
   [/^(-?VPORTS?|MVIEW|MSPACE|PSPACE)$/, "Ventanas"],
   [/^(-?PLOT|PUBLISH|-?PAGESETUP|STYLESMANAGER|SHEETSET|ETRANSMIT|-?LAYOUT)$/, "Trazar y publicar"],
@@ -225,6 +232,7 @@ export const CAD_RIBBON_FALLBACK_PANEL: Readonly<Record<CadRibbonTabId, string>>
   salida: "Trazar y publicar",
   administrar: "Herramientas",
   superficies: "Superficies",
+  mallas: "Mallas",
 };
 
 function ribbonPanelForCommand(descriptor: CadCommandDescriptor): { panel: string; matched: boolean } {

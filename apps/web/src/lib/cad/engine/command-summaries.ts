@@ -288,6 +288,7 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
 
   "3DSCALE": "Escala un sólido en los tres ejes.",
   MIRROR3D: "Refleja sólidos por un plano de simetría 3D.",
+  MESH: "Crea una primitiva de malla (caja) a partir de dos esquinas y altura.",
   "3DARRAY": "Repite un sólido en matriz rectangular o polar 3D.",
   "3DWALK": "Navegación interactiva tipo caminar en el modelo 3D.",
   "3DFLY": "Navegación interactiva tipo volar en el modelo 3D.",
