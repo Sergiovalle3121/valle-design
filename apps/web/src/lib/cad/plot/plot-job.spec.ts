@@ -128,6 +128,31 @@ const text = (command: CadVectorCommand | undefined) =>
   ok(Math.abs(ultimo.lineWidth - 0.75) < 1e-9, "y con el grosor final de la CTB");
 }
 
+// --- 1b · T4: lo blanco sale negro, en monocromo y en color -----------------
+{
+  const doc4 = drawing();
+  doc4.layers.push({ id: "BLANCA", name: "BLANCA", color: "#ffffff", visible: true, locked: false, lineweight: 0.25 });
+  doc4.layers.push({ id: "AMARILLA", name: "AMARILLA", color: "#ffff00", visible: true, locked: false, lineweight: 0.25 });
+  doc4.entities.push(
+    { id: "blanco", type: "line", layer: "BLANCA", start: { x: 0, y: 0, z: 0 }, end: { x: 1000, y: 0, z: 0 } },
+    { id: "amarillo", type: "line", layer: "AMARILLA", start: { x: 0, y: 500, z: 0 }, end: { x: 1000, y: 500, z: 0 } },
+  );
+  doc4.modelSpace.entityIds.push("blanco", "amarillo");
+
+  const setupMono = { ...cadPageSetupFromLayout(doc4.paperSpaces[0]), colorMode: "monochrome" as const };
+  const setupColor = { ...cadPageSetupFromLayout(doc4.paperSpaces[0]), colorMode: "color" as const };
+
+  const jobMono = buildCadPlotJob({ document: doc4, pageSetup: setupMono });
+  const blancoMono = path(jobMono.sheets[0].viewports[0].commands.find((c) => c.entityId === "blanco"));
+  const amarilloMono = path(jobMono.sheets[0].viewports[0].commands.find((c) => c.entityId === "amarillo"));
+  ok(blancoMono && blancoMono.style.stroke === "#000000", "T4: blanco en monocromo → negro");
+  ok(amarilloMono && amarilloMono.style.stroke === "#000000", "T4: amarillo en monocromo → negro");
+
+  const jobColor = buildCadPlotJob({ document: doc4, pageSetup: setupColor });
+  const blancoColor = path(jobColor.sheets[0].viewports[0].commands.find((c) => c.entityId === "blanco"));
+  ok(blancoColor && blancoColor.style.stroke === "#000000", "T4: blanco en color → negro sobre papel");
+}
+
 // --- 2 · un rótulo de .shx sobre el papel también se traza -----------------
 {
   const document = drawing("ISOCP.shx");
