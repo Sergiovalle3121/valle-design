@@ -223,7 +223,6 @@ const READONLY_KEYS = new Set([
   "pixelHeight",
   "drawnWidth",
   "drawnHeight",
-  "rotation",
 ]);
 
 /**
