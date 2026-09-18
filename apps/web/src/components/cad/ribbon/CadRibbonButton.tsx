@@ -88,7 +88,7 @@ export function CadRibbonButton({
           "text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           "disabled:pointer-events-none disabled:opacity-40",
-          command.primary && "bg-brand-strong/5 text-foreground",
+          command.primary && "text-foreground",
           large
             ? "h-full w-[4.25rem] flex-col justify-start gap-0.5 px-0.5 py-0.5"
             : size === "small"

@@ -84,7 +84,10 @@ export function cadRibbonPanelWidth(panel: CadRibbonPanel, layout: CadRibbonPane
   const m = CAD_RIBBON_METRICS;
   if (layout.state === "collapsed") return m.collapsed;
   const { primaries } = splitCadRibbonPanel(panel);
-  const largeBlock = primaries.length * m.large + Math.max(0, primaries.length - 1) * m.gap;
+  const primaryCols = primaries.length > CAD_RIBBON_METRICS.maxColumns
+    ? CAD_RIBBON_METRICS.maxColumns
+    : primaries.length;
+  const largeBlock = primaryCols * m.large + Math.max(0, primaryCols - 1) * m.gap;
   const columns = layout.state === "reduced" ? 0 : layout.columns;
   const smallBlock = columns > 0 ? columns * m.small + (columns - 1) * m.gap + m.gap : 0;
   return m.panelPad + largeBlock + smallBlock;

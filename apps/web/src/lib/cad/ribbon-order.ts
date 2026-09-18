@@ -120,8 +120,8 @@ export const CAD_RIBBON_INICIO_ESPEJOS: Readonly<Record<string, readonly string[
  */
 export const CAD_RIBBON_PRIMARY: Readonly<Record<string, readonly string[]>> = {
   // Inicio.
-  Dibujo: ["LINE", "PLINE"],
-  Modificar: ["MOVE", "COPY"],
+  Dibujo: ["LINE", "PLINE", "CIRCLE", "ARC"],
+  Modificar: ["MOVE", "COPY", "ROTATE", "TRIM", "ERASE"],
   Anotación: ["MTEXT", "DIMLINEAR"],
   Capas: ["LAYER"],
   Bloque: ["INSERT"],
@@ -186,8 +186,8 @@ export const CAD_RIBBON_PRIMARY: Readonly<Record<string, readonly string[]>> = {
  */
 export const CAD_RIBBON_PANEL_COLLAPSE_ORDER: Readonly<Record<CadRibbonTabId, readonly string[]>> = {
   inicio: [
-    "Superficies", "Instalaciones", "Arquitectura", "Portapapeles", "Grupos", "Utilidades",
-    "Propiedades", "Bloque", "Anotación",
+    "Superficies", "Instalaciones", "Arquitectura", "Portapapeles", "Grupos",
+    "Utilidades", "Propiedades", "Bloque",
   ],
   insertar: ["Paletas", "Normalizados", "Ubicación", "Importar y extraer"],
   anotar: ["Mecánica", "Tolerancias", "Estilos", "Directrices", "Texto y tablas"],
