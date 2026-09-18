@@ -376,6 +376,37 @@ function rectangle(id: string, x: number, y: number, w: number, h: number, z = 0
   );
   near(total, 400_000, "las dos mitades suman el original", 1e-3);
 
+  // Un plano que PASA DE LARGO no corta nada, y SLICE lo dice en vez de apilar
+  // un nodo `slice` que deja el cuerpo idéntico. Es el falso verde que la sonda
+  // de integridad regalaba: con el plano (10,10)→(80,40) contra una caja que
+  // vive lejos, «conservar el positivo» conservaba el sólido ENTERO —mismo
+  // volumen, misma área, misma malla— y la orden escribía el lote sin mensaje.
+  const sinCorte = messageOf(
+    run("SLICE", [select(solidId), point(500, 0), point(580, 40), keyword("Izquierda")], document, [solidId]),
+  );
+  assert.match(sinCorte, /^SLICE no cortó nada:/);
+  assert.match(sinCorte, /no atraviesa ninguno de los sólidos designados/);
+
+  // Designados DOS y atravesado UNO: corta el que puede, deja el otro TAL CUAL
+  // —sin nodo apilado— y lo nombra. Un corte que se callara el sólido que se
+  // quedó fuera sería el mismo problema en pequeño.
+  let dos = documentWith([rectangle("cerca", 0, 0, 100, 100), rectangle("lejos", 400, 0, 100, 100)]);
+  dos = apply("EXTRUDE", [select("cerca"), distance(40)], dos, ["cerca"]);
+  dos = apply("EXTRUDE", [select("lejos"), distance(40)], dos, ["lejos"]);
+  const dosIds = dos.entities.flatMap((entity) => (entity.type === "solid3d" ? [entity.id] : []));
+  assert.equal(dosIds.length, 2, "la probeta del caso mixto tiene dos sólidos");
+  const mixto = run("SLICE", [select(...dosIds), point(50, 0), point(50, 100), keyword("Izquierda")], dos, dosIds);
+  assert.ok(mixto && mixto.kind === "document", `el sólido atravesado sí se corta, dio ${mixto?.kind}`);
+  if (!mixto || mixto.kind !== "document") throw new Error("tipo");
+  assert.match(mixto.notice ?? "", /^SLICE no cortó 1 de los 2 sólidos designados:/);
+  assert.equal(mixto.commands.length, 1, "sólo se reemplaza el sólido que el plano atraviesa");
+  const mixtoDocumento = executeCadEntityCommandBatch(dos, mixto.commands, mixto.label).document;
+  const volumenes = mixtoDocumento.entities
+    .flatMap((entity) => (entity.type === "solid3d" ? [solid3dMassProperties(entity).volume] : []))
+    .sort((a, b) => a - b);
+  near(volumenes[0], 200_000, "el sólido atravesado queda a la mitad", 1e-3);
+  near(volumenes[1], 400_000, "el sólido que el plano no toca conserva su volumen", 1e-3);
+
   const sectioned = apply(
     "SECTION",
     [select(solidId), point(50, 0), point(50, 100), ENTER],
