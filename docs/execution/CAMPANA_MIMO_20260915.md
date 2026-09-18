@@ -168,3 +168,4 @@ Todas hechas antes de esta sesión (commits `4359ef50`–`bd86c7e5`).
 | Golden31 + dashboard-viewer-rbac | resuelto: locator Círculo ambiguo por paleta abierta. | 68c3ad19 |
 | Golden28 + Golden26 | resuelto: locator Línea/Polilínea ambiguo por paleta abierta. Golden28 falla por OSNAP (pre-existente). | fc36a6e5 |
 | CONTADOR 2026-09-20 HH:MM | comandos en manifiesto 343 en 122 modulos. Regresiones de paleta abierta resueltas (5 goldens). Siguiente: cola-vallecad.md. | — |
+| P04 | hecha — hero figure data-testid + spec Playwright (>=36% viewport). Layout ya es single-column, imagen ocupa ~60%. Spec: 4/4 verdes. | 910d6ceb |

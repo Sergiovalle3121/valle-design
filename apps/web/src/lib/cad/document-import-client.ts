@@ -54,6 +54,19 @@ export function isDwgModernImportBetaEnabled(): boolean {
   return process.env.NEXT_PUBLIC_DWG_MODERN_IMPORT_BETA === "true";
 }
 
+/**
+ * Atributo `accept` del input de importación. Una sola fuente para el
+ * primer minuto y el tablero, para que no vuelvan a divergir.
+ */
+export function documentImportAcceptAttribute(
+  dwgBetaEnabled: boolean = isDwgNativeImportBetaEnabled(),
+): string {
+  const base = ".dxf,.json,.shp,.shx,.dbf,.prj,.cpg";
+  return dwgBetaEnabled
+    ? `${base},.dwg,.obj,.stl,.gltf,.glb,.dae`
+    : `${base},.obj,.stl,.gltf,.glb,.dae`;
+}
+
 type WorkerEvent =
   | { type: "progress"; progress: number; stage: string }
   | { type: "complete"; report: DocumentImportReport }

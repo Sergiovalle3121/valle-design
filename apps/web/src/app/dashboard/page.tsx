@@ -21,6 +21,7 @@ import { TrialBanner } from "@/components/commercial/TrialBanner";
 import { trialStatus } from "@/lib/commercial/trial-phase";
 import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
 import {
+  documentImportAcceptAttribute,
   isDwgNativeImportBetaEnabled,
   splitDocumentSelection,
 } from "@/lib/cad/document-import-client";
@@ -527,11 +528,8 @@ export default function DashboardPage() {
                   <input
                     type="file"
                     className="sr-only"
-                    accept={
-                      isDwgNativeImportBetaEnabled()
-                        ? ".dxf,.json,.shp,.shx,.dbf,.prj,.cpg,.dwg,.obj,.stl,.gltf,.glb,.dae"
-                        : ".dxf,.json,.shp,.shx,.dbf,.prj,.cpg,.obj,.stl,.gltf,.glb,.dae"
-                    }
+                    accept={documentImportAcceptAttribute()}
+                    data-testid="dashboard-import-input"
                     multiple
                     disabled={!selectedProject || busy}
                     onChange={(e) => {
@@ -588,6 +586,7 @@ export default function DashboardPage() {
                 if (chosen)
                   void importDocument(chosen.primary, chosen.sidecars);
               }}
+              accept={documentImportAcceptAttribute()}
             />
           ) : (
             <section
