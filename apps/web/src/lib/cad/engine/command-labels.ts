@@ -132,7 +132,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   DIMSTYLE: "Estilo de cota",
   DIMTOLERANCE: "Tolerancia cota",
   DIST: "Distancia",
-
+  DISTANTLIGHT: "Luz direccional",
   DIVIDE: "Dividir",
   DONUT: "Arandela",
   DOOR: "Puerta",
@@ -260,7 +260,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   PLINE: "Polilínea",
   PLOT: "Trazar a PDF",
   POINT: "Punto",
-
+  POINTLIGHT: "Luz puntual",
   POLYGON: "Polígono",
   POLYSOLID: "Polisólido",
   PRESSPULL: "Pulsar y tirar",
@@ -312,6 +312,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
 
   SPLINE: "Spline",
   SPLINEDIT: "Editar spline",
+  SPOTLIGHT: "Foco",
   STAIR: "Escalera",
   STDPART: "Normalizado",
   STEELSHAPE: "Perfil de acero",
@@ -319,7 +320,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   STYLE: "Estilo de texto",
   STYLESMANAGER: "Tablas de plumas",
   SUBTRACT: "Diferencia",
-
+  SUNPROPERTIES: "Propiedades sol",
   SURFACESYMBOL: "Acabado",
   SURFOFFSET: "Vaciar sólido",
   SURFTRIM: "Recortar sup",

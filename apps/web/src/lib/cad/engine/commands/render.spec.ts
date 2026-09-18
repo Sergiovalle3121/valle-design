@@ -239,4 +239,94 @@ const cancel: CadCommandInput = { kind: "cancel" };
   if (r?.kind === "message") assert.ok(r.text.includes("cancelado"));
 }
 
+// ---------------------------------------------------------------------------
+// POINTLIGHT
+// ---------------------------------------------------------------------------
+
+{
+  // POINTLIGHT + Enter → crea luz puntual
+  const r = hostReq(run("POINTLIGHT", [enter]));
+  assert.ok(r, "POINTLIGHT emite petición");
+  assert.equal(r.kind, "light-create");
+  if (r.kind === "light-create") assert.equal(r.subtype, "point");
+}
+
+{
+  // POINTLIGHT cancelado
+  const r = run("POINTLIGHT", [cancel]);
+  assert.equal(r?.kind, "message");
+  if (r?.kind === "message") assert.ok(r.text.includes("cancelado"));
+}
+
+// ---------------------------------------------------------------------------
+// SPOTLIGHT
+// ---------------------------------------------------------------------------
+
+{
+  // SPOTLIGHT + Enter → crea foco
+  const r = hostReq(run("SPOTLIGHT", [enter]));
+  assert.ok(r, "SPOTLIGHT emite petición");
+  assert.equal(r.kind, "light-create");
+  if (r.kind === "light-create") assert.equal(r.subtype, "spot");
+}
+
+{
+  // SPOTLIGHT cancelado
+  const r = run("SPOTLIGHT", [cancel]);
+  assert.equal(r?.kind, "message");
+  if (r?.kind === "message") assert.ok(r.text.includes("cancelado"));
+}
+
+// ---------------------------------------------------------------------------
+// DISTANTLIGHT
+// ---------------------------------------------------------------------------
+
+{
+  // DISTANTLIGHT + Enter → crea luz direccional
+  const r = hostReq(run("DISTANTLIGHT", [enter]));
+  assert.ok(r, "DISTANTLIGHT emite petición");
+  assert.equal(r.kind, "light-create");
+  if (r.kind === "light-create") assert.equal(r.subtype, "distant");
+}
+
+{
+  // DISTANTLIGHT cancelado
+  const r = run("DISTANTLIGHT", [cancel]);
+  assert.equal(r?.kind, "message");
+  if (r?.kind === "message") assert.ok(r.text.includes("cancelado"));
+}
+
+// ---------------------------------------------------------------------------
+// SUNPROPERTIES
+// ---------------------------------------------------------------------------
+
+{
+  // SUNPROPERTIES con altitud
+  const r = hostReq(run("SUNPROPERTIES", [distance(60)]));
+  assert.ok(r, "SUNPROPERTIES emite petición");
+  assert.equal(r.kind, "sun-properties");
+  if (r.kind === "sun-properties") assert.equal(r.altitude, 60);
+}
+
+{
+  // SUNPROPERTIES Enter (mantiene defaults)
+  const r = hostReq(run("SUNPROPERTIES", [enter]));
+  assert.ok(r);
+  if (r.kind === "sun-properties") assert.equal(r.altitude, 45, "default 45°");
+}
+
+{
+  // SUNPROPERTIES altitud fuera de rango → recorte a 90
+  const r = hostReq(run("SUNPROPERTIES", [distance(120)]));
+  assert.ok(r);
+  if (r.kind === "sun-properties") assert.equal(r.altitude, 90, "recortado a 90");
+}
+
+{
+  // SUNPROPERTIES cancelado
+  const r = run("SUNPROPERTIES", [cancel]);
+  assert.equal(r?.kind, "message");
+  if (r?.kind === "message") assert.ok(r.text.includes("cancelado"));
+}
+
 console.log("render.spec: todas las comprobaciones pasaron.");

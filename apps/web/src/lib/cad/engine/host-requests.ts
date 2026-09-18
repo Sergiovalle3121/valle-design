@@ -264,4 +264,30 @@ export type CadHostRequest =
       kind: "material-attach";
       materialName: string;
       entityIds: readonly string[];
+    }
+  /**
+   * Crea una fuente de luz en la escena 3D (POINTLIGHT, SPOTLIGHT, DISTANTLIGHT).
+   *
+   * El motor calcula la posición y parámetros; el anfitrión crea el objeto
+   * Three.js. `subtipo` distingue el tipo de luz.
+   */
+  | {
+      kind: "light-create";
+      subtype: "point" | "spot" | "distant";
+      position?: { x: number; y: number; z: number };
+      intensity?: number;
+      color?: string;
+    }
+  /**
+   * Ajusta las propiedades del sol (SUNPROPERTIES).
+   *
+   * Ángulo de altitud, azimuth, intensidad y estado (encendido/apagado).
+   * Estado del visor, no del documento.
+   */
+  | {
+      kind: "sun-properties";
+      altitude?: number;
+      azimuth?: number;
+      intensity?: number;
+      enabled?: boolean;
     };

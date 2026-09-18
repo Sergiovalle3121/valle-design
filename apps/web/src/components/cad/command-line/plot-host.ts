@@ -287,6 +287,10 @@ export class CadPlotHost {
       return "El explorador de materiales lo atiende el anfitrión del motor, no el de trazado.";
     if (request.kind === "material-attach")
       return "La asignación de materiales la atiende el anfitrión del motor, no el de trazado.";
+    if (request.kind === "light-create")
+      return "La creación de luces la atiende el anfitrión del motor, no el de trazado.";
+    if (request.kind === "sun-properties")
+      return "Las propiedades del sol las atiende el anfitrión del motor, no el de trazado.";
 
     const document = this.bridge.document();
     if (!document) return "No hay ningún dibujo abierto que trazar.";

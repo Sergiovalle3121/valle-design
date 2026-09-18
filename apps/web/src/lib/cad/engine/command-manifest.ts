@@ -1,5 +1,5 @@
 /**
- * METADATOS de los 334 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 338 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
  * 121 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
@@ -257,6 +257,10 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "RENDERENVIRONMENT", aliases: ["RENV", "ENTORNERENDER"], kind: "manage", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/render-commands" },
   { name: "MATERIALS", aliases: ["MAT", "MATERIALES", "MATBROWSER"], kind: "manage", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/render-commands" },
   { name: "MATERIALATTACH", aliases: ["MATTACH", "ADJUNTARMATERIAL"], kind: "manage", transparent: false, selection: "required", repeatable: false, mutates: false, cursor: "none", module: "commands/render-commands" },
+  { name: "POINTLIGHT", aliases: ["PLIGHT", "LUZPUNTUAL"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/render-commands" },
+  { name: "SPOTLIGHT", aliases: ["SLIGHT", "LUZFOCO"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/render-commands" },
+  { name: "DISTANTLIGHT", aliases: ["DLIGHT", "LUZDIRECCIONAL"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/render-commands" },
+  { name: "SUNPROPERTIES", aliases: ["SUNPROP", "PROPIEDADESSOL"], kind: "manage", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/render-commands" },
   { name: "QSELECT", aliases: [], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "none", module: "commands/select-query" },
   { name: "FILTER", aliases: ["FI"], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "none", module: "commands/select-query" },
   { name: "SELECTSIMILAR", aliases: [], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "pick", module: "commands/select-similar" },

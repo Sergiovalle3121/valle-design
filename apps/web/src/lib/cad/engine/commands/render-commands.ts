@@ -275,6 +275,137 @@ const cmdmaterialattach: CadCommandDescriptor<{ selection: readonly string[]; as
   },
 };
 
+// ---------------------------------------------------------------------------
+// POINTLIGHT — luz puntual
+// ---------------------------------------------------------------------------
+
+const cmdpointlight: CadCommandDescriptor<null> = {
+  name: "POINTLIGHT",
+  aliases: ["PLIGHT", "LUZPUNTUAL"],
+  kind: "manage",
+  transparent: false,
+  selection: "none",
+  repeatable: false,
+  mutates: false,
+  cursor: "none",
+  begin: () => ({
+    state: null,
+    prompt: {
+      message: "Cree una luz puntual — pulse Intro para crear en el origen",
+      options: [],
+    },
+    accepts: 0,
+  }),
+  step: (_s, input) => {
+    if (input.kind === "cancel") return say("POINTLIGHT cancelado.");
+    return host(
+      { kind: "light-create", subtype: "point", intensity: 1 },
+      "POINTLIGHT",
+    );
+  },
+};
+
+// ---------------------------------------------------------------------------
+// SPOTLIGHT — luz de foco
+// ---------------------------------------------------------------------------
+
+const cmdspotlight: CadCommandDescriptor<null> = {
+  name: "SPOTLIGHT",
+  aliases: ["SLIGHT", "LUZFOCO"],
+  kind: "manage",
+  transparent: false,
+  selection: "none",
+  repeatable: false,
+  mutates: false,
+  cursor: "none",
+  begin: () => ({
+    state: null,
+    prompt: {
+      message: "Cree un foco — pulse Intro para crear en el origen",
+      options: [],
+    },
+    accepts: 0,
+  }),
+  step: (_s, input) => {
+    if (input.kind === "cancel") return say("SPOTLIGHT cancelado.");
+    return host(
+      { kind: "light-create", subtype: "spot", intensity: 1 },
+      "SPOTLIGHT",
+    );
+  },
+};
+
+// ---------------------------------------------------------------------------
+// DISTANTLIGHT — luz direccional
+// ---------------------------------------------------------------------------
+
+const cmddistantlight: CadCommandDescriptor<null> = {
+  name: "DISTANTLIGHT",
+  aliases: ["DLIGHT", "LUZDIRECCIONAL"],
+  kind: "manage",
+  transparent: false,
+  selection: "none",
+  repeatable: false,
+  mutates: false,
+  cursor: "none",
+  begin: () => ({
+    state: null,
+    prompt: {
+      message: "Cree una luz direccional — pulse Intro para crear",
+      options: [],
+    },
+    accepts: 0,
+  }),
+  step: (_s, input) => {
+    if (input.kind === "cancel") return say("DISTANTLIGHT cancelado.");
+    return host(
+      { kind: "light-create", subtype: "distant", intensity: 1 },
+      "DISTANTLIGHT",
+    );
+  },
+};
+
+// ---------------------------------------------------------------------------
+// SUNPROPERTIES — propiedades del sol
+// ---------------------------------------------------------------------------
+
+const cmdsunproperties: CadCommandDescriptor<{ altitude: number; azimuth: number; enabled: boolean }> = {
+  name: "SUNPROPERTIES",
+  aliases: ["SUNPROP", "PROPIEDADESSOL"],
+  kind: "manage",
+  transparent: true,
+  selection: "none",
+  repeatable: true,
+  mutates: false,
+  cursor: "none",
+  begin: () => ({
+    state: { altitude: 45, azimuth: 180, enabled: true },
+    prompt: {
+      message: "Altitud del sol en grados (0-90)",
+      options: [],
+      defaultValue: "45",
+    },
+    accepts: CAD_ACCEPT_DISTANCE,
+  }),
+  step: (state, input) => {
+    if (input.kind === "cancel") return say("SUNPROPERTIES cancelado.");
+    if (input.kind === "distance") {
+      const alt = Math.max(0, Math.min(90, input.value));
+      return host(
+        { kind: "sun-properties", altitude: alt, azimuth: state.azimuth, enabled: state.enabled },
+        `SUNPROPERTIES → altitud ${alt}°`,
+      );
+    }
+    if (input.kind === "enter") {
+      return host(
+        { kind: "sun-properties", altitude: state.altitude, azimuth: state.azimuth, enabled: state.enabled },
+        `SUNPROPERTIES → altitud ${state.altitude}°`,
+      );
+    }
+    return say("SUNPROPERTIES: escriba la altitud en grados (0-90).");
+  },
+};
+
 export const CAD_RENDER_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(cmdrender),
   asCadCommand(cmdrenderpresets),
@@ -282,4 +413,8 @@ export const CAD_RENDER_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(cmdrenderenvironment),
   asCadCommand(cmdmaterials),
   asCadCommand(cmdmaterialattach),
+  asCadCommand(cmdpointlight),
+  asCadCommand(cmdspotlight),
+  asCadCommand(cmddistantlight),
+  asCadCommand(cmdsunproperties),
 ];
