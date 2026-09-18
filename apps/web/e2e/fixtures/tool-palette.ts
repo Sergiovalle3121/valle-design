@@ -44,7 +44,7 @@ export async function startTool(
     name: action.label,
     exact: true,
   });
-  // La paleta arranca cerrada por defecto (localStorage). Si el botón no es
+  // La paleta puede arrancar plegada (el producto recuerda la preferencia). Si el botón no es
   // visible, ábrela pulsando el toggle antes de intentar el clic.
   if (!(await toolButton.isVisible())) {
     await toolbar.getByTestId("cad-toolbar-toggle").click();
