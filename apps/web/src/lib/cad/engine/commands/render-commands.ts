@@ -12,7 +12,6 @@ import {
   CAD_ACCEPT_TEXT,
   CAD_ACCEPT_ENTITY_PICK,
   CAD_ACCEPT_SELECTION,
-  CAD_ACCEPT_POINT,
   type CadAnyCommandDescriptor,
   type CadCommandDescriptor,
   type CadCommandStep,

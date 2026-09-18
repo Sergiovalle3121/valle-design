@@ -308,6 +308,7 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   SURFSCULPT: "Esculpe una superficie en un sólido con volumen.",
 
   "3DSCALE": "Escala un sólido en los tres ejes.",
+  "3DALIGN": "Alinea sólidos 3D por pares de puntos fuente y destino.",
   MIRROR3D: "Refleja sólidos por un plano de simetría 3D.",
   MESH: "Crea una primitiva de malla (caja) a partir de dos esquinas y altura.",
   "3DARRAY": "Repite un sólido en matriz rectangular o polar 3D.",

@@ -1,5 +1,5 @@
 /**
- * Los 121 módulos de comandos, con `import` ESTÁTICO. GENERADO — no se edita a mano.
+ * Los 122 módulos de comandos, con `import` ESTÁTICO. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` y `--check`
  * lo verifica, del mismo tirón que `command-manifest.ts`.
@@ -128,19 +128,20 @@ import * as m104 from "./commands/solview-commands";
 import * as m105 from "./commands/surfaces";
 import * as m106 from "./commands/surfaces-ext";
 import * as m107 from "./commands/transform-3d";
-import * as m108 from "./commands/transform-3d-array";
-import * as m109 from "./commands/transform-3d-mirror";
-import * as m110 from "./commands/transform-3d-rotate";
-import * as m111 from "./commands/transform-3d-scale";
-import * as m112 from "./commands/ucs-commands";
-import * as m113 from "./commands/ucs-view-commands";
-import * as m114 from "./commands/vectorize-raster";
-import * as m115 from "./commands/view-navigation";
-import * as m116 from "./commands/view-navigation-3d";
-import * as m117 from "./commands/view-visual";
-import * as m118 from "./commands/view-visualization";
-import * as m119 from "./commands/viewbase-commands";
-import * as m120 from "./commands/xrefs";
+import * as m108 from "./commands/transform-3d-align";
+import * as m109 from "./commands/transform-3d-array";
+import * as m110 from "./commands/transform-3d-mirror";
+import * as m111 from "./commands/transform-3d-rotate";
+import * as m112 from "./commands/transform-3d-scale";
+import * as m113 from "./commands/ucs-commands";
+import * as m114 from "./commands/ucs-view-commands";
+import * as m115 from "./commands/vectorize-raster";
+import * as m116 from "./commands/view-navigation";
+import * as m117 from "./commands/view-navigation-3d";
+import * as m118 from "./commands/view-visual";
+import * as m119 from "./commands/view-visualization";
+import * as m120 from "./commands/viewbase-commands";
+import * as m121 from "./commands/xrefs";
 
 cadRegisterCommandModules([
   m000,
@@ -264,4 +265,5 @@ cadRegisterCommandModules([
   m118,
   m119,
   m120,
+  m121,
 ]);

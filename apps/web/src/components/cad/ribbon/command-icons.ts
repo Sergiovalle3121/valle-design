@@ -591,6 +591,7 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   VISUALSTYLES: Palette,
   // Transformar 3D.
   "3DSCALE": Scaling,
+  "3DALIGN": AlignLeft,
   MIRROR3D: FlipHorizontal2,
   "3DARRAY": Grid2x2,
 };
