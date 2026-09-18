@@ -392,3 +392,36 @@ export function dwgModernBetaImportIsEnabled(
     dwgBetaImportIsEnabled(baseBetaFlagOn)
   );
 }
+
+/**
+ * Códigos de versión DWG que esta beta acepta.
+ *
+ * La base es siempre AC1015; `allowAc1018` añade una firma y `allowModern`
+ * añade tres. La fuente única vive aquí para que el lector DWG y la
+ * UI del dashboard no puedan discrepar.
+ */
+export const DWG_BASE_VERSION_CODES = ["AC1015"] as const;
+export const DWG_AC1018_VERSION_CODES = ["AC1018"] as const;
+export const DWG_MODERN_VERSION_CODES = ["AC1024", "AC1027", "AC1032"] as const;
+
+export function dwgAcceptedVersionCodes(opts: {
+  allowAc1018: boolean;
+  allowModern: boolean;
+}): readonly string[] {
+  const codes: string[] = [...DWG_BASE_VERSION_CODES];
+  if (opts.allowAc1018) codes.push(...DWG_AC1018_VERSION_CODES);
+  if (opts.allowModern) codes.push(...DWG_MODERN_VERSION_CODES);
+  return codes;
+}
+
+/** Rótulo humano de las versiones admitidas, para mensajes de rechazo y UI. */
+export function describeDwgAcceptedVersions(codes: readonly string[]): string {
+  const labels: string[] = [];
+  if (codes.includes("AC1015")) labels.push("AutoCAD 2000 (AC1015)");
+  if (codes.includes("AC1018")) labels.push("2004 (AC1018)");
+  if (codes.includes("AC1024")) labels.push("2010 (AC1024)");
+  if (codes.includes("AC1027")) labels.push("2013 (AC1027)");
+  if (codes.includes("AC1032")) labels.push("2018 (AC1032)");
+  if (labels.length === 1) return labels[0]!;
+  return `${labels.slice(0, -1).join(", ")} y ${labels[labels.length - 1]!}`;
+}

@@ -145,3 +145,7 @@ Todas hechas antes de esta sesión (commits `4359ef50`–`bd86c7e5`).
 | CONTADOR 2026-09-18 19:30 | comandos en manifiesto 342 en 122 modulos. S03/S04/S05 cerrados (frente 6 seguridad + frente 4 UI). Rotacion: Seguridad+S03, UI+S04, Nivel+S05, lint-budget+ci-fallo. |
 | T10 | hecha — DXF: cota viaja viva. Grupo 1 vacío (AutoCAD usa medición real del grupo 42) salvo override del usuario. Spec: 4 comprobaciones. | 206cfd4f |
 | CONTADOR 2026-09-19 00:15 | comandos en manifiesto 342 en 122 modulos. T10 cerrado (Nivel AutoCAD: cota DXF viva). Rotacion: Nivel+T10. |
+| NIVEL/T11 | hecha — DXF exporta muros cortados en sus vanos. cadWallToDxfPrimitives divide caras en intervalos de hueco. Spec: dxf-wall-openings. | 28d87dae |
+| CONTADOR 2026-09-20 12:00 | comandos en manifiesto 342 en 122 modulos. T11 cerrado (Nivel AutoCAD: muros cortados en DXF). Rotacion: Millar. |
+| C08 | hecha — solid3d y region no desaparecen del DXF. cadSolid3dToDxfPrimitives proyecta contornos de cara. 6 POLYLINE para caja, cero entity_dropped. Warning de perdidas declarado. | a0a18351 |
+| CONTADOR 2026-09-20 12:30 | comandos en manifiesto 342 en 122 modulos. C08 cerrado (3D: solid3d/region en DXF). Rotacion: UI+DWG. |

@@ -24,6 +24,7 @@ import {
   isDwgNativeImportBetaEnabled,
   splitDocumentSelection,
 } from "@/lib/cad/document-import-client";
+import { dwgAcceptedVersionCodes, describeDwgAcceptedVersions } from "@/lib/cad/dwg-interop-flag";
 import { ArchiveDocumentDialog, useArchiveDocument } from "./archive-document";
 import { EMPTY_CAD_STARTER_CHOICE } from "./starter-choice";
 import { Status } from "./Status";
@@ -544,6 +545,11 @@ export default function DashboardPage() {
                     }}
                   />
                 </label>
+                {isDwgNativeImportBetaEnabled() ? (
+                  <p data-testid="dashboard-dwg-beta-nota" className="type-caption mt-1 text-muted-foreground">
+                    {`.dwg en beta: ${describeDwgAcceptedVersions(dwgAcceptedVersionCodes({ allowAc1018: isDwgNativeImportBetaEnabled(), allowModern: false /* DWG_MODERN_BETA_AUTHORIZATION.ownerSigned es false */ }))}. Si tu CAD es más nuevo, Guarda como con esa versión, o exporta a DXF.`}
+                  </p>
+                ) : null}
                 <ImportStatus
                   state={importState}
                   onCancel={cancelImport}
