@@ -320,6 +320,8 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   SURFUNTRIM: "Restaurar sup",
   SURFPATCH: "Parchear sup",
   SURFNETWORK: "Red de sup",
+  SURFBLEND: "Mezclar sup",
+  SURFEXTEND: "Extender sup",
   SURFSCULPT: "Esculpir sup",
   SWEEP: "Barrido",
   TABLE: "Tabla",

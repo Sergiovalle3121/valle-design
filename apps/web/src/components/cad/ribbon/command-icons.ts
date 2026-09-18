@@ -562,6 +562,8 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   SURFUNTRIM: Fullscreen,
   SURFPATCH: PenTool,
   SURFNETWORK: Network,
+  SURFBLEND: Blend,
+  SURFEXTEND: ArrowUpRight,
   SURFSCULPT: Box,
   // Mallas.
   MESH: Boxes,

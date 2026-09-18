@@ -1,5 +1,5 @@
 /**
- * METADATOS de los 325 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 327 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
  * 120 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en

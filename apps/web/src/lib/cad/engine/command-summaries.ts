@@ -291,6 +291,8 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   SURFUNTRIM: "Restaura la superficie completa a partir de su contorno.",
   SURFPATCH: "Rellena un contorno cerrado con un parche de superficie.",
   SURFNETWORK: "Crea una superficie a partir de una red de curvas.",
+  SURFBLEND: "Crea una superficie de transición entre dos sólidos 3D.",
+  SURFEXTEND: "Extiende los bordes de una superficie una distancia dada.",
   SURFSCULPT: "Esculpe una superficie en un sólido con volumen.",
 
   "3DSCALE": "Escala un sólido en los tres ejes.",
