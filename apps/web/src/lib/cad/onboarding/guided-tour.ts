@@ -354,7 +354,7 @@ export function parseCadTourRecord(raw: string | null): CadTourRecord {
       finishedAt: Number.isFinite(parsed.finishedAt) ? Number(parsed.finishedAt) : 0,
       acknowledged: parsed.acknowledged === true,
       plotted: parsed.plotted === true,
-      minimized: parsed.minimized === true,
+      minimized: parsed.minimized !== false,
     };
   } catch {
     // Un registro corrupto NO puede tirar el editor ni dejar al usuario sin

@@ -289,13 +289,13 @@ const dimension = {
   // Un registro a medias no se cuela con `true` de regalo.
   assert.equal(parseCadTourRecord('{"status":"running"}').acknowledged, false);
   assert.equal(parseCadTourRecord('{"status":"running"}').startedAt, 0);
-  assert.equal(parseCadTourRecord('{"status":"running"}').minimized, false);
+  assert.equal(parseCadTourRecord('{"status":"running"}').minimized, true);
 }
 
 // --- 7. PLIEGUE PERSISTIDO ---------------------------------------------------
 {
   let record: CadTourRecord = { ...EMPTY_CAD_TOUR_RECORD };
-  assert.equal(record.minimized, false);
+  assert.equal(record.minimized, true);
 
   // Conmuta minimized.
   record = cadGuidedTourReduce(record, { type: "minimize", minimized: true });
@@ -314,9 +314,9 @@ const dimension = {
   const afterSkip = cadGuidedTourReduce(record, { type: "minimize", minimized: true });
   assert.equal(afterSkip, record);
 
-  // Reset devuelve minimized: false.
+  // Reset devuelve minimized al valor por defecto.
   const reset = cadGuidedTourReduce(record, { type: "reset" });
-  assert.equal(reset.minimized, false);
+  assert.equal(reset.minimized, true);
 }
 
 // Regla 3 (AGENTS.md): ninguna capacidad se anuncia sin evidencia. El primer
