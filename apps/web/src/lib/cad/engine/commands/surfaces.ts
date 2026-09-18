@@ -582,7 +582,7 @@ const surfuntrimCommand: CadCommandDescriptor<SurfuntrimState | null> = {
 
     const entity = entities[0];
     if (entity.type !== "solid3d")
-      return solidMessage(state, "SURFUNTRIM solo aplica a solidos 3D.");
+      return solidMessage(state, "SURFUNTRIM no aplica: solo acepta solidos 3D.");
 
     const solid = entity as CadSolid3dEntity;
     const body = solid3dBody(solid);
