@@ -117,6 +117,9 @@ const surfnetworkCommand: CadCommandDescriptor<SurfaceExtState | null> = {
         accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
       };
     if (input.kind === "entityPick") {
+      const picked = context.entity(input.entityId);
+      if (picked && (picked.type !== "polyline" || !("vertices" in picked)))
+        return solidMessage(state, "SURFNETWORK: solo se aceptan polilineas para la red.");
       const prev = state?.selection ?? [];
       return {
         state: { selection: [...prev, input.entityId] },
@@ -134,7 +137,7 @@ const surfnetworkCommand: CadCommandDescriptor<SurfaceExtState | null> = {
     const allVerts: { x: number; y: number }[] = [];
     for (const e of entities) {
       if (e.type !== "polyline" || !("vertices" in e))
-        return solidMessage(state, "SURFNETWORK: todas las entidades deben ser polilineas.");
+        return solidMessage(state, "SURFNETWORK: solo se aceptan polilineas para la red.");
       const verts = (e as { vertices: { x: number; y: number }[] }).vertices;
       if (verts.length < 2) return solidMessage(state, "SURFNETWORK: una curva tiene menos de 2 vertices.");
       allVerts.push(...verts);
@@ -255,6 +258,9 @@ const surfextendCommand: CadCommandDescriptor<SurfextendState | null> = {
     if (input.kind === "selection")
       return { state: { selection: input.entityIds, distance: null }, prompt: { message: `${input.entityIds.length} entidad(es). Escriba la distancia`, options: [] }, accepts: CAD_ACCEPT_DISTANCE | CAD_ACCEPT_ENTITY_PICK };
     if (input.kind === "entityPick") {
+      const picked = context.entity(input.entityId);
+      if (picked && picked.type !== "solid3d")
+        return solidMessage(state, "SURFEXTEND: solo se aceptan solidos 3D.");
       const prev = state?.selection ?? [];
       return { state: { selection: [...prev, input.entityId], distance: null }, prompt: { message: `${prev.length + 1} entidad(es). Escriba la distancia`, options: [] }, accepts: CAD_ACCEPT_DISTANCE | CAD_ACCEPT_ENTITY_PICK };
     }
@@ -268,7 +274,7 @@ const surfextendCommand: CadCommandDescriptor<SurfextendState | null> = {
     const entities = selectedEntities(context, ids);
     if (entities.length === 0) return solidMessage(state, "SURFEXTEND: no se encontraron las entidades.");
     const entity = entities[0];
-    if (entity.type !== "solid3d") return solidMessage(state, "SURFEXTEND solo acepta solidos 3D.");
+    if (entity.type !== "solid3d") return solidMessage(state, "SURFEXTEND: solo se aceptan solidos 3D.");
     const body = solid3dBody(entity as never);
     if (body.faces.length === 0) return solidMessage(state, "SURFEXTEND: el solido no tiene caras.");
     const bb = bodyBounds(body);

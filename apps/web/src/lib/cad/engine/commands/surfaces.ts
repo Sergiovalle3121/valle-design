@@ -558,6 +558,9 @@ const surfsculptCommand: CadCommandDescriptor<SurfsculptState | null> = {
         accepts: CAD_ACCEPT_TEXT | CAD_ACCEPT_DISTANCE,
       };
     if (input.kind === "entityPick") {
+      const picked = context.entity(input.entityId);
+      if (picked && picked.type !== "solid3d")
+        return solidMessage(state, "SURFSCULPT: solo se aceptan solidos 3D.");
       const prev = state?.selection ?? [];
       return {
         state: { selection: [...prev, input.entityId], askingHeight: false },
@@ -595,7 +598,7 @@ function doSculpt(state: SurfsculptState, height: number, context: Parameters<Ca
   const entities = selectedEntities(context, ids);
   if (entities.length === 0) return solidMessage(state, "SURFSCULPT: no se encontraron las entidades.");
   const entity = entities[0];
-  if (entity.type !== "solid3d") return solidMessage(state, "SURFSCULPT solo acepta solidos 3D.");
+  if (entity.type !== "solid3d") return solidMessage(state, "SURFSCULPT: solo se aceptan solidos 3D.");
   const solid = entity as CadSolid3dEntity;
   const body = solid3dBody(solid);
   if (body.faces.length === 0) return solidMessage(state, "SURFSCULPT: el solido no tiene caras.");
