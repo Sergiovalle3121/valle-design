@@ -329,4 +329,68 @@ const cancel: CadCommandInput = { kind: "cancel" };
   if (r?.kind === "message") assert.ok(r.text.includes("cancelado"));
 }
 
+// ---------------------------------------------------------------------------
+// RENDERCROP
+// ---------------------------------------------------------------------------
+
+{
+  // RENDERCROP + Enter → default PNG
+  const r = hostReq(run("RENDERCROP", [enter]));
+  assert.ok(r, "RENDERCROP emite petición");
+  assert.equal(r.kind, "render-crop");
+  if (r.kind === "render-crop") assert.equal(r.format, "png");
+}
+
+{
+  // RENDERCROP cancelado
+  const r = run("RENDERCROP", [cancel]);
+  assert.equal(r?.kind, "message");
+  if (r?.kind === "message") assert.ok(r.text.includes("cancelado"));
+}
+
+// ---------------------------------------------------------------------------
+// RENDERWIN
+// ---------------------------------------------------------------------------
+
+{
+  // RENDERWIN + Enter → abre ventana
+  const r = hostReq(run("RENDERWIN", [enter]));
+  assert.ok(r, "RENDERWIN emite petición");
+  assert.equal(r.kind, "render-window");
+}
+
+{
+  // RENDERWIN cancelado
+  const r = run("RENDERWIN", [cancel]);
+  assert.equal(r?.kind, "message");
+  if (r?.kind === "message") assert.ok(r.text.includes("cancelado"));
+}
+
+// ---------------------------------------------------------------------------
+// MATERIALMAP
+// ---------------------------------------------------------------------------
+
+{
+  // MATERIALMAP con selección, nombre y proyección
+  const r = hostReq(run("MATERIALMAP", [
+    { kind: "selection", entityIds: ["e1"] },
+    { kind: "text", value: "Madera" },
+    keyword("Cilindro"),
+  ]));
+  assert.ok(r, "MATERIALMAP emite petición");
+  assert.equal(r.kind, "material-map");
+  if (r.kind === "material-map") {
+    assert.equal(r.materialName, "Madera");
+    assert.equal(r.projection, "cylindrical");
+    assert.deepEqual([...r.entityIds], ["e1"]);
+  }
+}
+
+{
+  // MATERIALMAP cancelado
+  const r = run("MATERIALMAP", [cancel]);
+  assert.equal(r?.kind, "message");
+  if (r?.kind === "message") assert.ok(r.text.includes("cancelado"));
+}
+
 console.log("render.spec: todas las comprobaciones pasaron.");

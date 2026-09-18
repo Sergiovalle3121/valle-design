@@ -1,5 +1,5 @@
 /**
- * METADATOS de los 338 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 341 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
  * 121 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
@@ -261,6 +261,9 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "SPOTLIGHT", aliases: ["SLIGHT", "LUZFOCO"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/render-commands" },
   { name: "DISTANTLIGHT", aliases: ["DLIGHT", "LUZDIRECCIONAL"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/render-commands" },
   { name: "SUNPROPERTIES", aliases: ["SUNPROP", "PROPIEDADESSOL"], kind: "manage", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/render-commands" },
+  { name: "RENDERCROP", aliases: ["RCROP", "RECORTARRENDER"], kind: "manage", transparent: true, selection: "none", repeatable: false, mutates: false, cursor: "crosshair", module: "commands/render-commands" },
+  { name: "RENDERWIN", aliases: ["RWIN", "VENTANARENDER"], kind: "manage", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/render-commands" },
+  { name: "MATERIALMAP", aliases: ["MMAP", "MAPEARMATERIAL"], kind: "manage", transparent: false, selection: "required", repeatable: false, mutates: false, cursor: "none", module: "commands/render-commands" },
   { name: "QSELECT", aliases: [], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "none", module: "commands/select-query" },
   { name: "FILTER", aliases: ["FI"], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "none", module: "commands/select-query" },
   { name: "SELECTSIMILAR", aliases: [], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "pick", module: "commands/select-similar" },

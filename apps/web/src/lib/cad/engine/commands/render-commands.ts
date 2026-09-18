@@ -12,6 +12,7 @@ import {
   CAD_ACCEPT_TEXT,
   CAD_ACCEPT_ENTITY_PICK,
   CAD_ACCEPT_SELECTION,
+  CAD_ACCEPT_POINT,
   type CadAnyCommandDescriptor,
   type CadCommandDescriptor,
   type CadCommandStep,
@@ -406,6 +407,147 @@ const cmdsunproperties: CadCommandDescriptor<{ altitude: number; azimuth: number
   },
 };
 
+// ---------------------------------------------------------------------------
+// RENDERCROP — captura de región recortada
+// ---------------------------------------------------------------------------
+
+const cmdrendercrop: CadCommandDescriptor<{ format: string }> = {
+  name: "RENDERCROP",
+  aliases: ["RCROP", "RECORTARRENDER"],
+  kind: "manage",
+  transparent: true,
+  selection: "none",
+  repeatable: false,
+  mutates: false,
+  cursor: "crosshair",
+  begin: () => ({
+    state: { format: "PNG" },
+    prompt: {
+      message: "Formato de imagen [PNG/JPEG/BMP]",
+      options: RENDER_FORMATS,
+      defaultOption: "PNG",
+    },
+    accepts: CAD_ACCEPT_KEYWORD,
+  }),
+  step: (state, input) => {
+    if (input.kind === "cancel") return say("RENDERCROP cancelado.");
+    const fmt =
+      input.kind === "keyword"
+        ? input.keyword.toUpperCase()
+        : (state.format ?? "PNG");
+    if (!["PNG", "JPEG", "BMP"].includes(fmt))
+      return say(`RENDERCROP: formato «${fmt}» no soportado.`);
+    return host(
+      { kind: "render-crop", format: fmt.toLowerCase() as "png" | "jpeg" | "bmp" },
+      `RENDERCROP → ${fmt}`,
+    );
+  },
+};
+
+// ---------------------------------------------------------------------------
+// RENDERWIN — ventana de previsualización de render
+// ---------------------------------------------------------------------------
+
+const cmdrenderwin: CadCommandDescriptor<null> = {
+  name: "RENDERWIN",
+  aliases: ["RWIN", "VENTANARENDER"],
+  kind: "manage",
+  transparent: true,
+  selection: "none",
+  repeatable: true,
+  mutates: false,
+  cursor: "none",
+  begin: () => ({
+    state: null,
+    prompt: {
+      message: "Abra la ventana de render — pulse Intro",
+      options: [],
+    },
+    accepts: 0,
+  }),
+  step: (_s, input) => {
+    if (input.kind === "cancel") return say("RENDERWIN cancelado.");
+    return host({ kind: "render-window" }, "RENDERWIN");
+  },
+};
+
+// ---------------------------------------------------------------------------
+// MATERIALMAP — mapeo de material con método de proyección
+// ---------------------------------------------------------------------------
+
+const MAP_PROJECTIONS = [
+  { keyword: "Plano", shortcut: "P" },
+  { keyword: "Caja", shortcut: "C" },
+  { keyword: "Cilindro", shortcut: "I" },
+  { keyword: "Esfera", shortcut: "E" },
+] as const;
+
+const cmdmaterialmap: CadCommandDescriptor<{
+  selection: readonly string[];
+  material: string;
+  projection: string;
+}> = {
+  name: "MATERIALMAP",
+  aliases: ["MMAP", "MAPEARMATERIAL"],
+  kind: "manage",
+  transparent: false,
+  selection: "required",
+  repeatable: false,
+  mutates: false,
+  cursor: "none",
+  begin: () => ({
+    state: { selection: [], material: "", projection: "Plano" },
+    prompt: {
+      message: "Designe las entidades para mapear material",
+      options: [],
+    },
+    accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
+  }),
+  step: (state, input) => {
+    if (input.kind === "cancel") return say("MATERIALMAP cancelado.");
+    if (input.kind === "selection" || input.kind === "entityPick") {
+      const ids = input.kind === "selection"
+        ? input.entityIds
+        : [...(state.selection ?? []), input.entityId];
+      return {
+        state: { ...state, selection: ids },
+        prompt: {
+          message: `${ids.length} entidad(es). Escriba el nombre del material`,
+          options: [],
+        },
+        accepts: CAD_ACCEPT_TEXT | CAD_ACCEPT_ENTITY_PICK,
+      };
+    }
+    if (input.kind === "text" && input.value.trim()) {
+      return {
+        state: { ...state, material: input.value.trim() },
+        prompt: {
+          message: `Material «${input.value.trim()}». Método de proyección [Plano/Caja/Cilindro/Esfera]`,
+          options: MAP_PROJECTIONS,
+          defaultOption: "Plano",
+        },
+        accepts: CAD_ACCEPT_KEYWORD,
+      };
+    }
+    if (input.kind === "keyword" || (input.kind === "enter" && state.material)) {
+      const proj = input.kind === "keyword" ? input.keyword : (state.projection ?? "Plano");
+      const projMap: Record<string, "planar" | "box" | "cylindrical" | "spherical"> = {
+        Plano: "planar", Caja: "box", Cilindro: "cylindrical", Esfera: "spherical",
+      };
+      return host(
+        {
+          kind: "material-map",
+          materialName: state.material,
+          projection: projMap[proj] ?? "planar",
+          entityIds: state.selection,
+        },
+        `MATERIALMAP «${state.material}» → ${proj}`,
+      );
+    }
+    return say("MATERIALMAP: seleccione entidades, escriba el material y elija la proyección.");
+  },
+};
+
 export const CAD_RENDER_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(cmdrender),
   asCadCommand(cmdrenderpresets),
@@ -417,4 +559,7 @@ export const CAD_RENDER_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(cmdspotlight),
   asCadCommand(cmddistantlight),
   asCadCommand(cmdsunproperties),
+  asCadCommand(cmdrendercrop),
+  asCadCommand(cmdrenderwin),
+  asCadCommand(cmdmaterialmap),
 ];

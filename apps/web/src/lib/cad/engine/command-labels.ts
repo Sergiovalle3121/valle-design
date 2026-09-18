@@ -210,6 +210,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   MATCHPROP: "Igualar propiedades",
   MATERIALS: "Materiales",
   MATERIALATTACH: "Asignar material",
+  MATERIALMAP: "Mapear material",
   MEASURE: "Graduar",
   MESH: "Malla",
 
@@ -283,9 +284,11 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   REGENALL: "Regenerar todo",
   REGION: "Región",
   RENDER: "Renderizar",
+  RENDERCROP: "Recorte render",
   RENDERENVIRONMENT: "Entorno render",
   RENDEREXPOSURE: "Exposición",
   RENDERPRESETS: "Calidad render",
+  RENDERWIN: "Ventana render",
   RENAME: "Renombrar",
 
   REVCLOUD: "Nube de revisión",

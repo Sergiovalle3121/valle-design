@@ -290,4 +290,26 @@ export type CadHostRequest =
       azimuth?: number;
       intensity?: number;
       enabled?: boolean;
+    }
+  /**
+   * Captura una región recortada del viewport (RENDERCROP).
+   */
+  | {
+      kind: "render-crop";
+      format: "png" | "jpeg" | "bmp";
+    }
+  /**
+   * Abre una ventana de previsualización de render (RENDERWIN).
+   */
+  | {
+      kind: "render-window";
+    }
+  /**
+   * Mapea un material a la selección con un método de proyección (MATERIALMAP).
+   */
+  | {
+      kind: "material-map";
+      materialName: string;
+      projection: "planar" | "box" | "cylindrical" | "spherical";
+      entityIds: readonly string[];
     };
