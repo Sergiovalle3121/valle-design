@@ -210,6 +210,68 @@ assert.ok(CAD_COMMAND_REGISTRY_V2.get("MESH"), "MESH está en el registro");
   );
 }
 
+// --- 3DFACE: registro -----------------------------------------------------------
+assert.ok(CAD_COMMAND_REGISTRY_V2.get("3DFACE"), "3DFACE está en el registro");
+
+// --- 3DFACE: triángulo (3 puntos + Intro) --------------------------------------
+{
+  let doc = emptyDocument();
+  const result = drive("3DFACE", [point(0, 0), point(100, 0), point(50, 80), enter], doc);
+  assert.ok(result?.kind === "document", "3DFACE triángulo produce documento");
+  assert.ok(result.commands.length > 0, "3DFACE genera comandos de inserción");
+
+  doc = executeCadEntityCommandBatch(doc, result.commands, result.label).document;
+  const solids = doc.entities.filter((e) => e.type === "solid3d");
+  assert.ok(solids.length === 1, "3DFACE triángulo añade un sólido 3D");
+
+  const body = solid3dBody(solids[0] as never);
+  assert.ok(body.vertices.length >= 3, `3DFACE triángulo: ${body.vertices.length} vértices (≥3)`);
+
+  const props = solid3dMassProperties(solids[0] as never);
+  assert.ok(props.volume > 0, `3DFACE triángulo: volumen positivo (${props.volume.toFixed(6)})`);
+  assert.ok(props.area > 0, `3DFACE triángulo: área positiva (${props.area.toFixed(1)})`);
+}
+
+// --- 3DFACE: cuadrilátero (4 puntos) -------------------------------------------
+{
+  let doc = emptyDocument();
+  const result = drive("3DFACE", [point(0, 0), point(100, 0), point(100, 80), point(0, 80)], doc);
+  assert.ok(result?.kind === "document", "3DFACE cuadrilátero produce documento");
+
+  doc = executeCadEntityCommandBatch(doc, result.commands, result.label).document;
+  const solids = doc.entities.filter((e) => e.type === "solid3d");
+  assert.ok(solids.length === 1, "3DFACE cuadrilátero añade un sólido 3D");
+
+  const body = solid3dBody(solids[0] as never);
+  assert.ok(body.vertices.length >= 4, `3DFACE cuadrilátero: ${body.vertices.length} vértices (≥4)`);
+
+  const props = solid3dMassProperties(solids[0] as never);
+  assert.ok(props.volume > 0, `3DFACE cuadrilátero: volumen positivo (${props.volume.toFixed(6)})`);
+}
+
+// --- 3DFACE: cancelación -------------------------------------------------------
+{
+  const descriptor = CAD_COMMAND_REGISTRY_V2.get("3DFACE")!;
+  const doc = emptyDocument();
+  const context = makeContext(doc);
+  let step = descriptor.begin(context);
+  step = descriptor.step(step.state, { kind: "cancel" }, context);
+  assert.ok(
+    step.result?.kind === "message" && step.result.text.includes("cancelado"),
+    "3DFACE se cancela limpiamente",
+  );
+}
+
+// --- 3DFACE: puntos colineales se rechazan -------------------------------------
+{
+  const doc = emptyDocument();
+  const result = drive("3DFACE", [point(0, 0), point(50, 0), point(100, 0), enter], doc);
+  assert.ok(
+    result?.kind === "message" && result.text.includes("colineales"),
+    `3DFACE rechaza colineales: ${result?.kind === "message" ? result.text : ""}`,
+  );
+}
+
 console.log(
-  "✅ meshes.spec: MESH (10) + CONVTOMESH (7) + CONVTOSOLID (7) — 24 comprobaciones",
+  "✅ meshes.spec: MESH (10) + CONVTOMESH (7) + CONVTOSOLID (7) + 3DFACE (8) — 32 comprobaciones",
 );

@@ -1,5 +1,5 @@
 /**
- * METADATOS de los 319 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 320 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
  * 119 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
@@ -174,6 +174,7 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "MESH", aliases: ["MALLA"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, spatial: true, cursor: "crosshair", module: "commands/meshes" },
   { name: "CONVTOMESH", aliases: ["CVTMESH", "CONVERTIRAMALLA"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/meshes" },
   { name: "CONVTOSOLID", aliases: ["CVTSOLID", "CONVERTIRASOLIDO"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/meshes" },
+  { name: "3DFACE", aliases: ["CARA3D"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, spatial: true, cursor: "crosshair", module: "commands/meshes" },
   { name: "ALIGN", aliases: ["AL"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-align" },
   { name: "MATCHPROP", aliases: ["MA"], kind: "modify", transparent: false, selection: "command-first", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-align" },
   { name: "ARRAY", aliases: ["AR", "ARR"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-array" },

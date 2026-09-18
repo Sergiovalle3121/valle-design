@@ -37,6 +37,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   "-UCSMAN": "SCU (línea)",
 
 
+  "3DFACE": "Cara 3D",
   "3DFLY": "Volar 3D",
   "3DFORBIT": "Órbita libre",
   "3DMOVE": "Mover 3D",

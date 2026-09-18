@@ -323,8 +323,106 @@ const convtosolidCommand: CadCommandDescriptor<CvtMeshState | null> = {
   },
 };
 
+// --- 3DFACE: cara 3D definida por 3 o 4 puntos ---
+
+type Face3dState =
+  | { step: "p1" }
+  | { step: "p2"; p1: { x: number; y: number; z: number } }
+  | { step: "p3"; p1: { x: number; y: number; z: number }; p2: { x: number; y: number; z: number } }
+  | { step: "p4"; pts: { x: number; y: number; z: number }[] };
+
+const FACE3D_THICKNESS = 0.001;
+
+const face3dCommand: CadCommandDescriptor<Face3dState> = {
+  name: "3DFACE",
+  aliases: ["CARA3D"],
+  kind: "draw",
+  transparent: false,
+  selection: "none",
+  repeatable: true,
+  mutates: true,
+  spatial: true,
+  cursor: "crosshair",
+  begin: () => ({
+    state: { step: "p1" } as Face3dState,
+    prompt: { message: "Primer punto", options: [] },
+    accepts: CAD_ACCEPT_POINT,
+  }),
+  step: (state, input, context): CadCommandStep<Face3dState> => {
+    if (input.kind === "cancel") return solidMessage(state, "3DFACE cancelado.");
+
+    const p2d = (p: { x: number; y: number; z?: number }) =>
+      ({ x: p.x, y: p.y, z: ("z" in p && typeof p.z === "number") ? p.z : 0 });
+
+    if (state.step === "p1") {
+      if (input.kind !== "point") return solidMessage(state, "3DFACE: indique el primer punto.");
+      return { state: { step: "p2", p1: p2d(input.point) }, prompt: { message: "Segundo punto", options: [] }, accepts: CAD_ACCEPT_POINT };
+    }
+
+    if (state.step === "p2") {
+      if (input.kind !== "point") return solidMessage(state, "3DFACE: indique el segundo punto.");
+      return { state: { step: "p3", p1: state.p1, p2: p2d(input.point) }, prompt: { message: "Tercer punto", options: [] }, accepts: CAD_ACCEPT_POINT };
+    }
+
+    if (state.step === "p3") {
+      if (input.kind !== "point") return solidMessage(state, "3DFACE: indique el tercer punto.");
+      const pts = [state.p1, state.p2, p2d(input.point)];
+      return {
+        state: { step: "p4", pts },
+        prompt: { message: "Cuarto punto (Intro para triangulo)", options: [] },
+        accepts: CAD_ACCEPT_POINT,
+      };
+    }
+
+    // step === "p4"
+    let pts = state.pts;
+    if (input.kind === "point") {
+      pts = [...pts, p2d(input.point)];
+    } else if (input.kind !== "enter") {
+      return solidMessage(state, "3DFACE: indique el cuarto punto o pulse Intro.");
+    }
+
+    if (pts.length < 3) return solidMessage(state, "3DFACE: se necesitan al menos 3 puntos.");
+
+    const normal = (() => {
+      const a = { x: pts[1].x - pts[0].x, y: pts[1].y - pts[0].y, z: pts[1].z - pts[0].z };
+      const b = { x: pts[2].x - pts[0].x, y: pts[2].y - pts[0].y, z: pts[2].z - pts[0].z };
+      return {
+        x: a.y * b.z - a.z * b.y,
+        y: a.z * b.x - a.x * b.z,
+        z: a.x * b.y - a.y * b.x,
+      };
+    })();
+    const len = Math.hypot(normal.x, normal.y, normal.z);
+    if (len < 1e-9)
+      return solidMessage(state, "3DFACE: los puntos son colineales.");
+
+    const solid = makeSolidEntity(
+      context.newEntityId(),
+      [
+        {
+          id: "perfil",
+          op: "extrude",
+          profile: { outer: pts.map((p) => ({ x: p.x, y: p.y })) },
+          height: FACE3D_THICKNESS,
+          frame: { origin: pts[0], zAxis: { x: normal.x / len, y: normal.y / len, z: normal.z / len } },
+        },
+      ],
+      "perfil",
+      context.activeLayer,
+    );
+
+    return finishedSolid(solid, {
+      state: undefined as unknown as Face3dState,
+      label: "3DFACE",
+      notice: `Cara 3D creada (${pts.length} puntos).`,
+    });
+  },
+};
+
 export const CAD_MESH_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(meshCommand),
   asCadCommand(convtomeshCommand),
   asCadCommand(convtosolidCommand),
+  asCadCommand(face3dCommand),
 ];
