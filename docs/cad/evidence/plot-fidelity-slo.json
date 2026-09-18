@@ -367,41 +367,6 @@
       },
       "consequence": "La hoja del PDF sí cambia de tamaño, pero el dibujo sigue colocado para el papel anterior y parte de la geometría cae fuera del área imprimible: se dibuja y no se imprime. La ESCALA no se resiente —el defecto es de colocación—, lo que acota el arreglo al espacio papel.",
       "status": "medido y cerrado por spec en el valor actual; no arreglado en esta ola"
-    },
-    {
-      "id": "text-height-clamped",
-      "severity": "media",
-      "title": "La altura de todo rótulo se recorta al intervalo [1,5 – 12] mm de papel",
-      "detail": "El plan de publicación limita la altura impresa de cualquier texto. A escalas grandes un rótulo que el dibujo pide de 15 mm sale de 12, y a escalas pequeñas uno de 1 mm sale de 1,5.",
-      "measured": {
-        "a1-1-50": {
-          "pedidoMm": 2.5,
-          "impresoMm": 2.5,
-          "recortado": false
-        },
-        "a3-1-100": {
-          "pedidoMm": 2.5,
-          "impresoMm": 2.5,
-          "recortado": false
-        },
-        "a4-1-20": {
-          "pedidoMm": 2.5,
-          "impresoMm": 2.5,
-          "recortado": false
-        },
-        "a2-1-50-metros": {
-          "pedidoMm": 2.5,
-          "impresoMm": 2.5,
-          "recortado": false
-        },
-        "a0-1-25": {
-          "pedidoMm": 2.5,
-          "impresoMm": 2.5,
-          "recortado": false
-        }
-      },
-      "consequence": "El texto anotativo no conserva su tamaño relativo en todo el rango de escalas. Es visible en planos de detalle (1:20 y mayores) y en planos de conjunto (1:200 y menores).",
-      "status": "medido y declarado; el recorte es intencional en el plan de publicación"
     }
   ],
   "fontBehaviour": {

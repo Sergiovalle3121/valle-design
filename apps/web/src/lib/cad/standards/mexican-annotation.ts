@@ -243,6 +243,7 @@ export function cadMexicanDimensionStyle(
   return {
     textStyle: CAD_MEXICAN_TEXT_STYLES.rotulo,
     arrowSize: cadAnnotativeModelHeight(CAD_MEXICAN_TICK_MM, scale.denominator, unit),
+    textHeight: cadAnnotativeModelHeight(CAD_MEXICAN_TEXT_MM.rotulo, scale.denominator, unit),
     precision: rule.precision,
     units: rule.unit,
     arrowhead: "architectural-tick",
