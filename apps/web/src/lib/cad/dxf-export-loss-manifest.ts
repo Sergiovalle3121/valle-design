@@ -248,6 +248,27 @@ const SCHEMA4_LOSS_RULES: Record<string, Schema4LossRule> = {
         "enmascaramientos con marco y sin él: en el fichero todos saldrán con marco.",
     };
   },
+  solid3d: (entity) => {
+    if (entity.type !== "solid3d") return null;
+    return {
+      code: "dxf_export_solid3d_as_face_contours",
+      severity: "warning",
+      detail:
+        "SOLID3D — viaja la proyección 2D de los contornos de cara, no el sólido: (a) se pierde la cota Z " +
+        "y la topología; (b) no hay eliminación de aristas ocultas — salen también las caras traseras y las " +
+        "perpendiculares al plano aparecen como contornos de área cero. Para un alzado real usa FLATSHOT o SOLPROF.",
+    };
+  },
+  region: (entity) => {
+    if (entity.type !== "region") return null;
+    return {
+      code: "dxf_export_region_as_contours",
+      severity: "warning",
+      detail:
+        "REGION — los contornos exterior e interior viajan como polilíneas cerradas independientes: ningún lector " +
+        "de DXF podrá distinguir un agujero de otro contorno. La cota Z y la topología se pierden.",
+    };
+  },
 };
 
 /** ¿Alguna coordenada de la entidad vive fuera del plano Z=0? */

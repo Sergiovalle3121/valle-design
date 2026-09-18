@@ -24,6 +24,7 @@ import type { CadNativeEntity } from "./entity-runtime";
 // Traducción entidad→primitiva y AUDITORÍA de pérdidas viven en sus propios
 // módulos: este archivo sólo ENSAMBLA el modelo de exportación (techo 961).
 import { cadEntityToDxfPrimitive, cadOpeningToDxfPrimitives, cadWallToDxfPrimitives } from "./dxf-entity-primitives";
+import { cadSolid3dToDxfPrimitives, cadRegionToDxfPrimitives } from "./dxf-solid3d-primitives"; // C08: sólidos 3D y regiones en DXF
 import { cadDxfTextPrimitiveToEntity } from "./dxf-text-entities";
 import { blockEntityToDxfPrimitive } from "./dxf-block-primitive";
 import { clampedKnots } from "./dxf-nurbs-knots";
@@ -50,7 +51,6 @@ import {
 import { cadHatchPatternBaseAngle } from "./hatch-pattern-table";
 
 export type { CadDxfProjection };
-
 export interface CadDxfNativeImportOptions {
   idPrefix?: string;
   projection?: CadDxfProjection;
@@ -468,7 +468,7 @@ export function cadDocumentNativeDxfPrimitives(
 ): CadDxfPrimitive[] {
   return document.entities
     .filter((entity) => (filter ? filter(entity) : true))
-    .flatMap((entity) => (entity.type === "opening" ? cadOpeningToDxfPrimitives(entity, document) : entity.type === "wall" ? cadWallToDxfPrimitives(entity, document) : [cadEntityToDxfPrimitive(entity, document)]))
+    .flatMap((entity) => (entity.type === "opening" ? cadOpeningToDxfPrimitives(entity, document) : entity.type === "wall" ? cadWallToDxfPrimitives(entity, document) : entity.type === "solid3d" ? cadSolid3dToDxfPrimitives(entity) : entity.type === "region" ? cadRegionToDxfPrimitives(entity) : [cadEntityToDxfPrimitive(entity, document)]))
     .filter((primitive): primitive is CadDxfPrimitive => primitive !== null);
 }
 
