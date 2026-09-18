@@ -64,8 +64,13 @@ function asDimension(entity: CadEntity | undefined): CadDimensionEntity | null {
   return entity?.type === "dimension" ? entity : null;
 }
 
-/** Separación entre eslabones de una cadena de línea base. */
-function baselineStep(base: CadDimensionEntity): number {
+/** Separación entre eslabones de una cadena de línea base (T14: DIMDLI). */
+function baselineStep(base: CadDimensionEntity, context: CadCommandContext): number {
+  const styleName = base.style;
+  if (styleName && context.document) {
+    const dimStyle = context.document().styles.dimension[styleName];
+    if (dimStyle?.baselineSpacing) return dimStyle.baselineSpacing;
+  }
   return (base.arrowSize ?? DEFAULT_ARROW_SIZE) * 2;
 }
 
@@ -127,7 +132,7 @@ function chainLink(
   const baseOffset = base.offset ?? 0;
   const direction = baseOffset >= 0 ? 1 : -1;
   const offset = state.baseline
-    ? baseOffset + direction * baselineStep(base) * links
+    ? baseOffset + direction * baselineStep(base, context) * links
     : baseOffset;
 
   let entity: CadNativeEntity;
