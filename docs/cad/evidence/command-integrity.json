@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/cad/check-command-integrity.mjs --write",
-  "total": 319,
+  "total": 320,
   "verdicts": {
-    "muta": 111,
+    "muta": 112,
     "delegado": 52,
     "informa": 24,
     "honesto-limitado": 123,
@@ -11,7 +11,7 @@
   },
   "pasadas": {
     "plano2d": {
-      "muta": 85,
+      "muta": 86,
       "delegado": 49,
       "informa": 30,
       "honesto-limitado": 146,
@@ -19,7 +19,7 @@
       "ROJO": 0
     },
     "solidos3d": {
-      "muta": 97,
+      "muta": 98,
       "delegado": 52,
       "informa": 43,
       "honesto-limitado": 118,
