@@ -318,6 +318,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   SURFOFFSET: "Vaciar sólido",
   SURFTRIM: "Recortar sup",
   SURFUNTRIM: "Restaurar sup",
+  SURFSCULPT: "Esculpir sup",
   SWEEP: "Barrido",
   TABLE: "Tabla",
   TABLEDIT: "Editar celda",

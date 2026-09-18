@@ -560,6 +560,7 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   SURFOFFSET: Layers2,
   SURFTRIM: Crop,
   SURFUNTRIM: Fullscreen,
+  SURFSCULPT: Box,
   // Mallas.
   MESH: Boxes,
   CONVTOMESH: FlipHorizontal2,

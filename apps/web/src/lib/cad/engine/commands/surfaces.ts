@@ -515,6 +515,114 @@ const surftrimCommand: CadCommandDescriptor<SurftrimState> = {
   },
 };
 
+// --- SURFSCULPT: esculpir una superficie en un sólido con volumen -------------
+
+type SurfsculptState = { selection: readonly string[]; askingHeight: boolean };
+
+const surfsculptCommand: CadCommandDescriptor<SurfsculptState | null> = {
+  name: "SURFSCULPT",
+  aliases: ["SSCULPT", "ESCULPIRSUPERF"],
+  kind: "modify",
+  transparent: false,
+  selection: "optional",
+  repeatable: true,
+  mutates: true,
+  cursor: "crosshair",
+  begin: (context) => ({
+    state:
+      context.selection.length > 0
+        ? { selection: context.selection, askingHeight: false }
+        : null,
+    prompt: {
+      message:
+        context.selection.length > 0
+          ? "Escriba la altura del sólido o pulse Intro para el valor por defecto"
+          : "Designe la superficie a esculpir en sólido",
+      options: [],
+    },
+    accepts:
+      context.selection.length > 0
+        ? CAD_ACCEPT_TEXT | CAD_ACCEPT_DISTANCE
+        : CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
+  }),
+  step: (state, input, context) => {
+    if (input.kind === "cancel")
+      return solidMessage(state, "SURFSCULPT cancelado.");
+    if (input.kind === "selection")
+      return {
+        state: { selection: input.entityIds, askingHeight: false },
+        prompt: {
+          message: `${input.entityIds.length} entidad(es). Escriba la altura o pulse Intro`,
+          options: [],
+        },
+        accepts: CAD_ACCEPT_TEXT | CAD_ACCEPT_DISTANCE,
+      };
+    if (input.kind === "entityPick") {
+      const prev = state?.selection ?? [];
+      return {
+        state: { selection: [...prev, input.entityId], askingHeight: false },
+        prompt: {
+          message: `${prev.length + 1} entidad(es). Escriba la altura o pulse Intro`,
+          options: [],
+        },
+        accepts: CAD_ACCEPT_TEXT | CAD_ACCEPT_DISTANCE,
+      };
+    }
+    if (state && state.askingHeight && input.kind === "text") {
+      const h = Number(input.value);
+      if (!Number.isFinite(h) || h <= 0)
+        return { state, prompt: { message: "Altura no válida. Escriba un número positivo", options: [] }, accepts: CAD_ACCEPT_TEXT };
+      return doSculpt(state!, h, context);
+    }
+    if (input.kind === "distance") return state ? doSculpt(state, input.value, context) : solidMessage(state, "SURFSCULPT necesita al menos un solido 3D.");
+    if (input.kind === "enter") {
+      if (!state) return solidMessage(state, "SURFSCULPT necesita al menos un solido 3D.");
+      if (state.selection.length === 0)
+        return { state: null, prompt: { message: "Designe la superficie a esculpir", options: [] }, accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK };
+      return doSculpt(state, SURFACE_THICKNESS * 100, context);
+    }
+    return {
+      state,
+      prompt: { message: "Escriba la altura del sólido o pulse Intro", options: [] },
+      accepts: CAD_ACCEPT_TEXT | CAD_ACCEPT_DISTANCE,
+    };
+  },
+};
+
+function doSculpt(state: SurfsculptState, height: number, context: Parameters<CadCommandDescriptor["step"]>[2]) {
+  const ids = state.selection;
+  if (ids.length === 0) return solidMessage(state, "SURFSCULPT necesita al menos un solido 3D.");
+  const entities = selectedEntities(context, ids);
+  if (entities.length === 0) return solidMessage(state, "SURFSCULPT: no se encontraron las entidades.");
+  const entity = entities[0];
+  if (entity.type !== "solid3d") return solidMessage(state, "SURFSCULPT solo acepta solidos 3D.");
+  const solid = entity as CadSolid3dEntity;
+  const body = solid3dBody(solid);
+  if (body.faces.length === 0) return solidMessage(state, "SURFSCULPT: el solido no tiene caras.");
+  const bb = bodyBounds(body);
+  const profile: CadSolidProfile = {
+    outer: [
+      { x: bb.min.x, y: bb.min.y },
+      { x: bb.max.x, y: bb.min.y },
+      { x: bb.max.x, y: bb.max.y },
+      { x: bb.min.x, y: bb.max.y },
+    ],
+  };
+  const id = context.newEntityId();
+  const sculpted = makeSolidEntity(
+    id,
+    [{ id: "escultura", op: "extrude", profile, height }],
+    "escultura",
+    context.activeLayer,
+  );
+  return finishedSolid(sculpted, {
+    state: undefined as never,
+    label: "SURFSCULPT",
+    before: [{ type: "delete", entityId: solid.id }],
+    notice: `Solido esculpido (${(bb.max.x - bb.min.x).toFixed(1)} × ${(bb.max.y - bb.min.y).toFixed(1)} × ${height.toFixed(1)} mm).`,
+  });
+}
+
 // --- SURFUNTRIM: restaurar la superficie completa a partir de su contorno ----
 
 type SurfuntrimState = { selection: readonly string[] };
@@ -631,5 +739,6 @@ export const CAD_SURFACE_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(convtosurfaceCommand),
   asCadCommand(surfoffsetCommand),
   asCadCommand(surftrimCommand),
+  asCadCommand(surfsculptCommand),
   asCadCommand(surfuntrimCommand),
 ];

@@ -1,10 +1,11 @@
 /**
- * Familia Superficies: PLANESURF, CONVTOSURFACE, SURFOFFSET, SURFTRIM, SURFUNTRIM.
+ * Familia Superficies: PLANESURF, CONVTOSURFACE, SURFOFFSET, SURFTRIM, SURFSCULPT, SURFUNTRIM.
  *
  * PLANESURF y CONVTOSURFACE se prueban aquí contra el motor real.
  * SURFOFFSET vacía un sólido convexo con pared de espesor uniforme: el spec
  * comprueba que produce un cuerpo con más caras, menos volumen y dos cáscaras.
  * SURFTRIM recorta una superficie restando otro sólido 3D.
+ * SURFSCULPT esculpe una superficie en un sólido con volumen.
  * SURFUNTRIM restaura la superficie completa a partir de su contorno.
  */
 import { strict as assert } from "node:assert";
@@ -104,7 +105,7 @@ assert.ok(solidId, "Hay un solido 3D en el documento");
 
 // --- Registro: los tres comandos existen -------------------------------------
 {
-  const names = ["PLANESURF", "CONVTOSURFACE", "SURFOFFSET", "SURFTRIM", "SURFUNTRIM"];
+  const names = ["PLANESURF", "CONVTOSURFACE", "SURFOFFSET", "SURFTRIM", "SURFSCULPT", "SURFUNTRIM"];
   for (const name of names) {
     assert.ok(CAD_COMMAND_REGISTRY_V2.get(name), `${name} está en el registro`);
   }
@@ -321,6 +322,36 @@ assert.ok(solidId, "Hay un solido 3D en el documento");
   assert.ok(restoredVolume > 0, `SURFUNTRIM tiene volumen positivo: ${restoredVolume.toFixed(1)}`);
 }
 
+// --- SURFSCULPT: esculpir superficie en sólido con volumen ------------------
+{
+  const descriptor = CAD_COMMAND_REGISTRY_V2.get("SURFSCULPT")!;
+  const context = makeContext(doc, [solidId!]);
+  let step = descriptor.begin(context);
+  step = descriptor.step(step.state, enter, context);
+  assert.ok(step.result?.kind === "document", "SURFSCULPT produce documento");
+  assert.ok(step.result.commands.length > 0, "SURFSCULPT genera comandos");
+
+  const afterDoc = executeCadEntityCommandBatch(doc, step.result.commands, step.result.label).document;
+  const sculptedEntities = afterDoc.entities.filter((e) => e.type === "solid3d" && e.id !== solidId);
+  assert.ok(sculptedEntities.length >= 1, "SURFSCULPT añade un solido nuevo");
+
+  const sculptedBody = solid3dBody(sculptedEntities[sculptedEntities.length - 1] as never);
+  assert.ok(sculptedBody.faces.length > 0, "SURFSCULPT esculpido tiene caras");
+
+  const sculptedVolume = solid3dMassProperties(sculptedEntities[sculptedEntities.length - 1] as never).volume;
+  assert.ok(sculptedVolume > 0, `SURFSCULPT tiene volumen positivo: ${sculptedVolume.toFixed(1)}`);
+}
+
+// --- SURFSCULPT: cancelación ------------------------------------------------
+{
+  const descriptor = CAD_COMMAND_REGISTRY_V2.get("SURFSCULPT")!;
+  const context = makeContext(doc, [solidId!]);
+  let step = descriptor.begin(context);
+  step = descriptor.step(step.state, { kind: "cancel" }, context);
+  assert.ok(step.result?.kind === "message", "SURFSCULPT cancelado devuelve mensaje");
+  assert.ok(step.result.text.includes("cancelado"), "SURFSCULPT se cancela limpiamente");
+}
+
 console.log(
-  "✅ surfaces.spec: PLANESURF (registro), CONVTOSURFACE, SURFOFFSET (vaciado, cancelación, cóncavo), SURFTRIM (recorte, cancelación), SURFUNTRIM (restaurar) — 16 comprobaciones",
+  "✅ surfaces.spec: PLANESURF (registro), CONVTOSURFACE, SURFOFFSET (vaciado, cancelación, cóncavo), SURFTRIM (recorte, cancelación), SURFSCULPT (esculpir, cancelación), SURFUNTRIM (restaurar) — 18 comprobaciones",
 );
