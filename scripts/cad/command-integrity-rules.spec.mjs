@@ -22,6 +22,7 @@ import {
   entidadesTocadas,
   limiteDesmentido,
   sinGeometria,
+  soloBanderasDeMetadatos,
   validarExencion,
 } from "./command-integrity-rules.mjs";
 
@@ -251,6 +252,95 @@ eq(
   veredicto(tras([textoBueno], [{ ...textoBueno, x: 10, y: 10, rotation: 0 }])),
   "muta",
   "R2: mover el texto de verdad sigue mutando",
+);
+
+// ─── R6: una bandera de metadatos no es la geometría prometida ──────────────
+//
+// Trampa: REGION ascendía a «muta» SIN producir geometría. Conducido sobre la
+// probeta ANTES de que ésta tuviera un contorno cerrado de aristas sueltas,
+// `planCadRegions` devolvía created=0, tagged=2 y su lote entero eran dos
+// banderas `{region: true}` sobre `p1` y `c1`, que ya eran contornos cerrados;
+// los ocho intentos de crear región se rechazaban. El documento cambiaba —la
+// serialización incluye el `context`— y un comando de kind `draw` cobraba
+// «muta» sin dibujar. Si se borrara entera la rama que CREA regiones, el gate
+// seguiría diciendo «muta»: esa rama no aporta ni un comando al lote.
+
+const LOTE_DE_REGION = [
+  { type: "metadata", entityId: "p1", patch: { region: true } },
+  { type: "metadata", entityId: "c1", patch: { region: true } },
+];
+// Gemelo legítimo: el lote REAL de GROUP. Es metadatos y nada más, y eso es
+// exactamente lo que GROUP hace — la pertenencia la consume después
+// `cadExpandSelectionByGroup`. Su kind es `manage`: la contabilidad del
+// documento ES su contrato, y R6 no le pide geometría.
+const LOTE_DE_GROUP = [
+  { type: "metadata", entityId: "l1", patch: { "cad:groups": "PROBE2" } },
+  { type: "metadata", entityId: "l2", patch: { "cad:groups": "PROBE2" } },
+];
+const PREVIOS = new Set(["l1", "l2", "p1", "c1"]);
+
+eq(
+  soloBanderasDeMetadatos(LOTE_DE_REGION, PREVIOS),
+  "el lote entero son banderas de metadatos (region) sobre entidades preexistentes",
+  "R6: el lote de REGION se ve por lo que es",
+);
+eq(
+  soloBanderasDeMetadatos([...LOTE_DE_REGION, { type: "add", entityId: "probe1" }], PREVIOS),
+  null,
+  "R6: en cuanto el lote añade algo, ya no son sólo banderas",
+);
+eq(
+  soloBanderasDeMetadatos([{ type: "metadata", entityId: "probe1", patch: { region: true } }], PREVIOS),
+  null,
+  "R6: marcar lo que el propio lote acaba de crear viene con su geometría",
+);
+eq(soloBanderasDeMetadatos([], PREVIOS), null, "R6: sin lote no hay nada que juzgar");
+
+const conLote = (lote, kind) => ({
+  ...sinEfecto([]),
+  applied: 1,
+  changed: true,
+  kind,
+  soloMetadatos: soloBanderasDeMetadatos(lote, PREVIOS),
+});
+eq(
+  veredicto({ ...conLote(LOTE_DE_REGION, "draw"), messages: [] }),
+  "ROJO",
+  "R6: un `draw` que sólo marca banderas y calla no muta",
+);
+eq(
+  veredicto({
+    ...conLote(LOTE_DE_REGION, "draw"),
+    messages: [{ text: "REGION: ninguna región nueva. Un TEXT no aporta un borde.", level: "info" }],
+  }),
+  "honesto-limitado",
+  "R6: se queda con la clase que su mensaje le gane, que es PEOR que muta",
+);
+eq(
+  clasificar({ ...conLote(LOTE_DE_REGION, "draw"), messages: [] }).note.startsWith(
+    "el lote entero son banderas de metadatos (region) sobre entidades preexistentes, así que el lote no cuenta como geometría;",
+  ),
+  true,
+  "R6: el motivo no se pierde por el camino",
+);
+eq(veredicto(conLote(LOTE_DE_GROUP, "manage")), "muta", "R6: GROUP y su `cad:groups` siguen mutando");
+eq(veredicto(conLote(LOTE_DE_GROUP, "view")), "muta", "R6: `view` tampoco promete geometría");
+eq(
+  veredicto(conLote(LOTE_DE_GROUP, "inquiry")),
+  "muta",
+  "R6: `inquiry` tampoco — R6 sólo mira a draw, modify y annotate",
+);
+for (const kind of ["draw", "modify", "annotate"]) {
+  eq(
+    veredicto({ ...conLote(LOTE_DE_GROUP, kind), messages: [] }),
+    "ROJO",
+    `R6: ningún ${kind} dibuja con una bandera, ni con una que sí se consuma`,
+  );
+}
+eq(
+  veredicto({ ...conLote([{ type: "replace", entityId: "l1" }], "draw"), messages: [] }),
+  "muta",
+  "R6: gemelo legítimo — un lote que sustituye geometría sigue mutando",
 );
 
 // ─── R3: un mensaje no puede ser a la vez éxito y límite ────────────────────
@@ -668,6 +758,8 @@ eq(
     volumen: PROBETA_INVARIANTES.volumenPorSolido,
     area: PROBETA_INVARIANTES.areaPorSolido,
     region: PROBETA_INVARIANTES.region,
+    aristasDelContorno: PROBETA_INVARIANTES.aristasDelContorno,
+    areaDelContorno: PROBETA_INVARIANTES.areaDelContorno,
     lamina: PROBETA_INVARIANTES.lamina,
     viewports: PROBETA_INVARIANTES.viewports,
     vistasDerivadas: PROBETA_INVARIANTES.vistasDerivadas,

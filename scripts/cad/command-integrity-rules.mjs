@@ -322,6 +322,51 @@ export function sinGeometria(entity, evaluadores) {
   return null;
 }
 
+// ─── R6: una bandera de metadatos no es la geometría que se prometió ────────
+
+/**
+ * R6 — los `kind` cuyo PRODUCTO es geometría.
+ *
+ * `manage`, `view` e `inquiry` quedan fuera a propósito: la contabilidad del
+ * documento ES su contrato. GROUP escribe `cad:groups` y nada más, y eso es
+ * exactamente lo que GROUP hace —la pertenencia la consume después
+ * `cadExpandSelectionByGroup`—; exigirle geometría sería pedirle que dibuje.
+ */
+export const KINDS_DE_GEOMETRIA = ["draw", "modify", "annotate"];
+
+/**
+ * R6 — ¿el cambio del lote son SÓLO banderas de metadatos sobre entidades que
+ * ya existían?
+ *
+ * El agujero que cierra: REGION ascendía a «muta» SIN producir geometría. Con
+ * la probeta delante, `planCadRegions` devolvía `created: 0`, `tagged: 2` y un
+ * lote de dos comandos `metadata` (`{region: true}` sobre `p1` y `c1`, que ya
+ * eran contornos cerrados); los ocho intentos de crear región se rechazaban. El
+ * documento cambiaba —la serialización incluye el `context`— y con eso un
+ * comando de kind `draw` cobraba «muta» sin dibujar nada. Peor: si se borrara
+ * entera la rama que CREA regiones, el gate seguiría diciendo «muta», porque
+ * esa rama no aporta ni un comando al lote.
+ *
+ * `metadata` es la única puerta por la que un lote cambia el documento sin
+ * tocar una coordenada, así que es la única que hay que cerrar. Se exige además
+ * que las entidades sean PREEXISTENTES: marcar algo que el propio lote acaba de
+ * crear ya viene con su `add`, y ahí la geometría está.
+ *
+ * @param {readonly {type: string, entityId?: string, patch?: Record<string, unknown>}[]} comandos
+ * @param {ReadonlySet<string>} idsPrevios  ids que ya estaban antes del lote
+ * @returns {string | null} el motivo, o null si el lote aporta algo más
+ */
+export function soloBanderasDeMetadatos(comandos, idsPrevios) {
+  if (comandos.length === 0) return null;
+  const claves = new Set();
+  for (const comando of comandos) {
+    if (comando.type !== "metadata") return null;
+    if (comando.entityId !== undefined && !idsPrevios.has(comando.entityId)) return null;
+    for (const clave of Object.keys(comando.patch ?? {})) claves.add(clave);
+  }
+  return `el lote entero son banderas de metadatos (${[...claves].sort().join(", ")}) sobre entidades preexistentes`;
+}
+
 /**
  * @typedef {"muta" | "delegado" | "informa" | "honesto-limitado" | "no-concluyente" | "ROJO"} Veredicto
  */
@@ -341,9 +386,26 @@ export function sinGeometria(entity, evaluadores) {
  * @param {boolean} o.mutates       el descriptor promete mutar
  * @param {{id: string, motivo: string}[]} [o.vacias]  R2: entidades tocadas sin geometría
  * @param {{solidos?: number, lamina?: boolean}} [o.dotacion]  R5: lo que la pasada le puso delante
+ * @param {string} [o.kind]         R6: el contrato que el descriptor declara
+ * @param {string | null} [o.soloMetadatos]  R6: el lote entero son banderas de metadatos
  * @returns {{verdict: Veredicto, note?: string}}
  */
 export function clasificar(o) {
+  const resultado = decidir(o);
+  // El motivo de R6 no puede perderse por el camino: si el lote no contó, el
+  // veredicto que sale es el del mensaje y hay que decir por qué.
+  if (o.soloMetadatos && KINDS_DE_GEOMETRIA.includes(o.kind ?? "")) {
+    return {
+      ...resultado,
+      note: `${o.soloMetadatos}, así que el lote no cuenta como geometría` +
+        (resultado.note ? `; ${resultado.note}` : ""),
+    };
+  }
+  return resultado;
+}
+
+/** El árbol propiamente dicho. */
+function decidir(o) {
   const {
     steps,
     maxSteps,
@@ -356,6 +418,8 @@ export function clasificar(o) {
     mutates,
     vacias = [],
     dotacion = {},
+    kind = "",
+    soloMetadatos = null,
   } = o;
   const honest = messages.some((entry) => HONESTY.test(entry.text));
   const afirmacion = messages
@@ -366,7 +430,16 @@ export function clasificar(o) {
   if (steps >= maxSteps) {
     return { verdict: "no-concluyente", note: "el auto-respondedor no lo llevó a término" };
   }
-  if (applied > 0 && changed) {
+  // R6. Un lote cuyo cambio son SÓLO banderas de metadatos sobre entidades
+  // preexistentes no es la geometría que un comando de kind draw/modify/annotate
+  // prometió: no concede «muta» y el árbol sigue, para que el comando se quede
+  // con la clase que su mensaje le gane (informa, honesto-limitado o el ROJO de
+  // una afirmación vacía). No se aplica a manage/view/inquiry: ahí la
+  // contabilidad del documento ES el contrato (GROUP y su `cad:groups`).
+  const geometriaPrometidaConBanderas =
+    soloMetadatos !== null && KINDS_DE_GEOMETRIA.includes(kind);
+
+  if (applied > 0 && changed && !geometriaPrometidaConBanderas) {
     // R2. Basta con UNA entidad tocada sin geometría: si no, una línea de
     // relleno junto al cascarón vacío bastaría para esconderlo.
     if (vacias.length > 0) {
