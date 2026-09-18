@@ -386,22 +386,36 @@ export function soloBanderasDeMetadatos(comandos, idsPrevios) {
  * @param {boolean} o.mutates       el descriptor promete mutar
  * @param {{id: string, motivo: string}[]} [o.vacias]  R2: entidades tocadas sin geometría
  * @param {{solidos?: number, lamina?: boolean}} [o.dotacion]  R5: lo que la pasada le puso delante
- * @param {string} [o.kind]         R6: el contrato que el descriptor declara
+ * @param {string} [o.kind]         R6/R7: el contrato que el descriptor declara
  * @param {string | null} [o.soloMetadatos]  R6: el lote entero son banderas de metadatos
+ * @param {string | null} [o.sinCambioGeometrico]  R7: reescribió geometría y la dejó igual
  * @returns {{verdict: Veredicto, note?: string}}
  */
 export function clasificar(o) {
   const resultado = decidir(o);
-  // El motivo de R6 no puede perderse por el camino: si el lote no contó, el
-  // veredicto que sale es el del mensaje y hay que decir por qué.
-  if (o.soloMetadatos && KINDS_DE_GEOMETRIA.includes(o.kind ?? "")) {
+  // El motivo de R6 y de R7 no puede perderse por el camino: si el lote no
+  // contó, el veredicto que sale es el del mensaje y hay que decir por qué.
+  const motivo = loteQueNoEsGeometria(o);
+  if (motivo) {
     return {
       ...resultado,
-      note: `${o.soloMetadatos}, así que el lote no cuenta como geometría` +
+      note: `${motivo}, así que el lote no cuenta como geometría` +
         (resultado.note ? `; ${resultado.note}` : ""),
     };
   }
   return resultado;
+}
+
+/**
+ * R6 y R7 — el motivo por el que el lote de un comando de kind
+ * draw/modify/annotate no vale como la geometría que prometió, o null. R6
+ * (`soloBanderasDeMetadatos`) mira el lote que son todo banderas; R7
+ * (`geometriaReescritaSinCambio`, en `command-integrity-geometria.mjs`) el que
+ * reescribe entidades dejándoles la misma geometría evaluada.
+ */
+function loteQueNoEsGeometria({ kind = "", soloMetadatos = null, sinCambioGeometrico = null }) {
+  if (!KINDS_DE_GEOMETRIA.includes(kind)) return null;
+  return soloMetadatos ?? sinCambioGeometrico ?? null;
 }
 
 /** El árbol propiamente dicho. */
@@ -418,8 +432,6 @@ function decidir(o) {
     mutates,
     vacias = [],
     dotacion = {},
-    kind = "",
-    soloMetadatos = null,
   } = o;
   const honest = messages.some((entry) => HONESTY.test(entry.text));
   const afirmacion = messages
@@ -430,16 +442,17 @@ function decidir(o) {
   if (steps >= maxSteps) {
     return { verdict: "no-concluyente", note: "el auto-respondedor no lo llevó a término" };
   }
-  // R6. Un lote cuyo cambio son SÓLO banderas de metadatos sobre entidades
-  // preexistentes no es la geometría que un comando de kind draw/modify/annotate
-  // prometió: no concede «muta» y el árbol sigue, para que el comando se quede
-  // con la clase que su mensaje le gane (informa, honesto-limitado o el ROJO de
-  // una afirmación vacía). No se aplica a manage/view/inquiry: ahí la
-  // contabilidad del documento ES el contrato (GROUP y su `cad:groups`).
-  const geometriaPrometidaConBanderas =
-    soloMetadatos !== null && KINDS_DE_GEOMETRIA.includes(kind);
+  // R6 y R7. Un lote cuyo cambio son SÓLO banderas de metadatos sobre entidades
+  // preexistentes (R6), o que reescribe entidades dejándoles la MISMA geometría
+  // evaluada (R7), no es la geometría que un comando de kind
+  // draw/modify/annotate prometió: no concede «muta» y el árbol sigue, para que
+  // el comando se quede con la clase que su mensaje le gane (informa,
+  // honesto-limitado o el ROJO de una afirmación vacía). No se aplica a
+  // manage/view/inquiry: ahí la contabilidad del documento ES el contrato
+  // (GROUP y su `cad:groups`).
+  const geometriaPrometidaSinGeometria = loteQueNoEsGeometria(o) !== null;
 
-  if (applied > 0 && changed && !geometriaPrometidaConBanderas) {
+  if (applied > 0 && changed && !geometriaPrometidaSinGeometria) {
     // R2. Basta con UNA entidad tocada sin geometría: si no, una línea de
     // relleno junto al cascarón vacío bastaría para esconderlo.
     if (vacias.length > 0) {

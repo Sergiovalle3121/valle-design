@@ -48,10 +48,16 @@
  * cortado (con su nodo `slice` en el árbol, así que se puede mover el plano
  * después) y SECTION deja la REGION de la huella del corte, que es un objeto 2D
  * acotable y sombreable.
+ *
+ * Lo que las dos comparten desde el 2026-09-17 es la NEGACIÓN: un plano que no
+ * atraviesa el sólido no produce sección en SECTION y tampoco produce corte en
+ * SLICE, y las dos lo DICEN en vez de escribir algo que no cambia nada. Ver
+ * `planoDivide`.
  */
 import type { CadPoint2 } from "../../cad-document";
-import type { CadSolidNode } from "../../cad-entities-v5";
+import type { CadSolid3dEntity, CadSolidNode } from "../../cad-entities-v5";
 import type { CadEntityCommand } from "../../entity-commands";
+import { solid3dBody } from "../../solid3d-build";
 import { sectionLoopsOfSolid } from "../../solid3d-section";
 import {
   CAD_ACCEPT_DISTANCE,
@@ -279,6 +285,71 @@ function planeStep<S extends PlaneState>(state: S, prompt: string, final: string
   };
 }
 
+/**
+ * ¿El plano DIVIDE el sólido, o pasa de largo?
+ *
+ * El agujero que cierra: SLICE no comprobaba en ningún sitio que el plano
+ * atravesara el sólido. Con un plano que pasa de largo —el que le da la sonda
+ * de integridad de comandos: (10,10)→(80,40) contra dos cajas que viven en
+ * y∈[200,290]— todos los vértices caen del lado positivo, así que «conservar
+ * el positivo» conserva el cuerpo ENTERO: mismo volumen (240000), misma área
+ * (24800) y los mismos 12 triángulos, medido con los evaluadores del producto.
+ * La orden apilaba igual su nodo `slice`, repuntaba la raíz y escribía el lote
+ * sin decir una palabra. El documento cambiaba —el árbol lleva un nodo más— y
+ * `finishedSolid` no tenía por qué rechazarlo: sólo sabe rechazar un cuerpo
+ * ROTO, y una caja sin cortar es perfectamente válida.
+ *
+ * Se decide con los VÉRTICES y el signo de su distancia al plano, y la
+ * respuesta es exacta en las dos direcciones porque un vértice es material:
+ *
+ * - si ninguno queda estrictamente a un lado y otro estrictamente al otro, todo
+ *   el cuerpo está en un semiespacio y el corte no quita nada (conservando ese
+ *   lado queda el sólido entero; conservando el otro, el sólido VACÍO, que el
+ *   kernel se niega a montar);
+ * - si hay vértices de los dos lados, hay material de los dos lados, y
+ *   entonces cualquiera de los dos lados que se conserve quita algo de verdad.
+ *
+ * Por eso no se compara el cuerpo resultante con el de origen: eso obligaría a
+ * evaluar las dos mitades para distinguir «no cortó» de «el kernel no pudo», y
+ * los dos casos tienen mensajes distintos.
+ *
+ * El cuerpo se evalúa SIN la colocación de la entidad a propósito: el nodo
+ * `slice` corta el árbol ANTES de que `evaluateSolidTree` le aplique el
+ * `placement`, así que el cuerpo que el kernel corta es el de coordenadas
+ * locales. Clasificar contra el cuerpo colocado mediría otro sólido. (Que SLICE
+ * construya el plano con picados de MUNDO y se lo dé a un nodo que trabaja en
+ * local es un defecto aparte, anterior a esto y de otro alcance.)
+ */
+function planoDivide(
+  source: CadSolid3dEntity,
+  plane: { origin: { x: number; y: number; z: number }; normal: { x: number; y: number; z: number } },
+): boolean {
+  const { placement: _colocacion, ...sinColocar } = source;
+  const body = solid3dBody(sinColocar);
+  const largo = Math.hypot(plane.normal.x, plane.normal.y, plane.normal.z);
+  if (!(largo > 0)) return false;
+  // La tolerancia es ABSOLUTA y se escala con el tamaño del cuerpo, igual que en
+  // `sectionLoopsOfSolid`: una fija clasificaría mal los vértices de una nave de
+  // cien metros.
+  let escala = 1;
+  for (const vertex of body.vertices)
+    escala = Math.max(escala, Math.abs(vertex.point.x), Math.abs(vertex.point.y), Math.abs(vertex.point.z));
+  const tolerancia = 1e-9 * escala;
+  let positivo = false;
+  let negativo = false;
+  for (const vertex of body.vertices) {
+    const distancia =
+      ((vertex.point.x - plane.origin.x) * plane.normal.x +
+        (vertex.point.y - plane.origin.y) * plane.normal.y +
+        (vertex.point.z - plane.origin.z) * plane.normal.z) /
+      largo;
+    if (distancia > tolerancia) positivo = true;
+    else if (distancia < -tolerancia) negativo = true;
+    if (positivo && negativo) return true;
+  }
+  return false;
+}
+
 const slicePrompt = "Designe los sólidos que cortar";
 
 const sliceCommand: CadCommandDescriptor<PlaneState> = {
@@ -322,7 +393,15 @@ const sliceCommand: CadCommandDescriptor<PlaneState> = {
         : [keyword === KEEP_RIGHT.keyword ? "negative" : "positive"];
 
     const commands: CadEntityCommand[] = [];
+    const intactos: string[] = [];
     for (const source of solids) {
+      // Al sólido que el plano no atraviesa no se le apila NADA: apilarle el
+      // nodo dejaría el árbol un nodo más largo, el cuerpo idéntico y la orden
+      // muda. Va antes de montar las mitades para no gastar tampoco un id.
+      if (!planoDivide(source, plane)) {
+        intactos.push(source.id);
+        continue;
+      }
       const halves = sides.map((keep, index) => {
         const nodes: CadSolidNode[] = [...source.nodes];
         const rootId = `slice:${index}`;
@@ -342,7 +421,19 @@ const sliceCommand: CadCommandDescriptor<PlaneState> = {
         );
       }
     }
-    return solidBatch(state, commands, "SLICE");
+    if (commands.length === 0)
+      return solidMessage(
+        state,
+        "SLICE no cortó nada: el plano de corte no atraviesa ninguno de los sólidos designados.",
+      );
+    return solidBatch(
+      state,
+      commands,
+      "SLICE",
+      intactos.length > 0
+        ? `SLICE no cortó ${intactos.length} de los ${solids.length} sólidos designados: el plano de corte no atraviesa ${intactos.join(", ")}.`
+        : undefined,
+    );
   },
 };
 
