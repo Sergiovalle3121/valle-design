@@ -1,9 +1,10 @@
 /**
- * Familia Superficies: PLANESURF, CONVTOSURFACE, SURFOFFSET.
+ * Familia Superficies: PLANESURF, CONVTOSURFACE, SURFOFFSET, SURFTRIM.
  *
  * PLANESURF y CONVTOSURFACE se prueban aquí contra el motor real.
  * SURFOFFSET vacía un sólido convexo con pared de espesor uniforme: el spec
  * comprueba que produce un cuerpo con más caras, menos volumen y dos cáscaras.
+ * SURFTRIM recorta una superficie restando otro sólido 3D.
  */
 import { strict as assert } from "node:assert";
 import {
@@ -102,7 +103,7 @@ assert.ok(solidId, "Hay un solido 3D en el documento");
 
 // --- Registro: los tres comandos existen -------------------------------------
 {
-  const names = ["PLANESURF", "CONVTOSURFACE", "SURFOFFSET"];
+  const names = ["PLANESURF", "CONVTOSURFACE", "SURFOFFSET", "SURFTRIM"];
   for (const name of names) {
     assert.ok(CAD_COMMAND_REGISTRY_V2.get(name), `${name} está en el registro`);
   }
@@ -222,6 +223,83 @@ assert.ok(solidId, "Hay un solido 3D en el documento");
   );
 }
 
+// --- SURFTRIM: recortar un cubo restando otro --------------------------------
+{
+  // Crear dos cubos: el objetivo (grande) y el cortador (pequeño, desplazado).
+  const baseA: CadEntity = {
+    id: "trimBase",
+    type: "polyline",
+    closed: true,
+    vertices: [
+      { x: 0, y: 0, z: 0 },
+      { x: 100, y: 0, z: 0 },
+      { x: 100, y: 100, z: 0 },
+      { x: 0, y: 100, z: 0 },
+    ],
+    layer,
+  };
+  const baseB: CadEntity = {
+    id: "trimCutter",
+    type: "polyline",
+    closed: true,
+    vertices: [
+      { x: 50, y: 50, z: 0 },
+      { x: 150, y: 50, z: 0 },
+      { x: 150, y: 150, z: 0 },
+      { x: 50, y: 150, z: 0 },
+    ],
+    layer,
+  };
+  let trimDoc = documentWith([baseA, baseB]);
+  {
+    const r1 = run("EXTRUDE", [keyword("trimBase"), distance(50)], trimDoc, ["trimBase"]);
+    assert.ok(r1?.kind === "document");
+    trimDoc = executeCadEntityCommandBatch(trimDoc, r1.commands, r1.label).document;
+  }
+  {
+    const r2 = run("EXTRUDE", [keyword("trimCutter"), distance(50)], trimDoc, ["trimCutter"]);
+    assert.ok(r2?.kind === "document");
+    trimDoc = executeCadEntityCommandBatch(trimDoc, r2.commands, r2.label).document;
+  }
+
+  const solids = trimDoc.entities.filter((e) => e.type === "solid3d");
+  assert.ok(solids.length >= 2, "SURFTRIM: hay dos solidos");
+  const targetSolid = solids[0];
+  const cutterSolid = solids[1];
+
+  const targetVolumeBefore = solid3dMassProperties(targetSolid as never).volume;
+
+  const result = run("SURFTRIM", [enter], trimDoc, [targetSolid.id, cutterSolid.id]);
+  assert.ok(result?.kind === "document", "SURFTRIM produce documento");
+  assert.ok(result.commands.length > 0, "SURFTRIM genera comandos de inserción");
+
+  const afterDoc = executeCadEntityCommandBatch(trimDoc, result.commands, result.label).document;
+  const trimmedEntities = afterDoc.entities.filter((e) => e.type === "solid3d" && e.id !== targetSolid.id);
+  assert.ok(trimmedEntities.length >= 1, "SURFTRIM añade un solido nuevo");
+
+  const trimmedVolume = solid3dMassProperties(trimmedEntities[trimmedEntities.length - 1] as never).volume;
+  assert.ok(
+    trimmedVolume < targetVolumeBefore,
+    `SURFTRIM reduce el volumen: ${trimmedVolume.toFixed(1)} < ${targetVolumeBefore.toFixed(1)}`,
+  );
+  assert.ok(
+    trimmedVolume > 0,
+    `SURFTRIM resultante tiene volumen positivo: ${trimmedVolume.toFixed(1)}`,
+  );
+}
+
+// --- SURFTRIM: cancelación ---------------------------------------------------
+{
+  const descriptor = CAD_COMMAND_REGISTRY_V2.get("SURFTRIM")!;
+  const context = makeContext(doc);
+  let step = descriptor.begin(context);
+  step = descriptor.step(step.state, { kind: "cancel" }, context);
+  assert.ok(
+    step.result?.kind === "message" && step.result.text.includes("cancelado"),
+    "SURFTRIM se cancela limpiamente",
+  );
+}
+
 console.log(
-  "✅ surfaces.spec: PLANESURF (registro), CONVTOSURFACE, SURFOFFSET (vaciado, cancelación, cóncavo) — 8 comprobaciones",
+  "✅ surfaces.spec: PLANESURF (registro), CONVTOSURFACE, SURFOFFSET (vaciado, cancelación, cóncavo), SURFTRIM (recorte, cancelación) — 12 comprobaciones",
 );

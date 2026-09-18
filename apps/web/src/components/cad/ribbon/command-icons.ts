@@ -558,6 +558,7 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   PLANESURF: Square,
   CONVTOSURFACE: ArrowLeftRight,
   SURFOFFSET: Layers2,
+  SURFTRIM: Crop,
   // Mallas.
   MESH: Boxes,
   CONVTOMESH: FlipHorizontal2,

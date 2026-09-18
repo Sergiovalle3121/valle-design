@@ -5,10 +5,11 @@
  * un contorno cerrado. CONVTOSURFACE informa las propiedades de superficie
  * de un sólido existente (área, caras, volumen). SURFOFFSET vacía un sólido
  * convexo desfasando todas sus caras hacia dentro una distancia uniforme,
- * produciendo una cáscara de pared constante.
+ * produciendo una cáscara de pared constante. SURFTRIM recorta una superficie
+ * restando otra entidad sólida 3D.
  */
 import type { CadEntity } from "../../cad-document";
-import type { CadSolid3dEntity, CadSolidProfile } from "../../cad-entities-v5";
+import type { CadSolid3dEntity, CadSolidNode, CadSolidProfile } from "../../cad-entities-v5";
 import { bodyToFaceSpecs } from "../../../brep";
 import { shellBody, bodyConvexity, maxShellThickness } from "../../../brep/shell";
 import { solid3dBody, solid3dMassProperties } from "../../solid3d-build";
@@ -25,6 +26,7 @@ import {
   finishedSolid,
   formatMagnitude,
   makeSolidEntity,
+  prefixNodes,
   selectedEntities,
   solidBatch,
   solidMessage,
@@ -407,8 +409,114 @@ const surfoffsetCommand: CadCommandDescriptor<SurfoffsetState> = {
   },
 };
 
+// --- SURFTRIM: recortar una superficie restando otra entidad ----
+
+type SurftrimState = { selection: readonly string[] };
+
+const surftrimCommand: CadCommandDescriptor<SurftrimState> = {
+  name: "SURFTRIM",
+  aliases: ["STRIM", "RECORTARSUPERF"],
+  kind: "modify",
+  transparent: false,
+  selection: "optional",
+  repeatable: true,
+  mutates: true,
+  cursor: "crosshair",
+  begin: (context) => ({
+    state: { selection: context.selection },
+    prompt: {
+      message:
+        context.selection.length > 0
+          ? `${context.selection.length} entidad(es) seleccionada(s). Designe el cortador y pulse Intro`
+          : "Designe la superficie a recortar y despues la entidad cortadora",
+      options: [],
+    },
+    accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
+  }),
+  step: (state, input, context) => {
+    if (input.kind === "cancel")
+      return solidMessage(state, "SURFTRIM cancelado.");
+    if (input.kind === "selection")
+      return {
+        state: { selection: input.entityIds },
+        prompt: {
+          message: `${input.entityIds.length} entidad(es). Designe la entidad cortadora y pulse Intro`,
+          options: [],
+        },
+        accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
+      };
+    if (input.kind === "entityPick") {
+      const prev = state.selection;
+      return {
+        state: { selection: [...prev, input.entityId] },
+        prompt: {
+          message: `${prev.length + 1} entidad(es). Pulse Intro para recortar`,
+          options: [],
+        },
+        accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
+      };
+    }
+    if (input.kind !== "enter" && input.kind !== "text")
+      return {
+        state,
+        prompt: { message: "Designe entidades o pulse Intro", options: [] },
+        accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
+      };
+
+    const ids = state.selection;
+    if (ids.length < 2)
+      return solidMessage(
+        state,
+        "SURFTRIM necesita la superficie Y la entidad cortadora (2 solidos 3D).",
+      );
+
+    const entities = selectedEntities(context, ids);
+    if (entities.length < 2)
+      return solidMessage(state, "SURFTRIM: no se encontraron las entidades.");
+
+    const target = entities.find((e) => e.type === "solid3d") as CadSolid3dEntity | undefined;
+    const cutter = entities.find((e) => e.type === "solid3d" && e.id !== target?.id) as CadSolid3dEntity | undefined;
+
+    if (!target || !cutter)
+      return solidMessage(state, "SURFTRIM: se necesitan dos solidos 3D.");
+
+    const targetBody = solid3dBody(target);
+    if (targetBody.faces.length === 0)
+      return solidMessage(state, "SURFTRIM: el solido a recortar no tiene caras.");
+
+    const cutterBody = solid3dBody(cutter);
+    if (cutterBody.faces.length === 0)
+      return solidMessage(state, "SURFTRIM: la entidad cortadora no tiene caras.");
+
+    const propsBefore = solid3dMassProperties(target);
+    const areaBefore = propsBefore.area;
+
+    const nodes = [
+      ...prefixNodes(target.nodes, "t:"),
+      ...prefixNodes(cutter.nodes, "c:"),
+      { id: "resultado", op: "subtract" as const, operands: ["t:" + target.root, "c:" + cutter.root] },
+    ];
+
+    const result = makeSolidEntity(
+      context.newEntityId(),
+      nodes,
+      "resultado",
+      target.layer,
+      target.name,
+    );
+
+    return finishedSolid(result, {
+      state: undefined as never,
+      label: "SURFTRIM",
+      before: [{ type: "delete", entityId: target.id }],
+      notice: `Superficie recortada: area ${formatMagnitude(areaBefore)} mm².`,
+    });
+  },
+};
+
 export const CAD_SURFACE_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(planesurfCommand),
   asCadCommand(convtosurfaceCommand),
   asCadCommand(surfoffsetCommand),
+  asCadCommand(surftrimCommand),
 ];
