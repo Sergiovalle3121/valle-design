@@ -117,8 +117,8 @@ assert.deepEqual(
 // ── Sólidos 3D es pestaña propia (como en AutoCAD), no el 13.º panel de Inicio.
 assert.deepEqual(
   CAD_RIBBON_TABS.map((tab) => tab.id),
-  ["inicio", "insertar", "anotar", "parametrico", "vista", "solidos3d", "salida", "administrar"],
-  "el orden de pestañas es Inicio · Insertar · Anotar · Paramétrico · Vista · Sólidos 3D · Salida · Administrar",
+  ["inicio", "insertar", "anotar", "parametrico", "vista", "solidos3d", "salida", "administrar", "superficies"],
+  "el orden de pestañas es Inicio · Insertar · Anotar · Paramétrico · Vista · Sólidos 3D · Salida · Administrar · Superficies",
 );
 assert.ok(
   !inicio.panels.some((panel) => panel.label === "Sólidos" || panel.label === "Sombreado"),

@@ -56,7 +56,8 @@ export type CadRibbonTabId =
   | "vista"
   | "solidos3d"
   | "salida"
-  | "administrar";
+  | "administrar"
+  | "superficies";
 
 export interface CadRibbonTabMeta {
   id: CadRibbonTabId;
@@ -75,6 +76,7 @@ export const CAD_RIBBON_TABS: readonly CadRibbonTabMeta[] = [
   { id: "solidos3d", label: "Sólidos 3D" },
   { id: "salida", label: "Salida" },
   { id: "administrar", label: "Administrar" },
+  { id: "superficies", label: "Superficies" },
 ];
 
 /** Cae aquí cuando ningún patrón de nombre reclama el comando. */
@@ -103,6 +105,10 @@ const CAD_TAB_NAME_PATTERNS: readonly [RegExp, CadRibbonTabId][] = [
   [
     /^(GC[A-Z]+|DC(LINEAR|ANGULAR|RADIUS|DIAMETER)|AUTOCONSTRAIN|GEOMCONSTRAINT|DELCONSTRAINT|DIMCONSTRAINT|PARAMETERS)$/,
     "parametrico",
+  ],
+  [
+    /^(-?WALL|DOOR|WINDOW|-?OPENING|STAIR|ROOF|SLAB|PIPE|DUCT|CABLETRAY|MEPSYMBOL|AEWIRE|AEWIRELIST|AECIRCUIT|AECHECK|AETAG|AETAGLIST|AESYMBOL|PIDLINE|PIDLIST|PIDEQUIP|PIDEQUIPLIST|PIDROUTE|PIDMTO|PIDISO|PLANESURF|SURF(?!ACE)[A-Z]+|CONVTOSURFACE)$/,
+    "superficies",
   ],
   [
     /^(-?LAYER|LAYERSTATE|LAY(?!OUT|TRANS)[A-Z]+|VPLAYER|PROPERTIES|MATCHPROP|COLOR|-?LINETYPE|LWEIGHT|LTSCALE|CELTSCALE|-?INSERT|BLOCK|-?BEDIT|WBLOCK|ATTDEF|ATTEDIT|ATTSYNC|BURST|BASE|BLOQUEDIN|BLOQUEDINSET|BLOQUEDINLIST|BLOQUEDINDEF|REFEDIT|REFSET|REFCLOSE|GROUP|UNGROUP|DRAWORDER|QSELECT|FILTER|SELECTSIMILAR|SETBYLAYER|CHPROP)$/,
@@ -218,6 +224,7 @@ export const CAD_RIBBON_FALLBACK_PANEL: Readonly<Record<CadRibbonTabId, string>>
   solidos3d: "Sólido",
   salida: "Trazar y publicar",
   administrar: "Herramientas",
+  superficies: "Superficies",
 };
 
 function ribbonPanelForCommand(descriptor: CadCommandDescriptor): { panel: string; matched: boolean } {

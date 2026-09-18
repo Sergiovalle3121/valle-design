@@ -87,13 +87,7 @@ export function CadRibbonPanel({
         />
       ) : (
         <>
-          <div
-            className={
-              split.large.length > 2
-                ? "grid auto-cols-max grid-flow-col grid-rows-2 gap-0.5"
-                : "flex h-[3.75rem] items-start gap-0.5"
-            }
-          >
+          <div className="flex h-[3.75rem] items-start gap-0.5">
             {split.large.map((command) => (
               <CadRibbonButton
                 key={command.name}

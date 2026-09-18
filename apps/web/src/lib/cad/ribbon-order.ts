@@ -24,8 +24,7 @@ export const CAD_RIBBON_PANEL_ORDER: Readonly<Record<CadRibbonTabId, readonly st
   // final—.
   inicio: [
     "Dibujo", "Modificar", "Anotación", "Capas", "Bloque", "Propiedades",
-    "Grupos", "Utilidades", "Portapapeles", "Arquitectura", "Instalaciones",
-    "Superficies",
+    "Grupos", "Utilidades", "Portapapeles",
   ],
   insertar: ["Referencias", "Importar y extraer", "Ubicación", "Normalizados", "Paletas"],
   anotar: ["Texto y tablas", "Cotas", "Directrices", "Tolerancias", "Mecánica", "Estilos"],
@@ -34,6 +33,7 @@ export const CAD_RIBBON_PANEL_ORDER: Readonly<Record<CadRibbonTabId, readonly st
   solidos3d: ["Primitivas", "Sólido", "Booleanas", "Edición de sólidos", "Consulta 3D"],
   salida: ["Trazar y publicar", "Exportar", "Ventanas"],
   administrar: ["Normas y reparación", "Variables", "AutoLISP y scripts", "Comparar", "Vistas"],
+  superficies: ["Superficies", "Arquitectura", "Instalaciones"],
 };
 
 /**
@@ -120,8 +120,8 @@ export const CAD_RIBBON_INICIO_ESPEJOS: Readonly<Record<string, readonly string[
  */
 export const CAD_RIBBON_PRIMARY: Readonly<Record<string, readonly string[]>> = {
   // Inicio.
-  Dibujo: ["LINE", "PLINE", "CIRCLE", "ARC"],
-  Modificar: ["MOVE", "COPY", "ROTATE", "TRIM", "ERASE"],
+  Dibujo: ["LINE", "PLINE"],
+  Modificar: ["MOVE", "COPY"],
   Anotación: ["MTEXT", "DIMLINEAR"],
   Capas: ["LAYER"],
   Bloque: ["INSERT"],
@@ -129,8 +129,7 @@ export const CAD_RIBBON_PRIMARY: Readonly<Record<string, readonly string[]>> = {
   Grupos: ["GROUP"],
   Utilidades: ["DIST"],
   Portapapeles: ["PASTECLIP"],
-  Arquitectura: ["WALL"],
-  Instalaciones: ["PIPE"],
+
   // Insertar.
   Referencias: ["XATTACH"],
   "Importar y extraer": ["DXFIN"],
@@ -168,7 +167,9 @@ export const CAD_RIBBON_PRIMARY: Readonly<Record<string, readonly string[]>> = {
   Variables: ["UNITS"],
   "AutoLISP y scripts": ["SCRIPT"],
   Comparar: ["COMPARE"],
-  // Superficies y Vistas (Fase 2 de cobertura).
+  // Superficies, Arquitectura e Instalaciones (pestaña propia).
+  Arquitectura: ["WALL"],
+  Instalaciones: ["PIPE"],
   Superficies: ["PLANESURF"],
   Vistas: ["VIEWBASE", "VIEWEDIT", "REGEN"],
 };
@@ -186,7 +187,7 @@ export const CAD_RIBBON_PRIMARY: Readonly<Record<string, readonly string[]>> = {
  */
 export const CAD_RIBBON_PANEL_COLLAPSE_ORDER: Readonly<Record<CadRibbonTabId, readonly string[]>> = {
   inicio: [
-    "Superficies", "Instalaciones", "Arquitectura", "Portapapeles", "Grupos",
+    "Portapapeles", "Grupos",
     "Utilidades", "Propiedades", "Bloque",
   ],
   insertar: ["Paletas", "Normalizados", "Ubicación", "Importar y extraer"],
@@ -196,6 +197,7 @@ export const CAD_RIBBON_PANEL_COLLAPSE_ORDER: Readonly<Record<CadRibbonTabId, re
   solidos3d: ["Consulta 3D", "Edición de sólidos", "Booleanas", "Sólido"],
   salida: ["Ventanas", "Exportar"],
   administrar: ["Vistas", "Comparar", "AutoLISP y scripts", "Variables"],
+  superficies: ["Instalaciones", "Arquitectura"],
 };
 
 /** Orden declarado primero; lo que no está en la lista va detrás, alfabético es-MX. */
