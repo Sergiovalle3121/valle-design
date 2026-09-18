@@ -31,6 +31,7 @@ import {
   type BrepBody,
   type Vec3,
 } from "../../brep";
+import { cadFaceRayHit } from "./face-ray";
 
 export interface CadPickRay {
   origin: Vec3;
@@ -143,6 +144,10 @@ export function raySegmentDistance(
  * Devuelve `null` si ninguna arista está dentro del umbral. El umbral se
  * expresa en unidades de dibujo; la UI lo calcula a partir de píxeles y la
  * distancia de la cámara.
+ *
+ * Para evitar designar aristas ocultas, primero lanza un rayo contra las
+ * caras del cuerpo y sólo acepta aristas con `t ≤ t_cara + tolerancia`.
+ * Ante distancias iguales, desempata por menor `t` (más cercana al rayo).
  */
 export function hitEdge(
   body: BrepBody,
@@ -152,14 +157,30 @@ export function hitEdge(
   const scale = scaleOf(body, options);
   const maxDist = options.maxDistance ?? scale * 0.02; // 2% de la diagonal por defecto
 
+  // Oclusión: encontrar la cara más cercana para limitar t máximo.
+  let faceT = Infinity;
+  try {
+    const faceHit = cadFaceRayHit(body, ray);
+    if (faceHit) faceT = faceHit.t;
+  } catch {
+    // Si el cuerpo no es válido para face-ray, sin oclusión.
+  }
+  // Tolerancia para aristas que están justo en el borde de la cara.
+  const tLimit = faceT + scale * 0.01;
+
   let best: CadEdgeHit | null = null;
 
   for (let i = 0; i < body.edges.length; i++) {
     const seg = halfEdgeSegment(body, body.edges[i].a);
     const result = raySegmentDistance(ray.origin, ray.direction, seg.from, seg.to);
 
-    if (result.distance < maxDist && result.t > 0) {
-      if (!best || result.distance < best.distance) {
+    if (result.distance < maxDist && result.t > 0 && result.t <= tLimit) {
+      // Desempate: primero por distancia perpendicular, luego por t (profundidad).
+      const isBetter =
+        !best ||
+        result.distance < best.distance ||
+        (result.distance === best.distance && result.t < best.t);
+      if (isBetter) {
         const point: Vec3 = {
           x: seg.from.x + result.u * (seg.to.x - seg.from.x),
           y: seg.from.y + result.u * (seg.to.y - seg.from.y),
