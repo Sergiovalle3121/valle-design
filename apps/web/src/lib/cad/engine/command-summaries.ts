@@ -293,6 +293,7 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   SURFNETWORK: "Crea una superficie a partir de una red de curvas.",
   SURFBLEND: "Crea una superficie de transición entre dos sólidos 3D.",
   SURFEXTEND: "Extiende los bordes de una superficie una distancia dada.",
+  SURFFILLET: "Crea un filete de transición entre dos superficies con un radio dado.",
   SURFSCULPT: "Esculpe una superficie en un sólido con volumen.",
 
   "3DSCALE": "Escala un sólido en los tres ejes.",

@@ -1,5 +1,5 @@
 /**
- * METADATOS de los 327 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 328 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
  * 120 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
@@ -329,6 +329,7 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "SURFNETWORK", aliases: ["SNETWORK", "RED"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/surfaces-ext" },
   { name: "SURFBLEND", aliases: ["SBLEND", "MEZCLARSUPERF"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/surfaces-ext" },
   { name: "SURFEXTEND", aliases: ["SEXTEND", "EXTENDERSUPERF"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/surfaces-ext" },
+  { name: "SURFFILLET", aliases: ["SFILLET", "FILETESUPERF"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/surfaces-ext" },
   { name: "3DMOVE", aliases: ["3M"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, spatial: "elevation", cursor: "pick", module: "commands/transform-3d" },
   { name: "3DARRAY", aliases: ["3A"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, spatial: "elevation", cursor: "pick", module: "commands/transform-3d-array" },
   { name: "MIRROR3D", aliases: ["MIRROR3"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, spatial: "elevation", cursor: "pick", module: "commands/transform-3d-mirror" },

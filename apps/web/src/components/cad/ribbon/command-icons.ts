@@ -565,6 +565,7 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   SURFBLEND: Blend,
   SURFEXTEND: ArrowUpRight,
   SURFSCULPT: Box,
+  SURFFILLET: Circle,
   // Mallas.
   MESH: Boxes,
   CONVTOMESH: FlipHorizontal2,

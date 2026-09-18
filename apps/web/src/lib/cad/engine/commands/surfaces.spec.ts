@@ -105,7 +105,7 @@ assert.ok(solidId, "Hay un solido 3D en el documento");
 
 // --- Registro: los tres comandos existen -------------------------------------
 {
-  const names = ["PLANESURF", "CONVTOSURFACE", "SURFOFFSET", "SURFTRIM", "SURFSCULPT", "SURFUNTRIM", "SURFPATCH", "SURFNETWORK", "SURFBLEND", "SURFEXTEND"];
+  const names = ["PLANESURF", "CONVTOSURFACE", "SURFOFFSET", "SURFTRIM", "SURFSCULPT", "SURFUNTRIM", "SURFPATCH", "SURFNETWORK", "SURFBLEND", "SURFEXTEND", "SURFFILLET"];
   for (const name of names) {
     assert.ok(CAD_COMMAND_REGISTRY_V2.get(name), `${name} está en el registro`);
   }
@@ -473,6 +473,58 @@ assert.ok(solidId, "Hay un solido 3D en el documento");
   assert.ok(step.result.text.includes("cancelado"), "SURFEXTEND se cancela limpiamente");
 }
 
+// --- SURFFILLET: filete de transición entre dos superficies --------------------
+{
+  const rect3: CadEntity = {
+    id: "base3",
+    type: "polyline",
+    closed: true,
+    vertices: [
+      { x: 300, y: 0, z: 0 },
+      { x: 400, y: 0, z: 0 },
+      { x: 400, y: 100, z: 0 },
+      { x: 300, y: 100, z: 0 },
+    ],
+    layer,
+  };
+  let filletDoc = documentWith([rect, rect3]);
+  {
+    const r1 = run("EXTRUDE", [keyword("base"), distance(50)], filletDoc, ["base"]);
+    assert.ok(r1 && r1.kind === "document", "EXTRUDE base para fillet");
+    filletDoc = executeCadEntityCommandBatch(filletDoc, r1.commands, r1.label).document;
+    const r2 = run("EXTRUDE", [keyword("base3"), distance(50)], filletDoc, ["base3"]);
+    assert.ok(r2 && r2.kind === "document", "EXTRUDE base3 para fillet");
+    filletDoc = executeCadEntityCommandBatch(filletDoc, r2.commands, r2.label).document;
+  }
+  const fSolids = filletDoc.entities.filter((e) => e.type === "solid3d");
+  assert.ok(fSolids.length >= 2, "SURFFILLET: hay dos solidos");
+  const result = run("SURFFILLET", [distance(8), enter], filletDoc, [fSolids[0].id, fSolids[1].id]);
+  assert.ok(result?.kind === "document", "SURFFILLET produce documento");
+  assert.ok(result.commands.length > 0, "SURFFILLET genera comandos");
+  const filletDoc2 = executeCadEntityCommandBatch(filletDoc, result.commands, result.label).document;
+  const filletSolid = filletDoc2.entities.filter((e) => e.type === "solid3d" && e.id !== fSolids[0].id && e.id !== fSolids[1].id);
+  assert.ok(filletSolid.length >= 1, "SURFFILLET añade un solido nuevo");
+  const filletBody = solid3dBody(filletSolid[filletSolid.length - 1] as never);
+  assert.ok(filletBody.faces.length > 0, "SURFFILLET tiene caras");
+  const filletVolume = solid3dMassProperties(filletSolid[filletSolid.length - 1] as never).volume;
+  assert.ok(filletVolume > 0, `SURFFILLET tiene volumen positivo: ${filletVolume.toFixed(1)}`);
+}
+
+// --- SURFFILLET: cancelación --------------------------------------------------
+{
+  const descriptor = CAD_COMMAND_REGISTRY_V2.get("SURFFILLET")!;
+  const context = makeContext(doc, [solidId!]);
+  let step = descriptor.begin(context);
+  step = descriptor.step(step.state, { kind: "cancel" }, context);
+  assert.ok(step.result?.kind === "message", "SURFFILLET cancelado devuelve mensaje");
+  assert.ok(step.result.text.includes("cancelado"), "SURFFILLET se cancela limpiamente");
+}
+
+// --- Registro: SURFFILLET en el registro ------------------------------------
+{
+  assert.ok(CAD_COMMAND_REGISTRY_V2.get("SURFFILLET"), "SURFFILLET está en el registro");
+}
+
 console.log(
-  "✅ surfaces.spec: PLANESURF (registro), CONVTOSURFACE, SURFOFFSET (vaciado, cancelación, cóncavo), SURFTRIM (recorte, cancelación), SURFSCULPT (esculpir, cancelación), SURFUNTRIM (restaurar), SURFPATCH (parche, cancelación), SURFNETWORK (red, cancelación), SURFBLEND (mezcla, cancelación), SURFEXTEND (extensión, cancelación) — 30 comprobaciones",
+  "✅ surfaces.spec: PLANESURF (registro), CONVTOSURFACE, SURFOFFSET (vaciado, cancelación, cóncavo), SURFTRIM (recorte, cancelación), SURFSCULPT (esculpir, cancelación), SURFUNTRIM (restaurar), SURFPATCH (parche, cancelación), SURFNETWORK (red, cancelación), SURFBLEND (mezcla, cancelación), SURFEXTEND (extensión, cancelación), SURFFILLET (filete, cancelación) — 33 comprobaciones",
 );

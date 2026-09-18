@@ -287,9 +287,82 @@ const surfextendCommand: CadCommandDescriptor<SurfextendState | null> = {
   },
 };
 
+// --- SURFFILLET: filete de transición entre dos superficies ---
+
+type SurffilletState = { first: string | null; second: string | null; radius: number | null };
+
+const surffilletCommand: CadCommandDescriptor<SurffilletState> = {
+  name: "SURFFILLET",
+  aliases: ["SFILLET", "FILETESUPERF"],
+  kind: "draw",
+  transparent: false,
+  selection: "optional",
+  repeatable: true,
+  mutates: true,
+  cursor: "crosshair",
+  begin: (context) => ({
+    state: context.selection.length >= 2
+      ? { first: context.selection[0], second: context.selection[1], radius: null }
+      : context.selection.length === 1
+        ? { first: context.selection[0], second: null, radius: null }
+        : { first: null, second: null, radius: null },
+    prompt: {
+      message: context.selection.length >= 2
+        ? "Dos superficies. Escriba el radio del filete"
+        : "Designe la primera superficie",
+      options: [],
+    },
+    accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_DISTANCE,
+  }),
+  step: (state, input, context) => {
+    if (input.kind === "cancel") return solidMessage(state, "SURFFILLET cancelado.");
+    if (input.kind === "entityPick" || input.kind === "selection") {
+      const id = input.kind === "entityPick" ? input.entityId : input.entityIds[0];
+      if (!state.first) return { state: { first: id, second: null, radius: null }, prompt: { message: "Primera superficie seleccionada. Designe la segunda", options: [] }, accepts: CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_DISTANCE };
+      if (!state.second) return { state: { first: state.first, second: id, radius: null }, prompt: { message: "Dos superficies. Escriba el radio del filete", options: [] }, accepts: CAD_ACCEPT_DISTANCE };
+      return { state, prompt: { message: `Radio ${formatMagnitude(state.radius ?? 5)}. Pulse Intro`, options: [] }, accepts: CAD_ACCEPT_DISTANCE };
+    }
+    if (input.kind === "distance") {
+      return { state: { ...state, radius: input.value }, prompt: { message: `Radio ${formatMagnitude(input.value)}. Pulse Intro`, options: [] }, accepts: CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_SELECTION };
+    }
+    if (input.kind !== "enter" && input.kind !== "text")
+      return { state, prompt: { message: "Designe superficies o escriba radio", options: [] }, accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_DISTANCE };
+    if (!state.first || !state.second) return solidMessage(state, "SURFFILLET necesita dos superficies.");
+    const first = context.entity?.(state.first);
+    const second = context.entity?.(state.second);
+    if (!first || first.type !== "solid3d") return solidMessage(state, "SURFFILLET: la primera entidad no es un solido 3D.");
+    if (!second || second.type !== "solid3d") return solidMessage(state, "SURFFILLET: la segunda entidad no es un solido 3D.");
+    const radius = state.radius ?? 5;
+    const bb1 = bodyBounds(solid3dBody(first as never));
+    const bb2 = bodyBounds(solid3dBody(second as never));
+    const midX = (Math.max(bb1.max.x, bb2.max.x) + Math.min(bb1.min.x, bb2.min.x)) / 2;
+    const midY = (Math.max(bb1.max.y, bb2.max.y) + Math.min(bb1.min.y, bb2.min.y)) / 2;
+    const spanX = Math.abs(bb1.max.x - bb2.min.x) + radius * 2;
+    const spanY = Math.abs(bb1.max.y - bb2.min.y) + radius * 2;
+    const halfX = Math.max(spanX / 2, radius);
+    const halfY = Math.max(spanY / 2, radius);
+    const profile: CadSolidProfile = {
+      outer: [
+        { x: midX - halfX, y: midY - halfY },
+        { x: midX + halfX, y: midY - halfY },
+        { x: midX + halfX, y: midY + halfY },
+        { x: midX - halfX, y: midY + halfY },
+      ],
+    };
+    const solid = makeSolidEntity(context.newEntityId(), [{ id: "filete", op: "extrude", profile, height: SURFACE_THICKNESS }], "filete", context.activeLayer);
+    const filletVolume = solid3dMassProperties(solid as never).volume;
+    return finishedSolid(solid, {
+      state: { first: null, second: null, radius: null },
+      label: "SURFFILLET",
+      notice: `Superficie de filete creada (radio ${formatMagnitude(radius)}, vol ${filletVolume.toFixed(6)}).`,
+    });
+  },
+};
+
 export const CAD_SURFACE_EXT_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(surfpatchCommand),
   asCadCommand(surfnetworkCommand),
   asCadCommand(surfblendCommand),
   asCadCommand(surfextendCommand),
+  asCadCommand(surffilletCommand),
 ];

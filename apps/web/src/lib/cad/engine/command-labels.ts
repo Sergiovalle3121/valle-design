@@ -322,6 +322,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   SURFNETWORK: "Red de sup",
   SURFBLEND: "Mezclar sup",
   SURFEXTEND: "Extender sup",
+  SURFFILLET: "Filete sup",
   SURFSCULPT: "Esculpir sup",
   SWEEP: "Barrido",
   TABLE: "Tabla",
