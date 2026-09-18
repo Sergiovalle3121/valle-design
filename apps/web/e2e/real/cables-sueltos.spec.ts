@@ -103,12 +103,19 @@ const NO_OPERAN_POR_ESTAR_ACTIVOS: Record<string, string> = {
   // barrido corre sobre un documento LIMPIO. "Biblioteca" es la pestaña que
   // abre por defecto en su lugar.
   Biblioteca: "es la pestaña abierta del panel izquierdo",
-  // Los dos primeros botones de la paleta de herramientas extraída. El canal
-  // Firefox de CI los delató: en Chromium el hash del lienzo cambia entre dos
-  // capturas y tapaba a cualquier control sin efecto real; el render de
-  // Firefox es determinista y midió la verdad.
-  "Seleccionar — Seleccionar y mover objetos.":
-    "es la herramienta activa al cargar (gemelo de «Seleccionar / mover»)",
+  // De la paleta de herramientas extraída. El canal Firefox de CI lo delató: en
+  // Chromium el hash del lienzo cambia entre dos capturas y tapaba a cualquier
+  // control sin efecto real; el render de Firefox es determinista y midió la
+  // verdad.
+  //
+  // Aquí había una segunda entrada, «Seleccionar — Seleccionar y mover
+  // objetos.», declarada por ser el gemelo de «Seleccionar / mover». Se retiró
+  // el 17-sep-2026 porque ese gemelo YA NO EXISTE en la superficie: el barrido
+  // lo cantó él mismo («está declarado como sin efecto observable, pero ya no
+  // existe: retira la declaración»), que es la misma regla que gobierna las
+  // exenciones de la sonda de integridad — una deuda saldada se retira para que
+  // la lista diga la verdad de hoy. El control que queda, «Seleccionar /
+  // mover», SÍ tiene efecto: el barrido midió 113 con efecto y 0 sin efecto.
   "Encuadre · Space — Navegar el plano sin cambiar la geometria.":
     "pan comparte modo con select y escribe la preferencia backgroundDrag='pan' " +
     "(el arrastre izquierdo vuelve a encuadrar): un cambio de preferencia, sin " +
