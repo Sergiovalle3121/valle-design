@@ -79,14 +79,13 @@ export interface CadGridResult {
  */
 export function cadGridAlphaKey(index: number): string {
   if (index < 0) return "?";
-  let remaining = index;
+  const base = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  let n = index;
   let result = "";
-  // Generamos un pool suficiente: 23 letras válidas por ronda (26 - 3)
-  const validLetters = "ABCDEFGHJKLMNPQRSTUVWXYZ".split("");
-  do {
-    result += validLetters[remaining % validLetters.length];
-    remaining = Math.floor(remaining / validLetters.length) - 1;
-  } while (remaining >= 0);
+  while (n >= 0) {
+    result = base[n % base.length] + result;
+    n = Math.floor(n / base.length) - 1;
+  }
   return result;
 }
 

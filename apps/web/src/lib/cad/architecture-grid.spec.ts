@@ -33,7 +33,9 @@ assert.equal(first25[7], "H");
 assert.equal(first25[8], "J"); // salta I
 assert.equal(first25[23], "Z");
 assert.equal(first25[24], "AA");
-checks += 9;
+assert.equal(cadGridAlphaKey(25), "AB", "índice 25 → AB");
+assert.equal(cadGridAlphaKey(47), "AZ", "índice 47 → AZ");
+checks += 11;
 
 // ---------------------------------------------------------------------------
 // 2 · Rejilla 3 vanos X (4500, 4500, 3000) × 2 vanos Y (6000, 6000)
