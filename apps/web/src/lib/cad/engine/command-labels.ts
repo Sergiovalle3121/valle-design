@@ -352,7 +352,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   U: "Deshacer",
   UCS: "SCU",
   UCSICON: "Icono SCU",
-  UCSMAN: "SCU con nombre",
+  UCSMAN: "Gestor SCU",
   UNDO: "Deshacer varios",
   UNGROUP: "Desagrupar",
   UNION: "Unión",

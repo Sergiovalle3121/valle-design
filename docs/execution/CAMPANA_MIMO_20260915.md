@@ -156,3 +156,15 @@ Todas hechas antes de esta sesión (commits `4359ef50`–`bd86c7e5`).
 | MIRROR3D | hecha — planos XY/YZ/ZX + pregunta borrar origen + alias SIMETRIA3D. Antes solo3 puntos. Crea copia y refleja la copia. Spec:11 comprobaciones. 343 comandos. | 16bb5653 |
 | CONTADOR 2026-09-20 15:00 | comandos en manifiesto 343 en 122 modulos. MREDO (Millar) + MIRROR3D mejorado (3D). Rotacion: UI+DWG+Bloqueador. |
 | ci-fallo (lint-budget dxf-solid3d-primitives) | resuelto: CadDocument importado sin uso en dxf-solid3d-primitives.ts (presupuesto 0). Eliminado import. Lint budget OK. | 98e97fcb |
+
+## Sesion 2026-09-20 (continuacion)
+
+| Tarea | Estado | Commit |
+|-------|--------|--------|
+| ci-fallo (lint transform-3d-mirror) | resuelto: 3 let->const en transform-3d-mirror.ts (prefer-const). | 67c94896 |
+| Bloqueo C (Pan button) | resuelto: paleta arranca abierta por defecto. CadToolPalette.tsx + CadLienzoAncho.spec.ts. | 874e2f8b |
+| Golden13 (dynamic input) | resuelto: ribbon invoca por pointer router para seleccionar entidad creada. + locator Círculo ambiguo. | 942eab4e |
+| Golden dashboard-document-lifecycle | resuelto: locator Círculo ambiguo por paleta abierta. | 02ee6db3 |
+| Golden31 + dashboard-viewer-rbac | resuelto: locator Círculo ambiguo por paleta abierta. | 68c3ad19 |
+| Golden28 + Golden26 | resuelto: locator Línea/Polilínea ambiguo por paleta abierta. Golden28 falla por OSNAP (pre-existente). | fc36a6e5 |
+| CONTADOR 2026-09-20 HH:MM | comandos en manifiesto 343 en 122 modulos. Regresiones de paleta abierta resueltas (5 goldens). Siguiente: cola-vallecad.md. | — |
