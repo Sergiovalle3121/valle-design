@@ -98,7 +98,7 @@ test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFF
     await page.getByTitle(/Vista, capas/).click();
   });
 
-  await page.getByRole('button', { name: 'Línea', exact: true }).click();
+  await page.getByTestId('cad-ribbon-command-LINE').click();
   await test.step('4/7. Coordenada absoluta y dynamic input', async () => {
     await expect(page.getByTestId('cad-dynamic-input')).toBeVisible();
     await fillPoint(page, '1000', '1000');
@@ -118,7 +118,7 @@ test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFF
   });
 
   await test.step('13. Crear polilínea cerrada', async () => {
-    await page.getByRole('button', { name: 'Polilínea', exact: true }).click();
+    await page.getByTestId('cad-ribbon-command-PLINE').click();
     await fillPoint(page, '2000', '4000');
     await fillPoint(page, '2000', '0', 'REL');
     await fillPoint(page, '0', '1500', 'REL');
