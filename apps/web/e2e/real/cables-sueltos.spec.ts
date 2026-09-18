@@ -521,6 +521,10 @@ test.describe("Cables sueltos: cada control visible produce su efecto", () => {
         `${muertos.length} sin efecto (${muertos.length - muertosSinRazon.length} declarados) · ` +
         `${noLocalizables.length} no localizables`,
     );
+    if (muertosSinRazon.length > 0)
+      console.log(
+        `CONTROLES MUERTOS SIN RAZÓN: ${JSON.stringify(muertosSinRazon)}`,
+      );
 
     expect(
       muertosSinRazon,
