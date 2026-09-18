@@ -31,7 +31,7 @@ export const CAD_RIBBON_PANEL_ORDER: Readonly<Record<CadRibbonTabId, readonly st
   parametrico: ["Geométricas", "Dimensionales", "Gestionar"],
   vista: ["Encuadre y zoom", "Vistas 3D", "Estilos visuales", "SCU", "Ventanas", "Paletas", "Vistas"],
   solidos3d: ["Primitivas", "Sólido", "Booleanas", "Edición de sólidos", "Consulta 3D"],
-  salida: ["Trazar y publicar", "Exportar", "Ventanas"],
+  salida: ["Trazar y publicar", "Exportar", "Ventanas", "Render"],
   administrar: ["Normas y reparación", "Variables", "AutoLISP y scripts", "Comparar", "Vistas"],
   superficies: ["Superficies", "Arquitectura", "Instalaciones"],
   mallas: ["Mallas"],

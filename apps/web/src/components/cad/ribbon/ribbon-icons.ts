@@ -1,6 +1,7 @@
 import {
   Box,
   Boxes,
+  Camera,
   ClipboardPaste,
   Cog,
   Combine,
@@ -99,6 +100,7 @@ export const CAD_RIBBON_PANEL_ICONS: Readonly<Record<string, LucideIcon>> = {
   // Salida.
   "Trazar y publicar": Printer,
   Exportar: Upload,
+  Render: Camera,
   // Administrar.
   "Normas y reparación": ShieldCheck,
   Variables: Settings2,
