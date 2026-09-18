@@ -170,3 +170,5 @@ Todas hechas antes de esta sesión (commits `4359ef50`–`bd86c7e5`).
 | CONTADOR 2026-09-20 HH:MM | comandos en manifiesto 343 en 122 modulos. Regresiones de paleta abierta resueltas (5 goldens). Siguiente: cola-vallecad.md. | — |
 | P04 | hecha — hero figure data-testid + spec Playwright (>=36% viewport). Layout ya es single-column, imagen ocupa ~60%. Spec: 4/4 verdes. | 910d6ceb |
 | P07 | hecha — accept unificado para importación. documentImportAcceptAttribute() en document-import-client.ts. FirstMinute acepta prop accept. data-testid en ambos inputs. Spec Node: 3 checks. Golden Playwright: 1 check (7s). | d9f8c2c4 |
+| T14 | hecha — DIMBASELINE usa baselineSpacing del estilo (DIMDLI). Fallback a arrowSize*2. annotate-dimension-chains.spec: 51/51. | 6e9bd923 |
+| CONTADOR 2026-09-21 HH:MM | comandos en manifiesto 343 en 122 modulos. ci-fallo resuelto (oracle B). P04 (hero spec), P07 (accept unificado), T14 (DIMBASELINE spacing). Rotacion: ci-fallo+UI+DWG+Nivel. |
