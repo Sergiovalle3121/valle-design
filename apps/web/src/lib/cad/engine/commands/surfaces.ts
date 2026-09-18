@@ -9,7 +9,7 @@
  */
 import type { CadEntity } from "../../cad-document";
 import type { CadSolid3dEntity, CadSolidProfile } from "../../cad-entities-v5";
-import { bodyToFaceSpecs, buildBody, attachPlanarSurfaces } from "../../../brep";
+import { bodyToFaceSpecs } from "../../../brep";
 import { shellBody, bodyConvexity, maxShellThickness } from "../../../brep/shell";
 import { solid3dBody, solid3dMassProperties } from "../../solid3d-build";
 import {

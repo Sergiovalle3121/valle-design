@@ -71,7 +71,6 @@ function run(
   return step.result;
 }
 
-const text = (value: string): CadCommandInput => ({ kind: "text", value });
 const keyword = (value: string): CadCommandInput => ({ kind: "keyword", keyword: value });
 const distance = (value: number): CadCommandInput => ({ kind: "distance", value });
 const enter: CadCommandInput = { kind: "enter" };

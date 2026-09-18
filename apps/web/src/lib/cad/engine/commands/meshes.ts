@@ -7,7 +7,7 @@
  * identificarlo. Almacena vértices y caras como un nodo «brep» del árbol
  * CSG, igual que PLANESURF.
  */
-import { makeBox, bodyToFaceSpecs, attachPlanarSurfaces, buildBody } from "../../../brep";
+import { makeBox, bodyToFaceSpecs, attachPlanarSurfaces } from "../../../brep";
 import { solid3dBody, solid3dMassProperties } from "../../solid3d-build";
 import {
   asCadCommand,

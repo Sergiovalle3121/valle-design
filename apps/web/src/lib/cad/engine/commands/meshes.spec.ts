@@ -9,7 +9,6 @@ import { strict as assert } from "node:assert";
 import {
   migrateCadDocument,
   type CadDocument,
-  type CadEntity,
 } from "../../cad-document";
 import { executeCadEntityCommandBatch } from "../../entity-commands";
 import { solid3dBody, solid3dMassProperties } from "../../solid3d-build";
