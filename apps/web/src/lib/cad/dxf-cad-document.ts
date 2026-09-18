@@ -23,7 +23,7 @@ import type {
 import type { CadNativeEntity } from "./entity-runtime";
 // Traducción entidad→primitiva y AUDITORÍA de pérdidas viven en sus propios
 // módulos: este archivo sólo ENSAMBLA el modelo de exportación (techo 961).
-import { cadEntityToDxfPrimitive, cadOpeningToDxfPrimitives } from "./dxf-entity-primitives";
+import { cadEntityToDxfPrimitive, cadOpeningToDxfPrimitives, cadWallToDxfPrimitives } from "./dxf-entity-primitives";
 import { cadDxfTextPrimitiveToEntity } from "./dxf-text-entities";
 import { blockEntityToDxfPrimitive } from "./dxf-block-primitive";
 import { clampedKnots } from "./dxf-nurbs-knots";
@@ -468,7 +468,7 @@ export function cadDocumentNativeDxfPrimitives(
 ): CadDxfPrimitive[] {
   return document.entities
     .filter((entity) => (filter ? filter(entity) : true))
-    .flatMap((entity) => (entity.type === "opening" ? cadOpeningToDxfPrimitives(entity, document) : [cadEntityToDxfPrimitive(entity, document)]))
+    .flatMap((entity) => (entity.type === "opening" ? cadOpeningToDxfPrimitives(entity, document) : entity.type === "wall" ? cadWallToDxfPrimitives(entity, document) : [cadEntityToDxfPrimitive(entity, document)]))
     .filter((primitive): primitive is CadDxfPrimitive => primitive !== null);
 }
 
