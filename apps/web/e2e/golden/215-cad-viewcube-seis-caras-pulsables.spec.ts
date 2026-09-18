@@ -66,7 +66,17 @@ test.describe('ViewCube — seis caras pulsables', () => {
     // Saltar el recorrido guiado si aparece.
     const saltar = page.getByTestId('cad-guided-tour-skip');
     if (await saltar.count()) await saltar.click();
-    await page.waitForTimeout(1_000);
+    // Esperar a que el ViewCube exista y sea alcanzable.
+    await expect
+      .poll(
+        async () =>
+          page.evaluate(() => {
+            const c = document.querySelector('[data-testid="cad-viewcube"]');
+            return c ? c.getBoundingClientRect().width : 0;
+          }),
+        { timeout: 15_000 },
+      )
+      .toBeGreaterThan(0);
   });
 
   test('(c) el ViewCube no crece: cabe en 120×110 px', async () => {

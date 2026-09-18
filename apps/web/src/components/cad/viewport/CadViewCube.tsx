@@ -47,16 +47,13 @@ export function CadViewCube({
       data-testid="cad-viewcube"
       className={cx("flex flex-col items-end gap-1.5", className)}
     >
-      {/* Cubo visual decorativo: perspectiva CSS fija, tres caras
-          reconocibles. `pointer-events-none` para no interferir con las
-          zonas de clic planas que están encima. */}
-      <div
-        className="pointer-events-none relative h-16 w-16"
-        style={{ perspective: "220px" }}
-        aria-hidden="true"
-      >
+      {/* Cubo visual + zonas de clic planas. El wrapper es el contexto de
+          posicionamiento para que los botones NO se desborden a los satélites. */}
+      <div className="pointer-events-none relative h-16 w-16" style={{ perspective: "220px" }}>
+        {/* Caras 3D decorativas. */}
         <div
           className="absolute inset-0"
+          aria-hidden="true"
           style={{
             transformStyle: "preserve-3d",
             transform: "rotateX(-18deg) rotateY(35deg)",
@@ -90,12 +87,7 @@ export function CadViewCube({
             Der
           </div>
         </div>
-      </div>
-      {/* Zonas de clic planas: rectángulos posicionados donde cada cara cae
-          en la proyección isométrica. DOM ordenado de atrás a delante para
-          que `elementFromPoint` devuelva la cara correcta en zonas
-          solapadas. */}
-      <div className="pointer-events-auto absolute inset-0">
+        {/* Zonas de clic planas dentro del cubo — no se desbordan. */}
         {(["top", "front", "right"] as const).map((preset) => (
           <button
             key={preset}
@@ -106,6 +98,7 @@ export function CadViewCube({
             aria-pressed={active === preset}
             onClick={() => onSelect(preset)}
             className={cx(
+              "pointer-events-auto",
               FACE_BASE,
               "absolute rounded-sm",
               active === preset && "bg-brand-strong text-primary-foreground",
