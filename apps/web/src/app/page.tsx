@@ -227,7 +227,8 @@ export default function LandingPage() {
           className="dark bg-background text-foreground"
         >
           <div className="mx-auto max-w-6xl px-5 pb-20 pt-16 sm:px-8 sm:pt-24 lg:pb-28">
-            <div className="max-w-3xl">
+            <div className="flex flex-col gap-14 sm:gap-20">
+            <div className="max-w-3xl order-2 sm:order-none">
               <p className="type-eyebrow text-primary-ink">
                 {PRODUCT_LABEL.design} · CAD en el navegador
               </p>
@@ -275,8 +276,9 @@ export default function LandingPage() {
               float={false}
               halo={false}
               sizes="(min-width: 1280px) 72rem, 100vw"
-              className="mt-14 sm:mt-20"
+              className="order-1 sm:order-none"
             />
+            </div>
           </div>
         </section>
 
