@@ -425,10 +425,7 @@ export async function measureCadPlotFidelity(
 
   // --- rótulo ---------------------------------------------------------------
   const unclampedText = (input.textHeightUnits * unitFactor) / input.scaleDenominator;
-  const expectedText = Math.max(
-    CAD_TEXT_HEIGHT_CLAMP_MM.min,
-    Math.min(CAD_TEXT_HEIGHT_CLAMP_MM.max, unclampedText),
-  );
+  const expectedText = Math.max(CAD_TEXT_HEIGHT_CLAMP_MM.min, unclampedText);
   // El rótulo del dibujo se busca por su texto. Con una fuente incrustada el
   // PDF lo escribe en hexadecimal —índices de glifo, no caracteres— y no hay
   // texto que buscar; entonces vale el PRIMER rótulo de la página, que es el
@@ -476,8 +473,8 @@ export async function measureCadPlotFidelity(
       ...measure(
         expectedText,
         label?.sizeMm ?? Number.NaN,
-        `La altura pedida (${input.textHeightUnits} unidades a 1:${input.scaleDenominator} = ${unclampedText.toFixed(3)} mm) se recorta ` +
-          `al intervalo [${CAD_TEXT_HEIGHT_CLAMP_MM.min}, ${CAD_TEXT_HEIGHT_CLAMP_MM.max}] mm en el plan de publicación; ` +
+        `La altura pedida (${input.textHeightUnits} unidades a 1:${input.scaleDenominator} = ${unclampedText.toFixed(3)} mm) tiene un piso de ` +
+          `${CAD_TEXT_HEIGHT_CLAMP_MM.min} mm en el plan de publicación; ` +
           `lo medido es el operando de \`Tf\` del PDF convertido a mm — ${labelCriterion}.`,
       ),
       clamped: Math.abs(expectedText - unclampedText) > 1e-9,

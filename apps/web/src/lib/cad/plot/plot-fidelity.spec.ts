@@ -223,9 +223,9 @@ async function specs(): Promise<void> {
       wallHeightUnits: 2_000,
       textHeightUnits: 300,
     });
-    assert.equal(grande.text.clamped, true, "15 mm de rótulo se recortan y el informe lo dice");
+    assert.equal(grande.text.clamped, false, "15 mm de rótulo NO se recorta: el techo de 12 ya no existe");
     assert.equal(grande.text.unclampedExpectedMm, 15);
-    assert.equal(grande.text.expectedMm, CAD_TEXT_HEIGHT_CLAMP_MM.max);
+    assert.equal(grande.text.expectedMm, 15);
     assert.ok(Math.abs(grande.text.errorMm) <= SCALE_TOLERANCE_MM);
 
     const chico = await measureCadPlotFidelity({

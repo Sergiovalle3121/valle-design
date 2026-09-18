@@ -286,4 +286,46 @@ function textCommandsWithEntityId(
   );
 }
 
-console.log("paper-space-render-altura.spec: 6 comprobaciones OK");
+// 7) MTEXT de altura 1000 a 1:50 → 20,0 mm (el techo de 12 ya no existe)
+{
+  const base = layoutToCadDocument(
+    { layers: [{ id: "0", name: "0", color: "#000000", visible: true, locked: false }] },
+    { unit: "mm" },
+  );
+  const entity: CadEntity = {
+    id: "txt-xl",
+    type: "mtext",
+    insertion: { x: 50, y: 50, z: 0 },
+    text: "TITULO PRINCIPAL",
+    height: 1000,
+    width: 10000,
+    layer: "0",
+  } as CadEntity;
+  const doc: CadDocument = {
+    ...base,
+    entities: [entity],
+    modelSpace: { entityIds: ["txt-xl"] },
+    paperSpaces: [
+      {
+        id: "sheet-xl",
+        name: "A-101",
+        entityIds: [],
+        page: { width: 297, height: 210, unit: "mm", orientation: "landscape" },
+        viewports: [
+          cadPlanViewport("vp-xl", { x: 10, y: 10, width: 277, height: 180 }, { x: 0, y: 0, width: 13_850, height: 9_000 }, 50),
+        ],
+      },
+    ],
+  };
+  const plan = buildCadPublishPlan(doc, "2026-09-18T00:00:00.000Z");
+  const cmds = textCommandsWithEntityId(plan, "txt-xl");
+  assert.ok(cmds.length > 0, "xl: el texto aparece en el plan");
+  const size = cmds[0]!.size;
+  // 1000 / 50 = 20,0 mm — con el techo viejo de 12 saldría 12
+  assert.ok(
+    size > 19.9 && size < 20.1,
+    `xl: MTEXT de altura 1000 a 1:50 debe medir 20,0 mm (techo de 12 eliminado), midió ${size.toFixed(3)}`,
+  );
+}
+
+console.log("paper-space-render-altura.spec: 7 comprobaciones OK");
