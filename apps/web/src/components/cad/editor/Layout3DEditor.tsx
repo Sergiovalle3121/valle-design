@@ -267,9 +267,8 @@ import { buildCadSelectionUniverse } from "@/components/cad/editor/selection-uni
 import { assertCadCommandsNotOnLockedLayers } from "@/lib/cad/entity-command-locks";
 import {
   acquireCadTrackingPoint,
-  resolveCadPolarTracking,
-  trackFromAcquiredPoints,
 } from "@/lib/cad/precision-tracking";
+import { resolveDraftPoint } from "./draft-point-resolver";
 import {
   defaultCadDynamicValues,
   type CadDynamicInputResult,
@@ -6474,58 +6473,29 @@ export default function Layout3DEditor({
         (wallChainRef.current
           ? { x: wallChainRef.current.wx, y: wallChainRef.current.wy }
           : null);
-      if (
-        draftSettingsHost.objectSnapTracking &&
-        draftSettingsHost.trackingPoints.length
-      ) {
-        const tracked = trackFromAcquiredPoints(
-          { x: wx, y: wy },
-          draftSettingsHost.trackingPoints,
-          tol,
-        );
-        if (tracked.snapped) {
-          setGuides(
-            tracked.guides.find((guide) => guide.axis === "x")?.value ?? null,
-            tracked.guides.find((guide) => guide.axis === "y")?.value ?? null,
-          );
-          return {
-            wx: tracked.point.x,
-            wy: tracked.point.y,
-            onDxf: false,
-            tracking: "object",
-          };
-        }
+      const resolved = resolveDraftPoint({
+        cursor: { x: wx, y: wy },
+        anchor,
+        tolerance: tol,
+        ortho: draftSettingsHost.ortho,
+        polar: draftSettingsHost.polar,
+        polarIncrement: draftSettingsHost.polarIncrement,
+        objectSnapTracking: draftSettingsHost.objectSnapTracking,
+        trackingPoints: draftSettingsHost.trackingPoints,
+        snapWorld,
+      });
+      if (resolved.tracking === "object") {
+        setGuides(resolved.guideX, resolved.guideY);
+      } else {
+        setGuides(null, null);
       }
-      setGuides(null, null);
-      if (anchor && (draftSettingsHost.ortho || draftSettingsHost.polar)) {
-        const increment = draftSettingsHost.ortho
-          ? 90
-          : draftSettingsHost.polarIncrement;
-        const tracked = resolveCadPolarTracking(
-          anchor,
-          { x: wx, y: wy },
-          increment,
-          draftSettingsHost.ortho ? 45 : Math.min(6, increment / 4),
-        );
-        if (tracked.snapped) {
-          // Con la rejilla de captura encendida, la DISTANCIA a lo largo del
-          // rayo también se captura al paso de la rejilla (el PolarSnap de
-          // AutoCAD): el rastreo devolvía el punto crudo proyectado y un muro
-          // pinchado a 8011 quedaba en 8011 con SNAP on (golden 53, medido:
-          // y exacta por el rayo a 0°, x con el error del píxel).
-          const along = Math.hypot(tracked.point.x - anchor.x, tracked.point.y - anchor.y);
-          const stepped = snapWorld(along);
-          const ratio = along > 1e-9 ? stepped / along : 0;
-          return {
-            wx: anchor.x + (tracked.point.x - anchor.x) * ratio,
-            wy: anchor.y + (tracked.point.y - anchor.y) * ratio,
-            onDxf: false,
-            tracking: draftSettingsHost.ortho ? "ortho" : "polar",
-            trackingAngle: tracked.angle,
-          };
-        }
-      }
-      return { wx: snapWorld(wx), wy: snapWorld(wy), wz, onDxf: false };
+      return {
+        wx: resolved.x,
+        wy: resolved.y,
+        onDxf: false,
+        tracking: resolved.tracking,
+        trackingAngle: resolved.trackingAngle,
+      };
     };
     const showSnapMarker = (wx: number | null, wy?: number) => {
       const m = snapMarkerRef.current;
