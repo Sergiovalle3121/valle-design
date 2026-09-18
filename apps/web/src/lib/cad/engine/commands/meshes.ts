@@ -8,17 +8,23 @@
  * CSG, igual que PLANESURF.
  */
 import { makeBox, bodyToFaceSpecs, attachPlanarSurfaces, buildBody } from "../../../brep";
+import { solid3dBody, solid3dMassProperties } from "../../solid3d-build";
 import {
   asCadCommand,
   CAD_ACCEPT_DISTANCE,
+  CAD_ACCEPT_ENTITY_PICK,
   CAD_ACCEPT_POINT,
+  CAD_ACCEPT_SELECTION,
   type CadAnyCommandDescriptor,
   type CadCommandDescriptor,
   type CadCommandStep,
 } from "../command-types";
 import {
   finishedSolid,
+  formatMagnitude,
   makeSolidEntity,
+  selectedEntities,
+  solidBatch,
   solidMessage,
 } from "./solids-support";
 
@@ -115,6 +121,109 @@ const meshCommand: CadCommandDescriptor<MeshBoxState> = {
   },
 };
 
+// --- CONVTOMESH: convertir sólido 3D a representación de malla ---
+
+type CvtMeshState = { selection: readonly string[] };
+
+const convtomeshCommand: CadCommandDescriptor<CvtMeshState | null> = {
+  name: "CONVTOMESH",
+  aliases: ["CVTMESH", "CONVERTIRAMALLA"],
+  kind: "modify",
+  transparent: false,
+  selection: "optional",
+  repeatable: true,
+  mutates: true,
+  cursor: "crosshair",
+  begin: (context) => ({
+    state:
+      context.selection.length > 0
+        ? { selection: context.selection }
+        : null,
+    prompt: {
+      message:
+        context.selection.length > 0
+          ? `${context.selection.length} entidad(es) seleccionada(s). Pulse Intro para convertir`
+          : "Designe un solido 3D para convertir a malla",
+      options: [],
+    },
+    accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
+  }),
+  step: (state, input, context) => {
+    if (input.kind === "cancel")
+      return solidMessage(state, "CONVTOMESH cancelado.");
+    if (input.kind === "selection")
+      return {
+        state: { selection: input.entityIds },
+        prompt: {
+          message: `${input.entityIds.length} entidad(es). Pulse Intro para convertir`,
+          options: [],
+        },
+        accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
+      };
+    if (input.kind === "entityPick") {
+      const prev = state?.selection ?? [];
+      return {
+        state: { selection: [...prev, input.entityId] },
+        prompt: {
+          message: `${prev.length + 1} entidad(es). Pulse Intro para convertir`,
+          options: [],
+        },
+        accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
+      };
+    }
+    if (input.kind !== "enter" && input.kind !== "text")
+      return {
+        state,
+        prompt: { message: "Designe entidades o pulse Intro", options: [] },
+        accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
+      };
+
+    const ids = state?.selection ?? [];
+    if (ids.length === 0)
+      return solidMessage(state, "CONVTOMESH no encontró ningún solido 3D.");
+
+    const entities = selectedEntities(context, ids);
+    if (entities.length === 0)
+      return solidMessage(state, "CONVTOMESH: no se encontraron las entidades.");
+
+    const entity = entities[0];
+    if (entity.type !== "solid3d")
+      return solidMessage(state, "CONVTOMESH no encontró ningún solido 3D en la selección.");
+
+    const solid = entity as import("../../cad-entities-v5").CadSolid3dEntity;
+    const body = solid3dBody(solid);
+    if (body.faces.length === 0)
+      return solidMessage(state, "CONVTOMESH: el solido no tiene caras.");
+
+    const props = solid3dMassProperties(solid);
+
+    const pts = body.vertices.map((v: { point: { x: number; y: number; z: number } }) => ({
+      x: v.point.x, y: v.point.y, z: v.point.z,
+    }));
+    const specs = bodyToFaceSpecs(body);
+    const faces = specs.map((s: { outer: number[]; inners?: number[][] }) => ({
+      outer: [...s.outer],
+      ...(s.inners && s.inners.length > 0 ? { inners: s.inners.map((r: number[]) => [...r]) } : {}),
+    }));
+
+    const meshEntity = makeSolidEntity(
+      context.newEntityId(),
+      [{ id: "malla", op: "brep", points: pts, faces }],
+      "malla",
+      context.activeLayer,
+      solid.name,
+    );
+
+    return solidBatch(
+      state,
+      [{ type: "insert", entity: meshEntity }],
+      "CONVTOMESH",
+      `Malla: ${body.faces.length} caras, ${body.vertices.length} vertices, area ${formatMagnitude(props.area)} mm2.`,
+    );
+  },
+};
+
 export const CAD_MESH_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(meshCommand),
+  asCadCommand(convtomeshCommand),
 ];
