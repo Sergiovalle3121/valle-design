@@ -14189,7 +14189,13 @@ export default function Layout3DEditor({
           `commandEngineRef.current.invoke` es el MISMO despacho que usa la
           línea de comandos: un botón de la cinta no es un camino nuevo. */}
       <CadRibbon
-        dispatch={(name) => commandEngineRef.current.invoke(name)}
+        dispatch={(name) => {
+          if (enginePointerRouterRef.current) {
+            enginePointerRouterRef.current.invoke(name);
+          } else {
+            commandEngineRef.current.invoke(name);
+          }
+        }}
         readOnly={drawingReadOnly}
       />
 
