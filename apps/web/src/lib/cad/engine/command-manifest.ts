@@ -327,6 +327,8 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "SURFUNTRIM", aliases: ["SUNTRIM", "DESRECORTARSUPERF"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/surfaces" },
   { name: "SURFPATCH", aliases: ["SPATCH", "PARCHE"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/surfaces-ext" },
   { name: "SURFNETWORK", aliases: ["SNETWORK", "RED"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/surfaces-ext" },
+  { name: "SURFBLEND", aliases: ["SBLEND", "MEZCLARSUPERF"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/surfaces-ext" },
+  { name: "SURFEXTEND", aliases: ["SEXTEND", "EXTENDERSUPERF"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/surfaces-ext" },
   { name: "3DMOVE", aliases: ["3M"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, spatial: "elevation", cursor: "pick", module: "commands/transform-3d" },
   { name: "3DARRAY", aliases: ["3A"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, spatial: "elevation", cursor: "pick", module: "commands/transform-3d-array" },
   { name: "MIRROR3D", aliases: ["MIRROR3"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, spatial: "elevation", cursor: "pick", module: "commands/transform-3d-mirror" },
