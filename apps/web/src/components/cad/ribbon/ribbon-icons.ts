@@ -13,7 +13,6 @@ import {
   Eye,
   GitCompare,
   Globe,
-  Grid3x3,
   Group,
   Layers,
   Layers2,
