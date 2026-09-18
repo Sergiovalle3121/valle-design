@@ -105,6 +105,18 @@ export const CAD_OSNAP_HUD_LABELS: Record<SnapType, string> = {
 /** Todos los modos, en el orden de desempate del motor. Para pintar la lista. */
 export const CAD_OSNAP_MODES: readonly SnapType[] = SNAP_PRIORITY;
 
+const STORAGE_KEY = "valle_draft_settings";
+
+interface PersistedState {
+  osnap?: boolean;
+  modes?: Record<string, boolean>;
+  ortho?: boolean;
+  polar?: boolean;
+  polarStep?: number;
+  tracking?: boolean;
+  dynamicInput?: boolean;
+}
+
 export class CadDraftSettingsHost {
   private osnapOn = true;
   private modes: Record<SnapType, boolean> = defaultCadOsnapModes();
@@ -118,6 +130,52 @@ export class CadDraftSettingsHost {
   private tracked: CadTrackingPoint[] = [];
   private readonly listeners = new Set<() => void>();
   private snapshot: CadDraftSettingsSnapshot = this.build();
+
+  constructor() {
+    this.restore();
+    this.snapshot = this.build();
+  }
+
+  private restore(): void {
+    try {
+      const raw = typeof localStorage !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
+      if (!raw) return;
+      const saved = JSON.parse(raw) as PersistedState;
+      if (typeof saved.osnap === "boolean") this.osnapOn = saved.osnap;
+      if (saved.modes) {
+        const defaults = defaultCadOsnapModes();
+        for (const key of SNAP_PRIORITY) {
+          if (typeof saved.modes[key] === "boolean") (this.modes as Record<string, boolean>)[key] = saved.modes[key]!;
+          else (this.modes as Record<string, boolean>)[key] = defaults[key];
+        }
+      }
+      if (typeof saved.ortho === "boolean") this.orthoOn = saved.ortho;
+      if (typeof saved.polar === "boolean") this.polarOn = saved.polar;
+      if (typeof saved.polarStep === "number" && saved.polarStep > 0) this.polarStep = saved.polarStep;
+      if (typeof saved.tracking === "boolean") this.trackingOn = saved.tracking;
+      if (typeof saved.dynamicInput === "boolean") this.dynamicInputOn = saved.dynamicInput;
+    } catch {
+      // localStorage corrupto o no disponible: ignora y usa defaults.
+    }
+  }
+
+  private save(): void {
+    try {
+      if (typeof localStorage === "undefined") return;
+      const state: PersistedState = {
+        osnap: this.osnapOn,
+        modes: { ...this.modes },
+        ortho: this.orthoOn,
+        polar: this.polarOn,
+        polarStep: this.polarStep,
+        tracking: this.trackingOn,
+        dynamicInput: this.dynamicInputOn,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch {
+      // localStorage lleno o no disponible: ignora.
+    }
+  }
 
   private build(): CadDraftSettingsSnapshot {
     return {
@@ -134,6 +192,7 @@ export class CadDraftSettingsHost {
 
   private publish(): void {
     this.snapshot = this.build();
+    this.save();
     for (const listener of this.listeners) listener();
   }
 
