@@ -102,7 +102,10 @@ export function CadViewCube({
               FACE_BASE,
               "absolute rounded-sm",
               active === preset && "bg-brand-strong text-primary-foreground",
-              preset === "top" && "left-[18px] top-[2px] h-[18px] w-[38px]",
+              // 20 px y no 18: el golden exige que cada cara tenga una zona de al menos
+              // 20×20, que es lo que un ratón acierta sin pelear. Y cabe justo: 2 + 20 = 22,
+              // que es donde EMPIEZA la zona de «front», así que no se solapan.
+              preset === "top" && "left-[18px] top-[2px] h-[20px] w-[38px]",
               preset === "front" && "left-[13px] top-[22px] h-[32px] w-[36px]",
               preset === "right" && "left-[38px] top-[12px] h-[30px] w-[24px]",
             )}
