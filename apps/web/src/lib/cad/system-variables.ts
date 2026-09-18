@@ -171,6 +171,7 @@ export const CAD_SYSTEM_VARIABLES: readonly CadSystemVariableDef[] = [
   real("CHAMFERB", 0, "Segunda distancia de chaflán", { min: 0 }),
   real("TEXTSIZE", 2.5, "Altura de texto por defecto", { min: 1e-6 }),
   real("DIMSCALE", 1, "Escala general de las cotas", { min: 1e-6 }),
+  text("DIMSTYLE", "", "Estilo de cota vigente: nombre del estilo que reciben las cotas nuevas"),
 
   // --- vista 3D ---------------------------------------------------------------
   int("PERSPECTIVE", 1, "Proyección 3D: 0 paralela (ortográfica), 1 perspectiva", { enumerated: [0, 1] }),

@@ -147,6 +147,8 @@ export function cadDimensionEntity(
   const needed = cadDimensionReferenceCount(draft.kind);
   const references = draft.references.slice(0, needed);
   const associative = references.length === needed && references.every(Boolean);
+  const dimStyle = context.variables?.get("DIMSTYLE");
+  const style = draft.style ?? (typeof dimStyle === "string" && dimStyle ? dimStyle : undefined);
   return {
     id: context.newEntityId(),
     type: "dimension",
@@ -158,7 +160,7 @@ export function cadDimensionEntity(
     ...(draft.offset !== undefined ? { offset: draft.offset } : {}),
     ...(draft.radius !== undefined ? { radius: draft.radius } : {}),
     ...(draft.text ? { text: draft.text } : {}),
-    ...(draft.style ? { style: draft.style } : {}),
+    ...(style ? { style } : {}),
     ...(associative
       ? {
           associative: true,
