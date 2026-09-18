@@ -125,11 +125,21 @@ function mat3Vec(m: Mat3, v: CadPoint3): CadPoint3 {
   };
 }
 
+/** 2-point rotation: rotate sDir to dDir around their cross product. */
+function twoPointRotation(sDir: CadPoint3, dDir: CadPoint3): Mat3 {
+  const axis = cross(sDir, dDir);
+  const sinA = norm(axis);
+  const cosA = dot(sDir, dDir);
+  if (sinA < 1e-12) return cosA >= 0 ? IDENTITY_MAT3 : negateXY();
+  const n = normalize(axis);
+  return rotationMatrixFromAxisAngle(n, sinA, cosA);
+}
+
 /**
  * Compute the rotation matrix that maps source points to destination points.
  * - 1 pair: identity (translation only).
  * - 2 pairs: rotation in the plane spanned by the two direction vectors.
- * - 3 pairs: full 3D rotation.
+ * - 3 pairs: full 3D rotation (falls back to 2-point if points are collinear).
  */
 function alignRotation(src: readonly CadPoint3[], dst: readonly CadPoint3[]): Mat3 {
   if (src.length < 2 || dst.length < 2) return IDENTITY_MAT3;
@@ -138,26 +148,25 @@ function alignRotation(src: readonly CadPoint3[], dst: readonly CadPoint3[]): Ma
   const dDir = normalize(sub(dst[1], dst[0]));
 
   if (src.length < 3 || dst.length < 3) {
-    // 2-point alignment: rotate sDir to dDir around their cross product.
-    const axis = cross(sDir, dDir);
-    const sinA = norm(axis);
-    const cosA = dot(sDir, dDir);
-    if (sinA < 1e-12) return cosA >= 0 ? IDENTITY_MAT3 : negateXY();
-    const n = normalize(axis);
-    return rotationMatrixFromAxisAngle(n, sinA, cosA);
+    return twoPointRotation(sDir, dDir);
   }
 
   // 3-point alignment: build orthonormal frames and compose.
   const s1 = normalize(sub(src[1], src[0]));
   let s2raw = sub(src[2], src[0]);
-  s2raw = normalize(sub(s2raw, { x: s1.x * dot(s2raw, s1), y: s1.y * dot(s2raw, s1), z: s1.z * dot(s2raw, s1) }));
-  const s2 = s2raw;
-  const s3 = cross(s1, s2);
-
+  s2raw = sub(s2raw, { x: s1.x * dot(s2raw, s1), y: s1.y * dot(s2raw, s1), z: s1.z * dot(s2raw, s1) });
+  const s2len = norm(s2raw);
   const d1 = normalize(sub(dst[1], dst[0]));
   let d2raw = sub(dst[2], dst[0]);
-  d2raw = normalize(sub(d2raw, { x: d1.x * dot(d2raw, d1), y: d1.y * dot(d2raw, d1), z: d1.z * dot(d2raw, d1) }));
-  const d2 = d2raw;
+  d2raw = sub(d2raw, { x: d1.x * dot(d2raw, d1), y: d1.y * dot(d2raw, d1), z: d1.z * dot(d2raw, d1) });
+  const d2len = norm(d2raw);
+
+  // Collinear points make Gram-Schmidt degenerate — fall back to2-point rotation.
+  if (s2len < 1e-12 || d2len < 1e-12) return twoPointRotation(sDir, dDir);
+
+  const s2 = { x: s2raw.x / s2len, y: s2raw.y / s2len, z: s2raw.z / s2len };
+  const s3 = cross(s1, s2);
+  const d2 = { x: d2raw.x / d2len, y: d2raw.y / d2len, z: d2raw.z / d2len };
   const d3 = cross(d1, d2);
 
   // S = [s1 | s2 | s3], D = [d1 | d2 | d3], R = D · Sᵀ

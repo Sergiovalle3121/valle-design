@@ -346,6 +346,17 @@ function runPass(name: string, pasada: Pasada): PassOutcome {
       } else {
         input = { kind: "enter" };
       }
+    } else if (accepts & CAD_ACCEPT_TEXT) {
+      // Algunos pasos aceptan TEXTO LIBRE y lo que piden es un número: la
+      // altura del corte de SOLVIEW, el zoom de un detalle, un factor. Darles
+      // «PROBE7» los mataba en «no es una altura de corte: escriba un número»,
+      // que es un límite honesto del comando ante una entrada absurda — pero un
+      // límite que la SONDA se estaba buscando. Esto es habilidad del
+      // auto-respondedor, no una exención: el comando sigue midiéndose con el
+      // mismo árbol.
+      input = PROMPT_NUMERICO.test(step.prompt.message)
+        ? { kind: "text", value: "10" }
+        : { kind: "text", value: `PROBE${steps}` };
     } else if (accepts & CAD_ACCEPT_ENTITY_PICK) {
       const pool = pasada.pool;
       const entityId = pool[entityCursor % pool.length]!;
@@ -365,17 +376,6 @@ function runPass(name: string, pasada: Pasada): PassOutcome {
       input = { kind: "angle", degrees: 45 };
     } else if (accepts & CAD_ACCEPT_KEYWORD && step.prompt.defaultOption) {
       input = { kind: "enter" };
-    } else if (accepts & CAD_ACCEPT_TEXT) {
-      // Algunos pasos aceptan TEXTO LIBRE y lo que piden es un número: la
-      // altura del corte de SOLVIEW, el zoom de un detalle, un factor. Darles
-      // «PROBE7» los mataba en «no es una altura de corte: escriba un número»,
-      // que es un límite honesto del comando ante una entrada absurda — pero un
-      // límite que la SONDA se estaba buscando. Esto es habilidad del
-      // auto-respondedor, no una exención: el comando sigue midiéndose con el
-      // mismo árbol.
-      input = PROMPT_NUMERICO.test(step.prompt.message)
-        ? { kind: "text", value: "10" }
-        : { kind: "text", value: `PROBE${steps}` };
     } else if (accepts & CAD_ACCEPT_KEYWORD && step.prompt.options?.length) {
       input = { kind: "keyword", keyword: step.prompt.options[0]!.keyword };
     } else {
