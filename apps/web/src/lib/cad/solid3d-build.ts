@@ -261,6 +261,12 @@ export interface SolidEvaluateOptions {
    * dibujo donde el árbol ya se validó al escribirlo.
    */
   validate?: boolean;
+  /**
+   * Devolver el cuerpo SIN aplicar placement. Útil para designación de
+   * aristas: el índice debe corresponder al cuerpo del operando, no al cuerpo
+   * ya colocado (que puede numerar distinto si hay reflexión).
+   */
+  skipPlacement?: boolean;
 }
 
 const point = (p: { x: number; y: number; z: number }): Vec3 =>
@@ -331,7 +337,9 @@ export function evaluateSolidTree(
     return body;
   };
 
-  return placeBody(evaluate(entity.root), entity.placement);
+  return options.skipPlacement
+    ? evaluate(entity.root)
+    : placeBody(evaluate(entity.root), entity.placement);
 }
 
 function buildNode(

@@ -22,9 +22,9 @@
  * `cadResolveFaceRef` comprueba antes de creerse.
  */
 import type { CadDocument, CadEntity, CadPoint2, CadPoint3 } from "../cad-document";
-import type { CadSolid3dEntity, CadSolidFaceRef } from "../cad-entities-v5";
+import type { CadSolid3dEntity, CadSolidFaceRef, CadSolidPlacement } from "../cad-entities-v5";
 import { halfEdgeSegment } from "../../brep";
-import { solid3dBody } from "../solid3d-build";
+import { solid3dBody, evaluateSolidTree, resolveSolidPlacement } from "../solid3d-build";
 import { cadFaceRayHit, type CadPickRay } from "./face-ray";
 import { hitEdge } from "./edge-ray";
 import { cadFaceRefFromBody } from "./solid-face-ref";
@@ -44,6 +44,60 @@ export interface CadDocumentFacePick {
 
 function isSolid(entity: CadEntity): entity is CadSolid3dEntity {
   return entity.type === "solid3d";
+}
+
+/**
+ * Transforma un rayo a coordenadas locales del sólido invirtiendo la colocación.
+ * Necesario para que el índice de arista coincida con el cuerpo del operando
+ * (sin colocar), que es lo que el kernel usa al resolver edges.
+ */
+function rayToLocal(ray: CadPickRay, placement?: CadSolidPlacement): CadPickRay {
+  const m = resolveSolidPlacement(placement);
+  const etx = m.e + m.tx;
+  const ety = m.f + m.ty;
+  const etz = m.dz + m.tz;
+
+  // Traslación: origin - translation
+  const ox = ray.origin.x - etx;
+  const oy = ray.origin.y - ety;
+  const oz = ray.origin.z - etz;
+
+  // Inversa de la 3x3: adjunta / determinante
+  const a = m.a, b = m.b, c = m.c, d = m.d;
+  const m02 = m.m02, m12 = m.m12, m20 = m.m20, m21 = m.m21, m22 = m.m22;
+
+  const det =
+    a * (d * m22 - m12 * m21) -
+    c * (b * m22 - m12 * m20) +
+    m02 * (b * m21 - d * m20);
+
+  if (Math.abs(det) < 1e-12) return ray; // singular: no invertible
+
+  const invDet = 1 / det;
+
+  // Cofactores de la transpuesta = inversa
+  const i00 = (d * m22 - m12 * m21) * invDet;
+  const i01 = (m02 * m21 - c * m22) * invDet;
+  const i02 = (c * m12 - m02 * d) * invDet;
+  const i10 = (m12 * m20 - b * m22) * invDet;
+  const i11 = (a * m22 - m02 * m20) * invDet;
+  const i12 = (m02 * b - a * m12) * invDet;
+  const i20 = (b * m21 - d * m20) * invDet;
+  const i21 = (c * m20 - a * m21) * invDet;
+  const i22 = (a * d - c * b) * invDet;
+
+  return {
+    origin: {
+      x: i00 * ox + i01 * oy + i02 * oz,
+      y: i10 * ox + i11 * oy + i12 * oz,
+      z: i20 * ox + i21 * oy + i22 * oz,
+    },
+    direction: {
+      x: i00 * ray.direction.x + i01 * ray.direction.y + i02 * ray.direction.z,
+      y: i10 * ray.direction.x + i11 * ray.direction.y + i12 * ray.direction.z,
+      z: i20 * ray.direction.x + i21 * ray.direction.y + i22 * ray.direction.z,
+    },
+  };
 }
 
 /**
@@ -112,13 +166,41 @@ export function cadDocumentEdgeUnderRay(
     let body;
     let hit;
     try {
-      body = solid3dBody(entity);
-      hit = hitEdge(body, ray);
+      // Usar el cuerpo SIN colocar para que el índice de arista coincida con
+      // lo que el kernel usa al resolver edges (evaluate(node.operand)).
+      // El rayo se transforma a coordenadas locales con la inversa de la
+      // colocación.
+      body = evaluateSolidTree(entity, { skipPlacement: true });
+      const localRay = rayToLocal(ray, entity.placement);
+      hit = hitEdge(body, localRay);
     } catch {
       continue;
     }
     if (!hit) continue;
-    if (best && hit.distance >= best.distance) continue;
+    // Comparar usando la distancia en coordenadas de mundo (la del rayo original).
+    // hitEdge devuelve la distancia en coordenadas locales, que puede diferir si
+    // la colocación escala. Para ordenar entre sólidos, usamos la distancia
+    // perpendicular del rayo original al punto colocado.
+    const m = resolveSolidPlacement(entity.placement);
+    const etx = m.e + m.tx;
+    const ety = m.f + m.ty;
+    const etz = m.dz + m.tz;
+    const worldPoint = {
+      x: m.a * hit.point.x + m.c * hit.point.y + m.m02 * hit.point.z + etx,
+      y: m.b * hit.point.x + m.d * hit.point.y + m.m12 * hit.point.z + ety,
+      z: m.m20 * hit.point.x + m.m21 * hit.point.y + m.m22 * hit.point.z + etz,
+    };
+    // Distancia perpendicular del rayo original al punto colocado
+    const dx = worldPoint.x - ray.origin.x;
+    const dy = worldPoint.y - ray.origin.y;
+    const dz = worldPoint.z - ray.origin.z;
+    const dot = dx * ray.direction.x + dy * ray.direction.y + dz * ray.direction.z;
+    const worldDist = Math.sqrt(
+      (dx - dot * ray.direction.x) ** 2 +
+      (dy - dot * ray.direction.y) ** 2 +
+      (dz - dot * ray.direction.z) ** 2,
+    );
+    if (best && worldDist >= best.distance) continue;
     const seg = halfEdgeSegment(body, body.edges[hit.edge].a);
     best = {
       entityId: entity.id,
@@ -126,7 +208,7 @@ export function cadDocumentEdgeUnderRay(
       from: { x: seg.from.x, y: seg.from.y, z: seg.from.z },
       to: { x: seg.to.x, y: seg.to.y, z: seg.to.z },
       point: { x: hit.point.x, y: hit.point.y },
-      distance: hit.distance,
+      distance: worldDist,
     };
   }
   return best;
