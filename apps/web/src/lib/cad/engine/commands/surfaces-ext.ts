@@ -206,8 +206,8 @@ const surfblendCommand: CadCommandDescriptor<SurfblendState> = {
     if (input.kind !== "enter" && input.kind !== "text")
       return { state, prompt: { message: "Designe superficies o pulse Intro", options: [] }, accepts: CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_SELECTION };
     if (!state.first || !state.second) return solidMessage(state, "SURFBLEND necesita dos superficies.");
-    const first = context.entity(state.first);
-    const second = context.entity(state.second);
+    const first = context.entity?.(state.first);
+    const second = context.entity?.(state.second);
     if (!first || first.type !== "solid3d") return solidMessage(state, "SURFBLEND: la primera entidad no es un solido 3D.");
     if (!second || second.type !== "solid3d") return solidMessage(state, "SURFBLEND: la segunda entidad no es un solido 3D.");
     const bb1 = bodyBounds(solid3dBody(first as never));
