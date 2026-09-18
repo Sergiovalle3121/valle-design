@@ -4,7 +4,7 @@
  * La variable de sistema DIMSTYLE se propaga a las cotas nuevas.
  */
 import { strict as assert } from "node:assert";
-import { migrateCadDocument, type CadDocument, type CadEntity } from "../../cad-document";
+import { migrateCadDocument, type CadDocument } from "../../cad-document";
 import type { CadDimensionEntity } from "../../associative-dimension";
 import { CAD_COMMAND_REGISTRY_V2 } from "../index";
 import type { CadCommandContext, CadCommandInput, CadCommandResult } from "../command-types";

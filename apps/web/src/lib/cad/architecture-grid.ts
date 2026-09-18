@@ -72,7 +72,6 @@ export interface CadGridResult {
 // Claves alfabéticas (saltando I, O, Ñ)
 // ---------------------------------------------------------------------------
 
-const SKIP_SET = new Set(["I", "O", "Ñ"]);
 
 /**
  * Devuelve la n-ésima clave alfabética (0 = A, 1 = B, …), saltando I, O y Ñ.
