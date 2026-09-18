@@ -166,9 +166,9 @@ function planeFromPoints(
   const vx = c.x - a.x;
   const vy = c.y - a.y;
   const vz = c.z - a.z;
-  let nx = uy * vz - uz * vy;
-  let ny = uz * vx - ux * vz;
-  let nz = ux * vy - uy * vx;
+  const nx = uy * vz - uz * vy;
+  const ny = uz * vx - ux * vz;
+  const nz = ux * vy - uy * vx;
   const len = Math.hypot(nx, ny, nz);
   if (!(len > 1e-12)) return null;
   return { origin: a, nx: nx / len, ny: ny / len, nz: nz / len };
