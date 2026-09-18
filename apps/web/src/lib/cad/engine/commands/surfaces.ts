@@ -558,7 +558,7 @@ const surfsculptCommand: CadCommandDescriptor<SurfsculptState | null> = {
         accepts: CAD_ACCEPT_TEXT | CAD_ACCEPT_DISTANCE,
       };
     if (input.kind === "entityPick") {
-      const picked = context.entity(input.entityId);
+      const picked = context.entity?.(input.entityId);
       if (picked && picked.type !== "solid3d")
         return solidMessage(state, "SURFSCULPT: solo se aceptan solidos 3D.");
       const prev = state?.selection ?? [];

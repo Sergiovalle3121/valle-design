@@ -117,7 +117,7 @@ const surfnetworkCommand: CadCommandDescriptor<SurfaceExtState | null> = {
         accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
       };
     if (input.kind === "entityPick") {
-      const picked = context.entity(input.entityId);
+      const picked = context.entity?.(input.entityId);
       if (picked && (picked.type !== "polyline" || !("vertices" in picked)))
         return solidMessage(state, "SURFNETWORK: solo se aceptan polilineas para la red.");
       const prev = state?.selection ?? [];
@@ -258,7 +258,7 @@ const surfextendCommand: CadCommandDescriptor<SurfextendState | null> = {
     if (input.kind === "selection")
       return { state: { selection: input.entityIds, distance: null }, prompt: { message: `${input.entityIds.length} entidad(es). Escriba la distancia`, options: [] }, accepts: CAD_ACCEPT_DISTANCE | CAD_ACCEPT_ENTITY_PICK };
     if (input.kind === "entityPick") {
-      const picked = context.entity(input.entityId);
+      const picked = context.entity?.(input.entityId);
       if (picked && picked.type !== "solid3d")
         return solidMessage(state, "SURFEXTEND: solo se aceptan solidos 3D.");
       const prev = state?.selection ?? [];
