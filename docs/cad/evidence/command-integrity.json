@@ -2,10 +2,10 @@
   "generatedBy": "scripts/cad/check-command-integrity.mjs --write",
   "total": 294,
   "verdicts": {
-    "muta": 100,
+    "muta": 99,
     "delegado": 51,
     "informa": 22,
-    "honesto-limitado": 112,
+    "honesto-limitado": 113,
     "no-concluyente": 9,
     "ROJO": 0
   },
@@ -19,9 +19,9 @@
       "ROJO": 0
     },
     "solidos3d": {
-      "muta": 86,
+      "muta": 85,
       "delegado": 51,
-      "informa": 40,
+      "informa": 41,
       "honesto-limitado": 108,
       "no-concluyente": 9,
       "ROJO": 0
