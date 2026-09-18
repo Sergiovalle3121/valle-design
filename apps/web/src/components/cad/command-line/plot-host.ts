@@ -277,6 +277,10 @@ export class CadPlotHost {
       return "Este espacio de trabajo no sabe traer dibujos del inquilino para compararlos: falta el anfitrión de comparación.";
     if (request.kind === "download")
       return "La descarga de archivos la atiende el anfitrión del motor, no el de trazado.";
+    if (request.kind === "render-capture")
+      return "La captura del viewport la atiende el anfitrión del motor, no el de trazado.";
+    if (request.kind === "render-setting")
+      return "Los ajustes de render los atiende el anfitrión del motor, no el de trazado.";
 
     const document = this.bridge.document();
     if (!document) return "No hay ningún dibujo abierto que trazar.";

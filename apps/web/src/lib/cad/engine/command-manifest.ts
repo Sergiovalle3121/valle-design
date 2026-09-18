@@ -1,8 +1,8 @@
 /**
- * METADATOS de los 328 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 331 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
- * 120 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
+ * 121 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
  * `npm run check:cad`— falla si lo committeado deja de coincidir con lo que los
  * descriptores dicen hoy. Regla 4 de la campaña de cimientos: ninguna cifra vive
  * en dos lugares, y un comando nuevo no puede entrar sin aparecer aquí.
@@ -251,6 +251,9 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "REFEDIT", aliases: ["EDITARREF"], kind: "manage", transparent: false, selection: "optional", repeatable: false, mutates: true, cursor: "pick", module: "commands/reference-edit" },
   { name: "REFSET", aliases: ["CONJUNTOREF"], kind: "manage", transparent: false, selection: "required", repeatable: true, mutates: true, cursor: "none", module: "commands/reference-edit" },
   { name: "REFCLOSE", aliases: ["CERRARREF"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: true, cursor: "none", module: "commands/reference-edit" },
+  { name: "RENDER", aliases: ["RR", "RENDERIZAR"], kind: "manage", transparent: true, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/render-commands" },
+  { name: "RENDERPRESETS", aliases: ["RPRES", "AJUSTESRENDER"], kind: "manage", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/render-commands" },
+  { name: "RENDEREXPOSURE", aliases: ["REXPOSURE", "EXPOSICIONRENDER"], kind: "manage", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/render-commands" },
   { name: "QSELECT", aliases: [], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "none", module: "commands/select-query" },
   { name: "FILTER", aliases: ["FI"], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "none", module: "commands/select-query" },
   { name: "SELECTSIMILAR", aliases: [], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "pick", module: "commands/select-similar" },

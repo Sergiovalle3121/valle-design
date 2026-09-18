@@ -212,4 +212,25 @@ export type CadHostRequest =
       filename: string;
       mime: string;
       content: string;
+    }
+  /**
+   * Captura el viewport actual a una imagen (RENDER).
+   *
+   * El motor decide el formato y la región; el anfitrión tiene el canvas y
+   * produce el archivo. Igual que PLOT: el comando decide, el anfitrión ejecuta.
+   */
+  | {
+      kind: "render-capture";
+      format: "png" | "jpeg" | "bmp";
+    }
+  /**
+   * Cambia una ajuste del motor de render (RENDERPRESETS, RENDEREXPOSURE, etc.).
+   *
+   * Estado del visor, como `visual-style`: no ensucia el dibujo ni deja paso
+   * de deshacer. El anfitrión decide cómo aplicar el ajuste al pipeline WebGL.
+   */
+  | {
+      kind: "render-setting";
+      setting: "quality" | "exposure";
+      value: string | number;
     };

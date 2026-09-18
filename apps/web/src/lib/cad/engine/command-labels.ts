@@ -280,6 +280,9 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   REGEN: "Regenerar",
   REGENALL: "Regenerar todo",
   REGION: "Región",
+  RENDER: "Renderizar",
+  RENDEREXPOSURE: "Exposición",
+  RENDERPRESETS: "Calidad render",
   RENAME: "Renombrar",
 
   REVCLOUD: "Nube de revisión",

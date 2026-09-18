@@ -1,5 +1,5 @@
 /**
- * Los 120 módulos de comandos, con `import` ESTÁTICO. GENERADO — no se edita a mano.
+ * Los 121 módulos de comandos, con `import` ESTÁTICO. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` y `--check`
  * lo verifica, del mismo tirón que `command-manifest.ts`.
@@ -108,38 +108,39 @@ import * as m084 from "./commands/plant-route";
 import * as m085 from "./commands/plot-commands";
 import * as m086 from "./commands/raster-image";
 import * as m087 from "./commands/reference-edit";
-import * as m088 from "./commands/select-query";
-import * as m089 from "./commands/select-similar";
-import * as m090 from "./commands/settings-layer-tools";
-import * as m091 from "./commands/settings-mexican-standard";
-import * as m092 from "./commands/settings-palettes";
-import * as m093 from "./commands/settings-variables";
-import * as m094 from "./commands/sheet-set-commands";
-import * as m095 from "./commands/solids-create";
-import * as m096 from "./commands/solids-edit";
-import * as m097 from "./commands/solids-flatshot";
-import * as m098 from "./commands/solids-inquiry";
-import * as m099 from "./commands/solids-interop";
-import * as m100 from "./commands/solids-modify";
-import * as m101 from "./commands/solids-primitives";
-import * as m102 from "./commands/solids-push-face";
-import * as m103 from "./commands/solview-commands";
-import * as m104 from "./commands/surfaces";
-import * as m105 from "./commands/surfaces-ext";
-import * as m106 from "./commands/transform-3d";
-import * as m107 from "./commands/transform-3d-array";
-import * as m108 from "./commands/transform-3d-mirror";
-import * as m109 from "./commands/transform-3d-rotate";
-import * as m110 from "./commands/transform-3d-scale";
-import * as m111 from "./commands/ucs-commands";
-import * as m112 from "./commands/ucs-view-commands";
-import * as m113 from "./commands/vectorize-raster";
-import * as m114 from "./commands/view-navigation";
-import * as m115 from "./commands/view-navigation-3d";
-import * as m116 from "./commands/view-visual";
-import * as m117 from "./commands/view-visualization";
-import * as m118 from "./commands/viewbase-commands";
-import * as m119 from "./commands/xrefs";
+import * as m088 from "./commands/render-commands";
+import * as m089 from "./commands/select-query";
+import * as m090 from "./commands/select-similar";
+import * as m091 from "./commands/settings-layer-tools";
+import * as m092 from "./commands/settings-mexican-standard";
+import * as m093 from "./commands/settings-palettes";
+import * as m094 from "./commands/settings-variables";
+import * as m095 from "./commands/sheet-set-commands";
+import * as m096 from "./commands/solids-create";
+import * as m097 from "./commands/solids-edit";
+import * as m098 from "./commands/solids-flatshot";
+import * as m099 from "./commands/solids-inquiry";
+import * as m100 from "./commands/solids-interop";
+import * as m101 from "./commands/solids-modify";
+import * as m102 from "./commands/solids-primitives";
+import * as m103 from "./commands/solids-push-face";
+import * as m104 from "./commands/solview-commands";
+import * as m105 from "./commands/surfaces";
+import * as m106 from "./commands/surfaces-ext";
+import * as m107 from "./commands/transform-3d";
+import * as m108 from "./commands/transform-3d-array";
+import * as m109 from "./commands/transform-3d-mirror";
+import * as m110 from "./commands/transform-3d-rotate";
+import * as m111 from "./commands/transform-3d-scale";
+import * as m112 from "./commands/ucs-commands";
+import * as m113 from "./commands/ucs-view-commands";
+import * as m114 from "./commands/vectorize-raster";
+import * as m115 from "./commands/view-navigation";
+import * as m116 from "./commands/view-navigation-3d";
+import * as m117 from "./commands/view-visual";
+import * as m118 from "./commands/view-visualization";
+import * as m119 from "./commands/viewbase-commands";
+import * as m120 from "./commands/xrefs";
 
 cadRegisterCommandModules([
   m000,
@@ -262,4 +263,5 @@ cadRegisterCommandModules([
   m117,
   m118,
   m119,
+  m120,
 ]);
