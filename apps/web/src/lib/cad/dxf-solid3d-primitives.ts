@@ -12,7 +12,7 @@
  *  · no hay eliminación de aristas ocultas;
  *  · en REGION, los anillos interiores viajan como contornos independientes.
  */
-import type { CadDocument, CadEntity } from "./cad-document";
+import type { CadEntity } from "./cad-document";
 import type { CadDxfPrimitive } from "./dxf-import";
 import { CAD_ENTITY_REGISTRY } from "./entity-runtime";
 
