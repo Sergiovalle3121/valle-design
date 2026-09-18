@@ -151,3 +151,8 @@ Todas hechas antes de esta sesión (commits `4359ef50`–`bd86c7e5`).
 | CONTADOR 2026-09-20 12:30 | comandos en manifiesto 342 en 122 modulos. C08 cerrado (3D: solid3d/region en DXF). Rotacion: UI+DWG. |
 | P06 | hecha — DWG version codes como fuente unica (dwg-interop-flag.ts) + nota '.dwg en beta' en dashboard. dwgAcceptedVersionCodes/describeDwgAcceptedVersions. | 72cf55e4 |
 | CONTADOR 2026-09-20 13:00 | comandos en manifiesto 342 en 122 modulos. P06 cerrado (DWG: versiones + nota dashboard). Rotacion: 6 frentes completados (Nivel+Millar+3D+UI+DWG+Bloqueador). |
+| ci-fallo (barrido cables-sueltos) | diagnostico: log de controles muertos sin razon anadido a cables-sueltos.spec.ts. El barrido falla en CI en los 4 shards. Los comandos nuevos (RENDER, SURF, MESH, 3DALIGN, etc.) estan en pestanas no-visibles y NO son la causa. El control muerto esta en la pestana Inicio o en la barra de herramientas siempre visible. Siguiente corrida de CI revelara el nombre exacto. | f31cb10b |
+| MREDO | hecha — rehacer varios pasos de una vez, simetrico de UNDO. Antes era alias de REDO (1 paso). Ahora pregunta cuantos, con1 por defecto. Ribbon, labels, icon, manifest. 343 comandos en122 modulos. | fa510cc8 |
+| MIRROR3D | hecha — planos XY/YZ/ZX + pregunta borrar origen + alias SIMETRIA3D. Antes solo3 puntos. Crea copia y refleja la copia. Spec:11 comprobaciones. 343 comandos. | 16bb5653 |
+| CONTADOR 2026-09-20 15:00 | comandos en manifiesto 343 en 122 modulos. MREDO (Millar) + MIRROR3D mejorado (3D). Rotacion: UI+DWG+Bloqueador. |
+| ci-fallo (lint-budget dxf-solid3d-primitives) | resuelto: CadDocument importado sin uso en dxf-solid3d-primitives.ts (presupuesto 0). Eliminado import. Lint budget OK. | 98e97fcb |
