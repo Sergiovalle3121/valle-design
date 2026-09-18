@@ -127,7 +127,7 @@ let checks = 0;
 function check(label: string, ok: boolean, detail = "") {
   checks++;
   if (!ok) throw new Error(`FAIL: ${label} ${detail}`);
-  process.stderr.write(`  ✓ ${label}\n`);
+  process.stdout.write(`  ✓ ${label}\n`);
 }
 
 // ==========================================================================
@@ -220,4 +220,4 @@ function check(label: string, ok: boolean, detail = "") {
 }
 
 // ==========================================================================
-console.error(`\n${checks} comprobaciones — boolean-placement: TODAS VERDES`);
+console.log(`\n${checks} comprobaciones — boolean-placement: TODAS VERDES`);
