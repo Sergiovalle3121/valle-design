@@ -258,7 +258,9 @@ export const EMPTY_CAD_TOUR_RECORD: CadTourRecord = {
   finishedAt: 0,
   acknowledged: false,
   plotted: false,
-  minimized: true,
+  /** Arranca desplegado para que un recién llegado lo vea; se pliega al
+   *  minimizar y esa preferencia persiste en localStorage. */
+  minimized: false,
 };
 
 /**
@@ -354,7 +356,7 @@ export function parseCadTourRecord(raw: string | null): CadTourRecord {
       finishedAt: Number.isFinite(parsed.finishedAt) ? Number(parsed.finishedAt) : 0,
       acknowledged: parsed.acknowledged === true,
       plotted: parsed.plotted === true,
-      minimized: parsed.minimized !== false,
+      minimized: parsed.minimized === true,
     };
   } catch {
     // Un registro corrupto NO puede tirar el editor ni dejar al usuario sin
