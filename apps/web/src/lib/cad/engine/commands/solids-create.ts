@@ -334,9 +334,13 @@ function revolveResult(
   for (const extracted of profiles) {
     const setup = revolveSetupFromProfile(extracted, state.axisStart!, state.axisEnd!);
     if (!setup)
+      // Empieza diciendo que NO GIRÓ. El mensaje decía sólo por qué —«el perfil
+      // CRUZA el eje»—, que es un límite legítimo pero deja al lector (y al
+      // gate de integridad) sin saber si además escribió algo. La carga de la
+      // prueba es del comando: quien promete mutar y no muta lo dice primero.
       return solidMessage(
         state,
-        "El perfil CRUZA el eje de revolución. Al girar, el sólido se atravesaría a sí mismo: mueve el eje fuera del contorno.",
+        "REVOLVE no giró nada: el perfil CRUZA el eje de revolución. Al girar, el sólido se atravesaría a sí mismo: mueve el eje fuera del contorno.",
       );
     const node: CadSolidNode = {
       id: "revolucion",

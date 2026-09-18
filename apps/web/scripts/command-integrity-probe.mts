@@ -40,6 +40,26 @@
  *
  * El árbol de decisión vive en `scripts/cad/command-integrity-rules.mjs`, con
  * su spec: cada regla tiene ahí su trampa atrapada y su caso legítimo en verde.
+ *
+ * ## Dos pasadas, y por qué
+ *
+ * Cada comando se conduce DOS veces. `plano2d` es el documento de siempre
+ * (`command-integrity-probe-seed.mts`): siete entidades 2D y la designación
+ * `l1`+`l2`. `solidos3d` es la probeta de `command-integrity-probeta.mts`: los
+ * mismos siete MÁS dos sólidos que se solapan, una región y una presentación
+ * abierta con su vista derivada, todo eso designado.
+ *
+ * La segunda pasada existe porque la primera dejaba un agujero grande: 18 de
+ * los 26 comandos de las familias `solids-*` y los 9 de la familia de lámina
+ * nunca llegaban a ejecutar nada. Respondían «Esta orden necesita SOLID3D
+ * designados» o «No hay ninguna presentación abierta» y la sonda los contaba
+ * como `honesto-limitado`. Decir la verdad sobre una precondición que la sonda
+ * NUNCA cumple no cuesta nada: es un verde gratis disfrazado de honestidad.
+ *
+ * Las dos se combinan con `combinarPasadas`, que es MONÓTONA: un ROJO en
+ * cualquiera de las dos gana, y sólo un efecto verificado (`muta`/`delegado`)
+ * asciende. Ni la probeta puede quitarle su veredicto a un comando ya medido,
+ * ni un comando que sigue sin producir efecto puede salir mejor.
  */
 import { writeFileSync } from "node:fs";
 import { CAD_COMMAND_REGISTRY_V2, cadWarmAllCommands } from "../src/lib/cad/engine";
@@ -61,69 +81,130 @@ import {
   type CadCommandInput,
 } from "../src/lib/cad/engine/command-types";
 import type { CadHostRequest } from "../src/lib/cad/engine/host-requests";
-import { migrateCadDocument, serializeCadDocument, type CadDocument } from "../src/lib/cad/cad-document";
+import { serializeCadDocument, type CadDocument } from "../src/lib/cad/cad-document";
 import { executeCadEntityCommandBatch } from "../src/lib/cad/entity-commands";
 import { cadExpandSelectionByGroup } from "../src/lib/cad/blocks/cad-groups";
 import { CadSystemVariableStore } from "../src/lib/cad/system-variables";
 import { cadDocumentExtents } from "../src/lib/cad/view/document-extents";
 import { solid3dMassProperties, solid3dMesh } from "../src/lib/cad/solid3d-build";
 import { regionArea } from "../src/lib/cad/solid3d-adapter";
+import { probeDocumentSeed } from "./command-integrity-probe-seed.mjs";
 import {
   clasificar,
+  combinarPasadas,
   entidadesTocadas,
   sinGeometria,
+  soloBanderasDeMetadatos,
 } from "../../../scripts/cad/command-integrity-rules.mjs";
+import {
+  PROBETA_LAYOUT,
+  comprobarProbeta,
+  probetaDocument,
+  probetaEvidencia,
+} from "./command-integrity-probeta.mjs";
 
 const EVALUADORES = { solid3dMesh, solid3dMassProperties, regionArea };
 
-/** Documento de prueba: geometría variada, capas, bloque, hoja y restricción. */
-function probeDocument(): CadDocument {
-  return migrateCadDocument({
-    meta: { version: 1, schema: 4, unit: "mm" },
-    layers: [
-      { id: "0", name: "0", color: "#ffffff", visible: true, locked: false },
-      { id: "muro", name: "MURO", color: "#ff0000", visible: true, locked: false },
-      { id: "cotas", name: "COTAS", color: "#00ff00", visible: true, locked: false },
-    ],
-    entities: [
-      { id: "l1", type: "line", layer: "0", start: { x: 0, y: 0 }, end: { x: 100, y: 0 } },
-      { id: "l2", type: "line", layer: "0", start: { x: 50, y: -20 }, end: { x: 50, y: 60 } },
-      { id: "l3", type: "line", layer: "MURO", start: { x: 0, y: 30 }, end: { x: 100, y: 30 } },
-      { id: "c1", type: "circle", layer: "0", center: { x: 150, y: 20 }, radius: 15 },
-      {
-        id: "p1",
-        type: "polyline",
-        layer: "0",
-        closed: true,
-        vertices: [
-          { x: 200, y: 0 },
-          { x: 260, y: 0 },
-          { x: 260, y: 40 },
-          { x: 200, y: 40 },
-        ],
-      },
-      { id: "t1", type: "text", layer: "COTAS", position: { x: 10, y: 80 }, text: "PRUEBA", height: 5 },
-      { id: "a1", type: "arc", layer: "0", center: { x: 320, y: 20 }, radius: 20, startAngle: 0, endAngle: 180 },
-    ],
-  } as never);
-}
+type Verdict =
+  | "muta"
+  | "delegado"
+  | "informa"
+  | "honesto-limitado"
+  | "no-concluyente"
+  | "ROJO";
 
-interface ProbeOutcome {
-  command: string;
-  kind: string;
-  mutates: boolean;
-  verdict:
-    | "muta"
-    | "delegado"
-    | "informa"
-    | "honesto-limitado"
-    | "no-concluyente"
-    | "ROJO";
+interface PassOutcome {
+  verdict: Verdict;
   steps: number;
   effects: string[];
   lastMessages: string[];
+  /**
+   * Los mensajes ENTEROS de la pasada y lo que la pasada le puso delante.
+   * `combinarPasadas` los necesita: cuando la pasada de la probeta no concluye,
+   * la base no puede quedarse con una excusa que la probeta desmiente, y para
+   * verlo hay que releer los mensajes de la base con la dotación de la probeta.
+   * `lastMessages` no sirve: va recortado y con el nivel pegado delante.
+   */
+  messages: { text: string; level: string }[];
+  dotacion: { solidos: number; lamina: boolean };
   note?: string;
 }
+
+interface ProbeOutcome extends PassOutcome {
+  command: string;
+  kind: string;
+  mutates: boolean;
+  /** Qué pasada decidió el veredicto combinado. */
+  pasada: string;
+  /** El veredicto de CADA pasada, sin combinar: la combinación no se cree sola. */
+  pasadas: Record<string, PassOutcome>;
+}
+
+/**
+ * Las DOS pasadas, y por qué son dos y no una.
+ *
+ * `plano2d` es el documento de SIEMPRE, bit a bit: siete entidades 2D, ninguna
+ * lámina y la designación `l1`+`l2`. Se conserva para que la probeta nueva no
+ * pueda QUITARLE el veredicto a un comando ya medido — designar una región y un
+ * texto rompe la familia GC* («t1 es de tipo text y no participa en el dibujo
+ * paramétrico») y degrada DCANGULAR y LAYISO, y con la combinación monótona
+ * esos comandos conservan intacto lo que la pasada base midió.
+ *
+ * `solidos3d` es la probeta: los mismos siete más dos sólidos solapados, una
+ * región y una lámina abierta con su vista derivada, con todo eso DESIGNADO y
+ * `activeLayout` puesto. Es la pasada que le quita a 18 comandos de sólidos y a
+ * 9 de lámina la excusa de una precondición que la sonda nunca cumplía.
+ *
+ * El veredicto final los combina con `combinarPasadas`: ROJO en cualquiera
+ * manda, y sólo un efecto verificado asciende.
+ */
+interface Pasada {
+  id: string;
+  documento: () => CadDocument;
+  /** Lo que el auto-respondedor designa cuando un paso pide una selección. */
+  seleccion: readonly string[];
+  /** De dónde salen las entidades cuando un paso pide designar UNA. */
+  pool: readonly string[];
+  activeLayout?: string;
+}
+
+const PASADAS: readonly Pasada[] = [
+  {
+    id: "plano2d",
+    documento: probeDocumentSeed,
+    seleccion: ["l1", "l2"],
+    pool: ["l1", "l2", "l3", "c1", "p1", "a1", "t1"],
+  },
+  {
+    id: "solidos3d",
+    documento: () => probetaDocument(probeDocumentSeed),
+    // Los sólidos van DELANTE de las líneas: `selectedSolids` respeta el orden
+    // de designación y SUBTRACT resta del primero.
+    // Las cuatro aristas del contorno cerrado (`e1`–`e4`) van al FINAL: son lo
+    // que le da a REGION un contorno que CREAR en vez de dos banderas que
+    // marcar, y ponerlas delante cambiaría el orden que SUBTRACT y compañía ya
+    // miden.
+    seleccion: ["s1", "s2", "p1", "c1", "r1", "l1", "l2", "l3", "a1", "t1", "e1", "e2", "e3", "e4"],
+    // El pool de designación de UNA entidad conserva el orden de la pasada
+    // base y añade los tres nuevos al FINAL. Ponerlos delante degradaba
+    // comandos 2D por el fixture y no por el producto: DIMLINEAR designaba el
+    // sólido, se quedaba sin arista de la que colgar la cota y caía a dos
+    // puntos alineados. La familia de sólidos no lo necesita: pide SELECCIÓN,
+    // y ahí los sólidos van primeros.
+    pool: ["l1", "l2", "l3", "c1", "p1", "a1", "t1", "s1", "s2", "r1"],
+    activeLayout: PROBETA_LAYOUT,
+  },
+];
+
+/**
+ * Prompts que piden un NÚMERO aunque el paso acepte texto libre.
+ *
+ * Se mira el texto del prompt y no el nombre del comando: la lista de comandos
+ * envejece, la pregunta no. Y no se contesta con el valor por defecto entre
+ * ángulos —eso sería un Enter con más pasos—, sino con un 10 tecleado, para que
+ * lo que se mida sea el valor que entra por el paso.
+ */
+const PROMPT_NUMERICO = /altura|cu[aá]ntas veces|escala|factor|espesor|grosor|radio|di[aá]metro/i;
 
 /** Puntos variados: cerca de la geometría del documento y separados entre sí. */
 const POINTS = [
@@ -139,10 +220,9 @@ const POINTS = [
   { x: 5, y: 28 },
 ];
 
-function runCommand(name: string): ProbeOutcome {
+function runPass(name: string, pasada: Pasada): PassOutcome {
   const registry = CAD_COMMAND_REGISTRY_V2;
-  const descriptor = registry.get(name)!;
-  let document = probeDocument();
+  let document = pasada.documento();
   const initial = document;
   const variables = new CadSystemVariableStore();
   let selection: readonly string[] = [];
@@ -161,6 +241,7 @@ function runCommand(name: string): ProbeOutcome {
       document: () => document,
       selection: cadExpandSelectionByGroup(selection, entities),
       activeLayer: "0",
+      ...(pasada.activeLayout ? { activeLayout: pasada.activeLayout } : {}),
       variables,
       paperSpaces: () => document.paperSpaces ?? [],
       constraints: document.constraints,
@@ -178,6 +259,13 @@ function runCommand(name: string): ProbeOutcome {
   const messages: Array<{ text: string; level: string }> = [];
   const hostRequests: CadHostRequest[] = [];
   let applied = 0;
+  /**
+   * Los comandos de TODOS los lotes que llegaron a aplicarse. R6 los necesita:
+   * un lote cuyo cambio son sólo banderas de metadatos sobre entidades
+   * preexistentes no es la geometría que un comando de dibujo prometió, y eso
+   * no se ve comparando serializaciones.
+   */
+  const loteAplicado: { type: string; entityId?: string; patch?: Record<string, unknown> }[] = [];
   let selectionEffects = 0;
   let variablePatches = 0;
   let uiRequests = 0;
@@ -192,6 +280,7 @@ function runCommand(name: string): ProbeOutcome {
           const result = executeCadEntityCommandBatch(document, effect.commands, effect.label);
           document = result.document;
           applied += 1;
+          loteAplicado.push(...(effect.commands as never as typeof loteAplicado));
           effects.push(`execute:${effect.label}`);
         } catch (error) {
           messages.push({ text: `lote rechazado: ${String(error)}`, level: "error" });
@@ -252,12 +341,12 @@ function runCommand(name: string): ProbeOutcome {
     } else if (accepts & CAD_ACCEPT_SELECTION) {
       if (!selectionFed) {
         selectionFed = true;
-        input = { kind: "selection", entityIds: ["l1", "l2"] };
+        input = { kind: "selection", entityIds: [...pasada.seleccion] };
       } else {
         input = { kind: "enter" };
       }
     } else if (accepts & CAD_ACCEPT_ENTITY_PICK) {
-      const pool = ["l1", "l2", "l3", "c1", "p1", "a1", "t1"];
+      const pool = pasada.pool;
       const entityId = pool[entityCursor % pool.length]!;
       entityCursor += 1;
       input = { kind: "entityPick", entityId, point: { x: 50, y: 0 } };
@@ -276,7 +365,16 @@ function runCommand(name: string): ProbeOutcome {
     } else if (accepts & CAD_ACCEPT_KEYWORD && step.prompt.defaultOption) {
       input = { kind: "enter" };
     } else if (accepts & CAD_ACCEPT_TEXT) {
-      input = { kind: "text", value: `PROBE${steps}` };
+      // Algunos pasos aceptan TEXTO LIBRE y lo que piden es un número: la
+      // altura del corte de SOLVIEW, el zoom de un detalle, un factor. Darles
+      // «PROBE7» los mataba en «no es una altura de corte: escriba un número»,
+      // que es un límite honesto del comando ante una entrada absurda — pero un
+      // límite que la SONDA se estaba buscando. Esto es habilidad del
+      // auto-respondedor, no una exención: el comando sigue midiéndose con el
+      // mismo árbol.
+      input = PROMPT_NUMERICO.test(step.prompt.message)
+        ? { kind: "text", value: "10" }
+        : { kind: "text", value: `PROBE${steps}` };
     } else if (accepts & CAD_ACCEPT_KEYWORD && step.prompt.options?.length) {
       input = { kind: "keyword", keyword: step.prompt.options[0]!.keyword };
     } else {
@@ -303,6 +401,18 @@ function runCommand(name: string): ProbeOutcome {
           return motivo ? [{ id: entity.id, motivo }] : [];
         })
       : [];
+  // R5. Lo que ESTA pasada le puso delante de verdad. Los sólidos sólo cuentan
+  // si el auto-respondedor llegó a entregar la designación: si el comando nunca
+  // la pidió, decir que le faltan sigue siendo honesto. Se calcula aparte
+  // porque viaja también en el PassOutcome, hasta `combinarPasadas`.
+  const dotacion = {
+    solidos: selectionFed
+      ? pasada.seleccion.filter(
+          (id) => initial.entities.find((entity) => entity.id === id)?.type === "solid3d",
+        ).length
+      : 0,
+    lamina: pasada.activeLayout !== undefined && (initial.paperSpaces ?? []).length > 0,
+  };
   const { verdict, note } = clasificar({
     steps,
     maxSteps: MAX_STEPS,
@@ -312,19 +422,41 @@ function runCommand(name: string): ProbeOutcome {
     messages,
     inputTrace,
     probeAborted,
-    mutates: descriptor.mutates === true,
+    mutates: registry.get(name)!.mutates === true,
     vacias,
+    // R6. El contrato que el descriptor declara y si el lote se quedó en
+    // banderas: un `draw` que sólo marca metadatos no ha dibujado.
+    kind: registry.get(name)!.kind,
+    soloMetadatos: soloBanderasDeMetadatos(
+      loteAplicado,
+      new Set(initial.entities.map((entity) => entity.id)),
+    ),
+    dotacion,
   });
 
   return {
-    command: name,
-    kind: descriptor.kind,
-    mutates: descriptor.mutates === true,
     verdict,
     steps,
     effects: effects.slice(0, 8),
     lastMessages,
+    messages,
+    dotacion,
     ...(note ? { note } : {}),
+  };
+}
+
+/** Las dos pasadas de un comando y su veredicto combinado. */
+function runCommand(name: string): ProbeOutcome {
+  const descriptor = CAD_COMMAND_REGISTRY_V2.get(name)!;
+  const pasadas: Record<string, PassOutcome> = {};
+  for (const pasada of PASADAS) pasadas[pasada.id] = runPass(name, pasada);
+  const combinado = combinarPasadas(pasadas[PASADAS[0]!.id]!, pasadas[PASADAS[1]!.id]!);
+  return {
+    command: name,
+    kind: descriptor.kind,
+    mutates: descriptor.mutates === true,
+    ...combinado,
+    pasadas,
   };
 }
 
@@ -341,36 +473,91 @@ function runCommand(name: string): ProbeOutcome {
  */
 await cadWarmAllCommands();
 
+/**
+ * La probeta se COMPRUEBA antes de medir un solo comando, y su fallo es fatal.
+ *
+ * «muta» se concede comparando la serialización antes/después, así que un
+ * fixture que se moviera solo podría ascender comandos sin que nadie lo viera.
+ * Si el fixture no es el que dice ser, esta corrida no vale: no se mide.
+ */
+const fallosDeProbeta = comprobarProbeta(probeDocumentSeed);
+if (fallosDeProbeta.length > 0) {
+  process.stderr.write("La probeta de sólidos y lámina NO cumple sus invariantes:\n");
+  for (const fallo of fallosDeProbeta) process.stderr.write(`- ${fallo}\n`);
+  process.exit(1);
+}
+
 const names = [...CAD_COMMAND_REGISTRY_V2.names()].sort();
 const outcomes: ProbeOutcome[] = [];
 for (const name of names) {
   try {
     outcomes.push(runCommand(name));
   } catch (error) {
-    outcomes.push({
-      command: name,
-      kind: "?",
-      mutates: false,
+    const roto: PassOutcome = {
       verdict: "no-concluyente",
       steps: 0,
       effects: [],
       lastMessages: [String(error).slice(0, 200)],
+      messages: [],
+      dotacion: { solidos: 0, lamina: false },
       note: "la sonda reventó al ejecutarlo",
+    };
+    outcomes.push({
+      command: name,
+      kind: "?",
+      mutates: false,
+      pasada: "?",
+      pasadas: Object.fromEntries(PASADAS.map((pasada) => [pasada.id, roto])),
+      ...roto,
     });
   }
 }
 
+const VEREDICTOS = [
+  "muta",
+  "delegado",
+  "informa",
+  "honesto-limitado",
+  "no-concluyente",
+  "ROJO",
+] as const;
+
+const contar = (leer: (outcome: ProbeOutcome) => string) =>
+  Object.fromEntries(
+    VEREDICTOS.map((veredicto) => [
+      veredicto,
+      outcomes.filter((outcome) => leer(outcome) === veredicto).length,
+    ]),
+  );
+
+/**
+ * Los comandos en los que UNA pasada no concluye y la otra sí.
+ *
+ * Van al artefacto con NOMBRE porque el recuento no basta: «solidos3d
+ * no-concluyente 10 vs plano2d 9» era exactamente PLOT, y el artefacto no lo
+ * decía. Un no-concluyente asimétrico es el sitio donde una pasada se queda con
+ * el veredicto de la otra sin que nadie mire por qué, así que tiene que verse
+ * como diff en un PR.
+ */
+const noConcluyentesDeUnaPasada = outcomes
+  .flatMap((outcome) => {
+    const sinConcluir = PASADAS.filter(
+      (pasada) => outcome.pasadas[pasada.id]!.verdict === "no-concluyente",
+    );
+    return sinConcluir.length === 1 ? [`${outcome.command}:${sinConcluir[0]!.id}`] : [];
+  })
+  .sort();
+
 const summary = {
   generatedBy: "apps/web/scripts/command-integrity-probe.mts",
   total: outcomes.length,
-  verdicts: {
-    muta: outcomes.filter((outcome) => outcome.verdict === "muta").length,
-    delegado: outcomes.filter((outcome) => outcome.verdict === "delegado").length,
-    informa: outcomes.filter((outcome) => outcome.verdict === "informa").length,
-    "honesto-limitado": outcomes.filter((outcome) => outcome.verdict === "honesto-limitado").length,
-    "no-concluyente": outcomes.filter((outcome) => outcome.verdict === "no-concluyente").length,
-    ROJO: outcomes.filter((outcome) => outcome.verdict === "ROJO").length,
-  },
+  verdicts: contar((outcome) => outcome.verdict),
+  noConcluyentesDeUnaPasada,
+  /** El desglose de CADA pasada, para poder auditar la combinación. */
+  pasadas: Object.fromEntries(
+    PASADAS.map((pasada) => [pasada.id, contar((outcome) => outcome.pasadas[pasada.id]!.verdict)]),
+  ),
+  probeta: probetaEvidencia(probeDocumentSeed),
   outcomes,
 };
 

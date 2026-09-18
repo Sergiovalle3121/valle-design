@@ -10,15 +10,17 @@
  * evaluadores REALES del producto, no con dobles.
  */
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { compruebaExenciones } from "./command-integrity-exenciones.spec.mjs";
 import {
   clasificar,
+  afirmacionSinCoartada,
   clausulasAfirmativas,
+  coordenadasImposibles,
+  combinarPasadas,
   entidadesTocadas,
+  limiteDesmentido,
   sinGeometria,
-  validarExencion,
+  soloBanderasDeMetadatos,
 } from "./command-integrity-rules.mjs";
 
 const { solid3dMesh, solid3dMassProperties } = await import(
@@ -199,6 +201,145 @@ eq(
 eq(veredicto(tras([linea], [linea, caja])), "muta", "R2: BOX con geometría sigue mutando");
 eq(veredicto(tras([linea], [])), "muta", "R2: borrar no deja entidades que evaluar y muta");
 
+// ─── R2 ampliado: números IMPOSIBLES en lo que el lote tocó ─────────────────
+//
+// Trampa: TEXTALIGN ascendía a «muta» escribiendo NaN. Su lote entero era un
+// `replace(t1)` y el cambio medido era `rotation` MÁS dos coordenadas basura;
+// el texto NO se movía. `changed` era cierto porque la serialización cambiaba
+// —NaN sale como `null` en el JSON— y el gate lo contaba como efecto
+// verificado. La causa: el esquema define el texto nativo con x/y y la semilla
+// lo escribía con `position`, así que entity.x/entity.y eran undefined y la
+// proyección daba {NaN, NaN}. El mismo NaN lo propagaban ALIGN, MOVE, ROTATE,
+// COPY, MIRROR, ARRAY, y TCOUNT/LAYMCH/GROUP tocaban el texto sin coordenadas.
+const textoNaN = { id: "t1", type: "text", layer: "COTAS", x: NaN, y: NaN, rotation: 26.5, text: "PRUEBA" };
+const textoSinCoordenadas = { id: "t1", type: "text", layer: "COTAS", position: { x: 10, y: 80 }, text: "PRUEBA" };
+const textoBueno = { id: "t1", type: "text", layer: "COTAS", x: 10, y: 80, text: "PRUEBA", height: 5 };
+
+eq(
+  coordenadasImposibles(textoNaN),
+  "número no finito: x = NaN, y = NaN",
+  "R2: el NaN que TEXTALIGN escribía se ve y se dice dónde",
+);
+eq(
+  coordenadasImposibles(textoSinCoordenadas),
+  "text sin las coordenadas que su tipo exige: x, y",
+  "R2: la CAUSA —un texto con `position` en vez de x/y— se delata sola",
+);
+eq(
+  coordenadasImposibles({ ...linea, end: { x: Infinity, y: 0 } }),
+  "número no finito: end.x = Infinity",
+  "R2: el infinito también es imposible, y con su ruta",
+);
+eq(
+  coordenadasImposibles({ id: "c9", type: "circle", layer: "0", center: { x: 1, y: 2 }, radius: 3 }),
+  null,
+  "R2: un círculo con centro y radio es posible",
+);
+eq(coordenadasImposibles(textoBueno), null, "R2: gemelo legítimo — el texto del esquema");
+eq(coordenadasImposibles(linea), null, "R2: gemelo legítimo — la línea de la semilla, sin z");
+eq(coordenadasImposibles(caja), null, "R2: gemelo legítimo — un sólido de verdad");
+eq(sinGeometria(textoNaN, EVALUADORES), "número no finito: x = NaN, y = NaN", "R2: sinGeometria lo hereda");
+eq(veredicto(tras([textoBueno], [textoNaN])), "ROJO", "R2: el «muta» de TEXTALIGN con NaN es ROJO");
+eq(
+  veredicto(tras([textoSinCoordenadas], [{ ...textoSinCoordenadas, layer: "0" }])),
+  "ROJO",
+  "R2: tocar una entidad que ya venía sin coordenadas tampoco es mutar",
+);
+eq(
+  veredicto(tras([textoBueno], [{ ...textoBueno, x: 10, y: 10, rotation: 0 }])),
+  "muta",
+  "R2: mover el texto de verdad sigue mutando",
+);
+
+// ─── R6: una bandera de metadatos no es la geometría prometida ──────────────
+//
+// Trampa: REGION ascendía a «muta» SIN producir geometría. Conducido sobre la
+// probeta ANTES de que ésta tuviera un contorno cerrado de aristas sueltas,
+// `planCadRegions` devolvía created=0, tagged=2 y su lote entero eran dos
+// banderas `{region: true}` sobre `p1` y `c1`, que ya eran contornos cerrados;
+// los ocho intentos de crear región se rechazaban. El documento cambiaba —la
+// serialización incluye el `context`— y un comando de kind `draw` cobraba
+// «muta» sin dibujar. Si se borrara entera la rama que CREA regiones, el gate
+// seguiría diciendo «muta»: esa rama no aporta ni un comando al lote.
+
+const LOTE_DE_REGION = [
+  { type: "metadata", entityId: "p1", patch: { region: true } },
+  { type: "metadata", entityId: "c1", patch: { region: true } },
+];
+// Gemelo legítimo: el lote REAL de GROUP. Es metadatos y nada más, y eso es
+// exactamente lo que GROUP hace — la pertenencia la consume después
+// `cadExpandSelectionByGroup`. Su kind es `manage`: la contabilidad del
+// documento ES su contrato, y R6 no le pide geometría.
+const LOTE_DE_GROUP = [
+  { type: "metadata", entityId: "l1", patch: { "cad:groups": "PROBE2" } },
+  { type: "metadata", entityId: "l2", patch: { "cad:groups": "PROBE2" } },
+];
+const PREVIOS = new Set(["l1", "l2", "p1", "c1"]);
+
+eq(
+  soloBanderasDeMetadatos(LOTE_DE_REGION, PREVIOS),
+  "el lote entero son banderas de metadatos (region) sobre entidades preexistentes",
+  "R6: el lote de REGION se ve por lo que es",
+);
+eq(
+  soloBanderasDeMetadatos([...LOTE_DE_REGION, { type: "add", entityId: "probe1" }], PREVIOS),
+  null,
+  "R6: en cuanto el lote añade algo, ya no son sólo banderas",
+);
+eq(
+  soloBanderasDeMetadatos([{ type: "metadata", entityId: "probe1", patch: { region: true } }], PREVIOS),
+  null,
+  "R6: marcar lo que el propio lote acaba de crear viene con su geometría",
+);
+eq(soloBanderasDeMetadatos([], PREVIOS), null, "R6: sin lote no hay nada que juzgar");
+
+const conLote = (lote, kind) => ({
+  ...sinEfecto([]),
+  applied: 1,
+  changed: true,
+  kind,
+  soloMetadatos: soloBanderasDeMetadatos(lote, PREVIOS),
+});
+eq(
+  veredicto({ ...conLote(LOTE_DE_REGION, "draw"), messages: [] }),
+  "ROJO",
+  "R6: un `draw` que sólo marca banderas y calla no muta",
+);
+eq(
+  veredicto({
+    ...conLote(LOTE_DE_REGION, "draw"),
+    messages: [{ text: "REGION: ninguna región nueva. Un TEXT no aporta un borde.", level: "info" }],
+  }),
+  "honesto-limitado",
+  "R6: se queda con la clase que su mensaje le gane, que es PEOR que muta",
+);
+eq(
+  clasificar({ ...conLote(LOTE_DE_REGION, "draw"), messages: [] }).note.startsWith(
+    "el lote entero son banderas de metadatos (region) sobre entidades preexistentes, así que el lote no cuenta como geometría;",
+  ),
+  true,
+  "R6: el motivo no se pierde por el camino",
+);
+eq(veredicto(conLote(LOTE_DE_GROUP, "manage")), "muta", "R6: GROUP y su `cad:groups` siguen mutando");
+eq(veredicto(conLote(LOTE_DE_GROUP, "view")), "muta", "R6: `view` tampoco promete geometría");
+eq(
+  veredicto(conLote(LOTE_DE_GROUP, "inquiry")),
+  "muta",
+  "R6: `inquiry` tampoco — R6 sólo mira a draw, modify y annotate",
+);
+for (const kind of ["draw", "modify", "annotate"]) {
+  eq(
+    veredicto({ ...conLote(LOTE_DE_GROUP, kind), messages: [] }),
+    "ROJO",
+    `R6: ningún ${kind} dibuja con una bandera, ni con una que sí se consuma`,
+  );
+}
+eq(
+  veredicto({ ...conLote([{ type: "replace", entityId: "l1" }], "draw"), messages: [] }),
+  "muta",
+  "R6: gemelo legítimo — un lote que sustituye geometría sigue mutando",
+);
+
 // ─── R3: un mensaje no puede ser a la vez éxito y límite ────────────────────
 
 // Trampas de la rama de MiMo (render-commands.ts, transform-3d-viz…).
@@ -244,129 +385,322 @@ eq(
   "R3: un límite sin afirmación sigue siendo honesto",
 );
 
-// ─── R4: una exención sólo vale si su spec conduce el comando y comprueba ────
+// ─── La rama de AFIRMACIÓN, por cláusulas ───────────────────────────────────
+//
+// Leía el mensaje entero: bastaba una palabra de CLAIMS en cualquier sitio, y
+// el único escape era que el mensaje dijera además algo de HONESTY. Eso ponía
+// en ROJO el rechazo legítimo de SECTION por la palabra «designados» —la misma
+// que PARTICIPIO_DE_EXITO ya excluyó a conciencia de R3—. Ahora se juzga
+// cláusula a cláusula, con las palabras que RECHAZAN la afirmación pero SIN
+// las de estado: «objetos» no puede ser coartada, o «3 objetos borrados» sin
+// efecto se escaparía.
 
-// Las 9 exenciones reales de main, contra sus specs reales.
-const here = path.dirname(fileURLToPath(import.meta.url));
-const web = path.resolve(here, "../../apps/web");
-const leerReal = (spec) => {
-  const absoluto = path.resolve(web, spec);
-  return existsSync(absoluto) ? readFileSync(absoluto, "utf8") : null;
-};
-const exenciones = JSON.parse(readFileSync(path.join(here, "command-integrity-exemptions.json"), "utf8"));
-for (const [nombre, entrada] of Object.entries(exenciones.noConcluyentes)) {
-  eq(validarExencion(nombre, entrada, leerReal), [], `R4: la exención real de ${nombre} se sostiene`);
+// Trampas: una afirmación sin efecto sigue siendo ROJO.
+for (const trampa of [
+  "3 objetos borrados.",
+  "Hecho.",
+  "Capa MURO renombrada a TABIQUE",
+  "Listo",
+  "Cota actualizada.",
+]) {
+  eq(afirmacionSinCoartada(trampa) !== null, true, `afirmación: atrapa «${trampa}»`);
+  eq(veredicto(sinEfecto([trampa])), "ROJO", `afirmación sin efecto es ROJO: «${trampa}»`);
 }
-
-// Trampa: DVIEW de la rama de MiMo, que cita transform-3d-viz.spec.ts. Ese spec
-// sólo lo nombra en una lista, mira que esté registrado y lo cancela.
-const TRANSFORM_3D_VIZ = [
-  'const NAMES = ["3DMOVE", "CAMERA", "DVIEW", "NAVBAR"];',
-  "for (const name of NAMES) {",
-  "  assert.ok(CAD_COMMAND_REGISTRY_V2.get(name), `${name} en el registro`);",
-  "}",
-  "for (const name of NAMES) {",
-  "  const result = run(name, [cancel]);",
-  '  assert.ok(result?.kind === "message" && result.text.toLowerCase().includes("cancelado"));',
-  "}",
-  '{ const result = run("DVIEW", [cancel]);',
-  '  assert.ok(result?.kind === "document"); }',
-  '{ const result = run("CAMERA", [point(0, 0), point(10, 10)]);',
-  '  assert.ok(result?.kind === "message", "CAMERA produce mensaje"); }',
-  '{ const result = run("NAVBAR", [point(0, 0)]);',
-  "  const x = 1;",
-  ...Array.from({ length: 30 }, () => "  // relleno"),
-  '  assert.ok(result?.kind === "document"); }',
-  'const CAM = command("CAMERA");',
-  'const DV = command("DVIEW");',
-  "{ const r = CAM.step(null, point(0, 0), ctx).result;",
-  '  assert.ok(r?.kind === "document"); }',
-].join("\n");
-const SPEC_FALSO = "src/lib/cad/engine/commands/transform-3d-viz.spec.ts";
-const leerFalso = (spec) => (spec === SPEC_FALSO ? TRANSFORM_3D_VIZ : null);
-const exencion = (conduce, comprueba, spec = SPEC_FALSO) => ({
-  razon: "comando interactivo de vista dinámica; el auto-respondedor no completa el flujo.",
-  spec,
-  conduce,
-  comprueba,
-});
-const rechaza = (nombre, entrada, patron, message) => {
-  const motivos = validarExencion(nombre, entrada, leerFalso);
-  eq(motivos.length, 1, `${message}: se rechaza`);
-  eq(patron.test(motivos[0]), true, `${message}: ${motivos[0]}`);
-};
-
-rechaza(
-  "DVIEW",
-  "comando interactivo de vista dinámica que cicla opciones de cámara sin producir geometría; el auto-respondedor no completa el flujo. Spec: transform-3d-viz.spec.ts",
-  /sin justificación verificable — hace falta/,
-  "R4: el formato de texto de siempre (la entrada literal de MiMo)",
-);
-rechaza(
-  "DVIEW",
-  exencion("run(name, [cancel])", 'assert.ok(result?.kind === "message"'),
-  /no nombra DVIEW/,
-  "R4: DVIEW sólo aparece en la lista y en el bucle que cancela",
-);
-rechaza(
-  "DVIEW",
-  exencion('run("DVIEW", [cancel])', 'assert.ok(result?.kind === "document")'),
-  /sólo cancela/,
-  "R4: nombrarlo para cancelarlo no es conducirlo",
-);
-rechaza(
-  "DVIEW",
-  exencion("CAD_COMMAND_REGISTRY_V2.get(name)", "assert.ok(CAD_COMMAND_REGISTRY_V2.get(name)"),
-  /consulta de registro/,
-  "R4: mirar el registro no es conducirlo",
-);
-rechaza(
-  "DVIEW",
-  exencion("DV.step(null, point(0, 0), ctx)", 'assert.ok(r?.kind === "document")'),
-  /no aparece/,
-  "R4: un fragmento que el spec no contiene",
-);
-rechaza(
-  "DVIEW",
-  exencion("CAM.step(null, point(0, 0), ctx).result", 'assert.ok(r?.kind === "document")'),
-  /no nombra DVIEW/,
-  "R4: un identificador ligado a OTRO comando",
-);
-rechaza(
-  "CAMERA",
-  exencion('run("CAMERA", [point(0, 0), point(10, 10)])', 'assert.ok(result?.kind === "message"'),
-  /comprueba/,
-  "R4: una aserción que no habla de efecto",
-);
-rechaza(
-  "NAVBAR",
-  exencion('run("NAVBAR", [point(0, 0)])', 'assert.ok(result?.kind === "document")'),
-  /comprueba/,
-  "R4: una aserción más allá de las 30 líneas",
-);
-rechaza(
-  "CHAMFEREDGE",
-  exencion('apply("CHAMFEREDGE", [select(solidId), distance(10)], document, [solidId])', "assert.ok(", "src/lib/cad/engine/commands/solids-modify.spec.ts"),
-  /no existe/,
-  "R4: un spec que no existe (la cita que tenían CHAMFEREDGE y FILLETEDGE)",
-);
-rechaza(
-  "DVIEW",
-  exencion('run("DVIEW", [point(0, 0)])', "assert.ok(result", "transform-3d-viz.spec.ts"),
-  /no es un src/,
-  "R4: una ruta que CI no ejecuta",
-);
-rechaza(
-  "DVIEW",
-  exencion('run("DVIEW", [point(0, 0)])', "assert.ok(result", "src/../../scripts/x.spec.ts"),
-  /no es un src/,
-  "R4: una ruta que se sale de src",
-);
-// Gemelos legítimos sobre el mismo texto.
+// Trampas de LAVADO POR COMA: la rama no cortaba por coma, así que cualquier
+// palabra de PREVIO_QUE_RECHAZA_AFIRMACION puesta al principio de la frase
+// servía de coartada para la afirmación que venía DESPUÉS de la coma. Es una
+// receta de seis palabras para blanquear un «Hecho» vacío, y le servía a todo
+// comando con `mutates: false` —los de kind manage/query, que son los que
+// imprimen resultados y no tienen la red de R1—. En main, que leía el mensaje
+// entero, las seis eran ROJO.
+for (const trampa of [
+  "Sin tocar el documento, 3 objetos borrados.",
+  "Si designas más entidades, 3 objetos borrados.",
+  "Ningún error, 2 bloques insertados.",
+  "Nunca falla, capa renombrada.",
+  "Ni un solo aviso, sólido creado.",
+  "Sin sólidos nuevos, la cota ha sido actualizada.",
+]) {
+  eq(afirmacionSinCoartada(trampa) !== null, true, `afirmación: la coma no es coartada «${trampa}»`);
+  eq(
+    veredicto(sinEfecto([trampa], { mutates: false })),
+    "ROJO",
+    `afirmación: lavado por coma sin efecto es ROJO aunque no prometa mutar: «${trampa}»`,
+  );
+}
+// Y la coma NO se le añade a R3: «necesita DOS sólidos designados, y hay 0» es
+// una sola proposición y tiene que seguir leyéndose entera.
 eq(
-  validarExencion("CAMERA", exencion("CAM.step(null, point(0, 0), ctx).result", 'assert.ok(r?.kind === "document")'), leerFalso),
+  clausulasAfirmativas("INTERFERE necesita DOS sólidos designados, y hay 0."),
   [],
-  "R4: un identificador ligado a command(\"CAMERA\") y conducido con .step vale",
+  "la coma es sólo de la rama de afirmación: R3 sigue leyendo la cláusula entera",
+);
+// «3 objetos borrados» es el caso que obliga a dejar «objetos» FUERA de las
+// coartadas: con la lista completa de PREVIO_QUE_ANULA se escaparía por ahí, y
+// R3 tampoco lo atraparía por la misma razón.
+eq(clausulasAfirmativas("3 objetos borrados."), [], "«objetos» es coartada para R3 y no puede serlo aquí");
+eq(afirmacionSinCoartada("3 objetos borrados."), "3 objetos borrado", "y aquí sí se atrapa");
+// Gemelo legítimo: el rechazo de SECTION. La palabra «designados» describe la
+// ENTRADA, y la cláusula la niega antes de llegar a ella.
+eq(
+  afirmacionSinCoartada("El plano de corte no atraviesa ninguno de los sólidos designados."),
+  null,
+  "afirmación: el rechazo de SECTION no es una afirmación",
+);
+eq(
+  veredicto(sinEfecto(["El plano de corte no atraviesa ninguno de los sólidos designados."])),
+  "informa",
+  "afirmación: el rechazo de SECTION deja de ser ROJO",
+);
+for (const legitimo of [
+  "UNION necesita DOS sólidos designados.",
+  "Esta orden necesita SOLID3D designados. Crea uno con EXTRUDE, REVOLVE, SWEEP o LOFT.",
+  "INTERFERE necesita al menos DOS sólidos designados; hay 0.",
+  "No hay ninguna presentación abierta: crea una con LAYOUT.",
+  "¿Borrado definitivo? Pulse Intro.",
+  "Si está activado, se dibuja en el origen.",
+  "Nada designado: no se ha borrado ninguna entidad.",
+  "LAYMCH: los objetos ya están en esa capa.",
+]) {
+  eq(afirmacionSinCoartada(legitimo), null, `afirmación: no marca «${legitimo}»`);
+}
+// Y la coartada tiene que estar en LA MISMA cláusula: un límite en otra no
+// borra la afirmación. Es lo mismo que exige R3.
+eq(
+  afirmacionSinCoartada("Capa creada; no se pudo activar."),
+  "Capa creada",
+  "afirmación: un límite en otra cláusula no tapa la afirmación",
+);
+
+// ─── R4: una exención sólo vale si su spec conduce el comando y comprueba ────
+//
+// El bloque vive en `command-integrity-exenciones.spec.mjs` por el presupuesto
+// de monolito, y se llama con ESTE contador: el gate ejecuta un solo spec de
+// reglas y exige que anuncie su final.
+compruebaExenciones(eq);
+
+// ─── R5: un límite que la probeta DESMIENTE es ROJO ─────────────────────────
+//
+// El agujero que cierra: hasta la probeta, 18 comandos de sólidos y 9 de lámina
+// declaraban un límite que la sonda nunca podía desmentir, y eso les valía
+// honesto-limitado. Decir la verdad sobre algo que nunca se te da no cuesta
+// nada. Ahora que se les da, la misma frase es una carencia FALSA para no hacer
+// nada — el «Hecho» vacío del revés.
+//
+// Verificado contra main: con la probeta nueva NADIE dice hoy estas frases, así
+// que R5 no mueve ninguna cifra. Es una trampa puesta para el futuro, y por eso
+// su valor está aquí y no en el recuento.
+
+const conDotacion = { solidos: 2, lamina: true };
+const sinDotacion = { solidos: 0, lamina: false };
+
+// Trampas: el comando que responde siempre la misma precondición sin
+// implementar nada, con la precondición ya cumplida.
+for (const trampa of [
+  "3DMOVE: la selección no contiene sólidos 3D.",
+  "Esta orden necesita SOLID3D designados. Crea uno con EXTRUDE, REVOLVE, SWEEP o LOFT.",
+  "EXPORT necesita SOLID3D designados.",
+  "INTERFERE necesita al menos DOS sólidos designados; hay 0.",
+  "No hay ninguna presentación abierta: crea una con LAYOUT.",
+  "MSPACE necesita una presentación abierta.",
+]) {
+  eq(
+    veredicto(sinEfecto([trampa], { dotacion: conDotacion })),
+    "ROJO",
+    `R5 atrapa el límite desmentido: ${trampa}`,
+  );
+  // Gemelo legítimo: la MISMA frase en la pasada que no trae ni sólidos ni
+  // lámina sigue siendo honestidad. La regla juzga la DOTACIÓN, no la frase.
+  eq(
+    veredicto(sinEfecto([trampa], { dotacion: sinDotacion })) !== "ROJO",
+    true,
+    `R5 no marca la misma frase sin dotación: ${trampa}`,
+  );
+}
+eq(
+  limiteDesmentido([{ text: "No hay ninguna presentación abierta.", level: "info" }], { solidos: 2 }),
+  null,
+  "R5: tener sólidos no desmiente un límite de lámina",
+);
+eq(
+  limiteDesmentido([{ text: "Esta orden necesita SOLID3D designados.", level: "info" }], { lamina: true }),
+  null,
+  "R5: tener lámina no desmiente un límite de sólidos",
+);
+// Y R5 no puede tocar a quien SÍ produjo un efecto: un comando que aplicó su
+// lote no está poniendo excusas, diga lo que diga en el camino.
+eq(
+  veredicto({
+    ...sinEfecto(["Esta orden necesita SOLID3D designados."], { dotacion: conDotacion }),
+    applied: 1,
+    changed: true,
+  }),
+  "muta",
+  "R5 va después de las ramas de efecto",
+);
+eq(
+  veredicto({
+    ...sinEfecto(["MSPACE necesita una presentación abierta."], { dotacion: conDotacion }),
+    delegated: true,
+  }),
+  "delegado",
+  "R5 no toca lo que delegó",
+);
+
+// ─── La combinación de las DOS pasadas, y el fixture que la alimenta ────────
+//
+// La probeta de sólidos y lámina le quita a 27 comandos la excusa de una
+// precondición que la sonda nunca cumplía. El peligro del cambio es el
+// contrario del que cierra: con un documento rico, «muta» se concede en cuanto
+// un lote se aplica y la serialización cambia, así que una deriva del fixture
+// podría ASCENDER comandos sin que nadie lo viera. Las trampas van aquí.
+
+const pasada = (verdict, note) => ({ verdict, ...(note ? { note } : {}) });
+const combinado = (a, b) => combinarPasadas(pasada(a), pasada(b));
+
+// Trampa: un comando que con la probeta SIGUE sin producir efecto no puede
+// salir mejor. Ésta es la razón de ser de la regla: si con sólidos y lámina
+// delante un comando no hace nada, no hay verde que darle.
+eq(
+  combinado("honesto-limitado", "honesto-limitado").verdict,
+  "honesto-limitado",
+  "combinación: sin efecto en la probeta, NADIE sube a muta",
+);
+eq(
+  combinado("honesto-limitado", "informa").verdict,
+  "honesto-limitado",
+  "combinación: pasar de declarar el límite a informar NO es un efecto, no asciende",
+);
+eq(
+  combinado("informa", "honesto-limitado").verdict,
+  "informa",
+  "combinación: manda la pasada base cuando la probeta no aporta efecto",
+);
+// Trampa: un ROJO no se compensa nunca con el verde de la otra pasada, en
+// ninguno de los dos sentidos. Es lo que hace que la precondición imposible
+// deje de tapar a EXPORT, REVOLVE y SECTION.
+eq(
+  combinado("muta", "ROJO").verdict,
+  "ROJO",
+  "combinación: un ROJO en la probeta gana sobre el muta de la pasada base",
+);
+eq(
+  combinado("ROJO", "muta").verdict,
+  "ROJO",
+  "combinación: un ROJO en la pasada base gana sobre el muta de la probeta",
+);
+// Gemelos legítimos: un efecto verificado SÍ asciende, y una degradación por
+// el fixture (designar una región o un texto rompe la familia GC*) no le quita
+// a nadie el veredicto que la pasada base ya midió.
+eq(combinado("honesto-limitado", "muta").verdict, "muta", "combinación: un lote verificado asciende");
+eq(
+  combinado("honesto-limitado", "delegado").verdict,
+  "delegado",
+  "combinación: una petición al anfitrión asciende",
+);
+eq(combinado("muta", "honesto-limitado").verdict, "muta", "combinación: la probeta no degrada a nadie");
+eq(combinado("muta", "informa").verdict, "muta", "combinación: la probeta no degrada a nadie");
+eq(
+  combinado("no-concluyente", "muta").verdict,
+  "muta",
+  "combinación: si una concluye y la otra no, vale la que concluye",
+);
+eq(
+  combinado("honesto-limitado", "no-concluyente").verdict,
+  "honesto-limitado",
+  "combinación: que la probeta no lo termine no borra lo que la base midió",
+);
+// Trampa: el LAVADERO del no-concluyente, que ya tapaba un comando real. PLOT
+// decía en plano2d «No hay ninguna presentación abierta: crea una con LAYOUT»
+// —la frase EXACTA que R5 declara límite falso— y en la pasada con la lámina
+// abierta la sonda no lo llevaba a término, así que `clasificar` devolvía
+// no-concluyente en su PRIMERA rama, antes de R5. La combinación devolvía la
+// base y PLOT se quedaba con honesto-limitado sostenido por una precondición
+// que la probeta desmiente, sin pagar exención porque el veredicto combinado no
+// era no-concluyente. Que la sonda no sepa terminarlo no convierte la excusa en
+// verdad.
+const conMensajes = (verdict, messages = [], dotacion = {}) => ({
+  verdict,
+  messages: messages.map((text) => ({ text, level: "info" })),
+  dotacion,
+});
+const EXCUSA_DE_LAMINA = "No hay ninguna presentación abierta: crea una con LAYOUT.";
+eq(
+  combinarPasadas(
+    conMensajes("honesto-limitado", [EXCUSA_DE_LAMINA]),
+    conMensajes("no-concluyente", [], { solidos: 2, lamina: true }),
+  ).verdict,
+  "ROJO",
+  "combinación: la base no se queda con una excusa que la probeta desmiente",
+);
+eq(
+  combinarPasadas(
+    conMensajes("honesto-limitado", ["Esta orden necesita SOLID3D designados."]),
+    conMensajes("no-concluyente", [], { solidos: 2, lamina: true }),
+  ).verdict,
+  "ROJO",
+  "combinación: y lo mismo con la excusa de los sólidos",
+);
+// Gemelos legítimos: sin la dotación que la desmiente, la misma frase sigue
+// siendo honestidad; y un límite que la probeta NO desmiente tampoco cambia.
+eq(
+  combinarPasadas(
+    conMensajes("honesto-limitado", [EXCUSA_DE_LAMINA]),
+    conMensajes("no-concluyente", [], { solidos: 2, lamina: false }),
+  ).verdict,
+  "honesto-limitado",
+  "combinación: sin lámina en la probeta, la frase de lámina sigue siendo honesta",
+);
+eq(
+  combinarPasadas(
+    conMensajes("honesto-limitado", ["FILLET: no encontró dos bordes que se corten."]),
+    conMensajes("no-concluyente", [], { solidos: 2, lamina: true }),
+  ).verdict,
+  "honesto-limitado",
+  "combinación: un límite que la probeta no desmiente no se toca",
+);
+eq(
+  combinarPasadas(
+    conMensajes("muta", [EXCUSA_DE_LAMINA]),
+    conMensajes("no-concluyente", [], { solidos: 2, lamina: true }),
+  ).verdict,
+  "muta",
+  "combinación: R5 va después de las ramas de efecto, también aquí",
+);
+eq(
+  combinado("no-concluyente", "no-concluyente").verdict,
+  "no-concluyente",
+  "combinación: sin conclusión en ninguna, sigue exigiendo su exención declarada",
+);
+eq(combinado("muta", "ROJO").pasada, "solidos3d", "combinación: se dice QUÉ pasada decidió");
+eq(combinado("honesto-limitado", "muta").pasada, "solidos3d", "combinación: se dice QUÉ pasada decidió");
+eq(combinado("informa", "informa").pasada, "plano2d", "combinación: se dice QUÉ pasada decidió");
+
+// Y el fixture no puede moverse por su cuenta: se construye DOS veces y se
+// exige el mismo texto canónico, los mismos triángulos, el mismo volumen, la
+// misma área y la misma región, medidos con los evaluadores del producto. Sin
+// esto, «muta» —que se concede comparando serializaciones— podría concederse
+// por una deriva del documento inicial y no por el comando.
+const { comprobarProbeta, probetaEvidencia, PROBETA_INVARIANTES } = await import(
+  "../../apps/web/scripts/command-integrity-probeta.mts"
+);
+const { probeDocumentSeed } = await import("../../apps/web/scripts/command-integrity-probe-seed.mts");
+eq(comprobarProbeta(probeDocumentSeed), [], "la probeta cumple sus invariantes y serializa igual dos veces");
+eq(
+  probetaEvidencia(probeDocumentSeed),
+  {
+    solidos: PROBETA_INVARIANTES.solidos,
+    triangulos: PROBETA_INVARIANTES.triangulosPorSolido,
+    volumen: PROBETA_INVARIANTES.volumenPorSolido,
+    area: PROBETA_INVARIANTES.areaPorSolido,
+    region: PROBETA_INVARIANTES.region,
+    aristasDelContorno: PROBETA_INVARIANTES.aristasDelContorno,
+    areaDelContorno: PROBETA_INVARIANTES.areaDelContorno,
+    lamina: PROBETA_INVARIANTES.lamina,
+    viewports: PROBETA_INVARIANTES.viewports,
+    vistasDerivadas: PROBETA_INVARIANTES.vistasDerivadas,
+  },
+  "lo que la probeta manda al artefacto es lo que sus invariantes declaran",
 );
 
 console.log(`command-integrity-rules.spec: ${checks} comprobaciones OK`);

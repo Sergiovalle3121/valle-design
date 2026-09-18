@@ -2,12 +2,43 @@
   "generatedBy": "scripts/cad/check-command-integrity.mjs --write",
   "total": 294,
   "verdicts": {
-    "muta": 83,
-    "delegado": 48,
+    "muta": 100,
+    "delegado": 51,
     "informa": 22,
-    "honesto-limitado": 132,
+    "honesto-limitado": 112,
     "no-concluyente": 9,
     "ROJO": 0
+  },
+  "pasadas": {
+    "plano2d": {
+      "muta": 83,
+      "delegado": 48,
+      "informa": 22,
+      "honesto-limitado": 132,
+      "no-concluyente": 9,
+      "ROJO": 0
+    },
+    "solidos3d": {
+      "muta": 86,
+      "delegado": 51,
+      "informa": 40,
+      "honesto-limitado": 108,
+      "no-concluyente": 9,
+      "ROJO": 0
+    }
+  },
+  "noConcluyentesDeUnaPasada": [],
+  "probeta": {
+    "solidos": 2,
+    "triangulos": 12,
+    "volumen": 240000,
+    "area": 24800,
+    "region": 4800,
+    "aristasDelContorno": 4,
+    "areaDelContorno": 2400,
+    "lamina": "A1",
+    "viewports": 2,
+    "vistasDerivadas": 1
   },
   "exemptions": [
     "ATTEDIT",

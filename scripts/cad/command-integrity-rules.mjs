@@ -42,10 +42,81 @@ export const PARTICIPIO_DE_EXITO =
 export const PREVIO_QUE_ANULA =
   /(?<![\p{L}])(?:no|ni|nada|ning[uú]n[oa]?|sin|nunca|jam[aá]s|si)(?![\p{L}])|ya est[aá]n?|todav[ií]a no|¿|necesit|requier|(?<![\p{L}])(?:hay|est[aá]n?|quedan?|siguen?|forman|sobre|objetos?)(?![\p{L}])/iu;
 
+/**
+ * Lo que, ANTES de una afirmación y dentro de su cláusula, la convierte en otra
+ * cosa: una negación, una condición, una pregunta, un requisito o un estado ya
+ * alcanzado.
+ *
+ * Es `PREVIO_QUE_ANULA` SIN sus palabras de estado (`hay`, `están`, `quedan`,
+ * `siguen`, `forman`, `sobre`, `objetos`). La diferencia importa: R3 necesita
+ * esas palabras porque «objetos seleccionados» describe la entrada, pero la
+ * rama de AFIRMACIÓN no puede aceptarlas o «3 objetos borrados» sin efecto
+ * —el éxito falso que este gate persigue— se escaparía por la palabra
+ * «objetos».
+ */
+export const PREVIO_QUE_RECHAZA_AFIRMACION =
+  /(?<![\p{L}])(?:no|ni|nada|ning[uú]n[oa]?|sin|nunca|jam[aá]s|si)(?![\p{L}])|ya est[aá]n?|todav[ií]a no|¿|necesit|requier/iu;
+
 const FILA_DE_TABLA = /\S {2,}\S/;
 
 /** Dónde acaba una cláusula: . ; : — – salto de línea, « - » y paréntesis. */
 const SEPARADOR_DE_CLAUSULAS = /[.;:—–\n]|\s-\s|[()]/;
+
+/**
+ * Dónde acaba una cláusula PARA LA RAMA DE AFIRMACIÓN: lo mismo MÁS la coma.
+ *
+ * La coma no está en `SEPARADOR_DE_CLAUSULAS` a propósito —R3 necesita leer
+ * «necesita DOS sólidos designados, y hay 0» de una pieza— pero sin ella la
+ * rama de afirmación regalaba una coartada de seis palabras: bastaba abrir la
+ * frase con cualquier palabra de `PREVIO_QUE_RECHAZA_AFIRMACION` para lavar la
+ * afirmación que venía después de la coma. «Sin tocar el documento, 3 objetos
+ * borrados.» o «Ningún error, 2 bloques insertados.» salían `informa` sin
+ * ningún efecto; en la versión anterior de esta rama —que leía el mensaje
+ * entero— las dos eran ROJO. Con la coma dentro, cada proposición se juzga por
+ * sí misma y el lavado desaparece sin tocar R3.
+ */
+const SEPARADOR_DE_AFIRMACIONES = /[.;:—–,\n]|\s-\s|[()]/g;
+const CLAIMS_GLOBAL = new RegExp(CLAIMS.source, "gi");
+
+/**
+ * La primera AFIRMACIÓN del mensaje que no tiene coartada en su cláusula, o
+ * null.
+ *
+ * La rama de afirmación leía el mensaje ENTERO: bastaba con que en cualquier
+ * sitio apareciera una palabra de `CLAIMS` para darlo por éxito consumado, y el
+ * único escape era que el mensaje dijera también algo de `HONESTY`. Eso ponía
+ * en ROJO el rechazo legítimo de SECTION —«El plano de corte no atraviesa
+ * ninguno de los sólidos designados»— por la palabra «designados», que es
+ * exactamente la que `PARTICIPIO_DE_EXITO` ya excluyó a conciencia de R3
+ * porque en main describe la ENTRADA y no un resultado.
+ *
+ * Ahora se juzga por CLÁUSULAS, como R3: se busca cada palabra de `CLAIMS` y se
+ * mira lo que la precede DENTRO de su cláusula. No se parte el texto —`CLAIMS`
+ * tiene alternativas que incluyen el punto final, y partir por el punto las
+ * habría perdido—: se localiza el inicio de la cláusula que contiene la
+ * palabra y se examina ese tramo.
+ *
+ * Las cláusulas se cortan además por COMA (`SEPARADOR_DE_AFIRMACIONES`): sin
+ * eso, «Sin tocar el documento, 3 objetos borrados.» se lavaba con el «Sin»
+ * del principio, y eso vale para cualquier comando de kind `manage` o `query`
+ * —los que imprimen resultados— porque R1 sólo protege a los mutantes.
+ *
+ * @param {string} text
+ * @returns {string | null} la cláusula afirmativa, o null
+ */
+export function afirmacionSinCoartada(text) {
+  for (const match of text.matchAll(CLAIMS_GLOBAL)) {
+    let inicio = 0;
+    for (const corte of text.slice(0, match.index).matchAll(SEPARADOR_DE_AFIRMACIONES)) {
+      inicio = corte.index + corte[0].length;
+    }
+    const clausula = text.slice(inicio, match.index + match[0].length);
+    if (FILA_DE_TABLA.test(clausula)) continue;
+    if (PREVIO_QUE_RECHAZA_AFIRMACION.test(text.slice(inicio, match.index))) continue;
+    return clausula.trim();
+  }
+  return null;
+}
 
 /**
  * R3 — las cláusulas de un mensaje que AFIRMAN un resultado.
@@ -141,6 +212,72 @@ export function entidadesTocadas(antes, despues) {
 const ARRAYS_DE_GEOMETRIA = ["points", "faces", "vertices", "positions", "indices"];
 
 /**
+ * R2 — las coordenadas que cada tipo EXIGE para ser dibujable, tal como las
+ * declara la unión `CadEntity` de `apps/web/src/lib/cad/cad-document.ts`.
+ *
+ * `z` no se exige: la unión la pide en `CadPoint3` pero el migrador la rellena,
+ * y un documento guardado hace meses entra sin ella. Lo que se exige es lo que
+ * NINGÚN migrador puede inventar.
+ */
+const COORDENADAS_EXIGIDAS = {
+  text: ["x", "y"],
+  mtext: ["insertion.x", "insertion.y"],
+  line: ["start.x", "start.y", "end.x", "end.y"],
+  circle: ["center.x", "center.y", "radius"],
+  arc: ["center.x", "center.y", "radius", "startAngle", "endAngle"],
+};
+
+/** Los números no finitos que cuelgan de un valor, con su ruta. */
+function numerosNoFinitos(valor, ruta, encontrados) {
+  if (typeof valor === "number") {
+    if (!Number.isFinite(valor)) encontrados.push(`${ruta || "(raíz)"} = ${valor}`);
+    return;
+  }
+  if (Array.isArray(valor)) {
+    valor.forEach((item, indice) => numerosNoFinitos(item, `${ruta}[${indice}]`, encontrados));
+    return;
+  }
+  if (valor && typeof valor === "object") {
+    for (const [clave, item] of Object.entries(valor))
+      numerosNoFinitos(item, ruta ? `${ruta}.${clave}` : clave, encontrados);
+  }
+}
+
+const leerRuta = (entity, ruta) =>
+  ruta.split(".").reduce((valor, clave) => (valor == null ? undefined : valor[clave]), entity);
+
+/**
+ * R2 — ¿esta entidad ha quedado con números IMPOSIBLES?
+ *
+ * El agujero que cierra: TEXTALIGN ascendía a «muta» escribiendo NaN. Su lote
+ * entero era un `replace(t1)` y el cambio medido era `rotation` MÁS dos
+ * coordenadas basura (`x: NaN`, `y: NaN`, que en el JSON del documento salen
+ * como `null`); el texto NO se movía. `changed` era cierto porque la
+ * serialización cambiaba, y con eso el gate lo contaba como efecto verificado.
+ * Comparar serializaciones no basta: hay que mirar si lo tocado sigue siendo
+ * dibujable.
+ *
+ * Dos cosas descalifican a una entidad tocada: un número no finito en
+ * cualquier parte (NaN/Infinity) y la falta de las coordenadas que su tipo
+ * exige. La segunda es la que delata la CAUSA —un fixture o un comando que
+ * escriben el texto con `position` cuando el esquema pide `x`/`y`— en vez de
+ * esperar a que otro comando propague el NaN.
+ *
+ * @param {any} entity
+ * @returns {string | null} el motivo, o null si sus números son posibles
+ */
+export function coordenadasImposibles(entity) {
+  const noFinitos = [];
+  numerosNoFinitos(entity, "", noFinitos);
+  if (noFinitos.length > 0) return `número no finito: ${noFinitos.slice(0, 4).join(", ")}`;
+  const exigidas = COORDENADAS_EXIGIDAS[entity?.type] ?? [];
+  const faltan = exigidas.filter((ruta) => typeof leerRuta(entity, ruta) !== "number");
+  if (faltan.length > 0)
+    return `${entity.type} sin las coordenadas que su tipo exige: ${faltan.join(", ")}`;
+  return null;
+}
+
+/**
  * R2 — ¿esta entidad es un cascarón sin geometría?
  *
  * «muta» comparaba sólo la serialización: insertar un solid3d cuyo único nodo
@@ -159,6 +296,12 @@ const ARRAYS_DE_GEOMETRIA = ["points", "faces", "vertices", "positions", "indice
  * @returns {string | null} el motivo, o null si tiene geometría
  */
 export function sinGeometria(entity, evaluadores) {
+  // Antes de preguntar si tiene geometría: si sus números son imposibles, lo
+  // que el lote dejó en el documento no se puede dibujar. Va PRIMERO porque un
+  // sólido con un NaN dentro también evalúa (la caja envolvente de un sólido
+  // roto es la del marcador que lo sustituye y nunca sale vacía).
+  const imposibles = coordenadasImposibles(entity);
+  if (imposibles) return imposibles;
   try {
     if (entity.type === "solid3d") {
       const mesh = evaluadores.solid3dMesh(entity);
@@ -179,6 +322,51 @@ export function sinGeometria(entity, evaluadores) {
   return null;
 }
 
+// ─── R6: una bandera de metadatos no es la geometría que se prometió ────────
+
+/**
+ * R6 — los `kind` cuyo PRODUCTO es geometría.
+ *
+ * `manage`, `view` e `inquiry` quedan fuera a propósito: la contabilidad del
+ * documento ES su contrato. GROUP escribe `cad:groups` y nada más, y eso es
+ * exactamente lo que GROUP hace —la pertenencia la consume después
+ * `cadExpandSelectionByGroup`—; exigirle geometría sería pedirle que dibuje.
+ */
+export const KINDS_DE_GEOMETRIA = ["draw", "modify", "annotate"];
+
+/**
+ * R6 — ¿el cambio del lote son SÓLO banderas de metadatos sobre entidades que
+ * ya existían?
+ *
+ * El agujero que cierra: REGION ascendía a «muta» SIN producir geometría. Con
+ * la probeta delante, `planCadRegions` devolvía `created: 0`, `tagged: 2` y un
+ * lote de dos comandos `metadata` (`{region: true}` sobre `p1` y `c1`, que ya
+ * eran contornos cerrados); los ocho intentos de crear región se rechazaban. El
+ * documento cambiaba —la serialización incluye el `context`— y con eso un
+ * comando de kind `draw` cobraba «muta» sin dibujar nada. Peor: si se borrara
+ * entera la rama que CREA regiones, el gate seguiría diciendo «muta», porque
+ * esa rama no aporta ni un comando al lote.
+ *
+ * `metadata` es la única puerta por la que un lote cambia el documento sin
+ * tocar una coordenada, así que es la única que hay que cerrar. Se exige además
+ * que las entidades sean PREEXISTENTES: marcar algo que el propio lote acaba de
+ * crear ya viene con su `add`, y ahí la geometría está.
+ *
+ * @param {readonly {type: string, entityId?: string, patch?: Record<string, unknown>}[]} comandos
+ * @param {ReadonlySet<string>} idsPrevios  ids que ya estaban antes del lote
+ * @returns {string | null} el motivo, o null si el lote aporta algo más
+ */
+export function soloBanderasDeMetadatos(comandos, idsPrevios) {
+  if (comandos.length === 0) return null;
+  const claves = new Set();
+  for (const comando of comandos) {
+    if (comando.type !== "metadata") return null;
+    if (comando.entityId !== undefined && !idsPrevios.has(comando.entityId)) return null;
+    for (const clave of Object.keys(comando.patch ?? {})) claves.add(clave);
+  }
+  return `el lote entero son banderas de metadatos (${[...claves].sort().join(", ")}) sobre entidades preexistentes`;
+}
+
 /**
  * @typedef {"muta" | "delegado" | "informa" | "honesto-limitado" | "no-concluyente" | "ROJO"} Veredicto
  */
@@ -197,9 +385,27 @@ export function sinGeometria(entity, evaluadores) {
  * @param {boolean} o.probeAborted  la sonda canceló por prompts repetidos
  * @param {boolean} o.mutates       el descriptor promete mutar
  * @param {{id: string, motivo: string}[]} [o.vacias]  R2: entidades tocadas sin geometría
+ * @param {{solidos?: number, lamina?: boolean}} [o.dotacion]  R5: lo que la pasada le puso delante
+ * @param {string} [o.kind]         R6: el contrato que el descriptor declara
+ * @param {string | null} [o.soloMetadatos]  R6: el lote entero son banderas de metadatos
  * @returns {{verdict: Veredicto, note?: string}}
  */
 export function clasificar(o) {
+  const resultado = decidir(o);
+  // El motivo de R6 no puede perderse por el camino: si el lote no contó, el
+  // veredicto que sale es el del mensaje y hay que decir por qué.
+  if (o.soloMetadatos && KINDS_DE_GEOMETRIA.includes(o.kind ?? "")) {
+    return {
+      ...resultado,
+      note: `${o.soloMetadatos}, así que el lote no cuenta como geometría` +
+        (resultado.note ? `; ${resultado.note}` : ""),
+    };
+  }
+  return resultado;
+}
+
+/** El árbol propiamente dicho. */
+function decidir(o) {
   const {
     steps,
     maxSteps,
@@ -211,16 +417,29 @@ export function clasificar(o) {
     probeAborted,
     mutates,
     vacias = [],
+    dotacion = {},
+    kind = "",
+    soloMetadatos = null,
   } = o;
   const honest = messages.some((entry) => HONESTY.test(entry.text));
-  const claims = messages.some(
-    (entry) => entry.level === "info" && CLAIMS.test(entry.text) && !HONESTY.test(entry.text),
-  );
+  const afirmacion = messages
+    .filter((entry) => entry.level === "info" && !HONESTY.test(entry.text))
+    .map((entry) => afirmacionSinCoartada(entry.text))
+    .find((clausula) => clausula !== null);
 
   if (steps >= maxSteps) {
     return { verdict: "no-concluyente", note: "el auto-respondedor no lo llevó a término" };
   }
-  if (applied > 0 && changed) {
+  // R6. Un lote cuyo cambio son SÓLO banderas de metadatos sobre entidades
+  // preexistentes no es la geometría que un comando de kind draw/modify/annotate
+  // prometió: no concede «muta» y el árbol sigue, para que el comando se quede
+  // con la clase que su mensaje le gane (informa, honesto-limitado o el ROJO de
+  // una afirmación vacía). No se aplica a manage/view/inquiry: ahí la
+  // contabilidad del documento ES el contrato (GROUP y su `cad:groups`).
+  const geometriaPrometidaConBanderas =
+    soloMetadatos !== null && KINDS_DE_GEOMETRIA.includes(kind);
+
+  if (applied > 0 && changed && !geometriaPrometidaConBanderas) {
     // R2. Basta con UNA entidad tocada sin geometría: si no, una línea de
     // relleno junto al cascarón vacío bastaría para esconderlo.
     if (vacias.length > 0) {
@@ -237,8 +456,11 @@ export function clasificar(o) {
     return { verdict: "ROJO", note: "aplicó un lote pero el documento canónico quedó idéntico" };
   }
   if (delegated) return { verdict: "delegado" };
-  if (claims) {
-    return { verdict: "ROJO", note: "afirma una acción consumada sin ningún efecto verificable" };
+  if (afirmacion !== undefined) {
+    return {
+      verdict: "ROJO",
+      note: `afirma «${afirmacion}» —una acción consumada— sin ningún efecto verificable`,
+    };
   }
   const afirmadas = messages
     .filter((entry) => entry.level === "info")
@@ -249,6 +471,17 @@ export function clasificar(o) {
     return {
       verdict: "ROJO",
       note: `afirma «${afirmadas[0]}» sin efecto; decir que falta algo no anula haber dicho que se hizo`,
+    };
+  }
+  // R5. Va DESPUÉS de las ramas de efecto —un comando que aplicó un lote o
+  // delegó ya no está poniendo excusas— y ANTES de `honest`, que es la rama por
+  // la que estas frases se colaban como integridad.
+  const desmentido = limiteDesmentido(messages, dotacion);
+  if (desmentido) {
+    return {
+      verdict: "ROJO",
+      note:
+        `dijo faltarle ${desmentido.falta} y la probeta se lo dio: «${desmentido.texto.slice(0, 140)}»`,
     };
   }
   if (messages.length === 0 && steps > 0 && inputTrace[inputTrace.length - 1] === "enter") {
@@ -298,6 +531,142 @@ export function clasificar(o) {
   return mutates
     ? { verdict: "ROJO", note: "terminó al invocarse, sin efecto y sin mensaje" }
     : { verdict: "informa" };
+}
+
+// ─── R5: un límite que la probeta desmiente ──────────────────────────────────
+
+/**
+ * R5 — las precondiciones que la probeta SÍ cumple, con la frase con la que un
+ * comando diría que le faltan.
+ *
+ * El agujero que cierra: hasta la probeta, 18 comandos de sólidos y 9 de lámina
+ * declaraban un límite que la sonda nunca podía desmentir —«Esta orden necesita
+ * SOLID3D designados», «No hay ninguna presentación abierta»— y eso les valía
+ * `honesto-limitado`. Decir la verdad sobre algo que nunca se te da no cuesta
+ * nada. Ahora que se les da, la misma frase deja de ser honestidad y pasa a ser
+ * el mismo tipo de mentira que un «Hecho» vacío, sólo del revés: el comando
+ * afirma una carencia falsa para no hacer nada.
+ *
+ * `necesita` nombra la dotación de la pasada; la misma frase en una pasada que
+ * NO la trae sigue siendo honesta, y eso es lo que prueba el gemelo del spec.
+ */
+export const LIMITES_DESMENTIBLES = [
+  {
+    necesita: "solidos",
+    patron:
+      /no contiene s[oó]lidos|necesita\s+(?:al menos\s+)?(?:\w+\s+){0,3}SOLID3D|necesita\s+(?:al menos\s+)?(?:DOS|dos|un|una|alg[uú]n)\s+s[oó]lidos?|sin s[oó]lidos designad|no hay (?:ning[uú]n )?s[oó]lido/i,
+    falta: "sólidos 3D designados",
+  },
+  {
+    necesita: "lamina",
+    patron:
+      /no hay ninguna presentaci[oó]n abierta|necesita una presentaci[oó]n abierta|sin (?:ninguna )?presentaci[oó]n abierta|no hay (?:ninguna )?l[aá]mina/i,
+    falta: "una presentación abierta",
+  },
+];
+
+/**
+ * R5 — ¿algún mensaje dice faltarle lo que la probeta le dio?
+ *
+ * @param {{text: string, level: string}[]} messages
+ * @param {{solidos?: number, lamina?: boolean}} dotacion  lo que la pasada puso delante
+ * @returns {{falta: string, texto: string} | null}
+ */
+export function limiteDesmentido(messages, dotacion = {}) {
+  const tiene = { solidos: (dotacion.solidos ?? 0) > 0, lamina: dotacion.lamina === true };
+  for (const entry of messages) {
+    for (const limite of LIMITES_DESMENTIBLES) {
+      if (!tiene[limite.necesita]) continue;
+      if (limite.patron.test(entry.text)) return { falta: limite.falta, texto: entry.text };
+    }
+  }
+  return null;
+}
+
+// ─── Combinación de las DOS pasadas de la sonda ──────────────────────────────
+
+/**
+ * Lo único que ASCIENDE a un comando: un efecto verificado.
+ *
+ * `informa` y `honesto-limitado` no están aquí a propósito. La probeta de
+ * sólidos y lámina existe para quitarle a un comando la excusa de una
+ * precondición imposible, no para reetiquetar a los que ya eran honestos: si
+ * con la probeta un comando pasa de «declara su límite» a «informa», eso no es
+ * un efecto y no vale como mejora. Sólo `muta` (lote aplicado y documento
+ * cambiado) y `delegado` (petición a un anfitrión) suben.
+ */
+const RANGO_DE_EFECTO = { muta: 2, delegado: 1 };
+
+/**
+ * El veredicto de un comando a partir de sus DOS pasadas, con la regla
+ * MONÓTONA: nadie sale mejor clasificado sin efecto, y nadie sale peor por el
+ * cambio de fixture.
+ *
+ * - ROJO en cualquiera de las dos GANA sobre todo lo demás. Es lo que hace que
+ *   un comando que sigue sin producir efecto con la probeta salga PEOR, no
+ *   mejor: la precondición imposible ya no lo tapa.
+ * - Si una concluye y la otra no, vale la que concluye.
+ * - Si las dos concluyen, sólo se asciende cuando la segunda aporta un efecto
+ *   verificado (`muta`/`delegado`) mejor que el de la primera.
+ * - En cualquier otro caso MANDA la pasada base, que es el documento de
+ *   siempre. Por eso ningún comando 2D puede cambiar de veredicto por tener
+ *   sólidos y lámina delante: si la probeta lo degrada, su veredicto de la
+ *   pasada base queda intacto.
+ *
+ * No es «lo mejor de las dos»: un ROJO no se compensa nunca con el verde de
+ * la otra pasada.
+ *
+ * ## La puerta del no-concluyente, cerrada
+ *
+ * `if (probeta.verdict === "no-concluyente") return conBase;` era un lavadero.
+ * PLOT decía en su pasada plano2d «No hay ninguna presentación abierta: crea
+ * una con LAYOUT» —la frase EXACTA que R5 declara límite falso— y en la pasada
+ * con la lámina abierta la sonda no lo llevaba a término, así que `clasificar`
+ * devolvía no-concluyente en su PRIMERA rama, antes de R5. Resultado: PLOT se
+ * quedaba con el `honesto-limitado` de la base, sostenido por una precondición
+ * que la probeta desmiente, y sin pagar exención, porque el veredicto combinado
+ * no era no-concluyente. Contaba entre los «declaran su límite» del artefacto
+ * por una excusa refutada.
+ *
+ * Ahora, cuando la probeta NO concluye, los mensajes de la BASE se pasan por
+ * `limiteDesmentido` con la DOTACIÓN de la probeta: si la frase es falsa en el
+ * mundo de la probeta, el veredicto es ROJO. Que la sonda no sepa terminar el
+ * comando no convierte la excusa en verdad. Por eso cada pasada tiene que
+ * llevar sus `messages` y su `dotacion` hasta aquí.
+ *
+ * @template {{verdict: string, note?: string, messages?: {text: string, level: string}[], dotacion?: {solidos?: number, lamina?: boolean}}} P
+ * @param {P} base      pasada sobre el documento de siempre
+ * @param {P} probeta   pasada sobre la probeta de sólidos y lámina
+ * @returns {P & {pasada: string}}
+ */
+export function combinarPasadas(base, probeta) {
+  const conBase = { ...base, pasada: "plano2d" };
+  const conProbeta = { ...probeta, pasada: "solidos3d" };
+  if (base.verdict === "ROJO") return conBase;
+  if (probeta.verdict === "ROJO") return conProbeta;
+  if (base.verdict === "no-concluyente" && probeta.verdict !== "no-concluyente") return conProbeta;
+  if (probeta.verdict === "no-concluyente") {
+    // Sólo si la base NO produjo efecto, por la misma razón por la que R5 va
+    // después de las ramas de efecto en `clasificar`: un comando que aplicó su
+    // lote o delegó no está poniendo excusas, diga lo que diga en el camino.
+    const desmentido =
+      RANGO_DE_EFECTO[base.verdict] === undefined
+        ? limiteDesmentido(base.messages ?? [], probeta.dotacion ?? {})
+        : null;
+    if (desmentido) {
+      return {
+        ...conBase,
+        verdict: "ROJO",
+        note:
+          `la probeta no lo llevó a término, y el límite que declaró en la pasada base es falso ` +
+          `con lo que la probeta le pone delante: dijo faltarle ${desmentido.falta} — ` +
+          `«${desmentido.texto.slice(0, 140)}»`,
+      };
+    }
+    return conBase;
+  }
+  const sube = (RANGO_DE_EFECTO[probeta.verdict] ?? 0) > (RANGO_DE_EFECTO[base.verdict] ?? 0);
+  return sube ? conProbeta : conBase;
 }
 
 // ─── R4: una exención sólo vale si su spec conduce el comando y comprueba ────
