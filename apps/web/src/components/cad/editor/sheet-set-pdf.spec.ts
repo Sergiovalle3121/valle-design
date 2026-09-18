@@ -143,6 +143,34 @@ async function main(): Promise<void> {
     );
     checks += 2;
   }
+
+  // T3: el texto de 4 mm de papel sale a 11,34 pt en el flujo PDF (4 × 72/25,4).
+  {
+    const bytes = await bytesOf({
+      ...base,
+      paperCommands: [
+        {
+          kind: "text",
+          entityId: "e-texto-mm",
+          viewportId: "sheet:1:paper",
+          point: { x: 20, y: 252 },
+          text: "PRUEBA",
+          size: 4,
+          rotation: 0,
+          color: "#000000",
+        },
+      ],
+    });
+    const raw = latin1(bytes);
+    const allTf = [...raw.matchAll(/(\d+\.?\d*)\s+Tf/g)];
+    const ptSizes = allTf.map((m) => parseFloat(m[1]));
+    assert.ok(
+      ptSizes.some((s) => Math.abs(s - 11.34) < 0.05),
+      `T3: texto de 4 mm debe generar 11,34 pt en el flujo PDF; Tf encontrados: ${ptSizes.join(", ")}`,
+    );
+    checks += 1;
+  }
+
   console.log(`sheet-set-pdf.spec: OK — ${checks} comprobaciones`);
 }
 
