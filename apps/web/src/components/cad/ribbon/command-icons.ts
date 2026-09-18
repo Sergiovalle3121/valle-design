@@ -557,6 +557,12 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   // Superficies.
   PLANESURF: Square,
   CONVTOSURFACE: ArrowLeftRight,
+  SURFOFFSET: Layers2,
+  // Mallas.
+  MESH: Boxes,
+  CONVTOMESH: FlipHorizontal2,
+  CONVTOSOLID: Layers2,
+  "3DFACE": Triangle,
   // Visualización 3D.
   "3DWALK": Footprints,
   "3DFLY": Wind,

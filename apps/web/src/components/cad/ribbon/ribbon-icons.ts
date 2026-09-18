@@ -105,6 +105,7 @@ export const CAD_RIBBON_PANEL_ICONS: Readonly<Record<string, LucideIcon>> = {
   "AutoLISP y scripts": Terminal,
   Comparar: GitCompare,
   Herramientas: Wrench,
+  Mallas: Boxes,
 };
 
 export function cadRibbonPanelIcon(panel: string): LucideIcon {
