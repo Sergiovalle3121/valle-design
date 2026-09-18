@@ -208,6 +208,8 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   MAPIMPORT: "Importar GIS",
   MASSPROP: "Masa y volumen",
   MATCHPROP: "Igualar propiedades",
+  MATERIALS: "Materiales",
+  MATERIALATTACH: "Asignar material",
   MEASURE: "Graduar",
   MESH: "Malla",
 
@@ -281,6 +283,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   REGENALL: "Regenerar todo",
   REGION: "Región",
   RENDER: "Renderizar",
+  RENDERENVIRONMENT: "Entorno render",
   RENDEREXPOSURE: "Exposición",
   RENDERPRESETS: "Calidad render",
   RENAME: "Renombrar",

@@ -233,4 +233,35 @@ export type CadHostRequest =
       kind: "render-setting";
       setting: "quality" | "exposure";
       value: string | number;
+    }
+  /**
+   * Cambia el entorno de render: fondo, iluminación ambiental (RENDERENVIRONMENT).
+   */
+  | {
+      kind: "render-environment";
+      background?: string;
+      ambientIntensity?: number;
+    }
+  /**
+   * Abre el explorador de materiales (MATERIALS / MATBROWSER).
+   *
+   * El motor no tiene base de materiales — es trabajo del anfitrión. La
+   * petición lleva el id de la entidad seleccionada, si lo hay, para
+   * preseleccionar el material asignado.
+   */
+  | {
+      kind: "material-browser";
+      selectedEntityId?: string;
+    }
+  /**
+   * Adjunta un material a la selección (MATERIALATTACH).
+   *
+   * El nombre del material viaja; el anfitrión lo resuelve contra su
+   * biblioteca. Es un `chain-command` especializado: el motor decide qué
+   * entidad y qué material, el anfitrión lo aplica.
+   */
+  | {
+      kind: "material-attach";
+      materialName: string;
+      entityIds: readonly string[];
     };

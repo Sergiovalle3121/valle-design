@@ -1,5 +1,5 @@
 /**
- * METADATOS de los 331 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 334 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
  * 121 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
@@ -254,6 +254,9 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "RENDER", aliases: ["RR", "RENDERIZAR"], kind: "manage", transparent: true, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/render-commands" },
   { name: "RENDERPRESETS", aliases: ["RPRES", "AJUSTESRENDER"], kind: "manage", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/render-commands" },
   { name: "RENDEREXPOSURE", aliases: ["REXPOSURE", "EXPOSICIONRENDER"], kind: "manage", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/render-commands" },
+  { name: "RENDERENVIRONMENT", aliases: ["RENV", "ENTORNERENDER"], kind: "manage", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/render-commands" },
+  { name: "MATERIALS", aliases: ["MAT", "MATERIALES", "MATBROWSER"], kind: "manage", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/render-commands" },
+  { name: "MATERIALATTACH", aliases: ["MATTACH", "ADJUNTARMATERIAL"], kind: "manage", transparent: false, selection: "required", repeatable: false, mutates: false, cursor: "none", module: "commands/render-commands" },
   { name: "QSELECT", aliases: [], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "none", module: "commands/select-query" },
   { name: "FILTER", aliases: ["FI"], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "none", module: "commands/select-query" },
   { name: "SELECTSIMILAR", aliases: [], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "pick", module: "commands/select-similar" },

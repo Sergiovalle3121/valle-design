@@ -170,4 +170,73 @@ const cancel: CadCommandInput = { kind: "cancel" };
   if (r?.kind === "message") assert.ok(r.text.includes("actual"));
 }
 
-console.log("render.spec: 15 comprobaciones pasaron.");
+// ---------------------------------------------------------------------------
+// RENDERENVIRONMENT
+// ---------------------------------------------------------------------------
+
+{
+  // RENDERENVIRONMENT + Enter → default Solido
+  const r = hostReq(run("RENDERENVIRONMENT", [enter]));
+  assert.ok(r, "RENDERENVIRONMENT emite petición");
+  assert.equal(r.kind, "render-environment");
+  if (r.kind === "render-environment") assert.equal(r.background, "Solido");
+}
+
+{
+  // RENDERENVIRONMENT + keyword Imagen
+  const r = hostReq(run("RENDERENVIRONMENT", [keyword("Imagen")]));
+  assert.ok(r);
+  if (r.kind === "render-environment") assert.equal(r.background, "Imagen");
+}
+
+{
+  // RENDERENVIRONMENT cancelado
+  const r = run("RENDERENVIRONMENT", [cancel]);
+  assert.equal(r?.kind, "message");
+  if (r?.kind === "message") assert.ok(r.text.includes("cancelado"));
+}
+
+// ---------------------------------------------------------------------------
+// MATERIALS
+// ---------------------------------------------------------------------------
+
+{
+  // MATERIALS + Enter → abre explorador
+  const r = hostReq(run("MATERIALS", [enter]));
+  assert.ok(r, "MATERIALS emite petición");
+  assert.equal(r.kind, "material-browser");
+}
+
+{
+  // MATERIALS cancelado
+  const r = run("MATERIALS", [cancel]);
+  assert.equal(r?.kind, "message");
+  if (r?.kind === "message") assert.ok(r.text.includes("cancelado"));
+}
+
+// ---------------------------------------------------------------------------
+// MATERIALATTACH
+// ---------------------------------------------------------------------------
+
+{
+  // MATERIALATTACH con selección y nombre de material
+  const r = hostReq(run("MATERIALATTACH", [
+    { kind: "selection", entityIds: ["e1", "e2"] },
+    { kind: "text", value: "Acero" },
+  ]));
+  assert.ok(r, "MATERIALATTACH emite petición");
+  assert.equal(r.kind, "material-attach");
+  if (r.kind === "material-attach") {
+    assert.equal(r.materialName, "Acero");
+    assert.deepEqual([...r.entityIds], ["e1", "e2"]);
+  }
+}
+
+{
+  // MATERIALATTACH cancelado
+  const r = run("MATERIALATTACH", [cancel]);
+  assert.equal(r?.kind, "message");
+  if (r?.kind === "message") assert.ok(r.text.includes("cancelado"));
+}
+
+console.log("render.spec: todas las comprobaciones pasaron.");

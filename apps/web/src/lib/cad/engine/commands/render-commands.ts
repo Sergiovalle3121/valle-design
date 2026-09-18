@@ -9,6 +9,9 @@ import {
   asCadCommand,
   CAD_ACCEPT_KEYWORD,
   CAD_ACCEPT_DISTANCE,
+  CAD_ACCEPT_TEXT,
+  CAD_ACCEPT_ENTITY_PICK,
+  CAD_ACCEPT_SELECTION,
   type CadAnyCommandDescriptor,
   type CadCommandDescriptor,
   type CadCommandStep,
@@ -157,8 +160,126 @@ const cmdrenderexposure: CadCommandDescriptor<{ value: number }> = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// RENDERENVIRONMENT — fondo e iluminación ambiental
+// ---------------------------------------------------------------------------
+
+const BACKGROUNDS = [
+  { keyword: "Solido", shortcut: "S" },
+  { keyword: "Imagen", shortcut: "I" },
+  { keyword: "Gradiente", shortcut: "G" },
+  { keyword: "Ninguno", shortcut: "N" },
+] as const;
+
+const cmdrenderenvironment: CadCommandDescriptor<{ bg: string }> = {
+  name: "RENDERENVIRONMENT",
+  aliases: ["RENV", "ENTORNERENDER"],
+  kind: "manage",
+  transparent: true,
+  selection: "none",
+  repeatable: true,
+  mutates: false,
+  cursor: "none",
+  begin: () => ({
+    state: { bg: "Solido" },
+    prompt: {
+      message: "Tipo de fondo [Solido/Imagen/Gradiente/Ninguno]",
+      options: BACKGROUNDS,
+      defaultOption: "Solido",
+    },
+    accepts: CAD_ACCEPT_KEYWORD,
+  }),
+  step: (state, input) => {
+    if (input.kind === "cancel") return say("RENDERENVIRONMENT cancelado.");
+    const bg = input.kind === "keyword" ? input.keyword : (state.bg ?? "Solido");
+    return host(
+      { kind: "render-environment", background: bg },
+      `RENDERENVIRONMENT → ${bg}`,
+    );
+  },
+};
+
+// ---------------------------------------------------------------------------
+// MATERIALS — explorador de materiales
+// ---------------------------------------------------------------------------
+
+const cmdmaterials: CadCommandDescriptor<null> = {
+  name: "MATERIALS",
+  aliases: ["MAT", "MATERIALES", "MATBROWSER"],
+  kind: "manage",
+  transparent: true,
+  selection: "none",
+  repeatable: true,
+  mutates: false,
+  cursor: "none",
+  begin: () => ({
+    state: null,
+    prompt: {
+      message: "Explorador de materiales — pulse Intro para abrir",
+      options: [],
+    },
+    accepts: 0,
+  }),
+  step: (_s, input) => {
+    if (input.kind === "cancel") return say("MATERIALS cancelado.");
+    return host({ kind: "material-browser" }, "MATERIALS");
+  },
+};
+
+// ---------------------------------------------------------------------------
+// MATERIALATTACH — adjuntar material a la selección
+// ---------------------------------------------------------------------------
+
+const cmdmaterialattach: CadCommandDescriptor<{ selection: readonly string[]; asked: boolean }> = {
+  name: "MATERIALATTACH",
+  aliases: ["MATTACH", "ADJUNTARMATERIAL"],
+  kind: "manage",
+  transparent: false,
+  selection: "required",
+  repeatable: false,
+  mutates: false,
+  cursor: "none",
+  begin: (_ctx) => ({
+    state: { selection: [], asked: false },
+    prompt: {
+      message: "Designe las entidades para adjuntar material",
+      options: [],
+    },
+    accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
+  }),
+  step: (state, input) => {
+    if (input.kind === "cancel") return say("MATERIALATTACH cancelado.");
+    if (input.kind === "selection" || input.kind === "entityPick") {
+      const ids = input.kind === "selection"
+        ? input.entityIds
+        : [...(state.selection ?? []), input.entityId];
+      return {
+        state: { selection: ids, asked: false },
+        prompt: {
+          message: `${ids.length} entidad(es). Escriba el nombre del material`,
+          options: [],
+        },
+        accepts: CAD_ACCEPT_TEXT | CAD_ACCEPT_ENTITY_PICK,
+      };
+    }
+    if (input.kind === "text" && input.value.trim()) {
+      return host(
+        { kind: "material-attach", materialName: input.value.trim(), entityIds: state.selection ?? [] },
+        `MATERIALATTACH «${input.value.trim()}»`,
+      );
+    }
+    if (input.kind === "enter") {
+      return say("MATERIALATTACH: escriba el nombre del material.");
+    }
+    return say("MATERIALATTACH: seleccione entidades y escriba el nombre del material.");
+  },
+};
+
 export const CAD_RENDER_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(cmdrender),
   asCadCommand(cmdrenderpresets),
   asCadCommand(cmdrenderexposure),
+  asCadCommand(cmdrenderenvironment),
+  asCadCommand(cmdmaterials),
+  asCadCommand(cmdmaterialattach),
 ];

@@ -281,6 +281,12 @@ export class CadPlotHost {
       return "La captura del viewport la atiende el anfitrión del motor, no el de trazado.";
     if (request.kind === "render-setting")
       return "Los ajustes de render los atiende el anfitrión del motor, no el de trazado.";
+    if (request.kind === "render-environment")
+      return "El entorno de render lo atiende el anfitrión del motor, no el de trazado.";
+    if (request.kind === "material-browser")
+      return "El explorador de materiales lo atiende el anfitrión del motor, no el de trazado.";
+    if (request.kind === "material-attach")
+      return "La asignación de materiales la atiende el anfitrión del motor, no el de trazado.";
 
     const document = this.bridge.document();
     if (!document) return "No hay ningún dibujo abierto que trazar.";
