@@ -55,9 +55,15 @@
  * `planoDivide`.
  */
 import type { CadPoint2 } from "../../cad-document";
-import type { CadSolid3dEntity, CadSolidNode } from "../../cad-entities-v5";
+import type { CadSolid3dEntity, CadSolidNode, CadSolidPlacement } from "../../cad-entities-v5";
 import type { CadEntityCommand } from "../../entity-commands";
-import { solid3dBody } from "../../solid3d-build";
+import {
+  bodyToSolidNode,
+  evaluateSolidTree,
+  placeBody,
+  resolveSolidPlacement,
+  solid3dBody,
+} from "../../solid3d-build";
 import { cadSolidWorldPlaneToLocal } from "../../solid3d-plane";
 import { sectionLoopsOfSolid } from "../../solid3d-section";
 import {
@@ -89,6 +95,68 @@ interface SolidSelectionState {
 }
 
 const NO_SOLIDS = "Esta orden necesita SOLID3D designados. Crea uno con EXTRUDE, REVOLVE, SWEEP o LOFT.";
+
+/** Colocación de `next` expresada en el marco local de `first` (A⁻¹·B). */
+function relativePlacement(
+  first: Required<CadSolidPlacement>,
+  next: Required<CadSolidPlacement>,
+): Required<CadSolidPlacement> {
+  // La 3×3 es: | a    c   m02 |
+  //            | b    d   m12 |
+  //            | m20 m21 m22  |
+  const det =
+    first.a * (first.d * first.m22 - first.m12 * first.m21) -
+    first.c * (first.b * first.m22 - first.m12 * first.m20) +
+    first.m02 * (first.b * first.m21 - first.d * first.m20);
+  if (!(Math.abs(det) > 1e-30)) return { ...resolveSolidPlacement() };
+  const invDet = 1 / det;
+  // Adjunta (traspuesta de la matriz de cofactores) / det.
+  const r0c0 = (first.d * first.m22 - first.m12 * first.m21) * invDet;
+  const r1c0 = (first.m12 * first.m20 - first.b * first.m22) * invDet;
+  const r2c0 = (first.b * first.m21 - first.d * first.m20) * invDet;
+  const r0c1 = (first.m02 * first.m21 - first.c * first.m22) * invDet;
+  const r1c1 = (first.a * first.m22 - first.m02 * first.m20) * invDet;
+  const r2c1 = (first.c * first.m20 - first.a * first.m21) * invDet;
+  const r0c2 = (first.c * first.m12 - first.d * first.m02) * invDet;
+  const r1c2 = (first.b * first.m02 - first.a * first.m12) * invDet;
+  const r2c2 = (first.a * first.d - first.b * first.c) * invDet;
+  // Traslación relativa: A⁻¹·(tB − tA)
+  const dtx = next.e + next.tx - (first.e + first.tx);
+  const dty = next.f + next.ty - (first.f + first.ty);
+  const dtz = next.dz + next.tz - (first.dz + first.tz);
+  const etx = r0c0 * dtx + r0c1 * dty + r0c2 * dtz;
+  const ety = r1c0 * dtx + r1c1 * dty + r1c2 * dtz;
+  const etz = r2c0 * dtx + r2c1 * dty + r2c2 * dtz;
+  // A⁻¹ · B (3×3)
+  return {
+    a: r0c0 * next.a + r0c1 * next.b + r0c2 * next.m20,
+    b: r1c0 * next.a + r1c1 * next.b + r1c2 * next.m20,
+    c: r0c0 * next.c + r0c1 * next.d + r0c2 * next.m21,
+    d: r1c0 * next.c + r1c1 * next.d + r1c2 * next.m21,
+    e: etx,
+    f: ety,
+    dz: etz,
+    m02: r0c0 * next.m02 + r0c1 * next.m12 + r0c2 * next.m22,
+    m12: r1c0 * next.m02 + r1c1 * next.m12 + r1c2 * next.m22,
+    m20: r2c0 * next.a + r2c1 * next.b + r2c2 * next.m20,
+    m21: r2c0 * next.c + r2c1 * next.d + r2c2 * next.m21,
+    m22: r2c0 * next.m02 + r2c1 * next.m12 + r2c2 * next.m22,
+    tx: 0,
+    ty: 0,
+    tz: 0,
+  };
+}
+
+/** `true` cuando la colocación es la identidad (no requiere hornear). */
+function isIdentityPlacement(p: Required<CadSolidPlacement>): boolean {
+  return (
+    p.a === 1 && p.b === 0 && p.c === 0 && p.d === 1 &&
+    p.e === 0 && p.f === 0 && p.dz === 0 &&
+    p.m02 === 0 && p.m12 === 0 &&
+    p.m20 === 0 && p.m21 === 0 && p.m22 === 1 &&
+    p.tx === 0 && p.ty === 0 && p.tz === 0
+  );
+}
 
 function designate<S extends SolidSelectionState>(state: S, message: string): CadCommandStep<S> {
   return { state, prompt: { message, options: [] }, accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK };
@@ -141,23 +209,41 @@ function booleanDescriptor(
     if (solids.length < 2)
       return solidMessage(state, `${name} necesita al menos DOS sólidos designados; hay ${solids.length}.`);
 
+    const firstPlacement = resolveSolidPlacement(solids[0].placement);
+
     const nodes: CadSolidNode[] = [];
     const roots: string[] = [];
     const removals: CadEntityCommand[] = [];
     for (const [index, solid] of solids.entries()) {
       const prefix = `op${index}:`;
-      nodes.push(...prefixNodes(solid.nodes, prefix));
-      roots.push(`${prefix}${solid.root}`);
+      if (index === 0) {
+        nodes.push(...prefixNodes(solid.nodes, prefix));
+        roots.push(`${prefix}${solid.root}`);
+      } else {
+        // El operando no-primero necesita su colocación RELATIVA horneada
+        // en los nodos, porque el evaluador sólo aplica la colocación del
+        // resultado (la del primer operando) al final. Si la colocación
+        // relativa es la identidad, conserva su subárbol paramétrico.
+        const ownPlacement = resolveSolidPlacement(solid.placement);
+        const rel = relativePlacement(firstPlacement, ownPlacement);
+        if (isIdentityPlacement(rel)) {
+          nodes.push(...prefixNodes(solid.nodes, prefix));
+          roots.push(`${prefix}${solid.root}`);
+        } else {
+          const rawBody = evaluateSolidTree(solid, { skipPlacement: true });
+          const positioned = placeBody(rawBody, rel);
+          nodes.push(bodyToSolidNode(positioned, `${prefix}baked`));
+          roots.push(`${prefix}baked`);
+        }
+      }
       removals.push({ type: "delete", entityId: solid.id });
     }
     const rootId = "resultado";
     nodes.push({ id: rootId, op, operands: roots } as CadSolidNode);
 
-    // La colocación del PRIMER operando manda. No es arbitrario: en una resta
-    // el resultado «es» la primera pieza con un trozo menos, y conservar su
-    // punto base hace que los grips y las cotas que la apuntaban sigan
-    // significando lo mismo. Los demás operandos ya traen su colocación
-    // horneada en sus nodos... salvo que la tuvieran, y por eso se aplica.
+    // La colocación del PRIMER operando manda: el resultado «es» la primera
+    // pieza con la operación aplicada, y conservar su punto base hace que los
+    // grips y las cotas que la apuntaban sigan significando lo mismo.
     const solid = makeSolidEntity(
       context.newEntityId(),
       nodes,
