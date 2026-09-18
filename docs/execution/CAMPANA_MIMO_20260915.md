@@ -143,3 +143,5 @@ Todas hechas antes de esta sesión (commits `4359ef50`–`bd86c7e5`).
 | S04 | hecha — poweredByHeader:false en next.config.ts para no exponer x-powered-by: Next.js. Typecheck OK. | 710162af |
 | S03 | hecha — CSP connect-src acotado de '*' a 'self' + origen de NEXT_PUBLIC_API_URL. Golden 102: 3/3 passed. | 10930ce3 |
 | CONTADOR 2026-09-18 19:30 | comandos en manifiesto 342 en 122 modulos. S03/S04/S05 cerrados (frente 6 seguridad + frente 4 UI). Rotacion: Seguridad+S03, UI+S04, Nivel+S05, lint-budget+ci-fallo. |
+| T10 | hecha — DXF: cota viaja viva. Grupo 1 vacío (AutoCAD usa medición real del grupo 42) salvo override del usuario. Spec: 4 comprobaciones. | 206cfd4f |
+| CONTADOR 2026-09-19 00:15 | comandos en manifiesto 342 en 122 modulos. T10 cerrado (Nivel AutoCAD: cota DXF viva). Rotacion: Nivel+T10. |
