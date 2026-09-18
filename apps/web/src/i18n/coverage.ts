@@ -43,8 +43,7 @@
  * superficie pendiente es un SUELO, y por tanto la cobertura que sale de ella es
  * un TECHO. No «alrededor de»: como mucho.
  */
-import { defaultLocale, type Locale } from "./config";
-import { PUBLIC_ROUTES } from "../config/site-routes";
+import { defaultLocale } from "./config";
 
 /* ════════════════════════════════════════════════════════════════════════════
    PARTE 1 · EL CONTRATO DE CATÁLOGOS
