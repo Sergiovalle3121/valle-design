@@ -119,6 +119,7 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   FILTER: "Filtros de selección con nombre, reutilizables.",
   FLATSHOT: "Aplana el modelo 3D a un dibujo 2D acotable.",
   FLATTEN: "Aplasta los objetos designados a Z=0 y declara lo que no pudo aplastar.",
+  FIND: "Busca y reemplaza texto en entidades TEXT y MTEXT del dibujo.",
   GCCOINCIDENT: "Restricción geométrica: puntos coincidentes.",
   GCCOLLINEAR: "Restricción geométrica: colineal.",
   GCCONCENTRIC: "Restricción geométrica: concéntrico.",
@@ -301,6 +302,7 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   VIEWDETAIL: "Detalle ampliado de una vista existente.",
   VIEWEDIT: "Consulta propiedades de una vista derivada.",
   VIEWUPDATE: "Actualiza las vistas obsoletas de la lámina.",
+  VIEWRES: "Controla la resolución de visualización de círculos y arcos (1–20000).",
   PLANESURF: "Superficie plana a partir de un contorno cerrado.",
   CONVTOMESH: "Convierte un sólido 3D a representación de malla.",
   CONVTOSOLID: "Convierte una malla a sólido 3D.",
@@ -349,6 +351,7 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   TCOUNT: "Numera los textos designados por X, por Y o por orden de designación, con prefijo, sufijo e incremento.",
   TEXT: "Texto de una sola línea.",
   TEXTALIGN: "Alinea texto existente sobre una recta definida por dos puntos.",
+  TIME: "Muestra la fecha de creación, última modificación y tiempo de edición del dibujo.",
 
   TOLERANCE: "Marco de tolerancia geométrica (GD&T).",
   STDPART: "Normalizado como bloque: tornillo, tuerca y rondana ISO, rodamiento ISO 15 y chaveta paralela ISO 773.",

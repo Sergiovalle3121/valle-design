@@ -195,7 +195,7 @@ const CAD_PANEL_NAME_PATTERNS: readonly [RegExp, string][] = [
   // COMPARE: la pestaña Colaborar de AutoCAD no existe aquí; Administrar es la
   // equivalente, y comparar dos dibujos merece su propio panel.
   [/^COMPARE$/, "Comparar"],
-  [/^(-?DIST|-?AREA|-?LIST|-?ID|-?QSELECT|SELECT|FILTER|SELECTSIMILAR|ADDSELECTED|ABOUT|STATUS)$/, "Utilidades"],
+  [/^(-?DIST|-?AREA|-?LIST|-?ID|-?QSELECT|SELECT|FILTER|SELECTSIMILAR|ADDSELECTED|ABOUT|STATUS|FIND|TIME)$/, "Utilidades"],
   // `U`, `UNDO` y `REDO` van con MODIFICAR y no con Dibujo, que es donde los
   // dejaba el reposo de la pestaña Inicio: deshacer no dibuja nada, y en la
   // cinta de AutoCAD viven con las órdenes que cambian lo dibujado.
@@ -207,7 +207,7 @@ const CAD_PANEL_NAME_PATTERNS: readonly [RegExp, string][] = [
   [/^(GEOGRAPHICLOCATION|MAPIMPORT|COGO|CUADROCONSTRUCCION)$/, "Ubicación"],
   [/^(ADCENTER|DESIGNCENTER|-?TOOLPALETTES)$/, "Paletas"],
   [/^(ZOOM|-?PAN)$/, "Encuadre y zoom"],
-  [/^(3DORBIT|3DFORBIT|3DPAN|3DZOOM|VPOINT|PLAN|-?VIEW|PERSPECTIVE|3DWALK|3DFLY|3DSWIVEL)$/, "Vistas 3D"],
+  [/^(3DORBIT|3DFORBIT|3DPAN|3DZOOM|VPOINT|PLAN|-?VIEW|PERSPECTIVE|3DWALK|3DFLY|3DSWIVEL|VIEWRES)$/, "Vistas 3D"],
   [/^(-?VISUALSTYLES?|SHADEMODE|VSCURRENT|VISUALSTYLES)$/, "Estilos visuales"],
   [/^(REGEN|REGENALL|REDRAW|VIEWBASE|VIEWPROJ|VIEWSECTION|VIEWDETAIL|VIEWEDIT|VIEWUPDATE)$/, "Vistas"],
   [/^(PLANESURF|SURF[A-Z]+|CONVTOSURFACE)$/, "Superficies"],

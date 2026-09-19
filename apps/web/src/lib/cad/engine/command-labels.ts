@@ -154,6 +154,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   FIELD: "Campo",
   FILLET: "Empalme",
   FILLETEDGE: "Empalme arista",
+  FIND: "Buscar texto",
   FILL: "Relleno",
   FILTER: "Filtro",
   FLATSHOT: "Aplanar a 2D",
@@ -355,6 +356,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   TCOUNT: "Numerar textos",
   TEXT: "Texto",
   TEXTALIGN: "Alinear texto",
+  TIME: "Tiempo",
 
   TOLERANCE: "Tolerancia",
   TOOLPALETTES: "Paletas",
@@ -378,6 +380,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   VIEWPROJ: "Proyección",
   VIEWSECTION: "Sección",
   VIEWUPDATE: "Actualizar vista",
+  VIEWRES: "Resolución vista",
   VISUALSTYLES: "Estilos visuales",
   VPLAYER: "Capas en ventana",
   VPOINT: "Punto de vista",

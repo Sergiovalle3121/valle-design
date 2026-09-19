@@ -364,6 +364,7 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   QSELECT: Filter,
   FILL: PaintBucket,
   FILTER: Search,
+  FIND: Search,
   ADDSELECTED: MousePointerClick,
   SELECTSIMILAR: SquareDashedMousePointer,
   DIST: Ruler,
@@ -481,6 +482,7 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   TEXTALIGN: AlignCenter,
   TCOUNT: ListOrdered,
   TXT2MTXT: Merge,
+  TIME: Info,
   TABLE: Table,
   TABLEDIT: TableProperties,
   TABLESTYLE: TableCellsMerge,
@@ -574,6 +576,7 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   VIEWDETAIL: ZoomIn,
   VIEWEDIT: PenLine,
   VIEWUPDATE: RefreshCw,
+  VIEWRES: Eye,
   // Superficies.
   PLANESURF: Square,
   CONVTOSURFACE: ArrowLeftRight,

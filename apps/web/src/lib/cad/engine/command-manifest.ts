@@ -1,8 +1,8 @@
 /**
- * METADATOS de los 355 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 358 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
- * 124 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
+ * 125 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
  * `npm run check:cad`— falla si lo committeado deja de coincidir con lo que los
  * descriptores dicen hoy. Regla 4 de la campaña de cimientos: ninguna cifra vive
  * en dos lugares, y un comando nuevo no puede entrar sin aparecer aquí.
@@ -353,6 +353,7 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "SURFBLEND", aliases: ["SBLEND", "MEZCLARSUPERF"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/surfaces-ext" },
   { name: "SURFEXTEND", aliases: ["SEXTEND", "EXTENDERSUPERF"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/surfaces-ext" },
   { name: "SURFFILLET", aliases: ["SFILLET", "FILETESUPERF"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/surfaces-ext" },
+  { name: "FIND", aliases: ["BUSCAR", "HALLAR"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: true, cursor: "none", module: "commands/text-search" },
   { name: "3DMOVE", aliases: ["3M"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, spatial: "elevation", cursor: "pick", module: "commands/transform-3d" },
   { name: "3DALIGN", aliases: ["3AL"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, spatial: "elevation", cursor: "pick", module: "commands/transform-3d-align" },
   { name: "3DARRAY", aliases: ["3A"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, spatial: "elevation", cursor: "pick", module: "commands/transform-3d-array" },
@@ -364,6 +365,8 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "PLAN", aliases: [], kind: "view", transparent: true, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/ucs-view-commands" },
   { name: "ABOUT", aliases: ["ACERCADE"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/utility-commands" },
   { name: "STATUS", aliases: ["ESTADO"], kind: "inquiry", transparent: false, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/utility-commands" },
+  { name: "TIME", aliases: ["TIEMPO"], kind: "inquiry", transparent: false, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/utility-commands" },
+  { name: "VIEWRES", aliases: ["VRES"], kind: "view", transparent: true, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/utility-commands" },
   { name: "VECTORIZE", aliases: ["VECTORIZAR", "VEC"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/vectorize-raster" },
   { name: "ZOOM", aliases: ["Z"], kind: "view", transparent: true, selection: "optional", repeatable: true, mutates: false, cursor: "crosshair", module: "commands/view-navigation" },
   { name: "PAN", aliases: ["P"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "crosshair", module: "commands/view-navigation" },

@@ -1,5 +1,5 @@
 /**
- * Los 124 módulos de comandos, con `import` ESTÁTICO. GENERADO — no se edita a mano.
+ * Los 125 módulos de comandos, con `import` ESTÁTICO. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` y `--check`
  * lo verifica, del mismo tirón que `command-manifest.ts`.
@@ -128,22 +128,23 @@ import * as m104 from "./commands/solids-push-face";
 import * as m105 from "./commands/solview-commands";
 import * as m106 from "./commands/surfaces";
 import * as m107 from "./commands/surfaces-ext";
-import * as m108 from "./commands/transform-3d";
-import * as m109 from "./commands/transform-3d-align";
-import * as m110 from "./commands/transform-3d-array";
-import * as m111 from "./commands/transform-3d-mirror";
-import * as m112 from "./commands/transform-3d-rotate";
-import * as m113 from "./commands/transform-3d-scale";
-import * as m114 from "./commands/ucs-commands";
-import * as m115 from "./commands/ucs-view-commands";
-import * as m116 from "./commands/utility-commands";
-import * as m117 from "./commands/vectorize-raster";
-import * as m118 from "./commands/view-navigation";
-import * as m119 from "./commands/view-navigation-3d";
-import * as m120 from "./commands/view-visual";
-import * as m121 from "./commands/view-visualization";
-import * as m122 from "./commands/viewbase-commands";
-import * as m123 from "./commands/xrefs";
+import * as m108 from "./commands/text-search";
+import * as m109 from "./commands/transform-3d";
+import * as m110 from "./commands/transform-3d-align";
+import * as m111 from "./commands/transform-3d-array";
+import * as m112 from "./commands/transform-3d-mirror";
+import * as m113 from "./commands/transform-3d-rotate";
+import * as m114 from "./commands/transform-3d-scale";
+import * as m115 from "./commands/ucs-commands";
+import * as m116 from "./commands/ucs-view-commands";
+import * as m117 from "./commands/utility-commands";
+import * as m118 from "./commands/vectorize-raster";
+import * as m119 from "./commands/view-navigation";
+import * as m120 from "./commands/view-navigation-3d";
+import * as m121 from "./commands/view-visual";
+import * as m122 from "./commands/view-visualization";
+import * as m123 from "./commands/viewbase-commands";
+import * as m124 from "./commands/xrefs";
 
 cadRegisterCommandModules([
   m000,
@@ -270,4 +271,5 @@ cadRegisterCommandModules([
   m121,
   m122,
   m123,
+  m124,
 ]);
