@@ -1,11 +1,11 @@
 {
   "generatedBy": "scripts/cad/check-command-integrity.mjs --write",
-  "total": 358,
+  "total": 361,
   "verdicts": {
-    "muta": 118,
+    "muta": 119,
     "delegado": 62,
     "informa": 32,
-    "honesto-limitado": 137,
+    "honesto-limitado": 139,
     "no-concluyente": 9,
     "ROJO": 0
   },
@@ -14,15 +14,15 @@
       "muta": 86,
       "delegado": 59,
       "informa": 40,
-      "honesto-limitado": 164,
+      "honesto-limitado": 167,
       "no-concluyente": 9,
       "ROJO": 0
     },
     "solidos3d": {
-      "muta": 103,
+      "muta": 104,
       "delegado": 62,
       "informa": 50,
-      "honesto-limitado": 134,
+      "honesto-limitado": 136,
       "no-concluyente": 9,
       "ROJO": 0
     }
