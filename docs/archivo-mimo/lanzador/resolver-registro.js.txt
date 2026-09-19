@@ -1,0 +1,32 @@
+// Resuelve, durante un rebase, el conflicto habitual de docs/governance/assisted-development-log.json:
+// todas las PRs anaden entradas al final del mismo array.
+// Toma el registro de la base nueva (:2, main) y le anade las entradas del commit que se reaplica (:3)
+// que main no tiene. Solo las entradas propias de MiMo (NOCHE-MIMO-*, MIMO-*) se toman del commit
+// reaplicado; cualquier otra entrada que ya este en main (por ejemplo MAIN-VERDE-*, que main puede
+// tener mas completa tras un squash) se queda tal como esta en main.
+const { execFileSync } = require('child_process');
+const fs = require('fs');
+
+const RUTA = 'docs/governance/assisted-development-log.json';
+const leer = (etapa) =>
+  JSON.parse(execFileSync('git', ['show', ':' + etapa + ':' + RUTA], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }));
+
+try {
+  const base = leer(2);
+  const reaplicado = leer(3);
+  const posicion = new Map(base.entries.map((e, i) => [e.id, i]));
+  const propia = (id) => /^(NOCHE-MIMO-|MIMO-)/.test(id);
+  for (const e of reaplicado.entries) {
+    if (!posicion.has(e.id)) {
+      base.entries.push(e);
+      posicion.set(e.id, base.entries.length - 1);
+    } else if (propia(e.id)) {
+      base.entries[posicion.get(e.id)] = e;
+    }
+  }
+  fs.writeFileSync(RUTA, JSON.stringify(base, null, 2) + '\n');
+  console.log('registro resuelto: ' + base.entries.length + ' entradas');
+} catch (e) {
+  console.error('no pude resolver el registro: ' + (e.message || e));
+  process.exit(1);
+}

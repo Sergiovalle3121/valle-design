@@ -1,0 +1,4 @@
+@echo off
+rem Arranca el lanzador FUERA del arbol de procesos de Claude (se abre con explorer.exe).
+rem Si se lanzaba desde Claude, al cerrar Claude moria tambien el lanzador (16-sep 23:40).
+call "D:\dev\_mimo\relanzar-lanzador.cmd" 3 titular

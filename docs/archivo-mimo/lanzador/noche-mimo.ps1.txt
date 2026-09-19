@@ -1,0 +1,1175 @@
+﻿#Requires -Version 5.1
+# noche-mimo.ps1 (v3.1)
+# MiMo Code trabaja sin detenerse en una rama de valle-design y su trabajo se integra en main.
+#
+# - MiMo hace commits en la rama; NO puede hacer push ni usar gh (guardias de entorno).
+# - Vigilante: si la sesion de MiMo pasa 30 min sin actividad, lo reinicia.
+# - Integracion sin tener a MiMo parado durante el CI:
+#   * Espera a que se mergee la PR previa que arregla el CI de main (-PRPrevia; 0 para no esperar).
+#   * Nunca integra una rama que cambie package.json o package-lock.json: la mision lo prohibe.
+#   * Si main no avanzo, sube la rama sin tocar a MiMo. Si avanzo, lo pausa un momento con el arbol
+#     limpio, rebasa (resolviendo solo el registro de desarrollo asistido) y lo relanza.
+#   * Abre o actualiza la PR con auto-merge (squash); MiMo sigue trabajando mientras corre el CI.
+#   * Checks requeridos en verde sobre el SHA exacto pero PR bloqueada por las corridas `push`
+#     canceladas (ci.yml dispara push y pull_request en el mismo grupo): con -Merge titular, que
+#     autorizo Sergio el 15-sep, mergea con --admin y --match-head-commit; con repetir relanza la
+#     corrida cancelada; con manual lo deja anotado.
+#   * Mergeada: mueve los commits nuevos de MiMo encima de main (rebase --onto) y vuelve a integrar.
+#   * CI en rojo sobre una base vieja: reintegra sin molestar a MiMo. Sobre main al dia: deja el log
+#     en .mimocode/ci-fallo.md y relanza a MiMo para que lo arregle primero.
+# - Con -Adoptar vigila la vuelta de MiMo que ya estuviera en marcha; con -Reorientar la relanza al
+#   momento en la misma sesion para que relea el prompt (deshaciendo cambios de dependencias).
+# - Mantiene el equipo despierto mientras corre, sin cambiar ninguna configuracion.
+# - Se detiene con PARAR-NOCHE-MIMO.cmd del Escritorio.
+
+param(
+    [string]$Rama = 'claude/noche-mimo-razones-para-pagar',
+    [switch]$Adoptar,
+    [switch]$Reorientar,
+    [ValidateSet('titular', 'repetir', 'manual')]
+    [string]$Merge = 'titular',
+    [int]$PRPrevia = 208,
+    [int]$MaxVueltas = 1000000,
+    [int]$MinutosPrimeraIntegracion = 5,
+    [int]$HorasEntreIntegraciones = 2,
+    [int]$MinutosTrasMerge = 60,
+    [int]$MinutosSinActividad = 30,
+    [int]$MaxFallosSeguidos = 8
+)
+
+$ErrorActionPreference = 'Continue'
+
+# La ventana del lanzador NO puede congelarse por un clic. En una consola de Windows con
+# "edicion rapida" activa, hacer clic dentro selecciona texto y PAUSA el proceso hasta que alguien
+# pulse Enter: dos dias con la ventana a la vista son dos dias de riesgo. Se apaga solo para esta
+# consola y solo mientras vive el proceso; no toca ningun ajuste del sistema.
+try {
+    Add-Type -Namespace Noche -Name Consola -MemberDefinition @'
+[DllImport("kernel32.dll")] public static extern IntPtr GetStdHandle(int n);
+[DllImport("kernel32.dll")] public static extern bool GetConsoleMode(IntPtr h, out uint m);
+[DllImport("kernel32.dll")] public static extern bool SetConsoleMode(IntPtr h, uint m);
+'@
+    $hIn = [Noche.Consola]::GetStdHandle(-10)
+    $modo = [uint32]0
+    if ([Noche.Consola]::GetConsoleMode($hIn, [ref]$modo)) {
+        # ENABLE_QUICK_EDIT_MODE = 0x40 fuera; ENABLE_EXTENDED_FLAGS = 0x80 para que el cambio cuente.
+        [void][Noche.Consola]::SetConsoleMode($hIn, [uint32](($modo -band 0xFFFFFFBF) -bor 0x80))
+    }
+} catch { }
+
+# Los avisos del CI le llegaban a MiMo con la acentuacion destrozada («Div├¡delo», «l├¡neas»)
+# porque la consola captura la salida de `gh` en la pagina de codigos del sistema y no en UTF-8.
+# Son instrucciones que tiene que entender a la primera, asi que se lee y se escribe en UTF-8.
+try {
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    [Console]::InputEncoding = [System.Text.Encoding]::UTF8
+    $OutputEncoding = [System.Text.Encoding]::UTF8
+} catch { }
+$Slug     = 'Sergiovalle3121/valle-design'
+$Repo     = 'D:\dev\valle-design'
+$Dir      = 'D:\dev\_logs\noche'
+$Resumen  = Join-Path $Dir 'resumen.txt'
+$Lock     = 'D:\dev\_mimo\noche.lock'
+$Vacio    = 'D:\dev\_mimo\stdin-vacio.txt'
+$EstadoJs = 'D:\dev\_mimo\estado-mimo.js'
+$Resolver = 'D:\dev\_mimo\resolver-registro.js'
+$Launcher = Join-Path $env:APPDATA 'npm\node_modules\@mimo-ai\cli\bin\mimo'
+$CiFallo  = Join-Path $Repo '.mimocode\ci-fallo.md'
+$Registro = 'docs/governance/assisted-development-log.json'
+$Bitacora = 'docs/execution/CAMPANA_MIMO_20260915.md'
+
+New-Item -ItemType Directory -Force -Path $Dir | Out-Null
+
+function Log([string]$m) {
+    $linea = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + '  ' + $m
+    Write-Host $linea
+    Add-Content -LiteralPath $Resumen -Value $linea -Encoding UTF8
+}
+
+# --- una sola instancia
+if (Test-Path -LiteralPath $Lock) {
+    $viejo = Get-Content -LiteralPath $Lock -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($viejo -and (Get-Process -Id ([int]$viejo) -ErrorAction SilentlyContinue)) {
+        Log ('Ya hay una noche en marcha (PID ' + $viejo + '). No arranco otra.')
+        exit 0
+    }
+}
+Set-Content -LiteralPath $Lock -Value $PID -Encoding ASCII
+
+function Salir([int]$codigo) {
+    try { [void][Noche.Energia]::SetThreadExecutionState([uint32]2147483648) } catch { }
+    Remove-Item -LiteralPath $Lock -ErrorAction SilentlyContinue
+    exit $codigo
+}
+
+# --- mantener el equipo despierto mientras vive este proceso
+$despierto = $false
+try {
+    Add-Type -Namespace Noche -Name Energia -MemberDefinition '[DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint esFlags);' -ErrorAction Stop
+    [void][Noche.Energia]::SetThreadExecutionState([uint32]2147483649)
+    $despierto = $true
+} catch { }
+
+$node = (Get-Command node -ErrorAction SilentlyContinue).Source
+if (-not $node) { $node = 'C:\Program Files\nodejs\node.exe' }
+
+# --- comprobaciones antes de empezar
+Set-Location -LiteralPath $Repo
+& git fetch -q --prune origin 2>$null
+$actual = (& git rev-parse --abbrev-ref HEAD | Select-Object -First 1)
+if ($actual -ne $Rama) { Log ('No estoy en la rama ' + $Rama + ' sino en ' + $actual + '. No arranco.'); Salir 1 }
+if (-not (Test-Path -LiteralPath $Launcher)) { Log ('No encuentro MiMo Code en ' + $Launcher); Salir 1 }
+if (-not (Test-Path -LiteralPath (Join-Path $Repo '.mimocode\prompt-noche.md'))) { Log 'Falta .mimocode\prompt-noche.md'; Salir 1 }
+if (-not $Adoptar -and @(& git status --porcelain --untracked-files=all).Count -gt 0) { Log 'Hay cambios sin commitear. No arranco.'; Salir 1 }
+if (-not (Test-Path -LiteralPath $Vacio)) { [System.IO.File]::WriteAllText($Vacio, '') }
+
+# Autor de los commits: el titular (la gobernanza prohibe una IA como autora).
+$env:GIT_AUTHOR_NAME     = 'Sergiovalle3121'
+$env:GIT_AUTHOR_EMAIL    = 'sergiovallezarate@gmail.com'
+$env:GIT_COMMITTER_NAME  = 'Sergiovalle3121'
+$env:GIT_COMMITTER_EMAIL = 'sergiovallezarate@gmail.com'
+$env:GIT_EDITOR          = 'true'
+$env:MIMOCODE_DISABLE_AUTOUPDATE = 'true'
+
+# Guardias SOLO para el proceso de MiMo: cualquier push a GitHub se reescribe a una URL invalida.
+$Guardias = [ordered]@{
+    GIT_CONFIG_COUNT    = '3'
+    GIT_CONFIG_KEY_0    = 'remote.origin.pushurl'
+    GIT_CONFIG_VALUE_0  = 'BLOQUEADO-mientras-MiMo-trabaja'
+    GIT_CONFIG_KEY_1    = 'url.BLOQUEADO-.pushInsteadOf'
+    GIT_CONFIG_VALUE_1  = 'https://github.com/'
+    GIT_CONFIG_KEY_2    = 'url.BLOQUEADO-.pushInsteadOf'
+    GIT_CONFIG_VALUE_2  = 'git@github.com:'
+    GIT_TERMINAL_PROMPT = '0'
+    GH_TOKEN            = 'bloqueado'
+    GITHUB_TOKEN        = 'bloqueado'
+}
+function Poner-Guardias([bool]$on) {
+    foreach ($k in $Guardias.Keys) {
+        if ($on) { Set-Item -LiteralPath ('env:' + $k) -Value $Guardias[$k] }
+        else { Remove-Item -LiteralPath ('env:' + $k) -ErrorAction SilentlyContinue }
+    }
+}
+
+$MsgContinuar = 'Si existe .mimocode/bloqueos-actuales.md, LEELO ANTES QUE NADA y haz lo que dice: lo escribe el supervisor con lo unico que impide que tu trabajo llegue a main, ya medido, y no se sobrescribe. Si trae un rojo abierto, arreglalo primero; despues sigue construyendo en los seis frentes que rota MISION-48H.md, sin esperar al merge. Luego lee .mimocode/MISION-48H.md: es la orden del titular para estas 48 horas (superficies, mallas, render, familia VIEWBASE, cobertura ancha de comandos y un layout y un frontend perfectos, todo MERGEADO en main) y manda sobre cualquier otra lista. Luego lee .mimocode/cola-vallecad.md y ejecutalo de arriba abajo, UNA TAREA POR COMMIT, sin detenerte. Esa cola MANDA sobre cualquier otra lista, incluido .mimocode/prompt-noche.md. La orden del titular es el MILLAR de comandos de AutoCAD, y su mapa es .mimocode/hoja-de-ruta-autocad.md: leela UNA FASE POR VUELTA con grep y sed como explica MISION-48H.md, nunca entera (son 350 KB y te dejan sin contexto). Un comando solo cuenta si funciona de verdad y tiene su spec; maximo tres por commit. Antes de dar una tarea por hecha EJECUTA su comprobacion; una afirmacion sin comprobacion ejecutada se considera falsa y Claude la detecta. Si .mimocode/ci-fallo.md existe, leelo, arregla la causa con un commit y borralo antes de seguir. No toques package.json, package-lock.json, presupuestos, umbrales ni aserciones de specs. Anota cada tarea terminada en ' + $Bitacora + '. Nunca declares la mision terminada.'
+$MsgReorientar = 'ORDEN NUEVA DEL TITULAR, 16-sep-2026. La app YA esta en produccion en https://vallecad.com y lo que rompas se ve. Olvida tu cola anterior por completo. Lee AHORA .mimocode/cola-vallecad.md y ejecutalo de arriba abajo, UNA TAREA POR COMMIT, sin detenerte. Son siete tareas verificadas a mano sobre la app en produccion: la casilla de Terminos que impide registrarse, el alias L+Enter que no dibuja, las sugerencias duplicadas, las palabras partidas, los textos de diagnostico a la vista del cliente, el lienzo que solo ocupa el 58 por ciento de la pantalla, y el cambio de marca a VALLECAD. NO leas hoja-de-ruta-autocad.md ni .mimocode/inventario hasta terminar esa cola. Antes de dar una tarea por hecha EJECUTA su comprobacion. Si .mimocode/ci-fallo.md existe, leelo, arregla la causa y borralo. No toques dependencias ni presupuestos ni umbrales ni aserciones.'
+$MsgFalloCI = 'ANTES de seguir la cola: el CI de la PR de tu trabajo fallo. Lee .mimocode/ci-fallo.md, arregla la causa con un commit sin tocar presupuestos, aserciones ni dependencias y anotalo en la bitacora. Despues: '
+$MsgConflicto = 'ANTES de seguir la cola: tu rama choca con main y por eso NADA de tu trabajo puede subirse ni mergearse. El lanzador ya ha ABIERTO la fusion por ti en D:\dev\valle-design: los ficheros en conflicto estan en tu arbol con los marcadores <<<<<<< ======= >>>>>>> puestos, y .mimocode/conflicto.md los lista. NO ejecutes git merge ni git rebase ni git pull: tu entorno los bloquea y perderias la vuelta entera pidiendoselo a alguien que no esta mirando. Lo que SI puedes hacer y es lo que se te pide: abre cada fichero marcado, resuelve el conflicto a mano, git add de ese fichero, y cuando no quede ninguno git commit (sin -m, acepta el mensaje de fusion). Criterio: en cadenas de marca, rutas, assets y textos publicos manda la version de MAIN; en logica CAD, componentes y specs manda la version de TU rama; en package.json y package-lock.json manda siempre MAIN. Comprueba con git status que no queda ningun fichero sin fusionar, borra .mimocode/conflicto.md y anotalo en la bitacora. Despues: '
+$MsgDeps = 'ANTES de seguir la cola: tu rama cambia package.json o package-lock.json y la mision lo prohibe (el audit ya lo arreglo la #208 en main; NestJS 12 esta bloqueado). Revierte esos commits con git revert, sin npm install, y anotalo en la bitacora. Despues: '
+
+function Arbol-Limpio { return (@(& git --no-optional-locks -C $Repo status --porcelain --untracked-files=all 2>$null).Count -eq 0) }
+function Commits-Sobre-Main { return [int](& git -C $Repo rev-list --count ('origin/main..' + $Rama) 2>$null | Select-Object -First 1) }
+function Head-Rama { return [string](& git -C $Repo rev-parse $Rama 2>$null | Select-Object -First 1) }
+function Contiene-Main([string]$sha) {
+    & git -C $Repo merge-base --is-ancestor origin/main $sha 2>&1 | Out-Null
+    return ($LASTEXITCODE -eq 0)
+}
+
+function Minutos-Sin-Actividad {
+    try {
+        $e = (& $node $EstadoJs 2>$null | Select-Object -First 1) | ConvertFrom-Json
+        if ($e -and $e.sesion) {
+            $ultima = [DateTimeOffset]::FromUnixTimeMilliseconds([int64]$e.actualizada).LocalDateTime
+            return [math]::Round(((Get-Date) - $ultima).TotalMinutes, 1)
+        }
+    } catch { }
+    return -1
+}
+
+function Detener-Mimo {
+    Get-CimInstance Win32_Process | Where-Object { ($_.Name -eq 'node.exe' -and $_.CommandLine -match '@mimo-ai') -or $_.Name -eq 'mimo.exe' } |
+        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    Start-Sleep -Seconds 3
+}
+
+# Deshace cambios SIN commitear en manifiestos de dependencias (la mision prohibe tocarlos).
+function Revertir-Dependencias {
+    $tocados = @(& git -C $Repo status --porcelain 2>$null | Where-Object { $_.Length -gt 3 -and $_.Substring(0, 2) -ne '??' } |
+        ForEach-Object { $_.Substring(3) } | Where-Object { $_ -match '(^|/)package(-lock)?\.json$' })
+    if ($tocados.Count -gt 0) {
+        & git -C $Repo checkout -- $tocados 2>&1 | Out-Null
+        Log ('Deshago cambios de dependencias sin commitear, que la mision prohibe: ' + ($tocados -join ', '))
+    }
+}
+
+function Lanzar-Vuelta([int]$v, [string]$msg, [bool]$nueva) {
+    $out = Join-Path $Dir ('vuelta-' + $v + '.jsonl')
+    $err = Join-Path $Dir ('vuelta-' + $v + '.err.txt')
+    # SIEMPRE sesion nueva. NUNCA -c. Medido el 16-sep-2026 sobre mimocode.db (173 MB):
+    # la sesion que se reanudaba con -c (ses_-ffe5f5a4a484effejKPIADfv4) tenia 690 mensajes y
+    # 2919 partes, 6,8 MB de contenido. Las vueltas con -c produjeron 1 paso y se quedaron
+    # muertas 13-40 min hasta que el vigilante las mato; las vueltas con sesion nueva hicieron
+    # 30-57 pasos. En los 17 registros de la campana, el 97 % de los tokens del plan (160 M de
+    # 165 M) fueron lecturas de cache de esa sesion, contra 46 k tokens de salida en total.
+    # El mensaje tiene que bastarse solo: una sesion nueva no recuerda nada.
+    $extra = '--title noche-mimo-superar-autocad'
+    # El modelo mas potente del plan (Pro) con el maximo razonamiento. -pro-ultraspeed es el mismo modelo,
+    # mas rapido y tres veces mas caro; aqui el cuello de botella son los gates locales, no la generacion.
+    $a = '"' + $Launcher + '" run -m xiaomi/mimo-v2.5-pro --variant high --dangerously-skip-permissions --format json ' + $extra + ' "' + $msg + '"'
+    Poner-Guardias $true
+    $proc = Start-Process -FilePath $node -ArgumentList $a -WorkingDirectory $Repo `
+        -RedirectStandardInput $Vacio -RedirectStandardOutput $out -RedirectStandardError $err `
+        -NoNewWindow -PassThru
+    Poner-Guardias $false
+    $null = $proc.Handle
+    Log ('Vuelta ' + $v + ' en marcha (PID ' + $proc.Id + ').')
+    return $proc
+}
+
+# Rebasa la rama sobre origin/main. Con $desde, solo mueve los commits posteriores a ese SHA (rebase --onto).
+function Rebasar-Sobre-Main([string]$desde) {
+    $antes = Head-Rama
+    if ($desde) { & git -C $Repo rebase --onto origin/main $desde 2>&1 | Out-Null }
+    else { & git -C $Repo rebase origin/main 2>&1 | Out-Null }
+    for ($i = 0; $i -lt 200; $i++) {
+        if (-not (Test-Path -LiteralPath (Join-Path $Repo '.git\rebase-merge'))) { return $true }
+        $conflictos = @(& git -C $Repo diff --name-only --diff-filter=U 2>$null)
+        # Dependencias: siempre la version de main, porque la mision prohibe tocarlas. En un rebase, --ours es la base nueva.
+        $deps = @($conflictos | Where-Object { $_ -match '(^|/)package(-lock)?\.json$' })
+        if ($deps.Count -gt 0) {
+            & git -C $Repo checkout --ours -- $deps 2>&1 | Out-Null
+            & git -C $Repo add -- $deps 2>&1 | Out-Null
+            Log ('Rebase: conflicto de dependencias resuelto con la version de main: ' + ($deps -join ', '))
+            $conflictos = @($conflictos | Where-Object { $_ -notmatch '(^|/)package(-lock)?\.json$' })
+        }
+        if ($conflictos.Count -eq 1 -and $conflictos[0] -eq $Registro) {
+            Push-Location -LiteralPath $Repo
+            & $node $Resolver 2>&1 | Out-Null
+            $ok = ($LASTEXITCODE -eq 0)
+            Pop-Location
+            if (-not $ok) { break }
+            & git -C $Repo add -- $Registro 2>&1 | Out-Null
+            $conflictos = @()
+        }
+        if ($conflictos.Count -gt 0) {
+            $script:UltimoConflicto = ($conflictos -join ', ')
+            Log ('Rebase con conflictos que no resuelvo solo: ' + $script:UltimoConflicto)
+            break
+        }
+        & git -C $Repo rebase --continue 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0 -and @(& git -C $Repo diff --name-only --diff-filter=U 2>$null).Count -eq 0) {
+            & git -C $Repo rebase --skip 2>&1 | Out-Null
+        }
+    }
+    & git -C $Repo rebase --abort 2>&1 | Out-Null
+    & git -C $Repo reset -q --hard $antes 2>&1 | Out-Null
+    return $false
+}
+
+# Salida cuando el rebase es imposible: una fusion normal. El rebase repite los 200+ commits uno a
+# uno y choca en el que toco el fichero; la fusion compara SOLO el estado final, asi que si MiMo ya
+# dejo ese fichero como main (que es lo que se le pide), entra limpia. Ademas deja la rama
+# conteniendo main, con lo que la siguiente integracion ni siquiera necesita rebasar.
+function Fusionar-Main {
+    & git -C $Repo merge --no-edit origin/main 2>&1 | Out-Null
+    if ($LASTEXITCODE -eq 0) { return $true }
+    $conf = @(& git -C $Repo diff --name-only --diff-filter=U 2>$null)
+    # Dependencias: siempre la version de main, que es lo que manda la mision. En una fusion, --theirs.
+    $deps = @($conf | Where-Object { $_ -match '(^|/)package(-lock)?\.json$' })
+    if ($deps.Count -gt 0) {
+        & git -C $Repo checkout --theirs -- $deps 2>&1 | Out-Null
+        & git -C $Repo add -- $deps 2>&1 | Out-Null
+        $conf = @($conf | Where-Object { $_ -notmatch '(^|/)package(-lock)?\.json$' })
+    }
+    # El registro de desarrollo asistido choca casi siempre (las dos ramas anaden entradas) y tiene
+    # resolutor propio, el mismo que usa el rebase.
+    if ($conf.Count -eq 1 -and $conf[0] -eq $Registro) {
+        Push-Location -LiteralPath $Repo
+        & $node $Resolver 2>&1 | Out-Null
+        $ok = ($LASTEXITCODE -eq 0)
+        Pop-Location
+        if ($ok) {
+            & git -C $Repo add -- $Registro 2>&1 | Out-Null
+            $conf = @()
+        }
+    }
+    if ($conf.Count -eq 0) {
+        & git -C $Repo commit --no-edit 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) { return $true }
+    }
+    # NO se aborta: la fusion se deja ABIERTA con sus marcadores en el disco. La caja de MiMo bloquea
+    # `git merge` (16-sep, vuelta-6: «integration is the orchestrator's job») pero NO bloquea editar,
+    # `git add` ni `git commit`: dejandosela abierta, MiMo si puede terminarla. Abortar era lo que
+    # borraba el trabajo de cada ciclo y hacia el bucle infinito.
+    $script:ConflictoFusion = ($conf -join ', ')
+    return $false
+}
+
+# El artefacto docs/cad/evidence/command-integrity.json es DETERMINISTA para un arbol dado: en
+# cuanto cambia el censo de comandos, el gate del CI cae con «no coincide con lo que el arbol
+# genera hoy». Paso el 17-sep: el commit que limpio 19 huerfanos dejo el artefacto en 334 cuando
+# el arbol ya daba 315, y eso son 16 minutos de corrida tirados sin que nadie aprenda nada nuevo.
+# Aqui se refresca y se commitea SOLO cuando el UNICO reproche es ese desajuste. Los dientes del
+# gate (ROJO, no-concluyentes sin declarar, exenciones invalidas) siguen fallando y se le pasan a
+# MiMo tal cual: esto no afloja nada, solo deja de tirar corridas por un fichero generado. El
+# antes/despues queda en el resumen para que un desplome de «muta» no pueda pasar en silencio.
+function Reparar-ArtefactoIntegridad {
+    $script:SondaMalos = $null
+    if (Test-Path -LiteralPath (Join-Path $Repo '.git\MERGE_HEAD')) { return }
+    $art = Join-Path $Repo 'docs\cad\evidence\command-integrity.json'
+    $sal = & cmd.exe /c ('cd /d ' + $Repo + ' && node scripts/cad/check-command-integrity.mjs 2>&1')
+    if ($LASTEXITCODE -eq 0) { return }
+    $texto = (@($sal) -join "`n")
+    $reparable = ($texto -match 'command-integrity\.json no coincide') -and ($texto -notmatch 'Gate de integridad de comandos')
+    if (-not $reparable) {
+        $lineas = New-Object System.Collections.ArrayList
+        [void]$lineas.Add('### sonda de integridad  (node scripts/cad/check-command-integrity.mjs)')
+        foreach ($l in @($sal | Select-Object -Last 25)) { [void]$lineas.Add('    ' + [string]$l) }
+        [void]$lineas.Add('')
+        $script:SondaMalos = $lineas
+        Log 'Aviso local: sonda de integridad en rojo por su CONTENIDO (no la refresco; se lo paso a MiMo).'
+        return
+    }
+    $antes = '(ilegible)'
+    try {
+        $j0 = Get-Content -LiteralPath $art -Raw | ConvertFrom-Json
+        $antes = [string]$j0.total + ' comandos, muta ' + $j0.verdicts.muta + ', delegado ' + $j0.verdicts.delegado
+    } catch { $antes = '(ilegible)' }
+    & cmd.exe /c ('cd /d ' + $Repo + ' && node scripts/cad/check-command-integrity.mjs --write 2>&1') | Out-Null
+    if ($LASTEXITCODE -ne 0) { Log 'Artefacto de integridad: --write salio en rojo; lo dejo como estaba.'; return }
+    $sucio = & git -C $Repo diff --name-only -- docs/cad/evidence/command-integrity.json
+    if (-not $sucio) { return }
+    $j = $null
+    try { $j = Get-Content -LiteralPath $art -Raw | ConvertFrom-Json } catch { $j = $null }
+    if (-not $j) { Log 'Artefacto de integridad: no pude leer el resultado; lo dejo como estaba.'; return }
+    $v = $j.verdicts
+    # OJO con el nombre: en PowerShell las variables son insensibles a mayusculas, asi que llamar
+    # a esto `$resumen` sombreaba al `$Resumen` global —la RUTA del log— y la linea del refresco
+    # acababa escrita en un fichero con ese texto por nombre en la raiz del repo (17-sep 19:39).
+    $cifras = [string]$j.total + ' comandos, muta ' + $v.muta + ', delegado ' + $v.delegado +
+              ', informa ' + $v.informa + ', honesto-limitado ' + $v.'honesto-limitado' +
+              ', no-concluyente ' + $v.'no-concluyente' + ', ROJO ' + $v.ROJO
+    $msg = 'evidencia: refrescar el artefacto de integridad tras el cambio de censo (' + $cifras + ')'
+    $rc = 1
+    foreach ($intento in 1..2) {
+        & git -C $Repo commit --only -m $msg -- docs/cad/evidence/command-integrity.json 2>&1 | Out-Null
+        $rc = $LASTEXITCODE
+        if ($rc -eq 0) { break }
+        Start-Sleep -Seconds 5
+    }
+    if ($rc -ne 0) { Log 'Artefacto de integridad: el commit no entro (indice ocupado por MiMo). Reintento en el proximo ciclo.'; return }
+    Log ('Artefacto de integridad refrescado y commiteado. Antes: ' + $antes + '. Ahora: ' + $cifras + '.')
+}
+
+# 19-sep 09:40. Los candados se corrian sobre el ARBOL DE MIMO, que tiene sus cambios sin commitear,
+# y lo que se sube es el COMMIT. La corrida 35450476620 cayo por command-labels y ribbon.spec con los
+# 705 specs verdes en local: el rotulo y la cinta del comando nuevo estaban en el arbol, no en el
+# commit. Ahora se corren en una copia exacta del SHA que se va a subir (worktree desacoplado, con
+# node_modules enlazados). `git clean` sin -x no toca lo ignorado (node_modules, .next).
+$RepoCandados = 'D:\dev\vd-candados'
+function Preparar-Candados([string]$sha) {
+    if (-not (Test-Path -LiteralPath (Join-Path $RepoCandados '.git'))) {
+        & git -C $Repo worktree prune 2>$null | Out-Null
+        & git -C $Repo worktree add --detach $RepoCandados $sha 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) { Log 'Candados: no pude crear el worktree de candados.'; return $false }
+        foreach ($d in @('', 'apps\api', 'apps\web', 'packages\dwg-codec')) {
+            $src = if ($d) { Join-Path (Join-Path $Repo $d) 'node_modules' } else { Join-Path $Repo 'node_modules' }
+            $dst = if ($d) { Join-Path (Join-Path $RepoCandados $d) 'node_modules' } else { Join-Path $RepoCandados 'node_modules' }
+            if ((Test-Path -LiteralPath $src) -and -not (Test-Path -LiteralPath $dst)) {
+                & cmd.exe /c ('mklink /J "' + $dst + '" "' + $src + '"') | Out-Null
+            }
+        }
+    }
+    & git -C $RepoCandados checkout --detach -f $sha 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) { Log ('Candados: no pude poner el worktree en ' + $sha + '.'); return $false }
+    & git -C $RepoCandados clean -fdq 2>&1 | Out-Null
+    return $true
+}
+
+function Gates-Locales {
+    $nl = [Environment]::NewLine
+    $checks = @(
+        @{ n = 'typecheck web'; c = 'typecheck --workspace=web' },
+        @{ n = 'typecheck api'; c = 'typecheck --workspace=valle-design-api' },
+        @{ n = 'lint web';      c = 'lint --workspace=web' },
+        @{ n = 'lint api';      c = 'lint --workspace=valle-design-api' },
+        # CANDADO, no aviso: el presupuesto de monolito tarda 3 segundos, su veredicto es
+        # inequivoco (nombra fichero, lineas y maximo) y un rojo suyo es un rojo SEGURO del CI,
+        # asi que la corrida de 15 minutos no aportaria nada. Tumbo la de bedec92d el 17-sep
+        # (identity.controller.ts a 833 lineas con maximo 800). Se arregla dividiendo el fichero:
+        # anadirlo al manifiesto de presupuestos esta prohibido por la mision.
+        @{ n = 'presupuesto de monolito'; c = 'check:monolith-budget' },
+        # CANDADO desde el 17-sep 18:30. Cuesta ~3 min (corre eslint sobre apps/web otra vez) y a
+        # cambio evita perder corridas de 25: el trinquete ya se llevo dos hoy, la ultima por UN
+        # import huerfano en ribbon-icons.ts con presupuesto 0. NO puede sustituir a 'lint web':
+        # el trinquete solo cuenta avisos (severity 1) y los ERRORES los bloquea el lint normal.
+        # Y su mensaje sugiere `--update`: para MiMo eso esta PROHIBIDO, se arregla el aviso.
+        @{ n = 'trinquete de lint'; c = 'check:lint-budget' },
+        # CANDADO desde el 17-sep 18:35: los 16 gates de check:cad que SI corren en esta laptop.
+        # Medidos uno a uno: 126 s en total, y catorce de ellos por debajo de 16 s. Van en orden
+        # de coste (los de 2 s primero, `check:cad-math` de 73 s al final) para que un rojo salga
+        # lo antes posible. Los que NO estan aqui es porque el entorno no los puede juzgar:
+        # dwg-evidence / dxf-corpus / pdf-corpus (falta el espejo del corpus, borrado el 23-ago),
+        # etapas-100k y slo-navegador (lentos), y la rubrica y el manifiesto que ya van aparte.
+        @{ n = 'gates rapidos del CI (16 comprobaciones)'; c = 'check:json-keys && npm run check:doctor && npm run check:fonts && npm run check:contrast && npm run check:surface && npm run check:conventions && npm run check:legal && npm run check:authz && npm run check:auditoria && npm run check:api-console && npm run check:precision-evidence && npm run check:template-gallery && npm run check:dxf-props && npm run check:curve-kernel-render && npm run check:no-industrial-domain && npm run check:cad-math' },
+        # CANDADO desde el 17-sep 19:15. `test:specs` completo (692 specs) se quito del lanzador
+        # porque tarda 10 min y levanta 8 procesos de node en una laptop de 8 GB; pero un spec
+        # suelto con tsx tarda segundos. Esto corre SOLO los specs relacionados con lo que el push
+        # va a anadir (hermanos, mismo directorio, o nombre que comparte una palabra larga) con un
+        # tope de 20. Lo pedia la corrida 35292374922: murio con 689/692 verdes por tres specs de
+        # la cinta que este candado habria cazado antes de subir.
+        @{ n = 'specs de web afectados'; c = 'node D:/dev/_mimo/specs-afectados.mjs' },
+        # CANDADO desde el 19-sep 06:50: los 705 specs de web ENTEROS, el mismo runner del CI. Se habia
+        # quitado el 16-sep por RAM, pero la corrida 35442446995 cayo por tres specs que ningun parecido
+        # de nombre elegia (RECTANG @relativo roto por un cambio en OTRO modulo). Medido el 18-sep: ~10
+        # min con MiMo trabajando, sin falsos rojos en este arbol. Va el ultimo, solo si todo lo demas
+        # esta verde, y cuesta menos que una corrida roja del CI (20 min) mas la espera (45).
+        @{ n = 'specs de web completos (run-specs, 705)'; c = 'test:specs --workspace=web' }
+        # 'typecheck api' entro el 17-sep: tarda 7 segundos, es tsc puro (no necesita los binarios
+        # nativos de better-sqlite3 que esta laptop no puede compilar) y el "Build" del CI depende de
+        # el. Faltaba: eslint con tipos NO comprueba asignabilidad, asi que un error de tipos en la
+        # api solo se descubria 16 minutos despues, en el CI.
+        # 'test:specs --workspace=web' SE QUITO el 16-sep a las 15:50: tarda hasta 10 min, levanta 8
+        # procesos de node y competia por la RAM con MiMo en una laptop de 8 GB; y si salia rojo
+        # bloqueaba TODOS los push durante dias. El CI de la PR los corre igual y su veredicto llega
+        # a MiMo por ci-fallo.md, que es informacion mejor. Los tres que quedan son rapidos y
+        # deterministas: atrapan lo tonto sin poder secuestrar la integracion.
+    )
+    foreach ($k in $checks) {
+        $t0 = Get-Date
+        # Un candado puede ser un script propio y no un script de npm: si empieza por 'node ' se
+        # ejecuta tal cual. Lo pedia specs-afectados.mjs, que no vive en el repo.
+        if ($k.c -like 'node *') {
+            $orden = 'cd /d ' + $RepoCandados + ' && set "VALLE_CANDADOS_RAIZ=' + $RepoCandados + '" && ' + $k.c + ' 2>&1'
+        } else {
+            $orden = 'cd /d ' + $RepoCandados + ' && npm run ' + $k.c + ' 2>&1'
+        }
+        $salida = & cmd.exe /c $orden
+        $rc = $LASTEXITCODE
+        $seg = [math]::Round(((Get-Date) - $t0).TotalSeconds)
+        if ($rc -ne 0) {
+            # CARRERA CONOCIDA (17-sep): ui-command-reach.mjs crea apps/web/.ui-command-reach-probe.mts
+            # y lo borra al acabar. Si eslint lo globea en ese hueco muere con ENOENT y el candado sale
+            # rojo sin que haya nada roto — y entonces NO se sube y MiMo recibe un fallo inventado.
+            # Se repite UNA vez: si de verdad esta roto, lo vuelve a decir en 2 minutos.
+            $flake = (@($salida) -join "`n")
+            if ($flake -match 'ENOENT' -and $flake -match 'probe\.mts') {
+                Log ('Candado local: ' + $k.n + ' murio por el fichero temporal de otra sonda. Lo repito una vez.')
+                $salida = & cmd.exe /c $orden
+                $rc = $LASTEXITCODE
+            }
+        }
+        if ($rc -ne 0) {
+            # eslint y tsc imprimen la RUTA del fichero en una linea aparte y sus errores debajo; con
+            # "las ultimas 60 lineas" MiMo recibia «316:36 error Unexpected any» sin saber de que
+            # fichero y perdia una vuelta averiguandolo (16-sep 20:08). Aqui se emparejan.
+            $fichero = ''
+            $errores = New-Object System.Collections.ArrayList
+            foreach ($linea in $salida) {
+                $l = [string]$linea
+                if ($l -match '^[A-Za-z]:\' -or $l -match '\.(ts|tsx|mts|mjs|js)$') { $fichero = $l.Trim(); continue }
+                if ($l -match '^\s*\d+:\d+\s+error\s' -or $l -match 'error TS' -or $l -match 'problems') {
+                    [void]$errores.Add(($fichero + '  ' + $l.Trim()))
+                }
+            }
+            if ($errores.Count -gt 0) {
+                $cola = (($errores | Select-Object -Last 40) -join $nl) + $nl + $nl + '--- cola de la salida ---' + $nl + (($salida | Select-Object -Last 15) -join $nl)
+            } else {
+                $cola = ($salida | Select-Object -Last 60) -join $nl
+            }
+            $txt = '# FALLO LOCAL antes de subir (' + (Get-Date).ToString('yyyy-MM-dd HH:mm') + ')' + $nl + $nl +
+                   'El lanzador corrio "' + $(if ($k.c -like 'node *') { $k.c } else { 'npm run ' + $k.c }) + '" sobre tu rama ANTES de subirla y salio con codigo ' + $rc + '.' + $nl +
+                   'No se sube nada hasta que pase. Arregla la causa (no el spec, no el umbral) y commitea.' + $nl +
+                   'Ultimas 60 lineas de la salida:' + $nl + $nl + '````' + $nl + $cola + $nl + '````' + $nl
+            Set-Content -LiteralPath $CiFallo -Value $txt -Encoding UTF8
+            Log ('Candado local: ' + $k.n + ' en rojo (codigo ' + $rc + ', ' + $seg + ' s). NO subo; se lo paso a MiMo en ci-fallo.md.')
+            $script:MensajeAviso = $MsgFalloCI + $MsgContinuar
+            $script:PorAvisar = $true
+            $script:AvisoDesde = Get-Date
+            return $false
+        }
+        Log ('Candado local: ' + $k.n + ' verde (' + $seg + ' s).')
+    }
+    # AVISOS (no bloquean el push). El CI se para en el primer gate rojo, asi que MiMo aprendia UNA
+    # causa cada 35 min. Estos tres son deterministas y cuestan 11 s juntos: le dicen TODAS las causas
+    # de golpe. Si fallan se escribe el aviso igual, pero se sube: el CI sigue dando el veredicto bueno.
+    $avisos = @(
+        # Estos dos entraron el 17-sep a las 18:10 y cuestan 3 segundos juntos. Deterministas y el
+        # CI los corre dentro de check:cad. Como avisos y no candados: un rojo suyo es real pero
+        # no impide medir el resto, y asi no secuestran la integracion.
+        @{ n = 'cobertura de la cinta'; c = 'node scripts/cad/check-ribbon-coverage.mjs' },
+        @{ n = 'localizadores de los E2E'; c = 'npm run check:e2e-localizadores' },
+        @{ n = 'gobernanza propietaria'; c = 'npm run check:governance' },
+        # 'sonda de integridad' ya no va aqui: la corre Reparar-ArtefactoIntegridad antes de calcular
+        # el sha (para que su commit entre en el push) y deja lo que no sabe arreglar en $SondaMalos,
+        # que se anade a estos avisos mas abajo. Asi la sonda corre UNA vez por ciclo, no dos.
+        @{ n = 'manifiesto de comandos'; c = 'node scripts/cad/build-command-manifest.mjs' },
+        @{ n = 'alcance de comandos en la UI'; c = 'node scripts/cad/ui-command-reach.mjs' },
+        @{ n = 'guardia de imports (paquetes sin compilar en el CI)'; c = 'node D:/dev/_mimo/guardia-imports.mjs' }
+    )
+    $malos = New-Object System.Collections.ArrayList
+    foreach ($a in $avisos) {
+        $sal = & cmd.exe /c ('cd /d ' + $RepoCandados + ' && ' + $a.c + ' 2>&1')
+        if ($LASTEXITCODE -ne 0) {
+            Log ('Aviso local: ' + $a.n + ' en rojo (no bloquea el push).')
+            [void]$malos.Add('### ' + $a.n + '  (' + $a.c + ')')
+            foreach ($l in @($sal | Select-Object -Last 25)) { [void]$malos.Add('    ' + [string]$l) }
+            [void]$malos.Add('')
+        }
+    }
+    if ($script:SondaMalos) {
+        foreach ($l in $script:SondaMalos) { [void]$malos.Add([string]$l) }
+    }
+    if ($malos.Count -gt 0) {
+        $txt = '# AVISOS LOCALES antes de subir (' + (Get-Date).ToString('yyyy-MM-dd HH:mm') + ')' + $nl + $nl +
+               'Estos gates son deterministas y se corren en esta laptop en segundos. La SONDA DE INTEGRIDAD si bloquea el push; el resto no,' + $nl +
+               'pero el CI va a caer por ellos si no los arreglas. Arreglalos TODOS antes de tu siguiente' + $nl +
+               'commit: el CI se para en el primero y tardarias 35 minutos por cada uno.' + $nl + $nl +
+               ($malos -join $nl) + $nl
+        Set-Content -LiteralPath $CiFallo -Value $txt -Encoding UTF8
+        $script:MensajeAviso = $MsgFalloCI + $MsgContinuar
+        $script:PorAvisar = $true
+        $script:AvisoDesde = Get-Date
+    }
+    # CANDADO desde el 18-sep 10:10. La sonda era solo aviso y el 18-sep subio cinco veces con ella
+    # en rojo: tres de las cinco corridas del CI cayeron exactamente por lo que ya decia aqui
+    # (SURFUNTRIM, SURFNETWORK, SURFSCULPT, SURFEXTEND, 3DALIGN, MATERIALMAP, MATERIALATTACH). Es el
+    # mismo verificador determinista que corre el CI: un rojo local es un rojo seguro del CI. El
+    # artefacto caducado (lo unico reparable) ya lo refresca Reparar-ArtefactoIntegridad antes.
+    if ($script:SondaMalos) {
+        Log 'Candado local: sonda de integridad en rojo por su CONTENIDO. NO subo: el CI caeria igual. Detalle en ci-fallo.md.'
+        return $false
+    }
+    return $true
+}
+
+function Subir([string]$sha) {
+    # Seguro contra el guardia filtrado: si Start-Process murio entre Poner-Guardias $true y $false,
+    # el lanzador se queda el mismo sin poder empujar (10 pushes con codigo 128 el 16-sep, 05:01-09:32).
+    Poner-Guardias $false
+    $salida = & git -C $Repo push --force-with-lease origin ($sha + ':refs/heads/' + $Rama) 2>&1
+    $rc = $LASTEXITCODE
+    Log ('Push de la rama (' + $sha.Substring(0, 8) + '): codigo ' + $rc)
+    if ($rc -ne 0) { Log ('  ' + (($salida | Select-Object -Last 3) -join ' | ')) }
+    return ($rc -eq 0)
+}
+
+$PlantillaPR = @'
+## Alcance
+
+- Cambio y límite: trabajo de MiMo Code durante la noche sobre la misión «que un arquitecto o un ingeniero prefiera Valle Design, desde la web», con prioridad en el sistema 3D y partiendo de lo ya construido. Commits de este PR:
+{COMMITS}
+
+  El detalle por tarea (hueco medido, código reutilizado, gates y decisiones pendientes) está en las bitácoras `docs/execution/NOCHE_MIMO_20260914.md` y `docs/execution/CAMPANA_MIMO_20260915.md`.
+- Riesgo, migración y rollback: cada tarea es un commit atómico con su spec; revertir el squash de este PR restaura `main`. La misión sólo permite cambios aditivos del esquema persistido, listados en la bitácora, y prohíbe tocar dependencias (el script no integra una rama que cambie `package.json` o `package-lock.json`).
+
+## Titularidad y procedencia
+
+- Tipo de contribución (titular Sergio / tercero autorizado): titular Sergio.
+- Contribuidor humano responsable: Sergio Valle Zárate.
+- Acuerdo de cesión/CLA confirmado por Sergio (referencia privada / no aplica porque el contribuidor es Sergio): no aplica, el contribuidor es Sergio.
+- Fuentes consultadas, con términos y versión: las declaradas en las entradas del registro. La misión prohíbe copiar implementaciones externas y tocar el laboratorio DWG.
+- Archivos o decisiones derivados de cada fuente: ver las entradas del registro.
+- Fixtures/datos añadidos, titular y permiso de redistribución: ver la bitácora.
+- [ ] No copié, traduje, porté ni adapté una implementación externa restringida. *(a confirmar por Sergio en la revisión)*
+- [ ] No incluí secretos, datos de clientes ni corpus/material sin derechos y procedencia verificados. *(Gitleaks lo verifica en CI; a confirmar por Sergio)*
+
+## Desarrollo asistido
+
+- Herramientas de IA utilizadas y alcance: MiMo Code 0.1.14 con `xiaomi/mimo-v2.5-pro`, sin supervisión durante la noche, lanzado por un script preparado con Claude Code, que además auditó el trabajo a mitad de la noche. MiMo no tiene push ni `gh`; el script integra.
+- Entradas correspondientes en `docs/governance/assisted-development-log.json`: {REGISTRO}.
+- Revisión humana/adopción prevista: el titular autorizó el merge automático nocturno con los checks requeridos verdes sobre el SHA exacto. Si la PR queda bloqueada sólo por las corridas `push` canceladas que describe `ci.yml`, el script mergea como titular con `--match-head-commit`, como autorizó Sergio el 15-sep. La revisión del diff queda pendiente y las entradas siguen en `proposed` hasta entonces.
+- [ ] La persona responsable revisó el diff y responde por su procedencia. *(pendiente de Sergio)*
+- [x] No añadí una IA como autora ni copropietaria; los commits los firma el titular.
+
+## Dependencias y cadena de suministro
+
+- Dependencias nuevas/cambiadas y justificación: ninguna; la misión prohíbe tocarlas y el script no integra una rama que lo haga.
+- Licencias y notices: sin cambios.
+- [ ] El SBOM incluye runtime y desarrollo y no contiene licencias desconocidas.
+
+## Evidencia
+
+- SHA exacto revisado y candidato a merge: `{SHA}`.
+- Checks ejecutados y resultado: gates locales por tarea en la bitácora (spec suelto, `typecheck`, tests del workspace, `eslint`, `check:cad` hasta `check:dwg-evidence` y los pasos siguientes, `check:governance`). Fallos locales conocidos de esta laptop: `check:dwg` sin espejo del corpus y tests de API sin binario de `better-sqlite3`. El merge lo deciden los checks requeridos de este PR sobre el SHA exacto.
+- Evidencia independiente para cualquier capability promovida: no se promueve ninguna capability en la web.
+- [ ] Las afirmaciones públicas coinciden con la capacidad probada.
+- [ ] Los checks requeridos corresponden al SHA exacto candidato y la rama está actualizada.
+- [x] Si toca DWG, declaré IDs de fuentes permitidas, derivados y fixtures según la política clean-room. *(la misión prohíbe tocar DWG)*
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+'@
+
+function Asegurar-PR([string]$sha, [int]$n) {
+    $url = (& gh pr list --repo $Slug --head $Rama --state open --json url --jq '.[0].url' 2>$null | Select-Object -First 1)
+    if ($url -notlike 'https://*') { $url = $null }
+    $commits = (@(& git -C $Repo log --format='  - %h %s' ('origin/main..' + $sha) 2>$null) -join "`n")
+    $ids = @(& git -C $Repo diff ('origin/main...' + $sha) -- $Registro 2>$null |
+        Select-String -Pattern '^\+\s*"id":\s*"([^"]+)"' | ForEach-Object { '`' + $_.Matches[0].Groups[1].Value + '`' })
+    $textoIds = 'ver la bitácora'
+    if ($ids.Count -gt 0) { $textoIds = ($ids -join ', ') }
+    $cuerpo = $PlantillaPR.Replace('{COMMITS}', $commits).Replace('{SHA}', $sha).Replace('{REGISTRO}', $textoIds)
+    $f = Join-Path $Dir 'pr-body.md'
+    [System.IO.File]::WriteAllText($f, $cuerpo, (New-Object System.Text.UTF8Encoding $false))
+    if ($url) {
+        & gh pr edit $url --repo $Slug --body-file $f 2>&1 | Out-Null
+        Log ('PR existente actualizada: ' + $url)
+    } else {
+        $titulo = 'Noche de MiMo: sistema 3D y toolsets (' + $n + ' commits, ' + (Get-Date -Format 'yyyy-MM-dd HH:mm') + ')'
+        $url = (& gh pr create --repo $Slug --base main --head $Rama --title $titulo --body-file $f 2>$null | Select-Object -Last 1)
+        if ($url -notlike 'https://*') { Log 'No pude crear la PR.'; return $null }
+        Log ('PR creada: ' + $url)
+    }
+    & gh pr merge $url --repo $Slug --auto --squash 2>&1 | Out-Null
+    Log ('Auto-merge pedido (codigo ' + $LASTEXITCODE + ').')
+    return $url
+}
+
+# Estados: mergeada | cerrada | conflicto con main | fallo: ... | verde bloqueada | en curso
+function Estado-PR([string]$url) {
+    $j = $null
+    try { $j = (& gh pr view $url --repo $Slug --json state,mergeable,mergeStateStatus,statusCheckRollup 2>$null | Out-String) | ConvertFrom-Json } catch { }
+    if (-not $j) { return 'en curso' }
+    if ($j.state -eq 'MERGED') { return 'mergeada' }
+    if ($j.state -eq 'CLOSED') { return 'cerrada' }
+    if ($j.mergeable -eq 'CONFLICTING') { return 'conflicto con main' }
+    # Comodines sin caracteres no ASCII: la salida de gh llega con la pagina de codigos de la consola.
+    $requeridos = @('*Build*Test*Lint*', 'E2E Playwright (PostgreSQL*', 'Gitleaks*')
+    $rollup = @($j.statusCheckRollup)
+    $verdes = $true
+    foreach ($patron in $requeridos) {
+        $corridas = @($rollup | Where-Object { $_.name -like $patron })
+        if (@($corridas | Where-Object { $_.conclusion -eq 'FAILURE' -or $_.conclusion -eq 'TIMED_OUT' }).Count -gt 0) {
+            return ('fallo: ' + $patron.Trim('*'))
+        }
+        if (@($corridas | Where-Object { $_.status -and $_.status -ne 'COMPLETED' }).Count -gt 0) { $verdes = $false }
+        if (@($corridas | Where-Object { $_.conclusion -eq 'SUCCESS' }).Count -eq 0) { $verdes = $false }
+    }
+    if ($verdes -and $j.mergeStateStatus -eq 'BLOCKED') { return 'verde bloqueada' }
+    return 'en curso'
+}
+
+function Guardar-Fallo-CI([string]$url, [string]$motivo) {
+    $run = (& gh run list --repo $Slug --branch $Rama --workflow CI --event pull_request --limit 1 --json databaseId --jq '.[0].databaseId' 2>$null | Select-Object -First 1)
+    $log = ''
+    if ($run) {
+        # Se filtra a las lineas que de verdad dicen QUE fallo. Las 250 lineas crudas pesaban 39 KB
+        # (16-sep) y se comian el contexto de MiMo antes de que escribiera una linea de codigo.
+        $bruto = @(& gh run view $run --repo $Slug --log-failed 2>$null)
+        $patron = 'Error:|##\[error\]|error TS|not ok |FAIL|Fallaron|supera su asignacion|prohibid|no permitido|Expected|Received|AssertionError|npm error|Cannot find|desactualizad|no coincide|Corre `|hay que regenerar|falta |sobra |excede|esta vacio|no declarado|sin declarar|incoherente|deberia'
+        # Las lineas de ERROR van siempre, aunque esten al principio de la salida: filtrar solo por
+        # las ultimas 60 coincidencias dejaba fuera los 3 errores y MiMo solo veia avisos (16-sep).
+        $errores = @($bruto | Select-String -Pattern 'error TS|##\[error\]|AssertionError|not ok |\serror\s' | ForEach-Object { $_.Line } | Select-Object -Last 40)
+        $clave = @($bruto | Select-String -Pattern $patron | ForEach-Object { $_.Line })
+        # Y SIEMPRE las 12 lineas anteriores a CADA «Process completed with exit code», en crudo.
+        # Ahi esta siempre la causa: el filtro por palabras se dejo fuera tres veces la linea real
+        # («desactualizado», «Trinquete de lint: FALLO») y la cola del log entero cae en el paso de
+        # subir informes de Lighthouse, que es ruido, porque --log-failed concatena todos los pasos.
+        $contexto = New-Object System.Collections.ArrayList
+        for ($i = 0; $i -lt $bruto.Count; $i++) {
+            if ([string]$bruto[$i] -match 'Process completed with exit code') {
+                $desde = [Math]::Max(0, $i - 12)
+                [void]$contexto.Add('')
+                [void]$contexto.Add('--- lo que se imprimio justo antes de un paso fallido ---')
+                for ($j = $desde; $j -le $i; $j++) { [void]$contexto.Add([string]$bruto[$j]) }
+            }
+        }
+        $sel = @($errores) + @($clave | Select-Object -Last 20) + @($contexto)
+        if ($sel.Count -eq 0) { $sel = @($bruto | Select-Object -Last 60) }
+        $log = ($sel -join "`n")
+        if ($log.Length -gt 8000) { $log = $log.Substring($log.Length - 8000) }
+    }
+    $pie = "`n`n## Si arriba no ves la causa`n`nA veces `gh` devuelve el log vacio porque la corrida acaba de terminar. Entonces:`n" +
+           "1. Lee ``.mimocode/bloqueos-actuales.md``: lo escribe el supervisor con lo que de verdad impide el merge, medido, y NO se sobrescribe.`n" +
+           "2. O saca la causa tu mismo: ``gh run list --branch " + $Rama + " --event pull_request --limit 1`` y despues ``gh run view <id> --log-failed | tail -300``.`n" +
+           "3. Y corre la bateria local de ``.mimocode/cola-vallecad.md`` (T16): en segundos te dice lo mismo que el CI en 35 minutos.`n"
+    $texto = "# Fallo de CI en la integracion nocturna`n`nPR: " + $url + "`nChecks en rojo: " + $motivo + "`n`n## Ultimas lineas de los jobs fallidos`n`n" + $log + $pie
+    [System.IO.File]::WriteAllText($CiFallo, $texto, (New-Object System.Text.UTF8Encoding $false))
+    Log ('Fallo de CI guardado en .mimocode/ci-fallo.md (' + $motivo + ').')
+}
+
+function Guardar-Conflicto([string]$ficheros) {
+    $ruta = Join-Path $Repo '.mimocode\conflicto.md'
+    $t = "# Tu rama choca con main (" + (Get-Date -Format 'yyyy-MM-dd HH:mm') + ")`n`n"
+    $t += "El lanzador intento mover tus commits encima de main y no pudo. Ficheros en conflicto:`n`n"
+    $t += "    " + $ficheros + "`n`n"
+    $t += "Main avanza porque se van mergeando PRs pequenas; algunas arreglan lo mismo que tu tocaste.`n`n"
+    $t += "LA FUSION YA ESTA ABIERTA EN TU ARBOL. No ejecutes git merge, git rebase ni git pull: tu entorno\`n"
+    $t += "los bloquea. Resuelve los marcadores a mano, git add de cada fichero, y git commit al final.`n`n"
+    $t += "Criterio: marca, rutas, assets y textos publicos -> la version de MAIN.`n"
+    $t += "          logica CAD, componentes y specs -> la version de TU rama.`n"
+    $t += "          package.json y package-lock.json -> siempre MAIN.`n"
+    [System.IO.File]::WriteAllText($ruta, $t, (New-Object System.Text.UTF8Encoding $false))
+}
+
+function Previa-Abierta {
+    if ($script:PRPrevia -le 0) { return $false }
+    $estado = [string](& gh pr view $script:PRPrevia --repo $Slug --json state --jq '.state' 2>$null | Select-Object -First 1)
+    if ($estado -eq 'MERGED' -or $estado -eq 'CLOSED') {
+        Log ('La #' + $script:PRPrevia + ' ya no esta abierta (' + $estado + ').')
+        $script:PRPrevia = 0
+        return $false
+    }
+    return $true
+}
+
+# --- Pasos de integracion. Los que devuelven $true han pausado a MiMo: el bucle lo relanza con $script:Mensaje.
+
+function Integrar {
+    # 16-sep: el titular quiere ver el avance en main cuanto antes; 2 h entre integraciones era
+    # el cuello de botella. Ahora 20 min: el lanzador rebasa, sube y actualiza la PR cada 20 min
+    # si hay commits nuevos; el CI y el merge titular hacen el resto.
+    $script:ProximaIntegracion = (Get-Date).AddMinutes(20)
+    & git -C $Repo fetch -q --prune origin 2>&1 | Out-Null
+    if (Previa-Abierta) {
+        if (-not $script:AvisoPrevia) {
+            Log ('Integracion: espero a que se mergee la #' + $script:PRPrevia + ', que arregla el CI de main. Lo miro cada 5 min.')
+            $script:AvisoPrevia = $true
+        }
+        $script:ProximaIntegracion = (Get-Date).AddMinutes(5)
+        return $false
+    }
+    # POST-SQUASH (17-sep). El repo solo permite SQUASH y borra la rama al mergear: el contenido
+    # entra en main pero los commits de la rama NO quedan como ancestros suyos. Si no se hace nada,
+    # la rama arrastra para siempre sus commits viejos, cada PR nueva anuncia «279 commits» y su
+    # diff se calcula desde una base muerta. Cuando el arbol de la rama YA es identico al de main,
+    # esos commits solo estorban: se mueve el puntero con `checkout -B`, que NO toca el arbol de
+    # trabajo (un `reset --hard` le borraria a MiMo lo que tenga sin comitear).
+    if ((Commits-Sobre-Main) -gt 0) {
+        & git -C $Repo diff --quiet origin/main $Rama 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            $viejos = Commits-Sobre-Main
+            & git -C $Repo checkout -B $Rama origin/main 2>&1 | Out-Null
+            if ($LASTEXITCODE -eq 0) {
+                Log ('Rama realineada con main tras el squash: ' + $viejos + ' commits viejos retirados; su contenido ya estaba dentro de main.')
+            } else {
+                Log 'No pude realinear la rama con main tras el squash (arbol ocupado). Lo reintento en el proximo ciclo.'
+            }
+        }
+    }
+    if ((Commits-Sobre-Main) -le 0) {
+        Log 'Integracion: no hay commits nuevos sobre main.'
+        $script:ProximaIntegracion = (Get-Date).AddMinutes(30)
+        return $false
+    }
+    $deps = @(& git -C $Repo diff --name-only ('origin/main...' + $Rama) 2>$null | Where-Object { $_ -match '(^|/)package(-lock)?\.json$' })
+    if ($deps.Count -gt 0) {
+        Log ('Integracion bloqueada: la rama cambia dependencias (' + ($deps -join ', ') + ') y la mision lo prohibe. Pido a MiMo que lo revierta.')
+        $script:MensajeAviso = $MsgDeps + $MsgContinuar
+        $script:PorAvisar = $true
+        $script:AvisoDesde = Get-Date
+        $script:ProximaIntegracion = (Get-Date).AddMinutes(30)
+        return $false
+    }
+    $pausado = $false
+    # Si hay una fusion con main ABIERTA esperando a MiMo, no se hace nada mas: ni gates, ni push, ni
+    # rebase. El arbol tiene marcadores de conflicto y cualquier comprobacion daria rojo por eso.
+    if (Test-Path -LiteralPath (Join-Path $Repo '.git\MERGE_HEAD')) {
+        if (-not $script:FusionAvisada) {
+            Log 'Integracion: fusion con main ABIERTA en el arbol. Se la paso a MiMo y espero a que la termine.'
+            $script:MensajeAviso = $MsgConflicto + $MsgContinuar
+            $script:PorAvisar = $true
+            $script:AvisoDesde = Get-Date
+            $script:FusionAvisada = $true
+            $script:ProximaIntegracion = (Get-Date).AddMinutes(15)
+            return $true
+        }
+        Log 'Integracion: la fusion con main sigue abierta; MiMo la esta resolviendo.'
+        $script:ProximaIntegracion = (Get-Date).AddMinutes(10)
+        return $false
+    }
+    $script:FusionAvisada = $false
+    if (-not (Contiene-Main $Rama)) {
+        if (-not (Arbol-Limpio)) {
+            if (-not $script:AvisoArbol) {
+                Log 'Integracion: main avanzo; espero a que MiMo deje el arbol limpio para fusionar.'
+                $script:AvisoArbol = $true
+                $script:ArbolDesde = Get-Date
+            }
+            # Tope de 15 min, pero SOLO si MiMo esta de verdad atascado. Se mira si el conjunto de
+            # ficheros sucios CAMBIA: si cambia, MiMo esta trabajando y el reloj se reinicia; si es
+            # identico 15 min, esta parado y se le pausa. Sin esta distincion se le cortaba la vuelta
+            # a mitad cada 25 min y perdia el trabajo sin commitear (17-sep 12:34).
+            $huella = ((& git --no-optional-locks -C $Repo status --porcelain --untracked-files=all 2>$null) -join '|')
+            if ($huella -ne $script:ArbolHuella) {
+                $script:ArbolHuella = $huella
+                $script:ArbolDesde = Get-Date
+            }
+            if ($script:ArbolDesde -and ((Get-Date) - $script:ArbolDesde).TotalMinutes -ge 15) {
+                Log 'Arbol sucio y SIN cambios 15 min (MiMo parado): lo pauso para poder integrar.'
+                $script:AvisoArbol = $false
+                $script:ArbolDesde = $null
+                Detener-Mimo
+                if (-not $script:Mensaje) { $script:Mensaje = $MsgContinuar }
+            } else {
+                $script:ProximaIntegracion = (Get-Date).AddMinutes(2)
+                return $false
+            }
+        }
+        $script:AvisoArbol = $false
+        Log 'Integracion: pauso a MiMo un momento para rebasar sobre main.'
+        Detener-Mimo
+        $pausado = $true
+        if (-not $script:Mensaje) { $script:Mensaje = $MsgContinuar }
+        if (-not (Arbol-Limpio)) {
+            Log 'Integracion aplazada 10 min: quedaron cambios a medias al pausar.'
+            $script:ProximaIntegracion = (Get-Date).AddMinutes(10)
+            return $true
+        }
+        # 16-sep 19:45: la FUSION va primero. El rebase repite 226 commits uno a uno y choca en
+        # ficheros cuyo contenido final es identico (Toggle.tsx: mismo blob en las dos ramas); la
+        # fusion compara solo el estado final. Si la fusion tampoco entra, se queda ABIERTA y la
+        # termina MiMo, que si puede editar, `git add` y `git commit`.
+        if (Fusionar-Main) {
+            Log ('Fusion con main hecha: ' + (Commits-Sobre-Main) + ' commits sobre main.')
+        } elseif (Test-Path -LiteralPath (Join-Path $Repo '.git\MERGE_HEAD')) {
+            $ficheros = $script:ConflictoFusion
+            if (-not $ficheros) { $ficheros = 'sin detalle' }
+            Log ('Integracion: la fusion con main choca en ' + (@($ficheros -split ', ').Count) + ' ficheros. La dejo ABIERTA y se la paso a MiMo.')
+            Guardar-Conflicto $ficheros
+            Remove-Item -LiteralPath $CiFallo -ErrorAction SilentlyContinue
+            $script:MensajeAviso = $MsgConflicto + $MsgContinuar
+            $script:PorAvisar = $true
+            $script:AvisoDesde = Get-Date
+            $script:FusionAvisada = $true
+            $script:ProximaIntegracion = (Get-Date).AddMinutes(15)
+            return $true
+        } elseif (Rebasar-Sobre-Main '') {
+            Log ('Rebase sobre main hecho: ' + (Commits-Sobre-Main) + ' commits encima.')
+        } else {
+            $ficheros = $script:ConflictoFusion
+            if (-not $ficheros) { $ficheros = $script:UltimoConflicto }
+            if (-not $ficheros) { $ficheros = 'sin detalle' }
+            Log ('Integracion: la fusion con main choca en ' + (@($ficheros -split ', ').Count) + ' ficheros. La dejo ABIERTA y se la paso a MiMo.')
+            Guardar-Conflicto $ficheros
+            $script:MensajeAviso = $MsgConflicto + $MsgContinuar
+            $script:PorAvisar = $true
+            $script:AvisoDesde = Get-Date
+            $script:ProximaIntegracion = (Get-Date).AddMinutes(15)
+            return $true
+        }
+        if ((Commits-Sobre-Main) -le 0) { Log 'Integracion: tras rebasar, todo ya estaba en main.'; return $true }
+    }
+    Reparar-ArtefactoIntegridad
+    $sha = Head-Rama
+    $n = [int](& git -C $Repo rev-list --count ('origin/main..' + $sha) 2>$null | Select-Object -First 1)
+    # 16-sep: CANDADO LOCAL antes de subir. MiMo declaraba resuelto con specs rojos y el CI lo
+    # descubria 45 min despues. Ahora se corren aqui los checks del CI; si alguno falla NO se sube:
+    # el fallo va a ci-fallo.md y se relanza a MiMo con el, igual que con un fallo real del CI.
+    if (-not (Preparar-Candados $sha)) { $script:ProximaIntegracion = (Get-Date).AddMinutes(20); return $pausado }
+    if (-not (Gates-Locales)) { $script:ProximaIntegracion = (Get-Date).AddMinutes(20); return $pausado }
+    if (-not (Subir $sha)) { $script:ProximaIntegracion = (Get-Date).AddMinutes(30); return $pausado }
+    $url = Asegurar-PR $sha $n
+    if (-not $url) { $script:ProximaIntegracion = (Get-Date).AddMinutes(30); return $pausado }
+    $script:PRUrl = $url
+    $script:ShaSubido = $sha
+    $script:PRDesde = Get-Date
+    $script:ProximaRevisionCI = (Get-Date).AddMinutes(8)
+    $script:VerdeVista = $false
+    $script:IntentosAdmin = 0
+    $script:AvisoBloqueo = $false
+    Log ('CI en marcha para ' + $sha.Substring(0, 8) + ' (' + $n + ' commits). MiMo sigue trabajando mientras tanto.')
+    return $pausado
+}
+
+function Revisar-PR {
+    if ((Get-Date) -lt $script:ProximaRevisionCI) { return }
+    $script:ProximaRevisionCI = (Get-Date).AddMinutes(4)
+    $res = Estado-PR $script:PRUrl
+    if ($res -eq 'en curso') {
+        if (((Get-Date) - $script:PRDesde).TotalMinutes -ge 180 -and -not $script:AvisoLento) {
+            Log 'El CI de la PR lleva 3 h sin veredicto; sigo esperando.'
+            $script:AvisoLento = $true
+        }
+        # Tope duro: a las 4 h sin veredicto se deja de vigilar esa PR y se vuelve a integrar. Sin esto,
+        # una corrida colgada deja al lanzador esperando para siempre y no se mergea nada mas.
+        if (((Get-Date) - $script:PRDesde).TotalMinutes -ge 240) {
+            Log 'El CI de la PR lleva 4 h sin veredicto: dejo de vigilarla y vuelvo a integrar sobre lo nuevo de MiMo.'
+            $script:PRUrl = $null
+            $script:AvisoLento = $false
+            $script:VerdeVista = $false
+            $script:IntentosAdmin = 0
+            $script:ProximaIntegracion = Get-Date
+        }
+        return
+    }
+    if ($res -eq 'verde bloqueada') {
+        # Se da una vuelta de margen al auto-merge antes de actuar.
+        if (-not $script:VerdeVista) { $script:VerdeVista = $true; $script:ProximaRevisionCI = (Get-Date).AddMinutes(2); return }
+        if ($script:IntentosAdmin -ge 3) {
+            if (-not $script:AvisoBloqueo) { Log ('PR en verde pero bloqueada: queda para que Sergio la mergee en GitHub (' + $script:PRUrl + ').'); $script:AvisoBloqueo = $true }
+            return
+        }
+        $script:IntentosAdmin++
+        $sha8 = $script:ShaSubido.Substring(0, 8)
+        if ($Merge -eq 'titular') {
+            $salida = & gh pr merge $script:PRUrl --repo $Slug --squash --admin --match-head-commit $script:ShaSubido 2>&1
+            $rc = $LASTEXITCODE
+            Log ('Checks requeridos verdes sobre ' + $sha8 + ' pero PR bloqueada por las corridas push canceladas: merge como titular (autorizado por Sergio), codigo ' + $rc + '.')
+            if ($rc -ne 0) { Log ('  ' + (($salida | Select-Object -Last 2) -join ' | ')) }
+            $script:ProximaRevisionCI = (Get-Date).AddMinutes(1)
+        } elseif ($Merge -eq 'repetir') {
+            $idPush = [string](& gh run list --repo $Slug --workflow CI --branch $Rama --event push --commit $script:ShaSubido --limit 1 --json databaseId,conclusion --jq '.[0] | select(.conclusion == "cancelled") | .databaseId' 2>$null | Select-Object -First 1)
+            $script:IntentosAdmin = 3
+            if ($idPush) {
+                & gh run rerun $idPush --repo $Slug 2>&1 | Out-Null
+                Log ('Checks requeridos verdes sobre ' + $sha8 + ' pero PR bloqueada por la corrida push cancelada ' + $idPush + ': la relanzo para que el auto-merge actue (codigo ' + $LASTEXITCODE + ').')
+                $script:ProximaRevisionCI = (Get-Date).AddMinutes(10)
+            }
+        } else {
+            $script:IntentosAdmin = 3
+            Log ('PR en verde sobre ' + $sha8 + ' y lista para mergear en GitHub: ' + $script:PRUrl)
+        }
+        return
+    }
+    Log ('Resultado de la integracion: ' + $res)
+    $url = $script:PRUrl
+    $script:PRUrl = $null
+    $script:AvisoLento = $false
+    if ($res -eq 'mergeada') { $script:PorReubicar = $true; return }
+    if ($res -like 'fallo*') {
+        & git -C $Repo fetch -q --prune origin 2>&1 | Out-Null
+        if (-not (Contiene-Main $script:ShaSubido)) {
+            Log 'El fallo es sobre una base vieja (main avanzo desde el push): reintegro sobre main sin molestar a MiMo.'
+            $script:ProximaIntegracion = Get-Date
+            return
+        }
+        # Fallo de infraestructura: con los repos privados, el CI no puede clonar el repo hermano del corpus DWG
+        # (git sale con 128). No es de MiMo: no se le avisa y se reintenta cada 3 h hasta que Sergio dé acceso.
+        $runId = [string](& gh run list --repo $Slug --branch $Rama --workflow CI --event pull_request --limit 1 --json databaseId --jq '.[0].databaseId' 2>$null | Select-Object -First 1)
+        $logFallo = ''
+        if ($runId) { $logFallo = (@(& gh run view $runId --repo $Slug --log-failed 2>$null) -join "`n") }
+        if ($logFallo -match 'espejo del corpus DWG' -and $logFallo -match 'exit code 128') {
+            Log 'Fallo de infraestructura del CI: no pudo clonar el repo hermano del corpus DWG (privado). No es de MiMo y no le aviso. Reintento en 3 h; lo resuelve Sergio dando acceso al CI.'
+            $script:ProximaIntegracion = (Get-Date).AddHours(3)
+            return
+        }
+        Guardar-Fallo-CI $url $res
+        $script:MensajeAviso = $MsgFalloCI + $MsgContinuar
+        $script:PorAvisar = $true
+        $script:AvisoDesde = Get-Date
+        $script:ProximaIntegracion = (Get-Date).AddMinutes(45)
+        # Cuantos commits habia cuando el CI fallo. Si MiMo commitea algo nuevo, su arreglo ya
+        # esta en el arbol y no hace falta agotar los 45 min: lo mira `Paso`.
+        $script:CommitsAlFallar = (Commits-Sobre-Main)
+        return
+    }
+    $script:ProximaIntegracion = (Get-Date).AddMinutes(5)
+}
+
+function Reubicar {
+    if (-not (Arbol-Limpio)) {
+        if (-not $script:AvisoReubicar) {
+            Log 'Mergeada: espero a que MiMo deje el arbol limpio para mover su trabajo nuevo encima de main.'
+            $script:AvisoReubicar = $true
+            $script:ReubicarDesde = Get-Date
+        }
+        # Tope: si el arbol sigue sucio 20 min despues del merge, se deja de esperar y se delega en
+        # Integrar, que pausa a MiMo y rebasa el mismo. Sin esto, un fichero temporal de MiMo para
+        # el ciclo entero y no se mergea nada mas.
+        if ($script:ReubicarDesde -and ((Get-Date) - $script:ReubicarDesde).TotalMinutes -ge 20) {
+            Log 'Arbol sucio 20 min despues del merge: dejo de esperar; lo resuelve la integracion normal.'
+            $script:PorReubicar = $false
+            $script:AvisoReubicar = $false
+            $script:ReubicarDesde = $null
+            $script:ProximaIntegracion = Get-Date
+        }
+        return $false
+    }
+    $script:AvisoReubicar = $false
+    Detener-Mimo
+    if (-not (Arbol-Limpio)) { $script:Mensaje = $MsgContinuar; return $true }
+    & git -C $Repo fetch -q --prune origin 2>&1 | Out-Null
+    $nuevos = [int](& git -C $Repo rev-list --count ($script:ShaSubido + '..' + $Rama) 2>$null | Select-Object -First 1)
+    $script:PorReubicar = $false
+    if (Rebasar-Sobre-Main $script:ShaSubido) {
+        Remove-Item -LiteralPath $CiFallo -ErrorAction SilentlyContinue
+        Log ('Integrado en main. Rama movida sobre ' + (& git -C $Repo rev-parse --short HEAD 2>$null | Select-Object -First 1) + ' con ' + $nuevos + ' commits nuevos de MiMo encima.')
+        $script:Mensaje = 'Tu trabajo anterior ya esta mergeado en main y tus commits nuevos se movieron encima de main. ' + $MsgContinuar
+    } else {
+        Log 'Mergeada, pero no pude mover los commits nuevos encima de main. La rama queda como estaba; queda para Sergio.'
+        $script:Mensaje = $MsgContinuar
+    }
+    $script:ProximaIntegracion = (Get-Date).AddMinutes($MinutosTrasMerge)
+    return $true
+}
+
+function Avisar {
+    if (-not (Arbol-Limpio) -and ((Get-Date) - $script:AvisoDesde).TotalMinutes -lt 20) { return $false }
+    Log 'Relanzo a MiMo con un aviso antes de seguir con la cola.'
+    Detener-Mimo
+    Revertir-Dependencias
+    $script:PorAvisar = $false
+    $script:Mensaje = $script:MensajeAviso
+    return $true
+}
+
+function Reorientar-Mimo {
+    Log 'Reorientar: relanzo a MiMo en la misma sesion para que lea la orden nueva del prompt.'
+    Detener-Mimo
+    Revertir-Dependencias
+    $script:PorReorientar = $false
+    $script:Mensaje = $MsgReorientar
+    return $true
+}
+
+function Paso {
+    if ($script:PorReorientar) {
+        $r = Reorientar-Mimo
+        if (-not $script:PRUrl -and (Get-Date) -ge $script:ProximaIntegracion) { [void](Integrar) }
+        return $r
+    }
+    if ($script:PRUrl) { Revisar-PR }
+    if ($script:PorReubicar) { return (Reubicar) }
+    if ($script:PorAvisar) { return (Avisar) }
+    # Tras un fallo de CI se esperan 45 min para que MiMo lo arregle antes de volver a subir. Pero
+    # si YA commiteo algo nuevo, esperar el resto no sirve de nada: el arreglo esta en el arbol y
+    # los candados locales diran si vale. Se exige un minimo de 10 min desde el aviso para no
+    # empujar a cada commit suelto (17-sep 19:30).
+    if (-not $script:PRUrl -and $script:CommitsAlFallar -gt 0 -and (Get-Date) -lt $script:ProximaIntegracion) {
+        if (((Get-Date) - $script:AvisoDesde).TotalMinutes -ge 10) {
+            $ahora = (Commits-Sobre-Main)
+            if ($ahora -gt $script:CommitsAlFallar) {
+                Log ('MiMo commiteo ' + ($ahora - $script:CommitsAlFallar) + ' commit(s) desde el aviso del CI: integro ya, sin agotar los 45 min.')
+                $script:CommitsAlFallar = 0
+                return (Integrar)
+            }
+        }
+    }
+    if (-not $script:PRUrl -and (Get-Date) -ge $script:ProximaIntegracion) { $script:CommitsAlFallar = 0; return (Integrar) }
+    return $false
+}
+
+# --- credenciales del proceso (se ven en el resumen)
+& gh auth status 2>$null | Out-Null
+$ghOk = ($LASTEXITCODE -eq 0)
+& git -C $Repo push --dry-run origin ('refs/heads/' + $Rama + ':refs/heads/' + $Rama) 2>$null | Out-Null
+$pushOk = ($LASTEXITCODE -eq 0)
+Log ('Arranca la noche v3.1 (integra sin parar a MiMo, merge: ' + $Merge + '). Rama ' + $Rama + '. Despierto: ' + $despierto + '. gh: ' + $ghOk + '. push: ' + $pushOk)
+
+$script:PRPrevia = $PRPrevia
+$script:ProximaIntegracion = (Get-Date).AddMinutes($MinutosPrimeraIntegracion)
+$script:PRUrl = $null
+$script:ShaSubido = $null
+$script:PRDesde = Get-Date
+$script:ProximaRevisionCI = Get-Date
+$script:CommitsAlFallar = 0
+$script:VerdeVista = $false
+$script:IntentosAdmin = 0
+$script:AvisoBloqueo = $false
+$script:PorReubicar = $false
+$script:ReubicarDesde = $null
+$script:ArbolDesde = $null
+$script:ArbolHuella = $null
+$script:ConflictoFusion = $null
+$script:FusionAvisada = $false
+$script:PorAvisar = $false
+$script:MensajeAviso = $null
+$script:AvisoDesde = Get-Date
+$script:PorReorientar = [bool]$Reorientar
+$script:Mensaje = $null
+
+# Si ya hay una PR abierta de la rama (por ejemplo, tras relanzar el script), la sigo si contiene main;
+# si no, la actualizo en cuanto se pueda.
+# Sin comillas dobles dentro de --jq: PowerShell 5.1 las borra al pasar argumentos a un ejecutable nativo,
+# y con '.url + " " + .headRefOid' gh fallaba en silencio (la PR abierta nunca se seguia al arrancar).
+$abiertaUrl = [string](& gh pr list --repo $Slug --head $Rama --state open --json url --jq '.[0].url' 2>$null | Select-Object -First 1)
+$abiertaSha = [string](& gh pr list --repo $Slug --head $Rama --state open --json headRefOid --jq '.[0].headRefOid' 2>$null | Select-Object -First 1)
+$abierta = $abiertaUrl.Trim() + ' ' + $abiertaSha.Trim()
+if ($abierta -like 'https://* *') {
+    $partes = $abierta.Split(' ')
+    if (Contiene-Main $partes[1]) {
+        $script:PRUrl = $partes[0]
+        $script:ShaSubido = $partes[1]
+        & gh pr merge $script:PRUrl --repo $Slug --auto --squash 2>&1 | Out-Null
+        Log ('Sigo la PR abierta ' + $script:PRUrl + ' (' + $script:ShaSubido.Substring(0, 8) + '), con auto-merge.')
+    } else {
+        Log ('La PR abierta ' + $partes[0] + ' no contiene main al dia: la actualizo en la primera integracion (en ' + $MinutosPrimeraIntegracion + ' min).')
+    }
+}
+
+# Si MiMo no esta corriendo, integro antes de relanzarlo: el arbol esta quieto.
+if (-not (Get-Process -Name mimo -ErrorAction SilentlyContinue)) {
+    if ($script:PorReorientar) { $script:PorReorientar = $false; $script:Mensaje = $MsgReorientar; Revertir-Dependencias }
+    [void](Paso)
+}
+
+$fallos = 0
+$cortas = 0
+
+for ($v = 1; $v -le $MaxVueltas; $v++) {
+    $p = $null
+    $adoptado = $false
+    $pausado = $false
+    if ($v -eq 1 -and $Adoptar) {
+        $p = Get-Process -Name mimo -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($p) { $adoptado = $true; Log ('Adopto la vuelta de MiMo que ya estaba en marcha (PID ' + $p.Id + ').') }
+    }
+    if (-not $p) {
+        $nueva = ($v -eq 1 -and -not $Adoptar)
+        $m = $MsgContinuar
+        if ($nueva) { $m = 'Lee el fichero .mimocode/prompt-noche.md y ejecuta esa mision sin detenerte.' }
+        if ($script:PorReorientar) { $m = $MsgReorientar; $script:PorReorientar = $false }
+        if ($script:Mensaje) { $m = $script:Mensaje }
+        $script:Mensaje = $null
+        # La reorientacion arranca una sesion nueva: con -c, la sesion de miles de pasos seguia su cola vieja
+        # aunque el mensaje le pidiera releer el prompt (noche del 15-sep).
+        if ($m -eq $MsgReorientar) { $nueva = $true }
+        $p = Lanzar-Vuelta $v $m $nueva
+    }
+    $inicio = Get-Date
+
+    while (-not $p.HasExited) {
+        # Primera comprobacion enseguida si hay que reorientar; despues, cada minuto.
+        if ($script:PorReorientar) { Start-Sleep -Seconds 2 } else { Start-Sleep -Seconds 60 }
+        $quieto = Minutos-Sin-Actividad
+        if ($quieto -ge $MinutosSinActividad) {
+            Log ('Vigilante: la sesion lleva ' + $quieto + ' min sin actividad. Reinicio a MiMo.')
+            Detener-Mimo
+            $pausado = $true
+            break
+        }
+        if ((Paso) -eq $true) { $pausado = $true; break }
+    }
+
+    $minutos = [math]::Round(((Get-Date) - $inicio).TotalMinutes, 1)
+    $rc = 0
+    if (-not $adoptado -and -not $pausado) { try { $p.WaitForExit(); $rc = $p.ExitCode } catch { $rc = 0 } }
+    Log ('Vuelta ' + $v + ' termino (codigo ' + $rc + ', ' + $minutos + ' min). Commits sobre main: ' + (Commits-Sobre-Main))
+
+    if ($pausado) { $fallos = 0; continue }
+
+    $motivo = $null
+    if (-not $adoptado) {
+        # Solo stderr y los eventos de error del JSON. La salida normal trae marcas de tiempo (1789460027429) y
+        # lineas de codigo donde '429' o 'quota' aparecen sin ser un aviso: la noche del 15-sep eso metio
+        # esperas falsas de 5+15+30+60 min con MiMo parado.
+        $cuota = 'Insufficient|quota exceeded|quota exhausted|Too Many Requests|rate.?limit|free API service|HTTP 429|"status":\s*429'
+        $motivo = Select-String -LiteralPath (Join-Path $Dir ('vuelta-' + $v + '.err.txt')) -Pattern $cuota -List -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $motivo) {
+            $motivo = Select-String -LiteralPath (Join-Path $Dir ('vuelta-' + $v + '.jsonl')) -Pattern '"type":\s*"error"' -ErrorAction SilentlyContinue |
+                Where-Object { $_.Line -match $cuota } | Select-Object -First 1
+        }
+        if ($motivo) { Log ('  Aviso del servicio: ' + $motivo.Line.Substring(0, [math]::Min(200, $motivo.Line.Length))) }
+    }
+    if ($rc -ne 0 -or $motivo) {
+        $fallos++
+        if ($fallos -ge $MaxFallosSeguidos) {
+            # Para trabajar dias seguidos no se rinde: espera dos horas (cuota, red o servicio caidos) y vuelve a empezar.
+            Log ($MaxFallosSeguidos.ToString() + ' vueltas seguidas con error (posible cuota, red o servicio caidos). Espero 2 horas y reintento, SIN dejar de integrar.')
+            # La espera no puede ser ciega: durante ella se sigue integrando y vigilando la PR, o el
+            # trabajo ya commiteado de MiMo se queda horas sin subir y sin mergear (16-sep).
+            $hasta = (Get-Date).AddSeconds(7200)
+            while ((Get-Date) -lt $hasta) { [void](Paso); Start-Sleep -Seconds 60 }
+            $fallos = 0
+            continue
+        }
+        $espera = @(5, 15, 30, 60, 60, 60, 60, 60)[[math]::Min($fallos - 1, 7)]
+        Log ('Espero ' + $espera + ' minutos antes de reintentar, sin dejar de integrar.')
+        $hasta = (Get-Date).AddMinutes($espera)
+        while ((Get-Date) -lt $hasta) { [void](Paso); Start-Sleep -Seconds 60 }
+        continue
+    }
+    $fallos = 0
+
+    [void](Paso)
+    if ($minutos -lt 3) { $cortas++ } else { $cortas = 0 }
+    if ($cortas -ge 5) {
+        Log 'Cinco vueltas seguidas de menos de 3 minutos: MiMo no encuentra trabajo. Espero 30 minutos.'
+        Start-Sleep -Seconds 1800
+        $cortas = 0
+    }
+}
+
+Log 'Fin de la noche.'
+Salir 0

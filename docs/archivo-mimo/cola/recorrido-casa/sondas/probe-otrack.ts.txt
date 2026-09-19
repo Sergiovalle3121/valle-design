@@ -1,0 +1,10 @@
+import { trackFromAcquiredPoints, resolveCadPolarTracking } from "D:/dev/valle-design/apps/web/src/lib/cad/precision-tracking";
+// Reproduces the order in Layout3DEditor.tsx snapFloor: OTRACK is checked BEFORE ORTHO and returns early.
+const anchor = { x: 0, y: 0 };
+const cursor = { x: 2005, y: 37 };           // drafter drags roughly horizontally, ORTHO on
+const acquired = [{ x: 2000, y: 5000 }];     // an endpoint the cursor hovered earlier (OTRACK on by default)
+const tol = 20;
+const tracked = trackFromAcquiredPoints(cursor, acquired, tol);
+const ortho = resolveCadPolarTracking(anchor, cursor, 90, 45);
+console.log("OTRACK result (what snapFloor returns):", JSON.stringify(tracked.point), "angle from anchor:", (Math.atan2(tracked.point.y, tracked.point.x) * 180 / Math.PI).toFixed(3), "deg");
+console.log("ORTHO result (what the drafter expects):", JSON.stringify(ortho.point));

@@ -1,0 +1,45 @@
+// Estado de la sesion nocturna de MiMo, leido en solo lectura de su base de datos local.
+const modulo = require.resolve('better-sqlite3', { paths: ['D:/dev/valle-design/apps/api'] });
+const Database = require(modulo);
+
+try {
+  const db = new Database('C:/Users/sergi/.local/share/mimocode/mimocode.db', { readonly: true, fileMustExist: true });
+  const s = db
+    .prepare("SELECT id, time_updated FROM session WHERE title LIKE 'noche-mimo%' ORDER BY time_created DESC LIMIT 1")
+    .get();
+  if (!s) {
+    console.log(JSON.stringify({ sesion: null }));
+  } else {
+    const partes = db.prepare('SELECT COUNT(*) AS c FROM part WHERE session_id = ?').get(s.id).c;
+    const recientes = db
+      .prepare('SELECT data FROM part WHERE session_id = ? ORDER BY time_created DESC LIMIT 60')
+      .all(s.id);
+    let herramienta = '';
+    let texto = '';
+    for (const r of recientes) {
+      try {
+        const d = JSON.parse(r.data);
+        if (!herramienta && d.type === 'tool') {
+          const i = (d.state && d.state.input) || {};
+          herramienta = (d.tool || '') + ' ' + (i.filePath || i.command || i.pattern || '');
+        }
+        if (!texto && d.type === 'text' && d.text) texto = d.text;
+      } catch (e) {
+        /* parte ilegible: se ignora */
+      }
+      if (herramienta && texto) break;
+    }
+    console.log(
+      JSON.stringify({
+        sesion: s.id,
+        actualizada: s.time_updated,
+        partes,
+        herramienta: herramienta.replace(/\s+/g, ' ').slice(0, 110),
+        texto: texto.replace(/\s+/g, ' ').slice(0, 150),
+      }),
+    );
+  }
+  db.close();
+} catch (e) {
+  console.log(JSON.stringify({ sesion: null, error: String(e.message || e).slice(0, 120) }));
+}

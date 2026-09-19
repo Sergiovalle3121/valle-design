@@ -1,0 +1,17 @@
+# Specs de apps/web que el CI ya senalo en ROJO. El candado "specs de web afectados" del
+# lanzador los corre SIEMPRE antes de subir, aunque el push no toque sus ficheros, y NO sube
+# mientras uno este rojo. Asi un spec roto no viaja una y otra vez a una corrida de 25 minutos.
+#
+# Una linea por spec, ruta relativa a apps/web. Se quitan cuando llevan verdes un dia.
+#
+# Anadidos el 17-sep 19:25, destapados por la corrida 35292374922 (689/692): llevaban rojos
+# desde el trabajo de la cinta (3dc7e266) y el CI nunca habia llegado a ejecutarlos.
+src/lib/cad/ribbon-layout.spec.ts
+src/components/cad/ribbon/CadRibbon.spec.ts
+src/components/cad/ribbon/CadRibbonButton.spec.ts
+# 18-sep 20:30: los specs que auditan el REGISTRO ENTERO de comandos. Un comando nuevo (ABOUT, STATUS) los rompe
+# sin tocar su directorio, asi que ningun parecido de nombre los elige. Cuestan segundos: van siempre.
+src/lib/cad/ribbon.spec.ts
+src/components/cad/ribbon/command-icons.spec.ts
+src/lib/cad/engine/command-labels.spec.ts
+src/components/cad/lisp/lisp-enchufe.spec.ts

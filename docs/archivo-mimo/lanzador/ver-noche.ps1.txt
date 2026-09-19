@@ -1,0 +1,68 @@
+﻿#Requires -Version 5.1
+# ver-noche.ps1 - Panel en vivo de lo que MiMo hace esta noche. Solo lee; no toca nada.
+param([switch]$UnaVez)
+
+$Repo     = 'D:\dev\valle-design'
+$Rama     = 'claude/noche-mimo-razones-para-pagar'
+$Base     = '0a5f5600'
+$Resumen  = 'D:\dev\_logs\noche\resumen.txt'
+$Bitacora = Join-Path $Repo 'docs\execution\NOCHE_MIMO_20260914.md'
+
+function Pintar {
+    $ahora = Get-Date
+    $mimoVivo = @(Get-Process -Name mimo -ErrorAction SilentlyContinue).Count -gt 0
+    $scriptVivo = @(Get-CimInstance Win32_Process | Where-Object {
+        $_.ProcessId -ne $PID -and $_.Name -eq 'powershell.exe' -and
+        $_.CommandLine -match 'noche-mimo\.ps1' -and $_.CommandLine -notmatch 'Get-CimInstance'
+    }).Count -gt 0
+
+    $estado = $null
+    try { $estado = (& node 'D:\dev\_mimo\estado-mimo.js' 2>$null | Select-Object -First 1) | ConvertFrom-Json } catch { }
+    $commits = @(& git --no-optional-locks -C $Repo log --oneline ('origin/main..' + $Rama) 2>$null)
+    $integraciones = @()
+    if (Test-Path -LiteralPath $Resumen) { $integraciones = @(Select-String -LiteralPath $Resumen -Pattern 'Resultado de la integracion|Integrado en main|PR creada' -Encoding UTF8 | ForEach-Object { $_.Line }) }
+    $cambios = @(& git --no-optional-locks -C $Repo status --porcelain 2>$null)
+
+    if (-not $UnaVez) { Clear-Host }
+    Write-Host '=============== NOCHE DE MiMo ===============' -ForegroundColor Cyan
+    if ($mimoVivo) { Write-Host 'MiMo:  TRABAJANDO' -ForegroundColor Green } else { Write-Host 'MiMo:  PARADO' -ForegroundColor Red }
+    if ($scriptVivo) { Write-Host 'Script de la noche: vivo (lo relanza si termina una vuelta)' }
+    else { Write-Host 'Script de la noche: NO esta corriendo. Para arrancarlo: NOCHE-MIMO.cmd' -ForegroundColor Yellow }
+
+    if ($estado -and $estado.sesion) {
+        $ultima = [DateTimeOffset]::FromUnixTimeMilliseconds([int64]$estado.actualizada).LocalDateTime
+        $hace = [math]::Round(($ahora - $ultima).TotalMinutes, 1)
+        Write-Host ('Ultima actividad: hace ' + $hace + ' min   (' + $estado.partes + ' pasos en la sesion)')
+        if ($estado.herramienta) { Write-Host ('Ultima herramienta: ' + $estado.herramienta) }
+        if ($estado.texto) { Write-Host ('Ultimo mensaje: ' + $estado.texto) }
+    } else {
+        Write-Host 'Sesion de MiMo: todavia no hay datos' -ForegroundColor Yellow
+    }
+
+    Write-Host ''
+    Write-Host 'Integraciones en main (PRs y merges):' -ForegroundColor Cyan
+    if (Test-Path -LiteralPath $Resumen) { $integraciones = @(Select-String -LiteralPath $Resumen -Pattern 'Resultado de la integracion|Integrado en main|PR creada|CI en marcha|espero a que se mergee' -Encoding UTF8 | ForEach-Object { $_.Line }) }
+    if ($integraciones.Count -eq 0) { Write-Host '  todavia ninguna (la primera, en cuanto se mergee la #208)' }
+    $integraciones | Select-Object -Last 4 | ForEach-Object { Write-Host ('  ' + $_) }
+    Write-Host ('Commits pendientes de integrar: ' + $commits.Count) -ForegroundColor Cyan
+    $commits | Select-Object -First 6 | ForEach-Object { Write-Host ('  ' + $_) }
+    Write-Host ('Ficheros que esta tocando ahora: ' + $cambios.Count) -ForegroundColor Cyan
+    $cambios | Select-Object -First 6 | ForEach-Object { Write-Host ('  ' + $_) }
+
+    $bit = Join-Path $Repo 'docs\execution\CAMPANA_MIMO_20260915.md'
+    if (-not (Test-Path -LiteralPath $bit)) { $bit = $Bitacora }
+    if (Test-Path -LiteralPath $bit) {
+        Write-Host ('Bitacora de MiMo (' + (Split-Path $bit -Leaf) + ', ultimas lineas):') -ForegroundColor Cyan
+        Get-Content -LiteralPath $bit -Tail 6 -Encoding UTF8 | Where-Object { $_.Trim() } | ForEach-Object { Write-Host ('  ' + $_) }
+    }
+    if (Test-Path -LiteralPath $Resumen) {
+        Write-Host 'Resumen del script:' -ForegroundColor Cyan
+        Get-Content -LiteralPath $Resumen -Tail 3 -Encoding UTF8 | ForEach-Object { Write-Host ('  ' + $_) }
+    }
+    if (-not $UnaVez) {
+        Write-Host ''
+        Write-Host ('Se actualiza cada 30 s (' + $ahora.ToString('HH:mm:ss') + '). Cerrar esta ventana NO para a MiMo.') -ForegroundColor DarkGray
+    }
+}
+
+if ($UnaVez) { Pintar } else { while ($true) { Pintar; Start-Sleep -Seconds 30 } }

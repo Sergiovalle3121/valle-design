@@ -1,0 +1,178 @@
+diff --git a/apps/web/AGENTS.md b/apps/web/AGENTS.md
+new file mode 100644
+index 00000000..643577df
+--- /dev/null
++++ b/apps/web/AGENTS.md
+@@ -0,0 +1,9 @@
++<!-- BEGIN:nextjs-agent-rules -->
++
++# This is NOT the Next.js you know
++
++This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
++
++This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
++
++<!-- END:nextjs-agent-rules -->
+diff --git a/apps/web/CLAUDE.md b/apps/web/CLAUDE.md
+new file mode 100644
+index 00000000..43c994c2
+--- /dev/null
++++ b/apps/web/CLAUDE.md
+@@ -0,0 +1 @@
++@AGENTS.md
+diff --git a/apps/web/src/app/docs/dxf-vs-dwg/page.tsx b/apps/web/src/app/docs/dxf-vs-dwg/page.tsx
+index dda4b356..8aefd2cb 100644
+--- a/apps/web/src/app/docs/dxf-vs-dwg/page.tsx
++++ b/apps/web/src/app/docs/dxf-vs-dwg/page.tsx
+@@ -83,18 +83,21 @@ export default function Page() {
+ 
+       <GuideSection title="Qué NO hace, dicho sin rodeos">
+         <p>
+-          <strong>VALLECAD no abre ni escribe archivos DWG.</strong> No es
+-          una limitación temporal disfrazada: es una decisión documentada. Sin
+-          una biblioteca con licencia del titular del formato, cualquier lectura
+-          de DWG sería una reconstrucción aproximada, y un plano aproximado es
+-          peor que un plano que no abre, porque el error no se ve hasta que ya
+-          está en obra.
++          <strong>VALLECAD importa DWG en beta</strong> (versiones AC1015 y
++          AC1018, equivalentes a 2000 y 2004). La importación cubre 12 tipos de
++          entidad: LINE, POINT, CIRCLE, ARC, LWPOLYLINE, TEXT, INSERT, ELLIPSE,
++          SPLINE, MTEXT, DIMENSION y HATCH. El informe de importación lista lo
++          que se pierde: espacio papel, xrefs, sombreados con límites curvos,
++          splines racionales y entidades 3D.
+         </p>
+         <p>
+-          Por eso el editor <em>detecta</em> el formato y lo rechaza con un
+-          mensaje claro en lugar de intentarlo. Renombrar un archivo tampoco
+-          sirve: cambiarle la extensión a un DXF no lo convierte en DWG, ni al
+-          revés.
++          La exportación DWG <strong>no está disponible</strong>. Las versiones
++          2010–2018+ (AC1024, AC1027, AC1032) están cableadas pero pendientes de
++          autorización del titular del formato.
++        </p>
++        <p>
++          Por eso el editor <em>detecta</em> el formato y muestra un informe de
++          compatibilidad en lugar de intentarlo a ciegas.
+         </p>
+       </GuideSection>
+ 
+diff --git a/apps/web/src/app/precios/PricingCatalog.tsx b/apps/web/src/app/precios/PricingCatalog.tsx
+index 30bb3fa2..2c1f71a1 100644
+--- a/apps/web/src/app/precios/PricingCatalog.tsx
++++ b/apps/web/src/app/precios/PricingCatalog.tsx
+@@ -39,7 +39,7 @@ const INCLUDED = [
+   "Editor CAD 2D en el navegador: capas, geometría, acotación y bloques",
+   "Espacio papel con varias ventanas y su escala, e impresión a PDF",
+   "Importación y exportación DXF con informe de lo que se pierde",
+-  "VALLECAD no lee ni escribe DWG — se dice aquí, no en la letra pequeña",
++  "Importación DWG en beta (AC1015/AC1018, 2000–2004): 12 tipos de entidad, informe de lo que se pierde. Sin exportación DWG.",
+   "Proyectos y documentos por organización, con permisos por rol",
+   "Enlaces de revisión con caducidad y comentarios anclados a la geometría",
+ ] as const;
+diff --git a/apps/web/src/app/sla/SlaPage.tsx b/apps/web/src/app/sla/SlaPage.tsx
+index 6e27ce95..70633b07 100644
+--- a/apps/web/src/app/sla/SlaPage.tsx
++++ b/apps/web/src/app/sla/SlaPage.tsx
+@@ -214,8 +214,9 @@ export function SlaPage() {
+             cliente: depende de su máquina, su GPU y el tamaño de su documento.
+           </li>
+           <li>
+-            El producto no promete compatibilidad DWG nativa, y ese límite no
+-            entra en ningún nivel de servicio.
++            La importación DWG está en beta (AC1015/AC1018, 2000–2004) y no
++            entra en ningún nivel de servicio. La exportación DWG no está
++            disponible.
+           </li>
+           <li>
+             Créditos por incumplimiento: este documento declara objetivos
+diff --git a/apps/web/src/components/cad/editor/CadLienzoAncho.spec.ts b/apps/web/src/components/cad/editor/CadLienzoAncho.spec.ts
+index 3d60f12b..e3f3f78e 100644
+--- a/apps/web/src/components/cad/editor/CadLienzoAncho.spec.ts
++++ b/apps/web/src/components/cad/editor/CadLienzoAncho.spec.ts
+@@ -20,6 +20,6 @@ const tour = readFileSync(path.join(__dirname, "..", "onboarding", "CadGuidedTou
+ 
+ ok(palette.includes('localStorage.getItem(STORAGE_KEY) === "true"'), "la paleta arranca cerrada (localStorage)");
+ ok(palette.includes("setOpen"), "la paleta tiene un toggle de visibilidad");
+-ok(tour.includes("useState(true)"), "el recorrido arranca minimizado");
++ok(tour.includes("useSyncExternalStore") && tour.includes("cadTourHost"), "el recorrido lee el estado de un almacén externo (minimizado persistido en localStorage)");
+ 
+ console.log(`CadLienzoAncho: ${checks}/${checks} comprobaciones verdes`);
+diff --git a/apps/web/src/components/cad/interop/cad-format-detect.ts b/apps/web/src/components/cad/interop/cad-format-detect.ts
+index e18a068e..eda68ead 100644
+--- a/apps/web/src/components/cad/interop/cad-format-detect.ts
++++ b/apps/web/src/components/cad/interop/cad-format-detect.ts
+@@ -2,7 +2,7 @@
+  * Detección de formato CAD: DWG vs DXF (Fase 74 — interop).
+  *
+  * Helper PURO para identificar qué subió el usuario antes de intentar parsearlo:
+- * un **DWG** binario (formato nativo de AutoCAD, que aún no parseamos en casa) o
++ * un **DWG** binario (formato nativo de AutoCAD, en beta para AC1015/AC1018) o
+  * un **DXF** de texto (que sí leemos). Lee la cabecera de versión (`AC10xx`,
+  * igual que `$ACADVER`) y devuelve formato + versión legible + si lo soportamos
+  * nativamente + un mensaje accionable para el usuario.
+@@ -73,7 +73,7 @@ export function detectCadFormat(input: Uint8Array | string): CadFormatInfo {
+       version: first6,
+       ...(versionName ? { versionName } : {}),
+       nativeSupport: false,
+-      message: `Archivo DWG${versionName ? ` (AutoCAD ${versionName})` : ""}. Aún no leemos DWG nativamente: expórtalo a DXF (R12+) desde tu CAD e impórtalo de nuevo.`,
++      message: `Archivo DWG${versionName ? ` (versión ${versionName})` : ""}. La importación DWG está en beta: habilita la bandera de importación DWG beta para abrirlo, o expórtalo a DXF (R12+) desde tu CAD e impórtalo de nuevo.`,
+     };
+   }
+ 
+diff --git a/docs/execution/CAMPANA_MIMO_20260915.md b/docs/execution/CAMPANA_MIMO_20260915.md
+index 62d80a32..0305112e 100644
+--- a/docs/execution/CAMPANA_MIMO_20260915.md
++++ b/docs/execution/CAMPANA_MIMO_20260915.md
+@@ -40,6 +40,17 @@ Todas hechas antes de esta sesión (commits `4359ef50`–`bd86c7e5`).
+ - **D46:** commit `b7106dd2` — golden214: aviso inferior no se solapa con línea de comandos.
+ - **D47–D49:** hechas en sesiones anteriores.
+ 
++## T9 · CI rojo en cinco pasos (16-sep, 17:30)
++
++Commit `00cd795c` — cinco causas del fallo de CI en PR #209:
++
++1. **check:cad-math:** revertir la duplicación de bloques en `document-import.ts` (regresión de D43). `blocks` es UN catálogo del documento; los inserts de papel se resuelven contra el catálogo del modelo.
++2. **Typecheck web:** agregar `z:0` a los vértices de la polilínea en `associative-dimension.spec.ts` (TS2322, `CadPoint3` exige `z`).
++3. **Lint API:** formateo prettier en 9 ficheros de `apps/api/src`.
++4. **Lint web:** `require("node:fs")` → import estático en `CadLayoutManager.spec.ts`.
++5. **Web specs:** iconos reales para `3DMOVE`, `3DROTATE`, `CENTERLINE`, `CENTERMARK`, `AESYMBOL` en `command-icons.ts`.
++6. **Censo:** regenerar `independencia-por-fila.json` (256/309, 35 pt independientes).
++
+ ## Resumen de esta sesión
+ 
+ | Tarea | Estado | Commit |
+@@ -55,3 +66,34 @@ Todas hechas antes de esta sesión (commits `4359ef50`–`bd86c7e5`).
+ | D44 | hecha | `7ad40d96` |
+ | D45 | hecha | `bee33c42` |
+ | D46 | hecha | `b7106dd2` |
++
++## T8 · Investigación de capacidades DWG reales (16-sep, 18:00)
++
++**Paso 1 — lo que entra hoy:**
++
++| Versión | Estado |
++|---------|--------|
++| AC1015 (AutoCAD 2000) | Beta, bandera `NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA`. Owner-signed. |
++| AC1018 (AutoCAD 2004) | Beta, requiere `NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA` + bandera base. Owner-signed. |
++| AC1024/AC1027/AC1032 (2010-2018+) | Cableado pero SIN firma del titular. `DWG_MODERN_BETA_AUTHORIZATION.ownerSigned: false`. |
++
++**Tipos de entidad importados** (perfil `AC1015_MODELSPACE_2D_V3`):
++LINE, POINT, CIRCLE, ARC, LWPOLYLINE, TEXT, INSERT, ELLIPSE, SPLINE (solo escenario 1, no racional), MTEXT (solo modelo), DIMENSION (todos excepto angular-2-line), HATCH (solo límites poligonales).
++
++**Lo que se pierde:**
++- Espacio papel y layouts (solo modelo)
++- Xrefs
++- Hatch con límites curvos
++- Dimensión angular-2-linea
++- Splines racionales y fit
++- Entidades 3D (SOLID, TRACE, 3DFACE, etc.)
++- Exportación DWG NO disponible
++
++**4 textos públicos que mienten** (Paso 2):
++- `PricingCatalog.tsx:42`: «no lee ni escribe DWG»
++- `SlaPage.tsx:217`: «no promete compatibilidad DWG nativa»
++- `dxf-vs-dwg/page.tsx:89`: «cualquier lectura sería reconstrucción aproximada»
++- `cad-format-detect.ts:5`: «aún no parseamos en casa»
++
++**Selector de archivos** (Paso 3):
++- `session-catalogs.ts:178` — filtro `".dxf,text/plain"`, NO ofrece `.dwg`.

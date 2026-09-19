@@ -1,0 +1,119 @@
+// Sonda de auditoria (fuera del repo): conduce los descriptores reales.
+import { CAD_MODIFY_EDGE_COMMANDS } from "file:///D:/dev/valle-design/apps/web/src/lib/cad/engine/commands/modify-edges.ts";
+import { CAD_MODIFY_TRANSFORM_COMMANDS } from "file:///D:/dev/valle-design/apps/web/src/lib/cad/engine/commands/modify-transform.ts";
+import { CAD_MODIFY_BASIC_COMMANDS } from "file:///D:/dev/valle-design/apps/web/src/lib/cad/engine/commands/modify-basics.ts";
+
+const all = new Map<string, any>(
+  [...CAD_MODIFY_EDGE_COMMANDS, ...CAD_MODIFY_TRANSFORM_COMMANDS, ...CAD_MODIFY_BASIC_COMMANDS].map((c: any) => [c.name, c]),
+);
+
+const line = (id: string, x1: number, y1: number, x2: number, y2: number) => ({
+  id, type: "line", start: { x: x1, y: y1, z: 0 }, end: { x: x2, y: y2, z: 0 }, layer: "0",
+});
+
+function ctx(scene: any[], selection: string[] = []) {
+  const m = new Map(scene.map((e) => [e.id, e]));
+  let n = 0;
+  return {
+    entityIds: [...m.keys()], entity: (id: string) => m.get(id), selection,
+    activeLayer: "0", view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+    newEntityId: () => `new${++n}`,
+  } as any;
+}
+const pick = (entityId: string, x: number, y: number) => ({ kind: "entityPick", entityId, point: { x, y } });
+const pt = (x: number, y: number) => ({ kind: "point", point: { x, y }, source: "pointer" });
+const enter = { kind: "enter" };
+const cancel = { kind: "cancel" };
+const kw = (keyword: string) => ({ kind: "keyword", keyword });
+const dist = (value: number) => ({ kind: "distance", value });
+
+function drive(name: string, c: any, inputs: any[]) {
+  const d = all.get(name);
+  let s = d.begin(c);
+  const trace: string[] = [`[begin] ${s.prompt?.message} accepts=${s.accepts} preview=${s.preview ? s.preview.length : "none"}`];
+  for (const i of inputs) {
+    if (s.result) break;
+    s = d.step(s.state, i, c);
+    trace.push(`[${i.kind}${i.keyword ? ":" + i.keyword : ""}${i.entityId ? ":" + i.entityId : ""}] -> "${s.prompt?.message}" accepts=${s.accepts} preview=${s.preview ? s.preview.length : "none"}${s.result ? " RESULT=" + s.result.kind : ""}`);
+  }
+  return { s, trace };
+}
+
+// 1. TRIM: linea que cruza dos muros; recortar ambos voladizos (dos clics sobre la MISMA linea)
+{
+  const scene = [line("h", 0, 0, 1000, 0), line("wL", 100, -100, 100, 100), line("wR", 900, -100, 900, 100)];
+  const { s, trace } = drive("TRIM", ctx(scene), [enter, pick("h", 50, 0), pick("h", 950, 0), enter]);
+  console.log("\n=== 1. TRIM dos voladizos de la misma linea ===");
+  trace.forEach((t) => console.log(t));
+  console.log(JSON.stringify(s.result, null, 1));
+}
+
+// 1b. TRIM: Escape tras 2 recortes
+{
+  const scene = [line("h", 0, 0, 1000, 0), line("h2", 0, 50, 1000, 50), line("wL", 100, -100, 100, 100)];
+  const { s, trace } = drive("TRIM", ctx(scene), [enter, pick("h", 50, 0), pick("h2", 50, 50), cancel]);
+  console.log("\n=== 1b. TRIM + Escape tras dos recortes ===");
+  trace.forEach((t) => console.log(t));
+  console.log("result:", JSON.stringify(s.result));
+}
+
+// 2. FILLET: radio 50, luego repetir (begin de nuevo, como hace el motor con Espacio)
+{
+  const scene = [line("a", 0, 0, 1000, 0), line("b", 0, 0, 0, 1000), line("c", 1000, 0, 1000, 1000)];
+  const c = ctx(scene);
+  const first = drive("FILLET", c, [kw("Radio"), dist(50), pick("a", 100, 0), pick("b", 0, 100)]);
+  console.log("\n=== 2. FILLET R50 y luego repetir ===");
+  first.trace.forEach((t) => console.log(t));
+  const again = all.get("FILLET").begin(c);
+  console.log("[repeat begin] ->", again.prompt.message);
+}
+
+// 3. FILLET / CHAMFER sobre un rectangulo (polilinea, como lo crea RECTANG)
+{
+  const rect = { id: "r", type: "polyline", closed: true, layer: "0",
+    vertices: [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 1000, y: 600 }, { x: 0, y: 600 }] };
+  const f = drive("FILLET", ctx([rect]), [kw("Radio"), dist(50), pick("r", 500, 0), pick("r", 1000, 300)]);
+  console.log("\n=== 3. FILLET sobre rectangulo (polilinea) ===");
+  f.trace.forEach((t) => console.log(t));
+  console.log("result:", JSON.stringify(f.s.result));
+  const ch = drive("CHAMFER", ctx([rect]), [pick("r", 500, 0), pick("r", 1000, 300)]);
+  console.log("CHAMFER result:", JSON.stringify(ch.s.result));
+}
+
+// 4. OFFSET de una polilinea con un tramo en arco
+{
+  const pl = { id: "p", type: "polyline", closed: false, layer: "0",
+    vertices: [{ x: 0, y: 0, bulge: 0.5 }, { x: 1000, y: 0 }, { x: 1000, y: 600 }] };
+  const o = drive("OFFSET", ctx([pl]), [dist(15), pick("p", 500, 0), pt(500, 300)]);
+  console.log("\n=== 4. OFFSET polilinea con arco ===");
+  o.trace.forEach((t) => console.log(t));
+  console.log("result:", JSON.stringify(o.s.result));
+}
+
+// 5. MOVE: designar con dos clics de raton
+{
+  const scene = [line("a", 0, 0, 100, 0), line("b", 0, 50, 100, 50)];
+  const m = drive("MOVE", ctx(scene), [pick("a", 50, 0), pick("b", 50, 50)]);
+  console.log("\n=== 5. MOVE designando a y luego b con el raton ===");
+  m.trace.forEach((t) => console.log(t));
+  console.log("targets en estado:", JSON.stringify(m.s.state.targets), "points:", JSON.stringify(m.s.state.points));
+}
+
+// 6. ROTATE: designar dos objetos con el raton
+{
+  const scene = [line("a", 0, 0, 100, 0), line("b", 0, 50, 100, 50)];
+  const r = drive("ROTATE", ctx(scene), [pick("a", 50, 0), kw("Ventana")]);
+  console.log("\n=== 6. ROTATE: tras el primer clic, que acepta? ===");
+  r.trace.forEach((t) => console.log(t));
+}
+
+// 7. COPY y MOVE: preview
+{
+  const scene = [line("a", 0, 0, 100, 0)];
+  const c = ctx(scene, ["a"]);
+  c.cursor = { x: 300, y: 300 };
+  const m = drive("MOVE", c, [pt(0, 0)]);
+  console.log("\n=== 7. MOVE preview tras punto base ===");
+  m.trace.forEach((t) => console.log(t));
+  console.log("preview:", JSON.stringify(m.s.preview));
+}

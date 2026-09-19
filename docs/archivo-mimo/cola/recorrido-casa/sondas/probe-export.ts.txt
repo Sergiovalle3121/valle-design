@@ -1,0 +1,26 @@
+// Sonda de auditoria (no toca el repo): como le llega a AutoCAD una cota vertical con norma mexicana.
+import { createCadStarterDocument } from "D:/dev/valle-design/apps/web/src/lib/cad/starter-templates";
+import { executeCadEntityCommandBatch } from "D:/dev/valle-design/apps/web/src/lib/cad/entity-commands";
+import { exportCadDocumentDxf } from "D:/dev/valle-design/apps/web/src/lib/cad/dxf-document-export";
+import { cadDimensionFamilyStyle } from "D:/dev/valle-design/apps/web/src/lib/cad/dimension-family";
+import { cadDimensionStyleBake } from "D:/dev/valle-design/apps/web/src/lib/cad/dimension-style";
+
+let doc: any = createCadStarterDocument({ templateId: "planta-arquitectonica", date: "2026-09-18" });
+const baked = cadDimensionStyleBake(cadDimensionFamilyStyle(doc.styles, "COTA 1:50", "linear"));
+const dim: any = { id: "dimV", type: "dimension", dimensionKind: "linear", a: { x: 0, y: 0 }, b: { x: 0, y: 2700 }, axis: "y", offset: 600, style: "COTA 1:50", ...baked, textHeight: 125, layer: "COTA" };
+const r: any = executeCadEntityCommandBatch(doc, [{ type: "insert", entity: dim } as any], "probe");
+doc = r.document ?? r;
+const out: any = exportCadDocumentDxf(doc);
+const text: string = typeof out === "string" ? out : out.content ?? out.text ?? out.dxf ?? JSON.stringify(out).slice(0, 200);
+const lines = text.split(/\r?\n/);
+// Bloque *D de la cota
+const bi = lines.findIndex((l, i) => l.trim() === "*D1" && lines[i - 1]?.trim() === "2");
+console.log("bloque *D1 en linea", bi);
+if (bi > 0) {
+  const end = lines.indexOf("ENDBLK", bi);
+  const blk = lines.slice(bi, end);
+  const ti = blk.findIndex((l) => l.trim() === "TEXT");
+  console.log("TEXT del bloque:", blk.slice(ti, ti + 16).map((s) => s.trim()).join(" | "));
+}
+const di = lines.findIndex((l, i) => l.trim() === "DIMENSION" && lines[i - 1]?.trim() === "0" && i > bi);
+console.log("DIMENSION entidad:", lines.slice(di, di + 40).map((s) => s.trim()).join(" | "));
