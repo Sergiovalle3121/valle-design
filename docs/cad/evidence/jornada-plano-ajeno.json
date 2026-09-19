@@ -138,8 +138,8 @@
     "exportar": {
       "puerta": "exportCadDocumentDxf — el mismo que entrega DXFOUT",
       "entidades": 953,
-      "bytes": 397577,
-      "sha256": "be4d794bdb6fede0297694f2871c60e40873cbd10348f13439e17c8976d15502",
+      "bytes": 397388,
+      "sha256": "208bf6b07a3e23108ec7c6189dd8a4ca3a1067efbaf9d10b7fb12f3c3ef40747",
       "perdidasDeclaradas": 0,
       "dialectoQueEscribimos": "AC1015 (R2000)",
       "notaDelDialecto": "El plano ajeno es AC1018 (R2004) y sale como AC1015 (R2000). Es una versión ANTERIOR, declarada en la cabecera: ningún lector se lleva una sorpresa, pero el fichero devuelto ya no es del dialecto en el que llegó.",

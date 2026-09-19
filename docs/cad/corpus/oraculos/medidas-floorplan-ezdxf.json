@@ -25,7 +25,7 @@
     "entidadesParcheadas": 0,
     "entidadesQueYaLosTraian": 22,
     "queSignifica": "Este experimento existia para PROBAR P-evidencia-07 antes de pedirla: parcheaba los marcadores de subclase sobre el texto ya exportado y volvia a leerlo. Desde que el producto los escribe (2026-09-05) es un CONTROL, y su lectura correcta es entidadesParcheadas = 0 con entidadesQueYaLosTraian = todas.",
-    "sha256Origen": "be4d794bdb6fede0297694f2871c60e40873cbd10348f13439e17c8976d15502",
+    "sha256Origen": "208bf6b07a3e23108ec7c6189dd8a4ca3a1067efbaf9d10b7fb12f3c3ef40747",
     "leido": true,
     "espacioModelo": {
       "ARC": 20,
@@ -3971,8 +3971,8 @@
     },
     {
       "etiqueta": "exportado/jornada-completa",
-      "sha256": "be4d794bdb6fede0297694f2871c60e40873cbd10348f13439e17c8976d15502",
-      "bytes": 397581,
+      "sha256": "208bf6b07a3e23108ec7c6189dd8a4ca3a1067efbaf9d10b7fb12f3c3ef40747",
+      "bytes": 397392,
       "leido": true,
       "dialecto": "AC1015",
       "version": "R2000",
@@ -7862,8 +7862,8 @@
     },
     {
       "etiqueta": "exportado/jornada-sin-mtext-ni-hatch",
-      "sha256": "cb5ef07f3902a12f0c5bf38e78cc6cc73609e2ae34474cc99cc9369e29069bdc",
-      "bytes": 389973,
+      "sha256": "2d3093633c0f6349552588e39489d60871e3143041a5c9526f57f5fe759f1d87",
+      "bytes": 389784,
       "leido": true,
       "dialecto": "AC1015",
       "version": "R2000",
