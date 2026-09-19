@@ -258,9 +258,12 @@ export const EMPTY_CAD_TOUR_RECORD: CadTourRecord = {
   finishedAt: 0,
   acknowledged: false,
   plotted: false,
-  /** Arranca desplegado para que un recién llegado lo vea; se pliega al
-   *  minimizar y esa preferencia persiste en localStorage. */
-  minimized: false,
+  /** ARRANCA PLEGADO: una línea con el paso actual, no los cinco pasos encima
+   *  del plano. Ya no tapa nada —vive en el muelle izquierdo—, pero desplegado
+   *  empujaba la biblioteca, y cuando tiene que flotar (ventana estrecha)
+   *  desplegado era un tercio del lienzo. Quien lo despliega lo encuentra
+   *  desplegado la próxima vez: la elección persiste en localStorage. */
+  minimized: true,
 };
 
 /**
@@ -356,7 +359,10 @@ export function parseCadTourRecord(raw: string | null): CadTourRecord {
       finishedAt: Number.isFinite(parsed.finishedAt) ? Number(parsed.finishedAt) : 0,
       acknowledged: parsed.acknowledged === true,
       plotted: parsed.plotted === true,
-      minimized: parsed.minimized === true,
+      // Sólo un `false` guardado lo despliega: es lo que escribe quien pulsó
+      // «Mostrar». Un registro de antes del pliegue (sin el campo) o con
+      // basura arranca como todos, plegado.
+      minimized: parsed.minimized !== false,
     };
   } catch {
     // Un registro corrupto NO puede tirar el editor ni dejar al usuario sin

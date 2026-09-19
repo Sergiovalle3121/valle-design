@@ -289,34 +289,50 @@ const dimension = {
   // Un registro a medias no se cuela con `true` de regalo.
   assert.equal(parseCadTourRecord('{"status":"running"}').acknowledged, false);
   assert.equal(parseCadTourRecord('{"status":"running"}').startedAt, 0);
-  assert.equal(parseCadTourRecord('{"status":"running"}').minimized, false);
+  // …y el pliegue que no está guardado es el de fábrica: PLEGADO. Un registro
+  // de antes del pliegue no puede abrir el recorrido encima de nadie.
+  ok(
+    parseCadTourRecord('{"status":"running"}').minimized === true,
+    "un registro sin pliegue guardado arranca plegado",
+  );
+  ok(
+    parseCadTourRecord('{"status":"running","minimized":"no"}').minimized === true,
+    "basura en el pliegue arranca plegado",
+  );
+  // Sólo quien pulsó «Mostrar» —un `false` guardado— lo encuentra desplegado.
+  ok(
+    parseCadTourRecord('{"status":"running","minimized":false}').minimized === false,
+    "el despliegue elegido por el usuario se respeta al releer",
+  );
 }
 
 // --- 7. PLIEGUE PERSISTIDO ---------------------------------------------------
 {
   let record: CadTourRecord = { ...EMPTY_CAD_TOUR_RECORD };
-  assert.equal(record.minimized, false);
+  // De fábrica, PLEGADO: una línea con el paso actual, no cinco pasos encima
+  // del plano (golden 67, «con el recorrido abierto»).
+  ok(record.minimized === true, "el registro vacío nace plegado");
 
-  // Conmuta minimized.
-  record = cadGuidedTourReduce(record, { type: "minimize", minimized: true });
-  assert.equal(record.minimized, true);
-
-  // Mismo valor devuelve la MISMA referencia (no publica cambio inexistente).
-  const same = cadGuidedTourReduce(record, { type: "minimize", minimized: true });
-  assert.equal(same, record);
-
-  // Desplegar vuelve a false.
+  // Desplegar pone false.
   record = cadGuidedTourReduce(record, { type: "minimize", minimized: false });
   assert.equal(record.minimized, false);
 
+  // Mismo valor devuelve la MISMA referencia (no publica cambio inexistente).
+  const same = cadGuidedTourReduce(record, { type: "minimize", minimized: false });
+  assert.equal(same, record);
+
+  // Plegar vuelve a true.
+  record = cadGuidedTourReduce(record, { type: "minimize", minimized: true });
+  assert.equal(record.minimized, true);
+
   // Saltado ignora minimize: ya cerrado.
   record = cadGuidedTourReduce({ ...EMPTY_CAD_TOUR_RECORD }, { type: "skip", now: 1 });
-  const afterSkip = cadGuidedTourReduce(record, { type: "minimize", minimized: true });
+  const afterSkip = cadGuidedTourReduce(record, { type: "minimize", minimized: false });
   assert.equal(afterSkip, record);
 
-  // Reset devuelve minimized al valor por defecto.
+  // Reset devuelve minimized al valor por defecto: plegado.
   const reset = cadGuidedTourReduce(record, { type: "reset" });
-  assert.equal(reset.minimized, false);
+  ok(reset.minimized === true, "reiniciar el recorrido lo devuelve plegado");
 }
 
 // Regla 3 (AGENTS.md): ninguna capacidad se anuncia sin evidencia. El primer
