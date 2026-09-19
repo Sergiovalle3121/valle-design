@@ -70,7 +70,7 @@ import {
   cadActiveUcsIsTilted,
   type CadSystemVariableValue,
 } from "@/lib/cad/system-variables";
-import { CAD_COMMAND_ALIASES } from "@/lib/cad/engine/alias-table";
+import { cadCommandAliasEcho } from "./command-echo";
 import { handleClipboardRequest, handleDownloadRequest } from "./command-engine-host-helpers";
 import type { CadNamedUcs } from "@/lib/cad/ucs";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
@@ -294,14 +294,10 @@ export class CadCommandEngineHost {
   /** Texto tecleado en la línea de comandos. */
   submit(value: string): void {
     this.log(value, "input");
-    // AutoCAD eco: «L» → «LINE», «TR» → «TRIM». El alias se resuelve y el
-    // motor arranca el comando, pero el diálogo mostraba «> L» seguido del
-    // prompt sin decir QUÉ comando se abrió. Esto lo pone.
-    const raw = value.trim().toUpperCase().replace(/^'/, "");
-    const resolved = CAD_COMMAND_ALIASES[raw];
-    if (resolved && this.registry.get(resolved)) {
-      this.log(resolved, "info");
-    }
+    // Eco de AutoCAD («L» → «LINE») sólo si lo tecleado ABRE una orden: la «E»
+    // que responde a ZOOM es Extensión, no ERASE (ver `command-echo.ts`).
+    const echo = cadCommandAliasEcho(value, this.busy, (name) => Boolean(this.registry.get(name)));
+    if (echo) this.log(echo, "info");
     this.dispatch({ kind: "token", value });
   }
 
