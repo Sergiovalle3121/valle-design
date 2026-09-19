@@ -195,7 +195,7 @@ const CAD_PANEL_NAME_PATTERNS: readonly [RegExp, string][] = [
   // COMPARE: la pestaña Colaborar de AutoCAD no existe aquí; Administrar es la
   // equivalente, y comparar dos dibujos merece su propio panel.
   [/^COMPARE$/, "Comparar"],
-  [/^(-?DIST|-?AREA|-?LIST|-?ID|-?QSELECT|SELECT|FILTER|SELECTSIMILAR|ADDSELECTED)$/, "Utilidades"],
+  [/^(-?DIST|-?AREA|-?LIST|-?ID|-?QSELECT|SELECT|FILTER|SELECTSIMILAR|ADDSELECTED|ABOUT|STATUS)$/, "Utilidades"],
   // `U`, `UNDO` y `REDO` van con MODIFICAR y no con Dibujo, que es donde los
   // dejaba el reposo de la pestaña Inicio: deshacer no dibuja nada, y en la
   // cinta de AutoCAD viven con las órdenes que cambian lo dibujado.

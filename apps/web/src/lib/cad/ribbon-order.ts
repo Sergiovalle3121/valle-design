@@ -129,7 +129,7 @@ export const CAD_RIBBON_PRIMARY: Readonly<Record<string, readonly string[]>> = {
   Bloque: ["INSERT"],
   Propiedades: ["PROPERTIES", "MATCHPROP"],
   Grupos: ["GROUP"],
-  Utilidades: ["DIST"],
+  Utilidades: ["DIST", "ABOUT"],
   Portapapeles: ["PASTECLIP"],
 
   // Insertar.
