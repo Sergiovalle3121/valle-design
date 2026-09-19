@@ -165,8 +165,8 @@ export const CAD_RIBBON_PRIMARY: Readonly<Record<string, readonly string[]>> = {
   "Trazar y publicar": ["PLOT"],
   Exportar: ["DXFOUT"],
   // Administrar.
-  "Normas y reparación": ["AUDIT"],
-  Variables: ["UNITS"],
+  "Normas y reparación": ["AUDIT", "ABOUT"],
+  Variables: ["UNITS", "STATUS"],
   "AutoLISP y scripts": ["SCRIPT"],
   Comparar: ["COMPARE"],
   // Superficies, Arquitectura e Instalaciones (pestaña propia).

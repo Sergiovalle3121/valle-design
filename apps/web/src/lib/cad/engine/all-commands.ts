@@ -1,5 +1,5 @@
 /**
- * Los 122 módulos de comandos, con `import` ESTÁTICO. GENERADO — no se edita a mano.
+ * Los 123 módulos de comandos, con `import` ESTÁTICO. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` y `--check`
  * lo verifica, del mismo tirón que `command-manifest.ts`.
@@ -135,13 +135,14 @@ import * as m111 from "./commands/transform-3d-rotate";
 import * as m112 from "./commands/transform-3d-scale";
 import * as m113 from "./commands/ucs-commands";
 import * as m114 from "./commands/ucs-view-commands";
-import * as m115 from "./commands/vectorize-raster";
-import * as m116 from "./commands/view-navigation";
-import * as m117 from "./commands/view-navigation-3d";
-import * as m118 from "./commands/view-visual";
-import * as m119 from "./commands/view-visualization";
-import * as m120 from "./commands/viewbase-commands";
-import * as m121 from "./commands/xrefs";
+import * as m115 from "./commands/utility-commands";
+import * as m116 from "./commands/vectorize-raster";
+import * as m117 from "./commands/view-navigation";
+import * as m118 from "./commands/view-navigation-3d";
+import * as m119 from "./commands/view-visual";
+import * as m120 from "./commands/view-visualization";
+import * as m121 from "./commands/viewbase-commands";
+import * as m122 from "./commands/xrefs";
 
 cadRegisterCommandModules([
   m000,
@@ -266,4 +267,5 @@ cadRegisterCommandModules([
   m119,
   m120,
   m121,
+  m122,
 ]);

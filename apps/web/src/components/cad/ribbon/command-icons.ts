@@ -123,6 +123,7 @@ import {
   House,
   Image,
   ImagePlus,
+  Info,
   LandPlot,
   Layers,
   Layers2,
@@ -483,6 +484,7 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   STYLE: Baseline,
   // Las plumas del trazado: el dibujo de la pluma, no el del papel.
   STYLESMANAGER: PenTool,
+  STATUS: ClipboardList,
   DIMLINEAR: Ruler,
   DIMALIGNED: PencilRuler,
   DIMANGULAR: Triangle,
@@ -536,6 +538,7 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   DIMCONSTRAINT: Magnet,
   DELCONSTRAINT: Unlink,
   PARAMETERS: SquareFunction,
+  ABOUT: Info,
   AUDIT: Microscope,
   COMPARE: GitCompare,
   RECOVER: FlaskConical,

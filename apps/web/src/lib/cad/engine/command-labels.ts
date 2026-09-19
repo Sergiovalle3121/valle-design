@@ -51,6 +51,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   "3DSWIVEL": "Girar vista",
   "3DWALK": "Caminar 3D",
   "3DZOOM": "Zoom 3D",
+  ABOUT: "Acerca de",
   ACTMANAGER: "Macros",
   ACTRECORD: "Grabar macro",
   ACTSTOP: "Parar macro",
@@ -314,6 +315,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   SOLPROF: "Perfil 2D",
   SOLVIEW: "Vistas de sólido",
   SPHERE: "Esfera",
+  STATUS: "Estado",
 
   SPLINE: "Spline",
   SPLINEDIT: "Editar spline",

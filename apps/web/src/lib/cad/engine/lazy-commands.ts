@@ -170,6 +170,7 @@ export const CAD_COMMAND_MODULE_LOADERS = {
   "commands/transform-3d-extra": () => import("./commands/transform-3d-extra"),
   "commands/view-visualization": () => import("./commands/view-visualization"),
   "commands/render-commands": () => import("./commands/render-commands"),
+  "commands/utility-commands": () => import("./commands/utility-commands"),
 } as const;
 
 export type CadCommandModuleId = keyof typeof CAD_COMMAND_MODULE_LOADERS;
