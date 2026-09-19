@@ -525,7 +525,7 @@ export class CadLispRuntime {
    * Se limpia al empezar la siguiente ejecución en vez de intentar adivinar el
    * Esc: es el momento en el que el abandono es un hecho comprobado.
    */
-  private abandonActive(): void {
+  abandonActive(): void {
     const active = this.active;
     this.active = null;
     if (!active || active.run.done) return;

@@ -302,6 +302,18 @@ export function cadLispCommand(
       const ask = state.ask;
       if (!run || !ask) return messageStep(state, errorLine("No hay ninguna rutina esperando."));
 
+      // Esc: no se reanuda el generador. Si se le pasara el cancel, la rutina
+      // seguiría ejecutando con nil donde pedía un punto y acabaría fallando en
+      // un `entmake` con datos vacíos — el generador terminaría, settle()
+      // cerraría la ejecución y abandonActive() no tendría nada que abandonar.
+      // En su lugar se deja la ejecución viva para que abandonActive() la
+      // cierre cuando empiece la siguiente, registrando en el transcript que
+      // quedó a medias.
+      if (input.kind === "cancel") {
+        runtime.abandonActive();
+        return messageStep(state, "");
+      }
+
       // Refresco de previsualización: el motor llama con un texto vacío para
       // recalcular el rubber-band sin avanzar. Un generador no se rebobina, así
       // que se devuelve el paso tal cual.
