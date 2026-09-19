@@ -275,6 +275,8 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   ROOF: "Cubierta a cuatro, dos o un agua sobre un rectángulo: pendiente, alero, planta y sólido.",
   ROTATE: "Gira la selección alrededor de un punto base.",
   RSCRIPT: "Repite el guion (.scr) en curso.",
+  REVSURF: "Superficie de revolución: gira un perfil alrededor de un eje.",
+  EDGESURF: "Superficie de borde: parche de Coons entre cuatro curvas.",
   RULESURF: "Crea una superficie reglada entre dos curvas.",
   SCALE: "Escala la selección desde un punto base.",
   SCRIPT: "Ejecuta un guion .scr de órdenes.",

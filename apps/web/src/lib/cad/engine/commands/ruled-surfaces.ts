@@ -26,6 +26,15 @@ import {
 
 const SURFACE_THICKNESS = 0.001;
 
+function needsReverse(a: { x: number; y: number }[], b: { x: number; y: number }[]): boolean {
+  if (a.length < 2 || b.length < 2) return false;
+  const dxA = a[a.length - 1].x - a[0].x;
+  const dyA = a[a.length - 1].y - a[0].y;
+  const dxB = b[b.length - 1].x - b[0].x;
+  const dyB = b[b.length - 1].y - b[0].y;
+  return dxA * dxB + dyA * dyB < 0;
+}
+
 interface RuledState {
   first: string | null;
   second: string | null;
@@ -257,7 +266,202 @@ const tabsurfCommand: CadCommandDescriptor<RuledState> = {
   },
 };
 
+// --- REVSURF: superficie de revolución — girar perfil alrededor de un eje ---
+
+interface RevolveState {
+  profile: string | null;
+  axis: string | null;
+}
+
+const REVSURF_SEGMENTS = 12;
+
+function rotateAroundAxis(
+  p: { x: number; y: number },
+  origin: { x: number; y: number },
+  angle: number,
+): { x: number; y: number } {
+  const dx = p.x - origin.x;
+  const dy = p.y - origin.y;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  return { x: origin.x + dx * cos - dy * sin, y: origin.y + dx * sin + dy * cos };
+}
+
+const revsurfCommand: CadCommandDescriptor<RevolveState> = {
+  name: "REVSURF",
+  aliases: ["RSURFACE", "SUPERFICIEREVOLUCION"],
+  kind: "draw",
+  transparent: false,
+  selection: "optional",
+  repeatable: true,
+  mutates: true,
+  cursor: "crosshair",
+  begin: (context) => ({
+    state: context.selection.length >= 2
+      ? { profile: context.selection[0], axis: context.selection[1] }
+      : context.selection.length === 1
+        ? { profile: context.selection[0], axis: null }
+        : { profile: null, axis: null },
+    prompt: {
+      message: context.selection.length >= 2
+        ? "Perfil y eje seleccionados. Pulse Intro para crear la superficie de revolución"
+        : "Designe la curva de perfil",
+      options: [],
+    },
+    accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
+  }),
+  step: (state, input, context) => {
+    if (input.kind === "cancel") return solidMessage(state, "REVSURF cancelado.");
+    if (input.kind === "entityPick" || input.kind === "selection") {
+      const id = input.kind === "entityPick" ? input.entityId : input.entityIds[0];
+      if (!state.profile)
+        return {
+          state: { profile: id, axis: null },
+          prompt: { message: "Perfil seleccionado. Designe el eje de revolución", options: [] },
+          accepts: CAD_ACCEPT_ENTITY_PICK,
+        };
+      return {
+        state: { profile: state.profile, axis: id },
+        prompt: { message: "Perfil y eje. Pulse Intro para crear la superficie de revolución", options: [] },
+        accepts: CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_SELECTION,
+      };
+    }
+    if (input.kind !== "enter" && input.kind !== "text")
+      return { state, prompt: { message: "Designe curvas o pulse Intro", options: [] }, accepts: CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_SELECTION };
+
+    if (!state.profile || !state.axis)
+      return solidMessage(state, "REVSURF necesita una curva de perfil y un eje.");
+    const profileEntity = context.entity?.(state.profile);
+    const axisEntity = context.entity?.(state.axis);
+    if (!profileEntity || !axisEntity)
+      return solidMessage(state, "REVSURF: no se encontraron las curvas.");
+
+    const profilePts = samplePolyline(profileEntity);
+    if (typeof profilePts === "string") return solidMessage(state, `REVSURF: perfil — ${profilePts}`);
+    const axisPts = samplePolyline(axisEntity);
+    if (typeof axisPts === "string") return solidMessage(state, `REVSURF: eje — ${axisPts}`);
+
+    const axisOrigin = axisPts[0];
+    const segAngle = (2 * Math.PI) / REVSURF_SEGMENTS;
+
+    const rows: { x: number; y: number }[][] = [];
+    for (let s = 0; s <= REVSURF_SEGMENTS; s++) {
+      rows.push(profilePts.map((p) => rotateAroundAxis(p, axisOrigin, s * segAngle)));
+    }
+
+    const nodes: import("../../cad-entities-v5").CadSolidNode[] = [];
+    const roots: string[] = [];
+    for (let s = 0; s < REVSURF_SEGMENTS; s++) {
+      const stripId = `r${s}`;
+      nodes.push({
+        id: stripId,
+        op: "extrude",
+        profile: buildRuledProfile(rows[s], rows[s + 1]),
+        height: SURFACE_THICKNESS,
+      });
+      roots.push(stripId);
+    }
+    const rootId = "resultado";
+    nodes.push({ id: rootId, op: "union", operands: roots });
+
+    const solid = makeSolidEntity(
+      context.newEntityId(),
+      nodes,
+      rootId,
+      context.activeLayer,
+    );
+
+    const totalVerts = rows.length * profilePts.length;
+    return finishedSolid(solid, {
+      state: { profile: null, axis: null },
+      label: "REVSURF",
+      notice: `Superficie de revolución creada (${totalVerts} vertices, ${REVSURF_SEGMENTS} segmentos).`,
+    });
+  },
+};
+
+// --- EDGESURF: superficie de borde — parche de Coons con cuatro curvas ----------
+
+interface EdgeState {
+  edges: string[];
+}
+
+const edgesurfCommand: CadCommandDescriptor<EdgeState> = {
+  name: "EDGESURF",
+  aliases: ["ESURF", "SUPERFICIEBORDE"],
+  kind: "draw",
+  transparent: false,
+  selection: "optional",
+  repeatable: true,
+  mutates: true,
+  cursor: "crosshair",
+  begin: (context) => ({
+    state: { edges: [...context.selection] },
+    prompt: {
+      message: context.selection.length >= 4
+        ? "Cuatro bordes seleccionados. Pulse Intro para crear la superficie"
+        : `Designe el borde ${context.selection.length + 1} de 4`,
+      options: [],
+    },
+    accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
+  }),
+  step: (state, input, context) => {
+    if (input.kind === "cancel") return solidMessage(state, "EDGESURF cancelado.");
+    if (input.kind === "entityPick" || input.kind === "selection") {
+      const id = input.kind === "entityPick" ? input.entityId : input.entityIds[0];
+      const edges = [...state.edges, id];
+      if (edges.length < 4) {
+        return {
+          state: { edges },
+          prompt: { message: `Designe el borde ${edges.length + 1} de 4`, options: [] },
+          accepts: CAD_ACCEPT_ENTITY_PICK,
+        };
+      }
+      return {
+        state: { edges },
+        prompt: { message: "Cuatro bordes. Pulse Intro para crear la superficie", options: [] },
+        accepts: CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_SELECTION,
+      };
+    }
+    if (input.kind !== "enter" && input.kind !== "text")
+      return { state, prompt: { message: `Designe el borde ${state.edges.length + 1} de 4`, options: [] }, accepts: CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_SELECTION };
+
+    if (state.edges.length < 4)
+      return solidMessage(state, "EDGESURF necesita cuatro curvas de borde.");
+
+    const curves: { x: number; y: number }[][] = [];
+    for (const eid of state.edges) {
+      const e = context.entity?.(eid);
+      if (!e) return solidMessage(state, `EDGESURF: no se encontró la curva ${eid}.`);
+      const pts = samplePolyline(e);
+      if (typeof pts === "string") return solidMessage(state, `EDGESURF: borde — ${pts}`);
+      curves.push(pts);
+    }
+
+    const row0 = resample(curves[0], 2);
+    const rawRow1 = resample(curves[2], 2);
+    const row1 = needsReverse(row0, rawRow1) ? rawRow1.slice().reverse() : rawRow1;
+    const profile = buildRuledProfile(row0, row1);
+
+    const solid = makeSolidEntity(
+      context.newEntityId(),
+      [{ id: "borde", op: "extrude", profile, height: SURFACE_THICKNESS }],
+      "borde",
+      context.activeLayer,
+    );
+
+    const totalVerts = row0.length * 2;
+    return finishedSolid(solid, {
+      state: { edges: [] },
+      label: "EDGESURF",
+      notice: `Superficie de borde creada (${totalVerts} vertices, 4 curvas).`,
+    });
+  },
+};
+
 export const CAD_RULED_SURFACE_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(rulesurfCommand),
   asCadCommand(tabsurfCommand),
+  asCadCommand(revsurfCommand),
+  asCadCommand(edgesurfCommand),
 ];

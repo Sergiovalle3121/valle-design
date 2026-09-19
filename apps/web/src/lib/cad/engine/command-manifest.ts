@@ -1,5 +1,5 @@
 /**
- * METADATOS de los 350 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 352 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
  * 124 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
@@ -267,6 +267,8 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "MATERIALMAP", aliases: ["MMAP", "MAPEARMATERIAL"], kind: "manage", transparent: false, selection: "required", repeatable: false, mutates: false, cursor: "none", module: "commands/render-commands" },
   { name: "RULESURF", aliases: ["RSURF", "SUPERFICIEREGLADA"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/ruled-surfaces" },
   { name: "TABSURF", aliases: ["TSURF", "SUPERFICIETABULADA"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/ruled-surfaces" },
+  { name: "REVSURF", aliases: ["RSURFACE", "SUPERFICIEREVOLUCION"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/ruled-surfaces" },
+  { name: "EDGESURF", aliases: ["ESURF", "SUPERFICIEBORDE"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/ruled-surfaces" },
   { name: "QSELECT", aliases: [], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "none", module: "commands/select-query" },
   { name: "FILTER", aliases: ["FI"], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "none", module: "commands/select-query" },
   { name: "SELECTSIMILAR", aliases: [], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "pick", module: "commands/select-similar" },

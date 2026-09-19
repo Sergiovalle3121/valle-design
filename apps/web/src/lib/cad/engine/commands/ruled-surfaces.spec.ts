@@ -113,4 +113,61 @@ function runCommand(name: string, d: CadDocument, inputs: readonly CadCommandInp
   }
 }
 
+// --- REVSURF: revolución de línea alrededor de un eje --------------------------
+{
+  const profile: CadEntity = { id: "pr1", type: "line", start: { x: 100, y: 50, z: 0 }, end: { x: 200, y: 100, z: 0 }, layer };
+  const axis: CadEntity = { id: "ax1", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 0, y: 100, z: 0 }, layer };
+  const d = doc([profile, axis]);
+  const result = runCommand("REVSURF", d, [pick("pr1"), pick("ax1"), ENTER]);
+  ok(result?.kind === "document", "REVSURF produce documento");
+  if (result?.kind === "document") {
+    ok(result.commands.length >= 1, "al menos un comando");
+    const cmd = result.commands[0];
+    ok(cmd.type === "insert", "tipo insert");
+    if (cmd.type === "insert") {
+      const solid = cmd.entity as CadSolid3dEntity;
+      const props = solid3dMassProperties(solid);
+      ok(props.area > 0, `REVSURF area > 0 (tiene ${props.area.toFixed(2)})`);
+    }
+  }
+}
+
+// --- REVSURF cancelado -------------------------------------------------------
+{
+  const profile: CadEntity = { id: "pr1", type: "line", start: { x: 100, y: 0, z: 0 }, end: { x: 100, y: 50, z: 0 }, layer };
+  const d = doc([profile]);
+  const result = runCommand("REVSURF", d, [pick("pr1"), { kind: "cancel" }]);
+  ok(result?.kind === "message", "REVSURF cancel produce mensaje");
+}
+
+// --- EDGESURF: parche entre cuatro líneas ------------------------------------
+{
+  const e1: CadEntity = { id: "e1", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 1000, y: 0, z: 0 }, layer };
+  const e2: CadEntity = { id: "e2", type: "line", start: { x: 1000, y: 0, z: 0 }, end: { x: 1000, y: 500, z: 0 }, layer };
+  const e3: CadEntity = { id: "e3", type: "line", start: { x: 1000, y: 500, z: 0 }, end: { x: 0, y: 500, z: 0 }, layer };
+  const e4: CadEntity = { id: "e4", type: "line", start: { x: 0, y: 500, z: 0 }, end: { x: 0, y: 0, z: 0 }, layer };
+  const d = doc([e1, e2, e3, e4]);
+  const result = runCommand("EDGESURF", d, [pick("e1"), pick("e2"), pick("e3"), pick("e4"), ENTER]);
+  ok(result?.kind === "document", "EDGESURF produce documento");
+  if (result?.kind === "document") {
+    ok(result.commands.length >= 1, "al menos un comando");
+    const cmd = result.commands[0];
+    ok(cmd.type === "insert", "tipo insert");
+    if (cmd.type === "insert") {
+      const solid = cmd.entity as CadSolid3dEntity;
+      const props = solid3dMassProperties(solid);
+      ok(props.area > 0, `EDGESURF area > 0 (tiene ${props.area.toFixed(2)})`);
+      ok(props.area > 200000, `EDGESURF area > 200000 (rectángulo de 1000x500)`);
+    }
+  }
+}
+
+// --- EDGESURF: menos de cuatro curvas ---------------------------------------
+{
+  const e1: CadEntity = { id: "e1", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 100, y: 0, z: 0 }, layer };
+  const d = doc([e1]);
+  const result = runCommand("EDGESURF", d, [pick("e1"), ENTER]);
+  ok(result?.kind === "message", "EDGESURF con menos de 4 curvas produce mensaje");
+}
+
 console.log(`ruled-surfaces: ${checks} comprobaciones OK`);
