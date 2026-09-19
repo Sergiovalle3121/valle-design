@@ -131,9 +131,9 @@ const cancel: CadCommandInput = { kind: "cancel" };
   const desc = CAD_COMMAND_REGISTRY_V2.get("CAMERA")!;
   let step = desc.begin(dummyContext);
   assert.ok(step.prompt.message.includes("cámara"), "CAMERA: prompt menciona cámara");
-  step = desc.step(step.state, { kind: "point", point: { x: 0, y: 0, z: 0 } }, dummyContext);
+  step = desc.step(step.state, { kind: "point", point: { x: 0, y: 0 }, source: "typed" }, dummyContext);
   assert.ok(step.prompt.message.includes("objetivo"), "CAMERA: segundo paso pide objetivo");
-  step = desc.step(step.state, { kind: "point", point: { x: 10, y: 0, z: 0 } }, dummyContext);
+  step = desc.step(step.state, { kind: "point", point: { x: 10, y: 0 }, source: "typed" }, dummyContext);
   assert.ok(
     step.result?.kind === "message" && step.result.text.includes("10.00"),
     `CAMERA calcula distancia: ${step.result?.kind === "message" ? step.result.text : ""}`,
