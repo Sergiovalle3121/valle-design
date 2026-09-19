@@ -148,7 +148,24 @@ export function parseCoordinate(
   }
 
   if (body.includes(",")) {
-    const [xStr, yStr, zStr, ...rest] = body.split(",");
+    const parts = body.split(",");
+    const [xStr, yStr, zStr, ...rest] = parts;
+    // PRECISION-1: un dibujante mexicano teclea `4,325` esperando 4.325 mm y
+    // obtiene el punto (4, 325). Si la segunda parte parece una fracción
+    // decimal (≥3 dígitos, sin punto propio, y la primera tampoco lo tiene),
+    // rechazar con un mensaje que explique la convención.
+    if (
+      parts.length === 2 &&
+      yStr !== undefined &&
+      /^\d+$/u.test(xStr.trim()) &&
+      /^\d{3,}$/u.test(yStr.trim()) &&
+      !xStr.includes(".")
+    ) {
+      return {
+        ok: false,
+        error: `La coma separa coordenadas, no decimales. Si quiso decir ${xStr.trim()}.${yStr.trim()}, use punto: ${xStr.trim()}.${yStr.trim()}. Si quiso las coordenadas (${xStr.trim()}, ${yStr.trim()}), añada un espacio o una coma corta: ${xStr.trim()},${yStr.trim().slice(0, 2)}…`,
+      };
+    }
     const x = num(xStr, ctx);
     const y = num(yStr, ctx);
     // La tercera componente es la COTA (Ola C, 2026-09-02): `0,0,3000` es el

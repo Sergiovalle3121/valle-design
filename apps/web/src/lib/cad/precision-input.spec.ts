@@ -139,6 +139,24 @@ ok(!parseCoordinate("1,2,3,4").ok, "cuatro componentes se rechazan");
   ok(!c.snapped, "sin restricción no ajusta");
 }
 
+// ── PRECISION-1: coma como decimal (es-MX) ──
+{
+  const r = parseCoordinate("4,325");
+  ok(!r.ok && !r.ok && r.error.includes("La coma separa coordenadas"), "PRECISION-1: 4,325 rechazado con mensaje claro");
+}
+{
+  const r = parseCoordinate("4,325.5");
+  ok(r.ok && r.mode === "absolute" && nearP(r.point, 4, 325.5), "4,325.5 sigue siendo coordenada (la coma separa)");
+}
+{
+  const r = parseCoordinate("10,20");
+  ok(r.ok && nearP(r.point, 10, 20), "10,20 sigue siendo coordenada (segunda parte <3 dígitos)");
+}
+{
+  const r = parseCoordinate("@4,325", { last: { x: 0, y: 0 } });
+  ok(!r.ok && r.error.includes("La coma separa coordenadas"), "PRECISION-1: @4,325 relativo también rechazado");
+}
+
 if (fails.length) {
   console.log(`❌ ${passed}/${passed + fails.length}`);
   for (const f of fails) console.log("  - " + f);
