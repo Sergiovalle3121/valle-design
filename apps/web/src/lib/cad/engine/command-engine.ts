@@ -393,6 +393,15 @@ export function cadCommandEngineReduce(
     };
 
   if (action.input.kind === "cancel") {
+    // T15: pass cancel to the command's step function first so it can
+    // preserve accumulated work (copies, trims, offsets, property changes).
+    try {
+      const step = descriptor.step(active.step.state as never, action.input, context) as CadCommandStep<unknown>;
+      if (step.result)
+        return finish({ ...state, active: { ...active, step } }, descriptor, step, registry, context);
+    } catch {
+      // step threw on cancel — drop the command cleanly
+    }
     const resumed = resume({ ...state, active: null }, registry);
     return {
       state: resumed.state,

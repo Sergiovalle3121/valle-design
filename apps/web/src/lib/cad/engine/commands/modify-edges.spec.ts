@@ -274,6 +274,20 @@ const pickAt = (entityId: string, x: number, y: number): CadCommandInput => ({
   assert.equal(step.result.commands.length, 2, "h y low, cada una recortada, en UN solo lote");
 }
 
+// --- T15: Esc conserva trims acumulados ----------------------------------------
+{
+  const cancel: CadCommandInput = { kind: "cancel" };
+  // Borde: vertical en x=500. Recortar h en x=100 y luego en x=900, después Esc.
+  const result = run("TRIM", [
+    pickAt("v", 500, 100), enter,  // borde
+    pickAt("h", 100, 100),         // primer trim
+    pickAt("h", 900, 100),         // segundo trim
+    cancel,                         // Esc
+  ]);
+  assert.ok(result && result.kind === "document", "TRIM: Esc después de 2 recortes produce lote");
+  assert.equal(result.commands.length, 2, "TRIM: los 2 recortes se conservan");
+}
+
 console.log(
   `modificación de bordes: ${CAD_MODIFY_EDGE_COMMANDS.map((command) => command.name).join(", ")} ` +
     `verificados sobre línea, círculo y arco`,

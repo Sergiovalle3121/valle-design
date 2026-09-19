@@ -257,7 +257,8 @@ function edgeCommand(
     begin: () => edgeStep(EMPTY, operation),
     step: (state, input, context) => {
       if (input.kind === "cancel")
-        return edgeFinish({ ...state, commands: [], fence: null }, operation);
+        // T15: preserve accumulated trims/extends on Esc
+        return edgeFinish({ ...state, fence: null }, operation);
 
       // `Valla` a medio reunir (T-23): sus puntos y su Intro son SUYOS, no
       // del comando — se resuelven ANTES de que el Intro genérico de abajo

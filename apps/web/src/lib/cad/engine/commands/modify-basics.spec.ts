@@ -392,4 +392,68 @@ assert.equal(
   assert.equal(runs[0].commands.length, 2, "Todo designa las dos entidades del documento");
 }
 
+// --- T15: Esc conserva trabajo acumulado en COPY --------------------------------
+{
+  // COPY con 2 destinos + Esc: las 2 copias se quedan
+  const cancel: CadCommandAction = { kind: "input", input: { kind: "cancel" } };
+  const { effects } = run([
+    { kind: "invoke", command: "COPY" },
+    { kind: "input", input: { kind: "selection", entityIds: ["line-1"] } },
+    point(0, 0),    // base
+    point(100, 0),  // destino 1
+    point(200, 0),  // destino 2
+    cancel,
+  ]);
+  const runs = executed(effects);
+  assert.equal(runs.length, 1, "COPY: Esc después de 2 destinos produce lote");
+  assert.equal(runs[0].commands.length, 2, "COPY: las 2 copias se conservan");
+  assert.equal(runs[0].label, "COPY");
+}
+{
+  // MOVE sin trabajo acumulado + Esc: nada que aplicar
+  const { effects } = run([
+    { kind: "invoke", command: "MOVE" },
+    { kind: "input", input: { kind: "selection", entityIds: ["line-1"] } },
+    point(0, 0),
+    { kind: "input", input: { kind: "cancel" } },
+  ]);
+  const runs = executed(effects);
+  assert.equal(runs.length, 0, "MOVE: Esc sin destino no produce lote");
+}
+
+// --- T15: Esc conserva trabajo acumulado en OFFSET ------------------------------
+{
+  const entitiesWithLine2 = new Map<string, CadEntity>([
+    ...entities,
+    ["line-2", { id: "line-2", type: "line", start: { x: 0, y: 50, z: 0 }, end: { x: 100, y: 50, z: 0 }, layer: "0" }],
+  ]);
+  const offsetCtx = (selection: readonly string[] = [], cursor?: { x: number; y: number }): CadCommandContext => ({
+    entityIds: [...entitiesWithLine2.keys()],
+    entity: (id) => entitiesWithLine2.get(id),
+    selection,
+    activeLayer: "0",
+    view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+    cursor,
+    newEntityId: () => `n${++nextId}`,
+  });
+  let offsetState = EMPTY_CAD_COMMAND_ENGINE;
+  const offsetEffects: CadCommandEffect[] = [];
+  const offsetRun = (action: CadCommandAction) => {
+    const r = cadCommandEngineReduce(offsetState, action, offsetCtx(), registry);
+    offsetState = r.state;
+    offsetEffects.push(...r.effects);
+  };
+  offsetRun({ kind: "invoke", command: "OFFSET" });
+  offsetRun({ kind: "input", input: { kind: "distance", value: 10 } });
+  offsetRun({ kind: "input", input: { kind: "entityPick", entityId: "line-1", point: { x: 50, y: 0 } } });
+  offsetRun(point(0, 10)); // lado = offset hacia arriba
+  offsetRun({ kind: "input", input: { kind: "entityPick", entityId: "line-2", point: { x: 50, y: 50 } } });
+  offsetRun(point(0, 60));
+  offsetRun({ kind: "input", input: { kind: "cancel" } });
+  const offsetRuns = offsetEffects.filter((e): e is Extract<CadCommandEffect, { kind: "execute" }> => e.kind === "execute");
+  assert.ok(offsetRuns.length >= 1, "OFFSET: Esc produce lote");
+  const offsetCommands = offsetRuns.flatMap((r) => r.commands);
+  assert.equal(offsetCommands.length, 2, "OFFSET: los 2 desfases se conservan");
+}
+
 console.log("cad modify command specs passed");

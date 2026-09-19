@@ -241,6 +241,9 @@ function makeDisplace(
           result: { kind: "message", text: `${name} cancelado: por encima del límite, hacía falta confirmar.` },
         };
       }
+      // T15: Esc conserva lo ya hecho (copias previas, desfases previos)
+      if (input.kind === "cancel")
+        return displaceResult(state, name);
       // Sólo mientras aún no hay punto base: una vez que MOVE/COPY empezó a
       // pedir puntos de destino, «Ventana»/«Borrar»/etc ya no tienen prompt
       // donde vivir — el paso pertenece al desplazamiento, no a la designación.
@@ -387,6 +390,17 @@ const offsetCommand: CadCommandDescriptor<OffsetState> = {
   cursor: "pick",
   begin: () => offsetStep({ distance: null, commands: [], pendingTarget: null }),
   step: (state, input, context) => {
+    // T15: Esc conserva desfases ya hechos
+    if (input.kind === "cancel")
+      return {
+        state,
+        prompt: { message: "", options: [] },
+        accepts: 0,
+        result:
+          state.commands.length > 0
+            ? { kind: "document", commands: state.commands, label: "OFFSET" }
+            : { kind: "none" },
+      };
     if (input.kind === "enter")
       return {
         state,
