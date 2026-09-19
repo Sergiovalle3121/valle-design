@@ -144,9 +144,40 @@ function fakeFloating(natural: { width: number; height: number }, inside: readon
   ok(at.left === "0px" && at.top === "0px" && at.maxWidth === "" && at.maxHeight === "", "mide su tamaño natural: en la esquina y sin los topes de la vez anterior");
   ok(floating.style.position === "fixed", "position: fixed (en un portal a <body>, fuera de la tira que lo recortaba)");
   ok(floating.style.left === `${p.left}px` && floating.style.top === "153px", `queda donde dice la geometría (${floating.style.left}, ${floating.style.top})`);
-  ok(floating.style.maxWidth === "1350px" && floating.style.maxHeight === "607px", "con los topes de la ventana");
+  ok(floating.style.maxHeight === "607px", "con el tope de alto de la ventana");
+  ok(floating.style.maxWidth === "", "cabe a lo ancho: no se le escribe tope de ancho (el suyo, si lo tiene, sigue mandando)");
   ok(floating.style.visibility === "visible", "nace invisible y se enseña ya colocado");
   ok(floating.dataset.side === "bottom", "declara hacia dónde se abrió");
+}
+{
+  const floating = fakeFloating({ width: 2000, height: 187 });
+  positionCadRibbonFloating(floating, { getBoundingClientRect: () => MODIFICAR }, { innerWidth: 1366, innerHeight: 768 });
+  ok(floating.style.maxWidth === "1350px" && floating.style.left === "8px", "más ancho que la ventana: tope de ancho de la ventana, y se desplaza por dentro");
+}
+
+// ── 5b · La etiqueta de ayuda conserva su propio ancho ─────────────────────
+// La tarjeta es `w-max max-w-56`: la descripción se parte en líneas a 224 px.
+// Un `max-width` escrito en línea GANA a la clase, así que escribirle el tope
+// de la ventana la estiraba a una sola línea de hasta 1350 px, más ancha que
+// lo que se había medido y colocado: se salía por la derecha. Medido en un
+// navegador con la de SOLIDEDIT (109 caracteres): 245 px medidos, 528 pintados.
+{
+  /** Una tarjeta que se pinta como en CSS: `width: max-content`, con el `max-width` en línea o, si no hay, el de su clase. */
+  const tarjeta = (maxContent: number, claseMaxWidth: number, alto: number) => {
+    const floating = fakeFloating({ width: 0, height: alto });
+    floating.getBoundingClientRect = () => {
+      const tope = floating.style.maxWidth === "" ? claseMaxWidth : Number.parseFloat(floating.style.maxWidth);
+      return { width: Math.min(maxContent, tope), height: alto };
+    };
+    return floating;
+  };
+  // SOLIDEDIT: 528 px en una línea; 246 con el tope de su clase (224 + padding y borde).
+  const cerca = rect(1290, 76, 1358, 136);
+  const tip = tarjeta(528, 246, 90);
+  const p = positionCadRibbonFloating(tip, { getBoundingClientRect: () => cerca }, { innerWidth: 1366, innerHeight: 768 }, { align: "center", gap: 8 });
+  const pintada = tip.getBoundingClientRect().width;
+  ok(pintada === 246, `la etiqueta se pinta con el ancho que se midió y colocó (${pintada} px; con el tope de la ventana en línea, 528)`);
+  ok(p.left + pintada <= 1366 - CAD_RIBBON_FLOATING_MARGIN, `y no se sale por la derecha (borde en ${p.left + pintada})`);
 }
 
 {

@@ -148,8 +148,8 @@ export interface CadRibbonFloatingView {
 /**
  * Coloca `floating` junto a `anchor`, dentro de `view`. Primero lo lleva a
  * (0,0) y le quita los topes para medir su tamaño natural (en la misma tarea,
- * sin pintar entre medias: no parpadea); luego escribe la posición, los topes
- * y lo hace visible. Nace con `invisible` para que el primer cuadro, aún sin
+ * sin pintar entre medias: no parpadea); luego escribe la posición, el tope de
+ * alto (el de ancho, sólo si no cabe) y lo hace visible. Nace con `invisible` para que el primer cuadro, aún sin
  * colocar, no se vea en la esquina.
  */
 export function positionCadRibbonFloating(
@@ -165,15 +165,20 @@ export function positionCadRibbonFloating(
   style.maxWidth = "";
   style.maxHeight = "";
   const natural = floating.getBoundingClientRect();
+  const size = { width: Math.ceil(natural.width), height: Math.ceil(natural.height) };
   const placement = placeCadRibbonFloating(
     anchor.getBoundingClientRect(),
-    { width: Math.ceil(natural.width), height: Math.ceil(natural.height) },
+    size,
     { width: view.innerWidth, height: view.innerHeight },
     options,
   );
   style.left = `${placement.left}px`;
   style.top = `${placement.top}px`;
-  style.maxWidth = `${placement.maxWidth}px`;
+  // El tope de ancho SÓLO si no cabe: un `max-width` en línea gana a la
+  // clase, y la etiqueta de ayuda tiene el suyo (`max-w-56`) para partir la
+  // descripción en líneas. Con el de la ventana encima se estiraba a una
+  // sola línea más ancha que lo medido y colocado, y se salía por la derecha.
+  style.maxWidth = size.width > placement.maxWidth ? `${placement.maxWidth}px` : "";
   style.maxHeight = `${placement.maxHeight}px`;
   style.visibility = "visible";
   floating.dataset.side = placement.side;
