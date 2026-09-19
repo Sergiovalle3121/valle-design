@@ -1,5 +1,5 @@
 /**
- * METADATOS de los 348 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 350 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
  * 124 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
@@ -281,6 +281,7 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "LAYMCH", aliases: [], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/settings-layer-tools" },
   { name: "LAYWALK", aliases: [], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "none", module: "commands/settings-layer-tools" },
   { name: "LAYMRG", aliases: [], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: true, cursor: "none", module: "commands/settings-layer-tools" },
+  { name: "LAYCUR", aliases: ["LC"], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: false, cursor: "pick", module: "commands/settings-layer-tools" },
   { name: "NORMAMX", aliases: ["CAPASMX"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: true, cursor: "none", module: "commands/settings-mexican-standard" },
   { name: "LAYER", aliases: ["LA", "DDLMODES"], kind: "manage", transparent: true, selection: "optional", repeatable: false, mutates: false, cursor: "none", module: "commands/settings-palettes" },
   { name: "PROPERTIES", aliases: ["CH", "MO", "PR", "DDMODIFY"], kind: "manage", transparent: true, selection: "optional", repeatable: false, mutates: false, cursor: "none", module: "commands/settings-palettes" },
@@ -364,6 +365,7 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "VIEW", aliases: ["V"], kind: "view", transparent: true, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/view-navigation" },
   { name: "REGEN", aliases: ["RE", "REGEN3D"], kind: "view", transparent: false, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-navigation" },
   { name: "REGENALL", aliases: ["REA"], kind: "view", transparent: false, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-navigation" },
+  { name: "REDRAW", aliases: ["RD", "REDIBUJAR"], kind: "view", transparent: false, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-navigation" },
   { name: "3DORBIT", aliases: ["3DO", "ORBIT"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-navigation-3d" },
   { name: "3DFORBIT", aliases: ["3DF", "FORBIT"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-navigation-3d" },
   { name: "3DPAN", aliases: ["3DP"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "crosshair", module: "commands/view-navigation-3d" },
