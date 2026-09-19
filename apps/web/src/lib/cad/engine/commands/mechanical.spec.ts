@@ -405,19 +405,19 @@ const toleranceOf = (commands: readonly { type: string }[], index = 0) => {
   eq(fitted.commands.length, 2, "dos reemplazos: la línea no es cota");
   const d1 = toleranceOf(fitted.commands, 0);
   eq(d1.tolerance, { mode: "deviation", upper: 0.025, lower: 0, decimals: 3, fit: "H7" }, "40H7 = +0.025/0");
-  eq(d1.label, "40.00 +0.025/0 mm", "…y la cota lo rotula");
+  eq(d1.label, "40.00 +0.025/0", "…y la cota lo rotula");
   const d2 = toleranceOf(fitted.commands, 1);
   eq(d2.tolerance?.upper, 0.021, "25H7 = +0.021/0: cada cota con SU nominal");
   eq(d2.entity.context?.metadata?.sourceType, "DIMENSION", "las demás claves del bolsillo se conservan");
-  eq(fitted.notice, "DIMTOLERANCE: 2 cota(s) con el ajuste H7; la primera rotula «40.00 +0.025/0 mm».", "el aviso");
+  eq(fitted.notice, "DIMTOLERANCE: 2 cota(s) con el ajuste H7; la primera rotula «40.00 +0.025/0».", "el aviso");
 
   const symmetric = written(drive("DIMTOLERANCE", [enter, distance(0.05)], context), "DIMTOLERANCE");
-  eq(toleranceOf(symmetric.commands).label, "40.00 ±0.05 mm", "Intro = simétrica; ±0,05 con sus dos decimales");
+  eq(toleranceOf(symmetric.commands).label, "40.00 ±0.05", "Intro = simétrica; ±0,05 con sus dos decimales");
   const deviation = written(drive("DIMTOLERANCE", [keyword("Desviación"), text("+0.05"), text("−0.01")], context), "DIMTOLERANCE");
-  eq(toleranceOf(deviation.commands).label, "40.00 +0.05/−0.01 mm", "desviaciones con signo");
-  eq(deviation.notice, "DIMTOLERANCE: 2 cota(s) por desviaciones +0.05/-0.01; la primera rotula «40.00 +0.05/−0.01 mm».", "el aviso de las desviaciones");
+  eq(toleranceOf(deviation.commands).label, "40.00 +0.05/−0.01", "desviaciones con signo");
+  eq(deviation.notice, "DIMTOLERANCE: 2 cota(s) por desviaciones +0.05/-0.01; la primera rotula «40.00 +0.05/−0.01».", "el aviso de las desviaciones");
   const limits = written(drive("DIMTOLERANCE", [keyword("Límites"), distance(0.05), text("-0.01")], context), "DIMTOLERANCE");
-  eq(toleranceOf(limits.commands).label, "40.05 / 39.99 mm", "límites: máximo y mínimo");
+  eq(toleranceOf(limits.commands).label, "40.05 / 39.99", "límites: máximo y mínimo");
   const removed = written(drive("DIMTOLERANCE", [keyword("Quitar")], makeContext({ entities: [d1.entity], selection: ["d1"] })), "DIMTOLERANCE");
   eq([toleranceOf(removed.commands).tolerance, toleranceOf(removed.commands).entity.context], [null, {}], "Quitar borra las claves (y el bolsillo queda vacío)");
   const fitPreserves = written(drive("DIMTOLERANCE", [keyword("Ajuste"), enter], makeContext({ entities: [d1.entity], selection: ["d1"] })), "DIMTOLERANCE");
@@ -432,7 +432,7 @@ const toleranceOf = (commands: readonly { type: string }[], index = 0) => {
   eq(unselected.prompts[0], "Designe las cotas", "sin designación previa, la pide");
   ok(messageOf(unselected).includes("no contiene cotas"), "una designación sin cotas se niega");
   const picked = written(drive("DIMTOLERANCE", [pick("d1"), enter, distance(0.1)], makeContext({ entities: [dimension("d1", 40)] })), "DIMTOLERANCE");
-  eq(toleranceOf(picked.commands).label, "40.00 ±0.1 mm", "designar una cota con el ratón vale");
+  eq(toleranceOf(picked.commands).label, "40.00 ±0.1", "designar una cota con el ratón vale");
   ok(messageOf(drive("DIMTOLERANCE", [enter], makeContext({ entities: [line] }))).includes("necesita cotas"), "Intro sin designar se niega");
 }
 
