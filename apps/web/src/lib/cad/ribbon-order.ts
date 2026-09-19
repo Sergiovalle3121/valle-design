@@ -151,7 +151,7 @@ export const CAD_RIBBON_PRIMARY: Readonly<Record<string, readonly string[]>> = {
   Gestionar: ["PARAMETERS"],
   // Vista.
   "Encuadre y zoom": ["PAN", "ZOOM"],
-  "Vistas 3D": ["3DORBIT"],
+  "Vistas 3D": ["3DORBIT", "3DWALK", "3DFLY", "3DSWIVEL", "CAMERA", "DVIEW", "VPOINT", "NAVVCUBE", "NAVBAR", "VISUALSTYLES"],
   "Estilos visuales": ["VSCURRENT"],
   SCU: ["UCS"],
   Ventanas: ["MSPACE", "MVIEW"],

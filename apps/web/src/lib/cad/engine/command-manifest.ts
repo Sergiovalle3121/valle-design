@@ -1,5 +1,5 @@
 /**
- * METADATOS de los 366 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 370 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
  * 125 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
@@ -393,6 +393,10 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "3DFLY", aliases: ["3F", "VOLAR3D"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-visualization" },
   { name: "3DSWIVEL", aliases: ["3SW", "GIRAR3D"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-visualization" },
   { name: "VISUALSTYLES", aliases: ["VST", "ESTILOVISUAL"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-visualization" },
+  { name: "CAMERA", aliases: ["CAMARA"], kind: "view", transparent: false, selection: "none", repeatable: true, mutates: false, cursor: "crosshair", module: "commands/view-visualization" },
+  { name: "DVIEW", aliases: ["VISTADIN"], kind: "view", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "crosshair", module: "commands/view-visualization" },
+  { name: "NAVVCUBE", aliases: ["CUBONAV"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-visualization" },
+  { name: "NAVBAR", aliases: ["BARRANAV"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/view-visualization" },
   { name: "VIEWBASE", aliases: ["VBASE", "VISTABASE"], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: true, spatial: true, cursor: "crosshair", module: "commands/viewbase-commands" },
   { name: "VIEWPROJ", aliases: ["VPRJ", "VISTAPROY"], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: true, spatial: true, cursor: "crosshair", module: "commands/viewbase-commands" },
   { name: "VIEWSECTION", aliases: ["VSECCION", "VISTACORTE"], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: true, spatial: true, cursor: "crosshair", module: "commands/viewbase-commands" },

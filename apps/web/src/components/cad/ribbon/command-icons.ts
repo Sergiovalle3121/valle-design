@@ -614,6 +614,10 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   "3DFLY": Wind,
   "3DSWIVEL": Rotate3d,
   VISUALSTYLES: Palette,
+  CAMERA: Eye,
+  DVIEW: View,
+  NAVVCUBE: Box,
+  NAVBAR: Compass,
   // Transformar 3D.
   "3DSCALE": Scaling,
   "3DALIGN": AlignLeft,

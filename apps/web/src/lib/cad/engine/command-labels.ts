@@ -90,6 +90,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   BREAKLINE: "Línea de rotura",
   BURST: "Estallar",
   CABLETRAY: "Charola",
+  CAMERA: "Cámara",
 
   CELTSCALE: "Escala objeto",
   CENTERLINE: "Eje de centro",
@@ -141,6 +142,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   DRAWORDER: "Orden de dibujo",
   DSETTINGS: "Ayudas dibujo",
   DUCT: "Ducto",
+  DVIEW: "Vista dinámica",
 
   DXFIN: "Importar DXF",
   DXFOUT: "Exportar DXF",
@@ -232,6 +234,8 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
 
   NCOPY: "Copiar anidado",
   NORMAMX: "Norma mexicana",
+  NAVBAR: "Barra de navegación",
+  NAVVCUBE: "Cubo de navegación",
   OFFSET: "Desfase",
   OPTIONS: "Opciones",
   OSNAP: "Referencias",

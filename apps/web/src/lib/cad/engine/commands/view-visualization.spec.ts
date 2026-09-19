@@ -118,4 +118,70 @@ const cancel: CadCommandInput = { kind: "cancel" };
   );
 }
 
-console.log("✅ view-visualization.spec: 3DWALK (3) + 3DFLY (3) + 3DSWIVEL (3) + VISUALSTYLES (4) — 13 comprobaciones");
+// --- CAMERA: registro --------------------------------------------------------
+{
+  assert.ok(CAD_COMMAND_REGISTRY_V2.get("CAMERA"), "CAMERA está en el registro");
+  assert.ok(CAD_COMMAND_REGISTRY_V2.get("DVIEW"), "DVIEW está en el registro");
+  assert.ok(CAD_COMMAND_REGISTRY_V2.get("NAVVCUBE"), "NAVVCUBE está en el registro");
+  assert.ok(CAD_COMMAND_REGISTRY_V2.get("NAVBAR"), "NAVBAR está en el registro");
+}
+
+// --- CAMERA: dos puntos producen distancia -----------------------------------
+{
+  const desc = CAD_COMMAND_REGISTRY_V2.get("CAMERA")!;
+  let step = desc.begin(dummyContext);
+  assert.ok(step.prompt.message.includes("cámara"), "CAMERA: prompt menciona cámara");
+  step = desc.step(step.state, { kind: "point", point: { x: 0, y: 0, z: 0 } }, dummyContext);
+  assert.ok(step.prompt.message.includes("objetivo"), "CAMERA: segundo paso pide objetivo");
+  step = desc.step(step.state, { kind: "point", point: { x: 10, y: 0, z: 0 } }, dummyContext);
+  assert.ok(
+    step.result?.kind === "message" && step.result.text.includes("10.00"),
+    `CAMERA calcula distancia: ${step.result?.kind === "message" ? step.result.text : ""}`,
+  );
+}
+
+// --- CAMERA: cancela ---------------------------------------------------------
+{
+  const desc = CAD_COMMAND_REGISTRY_V2.get("CAMERA")!;
+  let step = desc.begin(dummyContext);
+  step = desc.step(step.state, cancel, dummyContext);
+  assert.ok(step.result?.kind === "message" && step.result.text.includes("cancelado"), "CAMERA se cancela");
+}
+
+// --- DVIEW: registro y cancel ------------------------------------------------
+{
+  const desc = CAD_COMMAND_REGISTRY_V2.get("DVIEW")!;
+  let step = desc.begin(dummyContext);
+  assert.ok(step.prompt.message.includes("DVIEW"), "DVIEW: prompt menciona DVIEW");
+  step = desc.step(step.state, cancel, dummyContext);
+  assert.ok(step.result?.kind === "message" && step.result.text.includes("cancelado"), "DVIEW se cancela");
+}
+
+// --- DVIEW: acepta keyword de opción -----------------------------------------
+{
+  const desc = CAD_COMMAND_REGISTRY_V2.get("DVIEW")!;
+  let step = desc.begin(dummyContext);
+  step = desc.step(step.state, { kind: "enter" }, dummyContext);
+  assert.ok(step.prompt.options && step.prompt.options.length >= 3, "DVIEW: ofrece opciones");
+  step = desc.step(step.state, { kind: "keyword", keyword: "Puntos" }, dummyContext);
+  assert.ok(step.prompt.message.includes("cámara"), "DVIEW: Puntos pide posición de cámara");
+}
+
+// --- NAVVCUBE: declara límite ------------------------------------------------
+{
+  const desc = CAD_COMMAND_REGISTRY_V2.get("NAVVCUBE")!;
+  let step = desc.begin(dummyContext);
+  assert.ok(step.prompt.message.includes("navegación"), "NAVVCUBE: prompt menciona navegación");
+  step = desc.step(step.state, cancel, dummyContext);
+  assert.ok(step.result?.kind === "message" && step.result.text.includes("visor 3D"), "NAVVCUBE declara límite");
+}
+
+// --- NAVBAR: declara límite --------------------------------------------------
+{
+  const desc = CAD_COMMAND_REGISTRY_V2.get("NAVBAR")!;
+  let step = desc.begin(dummyContext);
+  step = desc.step(step.state, cancel, dummyContext);
+  assert.ok(step.result?.kind === "message" && step.result.text.includes("visor 3D"), "NAVBAR declara límite");
+}
+
+console.log("✅ view-visualization.spec: 3DWALK (3) + 3DFLY (3) + 3DSWIVEL (3) + VISUALSTYLES (4) + CAMERA (4) + DVIEW (4) + NAVVCUBE (2) + NAVBAR (2) — 25 comprobaciones");
