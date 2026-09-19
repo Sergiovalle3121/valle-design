@@ -11087,6 +11087,12 @@ export default function Layout3DEditor({
   const toggleCadLayerVisibility = (id: CadLayerId) => {
     const layer = cadLayers.find((candidate) => candidate.id === id);
     if (!layer) return;
+    if (layer.visible && id === activeCadLayer) {
+      toast.error(
+        "Estás ocultando la capa activa. Lo que dibujes será invisible hasta que la muestres de nuevo.",
+        "Capas",
+      );
+    }
     commitBlockMutation(
       (document) =>
         updateCadDocumentLayer(document, id, { visible: !layer.visible }),
@@ -11139,7 +11145,6 @@ export default function Layout3DEditor({
         "Capas",
       );
       if (created) {
-        setActiveCadLayer(id);
         layerManagerHost.setDraftName("");
       }
     } catch (cause) {
