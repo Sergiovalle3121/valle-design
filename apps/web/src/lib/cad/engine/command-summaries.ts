@@ -220,7 +220,7 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   MVIEW: "Crea ventanas gráficas en la presentación.",
   NCOPY: "Copia una entidad de dentro de un bloque sin explotarlo.",
   NORMAMX: "Aplica la norma de dibujo mexicana al dibujo actual.",
-  NAVBAR: "Aún no disponible: VALLECAD todavía no tiene barra de navegación.",
+  NAVBAR: "Aún no disponible: la barra de navegación del visor 3D no se controla desde la línea de comandos.",
   NAVVCUBE: "Aún no disponible: el cubo de navegación no se controla desde la línea de comandos.",
   OFFSET: "Paralela a distancia exacta de la selección.",
   OPTIONS: "Opciones del editor.",

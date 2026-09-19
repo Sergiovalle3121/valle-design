@@ -58,8 +58,11 @@ export const CAD_COMANDOS_AUN_NO_DISPONIBLES: Readonly<Record<string, string>> =
   VISUALSTYLES: "no hay administrador de estilos visuales; para cambiar el estilo de la vista use VSCURRENT",
   CAMERA: "el dibujo todavía no guarda cámaras; para orientar la vista use 3DORBIT o VPOINT",
   DVIEW: "la vista dinámica todavía no existe; para orientar la vista use 3DORBIT o VPOINT",
+  // El cubo y la barra SÍ existen: el estudio los monta en la esquina del visor
+  // en 3D (`CadViewCube`, `CadNavigationBar`). Lo que falta es encenderlos y
+  // apagarlos por orden, que es lo que hacen NAVVCUBE y NAVBAR en AutoCAD.
   NAVVCUBE: "el cubo de navegación todavía no se controla desde la línea de comandos",
-  NAVBAR: "la barra de navegación todavía no existe en VALLECAD",
+  NAVBAR: "la barra de navegación del visor 3D todavía no se controla desde la línea de comandos",
   // Los tres que DESTRUÍAN trabajo: ahora se niegan sin tocar nada.
   SURFSCULPT: "el núcleo todavía no convierte superficies en un sólido; su sólido no se toca",
   SURFUNTRIM: "el núcleo todavía no rehace los bordes de una superficie; su sólido no se toca",

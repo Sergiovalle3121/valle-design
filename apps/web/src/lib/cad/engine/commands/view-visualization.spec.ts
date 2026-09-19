@@ -13,8 +13,12 @@
  * `command-availability.spec.ts`.
  */
 import { strict as assert } from "node:assert";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { CAD_COMMAND_REGISTRY_V2 } from "../index";
 import { cadMensajeAunNoDisponible } from "../command-availability";
+import { cadCommandSummary } from "../command-summaries";
 import type { CadCommandContext, CadCommandInput } from "../command-types";
 
 import "@/lib/cad/engine/all-commands";
@@ -40,7 +44,7 @@ const CASOS: readonly [string, readonly CadCommandInput[], string][] = [
   ["CAMERA", [point(0, 0), point(10, 0)], "3DORBIT"],
   ["DVIEW", [enter, { kind: "keyword", keyword: "Puntos" }, point(0, 0), point(10, 0)], "VPOINT"],
   ["NAVVCUBE", [enter], "línea de comandos"],
-  ["NAVBAR", [enter], "barra de navegación"],
+  ["NAVBAR", [enter], "línea de comandos"],
 ];
 
 let comprobaciones = 0;
@@ -63,6 +67,22 @@ for (const [name, inputs, pista] of CASOS) {
   assert.ok(step.result.text.includes(pista), `${name}: nombra la orden que sí sirve o lo que falta (${pista})`);
   assert.equal(desc.mutates, false, `${name} no modifica el dibujo`);
   comprobaciones += 5;
+}
+
+// El cubo y la barra de navegación EXISTEN: el estudio los monta en la esquina
+// del visor en 3D. La negativa de NAVVCUBE y NAVBAR —y su resumen en Ctrl+K—
+// puede decir que aún no se controlan por orden, nunca que no existen: quien
+// los tiene delante en pantalla leería una mentira.
+{
+  const aqui = path.dirname(fileURLToPath(import.meta.url));
+  const editor = readFileSync(path.join(aqui, "../../../../components/cad/editor/Layout3DEditor.tsx"), "utf8");
+  for (const [name, componente] of [["NAVVCUBE", "CadViewCube"], ["NAVBAR", "CadNavigationBar"]] as const) {
+    assert.ok(new RegExp(`<${componente}\\b`).test(editor), `el estudio monta <${componente}> (si deja de hacerlo, revise la negativa de ${name})`);
+    for (const texto of [cadMensajeAunNoDisponible(name), cadCommandSummary(name)]) {
+      assert.ok(!/no existe|no tiene/i.test(texto), `${name}: no niega un control que está en pantalla («${texto}»)`);
+    }
+    comprobaciones += 3;
+  }
 }
 
 console.log(`view-visualization.spec: ${CASOS.length} órdenes de visualización se niegan con honestidad — ${comprobaciones} comprobaciones`);
