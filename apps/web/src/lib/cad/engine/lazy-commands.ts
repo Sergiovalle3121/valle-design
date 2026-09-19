@@ -167,6 +167,7 @@ export const CAD_COMMAND_MODULE_LOADERS = {
   "commands/surfaces": () => import("./commands/surfaces"),
   "commands/surfaces-ext": () => import("./commands/surfaces-ext"),
   "commands/meshes": () => import("./commands/meshes"),
+  "commands/ruled-surfaces": () => import("./commands/ruled-surfaces"),
   "commands/transform-3d-extra": () => import("./commands/transform-3d-extra"),
   "commands/view-visualization": () => import("./commands/view-visualization"),
   "commands/render-commands": () => import("./commands/render-commands"),

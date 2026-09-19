@@ -88,7 +88,7 @@ export const CAD_RIBBON_COMMAND_ORDER: Readonly<Record<string, readonly string[]
   Superficies: [
     "PLANESURF", "CONVTOSURFACE", "SURFPATCH", "SURFNETWORK", "SURFBLEND", "SURFEXTEND", "SURFFILLET", "SURFOFFSET", "SURFTRIM", "SURFSCULPT", "SURFUNTRIM",
   ],
-  Mallas: ["MESH"],
+  Mallas: ["MESH", "RULESURF"],
   Render: ["RENDER", "RENDERPRESETS", "RENDEREXPOSURE", "RENDERENVIRONMENT", "MATERIALS", "MATERIALATTACH", "MATERIALMAP", "POINTLIGHT", "SPOTLIGHT", "DISTANTLIGHT", "SUNPROPERTIES", "RENDERCROP", "RENDERWIN"],
 };
 
@@ -173,7 +173,7 @@ export const CAD_RIBBON_PRIMARY: Readonly<Record<string, readonly string[]>> = {
   Arquitectura: ["WALL"],
   Instalaciones: ["PIPE"],
   Superficies: ["PLANESURF", "SURFPATCH"],
-  Mallas: ["MESH"],
+  Mallas: ["MESH", "RULESURF"],
   Render: ["RENDER"],
   Vistas: ["VIEWBASE", "VIEWEDIT", "REGEN"],
 };

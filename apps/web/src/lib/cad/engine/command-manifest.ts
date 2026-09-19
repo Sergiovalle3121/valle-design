@@ -1,8 +1,8 @@
 /**
- * METADATOS de los 346 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 348 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
- * 123 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
+ * 124 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
  * `npm run check:cad`— falla si lo committeado deja de coincidir con lo que los
  * descriptores dicen hoy. Regla 4 de la campaña de cimientos: ninguna cifra vive
  * en dos lugares, y un comando nuevo no puede entrar sin aparecer aquí.
@@ -265,6 +265,8 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "RENDERCROP", aliases: ["RCROP", "RECORTARRENDER"], kind: "manage", transparent: true, selection: "none", repeatable: false, mutates: false, cursor: "crosshair", module: "commands/render-commands" },
   { name: "RENDERWIN", aliases: ["RWIN", "VENTANARENDER"], kind: "manage", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/render-commands" },
   { name: "MATERIALMAP", aliases: ["MMAP", "MAPEARMATERIAL"], kind: "manage", transparent: false, selection: "required", repeatable: false, mutates: false, cursor: "none", module: "commands/render-commands" },
+  { name: "RULESURF", aliases: ["RSURF", "SUPERFICIEREGLADA"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/ruled-surfaces" },
+  { name: "TABSURF", aliases: ["TSURF", "SUPERFICIETABULADA"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/ruled-surfaces" },
   { name: "QSELECT", aliases: [], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "none", module: "commands/select-query" },
   { name: "FILTER", aliases: ["FI"], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "none", module: "commands/select-query" },
   { name: "SELECTSIMILAR", aliases: [], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "pick", module: "commands/select-similar" },

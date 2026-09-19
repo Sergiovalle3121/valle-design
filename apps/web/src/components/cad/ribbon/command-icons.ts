@@ -589,6 +589,8 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   CONVTOMESH: FlipHorizontal2,
   CONVTOSOLID: Layers2,
   "3DFACE": Triangle,
+  RULESURF: Grid3x3,
+  TABSURF: LayoutGrid,
   // Visualización 3D.
   "3DWALK": Footprints,
   "3DFLY": Wind,
