@@ -41,7 +41,7 @@ const aboutCommand: CadCommandDescriptor<VoidState> = {
       text: "VALLECAD — CAD general en el navegador. Compatibilidad DXF/DWG (beta). https://vallecad.com",
     },
   }),
-  step: (state) => messageResult(
+  step: (_state) => messageResult(
     "VALLECAD — CAD general en el navegador. Compatibilidad DXF/DWG (beta). https://vallecad.com",
   ),
 };
