@@ -1,28 +1,28 @@
 {
   "generatedBy": "scripts/cad/check-command-integrity.mjs --write",
-  "total": 348,
+  "total": 352,
   "verdicts": {
-    "muta": 114,
-    "delegado": 61,
-    "informa": 30,
-    "honesto-limitado": 134,
+    "muta": 115,
+    "delegado": 62,
+    "informa": 31,
+    "honesto-limitado": 135,
     "no-concluyente": 9,
     "ROJO": 0
   },
   "pasadas": {
     "plano2d": {
-      "muta": 84,
-      "delegado": 58,
-      "informa": 38,
-      "honesto-limitado": 159,
+      "muta": 85,
+      "delegado": 59,
+      "informa": 39,
+      "honesto-limitado": 160,
       "no-concluyente": 9,
       "ROJO": 0
     },
     "solidos3d": {
       "muta": 101,
-      "delegado": 61,
+      "delegado": 62,
       "informa": 48,
-      "honesto-limitado": 129,
+      "honesto-limitado": 132,
       "no-concluyente": 9,
       "ROJO": 0
     }
