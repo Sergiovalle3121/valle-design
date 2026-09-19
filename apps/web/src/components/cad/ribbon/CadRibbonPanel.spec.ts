@@ -15,6 +15,7 @@ import { strict as assert } from "node:assert";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CAD_RIBBON_DATA } from "@/lib/cad/ribbon";
+import { cadRibbonPanelNaturalColumns, cadRibbonPanelSplit } from "@/lib/cad/ribbon-layout";
 import { CadRibbonPanel } from "./CadRibbonPanel";
 
 let checks = 0;
@@ -71,6 +72,45 @@ ok(html.includes(panel.label), "el nombre del panel sigue pintándose (sin cambi
   ok(collapsed.includes('data-testid="cad-ribbon-panel-toggle-Dibujo"') && collapsed.includes('aria-expanded="false"'), "plegado: un botón con aria-expanded que abre el panel entero");
   ok(collapsed.includes(`id="${labelId}"`) && collapsed.includes('aria-labelledby="cad-ribbon-panel-label-Dibujo"'), "plegado: el grupo sigue nombrado por su rótulo");
   ok(collapsed.includes("w-[4.5rem]"), "plegado: el botón mide 4,5 rem (CAD_RIBBON_METRICS.collapsed)");
+}
+
+// ── El rótulo ABRE el panel, no lo pliega. Antes, pulsar «Dibujo» plegaba
+// el panel a un botón y la cinta lo guardaba para siempre; en AutoCAD, la
+// barra del rótulo abre el panel deslizante. Se renderiza con
+// `onToggleCollapsed`, como lo monta `CadRibbon`.
+{
+  const dibujo = CAD_RIBBON_DATA.find((tab) => tab.id === "inicio")!.panels[0];
+  const html = renderToStaticMarkup(
+    createElement(CadRibbonPanel, {
+      panel: dibujo,
+      onRun: () => undefined,
+      layout: { state: "expanded", columns: 1 },
+      onToggleCollapsed: () => undefined,
+    }),
+  );
+  const toggle = /<button[^>]*data-testid="cad-ribbon-panel-toggle-Dibujo"[^>]*>(.*?)<\/button>/.exec(html);
+  ok(toggle !== null, "la barra del rótulo es el botón que abre el desplegable");
+  ok(toggle![1].includes('id="cad-ribbon-panel-label-Dibujo"') && toggle![1].includes(">Dibujo<"), "el rótulo «Dibujo» está DENTRO del botón que abre: pulsarlo abre el panel");
+  ok(/<button[^>]*data-testid="cad-ribbon-panel-toggle-Dibujo"[^>]*title="Mostrar todo el panel Dibujo"/.test(html), "y lo anuncia: «Mostrar todo el panel Dibujo»");
+  ok(/data-testid="cad-ribbon-panel-toggle-Dibujo"[^>]*aria-expanded="false"|aria-expanded="false"[^>]*data-testid="cad-ribbon-panel-toggle-Dibujo"/.test(html), "cerrado en reposo, con aria-expanded");
+  ok(!html.includes("cad-ribbon-panel-collapse-"), "en la cinta no hay nada que pliegue el panel de un clic: plegar se pide desde el desplegable");
+  ok(!/Plegar el panel/.test(html), "ningún rótulo promete «Plegar el panel»");
+  ok(/data-testid="cad-ribbon-panel-Dibujo"[^>]*data-layout="expanded"/.test(html), "el panel sigue desplegado según su plan de ancho");
+
+  // Un panel que lo enseña todo no tiene desplegable: su rótulo es texto.
+  const entero = CAD_RIBBON_DATA.flatMap((tab) => tab.panels).find(
+    (candidate) =>
+      cadRibbonPanelSplit(candidate, { state: "expanded", columns: cadRibbonPanelNaturalColumns(candidate) }).flyout.length === 0,
+  );
+  assert.ok(entero, "hace falta un panel real que quepa entero para probar esto");
+  const htmlEntero = renderToStaticMarkup(
+    createElement(CadRibbonPanel, { panel: entero, onRun: () => undefined, onToggleCollapsed: () => undefined }),
+  );
+  ok(
+    !htmlEntero.includes("cad-ribbon-panel-toggle-") && !htmlEntero.includes("cad-ribbon-panel-collapse-") &&
+      new RegExp(`<span id="cad-ribbon-panel-label-${entero.label}"`).test(htmlEntero),
+    `«${entero.label}» cabe entero: su rótulo es texto, ni abre ni pliega`,
+  );
 }
 
 console.log(`CadRibbonPanel: ${checks}/${checks} comprobaciones verdes`);

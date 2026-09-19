@@ -16,6 +16,7 @@ import {
 } from "../command-engine";
 import type { CadCommandContext } from "../command-types";
 import { CAD_COMMAND_REGISTRY_V2 } from "../index";
+import { formatCadKeyword } from "../prompt";
 import type { CadViewRequest } from "../../view/view-navigation";
 
 // Las implementaciones de los comandos llegan a demanda en el navegador
@@ -133,6 +134,135 @@ function messages(effects: readonly CadCommandEffect[]): string[] {
   const bad = type(["Z", "ESC", "dos"]);
   assert.equal(viewRequests(bad.effects).length, 0);
   assert.ok(messages(bad.effects).some((text) => text.includes("no es un factor")));
+}
+
+// --- Las letras que teclea la mano de AutoCAD: E, A, W y los globales con _ ---
+// Quien viene de AutoCAD no lee el prompt: teclea `Z`, `E`, Intro. En AutoCAD
+// en español «E» es Extensión y en inglés también; con `_` delante manda la
+// palabra inglesa, que es como vienen escritos los guiones y los menús de toda
+// la vida. Antes de esto «E» empataba entre EXtensión y ESCala, caía a factor
+// de escala y el dibujante leía «"E" no es un factor de escala válido».
+{
+  const extents: CadViewRequest[] = [{ kind: "zoom", zoom: { option: "extents" } }];
+  for (const token of ["E", "e", "_E", "_e", "EXTENSION", "extension", "Extensión", "EXTENTS", "_EXTENTS"])
+    assert.deepEqual(viewRequests(type(["Z", token]).effects), extents, `Z ${token} es Extensión`);
+
+  const all: CadViewRequest[] = [{ kind: "zoom", zoom: { option: "all" } }];
+  for (const token of ["T", "A", "a", "_A", "ALL", "_ALL", "todo"])
+    assert.deepEqual(viewRequests(type(["Z", token]).effects), all, `Z ${token} es Todo`);
+
+  const window: CadViewRequest[] = [
+    { kind: "zoom", zoom: { option: "window", corner1: { x: 0, y: 0 }, corner2: { x: 100, y: 50 } } },
+  ];
+  for (const token of ["V", "W", "w", "_W", "WINDOW", "_WINDOW", "ventana"])
+    assert.deepEqual(
+      viewRequests(type(["Z", token, "0,0", "100,50"]).effects),
+      window,
+      `Z ${token} pide las dos esquinas de una ventana`,
+    );
+
+  const previous: CadViewRequest[] = [{ kind: "zoom", zoom: { option: "previous" } }];
+  for (const token of ["P", "PR", "_P", "PREVIOUS", "_PREVIOUS"])
+    assert.deepEqual(viewRequests(type(["Z", token]).effects), previous, `Z ${token} es Previo`);
+
+  for (const token of ["D", "DI", "_D", "DINAMICO", "_DYNAMIC"])
+    assert.deepEqual(
+      viewRequests(type(["Z", token, "5,5", "80"]).effects),
+      [{ kind: "zoom", zoom: { option: "dynamic", center: { x: 5, y: 5 }, height: 80 } }],
+      `Z ${token} es Dinámico`,
+    );
+  for (const token of ["C", "CE", "_C", "_CENTER"])
+    assert.deepEqual(
+      viewRequests(type(["Z", token, "40,40", "250"]).effects),
+      [{ kind: "zoom", zoom: { option: "center", center: { x: 40, y: 40 }, height: 250 } }],
+      `Z ${token} es Centro`,
+    );
+  for (const token of ["ESC", "ES", "S", "_S", "_SCALE"])
+    assert.deepEqual(
+      viewRequests(type(["Z", token, "1.5X"]).effects),
+      [{ kind: "zoom", zoom: { option: "scale", factor: 1.5, basis: "relative" } }],
+      `Z ${token} es Escala`,
+    );
+  for (const token of ["O", "_O", "_OBJECT"])
+    assert.deepEqual(
+      viewRequests(type(["Z", token], { selection: ["a"] }).effects),
+      [{ kind: "zoom", zoom: { option: "object", entityIds: ["a"] } }],
+      `Z ${token} es Objeto`,
+    );
+
+  // Como toda palabra clave de AutoCAD, la inglesa vale abreviada a partir de
+  // su atajo: `_EXT` es `_EXTENTS` igual que `LT` es `LType` para INITGET. Los
+  // guiones y las rutinas LISP de toda la vida la escriben así (`_zoom _ext`).
+  for (const token of ["_EX", "_EXT", "_ext", "_EXTEN", "_EXTENT", "EXTENT"])
+    assert.deepEqual(viewRequests(type(["Z", token]).effects), extents, `Z ${token} es Extensión`);
+  for (const token of ["_AL", "AL"])
+    assert.deepEqual(viewRequests(type(["Z", token]).effects), all, `Z ${token} es Todo`);
+  for (const token of ["_WIN", "WIN", "_WINDO"])
+    assert.deepEqual(
+      viewRequests(type(["Z", token, "0,0", "100,50"]).effects),
+      window,
+      `Z ${token} pide las dos esquinas de una ventana`,
+    );
+  for (const token of ["_PREV", "_PRE"])
+    assert.deepEqual(viewRequests(type(["Z", token]).effects), previous, `Z ${token} es Previo`);
+  for (const token of ["_DYN", "DYN"])
+    assert.deepEqual(
+      viewRequests(type(["Z", token, "5,5", "80"]).effects),
+      [{ kind: "zoom", zoom: { option: "dynamic", center: { x: 5, y: 5 }, height: 80 } }],
+      `Z ${token} es Dinámico`,
+    );
+  for (const token of ["_CEN", "_CENT"])
+    assert.deepEqual(
+      viewRequests(type(["Z", token, "40,40", "250"]).effects),
+      [{ kind: "zoom", zoom: { option: "center", center: { x: 40, y: 40 }, height: 250 } }],
+      `Z ${token} es Centro`,
+    );
+  for (const token of ["_SC", "SC", "SCAL"])
+    assert.deepEqual(
+      viewRequests(type(["Z", token, "1.5X"]).effects),
+      [{ kind: "zoom", zoom: { option: "scale", factor: 1.5, basis: "relative" } }],
+      `Z ${token} es Escala`,
+    );
+  for (const token of ["_OB", "_OBJ"])
+    assert.deepEqual(
+      viewRequests(type(["Z", token], { selection: ["a"] }).effects),
+      [{ kind: "zoom", zoom: { option: "object", entityIds: ["a"] } }],
+      `Z ${token} es Objeto`,
+    );
+  // Un `_` suelto o una palabra inglesa que no es de ZOOM siguen siendo error.
+  for (const token of ["_", "_EXTENTSX", "_WX"]) {
+    const wrong = type(["Z", token]);
+    assert.equal(viewRequests(wrong.effects).length, 0, `${token} no es ninguna opción de ZOOM`);
+    assert.ok(messages(wrong.effects).some((text) => text.includes("no es un factor")));
+  }
+
+  // El guion de siempre, con el comando y la opción en inglés.
+  assert.deepEqual(viewRequests(type(["_ZOOM", "_E"]).effects), extents, "_ZOOM _E es Extensión");
+  assert.deepEqual(viewRequests(type(["_ZOOM", "_EXT"]).effects), extents, "_ZOOM _EXT es Extensión");
+  // Y dentro de un LINE, transparente: encuadra y el LINE sigue vivo.
+  const inside = type(["LINE", "0,0", "'Z", "E"]);
+  assert.deepEqual(viewRequests(inside.effects), extents, "'Z E encuadra la extensión");
+  assert.equal(inside.state.active?.name, "LINE", "y devuelve el LINE intacto");
+
+  // Lo que ya era un número o una escala no se toca por aceptar letras.
+  assert.deepEqual(viewRequests(type(["Z", "2"]).effects), [
+    { kind: "zoom", zoom: { option: "scale", factor: 2, basis: "absolute" } },
+  ]);
+  assert.deepEqual(viewRequests(type(["Z", "0.5XP"]).effects), [
+    { kind: "zoom", zoom: { option: "scale", factor: 0.5, basis: "paper" } },
+  ]);
+  // Y una letra que no es de ZOOM en ningún idioma sigue siendo un error con nombre.
+  const unknown = type(["Z", "_T"]);
+  assert.equal(viewRequests(unknown.effects).length, 0, "_T no es ninguna opción inglesa de ZOOM");
+  assert.ok(messages(unknown.effects).some((text) => text.includes("no es un factor")));
+
+  // El prompt dice la verdad: la E de Extensión es la que se teclea.
+  const zoom = registry.get("ZOOM");
+  assert.ok(zoom, "ZOOM está en el registro");
+  const begun = zoom.begin(context());
+  const extension = begun.prompt.options.find((option) => option.keyword === "EXtensión");
+  assert.equal(extension?.shortcut, "E", "el atajo anunciado de Extensión es E, como en AutoCAD");
+  assert.equal(extension && formatCadKeyword(extension), "Extensión", "y el prompt lo escribe así");
 }
 
 // --- PAN: el desplazamiento de la VISTA es el opuesto al del punto -----------

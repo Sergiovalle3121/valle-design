@@ -5,15 +5,17 @@
  * SURFOFFSET vacía un sólido convexo con pared de espesor uniforme: el spec
  * comprueba que produce un cuerpo con más caras, menos volumen y dos cáscaras.
  * SURFTRIM recorta una superficie restando otro sólido 3D.
- * SURFSCULPT esculpe una superficie en un sólido con volumen.
- * SURFUNTRIM restaura la superficie completa a partir de su contorno.
+ * SURFSCULPT y SURFUNTRIM aún no están disponibles: antes borraban el sólido y
+ * dejaban una placa; aquí se mide que se niegan y el documento no cambia.
  */
 import { strict as assert } from "node:assert";
 import {
   migrateCadDocument,
+  serializeCadDocument,
   type CadDocument,
   type CadEntity,
 } from "../../cad-document";
+import { cadMensajeAunNoDisponible } from "../command-availability";
 import { executeCadEntityCommandBatch } from "../../entity-commands";
 import { solid3dBody, solid3dMassProperties } from "../../solid3d-build";
 import { bodyConvexity } from "../../../brep/shell";
@@ -302,54 +304,49 @@ assert.ok(solidId, "Hay un solido 3D en el documento");
   );
 }
 
-// --- SURFUNTRIM: restaurar superficie recortada ------------------------------
+// --- SURFUNTRIM y SURFSCULPT: se NIEGAN sin tocar el sólido --------------------
+//
+// Antes este bloque afirmaba «produce documento», «añade un sólido», «tiene
+// caras» y «volumen > 0», y nunca comparaba el resultado con la entrada: los dos
+// BORRABAN el cubo designado y dejaban una placa de 0,1 mm (SURFSCULPT con
+// Intro) o de 0,001 mm (SURFUNTRIM) del rectángulo que lo envolvía. Aquí se
+// conducen con exactamente esas entradas —el cubo designado e Intro, o una
+// altura tecleada— y se mide que el documento sale como entró.
 {
-  const descriptor = CAD_COMMAND_REGISTRY_V2.get("SURFUNTRIM")!;
-  const context = makeContext(doc, [solidId!]);
-  let step = descriptor.begin(context);
-  step = descriptor.step(step.state, enter, context);
-  assert.ok(step.result?.kind === "document", "SURFUNTRIM produce documento");
-  assert.ok(step.result.commands.length > 0, "SURFUNTRIM genera comandos");
-
-  const afterDoc = executeCadEntityCommandBatch(doc, step.result.commands, step.result.label).document;
-  const restoredEntities = afterDoc.entities.filter((e) => e.type === "solid3d" && e.id !== solidId);
-  assert.ok(restoredEntities.length >= 1, "SURFUNTRIM añade un solido nuevo");
-
-  const restoredBody = solid3dBody(restoredEntities[restoredEntities.length - 1] as never);
-  assert.ok(restoredBody.faces.length > 0, "SURFUNTRIM restaurado tiene caras");
-
-  const restoredVolume = solid3dMassProperties(restoredEntities[restoredEntities.length - 1] as never).volume;
-  assert.ok(restoredVolume > 0, `SURFUNTRIM tiene volumen positivo: ${restoredVolume.toFixed(1)}`);
+  const antes = serializeCadDocument(doc);
+  const volumenCubo = solid3dMassProperties(doc.entities.find((e) => e.id === solidId) as never).volume;
+  const casos: readonly [string, readonly CadCommandInput[]][] = [
+    ["SURFUNTRIM", [enter]],
+    ["SURFUNTRIM", [{ kind: "selection", entityIds: [solidId!] }, enter]],
+    ["SURFSCULPT", [enter]],
+    ["SURFSCULPT", [distance(30)]],
+    ["SURFSCULPT", [{ kind: "text", value: "30" }, enter]],
+  ];
+  for (const [name, inputs] of casos) {
+    const result = run(name, inputs, doc, [solidId!]);
+    // Lo que el anfitrión haría con el resultado: aplicar el lote, si lo hay.
+    const despues: CadDocument =
+      result?.kind === "document" ? executeCadEntityCommandBatch(doc, result.commands, result.label).document : doc;
+    const cubo: CadEntity | undefined = despues.entities.find((e) => e.id === solidId);
+    assert.ok(cubo, `${name} no borra el cubo designado`);
+    assert.equal(solid3dMassProperties(cubo as never).volume, volumenCubo, `${name} deja el cubo con su volumen`);
+    assert.equal(despues.entities.length, doc.entities.length, `${name} no deja ninguna placa nueva`);
+    assert.equal(serializeCadDocument(despues), antes, `${name} deja el documento idéntico`);
+    assert.ok(
+      result?.kind === "message" && result.text === cadMensajeAunNoDisponible(name),
+      `${name} dice que aún no está disponible: ${result?.kind === "message" ? result.text : result?.kind}`,
+    );
+    assert.ok(result.text.includes("no se toca"), `${name} avisa de que el sólido no se toca`);
+  }
 }
 
-// --- SURFSCULPT: esculpir superficie en sólido con volumen ------------------
-{
-  const descriptor = CAD_COMMAND_REGISTRY_V2.get("SURFSCULPT")!;
-  const context = makeContext(doc, [solidId!]);
-  let step = descriptor.begin(context);
-  step = descriptor.step(step.state, enter, context);
-  assert.ok(step.result?.kind === "document", "SURFSCULPT produce documento");
-  assert.ok(step.result.commands.length > 0, "SURFSCULPT genera comandos");
-
-  const afterDoc = executeCadEntityCommandBatch(doc, step.result.commands, step.result.label).document;
-  const sculptedEntities = afterDoc.entities.filter((e) => e.type === "solid3d" && e.id !== solidId);
-  assert.ok(sculptedEntities.length >= 1, "SURFSCULPT añade un solido nuevo");
-
-  const sculptedBody = solid3dBody(sculptedEntities[sculptedEntities.length - 1] as never);
-  assert.ok(sculptedBody.faces.length > 0, "SURFSCULPT esculpido tiene caras");
-
-  const sculptedVolume = solid3dMassProperties(sculptedEntities[sculptedEntities.length - 1] as never).volume;
-  assert.ok(sculptedVolume > 0, `SURFSCULPT tiene volumen positivo: ${sculptedVolume.toFixed(1)}`);
-}
-
-// --- SURFSCULPT: cancelación ------------------------------------------------
+// --- SURFSCULPT: cancelar tampoco toca nada ------------------------------------
 {
   const descriptor = CAD_COMMAND_REGISTRY_V2.get("SURFSCULPT")!;
   const context = makeContext(doc, [solidId!]);
   let step = descriptor.begin(context);
   step = descriptor.step(step.state, { kind: "cancel" }, context);
-  assert.ok(step.result?.kind === "message", "SURFSCULPT cancelado devuelve mensaje");
-  assert.ok(step.result.text.includes("cancelado"), "SURFSCULPT se cancela limpiamente");
+  assert.ok(step.result?.kind === "message", "SURFSCULPT cancelado devuelve un mensaje, no un lote");
 }
 
 // --- SURFPATCH: parche de superficie desde contorno cerrado -------------------------
@@ -526,5 +523,5 @@ assert.ok(solidId, "Hay un solido 3D en el documento");
 }
 
 console.log(
-  "✅ surfaces.spec: PLANESURF (registro), CONVTOSURFACE, SURFOFFSET (vaciado, cancelación, cóncavo), SURFTRIM (recorte, cancelación), SURFSCULPT (esculpir, cancelación), SURFUNTRIM (restaurar), SURFPATCH (parche, cancelación), SURFNETWORK (red, cancelación), SURFBLEND (mezcla, cancelación), SURFEXTEND (extensión, cancelación), SURFFILLET (filete, cancelación) — 33 comprobaciones",
+  "✅ surfaces.spec: PLANESURF (registro), CONVTOSURFACE, SURFOFFSET (vaciado, cancelación, cóncavo), SURFTRIM (recorte, cancelación), SURFSCULPT y SURFUNTRIM (se niegan con el documento idéntico: 5 casos × 6), SURFPATCH (parche, cancelación), SURFNETWORK (red, cancelación), SURFBLEND (mezcla, cancelación), SURFEXTEND (extensión, cancelación), SURFFILLET (filete, cancelación) — 52 comprobaciones",
 );

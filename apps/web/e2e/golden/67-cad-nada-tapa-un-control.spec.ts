@@ -65,7 +65,11 @@ function seedDocument(): CadDocument {
   };
 }
 
-async function openStudio(context: BrowserContext, page: Page) {
+async function openStudio(
+  context: BrowserContext,
+  page: Page,
+  { saltarRecorrido = true }: { saltarRecorrido?: boolean } = {},
+) {
   await installMockBackend(context);
   await loginAsStandaloneOwner(context);
   await installCadStudioBackend<CadDocument>(context, seedDocument(), {
@@ -79,11 +83,15 @@ async function openStudio(context: BrowserContext, page: Page) {
   // identidad real y devuelve 401 de forma intermitente bajo un fixture.
   await page.goto('/legacy/studio');
   await expect(page.getByTestId('cad-canvas')).toBeVisible();
-  // El recorrido guiado es un estado de PRIMERA VEZ, no el estado en reposo, y
-  // además es modal por naturaleza: mientras está abierto tapa cosas a
-  // propósito. Se descarta igual que en el resto de goldens.
-  const saltar = page.getByTestId('cad-guided-tour-skip');
-  if (await saltar.count()) await saltar.click();
+  // El recorrido guiado es un estado de PRIMERA VEZ, no el estado en reposo:
+  // el primer test lo descarta igual que el resto de goldens. El segundo NO,
+  // porque la primera vez es justo cuando el recorrido tapaba la paleta.
+  if (saltarRecorrido) {
+    const saltar = page.getByTestId('cad-guided-tour-skip');
+    if (await saltar.count()) await saltar.click();
+  } else {
+    await expect(page.getByTestId('cad-guided-tour')).toBeVisible();
+  }
   // La barra de llamada, el dock de mensajería y la capa de colaboración se
   // montan tras su primer fetch: sin esta espera el golden mediría un estudio
   // que todavía no tiene encima las capas que vino a vigilar.
@@ -292,5 +300,172 @@ test('ninguna capa flotante deja un control del estudio sin poder pulsarse', asy
       : 'Estas entradas de RESIDUO_CONOCIDO ya no tienen hallazgo: alguien las ' +
           'arregló. Borre la línea para que la lista no mienta ni sirva de escondite ' +
           'a la próxima capa que caiga en ese hueco.',
+  ).toEqual([]);
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * CON EL RECORRIDO GUIADO ABIERTO
+ *
+ * El test de arriba salta el recorrido antes de medir, y por eso no vio el
+ * defecto que el dueño vio en producción: la tarjeta «Primeros cinco minutos»
+ * flotaba sobre el lienzo, encima de la paleta de herramientas, con
+ * `pointer-events-none`. `elementFromPoint` ignora lo que no captura el
+ * puntero, así que para `controlesTapados` la paleta seguía «libre»… y lo
+ * estaba: pulsar el TEXTO del recorrido encendía «Pasillo», «Área» o «Ajustar
+ * todo», que estaban debajo. Una capa que se ve y no se puede pulsar miente.
+ *
+ * Por eso aquí se mide la TARJETA, no sólo los controles:
+ *
+ *  · que sus propios puntos —el título, el centro, el borde— respondan a ELLA;
+ *  · que su caja no pise la paleta ni el lienzo (vive en el muelle izquierdo);
+ *  · y, con ella abierta, lo mismo que el test de arriba: ningún control tapado.
+ *
+ * Plegada —que es como arranca— y desplegada: desplegada es cuando más tapaba.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+interface MedidaRecorrido {
+  caja: string;
+  colocacion: string | null;
+  /** px² de la tarjeta encima del lienzo y de la paleta de herramientas. */
+  solapeLienzo: number;
+  solapePaleta: number;
+  /** Puntos de la tarjeta donde responde OTRA cosa: clics que la atraviesan. */
+  ajenos: string[];
+}
+
+async function medirRecorrido(page: Page): Promise<MedidaRecorrido> {
+  return page.evaluate(() => {
+    const tarjeta = document.querySelector<HTMLElement>('[data-testid="cad-guided-tour"]');
+    if (!tarjeta) throw new Error('no hay recorrido guiado que medir');
+    const r = tarjeta.getBoundingClientRect();
+    const solape = (selector: string): number => {
+      const otro = document.querySelector(selector);
+      if (!otro) return 0;
+      const o = otro.getBoundingClientRect();
+      const ancho = Math.min(r.right, o.right) - Math.max(r.left, o.left);
+      const alto = Math.min(r.bottom, o.bottom) - Math.max(r.top, o.top);
+      return ancho > 0 && alto > 0 ? Math.round(ancho * alto) : 0;
+    };
+    // Puntos de la tarjeta que NO son botones: ahí es donde el usuario
+    // pincha «en el recorrido» y esperaba que no pasara nada.
+    const puntos: Array<[string, number, number]> = [
+      ['centro', r.left + r.width / 2, r.top + r.height / 2],
+      ['borde izquierdo', r.left + 5, r.top + r.height / 2],
+    ];
+    const titulo = (
+      tarjeta.querySelector('[data-testid="cad-guided-tour-title"]') ??
+      tarjeta.querySelector('header')
+    )?.getBoundingClientRect();
+    if (titulo && titulo.width > 0) {
+      puntos.push([
+        'título',
+        titulo.left + Math.min(titulo.width / 2, 40),
+        titulo.top + titulo.height / 2,
+      ]);
+    }
+    const ajenos: string[] = [];
+    for (const [nombre, x, y] of puntos) {
+      const arriba = document.elementFromPoint(x, y);
+      if (arriba && tarjeta.contains(arriba)) continue;
+      const quien =
+        arriba?.closest('[data-testid]')?.getAttribute('data-testid') ??
+        arriba?.getAttribute('title') ??
+        arriba?.tagName.toLowerCase() ??
+        'nada';
+      ajenos.push(`${nombre} (${Math.round(x)}, ${Math.round(y)}) responde ${quien}`);
+    }
+    return {
+      caja: `x=${Math.round(r.left)} y=${Math.round(r.top)} w=${Math.round(r.width)} h=${Math.round(r.height)}`,
+      colocacion: tarjeta.dataset.placement ?? null,
+      solapeLienzo: solape('[data-testid="cad-canvas"]'),
+      solapePaleta: solape('[data-testid="cad-toolbar"]'),
+      ajenos,
+    };
+  });
+}
+
+async function afirmarQueNoTapa(
+  page: Page,
+  estado: string,
+  { tambienControles }: { tambienControles: boolean },
+) {
+  const medida = await medirRecorrido(page);
+  const donde = `recorrido ${estado} en ${medida.caja} (colocación: ${medida.colocacion ?? 'sin declarar'})`;
+  expect(
+    medida.ajenos,
+    `${donde}: la tarjeta deja pasar los clics a lo que tiene DEBAJO —el usuario pulsa ` +
+      `el recorrido y se le enciende otra cosa—:\n  · ${medida.ajenos.join('\n  · ')}`,
+  ).toEqual([]);
+  expect(
+    medida.solapePaleta,
+    `${donde}: pisa ${medida.solapePaleta} px² de la paleta de herramientas`,
+  ).toBe(0);
+  expect(
+    medida.solapeLienzo,
+    `${donde}: tapa ${medida.solapeLienzo} px² del lienzo; su sitio es el muelle izquierdo`,
+  ).toBe(0);
+
+  // Todos los controles, en la MISMA ventana que el test de arriba (la de
+  // serie, 1.280×720): lo único que cambia respecto a él es el recorrido
+  // abierto, así que cualquier hallazgo nuevo es suyo.
+  if (!tambienControles) return;
+  const tapados = await controlesTapados(page);
+  expect(
+    tapados,
+    `${donde}: deja controles sin poder pulsarse:\n` +
+      tapados.map((t) => `  · ${t.control} (${t.caja}) lo tapa ${t.tapadoPor}`).join('\n'),
+  ).toEqual([]);
+}
+
+test('con el recorrido guiado abierto, su tarjeta recibe sus propios clics y no tapa la paleta, el lienzo ni un control', async ({
+  context,
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await openStudio(context, page, { saltarRecorrido: false });
+
+  const tarjeta = page.getByTestId('cad-guided-tour');
+  const toggle = page.getByTestId('cad-guided-tour-toggle');
+  await afirmarQueNoTapa(page, 'tal como arranca', { tambienControles: true });
+
+  // Arranca PLEGADO: una línea con el paso actual.
+  await expect(tarjeta).toHaveAttribute('data-collapsed', 'true');
+  await expect(page.getByTestId('cad-guided-tour-progress')).toBeHidden();
+
+  // Desplegado es cuando más tapaba: se mide otra vez.
+  await toggle.click();
+  await expect(tarjeta).toHaveAttribute('data-collapsed', 'false');
+  await expect(page.getByTestId('cad-guided-tour-progress')).toBeVisible();
+  await afirmarQueNoTapa(page, 'desplegado', { tambienControles: true });
+
+  // Y en la ventana del reporte: un portátil de 1.366×768, donde paleta,
+  // recorrido y aviso de la demo se comían cerca del 40 % del lienzo. Aquí se
+  // mide la tarjeta; la cinta a 1.366 la vigila el golden 214.
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await afirmarQueNoTapa(page, 'desplegado a 1.366×768', { tambienControles: false });
+  await toggle.click();
+  await expect(tarjeta).toHaveAttribute('data-collapsed', 'true');
+  await afirmarQueNoTapa(page, 'plegado a 1.366×768', { tambienControles: false });
+});
+
+test('en una ventana estrecha, donde el recorrido tiene que flotar, sigue quedándose con sus propios clics', async ({
+  context,
+  page,
+}) => {
+  test.setTimeout(120_000);
+  // Por debajo de 1.100 px el muelle izquierdo se oculta por CSS y el
+  // recorrido vuelve a flotar sobre la línea de comandos (`tour-slot.ts`).
+  await page.setViewportSize({ width: 1024, height: 700 });
+  await openStudio(context, page, { saltarRecorrido: false });
+
+  const tarjeta = page.getByTestId('cad-guided-tour');
+  await expect(tarjeta).toHaveAttribute('data-placement', 'floating');
+  // Flotando, plegado es lo que evita que tape un tercio del plano.
+  await expect(tarjeta).toHaveAttribute('data-collapsed', 'true');
+
+  const medida = await medirRecorrido(page);
+  expect(
+    medida.ajenos,
+    `recorrido flotante en ${medida.caja}: los clics atraviesan la tarjeta:\n  · ${medida.ajenos.join('\n  · ')}`,
   ).toEqual([]);
 });

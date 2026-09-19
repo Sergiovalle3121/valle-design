@@ -247,6 +247,101 @@ assert.equal(pipeline.entity(removedId), undefined, "una baja también sale de e
 ok(true, "una baja sale del índice, del detalle, del total y de entity(id)");
 
 // ---------------------------------------------------------------------------
+// ALTA: lo que se dibuja NUEVO se ve sin tocar la vista.
+//
+// Medido el 2026-09-19 en la demo: LINE creaba la entidad y el lienzo no la
+// pintaba hasta que designar o panear forzaba a redibujar. `invalidate` sólo
+// liberaba los residentes cuyo `entityIds` —lo YA materializado— nombraba el
+// id, y un alta nunca está ahí; y un tile que no existía no entraba en
+// `visibleTiles`, que sólo recalculaba `setView`. Aquí NINGÚN caso vuelve a
+// llamar a `setView` después de la edición: es lo que hace el editor con la
+// cámara quieta.
+// ---------------------------------------------------------------------------
+function line(id: string, x1: number, y1: number, x2: number, y2: number): CadNativeEntity {
+  return {
+    id,
+    type: "line",
+    start: { x: x1, y: y1, z: 0 },
+    end: { x: x2, y: y2, z: 0 },
+    layer: "0",
+  } as CadNativeEntity;
+}
+// 21 verticales de x=0 a x=3000: la rejilla sale de 3000 (la extensión, con
+// tan pocas entidades), así que las 20 primeras caen en el tile 0:0 y la última
+// —centro en x=3000— sola en el 1:0. Dos residentes, uno de ellos de una sola
+// entidad: los dos casos que hacen falta.
+const altaBase = Array.from({ length: 21 }, (_, index) => line(`v${index}`, index * 150, 0, index * 150, 1_000));
+const altaView = { bounds: { minX: -1_000, minY: -1_000, maxX: 10_000, maxY: 10_000 }, pixelsPerUnit: 0.1 };
+function altaPipeline(entities: readonly CadNativeEntity[]): CadRenderPipeline {
+  const fresh = new CadRenderPipeline({ offThread: null });
+  fresh.replace(entities, entities.map((entity) => entity.id));
+  fresh.setView(altaView);
+  return fresh;
+}
+const alta = altaPipeline(altaBase);
+alta.settle();
+assert.equal(alta.tileSize, 3_000, "la rejilla del caso es la que el comentario supone");
+assert.equal(alta.stats().visibleTiles, 2, "dos tiles residentes antes de editar");
+assert.equal(alta.stats().renderedEntities, 21);
+
+// 1. Alta en un tile residente y COMPLETO.
+const instancesBefore = alta.stats().instances;
+const sameTile = line("alta-mismo-tile", 500, 200, 1_500, 200);
+assert.equal(alta.invalidate([sameTile.id], [sameTile]), 1, "se libera el tile al que llega el alta");
+alta.settle();
+ok(
+  alta.renderedEntityIds().includes(sameTile.id),
+  "un alta en un tile ya completo se dibuja sin volver a fijar la vista",
+);
+assert.equal(alta.stats().instances, instancesBefore + 1, "y su segmento llega a los lotes");
+
+// 2. Alta en un tile que NO existía, dentro del encuadre.
+const newTile = line("alta-tile-nuevo", 7_000, 7_000, 7_800, 7_000);
+alta.invalidate([newTile.id], [newTile]);
+alta.settle();
+ok(
+  alta.renderedEntityIds().includes(newTile.id),
+  "un alta en un tile nuevo entra en la vista y se dibuja",
+);
+assert.equal(alta.stats().visibleTiles, 3, "el tile nuevo cuenta como visible");
+
+// 3. MOVE que cruza a OTRO tile residente: el de origen se libera por tenerla,
+//    el de destino por recibirla.
+const movedAcross = line("v0", 3_500, 500, 3_600, 500);
+assert.equal(alta.invalidate([movedAcross.id], [movedAcross]), 2, "se liberan el tile de origen y el de destino");
+alta.settle();
+ok(alta.renderedEntityIds().includes("v0"), "lo movido a otro tile residente sigue dibujándose");
+const altaStats = alta.stats();
+assert.equal(altaStats.renderedEntities, altaStats.visibleEntities, "tras las tres ediciones se detalla todo lo visible");
+assert.equal(altaStats.renderedEntities, 23);
+
+// 4. El PRIMER trazo de un dibujo vacío: no hay ningún tile al que llegar.
+const empty = altaPipeline([]);
+empty.settle();
+const firstStroke = line("primer-trazo", 0, 0, 1_000, 0);
+empty.invalidate([firstStroke.id], [firstStroke]);
+empty.settle();
+ok(empty.renderedEntityIds().includes(firstStroke.id), "el primer trazo de un dibujo vacío se dibuja");
+assert.equal(empty.stats().visibleTiles, 1);
+
+// 5. Una edición también puede SACAR un tile de la vista, con su trabajo aún en
+//    cola. El tile deja de ser visible y su tarea no puede resucitarlo después:
+//    un residente fuera de `visibleTiles` no lo libera ya ningún `setView`.
+const leaving = altaPipeline(altaBase);
+const farAway = line("v20", 50_000, 0, 50_000, 1_000);
+leaving.invalidate([farAway.id], [farAway]);
+leaving.settle();
+const leavingStats = leaving.stats();
+assert.equal(leavingStats.visibleTiles, 1, "el tile vaciado sale de la vista sin esperar a un setView");
+assert.equal(
+  leavingStats.residentTiles,
+  leavingStats.visibleTiles,
+  `y su tarea pendiente no deja un residente huérfano: ${leavingStats.residentTiles} residentes para ${leavingStats.visibleTiles} visibles`,
+);
+assert.equal(leavingStats.renderedEntities, leavingStats.visibleEntities);
+ok(true, "una edición que vacía un tile lo saca de la vista y de los residentes");
+
+// ---------------------------------------------------------------------------
 // La memoria no crece paseando: los tiles que salen de la vista se liberan y la
 // caché tiene tope. Es la propiedad que la prueba de fuga persigue.
 // ---------------------------------------------------------------------------

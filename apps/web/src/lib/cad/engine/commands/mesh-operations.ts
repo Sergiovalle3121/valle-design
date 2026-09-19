@@ -16,6 +16,7 @@ import {
   solidMessage,
 } from "./solids-support";
 import { CAD_MESH_CREASE_EXTRUDE_COMMANDS } from "./mesh-crease-extrude";
+import { cadDescriptorAunNoDisponible } from "../command-availability";
 
 type MeshSmoothState = { selection: readonly string[] };
 
@@ -226,52 +227,18 @@ const meshrefineCommand = meshSmoothStep(
   "Malla refinada",
 );
 
-function collapseMesh(
-  pts: { x: number; y: number; z: number }[],
-  faces: { outer: number[] }[],
-): { points: { x: number; y: number; z: number }[]; faces: { outer: number[] }[] } | string {
-  if (faces.length < 4) return "MESHCOLLAPSE: la malla tiene menos de 4 caras, no se puede simplificar.";
-
-  let minX = Infinity, minY = Infinity, minZ = Infinity;
-  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
-  for (const p of pts) {
-    if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
-    if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
-    if (p.z < minZ) minZ = p.z; if (p.z > maxZ) maxZ = p.z;
-  }
-
-  if (pts.length <= 10 && faces.length <= 8) {
-    return "MESHCOLLAPSE: la malla ya está en su forma más simple.";
-  }
-
-  const boxPts = [
-    { x: minX, y: minY, z: minZ },
-    { x: maxX, y: minY, z: minZ },
-    { x: maxX, y: maxY, z: minZ },
-    { x: minX, y: maxY, z: minZ },
-    { x: minX, y: minY, z: maxZ },
-    { x: maxX, y: minY, z: maxZ },
-    { x: maxX, y: maxY, z: maxZ },
-    { x: minX, y: maxY, z: maxZ },
-  ];
-
-  const boxFaces = [
-    { outer: [0, 3, 2, 1] },
-    { outer: [4, 5, 6, 7] },
-    { outer: [0, 1, 5, 4] },
-    { outer: [2, 3, 7, 6] },
-    { outer: [0, 4, 7, 3] },
-    { outer: [1, 2, 6, 5] },
-  ];
-
-  return { points: boxPts, faces: boxFaces };
-}
-
-const meshcollapseCommand = meshSmoothStep(
-  "MESHCOLLAPSE", "COLAPSARMALLA",
-  collapseMesh,
-  "Malla simplificada",
-);
+// MESHCOLLAPSE aún no está disponible. Antes «simplificaba» insertando la CAJA
+// ENVOLVENTE de la malla encima de ella: medido, una pirámide de 333 333 mm³
+// ganaba una caja de 2 000 000 mm³ superpuesta, con el renglón «Malla
+// simplificada». Colapsar de verdad es fundir los vértices de una cara o una
+// arista y rehacer las caras vecinas; hasta que el núcleo lo sepa hacer, se
+// niega en su primer paso sin tocar el documento (`command-availability.ts`).
+const meshcollapseCommand = cadDescriptorAunNoDisponible({
+  name: "MESHCOLLAPSE",
+  aliases: ["COLAPSARMALLA"],
+  kind: "modify",
+  transparent: false,
+});
 
 function capMesh(
   pts: { x: number; y: number; z: number }[],

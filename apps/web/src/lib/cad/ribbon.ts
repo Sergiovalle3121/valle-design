@@ -29,15 +29,19 @@
  * un futuro cambio rompiera esa totalidad.
  *
  * Un comando puede además declararse "no expuesto" con razón explícita
- * (`CAD_RIBBON_UNEXPOSED`, hoy vacía): existe para el día en que aparezca un
- * comando interno que de verdad no deba tener botón — no para esconder
- * trabajo pendiente.
+ * (`CAD_RIBBON_UNEXPOSED`). Hoy lo son sólo las órdenes que AÚN NO HACEN NADA
+ * (`engine/command-availability.ts`): responden en la línea de comandos que no
+ * están disponibles, y un botón que no hace nada —RENDER era el botón grande de
+ * Salida › Render— es peor que un botón que no está. No es un escondite para
+ * trabajo a medias: la razón viaja con cada nombre y el día que la orden
+ * funcione se borra de esa tabla y vuelve a su panel sola.
  */
 import {
   CAD_COMMAND_DESCRIPTORS,
   type CadCommandDescriptor,
   type CadCommandKind,
 } from "./engine";
+import { CAD_COMANDOS_AUN_NO_DISPONIBLES } from "./engine/command-availability";
 import { cadCommandLabel } from "./engine/command-labels";
 import { cadCommandSummary } from "./engine/command-summaries";
 import {
@@ -211,6 +215,11 @@ const CAD_PANEL_NAME_PATTERNS: readonly [RegExp, string][] = [
   [/^(-?VISUALSTYLES?|SHADEMODE|VSCURRENT|VISUALSTYLES)$/, "Estilos visuales"],
   [/^(REGEN|REGENALL|REDRAW|VIEWBASE|VIEWPROJ|VIEWSECTION|VIEWDETAIL|VIEWEDIT|VIEWUPDATE)$/, "Vistas"],
   [/^(PLANESURF|SURF[A-Z]+|CONVTOSURFACE)$/, "Superficies"],
+  // Hoy ningún comando de render, luz o material funciona y todos están en
+  // CAD_RIBBON_UNEXPOSED, así que el panel no se monta. El patrón se queda para
+  // que el primero que funcione vuelva a Salida › Render al salir de
+  // `command-availability.ts`; ribbon.spec y ribbon-icons.spec pedirán entonces
+  // su botón grande (ribbon-order) y el icono del panel (ribbon-icons).
   [/^(RENDER[A-Z]*|MATERIAL[A-Z]*|[A-Z]*LIGHT|SUNPROPERTIES)$/, "Render"],
   [/^(MESH|CONVTOMESH|CONVTOSOLID|MESH[A-Z]+|RULESURF|TABSURF|REVSURF|EDGESURF|3DFACE)$/, "Mallas"],
   [/^(UCS|UCSICON|-?UCSMAN)$/, "SCU"],
@@ -288,13 +297,22 @@ export interface CadRibbonTab extends CadRibbonTabMeta {
 
 /**
  * Comandos que declaran explícitamente por qué NO tienen botón de cinta.
- * Vacía hoy a propósito: todo comando de un `begin`/`step` interactivo puede
- * despacharse con un clic exactamente como si se tecleara su nombre — no hay
- * ningún comando del registro real que lo necesite hoy. Existe para que el
- * día que aparezca uno, la razón quede escrita aquí y no como un hueco
- * silencioso en la cinta.
+ *
+ * Son exactamente las órdenes que aún no están disponibles
+ * (`CAD_COMANDOS_AUN_NO_DISPONIBLES`), con su motivo. Se DERIVA de esa tabla y
+ * no se escribe aparte: una orden que empieza a funcionar sale de allí y
+ * recupera su botón sin que nadie se acuerde de tocar este archivo, y una que
+ * deja de funcionar no puede quedarse con botón por olvido. La cobertura
+ * registro ↔ cinta sigue siendo total: `cadRibbonCoverageGaps` cuenta cada
+ * nombre en la cinta o aquí, y `check-ribbon-coverage.mjs` exige que las dos
+ * cifras sumen el registro.
  */
-export const CAD_RIBBON_UNEXPOSED: Readonly<Record<string, string>> = {};
+export const CAD_RIBBON_UNEXPOSED: Readonly<Record<string, string>> = Object.fromEntries(
+  Object.entries(CAD_COMANDOS_AUN_NO_DISPONIBLES).map(([name, motivo]) => [
+    name,
+    `aún no disponible: ${motivo}`,
+  ]),
+);
 
 function buildRibbonTabs(): CadRibbonTab[] {
   const byTab = new Map<CadRibbonTabId, Map<string, CadRibbonCommand[]>>();

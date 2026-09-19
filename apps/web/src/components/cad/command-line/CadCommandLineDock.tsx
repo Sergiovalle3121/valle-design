@@ -33,17 +33,18 @@ export function CadCommandLineDock({ host, disabled, inputRef }: CadCommandLineD
   return (
     <div className="flex w-full flex-col gap-2">
       {/*
-        El recorrido guiado, encima de todo y sólo la primera vez. Se monta aquí
-        por lo mismo que la consola LISP: registrarlo en el editor costaría JSX y
-        un `useState` en un archivo cuyo presupuesto sólo puede bajar. Su estado
-        vive fuera de React y sobrevive a los remontajes.
+        El recorrido guiado, sólo la primera vez. Se MONTA aquí por lo mismo que
+        la consola LISP —registrarlo en el editor costaría JSX y un `useState`
+        en un archivo cuyo presupuesto sólo puede bajar— y porque aquí está el
+        anfitrión del motor, de donde lee el dibujo. Pero se PINTA en el muelle
+        izquierdo, que no tapa nada (`onboarding/tour-slot.ts`); aquí sólo
+        aparece cuando el muelle no está a la vista.
 
-        `gap-2`, no `gap-1`: con el panel desplegado entero el hueco sobre la
-        línea de comandos medía 4 px en 1.280×720 (golden de solape) — visible
-        en el DOM como dos cajas separadas, invisible al ojo como una sola.
-        8 px son el mínimo de la escala que de verdad se lee como aire entre
-        dos tarjetas; el pliegue del acompañante (`cad-guided-tour-toggle`)
-        hace el resto cuando 8 px tampoco alcanzan.
+        `gap-2`, no `gap-1`: cuando flota aquí, con el panel desplegado entero
+        el hueco sobre la línea de comandos medía 4 px en 1.280×720 (golden
+        211) — visible en el DOM como dos cajas separadas, invisible al ojo
+        como una sola. 8 px son el mínimo de la escala que de verdad se lee
+        como aire entre dos tarjetas.
       */}
       <CadGuidedTourDock host={host} disabled={disabled} />
       {/*

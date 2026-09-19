@@ -14,6 +14,16 @@
  * exactamente lo que hace AutoCAD: el doble clic ES la designación. Sin ese
  * segundo paso, dos clics dejarían un prompt abierto pidiendo lo que el usuario
  * acaba de señalar.
+ *
+ * ## Con un comando abierto, el doble clic no es de nadie más
+ *
+ * Son dos clics del comando, como en AutoCAD: el verbo del doble clic sólo
+ * existe en reposo. Sin esta guarda, quien remataba un LINE con doble clic
+ * —el gesto de «terminar» de medio mundo— sobre una polilínea, una cota o un
+ * texto veía morir el LINE y abrirse PEDIT o DDEDIT, porque `invoke` sustituye
+ * al comando en curso. Es la regla dura de `pointer-router.ts` («con un comando
+ * abierto la máquina heredada no recibe nada»), la misma que el `pointerdown`
+ * del editor aplica con `cadPointerDownBeforeHit`.
  */
 import { cadDoubleClickVerb } from "@/lib/cad/double-click-verb";
 
@@ -28,6 +38,8 @@ export interface CadDoubleClickEditPort {
   openMTextEditor(entityId: string): void;
   /** El motor de comandos, o `null` si esta sesión no lo tiene montado. */
   engine(): {
+    /** Hay un comando abierto (o cargándose): el doble clic es suyo. */
+    readonly busy: boolean;
     invoke(command: string): void;
     pickEntity(entityId: string, point: { x: number; y: number }): void;
   } | null;
@@ -48,6 +60,9 @@ export function attachCadDoubleClickEdit(
   port: CadDoubleClickEditPort,
 ): () => void {
   const onDoubleClick = (event: MouseEvent) => {
+    // Con un comando abierto los dos clics ya fueron suyos (puntos u objetos):
+    // ni se abre el editor de párrafo ni se arranca otro verbo que lo sustituya.
+    if (port.engine()?.busy) return;
     const point = port.drawingPoint(event);
     if (!point) return;
     const target = cadDoubleClickTarget(port.entityId(point), port.document());

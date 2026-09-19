@@ -412,6 +412,14 @@ export class CadEnginePointerRouter {
       if (!(accepts & CAD_ACCEPT_POINT)) return true;
     }
     const resolved = this.bridge.snap(raw, this.bridge.host.osnapOverride);
+    // El clic también ES la posición del cursor, y se publica ANTES de
+    // despachar: el paso siguiente calcula su preview con `context.cursor`
+    // al recibir el punto. Hasta ahora el cursor sólo lo movía `pointermove`,
+    // así que un clic sin mover antes (o un toque con el dedo, que no
+    // flota) dejaba el cursor viejo o a null: la banda salía de un sitio
+    // falso o no salía, y el punto parecía «no tomarse». Sólo el CLIC: un
+    // punto tecleado o de la entrada dinámica no es donde está el ratón.
+    this.bridge.setCursor(resolved.point);
     this.commitPoint(resolved.point, resolved.snap);
     return true;
   }

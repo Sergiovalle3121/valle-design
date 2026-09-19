@@ -6647,12 +6647,12 @@ export default function Layout3DEditor({
       if (drawingReadOnlyRef.current && toolRef.current !== "select") return;
       if (toolRef.current !== "select") return; // measure/wall resolve on click (pointerup); drag still orbits
       if (nativeGripController.handlePointerDown(e)) return;
-      // El botón central ENCUADRA (camera-policy.ts): se corta antes de los
-      // hit-tests, con preventDefault (autoscroll de Windows). El grip va antes.
-      if (cadPointerDownBeforeHit(e).kind === "camera") {
-        e.preventDefault();
-        return;
-      }
+      // Antes de los hit-tests (background-drag-policy.ts; el grip va antes): el central ENCUADRA, con
+      // preventDefault (autoscroll de Windows), y con un comando del motor abierto el gesto es SUYO —LINE
+      // tecleado deja la herramienta en «select»—: ni borra la cota o nota bajo el cursor, ni designa, ni arrastra.
+      const beforeHit = cadPointerDownBeforeHit({ button: e.button, engineActive: enginePointerRouter.active });
+      if (beforeHit.kind === "camera") e.preventDefault();
+      if (beforeHit.kind !== "continue") return;
       if (e.button === 0 && hatchPickModeRef.current) {
         const world = floorWorld(e);
         if (world) hatchPickCallbackRef.current({ x: world.wx, y: world.wy });
@@ -7253,8 +7253,8 @@ export default function Layout3DEditor({
       const isClick = touchRelease
         ? touchRelease.commits
         : Math.hypot(e.clientX - downX, e.clientY - downY) < 5;
-      // Sólo el CLIC: arrastrar sigue orbitando aunque haya un comando abierto.
-      if (isClick && enginePointerRouter.click(e)) {
+      // Sólo el CLIC (arrastrar sigue orbitando), y no el que suelta un arrastre abierto ANTES del comando: ese lo cierra `if (drag)`.
+      if (isClick && !drag && enginePointerRouter.click(e)) {
         try {
           renderer.domElement.releasePointerCapture(e.pointerId);
         } catch {

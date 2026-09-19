@@ -64,6 +64,9 @@ const { onCadPlotDelivered, resetCadPlotDeliveryListeners } = await import(
   cadTourHost.reset();
   cadTourHost.attach("u-1");
   assert.deepEqual(cadTourHost.getSnapshot(), EMPTY_CAD_TOUR_RECORD);
+  // Un recién llegado —nada guardado— ve el recorrido PLEGADO: una línea en el
+  // muelle, no cinco pasos encima de su plano.
+  ok(cadTourHost.getSnapshot().minimized === true, "sin nada guardado, el recorrido arranca plegado");
 
   let notified = 0;
   const off = cadTourHost.subscribe(() => {
@@ -107,6 +110,15 @@ const { onCadPlotDelivered, resetCadPlotDeliveryListeners } = await import(
   cadTourHost.attach("u-persist");
   assert.equal(cadTourHost.getSnapshot().minimized, true);
   checks += 1;
+
+  // Como el de fábrica ya es «plegado», lo que de verdad tiene que sobrevivir
+  // es lo CONTRARIO: quien lo desplegó lo encuentra desplegado. Si `attach`
+  // descartara el registro leído (p. ej. `sameRecord` sin mirar el pliegue),
+  // volvería plegado.
+  cadTourHost.dispatch({ type: "minimize", minimized: false });
+  cadTourHost.reset();
+  cadTourHost.attach("u-persist");
+  ok(cadTourHost.getSnapshot().minimized === false, "desplegado por el usuario sigue desplegado al volver");
 }
 
 // --- 3. SIN ALMACENAMIENTO, EL EDITOR SIGUE ---------------------------------

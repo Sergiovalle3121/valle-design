@@ -15,6 +15,7 @@ import { CAD_COMMAND_REGISTRY_V2 } from "@/lib/cad/engine";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
 import type { CadPreviewPath } from "@/lib/cad/engine/command-types";
 import type { SnapType } from "@/lib/cad/snap-engine";
+import type { CadViewRequest } from "@/lib/cad/view/view-navigation";
 import { CadCommandEngineHost } from "./command-engine-host";
 import { createCadClipboard } from "@/lib/cad/clipboard";
 import { createCadVariableAccess } from "@/lib/cad/system-variables";
@@ -31,13 +32,14 @@ interface Applied {
   label: string;
 }
 
-function makeHost(selection: readonly string[] = []) {
+function makeHost(selection: readonly string[] = [], engineRegistry = registry) {
   const applied: Applied[] = [];
+  const views: CadViewRequest[] = [];
   let previews: readonly CadPreviewPath[] = [];
   let override: readonly SnapType[] | null = null;
   let cursor = "none";
   let ids = 0;
-  const host = new CadCommandEngineHost(registry, {
+  const host = new CadCommandEngineHost(engineRegistry, {
     context: () => ({
       entityIds: ["line-1"],
       entity: () => undefined,
@@ -57,10 +59,15 @@ function makeHost(selection: readonly string[] = []) {
     cursor: (shape) => {
       cursor = shape;
     },
+    view: (request) => {
+      views.push(request);
+      return "Vista encuadrada.";
+    },
   });
   return {
     host,
     applied,
+    views,
     previews: () => previews,
     override: () => override,
     cursor: () => cursor,
@@ -411,6 +418,44 @@ function makeHost(selection: readonly string[] = []) {
   host.cancel();
   assert.ok(!host.busy, "cancelada");
   assert.equal(variables.get("CLAYER"), "0", "y las variables vuelven aunque no se dibujara nada");
+}
+
+// --- el eco del alias sólo cuando lo tecleado ABRE una orden -----------------
+// «L» con el motor libre abre LINE y el diálogo lo dice, como AutoCAD. Pero con
+// una orden en curso lo tecleado es la RESPUESTA a su prompt: la «E» de ZOOM es
+// Extensión y la «C» de LINE es Cerrar. Imprimir «ERASE» o «CIRCLE» ahí le dice
+// al dibujante que se abrió una orden que no se abrió.
+{
+  const { host, applied, views } = makeHost([], CAD_COMMAND_REGISTRY_V2);
+  const said = () => host.getSnapshot().history.filter((entry) => entry.level !== "input").map((entry) => entry.text);
+
+  host.submit("L");
+  assert.equal(host.getSnapshot().activeCommand, "LINE");
+  assert.ok(said().includes("LINE"), "con el motor libre, «L» hace eco de LINE");
+  host.submit("0,0");
+  host.submit("100,0");
+  host.submit("100,100");
+  host.submit("C");
+  assert.equal(host.busy, false, "«C» cerró el LINE");
+  assert.equal(applied.length, 1, "y el contorno cerrado llegó al documento");
+  assert.ok(!said().includes("CIRCLE"), "la «C» que cierra un LINE no hace eco de CIRCLE");
+
+  host.submit("Z");
+  assert.ok(said().includes("ZOOM"), "«Z» con el motor libre hace eco de ZOOM");
+  host.submit("E");
+  assert.deepEqual(views, [{ kind: "zoom", zoom: { option: "extents" } }], "Z E encuadra la extensión");
+  assert.ok(!said().includes("ERASE"), "la «E» de ZOOM no hace eco de ERASE");
+
+  // Un transparente SÍ abre una orden, aunque haya otra en curso.
+  host.submit("L");
+  host.submit("0,0");
+  const before = said().filter((text) => text === "ZOOM").length;
+  host.submit("'Z");
+  assert.equal(said().filter((text) => text === "ZOOM").length, before + 1, "«'Z» dentro de LINE hace eco de ZOOM");
+  host.submit("E");
+  assert.equal(host.getSnapshot().activeCommand, "LINE", "y el LINE sigue vivo tras el zoom");
+  assert.ok(!said().includes("ERASE"), "la «E» del ZOOM transparente tampoco es ERASE");
+  host.cancel();
 }
 
 console.log("cad command engine host specs passed");

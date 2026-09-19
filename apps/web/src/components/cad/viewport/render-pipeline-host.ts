@@ -202,6 +202,16 @@ export class CadViewportRenderHost {
   private viewPublishPending = false;
   /** Evita republicar en cada cuadro mientras la escena sigue en reposo. */
   private publishedSettled = false;
+  /**
+   * Una EDICIÓN (`invalidate`) aún sin publicar. Una edición pequeña se encola,
+   * se construye y se asienta dentro del MISMO cuadro, así que la transición
+   * «sin asentar → asentado» que vigila `frame` nunca se ve y el indicador se
+   * quedaba con las cifras de antes del LINE. La selección no la marca: no
+   * cambia ni el total ni el detalle, y publicar cuesta `stats()`, que a 100.000
+   * entidades visibles son ~60 ms (medido el 2026-09-19): uno por clic sería un
+   * tirón en cada designación.
+   */
+  private editPublishPending = false;
   private readonly listeners = new Set<() => void>();
 
   constructor(options: CadViewportRenderHostOptions) {
@@ -379,6 +389,7 @@ export class CadViewportRenderHost {
     this.scene.invalidate(affectedEntityIds, upserts, document);
     this.images.invalidate(affectedEntityIds, upserts, document);
     this.dirty = true;
+    this.editPublishPending = true;
   }
 
   /**
@@ -505,7 +516,9 @@ export class CadViewportRenderHost {
     const viewSettled = this.viewPublishPending && !viewMoved;
     if (
       viewSettled ||
-      (settled && !this.publishedSettled) ||
+      // Asentado y con algo nuevo que contar: la transición, o una edición
+      // que se asentó en el mismo cuadro en que entró (ver el campo).
+      (settled && (!this.publishedSettled || this.editPublishPending)) ||
       this.syncsSincePublish >= DIAGNOSTICS_SYNC_INTERVAL
     ) {
       this.viewPublishPending = viewMoved;
@@ -531,6 +544,9 @@ export class CadViewportRenderHost {
 
   private publish(): void {
     this.syncsSincePublish = 0;
+    // Publicar SIN asentar también la da por contada: lo que falte llega con la
+    // transición a asentado, que `frame` publica siempre.
+    this.editPublishPending = false;
     const next = this.diagnostics();
     const current = this.published;
     if (

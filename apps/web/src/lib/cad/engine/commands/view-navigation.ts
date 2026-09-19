@@ -20,6 +20,7 @@ import {
   CAD_ACCEPT_TEXT,
   asCadCommand,
   type CadAnyCommandDescriptor,
+  type CadCommandContext,
   type CadCommandDescriptor,
   type CadCommandStep,
 } from "../command-types";
@@ -50,16 +51,72 @@ function refuse(text: string): CadCommandStep<never> {
 // ZOOM
 // ---------------------------------------------------------------------------
 
+/**
+ * Extensión se elige con «E», como en AutoCAD en español: es la letra que se
+ * teclea sin mirar. No choca con ESCala: el atajo exacto gana, «ESC» sigue
+ * siendo Escala y «EX» o «ES» caen por prefijo en la palabra que empiezan.
+ * El rótulo lleva la E sola en mayúscula para que el prompt no anuncie «EX».
+ */
 const ZOOM_OPTIONS = [
   { keyword: "Todo", shortcut: "T" },
   { keyword: "CEntro", shortcut: "CE" },
   { keyword: "DInámico", shortcut: "DI" },
-  { keyword: "EXtensión", shortcut: "EX" },
+  { keyword: "EXtensión", shortcut: "E", label: "Extensión" },
   { keyword: "PRevio", shortcut: "PR" },
   { keyword: "ESCala", shortcut: "ESC" },
   { keyword: "Ventana", shortcut: "V" },
   { keyword: "Objeto", shortcut: "O" },
 ] as const;
+
+type ZoomKeyword = (typeof ZOOM_OPTIONS)[number]["keyword"];
+
+/**
+ * Las opciones GLOBALES de AutoCAD, las inglesas. Con `_` delante son las de
+ * los guiones y los menús (`_ZOOM _E`); sin él, la costumbre de quien aprendió
+ * en inglés (`Z A`, `Z W`). Sin `_` sólo llegan aquí las que el español no
+ * resolvió, así que no pueden robarle una letra a una opción en español.
+ *
+ * Como toda palabra clave de AutoCAD, vale cualquier principio de la palabra
+ * que incluya su atajo: `_E`, `_EXT` y `_EXTENTS` son lo mismo, igual que `LT`,
+ * `LTYP` y `LTYPE` lo son para `LType` en INITGET. Las ocho empiezan por letras
+ * distintas y el atajo es esa letra, así que un principio nunca empata.
+ */
+const ZOOM_GLOBAL_OPTIONS: readonly (readonly [english: string, keyword: ZoomKeyword])[] = [
+  ["ALL", "Todo"],
+  ["CENTER", "CEntro"],
+  ["DYNAMIC", "DInámico"],
+  ["EXTENTS", "EXtensión"],
+  ["PREVIOUS", "PRevio"],
+  ["SCALE", "ESCala"],
+  ["WINDOW", "Ventana"],
+  ["OBJECT", "Objeto"],
+];
+
+function zoomGlobalOption(word: string): ZoomKeyword | null {
+  if (!word) return null;
+  const hits = ZOOM_GLOBAL_OPTIONS.filter(([english]) => english.startsWith(word));
+  return hits.length === 1 ? hits[0][1] : null;
+}
+
+/** Mayúsculas y sin tildes: «extension» es «EXtensión» mal tecleada, no otra cosa. */
+function foldZoomToken(text: string): string {
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+}
+
+/**
+ * Lo tecleado en el primer paso que el pipeline dejó pasar como TEXTO porque
+ * no casaba con un atajo anunciado. `_E` es la opción inglesa; «dinamico» es
+ * Dinámico sin tilde; `A` y `W` son Todo y Ventana en inglés. Lo que no es
+ * ninguna opción devuelve `null` y sigue su camino como factor de escala.
+ */
+function zoomOptionFromText(token: string): ZoomKeyword | null {
+  const folded = foldZoomToken(token.trim());
+  if (folded.startsWith("_")) return zoomGlobalOption(folded.slice(1));
+  if (!folded) return null;
+  const spanish = ZOOM_OPTIONS.filter((option) => foldZoomToken(option.keyword).startsWith(folded));
+  if (spanish.length === 1) return spanish[0].keyword;
+  return zoomGlobalOption(folded);
+}
 
 /**
  * Qué está esperando ZOOM. El comando arranca ofreciéndolo todo y se estrecha
@@ -140,6 +197,40 @@ function zoomScale(token: string): CadCommandStep<ZoomState> {
   return viewResult({ kind: "zoom", zoom: { option: "scale", ...parsed } }, "ZOOM");
 }
 
+function zoomOption(
+  keyword: string,
+  state: ZoomState,
+  context: CadCommandContext,
+): CadCommandStep<ZoomState> {
+  switch (keyword) {
+    case "Todo":
+      return viewResult({ kind: "zoom", zoom: { option: "all" } }, "ZOOM");
+    case "EXtensión":
+      return viewResult({ kind: "zoom", zoom: { option: "extents" } }, "ZOOM");
+    case "PRevio":
+      return viewResult({ kind: "zoom", zoom: { option: "previous" } }, "ZOOM");
+    case "Ventana":
+      return zoomStep({ phase: "start" });
+    case "CEntro":
+      return zoomStep({ phase: "center-point" });
+    case "DInámico":
+      return zoomStep({ phase: "dynamic-point" });
+    case "ESCala":
+      return zoomStep({ phase: "scale" });
+    case "Objeto":
+      // Con objetos ya designados, ZOOM Objeto no vuelve a preguntar: es
+      // el gesto de «designo, luego encuadro» y preguntar lo rompería.
+      return context.selection.length > 0
+        ? viewResult(
+            { kind: "zoom", zoom: { option: "object", entityIds: [...context.selection] } },
+            "ZOOM",
+          )
+        : zoomStep({ phase: "object" });
+    default:
+      return zoomStep(state);
+  }
+}
+
 const zoomCommand: CadCommandDescriptor<ZoomState> = {
   name: "ZOOM",
   aliases: ["Z"],
@@ -153,35 +244,7 @@ const zoomCommand: CadCommandDescriptor<ZoomState> = {
   step: (state, input, context) => {
     if (input.kind === "cancel") return refuse("ZOOM cancelado.");
 
-    if (input.kind === "keyword") {
-      switch (input.keyword) {
-        case "Todo":
-          return viewResult({ kind: "zoom", zoom: { option: "all" } }, "ZOOM");
-        case "EXtensión":
-          return viewResult({ kind: "zoom", zoom: { option: "extents" } }, "ZOOM");
-        case "PRevio":
-          return viewResult({ kind: "zoom", zoom: { option: "previous" } }, "ZOOM");
-        case "Ventana":
-          return zoomStep({ phase: "start" });
-        case "CEntro":
-          return zoomStep({ phase: "center-point" });
-        case "DInámico":
-          return zoomStep({ phase: "dynamic-point" });
-        case "ESCala":
-          return zoomStep({ phase: "scale" });
-        case "Objeto":
-          // Con objetos ya designados, ZOOM Objeto no vuelve a preguntar: es
-          // el gesto de «designo, luego encuadro» y preguntar lo rompería.
-          return context.selection.length > 0
-            ? viewResult(
-                { kind: "zoom", zoom: { option: "object", entityIds: [...context.selection] } },
-                "ZOOM",
-              )
-            : zoomStep({ phase: "object" });
-        default:
-          return zoomStep(state);
-      }
-    }
+    if (input.kind === "keyword") return zoomOption(input.keyword, state, context);
 
     if (input.kind === "selection")
       return input.entityIds.length > 0
@@ -236,6 +299,10 @@ const zoomCommand: CadCommandDescriptor<ZoomState> = {
           "ZOOM",
         );
       }
+      // En el primer paso, antes de leerlo como escala: `E`, `_E`, `A`, `W` o
+      // «extension» sin tilde son opciones, no factores mal escritos.
+      const option = state.phase === "start" ? zoomOptionFromText(input.value) : null;
+      if (option) return zoomOption(option, state, context);
       return zoomScale(input.value);
     }
 
