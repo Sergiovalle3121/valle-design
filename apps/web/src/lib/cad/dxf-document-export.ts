@@ -24,6 +24,7 @@ import { CAD_LINEWEIGHT_DEFAULT } from "./cad-effective-style";
 import { cadLinetypePatternFor } from "./linetype-resolve";
 import { hexToAci } from "./plot/aci-palette";
 import { cadComplexLinetypeFor } from "./linetype-complex";
+import type { CadPaperSpace } from "./cad-paper-viewport";
 import type { CadDxfExportLayer, CadDxfExportLinetype } from "./dxf-export";
 import {
   cadDocumentDxfBlocks,
@@ -58,7 +59,8 @@ export type CadDxfDocumentExportSource = CadDxfExportSource & {
    * DWG de esta fase); mientras tanto, sus entidades se EXCLUYEN y se
    * DECLARAN, nunca se cuelan sin marcar.
    */
-  paperSpaces?: readonly { entityIds: readonly string[] }[];
+  paperSpaces?: readonly (Pick<CadPaperSpace, "entityIds"> &
+    Partial<Pick<CadPaperSpace, "id" | "name" | "includeInPublish" | "viewports" | "titleBlock">>)[];
 };
 
 /** Ids de TODAS las entidades que pertenecen a algún espacio papel. */
@@ -140,16 +142,34 @@ export function exportCadDocumentDxf(
     (entity) => paperIds.has(entity.id) && (filter ? filter(entity) : true),
   ).length;
   const allLosses = cadDocumentDxfExportLosses(document, modelSpaceOnly);
-  if (scopedPaperCount > 0)
+  const publishable = (document.paperSpaces ?? []).filter(
+    (ps) => ps.includeInPublish !== false,
+  );
+  if (scopedPaperCount > 0 || publishable.length > 0) {
+    const parts: string[] = [];
+    if (scopedPaperCount > 0)
+      parts.push(
+        `${scopedPaperCount} entidad(es) de espacio papel quedaron fuera`,
+      );
+    for (const ps of publishable) {
+      const label = ps.name ?? ps.id ?? "sin nombre";
+      const sheetNo = ps.titleBlock?.attributes?.SHEET_NO;
+      const vpCount = ps.viewports?.length ?? 0;
+      const vpText = `${vpCount} ventana${vpCount === 1 ? "" : "s"}`;
+      parts.push(
+        sheetNo ? `${label} (cajetín ${sheetNo}), ${vpText}` : `${label}, ${vpText}`,
+      );
+    }
+    parts.push(
+      "el DXF lleva SOLO espacio modelo; las hojas se entregan por PDF",
+    );
     allLosses.push({
       code: "dxf_export_paper_space_excluded",
       sourceType: "PAPER_SPACE",
       severity: "warning",
-      detail:
-        `${scopedPaperCount} entidad(es) de espacio papel quedaron fuera del ` +
-        "DXF: este exportador escribe SOLO espacio modelo — las hojas siguen " +
-        "intactas en el documento y en el PDF.",
+      detail: parts.join(". ") + ".",
     });
+  }
   const losses = allLosses;
   return {
     content: exported.content,
