@@ -410,6 +410,7 @@ assert.ok(CAD_COMMAND_REGISTRY_V2.get("3DFACE"), "3DFACE está en el registro");
   let doc = emptyDocument();
   const meshResult = drive("MESH", [point(0, 0), point(100, 100), distance(50)], doc);
   assert.ok(meshResult?.kind === "document", "MESH produce documento para rechazo");
+  if (meshResult?.kind !== "document") throw new Error("MESH no produjo documento");
   doc = executeCadEntityCommandBatch(doc, meshResult.commands, meshResult.label).document;
 
   // Una entidad que no es solid3d no debería funcionar — probamos con una línea
@@ -435,17 +436,20 @@ assert.ok(CAD_COMMAND_REGISTRY_V2.get("3DFACE"), "3DFACE está en el registro");
   // Crear malla y refinarla para tener más complejidad
   const meshResult = drive("MESH", [point(0, 0), point(100, 100), distance(50)], doc);
   assert.ok(meshResult?.kind === "document", "MESH produce documento para MESHCOLLAPSE");
+  if (meshResult?.kind !== "document") throw new Error("MESH no produjo documento");
   doc = executeCadEntityCommandBatch(doc, meshResult.commands, meshResult.label).document;
   const meshId = doc.entities.find((e) => e.type === "solid3d")?.id!;
 
   const refineResult = drive("MESHREFINE", [{ kind: "entityPick", entityId: meshId, point: { x: 50, y: 50 } }, enter], doc);
   assert.ok(refineResult?.kind === "document", "MESHREFINE produce documento para colapsar");
-  doc = executeCadEntityCommandBatch(doc, refineResult!.commands, refineResult!.label).document;
+  if (refineResult?.kind !== "document") throw new Error("MESHREFINE no produjo documento");
+  doc = executeCadEntityCommandBatch(doc, refineResult.commands, refineResult.label).document;
   const refinedId = doc.entities.filter((e) => e.type === "solid3d" && e.id !== meshId)[0]?.id!;
   assert.ok(refinedId, "Hay una malla refinada");
 
   const collapseResult = drive("MESHCOLLAPSE", [{ kind: "entityPick", entityId: refinedId, point: { x: 50, y: 50 } }, enter], doc);
   assert.ok(collapseResult?.kind === "document", "MESHCOLLAPSE produce documento");
+  if (collapseResult?.kind !== "document") throw new Error("MESHCOLLAPSE no produjo documento");
   doc = executeCadEntityCommandBatch(doc, collapseResult.commands, collapseResult.label).document;
   const collapsed = doc.entities.filter((e) => e.type === "solid3d" && e.id !== meshId && e.id !== refinedId);
   assert.ok(collapsed.length >= 1, "MESHCOLLAPSE añade una entidad");
