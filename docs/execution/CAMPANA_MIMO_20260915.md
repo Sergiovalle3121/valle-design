@@ -176,3 +176,6 @@ Todas hechas antes de esta sesión (commits `4359ef50`–`bd86c7e5`).
 | ci-fallo.md (golden18) | verificado: golden18 pasa (52.2s) tras commit 6594d66f. dashboard-document-lifecycle y golden13 ya pasaban según supervisor. ci-fallo.md borrado. | — |
 | NIVEL/T13 | hecha — rótulo de cota sin unidad automática. etiqueta lo decide DIMPOST (prefijo/sufijo). Plantilla mexicana: '3.45', no '3.45 m'. 7 specs actualizados. | 7374786f |
 | CONTADOR 2026-09-18 20:00 | comandos en manifiesto 343 en 122 modulos. NIVEL/T13 (rótulo sin unidad). ci-fallo.md borrado (golden18 verificado). Rotacion: Nivel+ci-fallo. | — |
+| NIVEL/T15 | hecha — Esc conserva trabajo acumulado en COPY, OFFSET, TRIM, EXTEND y MATCHPROP. command-engine.ts pasa cancel al step del comando; modify-basics.ts, modify-edges.ts y modify-align.ts manejan cancel devolviendo trabajo acumulado. Spec: 5 comprobaciones nuevas. | c15f3bdb |
+| NIVEL/T16 | hecha — TRIM dos veces sobre el mismo objeto: segundo corte opera sobre geometría ya recortada. applyPendingEdits() aplica properties/replace pendientes antes de computeCadCurveTrim. Spec: 3 comprobaciones (doble trim con dos bordes). | 344f2f5d |
+| CONTADOR 2026-09-21 HH:MM | comandos en manifiesto 343 en 122 modulos. NIVEL/T15 (Esc conserva trabajo) + T16 (TRIM doble). Rotacion: Nivel→Millar→3D→UI→DWG→Bloqueador. | — |
