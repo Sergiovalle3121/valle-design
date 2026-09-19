@@ -84,6 +84,25 @@ function ends(line: CadLineEntity): { a: CadPoint2; b: CadPoint2 } {
   return { a: { x: line.start.x, y: line.start.y }, b: { x: line.end.x, y: line.end.y } };
 }
 
+/**
+ * T16: aplica los comandos pendientes de `state.commands` sobre una entidad
+ * para que el segundo TRIM/EXTEND opere sobre la geometría ya modificada.
+ */
+function applyPendingEdits(
+  entity: CadEditableEntity,
+  commands: CadEntityCommand[],
+): CadEditableEntity {
+  let current: CadEditableEntity = entity;
+  for (const cmd of commands) {
+    if (cmd.type === "properties" && cmd.entityId === entity.id) {
+      current = { ...current, ...cmd.patch } as CadEditableEntity;
+    } else if (cmd.type === "replace" && cmd.entityId === entity.id) {
+      current = cmd.entity as CadEditableEntity;
+    }
+  }
+  return current;
+}
+
 function segmentPatch(segment: { a: CadPoint2; b: CadPoint2 }) {
   return {
     startX: segment.a.x,
@@ -331,8 +350,8 @@ function edgeCommand(
       if (!picked || picked.length === 0) return edgeStep(state, operation);
       const targetId = picked[0];
       const found = context.entity?.(targetId);
-      const target: CadEditableEntity | null = asCadEditableEntity(found);
-      if (!target)
+      const raw: CadEditableEntity | null = asCadEditableEntity(found);
+      if (!raw)
         return edgeStep(
           {
             ...state,
@@ -345,6 +364,9 @@ function edgeCommand(
           },
           operation,
         );
+      // T16: el segundo TRIM sobre el mismo objeto opera sobre la geometría
+      // que dejó el primero, no sobre la original.
+      const target = applyPendingEdits(raw, state.commands);
 
       // El punto de designación decide QUÉ TROZO se conserva en TRIM y QUÉ
       // EXTREMO se estira en EXTEND. Sin él no hay forma de saber a qué lado
