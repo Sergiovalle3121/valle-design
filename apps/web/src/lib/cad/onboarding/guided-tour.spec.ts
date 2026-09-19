@@ -335,6 +335,44 @@ const dimension = {
   ok(reset.minimized === true, "reiniciar el recorrido lo devuelve plegado");
 }
 
+// --- 7b. PLEGADO, EL RECORRIDO NO SE ATASCA EN EL PRIMER PASO ----------------
+// Plegado no hay botón «Entendido, a dibujar»: sólo sale al desplegar. Si el
+// primer paso se cerrara ÚNICAMENTE con ese botón, quien trabaja con el
+// recorrido plegado —que es como arranca— vería «Tu lámina ya está puesta»
+// para siempre aunque dibujara el muro, la puerta, la cota y el PDF, y el
+// recorrido no se cerraría nunca. El primer paso es de lectura: ponerse a
+// dibujar también es darlo por leído.
+{
+  const trabajado = cadGuidedTourProgress({
+    acknowledged: false,
+    document: view({ entities: [wall] }),
+  });
+  ok(
+    trabajado.doneStepIds.includes("lamina"),
+    "sin pulsar «Entendido», quien ya dibujó el muro ya pasó de la lámina",
+  );
+  ok(
+    trabajado.currentStepId === "puerta",
+    "plegado, el paso que se enseña avanza con el dibujo (muro hecho → la puerta)",
+  );
+
+  const todo = cadGuidedTourProgress({
+    acknowledged: false,
+    plotted: true,
+    document: view({ entities: [wall, doorInsert, dimension], blocks: [doorBlock] }),
+  });
+  ok(todo.completed, "con los cuatro pasos de dibujo hechos, el recorrido se cierra aunque nunca se desplegara");
+
+  // Pero la lámina no se da por leída de regalo: sin dibujo ni «Entendido»,
+  // sigue siendo el paso actual.
+  const nada = cadGuidedTourProgress({ acknowledged: false, document: view() });
+  ok(nada.currentStepId === "lamina", "sin dibujo ni «Entendido», la lámina sigue siendo el paso actual");
+  ok(
+    cadTourStepDone("lamina", { acknowledged: false, document: null }) === false,
+    "sin documento no se inventa que la lámina esté leída",
+  );
+}
+
 // Regla 3 (AGENTS.md): ninguna capacidad se anuncia sin evidencia. El primer
 // paso NO puede afirmar «tu lámina ya está puesta» delante de un documento en
 // blanco — antes lo hacía siempre, sin mirar el documento.

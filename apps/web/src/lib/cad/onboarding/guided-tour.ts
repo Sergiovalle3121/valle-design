@@ -110,9 +110,13 @@ export interface CadTourEvidence {
   document?: CadCommandDocumentView | null;
   /** El anfitrión entregó un PDF. Trazar no deja rastro en el documento. */
   plotted?: boolean;
-  /** El primer paso es de lectura: se cierra al decir «entendido». */
+  /** El primer paso es de lectura: se cierra al decir «entendido» (o al
+   *  hacer cualquiera de los pasos de dibujo, ver `cadTourStepDone`). */
   acknowledged?: boolean;
 }
+
+/** Los pasos que son ACCIONES sobre el dibujo: todos menos la lámina. */
+const CAD_TOUR_DRAWING_STEP_IDS: readonly CadTourStepId[] = ["muro", "puerta", "cota", "pdf"];
 
 /** ¿Este bloque es una puerta? Vale la sembrada, la dinámica y la propia. */
 export function cadTourBlockIsDoor(block: { id: string; name?: string }): boolean {
@@ -197,7 +201,16 @@ export function cadGuidedTourStepCopy(
 }
 
 export function cadTourStepDone(id: CadTourStepId, evidence: CadTourEvidence): boolean {
-  if (id === "lamina") return evidence.acknowledged === true;
+  if (id === "lamina") {
+    // De lectura: se cierra con «Entendido»… o poniéndose a dibujar. El
+    // recorrido arranca PLEGADO y plegado ese botón no se ve; si sólo él
+    // cerrara el paso, quien trabaja con el recorrido plegado vería «Tu lámina
+    // ya está puesta» para siempre y el recorrido no se cerraría nunca.
+    return (
+      evidence.acknowledged === true ||
+      CAD_TOUR_DRAWING_STEP_IDS.some((other) => cadTourStepDone(other, evidence))
+    );
+  }
   if (id === "pdf") return evidence.plotted === true;
   const document = evidence.document;
   if (!document) return false;
