@@ -303,7 +303,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   ROOF: "Cubierta",
   ROTATE: "Girar",
   RSCRIPT: "Repetir guion",
-  REVSURF: "Superf. revolución",
+  REVSURF: "Sup. revolución",
   EDGESURF: "Superf. borde",
   RULESURF: "Superficie reglada",
   SCALE: "Escala",
