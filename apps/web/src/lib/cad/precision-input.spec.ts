@@ -139,6 +139,28 @@ ok(!parseCoordinate("1,2,3,4").ok, "cuatro componentes se rechazan");
   ok(!c.snapped, "sin restricción no ajusta");
 }
 
+// ── La coma separa coordenadas, como en AutoCAD (nunca es decimal) ──
+{
+  const r = parseCoordinate("4,325");
+  ok(r.ok && r.mode === "absolute" && nearP(r.point, 4, 325), "4,325 es el punto (4, 325)");
+}
+{
+  const r = parseCoordinate("5,300");
+  ok(r.ok && nearP(r.point, 5, 300), "5,300 es el punto (5, 300)");
+}
+{
+  const r = parseCoordinate("4,325.5");
+  ok(r.ok && r.mode === "absolute" && nearP(r.point, 4, 325.5), "4,325.5 sigue siendo coordenada (la coma separa)");
+}
+{
+  const r = parseCoordinate("10,20");
+  ok(r.ok && nearP(r.point, 10, 20), "10,20 sigue siendo coordenada (segunda parte <3 dígitos)");
+}
+{
+  const r = parseCoordinate("@1,500", { last: { x: 10, y: 10 } });
+  ok(r.ok && nearP(r.point, 11, 510), "@1,500 es relativo al último punto");
+}
+
 if (fails.length) {
   console.log(`❌ ${passed}/${passed + fails.length}`);
   for (const f of fails) console.log("  - " + f);

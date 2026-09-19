@@ -42,6 +42,21 @@ Las cookies no tienen variables de nombre o seguridad configurables. En
 producción se usa `__Host-valle_session` Secure/HttpOnly y `valle_csrf`; el
 reverse proxy debe comunicar HTTPS con `X-Forwarded-Proto=https`.
 
+### Marca visible en la API
+
+La API no escribe el nombre del producto a mano: lo resuelve del manifiesto de
+`@valle-design/contracts` (`resolveBrandManifest`) con las mismas variables
+que el web pero **sin** el prefijo `NEXT_PUBLIC_`. Firma los correos del
+receptor de outbox y el emisor del segundo factor.
+
+| Variable                    | Requerida | Comportamiento                                                                                                                                                       |
+| --------------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BRAND_PRODUCT_NAME_DESIGN` | No        | Nombre visible del producto en asunto, intro, botón y pie de todos los correos. Default: el del manifiesto («VALLE Design»). En producción debe coincidir con `NEXT_PUBLIC_BRAND_PRODUCT_NAME_DESIGN` del web. |
+| `BRAND_NAME`                | No        | Marca matriz del manifiesto; respaldo del nombre de producto.                                                                                                        |
+| `BRAND_SUPPORT_EMAIL`       | No        | Buzón de soporte que se enseña en el pie de los correos. Si falta se usa `SUPPORT_EMAIL`; un marcador `*.invalid` nunca se enseña. Nunca un correo personal.        |
+| `IDENTITY_MFA_ISSUER`       | No        | Emisor que muestra la aplicación TOTP. Default: `BRAND_PRODUCT_NAME_DESIGN`. Se recorta a 48 caracteres.                                                            |
+| `SUPPORT_EMAIL`             | No        | Buzón que recibe comentarios (`/v1/feedback`) e incidentes (`/v1/support`); respaldo del pie de los correos. Sin él, `/v1/support` responde 503 y lo dice.           |
+
 ## Dispatcher y webhooks de outbox
 
 | Variable                    | Requerida        | Comportamiento                                                                                                      |
@@ -82,7 +97,7 @@ El proveedor de correo se elige POR CONFIGURACIÓN y jamás a medias:
 | ---------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------ |
 | `EMAIL_SENDER_PROVIDER`      | Con correo | Adaptador a usar. Hoy sólo `resend`; otro nombre falla el arranque hasta que exista su adaptador.                   |
 | `EMAIL_SENDER_API_KEY`       | Con correo | Credencial del proveedor (`re_…`). Viaja como `Authorization: Bearer` y nunca se registra.                          |
-| `EMAIL_SENDER_FROM`          | Con correo | Remitente: `correo@dominio` o `Nombre <correo@dominio>`. El dominio debe estar verificado en el proveedor.          |
+| `EMAIL_SENDER_FROM`          | Con correo | Remitente: `correo@dominio` o `Nombre <correo@dominio>` (p. ej. `VALLECAD <no-reply@vallecad.com>`: el nombre es lo que el cliente ve como remitente). El dominio debe estar verificado en el proveedor. |
 | `OUTBOX_EMAIL_LINK_BASE_URL` | Con correo | Origen web público que ancla los enlaces absolutos de los correos. HTTPS obligatorio (loopback HTTP sólo en local); sin credenciales, query ni fragmento. |
 
 Las plantillas existentes son `identity.verify-email`,

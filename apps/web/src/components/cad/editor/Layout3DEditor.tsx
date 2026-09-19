@@ -267,9 +267,8 @@ import { buildCadSelectionUniverse } from "@/components/cad/editor/selection-uni
 import { assertCadCommandsNotOnLockedLayers } from "@/lib/cad/entity-command-locks";
 import {
   acquireCadTrackingPoint,
-  resolveCadPolarTracking,
-  trackFromAcquiredPoints,
 } from "@/lib/cad/precision-tracking";
+import { resolveDraftPoint } from "./draft-point-resolver";
 import {
   defaultCadDynamicValues,
   type CadDynamicInputResult,
@@ -446,6 +445,7 @@ import {
   propagateCadConstraintsByDiff,
 } from "@/lib/cad/constraint-propagation";
 import { CadViewController } from "@/lib/cad/view/view-controller";
+import { PLAN_AXIS_Y_SCREEN_SIGN } from "@/lib/cad/view/plan-axis";
 import {
   cadDistanceToUcsPlane, cadDrawingPoint, cadDrawingPointOrNull, cadPointerWorldFromRay } from "@/lib/cad/view/pointer-work-plane";
 import {
@@ -459,7 +459,7 @@ import { CAD_SHARED_CLIPBOARD } from "@/lib/cad/clipboard";
 import { formatCadPrompt } from "@/lib/cad/engine/prompt";
 import { useCadStudioCommandEngine } from "@/components/cad/command-line/use-command-engine";
 import { cadStudioEngineBridges } from "@/components/cad/command-line/studio-engine-bridges";
-import { cadFacePickerFor, cadHonorSnapOverride, CAD_FACE_PICK_BIT } from "@/lib/cad/pick3d/scene-ray";
+import { cadFacePickerFor, cadEdgePickerFor, cadHonorSnapOverride, CAD_FACE_PICK_BIT } from "@/lib/cad/pick3d/scene-ray";
 import { cadLocalPoint, cadPointerWorldTolerance } from "@/components/cad/viewport/pointer-geometry";
 import {
   CadOverlayLegends,
@@ -518,7 +518,7 @@ import { CadLiveCursorOverlay } from "@/components/cad/viewport/live-cursor";
 import {
   CadEnginePointerRouter,
   EMPTY_CAD_POINTER_SESSION,
-  cadEngineCommandForTool,
+  cadEngineCommandForTool, cadEngineCommandHasDraftToolbar,
   type CadPointerSession,
 } from "@/components/cad/viewport/pointer-router";
 import { CadNativeGripController } from "@/components/cad/viewport/native-grip-controller";
@@ -533,6 +533,7 @@ import type { CadCommandEngineHost } from "@/components/cad/command-line/command
 import {
   applyCadCameraPolicy,
   applyInitialCameraFraming,
+  unlockPolarAngleForCommand,
 } from "@/components/cad/viewport/camera-policy";
 import {
   resolveCadRenderPipeline,
@@ -577,6 +578,7 @@ import CadOverviewMinimap from "@/components/cad/viewport/CadOverviewMinimap";
 import { renderCadSheetSetPdf } from "./sheet-set-pdf";
 import ScaleBar from "./ScaleBar";
 import { mergeAnnotationLayers, syncLegacyTextShadow } from "./legacy-text-shadow-sync";
+import { useHatchPalette } from "./use-hatch-palette";
 import {
   CadSelectionPalette,
   type CadSelectionGeometryMode,
@@ -628,12 +630,12 @@ import {
   type CadViewportBookmark,
 } from "@/lib/cad/viewport-bookmarks";
 // Aquí NO se instala analítica industrial (flujo, balanceo, ruta de material):
-// Valle Design dibuja planos, no opera fábricas (ver IDENTITY.md). Sin registro,
+// VALLECAD dibuja planos, no opera fábricas (ver IDENTITY.md). Sin registro,
 // los comandos de análisis del kernel degradan con su aviso contractual
 // (`analysis_pack_missing`) — comportamiento probado en analysis-extensions.spec.
 
 /**
- * El editor: el lienzo de dibujo de Valle Design, en 2D y en 3D sobre el mismo
+ * El editor: el lienzo de dibujo de VALLECAD, en 2D y en 3D sobre el mismo
  * documento.
  *
  * Dibuja CUALQUIER plano —arquitectónico, mecánico, eléctrico, civil, de
@@ -758,20 +760,11 @@ const CAD_CLIPBOARD: {
   }[];
 } = { items: [] };
 
-// Approval / sign-off (ported from the 2D host, unify)
-type ApprovalStatus = "draft" | "in_review" | "approved";
-interface LayoutApproval {
-  status: ApprovalStatus;
-  by: string | null;
-  at: string | null;
-  note: string | null;
-}
-const APPROVAL_META: Record<ApprovalStatus, { label: string; color: string }> =
-  {
-    draft: { label: "Borrador", color: "#94a3b8" },
-    in_review: { label: "En revisión", color: "#f59e0b" },
-    approved: { label: "Aprobado", color: "#10b981" },
-  };
+import {
+  APPROVAL_META,
+  type ApprovalStatus,
+  type LayoutApproval,
+} from "./layout-approval";
 
 export interface St {
   id: string;
@@ -871,20 +864,7 @@ interface Snapshot {
   /** Nota por objeto: sin esto no se guardaba en ningún sitio, en absoluto. */
   notes?: Record<string, string>;
 }
-/**
- * ¿Dos mapas de cadenas por objeto tienen el MISMO contenido?
- *
- * Sirve para no disparar un re-render cuando una restauración devuelve lo que
- * ya había. Comparación superficial y suficiente: los valores son cadenas.
- */
-function sameStringMap(
-  a: Readonly<Record<string, string>>,
-  b: Readonly<Record<string, string>>,
-): boolean {
-  const keys = Object.keys(a);
-  if (keys.length !== Object.keys(b).length) return false;
-  return keys.every((key) => a[key] === b[key]);
-}
+import { sameStringMap } from "./same-string-map";
 
 /** El preview del copiloto; la forma vive con las acciones de la paleta. */
 type CommandPreviewState = CadPalettePreviewState;
@@ -1051,11 +1031,14 @@ export interface Layout3DEditorProps extends Layout3DEditorPlatformProps {
   readOnly?: boolean;
 }
 
-/** Marca por defecto cuando el editor se monta sin plataforma (nunca en enterprise). */
+/**
+ * Marca por defecto cuando el editor se monta sin plataforma (nunca en enterprise).
+ * Literales a propósito: el kernel CAD extraído no puede importar @/config/brand.
+ */
 const DEFAULT_BRANDING: NonNullable<Layout3DEditorPlatformProps["branding"]> = {
-  brandName: "Valle Design",
+  brandName: "VALLECAD",
   legalEntityName: "",
-  productLabel: "Valle Design",
+  productLabel: "VALLECAD",
 };
 
 export default function Layout3DEditor({
@@ -1450,8 +1433,8 @@ export default function Layout3DEditor({
   const [professionalSelection, setProfessionalSelection] =
     useState<CadSelectionState>(EMPTY_CAD_SELECTION);
   const [hatchPickMode, setHatchPickMode] = useState(false);
-  const [showHatchPalette, setShowHatchPalette] = useState(false);
   const [hatchPickSolid, setHatchPickSolid] = useState(false);
+  const { showHatchPalette, setShowHatchPalette } = useHatchPalette();
   const [hatchIslandStyle, setHatchIslandStyle] = useState<
     "normal" | "outer" | "ignore"
   >("normal");
@@ -2016,7 +1999,7 @@ export default function Layout3DEditor({
         ...workspacePreferencesRef.current,
         rightDock: true,
       });
-  }, [updateWorkspacePreferences]);
+  }, [updateWorkspacePreferences, setShowHatchPalette]);
   const applyWorkspaceProfile = useCallback(
     (profile: CadWorkspaceProfile) => {
       updateWorkspacePreferences(
@@ -4791,6 +4774,7 @@ export default function Layout3DEditor({
       syncRedefinedBlock: (blockId) => syncRedefinedBlockLibraryRef.current(blockId),
       cursor: engineCursorPointRef,
       drawPreview: (paths) => enginePreviewRef.current?.draw(paths),
+      viewControllerRef,
     }),
     attachXref: cadStudioXrefBridge(attachXrefRef, commandEngineRef),
   });
@@ -5881,7 +5865,7 @@ export default function Layout3DEditor({
       });
     } catch (cause) {
       console.error(
-        "Valle Design: WebGL no disponible en este navegador",
+        "VALLECAD: WebGL no disponible en este navegador",
         cause,
       );
       sceneRef.current = null;
@@ -5953,13 +5937,13 @@ export default function Layout3DEditor({
     nativeGroupRef.current = nativeGroup;
     // El pipeline por lotes se enchufa aquí, con el mapeo mundo→XZ intacto: lo
     // único que recibe es el mismo `{ scale, width, height }` que ya usaba
-    // `scenePoint`. `yScreenSign: 1` reproduce la convención vigente (+Y del
+    // `scenePoint`. `PLAN_AXIS_Y_SCREEN_SIGN` reproduce la convención vigente (+Y del
     // dibujo hacia abajo); voltearla es un cambio con su propio PR.
     if (renderPipelineRef.current === "batched") {
       const host = new CadViewportRenderHost({
         parent: nativeGroup,
         viewport: { scale: s, width: W, height: H, elevation: 0.11 },
-        yScreenSign: 1,
+        yScreenSign: PLAN_AXIS_Y_SCREEN_SIGN,
         // 4 ms de 16,7 es el defecto del planificador, pensado para que nadie
         // note nada mientras dibuja; cargar 100.000 entidades con ese presupuesto
         // tarda minutos y durante la carga nadie dibuja. 8 ms deja medio cuadro libre.
@@ -6072,6 +6056,10 @@ export default function Layout3DEditor({
       camera,
     );
     viewControllerRef.current = publishCadViewport(viewController, mount);
+    // Desbloquear el tope polar cuando un comando (VPOINT, VIEW) coloque la
+    // cámara en un alzado o en la vista inferior. Sin esto, OrbitControls.update()
+    // recorta φ a 87,8° en el siguiente cuadro y la vista pedida se deshace.
+    viewController.onBeforeCommandedView = () => unlockPolarAngleForCommand(controls);
     let batchedViewBounds: CadBounds | null = null;
     let batchedViewDirty = true;
     const unsubscribeBatchedView = viewController.onChange(() => {
@@ -6486,58 +6474,29 @@ export default function Layout3DEditor({
         (wallChainRef.current
           ? { x: wallChainRef.current.wx, y: wallChainRef.current.wy }
           : null);
-      if (
-        draftSettingsHost.objectSnapTracking &&
-        draftSettingsHost.trackingPoints.length
-      ) {
-        const tracked = trackFromAcquiredPoints(
-          { x: wx, y: wy },
-          draftSettingsHost.trackingPoints,
-          tol,
-        );
-        if (tracked.snapped) {
-          setGuides(
-            tracked.guides.find((guide) => guide.axis === "x")?.value ?? null,
-            tracked.guides.find((guide) => guide.axis === "y")?.value ?? null,
-          );
-          return {
-            wx: tracked.point.x,
-            wy: tracked.point.y,
-            onDxf: false,
-            tracking: "object",
-          };
-        }
+      const resolved = resolveDraftPoint({
+        cursor: { x: wx, y: wy },
+        anchor,
+        tolerance: tol,
+        ortho: draftSettingsHost.ortho,
+        polar: draftSettingsHost.polar,
+        polarIncrement: draftSettingsHost.polarIncrement,
+        objectSnapTracking: draftSettingsHost.objectSnapTracking,
+        trackingPoints: draftSettingsHost.trackingPoints,
+        snapWorld,
+      });
+      if (resolved.tracking === "object") {
+        setGuides(resolved.guideX, resolved.guideY);
+      } else {
+        setGuides(null, null);
       }
-      setGuides(null, null);
-      if (anchor && (draftSettingsHost.ortho || draftSettingsHost.polar)) {
-        const increment = draftSettingsHost.ortho
-          ? 90
-          : draftSettingsHost.polarIncrement;
-        const tracked = resolveCadPolarTracking(
-          anchor,
-          { x: wx, y: wy },
-          increment,
-          draftSettingsHost.ortho ? 45 : Math.min(6, increment / 4),
-        );
-        if (tracked.snapped) {
-          // Con la rejilla de captura encendida, la DISTANCIA a lo largo del
-          // rayo también se captura al paso de la rejilla (el PolarSnap de
-          // AutoCAD): el rastreo devolvía el punto crudo proyectado y un muro
-          // pinchado a 8011 quedaba en 8011 con SNAP on (golden 53, medido:
-          // y exacta por el rayo a 0°, x con el error del píxel).
-          const along = Math.hypot(tracked.point.x - anchor.x, tracked.point.y - anchor.y);
-          const stepped = snapWorld(along);
-          const ratio = along > 1e-9 ? stepped / along : 0;
-          return {
-            wx: anchor.x + (tracked.point.x - anchor.x) * ratio,
-            wy: anchor.y + (tracked.point.y - anchor.y) * ratio,
-            onDxf: false,
-            tracking: draftSettingsHost.ortho ? "ortho" : "polar",
-            trackingAngle: tracked.angle,
-          };
-        }
-      }
-      return { wx: snapWorld(wx), wy: snapWorld(wy), wz, onDxf: false };
+      return {
+        wx: resolved.x,
+        wy: resolved.y,
+        onDxf: false,
+        tracking: resolved.tracking,
+        trackingAngle: resolved.trackingAngle,
+      };
     };
     const showSnapMarker = (wx: number | null, wy?: number) => {
       const m = snapMarkerRef.current;
@@ -6592,6 +6551,14 @@ export default function Layout3DEditor({
         return null;
       },
       hitFace: cadFacePickerFor({
+        mode: () => viewController.mode,
+        document: () => loadedCadDocumentRef.current,
+        frame: () => ctxRef.current,
+        sceneRay: (e) => (
+          setPtr(e as PointerEvent), raycaster.setFromCamera(ptr, activeCamera()), raycaster.ray
+        ),
+      }),
+      hitEdge: cadEdgePickerFor({
         mode: () => viewController.mode,
         document: () => loadedCadDocumentRef.current,
         frame: () => ctxRef.current,
@@ -8489,7 +8456,7 @@ export default function Layout3DEditor({
     select(items);
     rebuildAll();
     focusViewportItems(items);
-    toast.success(issue.actionLabel, "CAD validation");
+    toast.success(issue.actionLabel, "Validación CAD");
   };
   // Design-check / validation review of the current (possibly unsaved) state (Fase 63).
   const openChecks = useCallback(() => {
@@ -11120,6 +11087,12 @@ export default function Layout3DEditor({
   const toggleCadLayerVisibility = (id: CadLayerId) => {
     const layer = cadLayers.find((candidate) => candidate.id === id);
     if (!layer) return;
+    if (layer.visible && id === activeCadLayer) {
+      toast.error(
+        "Estás ocultando la capa activa. Lo que dibujes será invisible hasta que la muestres de nuevo.",
+        "Capas",
+      );
+    }
     commitBlockMutation(
       (document) =>
         updateCadDocumentLayer(document, id, { visible: !layer.visible }),
@@ -11172,7 +11145,6 @@ export default function Layout3DEditor({
         "Capas",
       );
       if (created) {
-        setActiveCadLayer(id);
         layerManagerHost.setDraftName("");
       }
     } catch (cause) {
@@ -11578,12 +11550,14 @@ export default function Layout3DEditor({
     if (!boundsIntersect(content, { minX: 0, minY: 0, maxX: ctx.W, maxY: ctx.H }))
       fitToBounds(content);
   }, [open, data?.footprint.footprintW, data?.footprint.footprintH, worldBounds, fitToBounds]);
+  const [activeViewPreset, setActiveViewPreset] = useState<CadCameraViewPreset | undefined>();
   const viewPreset = (preset: CadCameraViewPreset) => {
     const cam = cameraRef.current;
     const ctrl = controlsRef.current;
     const ctx = ctxRef.current;
     if (!cam || !ctrl || !ctx) return;
     applyCadCameraViewPreset(cam, ctrl, ctx, preset, worldBounds("all"));
+    setActiveViewPreset(preset);
   };
   // ---- 2D⇄3D view toggle: the CAD unifica plano (2D) y modelo (3D) (unify) ----
   // 2D = vista superior bloqueada (solo pan+zoom), como un plano CAD; 3D = órbita libre.
@@ -13117,7 +13091,7 @@ export default function Layout3DEditor({
               : "text-muted-foreground dark:text-muted-foreground",
     },
     {
-      label: "CAD validation",
+      label: "Validación CAD",
       value: cadValidationReport
         ? cadValidationReport.severity === "critical"
           ? "Crítico"
@@ -13441,8 +13415,10 @@ export default function Layout3DEditor({
           which would otherwise stack over the backdrop-blur'd bar) */}
       <div
         data-testid="cad-top-toolbar"
-        className={`relative z-30 flex flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap border-b border-border bg-surface/90 px-4 backdrop-blur [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0 ${workspacePreferences.toolbarDensity === "compact" ? "h-12 py-1.5" : "h-14 py-2.5"}`}
+        className={`relative z-30 flex items-center border-b border-border bg-surface/90 px-4 backdrop-blur ${workspacePreferences.toolbarDensity === "compact" ? "h-12 py-1.5" : "h-14 py-2.5"}`}
       >
+        {/* Banda de iconos: scrollable horizontalmente */}
+        <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
         {/* Cierre persistente y SIEMPRE alcanzable, anclado al inicio de la
             barra. Regla que no cambia: ninguna pantalla a foco total puede
             atrapar al usuario.
@@ -14152,7 +14128,9 @@ export default function Layout3DEditor({
         >
           <HelpCircle className="w-4 h-4" />
         </T3Btn>
-        <div className="flex-1" />
+        </div>
+        {/* Cola fija: estado, guardar, cerrar — siempre visible, fuera del scroll */}
+        <div className="flex shrink-0 items-center gap-2">
         {approval && (
           <div
             className="inline-flex items-center gap-1.5 mr-1.5"
@@ -14169,8 +14147,7 @@ export default function Layout3DEditor({
               onChange={(e) =>
                 setApprovalStatus(e.target.value as ApprovalStatus)
               }
-              className="type-caption rounded-md px-1.5 py-1 bg-muted/60 border border-border outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              style={{ color: APPROVAL_META[approval.status].color }}
+              className="type-caption text-foreground rounded-md px-1.5 py-1 bg-muted/60 border border-border outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <option value="draft" className="text-foreground">
                 Borrador
@@ -14195,8 +14172,7 @@ export default function Layout3DEditor({
           // persistida no emite escritura ni versión CAS nueva, y la cola de un
           // solo escritor serializa el clic con cualquier autosave en vuelo.
           disabled={drawingReadOnly}
-          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-sm font-medium text-foreground disabled:opacity-50"
-          style={{ background: "#e11d48" }}
+          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-sm font-medium bg-brand-strong text-primary-foreground disabled:opacity-50"
         >
           {saving ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -14208,10 +14184,13 @@ export default function Layout3DEditor({
         <button
           onClick={() => void closeEditor()}
           className="p-1.5 rounded-lg hover:bg-muted ml-1"
+          data-testid="cad-close-editor"
+          aria-label="Cerrar editor"
           title="Cerrar editor"
         >
           <X className="w-5 h-5" />
         </button>
+        </div>
       </div>
 
       {/* LA CINTA. Va debajo de la barra de título/atajos de arriba, igual que
@@ -14221,7 +14200,13 @@ export default function Layout3DEditor({
           `commandEngineRef.current.invoke` es el MISMO despacho que usa la
           línea de comandos: un botón de la cinta no es un camino nuevo. */}
       <CadRibbon
-        dispatch={(name) => commandEngineRef.current.invoke(name)}
+        dispatch={(name) => {
+          if (enginePointerRouterRef.current) {
+            enginePointerRouterRef.current.invoke(name);
+          } else {
+            commandEngineRef.current.invoke(name);
+          }
+        }}
         readOnly={drawingReadOnly}
       />
 
@@ -14299,7 +14284,7 @@ export default function Layout3DEditor({
               {viewMode === "3d" && (
                 <div className="flex items-start gap-2">
                   <div className="pointer-events-auto">
-                    <CadViewCube onSelect={viewPreset} />
+                    <CadViewCube active={activeViewPreset} onSelect={viewPreset} />
                   </div>
                   <div className="pointer-events-auto">
                     <CadNavigationBar
@@ -14343,7 +14328,7 @@ export default function Layout3DEditor({
                   <p className="type-caption leading-relaxed text-foreground/70">
                     {webglUnavailable === "contexto-perdido"
                       ? "El navegador soltó el contexto de dibujo — suele pasar cuando la tarjeta gráfica se reinicia o se queda sin memoria. El documento, las capas, las propiedades y el guardado siguen funcionando, y el dibujo vuelve solo en cuanto el navegador devuelva el contexto."
-                      : "Valle Design necesita WebGL para dibujar en pantalla. El documento, las capas, las propiedades y el guardado siguen funcionando, pero no verás la geometría hasta que actives WebGL o uses un navegador con aceleración disponible."}
+                      : `${branding.productLabel} necesita WebGL para dibujar en pantalla. El documento, las capas, las propiedades y el guardado siguen funcionando, pero no verás la geometría hasta que actives WebGL o uses un navegador con aceleración disponible.`}
                   </p>
                 </div>
               </div>
@@ -14630,16 +14615,16 @@ export default function Layout3DEditor({
                   snapLabelRef={engineSnapLabelRef}
                 />
               )}
-            {!walk && (tool === "wall" || isCadDrawTool(tool)) && (
+            {!walk && (tool === "wall" || isCadDrawTool(tool) || cadEngineCommandHasDraftToolbar(engineCommand)) && (
               <CadDraftToolbar
                 orthoLock={draftSettings.ortho}
                 onToggleOrtho={() => draftSettingsHost.toggleOrtho()}
                 dynamicInputKey={`${dynamicInputKind}:${dynamicAnchor ? "anchored" : "origin"}`}
-                dynamicInputEnabled={draftSettings.dynamicInput}
+                dynamicInputEnabled={draftSettings.dynamicInput && (webglUnavailable !== "sin-webgl" || tool === "wall" || isCadDrawTool(tool))}
                 dynamicInput={{
                   kind: dynamicInputKind,
                   anchor: dynamicAnchor,
-                  documentUnit: data?.footprint.unit === "m" ? "m" : "mm",
+                  documentUnit: (["mm", "cm", "m", "in", "ft"].includes(data?.footprint.unit) ? data?.footprint.unit : "mm") as "mm" | "cm" | "m" | "in" | "ft",
                   locale: "es-MX",
                   defaults: dynamicInputDefaults,
                   onCommit: commitDynamicInput,

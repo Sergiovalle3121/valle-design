@@ -266,11 +266,24 @@ export const CAD_SOLID_NODE_OPS = [
 ] as const satisfies readonly CadSolidNodeOp[];
 
 /**
- * Colocación del sólido en el dibujo: la misma afín 2×3 del resto del documento.
+ * Colocación del sólido en el dibujo.
  *
- * Se declara con sus seis números y no reutilizando `CadAffine2` para que este
- * módulo siga sin importar nada del CAD en tiempo de ejecución. Son la misma
- * forma, así que uno es asignable al otro sin conversión.
+ * En su forma mínima es la misma afín 2×3 del resto del documento, más un
+ * desplazamiento en Z. Los seis campos `a…f` + `dz` son la colocación
+ * original y la que leen todos los documentos ya guardados.
+ *
+ * Los campos opcionales `m02, m10, m11, m12, m20, m21, m22, tx, ty, tz`
+ * amplían a una afín 3×4 completa cuando están presentes. Cuando todos son
+ * `undefined` o cero, el comportamiento es idéntico a la forma antigua.
+ *
+ * La matriz 3×4 es:
+ *
+ *   | a   c   m02 | tx |
+ *   | b   d   m12 | ty |
+ *   | m20 m21 m22 | tz |
+ *
+ * Los campos antiguos conservan su posición para que la lectura de un
+ * documento viejo no cambie.
  */
 export interface CadSolidPlacement {
   a: number;
@@ -281,6 +294,25 @@ export interface CadSolidPlacement {
   f: number;
   /** Desplazamiento en Z. La afín 2×3 no lo expresa y un sólido sí lo necesita. */
   dz?: number;
+
+  // --- Campos 3D opcionales (afín 3×4) ---
+
+  /** Fila 0, columna 2: contribución de Z a X. */
+  m02?: number;
+  /** Fila 1, columna 2: contribución de Z a Y. */
+  m12?: number;
+  /** Fila 2, columna 0: contribución de X a Z. */
+  m20?: number;
+  /** Fila 2, columna 1: contribución de Y a Z. */
+  m21?: number;
+  /** Fila 2, columna 2: contribución de Z a Z. */
+  m22?: number;
+  /** Traslación en X (cuando la afín es3D; gana sobre `e`). */
+  tx?: number;
+  /** Traslación en Y (cuando la afín es3D; gana sobre `f`). */
+  ty?: number;
+  /** Traslación en Z (cuando la afín es3D; gana sobre `dz`). */
+  tz?: number;
 }
 
 /**

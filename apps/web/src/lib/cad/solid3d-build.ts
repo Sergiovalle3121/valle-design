@@ -44,6 +44,7 @@ import {
   buildBody,
   chamferEdges,
   compareMassProperties,
+  edgeDihedralAngle,
   extrudeProfile,
   halfEdgeDestination,
   halfEdgeSegment,
@@ -98,6 +99,14 @@ const identityPlacement: Required<CadSolidPlacement> = {
   e: 0,
   f: 0,
   dz: 0,
+  m02: 0,
+  m12: 0,
+  m20: 0,
+  m21: 0,
+  m22: 1,
+  tx: 0,
+  ty: 0,
+  tz: 0,
 };
 
 /** Colocación completa, con los valores por defecto ya resueltos. */
@@ -113,6 +122,14 @@ export function resolveSolidPlacement(
     e: placement.e,
     f: placement.f,
     dz: placement.dz ?? 0,
+    m02: placement.m02 ?? 0,
+    m12: placement.m12 ?? 0,
+    m20: placement.m20 ?? 0,
+    m21: placement.m21 ?? 0,
+    m22: placement.m22 ?? 1,
+    tx: placement.tx ?? 0,
+    ty: placement.ty ?? 0,
+    tz: placement.tz ?? 0,
   };
 }
 
@@ -244,6 +261,12 @@ export interface SolidEvaluateOptions {
    * dibujo donde el árbol ya se validó al escribirlo.
    */
   validate?: boolean;
+  /**
+   * Devolver el cuerpo SIN aplicar placement. Útil para designación de
+   * aristas: el índice debe corresponder al cuerpo del operando, no al cuerpo
+   * ya colocado (que puede numerar distinto si hay reflexión).
+   */
+  skipPlacement?: boolean;
 }
 
 const point = (p: { x: number; y: number; z: number }): Vec3 =>
@@ -314,7 +337,9 @@ export function evaluateSolidTree(
     return body;
   };
 
-  return placeBody(evaluate(entity.root), entity.placement);
+  return options.skipPlacement
+    ? evaluate(entity.root)
+    : placeBody(evaluate(entity.root), entity.placement);
 }
 
 function buildNode(
@@ -446,13 +471,22 @@ export function preferredFeatureEdges(body: BrepBody): number[] {
     const dy = segment.to.y - segment.from.y;
     const dz = segment.to.z - segment.from.z;
     const length = Math.hypot(dx, dy, dz) || 1;
+    // Filtrar aristas CÓNCAVAS: el kernel las rechaza en filletEdges porque
+    // redondear un rincón entrante exige añadir material. Incluirlas en el
+    // juego «preferido» hace que FILLETEDGE falle entero citando una arista
+    // que el usuario no designó (D-04 de la auditoría).
+    const dihedral = edgeDihedralAngle(body, index);
+    // Excluir cóncavas (>π), planas (≈π) y de borde (null): el kernel las
+    // rechaza en filletEdges/chamferEdges (fillet.ts:103,213).
+    const rejected = dihedral === null || dihedral >= Math.PI - 1e-9 || dihedral <= 1e-9;
     return {
       index,
       vertical: Math.abs(dz) / length > 0.999,
       from: body.halfEdges[edge.a].origin,
       to: halfEdgeDestination(body, edge.a),
+      rejected,
     };
-  });
+  }).filter((c) => !c.rejected);
   candidates.sort((a, b) =>
     a.vertical === b.vertical ? a.index - b.index : a.vertical ? -1 : 1,
   );
@@ -547,6 +581,47 @@ export function placeBody(
   placement?: CadSolidPlacement,
 ): BrepBody {
   const m = resolveSolidPlacement(placement);
+
+  const has3D =
+    m.m02 !== 0 || m.m12 !== 0 ||
+    m.m20 !== 0 || m.m21 !== 0 || m.m22 !== 1 ||
+    m.tx !== 0 || m.ty !== 0 || m.tz !== 0;
+
+  if (has3D) {
+    // Afín 3×4 completa: x' = a*x + c*y + m02*z + tx, etc.
+    // La matriz3×3 incluye la afín2D en las dos primeras columnas:
+    //   | a    c   m02 |     Fila0: contribución a x'
+    //   | b    d   m12 |     Fila1: contribución a y'
+    //   | m20 m21 m22  |     Fila2: contribución a z'
+    const det3 =
+      m.a * (m.d * m.m22 - m.m12 * m.m21) -
+      m.c * (m.b * m.m22 - m.m12 * m.m20) +
+      m.m02 * (m.b * m.m21 - m.d * m.m20);
+    if (!(Math.abs(det3) > 0)) {
+      throw new Error(
+        "La colocación 3D de un SOLID3D es singular: aplastaría el sólido a un plano.",
+      );
+    }
+    // Traslación efectiva: la2D (e, f, dz) + la3D (tx, ty, tz).
+    const etx = m.e + m.tx;
+    const ety = m.f + m.ty;
+    const etz = m.dz + m.tz;
+    const points = body.vertices.map((vertex) =>
+      vec3(
+        m.a * vertex.point.x + m.c * vertex.point.y + m.m02 * vertex.point.z + etx,
+        m.b * vertex.point.x + m.d * vertex.point.y + m.m12 * vertex.point.z + ety,
+        m.m20 * vertex.point.x + m.m21 * vertex.point.y + m.m22 * vertex.point.z + etz,
+      ),
+    );
+    const specs: FaceSpec[] = bodyToFaceSpecs(body).map((spec) => ({
+      outer: [...spec.outer],
+      inners: spec.inners?.map((ring) => [...ring]),
+    }));
+    const moved = attachPlanarSurfaces(buildBody(points, specs));
+    return det3 < 0 ? attachPlanarSurfaces(reverseBody(moved)) : moved;
+  }
+
+  // Afín 2D original (compatibilidad hacia atrás).
   const determinant = m.a * m.d - m.b * m.c;
   if (
     m.a === 1 &&

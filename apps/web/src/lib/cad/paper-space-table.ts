@@ -92,7 +92,7 @@ export function cadTableCellTextCommands(
       point: target.toPaper(anchor),
       text: cell.text,
       // La misma horquilla que un MTEXT en la lámina: ni ilegible ni un titular.
-      size: Math.max(1.5, Math.min(12, textHeight * target.scale)),
+      size: Math.max(1.5, textHeight * target.scale),
       rotation,
       color: target.color,
       align: alignment.endsWith("right") ? "right" : alignment.endsWith("center") ? "center" : "left",

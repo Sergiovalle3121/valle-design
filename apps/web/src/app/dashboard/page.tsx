@@ -21,9 +21,11 @@ import { TrialBanner } from "@/components/commercial/TrialBanner";
 import { trialStatus } from "@/lib/commercial/trial-phase";
 import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
 import {
+  documentImportAcceptAttribute,
   isDwgNativeImportBetaEnabled,
   splitDocumentSelection,
 } from "@/lib/cad/document-import-client";
+import { dwgAcceptedVersionCodes, describeDwgAcceptedVersions } from "@/lib/cad/dwg-interop-flag";
 import { ArchiveDocumentDialog, useArchiveDocument } from "./archive-document";
 import { EMPTY_CAD_STARTER_CHOICE } from "./starter-choice";
 import { Status } from "./Status";
@@ -526,11 +528,8 @@ export default function DashboardPage() {
                   <input
                     type="file"
                     className="sr-only"
-                    accept={
-                      isDwgNativeImportBetaEnabled()
-                        ? ".dxf,.json,.shp,.shx,.dbf,.prj,.cpg,.dwg,.obj,.stl,.gltf,.glb,.dae"
-                        : ".dxf,.json,.shp,.shx,.dbf,.prj,.cpg,.obj,.stl,.gltf,.glb,.dae"
-                    }
+                    accept={documentImportAcceptAttribute()}
+                    data-testid="dashboard-import-input"
                     multiple
                     disabled={!selectedProject || busy}
                     onChange={(e) => {
@@ -544,6 +543,11 @@ export default function DashboardPage() {
                     }}
                   />
                 </label>
+                {isDwgNativeImportBetaEnabled() ? (
+                  <p data-testid="dashboard-dwg-beta-nota" className="type-caption mt-1 text-muted-foreground">
+                    {`.dwg en beta: ${describeDwgAcceptedVersions(dwgAcceptedVersionCodes({ allowAc1018: isDwgNativeImportBetaEnabled(), allowModern: false /* DWG_MODERN_BETA_AUTHORIZATION.ownerSigned es false */ }))}. Si tu CAD es más nuevo, Guarda como con esa versión, o exporta a DXF.`}
+                  </p>
+                ) : null}
                 <ImportStatus
                   state={importState}
                   onCancel={cancelImport}
@@ -582,6 +586,7 @@ export default function DashboardPage() {
                 if (chosen)
                   void importDocument(chosen.primary, chosen.sidecars);
               }}
+              accept={documentImportAcceptAttribute()}
             />
           ) : (
             <section

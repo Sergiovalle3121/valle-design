@@ -172,7 +172,7 @@ const LayerRow = React.memo(function LayerRow({
           disabled={readOnly}
           className={`type-micro ${row.locked ? "text-warning-ink" : "text-muted-foreground"} disabled:opacity-40`}
         >
-          {row.locked ? "Lock" : "Open"}
+          {row.locked ? "Bloqueada" : "Abierta"}
         </button>
       </div>
 
@@ -238,7 +238,7 @@ const LayerRow = React.memo(function LayerRow({
           className={`type-micro ${row.plot ? "text-success-ink" : "text-muted-foreground line-through"} disabled:opacity-40`}
           title={row.plot ? "Se imprime" : "No se imprime"}
         >
-          Plot
+          Trazar
         </button>
       </div>
 
@@ -250,7 +250,7 @@ const LayerRow = React.memo(function LayerRow({
             className="text-muted-foreground"
             title="Sólo en una presentación con viewport activo"
           >
-            VP freeze —
+            Congelar en VP —
           </span>
         ) : (
           <button
@@ -267,7 +267,7 @@ const LayerRow = React.memo(function LayerRow({
             }
             title="Congelar sólo en el viewport activo"
           >
-            VP freeze {row.frozenInViewport ? "on" : "off"}
+            Congelar en VP {row.frozenInViewport ? "sí" : "no"}
           </button>
         )}
         <div className="inline-flex items-center gap-2">

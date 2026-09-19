@@ -169,7 +169,12 @@ export function cadLinetypeCycleLength(definition: CadLinetypeDefinition): numbe
 
 /** Catálogo de tipos de línea del dibujo. Arranca con los de fábrica. */
 export class CadLinetypeCatalog {
-  private items: CadLinetypeDefinition[] = [...CAD_BUILTIN_LINETYPES];
+  private items: CadLinetypeDefinition[];
+
+  constructor() {
+    this.items = [...CAD_BUILTIN_LINETYPES];
+    this.restoreFromStorage();
+  }
 
   list = (): readonly CadLinetypeDefinition[] => this.items;
 
@@ -181,6 +186,7 @@ export class CadLinetypeCatalog {
     const at = this.items.findIndex((entry) => entry.name.toUpperCase() === key);
     if (at >= 0) this.items = this.items.map((entry, index) => (index === at ? item : entry));
     else this.items = [...this.items, item];
+    this.saveToStorage();
   };
 
   remove = (name: string): boolean => {
@@ -190,6 +196,7 @@ export class CadLinetypeCatalog {
     const next = this.items.filter((entry) => entry.name.toUpperCase() !== key);
     if (next.length === this.items.length) return false;
     this.items = next;
+    this.saveToStorage();
     return true;
   };
 
@@ -198,4 +205,32 @@ export class CadLinetypeCatalog {
     for (const definition of library.definitions) this.save(definition);
     return { loaded: library.definitions.length, skipped: library.skipped };
   };
+
+  private static readonly STORAGE_KEY = "valle:cad:linetype-catalog";
+
+  private static isBuiltin(name: string): boolean {
+    return CAD_BUILTIN_LINETYPES.some((item) => item.name.toUpperCase() === name.toUpperCase());
+  }
+
+  private saveToStorage(): void {
+    const custom: CadLinetypeDefinition[] = this.items.filter(
+      (item) => !CadLinetypeCatalog.isBuiltin(item.name),
+    );
+    try {
+      localStorage.setItem(CadLinetypeCatalog.STORAGE_KEY, JSON.stringify(custom));
+    } catch { /* localStorage lleno o bloqueado */ }
+  }
+
+  private restoreFromStorage(): void {
+    try {
+      const raw = localStorage.getItem(CadLinetypeCatalog.STORAGE_KEY);
+      if (!raw) return;
+      const custom = JSON.parse(raw) as CadLinetypeDefinition[];
+      for (const item of custom) {
+        if (item && typeof item === "object" && "name" in item && "segments" in item) {
+          this.items.push(item);
+        }
+      }
+    } catch { /* JSON corrupto o localStorage bloqueado */ }
+  }
 }

@@ -105,9 +105,8 @@ export default function SupportPage() {
         ) : (
           <>
             <p>
-              Este despliegue no ha configurado un correo público de soporte.
-              Consulta la página de contacto para encontrar un canal habilitado
-              por el operador.
+              Todavía no tenemos un correo público de soporte configurado.
+              Consulta la página de contacto para encontrar un canal habilitado.
             </p>
             <a
               className={buttonClass({ variant: "secondary" })}

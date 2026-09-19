@@ -735,6 +735,45 @@ const laymrgCommand: CadCommandDescriptor<LaymrgState> = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// LAYCUR
+// ---------------------------------------------------------------------------
+
+const laycurCommand: CadCommandDescriptor<null> = {
+  name: "LAYCUR",
+  aliases: ["LC"],
+  kind: "manage",
+  transparent: false,
+  selection: "none",
+  repeatable: true,
+  mutates: false,
+  cursor: "pick",
+  begin: () => ({
+    state: null,
+    prompt: { message: "Designar objeto cuya capa será la actual", options: [] },
+    accepts: CAD_ACCEPT_ENTITY_PICK,
+  }),
+  step: (_state, input, context) => {
+    if (input.kind === "cancel") return cancelled(null);
+    if (input.kind !== "entityPick") {
+      return {
+        state: null,
+        prompt: { message: "Designar objeto cuya capa será la actual", options: [] },
+        accepts: CAD_ACCEPT_ENTITY_PICK,
+      };
+    }
+    const entity = context.entity?.(input.entityId);
+    if (!entity || !("layer" in entity))
+      return say(null, "No se pudo leer la capa del objeto.");
+    return {
+      state: null,
+      prompt: { message: "", options: [] },
+      accepts: 0,
+      result: { kind: "variables", patch: { CCLAYER: entity.layer }, text: `Capa actual: ${entity.layer}` },
+    };
+  },
+};
+
 export const CAD_LAYER_TOOL_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(vplayerCommand),
   asCadCommand(layisoCommand),
@@ -746,4 +785,5 @@ export const CAD_LAYER_TOOL_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(laymchCommand),
   asCadCommand(laywalkCommand),
   asCadCommand(laymrgCommand),
+  asCadCommand(laycurCommand),
 ];

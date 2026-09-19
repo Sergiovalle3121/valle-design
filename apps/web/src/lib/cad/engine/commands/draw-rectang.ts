@@ -345,6 +345,7 @@ function rectangStep(state: RectangState, context: CadCommandContext): CadComman
     // empalmes, rotación— es exactamente lo que se va a dibujar. Una
     // previsualización aproximada convierte cada opción en una sorpresa.
     preview: rectanglePreview(state, context.cursor, workPlane(context)),
+    lastPoint: state.first,
   };
 }
 

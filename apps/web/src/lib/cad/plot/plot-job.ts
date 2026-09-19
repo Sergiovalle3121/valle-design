@@ -29,7 +29,7 @@ import {
   type CadVectorCommand,
 } from "../paper-space";
 import { cadViewportIsOn } from "../layout/viewport-operations";
-import { toGrayscaleHex } from "./aci-palette";
+
 import { cadDocumentFontByEntity, type CadPlotFontUsage } from "./plot-fonts";
 import { cadStrokeSheetText } from "./plot-stroke-text";
 import {
@@ -140,8 +140,8 @@ function styleCommand(
   if (command.kind === "image") return command;
   if (command.kind === "text") {
     const resolved = resolveCadPlotStyle(table, { color: command.color });
-    const color = monochrome ? toGrayscaleHex(resolved.color) : resolved.color;
-    return { ...command, color: monochrome ? "#000000" : color };
+    const color = monochrome ? "#000000" : resolved.color === "#ffffff" ? "#000000" : resolved.color;
+    return { ...command, color };
   }
 
   const resolved = resolveCadPlotStyle(table, {
@@ -155,11 +155,16 @@ function styleCommand(
     weightScale === 0
       ? 0.05
       : Math.max(0.05, (resolved.lineweight || command.style.lineWidth) * weightScale);
+  const strokeColor = monochrome
+    ? "#000000"
+    : resolved.color === "#ffffff"
+      ? "#000000"
+      : resolved.color;
   return {
     ...command,
     style: {
       ...command.style,
-      stroke: monochrome ? toGrayscaleHex(resolved.color) : resolved.color,
+      stroke: strokeColor,
       lineWidth,
     },
   };

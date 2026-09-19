@@ -316,8 +316,8 @@ ok(
     precision: 4,
   } as CadDimensionEntity)!;
   ok(
-    mecanica.label === "126.0000 in",
-    `y una cota en pulgadas sigue en decimal: «${mecanica.label}»`,
+    mecanica.label === "126.0000",
+    `y una cota en pulgadas sigue en decimal: «${mecanica.label}» (sin unidad automática — DIMPOST manda)`,
   );
 }
 

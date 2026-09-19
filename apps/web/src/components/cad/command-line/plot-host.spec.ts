@@ -456,6 +456,115 @@ async function specs(): Promise<void> {
   console.log(
     `PLOT → ${downloads[0].fileName}: ${inspected.pageCount} página, ${inspected.pageSizesMm[0].width} × ${inspected.pageSizesMm[0].height} mm`,
   );
+
+  // --- cableado D44: el puente vivo delega en la ref, como useCadStudioPlotHost ---
+  // Este bloque prueba el PATRÓN de cableado que use-command-engine.ts usa:
+  // la ref viva (`live`) se captura una vez en el useMemo y cada llamada
+  // lee `live.current`, que es lo que permite al anfitrión sobrevivir a los
+  // renders sin recrearse.
+  {
+    // Simula `live.current` con un plotPreview espía.
+    const calls: unknown[] = [];
+    const live = {
+      current: {
+        plotPreview: (p: unknown) => { calls.push(p); },
+      } as { plotPreview?: (p: unknown) => void },
+    };
+    // El puente que construiría useCadStudioPlotHost:
+    const host = new CadPlotHost({
+      document: () => document,
+      plotStyleTables: () => new Map([["estudio", createCadMonochromeTable("estudio")]]),
+      download: () => {},
+      onResult: () => {},
+      // Este es el spread condicional que el hook añade:
+      ...(live.current.plotPreview
+        ? { preview: (p: unknown) => live.current.plotPreview?.(p) }
+        : {}),
+    });
+    const result = host.handle({
+      kind: "plot",
+      mode: "preview",
+      request: { layoutId: "layout:planta", pageSetup, fileName: "planta", copies: 1 },
+    });
+    assert.equal(calls.length, 1, "el espía se llamó una vez");
+    assert.match(result, /Vista previa de 1 hoja/);
+
+    // Caso simétrico: sin plotPreview, el mensaje es honesto.
+    live.current = {};
+    const hostSinPuente = new CadPlotHost({
+      document: () => document,
+      download: () => {},
+      ...(live.current.plotPreview
+        ? { preview: (p: unknown) => live.current.plotPreview?.(p) }
+        : {}),
+    });
+    assert.match(
+      hostSinPuente.handle({
+        kind: "plot",
+        mode: "preview",
+        request: { layoutId: "layout:planta", pageSetup, fileName: "planta", copies: 1 },
+      }),
+      /no está disponible/i,
+    );
+  }
+
+  // --- cableado D45: fonts() incrusta fuentes OFL bajo demanda ---------------
+  // Prueba el CABLEADO: un host con `fonts()` aporta el programa y el resultado
+  // lo declara. La incrustación real en el PDF ya está cubierta por
+  // plot-fidelity.spec.ts:260-285.
+  {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const ttfPath = path.resolve(process.cwd(), "src/fonts/JetBrainsMono-wght.ttf");
+    if (fs.existsSync(ttfPath)) {
+      const ttfBase64 = fs.readFileSync(ttfPath).toString("base64");
+      // Un host CON fonts() pasa el programa a renderCadPlotPdf.
+      const fontResults: string[] = [];
+      const withFonts = new CadPlotHost({
+        document: () => document,
+        plotStyleTables: () => new Map([["estudio", createCadMonochromeTable("estudio")]]),
+        download: () => {},
+        onResult: (msg) => fontResults.push(msg),
+        fonts: () => [{
+          family: "JetBrainsMono",
+          style: "normal",
+          fileName: "JetBrainsMono-wght.ttf",
+          base64: ttfBase64,
+        }],
+      });
+      withFonts.handle({
+        kind: "plot",
+        mode: "plot",
+        request: { layoutId: "layout:planta", pageSetup, fileName: "fuentes", copies: 1 },
+      });
+      await new Promise((r) => setTimeout(r, 100));
+      const summary = fontResults.join("\n");
+      // El resultado no debe decir "no hay fuentes": el puente existe.
+      assert.ok(
+        !summary.includes("no está disponible"),
+        "con fonts(), el puente no responde «no disponible»",
+      );
+
+      // Caso simétrico: sin fonts(), el host funciona igual (degradación honesta).
+      fontResults.length = 0;
+      const sinFonts = new CadPlotHost({
+        document: () => document,
+        plotStyleTables: () => new Map([["estudio", createCadMonochromeTable("estudio")]]),
+        download: () => {},
+        onResult: (msg) => fontResults.push(msg),
+      });
+      sinFonts.handle({
+        kind: "plot",
+        mode: "plot",
+        request: { layoutId: "layout:planta", pageSetup, fileName: "sin-fuentes", copies: 1 },
+      });
+      await new Promise((r) => setTimeout(r, 100));
+      assert.ok(
+        fontResults.length > 0,
+        "sin fonts(), el host produce un resultado (no se cuelga)",
+      );
+    }
+  }
 }
 
 specs().then(

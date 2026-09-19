@@ -303,7 +303,7 @@ test("acotar para obra: la cota dice la medida real y sigue al objeto cuando se 
     await expect(prompt).toBeHidden();
     await esperarEntidades(page, SEMILLA + 1);
     cotaMuro = await cotaNueva(page, vistas);
-    await leerCota(page, cotaMuro, "4000", "4000.00 mm");
+    await leerCota(page, cotaMuro, "4000", "4000.00");
   });
 
   await test.step("2. DIMALIGNED sobre el faldón: 5.000 mm de largo REAL", async () => {
@@ -317,7 +317,7 @@ test("acotar para obra: la cota dice la medida real y sigue al objeto cuando se 
     await esperarEntidades(page, SEMILLA + 2);
     cotaFaldon = await cotaNueva(page, vistas);
     // 3-4-5: si midiera la proyección diría 3.000 o 4.000, no 5.000.
-    await leerCota(page, cotaFaldon, "5000", "5000.00 mm");
+    await leerCota(page, cotaFaldon, "5000", "5000.00");
   });
 
   await test.step("3. DIMRADIUS sobre el pilar: designar y acotar", async () => {
@@ -327,7 +327,7 @@ test("acotar para obra: la cota dice la medida real y sigue al objeto cuando se 
     await esperarEntidades(page, SEMILLA + 3);
     await soltarSeleccion(page);
     cotaPilar = await cotaNueva(page, vistas);
-    await leerCota(page, cotaPilar, "750", "R750.00 mm");
+    await leerCota(page, cotaPilar, "750", "R750.00");
   });
 
   await test.step("4. Las tres cotas nacen asociadas al objeto que acotan", async () => {
@@ -370,7 +370,7 @@ test("acotar para obra: la cota dice la medida real y sigue al objeto cuando se 
     // Mover no cambia el largo: la cota sigue diciendo 4.000, pero AHORA sobre
     // el muro en su sitio nuevo. Si se hubiera quedado atrás, acotaría el aire.
     await soltarSeleccion(page);
-    await leerCota(page, cotaMuro, "4000", "4000.00 mm");
+    await leerCota(page, cotaMuro, "4000", "4000.00");
     await saveAndSettle(page, backend);
     const guardado = backend.snapshot().document;
     const muro = guardado.entities.find(
@@ -388,14 +388,14 @@ test("acotar para obra: la cota dice la medida real y sigue al objeto cuando se 
     await designar(page, "muro-sur");
     await applyNativeProperty(page, "endX", "6500");
     await soltarSeleccion(page);
-    await leerCota(page, cotaMuro, "4500", "4500.00 mm");
+    await leerCota(page, cotaMuro, "4500", "4500.00");
   });
 
   await test.step("7. Ensanchar el pilar a R900: la cota de radio cambia sola", async () => {
     await designar(page, "pilar");
     await applyNativeProperty(page, "radius", "900");
     await soltarSeleccion(page);
-    await leerCota(page, cotaPilar, "900", "R900.00 mm");
+    await leerCota(page, cotaPilar, "900", "R900.00");
   });
 
   await test.step("8. Lo acotado es lo que se guarda", async () => {
@@ -420,7 +420,7 @@ test("acotar para obra: la cota dice la medida real y sigue al objeto cuando se 
     await expect(prompt).toBeHidden();
     await esperarEntidades(page, SEMILLA + 4);
     const proyeccion = await cotaNueva(page, vistas);
-    await leerCota(page, proyeccion, "3000", "3000.00 mm");
+    await leerCota(page, proyeccion, "3000", "3000.00");
   });
 });
 
@@ -474,7 +474,7 @@ test("acotar señalando el muro con el ratón: la opción Objeto y un clic", asy
 
   await soltarSeleccion(page);
   const cota = await cotaNueva(page, vistas);
-  await leerCota(page, cota, "4000", "4000.00 mm");
+  await leerCota(page, cota, "4000", "4000.00");
 
   await saveAndSettle(page, backend);
   const guardada = backend
@@ -512,7 +512,7 @@ test("acotar un tabique dibujado como polilínea, y moverlo", async ({ context, 
    *   Received: { a: 8000, b: 8000 }
    *
    * El tabique se va a Y=9000 y la cota se queda en Y=8000, acotando el aire, y
-   * SIGUE diciendo «4000.00 mm» con el mismo aspecto que las cotas buenas. Lo
+   * SIGUE diciendo «4000.00» con el mismo aspecto que las cotas buenas. Lo
    * que se afirma abajo es lo que el producto DEBE hacer —la misma asociación
    * que sí funciona sobre una línea, comprobada en el primer test de este
    * archivo—, así que la prueba se declara fallida a sabiendas: el día que se
@@ -538,7 +538,7 @@ test("acotar un tabique dibujado como polilínea, y moverlo", async ({ context, 
   });
 
   const cota = await cotaNueva(page, vistas);
-  await leerCota(page, cota, "4000", "4000.00 mm");
+  await leerCota(page, cota, "4000", "4000.00");
 
   await test.step("B. ¿qué dice el producto sobre su asociación?", async () => {
     await designar(page, cota);

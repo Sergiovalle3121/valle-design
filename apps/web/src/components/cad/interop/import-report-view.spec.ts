@@ -20,12 +20,12 @@
 import { strict as assert } from "node:assert";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { exportCadDxf } from "@/lib/cad/dxf-export";
-import { importDxfPrimitives } from "@/lib/cad/dxf-import";
+import { exportCadDxf } from "../../../lib/cad/dxf-export";
+import { importDxfPrimitives } from "../../../lib/cad/dxf-import";
 import {
   buildCadDxfImportReport,
   type CadDxfImportReport,
-} from "@/lib/cad/dxf-import-report";
+} from "../../../lib/cad/dxf-import-report";
 import { CadDxfImportReportPanel } from "./CadDxfImportReport";
 import {
   cadDxfImportTone,
@@ -91,8 +91,8 @@ const lossyDxf = [
   const sections = groupCadDxfImportReport(reportFor(lossyDxf));
   assert.deepEqual(
     sections.map((section) => section.fidelity),
-    ["lost", "kept"],
-    "sin degradaciones sólo hay dos secciones, y lo perdido va primero",
+    ["lost", "degraded", "kept"],
+    "perdidas, degradaciones y conservado, en ese orden",
   );
   assert.equal(sections[0].title, "No entró en el dibujo");
   assert.equal(
@@ -100,7 +100,7 @@ const lossyDxf = [
     true,
     "lo que falta no se esconde tras un clic",
   );
-  assert.equal(sections[1].open, false, "lo que salió bien puede ir plegado");
+  assert.equal(sections[2].open, false, "lo que salió bien puede ir plegado");
   // Las DOS entidades que no entran se cuentan. El 3DFACE lo declara el
   // mapeador; el MESH lo descarta `dxf-parser` antes de llegar a él y hasta
   // esta ola desaparecía sin aviso — el panel confesaba una de dos pérdidas.

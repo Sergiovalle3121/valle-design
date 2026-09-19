@@ -171,6 +171,18 @@ export function buildCadSolidGeometry(
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
   geometry.setIndex(Array.from(mesh.indices));
+  // La permutación (x,y,z)→(x,z,y) es una reflexión (determinante −1), no
+  // una rotación. Invierte el giro de cada triángulo: WebGL descarta las
+  // caras exteriores y dibuja las interiores. La corrección es invertir el
+  // orden de cada triángulo al copiar los índices (defecto 4.1 de la
+  // auditoría de visualización 3D).
+  const idx = geometry.getIndex()!;
+  for (let i = 0; i < idx.count; i += 3) {
+    const tmp = idx.getX(i);
+    idx.setX(i, idx.getX(i + 2));
+    idx.setX(i + 2, tmp);
+  }
+  idx.needsUpdate = true;
   geometry.computeBoundingSphere();
   return geometry;
 }

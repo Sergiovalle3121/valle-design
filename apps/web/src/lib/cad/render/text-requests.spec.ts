@@ -77,7 +77,7 @@ checks += 1;
 //    centrado horizontal lo hace el atlas con la métrica real (`align`).
 // ---------------------------------------------------------------------------
 const [rotuloCota] = cadTextQuadRequestsFor(cota, plain, DEPTH);
-ok(rotuloCota.text === "4000.00 mm", `la cota rotula su medida: ${rotuloCota.text}`);
+ok(rotuloCota.text === "4000.00", `la cota rotula su medida: ${rotuloCota.text}`);
 ok(near(rotuloCota.fontSize, 99), "sin DIMTXT el rótulo mide 0,55 × DIMASZ (180) = 99");
 ok(near(rotuloCota.x, 3000) && rotuloCota.align === "center", `middle-center: el ancla ES el origen y el atlas centra: x=${rotuloCota.x}`);
 ok(near(rotuloCota.y, 1690 + (99 * 1.2) / 2), `middle-* sube media línea: y=${rotuloCota.y}`);
@@ -145,7 +145,7 @@ pipeline.setView(VIEW);
 pipeline.settle();
 const stats = pipeline.stats();
 ok(pipeline.visibleTextRequests().length === 9, `nueve rótulos visibles (medido antes: 1): ${pipeline.visibleTextRequests().length}`);
-ok(stats.glyphRequests === 11 + 11 + 10 + 11 + 17 + 4, `glifos pedidos = suma de longitudes: ${stats.glyphRequests}`);
+ok(stats.glyphRequests === 11 + 11 + 7 + 11 + 17 + 4, `glifos pedidos = suma de longitudes: ${stats.glyphRequests}`);
 ok(stats.renderedEntities === 6, `las seis entidades cuentan como dibujadas: ${stats.renderedEntities}`);
 
 const soloTexto = new CadRenderPipeline();

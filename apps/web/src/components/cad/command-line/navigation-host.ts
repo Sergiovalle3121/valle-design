@@ -65,6 +65,7 @@ export interface CadViewControllerLike {
   panPerspective?(deltaXPx: number, deltaYPx: number): void;
   panPerspectiveDrawing?(dx: number, dy: number): void;
   zoomPerspective?(factor: number): void;
+  setProjection?(projection: "perspective" | "parallel"): void;
 }
 
 export interface CadNavigationBridge {

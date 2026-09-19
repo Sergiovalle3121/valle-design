@@ -28,6 +28,7 @@ import { cadImageOpacity, CAD_IMAGE_BRIGHTNESS_NEUTRAL, CAD_IMAGE_CONTRAST_NEUTR
 import { cadImagePlotPlacement, type CadImagePlotCommand } from "../paper-space-image";
 import type { CadPublishSheet, CadVectorCommand } from "../paper-space";
 import { parseHexColor } from "./aci-palette";
+import { DEFAULT_BRAND_MANIFEST } from "@valle-design/contracts";
 import {
   CAD_DEFAULT_FONT_FAMILY,
   cadStandardFontFor,
@@ -269,10 +270,10 @@ export async function renderCadPlotPdf(
   const metadata = options.metadata ?? {};
   pdf.setProperties({
     title: metadata.title ?? first.name,
-    subject: metadata.subject ?? "Plano trazado con Valle Design",
-    author: metadata.author ?? "Valle Design",
+    subject: metadata.subject ?? `Plano trazado con ${DEFAULT_BRAND_MANIFEST.productNames.design}`,
+    author: metadata.author ?? DEFAULT_BRAND_MANIFEST.productNames.design,
     keywords: metadata.keywords ?? "CAD, plano, trazado",
-    creator: "Valle Design",
+    creator: DEFAULT_BRAND_MANIFEST.productNames.design,
   });
 
   const pages: CadPlotPdfResult["pages"] = [];

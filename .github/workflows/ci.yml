@@ -339,6 +339,15 @@ jobs:
       - name: Exportar VALLE_DWG_CORPUS_MIRROR
         run: echo "VALLE_DWG_CORPUS_MIRROR=$GITHUB_WORKSPACE/.dwg-corpus-mirror" >> "$GITHUB_ENV"
 
+      # `check:template-gallery` carga `template-render.ts` →
+      # `@valle-design/contracts` vía `node --import tsx`, que NO intercepta
+      # `require()` con los paths de TypeScript y cae a la resolución estándar
+      # de Node (`dist/index.js`). Sin este paso, la puerta moría con
+      # `Cannot find module …/dist/index.js` en cada corrida con caché caliente
+      # (donde `npm ci` no ejecuta el script `prepare` de cada workspace).
+      - name: Compilar @valle-design/contracts (requerido por check:cad)
+        run: npm run build --workspace=@valle-design/contracts
+
       - name: CAD contract and legacy-route gates
         run: npm run check:cad
 
@@ -747,7 +756,20 @@ jobs:
     # sigue siendo exactamente la de siempre. La única excepción es el barrido
     # de cables sueltos, que un solo archivo no puede repartir: cada fragmento
     # corre su rebanada en una segunda invocación (ver el paso Playwright E2E).
-    timeout-minutes: 60
+    #
+    # 90 y no 60 desde el 17-sep-2026. Medido, no estimado: en `main` @1d1c8345 los cuatro
+    # fragmentos tardaron 31, 43, 44 y 49 min, o sea que el tope de 60 ya sólo dejaba 11 min de
+    # margen al más lento. Con la rama de la campaña de comandos —más goldens, más superficie de
+    # estudio que barrer— los fragmentos 2/4 y 3/4 se CANCELARON al llegar a los 60 en la corrida
+    # 35300771925, y un fragmento cancelado tiñe de rojo el veredicto sin enseñar nada: no dice
+    # qué falla, sólo que no cabía. Cada fragmento suma su rebanada de goldens MÁS una rebanada
+    # del barrido de cables sueltos, que por sí sola declara 30 min de tope (`test.setTimeout`
+    # en cables-sueltos.spec.ts), así que el techo real de un fragmento es la suma de las dos.
+    # Esto NO afloja ninguna prueba: corre exactamente las mismas y sólo deja que terminen.
+    # Cuando la suite vuelva a rozar el tope, lo que toca es repartir en más rebanadas (el
+    # inventario se parte por índice módulo cuatro y los títulos dicen «barrido k/4»: hay que
+    # cambiar las dos cosas a la vez), no seguir subiendo el reloj.
+    timeout-minutes: 90
     needs: quality-gates
 
     strategy:

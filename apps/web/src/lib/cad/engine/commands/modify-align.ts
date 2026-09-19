@@ -346,7 +346,16 @@ const matchCommand: CadCommandDescriptor<MatchState> = {
             : { kind: "none" },
     });
     if (input.kind === "cancel")
-      return { state: EMPTY_MATCH, prompt: { message: "", options: [] }, accepts: 0, result: { kind: "none" } };
+      // T15: preserve accumulated property changes on Esc
+      return {
+        state: EMPTY_MATCH,
+        prompt: { message: "", options: [] },
+        accepts: 0,
+        result:
+          state.commands.length > 0
+            ? { kind: "document", commands: state.commands, label: "MATCHPROP" }
+            : { kind: "none" },
+      };
     if (input.kind === "enter") return done();
 
     if (input.kind === "keyword") {

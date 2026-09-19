@@ -3,7 +3,7 @@
 Este documento es un **procedimiento**, no una descripción. Cada paso lleva su
 valor exacto y la comprobación que dice si funcionó. Está escrito para el
 lanzamiento gratuito: tres meses de prueba, sin tarjeta, en
-`valledesign.mx` + `api.valledesign.mx`.
+`vallecad.com` + `api.vallecad.com`.
 
 `DEPLOYMENT.md` es la referencia general (artefactos, rollback ensayado,
 timeouts y por qué esos números). Este archivo es la bajada concreta a Railway
@@ -20,7 +20,7 @@ y **no repite** lo que allí está: lo enlaza.
 **Los dos servicios tienen que vivir en el mismo sitio de cookies.**
 
 La sesión es una cookie `SameSite=Lax` de primera parte. Con la web en
-`valledesign.mx` y el API en `valle-api.up.railway.app`, el navegador considera
+`vallecad.com` y el API en `valle-api.up.railway.app`, el navegador considera
 que son sitios distintos y **no manda la cookie**: el usuario se registra, la
 API responde 200, y la siguiente petición llega sin sesión. No es un fallo que
 se vea en local ni en un preview — se ve el día del lanzamiento, con gente
@@ -30,10 +30,10 @@ Por eso:
 
 | Servicio | Dominio |
 | --- | --- |
-| web | `valledesign.mx` |
-| api | `api.valledesign.mx` |
+| web | `vallecad.com` |
+| api | `api.vallecad.com` |
 
-Los dos cuelgan de `valledesign.mx`, así que son el **mismo sitio** y `Lax`
+Los dos cuelgan de `vallecad.com`, así que son el **mismo sitio** y `Lax`
 funciona. Cualquier otra combinación exigiría `SameSite=None`, que a su vez
 exige repensar CSRF: no es una alternativa, es otro producto.
 
@@ -70,18 +70,37 @@ arranca mal es peor que uno que no arranca, porque nadie recibe una alerta.
 | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` | referencia al plugin |
 | `SYNCHRONIZE` | `false` | fijo, EXACTO |
 | `MIGRATIONS_RUN` | `true` | ver §4 |
-| `ALLOWED_ORIGIN` | `https://valledesign.mx` | sin barra final, sin path |
+| `ALLOWED_ORIGIN` | `https://vallecad.com` | sin barra final, sin path |
 | `IDENTITY_RATE_LIMIT_KEY_SECRET` | 🔑 ≥32 caracteres | `openssl rand -base64 48` |
 | `OUTBOX_DISPATCHER_ENABLED` | `true` | fijo |
-| `OUTBOX_EMAIL_WEBHOOK_URL` | `https://api.valledesign.mx/v1/outbox/email` | la propia API |
-| `OUTBOX_DOMAIN_WEBHOOK_URL` | `https://api.valledesign.mx/v1/outbox/domain` | la propia API |
+| `OUTBOX_EMAIL_WEBHOOK_URL` | `https://api.vallecad.com/v1/outbox/email` | la propia API |
+| `OUTBOX_DOMAIN_WEBHOOK_URL` | `https://api.vallecad.com/v1/outbox/domain` | la propia API |
 | `OUTBOX_WEBHOOK_SECRET` | 🔑 ≥32 caracteres | `openssl rand -base64 48` |
-| `OUTBOX_EMAIL_LINK_BASE_URL` | `https://valledesign.mx` | los enlaces de verificación |
+| `OUTBOX_EMAIL_LINK_BASE_URL` | `https://vallecad.com` | los enlaces de verificación |
 | `EMAIL_SENDER_PROVIDER` | `resend` | fijo |
 | `EMAIL_SENDER_API_KEY` | 🔑 `re_…` | panel de Resend |
-| `EMAIL_SENDER_FROM` | 🔑 `Valle Design <hola@valledesign.mx>` | **dominio verificado en Resend** |
+| `EMAIL_SENDER_FROM` | 🔑 `VALLECAD <no-reply@vallecad.com>` | **dominio verificado en Resend**. Admite `correo@dominio` o `Nombre <correo@dominio>`: el nombre visible es lo que el cliente ve como remitente en su bandeja; sin él verá sólo la dirección. |
 | `DB_SSL_STRICT` | `true` | ver §2.3 |
-| `SUPPORT_EMAIL` | 🔑 `soporte@valledesign.mx` | Buzón del botón «algo salió mal» del estudio. **Sin él el endpoint responde 503 y lo dice**, en vez de aceptar reportes que nadie leería: un 202 sin buzón configurado es el peor de los mundos, porque la persona cree que reportó. Es la única forma de enterarse de lo que rompen los primeros arquitectos. |
+| `SUPPORT_EMAIL` | `soporte@vallecad.com` | Buzón del botón «algo salió mal» del estudio. **Nunca un correo personal**: es el que se enseña como soporte en el pie de los correos si `BRAND_SUPPORT_EMAIL` no está. **Sin él el endpoint responde 503 y lo dice**, en vez de aceptar reportes que nadie leería: un 202 sin buzón configurado es el peor de los mundos, porque la persona cree que reportó. Es la única forma de enterarse de lo que rompen los primeros arquitectos. |
+
+### 2.1b · Marca visible (lo que firma los correos y el MFA)
+
+La API no escribe el nombre del producto en ninguna plantilla: lo resuelve del
+manifiesto de marca de `@valle-design/contracts` con estas variables (mismo
+manifiesto que el web, **sin** el prefijo `NEXT_PUBLIC_`). Sin ellas los
+correos salen firmados con el nombre por defecto del manifiesto («VALLE
+Design»), y ningún cliente de VALLECAD debe ver ese nombre.
+
+| Variable | Valor en Railway | Efecto |
+| --- | --- | --- |
+| `BRAND_PRODUCT_NAME_DESIGN` | `VALLECAD` | Asunto, intro, botón «Abrir …» y pie de TODOS los correos («Confirma tu correo — VALLECAD»). |
+| `BRAND_NAME` | `VALLECAD` | Marca matriz del manifiesto (respaldo del nombre de producto). |
+| `BRAND_SUPPORT_EMAIL` | `soporte@vallecad.com` | Buzón que se enseña en el pie de los correos («VALLECAD · soporte@vallecad.com»). Si falta, se usa `SUPPORT_EMAIL`; un `*.invalid` nunca se enseña. |
+| `IDENTITY_MFA_ISSUER` | `VALLECAD` | Emisor que ve el usuario en su aplicación de autenticación. Sin ella toma `BRAND_PRODUCT_NAME_DESIGN`. |
+
+Son variables de **runtime**: cambiarlas y reiniciar la api basta. El nombre
+visible del remitente (`VALLECAD <no-reply@vallecad.com>`) va en
+`EMAIL_SENDER_FROM` (§2.1) y exige el dominio verificado en Resend.
 
 ### 2.2 · La variable del lanzamiento
 
@@ -124,11 +143,13 @@ por quien esté en la ruta.
 
 | Variable | Valor | Notas |
 | --- | --- | --- |
-| `NEXT_PUBLIC_API_URL` | `https://api.valledesign.mx` | **se incrusta al compilar** |
-| `NEXT_PUBLIC_BRAND_WEBSITE_URL` | `https://valledesign.mx` | `check:production-config` revienta el build con el dominio de plantilla |
-| `NEXT_PUBLIC_BRAND_SUPPORT_EMAIL` | 🔑 correo real de soporte | ídem |
-| `NEXT_PUBLIC_BRAND_SALES_EMAIL` | 🔑 correo real de ventas | ídem |
-| `NEXT_PUBLIC_BRAND_PRIVACY_EMAIL` | 🔑 correo real de privacidad | ídem |
+| `NEXT_PUBLIC_API_URL` | `https://api.vallecad.com` | **se incrusta al compilar** |
+| `NEXT_PUBLIC_BRAND_WEBSITE_URL` | `https://vallecad.com` | `check:production-config` revienta el build con el dominio de plantilla |
+| `NEXT_PUBLIC_BRAND_SUPPORT_EMAIL` | `soporte@vallecad.com` | ídem. Es el «Contacta con soporte» de /login y /register y la página /support: **nunca un correo personal**. Cambiarla exige **reconstruir** el web. |
+| `NEXT_PUBLIC_BRAND_SALES_EMAIL` | `ventas@vallecad.com` | ídem |
+| `NEXT_PUBLIC_BRAND_PRIVACY_EMAIL` | `privacidad@vallecad.com` | ídem |
+| `NEXT_PUBLIC_BRAND_PRODUCT_NAME_DESIGN` | `VALLECAD` | Nombre visible del producto en toda la superficie web (mismo valor que `BRAND_PRODUCT_NAME_DESIGN` en la api, o el correo y la pantalla se llamarán distinto). Se incrusta al compilar. |
+| `NEXT_PUBLIC_BRAND_NAME` | `VALLECAD` | Marca matriz visible. Se incrusta al compilar. |
 | `NEXT_PUBLIC_LAUNCH_MODE` | `free` | es el **default**; ponerlo explícito documenta la intención |
 | `NEXT_PUBLIC_APP_VERSION` | la fecha o el SHA del despliegue | Viaja en cada reporte de «algo salió mal». Sin ella los reportes dicen «desarrollo» y no se puede saber contra qué despliegue pasó el problema, que es la mitad de poder reproducirlo. **Se incrusta al compilar**, así que cada despliegue debe pasar la suya. |
 | `PORT` | `${{PORT}}` | Railway lo inyecta |
@@ -162,7 +183,7 @@ con ella. Si algún día hay más de una réplica, migra como paso previo separa
 
 ```bash
 # Sano y con la cadena de migraciones al día:
-curl -sf https://api.valledesign.mx/health/ready
+curl -sf https://api.vallecad.com/health/ready
 # {"status":"ready", ...}
 ```
 
@@ -178,15 +199,15 @@ En Railway, *Settings → Networking → Custom Domain* de cada servicio:
 
 | Servicio | Dominio | Registro DNS |
 | --- | --- | --- |
-| web | `valledesign.mx` | el que indique Railway (normalmente `CNAME` o `A` en el ápex) |
-| api | `api.valledesign.mx` | `CNAME` → el host que indique Railway |
+| web | `vallecad.com` | el que indique Railway (normalmente `CNAME` o `A` en el ápex) |
+| api | `api.vallecad.com` | `CNAME` → el host que indique Railway |
 
 Después, y **antes** de anunciar nada:
 
 ```bash
 # Los dos resuelven y sirven HTTPS válido:
-curl -sSI https://valledesign.mx        | head -1
-curl -sSI https://api.valledesign.mx/health | head -1
+curl -sSI https://vallecad.com        | head -1
+curl -sSI https://api.vallecad.com/health | head -1
 ```
 
 Si `ALLOWED_ORIGIN` no coincide EXACTAMENTE con el origen del web (protocolo,
@@ -202,8 +223,8 @@ real contra la URL de producción:
 
 ```bash
 npm run smoke:railway -- \
-  --web https://valledesign.mx \
-  --api https://api.valledesign.mx
+  --web https://vallecad.com \
+  --api https://api.vallecad.com
 ```
 
 Comprueba, en dos minutos: salud y readiness del API, que el catálogo público
@@ -300,8 +321,8 @@ Lo que importa es **qué se vigila**:
 
 | Vigila | NO vigiles |
 | --- | --- |
-| `https://api.valledesign.mx/health/ready` cada 5 min | `/health` a secas |
-| `https://valledesign.mx/` cada 5 min | una página con sesión |
+| `https://api.vallecad.com/health/ready` cada 5 min | `/health` a secas |
+| `https://vallecad.com/` cada 5 min | una página con sesión |
 
 `/health` sólo dice que el proceso arrancó. **`/health/ready` es el que
 distingue «el proceso vive» de «el producto sirve»**: responde en verde sólo con
@@ -331,7 +352,7 @@ en que esto se cae de verdad. Manda las alertas al mismo correo que
    (`openssl rand -base64 48` cada uno).
 4. 🔑 Verificar el dominio en **Resend** y obtener la clave `re_…`.
 5. Poner las variables de §2 y §3. **`TRIAL_DAYS=90`.**
-6. 🔑 Apuntar el DNS de `valledesign.mx` y `api.valledesign.mx` (§5).
+6. 🔑 Apuntar el DNS de `vallecad.com` y `api.vallecad.com` (§5).
 7. Desplegar en el orden de §4 y comprobar `/health/ready`.
 8. Correr el smoke de §6 con un correo real.
 9. 🔑 Poner los repositorios **en privado**.

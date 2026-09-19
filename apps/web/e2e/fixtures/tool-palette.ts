@@ -39,9 +39,17 @@ export async function startTool(
         "la usa está probando algo que el producto ya no ofrece.",
     );
   }
-  await page
-    .getByTestId("cad-toolbar")
-    .getByRole("button", { name: action.label, exact: true })
-    .click();
+  const toolbar = page.getByTestId("cad-toolbar");
+  const toolButton = toolbar.getByRole("button", {
+    name: action.label,
+    exact: true,
+  });
+  // La paleta puede arrancar plegada (el producto recuerda la preferencia). Si el botón no es
+  // visible, ábrela pulsando el toggle antes de intentar el clic.
+  if (!(await toolButton.isVisible())) {
+    await toolbar.getByTestId("cad-toolbar-toggle").click();
+    await expect(toolButton).toBeVisible();
+  }
+  await toolButton.click();
   await expect(page.getByTestId("cad-dynamic-input")).toBeVisible();
 }

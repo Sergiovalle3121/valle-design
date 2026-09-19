@@ -140,7 +140,7 @@ export async function renderCadSheetSetPdf(
                 ? "italic"
                 : "normal",
         );
-        pdf.setFontSize(command.size);
+        pdf.setFontSize(command.size * 72 / 25.4);
         pdf.text(command.text, command.point.x, command.point.y, {
           align: command.align ?? "left",
           angle: command.rotation,

@@ -19,7 +19,9 @@ import {
   buildCadDxfImportReport,
   type CadDxfImportReport,
 } from "./dxf-import-report";
-import { scopeDxfImportToModelSpace } from "./dxf-model-space-scope";
+import { scopeDxfImportToModelSpace, splitDxfImportBySpace } from "./dxf-model-space-scope";
+import { cadDrawingUnitFromInsunits } from "./units-imperial";
+import { createCadPaperSpace } from "./paper-space";
 import { shapefileToCadEntities } from "./geo-cad-document";
 import { geoUtmCrs, geoUtmZoneForLongitude, readGeoDataset } from "../geo";
 import { dwgNeutralDatabaseToCadDocument } from "./dwg-document-bridge";
@@ -200,6 +202,7 @@ function importDxfDocument(content: string): DocumentImportReport {
   }
 
   const scoped = scopeDxfImportToModelSpace(imported);
+  const split = splitDxfImportBySpace(imported);
   const primitiveEntities = cadDxfPrimitivesToCanonicalEntities(scoped.primitives, {
     idPrefix: "dxf",
     provider: "native-dxf",
@@ -233,7 +236,70 @@ function importDxfDocument(content: string): DocumentImportReport {
     throw new Error("El DXF no contiene entidades compatibles para importar.");
   }
 
-  const empty = layoutToCadDocument({}, { unit: "mm" });
+  const unit = imported.insunits === undefined
+    ? "mm"
+    : (cadDrawingUnitFromInsunits(imported.insunits) ?? "mm");
+  const empty = layoutToCadDocument({}, { unit });
+
+  // --- espacio papel: una presentación con las entidades marcadas code 67=1 --
+  const paperPrimitiveEntities = cadDxfPrimitivesToCanonicalEntities(split.paper.primitives, {
+    idPrefix: "dxf-paper",
+    provider: "native-dxf",
+  });
+  // Los bloques de un DXF son UN catálogo del documento, no uno por espacio:
+  // reusar blockParts.blocks y resolver los inserts de papel contra ese catálogo.
+  const paperBlockParts = cadDxfBlocksToCadDocumentParts(
+    imported.blocks,
+    split.paper.inserts,
+    { idPrefix: "dxf-paper", provider: "native-dxf" },
+  );
+  const paperToModelBlockId = new Map(
+    paperBlockParts.blocks.map((pb, i) => [pb.id, blockParts.blocks[i].id]),
+  );
+  const paperInsertsResolved = paperBlockParts.inserts.map((insert) => ({
+    ...insert,
+    block: paperToModelBlockId.get(insert.block) ?? insert.block,
+  }));
+  const paperEntities = [
+    ...paperPrimitiveEntities,
+    ...cadDxfHatchesToNativeEntities(split.paper.hatches, {
+      idPrefix: "dxf-paper",
+      provider: "native-dxf",
+    }),
+    ...cadDxfMTextsToNativeEntities(split.paper.mtexts, {
+      idPrefix: "dxf-paper",
+      provider: "native-dxf",
+    }),
+    ...cadDxfSemanticDimensionsToNativeEntities(split.paper.semanticDimensions, {
+      idPrefix: "dxf-paper",
+      provider: "native-dxf",
+    }),
+    ...cadDxfMleadersToNativeEntities(split.paper.mleaders, {
+      idPrefix: "dxf-paper",
+      provider: "native-dxf",
+    }),
+    ...paperInsertsResolved,
+  ];
+  const paperSpaces = paperEntities.length > 0
+    ? [{ ...createCadPaperSpace({
+        id: "paper:presentacion-1",
+        name: "Presentación1",
+        order: 0,
+        paper: "A1",
+        orientation: "landscape",
+        modelBounds: { x: 0, y: 0, width: 841, height: 594 },
+        unit,
+        metadata: {
+          project: "",
+          drawingNumber: "",
+          title: "Presentación1",
+          sheetNumber: "1",
+          revision: "",
+          discipline: "",
+        },
+      }), entityIds: paperEntities.map((e) => e.id) }]
+    : [];
+
   const lossManifest: CadLossManifestEntry[] = imported.warnings.map(
     (warning) => ({
       code: warning.code,
@@ -242,15 +308,46 @@ function importDxfDocument(content: string): DocumentImportReport {
       severity: "warning",
     }),
   );
-  if (scoped.excludedCount > 0)
+  if (split.paper.count > 0 && paperSpaces.length === 0) {
     lossManifest.push({
       code: "dxf_paper_space_excluded",
       sourceType: "PAPER_SPACE",
       severity: "warning",
       detail:
-        `${scoped.excludedCount} entidad(es) de espacio papel del DXF no se importaron: este ` +
-        "importador trae SOLO espacio modelo — el archivo de origen sigue teniendo sus hojas intactas.",
+        `${split.paper.count} entidad(es) de espacio papel del DXF no se importaron: ` +
+        "no se pudo construir ninguna presentación.",
     });
+  } else if (paperSpaces.length > 0) {
+    lossManifest.push({
+      code: "dxf_paper_space_single_layout",
+      sourceType: "PAPER_SPACE",
+      severity: "warning",
+      detail:
+        `Las ${split.paper.count} entidades de espacio papel se importaron en una sola ` +
+        "presentación («Presentación1»), porque el importador no lee AcDbLayout ni el " +
+        "código 330 ownerHandle. No hay ventanas gráficas ni tamaño de página del original.",
+    });
+  }
+  if (imported.insunits === undefined) {
+    lossManifest.push({
+      code: "dxf_unit_assumed",
+      sourceType: "HEADER",
+      severity: "warning",
+      detail:
+        "El DXF no declara $INSUNITS: se asumió milímetros. Si el dibujo estaba en otra unidad, la escala no será correcta.",
+    });
+  } else if (imported.insunits === 0 || cadDrawingUnitFromInsunits(imported.insunits) === null) {
+    const label = imported.insunits === 0
+      ? "INSUNITS=0 (sin unidad)"
+      : `INSUNITS=${imported.insunits}`;
+    lossManifest.push({
+      code: "dxf_unit_assumed",
+      sourceType: "HEADER",
+      severity: "warning",
+      detail:
+        `El DXF declara ${label}, que no es una unidad representable: se asumió milímetros.`,
+    });
+  }
   const linetypeCatalog = Object.fromEntries(
     imported.linetypes.map((entry) => [
       entry.name,
@@ -284,10 +381,11 @@ function importDxfDocument(content: string): DocumentImportReport {
         : {}),
     },
     layers: buildLayers(imported.layers, imported.layerDefinitions),
-    entities,
+    entities: [...entities, ...paperEntities],
     // El orden en que el importador entrega las entidades ES el orden de
     // dibujo del fichero de origen. Ordenarlo por id descartaba esa fidelidad.
     modelSpace: { entityIds: entities.map((entity) => entity.id) },
+    paperSpaces,
     blocks: blockParts.blocks,
     // Catálogo de imágenes: sin él, las entidades IMAGE importadas apuntarían
     // a una definición que no existe y el documento quedaría roto en el mismo

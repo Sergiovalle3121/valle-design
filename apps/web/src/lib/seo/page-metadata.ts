@@ -13,8 +13,8 @@ import { absoluteUrl } from "@/config/site-routes";
  * se indexa varias veces y compite consigo misma.
  *
  * El `title` va SIN el nombre del producto: el `template` del layout raíz ya lo
- * añade (`%s · Valle Design`). Repetirlo daría "Precios · Valle Design · Valle
- * Design", que es exactamente el tipo de detalle que delata una web descuidada.
+ * añade (`%s · VALLECAD`). Repetirlo daría "Precios · VALLECAD · VALLECAD",
+ * que es exactamente el tipo de detalle que delata una web descuidada.
  */
 export function publicPageMetadata({
   path,

@@ -17,7 +17,7 @@ export interface CadDynamicInputValues {
 export interface CadDynamicInputContext {
   mode: CadDynamicInputMode;
   anchor?: Point | null;
-  documentUnit: 'mm' | 'm';
+  documentUnit: CadLengthUnit;
   locale?: string;
   defaults?: Partial<Record<keyof CadDynamicInputValues, number>>;
 }
@@ -49,7 +49,7 @@ function normalizedNumber(raw: string, locale: string): number | null {
 
 export function parseCadDynamicScalar(
   raw: string,
-  documentUnit: 'mm' | 'm',
+  documentUnit: CadLengthUnit,
   locale = DEFAULT_REGION_PROFILE.numberLocale,
   kind: 'length' | 'angle' = 'length',
 ): number | null {
@@ -61,7 +61,8 @@ export function parseCadDynamicScalar(
   const inputUnit = (match[2] || documentUnit) as CadLengthUnit;
   if (!(inputUnit in UNIT_TO_MM)) return null;
   const millimeters = value * UNIT_TO_MM[inputUnit];
-  return documentUnit === 'm' ? millimeters / 1_000 : millimeters;
+  const docMm = UNIT_TO_MM[documentUnit] ?? 1;
+  return millimeters / docMm;
 }
 
 function rawOrDefault(

@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { PRODUCT_DISPLAY_NAME } from '../../common/brand/brand';
 import {
   createPostgresHarness,
   describePostgres,
@@ -18,6 +17,7 @@ import {
 import { CommercialOutboxDispatcher } from '../commercial/outbox-dispatcher.service';
 import { WebhookCommercialOutboxTransport } from '../commercial/webhook-outbox.transport';
 import { WebhookReceipt } from './entities/webhook-receipt.entity';
+import { PRODUCT_DISPLAY_NAME } from '../../common/brand/product-brand';
 import {
   parseDomainOutboxDelivery,
   parseEmailOutboxDelivery,

@@ -190,11 +190,17 @@ describe('first-party organization and commercial HTTP integration', () => {
 
     const verificationEmail = await latestEmail(email);
     expect(verificationEmail.template).toBe('identity.verify-email');
-    await request(server)
+    // Aquí verificar el correo es sólo el paso previo al login, no el objeto de
+    // la prueba: se comprueba que verificó, no la forma exacta del cuerpo. El
+    // contrato de `POST /v1/auth/verify-email` —que hoy devuelve también el
+    // `email`, y `alreadyVerified` en el segundo canje— lo fija su dueño,
+    // `identity.integration.spec.ts`. Fijarlo aquí con `.expect({verified:true})`
+    // hacía que un cambio legítimo del contrato rompiera una suite ajena.
+    const verification = await request(server)
       .post('/v1/auth/verify-email')
       .send({ token: verificationEmail.payload.token })
-      .expect(201)
-      .expect({ verified: true });
+      .expect(201);
+    expect((verification.body as { verified?: boolean }).verified).toBe(true);
 
     const agent = request.agent(server);
     const login = await agent

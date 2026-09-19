@@ -201,7 +201,7 @@ describe('Ajustes de producción — los cinco, con evidencia', () => {
 
   /* ── Y que el documento de despliegue los NOMBRE ──────────────────────── */
 
-  it('los cinco están en DESPLIEGUE-RAILWAY.md, o el operador no los pondrá', () => {
+  it('las variables de operación están en DESPLIEGUE-RAILWAY.md, o el operador no las pondrá', () => {
     const doc = read('docs/onboarding/DESPLIEGUE-RAILWAY.md');
     const faltan = [
       'DB_SSL_STRICT',
@@ -209,6 +209,12 @@ describe('Ajustes de producción — los cinco, con evidencia', () => {
       'METRICS_TOKEN',
       'SUPPORT_EMAIL',
       'TRIAL_DAYS',
+      // Las que firman lo que ve el cliente: sin ellas los correos y el
+      // emisor de MFA salen con el nombre del manifiesto por defecto.
+      'BRAND_PRODUCT_NAME_DESIGN',
+      'BRAND_SUPPORT_EMAIL',
+      'IDENTITY_MFA_ISSUER',
+      'EMAIL_SENDER_FROM',
     ].filter((variable) => !doc.includes(variable));
     expect(faltan).toEqual([]);
   });

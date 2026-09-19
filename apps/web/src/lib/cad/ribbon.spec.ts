@@ -9,7 +9,11 @@ import {
   cadRibbonPanelFallbacks,
   findCadRibbonCommand,
 } from "./ribbon";
-import { CAD_RIBBON_PANEL_ORDER } from "./ribbon-order";
+import {
+  CAD_RIBBON_PANEL_COLLAPSE_ORDER,
+  CAD_RIBBON_PANEL_ORDER,
+  CAD_RIBBON_PRIMARY,
+} from "./ribbon-order";
 
 assert.deepEqual(
   cadRibbonCoverageGaps(),
@@ -42,6 +46,7 @@ for (const tab of CAD_RIBBON_DATA) {
     assert.ok(panel.commands.length > 0, `panel vacío: ${tab.id}/${panel.label}`);
     for (const command of panel.commands) {
       assert.ok(command.summary.length > 0, `${command.name} sin resumen`);
+      assert.ok(command.label.length > 0 && command.label !== command.name, `${command.name} sin rótulo en español`);
       // El icono del botón sale de `command.panel`: un espejo compartido con
       // el objeto de Anotar saldría con el icono de Cotas dentro de Inicio.
       assert.equal(command.panel, panel.label, `${command.name} dice panel «${command.panel}» y está montado en «${panel.label}»`);
@@ -108,6 +113,78 @@ assert.deepEqual(
   ["DIMSTYLE", "MLEADERSTYLE", "STYLE", "TABLESTYLE"],
   "los cuatro estilos van juntos en Anotar > Estilos, no uno por panel en Administrar",
 );
+
+// ── Sólidos 3D es pestaña propia (como en AutoCAD), no el 13.º panel de Inicio.
+assert.deepEqual(
+  CAD_RIBBON_TABS.map((tab) => tab.id),
+  ["inicio", "insertar", "anotar", "parametrico", "vista", "solidos3d", "salida", "administrar", "superficies", "mallas"],
+  "el orden de pestañas es Inicio · Insertar · Anotar · Paramétrico · Vista · Sólidos 3D · Salida · Administrar · Superficies · Mallas",
+);
+assert.ok(
+  !inicio.panels.some((panel) => panel.label === "Sólidos" || panel.label === "Sombreado"),
+  "Inicio ya no tiene los paneles «Sólidos» ni «Sombreado»: a 1366 px no caben trece paneles",
+);
+assert.ok(
+  inicio.panels[0].commands.some((command) => command.name === "HATCH"),
+  "HATCH vive en Inicio > Dibujo, como en el panel Draw de AutoCAD",
+);
+const solidos3d = CAD_RIBBON_DATA.find((tab) => tab.id === "solidos3d");
+assert.deepEqual(
+  solidos3d?.panels.map((panel) => panel.label),
+  ["Primitivas", "Sólido", "Booleanas", "Edición de sólidos", "Consulta 3D"],
+  "Sólidos 3D reparte sus paneles como la pestaña Solid de AutoCAD",
+);
+assert.ok(
+  solidos3d?.panels.find((panel) => panel.label === "Sólido")?.commands[0]?.name === "EXTRUDE",
+  "EXTRUDE es el primer botón de Sólidos 3D > Sólido",
+);
+assert.equal(
+  solidos3d?.commandCount,
+  23,
+  "los 23 comandos de sólidos están en su pestaña y en ninguna otra",
+);
+
+// ── Botones grandes: uno o dos por panel, todos reales, sin claves muertas.
+const allLabels = new Set(CAD_RIBBON_DATA.flatMap((tab) => tab.panels.map((panel) => panel.label)));
+for (const [label, names] of Object.entries(CAD_RIBBON_PRIMARY)) {
+  assert.ok(allLabels.has(label), `CAD_RIBBON_PRIMARY nombra el panel «${label}», que no existe en la cinta`);
+  for (const name of names) {
+    assert.ok(kindOf.has(name), `primario «${name}» (panel ${label}) no existe en el registro`);
+    assert.ok(cadRibbonExposedNames().has(name), `primario «${name}» no tiene botón en la cinta`);
+  }
+}
+for (const tab of CAD_RIBBON_DATA) {
+  for (const panel of tab.panels) {
+    const primaries = panel.commands.filter((command) => command.primary);
+    assert.ok(
+      primaries.length >= 1 && primaries.length <= 2,
+      `${tab.id}/${panel.label} tiene ${primaries.length} botones grandes; deben ser uno o dos`,
+    );
+  }
+  for (const label of CAD_RIBBON_PANEL_COLLAPSE_ORDER[tab.id]) {
+    assert.ok(
+      tab.panels.some((panel) => panel.label === label),
+      `el orden de plegado de ${tab.id} nombra «${label}» y ese panel no existe`,
+    );
+  }
+}
+// Lo que los goldens 61 y 86 pulsan sin abrir nada vive en paneles que nunca
+// se pliegan a un botón (no están en el orden de plegado de su pestaña).
+for (const [tabId, name] of [
+  ["inicio", "LINE"], ["inicio", "CIRCLE"], ["inicio", "ARC"], ["inicio", "MOVE"], ["inicio", "COPY"],
+  ["inicio", "ROTATE"], ["inicio", "TRIM"], ["inicio", "ERASE"], ["inicio", "LAYER"], ["anotar", "DIMLINEAR"],
+] as const) {
+  const panel = CAD_RIBBON_DATA.find((tab) => tab.id === tabId)?.panels.find((entry) =>
+    entry.commands.some((command) => command.name === name),
+  );
+  assert.ok(panel, `${name} no está en la pestaña ${tabId}`);
+  assert.ok(
+    !CAD_RIBBON_PANEL_COLLAPSE_ORDER[tabId].includes(panel.label),
+    `${name} vive en ${tabId}/${panel.label}, que puede plegarse a un botón: los goldens lo pulsan sin abrir nada`,
+  );
+}
+assert.ok(findCadRibbonCommand("LINE")?.primary, "LINE es botón grande de Dibujo");
+assert.ok(!findCadRibbonCommand("XLINE")?.primary, "XLINE es botón pequeño");
 
 assert.ok(findCadRibbonCommand("LINE"), "LINE, comando básico de dibujo, se encuentra en la cinta");
 assert.ok(findCadRibbonCommand("DIMLINEAR"), "la cota lineal está en la cinta");

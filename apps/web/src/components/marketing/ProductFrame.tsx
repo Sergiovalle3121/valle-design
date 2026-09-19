@@ -28,6 +28,7 @@ export function ProductFrame({
   halo = true,
   sizes = "(min-width: 1024px) 46rem, 100vw",
   className,
+  "data-testid": dataTestId,
 }: {
   src: string;
   alt: string;
@@ -48,6 +49,7 @@ export function ProductFrame({
    */
   sizes?: string;
   className?: string;
+  "data-testid"?: string;
 }) {
   return (
     /*
@@ -60,7 +62,7 @@ export function ProductFrame({
       moría dos aserciones antes, así que el defecto llevaba desde el rediseño
       sin que nadie lo viera.
     */
-    <figure className={cx("relative overflow-hidden", className)}>
+    <figure data-testid={dataTestId} className={cx("relative overflow-hidden", className)}>
       {/* Halo bajo el producto: le da peso y lo separa del fondo sin sombra. */}
       {halo ? (
         <div

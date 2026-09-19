@@ -13,7 +13,7 @@ export const metadata: Metadata = publicPageMetadata({
   path: "/terms",
   title: "Términos de uso",
   description:
-    "Condiciones básicas para evaluar y usar Valle Design, y los límites operativos que la web declara de forma expresa.",
+    "Condiciones básicas para evaluar y usar VALLECAD, y los límites operativos que la web declara de forma expresa.",
 });
 
 export default function TermsPage() {
@@ -33,7 +33,7 @@ export default function TermsPage() {
 
       <PublicSection title="Alcance del producto">
         <p>
-          Las funciones disponibles son las que aparecen en el despliegue y
+          Las funciones disponibles son las que aparecen en la aplicación y
           están habilitadas para tu cuenta. Esta web no promete compatibilidad
           DWG nativa, automatización mediante inteligencia artificial,
           revisiones colaborativas, certificaciones ni una exactitud garantizada
@@ -64,13 +64,12 @@ export default function TermsPage() {
         </p>
         <p>
           Las tarifas que la página de precios publica las sirve el catálogo
-          real del despliegue y describen lo que costará un plan cuando el cobro
-          se active; hoy no hay contratación en línea disponible. Los niveles de
-          servicio informativos están en <Link href="/sla">/sla</Link>, con la
+          real y describen lo que costará un plan cuando el cobro se active; hoy no hay contratación en línea disponible. Los niveles de
+          servicio informativos están en <Link href="/sla">Niveles de servicio</Link>, con la
           misma advertencia de este borrador: un compromiso de disponibilidad
           VINCULANTE requiere un acuerdo escrito con el titular. La página de
-          estado sólo es autoritativa cuando el despliegue configura una fuente
-          real de telemetría.
+          estado sólo es autoritativa cuando se configura una fuente real de
+          telemetría.
         </p>
         <a className={publicActionClass} href={COMMERCIAL_LINKS.contact}>
           Consultar contacto

@@ -589,6 +589,8 @@ export interface CadCommandStep<S = unknown> {
   preview?: readonly CadPreviewPath[];
   /** Modos de snap forzados sólo para este paso (p. ej. TANGENTE en CIRCLE TTR). */
   osnapOverride?: readonly SnapType[];
+  /** Último punto fijado por este comando (para `@` relativo y distancia directa). */
+  lastPoint?: { x: number; y: number } | null;
   /**
    * Presente cuando el comando ha terminado. Que exista `result` es lo que
    * indica el final; no hay un `done` aparte que pueda quedar descoordinado.

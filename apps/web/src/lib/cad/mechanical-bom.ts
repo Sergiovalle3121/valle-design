@@ -25,7 +25,7 @@ import type { CadNativeEntity } from "./entity-runtime";
 import type { CadCommandDocumentView } from "./engine/command-types";
 import { scheduleTable } from "./data-extraction/data-extraction";
 import { CAD_BALLOON_MARK } from "./mechanical-symbols";
-import { CAD_MECHANICAL_BLOCK_PREFIX, cadMechanicalPartOf } from "./mechanical-parts";
+import { CAD_MECHANICAL_BLOCK_PREFIX, cadMechanicalPartOf, cadSteelKgPerMetre } from "./mechanical-parts";
 
 export interface CadBomRow {
   item: number;
@@ -83,7 +83,7 @@ export function buildCadMechanicalBom(view: View): CadMechanicalBom {
   return { rows, balloons: balloons.length };
 }
 
-export const BOM_HEADERS = ["Pos.", "Cant.", "Denominación", "Norma", "Bloque"] as const;
+export const BOM_HEADERS = ["Pos.", "Cant.", "Denominación", "Norma", "Peso unit. (kg)", "Peso total (kg)", "Bloque"] as const;
 
 /**
  * La marca que la lista deja en SU tabla, hermana de `CAD_BALLOON_MARK`.
@@ -116,8 +116,24 @@ export function buildCadMechanicalBomTable(
   layer: string,
   newEntityId: () => string,
   entityId?: string,
+  blocks?: readonly { id: string; name: string; description?: string }[],
 ): CadTableEntity {
-  const rows = bom.rows.map((row) => [String(row.item), String(row.count), row.name, row.standard, row.blockId || "—"]);
+  const blockMap = new Map((blocks ?? []).map((b) => [b.id, b]));
+  const rows = bom.rows.map((row) => {
+    const part = cadMechanicalPartOf(blockMap.get(row.blockId));
+    const areaMm2 = part?.areaMm2 ?? null;
+    const weightPerUnit = areaMm2 !== null ? cadSteelKgPerMetre(areaMm2) : null;
+    const weightTotal = weightPerUnit !== null ? weightPerUnit * row.count : null;
+    return [
+      String(row.item),
+      String(row.count),
+      row.name,
+      row.standard,
+      weightPerUnit !== null ? weightPerUnit.toFixed(2) : "—",
+      weightTotal !== null ? weightTotal.toFixed(2) : "—",
+      row.blockId || "—",
+    ];
+  });
   const table = scheduleTable(BOM_TITLE, BOM_HEADERS, rows, insertion, layer, entityId ? () => entityId : newEntityId, 1_500);
   return { ...table, context: { ...table.context, metadata: { ...table.context?.metadata, mechanical: CAD_BOM_MARK } } };
 }

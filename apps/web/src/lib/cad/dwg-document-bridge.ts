@@ -51,10 +51,8 @@ import {
   type CadLossManifestEntry,
   type CadOpaqueEntity,
 } from "./cad-document";
-import {
-  MAX_DWG_IMPORT_BYTES,
-  type DocumentImportReport,
-} from "./document-import";
+import { MAX_DWG_IMPORT_BYTES } from "./document-import-validation";
+import type { DocumentImportReport } from "./document-import";
 // Tabla ACI↔RGB real y ya usada por el resto del producto (plotting); el
 // laboratorio deja dicho en su propio mapeo canónico que "la tabla ACI
 // completa es del adaptador de integración" — este archivo es ese adaptador.

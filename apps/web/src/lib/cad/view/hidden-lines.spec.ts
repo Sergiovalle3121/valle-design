@@ -41,7 +41,7 @@ const cube: BrepBody = makeBox({ min: { x: 0, y: 0, z: 0 }, max: { x: 100, y: 10
 // 1. La tabla de estilos distingue OCULTAR de NO DIBUJAR
 // ---------------------------------------------------------------------------
 {
-  check("siguen siendo cuatro estilos", CAD_VISUAL_STYLES.length === 4);
+  check("siguen siendo cinco estilos", CAD_VISUAL_STYLES.length === 5);
   // Alámbrico y Oculto comparten «no pinto caras» y se separan justo aquí: el
   // primero enseña las aristas de detrás, que es su definición.
   check("Alámbrico NO quita las aristas ocultas", cadVisualStyle("wireframe").removesHiddenEdges === false);

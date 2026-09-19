@@ -1,5 +1,5 @@
 /**
- * Precision input for Valle Design CAD drafting.
+ * Precision input for VALLECAD CAD drafting.
  *
  * Pure geometry helpers used by the command registry and by the line-engineering
  * editor. Coordinates are expressed in the active layout footprint unit.
@@ -148,7 +148,11 @@ export function parseCoordinate(
   }
 
   if (body.includes(",")) {
-    const [xStr, yStr, zStr, ...rest] = body.split(",");
+    const parts = body.split(",");
+    const [xStr, yStr, zStr, ...rest] = parts;
+    // La coma SIEMPRE separa componentes, como en AutoCAD: `5,300` es el punto
+    // (5, 300). Rechazar `4,325` por si era un decimal rompía coordenadas
+    // válidas y la costumbre de quien viene de AutoCAD; el decimal es el punto.
     const x = num(xStr, ctx);
     const y = num(yStr, ctx);
     // La tercera componente es la COTA (Ola C, 2026-09-02): `0,0,3000` es el

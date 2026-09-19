@@ -104,3 +104,60 @@ assert.throws(
 );
 
 console.log("document-import: extensión, tamaño y límites de importación");
+
+// ─── $INSUNITS: unidad de dibujo declarada en el HEADER ────────────────────
+function dxfWithInsunits(insunitsCode?: number): string {
+  const header = insunitsCode !== undefined
+    ? ["2", "HEADER", "9", "$INSUNITS", "70", String(insunitsCode), "0", "ENDSEC", "0"]
+    : ["2", "HEADER", "0", "ENDSEC", "0"];
+  return ["0", "SECTION", ...header, "SECTION", "2", "ENTITIES",
+    "0", "LINE", "8", "0", "10", "0", "20", "0", "11", "100", "21", "25",
+    "0", "ENDSEC", "0", "EOF",
+  ].join("\n");
+}
+
+// $INSUNITS 6 = metros → meta.unit === "m", sin aviso dxf_unit_assumed
+const insunitsMeters = importDocumentText("meters.dxf", dxfWithInsunits(6));
+assert.equal(insunitsMeters.document.meta.unit, "m");
+assert.ok(
+  !insunitsMeters.document.lossManifest?.some((e) => e.code === "dxf_unit_assumed"),
+  "DXF con INSUNITS=6 no debe emitir dxf_unit_assumed",
+);
+
+// $INSUNITS 0 = sin unidad → meta.unit === "mm", con aviso
+const insunitsZero = importDocumentText("zero.dxf", dxfWithInsunits(0));
+assert.equal(insunitsZero.document.meta.unit, "mm");
+const zeroWarning = insunitsZero.document.lossManifest?.find(
+  (e) => e.code === "dxf_unit_assumed",
+);
+assert.ok(zeroWarning, "DXF con INSUNITS=0 debe emitir dxf_unit_assumed");
+assert.ok(
+  zeroWarning?.detail.includes("INSUNITS=0"),
+  "el detalle debe nombrar el código leído",
+);
+
+// Sin $INSUNITS → meta.unit === "mm", con aviso
+const noInsunits = importDocumentText("no-units.dxf", dxfWithInsunits());
+assert.equal(noInsunits.document.meta.unit, "mm");
+const absentWarning = noInsunits.document.lossManifest?.find(
+  (e) => e.code === "dxf_unit_assumed",
+);
+assert.ok(absentWarning, "DXF sin $INSUNITS debe emitir dxf_unit_assumed");
+assert.ok(
+  absentWarning?.detail.includes("no declara"),
+  "el detalle debe indicar que falta la declaración",
+);
+
+// $INSUNITS 7 = yardas (no representable) → meta.unit === "mm", con aviso nombrando el código
+const insunitsYards = importDocumentText("yards.dxf", dxfWithInsunits(7));
+assert.equal(insunitsYards.document.meta.unit, "mm");
+const yardsWarning = insunitsYards.document.lossManifest?.find(
+  (e) => e.code === "dxf_unit_assumed",
+);
+assert.ok(yardsWarning, "DXF con INSUNITS=7 debe emitir dxf_unit_assumed");
+assert.ok(
+  yardsWarning?.detail.includes("INSUNITS=7"),
+  "el detalle debe nombrar el código 7",
+);
+
+console.log("document-import: $INSUNITS leído y propagado correctamente");

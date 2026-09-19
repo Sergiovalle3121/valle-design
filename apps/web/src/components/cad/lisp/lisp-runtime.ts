@@ -195,7 +195,7 @@ const FACTORY_FILES: readonly LispLibraryFile[] = CAD_LISP_FACTORY_ROUTINES.map(
     version: 1,
     fingerprint: fingerprintLispSource(routine.source),
     updatedAt: "",
-    updatedBy: "Valle Design",
+    updatedBy: "VALLECAD",
     autoload: true,
     // Una rutina de fábrica con la sintaxis rota no ofrece comandos, y la spec
     // lo cazará; lo que no puede hacer es tumbar el arranque del subsistema.
@@ -525,7 +525,7 @@ export class CadLispRuntime {
    * Se limpia al empezar la siguiente ejecución en vez de intentar adivinar el
    * Esc: es el momento en el que el abandono es un hecho comprobado.
    */
-  private abandonActive(): void {
+  abandonActive(): void {
     const active = this.active;
     this.active = null;
     if (!active || active.run.done) return;

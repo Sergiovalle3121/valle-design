@@ -287,7 +287,7 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
         ...viewport,
         [section]: { ...viewport[section], [field]: value },
       }),
-      `Viewport ${section}.${field}`,
+      `Ventana ${section}.${field}`,
     );
   };
 
@@ -298,7 +298,7 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
     >
       <div className="flex flex-wrap items-center gap-2">
         <span className="mr-auto type-micro font-semibold uppercase tracking-[0.15em] text-primary-ink">
-          Viewports · {space.viewports?.length ?? 0}
+          Ventanas · {space.viewports?.length ?? 0}
         </span>
         <button
           data-testid="cad-viewport-add"
@@ -306,7 +306,7 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
           className="inline-flex items-center gap-1 rounded-control bg-indigo-600 px-2 py-1 type-micro font-semibold text-foreground hover:bg-indigo-500"
         >
           <Plus className="h-3 w-3" />
-          Viewport
+          Ventana
         </button>
         <button
           disabled={!active}
@@ -430,7 +430,7 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
                   key={`paper-${field}`}
                   className="type-micro text-muted-foreground"
                 >
-                  Paper {field}
+                  {{ x: "X", y: "Y", width: "Ancho", height: "Alto" }[field]}
                   <input
                     data-testid={`cad-viewport-paper-${field}`}
                     type="number"
@@ -454,7 +454,7 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
                   key={`model-${field}`}
                   className="type-micro text-muted-foreground"
                 >
-                  Model {field}
+                  {{ x: "X", y: "Y", width: "Ancho", height: "Alto" }[field]}
                   <input
                     data-testid={`cad-viewport-model-${field}`}
                     type="number"
@@ -474,7 +474,7 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
             </div>
             <div className="grid grid-cols-3 gap-1.5">
               <label className="type-micro text-muted-foreground">
-                Standard scale
+                Escala estándar
                 <select
                   data-testid="cad-viewport-scale"
                   value={
@@ -498,7 +498,7 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
                   }
                   className="mt-0.5 w-full rounded border border-border bg-surface/80 px-1 py-1 type-micro text-foreground disabled:opacity-40"
                 >
-                  <option value="custom">Custom</option>
+                  <option value="custom">Personalizada</option>
                   {CAD_SHEET_SCALES.map((scale) => (
                     <option key={scale} value={scale}>
                       1:{scale}
@@ -507,7 +507,7 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
                 </select>
               </label>
               <label className="type-micro text-muted-foreground">
-                Custom scale
+                Escala personalizada
                 <input
                   data-testid="cad-viewport-custom-scale"
                   type="number"
@@ -529,7 +529,7 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
                 />
               </label>
               <label className="type-micro text-muted-foreground">
-                Annotation scale
+                Escala anotativa
                 <input
                   data-testid="cad-viewport-annotation-scale"
                   type="number"
@@ -551,7 +551,7 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
               </label>
             </div>
             <label className="block type-micro text-muted-foreground">
-              Named view
+              Vista nombrada
               <input
                 data-testid="cad-viewport-named-view"
                 value={active.namedView ?? ""}
@@ -627,7 +627,7 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
                       }
                       className="text-muted-foreground hover:text-foreground"
                     >
-                      Reset
+                      Restablecer
                     </button>
                   </div>
                 );
@@ -636,7 +636,7 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
           </div>
         ) : (
           <div className="grid place-items-center rounded-card border border-dashed border-border type-micro text-muted-foreground">
-            Add a viewport to begin.
+            Agrega una ventana para empezar.
           </div>
         )}
       </div>

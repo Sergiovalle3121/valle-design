@@ -1,11 +1,16 @@
 import { hash, verify } from '@node-rs/argon2';
 import { createHash, createHmac, randomBytes } from 'crypto';
+import type { Request } from 'express';
 
 export const MIN_PASSWORD_LENGTH = 12;
 export const MAX_PASSWORD_LENGTH = 128;
 export const MAX_EMAIL_LENGTH = 254;
 export const MAX_DISPLAY_NAME_LENGTH = 160;
 export const MAX_TOKEN_LENGTH = 256;
+
+const MAX_COOKIE_HEADER_LENGTH = 8_192;
+const MAX_COOKIE_VALUE_LENGTH = 1_024;
+const MAX_COOKIE_PAIRS = 64;
 
 export const SECURE_SESSION_COOKIE = '__Host-valle_session';
 export const DEVELOPMENT_SESSION_COOKIE = 'valle_session';
@@ -14,6 +19,105 @@ export const SESSION_COOKIE =
   process.env.NODE_ENV === 'production'
     ? SECURE_SESSION_COOKIE
     : DEVELOPMENT_SESSION_COOKIE;
+
+export interface SessionCookiePolicy {
+  name: string;
+  secure: boolean;
+  transportAllowed: boolean;
+}
+
+export function sessionCookiePolicy(
+  environment: string | undefined,
+  requestSecure: boolean,
+): SessionCookiePolicy {
+  if (environment === 'production') {
+    return {
+      name: SECURE_SESSION_COOKIE,
+      secure: true,
+      transportAllowed: requestSecure,
+    };
+  }
+
+  return {
+    name: DEVELOPMENT_SESSION_COOKIE,
+    secure: false,
+    transportAllowed: true,
+  };
+}
+
+function containsControlCharacter(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code <= 31 || code === 127) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function parseCookieHeader(
+  header: string | undefined,
+  name: string,
+): string | undefined {
+  if (
+    !header ||
+    header.length > MAX_COOKIE_HEADER_LENGTH ||
+    !/^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/u.test(name)
+  ) {
+    return undefined;
+  }
+
+  const pairs = header.split(';');
+  if (pairs.length > MAX_COOKIE_PAIRS) {
+    return undefined;
+  }
+
+  let found: string | undefined;
+  for (const pair of pairs) {
+    const separator = pair.indexOf('=');
+    if (separator < 1 || pair.slice(0, separator).trim() !== name) {
+      continue;
+    }
+
+    if (found !== undefined) {
+      return undefined;
+    }
+
+    let encodedValue = pair.slice(separator + 1).trim();
+    if (encodedValue.startsWith('"') || encodedValue.endsWith('"')) {
+      if (
+        encodedValue.length < 2 ||
+        !encodedValue.startsWith('"') ||
+        !encodedValue.endsWith('"')
+      ) {
+        return undefined;
+      }
+      encodedValue = encodedValue.slice(1, -1);
+    }
+    if (encodedValue.length > MAX_COOKIE_VALUE_LENGTH) {
+      return undefined;
+    }
+
+    try {
+      const decoded = decodeURIComponent(encodedValue);
+      if (
+        decoded.length > MAX_COOKIE_VALUE_LENGTH ||
+        containsControlCharacter(decoded)
+      ) {
+        return undefined;
+      }
+      found = decoded;
+    } catch {
+      return undefined;
+    }
+  }
+
+  return found;
+}
+
+export function cookie(req: Request, name: string): string | undefined {
+  return parseCookieHeader(req.headers.cookie, name);
+}
 
 const ARGON2_VERSION = 19;
 const ARGON2_MEMORY_KIB = 19_456;
@@ -37,6 +141,50 @@ export const DUMMY_PASSWORD_HASH =
 const PHC_PATTERN =
   /^\$argon2id\$v=(\d+)\$m=(\d+),t=(\d+),p=(\d+)\$([A-Za-z0-9+/]+)\$([A-Za-z0-9+/]+)$/u;
 
+export function csrfCookieDomain(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  const domain = raw.trim().toLowerCase();
+  if (!domain) return undefined;
+  if (!domain.startsWith('.')) {
+    throw new Error(
+      `CSRF_COOKIE_DOMAIN must start with a dot (received "${domain}").`,
+    );
+  }
+  const afterDot = domain.slice(1);
+  const labels = afterDot.split('.');
+  if (labels.length < 2 || labels.some((l) => !l)) {
+    throw new Error(
+      `CSRF_COOKIE_DOMAIN must have at least two labels after the leading dot (received "${domain}").`,
+    );
+  }
+  if (!/^[a-z0-9.-]+$/u.test(domain)) {
+    throw new Error(
+      `CSRF_COOKIE_DOMAIN contains invalid characters (received "${domain}").`,
+    );
+  }
+  return domain;
+}
+
+export function assertCsrfCookieDomainAgainstOrigins(
+  domain: string,
+  allowedOrigins: string[],
+): void {
+  const suffix = domain;
+  const matches = allowedOrigins.some((origin) => {
+    try {
+      const host = new URL(origin).hostname;
+      return host === suffix.slice(1) || host.endsWith(suffix);
+    } catch {
+      return false;
+    }
+  });
+  if (!matches) {
+    throw new Error(
+      `CSRF_COOKIE_DOMAIN "${domain}" is not a suffix of any ALLOWED_ORIGIN host.`,
+    );
+  }
+}
+
 export function assertIdentitySecurityConfiguration(
   environment: NodeJS.ProcessEnv,
 ): void {
@@ -48,6 +196,20 @@ export function assertIdentitySecurityConfiguration(
     throw new Error(
       'Production requires IDENTITY_RATE_LIMIT_KEY_SECRET with at least 32 characters so every API replica derives the same opaque keys.',
     );
+  }
+  const domain = csrfCookieDomain(environment.CSRF_COOKIE_DOMAIN);
+  if (domain) {
+    const raw = environment.ALLOWED_ORIGIN?.trim() ?? '';
+    const origins = raw
+      .split(/[,\n;]+/)
+      .map((e) =>
+        e
+          .trim()
+          .replace(/^['"]|['"]$/g, '')
+          .replace(/\/+$/, ''),
+      )
+      .filter(Boolean);
+    assertCsrfCookieDomainAgainstOrigins(domain, origins);
   }
 }
 

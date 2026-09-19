@@ -24,6 +24,7 @@ import {
   CAD_LEGACY_POINTER_TOOLS,
   CadEnginePointerRouter,
   cadEngineCommandForTool,
+  cadEngineCommandHasDraftToolbar,
   type CadPointerCursorSurface,
   type CadPointerPreviewSurface,
 } from "./pointer-router";
@@ -223,6 +224,15 @@ assert.equal(cadEngineCommandForTool("copy"), "COPY");
 assert.equal(cadEngineCommandForTool("offset"), "OFFSET");
 assert.equal(cadEngineCommandForTool("inventada"), null);
 ok(true, "enrutado explícito: 7 al motor, 3 al camino viejo con su motivo, cero solapes");
+
+// La barra de borrador (ORTO + entrada dinámica) es de ESOS siete, lleguen por
+// la paleta, la cinta o el teclado; cualquier otro comando deja el lienzo libre
+// (golden 56: con DIMLINEAR tecleado la barra tapaba el muro que se acota).
+for (const command of Object.values(CAD_ENGINE_POINTER_COMMANDS))
+  ok(cadEngineCommandHasDraftToolbar(command), `${command} monta la barra de borrador`);
+for (const command of ["DIMLINEAR", "DIMALIGNED", "TRIM", "ERASE", "MIRROR"])
+  ok(!cadEngineCommandHasDraftToolbar(command), `${command} no monta la barra de borrador`);
+ok(!cadEngineCommandHasDraftToolbar(null), "sin comando no hay barra del motor");
 
 // ---------------------------------------------------------------------------
 // 2. Sin comando activo el enrutador NO toca el puntero: es del camino viejo.

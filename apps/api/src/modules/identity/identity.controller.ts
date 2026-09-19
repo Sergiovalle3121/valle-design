@@ -15,7 +15,6 @@ import {
   Post,
   Req,
   Res,
-  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import {
@@ -41,7 +40,7 @@ import {
   SECURE_SESSION_COOKIE,
   SESSION_COOKIE,
 } from './identity-security';
-import { clearCsrfCookie, setCsrfCookie } from './identity-csrf-cookie';
+import { clearCookies, getCookiePolicy, setCookies } from './identity-cookies';
 import { totpUri } from './identity-mfa';
 import { IdentityMfaService } from './identity-mfa.service';
 import { IdentityService } from './identity.service';
@@ -312,52 +311,6 @@ export class IdentityController {
     }
   }
 
-  private getCookiePolicy(req: Request): SessionCookiePolicy {
-    const policy = sessionCookiePolicy(
-      process.env.NODE_ENV,
-      req.secure === true,
-    );
-    if (!policy.transportAllowed) {
-      throw new ServiceUnavailableException(
-        'Las cookies de sesión de producción requieren HTTPS.',
-      );
-    }
-    if (policy.name !== SESSION_COOKIE) {
-      throw new ServiceUnavailableException(
-        'La configuración de cookies cambió después del arranque.',
-      );
-    }
-    return policy;
-  }
-
-  private setCookies(
-    req: Request,
-    res: Response,
-    value: string,
-    csrf: string,
-  ): void {
-    const policy = this.getCookiePolicy(req);
-    res.cookie(policy.name, value, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: policy.secure,
-      path: '/',
-      maxAge: 30 * 86_400_000,
-    });
-    setCsrfCookie(res, csrf, policy.secure);
-  }
-
-  private clearCookies(req: Request, res: Response): void {
-    const policy = this.getCookiePolicy(req);
-    const options = {
-      path: '/',
-      sameSite: 'lax' as const,
-      secure: policy.secure,
-    };
-    res.clearCookie(policy.name, options);
-    clearCsrfCookie(res, options);
-  }
-
   private async current(req: Request) {
     const auth = await this.identity.authenticate(cookie(req, SESSION_COOKIE));
     if (!auth) {
@@ -404,7 +357,7 @@ export class IdentityController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    this.getCookiePolicy(req);
+    getCookiePolicy(req);
     const normalizedEmail = this.identity.normalizeEmail(body.email);
     await this.limit('login.ip', [req.ip || 'unknown'], 40);
     await this.limit('login.account', [normalizedEmail]);
@@ -425,7 +378,7 @@ export class IdentityController {
         expiresAt: result.expiresAt,
       };
     }
-    this.setCookies(req, res, result.cookie, result.csrf);
+    setCookies(req, res, result.cookie, result.csrf);
     return {
       user: { id: result.user.id, email: result.user.email },
       expiresAt: result.session.expiresAt,
@@ -449,7 +402,7 @@ export class IdentityController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    this.getCookiePolicy(req);
+    getCookiePolicy(req);
     await this.limit('login-mfa.ip', [req.ip || 'unknown'], 10);
     const result = await this.identity.completeMfaLogin(
       body.challenge,
@@ -460,7 +413,7 @@ export class IdentityController {
     if (!result) {
       throw new UnauthorizedException('Desafío inválido o expirado.');
     }
-    this.setCookies(req, res, result.cookie, result.csrf);
+    setCookies(req, res, result.cookie, result.csrf);
     return {
       user: { id: result.user.id, email: result.user.email },
       expiresAt: result.session.expiresAt,
@@ -497,13 +450,13 @@ export class IdentityController {
     const auth = await this.current(req);
     this.csrf(req, auth.session.csrfHash);
     await this.identity.revoke(auth.session.id, auth.user.id);
-    this.clearCookies(req, res);
+    clearCookies(req, res);
   }
 
   @Public()
   @Post('sessions/rotate')
   async rotate(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    this.getCookiePolicy(req);
+    getCookiePolicy(req);
     const auth = await this.current(req);
     this.csrf(req, auth.session.csrfHash);
     await this.identity.revoke(auth.session.id, auth.user.id);
@@ -512,7 +465,7 @@ export class IdentityController {
       req.ip,
       req.header('user-agent'),
     );
-    this.setCookies(req, res, next.cookie, next.csrf);
+    setCookies(req, res, next.cookie, next.csrf);
     return { expiresAt: next.session.expiresAt };
   }
 
@@ -545,7 +498,7 @@ export class IdentityController {
     this.csrf(req, auth.session.csrfHash);
     await this.identity.revoke(sessionId, auth.user.id);
     if (sessionId === auth.session.id) {
-      this.clearCookies(req, res);
+      clearCookies(req, res);
     }
   }
 
@@ -694,10 +647,26 @@ export class IdentityController {
   @Post('verify-email')
   async verify(@Body() body: TokenDto, @Req() req: Request) {
     await this.limit('verify-email.ip', [req.ip || 'unknown'], 10);
-    if (!(await this.identity.verifyEmail(body.token))) {
-      throw new BadRequestException('Token inválido o expirado.');
+    const result = await this.identity.verifyEmail(body.token);
+    if (result.outcome === 'verified') {
+      return { verified: true, email: result.email };
     }
-    return { verified: true };
+    if (result.outcome === 'already_verified') {
+      return { verified: true, alreadyVerified: true, email: result.email };
+    }
+    if (result.outcome === 'expired') {
+      throw new BadRequestException({
+        message: 'Token inválido o expirado.',
+        code: 'verification_token_expired',
+      });
+    }
+    if (result.outcome === 'superseded') {
+      throw new BadRequestException({
+        message: 'Token inválido o expirado.',
+        code: 'verification_token_superseded',
+      });
+    }
+    throw new BadRequestException('Token inválido o expirado.');
   }
 
   @Public()

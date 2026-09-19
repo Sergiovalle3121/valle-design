@@ -72,7 +72,7 @@ const literal = (valor: unknown): string => JSON.stringify(valor);
  * nada que decidir por request.
  */
 export const SERVICE_WORKER_SOURCE = `"use strict";
-/* Valle Design — service worker del cascarón sin conexión.
+/* VALLECAD — service worker del cascarón sin conexión.
    GENERADO por src/app/(sw)/service-worker-source.ts desde
    src/app/(sw)/service-worker-policy.ts. No editar esta copia: se sirve desde
    la ruta /sw y se regenera en cada despliegue. */

@@ -129,7 +129,6 @@ export const mleaderAdapter: CadEntityAdapter<NativeMleader> = {
           ? cadTransformAngleBase(transform) - (entity.textRotation ?? 0)
           : (entity.textRotation ?? 0) + cadTransformAngleBase(transform),
       ),
-      associative: false, associationStatus: 'detached',
       context: entity.context ? structuredClone(entity.context) : undefined,
     };
   } },

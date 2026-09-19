@@ -73,17 +73,13 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
     now: number;
   }>({ document: null, now: 0 });
   /**
-   * Plegado, no persistido. La cabecera SIEMPRE se ve — el usuario nunca
-   * pierde el hilo de en qué paso va— pero el cuerpo (barra de progreso,
-   * lista de pasos) se puede quitar de en medio: medido en un lienzo de
-   * 1.280×720 con el paso «Sigue dibujando» activo, el acompañante
-   * completo deja sólo 4 px de aire sobre la línea de comandos —visualmente
-   * pegados, aunque el rectángulo no llegue a tocarla—. Plegado baja la
-   * altura del panel a una sola línea y multiplica ese margen. No se guarda
-   * en `localStorage` a propósito: es un gesto de «ahora estorba», no una
-   * preferencia — la próxima vez que el recorrido se abra, se abre entero.
+   * Plegado, persistido en el registro del recorrido. La cabecera SIEMPRE se
+   * ve — el usuario nunca pierde el hilo de en qué paso va— pero el cuerpo
+   * (barra de progreso, lista de pasos) se puede quitar de en medio. Se
+   * guarda en localStorage: si el usuario lo pliega, la próxima vez que
+   * abra el estudio sigue plegado.
    */
-  const [minimized, setMinimized] = useState(false);
+  const minimized = record.minimized;
 
   // El aviso de trazado se escucha SIEMPRE que el recorrido esté vivo, esté o no
   // desplegado: alguien puede plegar el panel, trazar y volver a abrirlo.
@@ -219,7 +215,7 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
             variant="ghost"
             size="sm"
             data-testid="cad-guided-tour-toggle"
-            onClick={() => setMinimized((value) => !value)}
+            onClick={() => cadTourHost.dispatch({ type: "minimize", minimized: !minimized })}
             aria-expanded={!minimized}
             title={minimized ? "Mostrar el recorrido guiado" : "Minimizar el recorrido guiado"}
             className="pointer-events-auto shrink-0 px-1.5"

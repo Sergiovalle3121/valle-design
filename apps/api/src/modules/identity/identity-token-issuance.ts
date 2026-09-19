@@ -11,12 +11,28 @@ import { hashOpaqueToken, MAX_TOKEN_LENGTH } from './identity-security';
 /**
  * Los tokens de un solo uso de correo (verificar cuenta, restablecer
  * contraseña, verificar el correo nuevo tras cambiarlo) y el desafío de MFA
- * comparten esta forma: bloquear al sujeto, invalidar el token anterior de
- * ese propósito, guardar el nuevo. Separado de `IdentityService` — que ya
- * pasaba el presupuesto de 800 líneas — porque es una unidad cohesiva propia
- * que no toca sesiones ni contraseñas, sólo la tabla `OneTimeToken` y el
- * outbox de correo.
+ * comparten esta forma: bloquear al sujeto, decidir qué pasa con los tokens
+ * vigentes de ese propósito (ver `TokenRotation`), guardar el nuevo. Separado
+ * de `IdentityService` — que ya pasaba el presupuesto de 800 líneas — porque
+ * es una unidad cohesiva propia que no toca sesiones ni contraseñas, sólo la
+ * tabla `OneTimeToken` y el outbox de correo.
  */
+
+/**
+ * Qué hace un token nuevo con los vigentes del mismo propósito.
+ *
+ * - `reemplazar`: los anteriores quedan consumidos. Es lo correcto para
+ *   restablecer contraseña y para el desafío de MFA (un solo enlace vivo), y
+ *   para la verificación tras CAMBIAR el correo (los enlaces viejos fueron a
+ *   una dirección que ya no es la de la cuenta).
+ * - `acumular`: los anteriores siguen valiendo hasta caducar, cada uno de un
+ *   solo uso. Es lo correcto para el REENVÍO de la verificación del alta: el
+ *   primer correo suele llegar antes que el segundo, y quien lo abre no tiene
+ *   por qué encontrarse «enlace inválido» porque pulsó «enviar otro» mientras
+ *   esperaba. Verificar con cualquiera de ellos consume el resto
+ *   (`consumeRemainingTokensWithManager`).
+ */
+export type TokenRotation = 'reemplazar' | 'acumular';
 
 const OPAQUE_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/u;
 
@@ -72,6 +88,7 @@ export async function issueIdentityEmailToken(
   ttlMs: number,
   template: string,
   path: string,
+  rotation: TokenRotation = 'reemplazar',
 ): Promise<void> {
   await dataSource.transaction((manager) =>
     issueIdentityEmailTokenWithManager(
@@ -83,6 +100,7 @@ export async function issueIdentityEmailToken(
       ttlMs,
       template,
       path,
+      rotation,
     ),
   );
 }
@@ -103,18 +121,13 @@ export async function issueIdentityEmailTokenWithManager(
   ttlMs: number,
   template: string,
   path: string,
+  rotation: TokenRotation = 'reemplazar',
 ): Promise<void> {
   const raw = randomBytes(32).toString('base64url');
   await lockIdentitySubject(dataSource, manager, user.id);
-  await manager
-    .createQueryBuilder()
-    .update(OneTimeToken)
-    .set({ consumedAt: new Date() })
-    .where(
-      'subjectId = :userId AND purpose = :purpose AND consumedAt IS NULL',
-      { userId: user.id, purpose },
-    )
-    .execute();
+  if (rotation === 'reemplazar') {
+    await consumeRemainingTokensWithManager(manager, user.id, purpose);
+  }
   const token = await manager.save(
     OneTimeToken,
     manager.create(OneTimeToken, {
@@ -125,6 +138,28 @@ export async function issueIdentityEmailTokenWithManager(
     }),
   );
   await enqueueIdentityEmail(email, manager, user, token, raw, template, path);
+}
+
+/**
+ * Consume de golpe todos los tokens vigentes de un propósito para un sujeto.
+ * Lo usa la rotación `reemplazar` al emitir y la verificación al canjear: una
+ * vez que el correo está verificado, los demás enlaces de verificación que
+ * sigan en la bandeja no deben abrir nada.
+ */
+export async function consumeRemainingTokensWithManager(
+  manager: EntityManager,
+  userId: string,
+  purpose: OneTimeTokenPurpose,
+): Promise<void> {
+  await manager
+    .createQueryBuilder()
+    .update(OneTimeToken)
+    .set({ consumedAt: new Date() })
+    .where(
+      'subjectId = :userId AND purpose = :purpose AND consumedAt IS NULL',
+      { userId, purpose },
+    )
+    .execute();
 }
 
 export async function consumeTokenWithManager(

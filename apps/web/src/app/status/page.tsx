@@ -34,8 +34,8 @@ export default function StatusPage() {
               Fuente externa configurada
             </Badge>
             <p>
-              Este despliegue tiene configurada una página externa como fuente
-              pública de estado. La telemetría vive ahí, no aquí.
+              La página de estado externa está configurada como fuente pública.
+              La telemetría vive ahí, no aquí.
             </p>
             <a
               className={buttonClass({ variant: "primary" })}
@@ -51,9 +51,9 @@ export default function StatusPage() {
               Sin telemetría pública
             </Badge>
             <p role="status">
-              No hay una fuente pública de telemetría configurada en este
-              despliegue. No se declara ningún estado operativo desde esta
-              página: una página estática no demuestra que nada esté vivo.
+              No hay una fuente pública de telemetría configurada. No se
+              declara ningún estado operativo desde esta página: una página
+              estática no demuestra que nada esté vivo.
             </p>
           </>
         )}

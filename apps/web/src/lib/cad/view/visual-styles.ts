@@ -28,8 +28,8 @@
  * no arrastrando hasta el borde.
  */
 
-/** Los cuatro estilos, con el nombre que teclea el usuario. */
-export type CadVisualStyleId = "wireframe" | "hidden" | "shaded" | "shaded-edges";
+/** Los estilos, con el nombre que teclea el usuario. */
+export type CadVisualStyleId = "wireframe" | "hidden" | "shaded" | "shaded-edges" | "xray";
 
 export interface CadVisualStyle {
   id: CadVisualStyleId;
@@ -102,6 +102,15 @@ export const CAD_VISUAL_STYLES: readonly CadVisualStyle[] = [
     occludes: true,
     removesHiddenEdges: true,
     opacity: 1,
+  },
+  {
+    id: "xray",
+    label: "Rayos X",
+    faces: true,
+    edges: true,
+    occludes: false,
+    removesHiddenEdges: false,
+    opacity: 0.35,
   },
 ];
 

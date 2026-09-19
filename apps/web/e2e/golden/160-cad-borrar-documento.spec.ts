@@ -90,6 +90,7 @@ test("borrar un documento desde el tablero pide confirmación y lo quita de la l
   await page.getByRole("button", { name: "Borrar", exact: true }).click();
 
   await expect.poll(() => archiveCalls).toBe(1);
+  await expect(page.getByRole("dialog")).toBeHidden();
   await expect(page.getByText("Planta baja — casa Reforma")).toBeHidden();
   await expect(
     page.getByText("Este espacio todavía no contiene documentos."),

@@ -1,0 +1,160 @@
+/**
+ * 3DMOVE — traslación de sólidos en tres dimensiones.
+ *
+ * Igual que MOVE pero el desplazamiento tiene componente Z. El punto base y
+ * el destino se elevan a 3D con `cadLiftPoint`, que usa el SCU activo o la
+ * Z del propio punto cuando la hay.
+ *
+ * La traslación se escribe como componente `tx`/`ty`/`tz` de la colocación
+ * 3D del sólido, componiéndola con la que ya tuviera. La afín 2×3 (a-f) y
+ * el `dz` original no se tocan: sólo se añaden los campos3D.
+ */
+import type { CadPoint3 } from "../../cad-document";
+import type { CadEntityCommand } from "../../entity-commands";
+import { cadLiftPoint } from "../spatial-point";
+import {
+  CAD_ACCEPT_ENTITY_PICK,
+  CAD_ACCEPT_KEYWORD,
+  CAD_ACCEPT_POINT,
+  CAD_ACCEPT_SELECTION,
+  asCadCommand,
+  type CadAnyCommandDescriptor,
+  type CadCommandContext,
+  type CadCommandDescriptor,
+  type CadCommandStep,
+} from "../command-types";
+
+const COPY_OPTION = { keyword: "Copiar", shortcut: "C" } as const;
+
+interface Move3dState {
+  selection: readonly string[];
+  base: CadPoint3 | null;
+  copy: boolean;
+}
+
+const EMPTY: Move3dState = { selection: [], base: null, copy: false };
+
+function step(state: Move3dState): CadCommandStep<Move3dState> {
+  if (state.selection.length === 0)
+    return {
+      state,
+      prompt: { message: "Designe objetos", options: [] },
+      accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
+    };
+  if (!state.base)
+    return {
+      state,
+      prompt: { message: "Precise el punto base", options: [COPY_OPTION] },
+      accepts: CAD_ACCEPT_POINT | CAD_ACCEPT_KEYWORD,
+    };
+  return {
+    state,
+    prompt: { message: "Precise el punto de destino", options: [] },
+    accepts: CAD_ACCEPT_POINT,
+  };
+}
+
+function done(
+  commands: readonly CadEntityCommand[],
+  label: string,
+  message?: string,
+): CadCommandStep<Move3dState> {
+  return {
+    state: EMPTY,
+    prompt: { message: "", options: [] },
+    accepts: 0,
+    result:
+      commands.length > 0
+        ? { kind: "document", commands, label }
+        : message
+          ? { kind: "message", text: message }
+          : { kind: "none" },
+  };
+}
+
+function move3dCommands(
+  state: Move3dState,
+  destination: CadPoint3,
+  context: CadCommandContext,
+): CadEntityCommand[] {
+  const base = state.base!;
+  const dx = destination.x - base.x;
+  const dy = destination.y - base.y;
+  const dz = destination.z - base.z;
+  if (Math.abs(dx) < 1e-9 && Math.abs(dy) < 1e-9 && Math.abs(dz) < 1e-9)
+    return [];
+  const commands: CadEntityCommand[] = [];
+  for (const entityId of state.selection) {
+    // Sólo transformar sólidos3D.
+    const existing = context.entity?.(entityId);
+    if (!existing || (existing as { type?: string }).type !== "solid3d") continue;
+    const target = state.copy ? context.newEntityId() : entityId;
+    if (state.copy) commands.push({ type: "copy", entityId, newEntityId: target });
+    // Obtener la colocación existente para componer.
+    const current = (existing as { placement?: Record<string, number> }).placement ?? {};
+    commands.push({
+      type: "transform3d",
+      entityId: target,
+      transform3d: {
+        // Conservar la afín 2D existente.
+        a: current.a ?? 1, b: current.b ?? 0, c: current.c ?? 0,
+        d: current.d ?? 1,
+        // e/f/dz se incorporan a tx/ty/tz como traslación efectiva.
+        e: 0, f: 0, dz: 0,
+        m02: current.m02 ?? 0, m12: current.m12 ?? 0,
+        m20: current.m20 ?? 0, m21: current.m21 ?? 0, m22: current.m22 ?? 1,
+        tx: (current.e ?? 0) + (current.tx ?? 0) + dx,
+        ty: (current.f ?? 0) + (current.ty ?? 0) + dy,
+        tz: (current.dz ?? 0) + (current.tz ?? 0) + dz,
+      },
+    });
+  }
+  return commands;
+}
+
+const move3dCommand: CadCommandDescriptor<Move3dState> = {
+  name: "3DMOVE",
+  aliases: ["3M"],
+  kind: "modify",
+  transparent: false,
+  selection: "optional",
+  repeatable: true,
+  mutates: true,
+  cursor: "pick",
+  spatial: "elevation",
+  begin: (context) => step({ ...EMPTY, selection: context.selection }),
+  step: (state, input, context) => {
+    if (input.kind === "cancel") return done([], "3DMOVE", "3DMOVE cancelado.");
+
+    if (input.kind === "selection")
+      return step({ ...state, selection: input.entityIds });
+    if (input.kind === "entityPick")
+      return step({
+        ...state,
+        selection: [...new Set([...state.selection, input.entityId])],
+      });
+    if (input.kind === "enter" && state.selection.length === 0)
+      return done([], "3DMOVE", "3DMOVE: necesita al menos un sólido designado.");
+
+    if (input.kind === "keyword") {
+      if (input.keyword === COPY_OPTION.keyword)
+        return step({ ...state, copy: true });
+      return step(state);
+    }
+
+    if (input.kind !== "point") return step(state);
+
+    if (!state.base) {
+      const base3 = cadLiftPoint(input.point);
+      return step({ ...state, base: base3 });
+    }
+
+    const dest = cadLiftPoint(input.point, state.base);
+    const cmds = move3dCommands(state, dest, context);
+    return done(cmds, "3DMOVE", cmds.length === 0 ? "3DMOVE: la selección no contiene sólidos3D." : undefined);
+  },
+};
+
+export const CAD_3DMOVE_COMMANDS: readonly CadAnyCommandDescriptor[] = [
+  asCadCommand(move3dCommand),
+];

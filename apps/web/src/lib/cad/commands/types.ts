@@ -1,4 +1,4 @@
-/** Pure CAD command contract for the Valle Design CAD Copilot.
+/** Pure CAD command contract for the VALLECAD CAD Copilot.
  * No React, three.js, API, or OpenAI dependency belongs in this layer.
  */
 export type CadCommandId =

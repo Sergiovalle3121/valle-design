@@ -138,6 +138,7 @@ export const CAD_SYSTEM_VARIABLES: readonly CadSystemVariableDef[] = [
   int("POLARMODE", 0, "Opciones del rastreo polar, como suma de bits", { min: 0, max: 15 }),
   int("PDMODE", 0, "Aspecto de los puntos", { min: 0, max: 98 }),
   real("PDSIZE", 0, "Tamaño de los puntos; negativo, en porcentaje de la pantalla"),
+  int("FILLMODE", 1, "Relleno de sombreados y sólidos: 0 contorno, 1 relleno", { enumerated: [0, 1] }),
 
   // --- sistema de coordenadas personal --------------------------------------
   // El SCU es un ORIGEN y un MARCO de tres ejes. El marco se guarda en los seis
@@ -169,8 +170,13 @@ export const CAD_SYSTEM_VARIABLES: readonly CadSystemVariableDef[] = [
   real("FILLETRAD", 0, "Radio de empalme actual", { min: 0 }),
   real("CHAMFERA", 0, "Primera distancia de chaflán", { min: 0 }),
   real("CHAMFERB", 0, "Segunda distancia de chaflán", { min: 0 }),
+  real("OFFSETDIST", 0, "Distancia de desfase recordada"),
   real("TEXTSIZE", 2.5, "Altura de texto por defecto", { min: 1e-6 }),
   real("DIMSCALE", 1, "Escala general de las cotas", { min: 1e-6 }),
+  text("DIMSTYLE", "", "Estilo de cota vigente: nombre del estilo que reciben las cotas nuevas"),
+
+  // --- vista 3D ---------------------------------------------------------------
+  int("PERSPECTIVE", 1, "Proyección 3D: 0 paralela (ortográfica), 1 perspectiva", { enumerated: [0, 1] }),
 
   // --- resultados de las consultas ------------------------------------------
   real("AREA", 0, "Última área calculada por AREA o LIST", { readOnly: true }),

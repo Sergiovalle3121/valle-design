@@ -41,8 +41,8 @@ export interface CadPlotHostBridge {
   document(): CadDocument | null;
   /** Tablas de plumas cargadas, por nombre. */
   plotStyleTables?(): ReadonlyMap<string, CadPlotStyleTable>;
-  /** Programas de fuente para incrustar. Sin ellos se usan las estándar. */
-  fonts?(): readonly CadPlotFontProgram[];
+  /** Programas de fuente para incrustar. Puede ser async para carga bajo demanda. */
+  fonts?(): readonly CadPlotFontProgram[] | Promise<readonly CadPlotFontProgram[]>;
   /** Entrega el archivo al usuario. Inyectado para poder probarlo en Node. */
   download(fileName: string, bytes: Uint8Array, mimeType: string): void;
   /** Muestra la vista previa. */
@@ -57,6 +57,8 @@ export interface CadPlotHostBridge {
   setSpace?(space: "model" | "paper", layoutId?: string): boolean;
   /** Cambia el estilo visual del visor (VSCURRENT). Devuelve el aplicado. */
   setVisualStyle?(styleId: CadVisualStyleId): string | null;
+  /** Cambia la proyección 3D (PERSPECTIVE). Devuelve si cambió. */
+  setProjection?(projection: "perspective" | "parallel"): boolean;
   /**
    * Conjunto de planos ya cargado, con los dibujos que necesitan sus hojas.
    *
@@ -178,6 +180,15 @@ export class CadPlotHost {
         : "Este espacio de trabajo no tiene visor de estilos visuales.";
     }
 
+    if (request.kind === "view-projection") {
+      if (!this.bridge.setProjection)
+        return "La conmutación de proyección no está disponible en este espacio de trabajo.";
+      const switched = this.bridge.setProjection(request.projection);
+      if (!switched)
+        return "La proyección sólo se puede cambiar en modo 3D.";
+      return `Proyección: ${request.projection === "parallel" ? "Paralela" : "Perspectiva"}.`;
+    }
+
     if (request.kind === "space") {
       // Sin puente no hubo cambio, y con puente sólo lo hubo si él lo dice.
       // El renglón anterior afirmaba «Espacio papel.» incondicionalmente: un
@@ -264,6 +275,28 @@ export class CadPlotHost {
     // falta en vez de caer en la rama de PLOT y pedir una hoja.
     if (request.kind === "compare-fetch")
       return "Este espacio de trabajo no sabe traer dibujos del inquilino para compararlos: falta el anfitrión de comparación.";
+    if (request.kind === "download")
+      return "La descarga de archivos la atiende el anfitrión del motor, no el de trazado.";
+    if (request.kind === "render-capture")
+      return "La captura del viewport la atiende el anfitrión del motor, no el de trazado.";
+    if (request.kind === "render-setting")
+      return "Los ajustes de render los atiende el anfitrión del motor, no el de trazado.";
+    if (request.kind === "render-environment")
+      return "El entorno de render lo atiende el anfitrión del motor, no el de trazado.";
+    if (request.kind === "material-browser")
+      return "El explorador de materiales lo atiende el anfitrión del motor, no el de trazado.";
+    if (request.kind === "material-attach")
+      return "La asignación de materiales la atiende el anfitrión del motor, no el de trazado.";
+    if (request.kind === "light-create")
+      return "La creación de luces la atiende el anfitrión del motor, no el de trazado.";
+    if (request.kind === "sun-properties")
+      return "Las propiedades del sol las atiende el anfitrión del motor, no el de trazado.";
+    if (request.kind === "render-crop")
+      return "La captura recortada la atiende el anfitrión del motor, no el de trazado.";
+    if (request.kind === "render-window")
+      return "La ventana de render la atiende el anfitrión del motor, no el de trazado.";
+    if (request.kind === "material-map")
+      return "El mapeo de materiales lo atiende el anfitrión del motor, no el de trazado.";
 
     const document = this.bridge.document();
     if (!document) return "No hay ningún dibujo abierto que trazar.";
@@ -444,7 +477,7 @@ export class CadPlotHost {
   private async emit(job: CadPlotJob, fileName: string): Promise<void> {
     try {
       const result: CadPlotPdfResult = await renderCadPlotPdf(job.sheets, {
-        ...(this.bridge.fonts ? { fonts: this.bridge.fonts() } : {}),
+        ...(this.bridge.fonts ? { fonts: await this.bridge.fonts() } : {}),
         // El cajetín y las familias de fuente vienen del trabajo de trazado,
         // que es quien leyó el documento. El anfitrión no los recompone: si lo
         // hiciera, el PDF descargado y la vista previa podrían discrepar.

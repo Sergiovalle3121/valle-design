@@ -96,7 +96,7 @@ test("el tablero y el estudio contestan lo mismo al mismo .dwg: la razón DWG co
   await test.step("tablero: «Importar como documento» rechaza el .dwg y dice por qué", async () => {
     await instalarTableroVacio(context);
     await page.goto("/dashboard");
-    await expect(page.getByText("Valle Design E2E")).toBeVisible();
+    await expect(page.getByText("VALLECAD E2E")).toBeVisible();
     await page.getByLabel("Nombre del proyecto").fill("Organización / Dos puertas");
     await page.getByLabel("Crear proyecto").click();
     const entrada = page.getByLabel("Importar como documento");

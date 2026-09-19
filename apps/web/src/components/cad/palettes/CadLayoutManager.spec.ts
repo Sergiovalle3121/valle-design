@@ -15,6 +15,7 @@
  * Correr: npx tsx src/components/cad/palettes/CadLayoutManager.spec.ts
  */
 import { strict as assert } from "node:assert";
+import fs from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { CadPaperSpace } from "@/lib/cad/cad-document";
@@ -149,6 +150,17 @@ ok(preview.length > 0, "la previa exacta se monta desde `props.preview`");
   // Y lo de ventana sigue dentro de su grupo recortado.
   const clipped = preview.indexOf('d="M120,40 L190,40"');
   ok(clipped >= 0 && clipped > preview.indexOf('clip-path="url(#cad-clip-vp-poly)"') && clipped < paperPath, "el comando de ventana sigue recortado por su ventana");
+}
+
+// D31: los rótulos visibles están en español.
+{
+  const src = fs.readFileSync(new URL("./CadLayoutManager.tsx", import.meta.url), "utf8");
+  for (const forbidden of ["Standard scale", "Custom scale", "Annotation scale", "Named view", "Add a viewport to begin"]) {
+    ok(!src.includes(forbidden), `el texto visible no contiene "${forbidden}"`);
+  }
+  for (const required of ["Escala estándar", "Escala personalizada", "Escala anotativa", "Vista nombrada", "Ventana", "Restablecer"]) {
+    ok(src.includes(required), `el texto visible contiene "${required}"`);
+  }
 }
 
 console.log(`CadLayoutManager.spec: OK — ${checks} comprobaciones`);

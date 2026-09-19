@@ -109,7 +109,7 @@ export function formatCadDimensionMeasurement(entity: CadDimensionEntity, measur
     return `${entity.prefix ?? ''}${label}${entity.suffix ?? ''}`;
   }
   const body = tolerance ? cadDimensionToleranceText(converted, precision, tolerance, 1 / UNIT_TO_MM[unit]) : converted.toFixed(precision);
-  let label = `${entity.prefix ?? ''}${body} ${unit}${entity.suffix ?? ''}`;
+  let label = `${entity.prefix ?? ''}${body}${entity.suffix ?? ''}`;
   if (entity.alternateUnits) {
     const alternate = (measurement * UNIT_TO_MM[sourceUnit]) / UNIT_TO_MM[entity.alternateUnits];
     label += ` [${alternate.toFixed(precision)} ${entity.alternateUnits}]`;
@@ -241,10 +241,14 @@ export function cadEntityAssociationAnchor(
   if (reference.anchor === 'insertion' && entity.type === 'mtext') return entity.insertion;
   if (reference.anchor === 'start') {
     if (entity.type === 'line') return entity.start;
+    if (entity.type === 'wall') return entity.start;
+    if (entity.type === 'polyline') return entity.vertices[0] ?? null;
     if (entity.type === 'spline') return entity.controlPoints[0] ?? null;
   }
   if (reference.anchor === 'end') {
     if (entity.type === 'line') return entity.end;
+    if (entity.type === 'wall') return entity.end;
+    if (entity.type === 'polyline') return entity.vertices.at(-1) ?? null;
     if (entity.type === 'spline') return entity.controlPoints.at(-1) ?? null;
   }
   if (reference.anchor === 'center') {

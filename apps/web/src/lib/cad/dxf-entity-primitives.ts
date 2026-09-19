@@ -18,7 +18,7 @@ import type { CadDxfPoint, CadDxfPrimitive } from "./dxf-import";
 import { cadEntityToSchema4Primitive } from "./dxf-schema4-primitives";
 import { wallFootprint } from "./wall-geometry";
 import { wallJoinedFootprint, wallJoins } from "./wall-joins";
-import { wallAxisFrame, wallFaces, wallOpeningJambs, wallOpeningSpan, wallOpeningSymbolPaths } from "./wall-openings";
+import { splitFaceByIntervals, wallOpeningIntervals, wallAxisFrame, wallFaces, wallOpeningJambs, wallOpeningSpan, wallOpeningSymbolPaths } from "./wall-openings";
 
 /**
  * `document` hace falta para IMAGE (referencia una definición del catálogo,
@@ -39,6 +39,46 @@ export function cadEntityToDxfPrimitive(
   return presentation?.linetype || presentation?.lineweight
     ? { ...primitive, presentation }
     : primitive;
+}
+
+/**
+ * Muro → primitivas DXF, cortando las caras en los vanos (T-11).
+ *
+ * Un muro sin huecos devuelve UNA polilínea cerrada (el contorno).
+ * Con huecos, las dos caras largas se parten y el muro viaja como trazos
+ * abiertos: ninguna línea cruza la puerta.
+ */
+export function cadWallToDxfPrimitives(
+  entity: Extract<CadEntity, { type: "wall" }>,
+  document?: Pick<CadDocument, "entities">,
+): CadDxfPrimitive[] {
+  const others = (document?.entities ?? []).filter(
+    (candidate): candidate is typeof entity =>
+      candidate.type === "wall" && candidate.id !== entity.id,
+  );
+  const joins = wallJoins(entity, others);
+  const footprint =
+    others.length > 0 ? (wallJoinedFootprint(entity, joins) ?? wallFootprint(entity)) : wallFootprint(entity);
+  if (!footprint) return [];
+  const hosted = document
+    ? document.entities.filter((e) => e.type === "opening" && "hostId" in e && (e as { hostId: string }).hostId === entity.id)
+    : [];
+  if (hosted.length === 0) {
+    return [{ kind: "polyline", layer: entity.layer, points: footprint.map((c) => ({ x: c.x, y: c.y })), closed: true }];
+  }
+  const frame = wallAxisFrame(entity);
+  if (!frame) return [{ kind: "polyline", layer: entity.layer, points: footprint.map((c) => ({ x: c.x, y: c.y })), closed: true }];
+  const faces = wallFaces(frame, footprint);
+  const spans = wallOpeningIntervals(entity, hosted as Parameters<typeof wallOpeningIntervals>[1]);
+  const [startLeft, startRight, endRight, endLeft] = footprint;
+  const primitives: CadDxfPrimitive[] = [];
+  primitives.push({ kind: "line", layer: entity.layer, points: [startLeft, startRight] });
+  for (const seg of splitFaceByIntervals(faces.left.a, faces.left.b, faces.left.tA, faces.left.tB, spans))
+    primitives.push({ kind: "polyline", layer: entity.layer, points: seg.points.map((c) => ({ x: c.x, y: c.y })), closed: false });
+  for (const seg of splitFaceByIntervals(faces.right.a, faces.right.b, faces.right.tA, faces.right.tB, spans))
+    primitives.push({ kind: "polyline", layer: entity.layer, points: seg.points.map((c) => ({ x: c.x, y: c.y })), closed: false });
+  primitives.push({ kind: "line", layer: entity.layer, points: [endLeft, endRight] });
+  return primitives;
 }
 
 /**

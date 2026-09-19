@@ -107,6 +107,8 @@ export interface CadDxfProperties {
   linetypeScale?: number;
   /** $LWDISPLAY: si el dibujo pide mostrar los grosores en pantalla. */
   lineweightDisplay?: boolean;
+  /** $INSUNITS: código de unidad de dibujo (1=in, 2=ft, 4=mm, 5=cm, 6=m). */
+  insunits?: number;
   linetypes: CadDxfLinetypeDefinition[];
   layers: CadDxfLayerDefinition[];
   /**
@@ -421,6 +423,12 @@ export function parseRawDxfProperties(text: string): CadDxfProperties {
       }
       if (headerVariable === "$LWDISPLAY" && pair.code === 290) {
         result.lineweightDisplay = num(pair.value) === 1;
+        headerVariable = null;
+        continue;
+      }
+      if (headerVariable === "$INSUNITS" && pair.code === 70) {
+        const value = num(pair.value);
+        if (value !== null) result.insunits = value;
         headerVariable = null;
         continue;
       }

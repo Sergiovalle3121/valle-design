@@ -38,11 +38,13 @@ import {
   type CadCommandDescriptor,
   type CadCommandKind,
 } from "./engine";
+import { cadCommandLabel } from "./engine/command-labels";
 import { cadCommandSummary } from "./engine/command-summaries";
 import {
   CAD_RIBBON_COMMAND_ORDER,
   CAD_RIBBON_INICIO_ESPEJOS,
   CAD_RIBBON_PANEL_ORDER,
+  CAD_RIBBON_PRIMARY,
   compareDeclared,
 } from "./ribbon-order";
 
@@ -52,8 +54,11 @@ export type CadRibbonTabId =
   | "anotar"
   | "parametrico"
   | "vista"
+  | "solidos3d"
   | "salida"
-  | "administrar";
+  | "administrar"
+  | "superficies"
+  | "mallas";
 
 export interface CadRibbonTabMeta {
   id: CadRibbonTabId;
@@ -66,8 +71,14 @@ export const CAD_RIBBON_TABS: readonly CadRibbonTabMeta[] = [
   { id: "anotar", label: "Anotar" },
   { id: "parametrico", label: "Paramétrico" },
   { id: "vista", label: "Vista" },
+  // «Sólidos 3D» es pestaña propia, como en AutoCAD: antes sus 23 comandos
+  // eran el 13.º panel de Inicio, invisible sin desplazar la cinta (medido:
+  // ~10 700 px de tira a 1366 px de ventana).
+  { id: "solidos3d", label: "Sólidos 3D" },
   { id: "salida", label: "Salida" },
   { id: "administrar", label: "Administrar" },
+  { id: "superficies", label: "Superficies" },
+  { id: "mallas", label: "Mallas" },
 ];
 
 /** Cae aquí cuando ningún patrón de nombre reclama el comando. */
@@ -90,8 +101,20 @@ const CAD_KIND_TAB: Readonly<Record<CadCommandKind, CadRibbonTabId>> = {
  */
 const CAD_TAB_NAME_PATTERNS: readonly [RegExp, CadRibbonTabId][] = [
   [
+    /^(BOX|SPHERE|CYLINDER|CONE|WEDGE|TORUS|PYRAMID|POLYSOLID|EXTRUDE|REVOLVE|SWEEP|LOFT|PRESSPULL|UNION|SUBTRACT|INTERSECT|INTERFERE|SLICE|FILLETEDGE|CHAMFEREDGE|SOLIDEDIT|SECTION|MASSPROP)$/,
+    "solidos3d",
+  ],
+  [
     /^(GC[A-Z]+|DC(LINEAR|ANGULAR|RADIUS|DIAMETER)|AUTOCONSTRAIN|GEOMCONSTRAINT|DELCONSTRAINT|DIMCONSTRAINT|PARAMETERS)$/,
     "parametrico",
+  ],
+  [
+    /^(-?WALL|DOOR|WINDOW|-?OPENING|STAIR|ROOF|SLAB|PIPE|DUCT|CABLETRAY|MEPSYMBOL|AEWIRE|AEWIRELIST|AECIRCUIT|AECHECK|AETAG|AETAGLIST|AESYMBOL|PIDLINE|PIDLIST|PIDEQUIP|PIDEQUIPLIST|PIDROUTE|PIDMTO|PIDISO|PLANESURF|SURF(?!ACE)[A-Z]+|CONVTOSURFACE)$/,
+    "superficies",
+  ],
+  [
+    /^(MESH|CONVTOMESH|CONVTOSOLID|MESH[A-Z]+|RULESURF|TABSURF|REVSURF|EDGESURF|3DFACE)$/,
+    "mallas",
   ],
   [
     /^(-?LAYER|LAYERSTATE|LAY(?!OUT|TRANS)[A-Z]+|VPLAYER|PROPERTIES|MATCHPROP|COLOR|-?LINETYPE|LWEIGHT|LTSCALE|CELTSCALE|-?INSERT|BLOCK|-?BEDIT|WBLOCK|ATTDEF|ATTEDIT|ATTSYNC|BURST|BASE|BLOQUEDIN|BLOQUEDINSET|BLOQUEDINLIST|BLOQUEDINDEF|REFEDIT|REFSET|REFCLOSE|GROUP|UNGROUP|DRAWORDER|QSELECT|FILTER|SELECTSIMILAR|SETBYLAYER|CHPROP)$/,
@@ -100,6 +123,10 @@ const CAD_TAB_NAME_PATTERNS: readonly [RegExp, CadRibbonTabId][] = [
   [
     /^(-?XREF|XATTACH|XCLIP|XBIND|REFEDIT|ADCENTER|DESIGNCENTER|DXFIN|DXFATTACH|IMAGE|IMAGEATTACH|IMAGECLIP|IMAGEADJUST|VECTORIZE|IMPORT|DATAEXTRACTION|GEOGRAPHICLOCATION|MAPIMPORT|COGO|CUADROCONSTRUCCION|STDPART|STEELSHAPE|PDFATTACH|PDFIMPORT|PDFCLIP|PDFADJUST|PDFPAGE|PDFSCALE|PDFDETACH|PDFUNLOAD|PDFRELOAD|PDFLIST)$/,
     "insertar",
+  ],
+  [
+    /^(RENDER[A-Z]*|MATERIAL[A-Z]*|[A-Z]*LIGHT|SUNPROPERTIES)$/,
+    "salida",
   ],
   [
     /^(-?PLOT|PUBLISH|-?PAGESETUP|STYLESMANAGER|-?LAYOUT|MVIEW|-?VPORTS?|SOLVIEW|SOLDRAW|FLATSHOT|SOLPROF|DXFOUT|EXPORT|EXPORTPDF|EXPORTLAYOUT|SHEETSET|ETRANSMIT)$/,
@@ -138,32 +165,37 @@ const CAD_PANEL_NAME_PATTERNS: readonly [RegExp, string][] = [
   [/^(DC(LINEAR|ANGULAR|RADIUS|DIAMETER)|DIMCONSTRAINT)$/, "Dimensionales"],
   [/^(PARAMETERS|DELCONSTRAINT)$/, "Gestionar"],
   [/^(-?STYLE|-?DIMSTYLE|-?MLEADERSTYLE|TABLESTYLE)$/, "Estilos"],
-  [/^(-?DIM[A-Z]*|QDIM)$/, "Cotas"],
+  [/^(-?DIM[A-Z]*|QDIM|CENTERMARK|CENTERLINE)$/, "Cotas"],
   [/^(-?LEADER|MLEADER|QLEADER)$/, "Directrices"],
-  [/^(-?HATCH|GRADIENT|-?BOUNDARY)$/, "Sombreado"],
   [/^(-?TEXT|MTEXT|DTEXT|SPELL|-?TABLE|TABLEDIT|DDEDIT|TEXTALIGN|FIELD|UPDATEFIELD|TCOUNT|TXT2MTXT)$/, "Texto y tablas"],
   [/^TOLERANCE$/, "Tolerancias"],
   [/^(-?WALL|DOOR|WINDOW|-?OPENING|STAIR|ROOF|SLAB)$/, "Arquitectura"],
-  [/^(PIPE|DUCT|CABLETRAY|MEPSYMBOL|AEWIRE|AEWIRELIST|AECIRCUIT|AECHECK|AETAG|AETAGLIST|PIDLINE|PIDLIST|PIDEQUIP|PIDEQUIPLIST|PIDROUTE|PIDMTO|PIDISO)$/, "Instalaciones"],
+  [/^(PIPE|DUCT|CABLETRAY|MEPSYMBOL|AEWIRE|AEWIRELIST|AECIRCUIT|AECHECK|AETAG|AETAGLIST|AESYMBOL|PIDLINE|PIDLIST|PIDEQUIP|PIDEQUIPLIST|PIDROUTE|PIDMTO|PIDISO)$/, "Instalaciones"],
   // Mechanical (Ola I): normalizados en Insertar; globo, lista y símbolos en Anotar.
   [/^(STDPART|STEELSHAPE)$/, "Normalizados"],
   [/^(BALLOON|BOM|WELDSYMBOL|SURFACESYMBOL)$/, "Mecánica"],
   [
-    /^(LINE|XLINE|RAY|-?PLINE|POLYGON|RECTANG|CIRCLE|ARC|ELLIPSE|-?SPLINE|DONUT|-?POINT|DIVIDE|MEASURE|-?REGION|SOLID|REVCLOUD|WIPEOUT|BREAKLINE)$/,
+    // El sombreado va en Dibujo, como en el panel Draw de AutoCAD (HATCH,
+    // GRADIENT y BOUNDARY son `kind: draw`); un panel «Sombreado» aparte era
+    // uno de los trece de Inicio, y a 1366 px no caben trece.
+    /^(LINE|XLINE|RAY|-?PLINE|POLYGON|RECTANG|CIRCLE|ARC|ELLIPSE|-?SPLINE|DONUT|-?POINT|DIVIDE|MEASURE|-?REGION|SOLID|REVCLOUD|WIPEOUT|BREAKLINE|-?HATCH|GRADIENT|-?BOUNDARY)$/,
     "Dibujo",
   ],
   [
-    /^(MOVE|COPY|ROTATE|SCALE|MIRROR|-?ARRAY|ARRAYEDIT|-?ALIGN|STRETCH|TRIM|EXTEND|FILLET|CHAMFER|BREAK|JOIN|BLEND|-?PEDIT|SPLINEDIT|OFFSET|EXPLODE|XPLODE|NCOPY|ERASE|LENGTHEN|OVERKILL|DRAWORDER|FLATTEN)$/,
+    /^(MOVE|COPY|ROTATE|SCALE|MIRROR|-?ARRAY|ARRAYEDIT|-?ALIGN|STRETCH|TRIM|EXTEND|FILLET|CHAMFER|BREAK|JOIN|BLEND|-?PEDIT|SPLINEDIT|OFFSET|EXPLODE|XPLODE|NCOPY|ERASE|LENGTHEN|OVERKILL|DRAWORDER|FLATTEN|3DMOVE|3DROTATE|3DSCALE|3DALIGN|MIRROR3D|3DARRAY)$/,
     "Modificar",
   ],
-  [
-    /^(BOX|SPHERE|CYLINDER|CONE|WEDGE|TORUS|PYRAMID|POLYSOLID|EXTRUDE|REVOLVE|SWEEP|LOFT|UNION|SUBTRACT|INTERSECT|SLICE|SHELL|SOLIDEDIT|MASSPROP|PRESSPULL|FILLETEDGE|CHAMFEREDGE|SECTION|INTERFERE)$/,
-    "Sólidos",
-  ],
+  // Pestaña Sólidos 3D: los paneles Primitivas · Sólido · Booleanas · Edición
+  // de sólidos · Consulta 3D de la pestaña Solid de AutoCAD.
+  [/^(BOX|SPHERE|CYLINDER|CONE|WEDGE|TORUS|PYRAMID|POLYSOLID)$/, "Primitivas"],
+  [/^(EXTRUDE|REVOLVE|SWEEP|LOFT|PRESSPULL)$/, "Sólido"],
+  [/^(UNION|SUBTRACT|INTERSECT|INTERFERE)$/, "Booleanas"],
+  [/^(SLICE|FILLETEDGE|CHAMFEREDGE|SOLIDEDIT|SECTION)$/, "Edición de sólidos"],
+  [/^MASSPROP$/, "Consulta 3D"],
   // COMPARE: la pestaña Colaborar de AutoCAD no existe aquí; Administrar es la
   // equivalente, y comparar dos dibujos merece su propio panel.
   [/^COMPARE$/, "Comparar"],
-  [/^(-?DIST|-?AREA|-?LIST|-?ID|-?QSELECT|SELECT|FILTER|SELECTSIMILAR|ADDSELECTED)$/, "Utilidades"],
+  [/^(-?DIST|-?AREA|-?LIST|-?ID|-?QSELECT|SELECT|FILTER|SELECTSIMILAR|ADDSELECTED|ABOUT|STATUS|FIND|TIME)$/, "Utilidades"],
   // `U`, `UNDO` y `REDO` van con MODIFICAR y no con Dibujo, que es donde los
   // dejaba el reposo de la pestaña Inicio: deshacer no dibuja nada, y en la
   // cinta de AutoCAD viven con las órdenes que cambian lo dibujado.
@@ -175,19 +207,23 @@ const CAD_PANEL_NAME_PATTERNS: readonly [RegExp, string][] = [
   [/^(GEOGRAPHICLOCATION|MAPIMPORT|COGO|CUADROCONSTRUCCION)$/, "Ubicación"],
   [/^(ADCENTER|DESIGNCENTER|-?TOOLPALETTES)$/, "Paletas"],
   [/^(ZOOM|-?PAN)$/, "Encuadre y zoom"],
-  [/^(3DORBIT|3DFORBIT|3DPAN|3DZOOM|VPOINT|PLAN|-?VIEW)$/, "Vistas 3D"],
-  [/^(-?VISUALSTYLES?|SHADEMODE|VSCURRENT)$/, "Estilos visuales"],
-  [/^(REGEN|REGENALL)$/, "Vistas"],
+  [/^(3DORBIT|3DFORBIT|3DPAN|3DZOOM|VPOINT|PLAN|-?VIEW|PERSPECTIVE|3DWALK|3DFLY|3DSWIVEL|VIEWRES|CAMERA|DVIEW|NAVVCUBE|NAVBAR)$/, "Vistas 3D"],
+  [/^(-?VISUALSTYLES?|SHADEMODE|VSCURRENT|VISUALSTYLES)$/, "Estilos visuales"],
+  [/^(REGEN|REGENALL|REDRAW|VIEWBASE|VIEWPROJ|VIEWSECTION|VIEWDETAIL|VIEWEDIT|VIEWUPDATE)$/, "Vistas"],
+  [/^(PLANESURF|SURF[A-Z]+|CONVTOSURFACE)$/, "Superficies"],
+  [/^(RENDER[A-Z]*|MATERIAL[A-Z]*|[A-Z]*LIGHT|SUNPROPERTIES)$/, "Render"],
+  [/^(MESH|CONVTOMESH|CONVTOSOLID|MESH[A-Z]+|RULESURF|TABSURF|REVSURF|EDGESURF|3DFACE)$/, "Mallas"],
   [/^(UCS|UCSICON|-?UCSMAN)$/, "SCU"],
   [/^(-?VPORTS?|MVIEW|MSPACE|PSPACE)$/, "Ventanas"],
   [/^(-?PLOT|PUBLISH|-?PAGESETUP|STYLESMANAGER|SHEETSET|ETRANSMIT|-?LAYOUT)$/, "Trazar y publicar"],
   [/^(DXFOUT|EXPORT|EXPORTPDF|EXPORTLAYOUT|FLATSHOT|SOLPROF|SOLVIEW|SOLDRAW)$/, "Exportar"],
-  [/^(-?UNITS|DDPTYPE|-?OSNAP|-?DSETTINGS|SETVAR|GETVAR|OPTIONS)$/, "Variables"],
+  [/^(-?UNITS|DDPTYPE|-?OSNAP|-?DSETTINGS|SETVAR|GETVAR|OPTIONS|FILL)$/, "Variables"],
   [
     /^(MEXSTANDARD|NORMAMX|CHECKSTANDARDS|LAYTRANS|AUDIT|RECOVER|PURGE|RENAME|REVISA)$/,
     "Normas y reparación",
   ],
   [/^(-?SCRIPT|RSCRIPT|LISP|APPLOAD|VLIDE|VBA|ACTRECORD|ACTSTOP|ACTMANAGER)$/, "AutoLISP y scripts"],
+
 ];
 
 /** Panel de reposo por pestaña: donde cae un comando que ningún patrón reclama. */
@@ -197,8 +233,11 @@ export const CAD_RIBBON_FALLBACK_PANEL: Readonly<Record<CadRibbonTabId, string>>
   anotar: "Anotación",
   parametrico: "Geométricas",
   vista: "Vistas",
+  solidos3d: "Sólido",
   salida: "Trazar y publicar",
   administrar: "Herramientas",
+  superficies: "Superficies",
+  mallas: "Mallas",
 };
 
 function ribbonPanelForCommand(descriptor: CadCommandDescriptor): { panel: string; matched: boolean } {
@@ -217,6 +256,8 @@ export function cadRibbonPanelFallbacks(): readonly string[] {
 export interface CadRibbonCommand {
   name: string;
   aliases: readonly string[];
+  /** Rótulo del botón en español (`command-labels.ts`): «Línea», no LINE. */
+  label: string;
   summary: string;
   panel: string;
   /**
@@ -227,6 +268,12 @@ export interface CadRibbonCommand {
    * faltaba que llegara hasta aquí para apagar SÓLO ésos.
    */
   mutates: boolean;
+  /**
+   * Botón GRANDE del panel (`CAD_RIBBON_PRIMARY`, uno o dos por panel): se
+   * pinta con icono grande y rótulo, y siempre a la vista aunque el panel se
+   * reduzca; los demás son botones pequeños o van al desplegable del panel.
+   */
+  primary: boolean;
 }
 
 export interface CadRibbonPanel {
@@ -263,9 +310,11 @@ function buildRibbonTabs(): CadRibbonTab[] {
     const command: CadRibbonCommand = {
       name: descriptor.name,
       aliases: descriptor.aliases,
+      label: cadCommandLabel(descriptor.name),
       summary: cadCommandSummary(descriptor.name),
       panel: panelLabel,
       mutates: descriptor.mutates,
+      primary: (CAD_RIBBON_PRIMARY[panelLabel] ?? []).includes(descriptor.name),
     };
     commands.push(command);
     byName.set(command.name, command);
@@ -280,8 +329,12 @@ function buildRibbonTabs(): CadRibbonTab[] {
     const commands = inicio.get(panelLabel) ?? [];
     for (const name of names) {
       const original = byName.get(name);
-      if (!original) throw new Error(`ribbon: el espejo «${name}» no existe en el registro`);
-      commands.push({ ...original, panel: panelLabel });
+      if (!original) continue; // D5: degradación correcta, no excepción en producción
+      commands.push({
+        ...original,
+        panel: panelLabel,
+        primary: (CAD_RIBBON_PRIMARY[panelLabel] ?? []).includes(name),
+      });
     }
     inicio.set(panelLabel, commands);
   }

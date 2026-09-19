@@ -29,8 +29,8 @@
   },
   "archivos": {
     "caja": {
-      "sha256": "12c58052fad2307b724c33f72d266ce44d89753af3bfbc347186336126c0eded",
-      "bytes": 6683,
+      "sha256": "5027052b94cb89b8c51edaf72050564b0cccbd9853c5636a4c3ac96a349e6802",
+      "bytes": 6671,
       "esquemaDeclarado": "AUTOMOTIVE_DESIGN { 1 0 10303 214 3 1 1 }",
       "instancias": 165,
       "instanciasComplejas": 4,
@@ -151,8 +151,8 @@
       "porQueEsteSolido": "Seis caras planas. La caja es el caso donde V-A+C=2 se comprueba a mano."
     },
     "tetraedro": {
-      "sha256": "1fe698c644d37e28e26fb1280d8f72e57108c32055e47aa01e7b4bfd4c9a104a",
-      "bytes": 5017,
+      "sha256": "405bd5ce9e2f179abaef7e2e39fe572f3d6346f13e756f85827cfd1bb334360e",
+      "bytes": 5005,
       "esquemaDeclarado": "AUTOMOTIVE_DESIGN { 1 0 10303 214 3 1 1 }",
       "instancias": 99,
       "instanciasComplejas": 4,
@@ -245,8 +245,8 @@
       "porQueEsteSolido": "El solido cerrado mas peque\u00f1o que existe: 4 vertices, 6 aristas, 4 caras."
     },
     "caja-con-agujero-pasante": {
-      "sha256": "3c8f8aa1f6f9eec28d7391e3620a1d90449c15c2f108a9ecb0fe71faec2c9dd9",
-      "bytes": 11770,
+      "sha256": "449022a8030534be5b0c978699057212197071a120c54c65d330cd13ead29b21",
+      "bytes": 11758,
       "esquemaDeclarado": "AUTOMOTIVE_DESIGN { 1 0 10303 214 3 1 1 }",
       "instancias": 301,
       "instanciasComplejas": 4,
@@ -424,8 +424,8 @@
       "porQueEsteSolido": "Genero 1. Las dos caras con contorno interior son donde un exportador casero se equivoca de orientacion y devuelve mas volumen del que hay."
     },
     "tubo-de-revolucion": {
-      "sha256": "e860224814b430f29e351d372ea69d16e5883f7f03c3ff186a9d73eb0c89b23e",
-      "bytes": 51999,
+      "sha256": "ce67f4dfaa964274fce5537c07dfeb2b1e893d1697e91dc842dd61444476d324",
+      "bytes": 51987,
       "esquemaDeclarado": "AUTOMOTIVE_DESIGN { 1 0 10303 214 3 1 1 }",
       "instancias": 1169,
       "instanciasComplejas": 4,
@@ -872,8 +872,8 @@
       "porQueEsteSolido": "Facetado de una revolucion de 12 segmentos: prueba que el numero de caras que sale del kernel es el que llega al fichero."
     },
     "placa-taladrada-por-booleana": {
-      "sha256": "8c097bf85e138656896da65e7a88e7dbf4108ae5b9424bafcd93b8ba9578fd06",
-      "bytes": 97697,
+      "sha256": "b7f7b455ae2838a89bca987e18d5a21cb1b272e2cd273f0083a3c3434373d471",
+      "bytes": 97685,
       "esquemaDeclarado": "AUTOMOTIVE_DESIGN { 1 0 10303 214 3 1 1 }",
       "instancias": 2090,
       "instanciasComplejas": 4,

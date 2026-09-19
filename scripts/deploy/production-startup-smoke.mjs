@@ -392,8 +392,8 @@ async function main() {
         NODE_ENV: 'production',
         PORT: String(PORT + 1),
         METRICS_TOKEN: '',
-        // Los guardas se evalúan en cadena y DOS de ellos saltan al CARGAR el
-        // módulo, antes que ninguno de la base. Los dos se proporcionan aquí
+        // Los guardas se evalúan en cadena y TRES de ellos saltan al CARGAR el
+        // módulo, antes que ninguno de la base. Los tres se proporcionan aquí
         // salvo cuando son justo el guarda bajo prueba, para que cada caso
         // muera por el motivo que dice medir.
         //
@@ -409,6 +409,10 @@ async function main() {
         OUTBOX_EMAIL_WEBHOOK_URL: 'https://receptor.invalido/valle/outbox',
         OUTBOX_DOMAIN_WEBHOOK_URL: 'https://receptor.invalido/valle/outbox',
         OUTBOX_WEBHOOK_SECRET: 'smoke-outbox-webhook-secret-de-32-chars',
+        EMAIL_SENDER_PROVIDER: 'resend',
+        EMAIL_SENDER_API_KEY: 'smoke-email-sender-api-key-placeholder',
+        EMAIL_SENDER_FROM: 'Smoke Test <smoke@design.example.test>',
+        OUTBOX_EMAIL_LINK_BASE_URL: 'https://design.example.test',
         ...env,
       },
     });
@@ -463,6 +467,19 @@ async function main() {
       IDENTITY_MFA_ENCRYPTION_KEY: '',
     },
     /IDENTITY_MFA_ENCRYPTION_KEY/,
+  );
+
+  bootExpectingFailure(
+    'sin EMAIL_SENDER_* no arranca (nadie verificaría su cuenta)',
+    {
+      DATABASE_URL,
+      SYNCHRONIZE: 'false',
+      EMAIL_SENDER_PROVIDER: '',
+      EMAIL_SENDER_API_KEY: '',
+      EMAIL_SENDER_FROM: '',
+      OUTBOX_EMAIL_LINK_BASE_URL: '',
+    },
+    /EMAIL_SENDER/,
   );
 
   // El guarda de `OUTBOX_DISPATCHER_ENABLED` NO se puede ejercer aquí: vive en

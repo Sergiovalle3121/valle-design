@@ -63,6 +63,13 @@ export function Badge({
 /* ── TOOLTIP ────────────────────────────────────────────────────────────── */
 
 export interface TooltipProps {
+  /**
+   * Primera línea opcional, en negrita: el NOMBRE de la cosa. La cinta CAD la
+   * usa para el rótulo del botón («Línea»), con el nombre canónico y su
+   * alias en `shortcut` y la descripción en `label`: tres líneas, como el
+   * tooltip de AutoCAD (nombre · alias · descripción).
+   */
+  title?: ReactNode;
   label: ReactNode;
   /** Segunda línea, más apagada: el atajo de teclado va aquí. */
   shortcut?: string;
@@ -91,6 +98,7 @@ const SIDES = {
  * de pantalla por el `aria-label` del control, y anunciarlo dos veces molesta.
  */
 export function Tooltip({
+  title,
   label,
   shortcut,
   children,
@@ -112,12 +120,17 @@ export function Tooltip({
           SIDES[side],
         )}
       >
-        <span className="type-caption font-medium">{label}</span>
+        {title ? (
+          <span className="type-caption font-semibold">{title}</span>
+        ) : (
+          <span className="type-caption font-medium">{label}</span>
+        )}
         {shortcut ? (
           <span className="type-mono type-micro text-muted-foreground">
             {shortcut}
           </span>
         ) : null}
+        {title ? <span className="type-micro text-muted-foreground">{label}</span> : null}
       </span>
     </span>
   );

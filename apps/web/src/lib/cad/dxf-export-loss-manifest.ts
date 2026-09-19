@@ -248,6 +248,27 @@ const SCHEMA4_LOSS_RULES: Record<string, Schema4LossRule> = {
         "enmascaramientos con marco y sin él: en el fichero todos saldrán con marco.",
     };
   },
+  solid3d: (entity) => {
+    if (entity.type !== "solid3d") return null;
+    return {
+      code: "dxf_export_solid3d_as_face_contours",
+      severity: "warning",
+      detail:
+        "SOLID3D — viaja la proyección 2D de los contornos de cara, no el sólido: (a) se pierde la cota Z " +
+        "y la topología; (b) no hay eliminación de aristas ocultas — salen también las caras traseras y las " +
+        "perpendiculares al plano aparecen como contornos de área cero. Para un alzado real usa FLATSHOT o SOLPROF.",
+    };
+  },
+  region: (entity) => {
+    if (entity.type !== "region") return null;
+    return {
+      code: "dxf_export_region_as_contours",
+      severity: "warning",
+      detail:
+        "REGION — los contornos exterior e interior viajan como polilíneas cerradas independientes: ningún lector " +
+        "de DXF podrá distinguir un agujero de otro contorno. La cota Z y la topología se pierden.",
+    };
+  },
 };
 
 /** ¿Alguna coordenada de la entidad vive fuera del plano Z=0? */
@@ -389,6 +410,62 @@ export function cadDocumentDxfExportLosses(
       detail:
         `La entidad ${opaque.sourceType} llegó de un fichero ajeno y se conserva sin interpretar: la ` +
         "exportación no la reescribe, así que NO estará en el DXF resultante. Conserva el fichero original.",
+    });
+  }
+
+  // 6. Metadatos de dominio (context.metadata): la información que los módulos
+  //    eléctrico, mecánico y de planta guardan en las entidades —número de
+  //    conductor, circuito, calibre, protección, número de línea, etiqueta de
+  //    equipo— NO viaja al DXF. El DXF plano no tiene XDATA propia de Valle,
+  //    y el exportador no la escribe. Esta entrada convierte una pérdida
+  //    silenciosa en una declarada (D2 de la auditoría MEP).
+  //    Las claves de proveniencia son tracking, no dominio: el usuario no
+  //    pierde nada al exportar.
+  //    - De importación (sourceType, sourceLayer, sourceBlock): esos datos ya
+  //      están en el propio tipo y capa de la entidad.
+  //    - De las órdenes que construyen geometría a partir de otra: FILLET y
+  //      CHAMFER apuntan de qué dos líneas salieron (sourceIds), el sombreado
+  //      por punto interior de cuántas entidades salió su contorno
+  //      (sourceCount) y el de un activo de cuál (sourceAssetId). AutoCAD
+  //      tampoco lo guarda: el empalme es un ARC corriente en cualquier DXF.
+  //    - El eco del parámetro de la orden (radio del empalme, distancias del
+  //      chaflán) ya viaja en la geometría: el ARC lleva su radio y el
+  //      chaflán sus extremos.
+  //    Sin esto, un dibujo de líneas con un empalme pedía ver un informe de
+  //    «circuito, calibre…» antes de descargar, como si perdiera algo.
+  const PROVENANCE_KEYS = new Set([
+    "sourceType",
+    "sourceLayer",
+    "sourceBlock",
+    "sourceIds",
+    "sourceCount",
+    "sourceAssetId",
+  ]);
+  const COMMAND_ECHO_KEYS = new Map<string, ReadonlySet<string>>([
+    ["FILLET", new Set(["radius"])],
+    ["CHAMFER", new Set(["distanceA", "distanceB"])],
+  ]);
+  let metadataEntities = 0;
+  for (const entity of document.entities) {
+    const metadata = entity.context?.metadata;
+    if (!metadata) continue;
+    const echo =
+      typeof metadata.sourceType === "string"
+        ? COMMAND_ECHO_KEYS.get(metadata.sourceType)
+        : undefined;
+    const domainKeys = Object.keys(metadata).filter(
+      (key) => !PROVENANCE_KEYS.has(key) && !echo?.has(key),
+    );
+    if (domainKeys.length > 0) metadataEntities += 1;
+  }
+  if (metadataEntities > 0) {
+    losses.push({
+      code: "dxf_export_metadata_not_transported",
+      severity: "warning",
+      detail:
+        `${metadataEntities} entidad(es) llevan metadatos de dominio (circuito, calibre, número de línea, ` +
+        "etiqueta de equipo…): los metadatos NO viajan al DXF y no se recuperan al reimportar. " +
+        "La información vive sólo en el documento de VALLECAD.",
     });
   }
 

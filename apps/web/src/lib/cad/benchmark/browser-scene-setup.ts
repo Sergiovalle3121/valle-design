@@ -112,7 +112,7 @@ export function aimCamera(
   camera.bottom = -halfHeight;
   camera.position.set(sceneX, 50, sceneZ);
   // +Y del dibujo hacia ABAJO en pantalla: la misma convención que el editor
-  // (`yScreenSign: 1`). Sin esto el texto saldría reflejado.
+  // (PLAN_AXIS_Y_SCREEN_SIGN). Sin esto el texto saldría reflejado.
   camera.up.set(0, 0, -1);
   camera.lookAt(sceneX, viewport.elevation ?? 0.11, sceneZ);
   camera.updateProjectionMatrix();

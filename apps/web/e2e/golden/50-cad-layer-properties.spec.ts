@@ -241,7 +241,7 @@ test("congelar una capa en un viewport no la apaga en el resto del dibujo", asyn
   await page.getByTitle(/Paquete de entrega/).click();
   await page.getByRole("button", { name: "Demo 3 hojas" }).click();
   await expect(page.getByTestId("cad-layout-manager")).toContainText(
-    "Viewports · 1",
+    "Ventanas · 1",
   );
   await page.getByLabel("Cerrar paquete de entrega").click();
 

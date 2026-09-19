@@ -38,7 +38,11 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob:",
       "font-src 'self' data:",
-      "connect-src *",
+      "connect-src 'self' " + (() => {
+        const raw = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || "";
+        if (!raw) return "";
+        try { return new URL(raw).origin; } catch { return ""; }
+      })(),
       "worker-src 'self' blob:",
       "frame-ancestors 'none'",
       "base-uri 'self'",
@@ -75,6 +79,7 @@ const nextConfig: NextConfig = {
   // abajo. `standalone` recoge las dependencias del workspace desde esa misma
   // raíz; sólo hay un lockfile y está ahí.
   output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
+  poweredByHeader: false,
   /**
    * LA RAÍZ DEL MONOREPO, DECLARADA A MANO.
    *

@@ -393,10 +393,14 @@ const viewCommand: CadCommandDescriptor<ViewState> = {
 // REGEN / REGENALL
 // ---------------------------------------------------------------------------
 
-function regenCommand(name: string, scope: "view" | "all"): CadCommandDescriptor<never> {
+function regenCommand(
+  name: string,
+  scope: "view" | "all",
+  aliases: string[] = scope === "all" ? ["REA"] : ["RE", "REGEN3D"],
+): CadCommandDescriptor<never> {
   return {
     name,
-    aliases: scope === "all" ? ["REA"] : ["RE"],
+    aliases,
     kind: "view",
     transparent: false,
     selection: "none",
@@ -416,4 +420,5 @@ export const CAD_VIEW_NAVIGATION_COMMANDS: readonly CadAnyCommandDescriptor[] = 
   asCadCommand(viewCommand),
   asCadCommand(regenCommand("REGEN", "view")),
   asCadCommand(regenCommand("REGENALL", "all")),
+  asCadCommand(regenCommand("REDRAW", "view", ["RD", "REDIBUJAR"])),
 ];

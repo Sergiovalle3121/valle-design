@@ -205,7 +205,15 @@ function begin(
     suspended.push(state.active);
   }
 
-  const step = descriptor.begin(context) as CadCommandStep<unknown>;
+  let step: CadCommandStep<unknown>;
+  try {
+    step = descriptor.begin(context) as CadCommandStep<unknown>;
+  } catch (error) {
+    return {
+      state: { ...state, osnapOverride: null },
+      effects: [{ kind: "message", text: `${descriptor.name}: ${error instanceof Error ? error.message : String(error)}`, level: "error" }],
+    };
+  }
   const active: CadActiveCommand = { name: descriptor.name, step, transparent };
 
   // Un comando puede terminar en su primer paso: ERASE sobre una selección
@@ -385,6 +393,15 @@ export function cadCommandEngineReduce(
     };
 
   if (action.input.kind === "cancel") {
+    // T15: pass cancel to the command's step function first so it can
+    // preserve accumulated work (copies, trims, offsets, property changes).
+    try {
+      const step = descriptor.step(active.step.state as never, action.input, context) as CadCommandStep<unknown>;
+      if (step.result)
+        return finish({ ...state, active: { ...active, step } }, descriptor, step, registry, context);
+    } catch {
+      // step threw on cancel — drop the command cleanly
+    }
     const resumed = resume({ ...state, active: null }, registry);
     return {
       state: resumed.state,
@@ -499,6 +516,7 @@ export function cadCommandEngineReduce(
 function lastPointOf(state: CadCommandEngineState): { x: number; y: number } | null {
   const step = state.active?.step;
   if (!step) return null;
+  if (step.lastPoint) return step.lastPoint;
   const candidate = (step.state as { points?: { x: number; y: number }[] } | undefined)?.points;
   if (Array.isArray(candidate) && candidate.length > 0) return candidate[candidate.length - 1];
   return null;

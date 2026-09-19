@@ -213,8 +213,8 @@ ok(
     "la cota MIDE 3500 unidades de dibujo…",
   );
   ok(
-    dimension.label === "3.50 m",
-    `…y ESCRIBE «3.50 m» porque su estilo está en metros (obtenido «${dimension.label}»)`,
+    dimension.label === "3.50",
+    `…y ESCRIBE «3.50» — DIMPOST manda, la unidad no se pega sola (obtenido «${dimension.label}»)`,
   );
 }
 
@@ -252,8 +252,8 @@ ok(
     near(fromDxf, WALL_MM, 1e-9) &&
       sheet.scale === PLOT_SCALE &&
       near(fromDxf / sheet.scale!, WALL_ON_PAPER_MM, 1e-9) &&
-      label === "3.50 m",
-    `LAS CUATRO COINCIDEN: ${fromDxf} en el DXF · 1:${sheet.scale} · ${fromDxf / sheet.scale!} mm de papel · «${label}» en la cota`,
+      label === "3.50",
+    `LAS CUATRO COINCIDEN: ${fromDxf} en el DXF · 1:${sheet.scale} · ${fromDxf / sheet.scale!} mm de papel · «${label}» en la cota (DIMPOST manda)`,
   );
 }
 

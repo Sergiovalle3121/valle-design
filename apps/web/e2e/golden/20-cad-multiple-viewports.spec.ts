@@ -55,9 +55,9 @@ test('multiple paper viewports persist, preflight and publish as one audited vec
   await page.getByTitle(/Paquete de entrega/).click();
   await page.getByRole('button', { name: 'Demo 3 hojas' }).click();
   const manager = page.getByTestId('cad-layout-manager');
-  await expect(manager).toContainText('Viewports · 1');
+  await expect(manager).toContainText('Ventanas · 1');
   await page.getByTestId('cad-viewport-add').click();
-  await expect(manager).toContainText('Viewports · 2');
+  await expect(manager).toContainText('Ventanas · 2');
 
   await page.getByTestId('cad-viewport-name').fill('Detail viewport');
   await page.getByTestId('cad-viewport-custom-scale').fill('75');
@@ -124,7 +124,7 @@ test('multiple paper viewports persist, preflight and publish as one audited vec
   await expect(page.getByTestId('cad-native-entity-layout-line')).toBeVisible();
   await page.getByTitle(/Paquete de entrega/).click();
   await page.getByTestId('cad-layout-tab-sheet-general').click();
-  await expect(page.getByTestId('cad-layout-manager')).toContainText('Viewports · 2');
+  await expect(page.getByTestId('cad-layout-manager')).toContainText('Ventanas · 2');
   await page.getByRole('button', { name: 'Detail viewport' }).last().click();
   await expect(page.getByTestId('cad-viewport-custom-scale')).toHaveValue('75');
   await expect(page.getByTestId('cad-viewport-named-view')).toHaveValue('MEZZANINE-NORTH');

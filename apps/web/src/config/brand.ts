@@ -1,5 +1,5 @@
 /**
- * MARCA EN LA WEB DE VALLE DESIGN — punto único desde el que las pantallas
+ * MARCA EN LA WEB DE VALLECAD — punto único desde el que las pantallas
  * leen la identidad (adaptado del origen; superficie recortada al producto
  * Design: aquí no hay ERP/MES ni catálogos comerciales).
  *

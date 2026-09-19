@@ -24,14 +24,17 @@ export const CAD_RIBBON_PANEL_ORDER: Readonly<Record<CadRibbonTabId, readonly st
   // final—.
   inicio: [
     "Dibujo", "Modificar", "Anotación", "Capas", "Bloque", "Propiedades",
-    "Grupos", "Utilidades", "Portapapeles", "Sombreado", "Arquitectura", "Instalaciones", "Sólidos",
+    "Grupos", "Utilidades", "Portapapeles",
   ],
   insertar: ["Referencias", "Importar y extraer", "Ubicación", "Normalizados", "Paletas"],
   anotar: ["Texto y tablas", "Cotas", "Directrices", "Tolerancias", "Mecánica", "Estilos"],
   parametrico: ["Geométricas", "Dimensionales", "Gestionar"],
   vista: ["Encuadre y zoom", "Vistas 3D", "Estilos visuales", "SCU", "Ventanas", "Paletas", "Vistas"],
-  salida: ["Trazar y publicar", "Exportar", "Ventanas"],
-  administrar: ["Normas y reparación", "Variables", "AutoLISP y scripts"],
+  solidos3d: ["Primitivas", "Sólido", "Booleanas", "Edición de sólidos", "Consulta 3D"],
+  salida: ["Trazar y publicar", "Exportar", "Ventanas", "Render"],
+  administrar: ["Normas y reparación", "Variables", "AutoLISP y scripts", "Comparar", "Vistas"],
+  superficies: ["Superficies", "Arquitectura", "Instalaciones"],
+  mallas: ["Mallas"],
 };
 
 /**
@@ -43,11 +46,15 @@ export const CAD_RIBBON_PANEL_ORDER: Readonly<Record<CadRibbonTabId, readonly st
 export const CAD_RIBBON_COMMAND_ORDER: Readonly<Record<string, readonly string[]>> = {
   Dibujo: [
     "LINE", "PLINE", "CIRCLE", "ARC", "RECTANG", "POLYGON", "ELLIPSE", "SPLINE",
-    "XLINE", "RAY", "POINT", "DIVIDE", "MEASURE", "DONUT", "REGION", "SOLID",
+    "HATCH", "XLINE", "RAY", "POINT", "DIVIDE", "MEASURE", "DONUT", "REGION", "SOLID",
+    "GRADIENT", "BOUNDARY",
   ],
+  // Tras los dos grandes (MOVE, COPY), la primera columna de pequeños es
+  // Girar · Recortar · Borrar: es la que sobrevive a 1280 px (ribbon-layout)
+  // y la que el golden 86 exige a la vista.
   Modificar: [
-    "MOVE", "COPY", "ROTATE", "SCALE", "MIRROR", "OFFSET", "TRIM", "EXTEND",
-    "FILLET", "CHAMFER", "ARRAY", "STRETCH", "ERASE", "EXPLODE", "BREAK", "JOIN",
+    "MOVE", "COPY", "ROTATE", "TRIM", "ERASE", "SCALE", "MIRROR", "OFFSET",
+    "EXTEND", "FILLET", "CHAMFER", "ARRAY", "STRETCH", "EXPLODE", "BREAK", "JOIN",
     "LENGTHEN", "PEDIT", "ALIGN", "BLEND", "DRAWORDER",
   ],
   Anotación: ["TEXT", "MTEXT", "DIMLINEAR", "DIMALIGNED", "MLEADER", "TABLE"],
@@ -72,6 +79,17 @@ export const CAD_RIBBON_COMMAND_ORDER: Readonly<Record<string, readonly string[]
     "GCEQUAL", "GEOMCONSTRAINT",
   ],
   Dimensionales: ["DCLINEAR", "DCANGULAR", "DCRADIUS", "DCDIAMETER", "DIMCONSTRAINT"],
+  // Sólidos 3D, en el orden de la pestaña Solid de AutoCAD.
+  Primitivas: ["BOX", "CYLINDER", "SPHERE", "CONE", "WEDGE", "TORUS", "PYRAMID", "POLYSOLID"],
+  Sólido: ["EXTRUDE", "PRESSPULL", "REVOLVE", "SWEEP", "LOFT"],
+  Booleanas: ["UNION", "SUBTRACT", "INTERSECT", "INTERFERE"],
+  "Edición de sólidos": ["SLICE", "FILLETEDGE", "CHAMFEREDGE", "SOLIDEDIT", "SECTION", "3DALIGN", "MIRROR3D", "3DSCALE", "3DARRAY"],
+  // Fase 2: superficies.
+  Superficies: [
+    "PLANESURF", "CONVTOSURFACE", "SURFPATCH", "SURFNETWORK", "SURFBLEND", "SURFEXTEND", "SURFFILLET", "SURFOFFSET", "SURFTRIM", "SURFSCULPT", "SURFUNTRIM",
+  ],
+  Mallas: ["MESH", "RULESURF", "TABSURF", "REVSURF", "EDGESURF", "MESHSMOOTH", "MESHSMOOTHMORE", "MESHSMOOTHLESS", "MESHREFINE", "MESHCOLLAPSE", "MESHCAP", "MESHMERGE", "MESHSPLIT", "MESHUNCREASE", "MESHCREASE", "MESHEXTRUDE"],
+  Render: ["RENDER", "RENDERPRESETS", "RENDEREXPOSURE", "RENDERENVIRONMENT", "MATERIALS", "MATERIALATTACH", "MATERIALMAP", "POINTLIGHT", "SPOTLIGHT", "DISTANTLIGHT", "SUNPROPERTIES", "RENDERCROP", "RENDERWIN"],
 };
 
 /**
@@ -82,6 +100,109 @@ export const CAD_RIBBON_COMMAND_ORDER: Readonly<Record<string, readonly string[]
  */
 export const CAD_RIBBON_INICIO_ESPEJOS: Readonly<Record<string, readonly string[]>> = {
   Anotación: ["TEXT", "MTEXT", "DIMLINEAR", "DIMALIGNED", "MLEADER", "TABLE"],
+};
+
+/**
+ * LOS BOTONES GRANDES de cada panel: uno o dos por panel, como los botones
+ * grandes de la cinta de AutoCAD (Línea y Polilínea en Dibujo; Desplazar y
+ * Copiar en Modificar; Capa en Capas). Se declara POR PANEL y no como un
+ * conjunto plano (así venía en a742a410: veinte nombres sueltos, cinco de
+ * ellos en Dibujo y siete en Modificar, sin límite ni validación) para que
+ * `ribbon.spec.ts` pueda exigir que todo panel montado tenga entre uno y dos,
+ * que todo nombre exista en el registro y que ninguna clave nombre un panel
+ * que ya no existe. La selección es por oficio, no por telemetría — el mismo
+ * razonamiento que encabeza `CAD_RIBBON_COMMAND_ORDER`.
+ *
+ * Los demás comandos del panel se pintan como botones pequeños (icono +
+ * rótulo, tres filas) y, si no caben, en el desplegable del panel: un
+ * primario es «grande y siempre a la vista», no «el único con botón».
+ *
+ * Un panel con el mismo nombre en dos pestañas (Ventanas, Paletas) declara un
+ * primario por cada una: en cada pestaña sólo se monta el que existe ahí.
+ */
+export const CAD_RIBBON_PRIMARY: Readonly<Record<string, readonly string[]>> = {
+  // Inicio.
+  Dibujo: ["LINE", "PLINE"],
+  Modificar: ["MOVE", "COPY"],
+  Anotación: ["MTEXT", "DIMLINEAR"],
+  Capas: ["LAYER"],
+  Bloque: ["INSERT"],
+  Propiedades: ["PROPERTIES", "MATCHPROP"],
+  Grupos: ["GROUP"],
+  Utilidades: ["DIST", "ABOUT"],
+  Portapapeles: ["PASTECLIP"],
+
+  // Insertar.
+  Referencias: ["XATTACH"],
+  "Importar y extraer": ["DXFIN"],
+  Ubicación: ["GEOGRAPHICLOCATION"],
+  Normalizados: ["STDPART"],
+  Paletas: ["ADCENTER", "TOOLPALETTES"],
+  // Anotar.
+  "Texto y tablas": ["MTEXT", "TABLE"],
+  Cotas: ["DIMLINEAR"],
+  Directrices: ["MLEADER"],
+  Tolerancias: ["TOLERANCE"],
+  Mecánica: ["BALLOON"],
+  Estilos: ["STYLE", "DIMSTYLE"],
+  // Paramétrico.
+  Geométricas: ["AUTOCONSTRAIN"],
+  Dimensionales: ["DCLINEAR"],
+  Gestionar: ["PARAMETERS"],
+  // Vista.
+  "Encuadre y zoom": ["PAN", "ZOOM"],
+  "Vistas 3D": ["3DORBIT"],
+  "Estilos visuales": ["VSCURRENT"],
+  SCU: ["UCS"],
+  Ventanas: ["MSPACE", "MVIEW"],
+  // Sólidos 3D.
+  Primitivas: ["BOX"],
+  Sólido: ["EXTRUDE"],
+  Booleanas: ["UNION"],
+  "Edición de sólidos": ["SLICE"],
+  "Consulta 3D": ["MASSPROP"],
+  // Salida.
+  "Trazar y publicar": ["PLOT"],
+  Exportar: ["DXFOUT"],
+  // Administrar.
+  "Normas y reparación": ["AUDIT", "ABOUT"],
+  Variables: ["UNITS", "STATUS", "FILL"],
+  "AutoLISP y scripts": ["SCRIPT"],
+  Comparar: ["COMPARE"],
+  // Superficies, Arquitectura e Instalaciones (pestaña propia).
+  Arquitectura: ["WALL"],
+  Instalaciones: ["PIPE"],
+  Superficies: ["PLANESURF", "SURFPATCH"],
+  Mallas: ["MESH", "RULESURF"],
+  Render: ["RENDER"],
+  Vistas: ["VIEWBASE", "VIEWEDIT", "REGEN"],
+};
+
+/**
+ * QUÉ PANEL SE PLIEGA PRIMERO cuando la pestaña no cabe en la ventana. Como
+ * en AutoCAD, los paneles de la derecha se reducen antes que los de la
+ * izquierda: primero pierden columnas de botones pequeños, luego se quedan
+ * sólo con sus botones grandes y al final se pliegan a un único botón con
+ * el icono del panel. Los paneles que NO aparecen aquí (Dibujo, Modificar y
+ * Capas en Inicio; Cotas en Anotar) nunca se pliegan a un botón: son los
+ * que el oficio busca primero, y los goldens 61 y 86 pulsan sus comandos por
+ * `data-testid` sin abrir nada. Lo que no se declara va detrás, en el orden
+ * inverso al de `CAD_RIBBON_PANEL_ORDER`.
+ */
+export const CAD_RIBBON_PANEL_COLLAPSE_ORDER: Readonly<Record<CadRibbonTabId, readonly string[]>> = {
+  inicio: [
+    "Portapapeles", "Grupos",
+    "Utilidades", "Propiedades", "Bloque",
+  ],
+  insertar: ["Paletas", "Normalizados", "Ubicación", "Importar y extraer"],
+  anotar: ["Mecánica", "Tolerancias", "Estilos", "Directrices", "Texto y tablas"],
+  parametrico: ["Gestionar", "Dimensionales"],
+  vista: ["Vistas", "Paletas", "Ventanas", "SCU", "Estilos visuales", "Vistas 3D"],
+  solidos3d: ["Consulta 3D", "Edición de sólidos", "Booleanas", "Sólido"],
+  salida: ["Ventanas", "Exportar"],
+  administrar: ["Vistas", "Comparar", "AutoLISP y scripts", "Variables"],
+  superficies: ["Instalaciones", "Arquitectura"],
+  mallas: [],
 };
 
 /** Orden declarado primero; lo que no está en la lista va detrás, alfabético es-MX. */

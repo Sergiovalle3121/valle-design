@@ -115,6 +115,7 @@ function buildIso(line: string, context: CadCommandContext): CadCommandStep<neve
     unitsPerMetre,
     origin,
     newEntityId: context.newEntityId,
+    allRoutes: todas,
   });
   if (drawing.entities.length === 0)
     return say(`La ruta de ${line} no tiene geometría que proyectar.`);

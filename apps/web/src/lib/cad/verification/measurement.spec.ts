@@ -322,25 +322,25 @@ const DIMENSION_CASES: DimensionCase[] = [
     name: "lineal horizontal de 3500",
     entity: { a: { x: 0, y: 0 }, b: { x: 3500, y: 0 }, dimensionKind: "linear", axis: "x" },
     measurement: 3500,
-    label: "3500.00 mm",
+    label: "3500.00",
   },
   {
     name: "lineal vertical de 2400",
     entity: { a: { x: 0, y: 0 }, b: { x: 0, y: 2400 }, dimensionKind: "linear", axis: "y" },
     measurement: 2400,
-    label: "2400.00 mm",
+    label: "2400.00",
   },
   {
     name: "lineal en X ignorando el desnivel en Y",
     entity: { a: { x: 0, y: 0 }, b: { x: 3000, y: 900 }, dimensionKind: "linear", axis: "x" },
     measurement: 3000,
-    label: "3000.00 mm",
+    label: "3000.00",
   },
   {
     name: "alineada del 3-4-5 escalado ×1000",
     entity: { a: { x: 0, y: 0 }, b: { x: 3000, y: 4000 }, dimensionKind: "aligned" },
     measurement: 5000,
-    label: "5000.00 mm",
+    label: "5000.00",
   },
   {
     name: "alineada con precisión 0",
@@ -351,7 +351,7 @@ const DIMENSION_CASES: DimensionCase[] = [
       precision: 0,
     },
     measurement: 1234.56,
-    label: "1235 mm",
+    label: "1235",
   },
   {
     name: "alineada con precisión 3",
@@ -362,7 +362,7 @@ const DIMENSION_CASES: DimensionCase[] = [
       precision: 3,
     },
     measurement: 1234.5678,
-    label: "1234.568 mm",
+    label: "1234.568",
   },
   {
     name: "el muro de 3.5 m mostrado en METROS",
@@ -374,7 +374,7 @@ const DIMENSION_CASES: DimensionCase[] = [
       units: "m",
     },
     measurement: 3500,
-    label: "3.50 m",
+    label: "3.50",
   },
   {
     name: "el mismo muro en CENTÍMETROS",
@@ -386,7 +386,7 @@ const DIMENSION_CASES: DimensionCase[] = [
       units: "cm",
     },
     measurement: 3500,
-    label: "350.00 cm",
+    label: "350.00",
   },
   {
     name: "con unidades alternas entre corchetes",
@@ -399,7 +399,7 @@ const DIMENSION_CASES: DimensionCase[] = [
       alternateUnits: "mm",
     },
     measurement: 3500,
-    label: "3.50 m [3500.00 mm]",
+    label: "3.50 [3500.00 mm]",
   },
   {
     name: "con prefijo y sufijo del estilo",
@@ -411,7 +411,7 @@ const DIMENSION_CASES: DimensionCase[] = [
       suffix: " (eje)",
     },
     measurement: 2000,
-    label: "L=2000.00 mm (eje)",
+    label: "L=2000.00 (eje)",
   },
   {
     name: "redondeo hacia arriba en el .5",
@@ -422,38 +422,38 @@ const DIMENSION_CASES: DimensionCase[] = [
       precision: 2,
     },
     measurement: 100.125,
-    label: "100.13 mm",
+    label: "100.13",
   },
   {
     name: "medida no trivial: 37.5 en X",
     entity: { a: { x: 0, y: 0 }, b: { x: 37.5, y: 0 }, dimensionKind: "aligned" },
     measurement: 37.5,
-    label: "37.50 mm",
+    label: "37.50",
   },
   {
     name: "alineada oblicua de 1000√2",
     entity: { a: { x: 0, y: 0 }, b: { x: 1000, y: 1000 }, dimensionKind: "aligned" },
     measurement: Math.SQRT2 * 1000,
-    label: "1414.21 mm",
+    label: "1414.21",
   },
   // ── Radiales ────────────────────────────────────────────────────────────
   {
     name: "radio de 250",
     entity: { a: { x: 0, y: 0 }, b: { x: 250, y: 0 }, dimensionKind: "radius" },
     measurement: 250,
-    label: "R250.00 mm",
+    label: "R250.00",
   },
   {
     name: "diámetro del mismo círculo",
     entity: { a: { x: 0, y: 0 }, b: { x: 250, y: 0 }, dimensionKind: "diameter" },
     measurement: 500,
-    label: "Ø500.00 mm",
+    label: "Ø500.00",
   },
   {
     name: "radio medido en diagonal (3-4-5 ×100)",
     entity: { a: { x: 0, y: 0 }, b: { x: 300, y: 400 }, dimensionKind: "radius" },
     measurement: 500,
-    label: "R500.00 mm",
+    label: "R500.00",
   },
   // ── Angulares ───────────────────────────────────────────────────────────
   {
@@ -499,7 +499,7 @@ const DIMENSION_CASES: DimensionCase[] = [
       axis: "x",
     },
     measurement: 3500,
-    label: "3500.00 mm",
+    label: "3500.00",
   },
 ];
 

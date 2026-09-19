@@ -17,6 +17,7 @@ export function unitToMm(unit: string): number {
   if (unit === "m") return 1000;
   if (unit === "cm") return 10;
   if (unit === "in") return 25.4;
+  if (unit === "ft") return 304.8;
   return 1;
 }
 

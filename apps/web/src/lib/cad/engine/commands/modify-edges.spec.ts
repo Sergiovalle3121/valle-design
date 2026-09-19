@@ -17,6 +17,7 @@
  */
 import { strict as assert } from "node:assert";
 import type { CadEntity } from "../../cad-document";
+import type { CadEntityCommand } from "../../entity-commands";
 import type { CadCommandContext, CadCommandInput } from "../command-types";
 import { CAD_MODIFY_EDGE_COMMANDS } from "./modify-edges";
 
@@ -272,6 +273,58 @@ const pickAt = (entityId: string, x: number, y: number): CadCommandInput => ({
   step = descriptor.step(step.state, enter, context);
   assert.ok(step.result && step.result.kind === "document");
   assert.equal(step.result.commands.length, 2, "h y low, cada una recortada, en UN solo lote");
+}
+
+// --- T15: Esc conserva trims acumulados ----------------------------------------
+{
+  const cancel: CadCommandInput = { kind: "cancel" };
+  // Borde: vertical en x=500. Recortar h en x=100 y luego en x=900, después Esc.
+  const result = run("TRIM", [
+    pickAt("v", 500, 100), enter,  // borde
+    pickAt("h", 100, 100),         // primer trim
+    pickAt("h", 900, 100),         // segundo trim
+    cancel,                         // Esc
+  ]);
+  assert.ok(result && result.kind === "document", "TRIM: Esc después de 2 recortes produce lote");
+  assert.equal(result.commands.length, 2, "TRIM: los 2 recortes se conservan");
+}
+
+// --- T16: TRIM dos veces sobre el mismo objeto ---------------------------------
+{
+  // Escena personalizada: dos bordes verticales y una horizontal larga.
+  const t16Scene: CadEntity[] = [
+    line("h", 0, 100, 1000, 100),
+    line("e1", 100, 0, 100, 200),
+    line("e2", 900, 0, 900, 200),
+  ];
+  const t16Entities = new Map(t16Scene.map((e) => [e.id, e]));
+  let t16Ids = 0;
+  const t16Ctx: CadCommandContext = {
+    entityIds: [...t16Entities.keys()],
+    entity: (id) => t16Entities.get(id),
+    selection: [],
+    activeLayer: "0",
+    view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+    newEntityId: () => `t16_${++t16Ids}`,
+  };
+  const trim = commands.get("TRIM")!;
+  let step = trim.begin(t16Ctx);
+  // Fase bordes: e1 y e2
+  step = trim.step(step.state, { kind: "entityPick", entityId: "e1", point: { x: 100, y: 100 } }, t16Ctx);
+  step = trim.step(step.state, { kind: "entityPick", entityId: "e2", point: { x: 900, y: 100 } }, t16Ctx);
+  step = trim.step(step.state, enter, t16Ctx);
+  // Primer trim: pulsar a la izquierda de e1 (x=50) → elimina 0→100, queda 100→1000
+  step = trim.step(step.state, { kind: "entityPick", entityId: "h", point: { x: 50, y: 100 } }, t16Ctx);
+  // Segundo trim: pulsar a la derecha de e2 (x=950) → sobre la geometría YA recortada
+  step = trim.step(step.state, { kind: "entityPick", entityId: "h", point: { x: 950, y: 100 } }, t16Ctx);
+  step = trim.step(step.state, enter, t16Ctx);
+  assert.ok(step.result && step.result.kind === "document", "T16: TRIM doble produce lote");
+  const hPatches = step.result.commands.filter(
+    (c) => c.type === "properties" && c.entityId === "h",
+  ) as Extract<CadEntityCommand, { type: "properties" }>[];
+  assert.equal(hPatches.length, 2, "T16: 2 propiedades para h (un trim por borde)");
+  assert.equal(hPatches[0].patch.startX, 100, "T16: primer trim — startX pasa a 100 (borde e1)");
+  assert.equal(hPatches[1].patch.endX, 900, "T16: segundo trim — endX pasa a 900 (borde e2, sobre geometría ya recortada)");
 }
 
 console.log(

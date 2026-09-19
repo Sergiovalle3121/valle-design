@@ -347,4 +347,39 @@ function controllerAt(view: Partial<CadView>): CadViewController {
   );
 }
 
+// --- PERSPECTIVE: setProjection conmuta entre cámaras ---------------------
+{
+  const controller = new CadViewController(TRANSFORM, WIDTH_PX, HEIGHT_PX);
+  controller.setMode("3d");
+
+  assert.ok(
+    controller.camera instanceof THREE.PerspectiveCamera,
+    "en 3D por defecto la cámara es perspectiva",
+  );
+
+  controller.setProjection("parallel");
+  assert.ok(
+    controller.camera instanceof THREE.OrthographicCamera,
+    "tras setProjection('parallel') la cámara es ortográfica",
+  );
+  assert.ok(
+    controller.camera !== controller.orthographic,
+    "la cámara paralela NO es la misma que la ortográfica del 2D",
+  );
+
+  controller.setProjection("perspective");
+  assert.ok(
+    controller.camera instanceof THREE.PerspectiveCamera,
+    "tras setProjection('perspective') vuelve a ser perspectiva",
+  );
+
+  // En 2D, setProjection no tiene efecto.
+  controller.setMode("2d");
+  controller.setProjection("parallel");
+  assert.ok(
+    controller.camera === controller.orthographic,
+    "en 2D setProjection no cambia la cámara (sigue siendo la ortográfica 2D)",
+  );
+}
+
 console.log("cad view controller specs passed");

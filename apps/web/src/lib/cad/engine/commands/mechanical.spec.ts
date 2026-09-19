@@ -227,22 +227,22 @@ const insertOf = (commands: readonly { type: string }[]) => {
   const table = (commands[0] as { entity: CadEntity }).entity;
   assert.ok(table.type === "table");
   const fila = (row: number) => table.cells.filter((cell) => cell.row === row).sort((a, b) => a.column - b.column).map((cell) => cell.text);
-  eq(fila(2), ["1", "1", "Chaveta paralela A 8 × 7 × 40 (cuñero: eje t1 4, cubo t2 3.3)", "ISO 773 / DIN 6885", "MECH-CHAVETA-8x7x40"], "la chaveta, con su cuñero, como posición 1");
-  eq(fila(3), ["2", "1", "Rodamiento rígido de bolas 6204 (20 × 47 × 14)", "ISO 15", "MECH-RODAMIENTO-6204"], "y el rodamiento como posición 2");
+  eq(fila(2), ["1", "1", "Chaveta paralela A 8 × 7 × 40 (cuñero: eje t1 4, cubo t2 3.3)", "ISO 773 / DIN 6885", "—", "—", "MECH-CHAVETA-8x7x40"], "la chaveta, con su cuñero, como posición 1");
+  eq(fila(3), ["2", "1", "Rodamiento rígido de bolas 6204 (20 × 47 × 14)", "ISO 15", "—", "—", "MECH-RODAMIENTO-6204"], "y el rodamiento como posición 2");
   eq(notice, "BOM: 2 posición(es), 2 unidad(es), 0 globo(s) en (9000, 0).", "dos posiciones: la lista los cuenta sola, con el mismo prefijo MECH- de siempre");
 }
 
 /* ── STEELSHAPE ─────────────────────────────────────────────────────────── */
 {
-  const driven = drive("STEELSHAPE", [enter, enter, enter, enter, point(0, 0), enter]);
+  const driven = drive("STEELSHAPE", [enter, enter, enter, enter, point(0, 0), enter, enter]);
   eq(driven.prompts[1], "Precise el ancho b (mm)", "PTR por Intro, luego sus medidas");
   const { commands, notice } = written(driven, "STEELSHAPE");
   eq(insertOf(commands).block, "MECH-PTR-50.8x50.8x3", "PTR 2\" × 2\" cal. 11 con los defaults");
   eq(notice, "STEELSHAPE: PTR 50.8 × 50.8 × 3 (ASTM A500 / IMCA), sección 5.74 cm², 4.50 kg/m en (0, 0); bloque MECH-PTR-50.8x50.8x3 definido en el dibujo.", "sección y peso lineal en el aviso");
-  const ipr = written(drive("STEELSHAPE", [keyword("Ipr"), distance(150), distance(100), distance(5), distance(7), point(10, 10), enter]), "STEELSHAPE");
+  const ipr = written(drive("STEELSHAPE", [keyword("Ipr"), distance(150), distance(100), distance(5), distance(7), point(10, 10), enter, enter]), "STEELSHAPE");
   eq(insertOf(ipr.commands).block, "MECH-IPR-150x100x5x7", "IPR tecleado");
   ok(ipr.notice.includes("20.80 cm²"), "2 080 mm² = 20,80 cm²");
-  ok(messageOf(drive("STEELSHAPE", [enter, enter, enter, distance(30), point(0, 0), enter])).includes("no deja hueco"), "una pared de 30 en un PTR de 50,8 se niega al rematar");
+  ok(messageOf(drive("STEELSHAPE", [enter, enter, enter, distance(30), point(0, 0), enter, enter])).includes("no deja hueco"), "una pared de 30 en un PTR de 50,8 se niega al rematar");
   ok(messageOf(drive("STEELSHAPE", [enter, distance(0)])).includes("mayor que cero"), "una medida cero se niega");
 }
 
@@ -284,8 +284,8 @@ const insertEntity = (id: string, block: string): CadEntity => ({ id, type: "ins
   const { commands, notice } = written(driven, "BOM");
   const table = (commands[0] as { entity: CadEntity }).entity;
   assert.ok(table.type === "table");
-  eq([table.rows, table.columns, table.insertion.x], [3, 5, 5000], "cabecera, título y una fila");
-  eq(table.cells.filter((cell) => cell.row === 2).map((cell) => cell.text), ["2", "2", "Tornillo hexagonal M10 × 40", "ISO 4017", "MECH-TORNILLO-M10x40"], "posición 2 (la del globo), cantidad 2");
+  eq([table.rows, table.columns, table.insertion.x], [3, 7, 5000], "cabecera, título y una fila");
+  eq(table.cells.filter((cell) => cell.row === 2).map((cell) => cell.text), ["2", "2", "Tornillo hexagonal M10 × 40", "ISO 4017", "—", "—", "MECH-TORNILLO-M10x40"], "posición 2 (la del globo), cantidad 2");
   eq(notice, "BOM: 1 posición(es), 2 unidad(es), 1 globo(s) en (5000, 0).", "el aviso");
   ok(messageOf(drive("BOM", [point(0, 0)])).includes("no tiene normalizados"), "sin normalizados ni globos se niega diciéndolo");
   ok(messageOf(drive("BOM", [point(0, 0)], makeContext({ document: false }))).includes("no expone el documento"), "sin vista del documento se dice");
@@ -313,15 +313,15 @@ const insertEntity = (id: string, block: string): CadEntity => ({ id, type: "ins
   const celda = (row: number) => replaced.entity.type === "table" ? replaced.entity.cells.filter((c) => c.row === row).sort((a, b) => a.column - b.column).map((c) => c.text) : [];
   eq([replaced.entity.id, replaced.entity.insertion, replaced.entity.layer], ["t1", { x: 5000, y: 0, z: 0 }, "LISTA"], "id, sitio y capa de la tabla de ayer, no los de la sesión de hoy");
   eq(replaced.entity.rows, 4, "título, cabecera y dos posiciones");
-  eq(celda(2), ["1", "2", "Tornillo hexagonal M10 × 40", "ISO 4017", "MECH-TORNILLO-M10x40"], "los dos tornillos siguen siendo dos");
-  eq(celda(3), ["2", "1", "Tuerca hexagonal M10", "ISO 4032", "MECH-TUERCA-M10"], "y la tuerca de hoy entra como posición 2");
+  eq(celda(2), ["1", "2", "Tornillo hexagonal M10 × 40", "ISO 4017", "—", "—", "MECH-TORNILLO-M10x40"], "los dos tornillos siguen siendo dos");
+  eq(celda(3), ["2", "1", "Tuerca hexagonal M10", "ISO 4032", "—", "—", "MECH-TUERCA-M10"], "y la tuerca de hoy entra como posición 2");
   eq(notice, "BOM Actualizar: de 1 posición(es) y 2 unidad(es) a 2 posición(es) y 3 unidad(es).", "el renglón dice qué cambió, no «Hecho»");
 
   // Lo que el dibujante ajustó a mano sobrevive al recálculo.
-  const ajustada = { ...(tablaDeAyer("t9") as Extract<CadEntity, { type: "table" }>), columnWidths: [900, 900, 3000, 900, 900], rotation: 15, style: "CUADROS", context: { handle: "2A", metadata: { mechanical: "bom", nota: "cajetín" } } } as CadEntity;
+  const ajustada = { ...(tablaDeAyer("t9") as Extract<CadEntity, { type: "table" }>), columnWidths: [900, 900, 3000, 900, 900, 900, 900], rotation: 15, style: "CUADROS", context: { handle: "2A", metadata: { mechanical: "bom", nota: "cajetín" } } } as CadEntity;
   const conservada = written(drive("BOM", [keyword("Actualizar")], makeContext({ entities: [...hoy, ajustada], blocks: [bolt, nut] })), "BOM Actualizar").commands[0] as { entity: CadEntity };
   assert.ok(conservada.entity.type === "table");
-  eq([conservada.entity.columnWidths, conservada.entity.rotation, conservada.entity.style], [[900, 900, 3000, 900, 900], 15, "CUADROS"], "ancho de columna, giro y estilo se conservan: la orden recalcula filas, no rediseña el cuadro");
+  eq([conservada.entity.columnWidths, conservada.entity.rotation, conservada.entity.style], [[900, 900, 3000, 900, 900, 900, 900], 15, "CUADROS"], "ancho de columna, giro y estilo se conservan: la orden recalcula filas, no rediseña el cuadro");
   eq([conservada.entity.context?.handle, conservada.entity.context?.metadata?.nota], ["2A", "cajetín"], "y el bolsillo de contexto conserva sus otras claves");
 
   // Se borraron todas las piezas: la lista deja de decir dos.
@@ -405,19 +405,19 @@ const toleranceOf = (commands: readonly { type: string }[], index = 0) => {
   eq(fitted.commands.length, 2, "dos reemplazos: la línea no es cota");
   const d1 = toleranceOf(fitted.commands, 0);
   eq(d1.tolerance, { mode: "deviation", upper: 0.025, lower: 0, decimals: 3, fit: "H7" }, "40H7 = +0.025/0");
-  eq(d1.label, "40.00 +0.025/0 mm", "…y la cota lo rotula");
+  eq(d1.label, "40.00 +0.025/0", "…y la cota lo rotula");
   const d2 = toleranceOf(fitted.commands, 1);
   eq(d2.tolerance?.upper, 0.021, "25H7 = +0.021/0: cada cota con SU nominal");
   eq(d2.entity.context?.metadata?.sourceType, "DIMENSION", "las demás claves del bolsillo se conservan");
-  eq(fitted.notice, "DIMTOLERANCE: 2 cota(s) con el ajuste H7; la primera rotula «40.00 +0.025/0 mm».", "el aviso");
+  eq(fitted.notice, "DIMTOLERANCE: 2 cota(s) con el ajuste H7; la primera rotula «40.00 +0.025/0».", "el aviso");
 
   const symmetric = written(drive("DIMTOLERANCE", [enter, distance(0.05)], context), "DIMTOLERANCE");
-  eq(toleranceOf(symmetric.commands).label, "40.00 ±0.05 mm", "Intro = simétrica; ±0,05 con sus dos decimales");
+  eq(toleranceOf(symmetric.commands).label, "40.00 ±0.05", "Intro = simétrica; ±0,05 con sus dos decimales");
   const deviation = written(drive("DIMTOLERANCE", [keyword("Desviación"), text("+0.05"), text("−0.01")], context), "DIMTOLERANCE");
-  eq(toleranceOf(deviation.commands).label, "40.00 +0.05/−0.01 mm", "desviaciones con signo");
-  eq(deviation.notice, "DIMTOLERANCE: 2 cota(s) por desviaciones +0.05/-0.01; la primera rotula «40.00 +0.05/−0.01 mm».", "el aviso de las desviaciones");
+  eq(toleranceOf(deviation.commands).label, "40.00 +0.05/−0.01", "desviaciones con signo");
+  eq(deviation.notice, "DIMTOLERANCE: 2 cota(s) por desviaciones +0.05/-0.01; la primera rotula «40.00 +0.05/−0.01».", "el aviso de las desviaciones");
   const limits = written(drive("DIMTOLERANCE", [keyword("Límites"), distance(0.05), text("-0.01")], context), "DIMTOLERANCE");
-  eq(toleranceOf(limits.commands).label, "40.05 / 39.99 mm", "límites: máximo y mínimo");
+  eq(toleranceOf(limits.commands).label, "40.05 / 39.99", "límites: máximo y mínimo");
   const removed = written(drive("DIMTOLERANCE", [keyword("Quitar")], makeContext({ entities: [d1.entity], selection: ["d1"] })), "DIMTOLERANCE");
   eq([toleranceOf(removed.commands).tolerance, toleranceOf(removed.commands).entity.context], [null, {}], "Quitar borra las claves (y el bolsillo queda vacío)");
   const fitPreserves = written(drive("DIMTOLERANCE", [keyword("Ajuste"), enter], makeContext({ entities: [d1.entity], selection: ["d1"] })), "DIMTOLERANCE");
@@ -432,7 +432,7 @@ const toleranceOf = (commands: readonly { type: string }[], index = 0) => {
   eq(unselected.prompts[0], "Designe las cotas", "sin designación previa, la pide");
   ok(messageOf(unselected).includes("no contiene cotas"), "una designación sin cotas se niega");
   const picked = written(drive("DIMTOLERANCE", [pick("d1"), enter, distance(0.1)], makeContext({ entities: [dimension("d1", 40)] })), "DIMTOLERANCE");
-  eq(toleranceOf(picked.commands).label, "40.00 ±0.1 mm", "designar una cota con el ratón vale");
+  eq(toleranceOf(picked.commands).label, "40.00 ±0.1", "designar una cota con el ratón vale");
   ok(messageOf(drive("DIMTOLERANCE", [enter], makeContext({ entities: [line] }))).includes("necesita cotas"), "Intro sin designar se niega");
 }
 

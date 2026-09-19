@@ -191,11 +191,11 @@ eq(cadKeyNearestLengths(500), { below: 400, above: null }, "por encima de la ser
 /* ── El bloque ──────────────────────────────────────────────────────────── */
 {
   const block = cadMechanicalBlockDefinition(cadMechanicalBolt(10, 40)!);
-  eq([block.id, block.name, block.basePoint, block.description, block.keywords], ["MECH-TORNILLO-M10x40", "MECH-TORNILLO-M10x40", { x: 0, y: 0, z: 0 }, "Tornillo hexagonal M10 × 40 · ISO 4017", ["MECH", "tornillo"]], "denominación y norma en description, que ya existía");
-  eq(cadMechanicalPartOf(block), { name: "Tornillo hexagonal M10 × 40", standard: "ISO 4017" }, "…y se leen de vuelta");
+  eq([block.id, block.name, block.basePoint, block.keywords], ["MECH-TORNILLO-M10x40", "MECH-TORNILLO-M10x40", { x: 0, y: 0, z: 0 }, ["MECH", "tornillo"]], "denominación y norma en description, que ya existía");
+  eq(cadMechanicalPartOf(block), { name: "Tornillo hexagonal M10 × 40", standard: "ISO 4017", areaMm2: null }, "…y se leen de vuelta");
   eq(cadMechanicalPartOf({ id: "MEP-VALVULA", name: "MEP-VALVULA" }), null, "un bloque MEP no es normalizado");
-  eq(cadMechanicalPartOf({ id: "MECH-X", name: "MECH-X" }), { name: "MECH-X", standard: "—" }, "un MECH sin description sale por su nombre");
-  eq(cadMechanicalPartOf({ id: "MECH-X", name: "MECH-X", description: "Placa" }), { name: "Placa", standard: "—" }, "…o por su description sin norma");
+  eq(cadMechanicalPartOf({ id: "MECH-X", name: "MECH-X" }), { name: "MECH-X", standard: "—", areaMm2: null }, "un MECH sin description sale por su nombre");
+  eq(cadMechanicalPartOf({ id: "MECH-X", name: "MECH-X", description: "Placa" }), { name: "Placa", standard: "—", areaMm2: null }, "…o por su description sin norma");
   eq(cadMechanicalPartOf(undefined), null, "sin bloque, nada");
 }
 
@@ -336,9 +336,9 @@ eq(cadSteelShapeFor("HSS"), undefined, "HSS no es designación IMCA");
   const table = buildCadMechanicalBomTable(bom, { x: 5000, y: 100 }, "LISTA", newId);
   const cell = (row: number) => table.cells.filter((c) => c.row === row).sort((a, b) => a.column - b.column).map((c) => c.text);
   eq(cell(1), [...BOM_HEADERS], "cabecera");
-  eq(cell(2), ["1", "1", "Objeto designado sin normalizado", "—", "—"], "fila 1");
-  eq(cell(4), ["3", "3", "Tornillo hexagonal M10 × 40", "ISO 4017", "MECH-TORNILLO-M10x40"], "fila 3 con su bloque");
-  eq([table.rows, table.columns, table.insertion, table.layer], [5, 5, { x: 5000, y: 100, z: 0 }, "LISTA"], "la tabla en su sitio");
+  eq(cell(2), ["1", "1", "Objeto designado sin normalizado", "—", "—", "—", "—"], "fila 1");
+  eq(cell(4), ["3", "3", "Tornillo hexagonal M10 × 40", "ISO 4017", "—", "—", "MECH-TORNILLO-M10x40"], "fila 3 con su bloque");
+  eq([table.rows, table.columns, table.insertion, table.layer], [5, 7, { x: 5000, y: 100, z: 0 }, "LISTA"], "la tabla en su sitio");
   eq(buildCadMechanicalBom({ entities: [insert("i5", "MEP-VALVULA")], blocks }).rows, [], "sin normalizados ni globos, sin filas");
   eq(buildCadMechanicalBom({ entities: [insert("i9", "MECH-HUERFANO")], blocks }).rows[0], { item: 1, count: 1, name: "MECH-HUERFANO", standard: "—", blockId: "MECH-HUERFANO", ballooned: false }, "un MECH sin definición sale por su id");
 

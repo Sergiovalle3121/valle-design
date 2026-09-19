@@ -128,6 +128,30 @@ async function controlesTapados(page: Page): Promise<Tapado[]> {
       return `${el.tagName.toLowerCase()}${typeof conClase === 'string' && conClase ? `.${conClase.split(/\s+/)[0]}` : ''}`;
     };
 
+    /** ¿Cae (x, y) fuera de la caja VISIBLE de algún scroller que contiene al
+     *  control? Es la regla de la ventana un nivel más adentro: lo que su
+     *  banda con scroll recorta no se pinta, así que no es un botón que se ve y
+     *  no funciona — todavía no está ahí. Sólo cuentan `auto`/`scroll`, que el
+     *  usuario puede desplazar: lo que recorta un `overflow: hidden` no queda
+     *  exento. La ventana ya la cubre la comprobación de abajo. */
+    const fueraDeSuScroller = (el: HTMLElement, x: number, y: number): boolean => {
+      for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+        const { overflowX, overflowY } = getComputedStyle(p);
+        if (!/auto|scroll/.test(`${overflowX} ${overflowY}`)) continue;
+        const r = p.getBoundingClientRect();
+        const izquierda = r.left + p.clientLeft;
+        const tope = r.top + p.clientTop;
+        // `clientWidth/Height` descuentan la barra de scroll pero redondean a
+        // entero: el borde exacto es el menor de los dos.
+        const derecha = Math.min(r.right, izquierda + p.clientWidth);
+        const fondo = Math.min(r.bottom, tope + p.clientHeight);
+        if (x < izquierda || y < tope || x >= derecha || y >= fondo) {
+          return true;
+        }
+      }
+      return false;
+    };
+
     const hallazgos: {
       control: string;
       tapadoPor: string;
@@ -161,6 +185,24 @@ async function controlesTapados(page: Page): Promise<Tapado[]> {
         cy < 0 ||
         cx > window.innerWidth ||
         cy > window.innerHeight
+      ) {
+        continue;
+      }
+      // Y lo mismo dentro de la ventana: desde que Guardar, el estado y el
+      // cierre son una cola FIJA a la derecha de la barra superior (golden
+      // 215), la banda de iconos se desplaza en su propia caja y recorta allí,
+      // no en el borde de la ventana. Lo que asoma en ese punto es la cola,
+      // pintada en su sitio — no una capa encima del icono.
+      //
+      // Pero sólo si el scroller lo RECORTA de verdad. Un control `fixed` (o
+      // `absolute` con su bloque contenedor fuera del scroller) cuelga de él
+      // en el DOM y se pinta fuera de su caja: ése sí puede quedar tapado —es
+      // el reportero bajo el dock de mensajería de la cabecera—.
+      // `elementsFromPoint` lista todo lo que responde en el punto, también lo
+      // que queda DEBAJO de otra capa; lo recortado no aparece.
+      if (
+        fueraDeSuScroller(control, cx, cy) &&
+        !document.elementsFromPoint(cx, cy).includes(control)
       ) {
         continue;
       }

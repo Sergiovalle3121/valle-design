@@ -105,8 +105,8 @@
       ],
       "tolerancia": 1e-9,
       "razonDeLaTolerancia": "Las dos lecturas parten del mismo ASCII, así que el mismo decimal da el mismo doble; lo que queda es el orden de las operaciones y los doce decimales del artefacto (5e-13).",
-      "longitudTotalDeLineas": 18120.082421577223,
-      "longitudTotalDePolilineas": 20844.841682808965
+      "longitudTotalDeLineas": 18120.08242157724,
+      "longitudTotalDePolilineas": 20844.84168280898
     },
     "modificar": {
       "ordenes": [
@@ -138,8 +138,8 @@
     "exportar": {
       "puerta": "exportCadDocumentDxf — el mismo que entrega DXFOUT",
       "entidades": 953,
-      "bytes": 398102,
-      "sha256": "ad3990fcb1c9e7b491441c42c0d1165bd4035e383d49bd0299b85ee52d4e8bbc",
+      "bytes": 397388,
+      "sha256": "208bf6b07a3e23108ec7c6189dd8a4ca3a1067efbaf9d10b7fb12f3c3ef40747",
       "perdidasDeclaradas": 0,
       "dialectoQueEscribimos": "AC1015 (R2000)",
       "notaDelDialecto": "El plano ajeno es AC1018 (R2004) y sale como AC1015 (R2000). Es una versión ANTERIOR, declarada en la cabecera: ningún lector se lleva una sorpresa, pero el fichero devuelto ya no es del dialecto en el que llegó.",

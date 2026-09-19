@@ -298,7 +298,7 @@ async function abrirEstudioVigilado(context: BrowserContext, page: Page) {
 async function abrirHojaEditable(page: Page) {
   await page.getByTitle(/Paquete de entrega/).click();
   await expect(page.getByTestId("cad-sheet-package")).toBeVisible();
-  await expect(page.getByTestId("cad-layout-manager")).toContainText("Viewports · 1");
+  await expect(page.getByTestId("cad-layout-manager")).toContainText("Ventanas · 1");
   if (await page.getByTestId("cad-viewport-scale").isDisabled())
     await page.getByTestId("cad-viewport-lock").click();
   await expect(page.getByTestId("cad-viewport-scale")).toBeEnabled();
@@ -326,7 +326,7 @@ test("el plano sale en PDF y respeta la escala que elige el jefe de obra", async
     // botón en vez de dejarlo pulsar y fallar después. Bien.
     await expect(page.getByRole("button", { name: /Publicar PDF/ })).toBeDisabled();
     await page.getByRole("button", { name: "+ Hoja" }).click();
-    await expect(page.getByTestId("cad-layout-manager")).toContainText("Viewports · 1");
+    await expect(page.getByTestId("cad-layout-manager")).toContainText("Ventanas · 1");
     // BIEN: la hoja nace con una escala que CABE, elegida sola (A3 apaisado,
     // 12 × 10 m → 1:50). El jefe de obra no parte de una hoja en blanco.
     await expect(page.getByTestId("cad-viewport-custom-scale")).toHaveValue("50");
@@ -442,7 +442,7 @@ test("imprimir, cambiar la escala y volver a imprimir", async ({ context, page }
   await page.getByTitle(/Paquete de entrega/).click();
   await expect(page.getByTestId("cad-sheet-package")).toBeVisible();
   await page.getByRole("button", { name: "+ Hoja" }).click();
-  await expect(page.getByTestId("cad-layout-manager")).toContainText("Viewports · 1");
+  await expect(page.getByTestId("cad-layout-manager")).toContainText("Ventanas · 1");
 
   const primero = await publicarYMedir(page, "1ª publicación a 1:50");
   expect(primero.caja.ancho).toBeCloseTo(NAVE_W / 50, 0);
@@ -486,7 +486,7 @@ test("teclear PLOT saca la hoja, pero «Extensión» no traza nunca", async ({
   await test.step("hay una presentación que trazar", async () => {
     await page.getByTitle(/Paquete de entrega/).click();
     await page.getByRole("button", { name: "+ Hoja" }).click();
-    await expect(page.getByTestId("cad-layout-manager")).toContainText("Viewports · 1");
+    await expect(page.getByTestId("cad-layout-manager")).toContainText("Ventanas · 1");
     // La hoja nace a 1:50, elegida por el producto. Trazarla a tamaño real
     // (1:1 de papel a papel) tiene que dar el dibujo a 1:50.
     await expect(page.getByTestId("cad-viewport-custom-scale")).toHaveValue("50");

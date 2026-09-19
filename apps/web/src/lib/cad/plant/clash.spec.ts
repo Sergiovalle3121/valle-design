@@ -416,6 +416,37 @@ const RADIO_4 = 50.8;
   );
 }
 
+// --- 13 · empalme + cruce lejano: el cruce se informa, el empalme no ------
+//
+// Dos rutas comparten punta en (0,0,0) —empalme legítimo— y además se cruzan
+// a 8 m. Antes de D36 el par se descartaba entero; ahora sólo se descarta el
+// candidato del empalme y el cruce lejano sí sale.
+{
+  const a = ruta("a", '6"-P-1001-CS150', [[0, 0, 0], [10_000, 0, 0]]);
+  const b = ruta("b", '4"-P-1002-CS150', [
+    [0, 0, 0],
+    [0, 3_000, 0],
+    [8_000, 3_000, 0],
+    [8_000, -3_000, 0],
+  ]);
+  const informe = cadPipeClashReport(doc([a, b]));
+  const choques = informe.clashes.filter((c) => c.kind === "choque-duro");
+  eq(choques.length, 1, "empalme + cruce lejano: un solo choque-duro");
+  if (choques[0]) {
+    casi(choques[0].at.x, 8_000, "el choque está en x=8000 (el cruce), no en el empalme", 1);
+    ok(choques[0].at.x !== 0, "el punto de choque NO es el empalme (x=0)");
+    casi(choques[0].depth ?? 0, RADIO_6 + RADIO_4, "la profundidad es la suma de radios", 0.011);
+  }
+}
+
+// --- 14 · control de no-regresión: punta contra punta sin cruce → 0 choques -
+{
+  const a = ruta("a", '6"-P-1001-CS150', [[0, 0, 0], [10_000, 0, 0]]);
+  const b = ruta("b", '4"-P-1002-CS150', [[0, 0, 0], [0, 3_000, 0]]);
+  const informe = cadPipeClashReport(doc([a, b]));
+  eq(informe.clashes.length, 0, "sólo empalme sin cruce: cero choques");
+}
+
 console.log(
-  `Choques de tubería contra lo construido: ${verdes} comprobaciones verdes — atravesar el muro es choque duro con su profundidad, cruzarlo por el vano no lo es y se informa, 5 mm de la cara es holgura insuficiente y 500 no, la arista mide su hipotenusa exacta y dos rutas empalmadas no se acusan`,
+  `Choques de tubería contra lo construido: ${verdes} comprobaciones verdes — atravesar el muro es choque duro con su profundidad, cruzarlo por el vano no lo es y se informa, 5 mm de la cara es holgura insuficiente y 500 no, la arista mide su hipotenusa exacta, dos rutas empalmadas no se acusan, y un empalme con cruce lejano informa sólo el cruce`,
 );

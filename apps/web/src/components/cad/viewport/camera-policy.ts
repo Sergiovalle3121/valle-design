@@ -41,7 +41,7 @@ import { CAD_TOUCH_ONE_FINGER_IDLE } from "./touch-gestures";
  * ── SE APLICA TAMBIÉN AL CREAR LOS CONTROLES, no sólo al conmutar de modo ──
  *
  * Durante un tiempo no fue así y no se notaba: el estudio abría siempre en 3D y
- * el valor que el editor escribía a mano —`maxPolarAngle = Math.PI / 2.05`—
+ * el valor que el editor escribía a mano —`maxPolarAngle = Math.PI / 2`—
  * coincidía por casualidad con lo que esta política pone para 3D. Al pasar el
  * defecto a planta, el modo decía «2D», el render SÍ era ortográfico (el
  * controlador de vista arranca así) y en cambio el ratón seguía configurado
@@ -145,10 +145,13 @@ export function applyCadCameraPolicy(
   // `target` y el desplazamiento de `zoomToCursor`, así que no se toca.
   controls.enableDamping = false;
   controls.minPolarAngle = 0;
-  // En plano la cámara queda clavada mirando hacia abajo; en 3D se le deja
-  // todo el hemisferio menos el rasante, que degenera la matriz de vista.
-  //
-  controls.maxPolarAngle = plan ? 0.05 : Math.PI / 2.05;
+  // En plano la cámara queda clavada mirando hacia abajo. En 3D el tope es
+  // π/2 exactos: un ALZADO es φ = 90° y ese valor es punto fijo de
+  // OrbitControls.update() (camera.position.y − target.y < 1e-15 tras dos
+  // update()). Con π/2.05 el primer update() del bucle devolvía la cámara a
+  // 87,8° y los cuatro alzados nunca se sostenían. La órbita sigue sin
+  // poderse bajar de la horizontal (no se ve bajo el suelo).
+  controls.maxPolarAngle = plan ? 0.05 : Math.PI / 2;
   controls.enableRotate = !plan;
   // El botón central ENCUADRA en los dos modos, como en AutoCAD. OrbitControls
   // lo trae en DOLLY de fábrica (medido con tsx sobre three 0.185.1: MIDDLE
@@ -239,4 +242,25 @@ export function applyInitialCameraFraming(
   if (mode === "2d") alignCadPlanAzimuth(camera, controls.target);
   controls.update();
   return { s, W, H };
+}
+
+/**
+ * Desbloquea temporalmente el tope polar para que un comando pueda colocar la
+ * cámara en un alzado verdadero (φ = 90°) o en la vista inferior (φ = 180°).
+ *
+ * El tope de 87,8° existe para que el arrastre no degenere la matriz de vista
+ * en el rasante. Un COMANDO no arrastra: coloca la cámara de golpe, y OrbitControls
+ * la adopta en el siguiente `update()`. Si el tope sigue activo, `update()` recorta
+ * φ a 87,8° y la vista pedida se deshace en silencio.
+ *
+ * Llamar ANTES de `applyStandardView` o de colocar la cámara. La función devuelve
+ * una función de cierre que RESTAURA el tope de arrastre: llamar después de que
+ * OrbitControls haya hecho su `update()`.
+ */
+export function unlockPolarAngleForCommand(controls: OrbitControls): () => void {
+  const dragLimit = controls.maxPolarAngle;
+  controls.maxPolarAngle = Math.PI - 1e-4;
+  return () => {
+    controls.maxPolarAngle = dragLimit;
+  };
 }

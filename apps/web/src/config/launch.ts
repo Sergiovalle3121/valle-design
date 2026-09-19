@@ -2,7 +2,7 @@
  * MODO DE LANZAMIENTO — la superficie que ve un visitante el día que el
  * producto sale a internet.
  *
- * Valle Design sale con una oferta simple: tres meses gratis, sin tarjeta. No
+ * VALLECAD sale con una oferta simple: tres meses gratis, sin tarjeta. No
  * es un descuento ni una campaña de marketing pegada por encima: es el modo en
  * que el producto opera durante el lanzamiento, y la superficie tiene que
  * decirlo con una sola voz. Sin este módulo, "sin tarjeta" acaba escrito en

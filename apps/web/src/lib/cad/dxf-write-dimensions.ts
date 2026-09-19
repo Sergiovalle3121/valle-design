@@ -178,7 +178,10 @@ export function pushSemanticDimension(lines: string[], dimension: PreparedSemant
   pushPoint(lines, entity.b);
   pointPair(11, 21, dimension.geometry.textAnchor);
   pushPair(lines, 70, semanticDimensionType(entity.dimensionKind));
-  pushPair(lines, 1, safeText(dimension.geometry.label));
+  // T10: solo escribe el rótulo si el usuario lo sobrescribió. Sin override,
+  // el grupo 1 queda vacío y AutoCAD usa la medición real del grupo 42.
+  const textOverride = entity.text?.trim();
+  pushPair(lines, 1, textOverride ? safeText(textOverride) : "");
   pushPair(lines, 3, safeStyleName(entity.style));
   pushPair(lines, 42, fmt(dimension.geometry.measurement));
   pointPair(13, 23, entity.a);

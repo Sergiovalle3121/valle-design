@@ -418,6 +418,11 @@ function CheckYourInbox({ email }: { email: string }) {
               }
             }}
           />
+          {resendError ? (
+            <p role="alert" className="type-small text-center text-destructive">
+              {resendError}
+            </p>
+          ) : null}
           <p className="type-small text-center text-muted-foreground">
             <Link
               className="underline underline-offset-4 hover:text-foreground"

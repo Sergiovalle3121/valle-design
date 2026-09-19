@@ -10,19 +10,9 @@
  * · IMPORT recibe el contenido del archivo como texto. El anfitrión que ya sabe
  *   abrir un DXF puede pasárselo tal cual; pegarlo también funciona, y eso hace
  *   que la orden sea probable en Node sin montar medio navegador.
- * · EXPORT devuelve el TEXTO del archivo COMO MENSAJE. Es la única salida que el
- *   contrato del motor permite hoy, y se dice aquí en voz alta en vez de
- *   disimularlo: el botón de descarga es un cambio del anfitrión, no del motor,
- *   y va anotado en el PR junto al gancho del visor 3D.
- *
- *   Y lo dice también EN EL MENSAJE, que es donde lo lee el dibujante. Decía «2
- *   sólido(s) exportados a STEP» y no entregaba nada: ni descarga, ni petición
- *   al anfitrión, ni una línea escrita en el documento. Con la probeta de
- *   sólidos, el gate de integridad de comandos lo destapó como el único éxito
- *   falso REAL de los tres que salieron. La orden no finge: declara que no
- *   entrega archivo y entrega el texto. Ponerle una petición al anfitrión
- *   habría sido peor mientras nadie la atiende — un `delegado` sin anfitrión es
- *   otro verde falso, sólo que en otra capa.
+ * · EXPORT entrega el archivo con una petición `download` al anfitrión
+ *   (host-requests.ts); el motor sólo produce el texto y el anfitrión lo
+ *   descarga.
  *
  * El formato de IMPORT se detecta por la cabecera; el de EXPORT se elige con una
  * palabra clave y el defecto es STEP AP214, que es lo que acepta cualquier
@@ -145,6 +135,8 @@ const exportCommand: CadCommandDescriptor<ExportState> = {
     const solids = selectedSolids(context, state.selection);
     if (solids.length === 0)
       return solidMessage(state, "EXPORT necesita SOLID3D designados.");
+    if (solids.length > 1)
+      return solidMessage(state, "EXPORT: designe un solo sólido; varios sólidos en un archivo aún no se admiten.");
     const format = input.kind === "keyword" && input.keyword === FORMAT_IGES.keyword ? "iges" : "step";
     const parts: string[] = [];
     for (const solid of solids) {
@@ -152,8 +144,6 @@ const exportCommand: CadCommandDescriptor<ExportState> = {
         parts.push(
           exportSolidEntity(solid, {
             format,
-            // Marca de tiempo fija: un archivo que cambia con el reloj no se
-            // puede comparar byte a byte entre dos corridas.
             timestamp: format === "step" ? CAD_INTEROP_EPOCH : "19700101.000000",
           }),
         );
@@ -161,17 +151,20 @@ const exportCommand: CadCommandDescriptor<ExportState> = {
         return solidMessage(state, `EXPORT: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
-    // NO dice «exportados». Decía «2 sólido(s) exportados a STEP» y no entrega
-    // ningún archivo: ni descarga, ni petición al anfitrión, ni una línea
-    // escrita en el documento. El texto STEP es real y está aquí entero, pero
-    // «exportado» es lo que el dibujante entiende por «ya lo tengo en disco», y
-    // eso no ha pasado. La orden declara su límite y entrega el texto.
-    return solidMessage(
-      state,
-      `EXPORT no entrega ningún archivo: el motor no puede descargarlo y el anfitrión que lo guarde ` +
-        `todavía no está montado. Éste es el texto ${format.toUpperCase()} de ${solids.length} sólido(s), ` +
-        `tal cual:\n${parts.join("\n")}`,
-    );
+    const content = parts.join("\n");
+    const ext = format === "step" ? "stp" : "igs";
+    const filename = `export.${ext}`;
+    const mime = format === "step" ? "application/step" : "application/iges";
+    return {
+      state: { selection: [] },
+      prompt: { message: "", options: [] },
+      accepts: 0,
+      result: {
+        kind: "host",
+        request: { kind: "download", filename, mime, content },
+        label: `EXPORT ${format.toUpperCase()}`,
+      },
+    };
   },
 };
 

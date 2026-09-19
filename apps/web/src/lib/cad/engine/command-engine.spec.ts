@@ -298,6 +298,43 @@ assert.equal(
   "un rectángulo de ancho cero no se dibuja",
 );
 
+// --- T7: RECTANG con @ relativo -----------------------------------------------
+{
+  const { effects } = run([
+    { kind: "invoke", command: "REC" },
+    point(0, 0),
+    { kind: "token", value: "@6000,4000" },
+  ]);
+  const command = executed(effects)[0]?.commands[0];
+  assert.ok(command?.type === "insert" && command.entity.type === "polyline", "RECTANG @relativo da polilínea");
+  const vertices = command?.type === "insert" && command.entity.type === "polyline" ? command.entity.vertices : [];
+  const xs = vertices.map((v) => v.x);
+  const ys = vertices.map((v) => v.y);
+  assert.ok(
+    Math.max(...xs) - Math.min(...xs) === 6000 && Math.max(...ys) - Math.min(...ys) === 4000,
+    `RECTANG 0,0 @6000,4000 dibuja 6000×4000 (xs=${xs.join(",")}, ys=${ys.join(",")})`,
+  );
+}
+
+// --- T7: PLINE con @ relativo -------------------------------------------------
+{
+  const { effects } = run([
+    { kind: "invoke", command: "PLINE" },
+    point(0, 0),
+    { kind: "token", value: "@1000,0" },
+    { kind: "token", value: "@0,500" },
+    { kind: "input", input: { kind: "enter" } },
+  ]);
+  const command = executed(effects)[0]?.commands[0];
+  assert.ok(command?.type === "insert" && command.entity.type === "polyline", "PLINE @relativo da polilínea");
+  const vertices = command?.type === "insert" && command.entity.type === "polyline" ? command.entity.vertices : [];
+  assert.deepEqual(
+    vertices.map((v) => [v.x, v.y]),
+    [[0, 0], [1000, 0], [1000, 500]],
+    "PLINE 0,0 @1000,0 @0,500 dibuja sus vértices",
+  );
+}
+
 // --- CIRCLE: centro-radio, diámetro, 2P y 3P ---------------------------------
 {
   const { effects } = run([{ kind: "invoke", command: "C" }, point(0, 0), { kind: "token", value: "50" }]);

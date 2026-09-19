@@ -137,7 +137,7 @@ function messages(effects: readonly CadCommandEffect[]): string[] {
 
 // --- PAN: el desplazamiento de la VISTA es el opuesto al del punto -----------
 {
-  assert.deepEqual(viewRequests(type(["P", "100,100", "130,90"]).effects), [
+  assert.deepEqual(viewRequests(type(["P", "10,20", "40,10"]).effects), [
     { kind: "pan", displacement: { x: -30, y: 10 } },
   ]);
 }

@@ -94,6 +94,21 @@ const { onCadPlotDelivered, resetCadPlotDeliveryListeners } = await import(
   assert.equal(cadTourHost.getSnapshot().status, "pending");
 }
 
+// --- 2b. PLIEGUE PERSISTIDO --------------------------------------------------
+{
+  cadTourHost.reset();
+  cadTourHost.attach("u-persist");
+  cadTourHost.dispatch({ type: "start", now: 100 });
+  cadTourHost.dispatch({ type: "minimize", minimized: true });
+  assert.equal(cadTourHost.getSnapshot().minimized, true);
+
+  // Simula reabrir el editor: reset + attach con el mismo usuario.
+  cadTourHost.reset();
+  cadTourHost.attach("u-persist");
+  assert.equal(cadTourHost.getSnapshot().minimized, true);
+  checks += 1;
+}
+
 // --- 3. SIN ALMACENAMIENTO, EL EDITOR SIGUE ---------------------------------
 {
   cadTourHost.reset();

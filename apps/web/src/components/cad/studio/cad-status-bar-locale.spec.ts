@@ -24,6 +24,7 @@ for (const forbidden of [
   "Safety ",           // seguridad
   "Highlights ",       // resaltados
   "Recovery ",         // recuperación
+  "Release ",          // revisión (D30)
   '"API offline"',     // conexión
   "'API offline'",
   '"API online"',      // era la forma inglesa
@@ -39,6 +40,7 @@ for (const required of [
   "Holguras ",             // holguras
   "Seguridad ",            // seguridad
   "Resaltados ",           // resaltados
+  "Revisión ",             // revisión (D30, era "Release")
   "Recuperación local activa",
   "Recuperación local en riesgo",
   "API en línea",

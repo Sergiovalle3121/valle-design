@@ -115,7 +115,12 @@ test("apagar un modo OSNAP en DSETTINGS deja de capturar por él", async ({
 
   /** Apunta al punto medio de la línea horizontal y devuelve lo que dice el HUD. */
   const probeMidpoint = async () => {
-    await page.getByRole("button", { name: "Línea", exact: true }).click();
+    // La paleta, no la cinta: las dos rotulan «Línea» (la cinta en español
+    // desde bd05e0b0) y ésta es la herramienta que el golden siempre pulsó.
+    await page
+      .getByTestId("cad-toolbar")
+      .getByRole("button", { name: "Línea", exact: true })
+      .click();
     const anchor = await worldPoint(page, { x: 1_000, y: 1_000 });
     await page.mouse.click(anchor.x, anchor.y);
     const target = await worldPoint(page, { x: 4_000, y: 3_000 });

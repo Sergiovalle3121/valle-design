@@ -3833,6 +3833,38 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "DWG-MODERNA-FIRMADA-20260916",
+      "date": "2026-09-16",
+      "initiative": "Firma del titular para la familia moderna DWG (AC1024/AC1027/AC1032). Orden explicita en .mimocode/cola-vallecad.md T10: el titular da luz verde expresa para que la importacion DWG funcione con los archivos que manda un cliente actual (AutoCAD 2010-2026 guardan en AC1024/AC1027/AC1032). Se cambia ownerSigned de false a true, se agrega signedDate 2026-09-16, se actualiza el spec dwg-native-reader-modern.spec.ts para reflejar la firma real, y se actualizan los comentarios que decian SIN FIRMA. El mecanismo y el perfil no cambian: DWG_MODERN_BETA_AUTHORIZATION con su perfil propio, dwgModernBetaImportIsEnabled con la conjuncion de tres condiciones, opcion allowModern donde la puerta acumula versiones. DWG_PROMOTION_GATES no se toca: esto es la beta de solo importacion, igual que las otras dos.",
+      "branch": "claude/noche-mimo-razones-para-pagar",
+      "assistants": [
+        "Claude Code (Anthropic), sesion operada por el titular"
+      ],
+      "authority": "Sergio Valle Zarate: orden explicita en .mimocode/cola-vallecad.md T10: 'El titular ha ordenado que la importacion DWG funcione con los archivos que manda un cliente actual'.",
+      "firstPartyInputs": [
+        "apps/web/src/lib/cad/dwg-interop-flag.ts (DWG_MODERN_BETA_AUTHORIZATION: ownerSigned true, signedDate 2026-09-16)",
+        "apps/web/src/lib/cad/dwg-native-reader-modern.spec.ts (spec actualizada: con firma la conjuncion abre)",
+        "docs/governance/assisted-development-log.json (esta entrada)"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. Patron copiado del de AC1015 y AC1018 ya existentes.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/dwg-interop-flag.ts (firma de la familia moderna)",
+        "apps/web/src/lib/cad/dwg-native-reader-modern.spec.ts (spec actualizada para reflejar firma real)",
+        "docs/governance/assisted-development-log.json (esta entrada)"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Local: spec dwg-native-reader-modern.spec.ts pasa con ownerSigned=true. typecheck web y lint web verdes. La adopcion es el merge de la PR por el titular tras revisar el diff."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "SONDA-INTEGRIDAD-R1-R4-20260917",
       "date": "2026-09-17",
       "initiative": "Endurecimiento del gate de integridad de comandos (check:command-integrity) contra cuatro trampas medidas en la rama de MiMo (claude/noche-mimo-razones-para-pagar @427084a0), que con la sonda de main daba 0 ROJO: (1) stubs mutates:true que responden sin lote y sin declarar límite (THICKEN «superficie espesada… pendiente de kernel») caían en `informa`; (2) mensajes que afirman y limitan a la vez («POINTLIGHT creada… — requiere WebGL») salían `honesto-limitado` porque el «requiere» anulaba el «creada»; (3) MESH y PLANESURF insertaban un solid3d con un brep vacío y contaban como `muta`; (4) DVIEW se exentó citando un spec que sólo lo cancela, y el gate nunca leía la razón. Cambios: el árbol de decisión sale a scripts/cad/command-integrity-rules.mjs con su spec (117 comprobaciones, que el gate ejecuta antes de la sonda); R1 mutante sin lote ni límite ni lectura = ROJO, donde una negación genérica cuenta como límite salvo si el mensaje confiesa un stub («aún no implementada», «pendiente de kernel») — corrección de revisión: la lista cerrada ponía en rojo a 3DMOVE y 3DROTATE, implementados de verdad, que dicen «la selección no contiene sólidos3D.»; R2 entidad tocada sin geometría evaluable = ROJO; R3 análisis por cláusulas con negaciones y requisitos; R4 exenciones {razon, spec, conduce, comprueba} verificadas contra el spec real. Se corrige la cita inexistente «solids-modify.spec.ts» de CHAMFEREDGE y FILLETEDGE. Ninguna exención añadida ni retirada; la evidencia no cambia.",

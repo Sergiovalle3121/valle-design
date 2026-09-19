@@ -34,6 +34,7 @@ const STYLE_SHORTCUTS: Record<CadVisualStyleId, string> = {
   hidden: "O",
   shaded: "S",
   "shaded-edges": "C",
+  xray: "R",
 };
 
 const STYLE_KEYWORDS = CAD_VISUAL_STYLES.map((style) => ({
@@ -121,6 +122,50 @@ const VSCURRENT: CadCommandDescriptor<State> = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// PERSPECTIVE — conmutar entre perspectiva y paralela en 3D
+// ---------------------------------------------------------------------------
+
+const PARALLEL = { keyword: "Paralela", shortcut: "P" } as const;
+const PERSP = { keyword: "Perspectiva", shortcut: "PE" } as const;
+
+const perspectiveCommand = {
+  name: "PERSPECTIVE",
+  aliases: ["PERS"],
+  kind: "view",
+  transparent: true,
+  selection: "none",
+  repeatable: true,
+  mutates: false,
+  cursor: "none",
+  begin: () => ({
+    state: {},
+    prompt: {
+      message: "Proyección 3D (Paralela/Perspectiva)",
+      options: [PARALLEL, PERSP],
+      defaultOption: PERSP.keyword,
+    },
+    accepts: CAD_ACCEPT_KEYWORD,
+  }),
+  step: (_state: State, input: { kind: string; keyword?: string }) => {
+    if (input.kind === "cancel")
+      return { state: {}, prompt: { message: "", options: [] }, accepts: 0, result: { kind: "none" } };
+    const mode = input.kind === "keyword" && input.keyword === PARALLEL.keyword
+      ? "parallel" : "perspective";
+    return {
+      state: {},
+      prompt: { message: "", options: [] },
+      accepts: 0,
+      result: {
+        kind: "host",
+        request: { kind: "view-projection", projection: mode },
+        label: `PERSPECTIVE ${mode === "parallel" ? "Paralela" : "Perspectiva"}`,
+      },
+    };
+  },
+};
+
 export const CAD_VIEW_VISUAL_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(VSCURRENT),
+  asCadCommand(perspectiveCommand as CadCommandDescriptor<Record<string, never>>),
 ];
