@@ -234,8 +234,8 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
 
   NCOPY: "Copiar anidado",
   NORMAMX: "Norma mexicana",
-  NAVBAR: "Barra de navegación",
-  NAVVCUBE: "Cubo de navegación",
+  NAVBAR: "Navegación",
+  NAVVCUBE: "Cubo 3D",
   OFFSET: "Desfase",
   OPTIONS: "Opciones",
   OSNAP: "Referencias",
