@@ -1,0 +1,18 @@
+@echo off
+title Noche de MiMo (lanzador v3.1)
+rem Relanza SOLO el lanzador para aplicar cambios del script, sin tocar a MiMo:
+rem adopta la vuelta en marcha y no la reorienta.
+rem Uso: relanzar-lanzador.cmd [minutos hasta la primera integracion, por defecto 45] [titular|manual, por defecto manual]
+rem Desde el 15-sep (decision de Sergio para el lanzamiento de VALLECAD) el merge es manual con revision de Claude.
+set MIN=%~1
+if "%MIN%"=="" set MIN=45
+set MODO=%~2
+if "%MODO%"=="" set MODO=manual
+powershell.exe -NoProfile -Command "$yo=$PID; Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -ne $yo -and $_.Name -eq 'powershell.exe' -and $_.CommandLine -match 'noche-mimo\.ps1' -and $_.CommandLine -notmatch 'Get-CimInstance' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue; 'Lanzador anterior parado: PID ' + $_.ProcessId }; 'MiMo sigue vivo: ' + [bool](Get-Process -Name mimo -ErrorAction SilentlyContinue)"
+echo.
+echo   Modo de merge: %MODO%
+echo   IMPORTANTE: deja esta ventana abierta (puedes minimizarla).
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "D:\dev\_mimo\noche-mimo.ps1" -Adoptar -Merge %MODO% -MinutosPrimeraIntegracion %MIN%
+echo.
+echo   El lanzador ha terminado. Revisa D:\dev\_logs\noche\resumen.txt
+timeout /t 30

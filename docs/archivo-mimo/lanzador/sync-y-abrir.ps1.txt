@@ -1,0 +1,198 @@
+﻿#Requires -Version 5.1
+<#
+    sync-y-abrir.ps1
+    Sincroniza D:\dev\valle-design contra GitHub y abre MiMo Code ya en sitio.
+
+    Resuelve el problema real: Claude Code (u otra sesion) empuja a GitHub, y la
+    carpeta local se queda vieja. Sin esto, MiMo arrancaria sobre codigo obsoleto
+    y pisaria el avance anterior.
+
+    No hace commit ni push. Solo pone la carpeta al dia y abre MiMo.
+#>
+
+$ErrorActionPreference = 'Continue'
+$ProgressPreference    = 'SilentlyContinue'
+
+$ProjectPath = 'D:\dev\valle-design'
+$LogDir      = 'D:\dev\_logs'
+
+if (-not (Test-Path -LiteralPath $LogDir)) { New-Item -ItemType Directory -Path $LogDir -Force | Out-Null }
+
+function Say  ($m) { Write-Host $m -ForegroundColor Cyan }
+function Ok   ($m) { Write-Host ('  OK    ' + $m) -ForegroundColor Green }
+function Warn ($m) { Write-Host ('  AVISO ' + $m) -ForegroundColor Yellow }
+function Bad  ($m) { Write-Host ('  FALLO ' + $m) -ForegroundColor Red }
+
+function Salir ($code) {
+    if ($Host.Name -eq 'ConsoleHost') { Read-Host 'Pulsa ENTER para cerrar' | Out-Null }
+    exit $code
+}
+
+Write-Host ''
+Say '=================================================='
+Say '  SINCRONIZAR CON GITHUB Y ABRIR MiMo Code'
+Say '=================================================='
+Write-Host ''
+
+if (-not (Test-Path -LiteralPath (Join-Path $ProjectPath '.git'))) {
+    Bad ('No hay repositorio en ' + $ProjectPath)
+    Write-Host '        Ejecuta primero setup_valle_design.ps1'
+    Salir 1
+}
+
+Set-Location -LiteralPath $ProjectPath
+
+# ---------------------------------------------------------------- 1. MiMo al dia
+Say '[1/5] Comprobando la version de MiMo Code...'
+
+$mimo = Get-Command mimo -ErrorAction SilentlyContinue
+if (-not $mimo) {
+    Bad 'El comando "mimo" no existe. Ejecuta setup_mimo.ps1'
+    Salir 1
+}
+
+$vLocal = (& mimo --version | Select-Object -First 1)
+$vRemota = (& npm.cmd view '@mimo-ai/cli' version 2>$null | Select-Object -First 1)
+
+if ($vRemota -and ($vLocal -ne $vRemota)) {
+    Warn ('Tienes MiMo ' + $vLocal + ' y hay disponible la ' + $vRemota)
+    $r = Read-Host '        Actualizar ahora? Descarga ~135 MB (s/N)'
+    if ($r -eq 's' -or $r -eq 'S') {
+        & npm.cmd install -g '@mimo-ai/cli@latest'
+        if ($LASTEXITCODE -eq 0) { Ok ('Actualizado a ' + (& mimo --version | Select-Object -First 1)) }
+        else { Warn 'La actualizacion fallo. Sigo con la version que tenias.' }
+    } else {
+        Ok ('Sigues en ' + $vLocal)
+    }
+} else {
+    Ok ('MiMo ' + $vLocal + ' esta al dia.')
+}
+
+# ---------------------------------------------------------------- 2. Traer de GitHub
+Say ''
+Say '[2/5] Trayendo novedades de GitHub...'
+
+& git fetch --all --prune
+if ($LASTEXITCODE -ne 0) {
+    Warn 'git fetch fallo (sin red?). Trabajaras con lo que haya en disco.'
+} else {
+    Ok 'Refs actualizadas desde origin.'
+}
+
+$rama = (& git rev-parse --abbrev-ref HEAD | Select-Object -First 1)
+Ok ('Rama actual: ' + $rama)
+
+$sucio = @(& git status --porcelain)
+if ($sucio.Count -gt 0) {
+    Warn ($sucio.Count.ToString() + ' fichero(s) con cambios sin guardar.')
+    Write-Host '        Se conservan: el rebase los aparta y los devuelve (--autostash).'
+}
+
+# ---------------------------------------------------------------- 3. Poner la rama al dia
+Say ''
+Say '[3/5] Poniendo la rama al dia...'
+
+$tieneUpstream = $false
+& git rev-parse --abbrev-ref '@{upstream}' 2>$null | Out-Null
+if ($LASTEXITCODE -eq 0) { $tieneUpstream = $true }
+
+if ($tieneUpstream) {
+    & git pull --rebase --autostash
+    if ($LASTEXITCODE -eq 0) {
+        Ok 'Rama sincronizada con su remoto.'
+    } else {
+        Bad 'El rebase se detuvo: hay conflicto entre tu trabajo local y GitHub.'
+        Write-Host ''
+        Write-Host '        Esto pasa cuando editaste lo mismo aqui y en otra sesion.' -ForegroundColor Yellow
+        Write-Host '        NO abro MiMo: trabajaria sobre un repositorio a medio rebasar.'
+        Write-Host ''
+        Write-Host '        Resuelvelo asi:'
+        Write-Host '          git status              (ver que ficheros chocan)'
+        Write-Host '          ...editas y arreglas...'
+        Write-Host '          git add <fichero>'
+        Write-Host '          git rebase --continue'
+        Write-Host '        O para abortar y dejarlo como estaba:  git rebase --abort'
+        Salir 1
+    }
+} else {
+    Warn 'Esta rama no tiene remoto todavia (aun no se ha subido).'
+}
+
+# Mantener main local al dia aunque estemos en otra rama, para poder ramificar limpio.
+if ($rama -ne 'main') {
+    & git fetch origin main:main 2>$null | Out-Null
+    if ($LASTEXITCODE -eq 0) { Ok 'main local actualizado tambien.' }
+    else { Warn 'No pude adelantar main local (tendra commits propios). No es grave.' }
+}
+
+# ---------------------------------------------------------------- 4. Rama de trabajo
+Say ''
+Say '[4/5] Rama de trabajo...'
+
+if ($rama -eq 'main') {
+    Warn 'Estas en main. El repositorio es PUBLICO y main esta protegido.'
+    Write-Host '        Conviene trabajar en una rama y mergear por PR.'
+    $sugerida = 'mimo/trabajo-' + (Get-Date -Format 'yyyyMMdd-HHmm')
+    Write-Host ''
+    $nueva = Read-Host ('        Nombre de la rama [' + $sugerida + '], o "main" para quedarte')
+    if (-not $nueva) { $nueva = $sugerida }
+
+    if ($nueva -ne 'main') {
+        & git switch -c $nueva
+        if ($LASTEXITCODE -eq 0) {
+            Ok ('Creada y activa la rama ' + $nueva)
+            $rama = $nueva
+        } else {
+            Warn 'No pude crear la rama. Sigues en main.'
+        }
+    } else {
+        Warn 'Te quedas en main. Cuidado con lo que dejes escribir.'
+    }
+} else {
+    Ok ('Ya estas en la rama de trabajo ' + $rama)
+}
+
+# ---------------------------------------------------------------- 5. Estado y arranque
+Say ''
+Say '[5/5] Estado antes de empezar'
+Write-Host ''
+
+$ultimo = (& git log -1 --pretty=format:'%h  %s' | Select-Object -First 1)
+Write-Host ('  Rama          : ' + $rama)
+Write-Host ('  Ultimo commit : ' + $ultimo)
+
+$cuenta = (& git rev-list --left-right --count "origin/main...HEAD" 2>$null | Select-Object -First 1)
+if ($cuenta) {
+    $p = $cuenta -split '\s+'
+    Write-Host ('  Frente a main : ' + $p[1] + ' commit(s) por delante, ' + $p[0] + ' por detras')
+}
+Write-Host ('  Carpeta       : ' + $ProjectPath)
+Write-Host ''
+
+Write-Host '  Cuando termines de trabajar, cierra MiMo y ejecuta' -ForegroundColor Cyan
+Write-Host '  2-SUBIR-Y-MERGEAR.cmd para publicarlo en GitHub.' -ForegroundColor Cyan
+Write-Host ''
+Say 'Abriendo MiMo Code...'
+Write-Host ''
+
+& mimo
+
+$rc = $LASTEXITCODE
+Write-Host ''
+if ($rc -ne 0) {
+    Warn ('MiMo termino con codigo ' + $rc + '.')
+    Write-Host '        Si fue "Insufficient account balance", te falta saldo o plan.'
+    Write-Host '        Si cambiaste de plan, repite:  mimo providers login'
+}
+
+$sucio2 = @(& git status --porcelain)
+if ($sucio2.Count -gt 0) {
+    Write-Host ''
+    Ok ($sucio2.Count.ToString() + ' fichero(s) modificados en esta sesion.')
+    Write-Host '  Ejecuta 2-SUBIR-Y-MERGEAR.cmd para subirlo.' -ForegroundColor Cyan
+} else {
+    Write-Host ''
+    Warn 'No hay cambios sin guardar. O no edito nada, o ya hizo commit el mismo.'
+}
+
+Salir 0

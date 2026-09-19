@@ -1,0 +1,46 @@
+// Sonda de auditoria (no toca el repo): DIMLINEAR sobre la plantilla mexicana.
+import { createCadStarterDocument } from "D:/dev/valle-design/apps/web/src/lib/cad/starter-templates";
+import { CAD_COMMAND_REGISTRY_V2 } from "D:/dev/valle-design/apps/web/src/lib/cad/engine/index";
+import "D:/dev/valle-design/apps/web/src/lib/cad/engine/all-commands";
+import { executeCadEntityCommandBatch } from "D:/dev/valle-design/apps/web/src/lib/cad/entity-commands";
+import { buildCadDimensionGeometry } from "D:/dev/valle-design/apps/web/src/lib/cad/associative-dimension";
+
+const base = createCadStarterDocument({ templateId: "planta-arquitectonica", date: "2026-09-18" });
+const line = { id: "muro1", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 3450, y: 0, z: 0 }, layer: "MURO" } as any;
+const applied = executeCadEntityCommandBatch(base as any, [{ type: "insert", entity: line } as any], "probe");
+const doc: any = (applied as any).document ?? applied;
+console.log("unit:", doc.meta?.unit, "dimstyles:", Object.keys(doc.styles?.dimension ?? {}));
+console.log("COTA 1:50 =", JSON.stringify(doc.styles?.dimension?.["COTA 1:50"]));
+
+function run(name: string, inputs: any[]) {
+  const d: any = CAD_COMMAND_REGISTRY_V2.get(name);
+  let ids = 0;
+  const ctx: any = {
+    entityIds: doc.entities.map((e: any) => e.id),
+    entity: (id: string) => doc.entities.find((e: any) => e.id === id),
+    selection: [],
+    activeLayer: "COTA",
+    view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+    newEntityId: () => `cota${++ids}`,
+    document: () => doc,
+  };
+  let step: any = d.begin(ctx);
+  for (const input of inputs) {
+    if (step.result) break;
+    step = d.step(step.state, input, ctx);
+  }
+  return step;
+}
+const step = run("DIMLINEAR", [
+  { kind: "point", point: { x: 0, y: 0 } },
+  { kind: "point", point: { x: 3450, y: 0 } },
+  { kind: "point", point: { x: 1700, y: 800 } },
+]);
+console.log("result keys:", Object.keys(step), step.result ? Object.keys(step.result) : "");
+const cmds = step.result?.commands ?? step.commands ?? [];
+const ent = cmds[0]?.entity;
+console.log("ENTITY:", JSON.stringify(ent));
+if (ent) {
+  const g: any = buildCadDimensionGeometry(ent as any);
+  console.log("LABEL:", g?.label ?? g?.text, "keys:", g ? Object.keys(g) : null);
+}

@@ -1,0 +1,65 @@
+// Sonda de auditoria (fuera del repo): el muro y la cota frente a STRETCH/TRIM/FILLET/OFFSET/BREAK.
+import { CAD_MODIFY_EDGE_COMMANDS } from "file:///D:/dev/valle-design/apps/web/src/lib/cad/engine/commands/modify-edges.ts";
+import { CAD_MODIFY_TRANSFORM_COMMANDS } from "file:///D:/dev/valle-design/apps/web/src/lib/cad/engine/commands/modify-transform.ts";
+import { CAD_MODIFY_BASIC_COMMANDS } from "file:///D:/dev/valle-design/apps/web/src/lib/cad/engine/commands/modify-basics.ts";
+import { CAD_MODIFY_STRETCH_COMMANDS } from "file:///D:/dev/valle-design/apps/web/src/lib/cad/engine/commands/modify-stretch.ts";
+
+const all = new Map<string, any>(
+  [...CAD_MODIFY_EDGE_COMMANDS, ...CAD_MODIFY_TRANSFORM_COMMANDS, ...CAD_MODIFY_BASIC_COMMANDS, ...(CAD_MODIFY_STRETCH_COMMANDS as any)].map((c: any) => [c.name, c]),
+);
+function ctx(scene: any[]) {
+  const m = new Map(scene.map((e) => [e.id, e]));
+  let n = 0;
+  return { entityIds: [...m.keys()], entity: (id: string) => m.get(id), selection: [], activeLayer: "0",
+    view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 }, newEntityId: () => `new${++n}` } as any;
+}
+const pick = (entityId: string, x: number, y: number) => ({ kind: "entityPick", entityId, point: { x, y } });
+const pt = (x: number, y: number) => ({ kind: "point", point: { x, y }, source: "pointer" });
+const enter = { kind: "enter" };
+const kw = (keyword: string) => ({ kind: "keyword", keyword });
+const dist = (value: number) => ({ kind: "distance", value });
+function drive(name: string, c: any, inputs: any[]) {
+  const d = all.get(name);
+  let s = d.begin(c);
+  for (const i of inputs) { if (s.result) break; s = d.step(s.state, i, c); }
+  return s;
+}
+const wall = (id: string, x1: number, y1: number, x2: number, y2: number) => ({
+  id, type: "wall", start: { x: x1, y: y1, z: 0 }, end: { x: x2, y: y2, z: 0 }, thickness: 150, height: 2400, layer: "0" });
+const line = (id: string, x1: number, y1: number, x2: number, y2: number) => ({
+  id, type: "line", start: { x: x1, y: y1, z: 0 }, end: { x: x2, y: y2, z: 0 }, layer: "0" });
+
+// Habitacion de 4000 con muros; estirar el muro derecho 500 hacia la derecha.
+const room = [wall("mS", 0, 0, 4000, 0), wall("mE", 4000, 0, 4000, 3000), wall("mN", 4000, 3000, 0, 3000), wall("mO", 0, 3000, 0, 0)];
+{
+  const s = drive("STRETCH", ctx(room), [pt(3500, -500), pt(4500, 3500), pt(0, 0), pt(500, 0)]);
+  console.log("STRETCH habitacion de MUROS:", JSON.stringify(s.result));
+}
+// Lo mismo con LINEAS y una cota NO asociativa (como llega de un DXF) de 0 a 4000.
+{
+  const dim = { id: "cota", type: "dimension", dimensionKind: "linear", a: { x: 0, y: -600 }, b: { x: 4000, y: -600 },
+    position: { x: 2000, y: -900 }, associative: false, associationStatus: "detached", layer: "0" };
+  const lines = [line("lS", 0, 0, 4000, 0), line("lE", 4000, 0, 4000, 3000), line("lN", 4000, 3000, 0, 3000), dim];
+  const s = drive("STRETCH", ctx(lines), [pt(3500, -1000), pt(4500, 3500), pt(0, 0), pt(500, 0)]);
+  console.log("STRETCH habitacion de LINEAS + cota:", JSON.stringify(s.result?.commands?.map((c: any) => ({ t: c.type, id: c.entityId }))));
+}
+{
+  const s = drive("TRIM", ctx([wall("m", 0, 0, 4000, 0), line("corte", 2000, -500, 2000, 500)]), [enter, pick("m", 3000, 0), enter]);
+  console.log("TRIM muro:", JSON.stringify(s.result));
+}
+{
+  const s = drive("FILLET", ctx([wall("a", 0, 0, 4000, 0), wall("b", 4100, 100, 4100, 3000)]), [pick("a", 3000, 0), pick("b", 4100, 1000)]);
+  console.log("FILLET 0 dos muros (limpiar esquina):", JSON.stringify(s.result));
+}
+{
+  const s = drive("OFFSET", ctx([wall("a", 0, 0, 4000, 0)]), [dist(1000), pick("a", 2000, 0), pt(2000, 500)]);
+  console.log("OFFSET muro:", JSON.stringify(s.result));
+}
+{
+  const s = drive("BREAK", ctx([wall("a", 0, 0, 4000, 0)]), [pick("a", 2000, 0), pt(2000, 0)]);
+  console.log("BREAK muro:", JSON.stringify(s.result));
+}
+{
+  const s = drive("EXTEND", ctx([wall("a", 0, 0, 3000, 0), line("tope", 4000, -500, 4000, 500)]), [enter, pick("a", 2900, 0), enter]);
+  console.log("EXTEND muro hasta linea:", JSON.stringify(s.result));
+}

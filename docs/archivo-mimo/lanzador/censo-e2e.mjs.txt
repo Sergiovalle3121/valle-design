@@ -1,0 +1,70 @@
+// Censo de los E2E de una corrida: que goldens fallan, agrupados, con su motivo en una linea.
+//
+// Los cuatro fragmentos de Playwright escriben cientos de lineas cada uno y `gh run view
+// --log-failed` las mezcla. Esto saca la lista limpia para poder repartir el trabajo.
+//
+// Uso:  node D:/dev/_mimo/censo-e2e.mjs <idDeCorrida>
+import { execFileSync } from "node:child_process";
+
+const id = process.argv[2];
+if (!id) {
+  console.error("Falta el id de la corrida: node censo-e2e.mjs 35292374922");
+  process.exit(2);
+}
+
+let log = "";
+try {
+  log = execFileSync("gh", ["run", "view", id, "--log-failed"], {
+    encoding: "utf8",
+    maxBuffer: 256 * 1024 * 1024,
+    cwd: "D:/dev/valle-design",
+  });
+} catch (error) {
+  log = String(error?.stdout ?? "");
+  if (!log) {
+    console.error("No pude leer el log de la corrida.");
+    process.exit(1);
+  }
+}
+
+const lineas = log.split("\n").map((l) => l.replace(/\r/g, ""));
+// Las lineas de Playwright vienen prefijadas por «<job>\t<paso>\t<timestamp> ». Se quita.
+const limpias = lineas.map((l) => l.replace(/^.*?\d{4}-\d{2}-\d{2}T[\d:.]+Z\s?/, ""));
+
+const fallos = new Map(); // spec -> { titulos:Set, motivos:Set }
+let actual = null;
+for (const l of limpias) {
+  // «  1) [chromium] › e2e/golden/61-....spec.ts:92:5 › titulo »
+  const cabecera = l.match(/\[(chromium|firefox)\]\s+›\s+(e2e[\\/][^\s:]+\.spec\.ts):(\d+):\d+\s+›\s+(.*)$/);
+  if (cabecera) {
+    const spec = cabecera[2].replace(/\\/g, "/");
+    if (!fallos.has(spec)) fallos.set(spec, { titulos: new Set(), motivos: new Set() });
+    actual = fallos.get(spec);
+    actual.titulos.add(`${cabecera[3]}  ${cabecera[4].trim().slice(0, 90)}`);
+    continue;
+  }
+  if (!actual) continue;
+  const motivo = l.match(
+    /^\s*(Error:|TimeoutError:|Test timeout|AssertionError|expect\(|locator\.|Received|strict mode violation)(.*)$/,
+  );
+  if (motivo && actual.motivos.size < 3) {
+    actual.motivos.add((motivo[1] + motivo[2]).trim().slice(0, 160));
+  }
+}
+
+if (fallos.size === 0) {
+  console.log("CENSO: ningun E2E con fallo identificable en esa corrida (o no hay fragmentos rojos).");
+  process.exit(0);
+}
+
+console.log(`CENSO DE E2E de la corrida ${id}: ${fallos.size} spec(s) con fallos.`);
+const orden = [...fallos.entries()].sort((a, b) => b[1].titulos.size - a[1].titulos.size);
+for (const [spec, datos] of orden) {
+  console.log("");
+  console.log(`${spec}   (${datos.titulos.size} prueba(s))`);
+  for (const t of datos.titulos) console.log(`   · ${t}`);
+  for (const m of datos.motivos) console.log(`     -> ${m}`);
+}
+console.log("");
+console.log("Para reproducir uno en local (no hace falta Postgres en los goldens):");
+console.log("  cd apps/web && node ../../node_modules/playwright/cli.js test <spec> --project=chromium --workers=1 --reporter=line");

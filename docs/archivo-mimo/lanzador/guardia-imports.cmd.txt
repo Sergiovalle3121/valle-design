@@ -1,0 +1,14 @@
+@echo off
+rem Falla si algun fichero de la cadena de las evidencias importa un paquete del monorepo que en el
+rem CI no esta compilado (se instala con --ignore-scripts, asi que no hay dist/). Aqui pasa porque la
+rem laptop tiene un dist viejo; en el CI revienta. Ocurrio el 17-sep con template-render.ts.
+cd /d D:\dev\valle-design
+findstr /m /c:"@valle-design/contracts" apps/web/src/lib/cad/template-render.ts apps/web/src/lib/cad/templates.ts apps/web/src/lib/cad/template-document.ts apps/web/src/lib/marketing/template-gallery.ts apps/web/src/lib/marketing/template-seo.ts >nul 2>&1
+if %errorlevel%==0 (
+  echo GUARDIA DE IMPORTS: la cadena de la galeria importa @valle-design/contracts.
+  echo En el CI ese paquete NO esta compilado y check:template-gallery falla. Ficheros:
+  findstr /m /c:"@valle-design/contracts" apps/web/src/lib/cad/template-render.ts apps/web/src/lib/cad/templates.ts apps/web/src/lib/cad/template-document.ts apps/web/src/lib/marketing/template-gallery.ts apps/web/src/lib/marketing/template-seo.ts
+  exit /b 1
+)
+echo GUARDIA DE IMPORTS OK.
+exit /b 0

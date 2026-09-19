@@ -1,0 +1,1445 @@
+﻿2026-09-14 22:27:45  Empieza la mision sin fin en claude/noche-mimo-razones-para-pagar. Equipo despierto: True
+2026-09-14 22:27:45  Vuelta 1 en marcha (PID 6828).
+2026-09-14 22:30:03  Parado por Claude para endurecer el prompt (nada redundante). Se relanza enseguida.
+2026-09-14 22:32:17  Empieza la mision sin fin en claude/noche-mimo-razones-para-pagar. Equipo despierto: True
+2026-09-14 22:32:17  Vuelta 1 en marcha (PID 15564).
+2026-09-14 23:14:14  Arranca la noche con integracion en main. Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-14 23:14:14  Adopto la vuelta de MiMo que ya estaba en marcha (PID 11536).
+2026-09-15 00:32:28  Vuelta 1 termino (codigo 0, 78.2 min). Commits sobre main: 16
+2026-09-15 00:32:29  Vuelta 2 en marcha (PID 5544).
+2026-09-15 00:49:15  Integracion: arbol limpio, pauso a MiMo.
+2026-09-15 00:49:23  Push de la rama: codigo 0
+2026-09-15 00:49:26  PR creada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-15 00:49:27  Auto-merge pedido (codigo 0).
+2026-09-15 00:49:27  Esperando al CI de https://github.com/Sergiovalle3121/valle-design/pull/209 (hasta 150 min).
+2026-09-15 00:53:29  Resultado de la integracion: fallo: Contrato ┬À Build ┬À Test ┬À Lint ┬À Smoke; E2E Playwright (PostgreSQL ┬À Chromium + Firefox)
+2026-09-15 00:53:34  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Contrato ┬À Build ┬À Test ┬À Lint ┬À Smoke; E2E Playwright (PostgreSQL ┬À Chromium + Firefox)).
+2026-09-15 00:53:34  Vuelta 2 termino (codigo 0, 21.1 min). Commits sobre main: 18
+2026-09-15 00:53:34  Vuelta 3 en marcha (PID 13908).
+2026-09-15 01:53:48  Integracion: arbol limpio, pauso a MiMo.
+2026-09-15 01:53:55  Rebase con conflictos que no resuelvo solo: package-lock.json
+2026-09-15 01:53:55  Integracion: la rama choca con main en algo que no resuelvo solo. Queda para Sergio; sigo trabajando.
+2026-09-15 01:53:55  Vuelta 3 termino (codigo 0, 60.4 min). Commits sobre main: 35
+2026-09-15 01:53:55  Vuelta 4 en marcha (PID 11916).
+2026-09-15 02:04:57  Vuelta 4 termino (codigo 0, 11 min). Commits sobre main: 38
+2026-09-15 02:04:57  Vuelta 5 en marcha (PID 1388).
+2026-09-15 02:39:02  Vuelta 5 termino (codigo 0, 34.1 min). Commits sobre main: 47
+2026-09-15 02:39:02    Aviso del servicio: {"type":"step_finish","timestamp":1789460027429,"sessionID":"ses_-ffe5f5ca99512ffeqtzkhakiR","part":{"id":"prt_g001a0a4211621001eY8ohWjSl","reason":"tool-calls","snapshot":"029a6caa992d575bc5f5fa02656
+2026-09-15 02:39:02  Espero 5 minutos antes de reintentar.
+2026-09-15 02:44:02  Vuelta 6 en marcha (PID 16064).
+2026-09-15 03:07:06  Vuelta 6 termino (codigo 0, 23.1 min). Commits sobre main: 53
+2026-09-15 03:07:06    Aviso del servicio: {"type":"step_finish","timestamp":1789462204965,"sessionID":"ses_-ffe5f5ca99512ffeqtzkhakiR","part":{"id":"prt_g001a0a4424fea0012Ro4YZfbg","reason":"tool-calls","snapshot":"24718b1065806139c01821c3425
+2026-09-15 03:07:06  Espero 15 minutos antes de reintentar.
+2026-09-15 03:22:06  Vuelta 7 en marcha (PID 11748).
+2026-09-15 03:38:08  Vuelta 7 termino (codigo 0, 16 min). Commits sobre main: 55
+2026-09-15 03:38:08    Aviso del servicio: {"type":"tool_use","timestamp":1789464222431,"sessionID":"ses_-ffe5f5ca99512ffeqtzkhakiR","part":{"type":"tool","tool":"grep","callID":"call_992f1d5afdae4d81867d466f","state":{"status":"completed","in
+2026-09-15 03:38:08  Espero 30 minutos antes de reintentar.
+2026-09-15 04:08:08  Vuelta 8 en marcha (PID 5600).
+2026-09-15 04:20:10  Vuelta 8 termino (codigo 0, 12 min). Commits sobre main: 55
+2026-09-15 04:20:10    Aviso del servicio: {"type":"step_finish","timestamp":1789467062112,"sessionID":"ses_-ffe5f5ca99512ffeqtzkhakiR","part":{"id":"prt_g001a0a48c6cb40012qMo6Z0bs","reason":"tool-calls","snapshot":"a820162ac73c353e2f6ef3087bd
+2026-09-15 04:20:10  Espero 60 minutos antes de reintentar.
+2026-09-15 05:20:10  Vuelta 9 en marcha (PID 1792).
+2026-09-15 05:30:16  Integracion: arbol limpio, pauso a MiMo.
+2026-09-15 05:30:22  Rebase con conflictos que no resuelvo solo: package-lock.json
+2026-09-15 05:30:22  Integracion: la rama choca con main en algo que no resuelvo solo. Queda para Sergio; sigo trabajando.
+2026-09-15 05:30:22  Vuelta 9 termino (codigo 0, 10.2 min). Commits sobre main: 56
+2026-09-15 05:30:22  Vuelta 10 en marcha (PID 3244).
+2026-09-15 05:48:26  Vuelta 10 termino (codigo 0, 18.1 min). Commits sobre main: 62
+2026-09-15 05:48:26  Vuelta 11 en marcha (PID 14136).
+2026-09-15 06:04:28  Vuelta 11 termino (codigo 0, 16 min). Commits sobre main: 64
+2026-09-15 06:04:28    Aviso del servicio: {"type":"tool_use","timestamp":1789473054272,"sessionID":"ses_-ffe5f5ca99512ffeqtzkhakiR","part":{"type":"tool","tool":"grep","callID":"call_ffccb2f622014c4292745cb7","state":{"status":"completed","in
+2026-09-15 06:04:28  Espero 5 minutos antes de reintentar.
+2026-09-15 06:09:28  Vuelta 12 en marcha (PID 10232).
+2026-09-15 06:35:32  Vuelta 12 termino (codigo 0, 26.1 min). Commits sobre main: 67
+2026-09-15 06:35:32    Aviso del servicio: {"type":"step_start","timestamp":1789474294715,"sessionID":"ses_-ffe5f5ca99512ffeqtzkhakiR","part":{"id":"prt_g001a0a4facbb80016kLXqbWLt","messageID":"msg_g001a0a4fa6a07001QELI90tiq","sessionID":"ses_
+2026-09-15 06:35:32  Espero 15 minutos antes de reintentar.
+2026-09-15 06:50:32  Vuelta 13 en marcha (PID 4312).
+2026-09-15 07:04:35  Vuelta 13 termino (codigo 0, 14 min). Commits sobre main: 71
+2026-09-15 07:04:35    Aviso del servicio: {"type":"text","timestamp":1789477275533,"sessionID":"ses_-ffe5f5ca99512ffeqtzkhakiR","part":{"id":"prt_g001a0a5284292001R1AYQckXE","messageID":"msg_g001a0a52817b1001XtxGWco0W","sessionID":"ses_-ffe5f
+2026-09-15 07:04:35  Espero 30 minutos antes de reintentar.
+2026-09-15 07:34:35  Vuelta 14 en marcha (PID 11568).
+2026-09-15 07:47:37  Vuelta 14 termino (codigo 0, 13 min). Commits sobre main: 73
+2026-09-15 07:47:37    Aviso del servicio: {"type":"tool_use","timestamp":1789479637349,"sessionID":"ses_-ffe5f5ca99512ffeqtzkhakiR","part":{"type":"tool","tool":"read","callID":"call_731ef6f0d6a2434a9e429ef6","state":{"status":"completed","in
+2026-09-15 07:47:37  Espero 60 minutos antes de reintentar.
+2026-09-15 08:47:37  Vuelta 15 en marcha (PID 7580).
+2026-09-15 08:48:40  Integracion: arbol limpio, pauso a MiMo.
+2026-09-15 08:48:46  Rebase con conflictos que no resuelvo solo: package-lock.json
+2026-09-15 08:48:46  Integracion: la rama choca con main en algo que no resuelvo solo. Queda para Sergio; sigo trabajando.
+2026-09-15 08:48:46  Vuelta 15 termino (codigo 0, 1.2 min). Commits sobre main: 73
+2026-09-15 08:48:46  Vuelta 16 en marcha (PID 5364).
+2026-09-15 09:01:49  Vuelta 16 termino (codigo 0, 13 min). Commits sobre main: 77
+2026-09-15 09:01:49  Vuelta 17 en marcha (PID 8844).
+2026-09-15 09:11:06  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-15 09:11:07  Adopto la vuelta de MiMo que ya estaba en marcha (PID 13548).
+2026-09-15 09:11:09  Reorientar: relanzo a MiMo en la misma sesion para que lea la orden nueva del prompt.
+2026-09-15 09:11:13  Vuelta 1 termino (codigo 0, 0.1 min). Commits sobre main: 77
+2026-09-15 09:11:13  Vuelta 2 en marcha (PID 412).
+2026-09-15 09:18:28  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-15 09:18:28  Adopto la vuelta de MiMo que ya estaba en marcha (PID 16248).
+2026-09-15 09:32:47  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-15 09:32:47  Vuelta 1 en marcha (PID 15044).
+2026-09-15 09:35:33  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-15 09:35:33  Adopto la vuelta de MiMo que ya estaba en marcha (PID 5772).
+2026-09-15 09:35:35  Reorientar: relanzo a MiMo en la misma sesion para que lea la orden nueva del prompt.
+2026-09-15 09:35:39  Vuelta 1 termino (codigo 0, 0.1 min). Commits sobre main: 78
+2026-09-15 09:35:39  Vuelta 2 en marcha (PID 12168).
+2026-09-15 10:35:52  La #208 ya no esta abierta (MERGED).
+2026-09-15 10:35:53  Integracion: main avanzo; espero a que MiMo deje el arbol limpio para rebasar.
+2026-09-15 10:42:02  Integracion: pauso a MiMo un momento para rebasar sobre main.
+2026-09-15 10:42:09  Rebase: conflicto de dependencias resuelto con la version de main: package-lock.json
+2026-09-15 10:42:10  Rebase: conflicto de dependencias resuelto con la version de main: package-lock.json
+2026-09-15 10:42:15  Rebase sobre main hecho: 88 commits encima.
+2026-09-15 10:42:20  Push de la rama (8f7c14f8): codigo 0
+2026-09-15 10:42:23  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-15 10:42:25  Auto-merge pedido (codigo 0).
+2026-09-15 10:42:25  CI en marcha para 8f7c14f8 (88 commits). MiMo sigue trabajando mientras tanto.
+2026-09-15 10:42:25  Vuelta 2 termino (codigo 0, 66.8 min). Commits sobre main: 88
+2026-09-15 10:42:25  Vuelta 3 en marcha (PID 13200).
+2026-09-15 10:50:27  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-15 10:50:33  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-15 10:51:34  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-15 10:51:37  Vuelta 3 termino (codigo 0, 9.2 min). Commits sobre main: 90
+2026-09-15 10:51:37  Vuelta 4 en marcha (PID 3044).
+2026-09-15 11:05:17  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-15 11:05:20  Sigo la PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 (8f7c14f8), con auto-merge.
+2026-09-15 11:05:20  Adopto la vuelta de MiMo que ya estaba en marcha (PID 2220).
+2026-09-15 11:10:24  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-15 11:10:32  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-15 11:10:32  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-15 11:10:35  Vuelta 1 termino (codigo 0, 5.3 min). Commits sobre main: 90
+2026-09-15 11:10:36  Vuelta 2 en marcha (PID 10948).
+2026-09-15 11:55:44  La #208 ya no esta abierta (MERGED).
+2026-09-15 11:55:48  Push de la rama (2cd4acee): codigo 0
+2026-09-15 11:55:51  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-15 11:55:53  Auto-merge pedido (codigo 0).
+2026-09-15 11:55:53  CI en marcha para 2cd4acee (91 commits). MiMo sigue trabajando mientras tanto.
+2026-09-15 11:56:53  Vigilante: la sesion lleva 30.8 min sin actividad. Reinicio a MiMo.
+2026-09-15 11:56:57  Vuelta 2 termino (codigo 0, 46.3 min). Commits sobre main: 91
+2026-09-15 11:56:57  Vuelta 3 en marcha (PID 10920).
+2026-09-15 12:03:59  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-15 12:04:07  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-15 12:04:56  Arranca la noche v3.1 (integra sin parar a MiMo, merge: manual). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-15 12:05:00  Sigo la PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 (2cd4acee), con auto-merge.
+2026-09-15 12:05:00  Adopto la vuelta de MiMo que ya estaba en marcha (PID 764).
+2026-09-15 12:06:01  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-15 12:06:08  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-15 12:26:13  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-15 12:26:16  Vuelta 1 termino (codigo 0, 21.3 min). Commits sobre main: 91
+2026-09-15 12:26:16  Vuelta 2 en marcha (PID 13180).
+2026-09-15 12:51:22  La #208 ya no esta abierta (MERGED).
+2026-09-15 12:51:24  Push de la rama (2cd4acee): codigo 0
+2026-09-15 12:51:27  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-15 12:51:29  Auto-merge pedido (codigo 0).
+2026-09-15 12:51:29  CI en marcha para 2cd4acee (91 commits). MiMo sigue trabajando mientras tanto.
+2026-09-15 12:59:31  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-15 12:59:38  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-15 13:04:39  Vigilante: la sesion lleva 30.9 min sin actividad. Reinicio a MiMo.
+2026-09-15 13:04:42  Vuelta 2 termino (codigo 0, 38.4 min). Commits sobre main: 91
+2026-09-15 13:04:42  Vuelta 3 en marcha (PID 12848).
+2026-09-15 13:19:46  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-15 13:19:49  Vuelta 3 termino (codigo 0, 15.1 min). Commits sobre main: 91
+2026-09-15 13:19:49  Vuelta 4 en marcha (PID 5496).
+2026-09-15 13:44:58  Push de la rama (be46ff85): codigo 0
+2026-09-15 13:45:01  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-15 13:45:03  Auto-merge pedido (codigo 0).
+2026-09-15 13:45:03  CI en marcha para be46ff85 (95 commits). MiMo sigue trabajando mientras tanto.
+2026-09-15 23:03:30  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-15 23:03:37  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-15 23:23:45  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-15 23:23:48  Vuelta 4 termino (codigo 0, 604 min). Commits sobre main: 97
+2026-09-15 23:23:48  Vuelta 5 en marcha (PID 7228).
+2026-09-15 23:48:57  Push de la rama (3f67a248): codigo 0
+2026-09-15 23:49:01  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-15 23:49:02  Auto-merge pedido (codigo 0).
+2026-09-15 23:49:02  CI en marcha para 3f67a248 (97 commits). MiMo sigue trabajando mientras tanto.
+2026-09-15 23:57:04  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-15 23:57:11  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-16 00:04:13  Vigilante: la sesion lleva 30.7 min sin actividad. Reinicio a MiMo.
+2026-09-16 00:04:17  Vuelta 5 termino (codigo 0, 40.5 min). Commits sobre main: 97
+2026-09-16 00:04:17  Vuelta 6 en marcha (PID 18240).
+2026-09-16 00:17:21  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-16 00:17:25  Vuelta 6 termino (codigo 0, 13.1 min). Commits sobre main: 98
+2026-09-16 00:17:25  Vuelta 7 en marcha (PID 19036).
+2026-09-16 00:31:15  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-16 00:31:19  La PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 no contiene main al dia: la actualizo en la primera integracion (en 60 min).
+2026-09-16 00:31:19  Vuelta 1 en marcha (PID 15084).
+2026-09-16 00:38:59  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-16 00:39:01  La PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 no contiene main al dia: la actualizo en la primera integracion (en 60 min).
+2026-09-16 00:39:01  Adopto la vuelta de MiMo que ya estaba en marcha (PID 2608).
+2026-09-16 00:39:03  Reorientar: relanzo a MiMo en la misma sesion para que lea la orden nueva del prompt.
+2026-09-16 00:39:07  Vuelta 1 termino (codigo 0, 0.1 min). Commits sobre main: 98
+2026-09-16 00:39:07  Vuelta 2 en marcha (PID 4580).
+2026-09-16 00:45:59  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-16 00:46:01  La PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 no contiene main al dia: la actualizo en la primera integracion (en 60 min).
+2026-09-16 00:46:01  Adopto la vuelta de MiMo que ya estaba en marcha (PID 14596).
+2026-09-16 00:46:03  Reorientar: relanzo a MiMo en la misma sesion para que lea la orden nueva del prompt.
+2026-09-16 00:46:07  Vuelta 1 termino (codigo 0, 0.1 min). Commits sobre main: 98
+2026-09-16 00:46:07  Vuelta 2 en marcha (PID 10244).
+2026-09-16 01:46:18  La #208 ya no esta abierta (MERGED).
+2026-09-16 01:46:18  Integracion: main avanzo; espero a que MiMo deje el arbol limpio para rebasar.
+2026-09-16 02:12:37  Integracion: pauso a MiMo un momento para rebasar sobre main.
+2026-09-16 02:12:52  Rebase sobre main hecho: 106 commits encima.
+2026-09-16 02:12:57  Push de la rama (dd1dbb76): codigo 0
+2026-09-16 02:13:00  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-16 02:13:01  Auto-merge pedido (codigo 0).
+2026-09-16 02:13:01  CI en marcha para dd1dbb76 (106 commits). MiMo sigue trabajando mientras tanto.
+2026-09-16 02:13:01  Vuelta 2 termino (codigo 0, 86.9 min). Commits sobre main: 106
+2026-09-16 02:13:01  Vuelta 3 en marcha (PID 8556).
+2026-09-16 02:25:05  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-16 02:25:12  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-16 02:25:12  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-16 02:25:16  Vuelta 3 termino (codigo 0, 12.2 min). Commits sobre main: 106
+2026-09-16 02:25:16  Vuelta 4 en marcha (PID 10132).
+2026-09-16 03:10:26  Push de la rama (4359ef50): codigo 0
+2026-09-16 03:10:29  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-16 03:10:30  Auto-merge pedido (codigo 0).
+2026-09-16 03:10:30  CI en marcha para 4359ef50 (108 commits). MiMo sigue trabajando mientras tanto.
+2026-09-16 03:18:33  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-16 03:18:40  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-16 03:18:40  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-16 03:18:43  Vuelta 4 termino (codigo 0, 53.5 min). Commits sobre main: 110
+2026-09-16 03:18:43  Vuelta 5 en marcha (PID 6992).
+2026-09-16 04:03:53  Push de la rama (d6f9bcf6): codigo 0
+2026-09-16 04:03:56  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-16 04:03:57  Auto-merge pedido (codigo 0).
+2026-09-16 04:03:57  CI en marcha para d6f9bcf6 (110 commits). MiMo sigue trabajando mientras tanto.
+2026-09-16 04:16:01  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-16 04:16:08  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-16 04:16:08  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-16 04:16:12  Vuelta 5 termino (codigo 0, 57.5 min). Commits sobre main: 111
+2026-09-16 04:16:12  Vuelta 6 en marcha (PID 13448).
+2026-09-16 05:01:19  Push de la rama (5ca63564): codigo 128
+2026-09-16 05:01:19    System.Management.Automation.RemoteException | Please make sure you have the correct access rights | and the repository exists.
+2026-09-16 05:11:20  Vuelta 6 termino (codigo 0, 55.1 min). Commits sobre main: 119
+2026-09-16 05:11:20  Vuelta 7 en marcha (PID 8308).
+2026-09-16 05:31:24  Push de la rama (d0f1ac5c): codigo 128
+2026-09-16 05:31:24    System.Management.Automation.RemoteException | Please make sure you have the correct access rights | and the repository exists.
+2026-09-16 06:01:30  Push de la rama (68e3cbce): codigo 128
+2026-09-16 06:01:30    System.Management.Automation.RemoteException | Please make sure you have the correct access rights | and the repository exists.
+2026-09-16 06:14:32  Vuelta 7 termino (codigo 0, 63.2 min). Commits sobre main: 133
+2026-09-16 06:14:32  Vuelta 8 en marcha (PID 3204).
+2026-09-16 06:31:36  Push de la rama (ecb839bb): codigo 128
+2026-09-16 06:31:36    System.Management.Automation.RemoteException | Please make sure you have the correct access rights | and the repository exists.
+2026-09-16 07:01:42  Push de la rama (a742a410): codigo 128
+2026-09-16 07:01:42    System.Management.Automation.RemoteException | Please make sure you have the correct access rights | and the repository exists.
+2026-09-16 07:05:42  Vuelta 8 termino (codigo 0, 51.2 min). Commits sobre main: 140
+2026-09-16 07:05:42  Vuelta 9 en marcha (PID 388).
+2026-09-16 07:31:48  Push de la rama (d116ec64): codigo 128
+2026-09-16 07:31:48    System.Management.Automation.RemoteException | Please make sure you have the correct access rights | and the repository exists.
+2026-09-16 08:01:53  Push de la rama (653ba0c1): codigo 128
+2026-09-16 08:01:53    System.Management.Automation.RemoteException | Please make sure you have the correct access rights | and the repository exists.
+2026-09-16 08:27:57  Vuelta 9 termino (codigo 0, 82.2 min). Commits sobre main: 153
+2026-09-16 08:27:57  Vuelta 10 en marcha (PID 15180).
+2026-09-16 08:31:59  Push de la rama (0e703794): codigo 128
+2026-09-16 08:31:59    System.Management.Automation.RemoteException | Please make sure you have the correct access rights | and the repository exists.
+2026-09-16 09:02:04  Push de la rama (35bc1649): codigo 128
+2026-09-16 09:02:04    System.Management.Automation.RemoteException | Please make sure you have the correct access rights | and the repository exists.
+2026-09-16 09:32:10  Push de la rama (755165a1): codigo 128
+2026-09-16 09:32:10    System.Management.Automation.RemoteException | Please make sure you have the correct access rights | and the repository exists.
+2026-09-16 09:32:10  Vuelta 10 termino (codigo 0, 64.2 min). Commits sobre main: 161
+2026-09-16 09:32:10  Vuelta 11 en marcha (PID 3992).
+2026-09-16 09:42:13  Vuelta 11 termino (codigo 0, 10 min). Commits sobre main: 163
+2026-09-16 09:42:13  Vuelta 12 en marcha (PID 5924).
+2026-09-16 10:02:25  Push de la rama (8dafc862): codigo 0
+2026-09-16 10:02:29  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-16 10:02:31  Auto-merge pedido (codigo 0).
+2026-09-16 10:02:31  CI en marcha para 8dafc862 (164 commits). MiMo sigue trabajando mientras tanto.
+2026-09-16 10:10:37  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-16 10:10:45  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-16 10:12:48  Vuelta 12 termino (codigo -1, 30.6 min). Commits sobre main: 164
+2026-09-16 10:12:48  Espero 5 minutos antes de reintentar.
+2026-09-16 10:17:49  Vuelta 13 en marcha (PID 15960).
+2026-09-16 10:23:51  Vuelta 13 termino (codigo -1, 6 min). Commits sobre main: 164
+2026-09-16 10:23:51  Espero 15 minutos antes de reintentar.
+2026-09-16 10:38:51  Vuelta 14 en marcha (PID 15472).
+2026-09-16 10:39:51  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-16 10:39:55  Vuelta 14 termino (codigo 0, 1.1 min). Commits sobre main: 164
+2026-09-16 10:39:55  Vuelta 15 en marcha (PID 15616).
+2026-09-16 10:56:02  Push de la rama (8dafc862): codigo 0
+2026-09-16 10:56:05  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-16 10:56:06  Auto-merge pedido (codigo 0).
+2026-09-16 10:56:06  CI en marcha para 8dafc862 (164 commits). MiMo sigue trabajando mientras tanto.
+2026-09-16 11:04:09  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-16 11:04:15  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-16 11:24:21  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-16 11:24:25  Vuelta 15 termino (codigo 0, 44.5 min). Commits sobre main: 164
+2026-09-16 11:24:25  Vuelta 16 en marcha (PID 15960).
+2026-09-16 11:45:19  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-16 11:45:23  Sigo la PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 (8dafc862), con auto-merge.
+2026-09-16 11:45:23  Adopto la vuelta de MiMo que ya estaba en marcha (PID 14676).
+2026-09-16 11:46:25  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-16 11:46:32  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-16 12:06:38  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-16 12:06:43  Vuelta 1 termino (codigo 0, 21.3 min). Commits sobre main: 167
+2026-09-16 12:06:43  Vuelta 2 en marcha (PID 12464).
+2026-09-16 12:31:50  La #208 ya no esta abierta (MERGED).
+2026-09-16 12:31:50  Integracion bloqueada: la rama cambia dependencias (package.json) y la mision lo prohibe. Pido a MiMo que lo revierta.
+2026-09-16 12:51:55  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-16 12:51:59  Vuelta 2 termino (codigo 0, 45.3 min). Commits sobre main: 170
+2026-09-16 12:51:59  Vuelta 3 en marcha (PID 4280).
+2026-09-16 13:02:04  Integracion bloqueada: la rama cambia dependencias (apps/web/package.json) y la mision lo prohibe. Pido a MiMo que lo revierta.
+2026-09-16 13:03:04  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-16 13:03:08  Vuelta 3 termino (codigo 0, 11.1 min). Commits sobre main: 173
+2026-09-16 13:03:08  Vuelta 4 en marcha (PID 11840).
+2026-09-16 13:32:22  Push de la rama (f1c0ea1f): codigo 0
+2026-09-16 13:32:27  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-16 13:32:29  Auto-merge pedido (codigo 0).
+2026-09-16 13:32:29  CI en marcha para f1c0ea1f (174 commits). MiMo sigue trabajando mientras tanto.
+2026-09-16 13:44:35  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-16 13:44:44  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-16 13:44:45  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-16 13:44:48  Vuelta 4 termino (codigo 0, 41.7 min). Commits sobre main: 175
+2026-09-16 13:44:48  Vuelta 5 en marcha (PID 4452).
+2026-09-16 14:21:41  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-16 14:21:48  Sigo la PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 (f1c0ea1f), con auto-merge.
+2026-09-16 14:21:48  Adopto la vuelta de MiMo que ya estaba en marcha (PID 6744).
+2026-09-16 14:22:50  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-16 14:23:02  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-16 14:23:02  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-16 14:23:06  Vuelta 1 termino (codigo 0, 1.3 min). Commits sobre main: 179
+2026-09-16 14:23:06  Vuelta 2 en marcha (PID 13696).
+2026-09-16 15:08:21  La #208 ya no esta abierta (MERGED).
+2026-09-16 15:09:51  Candado local: typecheck web verde (89 s).
+2026-09-16 15:13:25  Candado local: lint web verde (214 s).
+2026-09-16 15:13:26  Candado local: lint api en rojo (codigo 1, 1 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-16 15:25:53  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-16 15:25:57  Sigo la PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 (f1c0ea1f), con auto-merge.
+2026-09-16 15:25:57  Adopto la vuelta de MiMo que ya estaba en marcha (PID 16576).
+2026-09-16 15:26:59  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-16 15:27:06  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-16 15:29:07  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-16 15:29:10  Vuelta 1 termino (codigo 0, 3.2 min). Commits sobre main: 183
+2026-09-16 15:29:11  Vuelta 2 en marcha (PID 8136).
+2026-09-16 15:51:21  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-16 15:51:31  Sigo la PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 (f1c0ea1f), con auto-merge.
+2026-09-16 15:51:31  Adopto la vuelta de MiMo que ya estaba en marcha (PID 8616).
+2026-09-16 15:52:32  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-16 15:52:40  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-16 16:05:03  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-16 16:05:07  Sigo la PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 (f1c0ea1f), con auto-merge.
+2026-09-16 16:05:07  Adopto la vuelta de MiMo que ya estaba en marcha (PID 8616).
+2026-09-16 16:06:09  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-16 16:06:16  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-16 16:07:12  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-16 16:07:16  Sigo la PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 (f1c0ea1f), con auto-merge.
+2026-09-16 16:07:16  Adopto la vuelta de MiMo que ya estaba en marcha (PID 8616).
+2026-09-16 16:08:18  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-16 16:08:27  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-16 16:11:05  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-16 16:11:14  Sigo la PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 (f1c0ea1f), con auto-merge.
+2026-09-16 16:11:14  Adopto la vuelta de MiMo que ya estaba en marcha (PID 8616).
+2026-09-16 16:12:17  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-16 16:12:24  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-16 16:13:24  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-16 16:13:28  Vuelta 1 termino (codigo 0, 2.2 min). Commits sobre main: 184
+2026-09-16 16:13:28  Vuelta 2 en marcha (PID 3596).
+2026-09-16 16:57:36  La #208 ya no esta abierta (MERGED).
+2026-09-16 16:57:36  Integracion: main avanzo; espero a que MiMo deje el arbol limpio para rebasar.
+2026-09-16 17:15:51  Integracion: pauso a MiMo un momento para rebasar sobre main.
+2026-09-16 17:16:05  Rebase con conflictos que no resuelvo solo: apps/web/src/components/ui/Toggle.tsx
+2026-09-16 17:16:06  Integracion: la rama choca con main en algo que no resuelvo solo. Queda para Sergio; MiMo sigue.
+2026-09-16 17:16:07  Vuelta 2 termino (codigo 0, 62.6 min). Commits sobre main: 196
+2026-09-16 17:16:07  Vuelta 3 en marcha (PID 14344).
+2026-09-16 17:26:08  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-16 17:26:09  La PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 no contiene main al dia: la actualizo en la primera integracion (en 2 min).
+2026-09-16 17:26:09  Adopto la vuelta de MiMo que ya estaba en marcha (PID 13640).
+2026-09-16 17:28:11  La #208 ya no esta abierta (MERGED).
+2026-09-16 17:28:12  Integracion: main avanzo; espero a que MiMo deje el arbol limpio para rebasar.
+2026-09-16 17:36:18  Integracion: pauso a MiMo un momento para rebasar sobre main.
+2026-09-16 17:36:30  Rebase con conflictos que no resuelvo solo: apps/web/src/components/ui/Toggle.tsx
+2026-09-16 17:36:31  Integracion: la rama choca con main en apps/web/src/components/ui/Toggle.tsx. Se lo paso a MiMo para que lo resuelva el.
+2026-09-16 17:36:31  Vuelta 1 termino (codigo 0, 10.4 min). Commits sobre main: 213
+2026-09-16 17:36:31  Vuelta 2 en marcha (PID 8996).
+2026-09-16 17:37:32  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-16 17:37:35  Vuelta 2 termino (codigo 0, 1.1 min). Commits sobre main: 213
+2026-09-16 17:37:35  Vuelta 3 en marcha (PID 2540).
+2026-09-16 17:56:40  Integracion: main avanzo; espero a que MiMo deje el arbol limpio para rebasar.
+2026-09-16 17:58:17  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-16 17:58:19  La PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 no contiene main al dia: la actualizo en la primera integracion (en 2 min).
+2026-09-16 17:58:19  Adopto la vuelta de MiMo que ya estaba en marcha (PID 8596).
+2026-09-16 18:00:21  La #208 ya no esta abierta (MERGED).
+2026-09-16 18:00:21  Integracion: main avanzo; espero a que MiMo deje el arbol limpio para rebasar.
+2026-09-16 18:08:28  Integracion: pauso a MiMo un momento para rebasar sobre main.
+2026-09-16 18:08:41  Rebase con conflictos que no resuelvo solo: apps/web/src/components/ui/Toggle.tsx
+2026-09-16 18:08:42  Integracion: la rama choca con main en apps/web/src/components/ui/Toggle.tsx. Se lo paso a MiMo para que lo resuelva el.
+2026-09-16 18:08:42  Vuelta 1 termino (codigo 0, 10.4 min). Commits sobre main: 217
+2026-09-16 18:08:42  Vuelta 2 en marcha (PID 8028).
+2026-09-16 18:09:43  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-16 18:09:46  Vuelta 2 termino (codigo 0, 1.1 min). Commits sobre main: 217
+2026-09-16 18:09:46  Vuelta 3 en marcha (PID 11948).
+2026-09-16 18:10:47  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-16 18:10:48  La PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 no contiene main al dia: la actualizo en la primera integracion (en 2 min).
+2026-09-16 18:10:49  Vuelta 1 en marcha (PID 4592).
+2026-09-16 18:12:51  La #208 ya no esta abierta (MERGED).
+2026-09-16 18:12:51  Integracion: pauso a MiMo un momento para rebasar sobre main.
+2026-09-16 18:13:03  Rebase con conflictos que no resuelvo solo: apps/web/src/components/ui/Toggle.tsx
+2026-09-16 18:13:05  El rebase chocaba, pero la fusion con main entra limpia: sigo con la integracion.
+2026-09-16 18:13:06  Rebase sobre main hecho: 218 commits encima.
+2026-09-16 18:13:21  Candado local: typecheck web verde (15 s).
+2026-09-16 18:15:36  Candado local: lint web verde (135 s).
+2026-09-16 18:16:21  Candado local: lint api en rojo (codigo 1, 45 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-16 18:16:21  Vuelta 1 termino (codigo 0, 5.5 min). Commits sobre main: 218
+2026-09-16 18:16:21  Vuelta 2 en marcha (PID 2956).
+2026-09-16 18:17:22  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-16 18:17:25  Vuelta 2 termino (codigo 0, 1.1 min). Commits sobre main: 218
+2026-09-16 18:17:25  Vuelta 3 en marcha (PID 15952).
+2026-09-16 18:20:15  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-16 18:20:17  La PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 no contiene main al dia: la actualizo en la primera integracion (en 12 min).
+2026-09-16 18:20:17  Adopto la vuelta de MiMo que ya estaba en marcha (PID 3892).
+2026-09-16 18:32:20  La #208 ya no esta abierta (MERGED).
+2026-09-16 18:32:21  Integracion: pauso a MiMo un momento para rebasar sobre main.
+2026-09-16 18:32:36  Rebase con conflictos que no resuelvo solo: apps/web/src/components/ui/Toggle.tsx
+2026-09-16 18:32:38  Integracion: la rama choca con main en apps/web/src/components/ui/Toggle.tsx. Se lo paso a MiMo para que lo resuelva el.
+2026-09-16 18:32:38  Vuelta 1 termino (codigo 0, 12.4 min). Commits sobre main: 219
+2026-09-16 18:32:38  Vuelta 2 en marcha (PID 16660).
+2026-09-16 18:33:39  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-16 18:33:42  Vuelta 2 termino (codigo 0, 1.1 min). Commits sobre main: 219
+2026-09-16 18:33:42  Vuelta 3 en marcha (PID 16460).
+2026-09-16 18:34:42  Vuelta 3 termino (codigo 0, 1 min). Commits sobre main: 219
+2026-09-16 18:34:42  Vuelta 4 en marcha (PID 14376).
+2026-09-16 18:52:46  Integracion: main avanzo; espero a que MiMo deje el arbol limpio para rebasar.
+2026-09-16 19:00:53  Integracion: pauso a MiMo un momento para rebasar sobre main.
+2026-09-16 19:01:05  Rebase con conflictos que no resuelvo solo: apps/web/src/components/ui/Toggle.tsx
+2026-09-16 19:01:07  Integracion: la rama choca con main en apps/web/src/components/ui/Toggle.tsx. Se lo paso a MiMo para que lo resuelva el.
+2026-09-16 19:01:07  Vuelta 4 termino (codigo 0, 26.4 min). Commits sobre main: 222
+2026-09-16 19:01:07  Vuelta 5 en marcha (PID 7832).
+2026-09-16 19:02:07  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-16 19:02:10  Vuelta 5 termino (codigo 0, 1.1 min). Commits sobre main: 222
+2026-09-16 19:02:10  Vuelta 6 en marcha (PID 8112).
+2026-09-16 19:03:11  Vuelta 6 termino (codigo 0, 1 min). Commits sobre main: 222
+2026-09-16 19:03:11  Vuelta 7 en marcha (PID 2228).
+2026-09-16 19:21:15  Integracion: main avanzo; espero a que MiMo deje el arbol limpio para rebasar.
+2026-09-16 19:41:19  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-16 19:41:21  La PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 no contiene main al dia: la actualizo en la primera integracion (en 2 min).
+2026-09-16 19:41:21  Adopto la vuelta de MiMo que ya estaba en marcha (PID 14800).
+2026-09-16 19:43:23  La #208 ya no esta abierta (MERGED).
+2026-09-16 19:43:23  Integracion: pauso a MiMo un momento para rebasar sobre main.
+2026-09-16 19:43:28  Rebase sobre main hecho: 230 commits encima.
+2026-09-16 19:43:41  Candado local: typecheck web en rojo (codigo 2, 13 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-16 19:43:41  Vuelta 1 termino (codigo 0, 2.3 min). Commits sobre main: 230
+2026-09-16 19:43:42  Vuelta 2 en marcha (PID 8160).
+2026-09-16 19:46:17  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-16 19:46:18  La PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 no contiene main al dia: la actualizo en la primera integracion (en 3 min).
+2026-09-16 19:46:18  Adopto la vuelta de MiMo que ya estaba en marcha (PID 7604).
+2026-09-16 19:49:21  La #208 ya no esta abierta (MERGED).
+2026-09-16 19:49:21  Integracion: fusion con main ABIERTA en el arbol. Se la paso a MiMo y espero a que la termine.
+2026-09-16 19:49:21  Vuelta 1 termino (codigo 0, 3 min). Commits sobre main: 230
+2026-09-16 19:49:21  Vuelta 2 en marcha (PID 7008).
+2026-09-16 20:00:24  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-16 20:00:28  Vuelta 2 termino (codigo 0, 11.1 min). Commits sobre main: 231
+2026-09-16 20:00:28  Vuelta 3 en marcha (PID 7248).
+2026-09-16 20:04:46  Candado local: typecheck web verde (16 s).
+2026-09-16 20:08:03  Candado local: lint web en rojo (codigo 1, 197 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-16 20:09:03  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-16 20:09:07  Vuelta 3 termino (codigo 0, 8.6 min). Commits sobre main: 232
+2026-09-16 20:09:07  Vuelta 4 en marcha (PID 13352).
+2026-09-16 20:16:16  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-16 20:16:17  La PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 no contiene main al dia: la actualizo en la primera integracion (en 10 min).
+2026-09-16 20:16:18  Adopto la vuelta de MiMo que ya estaba en marcha (PID 10288).
+2026-09-16 20:26:21  La #208 ya no esta abierta (MERGED).
+2026-09-16 20:26:37  Candado local: typecheck web verde (15 s).
+2026-09-16 20:28:53  Candado local: lint web verde (136 s).
+2026-09-16 20:29:37  Candado local: lint api verde (44 s).
+2026-09-16 20:29:42  Push de la rama (6e9a553f): codigo 0
+2026-09-16 20:29:46  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-16 20:29:47  Auto-merge pedido (codigo 0).
+2026-09-16 20:29:47  CI en marcha para 6e9a553f (233 commits). MiMo sigue trabajando mientras tanto.
+2026-09-16 20:37:49  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-16 20:37:57  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-16 20:45:59  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-16 20:46:03  Vuelta 1 termino (codigo 0, 29.8 min). Commits sobre main: 234
+2026-09-16 20:46:03  Vuelta 2 en marcha (PID 12900).
+2026-09-16 21:23:09  Integracion: main avanzo; espero a que MiMo deje el arbol limpio para fusionar.
+2026-09-16 21:27:13  Integracion: pauso a MiMo un momento para rebasar sobre main.
+2026-09-16 21:27:17  Integracion: la fusion con main choca en 50 ficheros. La dejo ABIERTA y se la paso a MiMo.
+2026-09-16 21:27:17  Vuelta 2 termino (codigo 0, 41.2 min). Commits sobre main: 222
+2026-09-16 21:27:17  Vuelta 3 en marcha (PID 7040).
+2026-09-16 21:33:18  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-16 21:33:22  Vuelta 3 termino (codigo 0, 6.1 min). Commits sobre main: 223
+2026-09-16 21:33:22  Vuelta 4 en marcha (PID 3992).
+2026-09-16 21:43:28  Candado local: typecheck web verde (63 s).
+2026-09-16 21:45:43  Candado local: lint web verde (135 s).
+2026-09-16 21:46:27  Candado local: lint api verde (44 s).
+2026-09-16 21:46:30  Push de la rama (29e33c07): codigo 0
+2026-09-16 21:46:34  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-16 21:46:35  Auto-merge pedido (codigo 0).
+2026-09-16 21:46:35  CI en marcha para 29e33c07 (223 commits). MiMo sigue trabajando mientras tanto.
+2026-09-16 21:54:37  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-16 21:54:44  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-16 21:54:44  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-16 21:54:48  Vuelta 4 termino (codigo 0, 21.4 min). Commits sobre main: 223
+2026-09-16 21:54:48  Vuelta 5 en marcha (PID 1812).
+2026-09-16 22:40:09  Candado local: typecheck web verde (13 s).
+2026-09-16 22:42:23  Candado local: lint web verde (135 s).
+2026-09-16 22:43:09  Candado local: lint api verde (45 s).
+2026-09-16 22:43:12  Push de la rama (83bbc7f0): codigo 0
+2026-09-16 22:43:16  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-16 22:43:17  Auto-merge pedido (codigo 0).
+2026-09-16 22:43:17  CI en marcha para 83bbc7f0 (234 commits). MiMo sigue trabajando mientras tanto.
+2026-09-16 22:55:22  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-16 22:55:29  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-16 22:55:29  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-16 22:55:33  Vuelta 5 termino (codigo 0, 60.7 min). Commits sobre main: 239
+2026-09-16 22:55:33  Vuelta 6 en marcha (PID 14196).
+2026-09-17 10:32:32  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-17 10:32:36  Sigo la PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 (83bbc7f0), con auto-merge.
+2026-09-17 10:32:38  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-17 10:32:46  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-17 10:32:46  Vuelta 1 en marcha (PID 8308).
+2026-09-17 10:45:23  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-17 10:45:26  Sigo la PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 (83bbc7f0), con auto-merge.
+2026-09-17 10:45:26  Adopto la vuelta de MiMo que ya estaba en marcha (PID 11808).
+2026-09-17 10:46:27  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-17 10:46:33  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-17 10:50:34  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-17 10:50:38  Vuelta 1 termino (codigo 0, 5.2 min). Commits sobre main: 241
+2026-09-17 10:50:38  Vuelta 2 en marcha (PID 12500).
+2026-09-17 11:31:46  La #208 ya no esta abierta (MERGED).
+2026-09-17 11:32:07  Candado local: typecheck web verde (20 s).
+2026-09-17 11:35:15  Candado local: lint web verde (187 s).
+2026-09-17 11:36:10  Candado local: lint api verde (56 s).
+2026-09-17 11:36:14  Push de la rama (49793815): codigo 0
+2026-09-17 11:36:18  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-17 11:36:19  Auto-merge pedido (codigo 0).
+2026-09-17 11:36:19  CI en marcha para 49793815 (245 commits). MiMo sigue trabajando mientras tanto.
+2026-09-17 11:44:22  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-17 11:44:30  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-17 11:44:31  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-17 11:44:34  Vuelta 2 termino (codigo 0, 53.9 min). Commits sobre main: 246
+2026-09-17 11:44:34  Vuelta 3 en marcha (PID 12324).
+2026-09-17 12:14:37  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-17 12:14:39  La PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 no contiene main al dia: la actualizo en la primera integracion (en 3 min).
+2026-09-17 12:14:39  Adopto la vuelta de MiMo que ya estaba en marcha (PID 2956).
+2026-09-17 12:17:41  La #208 ya no esta abierta (MERGED).
+2026-09-17 12:17:41  Integracion: main avanzo; espero a que MiMo deje el arbol limpio para fusionar.
+2026-09-17 12:33:57  Arbol sucio 15 min: pauso a MiMo para poder integrar igualmente.
+2026-09-17 12:34:01  Integracion: pauso a MiMo un momento para rebasar sobre main.
+2026-09-17 12:34:04  Integracion aplazada 10 min: quedaron cambios a medias al pausar.
+2026-09-17 12:34:04  Vuelta 1 termino (codigo 0, 19.4 min). Commits sobre main: 247
+2026-09-17 12:34:04  Vuelta 2 en marcha (PID 8680).
+2026-09-17 12:43:37  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-17 12:43:39  La PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 no contiene main al dia: la actualizo en la primera integracion (en 3 min).
+2026-09-17 12:43:39  Adopto la vuelta de MiMo que ya estaba en marcha (PID 13068).
+2026-09-17 12:46:41  La #208 ya no esta abierta (MERGED).
+2026-09-17 12:46:42  Integracion: main avanzo; espero a que MiMo deje el arbol limpio para fusionar.
+2026-09-17 12:52:47  Integracion: pauso a MiMo un momento para rebasar sobre main.
+2026-09-17 12:52:52  Fusion con main hecha: 251 commits sobre main.
+2026-09-17 12:53:07  Candado local: typecheck web verde (15 s).
+2026-09-17 12:55:19  Candado local: lint web verde (132 s).
+2026-09-17 12:56:01  Candado local: lint api verde (42 s).
+2026-09-17 12:56:05  Push de la rama (ebde42a1): codigo 0
+2026-09-17 12:56:08  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-17 12:56:10  Auto-merge pedido (codigo 0).
+2026-09-17 12:56:10  CI en marcha para ebde42a1 (251 commits). MiMo sigue trabajando mientras tanto.
+2026-09-17 12:56:10  Vuelta 1 termino (codigo 0, 12.5 min). Commits sobre main: 251
+2026-09-17 12:56:10  Vuelta 2 en marcha (PID 4160).
+2026-09-17 13:04:12  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-17 13:04:20  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-17 13:04:20  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-17 13:04:24  Vuelta 2 termino (codigo 0, 8.2 min). Commits sobre main: 251
+2026-09-17 13:04:24  Vuelta 3 en marcha (PID 8744).
+2026-09-17 13:06:13  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-17 13:06:16  Sigo la PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 (ebde42a1), con auto-merge.
+2026-09-17 13:06:16  Adopto la vuelta de MiMo que ya estaba en marcha (PID 14364).
+2026-09-17 13:07:17  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-17 13:07:24  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-17 13:27:31  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-17 13:27:34  Sigo la PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 (ebde42a1), con auto-merge.
+2026-09-17 13:27:34  Adopto la vuelta de MiMo que ya estaba en marcha (PID 14364).
+2026-09-17 13:28:36  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-17 13:28:42  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-17 13:38:45  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-17 13:38:49  Vuelta 1 termino (codigo 0, 11.2 min). Commits sobre main: 255
+2026-09-17 13:38:49  Vuelta 2 en marcha (PID 13452).
+2026-09-17 14:13:55  La #208 ya no esta abierta (MERGED).
+2026-09-17 14:14:09  Candado local: typecheck web verde (14 s).
+2026-09-17 14:16:41  Candado local: lint web verde (151 s).
+2026-09-17 14:17:28  Candado local: lint api verde (48 s).
+2026-09-17 14:17:40  Aviso local: alcance de comandos en la UI en rojo (no bloquea el push).
+2026-09-17 14:17:44  Push de la rama (4d2a0c27): codigo 0
+2026-09-17 14:17:48  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-17 14:17:49  Auto-merge pedido (codigo 0).
+2026-09-17 14:17:49  CI en marcha para 4d2a0c27 (257 commits). MiMo sigue trabajando mientras tanto.
+2026-09-17 14:24:51  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-17 14:24:54  Vuelta 2 termino (codigo 0, 46.1 min). Commits sobre main: 259
+2026-09-17 14:24:55  Vuelta 3 en marcha (PID 14368).
+2026-09-17 14:25:56  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-17 14:26:04  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-17 14:26:04  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-17 14:26:07  Vuelta 3 termino (codigo 0, 1.2 min). Commits sobre main: 259
+2026-09-17 14:26:07  Vuelta 4 en marcha (PID 10860).
+2026-09-17 15:11:29  Candado local: typecheck web verde (14 s).
+2026-09-17 15:13:46  Candado local: lint web verde (137 s).
+2026-09-17 15:14:30  Candado local: lint api verde (45 s).
+2026-09-17 15:14:43  Push de la rama (7d31d86a): codigo 0
+2026-09-17 15:14:47  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-17 15:14:48  Auto-merge pedido (codigo 0).
+2026-09-17 15:14:48  CI en marcha para 7d31d86a (264 commits). MiMo sigue trabajando mientras tanto.
+2026-09-17 15:16:11  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-17 15:16:14  Sigo la PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 (7d31d86a), con auto-merge.
+2026-09-17 15:16:14  Adopto la vuelta de MiMo que ya estaba en marcha (PID 16828).
+2026-09-17 15:21:18  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-17 15:21:25  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-17 15:21:25  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-17 15:21:29  Vuelta 1 termino (codigo 0, 5.2 min). Commits sobre main: 269
+2026-09-17 15:21:29  Vuelta 2 en marcha (PID 7936).
+2026-09-17 15:24:43  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-17 15:24:46  Sigo la PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 (7d31d86a), con auto-merge.
+2026-09-17 15:24:46  Adopto la vuelta de MiMo que ya estaba en marcha (PID 6116).
+2026-09-17 15:25:48  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-17 15:25:55  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-17 15:31:57  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-17 15:32:00  Vuelta 1 termino (codigo 0, 7.2 min). Commits sobre main: 271
+2026-09-17 15:32:01  Vuelta 2 en marcha (PID 6552).
+2026-09-17 15:50:13  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-17 15:50:16  Sigo la PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 (7d31d86a), con auto-merge.
+2026-09-17 15:50:16  Adopto la vuelta de MiMo que ya estaba en marcha (PID 16248).
+2026-09-17 15:51:17  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-17 15:51:23  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-17 15:51:30  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-17 15:51:33  Sigo la PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 (7d31d86a), con auto-merge.
+2026-09-17 15:51:33  Adopto la vuelta de MiMo que ya estaba en marcha (PID 16248).
+2026-09-17 15:52:35  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-17 15:52:41  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-17 16:12:47  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-17 16:12:51  Vuelta 1 termino (codigo 0, 21.3 min). Commits sobre main: 271
+2026-09-17 16:12:51  Vuelta 2 en marcha (PID 3760).
+2026-09-17 16:37:56  La #208 ya no esta abierta (MERGED).
+2026-09-17 16:38:17  Candado local: typecheck web verde (21 s).
+2026-09-17 16:40:29  Candado local: lint web verde (132 s).
+2026-09-17 16:41:13  Candado local: lint api verde (44 s).
+2026-09-17 16:41:26  Aviso local: alcance de comandos en la UI en rojo (no bloquea el push).
+2026-09-17 16:41:30  Push de la rama (f13bfaa9): codigo 0
+2026-09-17 16:41:33  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-17 16:41:34  Auto-merge pedido (codigo 0).
+2026-09-17 16:41:34  CI en marcha para f13bfaa9 (273 commits). MiMo sigue trabajando mientras tanto.
+2026-09-17 16:57:41  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-17 16:57:49  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-17 17:00:50  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-17 17:00:53  Vuelta 2 termino (codigo 0, 48 min). Commits sobre main: 274
+2026-09-17 17:00:53  Vuelta 3 en marcha (PID 6336).
+2026-09-17 17:36:31  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-17 17:36:34  Sigo la PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 (f13bfaa9), con auto-merge.
+2026-09-17 17:36:34  Adopto la vuelta de MiMo que ya estaba en marcha (PID 3824).
+2026-09-17 17:37:36  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-17 17:37:42  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-17 17:38:42  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-17 17:38:46  Vuelta 1 termino (codigo 0, 2.2 min). Commits sobre main: 275
+2026-09-17 17:38:46  Vuelta 2 en marcha (PID 13608).
+2026-09-17 17:45:18  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-17 17:45:21  Sigo la PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 (f13bfaa9), con auto-merge.
+2026-09-17 17:45:21  Adopto la vuelta de MiMo que ya estaba en marcha (PID 12340).
+2026-09-17 17:46:22  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-17 17:46:28  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-17 17:46:28  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-17 17:46:31  Vuelta 1 termino (codigo 0, 1.2 min). Commits sobre main: 277
+2026-09-17 17:46:32  Vuelta 2 en marcha (PID 12348).
+2026-09-17 17:57:27  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-17 17:57:30  Sigo la PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 (bedec92d), con auto-merge.
+2026-09-17 17:57:30  Adopto la vuelta de MiMo que ya estaba en marcha (PID 13308).
+2026-09-17 18:02:33  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-17 18:02:41  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-17 18:02:41  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-17 18:02:45  Vuelta 1 termino (codigo 0, 5.2 min). Commits sobre main: 278
+2026-09-17 18:02:45  Vuelta 2 en marcha (PID 14220).
+2026-09-17 18:03:29  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-17 18:03:32  Sigo la PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 (bedec92d), con auto-merge.
+2026-09-17 18:03:32  Adopto la vuelta de MiMo que ya estaba en marcha (PID 9524).
+2026-09-17 18:04:34  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-17 18:04:39  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-17 18:04:39  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-17 18:04:43  Vuelta 1 termino (codigo 0, 1.2 min). Commits sobre main: 278
+2026-09-17 18:04:43  Vuelta 2 en marcha (PID 10440).
+2026-09-17 18:23:46  Vuelta 2 termino (codigo 0, 19.1 min). Commits sobre main: 281
+2026-09-17 18:23:46  Vuelta 3 en marcha (PID 16712).
+2026-09-17 18:25:27  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-17 18:25:30  Sigo la PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 (80c2366a), con auto-merge.
+2026-09-17 18:25:30  Adopto la vuelta de MiMo que ya estaba en marcha (PID 3192).
+2026-09-17 18:42:39  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-17 18:42:47  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-17 18:44:47  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-17 18:44:51  Vuelta 1 termino (codigo 0, 19.4 min). Commits sobre main: 286
+2026-09-17 18:44:51  Vuelta 2 en marcha (PID 16736).
+2026-09-17 19:22:18  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-17 19:22:21  Sigo la PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 (1a231cc6), con auto-merge.
+2026-09-17 19:22:22  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-17 19:22:29  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-17 19:22:30  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-17 19:22:33  Vuelta 1 en marcha (PID 7080).
+2026-09-17 19:39:36  MiMo commiteo 1 commit(s) desde el aviso del CI: integro ya, sin agotar los 45 min.
+2026-09-17 19:39:38  La #208 ya no esta abierta (MERGED).
+2026-09-17 19:40:30  Candado local: typecheck web verde (31 s).
+2026-09-17 19:40:39  Candado local: typecheck api verde (9 s).
+2026-09-17 19:43:15  Candado local: lint web verde (156 s).
+2026-09-17 19:44:02  Candado local: lint api verde (47 s).
+2026-09-17 19:44:04  Candado local: presupuesto de monolito verde (2 s).
+2026-09-17 19:47:02  Candado local: trinquete de lint verde (177 s).
+2026-09-17 19:48:18  Candado local: gates rapidos del CI (16 comprobaciones) verde (76 s).
+2026-09-17 19:48:41  Candado local: specs de web afectados en rojo (codigo 1, 22 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-17 20:08:47  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-17 20:08:50  Vuelta 1 termino (codigo 0, 46.3 min). Commits sobre main: 292
+2026-09-17 20:08:50  Vuelta 2 en marcha (PID 12148).
+2026-09-17 20:11:15  Candado local: typecheck web verde (75 s).
+2026-09-17 20:11:22  Candado local: typecheck api verde (7 s).
+2026-09-17 20:13:46  Candado local: lint web verde (143 s).
+2026-09-17 20:14:30  Candado local: lint api verde (45 s).
+2026-09-17 20:14:32  Candado local: presupuesto de monolito verde (2 s).
+2026-09-17 20:17:41  Candado local: trinquete de lint verde (188 s).
+2026-09-17 20:18:56  Candado local: gates rapidos del CI (16 comprobaciones) verde (75 s).
+2026-09-17 20:19:18  Candado local: specs de web afectados en rojo (codigo 1, 22 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-17 20:23:19  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-17 20:23:23  Vuelta 2 termino (codigo 0, 14.5 min). Commits sobre main: 294
+2026-09-17 20:23:23  Vuelta 3 en marcha (PID 7532).
+2026-09-17 20:39:50  Candado local: typecheck web verde (15 s).
+2026-09-17 20:39:56  Candado local: typecheck api verde (6 s).
+2026-09-17 20:42:16  Candado local: lint web verde (140 s).
+2026-09-17 20:43:01  Candado local: lint api verde (44 s).
+2026-09-17 20:43:02  Candado local: presupuesto de monolito verde (2 s).
+2026-09-17 20:46:08  Candado local: trinquete de lint verde (186 s).
+2026-09-17 20:47:24  Candado local: gates rapidos del CI (16 comprobaciones) verde (76 s).
+2026-09-17 20:47:46  Candado local: specs de web afectados verde (22 s).
+2026-09-17 20:47:58  Push de la rama (dcdcc3a5): codigo 0
+2026-09-17 20:48:01  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-17 20:48:03  Auto-merge pedido (codigo 0).
+2026-09-17 20:48:03  CI en marcha para dcdcc3a5 (297 commits). MiMo sigue trabajando mientras tanto.
+2026-09-17 20:56:05  Vuelta 3 termino (codigo 0, 32.7 min). Commits sobre main: 297
+2026-09-17 20:56:05  Vuelta 4 en marcha (PID 16876).
+2026-09-17 21:24:17  Resultado de la integracion: conflicto con main
+2026-09-17 21:29:19  Integracion: fusion con main ABIERTA en el arbol. Se la paso a MiMo y espero a que la termine.
+2026-09-17 21:29:19  Vuelta 4 termino (codigo 0, 33.2 min). Commits sobre main: 298
+2026-09-17 21:29:19  Vuelta 5 en marcha (PID 16252).
+2026-09-17 21:49:26  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-17 21:49:29  Vuelta 5 termino (codigo 0, 20.2 min). Commits sobre main: 303
+2026-09-17 21:49:30  Vuelta 6 en marcha (PID 9656).
+2026-09-17 21:51:14  Candado local: typecheck web verde (26 s).
+2026-09-17 21:51:21  Candado local: typecheck api verde (7 s).
+2026-09-17 21:53:40  Candado local: lint web verde (139 s).
+2026-09-17 21:54:24  Candado local: lint api verde (44 s).
+2026-09-17 21:54:26  Candado local: presupuesto de monolito verde (2 s).
+2026-09-17 21:57:25  Candado local: trinquete de lint en rojo (codigo 1, 180 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-17 22:16:31  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-17 22:16:35  Vuelta 6 termino (codigo 0, 27.1 min). Commits sobre main: 309
+2026-09-17 22:16:35  Vuelta 7 en marcha (PID 2664).
+2026-09-17 22:18:06  Candado local: typecheck web en rojo (codigo 2, 16 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-17 22:19:06  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-17 22:19:09  Vuelta 7 termino (codigo 0, 2.6 min). Commits sobre main: 309
+2026-09-17 22:19:09  Vuelta 8 en marcha (PID 4692).
+2026-09-17 22:38:44  Candado local: typecheck web verde (20 s).
+2026-09-17 22:38:54  Candado local: typecheck api verde (10 s).
+2026-09-17 22:41:43  Candado local: lint web verde (170 s).
+2026-09-17 22:43:03  Candado local: lint api verde (79 s).
+2026-09-17 22:43:05  Candado local: presupuesto de monolito verde (2 s).
+2026-09-17 22:46:58  Candado local: trinquete de lint verde (233 s).
+2026-09-17 22:48:15  Candado local: gates rapidos del CI (16 comprobaciones) verde (77 s).
+2026-09-17 22:48:37  Candado local: specs de web afectados en rojo (codigo 1, 23 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-17 23:08:43  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-17 23:08:46  Vuelta 8 termino (codigo 0, 49.6 min). Commits sobre main: 310
+2026-09-17 23:08:46  Vuelta 9 en marcha (PID 12192).
+2026-09-17 23:10:15  Candado local: typecheck web verde (16 s).
+2026-09-17 23:10:22  Candado local: typecheck api verde (8 s).
+2026-09-17 23:13:18  Candado local: lint web en rojo (codigo 1, 171 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-17 23:33:29  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-17 23:33:34  Vuelta 9 termino (codigo 0, 24.8 min). Commits sobre main: 311
+2026-09-17 23:33:34  Vuelta 10 en marcha (PID 15512).
+2026-09-17 23:39:09  Candado local: typecheck web verde (239 s).
+2026-09-17 23:39:35  Candado local: typecheck api verde (26 s).
+2026-09-17 23:46:35  Candado local: lint web verde (420 s).
+2026-09-17 23:47:46  Candado local: lint api verde (71 s).
+2026-09-17 23:47:50  Candado local: presupuesto de monolito verde (3 s).
+2026-09-17 23:50:57  Candado local: trinquete de lint verde (188 s).
+2026-09-17 23:52:13  Candado local: gates rapidos del CI (16 comprobaciones) verde (75 s).
+2026-09-17 23:52:34  Candado local: specs de web afectados verde (22 s).
+2026-09-17 23:52:47  Push de la rama (269e16e8): codigo 0
+2026-09-17 23:52:52  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-17 23:52:53  Auto-merge pedido (codigo 0).
+2026-09-17 23:52:53  CI en marcha para 269e16e8 (311 commits). MiMo sigue trabajando mientras tanto.
+2026-09-18 00:09:59  Vigilante: la sesion lleva 30.1 min sin actividad. Reinicio a MiMo.
+2026-09-18 00:10:03  Vuelta 10 termino (codigo 0, 36.5 min). Commits sobre main: 311
+2026-09-18 00:10:03  Vuelta 11 en marcha (PID 14660).
+2026-09-18 00:21:08  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-18 00:21:16  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-18 00:41:20  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 00:41:24  Vuelta 11 termino (codigo 0, 31.4 min). Commits sobre main: 315
+2026-09-18 00:41:24  Vuelta 12 en marcha (PID 17068).
+2026-09-18 00:42:24  MiMo commiteo 4 commit(s) desde el aviso del CI: integro ya, sin agotar los 45 min.
+2026-09-18 00:42:50  Candado local: typecheck web verde (16 s).
+2026-09-18 00:42:57  Candado local: typecheck api verde (7 s).
+2026-09-18 00:45:32  Candado local: lint web verde (155 s).
+2026-09-18 00:46:32  Candado local: lint api verde (60 s).
+2026-09-18 00:46:35  Candado local: presupuesto de monolito verde (3 s).
+2026-09-18 00:49:56  Candado local: trinquete de lint verde (202 s).
+2026-09-18 00:51:13  Candado local: gates rapidos del CI (16 comprobaciones) verde (76 s).
+2026-09-18 00:51:41  Candado local: specs de web afectados verde (29 s).
+2026-09-18 00:51:54  Push de la rama (2374f12c): codigo 0
+2026-09-18 00:51:59  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-18 00:52:00  Auto-merge pedido (codigo 0).
+2026-09-18 00:52:00  CI en marcha para 2374f12c (315 commits). MiMo sigue trabajando mientras tanto.
+2026-09-18 01:12:09  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-18 01:12:15  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-18 01:32:33  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 01:32:37  Vuelta 12 termino (codigo 0, 51.2 min). Commits sobre main: 317
+2026-09-18 01:32:37  Vuelta 13 en marcha (PID 1312).
+2026-09-18 01:33:37  MiMo commiteo 2 commit(s) desde el aviso del CI: integro ya, sin agotar los 45 min.
+2026-09-18 01:34:05  Aviso local: sonda de integridad en rojo por su CONTENIDO (no la refresco; se lo paso a MiMo).
+2026-09-18 01:35:20  Candado local: typecheck web verde (75 s).
+2026-09-18 01:35:37  Candado local: typecheck api verde (18 s).
+2026-09-18 01:42:16  Candado local: lint web verde (399 s).
+2026-09-18 01:43:17  Candado local: lint api verde (61 s).
+2026-09-18 01:43:19  Candado local: presupuesto de monolito verde (2 s).
+2026-09-18 01:47:01  Candado local: trinquete de lint en rojo (codigo 1, 221 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-18 01:53:02  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 01:53:06  Vuelta 13 termino (codigo 0, 20.5 min). Commits sobre main: 318
+2026-09-18 01:53:06  Vuelta 14 en marcha (PID 13868).
+2026-09-18 02:07:20  Aviso local: sonda de integridad en rojo por su CONTENIDO (no la refresco; se lo paso a MiMo).
+2026-09-18 02:07:40  Candado local: typecheck web verde (20 s).
+2026-09-18 02:07:47  Candado local: typecheck api verde (8 s).
+2026-09-18 02:10:53  Candado local: lint web verde (185 s).
+2026-09-18 02:11:45  Candado local: lint api verde (53 s).
+2026-09-18 02:11:47  Candado local: presupuesto de monolito verde (2 s).
+2026-09-18 02:15:08  Candado local: trinquete de lint verde (200 s).
+2026-09-18 02:16:26  Candado local: gates rapidos del CI (16 comprobaciones) verde (78 s).
+2026-09-18 02:17:13  Candado local: specs de web afectados verde (47 s).
+2026-09-18 02:17:26  Push de la rama (bece8ab0): codigo 0
+2026-09-18 02:17:30  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-18 02:17:31  Auto-merge pedido (codigo 0).
+2026-09-18 02:17:31  CI en marcha para bece8ab0 (318 commits). MiMo sigue trabajando mientras tanto.
+2026-09-18 02:20:32  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 02:20:36  Vuelta 14 termino (codigo 0, 27.5 min). Commits sobre main: 319
+2026-09-18 02:20:36  Vuelta 15 en marcha (PID 9460).
+2026-09-18 02:25:37  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-18 02:25:45  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-18 02:25:45  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 02:25:48  Vuelta 15 termino (codigo 0, 5.2 min). Commits sobre main: 319
+2026-09-18 02:25:48  Vuelta 16 en marcha (PID 7756).
+2026-09-18 02:46:52  MiMo commiteo 1 commit(s) desde el aviso del CI: integro ya, sin agotar los 45 min.
+2026-09-18 02:47:18  Candado local: typecheck web verde (16 s).
+2026-09-18 02:47:24  Candado local: typecheck api verde (6 s).
+2026-09-18 02:50:06  Candado local: lint web verde (162 s).
+2026-09-18 02:51:00  Candado local: lint api verde (53 s).
+2026-09-18 02:51:02  Candado local: presupuesto de monolito verde (2 s).
+2026-09-18 02:54:18  Candado local: trinquete de lint en rojo (codigo 1, 196 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-18 02:55:18  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 02:55:22  Vuelta 16 termino (codigo 0, 29.6 min). Commits sobre main: 321
+2026-09-18 02:55:22  Vuelta 17 en marcha (PID 3868).
+2026-09-18 02:56:22  Vuelta 17 termino (codigo 0, 1 min). Commits sobre main: 321
+2026-09-18 02:56:22  Vuelta 18 en marcha (PID 13844).
+2026-09-18 03:14:55  Candado local: typecheck web verde (17 s).
+2026-09-18 03:15:01  Candado local: typecheck api verde (6 s).
+2026-09-18 03:17:36  Candado local: lint web verde (155 s).
+2026-09-18 03:18:30  Candado local: lint api verde (54 s).
+2026-09-18 03:18:32  Candado local: presupuesto de monolito verde (2 s).
+2026-09-18 03:22:09  Candado local: trinquete de lint verde (217 s).
+2026-09-18 03:22:29  Candado local: gates rapidos del CI (16 comprobaciones) en rojo (codigo 1, 17 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-18 03:25:29  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 03:25:33  Vuelta 18 termino (codigo 0, 29.2 min). Commits sobre main: 322
+2026-09-18 03:25:33  Vuelta 19 en marcha (PID 16424).
+2026-09-18 03:43:02  Candado local: typecheck web verde (16 s).
+2026-09-18 03:43:10  Candado local: typecheck api verde (8 s).
+2026-09-18 03:46:01  Candado local: lint web verde (171 s).
+2026-09-18 03:46:59  Candado local: lint api verde (58 s).
+2026-09-18 03:47:01  Candado local: presupuesto de monolito verde (2 s).
+2026-09-18 03:50:27  Candado local: trinquete de lint verde (206 s).
+2026-09-18 03:51:46  Candado local: gates rapidos del CI (16 comprobaciones) verde (79 s).
+2026-09-18 03:52:33  Candado local: specs de web afectados verde (47 s).
+2026-09-18 03:52:47  Push de la rama (7e6f4111): codigo 0
+2026-09-18 03:52:51  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-18 03:52:52  Auto-merge pedido (codigo 0).
+2026-09-18 03:52:52  CI en marcha para 7e6f4111 (323 commits). MiMo sigue trabajando mientras tanto.
+2026-09-18 04:17:01  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-18 04:17:09  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-18 04:17:09  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 04:17:12  Vuelta 19 termino (codigo 0, 51.7 min). Commits sobre main: 325
+2026-09-18 04:17:12  Vuelta 20 en marcha (PID 14984).
+2026-09-18 04:27:14  MiMo commiteo 1 commit(s) desde el aviso del CI: integro ya, sin agotar los 45 min.
+2026-09-18 04:27:24  Aviso local: sonda de integridad en rojo por su CONTENIDO (no la refresco; se lo paso a MiMo).
+2026-09-18 04:27:41  Candado local: typecheck web verde (17 s).
+2026-09-18 04:27:48  Candado local: typecheck api verde (6 s).
+2026-09-18 04:30:24  Candado local: lint web verde (156 s).
+2026-09-18 04:31:18  Candado local: lint api verde (54 s).
+2026-09-18 04:31:19  Candado local: presupuesto de monolito en rojo (codigo 1, 2 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-18 04:51:25  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 04:51:28  Vuelta 20 termino (codigo 0, 34.3 min). Commits sobre main: 328
+2026-09-18 04:51:28  Vuelta 21 en marcha (PID 14424).
+2026-09-18 04:52:39  Aviso local: sonda de integridad en rojo por su CONTENIDO (no la refresco; se lo paso a MiMo).
+2026-09-18 04:52:57  Candado local: typecheck web en rojo (codigo 2, 17 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-18 05:11:01  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 05:11:05  Vuelta 21 termino (codigo 0, 19.6 min). Commits sobre main: 332
+2026-09-18 05:11:05  Vuelta 22 en marcha (PID 16612).
+2026-09-18 05:13:17  Aviso local: sonda de integridad en rojo por su CONTENIDO (no la refresco; se lo paso a MiMo).
+2026-09-18 05:13:49  Candado local: typecheck web en rojo (codigo 2, 32 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-18 05:14:49  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 05:14:53  Vuelta 22 termino (codigo 0, 3.8 min). Commits sobre main: 332
+2026-09-18 05:14:53  Vuelta 23 en marcha (PID 16056).
+2026-09-18 05:34:06  Aviso local: sonda de integridad en rojo por su CONTENIDO (no la refresco; se lo paso a MiMo).
+2026-09-18 05:34:21  Candado local: typecheck web verde (15 s).
+2026-09-18 05:34:28  Candado local: typecheck api verde (7 s).
+2026-09-18 05:37:07  Candado local: lint web verde (159 s).
+2026-09-18 05:38:00  Candado local: lint api verde (53 s).
+2026-09-18 05:38:02  Candado local: presupuesto de monolito verde (2 s).
+2026-09-18 05:41:46  Candado local: trinquete de lint en rojo (codigo 1, 224 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-18 05:50:49  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 05:50:53  Vuelta 23 termino (codigo 0, 36 min). Commits sobre main: 334
+2026-09-18 05:50:53  Vuelta 24 en marcha (PID 15968).
+2026-09-18 06:02:06  Aviso local: sonda de integridad en rojo por su CONTENIDO (no la refresco; se lo paso a MiMo).
+2026-09-18 06:02:22  Candado local: typecheck web verde (16 s).
+2026-09-18 06:02:28  Candado local: typecheck api verde (6 s).
+2026-09-18 06:05:12  Candado local: lint web verde (164 s).
+2026-09-18 06:06:06  Candado local: lint api verde (53 s).
+2026-09-18 06:06:08  Candado local: presupuesto de monolito verde (2 s).
+2026-09-18 06:09:26  Candado local: trinquete de lint verde (198 s).
+2026-09-18 06:10:49  Candado local: gates rapidos del CI (16 comprobaciones) verde (83 s).
+2026-09-18 06:11:39  Candado local: specs de web afectados verde (51 s).
+2026-09-18 06:11:53  Push de la rama (2765431d): codigo 0
+2026-09-18 06:11:56  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-18 06:11:57  Auto-merge pedido (codigo 0).
+2026-09-18 06:11:57  CI en marcha para 2765431d (334 commits). MiMo sigue trabajando mientras tanto.
+2026-09-18 06:12:58  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 06:13:01  Vuelta 24 termino (codigo 0, 22.1 min). Commits sobre main: 335
+2026-09-18 06:13:01  Vuelta 25 en marcha (PID 12484).
+2026-09-18 06:20:04  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-18 06:20:11  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-18 06:30:13  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 06:30:17  Vuelta 25 termino (codigo 0, 17.3 min). Commits sobre main: 336
+2026-09-18 06:30:17  Vuelta 26 en marcha (PID 15316).
+2026-09-18 06:31:17  MiMo commiteo 1 commit(s) desde el aviso del CI: integro ya, sin agotar los 45 min.
+2026-09-18 06:31:59  Candado local: typecheck web en rojo (codigo 2, 31 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-18 06:33:00  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 06:33:03  Vuelta 26 termino (codigo 0, 2.8 min). Commits sobre main: 336
+2026-09-18 06:33:03  Vuelta 27 en marcha (PID 12932).
+2026-09-18 06:53:05  Candado local: typecheck web verde (39 s).
+2026-09-18 06:53:12  Candado local: typecheck api verde (7 s).
+2026-09-18 06:55:55  Candado local: lint web verde (163 s).
+2026-09-18 06:56:48  Candado local: lint api verde (54 s).
+2026-09-18 06:56:50  Candado local: presupuesto de monolito verde (2 s).
+2026-09-18 07:00:02  Candado local: trinquete de lint verde (192 s).
+2026-09-18 07:01:23  Candado local: gates rapidos del CI (16 comprobaciones) verde (81 s).
+2026-09-18 07:02:12  Candado local: specs de web afectados verde (49 s).
+2026-09-18 07:02:20  Aviso local: manifiesto de comandos en rojo (no bloquea el push).
+2026-09-18 07:02:25  Push de la rama (edda8341): codigo 0
+2026-09-18 07:02:29  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-18 07:02:30  Auto-merge pedido (codigo 0).
+2026-09-18 07:02:30  CI en marcha para edda8341 (339 commits). MiMo sigue trabajando mientras tanto.
+2026-09-18 07:22:40  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 07:22:43  Vuelta 27 termino (codigo 0, 49.7 min). Commits sobre main: 343
+2026-09-18 07:22:43  Vuelta 28 en marcha (PID 736).
+2026-09-18 07:30:47  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-18 07:30:54  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-18 07:50:59  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 07:51:03  Vuelta 28 termino (codigo 0, 28.3 min). Commits sobre main: 345
+2026-09-18 07:51:03  Vuelta 29 en marcha (PID 15864).
+2026-09-18 07:52:03  MiMo commiteo 1 commit(s) desde el aviso del CI: integro ya, sin agotar los 45 min.
+2026-09-18 07:52:13  Aviso local: sonda de integridad en rojo por su CONTENIDO (no la refresco; se lo paso a MiMo).
+2026-09-18 07:52:30  Candado local: typecheck web en rojo (codigo 2, 16 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-18 08:12:35  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 08:12:38  Vuelta 29 termino (codigo 0, 21.6 min). Commits sobre main: 347
+2026-09-18 08:12:38  Vuelta 30 en marcha (PID 7016).
+2026-09-18 08:13:49  Aviso local: sonda de integridad en rojo por su CONTENIDO (no la refresco; se lo paso a MiMo).
+2026-09-18 08:14:05  Candado local: typecheck web en rojo (codigo 1, 16 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-18 08:34:09  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 08:34:13  Vuelta 30 termino (codigo 0, 21.6 min). Commits sobre main: 347
+2026-09-18 08:34:13  Vuelta 31 en marcha (PID 15568).
+2026-09-18 08:35:24  Aviso local: sonda de integridad en rojo por su CONTENIDO (no la refresco; se lo paso a MiMo).
+2026-09-18 08:35:40  Candado local: typecheck web verde (16 s).
+2026-09-18 08:35:47  Candado local: typecheck api verde (7 s).
+2026-09-18 08:38:23  Candado local: lint web verde (156 s).
+2026-09-18 08:39:14  Candado local: lint api verde (51 s).
+2026-09-18 08:39:17  Candado local: presupuesto de monolito verde (2 s).
+2026-09-18 08:42:49  Candado local: trinquete de lint en rojo (codigo 1, 212 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-18 08:57:53  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 08:57:56  Vuelta 31 termino (codigo 0, 23.7 min). Commits sobre main: 349
+2026-09-18 08:57:56  Vuelta 32 en marcha (PID 15160).
+2026-09-18 09:03:09  Aviso local: sonda de integridad en rojo por su CONTENIDO (no la refresco; se lo paso a MiMo).
+2026-09-18 09:03:29  Candado local: typecheck web verde (20 s).
+2026-09-18 09:03:36  Candado local: typecheck api verde (7 s).
+2026-09-18 09:06:17  Candado local: lint web verde (161 s).
+2026-09-18 09:07:09  Candado local: lint api verde (52 s).
+2026-09-18 09:07:11  Candado local: presupuesto de monolito verde (2 s).
+2026-09-18 09:10:21  Candado local: trinquete de lint verde (190 s).
+2026-09-18 09:11:44  Candado local: gates rapidos del CI (16 comprobaciones) verde (83 s).
+2026-09-18 09:12:32  Candado local: specs de web afectados verde (48 s).
+2026-09-18 09:12:46  Push de la rama (bb485f04): codigo 0
+2026-09-18 09:12:49  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-18 09:12:50  Auto-merge pedido (codigo 0).
+2026-09-18 09:12:50  CI en marcha para bb485f04 (349 commits). MiMo sigue trabajando mientras tanto.
+2026-09-18 09:15:51  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 09:15:55  Vuelta 32 termino (codigo 0, 18 min). Commits sobre main: 350
+2026-09-18 09:15:55  Vuelta 33 en marcha (PID 2272).
+2026-09-18 09:24:58  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-18 09:25:06  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-18 09:35:09  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 09:35:12  Vuelta 33 termino (codigo 0, 19.3 min). Commits sobre main: 350
+2026-09-18 09:35:12  Vuelta 34 en marcha (PID 12276).
+2026-09-18 10:00:18  MiMo commiteo 1 commit(s) desde el aviso del CI: integro ya, sin agotar los 45 min.
+2026-09-18 10:00:45  Candado local: typecheck web verde (16 s).
+2026-09-18 10:00:51  Candado local: typecheck api verde (6 s).
+2026-09-18 10:03:23  Candado local: lint web verde (152 s).
+2026-09-18 10:04:17  Candado local: lint api verde (54 s).
+2026-09-18 10:04:19  Candado local: presupuesto de monolito verde (2 s).
+2026-09-18 10:05:58  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-18 10:06:02  Sigo la PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 (bb485f04), con auto-merge.
+2026-09-18 10:06:02  Adopto la vuelta de MiMo que ya estaba en marcha (PID 14584).
+2026-09-18 10:07:03  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-18 10:07:09  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-18 10:19:12  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 10:19:16  Vuelta 1 termino (codigo 0, 13.2 min). Commits sobre main: 354
+2026-09-18 10:19:16  Vuelta 2 en marcha (PID 15372).
+2026-09-18 10:20:17  MiMo commiteo 3 commit(s) desde el aviso del CI: integro ya, sin agotar los 45 min.
+2026-09-18 10:20:18  La #208 ya no esta abierta (MERGED).
+2026-09-18 10:21:00  Candado local: typecheck web verde (31 s).
+2026-09-18 10:21:08  Candado local: typecheck api verde (8 s).
+2026-09-18 10:24:04  Candado local: lint web verde (175 s).
+2026-09-18 10:25:01  Candado local: lint api verde (57 s).
+2026-09-18 10:25:03  Candado local: presupuesto de monolito verde (2 s).
+2026-09-18 10:28:21  Candado local: trinquete de lint verde (197 s).
+2026-09-18 10:29:43  Candado local: gates rapidos del CI (16 comprobaciones) verde (82 s).
+2026-09-18 10:30:29  Candado local: specs de web afectados verde (46 s).
+2026-09-18 10:30:41  Push de la rama (3b565875): codigo 0
+2026-09-18 10:30:45  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-18 10:30:47  Auto-merge pedido (codigo 0).
+2026-09-18 10:30:47  CI en marcha para 3b565875 (354 commits). MiMo sigue trabajando mientras tanto.
+2026-09-18 10:54:56  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-18 10:55:04  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-18 10:59:06  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 10:59:09  Vuelta 2 termino (codigo 0, 39.9 min). Commits sobre main: 359
+2026-09-18 10:59:09  Vuelta 3 en marcha (PID 5920).
+2026-09-18 11:05:10  MiMo commiteo 3 commit(s) desde el aviso del CI: integro ya, sin agotar los 45 min.
+2026-09-18 11:05:38  Candado local: typecheck web verde (17 s).
+2026-09-18 11:05:46  Candado local: typecheck api verde (7 s).
+2026-09-18 11:08:32  Candado local: lint web verde (167 s).
+2026-09-18 11:09:24  Candado local: lint api verde (52 s).
+2026-09-18 11:09:26  Candado local: presupuesto de monolito verde (2 s).
+2026-09-18 11:12:35  Candado local: trinquete de lint en rojo (codigo 1, 189 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-18 11:13:35  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 11:13:39  Vuelta 3 termino (codigo 0, 14.5 min). Commits sobre main: 359
+2026-09-18 11:13:39  Vuelta 4 en marcha (PID 11472).
+2026-09-18 11:33:10  Candado local: typecheck web verde (16 s).
+2026-09-18 11:33:17  Candado local: typecheck api verde (7 s).
+2026-09-18 11:36:05  Candado local: lint web verde (168 s).
+2026-09-18 11:36:57  Candado local: lint api verde (52 s).
+2026-09-18 11:36:59  Candado local: presupuesto de monolito verde (2 s).
+2026-09-18 11:40:08  Candado local: trinquete de lint verde (189 s).
+2026-09-18 11:41:29  Candado local: gates rapidos del CI (16 comprobaciones) verde (81 s).
+2026-09-18 11:42:19  Candado local: specs de web afectados verde (50 s).
+2026-09-18 11:42:35  Push de la rama (ecedee78): codigo 0
+2026-09-18 11:42:39  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-18 11:42:40  Auto-merge pedido (codigo 0).
+2026-09-18 11:42:40  CI en marcha para ecedee78 (361 commits). MiMo sigue trabajando mientras tanto.
+2026-09-18 11:52:43  Vuelta 4 termino (codigo 0, 39.1 min). Commits sobre main: 365
+2026-09-18 11:52:43  Vuelta 5 en marcha (PID 8556).
+2026-09-18 12:31:02  Vuelta 5 termino (codigo 0, 38.3 min). Commits sobre main: 367
+2026-09-18 12:31:02  Vuelta 6 en marcha (PID 15624).
+2026-09-18 13:29:26  Vuelta 6 termino (codigo 0, 58.4 min). Commits sobre main: 371
+2026-09-18 13:29:26  Vuelta 7 en marcha (PID 17176).
+2026-09-18 13:39:31  Resultado de la integracion: fallo: E2E Playwright (PostgreSQL
+2026-09-18 13:39:44  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: E2E Playwright (PostgreSQL).
+2026-09-18 13:39:45  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 13:39:48  Vuelta 7 termino (codigo 0, 10.4 min). Commits sobre main: 371
+2026-09-18 13:39:48  Vuelta 8 en marcha (PID 12512).
+2026-09-18 14:04:53  MiMo commiteo 1 commit(s) desde el aviso del CI: integro ya, sin agotar los 45 min.
+2026-09-18 14:05:23  Candado local: typecheck web verde (19 s).
+2026-09-18 14:05:31  Candado local: typecheck api verde (7 s).
+2026-09-18 14:08:06  Candado local: lint web verde (155 s).
+2026-09-18 14:08:57  Candado local: lint api verde (51 s).
+2026-09-18 14:08:58  Candado local: presupuesto de monolito verde (2 s).
+2026-09-18 14:12:08  Candado local: trinquete de lint en rojo (codigo 1, 190 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-18 14:32:13  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 14:32:17  Vuelta 8 termino (codigo 0, 52.5 min). Commits sobre main: 374
+2026-09-18 14:32:17  Vuelta 9 en marcha (PID 9884).
+2026-09-18 14:33:39  Artefacto de integridad refrescado y commiteado. Antes: 342 comandos, muta 114, delegado 59. Ahora: 343 comandos, muta 114, delegado 60, informa 27, honesto-limitado 133, no-concluyente 9, ROJO 0.
+2026-09-18 14:34:01  Candado local: typecheck web verde (23 s).
+2026-09-18 14:34:10  Candado local: typecheck api verde (9 s).
+2026-09-18 14:37:15  Candado local: lint web en rojo (codigo 1, 180 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-18 14:41:16  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 14:41:20  Vuelta 9 termino (codigo 0, 9 min). Commits sobre main: 377
+2026-09-18 14:41:20  Vuelta 10 en marcha (PID 8220).
+2026-09-18 14:58:51  Candado local: typecheck web verde (75 s).
+2026-09-18 14:58:58  Candado local: typecheck api verde (7 s).
+2026-09-18 15:01:52  Candado local: lint web en rojo (codigo 1, 169 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-18 15:21:58  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 15:22:02  Vuelta 10 termino (codigo 0, 40.7 min). Commits sobre main: 381
+2026-09-18 15:22:02  Vuelta 11 en marcha (PID 14204).
+2026-09-18 15:24:41  Candado local: typecheck web verde (84 s).
+2026-09-18 15:24:48  Candado local: typecheck api verde (8 s).
+2026-09-18 15:27:43  Candado local: lint web verde (175 s).
+2026-09-18 15:28:42  Candado local: lint api verde (58 s).
+2026-09-18 15:28:44  Candado local: presupuesto de monolito verde (2 s).
+2026-09-18 15:32:10  Candado local: trinquete de lint verde (206 s).
+2026-09-18 15:33:38  Candado local: gates rapidos del CI (16 comprobaciones) en rojo (codigo 1, 84 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-18 15:53:44  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 15:53:48  Vuelta 11 termino (codigo 0, 31.8 min). Commits sobre main: 387
+2026-09-18 15:53:48  Vuelta 12 en marcha (PID 15136).
+2026-09-18 15:55:23  Candado local: typecheck web verde (21 s).
+2026-09-18 15:55:31  Candado local: typecheck api verde (8 s).
+2026-09-18 15:58:02  Candado local: lint web verde (152 s).
+2026-09-18 15:58:52  Candado local: lint api verde (50 s).
+2026-09-18 15:58:54  Candado local: presupuesto de monolito verde (2 s).
+2026-09-18 16:01:58  Candado local: trinquete de lint verde (183 s).
+2026-09-18 16:03:18  Candado local: gates rapidos del CI (16 comprobaciones) en rojo (codigo 1, 77 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-18 16:03:18  Vuelta 12 termino (codigo 0, 9.5 min). Commits sobre main: 387
+2026-09-18 16:03:18  Vuelta 13 en marcha (PID 16024).
+2026-09-18 16:23:24  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 16:23:28  Vuelta 13 termino (codigo 0, 20.2 min). Commits sobre main: 388
+2026-09-18 16:23:28  Vuelta 14 en marcha (PID 11108).
+2026-09-18 16:24:59  Candado local: typecheck web verde (19 s).
+2026-09-18 16:25:06  Candado local: typecheck api verde (7 s).
+2026-09-18 16:27:54  Candado local: lint web verde (168 s).
+2026-09-18 16:28:46  Candado local: lint api verde (53 s).
+2026-09-18 16:28:48  Candado local: presupuesto de monolito verde (2 s).
+2026-09-18 16:32:03  Candado local: trinquete de lint verde (195 s).
+2026-09-18 16:33:22  Candado local: gates rapidos del CI (16 comprobaciones) verde (79 s).
+2026-09-18 17:03:02  Candado local: specs de web afectados en rojo (codigo 1, 1779 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-18 17:08:03  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 17:08:07  Vuelta 14 termino (codigo 0, 44.6 min). Commits sobre main: 393
+2026-09-18 17:08:07  Vuelta 15 en marcha (PID 8840).
+2026-09-18 17:23:37  Candado local: typecheck web verde (16 s).
+2026-09-18 17:23:44  Candado local: typecheck api verde (7 s).
+2026-09-18 17:26:24  Candado local: lint web verde (160 s).
+2026-09-18 17:27:18  Candado local: lint api verde (53 s).
+2026-09-18 17:27:20  Candado local: presupuesto de monolito verde (2 s).
+2026-09-18 17:30:33  Candado local: trinquete de lint verde (193 s).
+2026-09-18 17:31:52  Candado local: gates rapidos del CI (16 comprobaciones) verde (79 s).
+2026-09-18 17:40:31  Candado local: specs de web afectados en rojo (codigo 1, 518 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-18 17:41:32  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 17:41:35  Vuelta 15 termino (codigo 0, 33.5 min). Commits sobre main: 395
+2026-09-18 17:41:35  Vuelta 16 en marcha (PID 5084).
+2026-09-18 18:01:06  Candado local: typecheck web verde (17 s).
+2026-09-18 18:01:13  Candado local: typecheck api verde (7 s).
+2026-09-18 18:03:57  Candado local: lint web verde (164 s).
+2026-09-18 18:05:18  Candado local: lint api verde (81 s).
+2026-09-18 18:05:22  Candado local: presupuesto de monolito verde (4 s).
+2026-09-18 18:09:11  Candado local: trinquete de lint verde (228 s).
+2026-09-18 18:10:35  Candado local: gates rapidos del CI (16 comprobaciones) en rojo (codigo 1, 82 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-18 18:10:36  Vuelta 16 termino (codigo 0, 29 min). Commits sobre main: 397
+2026-09-18 18:10:36  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 18:10:39  Vuelta 17 en marcha (PID 2028).
+2026-09-18 18:31:11  Candado local: typecheck web verde (18 s).
+2026-09-18 18:31:19  Candado local: typecheck api verde (8 s).
+2026-09-18 18:34:05  Candado local: lint web verde (166 s).
+2026-09-18 18:34:59  Candado local: lint api verde (54 s).
+2026-09-18 18:35:01  Candado local: presupuesto de monolito verde (2 s).
+2026-09-18 18:38:21  Candado local: trinquete de lint verde (200 s).
+2026-09-18 18:39:43  Candado local: gates rapidos del CI (16 comprobaciones) verde (82 s).
+2026-09-18 18:53:34  Candado local: specs de web afectados en rojo (codigo 1, 830 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-18 19:12:39  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 19:12:42  Vuelta 17 termino (codigo 0, 62 min). Commits sobre main: 398
+2026-09-18 19:12:42  Vuelta 18 en marcha (PID 5776).
+2026-09-18 19:14:12  Candado local: typecheck web en rojo (codigo 2, 18 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-18 19:15:12  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 19:15:15  Vuelta 18 termino (codigo 0, 2.5 min). Commits sobre main: 398
+2026-09-18 19:15:15  Vuelta 19 en marcha (PID 7088).
+2026-09-18 19:22:16  Vuelta 19 termino (codigo 0, 7 min). Commits sobre main: 398
+2026-09-18 19:22:16  Vuelta 20 en marcha (PID 14376).
+2026-09-18 19:34:46  Candado local: typecheck web verde (16 s).
+2026-09-18 19:34:53  Candado local: typecheck api verde (7 s).
+2026-09-18 19:37:36  Candado local: lint web verde (164 s).
+2026-09-18 19:38:34  Candado local: lint api verde (58 s).
+2026-09-18 19:38:37  Candado local: presupuesto de monolito verde (2 s).
+2026-09-18 19:42:01  Candado local: trinquete de lint verde (205 s).
+2026-09-18 19:43:21  Candado local: gates rapidos del CI (16 comprobaciones) verde (80 s).
+2026-09-18 19:44:20  Candado local: specs de web afectados verde (59 s).
+2026-09-18 19:44:34  Push de la rama (8f88e413): codigo 0
+2026-09-18 19:44:38  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-18 19:44:39  Auto-merge pedido (codigo 0).
+2026-09-18 19:44:39  CI en marcha para 8f88e413 (398 commits). MiMo sigue trabajando mientras tanto.
+2026-09-18 20:04:46  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-18 20:04:53  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-18 20:11:55  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 20:11:59  Vuelta 20 termino (codigo 0, 49.7 min). Commits sobre main: 403
+2026-09-18 20:11:59  Vuelta 21 en marcha (PID 11540).
+2026-09-18 20:14:59  MiMo commiteo 2 commit(s) desde el aviso del CI: integro ya, sin agotar los 45 min.
+2026-09-18 20:15:20  Artefacto de integridad refrescado y commiteado. Antes: 343 comandos, muta 114, delegado 60. Ahora: 345 comandos, muta 114, delegado 60, informa 29, honesto-limitado 133, no-concluyente 9, ROJO 0.
+2026-09-18 20:15:38  Candado local: typecheck web verde (17 s).
+2026-09-18 20:15:44  Candado local: typecheck api verde (7 s).
+2026-09-18 20:18:39  Candado local: lint web verde (175 s).
+2026-09-18 20:19:34  Candado local: lint api verde (55 s).
+2026-09-18 20:19:36  Candado local: presupuesto de monolito verde (2 s).
+2026-09-18 20:23:32  Candado local: trinquete de lint en rojo (codigo 1, 236 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-18 20:24:33  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 20:24:36  Vuelta 21 termino (codigo 0, 12.6 min). Commits sobre main: 405
+2026-09-18 20:24:36  Vuelta 22 en marcha (PID 9524).
+2026-09-18 20:44:15  Candado local: typecheck web verde (25 s).
+2026-09-18 20:44:21  Candado local: typecheck api verde (7 s).
+2026-09-18 20:46:56  Candado local: lint web verde (154 s).
+2026-09-18 20:47:45  Candado local: lint api verde (49 s).
+2026-09-18 20:47:47  Candado local: presupuesto de monolito verde (2 s).
+2026-09-18 20:50:50  Candado local: trinquete de lint verde (183 s).
+2026-09-18 20:52:10  Candado local: gates rapidos del CI (16 comprobaciones) verde (80 s).
+2026-09-18 20:52:59  Candado local: specs de web afectados en rojo (codigo 1, 48 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-18 21:02:01  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 21:02:04  Vuelta 22 termino (codigo 0, 37.5 min). Commits sobre main: 408
+2026-09-18 21:02:05  Vuelta 23 en marcha (PID 16432).
+2026-09-18 21:13:48  Candado local: typecheck web verde (31 s).
+2026-09-18 21:13:54  Candado local: typecheck api verde (6 s).
+2026-09-18 21:16:39  Candado local: lint web verde (165 s).
+2026-09-18 21:17:33  Candado local: lint api verde (53 s).
+2026-09-18 21:17:35  Candado local: presupuesto de monolito verde (2 s).
+2026-09-18 21:20:50  Candado local: trinquete de lint verde (195 s).
+2026-09-18 21:22:08  Candado local: gates rapidos del CI (16 comprobaciones) verde (78 s).
+2026-09-18 21:22:58  Candado local: specs de web afectados verde (50 s).
+2026-09-18 21:23:06  Aviso local: manifiesto de comandos en rojo (no bloquea el push).
+2026-09-18 21:23:11  Push de la rama (283552fa): codigo 0
+2026-09-18 21:23:15  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-18 21:23:16  Auto-merge pedido (codigo 0).
+2026-09-18 21:23:16  CI en marcha para 283552fa (408 commits). MiMo sigue trabajando mientras tanto.
+2026-09-18 21:36:21  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 21:36:25  Vuelta 23 termino (codigo 0, 34.3 min). Commits sobre main: 411
+2026-09-18 21:36:25  Vuelta 24 en marcha (PID 6148).
+2026-09-18 21:47:30  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-18 21:47:37  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-18 21:47:37  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 21:47:41  Vuelta 24 termino (codigo 0, 11.3 min). Commits sobre main: 412
+2026-09-18 21:47:41  Vuelta 25 en marcha (PID 11672).
+2026-09-18 22:01:43  MiMo commiteo 1 commit(s) desde el aviso del CI: integro ya, sin agotar los 45 min.
+2026-09-18 22:02:02  Artefacto de integridad refrescado y commiteado. Antes: 346 comandos, muta 114, delegado 61. Ahora: 348 comandos, muta 114, delegado 61, informa 30, honesto-limitado 134, no-concluyente 9, ROJO 0.
+2026-09-18 22:02:27  Candado local: typecheck web verde (24 s).
+2026-09-18 22:02:34  Candado local: typecheck api verde (7 s).
+2026-09-18 22:05:08  Candado local: lint web verde (154 s).
+2026-09-18 22:06:00  Candado local: lint api verde (52 s).
+2026-09-18 22:06:02  Candado local: presupuesto de monolito verde (2 s).
+2026-09-18 22:09:11  Candado local: trinquete de lint en rojo (codigo 1, 189 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-18 22:20:14  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 22:20:17  Vuelta 25 termino (codigo 0, 32.6 min). Commits sobre main: 415
+2026-09-18 22:20:17  Vuelta 26 en marcha (PID 12672).
+2026-09-18 22:29:39  Artefacto de integridad refrescado y commiteado. Antes: 348 comandos, muta 114, delegado 61. Ahora: 352 comandos, muta 115, delegado 62, informa 31, honesto-limitado 135, no-concluyente 9, ROJO 0.
+2026-09-18 22:30:10  Candado local: typecheck web verde (31 s).
+2026-09-18 22:30:17  Candado local: typecheck api verde (7 s).
+2026-09-18 22:32:54  Candado local: lint web verde (158 s).
+2026-09-18 22:33:46  Candado local: lint api verde (52 s).
+2026-09-18 22:33:48  Candado local: presupuesto de monolito verde (2 s).
+2026-09-18 22:36:55  Candado local: trinquete de lint verde (187 s).
+2026-09-18 22:38:15  Candado local: gates rapidos del CI (16 comprobaciones) verde (80 s).
+2026-09-18 22:39:12  Candado local: specs de web afectados en rojo (codigo 1, 57 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-18 22:47:15  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 22:47:18  Vuelta 26 termino (codigo 0, 27 min). Commits sobre main: 418
+2026-09-18 22:47:18  Vuelta 27 en marcha (PID 132).
+2026-09-18 22:59:49  Artefacto de integridad refrescado y commiteado. Antes: 352 comandos, muta 115, delegado 62. Ahora: 352 comandos, muta 116, delegado 62, informa 30, honesto-limitado 135, no-concluyente 9, ROJO 0.
+2026-09-18 23:00:13  Candado local: typecheck web verde (23 s).
+2026-09-18 23:00:22  Candado local: typecheck api verde (10 s).
+2026-09-18 23:03:09  Candado local: lint web verde (167 s).
+2026-09-18 23:04:13  Candado local: lint api verde (64 s).
+2026-09-18 23:04:17  Candado local: presupuesto de monolito verde (4 s).
+2026-09-18 23:08:30  Candado local: trinquete de lint verde (253 s).
+2026-09-18 23:10:10  Candado local: gates rapidos del CI (16 comprobaciones) verde (100 s).
+2026-09-18 23:11:15  Candado local: specs de web afectados en rojo (codigo 1, 65 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-18 23:31:24  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-18 23:31:27  Vuelta 27 termino (codigo 0, 44.1 min). Commits sobre main: 421
+2026-09-18 23:31:27  Vuelta 28 en marcha (PID 12236).
+2026-09-18 23:32:57  Candado local: typecheck web verde (18 s).
+2026-09-18 23:33:05  Candado local: typecheck api verde (8 s).
+2026-09-18 23:36:48  Candado local: lint web verde (222 s).
+2026-09-18 23:37:49  Candado local: lint api verde (61 s).
+2026-09-18 23:37:51  Candado local: presupuesto de monolito verde (2 s).
+2026-09-18 23:41:38  Candado local: trinquete de lint verde (227 s).
+2026-09-18 23:43:01  Candado local: gates rapidos del CI (16 comprobaciones) verde (83 s).
+2026-09-18 23:44:02  Candado local: specs de web afectados en rojo (codigo 1, 61 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-19 00:04:09  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-19 00:04:13  Vuelta 28 termino (codigo 0, 32.8 min). Commits sobre main: 421
+2026-09-19 00:04:13  Vuelta 29 en marcha (PID 3196).
+2026-09-19 00:05:42  Candado local: typecheck web verde (17 s).
+2026-09-19 00:05:48  Candado local: typecheck api verde (6 s).
+2026-09-19 00:08:26  Candado local: lint web verde (159 s).
+2026-09-19 00:09:19  Candado local: lint api verde (53 s).
+2026-09-19 00:09:21  Candado local: presupuesto de monolito verde (2 s).
+2026-09-19 00:12:31  Candado local: trinquete de lint verde (190 s).
+2026-09-19 00:13:52  Candado local: gates rapidos del CI (16 comprobaciones) en rojo (codigo 1, 78 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-19 00:33:57  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-19 00:34:01  Vuelta 29 termino (codigo 0, 29.8 min). Commits sobre main: 424
+2026-09-19 00:34:01  Vuelta 30 en marcha (PID 6960).
+2026-09-19 00:35:22  Artefacto de integridad refrescado y commiteado. Antes: 352 comandos, muta 116, delegado 62. Ahora: 355 comandos, muta 118, delegado 62, informa 30, honesto-limitado 136, no-concluyente 9, ROJO 0.
+2026-09-19 00:35:38  Candado local: typecheck web verde (16 s).
+2026-09-19 00:35:45  Candado local: typecheck api verde (7 s).
+2026-09-19 00:38:35  Candado local: lint web en rojo (codigo 1, 166 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-19 00:58:40  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-19 00:58:43  Vuelta 30 termino (codigo 0, 24.7 min). Commits sobre main: 427
+2026-09-19 00:58:43  Vuelta 31 en marcha (PID 16280).
+2026-09-19 00:59:45  Integracion: main avanzo; espero a que MiMo deje el arbol limpio para fusionar.
+2026-09-19 01:12:58  Vuelta 31 termino (codigo 0, 14.2 min). Commits sobre main: 428
+2026-09-19 01:12:58  Vuelta 32 en marcha (PID 13364).
+2026-09-19 01:36:21  Arbol sucio y SIN cambios 15 min (MiMo parado): lo pauso para poder integrar.
+2026-09-19 01:36:25  Integracion: pauso a MiMo un momento para rebasar sobre main.
+2026-09-19 01:36:28  Integracion aplazada 10 min: quedaron cambios a medias al pausar.
+2026-09-19 01:36:28  Vuelta 32 termino (codigo 0, 23.5 min). Commits sobre main: 429
+2026-09-19 01:36:28  Vuelta 33 en marcha (PID 13540).
+2026-09-19 01:46:31  Integracion: main avanzo; espero a que MiMo deje el arbol limpio para fusionar.
+2026-09-19 02:14:57  Integracion: pauso a MiMo un momento para rebasar sobre main.
+2026-09-19 02:15:01  Integracion: la fusion con main choca en 1 ficheros. La dejo ABIERTA y se la paso a MiMo.
+2026-09-19 02:15:01  Vuelta 33 termino (codigo 0, 38.5 min). Commits sobre main: 430
+2026-09-19 02:15:01  Vuelta 34 en marcha (PID 4032).
+2026-09-19 02:35:05  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-19 02:35:09  Vuelta 34 termino (codigo 0, 20.1 min). Commits sobre main: 430
+2026-09-19 02:35:09  Vuelta 35 en marcha (PID 2676).
+2026-09-19 02:36:10  Integracion: la fusion con main sigue abierta; MiMo la esta resolviendo.
+2026-09-19 02:46:14  Integracion: pauso a MiMo un momento para rebasar sobre main.
+2026-09-19 02:46:18  Integracion: la fusion con main choca en 1 ficheros. La dejo ABIERTA y se la paso a MiMo.
+2026-09-19 02:46:18  Vuelta 35 termino (codigo 0, 11.1 min). Commits sobre main: 432
+2026-09-19 02:46:18  Vuelta 36 en marcha (PID 6716).
+2026-09-19 02:49:19  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-19 02:49:22  Vuelta 36 termino (codigo 0, 3.1 min). Commits sobre main: 432
+2026-09-19 02:49:22  Vuelta 37 en marcha (PID 4880).
+2026-09-19 03:01:36  Aviso local: sonda de integridad en rojo por su CONTENIDO (no la refresco; se lo paso a MiMo).
+2026-09-19 03:02:02  Candado local: typecheck web en rojo (codigo 2, 26 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-19 03:22:07  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-19 03:22:10  Vuelta 37 termino (codigo 0, 32.8 min). Commits sobre main: 436
+2026-09-19 03:22:10  Vuelta 38 en marcha (PID 6924).
+2026-09-19 03:23:31  Artefacto de integridad refrescado y commiteado. Antes: 358 comandos, muta 118, delegado 62. Ahora: 361 comandos, muta 119, delegado 62, informa 32, honesto-limitado 139, no-concluyente 9, ROJO 0.
+2026-09-19 03:23:49  Candado local: typecheck web verde (17 s).
+2026-09-19 03:23:56  Candado local: typecheck api verde (7 s).
+2026-09-19 03:26:53  Candado local: lint web en rojo (codigo 1, 172 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-19 03:46:58  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-19 03:47:01  Vuelta 38 termino (codigo 0, 24.8 min). Commits sobre main: 438
+2026-09-19 03:47:01  Vuelta 39 en marcha (PID 7728).
+2026-09-19 03:48:35  Candado local: typecheck web verde (20 s).
+2026-09-19 03:48:43  Candado local: typecheck api verde (8 s).
+2026-09-19 03:51:57  Candado local: lint web en rojo (codigo 1, 189 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-19 04:12:03  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-19 04:12:06  Vuelta 39 termino (codigo 0, 25.1 min). Commits sobre main: 440
+2026-09-19 04:12:06  Vuelta 40 en marcha (PID 16824).
+2026-09-19 04:13:34  Candado local: typecheck web verde (16 s).
+2026-09-19 04:13:41  Candado local: typecheck api verde (6 s).
+2026-09-19 04:16:56  Candado local: lint web verde (195 s).
+2026-09-19 04:18:07  Candado local: lint api en rojo (codigo 1, 67 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-19 04:19:08  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-19 04:19:11  Vuelta 40 termino (codigo 0, 7.1 min). Commits sobre main: 441
+2026-09-19 04:19:11  Vuelta 41 en marcha (PID 11964).
+2026-09-19 04:38:40  Candado local: typecheck web verde (16 s).
+2026-09-19 04:38:47  Candado local: typecheck api verde (6 s).
+2026-09-19 04:41:21  Candado local: lint web verde (155 s).
+2026-09-19 04:42:13  Candado local: lint api verde (52 s).
+2026-09-19 04:42:15  Candado local: presupuesto de monolito verde (2 s).
+2026-09-19 04:45:31  Candado local: trinquete de lint en rojo (codigo 1, 196 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-19 04:46:31  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-19 04:46:35  Vuelta 41 termino (codigo 0, 27.4 min). Commits sobre main: 444
+2026-09-19 04:46:35  Vuelta 42 en marcha (PID 15344).
+2026-09-19 04:50:36  Vuelta 42 termino (codigo 0, 4 min). Commits sobre main: 444
+2026-09-19 04:50:36  Vuelta 43 en marcha (PID 9680).
+2026-09-19 05:06:16  Candado local: typecheck web verde (27 s).
+2026-09-19 05:06:23  Candado local: typecheck api verde (7 s).
+2026-09-19 05:09:30  Candado local: lint web verde (187 s).
+2026-09-19 05:10:25  Candado local: lint api verde (54 s).
+2026-09-19 05:10:27  Candado local: presupuesto de monolito verde (2 s).
+2026-09-19 05:14:15  Candado local: trinquete de lint verde (228 s).
+2026-09-19 05:15:40  Candado local: gates rapidos del CI (16 comprobaciones) en rojo (codigo 1, 81 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-19 05:23:42  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-19 05:23:46  Vuelta 43 termino (codigo 0, 33.2 min). Commits sobre main: 447
+2026-09-19 05:23:46  Vuelta 44 en marcha (PID 360).
+2026-09-19 05:36:22  Candado local: typecheck web verde (21 s).
+2026-09-19 05:36:31  Candado local: typecheck api verde (9 s).
+2026-09-19 05:40:03  Candado local: lint web verde (212 s).
+2026-09-19 05:40:58  Candado local: lint api verde (55 s).
+2026-09-19 05:41:00  Candado local: presupuesto de monolito verde (2 s).
+2026-09-19 05:44:18  Candado local: trinquete de lint verde (198 s).
+2026-09-19 05:45:40  Candado local: gates rapidos del CI (16 comprobaciones) verde (83 s).
+2026-09-19 05:46:46  Candado local: specs de web afectados en rojo (codigo 1, 65 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-19 05:47:47  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-19 05:47:50  Vuelta 44 termino (codigo 0, 24.1 min). Commits sobre main: 448
+2026-09-19 05:47:50  Vuelta 45 en marcha (PID 3644).
+2026-09-19 05:49:51  Vuelta 45 termino (codigo 0, 2 min). Commits sobre main: 448
+2026-09-19 05:49:51  Vuelta 46 en marcha (PID 7488).
+2026-09-19 05:50:51  Vuelta 46 termino (codigo 0, 1 min). Commits sobre main: 448
+2026-09-19 05:50:51  Vuelta 47 en marcha (PID 12428).
+2026-09-19 06:07:25  Candado local: typecheck web verde (19 s).
+2026-09-19 06:07:33  Candado local: typecheck api verde (7 s).
+2026-09-19 06:10:54  Candado local: lint web verde (202 s).
+2026-09-19 06:11:49  Candado local: lint api verde (55 s).
+2026-09-19 06:11:51  Candado local: presupuesto de monolito verde (2 s).
+2026-09-19 06:14:59  Candado local: trinquete de lint verde (187 s).
+2026-09-19 06:16:17  Candado local: gates rapidos del CI (16 comprobaciones) verde (78 s).
+2026-09-19 06:17:21  Candado local: specs de web afectados verde (64 s).
+2026-09-19 06:17:35  Push de la rama (f3f73976): codigo 0
+2026-09-19 06:17:39  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-19 06:17:40  Auto-merge pedido (codigo 0).
+2026-09-19 06:17:40  CI en marcha para f3f73976 (449 commits). MiMo sigue trabajando mientras tanto.
+2026-09-19 06:17:40  Vuelta 47 termino (codigo 0, 26.8 min). Commits sobre main: 449
+2026-09-19 06:17:41  Vuelta 48 en marcha (PID 6744).
+2026-09-19 06:41:50  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-19 06:41:57  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-19 06:41:57  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-19 06:42:01  Vuelta 48 termino (codigo 0, 24.3 min). Commits sobre main: 450
+2026-09-19 06:42:01  Vuelta 49 en marcha (PID 13012).
+2026-09-19 06:44:16  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-19 06:44:19  Sigo la PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 (f3f73976), con auto-merge.
+2026-09-19 06:44:19  Adopto la vuelta de MiMo que ya estaba en marcha (PID 2544).
+2026-09-19 06:45:21  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-19 06:45:26  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-19 06:45:26  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-19 06:45:30  Vuelta 1 termino (codigo 0, 1.2 min). Commits sobre main: 450
+2026-09-19 06:45:30  Vuelta 2 en marcha (PID 15668).
+2026-09-19 06:56:32  MiMo commiteo 1 commit(s) desde el aviso del CI: integro ya, sin agotar los 45 min.
+2026-09-19 06:56:33  La #208 ya no esta abierta (MERGED).
+2026-09-19 06:56:57  Candado local: typecheck web verde (14 s).
+2026-09-19 06:57:04  Candado local: typecheck api verde (7 s).
+2026-09-19 06:59:22  Candado local: lint web verde (139 s).
+2026-09-19 07:00:09  Candado local: lint api verde (47 s).
+2026-09-19 07:00:12  Candado local: presupuesto de monolito en rojo (codigo 1, 2 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-19 07:01:12  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-19 07:01:15  Vuelta 2 termino (codigo 0, 15.8 min). Commits sobre main: 452
+2026-09-19 07:01:16  Vuelta 3 en marcha (PID 13416).
+2026-09-19 07:20:29  Aviso local: sonda de integridad en rojo por su CONTENIDO (no la refresco; se lo paso a MiMo).
+2026-09-19 07:20:43  Candado local: typecheck web verde (14 s).
+2026-09-19 07:20:49  Candado local: typecheck api verde (6 s).
+2026-09-19 07:23:06  Candado local: lint web verde (137 s).
+2026-09-19 07:23:52  Candado local: lint api verde (46 s).
+2026-09-19 07:23:54  Candado local: presupuesto de monolito verde (2 s).
+2026-09-19 07:26:44  Candado local: trinquete de lint en rojo (codigo 1, 169 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-19 07:32:46  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-19 07:32:49  Vuelta 3 termino (codigo 0, 31.6 min). Commits sobre main: 455
+2026-09-19 07:32:49  Vuelta 4 en marcha (PID 10892).
+2026-09-19 07:47:02  Aviso local: sonda de integridad en rojo por su CONTENIDO (no la refresco; se lo paso a MiMo).
+2026-09-19 07:47:16  Candado local: typecheck web en rojo (codigo 2, 15 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-19 08:00:20  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-19 08:00:23  Vuelta 4 termino (codigo 0, 27.6 min). Commits sobre main: 458
+2026-09-19 08:00:23  Vuelta 5 en marcha (PID 516).
+2026-09-19 08:07:49  Candado local: typecheck web verde (14 s).
+2026-09-19 08:07:55  Candado local: typecheck api verde (6 s).
+2026-09-19 08:10:17  Candado local: lint web verde (142 s).
+2026-09-19 08:11:03  Candado local: lint api verde (45 s).
+2026-09-19 08:11:05  Candado local: presupuesto de monolito verde (2 s).
+2026-09-19 08:13:53  Candado local: trinquete de lint verde (169 s).
+2026-09-19 08:15:11  Candado local: gates rapidos del CI (16 comprobaciones) verde (77 s).
+2026-09-19 08:16:07  Candado local: specs de web afectados en rojo (codigo 1, 56 s). NO subo; se lo paso a MiMo en ci-fallo.md.
+2026-09-19 08:36:12  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-19 08:36:15  Vuelta 5 termino (codigo 0, 35.9 min). Commits sobre main: 462
+2026-09-19 08:36:16  Vuelta 6 en marcha (PID 10252).
+2026-09-19 08:37:41  Candado local: typecheck web verde (14 s).
+2026-09-19 08:37:47  Candado local: typecheck api verde (6 s).
+2026-09-19 08:40:02  Candado local: lint web verde (136 s).
+2026-09-19 08:40:47  Candado local: lint api verde (44 s).
+2026-09-19 08:40:49  Candado local: presupuesto de monolito verde (2 s).
+2026-09-19 08:43:34  Candado local: trinquete de lint verde (165 s).
+2026-09-19 08:44:51  Candado local: gates rapidos del CI (16 comprobaciones) verde (76 s).
+2026-09-19 08:45:48  Candado local: specs de web afectados verde (57 s).
+2026-09-19 09:00:35  Candado local: specs de web completos (run-specs, 705) verde (888 s).
+2026-09-19 09:00:49  Push de la rama (3a3966aa): codigo 0
+2026-09-19 09:00:53  PR existente actualizada: https://github.com/Sergiovalle3121/valle-design/pull/209
+2026-09-19 09:00:55  Auto-merge pedido (codigo 0).
+2026-09-19 09:00:55  CI en marcha para 3a3966aa (462 commits). MiMo sigue trabajando mientras tanto.
+2026-09-19 09:09:57  Vuelta 6 termino (codigo 0, 33.7 min). Commits sobre main: 463
+2026-09-19 09:09:57  Vuelta 7 en marcha (PID 4056).
+2026-09-19 09:25:04  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-19 09:25:11  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-19 09:25:11  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-19 09:25:15  Vuelta 7 termino (codigo 0, 15.3 min). Commits sobre main: 463
+2026-09-19 09:25:15  Vuelta 8 en marcha (PID 11168).
+2026-09-19 09:28:28  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-19 09:28:30  Sigo la PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 (3a3966aa), con auto-merge.
+2026-09-19 09:28:31  Adopto la vuelta de MiMo que ya estaba en marcha (PID 10524).
+2026-09-19 09:29:32  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-19 09:29:37  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-19 09:29:38  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-19 09:29:41  Vuelta 1 termino (codigo 0, 1.2 min). Commits sobre main: 463
+2026-09-19 09:29:41  Vuelta 2 en marcha (PID 14860).
+2026-09-19 09:43:44  MiMo commiteo 1 commit(s) desde el aviso del CI: integro ya, sin agotar los 45 min.
+2026-09-19 09:43:46  La #208 ya no esta abierta (MERGED).
+2026-09-19 09:45:00  Candado local: typecheck web verde (64 s).
+2026-09-19 09:45:16  Candado local: typecheck api verde (16 s).
+2026-09-19 09:54:32  Arranca la noche v3.1 (integra sin parar a MiMo, merge: titular). Rama claude/noche-mimo-razones-para-pagar. Despierto: True. gh: True. push: True
+2026-09-19 09:54:35  Sigo la PR abierta https://github.com/Sergiovalle3121/valle-design/pull/209 (3a3966aa), con auto-merge.
+2026-09-19 09:54:36  Resultado de la integracion: fallo: Build*Test*Lint
+2026-09-19 09:54:42  Fallo de CI guardado en .mimocode/ci-fallo.md (fallo: Build*Test*Lint).
+2026-09-19 09:54:42  Vuelta 1 en marcha (PID 5404).
+2026-09-19 10:14:53  Relanzo a MiMo con un aviso antes de seguir con la cola.
+2026-09-19 10:14:57  Vuelta 1 termino (codigo 0, 20.3 min). Commits sobre main: 464
+2026-09-19 10:14:57  Vuelta 2 en marcha (PID 7332).
+2026-09-19 10:23:00  Vuelta 2 termino (codigo 0, 8 min). Commits sobre main: 464
+2026-09-19 10:23:00  Vuelta 3 en marcha (PID 4764).
+2026-09-19 10:25:39  SUPERVISOR: lanzador y MiMo detenidos por orden de Sergio (fin de MiMo). Tarea programada desactivada. Claude toma la #209.

@@ -1,0 +1,28 @@
+import { buildCadPlotJob } from "file:///D:/dev/valle-design/apps/web/src/lib/cad/plot/plot-job.ts";
+import { createCadPaperSpace } from "file:///D:/dev/valle-design/apps/web/src/lib/cad/paper-space.ts";
+import { cadPageSetupFromLayout } from "file:///D:/dev/valle-design/apps/web/src/lib/cad/plot/page-setup.ts";
+import { cadBuiltinPlotStyleTables } from "file:///D:/dev/valle-design/apps/web/src/lib/cad/plot/plot-style-catalog.ts";
+
+const entities = [
+  { id: "w", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 5000, y: 0, z: 0 }, layer: "0" },
+  { id: "y", type: "line", start: { x: 0, y: 1000, z: 0 }, end: { x: 5000, y: 1000, z: 0 }, layer: "AMARILLO" },
+  { id: "d", type: "line", start: { x: 0, y: 2000, z: 0 }, end: { x: 5000, y: 2000, z: 0 }, layer: "OSCURO" },
+];
+const space = createCadPaperSpace({ id: "L1", name: "P", order: 0, paper: "A3", orientation: "landscape",
+  modelBounds: { x: 0, y: 0, width: 5000, height: 2000 }, unit: "mm",
+  metadata: { project: "-", drawingNumber: "-", title: "P", sheetNumber: "1", revision: "-", discipline: "A" } as any, scale: 50 });
+const doc: any = { meta: { version: 1, schema: 8, unit: "mm" },
+  layers: [
+    { id: "0", name: "0", color: "#ffffff", visible: true, locked: false },
+    { id: "AMARILLO", name: "AMARILLO", color: "#ffff00", visible: true, locked: false },
+    { id: "OSCURO", name: "OSCURO", color: "#111827", visible: true, locked: false },
+  ],
+  entities, history: [], modelSpace: { entityIds: ["w", "y", "d"] }, paperSpaces: [space],
+  styles: { text: {}, dimension: {}, mleader: {}, table: {}, plot: {} },
+  blocks: [], constraints: [], externalReferences: [], unsupportedEntities: [], lossManifest: [], publications: [] };
+const setup = { ...cadPageSetupFromLayout(space), colorMode: "monochrome" as const };
+const colors = (job: any) => job.sheets[0].viewports[0].commands.map((c: any) => `${c.entityId}:${c.style?.stroke}`);
+console.log("PLOT monocromo SIN tabla:", colors(buildCadPlotJob({ document: doc, layoutIds: ["L1"], pageSetup: setup, generatedAt: "x" })));
+console.log("PLOT color SIN tabla:", colors(buildCadPlotJob({ document: doc, layoutIds: ["L1"], pageSetup: { ...setup, colorMode: "color" }, generatedAt: "x" })));
+const mono = cadBuiltinPlotStyleTables().get("monochrome.ctb");
+console.log("PLOT color CON monochrome.ctb:", colors(buildCadPlotJob({ document: doc, layoutIds: ["L1"], pageSetup: { ...setup, colorMode: "color", plotStyleTable: "monochrome.ctb" }, plotStyleTable: mono, generatedAt: "x" })));

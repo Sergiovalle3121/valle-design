@@ -1,0 +1,15 @@
+import { cadSnapSceneAddEntities } from "D:/dev/valle-design/apps/web/src/lib/cad/snap-scene";
+import { snap, type SnapScene } from "D:/dev/valle-design/apps/web/src/lib/cad/snap-engine";
+// Circle R=5000 at origin (a curved facade) and a line crossing it at x = 1234 (a grid axis)
+const R = 5000, X = 1234;
+const entities: any[] = [
+  { id: "c", type: "circle", center: { x: 0, y: 0, z: 0 }, radius: R, layer: "0" },
+  { id: "l", type: "line", start: { x: X, y: -6000, z: 0 }, end: { x: X, y: 6000, z: 0 }, layer: "0" },
+];
+const exact = { x: X, y: Math.sqrt(R * R - X * X) };
+const scene: SnapScene = { segments: [], midpoints: [], perpendicularSegments: [], endpoints: [], centers: [], quadrants: [], geometricCenters: [], insertions: [], tangents: [], nodes: [] };
+cadSnapSceneAddEntities(scene, entities, exact);
+const hit = snap({ x: exact.x + 5, y: exact.y + 5 }, scene, { tolerance: 200, modes: { intersection: true, endpoint: false, midpoint: false, center: false, "geometric-center": false, node: false, quadrant: false, insertion: false, perpendicular: false, tangent: false, nearest: false, "apparent-intersection": false, extension: false, grid: false } });
+console.log("exact intersection:", JSON.stringify(exact));
+console.log("INT snap returns:  ", JSON.stringify(hit));
+if (hit) console.log("error (mm):", Math.hypot(hit.point.x - exact.x, hit.point.y - exact.y).toFixed(2), "| distance of snapped point from the true circle (mm):", (R - Math.hypot(hit.point.x, hit.point.y)).toFixed(2));

@@ -1,0 +1,27 @@
+const ROOT = "file:///D:/dev/valle-design/apps/web/src/lib/cad";
+const { EMPTY_CAD_COMMAND_ENGINE, cadCommandEngineReduce } = await import(`${ROOT}/engine/command-engine.ts`);
+const { createCadCommandRegistry } = await import(`${ROOT}/engine/registry.ts`);
+const { CAD_DRAW_BASIC_COMMANDS } = await import(`${ROOT}/engine/commands/draw-basics.ts`);
+const { CAD_DRAW_PLINE_COMMANDS } = await import(`${ROOT}/engine/commands/draw-pline.ts`);
+const { CAD_DRAW_RECTANG_COMMANDS } = await import(`${ROOT}/engine/commands/draw-rectang.ts`);
+const registry = createCadCommandRegistry([...CAD_DRAW_BASIC_COMMANDS, ...CAD_DRAW_PLINE_COMMANDS, ...CAD_DRAW_RECTANG_COMMANDS]);
+let nextId = 0;
+const ctx = (cursor?: any) => ({ entityIds: [], selection: [], activeLayer: "0", view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 }, cursor, newEntityId: () => `e${++nextId}` });
+function drive(title: string, tokens: string[], cursor?: any) {
+  let state: any = EMPTY_CAD_COMMAND_ENGINE; const effects: any[] = [];
+  for (const t of tokens) {
+    const action: any = t === "<ENTER>" ? { kind: "input", input: { kind: "enter" } } : { kind: "token", value: t };
+    const r = cadCommandEngineReduce(state, action, ctx(cursor), registry); state = r.state; effects.push(...r.effects);
+  }
+  console.log("\n### " + title + "  [" + tokens.join(" | ") + "]");
+  const g = effects.filter((e: any) => e.kind === "execute").flatMap((e: any) => e.commands ?? []);
+  g.forEach((c: any) => console.log("   GEOM " + JSON.stringify(c.entity?.vertices ?? c.entity ?? c).slice(0, 260)));
+  if (!g.length) console.log("   GEOM (ninguna)");
+  effects.filter((e: any) => e.kind === "message").forEach((e: any) => console.log(`   MSG [${e.level}] ${e.text}`));
+}
+drive("LINE con distancia directa (control)", ["LINE", "0,0", "4325", "<ENTER>"], { x: 1000, y: 0 });
+drive("PLINE con distancia directa", ["PLINE", "0,0", "4325", "<ENTER>"], { x: 1000, y: 0 });
+drive("PLINE con @", ["PLINE", "0,0", "@300,0", "@0,600", "<ENTER>"], { x: 1000, y: 0 });
+drive("RECTANG con @ (seccion 30x60 cm en mm)", ["RECTANG", "0,0", "@300,600"]);
+drive("RECTANG con Dimensiones", ["RECTANG", "0,0", "D", "300", "600", "1000,1000"]);
+drive("RECTANG empalmado (estribo) con Dimensiones", ["RECTANG", "F", "20", "40,40", "D", "220", "520", "1000,1000"]);

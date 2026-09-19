@@ -1,0 +1,234 @@
+// Corre SOLO los specs de web que tocan lo que estamos a punto de subir.
+//
+// El 17-sep la corrida 35292374922 murio con 689/692 specs verdes: tres de la cinta, rotos por
+// un commit de limpieza que se subio horas antes. El candado de `test:specs` completo se quito
+// del lanzador porque tarda 10 minutos y levanta ocho procesos de node en una laptop de 8 GB.
+// Pero un spec suelto con `tsx` tarda segundos, asi que se corren los que importan: los que
+// estan al lado de lo que cambio, o cuyo nombre comparte una palabra larga con el fichero
+// cambiado (ribbon-order.ts -> CadRibbon.spec.ts, ribbon-layout.spec.ts, CadRibbonButton.spec.ts,
+// que es exactamente el trio que se rompio).
+//
+// Ambito: lo que hay en HEAD y NO en la rama remota, es decir lo que el push va a anadir. Si no
+// hay nada nuevo en apps/web, no corre nada y sale en 0.
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import path from "node:path";
+
+// La raíz la fija el lanzador (VALLE_CANDADOS_RAIZ): la copia exacta del SHA que se va a subir.
+const RAIZ = (process.env.VALLE_CANDADOS_RAIZ || "D:/dev/valle-design").split("\\").join("/");
+const WEB = path.join(RAIZ, "apps/web");
+const RAMA = "claude/noche-mimo-razones-para-pagar";
+const TOPE = 20;
+// Specs que el CI ya señalo en rojo: se corren SIEMPRE, aunque el push no toque sus ficheros.
+// Sin esto, un spec rojo descubierto por el CI se vuelve a subir tal cual una y otra vez, porque
+// el push de esa vuelta toca otra cosa. Se quitan de la lista cuando llevan verdes un dia.
+const VIGILADOS = "D:/dev/_mimo/specs-vigilados.txt";
+// Goldens de Playwright que el CI (o yo) ya vio en rojo. Se corren tambien antes de subir: los
+// goldens SI se pueden correr en esta laptop —el config levanta el server de Next y usan un
+// backend falso; el Postgres solo lo piden los E2E de pila completa (comprobado 17-sep 19:55)—.
+// Cuestan 2-4 min, asi que solo se corren si la lista NO esta vacia.
+const GOLDENS = "D:/dev/_mimo/goldens-vigilados.txt";
+
+function git(args) {
+  try {
+    return execFileSync("git", ["-C", RAIZ, ...args], { encoding: "utf8" });
+  } catch {
+    return "";
+  }
+}
+
+const base = git(["rev-parse", "--verify", `refs/remotes/origin/${RAMA}`]).trim()
+  ? `origin/${RAMA}`
+  : "origin/main";
+const diffWeb = git(["diff", "--name-only", `${base}..HEAD`])
+  .split("\n")
+  .map((l) => l.trim())
+  .filter((l) => l.startsWith("apps/web/"));
+const cambiados = diffWeb.filter(
+  (l) => l.startsWith("apps/web/src/") && /[.](ts|tsx)$/.test(l) && !/[.]spec[.]/.test(l),
+);
+
+const vigilados = existsSync(VIGILADOS)
+  ? readFileSync(VIGILADOS, "utf8")
+      .split("\n")
+      .map((l) => l.replace(/\r/g, "").trim())
+      .filter((l) => l && !l.startsWith("#"))
+  : [];
+
+if (diffWeb.length === 0 && vigilados.length === 0) {
+  console.log(`SPECS AFECTADOS: nada nuevo en apps/web frente a ${base}; no hay nada que correr.`);
+  process.exit(0);
+}
+
+// Todos los specs de web, una vez.
+const todos = [];
+(function anda(dir) {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const abs = path.join(dir, e.name);
+    if (e.isDirectory()) {
+      anda(abs);
+    } else if (/[.]spec[.]ts$/.test(e.name)) {
+      todos.push(path.relative(WEB, abs).split(path.sep).join("/"));
+    }
+  }
+})(path.join(WEB, "src"));
+
+// ESCANERES: specs que leen el TEXTO de medio arbol (glob/readdir). Ningun parecido de nombre los
+// relaciona con lo que cambio: session-storage.spec.ts vive en src/lib y juzga e2e/fixtures. El
+// 18-sep la corrida 35316757983 cayo por uno de ellos (una palabra en un comentario de un
+// fixture). Se detectan por contenido, asi que un escaner nuevo entra solo. Medido el 18-sep 01:40:
+// 16 escaneres, todos verdes en esta laptop, 38 s en total. Van SIEMPRE y fuera del tope.
+const escaneres = todos.filter((spec) =>
+  /globSync|readdirSync|from "glob"/.test(readFileSync(path.join(WEB, spec), "utf8")),
+);
+
+// HERMANOS EXACTOS: la senal mas fuerte, fuera del tope. Antes todos los candidatos se ordenaban
+// ALFABETICAMENTE y se cortaba en 20, asi que con un push grande todo src/components ganaba a
+// src/lib y command-labels.spec.ts se quedaba fuera: la corrida 35312550469 cayo por eso.
+const hermanos = new Set();
+const elegidos = new Set();
+for (const fichero of cambiados) {
+  const rel = fichero.replace("apps/web/", "");
+  const dir = path.posix.dirname(rel);
+  const nombre = path.posix.basename(rel).replace(/[.](ts|tsx)$/, "");
+
+  // 1) El spec hermano exacto, y los del mismo directorio.
+  for (const spec of todos) {
+    if (spec === `${dir}/${nombre}.spec.ts`) hermanos.add(spec);
+    else if (path.posix.dirname(spec) === dir) elegidos.add(spec);
+  }
+  // 2) Los que comparten una palabra de 5+ letras con el nombre del fichero.
+  const palabras = nombre
+    .split(/[^A-Za-z0-9]+/)
+    .flatMap((p) => p.split(/(?=[A-Z])/))
+    .filter((p) => p.length >= 5)
+    .map((p) => p.toLowerCase());
+  for (const palabra of palabras) {
+    for (const spec of todos) {
+      if (path.posix.basename(spec).toLowerCase().includes(palabra)) elegidos.add(spec);
+    }
+  }
+}
+
+// Vigilados, escaneres y hermanos exactos van primero y no cuentan para el tope; el tope solo
+// recorta la senal debil (mismo directorio, palabra compartida).
+const fuertes = new Set([...vigilados, ...escaneres, ...hermanos]);
+const debiles = [...elegidos].filter((s) => !fuertes.has(s)).sort().slice(0, TOPE);
+const lista = [...new Set([...fuertes, ...debiles])];
+if (lista.length === 0) {
+  console.log("SPECS AFECTADOS: no encontre specs relacionados con lo que cambio.");
+  process.exit(0);
+}
+
+console.log(
+  `SPECS AFECTADOS: ${lista.length} spec(s) — ${vigilados.length} vigilado(s), ${escaneres.length} ` +
+    `escaner(es), ${hermanos.size} hermano(s) y ${debiles.length} relacionado(s) con ` +
+    `${cambiados.length} fichero(s) nuevos de web.`,
+);
+const rotos = [];
+for (const spec of lista) {
+  if (!existsSync(path.join(WEB, spec))) continue;
+  try {
+    const salida = execFileSync(process.execPath, [path.join(RAIZ, "node_modules/tsx/dist/cli.mjs"), spec], {
+      cwd: WEB,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: 120_000,
+    });
+    // La misma regla que run-specs.mjs en el CI: codigo 0 SIN nada en stdout es «mudo» y cuenta
+    // como fallo (un spec colgado en una promesa sale igual). La corrida 35368909678 cayo 699/700
+    // por un spec que anunciaba su final por stderr; este candado lo daba por bueno.
+    if (!String(salida).trim()) {
+      throw Object.assign(new Error("Error: spec MUDO — termino con 0 sin imprimir nada por stdout (usa console.log, no console.error)"), { stdout: "", stderr: "Error: spec MUDO — termino con 0 sin imprimir nada por stdout (usa console.log, no console.error)" });
+    }
+    console.log(`  OK    ${spec}`);
+  } catch (error) {
+    const salida = `${error?.stdout ?? ""}\n${error?.stderr ?? ""}`;
+    const motivo =
+      salida
+        .split("\n")
+        .map((l) => l.trim())
+        .find((l) => /AssertionError|Error:|no está|no esta/.test(l)) ?? "(sin mensaje)";
+    console.log(`  ROJO  ${spec}`);
+    rotos.push(`${spec}  ->  ${motivo.slice(0, 180)}`);
+  }
+}
+
+if (rotos.length > 0) {
+  console.error("");
+  console.error("SPECS DE WEB EN ROJO (los mismos que va a decir el CI, 25 minutos antes):");
+  for (const r of rotos) console.error(`- ${r}`);
+  console.error("");
+  console.error("Corre cada uno suelto para iterar rapido, desde apps/web:  npx tsx <spec>");
+  process.exit(1);
+}
+console.log("SPECS AFECTADOS OK.");
+
+// --- goldens vigilados (solo si hay lista) ------------------------------------
+const goldens = existsSync(GOLDENS)
+  ? readFileSync(GOLDENS, "utf8")
+      .split("\n")
+      .map((l) => l.replace(/\r/g, "").trim())
+      .filter((l) => l && !l.startsWith("#"))
+  : [];
+
+if (goldens.length === 0) process.exit(0);
+
+// Levantar el server de Next deja rastro en el arbol: reescribe `next-env.d.ts` y genera
+// `AGENTS.md` y `CLAUDE.md` en apps/web. Si no se limpia, MiMo se los encuentra sucios en cada
+// ciclo y puede commitearlos. Se restaura al terminar, pase lo que pase.
+function limpiarRastroDeNext() {
+  try {
+    execFileSync("git", ["-C", RAIZ, "checkout", "--", "apps/web/next-env.d.ts"], { stdio: "ignore" });
+  } catch {
+    /* si no estaba sucio, mejor */
+  }
+  for (const f of ["apps/web/AGENTS.md", "apps/web/CLAUDE.md"]) {
+    try {
+      const abs = path.join(RAIZ, f);
+      // Solo si NO esta versionado: si algun dia lo estuviera, no se toca.
+      execFileSync("git", ["-C", RAIZ, "ls-files", "--error-unmatch", f], { stdio: "ignore" });
+    } catch {
+      try {
+        rmSync(path.join(RAIZ, f), { force: true });
+      } catch {
+        /* nada */
+      }
+    }
+  }
+}
+
+console.log(`GOLDENS VIGILADOS: ${goldens.length} — ${goldens.join(", ")}`);
+try {
+  // Por el CLI de Playwright y no por `npx.cmd`: desde Node 22, execFileSync sobre un .cmd sale
+  // con EINVAL en Windows si no se pide shell, y pedir shell es una puerta que no hace falta.
+  const salida = execFileSync(
+    process.execPath,
+    [
+      path.join(RAIZ, "node_modules/playwright/cli.js"),
+      "test",
+      ...goldens,
+      "--project=chromium",
+      "--workers=1",
+      "--reporter=line",
+    ],
+    { cwd: WEB, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 1_800_000 },
+  );
+  const cola = salida.split("\n").filter((l) => /passed|failed/.test(l)).slice(-2).join(" | ");
+  console.log(`GOLDENS VIGILADOS OK. ${cola}`);
+} catch (error) {
+  const salida = `${error?.stdout ?? ""}\n${error?.stderr ?? ""}`;
+  console.error("");
+  console.error("GOLDENS VIGILADOS EN ROJO (el CI diria lo mismo 25 minutos mas tarde):");
+  for (const linea of salida
+    .split("\n")
+    .map((l) => l.replace(/\r/g, "").trim())
+    .filter((l) => /^Error|failed|Caras sin|intercepts pointer|Timeout|›/.test(l))
+    .slice(0, 14)) {
+    console.error(`  ${linea.slice(0, 200)}`);
+  }
+  console.error("");
+  console.error("Reproduce y itera, desde apps/web:");
+  console.error(`  npx playwright test ${goldens[0]} --project=chromium --workers=1 --reporter=line`);
+  process.exit(1);
+}

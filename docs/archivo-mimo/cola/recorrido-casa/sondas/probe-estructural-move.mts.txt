@@ -1,0 +1,26 @@
+const ROOT = "file:///D:/dev/valle-design/apps/web/src/lib/cad";
+const { EMPTY_CAD_COMMAND_ENGINE, cadCommandEngineReduce } = await import(`${ROOT}/engine/command-engine.ts`);
+const { createCadCommandRegistry } = await import(`${ROOT}/engine/registry.ts`);
+const mb = await import(`${ROOT}/engine/commands/modify-basics.ts`);
+const mt = await import(`${ROOT}/engine/commands/modify-transform.ts`);
+const ms = await import(`${ROOT}/engine/commands/modify-stretch.ts`);
+const pick = (m: any) => Object.entries(m).filter(([k, v]) => k.startsWith("CAD_") && Array.isArray(v)).flatMap(([, v]) => v as any[]);
+const registry = createCadCommandRegistry([...pick(mb), ...pick(mt), ...pick(ms)]);
+const L = { id: "a", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 1000, y: 0, z: 0 }, layer: "0" };
+let n = 0;
+const ctx = () => ({ entityIds: ["a"], selection: ["a"], activeLayer: "0", view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 }, cursor: { x: 10, y: 0 }, entity: (id: string) => (id === "a" ? L : undefined), newEntityId: () => `e${++n}` });
+function drive(title: string, tokens: string[]) {
+  let state: any = EMPTY_CAD_COMMAND_ENGINE; const effects: any[] = [];
+  for (const t of tokens) {
+    const action: any = t === "<ENTER>" ? { kind: "input", input: { kind: "enter" } } : { kind: "token", value: t };
+    const r = cadCommandEngineReduce(state, action, ctx(), registry); state = r.state; effects.push(...r.effects);
+  }
+  console.log("\n### " + title + "  [" + tokens.join(" | ") + "]");
+  const g = effects.filter((e: any) => e.kind === "execute").flatMap((e: any) => e.commands ?? []);
+  g.forEach((c: any) => console.log("   GEOM " + JSON.stringify(c).slice(0, 220)));
+  if (!g.length) console.log("   GEOM (ninguna)");
+  effects.filter((e: any) => e.kind === "message").forEach((e: any) => console.log(`   MSG [${e.level}] ${e.text}`));
+}
+drive("MOVE base + @500,0", ["MOVE", "0,0", "@500,0"]);
+drive("COPY base + @500,0", ["COPY", "0,0", "@500,0", "<ENTER>"]);
+drive("ROTATE base + angulo", ["ROTATE", "0,0", "90"]);

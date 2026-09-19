@@ -1,0 +1,43 @@
+// Sonda de auditoria (no toca el repo): cota de AutoCAD con su DIMSTYLE de despacho mexicano.
+import { importDocumentText } from "D:/dev/valle-design/apps/web/src/lib/cad/document-import";
+import { buildCadDimensionGeometry } from "D:/dev/valle-design/apps/web/src/lib/cad/associative-dimension";
+
+type Pair = [number, string | number];
+const ser = (pairs: Pair[]) => pairs.map(([c, v]) => `${c}\n${v}`).join("\n") + "\n";
+const line = (l: string, x1: number, y1: number, x2: number, y2: number): Pair[] => [
+  [0, "LINE"], [8, l], [10, x1], [20, y1], [30, 0], [11, x2], [21, y2], [31, 0]];
+const content = ser([
+  [0, "SECTION"], [2, "HEADER"], [9, "$ACADVER"], [1, "AC1027"], [9, "$INSUNITS"], [70, 4], [0, "ENDSEC"],
+  [0, "SECTION"], [2, "TABLES"],
+  [0, "TABLE"], [2, "LAYER"], [70, 1],
+  [0, "LAYER"], [2, "COTAS"], [70, 0], [62, 3], [6, "CONTINUOUS"],
+  [0, "ENDTAB"],
+  [0, "TABLE"], [2, "DIMSTYLE"], [70, 1],
+  // Despacho mexicano: DIMSCALE 50, DIMTXT 2.5, DIMASZ 2.5, DIMLFAC 0.001 (rotula metros), DIMDEC 2, garrapata.
+  [0, "DIMSTYLE"], [2, "ARQ-50"], [70, 0], [40, 50], [41, 2.5], [140, 2.5], [144, 0.001], [271, 2], [5, "_ARCHTICK"], [173, 0], [78, 0],
+  [0, "ENDTAB"],
+  [0, "ENDSEC"],
+  [0, "SECTION"], [2, "BLOCKS"],
+  [0, "BLOCK"], [8, "COTAS"], [2, "*D1"], [70, 1], [10, 0], [20, 0], [30, 0], [3, "*D1"],
+  ...line("COTAS", 0, 0, 0, 900), ...line("COTAS", 3450, 0, 3450, 900), ...line("COTAS", 0, 800, 3450, 800),
+  [0, "MTEXT"], [8, "COTAS"], [10, 1725], [20, 850], [30, 0], [40, 125], [1, "3.45"],
+  [0, "ENDBLK"],
+  [0, "ENDSEC"],
+  [0, "SECTION"], [2, "ENTITIES"],
+  ...line("COTAS", -100, -100, -100, -99),
+  [0, "DIMENSION"], [8, "COTAS"], [2, "*D1"], [10, 3450], [20, 800], [30, 0], [11, 1725], [21, 850], [31, 0],
+  [70, 33], [1, ""], [3, "ARQ-50"], [42, 3450], [13, 0], [23, 0], [33, 0], [14, 3450], [24, 0], [34, 0],
+  [0, "ENDSEC"],
+  [0, "EOF"],
+]);
+const report: any = importDocumentText("estructurista.dxf", content);
+const doc = report.document;
+console.log("dimstyle table ARQ-50 importado:", JSON.stringify(doc.styles?.dimension?.["ARQ-50"]));
+const dims = doc.entities.filter((e: any) => e.type === "dimension");
+console.log("cotas vivas:", dims.length);
+for (const d of dims) {
+  const g: any = buildCadDimensionGeometry(d);
+  console.log("entidad:", JSON.stringify({ style: d.style, arrowSize: d.arrowSize, textHeight: d.textHeight, arrowhead: d.arrowhead, units: d.units, precision: d.precision }));
+  console.log("se rotula:", JSON.stringify(g?.label), "altura rotulo en pantalla:", d.textHeight ?? (d.arrowSize ?? 180) * 0.55, "(el remitente la dibujo como '3.45' a 125)");
+}
+console.log("avisos:", (report.warnings ?? report.manifest?.warnings ?? []).map((w: any) => w.code ?? w).slice(0, 8));

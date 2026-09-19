@@ -1,0 +1,33 @@
+import { cadSnapSceneAddEntities } from "D:/dev/valle-design/apps/web/src/lib/cad/snap-scene";
+import { snap, type SnapScene } from "D:/dev/valle-design/apps/web/src/lib/cad/snap-engine";
+
+const doc: any = {
+  meta: { version: 1, schema: 5, unit: "mm" },
+  layers: [{ id: "0", name: "0", color: "#fff", visible: true, locked: false }],
+  entities: [
+    { id: "ins", type: "insert", block: "MURO-BASE", insertion: { x: 1000, y: 1000, z: 0 }, scale: { x: 1, y: 1, z: 1 }, rotation: 0, layer: "0" },
+    { id: "ln", type: "line", start: { x: 0, y: 5000, z: 0 }, end: { x: 3000, y: 5000, z: 0 }, layer: "0" },
+  ],
+  blocks: [{ id: "MURO-BASE", name: "MURO-BASE", basePoint: { x: 0, y: 0, z: 0 }, entities: [
+    { id: "b1", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 4000, y: 0, z: 0 }, layer: "0" },
+  ] }],
+  history: [], modelSpace: { entityIds: ["ins", "ln"] }, paperSpaces: [], styles: { text: {}, dimension: {}, mleader: {}, table: {}, plot: {} },
+  constraints: [], externalReferences: [], unsupportedEntities: [], lossManifest: [], publications: [],
+};
+const entities = doc.entities;
+// Cursor near the END of the line inside the block: world (5000,1000)
+const cursor = { x: 4980, y: 1010 };
+for (const withDoc of [false, true]) {
+  const scene: SnapScene = { segments: [], midpoints: [], perpendicularSegments: [], endpoints: [], centers: [], quadrants: [], geometricCenters: [], insertions: [], tangents: [], nodes: [] };
+  cadSnapSceneAddEntities(scene, entities, cursor, 24, withDoc ? doc : undefined);
+  const modes: any = { grid: false };
+  const hit = snap(cursor, scene, { tolerance: 60, modes });
+  const midHit = snap({ x: 3010, y: 990 }, scene, { tolerance: 60, modes });
+  console.log(`document passed=${withDoc}: near block-line END ->`, JSON.stringify(hit), "| near block-line MID ->", JSON.stringify(midHit), "| endpoints:", JSON.stringify(scene.endpoints), "| segments:", scene.segments!.length);
+}
+// Control: a plain line in model space
+{
+  const scene: SnapScene = { segments: [], midpoints: [], perpendicularSegments: [], endpoints: [], centers: [], quadrants: [], geometricCenters: [], insertions: [], tangents: [], nodes: [] };
+  cadSnapSceneAddEntities(scene, entities, { x: 2990, y: 5010 });
+  console.log("control, plain LINE end ->", JSON.stringify(snap({ x: 2990, y: 5010 }, scene, { tolerance: 60, modes: { grid: false } as any })));
+}

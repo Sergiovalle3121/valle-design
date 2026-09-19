@@ -1,0 +1,42 @@
+#Requires -Version 5.1
+# login-mimo.ps1 - Inicia sesion en MiMo Code con el Token Plan.
+# El pago lo hace el usuario en el navegador. Este script no toca pagos.
+
+$ErrorActionPreference = 'Continue'
+$Host.UI.RawUI.WindowTitle = 'MiMo - iniciar sesion'
+Set-Location -LiteralPath 'D:\dev\valle-design'
+
+function Pasos {
+    Write-Host ''
+    Write-Host '==================================================' -ForegroundColor Cyan
+    Write-Host '  INICIAR SESION EN MiMo CON EL TOKEN PLAN' -ForegroundColor Cyan
+    Write-Host '==================================================' -ForegroundColor Cyan
+    Write-Host ''
+    Write-Host '  1. En el menu, elige Xiaomi MiMo (flechas + ENTER).'
+    Write-Host '  2. Se abre el navegador. Si te pide pagar:'
+    Write-Host '       - Compra el plan STANDARD, MENSUAL (16 USD).' -ForegroundColor Yellow
+    Write-Host '       - No el anual: no tiene reembolso.'
+    Write-Host '       - Al terminar de pagar, vuelve a esta ventana.'
+    Write-Host '  3. En la pantalla de autorizacion elige "Use Token Plan"' -ForegroundColor Yellow
+    Write-Host '     (NO "Use API Key") y pulsa Authorize.'
+    Write-Host '  4. Si el login se corto mientras pagabas, aqui podras repetirlo.'
+    Write-Host ''
+}
+
+do {
+    Pasos
+    & mimo.cmd providers login
+
+    Write-Host ''
+    Write-Host '--- Credenciales guardadas ahora ---' -ForegroundColor Cyan
+    & mimo.cmd providers list
+    Write-Host ''
+
+    $r = Read-Host 'Repetir el login? Hazlo si pagaste despues de autorizar (s/N)'
+} while ($r -eq 's' -or $r -eq 'S')
+
+Write-Host ''
+Write-Host '  Listo. Vuelve a Claude y dile que ya esta pagado.' -ForegroundColor Green
+Write-Host '  Comprobare con una llamada real que el plan responde.' -ForegroundColor Green
+Write-Host ''
+Read-Host 'Pulsa ENTER para cerrar' | Out-Null

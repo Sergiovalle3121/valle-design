@@ -1,0 +1,829 @@
+diff --git a/apps/web/src/components/cad/document-lifecycle/controller.ts b/apps/web/src/components/cad/document-lifecycle/controller.ts
+index d1c9e3d4..245e4479 100644
+--- a/apps/web/src/components/cad/document-lifecycle/controller.ts
++++ b/apps/web/src/components/cad/document-lifecycle/controller.ts
+@@ -5,6 +5,7 @@ import {
+   type CadDocument,
+ } from "@/lib/cad/cad-document";
+ import { gzipCadDocumentJson } from "@/lib/cad/large-document-transport";
++import type { CadOpeningPresentation } from "@/lib/cad/view/opening-presentation";
+ 
+ /**
+  * The API stores documents above this boundary in the blob store. Sending the
+@@ -32,6 +33,12 @@ export interface DocumentMetricSink {
+ export interface DocumentLifecycleResource {
+   cadDocument?: unknown;
+   cadDocumentVersion?: number;
++  /**
++   * Cómo quiere abrirse el documento (3D, vista predefinida, estilo visual).
++   * Viaja en los metadatos del recurso abierto; el editor la aplica una vez
++   * por apertura. Sin ella, el modo de vista lo deciden las preferencias.
++   */
++  presentation?: CadOpeningPresentation;
+ }
+ 
+ export interface DocumentLifecycleSaveReceipt {
+diff --git a/apps/web/src/components/cad/studio/CadStatusBar.tsx b/apps/web/src/components/cad/studio/CadStatusBar.tsx
+index 9dfff247..981aab99 100644
+--- a/apps/web/src/components/cad/studio/CadStatusBar.tsx
++++ b/apps/web/src/components/cad/studio/CadStatusBar.tsx
+@@ -11,6 +11,7 @@ import {
+ } from "@/components/cad/viewport/RenderPipelineBadge";
+ import { Cad3DSolidDiagnostics } from "@/components/cad/viewport/Cad3DSolidDiagnostics";
+ import { CadNativeMassHosts } from "@/components/cad/viewport/native-mass-hosts";
++import type { CadSolidShadeHost } from "@/components/cad/viewport/solid-shade-host";
+ import { CadRenderHostSlot } from "@/components/cad/viewport/render-pipeline-host";
+ import type { CadRenderPipelineChoice } from "@/lib/cad/render-pipeline-preference";
+ import { CadSaveStatus } from "./CadSaveStatus";
+@@ -47,6 +48,8 @@ export interface CadStatusBarDiagnostics {
+   renderPipelineRef: RefObject<CadRenderPipelineChoice>;
+   renderPipelineSlotRef: RefObject<CadRenderHostSlot | null>;
+   nativeMassHostsRef: RefObject<CadNativeMassHosts | null>;
++  /** Los SOLID3D sombreados; sin él el diagnóstico sólo cuenta muros y masas. */
++  solidShadeHostRef?: RefObject<CadSolidShadeHost | null>;
+   historyUndo: number;
+   historyRedo: number;
+   nativeRenderStats: {
+@@ -215,7 +218,7 @@ export function CadStatusBar({
+         {diagnostics.renderPipelineRef.current === "batched" && (
+           <CadRenderPipelineStats slot={diagnostics.renderPipelineSlotRef.current!} />
+         )}
+-        <Cad3DSolidDiagnostics hostsRef={diagnostics.nativeMassHostsRef} />
++        <Cad3DSolidDiagnostics hostsRef={diagnostics.nativeMassHostsRef} solidsRef={diagnostics.solidShadeHostRef} />
+         {/* La profundidad del historial es OBSERVABLE: una acción de
+           dibujo tiene que dejar exactamente una entrada, y una acción
+           rechazada ninguna. Sin esto, "el primer Undo no deshace nada"
+diff --git a/apps/web/src/components/cad/viewport/Cad3DSolidDiagnostics.tsx b/apps/web/src/components/cad/viewport/Cad3DSolidDiagnostics.tsx
+index 580b3396..dee2e924 100644
+--- a/apps/web/src/components/cad/viewport/Cad3DSolidDiagnostics.tsx
++++ b/apps/web/src/components/cad/viewport/Cad3DSolidDiagnostics.tsx
+@@ -26,20 +26,38 @@
+  */
+ import { useEffect, useState } from "react";
+ import type { CadNativeMassHosts } from "./native-mass-hosts";
++import type { CadSolidShadeHost } from "./solid-shade-host";
+ import type { CadVisualStyleId } from "@/lib/cad/view/visual-styles";
+ 
+ interface Snapshot {
+   meshCount: number;
+   vertexCount: number;
+   visualStyle: CadVisualStyleId;
++  /** Los SOLID3D sombreados por `CadSolidShadeHost`, contados aparte de muros y masas. */
++  solidMeshCount: number;
++  solidVisualStyle: CadVisualStyleId;
+ }
+ 
+-const ZERO: Snapshot = { meshCount: 0, vertexCount: 0, visualStyle: "shaded" };
++const ZERO: Snapshot = {
++  meshCount: 0,
++  vertexCount: 0,
++  visualStyle: "shaded",
++  solidMeshCount: 0,
++  solidVisualStyle: "shaded-edges",
++};
+ 
++/**
++ * `solidsRef` (2026-09-16) es opcional: el diagnóstico contaba muros y masas y
++ * NO los SOLID3D, así que la vivienda de la demostración —24 sólidos— habría
++ * publicado «3D 0 malla(s)» con la escena llena. Con él, `data-solid-mesh-count`
++ * lee el grupo del anfitrión de sólidos, la misma instancia que pinta.
++ */
+ export function Cad3DSolidDiagnostics({
+   hostsRef,
++  solidsRef,
+ }: {
+   hostsRef: React.RefObject<CadNativeMassHosts | null>;
++  solidsRef?: React.RefObject<CadSolidShadeHost | null>;
+ }) {
+   const [snapshot, setSnapshot] = useState<Snapshot>(ZERO);
+ 
+@@ -49,11 +67,19 @@ export function Cad3DSolidDiagnostics({
+     // leer una ref durante el render (regla `react-hooks/refs`). Devolver la
+     // MISMA referencia cuando no cambió nada evita el re-render de sobra.
+     const tick = () => {
+-      const next = hostsRef.current?.getSnapshot() ?? ZERO;
++      const masses = hostsRef.current?.getSnapshot() ?? ZERO;
++      const solids = solidsRef?.current?.getSnapshot();
++      const next: Snapshot = {
++        ...masses,
++        solidMeshCount: solids?.meshCount ?? 0,
++        solidVisualStyle: solids?.visualStyle ?? ZERO.solidVisualStyle,
++      };
+       setSnapshot((prev) =>
+         prev.meshCount === next.meshCount &&
+         prev.vertexCount === next.vertexCount &&
+-        prev.visualStyle === next.visualStyle
++        prev.visualStyle === next.visualStyle &&
++        prev.solidMeshCount === next.solidMeshCount &&
++        prev.solidVisualStyle === next.solidVisualStyle
+           ? prev
+           : next,
+       );
+@@ -61,7 +87,7 @@ export function Cad3DSolidDiagnostics({
+     };
+     frame = requestAnimationFrame(tick);
+     return () => cancelAnimationFrame(frame);
+-  }, [hostsRef]);
++  }, [hostsRef, solidsRef]);
+ 
+   return (
+     <span
+@@ -69,10 +95,12 @@ export function Cad3DSolidDiagnostics({
+       data-mesh-count={snapshot.meshCount}
+       data-vertex-count={snapshot.vertexCount}
+       data-visual-style={snapshot.visualStyle}
+-      title="Mallas 3D reales en la escena (muros, masas) — no botones de la lista de entidades"
++      data-solid-mesh-count={snapshot.solidMeshCount}
++      data-solid-visual-style={snapshot.solidVisualStyle}
++      title="Mallas 3D reales en la escena (muros, masas y sólidos) — no botones de la lista de entidades"
+       className="type-micro text-muted-foreground"
+     >
+-      3D {snapshot.meshCount} malla(s)
++      3D {snapshot.meshCount + snapshot.solidMeshCount} malla(s)
+     </span>
+   );
+ }
+diff --git a/apps/web/src/components/cad/viewport/camera-view-presets.spec.ts b/apps/web/src/components/cad/viewport/camera-view-presets.spec.ts
+index 4d658832..89c9e0dc 100644
+--- a/apps/web/src/components/cad/viewport/camera-view-presets.spec.ts
++++ b/apps/web/src/components/cad/viewport/camera-view-presets.spec.ts
+@@ -11,7 +11,9 @@ import type { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js
+ import { check, checkPointClose, report } from "@/lib/brep/spec-support";
+ import {
+   applyCadCameraViewPreset,
++  applyCadStandardViewFraming,
+   CAD_CAMERA_VIEW_PRESET_BUTTONS,
++  fitCadCameraToBounds,
+   type CadCameraViewPreset,
+ } from "./camera-view-presets";
+ 
+@@ -167,4 +169,70 @@ function apply(preset: CadCameraViewPreset) {
+   );
+ }
+ 
+-report("camera-view-presets", 16);
++// --- fitCadCameraToBounds: el fitToBounds del monolito, byte a byte ---------
++{
++  const camera = new THREE.PerspectiveCamera(50, 2, 0.1, 1000);
++  const controls = fakeControls();
++  camera.position.set(3, 4, 5);
++  fitCadCameraToBounds(camera, controls, ctx, { minX: 1, minY: 1, maxX: 3, maxY: 2 });
++  // Centro (2, 1.5) de planta → escena ((2 − W/2)·s, (1.5 − H/2)·s) = (0, 0).
++  checkPointClose("fit: el objetivo es el centro de la caja", controls.target, { x: 0, y: 0, z: 0 });
++  // spanX = 2, spanZ = 1; fov 50° → fitForZ = 0.5/tan 25°, fitForX = 1/tan 25°/2; dist = max·1.25 + 2·0.12.
++  const fit = 0.5 / Math.tan((25 * Math.PI) / 180);
++  const dist = fit * 1.25 + 0.24;
++  const before = new THREE.Vector3(3, 4, 5).normalize().multiplyScalar(dist);
++  checkPointClose("fit: conserva la dirección de vista y aleja a la distancia calculada", camera.position, { x: before.x, y: before.y, z: before.z }, 1e-9);
++  check("fit: controls.update() se llamó", controls.updateCalls === 1);
++}
++{
++  // Sin dirección previa (cámara sobre el objetivo) usa la isométrica aproximada histórica.
++  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
++  const controls = fakeControls();
++  camera.position.set(0, 0, 0);
++  fitCadCameraToBounds(camera, controls, ctx, { minX: 0, minY: 0, maxX: 4, maxY: 3 });
++  const dir = camera.position.clone().sub(controls.target).normalize();
++  const expected = new THREE.Vector3(0.6, 0.85, 1.0).normalize();
++  checkPointClose("fit: dirección por defecto (0.6, 0.85, 1.0)", dir, { x: expected.x, y: expected.y, z: expected.z }, 1e-9);
++}
++
++// --- applyCadStandardViewFraming: isométrica SO verdadera sobre una envolvente 3D ---
++{
++  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
++  const controls = fakeControls();
++  const extents = { minX: 1, minY: 1, maxX: 3, maxY: 2, minZ: 0, maxZ: 2 };
++  applyCadStandardViewFraming(camera, controls, ctx, "sw-iso", extents);
++  // Centro (2, 1.5, z 1) → escena (0, 1, 0).
++  checkPointClose("sw-iso: objetivo en el centro de la envolvente, con su cota", controls.target, { x: 0, y: 1, z: 0 });
++  const offset = camera.position.clone().sub(controls.target);
++  const iso = 1 / Math.sqrt(3);
++  const dir = offset.clone().normalize();
++  checkPointClose("sw-iso: dirección (−1, 1, −1)/√3 — suroeste del dibujo, elevación 35,26°", dir, { x: -iso, y: iso, z: -iso }, 1e-12);
++  const elevationDeg = (Math.asin(dir.y) * 180) / Math.PI;
++  check("sw-iso: elevación isométrica", Math.abs(elevationDeg - 35.264) < 0.01, `${elevationDeg}`);
++  // Radio de la esfera = ½·√(2² + 1² + 2²) = 1.5; distancia = r / sin 25° · 1.05.
++  const distance = (1.5 / Math.sin((25 * Math.PI) / 180)) * 1.05;
++  check("sw-iso: la esfera envolvente cabe en el FOV", Math.abs(offset.length() - distance) < 1e-9, `${offset.length()} vs ${distance}`);
++  checkPointClose("sw-iso: up = vertical del mundo (OrbitControls orbita alrededor de él)", camera.up, { x: 0, y: 1, z: 0 });
++  check("sw-iso: controls.update() se llamó", controls.updateCalls === 1);
++  // La cámara mira al objetivo: su −Z apunta hacia él.
++  const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
++  checkPointClose("sw-iso: la cámara mira al objetivo", forward, { x: iso, y: -iso, z: iso }, 1e-9);
++}
++{
++  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
++  const controls = fakeControls();
++  applyCadStandardViewFraming(camera, controls, ctx, "top", { minX: 0, minY: 0, maxX: 4, maxY: 3, minZ: 0, maxZ: 0 });
++  checkPointClose("top: up de la tabla (mirada paralela a la vertical)", camera.up, { x: 0, y: 0, z: -1 });
++  check("top: la cámara queda sobre el objetivo", Math.abs(camera.position.x) < 1e-12 && Math.abs(camera.position.z) < 1e-12 && camera.position.y > 0);
++}
++{
++  // Un FOV horizontal más estrecho que el vertical (lienzo alto) manda en la distancia.
++  const camera = new THREE.PerspectiveCamera(50, 0.5, 0.1, 1000);
++  const controls = fakeControls();
++  applyCadStandardViewFraming(camera, controls, ctx, "front", { minX: 0, minY: 0, maxX: 4, maxY: 3, minZ: 0, maxZ: 0 });
++  const radius = Math.hypot(4, 3) / 2;
++  const halfFovX = Math.atan(Math.tan((25 * Math.PI) / 180) * 0.5);
++  check("front: con lienzo alto encuadra por el FOV horizontal", Math.abs(camera.position.clone().sub(controls.target).length() - (radius / Math.sin(halfFovX)) * 1.05) < 1e-9);
++}
++
++report("camera-view-presets", 30);
+diff --git a/apps/web/src/components/cad/viewport/camera-view-presets.ts b/apps/web/src/components/cad/viewport/camera-view-presets.ts
+index f6869643..2490f0d6 100644
+--- a/apps/web/src/components/cad/viewport/camera-view-presets.ts
++++ b/apps/web/src/components/cad/viewport/camera-view-presets.ts
+@@ -14,7 +14,7 @@
+  * intercambian al pasar a espacio de escena, ver `room-solid-three.ts`), así
+  * que "left" cae en X negativo igual que "izquierda" cae en X negativo allá.
+  */
+-import type * as THREE from "three";
++import * as THREE from "three";
+ import type { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+ import type { LucideIcon } from "lucide-react";
+ import {
+@@ -26,6 +26,7 @@ import {
+   ArrowRightToLine,
+ } from "lucide-react";
+ import { boundsIntersect } from "@/lib/cad/entity-hit-geometry";
++import { cadStandardView, type CadStandardViewId } from "@/lib/cad/view/view-3d";
+ 
+ export type CadCameraViewPreset =
+   | "top"
+@@ -104,3 +105,92 @@ export function applyCadCameraViewPreset(
+   controls.target.set(cx, 0, cz);
+   controls.update();
+ }
++
++/**
++ * Encuadra una caja de mundo (unidades de planta): centra el objetivo de la
++ * órbita en ella y aleja la cámara lo justo para que quepa en el FOV actual,
++ * conservando el ángulo de vista. Es el `fitToBounds` que vivía en el
++ * monolito, movido aquí sin cambiar un número: ZOOM Extensión, el encuadre
++ * de apertura (P0-3) y el conmutador 2D/3D lo llaman.
++ */
++export function fitCadCameraToBounds(
++  camera: THREE.PerspectiveCamera,
++  controls: OrbitControls,
++  ctx: CadCameraSceneContext,
++  b: CadWorldBounds,
++): void {
++  const { s, W, H } = ctx;
++  const cx = (b.minX + b.maxX) / 2,
++    cy = (b.minY + b.maxY) / 2;
++  const targetX = (cx - W / 2) * s,
++    targetZ = (cy - H / 2) * s;
++  const spanX = Math.max((b.maxX - b.minX) * s, s);
++  const spanZ = Math.max((b.maxY - b.minY) * s, s);
++  const fov = (camera.fov * Math.PI) / 180;
++  const aspect = camera.aspect || 1;
++  const fitForZ = spanZ / 2 / Math.tan(fov / 2);
++  const fitForX = spanX / 2 / Math.tan(fov / 2) / aspect;
++  const dist = Math.max(fitForZ, fitForX) * 1.25 + Math.max(spanX, spanZ) * 0.12;
++  const dir = new THREE.Vector3().subVectors(camera.position, controls.target);
++  if (dir.lengthSq() < 1e-6) dir.set(0.6, 0.85, 1.0);
++  dir.normalize().multiplyScalar(dist);
++  controls.target.set(targetX, 0, targetZ);
++  camera.position.set(targetX + dir.x, Math.max(dir.y, dist * 0.15), targetZ + dir.z);
++  controls.update();
++}
++
++/** Caja de mundo CON cota (unidades de dibujo). */
++export interface CadWorldBounds3d extends CadWorldBounds {
++  minZ: number;
++  maxZ: number;
++}
++
++/**
++ * Coloca la cámara en una de las diez vistas predefinidas (`CAD_STANDARD_VIEWS`,
++ * la isométrica SO verdadera incluida) encuadrando una envolvente 3D.
++ *
++ * A diferencia de los seis presets de la barra, que miran al origen de la
++ * huella a una distancia proporcional a ella, aquí el objetivo es el CENTRO de
++ * la envolvente —con su cota, que un modelo de dos plantas tiene— y la
++ * distancia la que hace caber su esfera envolvente en el FOV, en vertical y en
++ * horizontal. Es lo que ZOOM Extensión hace en 3D en cualquier CAD.
++ *
++ * El `up` de la cámara sigue siendo la vertical del mundo salvo en SUPERIOR e
++ * INFERIOR, donde la mirada es paralela a ella: OrbitControls razona en
++ * esféricas alrededor de `camera.up`, y un `up` inclinado (el de la tabla para
++ * las isométricas, ya ortogonalizado) le torcería cada órbita posterior.
++ * `lookAt` ortogonaliza por dentro y el encuadre en pantalla es el mismo.
++ */
++export function applyCadStandardViewFraming(
++  camera: THREE.PerspectiveCamera,
++  controls: OrbitControls,
++  ctx: CadCameraSceneContext,
++  viewId: CadStandardViewId,
++  extents: CadWorldBounds3d,
++): void {
++  const view = cadStandardView(viewId);
++  const { s, W, H } = ctx;
++  const target = new THREE.Vector3(
++    ((extents.minX + extents.maxX) / 2 - W / 2) * s,
++    ((extents.minZ + extents.maxZ) / 2) * s,
++    ((extents.minY + extents.maxY) / 2 - H / 2) * s,
++  );
++  const radius = Math.max(
++    (Math.hypot(extents.maxX - extents.minX, extents.maxY - extents.minY, extents.maxZ - extents.minZ) / 2) * s,
++    s,
++  );
++  const halfFov = (camera.fov * Math.PI) / 360;
++  const aspect = camera.aspect || 1;
++  const halfFovX = Math.atan(Math.tan(halfFov) * aspect);
++  const distance = (radius / Math.sin(Math.min(halfFov, halfFovX))) * 1.05;
++  const vertical = Math.abs(view.offset.y) > 0.999;
++  camera.up.set(vertical ? view.up.x : 0, vertical ? view.up.y : 1, vertical ? view.up.z : 0);
++  camera.position.set(
++    target.x + view.offset.x * distance,
++    target.y + view.offset.y * distance,
++    target.z + view.offset.z * distance,
++  );
++  camera.lookAt(target);
++  controls.target.copy(target);
++  controls.update();
++}
+diff --git a/apps/web/src/components/cad/viewport/opening-presentation.spec.ts b/apps/web/src/components/cad/viewport/opening-presentation.spec.ts
+new file mode 100644
+index 00000000..1c623a0b
+--- /dev/null
++++ b/apps/web/src/components/cad/viewport/opening-presentation.spec.ts
+@@ -0,0 +1,81 @@
++/**
++ * `applyCadOpeningPresentation` con controles falsos: que ponga el modo 3D en
++ * React y en el controlador, aplique la política de cámara del 3D, encuadre la
++ * envolvente desde la vista pedida y lleve el estilo a los DOS anfitriones.
++ */
++import * as THREE from "three";
++import type { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
++import { check, checkPointClose, report } from "@/lib/brep/spec-support";
++import { applyCadOpeningPresentation } from "./opening-presentation";
++
++function fakeControls(): OrbitControls & { updateCalls: number } {
++  const controls = {
++    target: new THREE.Vector3(),
++    updateCalls: 0,
++    mouseButtons: { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN },
++    touches: { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN },
++    maxPolarAngle: 0.05,
++    minPolarAngle: 0,
++    enableRotate: false,
++    enableDamping: true,
++    zoomToCursor: false,
++    update: () => {
++      controls.updateCalls += 1;
++    },
++  };
++  return controls as unknown as OrbitControls & { updateCalls: number };
++}
++
++{
++  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
++  const controls = fakeControls();
++  const calls: string[] = [];
++  const viewController = {
++    setMode: (mode: "2d" | "3d") => calls.push(`mode:${mode}`),
++    setProjection: (projection: "perspective" | "parallel") => calls.push(`projection:${projection}`),
++  };
++  const solidShadeHost = { setStyle: (style: string) => (calls.push(`solids:${style}`), style as "shaded") };
++  const nativeMassHosts = { applyVisualStyle: (style: string) => (calls.push(`masas:${style}`), style) };
++  applyCadOpeningPresentation({
++    camera,
++    controls,
++    ctx: { s: 1, W: 4, H: 3 },
++    viewController,
++    solidShadeHost,
++    nativeMassHosts,
++    extents: { minX: 1, minY: 1, maxX: 3, maxY: 2, minZ: 0, maxZ: 2 },
++    presentation: { viewMode: "3d", standardView: "sw-iso", visualStyle: "shaded-edges", projection: "parallel" },
++    setViewMode: (mode) => calls.push(`react:${mode}`),
++  });
++  check("React y controlador pasan a 3D antes que nada", calls[0] === "react:3d" && calls[1] === "mode:3d");
++  check("la política de cámara es la del 3D (órbita permitida, sin clavar en planta)", controls.enableRotate === true && controls.maxPolarAngle > 1);
++  checkPointClose("encuadra el centro de la envolvente con su cota", controls.target, { x: 0, y: 1, z: 0 });
++  const iso = 1 / Math.sqrt(3);
++  const dir = camera.position.clone().sub(controls.target).normalize();
++  checkPointClose("desde la isométrica SO verdadera", dir, { x: -iso, y: iso, z: -iso }, 1e-12);
++  check("la proyección pedida llega al controlador", calls.includes("projection:parallel"));
++  check("el estilo llega a los dos anfitriones, al final", calls.slice(-2).join(",") === "solids:shaded-edges,masas:shaded-edges");
++  check("controls.update() se llamó", controls.updateCalls >= 1);
++}
++
++{
++  // Sin envolvente (documento vacío) encuadra la huella; sin controlador ni anfitriones no revienta.
++  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
++  const controls = fakeControls();
++  let mode = "2d";
++  applyCadOpeningPresentation({
++    camera,
++    controls,
++    ctx: { s: 1, W: 4, H: 3 },
++    viewController: null,
++    solidShadeHost: null,
++    nativeMassHosts: null,
++    extents: null,
++    presentation: { viewMode: "3d", standardView: "top", visualStyle: "shaded" },
++    setViewMode: (next) => (mode = next),
++  });
++  check("sin envolvente: el objetivo es el centro de la huella", controls.target.x === 0 && controls.target.z === 0);
++  check("el modo cambia igualmente", mode === "3d");
++}
++
++report("opening-presentation (viewport)", 9);
+diff --git a/apps/web/src/components/cad/viewport/opening-presentation.ts b/apps/web/src/components/cad/viewport/opening-presentation.ts
+new file mode 100644
+index 00000000..c9929077
+--- /dev/null
++++ b/apps/web/src/components/cad/viewport/opening-presentation.ts
+@@ -0,0 +1,63 @@
++/**
++ * Aplica la PRESENTACIÓN DE APERTURA que pidió el puerto de documentos
++ * (`lib/cad/view/opening-presentation.ts`): modo 3D, una vista predefinida
++ * encuadrando la envolvente del modelo y un estilo visual en los dos
++ * anfitriones que sombrean (SOLID3D y muros/masas).
++ *
++ * Vive fuera del monolito por el presupuesto de líneas y porque no depende de
++ * React: recibe la cámara, los controles, el contexto de escena y los
++ * anfitriones, y deja el estado de React (el modo de vista) a un callback. Se
++ * puede montar en Node con controles falsos, que es como se prueba.
++ *
++ * El orden importa: la política de cámara del modo 3D se aplica ANTES del
++ * encuadre (`OrbitControls.update()` acota la elevación con `maxPolarAngle`,
++ * y la del 2D dejaría la cámara clavada en planta); el estilo va al final
++ * porque reconstruye mallas y no toca la cámara.
++ */
++import type * as THREE from "three";
++import type { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
++import type { CadOpeningPresentation } from "@/lib/cad/view/opening-presentation";
++import type { CadVisualStyleId } from "@/lib/cad/view/visual-styles";
++import { applyCadCameraPolicy } from "./camera-policy";
++import {
++  applyCadStandardViewFraming,
++  type CadCameraSceneContext,
++  type CadWorldBounds3d,
++} from "./camera-view-presets";
++
++/** Lo que la presentación necesita del controlador de vista, declarado estructuralmente. */
++export interface CadOpeningViewControllerLike {
++  setMode(mode: "2d" | "3d"): void;
++  setProjection?(projection: "perspective" | "parallel"): void;
++}
++
++export interface CadOpeningPresentationInput {
++  camera: THREE.PerspectiveCamera;
++  controls: OrbitControls;
++  ctx: CadCameraSceneContext;
++  viewController: CadOpeningViewControllerLike | null;
++  solidShadeHost: { setStyle(style: CadVisualStyleId): CadVisualStyleId } | null;
++  nativeMassHosts: { applyVisualStyle(style: CadVisualStyleId): string } | null;
++  extents: CadWorldBounds3d | null;
++  presentation: CadOpeningPresentation;
++  setViewMode(mode: "2d" | "3d"): void;
++}
++
++export function applyCadOpeningPresentation(input: CadOpeningPresentationInput): void {
++  const { presentation } = input;
++  input.setViewMode(presentation.viewMode);
++  input.viewController?.setMode(presentation.viewMode);
++  applyCadCameraPolicy(input.controls, presentation.viewMode);
++  const extents = input.extents ?? {
++    minX: 0,
++    minY: 0,
++    maxX: input.ctx.W,
++    maxY: input.ctx.H,
++    minZ: 0,
++    maxZ: 0,
++  };
++  applyCadStandardViewFraming(input.camera, input.controls, input.ctx, presentation.standardView, extents);
++  if (presentation.projection) input.viewController?.setProjection?.(presentation.projection);
++  input.solidShadeHost?.setStyle(presentation.visualStyle);
++  input.nativeMassHosts?.applyVisualStyle(presentation.visualStyle);
++}
+diff --git a/apps/web/src/components/cad/viewport/solid-shade-host.spec.ts b/apps/web/src/components/cad/viewport/solid-shade-host.spec.ts
+index d5f22f4f..131bace3 100644
+--- a/apps/web/src/components/cad/viewport/solid-shade-host.spec.ts
++++ b/apps/web/src/components/cad/viewport/solid-shade-host.spec.ts
+@@ -181,6 +181,23 @@ const none: ReadonlySet<string> = new Set();
+   host.dispose();
+ }
+ 
++// --- getSnapshot cuenta lo que cuelga del grupo, con el estilo vigente --------
++{
++  const host = new CadSolidShadeHost(() => viewport);
++  assert.deepEqual(host.getSnapshot(), { meshCount: 0, vertexCount: 0, visualStyle: "shaded-edges" }, "vacío al nacer");
++  host.sync(documentWith([solid("caja", 50), solid("torre", 200)]), none);
++  const shaded = host.getSnapshot();
++  assert.equal(shaded.meshCount, 4, "Sombreado con aristas: una malla y un LineSegments por sólido");
++  assert.ok(shaded.vertexCount > 0, "con vértices de verdad");
++  assert.equal(shaded.visualStyle, "shaded-edges");
++  host.setStyle("wireframe");
++  const wire = host.getSnapshot();
++  assert.equal(wire.meshCount, 2, "Alámbrico: sólo las aristas, pero se cuentan (no es un 3D vacío)");
++  assert.equal(wire.visualStyle, "wireframe");
++  host.dispose();
++  assert.equal(host.getSnapshot().meshCount, 0, "dispose deja el grupo vacío");
++}
++
+ console.log(
+-  "solid-shade-host.spec: reconciliación por referencia, estilos conmutables y el enganche 3D con cota (T-52)",
++  "solid-shade-host.spec: reconciliación por referencia, estilos conmutables, el enganche 3D con cota (T-52) y el snapshot de escena",
+ );
+diff --git a/apps/web/src/components/cad/viewport/solid-shade-host.ts b/apps/web/src/components/cad/viewport/solid-shade-host.ts
+index d1b77fe2..df99ec3c 100644
+--- a/apps/web/src/components/cad/viewport/solid-shade-host.ts
++++ b/apps/web/src/components/cad/viewport/solid-shade-host.ts
+@@ -367,6 +367,27 @@ export class CadSolidShadeHost {
+     return this.built.size;
+   }
+ 
++  /**
++   * Evidencia REAL de que hay sólidos sombreados en la escena — el mismo
++   * criterio que `CadNativeMassHosts.getSnapshot()`: se recorre `this.group` y
++   * se cuenta lo que de verdad cuelga de él (mallas, y aristas en Alámbrico,
++   * que no construye ninguna malla). Un árbol roto deja un grupo vacío y aquí
++   * cuenta cero, que es lo honesto. Lo publica `Cad3DSolidDiagnostics` como
++   * `data-solid-mesh-count` para que un E2E afirme la escena y no un botón.
++   */
++  getSnapshot(): { meshCount: number; vertexCount: number; visualStyle: CadVisualStyleId } {
++    let meshCount = 0;
++    let vertexCount = 0;
++    this.group.traverse((object) => {
++      const mesh = object as THREE.Mesh;
++      const lines = object as unknown as THREE.LineSegments;
++      if (!mesh.isMesh && !lines.isLineSegments) return;
++      meshCount += 1;
++      vertexCount += mesh.geometry?.attributes?.position?.count ?? 0;
++    });
++    return { meshCount, vertexCount, visualStyle: this.style };
++  }
++
+   dispose(): void {
+     this.clear();
+     this.snapHost?.invalidate();
+diff --git a/apps/web/src/lib/cad/view/document-extents.spec.ts b/apps/web/src/lib/cad/view/document-extents.spec.ts
+new file mode 100644
+index 00000000..eedebe26
+--- /dev/null
++++ b/apps/web/src/lib/cad/view/document-extents.spec.ts
+@@ -0,0 +1,99 @@
++/**
++ * `cadDocument3dExtents`: la envolvente del MODELO, con cota.
++ *
++ * Con sólidos o muros visibles, la envolvente es la de ellos (y no la de los
++ * planos 2D que los rodean); sin volumen, la 2D a cota cero. Las capas
++ * apagadas y congeladas quedan fuera igual que en `cadDocumentExtents`, y un
++ * sólido cuyo árbol no construye no aporta nada en vez de tumbar la pregunta.
++ */
++import { check, checkClose, report } from "../../brep/spec-support";
++import { CAD_DOCUMENT_SCHEMA, type CadDocument, type CadEntity } from "../cad-document";
++import type { CadSolid3dEntity } from "../cad-entities-v5";
++import { cadDocument3dExtents, cadDocumentExtents } from "./document-extents";
++
++function documentWith(entities: readonly CadEntity[], layers: CadDocument["layers"] = []): CadDocument {
++  return {
++    meta: { version: 1, schema: CAD_DOCUMENT_SCHEMA, unit: "mm" },
++    layers: [{ id: "0", name: "0", color: "#ffffff", visible: true, locked: false }, ...layers],
++    entities: [...entities],
++    history: [],
++    modelSpace: { entityIds: entities.map((entity) => entity.id) },
++    paperSpaces: [],
++    styles: { text: {}, dimension: {}, table: {}, plot: {} },
++    blocks: [],
++    constraints: [],
++    externalReferences: [],
++    unsupportedEntities: [],
++    lossManifest: [],
++    publications: [],
++  };
++}
++
++const box = (id: string, layer: string, min: [number, number, number], max: [number, number, number]): CadSolid3dEntity => ({
++  id,
++  type: "solid3d",
++  layer,
++  root: "caja",
++  nodes: [{ id: "caja", op: "box", min: { x: min[0], y: min[1], z: min[2] }, max: { x: max[0], y: max[1], z: max[2] } }],
++});
++const line: CadEntity = { id: "l", type: "line", start: { x: -500, y: -500, z: 0 }, end: { x: 9000, y: 9000, z: 0 }, layer: "0" };
++
++// --- con sólidos, la envolvente es la de los sólidos y trae la Z -----------------
++{
++  const extents = cadDocument3dExtents(documentWith([line, box("a", "0", [0, 0, 0], [100, 200, 300]), box("b", "0", [50, 50, -20], [400, 100, 10])]));
++  check("hay envolvente", extents !== null);
++  if (extents) {
++    checkClose("minX de los sólidos, no de la línea", extents.minX, 0);
++    checkClose("maxX", extents.maxX, 400);
++    checkClose("minY", extents.minY, 0);
++    checkClose("maxY", extents.maxY, 200);
++    checkClose("minZ negativo del segundo sólido", extents.minZ, -20);
++    checkClose("maxZ del primero", extents.maxZ, 300);
++  }
++}
++
++// --- un muro cuenta como volumen: media anchura a cada lado y su altura ----------
++{
++  const wall: CadEntity = {
++    id: "m",
++    type: "wall",
++    start: { x: 0, y: 0, z: 0 },
++    end: { x: 1000, y: 0, z: 0 },
++    thickness: 200,
++    height: 2400,
++    layer: "0",
++  } as CadEntity;
++  const extents = cadDocument3dExtents(documentWith([line, wall]));
++  check("muro: envolvente", extents !== null);
++  if (extents) {
++    checkClose("muro: minY = −grosor/2", extents.minY, -100);
++    checkClose("muro: maxY = +grosor/2", extents.maxY, 100);
++    checkClose("muro: maxZ = altura", extents.maxZ, 2400);
++    checkClose("muro: maxX", extents.maxX, 1000);
++  }
++}
++
++// --- sin volumen, la 2D a cota cero -----------------------------------------------
++{
++  const document = documentWith([line]);
++  const flat = cadDocumentExtents(document);
++  const extents = cadDocument3dExtents(document);
++  check("plano: cae a la envolvente 2D", !!flat && !!extents && extents.minX === flat.minX && extents.maxY === flat.maxY);
++  check("plano: cota cero", !!extents && extents.minZ === 0 && extents.maxZ === 0);
++  check("vacío: null", cadDocument3dExtents(documentWith([])) === null);
++}
++
++// --- capas apagadas o congeladas no entran; un árbol roto no tumba la pregunta ----
++{
++  const layers: CadDocument["layers"] = [
++    { id: "OFF", name: "OFF", color: "#fff", visible: false, locked: false },
++    { id: "FRZ", name: "FRZ", color: "#fff", visible: true, locked: false, frozen: true },
++  ];
++  const roto: CadSolid3dEntity = { id: "r", type: "solid3d", layer: "0", root: "nada", nodes: [] };
++  const extents = cadDocument3dExtents(
++    documentWith([box("a", "0", [0, 0, 0], [10, 10, 10]), box("off", "OFF", [-900, 0, 0], [0, 0, 0]), box("frz", "FRZ", [0, 0, 0], [0, 900, 900]), roto], layers),
++  );
++  check("apagada y congelada fuera; el roto se salta", !!extents && extents.minX === 0 && extents.maxY === 10 && extents.maxZ === 10);
++}
++
++report("document-extents", 14);
+diff --git a/apps/web/src/lib/cad/view/document-extents.ts b/apps/web/src/lib/cad/view/document-extents.ts
+index 9f7e5629..e039ac99 100644
+--- a/apps/web/src/lib/cad/view/document-extents.ts
++++ b/apps/web/src/lib/cad/view/document-extents.ts
+@@ -12,6 +12,7 @@
+  * ajuste tienen envolventes que sólo su adaptador sabe calcular, y una versión
+  * paralela se quedaría atrás en cuanto llegase un tipo nuevo.
+  */
++import { bodyBounds } from "../../brep";
+ import type { CadDocument } from "../cad-document";
+ import { cadHiddenLayerIds } from "../cad-layer-visibility";
+ import {
+@@ -19,6 +20,7 @@ import {
+   type CadBounds,
+   type CadEntityRegistry,
+ } from "../entity-runtime";
++import { solid3dBody } from "../solid3d-build";
+ 
+ function merge(into: CadBounds | null, next: CadBounds): CadBounds {
+   if (!into) return { ...next };
+@@ -85,3 +87,76 @@ export function cadDocumentExtents(
+   }
+   return bounds;
+ }
++
++/** Envolvente con cota: la XY de siempre más el intervalo en Z. */
++export interface CadBounds3d extends CadBounds {
++  minZ: number;
++  maxZ: number;
++}
++
++/**
++ * Envolvente del MODELO: lo que un encuadre 3D debe enseñar.
++ *
++ * Si el documento tiene entidades con volumen —sólidos SOLID3D o muros— en
++ * capas visibles, la envolvente es la de ELLAS, con su Z real: es lo que se
++ * sombrea y orbita, y encuadrar además los planos 2D que las rodean dejaría
++ * el modelo pequeño en una esquina. Sin volumen, es la envolvente 2D a cota
++ * cero, para que un encuadre 3D de un plano plano siga funcionando.
++ *
++ * Los sólidos se evalúan por `solid3dBody` (memoizado por la huella del árbol),
++ * así que preguntar por esto en cada apertura no reevalúa nada que la escena
++ * no haya evaluado ya. Un sólido cuyo árbol no construye se salta: el visor lo
++ * deja como grupo vacío y el encuadre no puede fiarse de él.
++ */
++export function cadDocument3dExtents(
++  document: CadDocument,
++  options: CadDocumentExtentsOptions = {},
++): CadBounds3d | null {
++  const hidden = options.hiddenLayerIds ?? cadHiddenLayerIds(document.layers);
++  let bounds: CadBounds3d | null = null;
++  const include = (next: CadBounds3d) => {
++    bounds = bounds
++      ? {
++          minX: Math.min(bounds.minX, next.minX),
++          minY: Math.min(bounds.minY, next.minY),
++          maxX: Math.max(bounds.maxX, next.maxX),
++          maxY: Math.max(bounds.maxY, next.maxY),
++          minZ: Math.min(bounds.minZ, next.minZ),
++          maxZ: Math.max(bounds.maxZ, next.maxZ),
++        }
++      : { ...next };
++  };
++  for (const entity of document.entities) {
++    if (entity.layer && hidden.has(entity.layer)) continue;
++    if (entity.type === "solid3d") {
++      try {
++        const box = bodyBounds(solid3dBody(entity));
++        include({ minX: box.min.x, minY: box.min.y, maxX: box.max.x, maxY: box.max.y, minZ: box.min.z, maxZ: box.max.z });
++      } catch {
++        // Un árbol que no construye no aporta envolvente; el visor tampoco lo dibuja.
++      }
++    } else if (entity.type === "wall" && entity.height > 0) {
++      // Media anchura a cada lado del eje, en PERPENDICULAR al muro: sumarla
++      // también a lo largo agrandaría la envolvente sin motivo.
++      const dx = entity.end.x - entity.start.x;
++      const dy = entity.end.y - entity.start.y;
++      const length = Math.hypot(dx, dy) || 1;
++      const nx = (-dy / length) * (entity.thickness / 2);
++      const ny = (dx / length) * (entity.thickness / 2);
++      const xs = [entity.start.x + nx, entity.start.x - nx, entity.end.x + nx, entity.end.x - nx];
++      const ys = [entity.start.y + ny, entity.start.y - ny, entity.end.y + ny, entity.end.y - ny];
++      const base = Math.min(entity.start.z, entity.end.z);
++      include({
++        minX: Math.min(...xs),
++        minY: Math.min(...ys),
++        maxX: Math.max(...xs),
++        maxY: Math.max(...ys),
++        minZ: base,
++        maxZ: base + entity.height,
++      });
++    }
++  }
++  if (bounds) return bounds;
++  const flat = cadDocumentExtents(document, options);
++  return flat ? { ...flat, minZ: 0, maxZ: 0 } : null;
++}
+diff --git a/apps/web/src/lib/cad/view/opening-presentation.spec.ts b/apps/web/src/lib/cad/view/opening-presentation.spec.ts
+new file mode 100644
+index 00000000..3d8160b3
+--- /dev/null
++++ b/apps/web/src/lib/cad/view/opening-presentation.spec.ts
+@@ -0,0 +1,16 @@
++/**
++ * `isCadOpeningPresentation`: el valor viaja como metadato y se valida como
++ * lo que es, un valor externo.
++ */
++import { check, report } from "../../brep/spec-support";
++import { isCadOpeningPresentation } from "./opening-presentation";
++
++check("la petición de la demostración es válida", isCadOpeningPresentation({ viewMode: "3d", standardView: "sw-iso", visualStyle: "shaded-edges" }));
++check("con proyección paralela también", isCadOpeningPresentation({ viewMode: "3d", standardView: "ne-iso", visualStyle: "shaded", projection: "parallel" }));
++check("viewMode 2d no es una presentación de apertura", !isCadOpeningPresentation({ viewMode: "2d", standardView: "top", visualStyle: "shaded" }));
++check("vista que no está en la tabla", !isCadOpeningPresentation({ viewMode: "3d", standardView: "iso", visualStyle: "shaded" }));
++check("estilo visual inexistente", !isCadOpeningPresentation({ viewMode: "3d", standardView: "top", visualStyle: "conceptual" }));
++check("proyección desconocida", !isCadOpeningPresentation({ viewMode: "3d", standardView: "top", visualStyle: "shaded", projection: "isometric" }));
++check("null, undefined y primitivos", !isCadOpeningPresentation(null) && !isCadOpeningPresentation(undefined) && !isCadOpeningPresentation("3d"));
++
++report("opening-presentation", 7);
+diff --git a/apps/web/src/lib/cad/view/opening-presentation.ts b/apps/web/src/lib/cad/view/opening-presentation.ts
+new file mode 100644
+index 00000000..ca09568c
+--- /dev/null
++++ b/apps/web/src/lib/cad/view/opening-presentation.ts
+@@ -0,0 +1,37 @@
++/**
++ * PRESENTACIÓN DE APERTURA — lo que un documento pide al abrirse.
++ *
++ * El estudio arranca siempre en 2D porque el modo de vista sale de las
++ * preferencias del espacio de trabajo, no del documento. Un puerto de
++ * documentos (el de la demostración, hoy) puede devolver junto al documento
++ * ESTA petición: abrir en 3D, desde una de las diez vistas predefinidas, con
++ * un estilo visual concreto. El editor la aplica UNA vez por apertura y a
++ * partir de ahí manda el usuario.
++ *
++ * Es una hoja: sólo tipos y un validador. Viaja como metadato del recurso
++ * abierto, así que se valida como lo que es —un valor externo— y no se le
++ * cree por su forma en TypeScript.
++ */
++import { CAD_STANDARD_VIEWS, type CadStandardViewId } from "./view-3d";
++import { CAD_VISUAL_STYLES, type CadVisualStyleId } from "./visual-styles";
++
++export type CadOpeningProjection = "perspective" | "parallel";
++
++export interface CadOpeningPresentation {
++  viewMode: "3d";
++  standardView: CadStandardViewId;
++  visualStyle: CadVisualStyleId;
++  /** Sin él, la proyección vigente del visor (perspectiva). */
++  projection?: CadOpeningProjection;
++}
++
++const PROJECTIONS: readonly CadOpeningProjection[] = ["perspective", "parallel"];
++
++export function isCadOpeningPresentation(value: unknown): value is CadOpeningPresentation {
++  if (!value || typeof value !== "object") return false;
++  const candidate = value as Record<string, unknown>;
++  if (candidate.viewMode !== "3d") return false;
++  if (!CAD_STANDARD_VIEWS.some((view) => view.id === candidate.standardView)) return false;
++  if (!CAD_VISUAL_STYLES.some((style) => style.id === candidate.visualStyle)) return false;
++  return candidate.projection === undefined || PROJECTIONS.includes(candidate.projection as CadOpeningProjection);
++}
