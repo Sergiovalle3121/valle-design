@@ -8,9 +8,7 @@ import {
   type CadCommandDescriptor,
 } from "../command-types";
 import {
-  makeSolidEntity,
   selectedEntities,
-  solidBatch,
   solidMessage,
 } from "./solids-support";
 
@@ -19,11 +17,11 @@ type MeshCreaseState = { selection: readonly string[] };
 export const meshcreaseCommand: CadCommandDescriptor<MeshCreaseState | null> = {
   name: "MESHCREASE",
   aliases: ["CRESTAMALLA"],
-  kind: "modify",
+  kind: "inquiry",
   transparent: false,
   selection: "optional",
   repeatable: true,
-  mutates: true,
+  mutates: false,
   cursor: "crosshair",
   begin: (context) => ({
     state: context.selection.length > 0 ? { selection: context.selection } : null,
@@ -125,39 +123,53 @@ function extrudeMeshFaces(
   if (faces.length === 0) return "MESHEXTRUDE: la malla no tiene caras.";
   if (Math.abs(distance) < 1e-9) return "MESHEXTRUDE: la distancia no puede ser cero.";
 
-  const newPts = [...pts];
-  const newFaces: { outer: number[] }[] = [];
-
+  const vertexNormals = pts.map(() => ({ x: 0, y: 0, z: 0 }));
   for (const face of faces) {
     const outer = face.outer;
     if (outer.length < 3) continue;
-
     const p0 = pts[outer[0]], p1 = pts[outer[1]], p2 = pts[outer[2]];
     const ux = p1.x - p0.x, uy = p1.y - p0.y, uz = p1.z - p0.z;
     const vx = p2.x - p0.x, vy = p2.y - p0.y, vz = p2.z - p0.z;
-    let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
-    const len = Math.hypot(nx, ny, nz);
-    if (len < 1e-12) continue;
-    nx /= len; ny /= len; nz /= len;
-
-    const offsetIndices: number[] = [];
+    const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
     for (const idx of outer) {
-      const ni = newPts.length;
-      newPts.push({
-        x: pts[idx].x + nx * distance,
-        y: pts[idx].y + ny * distance,
-        z: pts[idx].z + nz * distance,
-      });
-      offsetIndices.push(ni);
+      vertexNormals[idx].x += nx;
+      vertexNormals[idx].y += ny;
+      vertexNormals[idx].z += nz;
     }
+  }
+  for (const n of vertexNormals) {
+    const len = Math.hypot(n.x, n.y, n.z);
+    if (len > 1e-12) { n.x /= len; n.y /= len; n.z /= len; }
+  }
 
-    newFaces.push({ outer: [...offsetIndices] });
+  const offset = pts.length;
+  const newPts = [
+    ...pts,
+    ...pts.map((p, i) => ({
+      x: p.x + vertexNormals[i].x * distance,
+      y: p.y + vertexNormals[i].y * distance,
+      z: p.z + vertexNormals[i].z * distance,
+    })),
+  ];
 
+  const newFaces: { outer: number[] }[] = [];
+  for (const face of faces) {
+    if (face.outer.length < 3) continue;
+    newFaces.push({ outer: [...face.outer].reverse().map((i) => i + offset) });
+  }
+
+  const seenEdges = new Set<string>();
+  for (const face of faces) {
+    const outer = face.outer;
     for (let i = 0; i < outer.length; i++) {
-      const next = (i + 1) % outer.length;
-      newFaces.push({
-        outer: [outer[i], outer[next], offsetIndices[next], offsetIndices[i]],
-      });
+      const a = outer[i];
+      const b = outer[(i + 1) % outer.length];
+      const lo = Math.min(a, b);
+      const hi = Math.max(a, b);
+      const key = `${lo}-${hi}`;
+      if (seenEdges.has(key)) continue;
+      seenEdges.add(key);
+      newFaces.push({ outer: [a + offset, b + offset, b, a] });
     }
   }
 
@@ -169,11 +181,11 @@ function extrudeMeshFaces(
 export const meshextrudeCommand: CadCommandDescriptor<MeshCreaseState | null> = {
   name: "MESHEXTRUDE",
   aliases: ["EXTRUIRMALLA"],
-  kind: "modify",
+  kind: "inquiry",
   transparent: false,
   selection: "optional",
   repeatable: true,
-  mutates: true,
+  mutates: false,
   cursor: "crosshair",
   begin: (context) => ({
     state: context.selection.length > 0 ? { selection: context.selection } : null,
@@ -224,19 +236,9 @@ export const meshextrudeCommand: CadCommandDescriptor<MeshCreaseState | null> = 
     const result = extrudeMeshFaces(pts, faces, 1.0);
     if (typeof result === "string") return solidMessage(state, result);
 
-    const newSolid = makeSolidEntity(
-      context.newEntityId(),
-      [{ id: "malla", op: "brep", points: result.points, faces: result.faces }],
-      "malla",
-      context.activeLayer,
-      solid.name,
-    );
-
-    return solidBatch(
+    return solidMessage(
       state,
-      [{ type: "insert", entity: newSolid }],
-      "MESHEXTRUDE",
-      `Malla extruida: ${result.faces.length} caras, ${result.points.length} vertices.`,
+      `MESHEXTRUDE: la malla tiene ${faces.length} caras y ${pts.length} vértices. La extrusión geométrica de mallas aún no está implementada.`,
     );
   },
 };
