@@ -330,6 +330,8 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   MESHMERGE: "Combina varias mallas en una sola.",
   MESHSPLIT: "Divide una malla por un plano.",
   MESHUNCREASE: "Elimina las crestas marcadas de una malla.",
+  MESHCREASE: "Marca aristas como crestas que resisten el suavizado.",
+  MESHEXTRUDE: "Extruye las caras de una malla a lo largo de su normal.",
   "3DARRAY": "Repite un sólido en matriz rectangular o polar 3D.",
   "3DWALK": "Navegación interactiva tipo caminar en el modelo 3D.",
   "3DFACE": "Crea una cara 3D (triángulo o cuadrilátero) a partir de 3 o 4 puntos.",

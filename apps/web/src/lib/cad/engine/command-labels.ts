@@ -314,6 +314,8 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   MESHMERGE: "Unir mallas",
   MESHSPLIT: "Dividir malla",
   MESHUNCREASE: "Quitar crestas",
+  MESHCREASE: "Marcar crestas",
+  MESHEXTRUDE: "Extruir malla",
   EDGESURF: "Superf. borde",
   RULESURF: "Superficie reglada",
   SCALE: "Escala",

@@ -600,6 +600,8 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   MESHMERGE: Combine,
   MESHSPLIT: Scissors,
   MESHUNCREASE: Waves,
+  MESHCREASE: Milestone,
+  MESHEXTRUDE: MoveDiagonal,
   CONVTOMESH: FlipHorizontal2,
   CONVTOSOLID: Layers2,
   "3DFACE": Triangle,

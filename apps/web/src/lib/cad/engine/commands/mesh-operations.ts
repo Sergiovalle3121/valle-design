@@ -18,6 +18,7 @@ import {
   solidBatch,
   solidMessage,
 } from "./solids-support";
+import { CAD_MESH_CREASE_EXTRUDE_COMMANDS } from "./mesh-crease-extrude";
 
 type MeshSmoothState = { selection: readonly string[] };
 
@@ -605,4 +606,5 @@ export const CAD_MESH_OPS_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(meshmergeCommand),
   asCadCommand(meshsplitCommand),
   asCadCommand(meshuncreaseCommand),
+  ...CAD_MESH_CREASE_EXTRUDE_COMMANDS,
 ];

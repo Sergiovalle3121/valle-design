@@ -1,5 +1,5 @@
 /**
- * METADATOS de los 364 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 366 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
  * 125 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
@@ -185,6 +185,8 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "MESHMERGE", aliases: ["UNIRMALLA"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/meshes" },
   { name: "MESHSPLIT", aliases: ["DIVIDIRMALLA"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "crosshair", module: "commands/meshes" },
   { name: "MESHUNCREASE", aliases: ["QUITARCRESTA"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/meshes" },
+  { name: "MESHCREASE", aliases: ["CRESTAMALLA"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/meshes" },
+  { name: "MESHEXTRUDE", aliases: ["EXTRUIRMALLA"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/meshes" },
   { name: "ALIGN", aliases: ["AL"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-align" },
   { name: "MATCHPROP", aliases: ["MA"], kind: "modify", transparent: false, selection: "command-first", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-align" },
   { name: "ARRAY", aliases: ["AR", "ARR"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-array" },
