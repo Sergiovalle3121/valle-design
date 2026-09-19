@@ -15,6 +15,7 @@ import {
   type CadCommandEffect,
   type CadCommandEngineState,
 } from "../command-engine";
+import { formatCadPrompt } from "../prompt";
 import { createCadCommandRegistry } from "../registry";
 import { CAD_MODIFY_BASIC_COMMANDS } from "./modify-basics";
 import { CAD_DRAW_BASIC_COMMANDS } from "./draw-basics";
@@ -484,14 +485,38 @@ assert.equal(
   run2({ kind: "invoke", command: "OFFSET" });
   run2({ kind: "input", input: { kind: "distance", value: 100 } });
   assert.equal(store.get("OFFSETDIST"), 100, "OFFSETDIST quedó en 100");
-  // Segunda invocación: begin de nuevo — debe proponer 100
-  const desc = registry.get("OFFSET");
-  assert.ok(desc);
-  const step2 = desc.begin(offsetCtxMem());
-  assert.ok(
-    step2.prompt.message.includes("100"),
-    `OFFSET recuerda distancia: «${step2.prompt.message}»`,
+  // Función, no lectura directa: `run2` reasigna `state2` y el estrechamiento
+  // de tipos de un `assert` no debe sobrevivir a la siguiente acción.
+  const activePrompt = () => state2.active?.step.prompt;
+  run2({ kind: "input", input: { kind: "cancel" } });
+  assert.equal(activePrompt(), undefined, "Esc sin desfases cierra OFFSET");
+  // Segunda invocación: PROPONE 100 entre ángulos, pero SIGUE preguntando la
+  // distancia —como AutoCAD: «Precise distancia de desfase … <100>:»—. Si se
+  // saltara la pregunta no habría manera de desfasar a otra distancia.
+  run2({ kind: "invoke", command: "OFFSET" });
+  const asked = activePrompt();
+  assert.ok(asked);
+  assert.equal(
+    formatCadPrompt(asked),
+    "Precise la distancia de desfase <100>: ",
+    "OFFSET recuerda la distancia como valor por defecto, sin saltarse la pregunta",
   );
+  // Intro en vacío acepta la recordada y pasa a designar.
+  run2({ kind: "input", input: { kind: "enter" } });
+  assert.equal(activePrompt()?.message, "Designe el objeto a desplazar", "Intro acepta <100>");
+  run2({ kind: "input", input: { kind: "entityPick", entityId: "line-1", point: { x: 50, y: 0 } } });
+  run2(point(50, 5));
+  run2({ kind: "input", input: { kind: "enter" } });
+  const accepted = executed(effects2).at(-1)?.commands[0];
+  assert.ok(
+    accepted?.type === "insert" && accepted.entity.type === "line" && accepted.entity.start.y === 100,
+    "el desfase aceptado con Intro usa la distancia recordada, 100",
+  );
+  // Tercera invocación: teclear otra distancia la sustituye, en el comando y en OFFSETDIST.
+  run2({ kind: "invoke", command: "OFFSET" });
+  run2({ kind: "token", value: "250" });
+  assert.equal(activePrompt()?.message, "Designe el objeto a desplazar");
+  assert.equal(store.get("OFFSETDIST"), 250, "la distancia nueva queda como la recordada");
 }
 
 console.log("cad modify command specs passed");

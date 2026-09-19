@@ -38,6 +38,11 @@ export interface CadDraftToolbarProps {
    * que AutoCAD con DYNMODE en 0. Opcional para no tocar a los montajes que
    * no conocen el interruptor: ausente significa encendida, que era el único
    * comportamiento que existía antes.
+   *
+   * El editor también la apaga SIN WebGL para una orden del motor (cinta o
+   * teclado): sin viewport no hay enrutador del puntero que reciba el punto, y
+   * «Aplicar» lo perdía en silencio. Esa orden se teclea en la línea de
+   * comandos; las herramientas de la paleta dibujan sin viewport y la conservan.
    */
   dynamicInputEnabled?: boolean;
   /**
@@ -80,7 +85,15 @@ export function CadDraftToolbar({
     // (medido el 2026-09-02, golden 33, PLINE con «Cerrar»): la fila medía más
     // que el lienzo, se centraba y su botón «ABS» quedaba fuera, bajo el panel
     // izquierdo, sin que ningún clic pudiera alcanzarlo.
-    <div className="pointer-events-none absolute top-12 left-1/2 z-20 flex w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-1.5 whitespace-nowrap rounded-card border border-border bg-surface/90 px-2 py-1.5 backdrop-blur">
+    // `z-[21]`, NO `z-20`: la barra del comando en curso va ENCIMA de la paleta
+    // de herramientas. Las dos flotan en el lienzo a `z-20` y la paleta va
+    // después en el DOM, así que ganaba ella. Con sus botones a `w-20` la
+    // paleta mide 176 px en dos columnas (ventanas ≤820 px de alto) y en el
+    // lienzo de 784 px de 1280×720 tapaba «ORTO» y el centro de «ABS» (con
+    // «Cerrar» también «REL»): el clic en ABS no llegaba nunca (goldens 32 y
+    // 33). Debajo queda ahora la primera fila de la paleta mientras dura el
+    // comando (Esc vuelve a Seleccionar). Sigue bajo la cinta (`z-[25]`).
+    <div className="pointer-events-none absolute top-12 left-1/2 z-[21] flex w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-1.5 whitespace-nowrap rounded-card border border-border bg-surface/90 px-2 py-1.5 backdrop-blur">
       <button
         onClick={onToggleOrtho}
         title="Orto: restringe los muros a 0/90/180/270 (como F8 de AutoCAD)"

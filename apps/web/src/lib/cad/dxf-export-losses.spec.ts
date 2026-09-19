@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { cadDocumentDxfExportLosses } from "./dxf-cad-document";
+import { applyCadLineChamfer } from "./cad-chamfer";
+import { applyCadLineFillet } from "./cad-fillet";
 import { cadEntityToDxfPrimitive, cadOpeningToDxfPrimitives } from "./dxf-entity-primitives";
 import { wallJoinedFootprint, wallJoins } from "./wall-joins";
 import type { CadDocument, CadEntity } from "./cad-document";
@@ -336,5 +338,51 @@ const orphanLosses = cadDocumentDxfExportLosses(
 assert.equal(orphanLosses.length, 1);
 assert.equal(orphanLosses[0].code, "dxf_export_entity_dropped");
 assert.equal(orphanLosses[0].severity, "error");
+
+// --- Metadatos: la proveniencia de una orden NO es dominio -----------------
+
+// El ARC que deja FILLET apunta de qué dos líneas salió y con qué radio. En
+// AutoCAD es un ARC corriente: exportarlo no pierde nada, y el golden 23
+// descarga a la primera. Se construye con la orden real para que una clave
+// nueva en su metadata no cuele sin pasar por aquí.
+const esquina = {
+  ...documentWith([
+    { id: "h", type: "line", start: { x: 4_000, y: 4_000, z: 0 }, end: { x: 8_000, y: 4_000, z: 0 }, layer: "0" } as CadEntity,
+    { id: "v", type: "line", start: { x: 4_000, y: 4_000, z: 0 }, end: { x: 4_000, y: 8_000, z: 0 }, layer: "0" } as CadEntity,
+  ]),
+  meta: { version: 1, schema: 3, unit: "mm" },
+  history: [],
+} as unknown as CadDocument;
+const empalmado = applyCadLineFillet(esquina, { lineAId: "h", lineBId: "v", radius: 500, arcId: "arco" });
+assert.equal(empalmado.entities.find((entity) => entity.id === "arco")?.context?.metadata?.sourceType, "FILLET");
+assert.deepEqual(
+  cadDocumentDxfExportLosses(empalmado),
+  [],
+  "un empalme entre dos líneas exporta sin pérdidas: su proveniencia no es un metadato de dominio",
+);
+// Lo mismo con CHAMFER, también con la orden real: el tramo es una LINE
+// corriente y sus distancias ya están en sus extremos.
+const achaflanado = applyCadLineChamfer(esquina, { lineAId: "h", lineBId: "v", distanceA: 300, distanceB: 200, chamferId: "chaflan" });
+assert.equal(achaflanado.entities.find((entity) => entity.id === "chaflan")?.context?.metadata?.sourceType, "CHAMFER");
+assert.deepEqual(cadDocumentDxfExportLosses(achaflanado), [], "un chaflán entre dos líneas exporta sin pérdidas");
+
+// Lo que SÍ es dominio se sigue declarando, también si la entidad nació de
+// una orden: el eco del radio se exime, un circuito no.
+const conductor = {
+  ...flat,
+  id: "conductor",
+  context: { metadata: { circuit: "C1", wireNumber: "101" } },
+} as CadEntity;
+const arcoConCircuito = {
+  ...empalmado.entities.find((entity) => entity.id === "arco")!,
+  context: { metadata: { sourceType: "FILLET", sourceIds: "h,v", radius: 500, circuit: "C2" } },
+} as CadEntity;
+// El eco sólo se exime con SU orden: un `radius` suelto no es proveniencia.
+const radioSuelto = { ...flat, id: "radio-suelto", context: { metadata: { radius: 500 } } } as CadEntity;
+const dominio = cadDocumentDxfExportLosses(documentWith([conductor, arcoConCircuito, radioSuelto])).filter(
+  (loss) => loss.code === "dxf_export_metadata_not_transported",
+);
+assert.equal(dominio.length, 1);
+assert.match(dominio[0].detail, /^3 entidad\(es\)/);
 
 console.log("dxf-export-losses.spec.ts OK");

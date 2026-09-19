@@ -7,6 +7,7 @@ import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
 import { applyDynamicInput } from '../fixtures/dynamic-input';
+import { startTool } from '../fixtures/tool-palette';
 
 type CadLine = Extract<CadEntity, { type: 'line' }>;
 
@@ -86,7 +87,12 @@ test('the 2D editor stays fully operable when the browser denies WebGL', async (
 
   // 2. La barra de herramientas responde. Éste es el punto exacto donde la
   //    suite moría en Firefox: el aviso de degradación no puede cubrirla.
-  await page.getByTestId('cad-ribbon-command-CIRCLE').click();
+  //    Es la PALETA (`startTool`, acotada a `cad-toolbar`), la que pulsaba
+  //    main, no la cinta: sin WebGL no hay enrutador del puntero y el CIRCLE
+  //    del motor que lanza la cinta se teclea en la línea de comandos, sin
+  //    entrada dinámica. La paleta usa la máquina de dibujo del editor, que
+  //    sí dibuja sin viewport — que es lo que este golden fija.
+  await startTool(page, 'circle');
   const dynamic = page.getByTestId('cad-dynamic-input');
   await expect(dynamic).toBeVisible();
   await applyDynamicInput(page, { x: '4000', y: '3000' });

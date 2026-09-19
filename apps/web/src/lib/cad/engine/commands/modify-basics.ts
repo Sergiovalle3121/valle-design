@@ -317,6 +317,13 @@ function makeDisplace(
 
 interface OffsetState {
   distance: number | null;
+  /**
+   * OFFSETDIST de la vez anterior (T28). Va entre ángulos en la pregunta de
+   * la distancia —«<600>»— y es lo que acepta un Intro en vacío, como en
+   * AutoCAD. Recordar la distancia NO es saltarse la pregunta: sin ella no
+   * habría manera de desfasar a otra distancia en la siguiente invocación.
+   */
+  remembered: number | null;
   commands: CadEntityCommand[];
   /**
    * Objeto ya designado, esperando el punto que dice de qué LADO se
@@ -331,7 +338,11 @@ function offsetStep(state: OffsetState): CadCommandStep<OffsetState> {
   if (state.distance === null)
     return {
       state,
-      prompt: { message: "Precise la distancia de desfase", options: [] },
+      prompt: {
+        message: "Precise la distancia de desfase",
+        options: [],
+        ...(state.remembered !== null ? { defaultValue: String(state.remembered) } : {}),
+      },
       accepts: CAD_ACCEPT_DISTANCE | CAD_ACCEPT_POINT,
     };
   if (state.pendingTarget !== null)
@@ -340,15 +351,9 @@ function offsetStep(state: OffsetState): CadCommandStep<OffsetState> {
       prompt: { message: "Precise punto en lado de desplazamiento", options: [] },
       accepts: CAD_ACCEPT_POINT,
     };
-  const remembered = state.commands.length === 0 && state.distance !== 0;
   return {
     state,
-    prompt: {
-      message: remembered
-        ? `Distancia actual = ${state.distance}. Designe el objeto a desplazar`
-        : "Designe el objeto a desplazar",
-      options: [],
-    },
+    prompt: { message: "Designe el objeto a desplazar", options: [] },
     accepts: CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_SELECTION | CAD_ACCEPT_KEYWORD,
   };
 }
@@ -396,7 +401,9 @@ const offsetCommand: CadCommandDescriptor<OffsetState> = {
   cursor: "pick",
   begin: (context) => {
     const remembered = Number(context.variables?.get("OFFSETDIST") ?? 0);
-    return offsetStep({ distance: remembered || null, commands: [], pendingTarget: null });
+    // Se RECUERDA, no se da por contestada: la pregunta de la distancia sale
+    // siempre, con la de la vez anterior entre ángulos.
+    return offsetStep({ distance: null, remembered: remembered || null, commands: [], pendingTarget: null });
   },
   step: (state, input, context) => {
     // T15: Esc conserva desfases ya hechos
@@ -410,6 +417,9 @@ const offsetCommand: CadCommandDescriptor<OffsetState> = {
             ? { kind: "document", commands: state.commands, label: "OFFSET" }
             : { kind: "none" },
       };
+    // Intro en vacío ante «<600>» acepta la distancia recordada (AutoCAD).
+    if (input.kind === "enter" && state.distance === null && state.remembered !== null)
+      return offsetStep({ ...state, distance: state.remembered });
     if (input.kind === "enter")
       return {
         state,

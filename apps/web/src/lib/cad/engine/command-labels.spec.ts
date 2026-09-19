@@ -7,7 +7,8 @@
  *      nombre en inglés.
  *   2. Todo rótulo corresponde a un comando registrado: sin cadáveres.
  *   3. El rótulo CABE en el botón que lo pinta: un botón pequeño de la cinta
- *      mide 6,75 rem (`CadRibbonButton.tsx`), y a 11 px caben 16 caracteres;
+ *      mide 7 rem (`CadRibbonButton.tsx`); aquí se exige la cota gruesa de 16
+ *      caracteres, y los píxeles los mide el golden 214 (`command-labels.ts`);
  *      un botón grande envuelve en dos líneas de 12 caracteres. Que un
  *      rótulo se salga del botón es esconder texto, y aquí se impide con el
  *      dato, no con `truncate`.

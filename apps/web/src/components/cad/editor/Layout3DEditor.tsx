@@ -14620,7 +14620,7 @@ export default function Layout3DEditor({
                 orthoLock={draftSettings.ortho}
                 onToggleOrtho={() => draftSettingsHost.toggleOrtho()}
                 dynamicInputKey={`${dynamicInputKind}:${dynamicAnchor ? "anchored" : "origin"}`}
-                dynamicInputEnabled={draftSettings.dynamicInput}
+                dynamicInputEnabled={draftSettings.dynamicInput && (webglUnavailable !== "sin-webgl" || tool === "wall" || isCadDrawTool(tool))}
                 dynamicInput={{
                   kind: dynamicInputKind,
                   anchor: dynamicAnchor,

@@ -21,9 +21,14 @@
  * Lo que el comando HACE en este producto, no lo que promete el nombre:
  * PLOT traza a PDF y por eso dice «Trazar a PDF»; los comandos con guion
  * («-LAYER») trabajan por la línea de comandos y lo dicen entre paréntesis.
- * Los botones pequeños de la cinta miden 6,75 rem (`CadRibbonButton.tsx`):
- * el rótulo de un comando que no es primario cabe en 16 caracteres, medido
- * a 11 px; los primarios se pintan grandes, con el rótulo en dos líneas, y
+ * Los botones pequeños de la cinta miden 7 rem (`w-28`, `CadRibbonButton.tsx`):
+ * tras el icono y el hueco, el rótulo tiene 88 px hasta el borde del botón, y
+ * el golden 214 falla si lo pasa. 16 caracteres es sólo la cota gruesa que
+ * comprueba `command-labels.spec.ts`: el Chromium de Linux del CI pinta Inter
+ * 500 a 11 px hasta un 5 % más ancho que el de Windows, y «Adjuntar imagen»
+ * (15), que en Windows mide 87 px, allí midió ~90 y tumbó el golden. Un
+ * rótulo pequeño a la vista a 1366 o 1280 px no pasa de 83 px medido en
+ * Windows. Los primarios se pintan grandes, con el rótulo en dos líneas, y
  * ahí lo que manda es que ninguna palabra pase de 12 caracteres.
  */
 
@@ -97,7 +102,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   CENTERMARK: "Marca de centro",
   CHAMFER: "Chaflán",
   CHAMFEREDGE: "Chaflán arista",
-  CHECKSTANDARDS: "Normas despacho",
+  CHECKSTANDARDS: "Validar normas",
   CHPROP: "Cambiar (línea)",
   CIRCLE: "Círculo",
   COGO: "Poligonal",
@@ -181,9 +186,9 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   HATCH: "Sombreado",
   ID: "Coordenadas",
   IMAGE: "Imagen",
-  IMAGEADJUST: "Ajustar imagen",
-  IMAGEATTACH: "Adjuntar imagen",
-  IMAGECLIP: "Recortar imagen",
+  IMAGEADJUST: "Ajustar ráster",
+  IMAGEATTACH: "Adjuntar ráster",
+  IMAGECLIP: "Recortar ráster",
   IMPORT: "Importar",
   INSERT: "Insertar",
   INTERFERE: "Interferencias",
@@ -216,8 +221,8 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   MASSPROP: "Masa y volumen",
   MATCHPROP: "Igualar propiedades",
   MATERIALS: "Materiales",
-  MATERIALATTACH: "Asignar material",
-  MATERIALMAP: "Mapear material",
+  MATERIALATTACH: "Asignación",
+  MATERIALMAP: "Mapeado",
   MEASURE: "Graduar",
   MESH: "Malla",
 
@@ -233,14 +238,14 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   MVIEW: "Ventana gráfica",
 
   NCOPY: "Copiar anidado",
-  NORMAMX: "Norma mexicana",
+  NORMAMX: "Norma México",
   NAVBAR: "Navegación",
   NAVVCUBE: "Cubo 3D",
   OFFSET: "Desfase",
   OPTIONS: "Opciones",
   OSNAP: "Referencias",
   OVERKILL: "Duplicados",
-  PAGESETUP: "Preparar página",
+  PAGESETUP: "Preparar hoja",
   PAN: "Encuadre",
   PARAMETERS: "Parámetros",
   PASTECLIP: "Pegar Ctrl+V",
@@ -310,8 +315,8 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   RSCRIPT: "Repetir guion",
   REVSURF: "Sup. revolución",
   MESHSMOOTH: "Suavizar malla",
-  MESHSMOOTHMORE: "Mas suavidad",
-  MESHSMOOTHLESS: "Menos suavidad",
+  MESHSMOOTHMORE: "Más suave",
+  MESHSMOOTHLESS: "Menos suave",
   MESHREFINE: "Refinar malla",
   MESHCOLLAPSE: "Colapsar malla",
   MESHCAP: "Tapar malla",
@@ -328,14 +333,14 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   SELECTSIMILAR: "Designar similar",
   SETBYLAYER: "Poner PorCapa",
   SETVAR: "Fijar variable",
-  SHEETSET: "Conjunto planos",
+  SHEETSET: "Lista de planos",
   SLAB: "Losa",
   SLICE: "Rebanar",
   SOLDRAW: "Dibujar vistas",
   SOLID: "Sólido 2D",
   SOLIDEDIT: "Editar sólido",
   SOLPROF: "Perfil 2D",
-  SOLVIEW: "Vistas de sólido",
+  SOLVIEW: "Vista de sólido",
   SPHERE: "Esfera",
   STATUS: "Estado",
 
@@ -347,7 +352,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   STEELSHAPE: "Perfil de acero",
   STRETCH: "Estirar",
   STYLE: "Estilo de texto",
-  STYLESMANAGER: "Tablas de plumas",
+  STYLESMANAGER: "Tablas plumas",
   SUBTRACT: "Diferencia",
   SUNPROPERTIES: "Propiedades sol",
   SURFACESYMBOL: "Acabado",

@@ -419,16 +419,42 @@ export function cadDocumentDxfExportLosses(
   //    equipo— NO viaja al DXF. El DXF plano no tiene XDATA propia de Valle,
   //    y el exportador no la escribe. Esta entrada convierte una pérdida
   //    silenciosa en una declarada (D2 de la auditoría MEP).
-  //    Las claves de proveniencia de importación (sourceType, sourceLayer,
-  //    sourceBlock) son tracking, no dominio: el usuario no pierde nada al
-  //    exportar porque esos datos ya están en el propio tipo y capa de la
-  //    entidad.
-  const IMPORT_PROVENANCE_KEYS = new Set(["sourceType", "sourceLayer", "sourceBlock"]);
+  //    Las claves de proveniencia son tracking, no dominio: el usuario no
+  //    pierde nada al exportar.
+  //    - De importación (sourceType, sourceLayer, sourceBlock): esos datos ya
+  //      están en el propio tipo y capa de la entidad.
+  //    - De las órdenes que construyen geometría a partir de otra: FILLET y
+  //      CHAMFER apuntan de qué dos líneas salieron (sourceIds), el sombreado
+  //      por punto interior de cuántas entidades salió su contorno
+  //      (sourceCount) y el de un activo de cuál (sourceAssetId). AutoCAD
+  //      tampoco lo guarda: el empalme es un ARC corriente en cualquier DXF.
+  //    - El eco del parámetro de la orden (radio del empalme, distancias del
+  //      chaflán) ya viaja en la geometría: el ARC lleva su radio y el
+  //      chaflán sus extremos.
+  //    Sin esto, un dibujo de líneas con un empalme pedía ver un informe de
+  //    «circuito, calibre…» antes de descargar, como si perdiera algo.
+  const PROVENANCE_KEYS = new Set([
+    "sourceType",
+    "sourceLayer",
+    "sourceBlock",
+    "sourceIds",
+    "sourceCount",
+    "sourceAssetId",
+  ]);
+  const COMMAND_ECHO_KEYS = new Map<string, ReadonlySet<string>>([
+    ["FILLET", new Set(["radius"])],
+    ["CHAMFER", new Set(["distanceA", "distanceB"])],
+  ]);
   let metadataEntities = 0;
   for (const entity of document.entities) {
-    if (!entity.context?.metadata) continue;
-    const domainKeys = Object.keys(entity.context.metadata).filter(
-      (key) => !IMPORT_PROVENANCE_KEYS.has(key),
+    const metadata = entity.context?.metadata;
+    if (!metadata) continue;
+    const echo =
+      typeof metadata.sourceType === "string"
+        ? COMMAND_ECHO_KEYS.get(metadata.sourceType)
+        : undefined;
+    const domainKeys = Object.keys(metadata).filter(
+      (key) => !PROVENANCE_KEYS.has(key) && !echo?.has(key),
     );
     if (domainKeys.length > 0) metadataEntities += 1;
   }
