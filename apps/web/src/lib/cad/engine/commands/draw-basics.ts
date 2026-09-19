@@ -83,6 +83,28 @@ interface LineState {
   commands: CadEntityCommand[];
 }
 
+/**
+ * Lo que LINE enseña mientras se dibuja: la banda elástica Y los tramos ya
+ * fijados.
+ *
+ * Antes era SÓLO la banda, del último punto al cursor. Pero LINE no escribe
+ * nada en el documento hasta Intro —el lote entero es un solo Ctrl+Z—, así que
+ * los tramos fijados no existían en ninguna parte visible: tras tres clics el
+ * lienzo enseñaba, como mucho, un único segmento colgando del último punto, y
+ * sin cursor (un clic sin mover, un toque con el dedo) nada en absoluto. El
+ * usuario concluía que el clic «no se tomaba». PLINE ya dibujaba su contorno;
+ * LINE hace lo mismo. La banda va PRIMERO: `paths[0]` sigue siendo lo que se
+ * mueve con el ratón, y lo fijado va detrás, entero, haya cursor o no.
+ */
+function linePreview(
+  points: readonly CadPoint2[],
+  cursor?: CadPoint2,
+): CadPreviewPath[] {
+  if (points.length === 0) return [];
+  const fixed = points.length > 1 ? [{ points: [...points] }] : [];
+  return [...rubberBand(points[points.length - 1], cursor), ...fixed];
+}
+
 function lineStep(
   state: LineState,
   context: CadCommandContext,
@@ -92,6 +114,10 @@ function lineStep(
       state,
       prompt: { message: "Precise el primer punto", options: [] },
       accepts: CAD_ACCEPT_POINT,
+      // Vacía y no ausente: tras `desHacer` el primer punto, una preview
+      // AUSENTE deja en pantalla la banda que colgaba del punto deshecho
+      // (el motor sólo repinta cuando el paso trae preview).
+      preview: [],
     };
   const options = state.points.length >= 3 ? [CLOSE, UNDO] : [UNDO];
   return {
@@ -101,7 +127,7 @@ function lineStep(
     // distancia abstracta, es entrada directa sobre la dirección del cursor, y
     // de eso se encarga el pipeline. Declararla aquí se la comería antes.
     accepts: CAD_ACCEPT_POINT | CAD_ACCEPT_KEYWORD,
-    preview: rubberBand(state.points[state.points.length - 1], context.cursor),
+    preview: linePreview(state.points, context.cursor),
   };
 }
 

@@ -31,7 +31,9 @@ export const CAD_RIBBON_PANEL_ORDER: Readonly<Record<CadRibbonTabId, readonly st
   parametrico: ["Geométricas", "Dimensionales", "Gestionar"],
   vista: ["Encuadre y zoom", "Vistas 3D", "Estilos visuales", "SCU", "Ventanas", "Paletas", "Vistas"],
   solidos3d: ["Primitivas", "Sólido", "Booleanas", "Edición de sólidos", "Consulta 3D"],
-  salida: ["Trazar y publicar", "Exportar", "Ventanas", "Render"],
+  // Sin «Render»: sus trece comandos aún no están disponibles y no tienen
+  // botón (`engine/command-availability.ts`), así que el panel no existe.
+  salida: ["Trazar y publicar", "Exportar", "Ventanas"],
   administrar: ["Normas y reparación", "Variables", "AutoLISP y scripts", "Comparar", "Vistas"],
   superficies: ["Superficies", "Arquitectura", "Instalaciones"],
   mallas: ["Mallas"],
@@ -84,12 +86,12 @@ export const CAD_RIBBON_COMMAND_ORDER: Readonly<Record<string, readonly string[]
   Sólido: ["EXTRUDE", "PRESSPULL", "REVOLVE", "SWEEP", "LOFT"],
   Booleanas: ["UNION", "SUBTRACT", "INTERSECT", "INTERFERE"],
   "Edición de sólidos": ["SLICE", "FILLETEDGE", "CHAMFEREDGE", "SOLIDEDIT", "SECTION", "3DALIGN", "MIRROR3D", "3DSCALE", "3DARRAY"],
-  // Fase 2: superficies.
+  // Fase 2: superficies. SURFSCULPT, SURFUNTRIM y MESHCOLLAPSE no están: aún no
+  // disponibles y sin botón (`engine/command-availability.ts`).
   Superficies: [
-    "PLANESURF", "CONVTOSURFACE", "SURFPATCH", "SURFNETWORK", "SURFBLEND", "SURFEXTEND", "SURFFILLET", "SURFOFFSET", "SURFTRIM", "SURFSCULPT", "SURFUNTRIM",
+    "PLANESURF", "CONVTOSURFACE", "SURFPATCH", "SURFNETWORK", "SURFBLEND", "SURFEXTEND", "SURFFILLET", "SURFOFFSET", "SURFTRIM",
   ],
-  Mallas: ["MESH", "RULESURF", "TABSURF", "REVSURF", "EDGESURF", "MESHSMOOTH", "MESHSMOOTHMORE", "MESHSMOOTHLESS", "MESHREFINE", "MESHCOLLAPSE", "MESHCAP", "MESHMERGE", "MESHSPLIT", "MESHUNCREASE", "MESHCREASE", "MESHEXTRUDE"],
-  Render: ["RENDER", "RENDERPRESETS", "RENDEREXPOSURE", "RENDERENVIRONMENT", "MATERIALS", "MATERIALATTACH", "MATERIALMAP", "POINTLIGHT", "SPOTLIGHT", "DISTANTLIGHT", "SUNPROPERTIES", "RENDERCROP", "RENDERWIN"],
+  Mallas: ["MESH", "RULESURF", "TABSURF", "REVSURF", "EDGESURF", "MESHSMOOTH", "MESHSMOOTHMORE", "MESHSMOOTHLESS", "MESHREFINE", "MESHCAP", "MESHMERGE", "MESHSPLIT", "MESHUNCREASE", "MESHCREASE", "MESHEXTRUDE"],
 };
 
 /**
@@ -174,7 +176,6 @@ export const CAD_RIBBON_PRIMARY: Readonly<Record<string, readonly string[]>> = {
   Instalaciones: ["PIPE"],
   Superficies: ["PLANESURF", "SURFPATCH"],
   Mallas: ["MESH", "RULESURF"],
-  Render: ["RENDER"],
   Vistas: ["VIEWBASE", "VIEWEDIT", "REGEN"],
 };
 

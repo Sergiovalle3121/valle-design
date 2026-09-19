@@ -4,6 +4,7 @@ import { CAD_COMMAND_DESCRIPTORS } from "./engine";
 import {
   CAD_RIBBON_DATA,
   CAD_RIBBON_TABS,
+  CAD_RIBBON_UNEXPOSED,
   cadRibbonCoverageGaps,
   cadRibbonExposedNames,
   cadRibbonPanelFallbacks,
@@ -29,10 +30,27 @@ assert.equal(
 
 // Los espejos de Inicio repiten seis botones de Anotar a propósito: la
 // cobertura se mide en NOMBRES únicos, no en botones.
+//
+// Cada nombre del registro está en la cinta O declarado no-expuesto con su
+// razón —nunca en los dos, nunca en ninguno— y la cinta no monta nada que el
+// registro no tenga. Es la misma ecuación que `check-ribbon-coverage.mjs`
+// (expuestos + no-expuestos = registro). Los no-expuestos de hoy son las
+// órdenes que aún no hacen nada (`engine/command-availability.ts`): su botón
+// era un botón muerto.
+const registryNames = new Set(CAD_COMMAND_DESCRIPTORS.map((descriptor) => descriptor.name));
+const exposedNames = cadRibbonExposedNames();
+for (const name of exposedNames) {
+  assert.ok(registryNames.has(name), `la cinta monta «${name}», que no está en el registro (huérfano)`);
+}
+for (const [name, reason] of Object.entries(CAD_RIBBON_UNEXPOSED)) {
+  assert.ok(registryNames.has(name), `CAD_RIBBON_UNEXPOSED declara «${name}», que no está en el registro`);
+  assert.ok(!exposedNames.has(name), `«${name}» está declarado no-expuesto y aun así tiene botón`);
+  assert.ok(reason.trim().length > 0, `«${name}» no-expuesto sin razón escrita`);
+}
 assert.equal(
-  cadRibbonExposedNames().size,
+  exposedNames.size + Object.keys(CAD_RIBBON_UNEXPOSED).length,
   CAD_COMMAND_DESCRIPTORS.length,
-  "la cinta expone exactamente los nombres del registro (sin huérfanos; los espejos no cuentan dos veces)",
+  "la cinta expone exactamente los nombres del registro menos los declarados no-expuestos (los espejos no cuentan dos veces)",
 );
 
 for (const tab of CAD_RIBBON_DATA) {

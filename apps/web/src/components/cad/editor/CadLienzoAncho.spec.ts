@@ -1,10 +1,11 @@
 /**
- * T6/P13 — Cableado de pliegue por defecto: la paleta arranca cerrada y el
- * recorrido guiado arranca desplegado para nuevos usuarios. La medición REAL
- * del área del lienzo y del solape vive en el golden 215 (Playwright), no aquí.
+ * T6/P13/D12 — Cableado de pliegue por defecto: la paleta arranca abierta y el
+ * recorrido guiado arranca PLEGADO y se pinta en el muelle izquierdo. La
+ * medición REAL —que la tarjeta no tapa la paleta ni el lienzo y recibe sus
+ * propios clics— vive en el golden 67 («con el recorrido abierto») y el 211.
  *
  * Este spec comprueba el COMPORTAMIENTO del plegado: que el registro nace con
- * el estado correcto y que la paleta arranca cerrada.
+ * el estado correcto y que el componente sabe irse al muelle.
  */
 import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
@@ -33,9 +34,10 @@ ok(
 );
 ok(palette.includes("setOpen"), "la paleta tiene un toggle de visibilidad");
 
-// 2. El registro vacío nace desplegado (un recién llegado ve el recorrido).
-assert.equal(EMPTY_CAD_TOUR_RECORD.minimized, false,
-  "EMPTY_CAD_TOUR_RECORD nace con minimized: false");
+// 2. El registro vacío nace PLEGADO: un recién llegado ve una línea con su paso
+//    actual, no cinco pasos encima del plano.
+assert.equal(EMPTY_CAD_TOUR_RECORD.minimized, true,
+  "EMPTY_CAD_TOUR_RECORD nace con minimized: true");
 
 // 3. La preferencia de plegado se preserva: minimizar y restaurar funciona.
 let record = { ...EMPTY_CAD_TOUR_RECORD };
@@ -48,5 +50,14 @@ assert.equal(record.minimized, false, "restaurar pone minimized a false");
 //    y expone data-collapsed para que los goldens lo midan.
 ok(dock.includes('"minimize"'), "el dock puede despachar minimize");
 ok(dock.includes("data-collapsed"), "el dock expone data-collapsed");
+
+// 5. Se pinta en el hueco del muelle izquierdo y deja de ser un telón que los
+//    clics atraviesan. La prueba de COMPORTAMIENTO del hueco es
+//    `onboarding/tour-slot.spec.ts`; aquí sólo que el componente lo usa.
+ok(dock.includes("createPortal(card, slot)"), "el recorrido se pinta en el hueco del muelle");
+ok(
+  !/"[^"\n]*\bpointer-events-none\b[^"\n]*"/.test(dock),
+  "ninguna clase del recorrido deja pasar los clics a lo de debajo",
+);
 
 console.log(`CadLienzoAncho: ${checks}/${checks} comprobaciones verdes`);

@@ -18,7 +18,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { CadRibbon } from "./CadRibbon";
+import { CAD_RIBBON_PANELS_KEY, CAD_RIBBON_PANELS_LEGACY_KEY, CadRibbon } from "./CadRibbon";
 
 let checks = 0;
 const ok = (condition: boolean, message: string) => {
@@ -112,6 +112,37 @@ function disabledAttr(html: string, testId: string): boolean {
   ok(html.includes('data-testid="cad-ribbon-panel-toggle-Utilidades"'), "Utilidades se pliega a un botón que abre su desplegable");
   ok(!html.includes("cad-ribbon-panel-flyout-"), "ningún desplegable está abierto en reposo");
   ok(html.includes('data-testid="cad-ribbon-panel-Capas"') && /data-testid="cad-ribbon-panel-Capas"[^>]*data-layout="reduced"/.test(html), "Capas queda reducido a su botón grande a 1280 px");
+}
+
+// El rótulo de un panel ya no lo pliega (lo abre). Lo que se guardó con la
+// clave vieja fueron, casi siempre, plegados SIN QUERER de quien pulsó
+// «Dibujo» para verlo entero: no se heredan. Lo plegado a propósito, con la
+// clave nueva, sí se respeta. Y el plegado por ancho sigue igual.
+{
+  // La clave vieja, literal: es lo que hay guardado en los navegadores de hoy.
+  const store = new Map<string, string>([["valle_cad_ribbon_panels_collapsed", JSON.stringify(["inicio/Dibujo"])]]);
+  ok(CAD_RIBBON_PANELS_LEGACY_KEY === "valle_cad_ribbon_panels_collapsed", "la clave vieja es la que escribía la cinta anterior");
+  const globals = globalThis as { window?: unknown };
+  globals.window = {
+    innerWidth: 1280,
+    localStorage: {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => store.set(key, value),
+      removeItem: (key: string) => store.delete(key),
+    },
+  };
+  try {
+    const layoutOf = (html: string, label: string) =>
+      new RegExp(`data-testid="cad-ribbon-panel-${label}"[^>]*data-layout="([a-z]+)"`).exec(html)?.[1];
+    const legado = renderToStaticMarkup(createElement(CadRibbon, { dispatch: () => undefined }));
+    ok(layoutOf(legado, "Dibujo") === "expanded", "un plegado guardado con la clave vieja (el rótulo plegaba sin querer) no se hereda");
+    store.set(CAD_RIBBON_PANELS_KEY, JSON.stringify(["inicio/Dibujo"]));
+    const actual = renderToStaticMarkup(createElement(CadRibbon, { dispatch: () => undefined }));
+    ok(layoutOf(actual, "Dibujo") === "collapsed", "lo plegado a propósito (clave nueva) se respeta");
+    ok(layoutOf(actual, "Utilidades") === "collapsed" && layoutOf(actual, "Capas") === "reduced", "el plegado por ancho no cambia: a 1280 Utilidades es un botón y Capas su botón grande");
+  } finally {
+    delete globals.window;
+  }
 }
 
 console.log(`CadRibbon: ${checks}/${checks} comprobaciones verdes`);

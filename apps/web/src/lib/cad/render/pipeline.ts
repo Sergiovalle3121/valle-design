@@ -45,8 +45,10 @@ import { CadRenderDependencyLane } from "./pipeline-dependents";
 import type { CadDocument } from "../cad-document";
 import {
   CadRenderTileIndex,
+  cadTileId,
   diffCadTiles,
   suggestCadTileSize,
+  type CadTileDiff,
   type CadTileId,
 } from "./tile-index";
 import {
@@ -83,6 +85,12 @@ import { defaultCadRenderStyle } from "./render-style";
 import { CAD_RENDER_ORIGIN_ZERO, cadPaperSpaceEntityIds, cadRenderOriginFromBounds, unionCadBounds, type CadRenderOrigin } from "./render-origin";
 import { cadEntityIsTextOnly, cadTextQuadRequestsFor } from "./text-requests";
 import { cadLinetypeTextRequestsFor } from "./linetype-text-requests";
+import {
+  cadNewResidentTile,
+  cadReleaseEditedTiles,
+  cadReleaseTiles,
+  type CadResidentTile as ResidentTile,
+} from "./pipeline-residency";
 
 export type { CadOffThreadTessellator, CadRenderTessellationSource, CadRenderOrigin };
 export { CAD_RENDER_DEFAULT_COLOR, CAD_RENDER_DEFAULT_HALF_WIDTH_PX } from "./render-style";
@@ -162,36 +170,6 @@ export interface CadRenderViewUpdate {
   lodChanged: boolean;
 }
 
-interface ResidentTile {
-  /**
-   * Constructores por cubo de estilo, vivos entre trozos del mismo tile. Son
-   * una LISTA —bloques de `CAD_LINE_BATCH_BLOCK_SEGMENTS`— y no uno solo: el
-   * tile se llena a trozos y no sabe su total, así que un constructor único
-   * crecería por duplicación y cada duplicación copia todo lo ya escrito. Ver
-   * la cabecera de la constante: lleva la medida y el precio.
-   */
-  builders: Map<string, { style: CadLineStyle; builders: CadLineBatchBuilder[] }>;
-  /** Entidades del tile pendientes de materializar, y por dónde va. */
-  pending: readonly string[];
-  cursor: number;
-  entityIds: string[];
-  textRequests: CadTextQuadRequest[];
-  instances: number;
-  zoomOctave: number;
-  complete: boolean;
-  /**
-   * Lotes ya derivados, o `null` si el tile cambió desde la última vez.
-   *
-   * `visibleBatches()` lo llama el consumidor en CADA cuadro —`scene.sync()` no
-   * tiene otra forma de saber qué mallas quiere— y derivar un tile cuesta
-   * ordenar sus cubos de estilo y construir una clave por lote. A 400 tiles
-   * residentes eso era medio segundo de un asentado de segundo y medio, gastado
-   * casi entero en volver a describir tiles que no se habían tocado. Se anula al
-   * escribir instancias, que es lo ÚNICO que cambia el resultado.
-   */
-  batches: CadLineBatch[] | null;
-}
-
 /** Octava del zoom. Cuantizar evita invalidar la escena en cada muesca. */
 export function cadRenderZoomOctave(pixelsPerUnit: number): number {
   if (!(pixelsPerUnit > 0)) return 0;
@@ -236,6 +214,13 @@ export class CadRenderPipeline {
   private visibleTiles: CadTileId[] = [];
   /** Espejo en Set de `visibleTiles`: la respuesta del worker pregunta O(1). */
   private visibleTileSet = new Set<CadTileId>();
+  /**
+   * ¿Hay una vista fijada para el contenido actual? Hasta el primer `setView`
+   * tras `replace`, `visibleTiles` vale «ninguno» a propósito y `view` es la de
+   * otro contenido (o la nula): una edición en esa ventana no debe calcular
+   * visibles contra ella. Ver `invalidate`.
+   */
+  private viewAssigned = false;
   private view: CadRenderView = {
     bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0 },
     pixelsPerUnit: 1,
@@ -317,6 +302,7 @@ export class CadRenderPipeline {
     cadRenderStage("spatialIndex", spatialIndexStarted);
     this.visibleTiles = [];
     this.visibleTileSet.clear();
+    this.viewAssigned = false;
   }
 
   get tileSize(): number {
@@ -342,7 +328,13 @@ export class CadRenderPipeline {
    * dibujo.
    *
    * Reindexa lo tocado, tira su teselado y libera los tiles residentes que lo
-   * contenían, para que se reconstruyan con presupuesto en vez de de golpe.
+   * contenían Y los que lo van a contener, para que se reconstruyan con
+   * presupuesto en vez de de golpe. Lo segundo es lo que hace que un ALTA
+   * (LINE, COPY, pegar) o un MOVE que cruza de tile se vean: el `entityIds` de
+   * un residente sólo nombra lo que ya materializó, así que el tile al que
+   * llega una entidad nueva nunca la nombra. Y como la vista no se ha movido,
+   * los tiles visibles se recalculan aquí mismo: el primer trazo de un dibujo
+   * vacío crea un tile que ningún `setView` ha visto.
    *
    * Y no sólo lo tocado: también sus DEPENDIENTES. Desde que hay geometría
    * derivada de la vecindad —las uniones de muro—, el contorno cacheado de A
@@ -376,6 +368,8 @@ export class CadRenderPipeline {
     const affected = new Set<string>(touched);
     this.dependencies.expandIds(touched, affected);
     const upsertedIds = new Set<string>();
+    // Tiles DESTINO: donde queda cada entidad que entra. Ver `pipeline-residency.ts`.
+    const destinationTiles = new Set<CadTileId>();
     const invalidateIndexStarted = cadRenderMark();
     for (const entity of upserts) {
       if (!CAD_ENTITY_REGISTRY.supports(entity)) continue;
@@ -386,6 +380,8 @@ export class CadRenderPipeline {
         this.document,
       );
       this.index.upsert(entity.id, entityBounds);
+      const owner = this.index.ownerTile(entityBounds);
+      destinationTiles.add(cadTileId(owner.tx, owner.ty));
       this.dependencies.track(entity, entityBounds);
     }
     cadRenderStage("spatialIndex", invalidateIndexStarted);
@@ -399,20 +395,27 @@ export class CadRenderPipeline {
     // Y la de DESPUÉS: el vecino nuevo al que la edición acaba de llegar.
     this.dependencies.expandEntities(upserts, affected);
     this.cache.invalidate(affected);
-    let evicted = 0;
-    for (const [tileId, tile] of [...this.resident]) {
-      if (!tile.entityIds.some((id) => affected.has(id))) continue;
-      this.resident.delete(tileId);
-      this.staging.delete(tileId);
-      evicted += 1;
-    }
-    // Un tile a medio reconstruir en staging también puede contener lo tocado.
-    for (const [tileId, tile] of [...this.staging]) {
-      if (!tile.entityIds.some((id) => affected.has(id))) continue;
-      this.staging.delete(tileId);
-    }
+    const evicted = cadReleaseEditedTiles(this.resident, this.staging, affected, destinationTiles);
+    // La vista NO se ha movido, pero su conjunto de tiles sí puede haber
+    // cambiado: un alta crea un tile o ensancha uno que ahora corta el
+    // encuadre, y una baja o un MOVE vacían otro. Es lo que `setView`
+    // calcularía con la misma vista; sin esto el tile nuevo no se encola nunca,
+    // porque el editor no vuelve a fijar una vista que no se movió.
+    if (this.viewAssigned) this.assignVisibleTiles();
     this.enqueueMissingTiles();
     return evicted;
+  }
+
+  /** Visibles de `this.view`, soltando los que salen. Para `setView` e `invalidate`. */
+  private assignVisibleTiles(): CadTileDiff {
+    const previousTiles = this.visibleTiles;
+    this.visibleTiles = this.index.visibleTileIds(this.view.bounds);
+    this.visibleTileSet = new Set(this.visibleTiles);
+    const diff = diffCadTiles(previousTiles, this.visibleTiles);
+    // Los tiles que salen de la vista liberan su geometría: sin esto, pasear por
+    // un plano grande retiene el plano entero y la prueba de fuga lo caza.
+    cadReleaseTiles(this.resident, this.staging, diff.removed);
+    return diff;
   }
 
   /**
@@ -420,22 +423,14 @@ export class CadRenderPipeline {
    * panear no reconstruye la escena.
    */
   setView(view: CadRenderView): CadRenderViewUpdate {
-    const previousTiles = this.visibleTiles;
     const octave = cadRenderZoomOctave(view.pixelsPerUnit);
     const lodChanged = octave !== this.zoomOctaveValue;
     this.view = view;
+    this.viewAssigned = true;
     this.zoomOctaveValue = octave;
     const viewStarted = cadRenderMark();
-    this.visibleTiles = this.index.visibleTileIds(view.bounds);
-    this.visibleTileSet = new Set(this.visibleTiles);
-    const diff = diffCadTiles(previousTiles, this.visibleTiles);
+    const diff = this.assignVisibleTiles();
     cadRenderStage("viewDiff", viewStarted);
-    // Los tiles que salen de la vista liberan su geometría: sin esto, pasear por
-    // un plano grande retiene el plano entero y la prueba de fuga lo caza.
-    for (const tileId of diff.removed) {
-      this.resident.delete(tileId);
-      this.staging.delete(tileId);
-    }
     if (lodChanged) {
       // Los residentes de la octava vieja NO se borran: siguen sirviendo sus
       // lotes mientras la octava nueva se reconstruye en `staging` (ver el
@@ -492,6 +487,11 @@ export class CadRenderPipeline {
    */
   private buildTileChunk(tileId: CadTileId): void {
     cadRenderCount("chunks");
+    // Una tarea encolada para un tile que una EDICIÓN acaba de sacar de la
+    // vista (`invalidate` recalcula los visibles sin abortar la cola, como sí
+    // hace `setView`). Construirlo dejaría un residente fuera de
+    // `visibleTiles` que ningún `setView` volvería a soltar.
+    if (!this.visibleTileSet.has(tileId)) return;
     // Con una petición en vuelo no hay nada que construir todavía: la
     // respuesta reencolará este tile. Sin la guarda, cada `setView` durante la
     // espera dispararía una petición duplicada del mismo lote.
@@ -510,17 +510,7 @@ export class CadRenderPipeline {
       resident = undefined;
     }
     if (!resident) {
-      resident = {
-        builders: new Map(),
-        pending: this.index.entityIdsInTile(tileId),
-        cursor: 0,
-        entityIds: [],
-        textRequests: [],
-        instances: 0,
-        zoomOctave: this.zoomOctaveValue,
-        complete: false,
-        batches: null,
-      };
+      resident = cadNewResidentTile(this.index.entityIdsInTile(tileId), this.zoomOctaveValue);
       target.set(tileId, resident);
     }
     let segmentsThisChunk = 0;
@@ -789,6 +779,7 @@ export class CadRenderPipeline {
     this.index.clear();
     this.dependencies.clear();
     this.visibleTiles = [];
+    this.viewAssigned = false;
     // Una respuesta del worker que llegue DESPUÉS no debe resucitar nada: la
     // época sube (no se siembra), el espejo de visibles queda vacío (no se
     // reencola) y la cuenta de en vuelo se vacía (no queda «pendiente» eterno).

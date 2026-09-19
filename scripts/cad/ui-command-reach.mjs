@@ -106,8 +106,10 @@ const doc = {
     noExpuestosConRazon: despues.noExpuestos,
     fuente:
       "apps/web/src/lib/cad/ribbon.ts (CAD_RIBBON_DATA), generado de CAD_COMMAND_DESCRIPTORS: " +
-      "cada comando del registro real tiene un botón de cinta (components/cad/ribbon/CadRibbon.tsx) " +
+      "cada comando del registro real que hace algo tiene un botón de cinta (components/cad/ribbon/CadRibbon.tsx) " +
       "que lo despacha por el mismo camino que teclearlo — commandEngineRef.current.invoke(nombre). " +
+      "Los que aún no están disponibles (apps/web/src/lib/cad/engine/command-availability.ts) no tienen " +
+      "botón: se declaran no-expuestos con su razón y responden por la línea de comandos. " +
       "Verificado por scripts/cad/check-ribbon-coverage.mjs y apps/web/src/lib/cad/ribbon.spec.ts.",
   },
 };

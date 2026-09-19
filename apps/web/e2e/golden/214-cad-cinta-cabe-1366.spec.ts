@@ -31,6 +31,15 @@ import { CAD_RIBBON_DATA } from "../../src/lib/cad/ribbon";
  *     Escape lo cierra devolviendo el foco.
  *   · La cinta entera mide ≤ 108 px de alto: a 720 px de alto el lienzo
  *     necesita cada píxel (golden 19).
+ *   · Lo que se abre desde la cinta SE VE Y SE ALCANZA: cada botón del
+ *     desplegable queda dentro de la ventana y `elementFromPoint` en su
+ *     centro lo devuelve a él; la cinta no salta al abrir; la etiqueta de
+ *     ayuda de «Línea» no queda recortada. `toBeVisible` no basta: ignora el
+ *     recorte por `overflow`, y con él este golden daba verde mientras la
+ *     tira (`overflow-x-auto`, que fuerza `overflow-y`) dejaba ver 76 de los
+ *     187 px del desplegable de Modificar y 7 de los 65 de la etiqueta.
+ *   · El rótulo de un panel ABRE su desplegable (como en AutoCAD); plegar
+ *     a mano se pide desde el desplegable y sobrevive a una recarga.
  */
 
 function seedDocument(): CadDocument {
@@ -103,6 +112,37 @@ async function medirTira(page: Page, tabId: string): Promise<Medida> {
   }, tabId);
 }
 
+/**
+ * Lo que NO se ve o NO se alcanza de `selector`: fuera de la ventana, o con
+ * otra cosa en su centro (un recorte por `overflow` deja el centro sobre lo
+ * que haya debajo — el lienzo). Vacío = todo a la vista y a un clic.
+ */
+async function fueraDeAlcance(page: Page, selector: string): Promise<string[]> {
+  return page.evaluate((sel) => {
+    const problemas: string[] = [];
+    const elementos = Array.from(document.querySelectorAll<HTMLElement>(sel));
+    if (elementos.length === 0) return [`nada coincide con ${sel}`];
+    for (const el of elementos) {
+      const nombre = el.dataset.testid ?? el.tagName;
+      const r = el.getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) {
+        problemas.push(`${nombre}: sin caja`);
+        continue;
+      }
+      if (r.left < 0 || r.top < 0 || r.right > window.innerWidth || r.bottom > window.innerHeight) {
+        problemas.push(`${nombre}: fuera de la ventana (${Math.round(r.left)},${Math.round(r.top)})-(${Math.round(r.right)},${Math.round(r.bottom)})`);
+        continue;
+      }
+      const encima = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      if (!encima || !(encima === el || el.contains(encima))) {
+        const quien = encima?.closest<HTMLElement>("[data-testid]")?.dataset.testid ?? encima?.tagName ?? "nada";
+        problemas.push(`${nombre}: en su centro está ${quien}`);
+      }
+    }
+    return problemas;
+  }, selector);
+}
+
 for (const viewport of [
   { width: 1366, height: 768 },
   { width: 1280, height: 720 },
@@ -160,12 +200,38 @@ test("un panel plegado abre su desplegable con todos sus comandos y Escape lo ci
   for (const command of panelData.commands) {
     await expect(flyout.getByTestId(`cad-ribbon-command-${command.name}`)).toBeVisible();
   }
+  // `toBeVisible` no ve el recorte: cada botón del desplegable, y el que lo
+  // abrió, dentro de la ventana y ÉL MISMO en su centro.
+  expect(
+    await fueraDeAlcance(page, '[data-testid="cad-ribbon-panel-flyout-Utilidades"] [data-testid^="cad-ribbon-command-"]'),
+    "botones del desplegable de Utilidades que no se ven o no se alcanzan",
+  ).toEqual([]);
+  expect(await fueraDeAlcance(page, '[data-testid="cad-ribbon-panel-toggle-Utilidades"]'), "el botón que abrió el desplegable").toEqual([]);
+  expect(
+    await page.getByTestId("cad-ribbon-panels-inicio").evaluate((tira) => tira.scrollTop),
+    "abrir el desplegable no desplaza la tira (antes saltaba 78 px)",
+  ).toBe(0);
   await page.keyboard.press("Escape");
   await expect(flyout).toHaveCount(0);
   await expect(toggle).toBeFocused();
 
-  // Plegar a mano un panel desplegado: el rótulo lo pliega, el desplegable
-  // ofrece volver a mostrarlo, y la elección sobrevive a una recarga.
+  // El RÓTULO abre el panel, como en AutoCAD; antes lo plegaba a un botón y
+  // la cinta lo guardaba para siempre.
+  const dibujo = page.getByTestId("cad-ribbon-panel-Dibujo");
+  await expect(dibujo).toHaveAttribute("data-layout", "expanded");
+  const rotuloDibujo = page.getByTestId("cad-ribbon-panel-toggle-Dibujo");
+  await expect(rotuloDibujo).toContainText("Dibujo");
+  await rotuloDibujo.click();
+  await expect(page.getByTestId("cad-ribbon-panel-flyout-Dibujo")).toBeVisible();
+  await expect(dibujo, "pulsar el rótulo no pliega el panel").toHaveAttribute("data-layout", "expanded");
+  expect(
+    await fueraDeAlcance(page, '[data-testid="cad-ribbon-panel-flyout-Dibujo"] [data-testid^="cad-ribbon-command-"]'),
+    "botones del desplegable de Dibujo que no se ven o no se alcanzan",
+  ).toEqual([]);
+
+  // Plegar a mano se pide a propósito desde la cabecera del desplegable; el
+  // desplegable del panel plegado ofrece volver a mostrarlo, y la elección
+  // sobrevive a una recarga.
   await page.getByTestId("cad-ribbon-panel-collapse-Dibujo").click();
   await expect(page.getByTestId("cad-ribbon-panel-Dibujo")).toHaveAttribute("data-layout", "collapsed");
   await page.reload();
@@ -175,4 +241,62 @@ test("un panel plegado abre su desplegable con todos sus comandos y Escape lo ci
   await page.getByTestId("cad-ribbon-panel-expand-Dibujo").click();
   await expect(page.getByTestId("cad-ribbon-panel-Dibujo")).toHaveAttribute("data-layout", "expanded");
   await expect(page.getByTestId("cad-ribbon-command-LINE")).toBeVisible();
+});
+
+test("a 1366×768 el desplegable de Modificar y la etiqueta de «Línea» se ven enteros y a un clic", async ({ context, page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await openStudio(context, page);
+
+  // El caso medido en la vista previa de la PR #209: 32 comandos en el
+  // desplegable de Modificar, 1175 px de ancho y 111 de sus 187 px de alto
+  // recortados por la tira; la cinta saltaba 78 px al enfocar el primero.
+  const toggle = page.getByTestId("cad-ribbon-panel-toggle-Modificar");
+  await toggle.click();
+  const flyout = page.getByTestId("cad-ribbon-panel-flyout-Modificar");
+  await expect(flyout).toBeVisible();
+  const caja = (await flyout.boundingBox())!;
+  expect(caja.x, "el desplegable no empieza fuera de la pantalla").toBeGreaterThanOrEqual(0);
+  expect(caja.x + caja.width, "ni se sale por la derecha (antes x=1448)").toBeLessThanOrEqual(1366);
+  expect(caja.y + caja.height, "ni por abajo").toBeLessThanOrEqual(768);
+  expect(
+    await fueraDeAlcance(page, '[data-testid="cad-ribbon-panel-flyout-Modificar"] [data-testid^="cad-ribbon-command-"]'),
+    "botones del desplegable de Modificar que no se ven o no se alcanzan",
+  ).toEqual([]);
+  expect(await fueraDeAlcance(page, '[data-testid="cad-ribbon-panel-toggle-Modificar"]'), "el botón que lo abrió").toEqual([]);
+  expect(
+    await page.getByTestId("cad-ribbon-panels-inicio").evaluate((tira) => tira.scrollTop),
+    "la cinta no salta al abrir",
+  ).toBe(0);
+  expect(await fueraDeAlcance(page, '[data-testid="cad-ribbon-command-LINE"]'), "la cinta sigue en su sitio: «Línea» a la vista").toEqual([]);
+  await page.keyboard.press("Escape");
+  await expect(flyout).toHaveCount(0);
+  await expect(toggle).toBeFocused();
+
+  // La etiqueta de ayuda de «Línea»: la única que dice «LINE (L)». Colgada
+  // del botón quedaba en x=-59 y recortada por la tira (7 de 65 px).
+  await page.getByTestId("cad-ribbon-command-LINE").hover();
+  const etiqueta = page.getByTestId("cad-ribbon-tooltip");
+  await expect(etiqueta).toBeVisible();
+  await expect(etiqueta).toContainText("LINE (L)");
+  const medida = await etiqueta.evaluate((tip) => {
+    const r = tip.getBoundingClientRect();
+    const linea = document.querySelector('[data-testid="cad-ribbon-command-LINE"]')!.getBoundingClientRect();
+    // No recibe el ratón (no tapa el lienzo); se le devuelve un instante
+    // para preguntar qué hay en su centro: un recorte dejaría el lienzo.
+    tip.style.pointerEvents = "auto";
+    const encima = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    tip.style.pointerEvents = "";
+    return {
+      caja: { left: r.left, top: r.top, right: r.right, bottom: r.bottom },
+      bajoLinea: r.top >= linea.bottom,
+      suya: encima !== null && tip.contains(encima),
+      ventana: { width: window.innerWidth, height: window.innerHeight },
+    };
+  });
+  expect(medida.caja.left, "la etiqueta no empieza fuera de la pantalla").toBeGreaterThanOrEqual(0);
+  expect(medida.caja.right).toBeLessThanOrEqual(medida.ventana.width);
+  expect(medida.caja.bottom).toBeLessThanOrEqual(medida.ventana.height);
+  expect(medida.bajoLinea, "la etiqueta va bajo su botón").toBe(true);
+  expect(medida.suya, "en el centro de la etiqueta está la etiqueta, no lo que haya debajo").toBe(true);
 });

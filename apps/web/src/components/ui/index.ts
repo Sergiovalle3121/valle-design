@@ -28,6 +28,8 @@ export {
   ProgressBar,
   Skeleton,
   Tooltip,
+  TooltipContent,
+  tooltipSurfaceClass,
   type BadgeProps,
   type ProgressBarProps,
   type SkeletonProps,

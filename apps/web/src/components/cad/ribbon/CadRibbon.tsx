@@ -17,8 +17,17 @@ import { CadRibbonPanel } from "./CadRibbonPanel";
  */
 const RIBBON_ACTIVE_TAB_KEY = "valle_cad_ribbon_active_tab";
 const RIBBON_COLLAPSED_KEY = "valle_cad_ribbon_collapsed";
-/** Paneles plegados a mano, como «pestaña/panel»; misma naturaleza cosmética. */
-const RIBBON_PANELS_KEY = "valle_cad_ribbon_panels_collapsed";
+/**
+ * Paneles plegados a mano, como «pestaña/panel»; misma naturaleza cosmética.
+ *
+ * `_v2`: con la clave anterior, pulsar el RÓTULO de un panel lo plegaba y lo
+ * guardaba — quien sólo quería abrir «Dibujo» se quedaba sin sus botones en
+ * cada visita. Ahora el rótulo abre el desplegable y plegar se pide a
+ * propósito; lo guardado con la clave vieja fueron, casi siempre, esos
+ * plegados sin querer, así que no se hereda y se borra.
+ */
+export const CAD_RIBBON_PANELS_KEY = "valle_cad_ribbon_panels_collapsed_v2";
+export const CAD_RIBBON_PANELS_LEGACY_KEY = "valle_cad_ribbon_panels_collapsed";
 
 function leerPestanaGuardada(): CadRibbonTabId | null {
   try {
@@ -43,7 +52,7 @@ function leerColapsoGuardado(): boolean | null {
 
 function leerPanelesPlegados(): ReadonlySet<string> {
   try {
-    const stored = window.localStorage.getItem(RIBBON_PANELS_KEY);
+    const stored = window.localStorage.getItem(CAD_RIBBON_PANELS_KEY);
     const parsed: unknown = stored ? JSON.parse(stored) : [];
     return new Set(Array.isArray(parsed) ? parsed.filter((entry): entry is string => typeof entry === "string") : []);
   } catch {
@@ -96,7 +105,10 @@ const CAD_MUTATING_COMMANDS: ReadonlySet<string> = new Set(
  * paneles pierden columnas, se reducen a sus botones grandes o se pliegan a
  * un botón (de derecha a izquierda, como AutoCAD). La tira conserva
  * `overflow-x-auto` sólo como red para ventanas de tableta, donde ni el
- * plan mínimo cabe: ahí se desplaza en vez de amputar botones.
+ * plan mínimo cabe: ahí se desplaza en vez de amputar botones. Ese
+ * `overflow-x` fuerza `overflow-y: auto` y recorta todo lo que cuelgue por
+ * debajo de la tira: por eso nada de lo que se abre desde un panel vive
+ * dentro de ella.
  */
 export function CadRibbon({
   dispatch,
@@ -141,7 +153,8 @@ export function CadRibbon({
   }, [collapsed]);
   useEffect(() => {
     try {
-      window.localStorage.setItem(RIBBON_PANELS_KEY, JSON.stringify([...manuallyCollapsed]));
+      window.localStorage.setItem(CAD_RIBBON_PANELS_KEY, JSON.stringify([...manuallyCollapsed]));
+      window.localStorage.removeItem(CAD_RIBBON_PANELS_LEGACY_KEY);
     } catch {
       // Igual que arriba.
     }
@@ -211,9 +224,11 @@ export function CadRibbon({
       data-testid="cad-ribbon"
       data-collapsed={collapsed ? "true" : "false"}
       // `z-[25]`: por encima de las capas del lienzo (la paleta de
-      // herramientas es `z-20` y cae justo donde se abre el desplegable de
-      // Dibujo) y por debajo de la barra superior (`z-30`), cuyos menús
-      // caen sobre la cinta.
+      // herramientas es `z-20`) y por debajo de la barra superior (`z-30`),
+      // cuyos menús caen sobre la cinta. Los desplegables de panel y las
+      // etiquetas de ayuda NO cuelgan de aquí: van en un portal a <body>
+      // (`ribbon-floating.ts`), porque la tira `overflow-x-auto` los recortaba
+      // y el `backdrop-blur` atrapa cualquier `position: fixed` de dentro.
       className={cx(
         "relative z-[25] flex shrink-0 flex-col border-b border-border bg-surface/90 backdrop-blur",
         className,

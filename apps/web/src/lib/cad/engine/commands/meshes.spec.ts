@@ -8,8 +8,10 @@
 import { strict as assert } from "node:assert";
 import {
   migrateCadDocument,
+  serializeCadDocument,
   type CadDocument,
 } from "../../cad-document";
+import { cadMensajeAunNoDisponible } from "../command-availability";
 import { executeCadEntityCommandBatch } from "../../entity-commands";
 import { solid3dBody, solid3dMassProperties } from "../../solid3d-build";
 import { CAD_COMMAND_REGISTRY_V2 } from "../index";
@@ -428,12 +430,17 @@ assert.ok(CAD_COMMAND_REGISTRY_V2.get("3DFACE"), "3DFACE está en el registro");
   }
 }
 
-// --- MESHCOLLAPSE: simplifica malla a bounding box --------------------------------
+// --- MESHCOLLAPSE: se NIEGA sin tocar la malla --------------------------------
+//
+// Antes este bloque afirmaba que MESHCOLLAPSE «añade una entidad» de 6 caras y
+// 8 vértices con «volumen positivo»: la CAJA ENVOLVENTE de la malla, puesta
+// encima de ella (una pirámide de 333 333 mm³ ganaba una caja de 2 000 000).
+// Aquí se conduce con exactamente esa entrada —la malla refinada designada e
+// Intro— y se mide que el documento sale como entró.
 {
   assert.ok(CAD_COMMAND_REGISTRY_V2.get("MESHCOLLAPSE"), "MESHCOLLAPSE está en el registro");
 
   let doc = emptyDocument();
-  // Crear malla y refinarla para tener más complejidad
   const meshResult = drive("MESH", [point(0, 0), point(100, 100), distance(50)], doc);
   assert.ok(meshResult?.kind === "document", "MESH produce documento para MESHCOLLAPSE");
   if (meshResult?.kind !== "document") throw new Error("MESH no produjo documento");
@@ -446,34 +453,31 @@ assert.ok(CAD_COMMAND_REGISTRY_V2.get("3DFACE"), "3DFACE está en el registro");
   doc = executeCadEntityCommandBatch(doc, refineResult.commands, refineResult.label).document;
   const refinedId = doc.entities.filter((e) => e.type === "solid3d" && e.id !== meshId)[0]?.id ?? "";
   assert.ok(refinedId, "Hay una malla refinada");
+  assert.ok(solid3dBody(doc.entities.find((e) => e.id === refinedId) as never).faces.length > 8, "la malla refinada tiene algo que colapsar");
 
+  const antes = serializeCadDocument(doc);
   const collapseResult = drive("MESHCOLLAPSE", [{ kind: "entityPick", entityId: refinedId, point: { x: 50, y: 50 } }, enter], doc);
-  assert.ok(collapseResult?.kind === "document", "MESHCOLLAPSE produce documento");
-  if (collapseResult?.kind !== "document") throw new Error("MESHCOLLAPSE no produjo documento");
-  doc = executeCadEntityCommandBatch(doc, collapseResult.commands, collapseResult.label).document;
-  const collapsed = doc.entities.filter((e) => e.type === "solid3d" && e.id !== meshId && e.id !== refinedId);
-  assert.ok(collapsed.length >= 1, "MESHCOLLAPSE añade una entidad");
-
-  const collapsedBody = solid3dBody(collapsed[collapsed.length - 1] as never);
-  // El resultado es una caja (bounding box): 6 caras, 8 vértices
-  assert.ok(collapsedBody.faces.length === 6, `MESHCOLLAPSE: bounding box tiene ${collapsedBody.faces.length} caras (=6)`);
-  assert.ok(collapsedBody.vertices.length === 8, `MESHCOLLAPSE: bounding box tiene ${collapsedBody.vertices.length} vértices (=8)`);
-
-  const collapsedProps = solid3dMassProperties(collapsed[collapsed.length - 1] as never);
-  assert.ok(collapsedProps.volume > 0, `MESHCOLLAPSE: volumen positivo (${collapsedProps.volume.toFixed(1)})`);
+  // Lo que el anfitrión haría con el resultado: aplicar el lote, si lo hay.
+  const despues =
+    collapseResult?.kind === "document"
+      ? executeCadEntityCommandBatch(doc, collapseResult.commands, collapseResult.label).document
+      : doc;
+  assert.equal(despues.entities.length, doc.entities.length, "MESHCOLLAPSE no superpone ninguna caja envolvente");
+  assert.equal(serializeCadDocument(despues), antes, "MESHCOLLAPSE deja el documento idéntico");
+  assert.ok(
+    collapseResult?.kind === "message" && collapseResult.text === cadMensajeAunNoDisponible("MESHCOLLAPSE"),
+    `MESHCOLLAPSE dice que aún no está disponible: ${collapseResult?.kind === "message" ? collapseResult.text : collapseResult?.kind}`,
+  );
 }
 
-// --- MESHCOLLAPSE: cancelación -----------------------------------------------
+// --- MESHCOLLAPSE: cancelar tampoco toca nada ----------------------------------
 {
   const descriptor = CAD_COMMAND_REGISTRY_V2.get("MESHCOLLAPSE")!;
   const doc = emptyDocument();
   const context = makeContext(doc);
   let step = descriptor.begin(context);
   step = descriptor.step(step.state, { kind: "cancel" }, context);
-  assert.ok(
-    step.result?.kind === "message" && step.result.text.includes("cancelado"),
-    "MESHCOLLAPSE se cancela limpiamente",
-  );
+  assert.ok(step.result?.kind === "message", "MESHCOLLAPSE cancelado devuelve un mensaje, no un lote");
 }
 
 // --- MESHCAP: tapa bordes abiertos de la malla -------------------------------
@@ -509,5 +513,5 @@ assert.ok(CAD_COMMAND_REGISTRY_V2.get("3DFACE"), "3DFACE está en el registro");
 }
 
 console.log(
-  "✅ meshes.spec: MESH (10) + CONVTOMESH (7) + CONVTOSOLID (7) + 3DFACE (8) + MESHSMOOTH (4) + MESHSMOOTHMORE (2) + MESHSMOOTHLESS (2) + MESHREFINE (4) + MESHCOLLAPSE (3) + MESHCAP (3) — 50 comprobaciones",
+  "✅ meshes.spec: MESH (10) + CONVTOMESH (7) + CONVTOSOLID (7) + 3DFACE (8) + MESHSMOOTH (4) + MESHSMOOTHMORE (2) + MESHSMOOTHLESS (2) + MESHREFINE (4) + MESHCOLLAPSE (se niega, documento idéntico: 5) + MESHCAP (3) — 52 comprobaciones",
 );

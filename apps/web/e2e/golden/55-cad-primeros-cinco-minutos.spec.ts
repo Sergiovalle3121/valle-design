@@ -338,6 +338,11 @@ test("de una cuenta nueva a un PDF: muro, puerta de la biblioteca sembrada, cota
   /* ── 0. El acompañante sale solo, con sus cinco pasos ──────────────────── */
   const tour = page.getByTestId("cad-guided-tour");
   await expect(tour).toBeVisible();
+  // Sale PLEGADO —una línea con el paso actual en el muelle izquierdo, que no
+  // tapa nada (golden 67)— y los cinco pasos están a un clic.
+  await expect(tour).toHaveAttribute("data-collapsed", "true");
+  await page.getByTestId("cad-guided-tour-toggle").click();
+  await expect(tour).toHaveAttribute("data-collapsed", "false");
   for (const id of ["lamina", "muro", "puerta", "cota", "pdf"])
     await expect(stepState(page, id)).toBeVisible();
   await expect(stepState(page, "lamina")).toHaveAttribute("data-state", "current");

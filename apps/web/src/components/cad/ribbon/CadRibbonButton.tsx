@@ -1,7 +1,8 @@
 "use client";
 
-import { cx, Tooltip } from "@/components/ui";
+import { cx } from "@/components/ui";
 import type { CadRibbonCommand } from "@/lib/cad/ribbon";
+import { CadRibbonTooltip, type CadRibbonTooltipText } from "./CadRibbonTooltip";
 import { CAD_COMMAND_ICONS } from "./command-icons";
 import { CAD_RIBBON_PANEL_ICONS } from "./ribbon-icons";
 
@@ -29,6 +30,8 @@ import { CAD_RIBBON_PANEL_ICONS } from "./ribbon-icons";
  * El rótulo es el español del oficio (`command-labels.ts`: «Línea», no
  * LINE); el nombre canónico y su alias viven en el tooltip y en el `title`
  * nativo, que es lo que lee un lector de pantalla y lo que sobrevive sin CSS.
+ * El tooltip se pinta en un portal (`CadRibbonTooltip.tsx`): colgado del
+ * botón, la tira de paneles lo recortaba y no se veía nunca.
  */
 export type CadRibbonButtonSize = "large" | "small" | "menu";
 
@@ -41,6 +44,11 @@ export function cadRibbonButtonTitle(command: CadRibbonCommand): string {
 export function cadRibbonCommandCode(command: CadRibbonCommand): string {
   const shortcut = command.aliases[0];
   return `${command.name}${shortcut ? ` (${shortcut})` : ""}`;
+}
+
+/** Las tres líneas del tooltip, como el de AutoCAD: rótulo · NOMBRE (alias) · descripción. */
+export function cadRibbonButtonTooltip(command: CadRibbonCommand): CadRibbonTooltipText {
+  return { title: command.label, shortcut: cadRibbonCommandCode(command), label: command.summary };
 }
 
 export function CadRibbonButton({
@@ -65,13 +73,7 @@ export function CadRibbonButton({
   const Icon = CAD_COMMAND_ICONS[command.name] ?? CAD_RIBBON_PANEL_ICONS[command.panel];
   const large = size === "large";
   return (
-    <Tooltip
-      title={command.label}
-      shortcut={cadRibbonCommandCode(command)}
-      label={command.summary}
-      side="bottom"
-      className={large ? "h-full" : undefined}
-    >
+    <CadRibbonTooltip {...cadRibbonButtonTooltip(command)} className={large ? "h-full" : undefined}>
       <button
         type="button"
         data-testid={`cad-ribbon-command-${command.name}`}
@@ -107,6 +109,6 @@ export function CadRibbonButton({
           {command.label}
         </span>
       </button>
-    </Tooltip>
+    </CadRibbonTooltip>
   );
 }
