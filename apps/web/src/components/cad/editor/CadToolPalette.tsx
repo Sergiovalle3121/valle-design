@@ -145,7 +145,7 @@ function ToolButton({
       // un lector de pantalla y lo que sobrevive si el CSS no carga.
       title={`${action.label}${action.shortcut ? ` · ${action.shortcut}` : ""} — ${action.description}`}
       className={cx(
-        "group/tool relative flex w-20 flex-col items-center gap-0.5 rounded-control px-1 py-1.5",
+        "group/tool relative flex w-14 flex-col items-center gap-0.5 rounded-control px-1 py-1.5",
         "transition-colors duration-150",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         "disabled:pointer-events-none disabled:opacity-40",
@@ -156,13 +156,17 @@ function ToolButton({
     >
       <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
       {/*
-        `truncate` en vez de `break-words`: con w-20 (72 px útiles tras px-1),
-        todas las etiquetas caben en una línea a 0.6875 rem / 500. La más ancha
-        es «Ajustar todo» (64.73 px), luego «Seleccionar» (62.65). `truncate`
-        recorta con elipsis si algún tamaño de fuente del sistema desborda;
-        `break-words` partía palabras a media sílaba.
+        `w-full` + `break-words` en vez de `whitespace-nowrap`: «Seleccionar»
+        —el más largo de los dieciséis, 11 caracteres— no cabe en los 56 px del
+        botón a ningún tamaño de fuente del sistema. Sin un punto de quiebre el
+        texto es UNA palabra, así que el navegador no la envuelve por su cuenta
+        y se sale del botón por los dos lados, montada sobre el vecino de la
+        rejilla. `break-words` fuerza el corte quando hace falta y `leading-
+        snug` (1,375) separa las dos líneas lo suficiente para que no se toquen
+        los descendentes de la primera con los ascendentes de la segunda —
+        `leading-none` (1) las pegaba.
       */}
-      <span className="w-full truncate text-center type-micro font-medium leading-snug">
+      <span className="w-full break-words text-center type-micro font-medium leading-snug">
         {action.label}
       </span>
 
