@@ -34,6 +34,7 @@
  */
 import { packCadColor } from "./line-batch";
 import type { CadRenderOrigin } from "./render-origin";
+import type { PlanAxisYSign } from "../view/plan-axis";
 
 export interface CadAtlasSlot {
   /** Píxeles dentro del atlas. */
@@ -195,7 +196,7 @@ export interface CadTextQuadRequest {
  * enchufado y en Node no hay nada que mirar. Los casos de 0° y 90° sí tienen
  * anclas numéricas en el spec.
  */
-export type CadScreenYSign = 1 | -1;
+export type CadScreenYSign = PlanAxisYSign;
 
 export interface CadTextQuadOptions {
   /** Por defecto `1`: la convención que el editor usa hoy. */

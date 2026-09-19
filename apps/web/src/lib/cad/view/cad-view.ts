@@ -32,6 +32,7 @@
  */
 import type { CadBounds } from "../entity-runtime";
 import type { CadPoint2 } from "../cad-document";
+import { PLAN_AXIS_Y_SCREEN_SIGN, type PlanAxisYSign } from "./plan-axis";
 
 /**
  * Límites de zoom. Fuera de este rango la aritmética de coma flotante deja de
@@ -74,7 +75,7 @@ export interface CadView {
    * merece su propio PR y su propia nota de versión, no colarse dentro de la
    * migración a ortográfica.
    */
-  yScreenSign: 1 | -1;
+  yScreenSign: PlanAxisYSign;
 }
 
 /** La vista que reproduce el plano actual: Y hacia abajo, sin giro. */
@@ -93,7 +94,7 @@ export function cadViewFromViewport(
     widthPx,
     heightPx,
     twistDeg: 0,
-    yScreenSign: 1,
+    yScreenSign: PLAN_AXIS_Y_SCREEN_SIGN,
   };
 }
 

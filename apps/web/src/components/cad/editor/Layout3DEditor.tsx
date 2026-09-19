@@ -445,6 +445,7 @@ import {
   propagateCadConstraintsByDiff,
 } from "@/lib/cad/constraint-propagation";
 import { CadViewController } from "@/lib/cad/view/view-controller";
+import { PLAN_AXIS_Y_SCREEN_SIGN } from "@/lib/cad/view/plan-axis";
 import {
   cadDistanceToUcsPlane, cadDrawingPoint, cadDrawingPointOrNull, cadPointerWorldFromRay } from "@/lib/cad/view/pointer-work-plane";
 import {
@@ -5936,13 +5937,13 @@ export default function Layout3DEditor({
     nativeGroupRef.current = nativeGroup;
     // El pipeline por lotes se enchufa aquí, con el mapeo mundo→XZ intacto: lo
     // único que recibe es el mismo `{ scale, width, height }` que ya usaba
-    // `scenePoint`. `yScreenSign: 1` reproduce la convención vigente (+Y del
+    // `scenePoint`. `PLAN_AXIS_Y_SCREEN_SIGN` reproduce la convención vigente (+Y del
     // dibujo hacia abajo); voltearla es un cambio con su propio PR.
     if (renderPipelineRef.current === "batched") {
       const host = new CadViewportRenderHost({
         parent: nativeGroup,
         viewport: { scale: s, width: W, height: H, elevation: 0.11 },
-        yScreenSign: 1,
+        yScreenSign: PLAN_AXIS_Y_SCREEN_SIGN,
         // 4 ms de 16,7 es el defecto del planificador, pensado para que nadie
         // note nada mientras dibuja; cargar 100.000 entidades con ese presupuesto
         // tarda minutos y durante la carga nadie dibuja. 8 ms deja medio cuadro libre.

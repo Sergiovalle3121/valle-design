@@ -10,6 +10,7 @@
 import { strict as assert } from "node:assert";
 import type { CadDocument } from "@/lib/cad/cad-document";
 import { cadStudioCommandContext } from "./studio-context";
+import { PLAN_AXIS_Y_SCREEN_SIGN } from "@/lib/cad/view/plan-axis";
 
 function documentWith(ids: readonly string[]): CadDocument {
   return {
@@ -69,7 +70,7 @@ const base = {
       widthPx: 800,
       heightPx: 600,
       twistDeg: 0,
-      yScreenSign: 1,
+      yScreenSign: PLAN_AXIS_Y_SCREEN_SIGN,
     },
   });
   assert.deepEqual(context.view, { pixelsPerUnit: 0.25, centerX: 120, centerY: -40 });
