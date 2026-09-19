@@ -43,7 +43,7 @@ test('canonical layer manager creates, edits, locks, assigns, deletes and persis
 
   await page.getByTestId('cad-layer-row-Fire_Protection').getByRole('button', { name: 'Asignar' }).click();
   await page.getByTestId('cad-layer-lock-Fire_Protection').click();
-  await expect(page.getByTestId('cad-layer-lock-Fire_Protection')).toHaveText('Lock');
+  await expect(page.getByTestId('cad-layer-lock-Fire_Protection')).toHaveText('Bloqueada');
   await viewButton.click();
   await page.getByTestId('cad-native-move-x').click();
   await expect(page.getByText(/Layer Fire_Protection is locked/)).toBeVisible();

@@ -14147,8 +14147,7 @@ export default function Layout3DEditor({
               onChange={(e) =>
                 setApprovalStatus(e.target.value as ApprovalStatus)
               }
-              className="type-caption rounded-md px-1.5 py-1 bg-muted/60 border border-border outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              style={{ color: APPROVAL_META[approval.status].color }}
+              className="type-caption text-foreground rounded-md px-1.5 py-1 bg-muted/60 border border-border outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <option value="draft" className="text-foreground">
                 Borrador

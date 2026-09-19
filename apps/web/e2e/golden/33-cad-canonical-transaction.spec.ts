@@ -405,7 +405,7 @@ test('a locked layer refuses drawing and OFFSET, and rejection leaves zero histo
   await test.step('con la capa BLOQUEADA, OFFSET no muta y no deja historial', async () => {
     await withLayerPanel(page, async () => {
       await page.getByTestId('cad-layer-lock-0').click();
-      await expect(page.getByTestId('cad-layer-lock-0')).toHaveText('Lock');
+      await expect(page.getByTestId('cad-layer-lock-0')).toHaveText('Bloqueada');
     });
     // Bloquear la capa ES una mutación del documento: deja su propia entrada de
     // historial y su propia versión. Se confirma esa escritura ANTES de medir,
