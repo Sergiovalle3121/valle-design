@@ -277,26 +277,11 @@ export class CadPlotHost {
       return "Este espacio de trabajo no sabe traer dibujos del inquilino para compararlos: falta el anfitrión de comparación.";
     if (request.kind === "download")
       return "La descarga de archivos la atiende el anfitrión del motor, no el de trazado.";
-    if (request.kind === "render-capture")
-      return "La captura del viewport la atiende el anfitrión del motor, no el de trazado.";
-    if (request.kind === "render-setting")
-      return "Los ajustes de render los atiende el anfitrión del motor, no el de trazado.";
-    if (request.kind === "render-environment")
-      return "El entorno de render lo atiende el anfitrión del motor, no el de trazado.";
-    if (request.kind === "material-browser")
-      return "El explorador de materiales lo atiende el anfitrión del motor, no el de trazado.";
-    if (request.kind === "material-attach")
-      return "La asignación de materiales la atiende el anfitrión del motor, no el de trazado.";
-    if (request.kind === "light-create")
-      return "La creación de luces la atiende el anfitrión del motor, no el de trazado.";
-    if (request.kind === "sun-properties")
-      return "Las propiedades del sol las atiende el anfitrión del motor, no el de trazado.";
-    if (request.kind === "render-crop")
-      return "La captura recortada la atiende el anfitrión del motor, no el de trazado.";
-    if (request.kind === "render-window")
-      return "La ventana de render la atiende el anfitrión del motor, no el de trazado.";
-    if (request.kind === "material-map")
-      return "El mapeo de materiales lo atiende el anfitrión del motor, no el de trazado.";
+    // Aquí había diez ramas de render, luces y materiales que contestaban «lo
+    // atiende el anfitrión del motor» — y ése no las atendía: RENDER no producía
+    // nada. Esos comandos ahora dicen que aún no están disponibles sin emitir
+    // petición (`engine/command-availability.ts`), y sus clases salieron de la
+    // unión `CadHostRequest`.
 
     const document = this.bridge.document();
     if (!document) return "No hay ningún dibujo abierto que trazar.";
