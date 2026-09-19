@@ -588,6 +588,9 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   SURFFILLET: Circle,
   // Mallas.
   MESH: Boxes,
+  MESHSMOOTH: Waves,
+  MESHSMOOTHMORE: Sparkles,
+  MESHSMOOTHLESS: Minus,
   CONVTOMESH: FlipHorizontal2,
   CONVTOSOLID: Layers2,
   "3DFACE": Triangle,

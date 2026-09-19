@@ -420,9 +420,220 @@ const face3dCommand: CadCommandDescriptor<Face3dState> = {
   },
 };
 
+// --- MESHSMOOTH / MESHSMOOTHMORE / MESHSMOOTHLESS ---
+
+type MeshSmoothState = { selection: readonly string[] };
+
+function midpoint(a: { x: number; y: number; z: number }, b: { x: number; y: number; z: number }) {
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, z: (a.z + b.z) / 2 };
+}
+
+function subdivideMesh(
+  pts: { x: number; y: number; z: number }[],
+  faces: { outer: number[] }[],
+): { points: { x: number; y: number; z: number }[]; faces: { outer: number[] }[] } {
+  const newPts = [...pts];
+  const edgeMidpoints = new Map<string, number>();
+  const midpointIndex = (i: number, j: number): number => {
+    const key = i < j ? `${i}-${j}` : `${j}-${i}`;
+    const existing = edgeMidpoints.get(key);
+    if (existing !== undefined) return existing;
+    const idx = newPts.length;
+    newPts.push(midpoint(newPts[i], newPts[j]));
+    edgeMidpoints.set(key, idx);
+    return idx;
+  };
+  const newFaces: { outer: number[] }[] = [];
+  for (const face of faces) {
+    const outer = face.outer;
+    if (outer.length === 3) {
+      const [a, b, c] = outer;
+      const ab = midpointIndex(a, b);
+      const bc = midpointIndex(b, c);
+      const ca = midpointIndex(c, a);
+      newFaces.push({ outer: [a, ab, ca] });
+      newFaces.push({ outer: [b, bc, ab] });
+      newFaces.push({ outer: [c, ca, bc] });
+      newFaces.push({ outer: [ab, bc, ca] });
+    } else if (outer.length === 4) {
+      const [a, b, c, d] = outer;
+      const ab = midpointIndex(a, b);
+      const bc = midpointIndex(b, c);
+      const cd = midpointIndex(c, d);
+      const da = midpointIndex(d, a);
+      const center = newPts.length;
+      newPts.push(midpoint(midpoint(newPts[a], newPts[c]), midpoint(newPts[b], newPts[d])));
+      newFaces.push({ outer: [a, ab, center, da] });
+      newFaces.push({ outer: [b, bc, center, ab] });
+      newFaces.push({ outer: [c, cd, center, bc] });
+      newFaces.push({ outer: [d, da, center, cd] });
+    } else {
+      newFaces.push({ outer: [...outer] });
+    }
+  }
+  return { points: newPts, faces: newFaces };
+}
+
+function meshSmoothStep(
+  name: string,
+  alias: string,
+  transform: (
+    pts: { x: number; y: number; z: number }[],
+    faces: { outer: number[] }[],
+  ) => { points: { x: number; y: number; z: number }[]; faces: { outer: number[] }[] } | string,
+  label: string,
+): CadCommandDescriptor<MeshSmoothState | null> {
+  return {
+    name,
+    aliases: [alias],
+    kind: "modify",
+    transparent: false,
+    selection: "optional",
+    repeatable: true,
+    mutates: true,
+    cursor: "crosshair",
+    begin: (context) => ({
+      state: context.selection.length > 0 ? { selection: context.selection } : null,
+      prompt: {
+        message: context.selection.length > 0
+          ? `${context.selection.length} entidad(es) seleccionada(s). Pulse Intro`
+          : `Designe una malla para ${label}`,
+        options: [],
+      },
+      accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
+    }),
+    step: (state, input, context) => {
+      if (input.kind === "cancel") return solidMessage(state, `${name} cancelado.`);
+      if (input.kind === "selection")
+        return {
+          state: { selection: input.entityIds },
+          prompt: { message: `${input.entityIds.length} entidad(es). Pulse Intro`, options: [] },
+          accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
+        };
+      if (input.kind === "entityPick") {
+        const prev = state?.selection ?? [];
+        return {
+          state: { selection: [...prev, input.entityId] },
+          prompt: { message: `${prev.length + 1} entidad(es). Pulse Intro`, options: [] },
+          accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
+        };
+      }
+      if (input.kind !== "enter" && input.kind !== "text")
+        return { state, prompt: { message: "Designe entidades o pulse Intro", options: [] }, accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK };
+
+      const ids = state?.selection ?? [];
+      if (ids.length === 0) return solidMessage(state, `${name}: no se encontró ninguna malla.`);
+      const entities = selectedEntities(context, ids);
+      if (entities.length === 0) return solidMessage(state, `${name}: no se encontraron las entidades.`);
+      const entity = entities[0];
+      if (entity.type !== "solid3d") return solidMessage(state, `${name}: la entidad no es un solido 3D.`);
+
+      const solid = entity as import("../../cad-entities-v5").CadSolid3dEntity;
+      const body = solid3dBody(solid);
+      if (body.faces.length === 0) return solidMessage(state, `${name}: la malla no tiene caras.`);
+
+      const pts = body.vertices.map((v: { point: { x: number; y: number; z: number } }) => ({
+        x: v.point.x, y: v.point.y, z: v.point.z,
+      }));
+      const specs = bodyToFaceSpecs(body);
+      const faces = specs.map((s: { outer: number[] }) => ({ outer: [...s.outer] }));
+
+      const result = transform(pts, faces);
+      if (typeof result === "string") return solidMessage(state, result);
+
+      const newSolid = makeSolidEntity(
+        context.newEntityId(),
+        [{ id: "malla", op: "brep", points: result.points, faces: result.faces }],
+        "malla",
+        context.activeLayer,
+        solid.name,
+      );
+
+      return solidBatch(
+        state,
+        [{ type: "insert", entity: newSolid }],
+        name,
+        `${label}: ${result.faces.length} caras, ${result.points.length} vertices.`,
+      );
+    },
+  };
+}
+
+const meshsmoothCommand = meshSmoothStep(
+  "MESHSMOOTH", "SUAVIZARMALLA",
+  (pts, faces) => subdivideMesh(pts, faces),
+  "Malla suavizada",
+);
+const meshsmoothmoreCommand = meshSmoothStep(
+  "MESHSMOOTHMORE", "SUAVIZARMALLAMAS",
+  (pts, faces) => subdivideMesh(pts, faces),
+  "Malla mas suave",
+);
+const meshsmoothlessCommand: CadCommandDescriptor<MeshSmoothState | null> = {
+  name: "MESHSMOOTHLESS",
+  aliases: ["SUAVIZARMALLAMENOS"],
+  kind: "modify",
+  transparent: false,
+  selection: "optional",
+  repeatable: true,
+  mutates: false,
+  cursor: "crosshair",
+  begin: (context) => ({
+    state: context.selection.length > 0 ? { selection: context.selection } : null,
+    prompt: {
+      message: context.selection.length > 0
+        ? `${context.selection.length} entidad(es) seleccionada(s). Pulse Intro`
+        : "Designe una malla para reducir suavidad",
+      options: [],
+    },
+    accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
+  }),
+  step: (state, input, context) => {
+    if (input.kind === "cancel") return solidMessage(state, "MESHSMOOTHLESS cancelado.");
+    if (input.kind === "selection")
+      return {
+        state: { selection: input.entityIds },
+        prompt: { message: `${input.entityIds.length} entidad(es). Pulse Intro`, options: [] },
+        accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
+      };
+    if (input.kind === "entityPick") {
+      const prev = state?.selection ?? [];
+      return {
+        state: { selection: [...prev, input.entityId] },
+        prompt: { message: `${prev.length + 1} entidad(es). Pulse Intro`, options: [] },
+        accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
+      };
+    }
+    if (input.kind !== "enter" && input.kind !== "text")
+      return { state, prompt: { message: "Designe entidades o pulse Intro", options: [] }, accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK };
+
+    const ids = state?.selection ?? [];
+    if (ids.length === 0) return solidMessage(state, "MESHSMOOTHLESS: no se encontró ninguna malla.");
+    const entities = selectedEntities(context, ids);
+    if (entities.length === 0) return solidMessage(state, "MESHSMOOTHLESS: no se encontraron las entidades.");
+    const entity = entities[0];
+    if (entity.type !== "solid3d") return solidMessage(state, "MESHSMOOTHLESS: la entidad no es un solido 3D.");
+
+    const solid = entity as import("../../cad-entities-v5").CadSolid3dEntity;
+    const body = solid3dBody(solid);
+    if (body.faces.length === 0) return solidMessage(state, "MESHSMOOTHLESS: la malla no tiene caras.");
+
+    // Sin nivel de suavidad almacenado, no se puede reducir: la malla está
+    // en su nivel mínimo. MESHSMOOTHLESS informa en lugar de crear geometría
+    // inválida.
+    return solidMessage(
+      state,
+      `MESHSMOOTHLESS: la malla ya esta en su nivel minimo de suavidad (${body.faces.length} caras, ${body.vertices.length} vertices).`,
+    );
+  },
+};
+
 export const CAD_MESH_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(meshCommand),
   asCadCommand(convtomeshCommand),
   asCadCommand(convtosolidCommand),
   asCadCommand(face3dCommand),
+  asCadCommand(meshsmoothCommand),
+  asCadCommand(meshsmoothmoreCommand),
+  asCadCommand(meshsmoothlessCommand),
 ];
