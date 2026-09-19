@@ -1,8 +1,7 @@
-import { makeBox, bodyToFaceSpecs, attachPlanarSurfaces } from "../../../brep";
-import { solid3dBody, solid3dMassProperties } from "../../solid3d-build";
+import { bodyToFaceSpecs } from "../../../brep";
+import { solid3dBody } from "../../solid3d-build";
 import {
   asCadCommand,
-  CAD_ACCEPT_DISTANCE,
   CAD_ACCEPT_ENTITY_PICK,
   CAD_ACCEPT_POINT,
   CAD_ACCEPT_SELECTION,
@@ -11,8 +10,6 @@ import {
   type CadCommandStep,
 } from "../command-types";
 import {
-  finishedSolid,
-  formatMagnitude,
   makeSolidEntity,
   selectedEntities,
   solidBatch,
