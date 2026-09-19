@@ -190,8 +190,55 @@ function messages(effects: readonly CadCommandEffect[]): string[] {
       `Z ${token} es Objeto`,
     );
 
+  // Como toda palabra clave de AutoCAD, la inglesa vale abreviada a partir de
+  // su atajo: `_EXT` es `_EXTENTS` igual que `LT` es `LType` para INITGET. Los
+  // guiones y las rutinas LISP de toda la vida la escriben así (`_zoom _ext`).
+  for (const token of ["_EX", "_EXT", "_ext", "_EXTEN", "_EXTENT", "EXTENT"])
+    assert.deepEqual(viewRequests(type(["Z", token]).effects), extents, `Z ${token} es Extensión`);
+  for (const token of ["_AL", "AL"])
+    assert.deepEqual(viewRequests(type(["Z", token]).effects), all, `Z ${token} es Todo`);
+  for (const token of ["_WIN", "WIN", "_WINDO"])
+    assert.deepEqual(
+      viewRequests(type(["Z", token, "0,0", "100,50"]).effects),
+      window,
+      `Z ${token} pide las dos esquinas de una ventana`,
+    );
+  for (const token of ["_PREV", "_PRE"])
+    assert.deepEqual(viewRequests(type(["Z", token]).effects), previous, `Z ${token} es Previo`);
+  for (const token of ["_DYN", "DYN"])
+    assert.deepEqual(
+      viewRequests(type(["Z", token, "5,5", "80"]).effects),
+      [{ kind: "zoom", zoom: { option: "dynamic", center: { x: 5, y: 5 }, height: 80 } }],
+      `Z ${token} es Dinámico`,
+    );
+  for (const token of ["_CEN", "_CENT"])
+    assert.deepEqual(
+      viewRequests(type(["Z", token, "40,40", "250"]).effects),
+      [{ kind: "zoom", zoom: { option: "center", center: { x: 40, y: 40 }, height: 250 } }],
+      `Z ${token} es Centro`,
+    );
+  for (const token of ["_SC", "SC", "SCAL"])
+    assert.deepEqual(
+      viewRequests(type(["Z", token, "1.5X"]).effects),
+      [{ kind: "zoom", zoom: { option: "scale", factor: 1.5, basis: "relative" } }],
+      `Z ${token} es Escala`,
+    );
+  for (const token of ["_OB", "_OBJ"])
+    assert.deepEqual(
+      viewRequests(type(["Z", token], { selection: ["a"] }).effects),
+      [{ kind: "zoom", zoom: { option: "object", entityIds: ["a"] } }],
+      `Z ${token} es Objeto`,
+    );
+  // Un `_` suelto o una palabra inglesa que no es de ZOOM siguen siendo error.
+  for (const token of ["_", "_EXTENTSX", "_WX"]) {
+    const wrong = type(["Z", token]);
+    assert.equal(viewRequests(wrong.effects).length, 0, `${token} no es ninguna opción de ZOOM`);
+    assert.ok(messages(wrong.effects).some((text) => text.includes("no es un factor")));
+  }
+
   // El guion de siempre, con el comando y la opción en inglés.
   assert.deepEqual(viewRequests(type(["_ZOOM", "_E"]).effects), extents, "_ZOOM _E es Extensión");
+  assert.deepEqual(viewRequests(type(["_ZOOM", "_EXT"]).effects), extents, "_ZOOM _EXT es Extensión");
   // Y dentro de un LINE, transparente: encuadra y el LINE sigue vivo.
   const inside = type(["LINE", "0,0", "'Z", "E"]);
   assert.deepEqual(viewRequests(inside.effects), extents, "'Z E encuadra la extensión");

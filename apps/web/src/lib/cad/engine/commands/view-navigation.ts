@@ -75,25 +75,28 @@ type ZoomKeyword = (typeof ZOOM_OPTIONS)[number]["keyword"];
  * los guiones y los menús (`_ZOOM _E`); sin él, la costumbre de quien aprendió
  * en inglés (`Z A`, `Z W`). Sin `_` sólo llegan aquí las que el español no
  * resolvió, así que no pueden robarle una letra a una opción en español.
+ *
+ * Como toda palabra clave de AutoCAD, vale cualquier principio de la palabra
+ * que incluya su atajo: `_E`, `_EXT` y `_EXTENTS` son lo mismo, igual que `LT`,
+ * `LTYP` y `LTYPE` lo son para `LType` en INITGET. Las ocho empiezan por letras
+ * distintas y el atajo es esa letra, así que un principio nunca empata.
  */
-const ZOOM_GLOBAL_OPTIONS: Readonly<Record<string, ZoomKeyword>> = {
-  A: "Todo",
-  ALL: "Todo",
-  C: "CEntro",
-  CENTER: "CEntro",
-  D: "DInámico",
-  DYNAMIC: "DInámico",
-  E: "EXtensión",
-  EXTENTS: "EXtensión",
-  P: "PRevio",
-  PREVIOUS: "PRevio",
-  S: "ESCala",
-  SCALE: "ESCala",
-  W: "Ventana",
-  WINDOW: "Ventana",
-  O: "Objeto",
-  OBJECT: "Objeto",
-};
+const ZOOM_GLOBAL_OPTIONS: readonly (readonly [english: string, keyword: ZoomKeyword])[] = [
+  ["ALL", "Todo"],
+  ["CENTER", "CEntro"],
+  ["DYNAMIC", "DInámico"],
+  ["EXTENTS", "EXtensión"],
+  ["PREVIOUS", "PRevio"],
+  ["SCALE", "ESCala"],
+  ["WINDOW", "Ventana"],
+  ["OBJECT", "Objeto"],
+];
+
+function zoomGlobalOption(word: string): ZoomKeyword | null {
+  if (!word) return null;
+  const hits = ZOOM_GLOBAL_OPTIONS.filter(([english]) => english.startsWith(word));
+  return hits.length === 1 ? hits[0][1] : null;
+}
 
 /** Mayúsculas y sin tildes: «extension» es «EXtensión» mal tecleada, no otra cosa. */
 function foldZoomToken(text: string): string {
@@ -108,11 +111,11 @@ function foldZoomToken(text: string): string {
  */
 function zoomOptionFromText(token: string): ZoomKeyword | null {
   const folded = foldZoomToken(token.trim());
-  if (folded.startsWith("_")) return ZOOM_GLOBAL_OPTIONS[folded.slice(1)] ?? null;
+  if (folded.startsWith("_")) return zoomGlobalOption(folded.slice(1));
   if (!folded) return null;
   const spanish = ZOOM_OPTIONS.filter((option) => foldZoomToken(option.keyword).startsWith(folded));
   if (spanish.length === 1) return spanish[0].keyword;
-  return ZOOM_GLOBAL_OPTIONS[folded] ?? null;
+  return zoomGlobalOption(folded);
 }
 
 /**
