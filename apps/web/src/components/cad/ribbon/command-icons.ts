@@ -361,6 +361,7 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   GROUP: Group,
   UNGROUP: Ungroup,
   QSELECT: Filter,
+  FILL: PaintBucket,
   FILTER: Search,
   ADDSELECTED: MousePointerClick,
   SELECTSIMILAR: SquareDashedMousePointer,

@@ -138,6 +138,7 @@ export const CAD_SYSTEM_VARIABLES: readonly CadSystemVariableDef[] = [
   int("POLARMODE", 0, "Opciones del rastreo polar, como suma de bits", { min: 0, max: 15 }),
   int("PDMODE", 0, "Aspecto de los puntos", { min: 0, max: 98 }),
   real("PDSIZE", 0, "Tamaño de los puntos; negativo, en porcentaje de la pantalla"),
+  int("FILLMODE", 1, "Relleno de sombreados y sólidos: 0 contorno, 1 relleno", { enumerated: [0, 1] }),
 
   // --- sistema de coordenadas personal --------------------------------------
   // El SCU es un ORIGEN y un MARCO de tres ejes. El marco se guarda en los seis

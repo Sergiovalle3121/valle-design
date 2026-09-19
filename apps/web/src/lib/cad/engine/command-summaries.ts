@@ -115,6 +115,7 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   EXTRUDE: "Extruye un perfil cerrado a sólido 3D.",
   FILLET: "Empalme entre dos objetos con radio dado.",
   FILLETEDGE: "Redondeo sobre las aristas de un sólido.",
+  FILL: "Alterna el relleno de sombreados y sólidos (FILLMODE).",
   FILTER: "Filtros de selección con nombre, reutilizables.",
   FLATSHOT: "Aplana el modelo 3D a un dibujo 2D acotable.",
   FLATTEN: "Aplasta los objetos designados a Z=0 y declara lo que no pudo aplastar.",

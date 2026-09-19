@@ -1,5 +1,5 @@
 /**
- * METADATOS de los 345 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 346 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
  * 123 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
@@ -303,6 +303,7 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "COLOR", aliases: ["COL", "COLOUR", "DDCOLOR"], kind: "manage", transparent: true, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/settings-variables" },
   { name: "SETVAR", aliases: ["SET"], kind: "manage", transparent: true, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/settings-variables" },
   { name: "GETVAR", aliases: [], kind: "inquiry", transparent: true, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/settings-variables" },
+  { name: "FILL", aliases: ["RELLENO"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/settings-variables" },
   { name: "PUBLISH", aliases: ["PUBLICAR"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/sheet-set-commands" },
   { name: "SHEETSET", aliases: ["SSM"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/sheet-set-commands" },
   { name: "EXTRUDE", aliases: ["EXT"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/solids-create" },

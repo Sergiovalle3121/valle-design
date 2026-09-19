@@ -154,6 +154,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   FIELD: "Campo",
   FILLET: "Empalme",
   FILLETEDGE: "Empalme arista",
+  FILL: "Relleno",
   FILTER: "Filtro",
   FLATSHOT: "Aplanar a 2D",
   FLATTEN: "Aplastar a Z=0",
