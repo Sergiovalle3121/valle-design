@@ -65,9 +65,9 @@ on:
   # su veredicto sobre su propio SHA, que es además el SHA que la protección
   # de rama exige verde (`pullRequestsRequireExactShaChecks` en
   # docs/governance/repository-protection-baseline.json). Cuando el PR sí es
-  # fusionable, las dos corridas —push y pull_request— comparten grupo de
-  # concurrencia por nombre de rama (abajo) y la segunda cancela a la primera:
-  # se paga UNA corrida, la del commit de fusión, que es la que más dice.
+  # fusionable corren las dos —push y pull_request— en grupos de concurrencia
+  # distintos (abajo): antes compartían grupo y la segunda cancelaba a la
+  # primera, y esa corrida «cancelled» bloqueaba el merge (19-sep).
   #
   # Lo que esto NO arregla, y hay que decirlo: fusionar sin esperar el
   # veredicto. #157 se fusionó 17 s después de que arrancara su corrida y
@@ -112,12 +112,17 @@ permissions:
   contents: read
 
 concurrency:
-  # El grupo es el NOMBRE DE LA RAMA, no el ref del evento. Con `github.ref`
-  # la corrida de `push` (refs/heads/x) y la de `pull_request` (refs/pull/N/
-  # merge) de la misma rama caían en grupos distintos y se pagaban las dos;
-  # con `head_ref || ref_name` comparten grupo y la que llega segunda —la del
-  # commit de fusión, si el PR es fusionable— cancela a la primera.
-  group: ci-${{ github.head_ref || github.ref_name }}
+  # El grupo es EVENTO + NOMBRE DE LA RAMA. Antes era sólo la rama, para que la
+  # corrida de `pull_request` cancelara a la de `push` y se pagara una sola.
+  # Medido el 19-sep: esa cancelación BLOQUEA el merge. La corrida de `push`
+  # queda «cancelled» sobre el MISMO SHA que exige la protección de rama, y
+  # GitHub la cuenta como check requerido fallido aunque la de `pull_request`
+  # salga verde entera (#217, #218 y #219: los tres BLOCKED con todo verde,
+  # cada uno necesitó relanzar a mano la corrida cancelada, 90 min más). Con el
+  # evento en el grupo, las dos corren en paralelo y las dos dan veredicto. El
+  # repositorio es público: Actions no cobra minutos. Si vuelve a ser privado,
+  # esta línea duplica el consumo y hay que volver a pesarla.
+  group: ci-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
   # SÓLO se cancelan las corridas de rama, donde el push siguiente sustituye
   # al anterior sobre el MISMO código propuesto.
   #

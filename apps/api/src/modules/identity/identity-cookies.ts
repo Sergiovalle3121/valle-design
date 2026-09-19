@@ -1,8 +1,7 @@
 import { ServiceUnavailableException } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { clearCsrfCookie, setCsrfCookie } from './identity-csrf-cookie';
 import {
-  csrfCookieDomain,
-  CSRF_COOKIE,
   SESSION_COOKIE,
   sessionCookiePolicy,
 } from './identity-security';
@@ -37,25 +36,7 @@ export function setCookies(
     path: '/',
     maxAge: 30 * 86_400_000,
   });
-  const domain = csrfCookieDomain(process.env.CSRF_COOKIE_DOMAIN);
-  const csrfOptions: Record<string, unknown> = {
-    httpOnly: false,
-    sameSite: 'lax' as const,
-    secure: policy.secure,
-    path: '/',
-    maxAge: 30 * 86_400_000,
-  };
-  if (domain) {
-    csrfOptions.domain = domain;
-  }
-  res.cookie(CSRF_COOKIE, csrf, csrfOptions);
-  if (domain) {
-    res.clearCookie(CSRF_COOKIE, {
-      path: '/',
-      sameSite: 'lax',
-      secure: policy.secure,
-    });
-  }
+  setCsrfCookie(res, csrf, policy.secure);
 }
 
 export function clearCookies(req: Request, res: Response): void {
@@ -66,9 +47,5 @@ export function clearCookies(req: Request, res: Response): void {
     secure: policy.secure,
   };
   res.clearCookie(policy.name, options);
-  res.clearCookie(CSRF_COOKIE, options);
-  const domain = csrfCookieDomain(process.env.CSRF_COOKIE_DOMAIN);
-  if (domain) {
-    res.clearCookie(CSRF_COOKIE, { ...options, domain });
-  }
+  clearCsrfCookie(res, options);
 }
