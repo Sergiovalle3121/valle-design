@@ -159,7 +159,9 @@ export function parseCoordinate(
       yStr !== undefined &&
       /^\d+$/u.test(xStr.trim()) &&
       /^\d{3,}$/u.test(yStr.trim()) &&
-      !xStr.includes(".")
+      !xStr.includes(".") &&
+      xStr.trim().length === 1 &&
+      xStr.trim() !== "0"
     ) {
       return {
         ok: false,
