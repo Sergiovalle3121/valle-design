@@ -173,7 +173,7 @@ export const CAD_RIBBON_PRIMARY: Readonly<Record<string, readonly string[]>> = {
   Arquitectura: ["WALL"],
   Instalaciones: ["PIPE"],
   Superficies: ["PLANESURF", "SURFPATCH"],
-  Mallas: ["MESH", "RULESURF", "TABSURF", "REVSURF", "EDGESURF"],
+  Mallas: ["MESH", "RULESURF"],
   Render: ["RENDER"],
   Vistas: ["VIEWBASE", "VIEWEDIT", "REGEN"],
 };
