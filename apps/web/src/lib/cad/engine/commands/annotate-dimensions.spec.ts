@@ -139,7 +139,7 @@ const enter: CadCommandInput = { kind: "enter" };
   // desde el primer punto, la línea de cota no caería donde se soltó.
   eq(entity.offset, 400, "el desfase deja la línea exactamente donde se soltó");
   close(measurement(entity), 1_000, "mide 1.000");
-  eq(label(entity), "1000.00 mm", "y su etiqueta lo dice, con dos decimales");
+  eq(label(entity), "1000.00", "y su etiqueta lo dice, con dos decimales");
 
   // Y se enganchó SOLA a la línea, porque las coordenadas tecleadas caen sobre
   // sus extremos. Sin esto, acotar por teclado daría cotas muertas.
@@ -163,7 +163,7 @@ const enter: CadCommandInput = { kind: "enter" };
     "DIMLINEAR",
   ).document;
   const before = created.entities.find((entity) => entity.type === "dimension") as CadDimensionEntity;
-  eq(label(before), "1000.00 mm", "antes de estirar");
+  eq(label(before), "1000.00", "antes de estirar");
 
   // Se estira el extremo de la LÍNEA por la ruta canónica. Nadie toca la cota.
   const stretched = executeCadEntityCommandBatch(
@@ -176,7 +176,7 @@ const enter: CadCommandInput = { kind: "enter" };
   ) as CadDimensionEntity;
   eq(after.b, { x: 1_500, y: 0 }, "el punto de definición siguió al extremo");
   close(measurement(after), 1_500, "la medida se recalculó");
-  eq(label(after), "1500.00 mm", "y el TEXTO de la cota dice el número nuevo");
+  eq(label(after), "1500.00", "y el TEXTO de la cota dice el número nuevo");
   eq(after.associationStatus, "associated", "sigue asociada");
   ok(
     stretched.affectedEntityIds.includes(after.id),

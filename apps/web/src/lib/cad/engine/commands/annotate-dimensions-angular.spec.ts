@@ -195,7 +195,7 @@ const corner = (): CadEntity[] => [
   const entity = dimensionOf(run("DIMARC", [pick("a1", 707, 707)], doc));
   eq(entity.dimensionKind, "arc-length", "longitud de arco");
   close(measurement(entity), (Math.PI / 2) * 1_000, "1.000 × π/2");
-  eq(label(entity), "1570.80 mm", "la longitud del ARCO, no la de la cuerda (1.414,21)");
+  eq(label(entity), "1570.80", "la longitud del ARCO, no la de la cuerda (1.414,21)");
   eq(entity.associative, true, "centro, arranque y final del arco son los tres anclajes");
 
   // Y ahora la propiedad: se le cambia el radio al ARCO y la cota se entera.
@@ -207,7 +207,7 @@ const corner = (): CadEntity[] => [
   ).document;
   const after = grown.entities.find((item) => item.type === "dimension") as CadDimensionEntity;
   close(after.radius ?? 0, 2_000, "el radio de la cota se re-derivó de sus puntos de definición");
-  eq(label(after), "3141.59 mm", "y la longitud de arco es exactamente el doble");
+  eq(label(after), "3141.59", "y la longitud de arco es exactamente el doble");
 }
 
 // --- DIMARC: rechazos ------------------------------------------------------------------------------
@@ -232,12 +232,12 @@ const corner = (): CadEntity[] => [
   const radius = dimensionOf(run("DIMRADIUS", [pick("c1", 500, 0)], doc));
   eq(radius.dimensionKind, "radius", "radio");
   close(measurement(radius), 500, "mide el radio");
-  eq(label(radius), "R500.00 mm", "con su prefijo R");
+  eq(label(radius), "R500.00", "con su prefijo R");
   eq(radius.associative, true, "asociativa: centro y borde son anclajes del círculo");
 
   const diameter = dimensionOf(run("DIMDIAMETER", [pick("c1", 500, 0)], doc));
   close(measurement(diameter), 1_000, "el diámetro es el doble");
-  eq(label(diameter), "Ø1000.00 mm", "con su prefijo Ø");
+  eq(label(diameter), "Ø1000.00", "con su prefijo Ø");
 
   // Por dónde se pincha decide por dónde sale la flecha: `arc-end` está a 180°.
   const otherSide = dimensionOf(run("DIMRADIUS", [pick("c1", -500, 0)], doc));

@@ -109,7 +109,7 @@ export function formatCadDimensionMeasurement(entity: CadDimensionEntity, measur
     return `${entity.prefix ?? ''}${label}${entity.suffix ?? ''}`;
   }
   const body = tolerance ? cadDimensionToleranceText(converted, precision, tolerance, 1 / UNIT_TO_MM[unit]) : converted.toFixed(precision);
-  let label = `${entity.prefix ?? ''}${body} ${unit}${entity.suffix ?? ''}`;
+  let label = `${entity.prefix ?? ''}${body}${entity.suffix ?? ''}`;
   if (entity.alternateUnits) {
     const alternate = (measurement * UNIT_TO_MM[sourceUnit]) / UNIT_TO_MM[entity.alternateUnits];
     label += ` [${alternate.toFixed(precision)} ${entity.alternateUnits}]`;

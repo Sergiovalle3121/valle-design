@@ -173,3 +173,4 @@ Todas hechas antes de esta sesión (commits `4359ef50`–`bd86c7e5`).
 | T14 | hecha — DIMBASELINE usa baselineSpacing del estilo (DIMDLI). Fallback a arrowSize*2. annotate-dimension-chains.spec: 51/51. | 6e9bd923 |
 | CONTADOR 2026-09-21 HH:MM | comandos en manifiesto 343 en 122 modulos. ci-fallo resuelto (oracle B). P04 (hero spec), P07 (accept unificado), T14 (DIMBASELINE spacing). Rotacion: ci-fallo+UI+DWG+Nivel. |
 | Golden18 (blocks/INSERT) | resuelto: `rotation` estaba en READONLY_KEYS de property-model.ts. INSERT adapter escribe rotation (block-text-adapters.ts:472), MTEXT también (línea 210). IMAGE lo lee como derivado y su write lo ignora — harmless. Quitado de READONLY_KEYS: golden18 pasa (49s). | 6594d66f |
+| ci-fallo.md (golden18) | verificado: golden18 pasa (52.2s) tras commit 6594d66f. dashboard-document-lifecycle y golden13 ya pasaban según supervisor. ci-fallo.md borrado. | — |
