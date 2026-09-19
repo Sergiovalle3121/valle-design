@@ -13409,8 +13409,10 @@ export default function Layout3DEditor({
           which would otherwise stack over the backdrop-blur'd bar) */}
       <div
         data-testid="cad-top-toolbar"
-        className={`relative z-30 flex flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap border-b border-border bg-surface/90 px-4 backdrop-blur [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0 ${workspacePreferences.toolbarDensity === "compact" ? "h-12 py-1.5" : "h-14 py-2.5"}`}
+        className={`relative z-30 flex items-center border-b border-border bg-surface/90 px-4 backdrop-blur ${workspacePreferences.toolbarDensity === "compact" ? "h-12 py-1.5" : "h-14 py-2.5"}`}
       >
+        {/* Banda de iconos: scrollable horizontalmente */}
+        <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
         {/* Cierre persistente y SIEMPRE alcanzable, anclado al inicio de la
             barra. Regla que no cambia: ninguna pantalla a foco total puede
             atrapar al usuario.
@@ -14120,7 +14122,9 @@ export default function Layout3DEditor({
         >
           <HelpCircle className="w-4 h-4" />
         </T3Btn>
-        <div className="flex-1" />
+        </div>
+        {/* Cola fija: estado, guardar, cerrar — siempre visible, fuera del scroll */}
+        <div className="flex shrink-0 items-center gap-2">
         {approval && (
           <div
             className="inline-flex items-center gap-1.5 mr-1.5"
@@ -14163,8 +14167,7 @@ export default function Layout3DEditor({
           // persistida no emite escritura ni versión CAS nueva, y la cola de un
           // solo escritor serializa el clic con cualquier autosave en vuelo.
           disabled={drawingReadOnly}
-          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-sm font-medium text-foreground disabled:opacity-50"
-          style={{ background: "#e11d48" }}
+          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-sm font-medium bg-brand-strong text-primary-foreground disabled:opacity-50"
         >
           {saving ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -14176,10 +14179,13 @@ export default function Layout3DEditor({
         <button
           onClick={() => void closeEditor()}
           className="p-1.5 rounded-lg hover:bg-muted ml-1"
+          data-testid="cad-close-editor"
+          aria-label="Cerrar editor"
           title="Cerrar editor"
         >
           <X className="w-5 h-5" />
         </button>
+        </div>
       </div>
 
       {/* LA CINTA. Va debajo de la barra de título/atajos de arriba, igual que
