@@ -41,6 +41,7 @@ import {
   SECURE_SESSION_COOKIE,
   SESSION_COOKIE,
 } from './identity-security';
+import { clearCsrfCookie, setCsrfCookie } from './identity-csrf-cookie';
 import { totpUri } from './identity-mfa';
 import { IdentityMfaService } from './identity-mfa.service';
 import { IdentityService } from './identity.service';
@@ -343,13 +344,7 @@ export class IdentityController {
       path: '/',
       maxAge: 30 * 86_400_000,
     });
-    res.cookie(CSRF_COOKIE, csrf, {
-      httpOnly: false,
-      sameSite: 'lax',
-      secure: policy.secure,
-      path: '/',
-      maxAge: 30 * 86_400_000,
-    });
+    setCsrfCookie(res, csrf, policy.secure);
   }
 
   private clearCookies(req: Request, res: Response): void {
@@ -360,7 +355,7 @@ export class IdentityController {
       secure: policy.secure,
     };
     res.clearCookie(policy.name, options);
-    res.clearCookie(CSRF_COOKIE, options);
+    clearCsrfCookie(res, options);
   }
 
   private async current(req: Request) {

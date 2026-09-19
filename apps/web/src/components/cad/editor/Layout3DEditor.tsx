@@ -1939,9 +1939,9 @@ export default function Layout3DEditor({
   useEffect(() => {
     themeRef.current = theme;
   }, [theme]);
-  useEffect(() => {
-    setTheme(resolvedScheme === "light" ? "light" : "dark");
-  }, [resolvedScheme]);
+  // El lienzo NO sigue el modo del navegador: arranca oscuro, como el espacio modelo de
+  // AutoCAD. Las tintas de capa (#fbbf24, #34d399…) quedaban a 1,6–2:1 sobre «Claro»
+  // (#eaf0f8) y el plano se veía roto. «Claro» sigue en el selector de tema.
 
   const workspacePreferenceKey = useMemo(
     () => cadWorkspaceStorageKey({ tenantId, userId }),
