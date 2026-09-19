@@ -32,7 +32,7 @@ function fakeControls(camera?: THREE.PerspectiveCamera): OrbitControls & { updat
   } = {
     target: new THREE.Vector3(),
     updateCalls: 0,
-    maxPolarAngle: Math.PI / 2,
+    maxPolarAngle: Math.PI / 2.05,
     minPolarAngle: 0,
     update: () => {
       controls.updateCalls += 1;
@@ -118,8 +118,8 @@ for (const preset of ["front", "back", "left", "right"] as const) {
     Math.abs(camera.position.y - controls.target.y) < 1e-9,
   );
   check(
-    `${preset}: maxPolarAngle restaurado a π/2 tras el preset`,
-    controls.maxPolarAngle === Math.PI / 2,
+    `${preset}: maxPolarAngle restaurado a π/2.05 tras el preset`,
+    controls.maxPolarAngle === Math.PI / 2.05,
   );
 }
 

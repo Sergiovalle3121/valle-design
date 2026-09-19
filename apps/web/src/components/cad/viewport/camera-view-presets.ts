@@ -26,6 +26,7 @@ import {
   ArrowRightToLine,
 } from "lucide-react";
 import { boundsIntersect } from "@/lib/cad/entity-hit-geometry";
+import { unlockPolarAngleForCommand } from "./camera-policy";
 
 export type CadCameraViewPreset =
   | "top"
@@ -102,5 +103,7 @@ export function applyCadCameraViewPreset(
   else if (preset === "right") camera.position.set(cx + d * 1.3, 0, cz);
   else camera.position.set(cx + d * 0.6, d * 0.85, cz + d * 1.0);
   controls.target.set(cx, 0, cz);
+  const relock = unlockPolarAngleForCommand(controls);
   controls.update();
+  relock();
 }
