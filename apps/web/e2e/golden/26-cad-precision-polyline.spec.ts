@@ -138,7 +138,7 @@ test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFF
     // que es lo que `worldPoint` necesita para invertir la proyección.
     await page.getByRole('button', { name: '2D', exact: true }).click();
     await fitFootprint(page);
-    await page.getByRole('button', { name: 'Desfase', exact: true }).click();
+    await page.getByTestId('cad-toolbar').getByRole('button', { name: 'Desfase', exact: true }).click();
     await applyDynamicInput(page, { offset: '250mm' });
     const on = await worldPoint(page, { x: 3_000, y: 4_000 });
     await page.mouse.click(on.x, on.y);

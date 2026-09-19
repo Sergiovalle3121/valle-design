@@ -128,6 +128,27 @@ export function cadEngineCommandForTool(tool: string): string | null {
   );
 }
 
+const CAD_DRAFT_TOOLBAR_COMMANDS: ReadonlySet<string> = new Set(
+  Object.values(CAD_ENGINE_POINTER_COMMANDS),
+);
+
+/**
+ * ¿Lleva ESTE comando del motor la barra de borrador (ORTO + entrada dinámica)?
+ *
+ * Sólo los siete de la tabla de arriba, se arranquen desde la paleta, la cinta
+ * o el teclado: son los que consumen lo que la barra ofrece —punto
+ * ABS/REL/POLAR, radio, desfase—. Con cualquier otro comando la barra no aporta
+ * nada y SÍ quita lienzo: flota en `top-12` sobre casi todo el ancho, y con
+ * puntero grueso (objetivos de 44 px) mide 76 px de alto. Medido en el golden 56
+ * (tableta 1.024×768): con DIMLINEAR tecleado la barra quedaba encima del muro
+ * sur y el dedo que se posa 24 px antes del extremo caía en `cad-dynamic-input`,
+ * no en el lienzo; la cota no avanzaba. Antes de montarla para «cualquier
+ * comando del motor» un comando tecleado nunca la tuvo.
+ */
+export function cadEngineCommandHasDraftToolbar(command: string | null): boolean {
+  return command !== null && CAD_DRAFT_TOOLBAR_COMMANDS.has(command);
+}
+
 export interface CadEnginePointerBridge {
   host: CadCommandEngineHost;
   preview: CadPointerPreviewSurface;

@@ -518,7 +518,7 @@ import { CadLiveCursorOverlay } from "@/components/cad/viewport/live-cursor";
 import {
   CadEnginePointerRouter,
   EMPTY_CAD_POINTER_SESSION,
-  cadEngineCommandForTool,
+  cadEngineCommandForTool, cadEngineCommandHasDraftToolbar,
   type CadPointerSession,
 } from "@/components/cad/viewport/pointer-router";
 import { CadNativeGripController } from "@/components/cad/viewport/native-grip-controller";
@@ -14615,7 +14615,7 @@ export default function Layout3DEditor({
                   snapLabelRef={engineSnapLabelRef}
                 />
               )}
-            {!walk && (tool === "wall" || isCadDrawTool(tool) || engineCommand) && (
+            {!walk && (tool === "wall" || isCadDrawTool(tool) || cadEngineCommandHasDraftToolbar(engineCommand)) && (
               <CadDraftToolbar
                 orthoLock={draftSettings.ortho}
                 onToggleOrtho={() => draftSettingsHost.toggleOrtho()}

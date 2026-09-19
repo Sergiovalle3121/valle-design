@@ -17,7 +17,7 @@ import type { CadDocument, CadEntity } from "../../src/lib/cad/cad-document";
  *   Ctrl+A · GLOBO ⏎ · 1500,1500 ⏎                     → globo 1 sobre el tornillo (la designación previa vale)
  *   BOM ⏎ · 4000,0 ⏎                                   → la lista de materiales con la posición del globo
  *   DIMLINEAR ⏎ · 0,3000 ⏎ · 40,3000 ⏎ · 20,2500 ⏎     → una cota de 40
- *   Ctrl+A · DTOL ⏎ · A ⏎ · H7 ⏎                       → «40.00 +0.025/0 mm»
+ *   Ctrl+A · DTOL ⏎ · A ⏎ · H7 ⏎                       → «40.00 +0.025/0»
  *   SOLDADURA ⏎ · 2000,0 ⏎ · 2500,300 ⏎ · ⏎ · ⏎ · 6 ⏎ · ⏎ · ⏎ · ⏎ · ⏎ → filete de 6 del lado de la flecha
  *   ACABADO ⏎ · ⏎ · ⏎ · ⏎ · 3000,800 ⏎ · ⏎            → mecanizado, Ra 3,2
  *

@@ -242,10 +242,12 @@ test('un documento con MTEXT, sombreado e inserción se dibuja con el pipeline p
   // 4. EL ATLAS DE TEXTO RASTERIZA. Ésta es la afirmación que ninguna prueba de
   //    Node podía hacer —«en Node no hay canvas, así que el atlas de texto no
   //    entra en esta corrida», dice el propio benchmark—. El espacio no produce
-  //    quad: `PLANTA BAJA` 10 + `NIVEL +0.00` 10 + `4000.00 mm` (la cota) 9 +
-  //    `VER DETALLE` 10 + celdas CLAVE 5, AREA 4, A-1 3, 12.50 5 = 56. Con la
-  //    rama anterior (sólo MTEXT) este contador leía 10.
-  expect(await numberOf(page, 'data-glyphs')).toBeGreaterThanOrEqual(56);
+  //    quad: `PLANTA BAJA` 10 + `NIVEL +0.00` 10 + `4000.00` (la cota) 7 +
+  //    `VER DETALLE` 10 + celdas CLAVE 5, AREA 4, A-1 3, 12.50 5 = 54. La cota
+  //    no lleva « mm» pegado: como en AutoCAD, la unidad sólo sale si el estilo
+  //    la pone en DIMPOST (sufijo), y este documento no la pone. Con la rama
+  //    anterior (sólo MTEXT) este contador leía 10.
+  expect(await numberOf(page, 'data-glyphs')).toBeGreaterThanOrEqual(54);
   // Y ninguno se cayó del atlas: un glifo descartado es un rótulo incompleto.
   expect(await numberOf(page, 'data-dropped-glyphs')).toBe(0);
 

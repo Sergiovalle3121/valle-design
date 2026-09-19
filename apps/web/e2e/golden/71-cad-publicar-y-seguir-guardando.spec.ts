@@ -97,7 +97,7 @@ async function abrirEstudio(context: BrowserContext, page: Page) {
 
 /**
  * Crea una hoja y espera a que exista su pestaña. Se cuentan las PESTAÑAS de
- * layout: «Viewports · N» es del layout activo, no del paquete, y contarlo así
+ * layout: «Ventanas · N» es del layout activo, no del paquete, y contarlo así
  * fue mi primer error.
  */
 async function crearHoja(page: Page, total: number) {

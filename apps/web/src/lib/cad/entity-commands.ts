@@ -406,10 +406,14 @@ export function executeCadEntityCommandBatch(
     } else if (command.type === "copy") {
       if (present.has(command.newEntityId))
         throw new Error(`CAD entity id ${command.newEntityId} already exists.`);
-      const copy = adapter.commands.transform(
+      const moved = adapter.commands.transform(
         { ...source, id: command.newEntityId, context: cloneContext(source.context) },
         { translation: command.offset ?? { x: 0, y: 0 } },
       );
+      // La COPIA de una cota o directriz nace desasociada (T17 lo sacó del adaptador por MOVE):
+      // sus `references` apuntan a la geometría ORIGINAL y la regeneración la devolvía encima.
+      const copy = moved.type === "dimension" || moved.type === "mleader"
+        ? { ...moved, associative: false, associationStatus: "detached" as const } : moved;
       // T-19·2: un hueco copiado junto con su muro queda hospedado en el
       // MURO COPIADO vía `rehostId` (ver el tipo, arriba), no en el original.
       const rehosted =

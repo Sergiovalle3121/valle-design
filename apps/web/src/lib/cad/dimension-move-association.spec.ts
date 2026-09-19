@@ -111,4 +111,33 @@ if (dimAfter) {
   ok(true, `estado tras mover solo geometría: ${dimAfter.associationStatus}`);
 }
 
+// --- COPY y MIRROR conservando el original: la copia nace DESASOCIADA -------
+// Sus `references` siguen apuntando a la línea ORIGINAL. Si la copia conservara
+// la asociación, la regeneración del lote la devolvería encima de la cota de
+// partida: el ala copiada saldría sin cotas y la vieja con dos apiladas.
+const mirror = { point: { x: 5000, y: 0 }, direction: { x: 0, y: 1000 } };
+const copies: Array<[string, CadEntityCommand[], { x: number; y: number }]> = [
+  ["COPY", [
+    { type: "copy", entityId: "l1", newEntityId: "l1c", offset: { x: 0, y: 3000 } },
+    { type: "copy", entityId: "d1", newEntityId: "d1c", offset: { x: 0, y: 3000 } },
+  ], { x: 0, y: 3000 }],
+  ["MIRROR", [
+    { type: "copy", entityId: "l1", newEntityId: "l1c" },
+    { type: "transform", entityId: "l1c", transform: { mirror } },
+    { type: "copy", entityId: "d1", newEntityId: "d1c" },
+    { type: "transform", entityId: "d1c", transform: { mirror } },
+  ], { x: 10000, y: 0 }],
+];
+for (const [label, batch, expectedA] of copies) {
+  const after = executeCadEntityCommandBatch(doc([line, dim]), batch, label).document;
+  const copied = after.entities.find((e) => e.id === "d1c") as CadDimensionEntity | undefined;
+  const kept = after.entities.find((e) => e.id === "d1") as CadDimensionEntity | undefined;
+  ok(copied?.associative === false && copied.associationStatus === "detached", `${label}: la copia de la cota nace desasociada`);
+  ok(
+    Math.abs((copied?.a.x ?? NaN) - expectedA.x) < 1e-6 && Math.abs((copied?.a.y ?? NaN) - expectedA.y) < 1e-6,
+    `${label}: la copia se queda donde la llevó la orden, a = (${copied?.a.x}, ${copied?.a.y})`,
+  );
+  ok(kept?.associative === true && kept.associationStatus === "associated", `${label}: el original sigue asociado`);
+}
+
 console.log(`dimension-move-association: ${checks} comprobaciones OK`);
