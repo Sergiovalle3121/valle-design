@@ -1,10 +1,7 @@
 import { ServiceUnavailableException } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { clearCsrfCookie, setCsrfCookie } from './identity-csrf-cookie';
-import {
-  SESSION_COOKIE,
-  sessionCookiePolicy,
-} from './identity-security';
+import { SESSION_COOKIE, sessionCookiePolicy } from './identity-security';
 import type { SessionCookiePolicy } from './identity-security';
 
 export function getCookiePolicy(req: Request): SessionCookiePolicy {
