@@ -8,9 +8,22 @@
  * leerlo de la línea.
  */
 import { strict as assert } from "node:assert";
-import type { CadBlockDefinition, CadEntity } from "../../cad-document";
+import { layoutToCadDocument, type CadBlockDefinition, type CadDocument, type CadEntity } from "../../cad-document";
+import { executeCadEntityCommandBatch } from "../../entity-commands";
+import { importDxfPrimitives } from "../../dxf-import";
+import {
+  EMPTY_CAD_COMMAND_ENGINE,
+  cadCommandEngineReduce,
+  type CadCommandEffect,
+} from "../command-engine";
+import { CAD_COMMAND_REGISTRY_V2 } from "../index";
 import type { CadAnyCommandDescriptor, CadCommandContext, CadCommandInput } from "../command-types";
 import { CAD_BLOCK_COMMANDS } from "./blocks";
+
+// Las implementaciones de los comandos llegan a demanda en el navegador
+// (`engine/lazy-commands.ts`). Un `.spec.ts` se carga como CommonJS y no puede
+// esperarlas con `await`, así que las trae de golpe con este import estático.
+import "@/lib/cad/engine/all-commands";
 
 let checks = 0;
 const ok = (condition: boolean, message: string) => {
@@ -257,6 +270,109 @@ const enter: CadCommandInput = { kind: "enter" };
   assert.ok(entry.type === "block" && entry.op === "define");
   assert.deepEqual(entry.definition.basePoint, { x: 1_500, y: -250, z: 0 });
   checks += 3;
+}
+
+// --- 10. WBLOCK entrega un DXF real, por el REGISTRO REAL del producto ------
+//
+// Las pruebas 1-9 llaman `descriptor.begin/step` directamente sobre la
+// familia de la que este archivo es dueño. Esta corre por el MOTOR de
+// comandos con el registro real (`CAD_COMMAND_REGISTRY_V2`, el mismo que
+// resuelve lo que teclea un dibujante) y aplica el lote resultante con el
+// ejecutor de verdad, y luego vuelve a LEER el DXF entregado con el
+// importador para comprobar que la geometría que sale es la que entró — no
+// sólo que "salió un archivo".
+{
+  function fullDocument(): CadDocument {
+    const empty = layoutToCadDocument({}, { unit: "mm" });
+    const wall: CadEntity = {
+      id: "muro",
+      type: "line",
+      start: { x: 0, y: 0, z: 0 },
+      end: { x: 4_000, y: 1_500, z: 0 },
+      layer: "MUROS",
+    };
+    return {
+      ...empty,
+      layers: ["0", "MUROS"].map((name) => ({
+        id: name, name, color: "#ffffff", visible: true, locked: false,
+      })),
+      entities: [wall],
+      modelSpace: { entityIds: ["muro"] },
+    };
+  }
+
+  type Fed = string | CadCommandInput;
+
+  function runEngine(document: CadDocument, tokens: readonly Fed[]) {
+    let state = EMPTY_CAD_COMMAND_ENGINE;
+    const effects: CadCommandEffect[] = [];
+    let current = document;
+    let ids = 0;
+    for (const token of tokens) {
+      const context: CadCommandContext = {
+        entityIds: current.entities.map((entity) => entity.id),
+        entity: (id) => current.entities.find((entity) => entity.id === id),
+        blocks: () => current.blocks,
+        layers: () => current.layers,
+        document: () => current,
+        selection: [],
+        activeLayer: "MUROS",
+        unit: current.meta.unit,
+        view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+        newEntityId: () => `new-${(ids += 1)}`,
+      };
+      const reduction =
+        typeof token !== "string"
+          ? cadCommandEngineReduce(state, { kind: "input", input: token }, context, CAD_COMMAND_REGISTRY_V2)
+          : cadCommandEngineReduce(state, { kind: "token", value: token }, context, CAD_COMMAND_REGISTRY_V2);
+      state = reduction.state;
+      effects.push(...reduction.effects);
+      for (const effect of reduction.effects)
+        if (effect.kind === "execute")
+          current = executeCadEntityCommandBatch(current, effect.commands, effect.label).document;
+    }
+    return { effects, document: current };
+  }
+
+  const before = fullDocument();
+  const { effects, document } = runEngine(before, [
+    "WBLOCK",
+    "MURO-EXTERIOR",
+    { kind: "point", point: { x: 0, y: 0 }, source: "typed" },
+    { kind: "selection", entityIds: ["muro"] },
+  ]);
+
+  // 1) El documento REALMENTE queda con la definición publicada al inquilino
+  //    — aplicada por el ejecutor de lotes, no sólo emitida por el comando.
+  const published = document.blocks.find((block) => block.name === "MURO-EXTERIOR");
+  assert.ok(published, "WBLOCK publica la definición en el documento aplicado");
+  assert.equal(published?.library?.scope, "tenant", "con ámbito de inquilino");
+  assert.ok(document.entities.some((entity) => entity.id === "muro"), "y CONSERVA el original: exportar no lo borra");
+
+  // 2) El anfitrión recibe una petición de archivo real...
+  const hostEffect = effects.find((effect) => effect.kind === "host");
+  assert.ok(hostEffect, "WBLOCK pide al anfitrión que entregue un archivo");
+  assert.ok(hostEffect && hostEffect.kind === "host" && hostEffect.request.kind === "dxf-export", "y es un DXF");
+  const dxf =
+    hostEffect && hostEffect.kind === "host" && hostEffect.request.kind === "dxf-export"
+      ? hostEffect.request
+      : null;
+  assert.equal(dxf?.fileName, "MURO-EXTERIOR.dxf", "con el nombre del bloque");
+  assert.equal(dxf?.entityCount, 1, "una entidad: la designada");
+
+  // 3) ...y ese archivo, releído por el importador, trae la MISMA geometría
+  //    que se designó — la comprobación que la regla exige: medir contra la
+  //    entrada, no fiarse de que "no hubo error".
+  const reimported = importDxfPrimitives(dxf!.content);
+  const line = reimported.primitives.find((primitive) => primitive.kind === "line");
+  assert.ok(line, "el DXF entregado trae la línea del muro");
+  assert.equal(line?.layer, "MUROS", "en su capa");
+  assert.deepEqual(
+    [line?.points[0]?.x, line?.points[0]?.y, line?.points[1]?.x, line?.points[1]?.y],
+    [0, 0, 4_000, 1_500],
+    "con las MISMAS coordenadas que el objeto original, no aproximadas ni truncadas",
+  );
+  checks += 8;
 }
 
 console.log(`engine/commands/blocks.spec: ${checks} comprobaciones OK`);
