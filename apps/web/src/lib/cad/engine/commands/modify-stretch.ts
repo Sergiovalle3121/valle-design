@@ -110,7 +110,7 @@ function stretchEntityCommand(
         b: bIn ? { x: entity.b.x + offset.x, y: entity.b.y + offset.y } : entity.b,
         c: entity.c && cIn ? { x: entity.c.x + offset.x, y: entity.c.y + offset.y } : entity.c,
         textPosition: entity.textPosition && tIn
-          ? { x: entity.textPosition.x + offset.x, y: entity.textPosition.y + offset.y, z: entity.textPosition.z }
+          ? { x: entity.textPosition.x + offset.x, y: entity.textPosition.y + offset.y }
           : entity.textPosition,
         context: entity.context ? structuredClone(entity.context) : undefined,
       } as CadNativeEntity,
