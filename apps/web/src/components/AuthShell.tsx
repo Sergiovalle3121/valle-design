@@ -58,6 +58,7 @@ export function AuthShell({
    * ponerle argumentos de venta al lado es ruido.
    */
   showcase = false,
+  hint,
 }: {
   title: string;
   description: ReactNode;
@@ -67,6 +68,7 @@ export function AuthShell({
   footer?: ReactNode;
   titleId?: string;
   showcase?: boolean;
+  hint?: ReactNode;
 }) {
   return (
     <main
@@ -113,6 +115,11 @@ export function AuthShell({
           {error ? (
             <p role="alert" className="type-small mt-4 text-danger-ink">
               {error}
+            </p>
+          ) : null}
+          {hint ? (
+            <p className="type-small mt-2 text-muted-foreground">
+              {hint}
             </p>
           ) : null}
           {message ? (

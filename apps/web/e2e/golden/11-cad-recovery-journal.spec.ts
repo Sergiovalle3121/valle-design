@@ -90,7 +90,7 @@ async function readJournal(page: Page): Promise<JournalEvidence> {
 }
 
 /**
- * Los indicadores de recuperación ("Recovery local activo" / "en riesgo") sólo
+ * Los indicadores de recuperación ("Recuperación local activa" / "en riesgo") sólo
  * son ciertos MIENTRAS hay cambios sin guardar en el servidor: en cuanto el
  * guardado remoto confirma, el journal local se purga y el aviso desaparece —
  * esa semántica es la correcta y no debe volverse pegajosa.
@@ -137,7 +137,7 @@ test('CAD recovery uses compressed IndexedDB journal and restores the newest che
   const radius = page.getByTestId('cad-native-property-radius');
   await radius.fill('141');
   await radius.blur();
-  await expect(page.getByText('Recovery local activo')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText('Recuperación local activa')).toBeVisible({ timeout: 20_000 });
 
   for (const [index, value] of ['142', '143', '144'].entries()) {
     await radius.fill(value);
@@ -194,5 +194,5 @@ test('CAD recovery surfaces exhausted browser quota', async ({ context, page }) 
   const radius = page.getByTestId('cad-native-property-radius');
   await radius.fill('155');
   await radius.blur();
-  await expect(page.getByText('Recovery local en riesgo')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText('Recuperación local en riesgo')).toBeVisible({ timeout: 20_000 });
 });
