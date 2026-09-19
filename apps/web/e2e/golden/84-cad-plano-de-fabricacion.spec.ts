@@ -119,7 +119,7 @@ test("TORNILLO, GLOBO, BOM, DIMTOLERANCE, SOLDADURA y ACABADO tecleados llegan a
   await expect(prompt(page)).toContainText("Escriba el ajuste ISO 286");
   await type(page, "H7");
   await expect(prompt(page)).toBeHidden();
-  await expect(log(page)).toContainText("DIMTOLERANCE: 1 cota(s) con el ajuste H7; la primera rotula «40.00 +0.025/0 mm».");
+  await expect(log(page)).toContainText("DIMTOLERANCE: 1 cota(s) con el ajuste H7; la primera rotula «40.00 +0.025/0».");
 
   // --- la soldadura ----------------------------------------------------------------
   await type(page, "SOLDADURA");
@@ -177,8 +177,8 @@ test("TORNILLO, GLOBO, BOM, DIMTOLERANCE, SOLDADURA y ACABADO tecleados llegan a
 
   const table = saved.entities.find((entity): entity is CadTable => entity.type === "table");
   expect(table, "la lista de materiales").toBeTruthy();
-  expect(cellTexts(table!, 1)).toEqual(["Pos.", "Cant.", "Denominación", "Norma", "Bloque"]);
-  expect(cellTexts(table!, 2)).toEqual(["1", "1", "Tornillo hexagonal M10 × 40", "ISO 4017", "MECH-TORNILLO-M10x40"]);
+  expect(cellTexts(table!, 1)).toEqual(["Pos.", "Cant.", "Denominación", "Norma", "Peso unit. (kg)", "Peso total (kg)", "Bloque"]);
+  expect(cellTexts(table!, 2)).toEqual(["1", "1", "Tornillo hexagonal M10 × 40", "ISO 4017", expect.any(String), expect.any(String), "MECH-TORNILLO-M10x40"]);
 
   const dimension = saved.entities.find((entity): entity is Extract<CadEntity, { type: "dimension" }> => entity.type === "dimension");
   expect(dimension, "la cota").toBeTruthy();
