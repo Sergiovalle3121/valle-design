@@ -30,7 +30,7 @@ export default function ContactPage() {
   return (
     <PublicPageShell
       eyebrow="Contacto"
-      title="Habla con el operador de este despliegue"
+      title="Habla con nosotros"
       intro="Los canales aparecen sólo cuando se han configurado con una dirección pública real. Esta página no contiene un formulario simulado ni almacena mensajes."
     >
       <PublicSection title="Canales disponibles">
@@ -55,9 +55,8 @@ export default function ContactPage() {
           </ul>
         ) : (
           <p role="status">
-            Este despliegue todavía no tiene un correo público configurado.
-            Solicita al operador que defina las variables de contacto de la
-            marca antes de publicar esta página como canal de atención.
+            Todavía no tenemos un correo público publicado aquí. Escríbenos por
+            los canales que aparecen más abajo o vuelve más tarde.
           </p>
         )}
       </PublicSection>

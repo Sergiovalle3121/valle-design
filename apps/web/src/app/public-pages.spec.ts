@@ -93,7 +93,48 @@ assert.ok(licenses.includes("LICENSE"));
 assert.ok(licenses.includes("THIRD_PARTY_NOTICES.md"));
 
 const status = readFileSync("src/app/status/page.tsx", "utf8");
-assert.match(status, /No se declara ningún estado operativo/);
+assert.match(status, /No se\s+declara ningún estado operativo/);
+
+/**
+ * VOZ PÚBLICA: la superficie comercial habla como VALLECAD al cliente,
+ * no como una instalación operada por un tercero. "despliegue" y "el
+ * operador" son vocabulario de auto-hospedaje que no debe llegar al
+ * visitante de vallecad.com.
+ *
+ * La aserción mira SÓLO texto de cara al usuario — comentarios y
+ * expresiones JSX eliminados — para no penalizar la documentación interna
+ * donde "despliegue" es lenguaje técnico correcto.
+ */
+const voiceRoutes = [
+  "src/app/contact/page.tsx",
+  "src/app/privacy/page.tsx",
+  "src/app/status/page.tsx",
+  "src/app/terms/page.tsx",
+  "src/app/support/page.tsx",
+  ...globSync("src/app/precios/**/*.tsx"),
+].filter((file) => !file.endsWith(".spec.ts"));
+
+/** Elimina comentarios, expresiones JSX {…} y atributos de etiquetas. */
+const stripCode = (source: string) =>
+  source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/[^\n]*/g, "$1")
+    .replace(/\{[^}]*\}/g, "")
+    .replace(/\w+="[^"]*"/g, "");
+
+for (const file of voiceRoutes) {
+  const visible = stripCode(readFileSync(file, "utf8"));
+  assert.doesNotMatch(
+    visible,
+    /\bdespliegue\b/i,
+    `${file}: la superficie pública no debe decir "despliegue"`,
+  );
+  assert.doesNotMatch(
+    visible,
+    /\bel operador\b/i,
+    `${file}: la superficie pública no debe decir "el operador"`,
+  );
+}
 
 /**
  * EL CANDADO DE MARCA, y por qué vive aquí y no en un script suelto.
