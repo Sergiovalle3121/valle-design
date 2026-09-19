@@ -7,6 +7,7 @@
  */
 import { strict as assert } from "node:assert";
 import type { CadEntity } from "../../cad-document";
+import { emptyStyles } from "../../cad-document-shared";
 import { CAD_COMMAND_REGISTRY_V2 } from "../index";
 import "@/lib/cad/engine/all-commands";
 
@@ -74,7 +75,7 @@ function context(overrides: Partial<CadCommandContext> = {}): CadCommandContext 
       entities: SCENE,
       blocks: [],
       layers: [],
-      styles: {},
+      styles: emptyStyles(),
       externalReferences: [],
       modelSpace: { entityIds: SCENE.map((e) => e.id) },
       paperSpaces: [],
@@ -86,13 +87,14 @@ function context(overrides: Partial<CadCommandContext> = {}): CadCommandContext 
       layerStates: [],
     }),
     selection: [],
+    activeLayer: "0",
     variables: {
       get: (name: string) => (name === "VIEWRES" ? 1500 : undefined),
-      set: () => "ok",
-      publish: () => "ok",
+      set: () => ({ ok: true as const, value: 0 }),
+      publish: () => ({ ok: true as const, value: 0 }),
     },
     ...overrides,
-  };
+  } as CadCommandContext;
 }
 
 function runCommand(
@@ -118,7 +120,7 @@ console.log("=== TIME ===");
 {
   const step = runCommand("TIME", []);
   ok(step.result?.kind === "message", "TIME produce mensaje");
-  ok(step.result && "text" in step.result, "TIME tiene texto");
+  ok(step.result !== undefined && "text" in step.result, "TIME tiene texto");
   const text = (step.result as { text: string }).text;
   ok(text.includes("Fecha actual:"), "TIME incluye fecha actual");
   ok(text.includes("Versión del dibujo: 1"), "TIME incluye versión");
@@ -222,7 +224,7 @@ console.log("=== FIND ===");
     { kind: "text", value: "COCINA" },
   ]);
   const descriptor = CAD_COMMAND_REGISTRY_V2.get("FIND");
-  const step2 = descriptor!.step(step1.state, { kind: "text", value: "" }, context());
+  const step2 = descriptor!.step(step1.state as never, { kind: "text", value: "" }, context());
   const text = (step2.result as { text: string }).text;
   ok(text.includes("sin cambios"), "FIND sin reemplazar no muta");
   console.log("  FIND sin reemplazar: " + text);
