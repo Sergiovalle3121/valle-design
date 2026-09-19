@@ -23,6 +23,10 @@ import {
 import { educationModeStatus } from './modules/education/education-mode';
 import { NEST_APP_OPTIONS } from './nest-app-options';
 import { PRODUCT_DISPLAY_NAME } from './common/brand/brand';
+import {
+  assertCsrfCookieDomainAgainstOrigins,
+  csrfCookieDomain,
+} from './modules/identity/identity-csrf-cookie';
 
 function parseAllowedOrigins(raw: string): string[] {
   const value = (raw || '').trim();
@@ -118,6 +122,12 @@ async function bootstrap() {
   const env = process.env.NODE_ENV || 'development';
   const allowedOriginEnv = process.env.ALLOWED_ORIGIN || '';
   const allowedOrigins = parseAllowedOrigins(allowedOriginEnv);
+  // Falla cerrado al arrancar si el dominio de la cookie CSRF está mal escrito
+  // o no cubre ningún origen permitido (identity-csrf-cookie.ts).
+  const csrfDomain = csrfCookieDomain(process.env.CSRF_COOKIE_DOMAIN);
+  if (csrfDomain) {
+    assertCsrfCookieDomainAgainstOrigins(csrfDomain, allowedOrigins);
+  }
   const defaultDevOrigins = [
     'http://localhost:3000',
     'http://localhost:3001',
