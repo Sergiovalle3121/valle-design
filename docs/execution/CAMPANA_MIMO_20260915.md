@@ -174,3 +174,5 @@ Todas hechas antes de esta sesión (commits `4359ef50`–`bd86c7e5`).
 | CONTADOR 2026-09-21 HH:MM | comandos en manifiesto 343 en 122 modulos. ci-fallo resuelto (oracle B). P04 (hero spec), P07 (accept unificado), T14 (DIMBASELINE spacing). Rotacion: ci-fallo+UI+DWG+Nivel. |
 | Golden18 (blocks/INSERT) | resuelto: `rotation` estaba en READONLY_KEYS de property-model.ts. INSERT adapter escribe rotation (block-text-adapters.ts:472), MTEXT también (línea 210). IMAGE lo lee como derivado y su write lo ignora — harmless. Quitado de READONLY_KEYS: golden18 pasa (49s). | 6594d66f |
 | ci-fallo.md (golden18) | verificado: golden18 pasa (52.2s) tras commit 6594d66f. dashboard-document-lifecycle y golden13 ya pasaban según supervisor. ci-fallo.md borrado. | — |
+| NIVEL/T13 | hecha — rótulo de cota sin unidad automática. etiqueta lo decide DIMPOST (prefijo/sufijo). Plantilla mexicana: '3.45', no '3.45 m'. 7 specs actualizados. | 7374786f |
+| CONTADOR 2026-09-18 20:00 | comandos en manifiesto 343 en 122 modulos. NIVEL/T13 (rótulo sin unidad). ci-fallo.md borrado (golden18 verificado). Rotacion: Nivel+ci-fallo. | — |
