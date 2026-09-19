@@ -124,7 +124,7 @@ export const dimensionAdapter: CadEntityAdapter<NativeDimension> = {
       ...entity, a: transformPoint(entity.a, transform), b: transformPoint(entity.b, transform), c: entity.c ? transformPoint(entity.c, transform) : undefined,
       textPosition: entity.textPosition ? transformPoint(entity.textPosition, transform) : undefined,
       offset: (entity.offset ?? 0) * factor * alignedFlip, radius: entity.radius === undefined ? undefined : entity.radius * factor,
-      associative: false, associationStatus: 'detached', context: entity.context ? structuredClone(entity.context) : undefined,
+      context: entity.context ? structuredClone(entity.context) : undefined,
     };
   } },
 };
