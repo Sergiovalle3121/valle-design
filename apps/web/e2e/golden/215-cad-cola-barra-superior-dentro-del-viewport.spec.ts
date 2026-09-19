@@ -7,8 +7,7 @@
  */
 import { test, expect } from "@playwright/test";
 import { installMockBackend } from "../fixtures/mock-backend";
-import { loginAsStandaloneOwner } from "../fixtures/auth";
-import { installCadStudioBackend } from "../fixtures/cad-studio";
+import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 
 const VIEWPORTS = [
   { width: 1280, height: 720 },
@@ -18,12 +17,12 @@ const VIEWPORTS = [
 
 for (const vp of VIEWPORTS) {
   test(`barra superior dentro del viewport a ${vp.width}x${vp.height}`, async ({
+    context,
     page,
   }) => {
     await page.setViewportSize(vp);
-    installMockBackend(page);
-    await loginAsStandaloneOwner(page);
-    installCadStudioBackend(page);
+    await installMockBackend(context);
+    await loginAsStandaloneOwner(context);
 
     await page.goto("/studio/mock-doc");
 
@@ -56,11 +55,10 @@ for (const vp of VIEWPORTS) {
   });
 }
 
-test("la banda de iconos sigue desplazándose a 1280x720", async ({ page }) => {
+test("la banda de iconos sigue desplazándose a 1280x720", async ({ context, page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
-  installMockBackend(page);
-  await loginAsStandaloneOwner(page);
-  installCadStudioBackend(page);
+  await installMockBackend(context);
+  await loginAsStandaloneOwner(context);
 
   await page.goto("/studio/mock-doc");
 
