@@ -89,6 +89,34 @@ function stretchEntityCommand(
   window: Window,
   offset: CadPoint2,
 ): CadEntityCommand | null {
+  // Cotas: cada punto de definición decide por su cuenta, igual que los
+  // vértices de una polilínea. El ancla genérica movería la cota entera si
+  // el punto `a` cae dentro, pero STRETCH debe poder estirar sólo el
+  // extremo `b` (o `c`) sin tocar el otro.
+  if (entity.type === "dimension") {
+    const aIn = inside(window, entity.a);
+    const bIn = inside(window, entity.b);
+    const cIn = entity.c ? inside(window, entity.c) : false;
+    const tIn = entity.textPosition ? inside(window, entity.textPosition) : false;
+    if (!aIn && !bIn && !cIn && !tIn) return null;
+    if (aIn && bIn && (!entity.c || cIn))
+      return { type: "transform", entityId: entity.id, transform: { translation: offset } };
+    return {
+      type: "replace",
+      entityId: entity.id,
+      entity: {
+        ...entity,
+        a: aIn ? { x: entity.a.x + offset.x, y: entity.a.y + offset.y } : entity.a,
+        b: bIn ? { x: entity.b.x + offset.x, y: entity.b.y + offset.y } : entity.b,
+        c: entity.c && cIn ? { x: entity.c.x + offset.x, y: entity.c.y + offset.y } : entity.c,
+        textPosition: entity.textPosition && tIn
+          ? { x: entity.textPosition.x + offset.x, y: entity.textPosition.y + offset.y, z: entity.textPosition.z }
+          : entity.textPosition,
+        context: entity.context ? structuredClone(entity.context) : undefined,
+      } as CadNativeEntity,
+    };
+  }
+
   const anchor = cadStretchAnchorPoint(entity);
   if (anchor)
     return inside(window, anchor)
