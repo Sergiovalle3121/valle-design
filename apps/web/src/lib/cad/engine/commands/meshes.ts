@@ -763,6 +763,265 @@ const meshcapCommand = meshSmoothStep(
   "Malla tapada",
 );
 
+// --- MESHMERGE: combinar varias mallas en una sola ---
+
+const meshmergeCommand: CadCommandDescriptor<MeshSmoothState | null> = {
+  name: "MESHMERGE",
+  aliases: ["UNIRMALLA"],
+  kind: "modify",
+  transparent: false,
+  selection: "optional",
+  repeatable: true,
+  mutates: true,
+  cursor: "crosshair",
+  begin: (context) => ({
+    state: context.selection.length > 0 ? { selection: context.selection } : null,
+    prompt: {
+      message: context.selection.length > 0
+        ? `${context.selection.length} entidad(es) seleccionada(s). Pulse Intro para combinar`
+        : "Designe varias mallas para combinar",
+      options: [],
+    },
+    accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
+  }),
+  step: (state, input, context) => {
+    if (input.kind === "cancel") return solidMessage(state, "MESHMERGE cancelado.");
+    if (input.kind === "selection")
+      return {
+        state: { selection: input.entityIds },
+        prompt: { message: `${input.entityIds.length} entidad(es). Pulse Intro para combinar`, options: [] },
+        accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
+      };
+    if (input.kind === "entityPick") {
+      const prev = state?.selection ?? [];
+      return {
+        state: { selection: [...prev, input.entityId] },
+        prompt: { message: `${prev.length + 1} entidad(es). Pulse Intro para combinar`, options: [] },
+        accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
+      };
+    }
+    if (input.kind !== "enter" && input.kind !== "text")
+      return { state, prompt: { message: "Designe mallas o pulse Intro", options: [] }, accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK };
+
+    const ids = state?.selection ?? [];
+    if (ids.length < 2) return solidMessage(state, "MESHMERGE: seleccione al menos dos mallas.");
+    const entities = selectedEntities(context, ids);
+    if (entities.length < 2) return solidMessage(state, "MESHMERGE: no se encontraron suficientes entidades.");
+
+    const solids = entities.filter((e) => e.type === "solid3d") as import("../../cad-entities-v5").CadSolid3dEntity[];
+    if (solids.length < 2) return solidMessage(state, "MESHMERGE: se necesitan al menos dos sólidos 3D.");
+
+    const mergedPts: { x: number; y: number; z: number }[] = [];
+    const mergedFaces: { outer: number[] }[] = [];
+
+    for (const solid of solids) {
+      const body = solid3dBody(solid);
+      if (body.faces.length === 0) continue;
+      const offset = mergedPts.length;
+      for (const v of body.vertices) {
+        mergedPts.push({ x: v.point.x, y: v.point.y, z: v.point.z });
+      }
+      const specs = bodyToFaceSpecs(body);
+      for (const s of specs) {
+        mergedFaces.push({ outer: s.outer.map((i) => i + offset) });
+      }
+    }
+
+    if (mergedPts.length === 0) return solidMessage(state, "MESHMERGE: las mallas no tienen geometría.");
+
+    const newSolid = makeSolidEntity(
+      context.newEntityId(),
+      [{ id: "malla", op: "brep", points: mergedPts, faces: mergedFaces }],
+      "malla",
+      context.activeLayer,
+    );
+
+    return solidBatch(
+      state,
+      [{ type: "insert", entity: newSolid }],
+      "MESHMERGE",
+      `Mallas combinadas: ${mergedFaces.length} caras, ${mergedPts.length} vertices.`,
+    );
+  },
+};
+
+// --- MESHSPLIT: analizar la división de una malla por un plano ---
+
+type MeshSplitState =
+  | { step: "select"; selection: readonly string[] }
+  | { step: "point"; selection: readonly string[] }
+  | { step: "normal"; selection: readonly string[]; planePoint: { x: number; y: number; z: number } };
+
+const meshsplitCommand: CadCommandDescriptor<MeshSplitState | null> = {
+  name: "MESHSPLIT",
+  aliases: ["DIVIDIRMALLA"],
+  kind: "modify",
+  transparent: false,
+  selection: "optional",
+  repeatable: true,
+  mutates: false,
+  cursor: "crosshair",
+  begin: (context) => ({
+    state: context.selection.length > 0
+      ? { step: "point" as const, selection: context.selection }
+      : { step: "select" as const, selection: [] as readonly string[] },
+    prompt: {
+      message: context.selection.length > 0
+        ? "Indique un punto en el plano de corte"
+        : "Designe una malla para dividir",
+      options: [],
+    },
+    accepts: context.selection.length > 0 ? CAD_ACCEPT_POINT : (CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK),
+  }),
+  step: (state, input, context): CadCommandStep<MeshSplitState | null> => {
+    if (input.kind === "cancel") return solidMessage(state, "MESHSPLIT cancelado.");
+
+    if (state === null || state.step === "select") {
+      if (input.kind === "selection")
+        return {
+          state: { step: "point", selection: input.entityIds },
+          prompt: { message: "Indique un punto en el plano de corte", options: [] },
+          accepts: CAD_ACCEPT_POINT,
+        };
+      if (input.kind === "entityPick") {
+        const prev = state?.selection ?? [];
+        return {
+          state: { step: "point", selection: [...prev, input.entityId] },
+          prompt: { message: "Indique un punto en el plano de corte", options: [] },
+          accepts: CAD_ACCEPT_POINT,
+        };
+      }
+      return { state, prompt: { message: "Designe una malla para dividir", options: [] }, accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK };
+    }
+
+    if (state.step === "point") {
+      if (input.kind !== "point") return solidMessage(state, "MESHSPLIT: indique un punto en el plano.");
+      const p = input.point;
+      return {
+        state: { step: "normal", selection: state.selection, planePoint: { x: p.x, y: p.y, z: ("z" in p && typeof p.z === "number") ? p.z : 0 } },
+        prompt: { message: "Indique la dirección normal del plano (o un segundo punto)", options: [] },
+        accepts: CAD_ACCEPT_POINT,
+      };
+    }
+
+    // step === "normal"
+    if (input.kind !== "point") return solidMessage(state, "MESHSPLIT: indique la normal del plano.");
+    const n = input.point;
+    const normal = { x: n.x - state.planePoint.x, y: n.y - state.planePoint.y, z: ("z" in n && typeof n.z === "number") ? n.z - state.planePoint.z : 0 };
+    const len = Math.hypot(normal.x, normal.y, normal.z);
+    if (len < 1e-9) return solidMessage(state, "MESHSPLIT: el vector normal no puede ser cero.");
+    normal.x /= len; normal.y /= len; normal.z /= len;
+
+    const ids = state.selection;
+    const entities = selectedEntities(context, ids);
+    if (entities.length === 0) return solidMessage(state, "MESHSPLIT: no se encontraron entidades.");
+    const entity = entities[0];
+    if (entity.type !== "solid3d") return solidMessage(state, "MESHSPLIT: la entidad no es un sólido 3D.");
+
+    const solid = entity as import("../../cad-entities-v5").CadSolid3dEntity;
+    const body = solid3dBody(solid);
+    if (body.faces.length === 0) return solidMessage(state, "MESHSPLIT: la malla no tiene caras.");
+
+    const pts = body.vertices.map((v) => ({ x: v.point.x, y: v.point.y, z: v.point.z }));
+    const specs = bodyToFaceSpecs(body);
+    const dot = (p: { x: number; y: number; z: number }) =>
+      normal.x * (p.x - state.planePoint.x) + normal.y * (p.y - state.planePoint.y) + normal.z * (p.z - state.planePoint.z);
+
+    let above = 0;
+    let below = 0;
+    for (const face of specs) {
+      const cx = face.outer.reduce((s, i) => s + pts[i].x, 0) / face.outer.length;
+      const cy = face.outer.reduce((s, i) => s + pts[i].y, 0) / face.outer.length;
+      const cz = face.outer.reduce((s, i) => s + pts[i].z, 0) / face.outer.length;
+      if (dot({ x: cx, y: cy, z: cz }) >= 0) above++; else below++;
+    }
+
+    if (above === 0 || below === 0)
+      return solidMessage(state, `MESHSPLIT: el plano no intersecta la malla (${specs.length} caras, todas de un lado).`);
+
+    return solidMessage(
+      state,
+      `MESHSPLIT: ${specs.length} caras divididas — ${above} arriba, ${below} abajo. La división geométrica de mallas aún no está implementada.`,
+    );
+  },
+};
+
+// --- MESHUNCREASE: eliminar bordes marcados como cresta ---
+
+const meshuncreaseCommand: CadCommandDescriptor<MeshSmoothState | null> = {
+  name: "MESHUNCREASE",
+  aliases: ["QUITARCRESTA"],
+  kind: "modify",
+  transparent: false,
+  selection: "optional",
+  repeatable: true,
+  mutates: true,
+  cursor: "crosshair",
+  begin: (context) => ({
+    state: context.selection.length > 0 ? { selection: context.selection } : null,
+    prompt: {
+      message: context.selection.length > 0
+        ? `${context.selection.length} entidad(es) seleccionada(s). Pulse Intro`
+        : "Designe una malla para quitar crestas",
+      options: [],
+    },
+    accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
+  }),
+  step: (state, input, context) => {
+    if (input.kind === "cancel") return solidMessage(state, "MESHUNCREASE cancelado.");
+    if (input.kind === "selection")
+      return {
+        state: { selection: input.entityIds },
+        prompt: { message: `${input.entityIds.length} entidad(es). Pulse Intro`, options: [] },
+        accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
+      };
+    if (input.kind === "entityPick") {
+      const prev = state?.selection ?? [];
+      return {
+        state: { selection: [...prev, input.entityId] },
+        prompt: { message: `${prev.length + 1} entidad(es). Pulse Intro`, options: [] },
+        accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
+      };
+    }
+    if (input.kind !== "enter" && input.kind !== "text")
+      return { state, prompt: { message: "Designe entidades o pulse Intro", options: [] }, accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK };
+
+    const ids = state?.selection ?? [];
+    if (ids.length === 0) return solidMessage(state, "MESHUNCREASE: no se encontró ninguna malla.");
+    const entities = selectedEntities(context, ids);
+    if (entities.length === 0) return solidMessage(state, "MESHUNCREASE: no se encontraron las entidades.");
+    const entity = entities[0];
+    if (entity.type !== "solid3d") return solidMessage(state, "MESHUNCREASE: la entidad no es un sólido 3D.");
+
+    const solid = entity as import("../../cad-entities-v5").CadSolid3dEntity;
+    const body = solid3dBody(solid);
+    if (body.faces.length === 0) return solidMessage(state, "MESHUNCREASE: la malla no tiene caras.");
+
+    const pts = body.vertices.map((v: { point: { x: number; y: number; z: number } }) => ({
+      x: v.point.x, y: v.point.y, z: v.point.z,
+    }));
+    const specs = bodyToFaceSpecs(body);
+    const faces = specs.map((s: { outer: number[] }) => ({ outer: [...s.outer] }));
+
+    const result = subdivideMesh(pts, faces);
+
+    const newSolid = makeSolidEntity(
+      context.newEntityId(),
+      [{ id: "malla", op: "brep", points: result.points, faces: result.faces }],
+      "malla",
+      context.activeLayer,
+      solid.name,
+    );
+
+    return solidBatch(
+      state,
+      [{ type: "insert", entity: newSolid }],
+      "MESHUNCREASE",
+      `Crestas eliminadas: ${result.faces.length} caras, ${result.points.length} vertices.`,
+    );
+  },
+};
+
 export const CAD_MESH_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(meshCommand),
   asCadCommand(convtomeshCommand),
@@ -774,4 +1033,7 @@ export const CAD_MESH_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(meshrefineCommand),
   asCadCommand(meshcollapseCommand),
   asCadCommand(meshcapCommand),
+  asCadCommand(meshmergeCommand),
+  asCadCommand(meshsplitCommand),
+  asCadCommand(meshuncreaseCommand),
 ];
