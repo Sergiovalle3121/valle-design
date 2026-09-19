@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { cx } from "@/components/ui";
 import type { CadRibbonPanel as CadRibbonPanelData } from "@/lib/cad/ribbon";
 import {
@@ -8,7 +9,7 @@ import {
   type CadRibbonPanelLayout,
 } from "@/lib/cad/ribbon-layout";
 import { CadRibbonButton } from "./CadRibbonButton";
-import { CadRibbonPanelFlyout } from "./CadRibbonPanelFlyout";
+import { CadRibbonPanelFlyout, type CadRibbonPanelAction } from "./CadRibbonPanelFlyout";
 import { cadRibbonPanelIcon } from "./ribbon-icons";
 
 /**
@@ -29,7 +30,15 @@ import { cadRibbonPanelIcon } from "./ribbon-icons";
  * necesita cada píxel (golden 19) y una cinta que cambia de alto mueve la
  * cámara (golden 72).
  *
- * Pulsar el rótulo pliega el panel a mano; la cinta lo recuerda.
+ * ## El rótulo ABRE el panel
+ *
+ * Como en AutoCAD, pulsar la barra del rótulo (rótulo + ▾) abre el
+ * desplegable con lo que no cabe. Antes el rótulo PLEGABA el panel a un botón
+ * y la cinta lo guardaba para siempre: quien buscaba «Dibujo» se quedaba sin
+ * sus botones. Plegar a mano sigue existiendo, pero se pide a propósito desde
+ * la cabecera del desplegable («Plegar a un botón»), y el panel plegado a
+ * mano ofrece allí mismo «Mostrar en la cinta». Un panel que lo enseña todo
+ * no tiene desplegable y su rótulo es sólo texto.
  */
 export function CadRibbonPanel({
   panel,
@@ -54,23 +63,31 @@ export function CadRibbonPanel({
   // (un solo Tab-stop, roving tabindex) que la cinta no implementa todavía
   // — prometerlo con el rol sin dar el teclado sería peor que no marcarlo.
   const labelId = `cad-ribbon-panel-label-${panel.label}`;
+  // El desplegable se abre bajo el panel ENTERO, no bajo su rótulo.
+  const panelRef = useRef<HTMLDivElement>(null);
   const effectiveLayout: CadRibbonPanelLayout = layout ?? {
     state: "expanded",
     columns: cadRibbonPanelNaturalColumns(panel),
   };
   const split = cadRibbonPanelSplit(panel, effectiveLayout);
   const collapsed = effectiveLayout.state === "collapsed";
+  let panelAction: CadRibbonPanelAction | undefined;
+  if (onToggleCollapsed && collapsed && manuallyCollapsed) {
+    panelAction = { label: "Mostrar en la cinta", testId: `cad-ribbon-panel-expand-${panel.label}`, run: onToggleCollapsed };
+  } else if (onToggleCollapsed && !collapsed) {
+    panelAction = { label: "Plegar a un botón", testId: `cad-ribbon-panel-collapse-${panel.label}`, run: onToggleCollapsed };
+  }
   return (
     <div
+      ref={panelRef}
       data-testid={`cad-ribbon-panel-${panel.label}`}
       role="group"
       aria-labelledby={labelId}
       data-layout={effectiveLayout.state}
       data-columns={effectiveLayout.columns}
-      // `relative`: el desplegable se ancla bajo el panel entero.
       // pt-0.5 / pb-0: a 720 px de alto el lienzo necesita cada píxel.
       className={cx(
-        "relative flex shrink-0 flex-col border-r border-border/60 pb-0 pt-0.5 last:border-r-0",
+        "flex shrink-0 flex-col border-r border-border/60 pb-0 pt-0.5 last:border-r-0",
         collapsed ? "px-0.5" : "px-2",
       )}
     >
@@ -83,7 +100,8 @@ export function CadRibbonPanel({
           commands={split.flyout}
           onRun={onRun}
           disabledCommands={disabledCommands}
-          onExpandPanel={manuallyCollapsed ? onToggleCollapsed : undefined}
+          anchorRef={panelRef}
+          panelAction={panelAction}
         />
       ) : (
         <>
@@ -111,33 +129,23 @@ export function CadRibbonPanel({
               </div>
             ) : null}
           </div>
-          <div className="flex items-center justify-center gap-0.5">
-            {onToggleCollapsed ? (
-              <button
-                type="button"
-                id={labelId}
-                data-testid={`cad-ribbon-panel-collapse-${panel.label}`}
-                onClick={onToggleCollapsed}
-                title={`Plegar el panel ${panel.label} a un botón`}
-                className="type-micro rounded-control px-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                {panel.label}
-              </button>
-            ) : (
-              <span id={labelId} className="type-micro px-1 text-muted-foreground">
-                {panel.label}
-              </span>
-            )}
+          <div className="flex items-center justify-center">
             {split.flyout.length > 0 ? (
               <CadRibbonPanelFlyout
-                variant="caret"
+                variant="title"
                 panelLabel={panel.label}
                 labelId={labelId}
                 commands={split.flyout}
                 onRun={onRun}
                 disabledCommands={disabledCommands}
+                anchorRef={panelRef}
+                panelAction={panelAction}
               />
-            ) : null}
+            ) : (
+              <span id={labelId} className="type-micro px-1 text-muted-foreground">
+                {panel.label}
+              </span>
+            )}
           </div>
         </>
       )}

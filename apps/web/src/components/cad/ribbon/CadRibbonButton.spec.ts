@@ -1,6 +1,7 @@
 /**
  * El botón de la cinta, renderizado: rótulo en español en el botón; nombre,
- * alias y descripción en el tooltip; dos tamaños según `command.primary`.
+ * alias y descripción en el tooltip (que se abre en un portal, fuera de la
+ * tira que lo recortaba); dos tamaños según `command.primary`.
  *
  * Se renderiza con `renderToStaticMarkup` sobre comandos REALES de
  * `CAD_RIBBON_DATA` (los iconos están indexados por nombre y un comando
@@ -13,7 +14,8 @@ import { strict as assert } from "node:assert";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { findCadRibbonCommand } from "@/lib/cad/ribbon";
-import { CadRibbonButton, cadRibbonButtonTitle } from "./CadRibbonButton";
+import { CadRibbonButton, cadRibbonButtonTitle, cadRibbonButtonTooltip } from "./CadRibbonButton";
+import { CadRibbonTooltipCard } from "./CadRibbonTooltip";
 
 let checks = 0;
 const ok = (condition: boolean, message: string) => {
@@ -32,10 +34,21 @@ ok(html.includes('data-primary="true"'), "un primario lleva data-primary");
 ok(html.includes('data-size="large"'), "un primario se pinta grande por defecto");
 ok(html.includes("h-6 w-6"), "el icono grande mide 24 px");
 ok(html.includes(">Línea<"), "el botón pinta el rótulo en español, no LINE");
-// El tooltip trae las tres líneas: rótulo · NOMBRE (alias) · descripción.
-ok(html.includes('role="tooltip"'), "hay tooltip");
-ok(html.includes("LINE (L)"), "el tooltip dice el nombre canónico con su alias");
-ok(html.includes(line.summary), "el tooltip dice la descripción");
+// El tooltip ya NO cuelga del botón: dentro de la tira de paneles
+// (`overflow-x-auto`, que fuerza `overflow-y`) quedaba recortado y no se veía
+// nunca. Se monta al pasar el ratón, en un portal a <body> (`CadRibbonTooltip`).
+ok(!html.includes('role="tooltip"'), "el tooltip no se pinta dentro de la cinta, donde la tira lo recortaba");
+ok(html.includes("data-cad-ribbon-tooltip"), "el botón va envuelto en el disparador de su tooltip");
+// La tarjeta que se monta trae las tres líneas: rótulo · NOMBRE (alias) · descripción.
+const tip = renderToStaticMarkup(createElement(CadRibbonTooltipCard, cadRibbonButtonTooltip(line)));
+ok(tip.includes('role="tooltip"'), "hay tooltip");
+ok(tip.includes(">Línea<"), "el tooltip dice el rótulo en español");
+ok(tip.includes("LINE (L)"), "el tooltip dice el nombre canónico con su alias");
+ok(tip.includes(line.summary), "el tooltip dice la descripción");
+ok(
+  /\bfixed\b/.test(tip) && tip.includes("pointer-events-none") && tip.includes("z-[90]") && tip.includes("invisible"),
+  "la tarjeta es fixed (la coloca ribbon-floating al montarla), no roba clics y queda sobre los desplegables",
+);
 ok(html.includes(`title="${cadRibbonButtonTitle(line)}"`), "el title nativo trae rótulo · NOMBRE (alias) — descripción");
 ok(cadRibbonButtonTitle(line) === `Línea · LINE (L) — ${line.summary}`, "formato del title nativo");
 ok(!/bg-primary|bg-brand/.test(html), "sin relleno --primary/brand en el botón: relleno y tinta son tokens distintos");
