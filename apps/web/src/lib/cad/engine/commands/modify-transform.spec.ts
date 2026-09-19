@@ -19,6 +19,7 @@
 import { strict as assert } from "node:assert";
 import type { CadEntity } from "../../cad-document";
 import type { CadCommandContext, CadCommandInput } from "../command-types";
+import { CadSystemVariableStore } from "../../system-variables";
 import { CAD_MODIFY_TRANSFORM_COMMANDS } from "./modify-transform";
 
 const commands = new Map(CAD_MODIFY_TRANSFORM_COMMANDS.map((command) => [command.name, command]));
@@ -335,23 +336,35 @@ const pick = (entityId: string): CadCommandInput => ({
   assert.ok(Math.abs((qPatch.patch.startY as number) - 0) < 1e-9, `q nace en la esquina: ${qPatch.patch.startY}`);
 }
 
-// --- el radio es pegajoso entre esquinas ---------------------------------------
+// --- el radio es pegajoso entre invocaciones (por variables de sistema) ------
 {
   const descriptor = commands.get("FILLET");
   assert.ok(descriptor);
-  const context = makeContext();
+  const store = new CadSystemVariableStore();
+  const entities = new Map([LINE_A, LINE_B].map((entity) => [entity.id, entity]));
+  let ids = 0;
+  const context: CadCommandContext = {
+    entityIds: [...entities.keys()],
+    entity: (id) => entities.get(id),
+    selection: [],
+    activeLayer: "0",
+    view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+    newEntityId: () => `sticky${++ids}`,
+    variables: store,
+  };
+  // Primera invocación: fija radio a 50 y ejecuta
   let step = descriptor.begin(context);
   step = descriptor.step(step.state, keyword("Radio"), context);
   step = descriptor.step(step.state, distance(50), context);
   step = descriptor.step(step.state, pick("a"), context);
   step = descriptor.step(step.state, pick("b"), context);
-  assert.ok(step.result?.kind === "document");
-  // Tras terminar, el estado conserva el radio: repetir con Espacio no obliga a
-  // teclearlo otra vez en cada esquina del contorno.
-  const next = descriptor.step(step.state, pick("a"), context);
+  assert.ok(step.result?.kind === "document", "FILLET con radio 50 produce documento");
+  assert.equal(store.get("FILLETRAD"), 50, "FILLETRAD quedó en 50 en la variable de sistema");
+  // Segunda invocación: begin de nuevo SIN teclear radio — debe recordar 50
+  const step2 = descriptor.begin(context);
   assert.ok(
-    next.prompt.message.includes("50") || (next.state as { primary: number }).primary === 50,
-    "el radio sobrevive al comando",
+    step2.prompt.message.includes("50"),
+    `el radio sobrevive a begin: «${step2.prompt.message}»`,
   );
 }
 

@@ -623,7 +623,13 @@ function cornerCommand(
     repeatable: true,
     mutates: true,
     cursor: "pick",
-    begin: () => cornerStep(initial, label),
+    begin: (context) => {
+      const v = context.variables;
+      const remembered: CornerState = label === "FILLET"
+        ? { ...initial, primary: Number(v?.get("FILLETRAD") ?? 0) }
+        : { ...initial, primary: Number(v?.get("CHAMFERA") ?? 0), secondary: Number(v?.get("CHAMFERB") ?? 0) };
+      return cornerStep(remembered, label);
+    },
     step: (state, input, context) => {
       if (input.kind === "cancel" || input.kind === "enter")
         return cornerFinish([], label, state);
@@ -634,6 +640,7 @@ function cornerCommand(
       if (input.kind === "distance") {
         if (state.asking === "primary") {
           const value = Math.abs(input.value);
+          context.variables?.set(label === "FILLET" ? "FILLETRAD" : "CHAMFERA", value);
           return cornerStep(
             label === "CHAMFER"
               ? { ...state, primary: value, secondary: value, asking: "secondary" }
@@ -641,8 +648,11 @@ function cornerCommand(
             label,
           );
         }
-        if (state.asking === "secondary")
-          return cornerStep({ ...state, secondary: Math.abs(input.value), asking: "none" }, label);
+        if (state.asking === "secondary") {
+          const value = Math.abs(input.value);
+          context.variables?.set("CHAMFERB", value);
+          return cornerStep({ ...state, secondary: value, asking: "none" }, label);
+        }
         return cornerStep(state, label);
       }
 

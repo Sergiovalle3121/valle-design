@@ -456,4 +456,42 @@ assert.equal(
   assert.equal(offsetCommands.length, 2, "OFFSET: los 2 desfases se conservan");
 }
 
+// --- OFFSET recuerda la última distancia (por variables de sistema) ----------
+{
+  const store = new Map<string, number | string>();
+  const vars = {
+    get: (name: string) => store.get(name),
+    set: (name: string, value: number | string) => { store.set(name, value); return { ok: true as const, value }; },
+    publish: (name: string, value: number | string) => { store.set(name, value); return { ok: true as const, value }; },
+  };
+  const offsetCtxMem = (): CadCommandContext => ({
+    entityIds: [...entities.keys()],
+    entity: (id) => entities.get(id),
+    selection: [],
+    activeLayer: "0",
+    view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+    newEntityId: () => `mem${++nextId}`,
+    variables: vars,
+  });
+  let state2: CadCommandEngineState = EMPTY_CAD_COMMAND_ENGINE;
+  const effects2: CadCommandEffect[] = [];
+  const run2 = (action: CadCommandAction) => {
+    const r = cadCommandEngineReduce(state2, action, offsetCtxMem(), registry);
+    state2 = r.state;
+    effects2.push(...r.effects);
+  };
+  // Primera invocación: fija distancia a 100
+  run2({ kind: "invoke", command: "OFFSET" });
+  run2({ kind: "input", input: { kind: "distance", value: 100 } });
+  assert.equal(store.get("OFFSETDIST"), 100, "OFFSETDIST quedó en 100");
+  // Segunda invocación: begin de nuevo — debe proponer 100
+  const desc = registry.get("OFFSET");
+  assert.ok(desc);
+  const step2 = desc.begin(offsetCtxMem());
+  assert.ok(
+    step2.prompt.message.includes("100"),
+    `OFFSET recuerda distancia: «${step2.prompt.message}»`,
+  );
+}
+
 console.log("cad modify command specs passed");

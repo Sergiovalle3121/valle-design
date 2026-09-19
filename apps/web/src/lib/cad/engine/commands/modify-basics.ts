@@ -340,9 +340,15 @@ function offsetStep(state: OffsetState): CadCommandStep<OffsetState> {
       prompt: { message: "Precise punto en lado de desplazamiento", options: [] },
       accepts: CAD_ACCEPT_POINT,
     };
+  const remembered = state.commands.length === 0 && state.distance !== 0;
   return {
     state,
-    prompt: { message: "Designe el objeto a desplazar", options: [] },
+    prompt: {
+      message: remembered
+        ? `Distancia actual = ${state.distance}. Designe el objeto a desplazar`
+        : "Designe el objeto a desplazar",
+      options: [],
+    },
     accepts: CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_SELECTION | CAD_ACCEPT_KEYWORD,
   };
 }
@@ -388,7 +394,10 @@ const offsetCommand: CadCommandDescriptor<OffsetState> = {
   repeatable: true,
   mutates: true,
   cursor: "pick",
-  begin: () => offsetStep({ distance: null, commands: [], pendingTarget: null }),
+  begin: (context) => {
+    const remembered = Number(context.variables?.get("OFFSETDIST") ?? 0);
+    return offsetStep({ distance: remembered || null, commands: [], pendingTarget: null });
+  },
   step: (state, input, context) => {
     // T15: Esc conserva desfases ya hechos
     if (input.kind === "cancel")
@@ -413,7 +422,10 @@ const offsetCommand: CadCommandDescriptor<OffsetState> = {
       };
 
     if (state.distance === null) {
-      if (input.kind === "distance") return offsetStep({ ...state, distance: input.value });
+      if (input.kind === "distance") {
+        context.variables?.set("OFFSETDIST", input.value);
+        return offsetStep({ ...state, distance: input.value });
+      }
       return offsetStep(state);
     }
 

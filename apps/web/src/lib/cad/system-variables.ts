@@ -170,6 +170,7 @@ export const CAD_SYSTEM_VARIABLES: readonly CadSystemVariableDef[] = [
   real("FILLETRAD", 0, "Radio de empalme actual", { min: 0 }),
   real("CHAMFERA", 0, "Primera distancia de chaflán", { min: 0 }),
   real("CHAMFERB", 0, "Segunda distancia de chaflán", { min: 0 }),
+  real("OFFSETDIST", 0, "Distancia de desfase recordada"),
   real("TEXTSIZE", 2.5, "Altura de texto por defecto", { min: 1e-6 }),
   real("DIMSCALE", 1, "Escala general de las cotas", { min: 1e-6 }),
   text("DIMSTYLE", "", "Estilo de cota vigente: nombre del estilo que reciben las cotas nuevas"),
