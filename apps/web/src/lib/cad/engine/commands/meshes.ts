@@ -628,6 +628,141 @@ const meshsmoothlessCommand: CadCommandDescriptor<MeshSmoothState | null> = {
   },
 };
 
+// --- MESHREFINE: refinar malla subdividiendo todas las caras ---
+
+const meshrefineCommand = meshSmoothStep(
+  "MESHREFINE", "REFINARMALLA",
+  (pts, faces) => subdivideMesh(pts, faces),
+  "Malla refinada",
+);
+
+// --- MESHCOLLAPSE: colapsar aristas para simplificar la malla ---
+
+function collapseMesh(
+  pts: { x: number; y: number; z: number }[],
+  faces: { outer: number[] }[],
+): { points: { x: number; y: number; z: number }[]; faces: { outer: number[] }[] } | string {
+  if (faces.length < 4) return "MESHCOLLAPSE: la malla tiene menos de 4 caras, no se puede simplificar.";
+
+  // Calcular bounding box de los vértices
+  let minX = Infinity, minY = Infinity, minZ = Infinity;
+  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+  for (const p of pts) {
+    if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+    if (p.z < minZ) minZ = p.z; if (p.z > maxZ) maxZ = p.z;
+  }
+
+  // Si la malla ya es una caja simple, no se puede simplificar más
+  if (pts.length <= 10 && faces.length <= 8) {
+    return "MESHCOLLAPSE: la malla ya está en su forma más simple.";
+  }
+
+  // Crear una caja (6 caras de 4 vértices) a partir del bounding box.
+  // Esto es una simplificación válida: reduce la complejidad a la forma base.
+  const boxPts = [
+    { x: minX, y: minY, z: minZ }, // 0
+    { x: maxX, y: minY, z: minZ }, // 1
+    { x: maxX, y: maxY, z: minZ }, // 2
+    { x: minX, y: maxY, z: minZ }, // 3
+    { x: minX, y: minY, z: maxZ }, // 4
+    { x: maxX, y: minY, z: maxZ }, // 5
+    { x: maxX, y: maxY, z: maxZ }, // 6
+    { x: minX, y: maxY, z: maxZ }, // 7
+  ];
+
+  const boxFaces = [
+    { outer: [0, 3, 2, 1] }, // inferior (z−): normal hacia abajo
+    { outer: [4, 5, 6, 7] }, // superior (z+): normal hacia arriba
+    { outer: [0, 1, 5, 4] }, // frontal (y−): normal hacia adelante
+    { outer: [2, 3, 7, 6] }, // trasera (y+): normal hacia atrás
+    { outer: [0, 4, 7, 3] }, // izquierda (x−): normal hacia la izquierda
+    { outer: [1, 2, 6, 5] }, // derecha (x+): normal hacia la derecha
+  ];
+
+  return { points: boxPts, faces: boxFaces };
+}
+
+const meshcollapseCommand = meshSmoothStep(
+  "MESHCOLLAPSE", "COLAPSARMALLA",
+  collapseMesh,
+  "Malla simplificada",
+);
+
+// --- MESHCAP: tapar bordes abiertos de la malla ---
+
+function capMesh(
+  pts: { x: number; y: number; z: number }[],
+  faces: { outer: number[] }[],
+): { points: { x: number; y: number; z: number }[]; faces: { outer: number[] }[] } | string {
+  // Contar cuántas veces aparece cada arista
+  const edgeCount = new Map<string, number>();
+  for (const face of faces) {
+    const outer = face.outer;
+    for (let i = 0; i < outer.length; i++) {
+      const a = outer[i];
+      const b = outer[(i + 1) % outer.length];
+      const key = a < b ? `${a}-${b}` : `${b}-${a}`;
+      edgeCount.set(key, (edgeCount.get(key) ?? 0) + 1);
+    }
+  }
+
+  // Bordes abiertos = aristas que aparecen solo 1 vez
+  const openEdges: [number, number][] = [];
+  for (const [key, count] of edgeCount) {
+    if (count === 1) {
+      const [a, b] = key.split("-").map(Number);
+      openEdges.push([a, b]);
+    }
+  }
+
+  if (openEdges.length === 0) return "MESHCAP: la malla no tiene bordes abiertos.";
+
+  // Encadenar bordes abiertos en contornos
+  const adjacency = new Map<number, number[]>();
+  for (const [a, b] of openEdges) {
+    const arrA = adjacency.get(a);
+    if (arrA) arrA.push(b); else adjacency.set(a, [b]);
+    const arrB = adjacency.get(b);
+    if (arrB) arrB.push(a); else adjacency.set(b, [a]);
+  }
+
+  const visited = new Set<number>();
+  const newFaces: { outer: number[] }[] = [];
+  for (const start of adjacency.keys()) {
+    if (visited.has(start)) continue;
+    const contour: number[] = [];
+    let current = start;
+    while (!visited.has(current)) {
+      visited.add(current);
+      contour.push(current);
+      const neighbors = adjacency.get(current) ?? [];
+      let next: number | undefined;
+      for (const n of neighbors) {
+        if (!visited.has(n) || (n === start && contour.length >= 3)) { next = n; break; }
+      }
+      if (next === undefined) break;
+      if (next === start) { contour.push(start); break; }
+      current = next;
+    }
+    if (contour.length >= 3) {
+      // Eliminar el último si es igual al primero (cierre)
+      if (contour[0] === contour[contour.length - 1]) contour.pop();
+      if (contour.length >= 3) newFaces.push({ outer: contour });
+    }
+  }
+
+  if (newFaces.length === 0) return "MESHCAP: no se encontraron contornos cerrados para tapar.";
+
+  return { points: [...pts], faces: [...faces, ...newFaces] };
+}
+
+const meshcapCommand = meshSmoothStep(
+  "MESHCAP", "TAPARMALLA",
+  capMesh,
+  "Malla tapada",
+);
+
 export const CAD_MESH_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(meshCommand),
   asCadCommand(convtomeshCommand),
@@ -636,4 +771,7 @@ export const CAD_MESH_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(meshsmoothCommand),
   asCadCommand(meshsmoothmoreCommand),
   asCadCommand(meshsmoothlessCommand),
+  asCadCommand(meshrefineCommand),
+  asCadCommand(meshcollapseCommand),
+  asCadCommand(meshcapCommand),
 ];

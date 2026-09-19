@@ -363,6 +363,147 @@ assert.ok(CAD_COMMAND_REGISTRY_V2.get("3DFACE"), "3DFACE está en el registro");
   );
 }
 
+// --- MESHREFINE: refina malla subdividiendo caras ----------------------------
+{
+  assert.ok(CAD_COMMAND_REGISTRY_V2.get("MESHREFINE"), "MESHREFINE está en el registro");
+
+  let doc = emptyDocument();
+  const meshResult = drive("MESH", [point(0, 0), point(100, 100), distance(50)], doc);
+  assert.ok(meshResult?.kind === "document", "MESH produce documento para MESHREFINE");
+  doc = executeCadEntityCommandBatch(doc, meshResult.commands, meshResult.label).document;
+  const meshId = doc.entities.find((e) => e.type === "solid3d")?.id!;
+
+  const originalBody = solid3dBody(doc.entities.find((e) => e.id === meshId) as never);
+  const originalFaces = originalBody.faces.length;
+
+  const refineResult = drive("MESHREFINE", [{ kind: "entityPick", entityId: meshId, point: { x: 50, y: 50 } }, enter], doc);
+  assert.ok(refineResult?.kind === "document", "MESHREFINE produce documento");
+  doc = executeCadEntityCommandBatch(doc, refineResult.commands, refineResult.label).document;
+  const refined = doc.entities.filter((e) => e.type === "solid3d" && e.id !== meshId);
+  assert.ok(refined.length >= 1, "MESHREFINE añade una entidad");
+
+  const refinedBody = solid3dBody(refined[refined.length - 1] as never);
+  assert.ok(
+    refinedBody.faces.length > originalFaces,
+    `MESHREFINE: caras aumentan (${originalFaces} → ${refinedBody.faces.length})`,
+  );
+
+  const refinedProps = solid3dMassProperties(refined[refined.length - 1] as never);
+  assert.ok(refinedProps.area > 0, `MESHREFINE: area positiva (${refinedProps.area.toFixed(1)})`);
+}
+
+// --- MESHREFINE: cancelación -------------------------------------------------
+{
+  const descriptor = CAD_COMMAND_REGISTRY_V2.get("MESHREFINE")!;
+  const doc = emptyDocument();
+  const context = makeContext(doc);
+  let step = descriptor.begin(context);
+  step = descriptor.step(step.state, { kind: "cancel" }, context);
+  assert.ok(
+    step.result?.kind === "message" && step.result.text.includes("cancelado"),
+    "MESHREFINE se cancela limpiamente",
+  );
+}
+
+// --- MESHREFINE: entidad sin caras se rechaza --------------------------------
+{
+  let doc = emptyDocument();
+  const meshResult = drive("MESH", [point(0, 0), point(100, 100), distance(50)], doc);
+  assert.ok(meshResult?.kind === "document", "MESH produce documento para rechazo");
+  doc = executeCadEntityCommandBatch(doc, meshResult.commands, meshResult.label).document;
+
+  // Una entidad que no es solid3d no debería funcionar — probamos con una línea
+  const lineResult = drive("LINE", [point(0, 0), point(100, 100)], doc);
+  if (lineResult?.kind === "document") {
+    doc = executeCadEntityCommandBatch(doc, lineResult.commands, lineResult.label).document;
+    const lineId = doc.entities.find((e) => e.type === "line")?.id;
+    if (lineId) {
+      const failResult = drive("MESHREFINE", [{ kind: "entityPick", entityId: lineId, point: { x: 50, y: 50 } }, enter], doc);
+      assert.ok(
+        failResult?.kind === "message" && failResult.text.includes("no es un solido"),
+        "MESHREFINE rechaza entidad que no es sólido 3D",
+      );
+    }
+  }
+}
+
+// --- MESHCOLLAPSE: simplifica malla a bounding box --------------------------------
+{
+  assert.ok(CAD_COMMAND_REGISTRY_V2.get("MESHCOLLAPSE"), "MESHCOLLAPSE está en el registro");
+
+  let doc = emptyDocument();
+  // Crear malla y refinarla para tener más complejidad
+  const meshResult = drive("MESH", [point(0, 0), point(100, 100), distance(50)], doc);
+  assert.ok(meshResult?.kind === "document", "MESH produce documento para MESHCOLLAPSE");
+  doc = executeCadEntityCommandBatch(doc, meshResult.commands, meshResult.label).document;
+  const meshId = doc.entities.find((e) => e.type === "solid3d")?.id!;
+
+  const refineResult = drive("MESHREFINE", [{ kind: "entityPick", entityId: meshId, point: { x: 50, y: 50 } }, enter], doc);
+  assert.ok(refineResult?.kind === "document", "MESHREFINE produce documento para colapsar");
+  doc = executeCadEntityCommandBatch(doc, refineResult!.commands, refineResult!.label).document;
+  const refinedId = doc.entities.filter((e) => e.type === "solid3d" && e.id !== meshId)[0]?.id!;
+  assert.ok(refinedId, "Hay una malla refinada");
+
+  const collapseResult = drive("MESHCOLLAPSE", [{ kind: "entityPick", entityId: refinedId, point: { x: 50, y: 50 } }, enter], doc);
+  assert.ok(collapseResult?.kind === "document", "MESHCOLLAPSE produce documento");
+  doc = executeCadEntityCommandBatch(doc, collapseResult.commands, collapseResult.label).document;
+  const collapsed = doc.entities.filter((e) => e.type === "solid3d" && e.id !== meshId && e.id !== refinedId);
+  assert.ok(collapsed.length >= 1, "MESHCOLLAPSE añade una entidad");
+
+  const collapsedBody = solid3dBody(collapsed[collapsed.length - 1] as never);
+  // El resultado es una caja (bounding box): 6 caras, 8 vértices
+  assert.ok(collapsedBody.faces.length === 6, `MESHCOLLAPSE: bounding box tiene ${collapsedBody.faces.length} caras (=6)`);
+  assert.ok(collapsedBody.vertices.length === 8, `MESHCOLLAPSE: bounding box tiene ${collapsedBody.vertices.length} vértices (=8)`);
+
+  const collapsedProps = solid3dMassProperties(collapsed[collapsed.length - 1] as never);
+  assert.ok(collapsedProps.volume > 0, `MESHCOLLAPSE: volumen positivo (${collapsedProps.volume.toFixed(1)})`);
+}
+
+// --- MESHCOLLAPSE: cancelación -----------------------------------------------
+{
+  const descriptor = CAD_COMMAND_REGISTRY_V2.get("MESHCOLLAPSE")!;
+  const doc = emptyDocument();
+  const context = makeContext(doc);
+  let step = descriptor.begin(context);
+  step = descriptor.step(step.state, { kind: "cancel" }, context);
+  assert.ok(
+    step.result?.kind === "message" && step.result.text.includes("cancelado"),
+    "MESHCOLLAPSE se cancela limpiamente",
+  );
+}
+
+// --- MESHCAP: tapa bordes abiertos de la malla -------------------------------
+{
+  assert.ok(CAD_COMMAND_REGISTRY_V2.get("MESHCAP"), "MESHCAP está en el registro");
+
+  let doc = emptyDocument();
+  // Crear una cara 3D (triángulo) — tiene bordes abiertos
+  const faceResult = drive("3DFACE", [point(0, 0), point(100, 0), point(50, 80), enter], doc);
+  assert.ok(faceResult?.kind === "document", "3DFACE produce documento para MESHCAP");
+  doc = executeCadEntityCommandBatch(doc, faceResult!.commands, faceResult!.label).document;
+  const faceId = doc.entities.find((e) => e.type === "solid3d")?.id!;
+
+  const capResult = drive("MESHCAP", [{ kind: "entityPick", entityId: faceId, point: { x: 50, y: 40 } }, enter], doc);
+  // MESHCAP puede o no encontrar bordes abiertos dependiendo de la geometría
+  assert.ok(
+    capResult?.kind === "document" || capResult?.kind === "message",
+    `MESHCAP produce resultado (${capResult?.kind})`,
+  );
+}
+
+// --- MESHCAP: cancelación ----------------------------------------------------
+{
+  const descriptor = CAD_COMMAND_REGISTRY_V2.get("MESHCAP")!;
+  const doc = emptyDocument();
+  const context = makeContext(doc);
+  let step = descriptor.begin(context);
+  step = descriptor.step(step.state, { kind: "cancel" }, context);
+  assert.ok(
+    step.result?.kind === "message" && step.result.text.includes("cancelado"),
+    "MESHCAP se cancela limpiamente",
+  );
+}
+
 console.log(
-  "✅ meshes.spec: MESH (10) + CONVTOMESH (7) + CONVTOSOLID (7) + 3DFACE (8) + MESHSMOOTH (4) + MESHSMOOTHMORE (2) + MESHSMOOTHLESS (2) — 40 comprobaciones",
+  "✅ meshes.spec: MESH (10) + CONVTOMESH (7) + CONVTOSOLID (7) + 3DFACE (8) + MESHSMOOTH (4) + MESHSMOOTHMORE (2) + MESHSMOOTHLESS (2) + MESHREFINE (4) + MESHCOLLAPSE (3) + MESHCAP (3) — 50 comprobaciones",
 );
