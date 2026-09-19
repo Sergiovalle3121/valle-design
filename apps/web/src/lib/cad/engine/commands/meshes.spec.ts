@@ -323,7 +323,7 @@ assert.ok(CAD_COMMAND_REGISTRY_V2.get("3DFACE"), "3DFACE está en el registro");
   const meshResult = drive("MESH", [point(0, 0), point(100, 100), distance(50)], doc);
   assert.ok(meshResult?.kind === "document", "MESH produce documento para MESHSMOOTHMORE");
   doc = executeCadEntityCommandBatch(doc, meshResult.commands, meshResult.label).document;
-  const meshId = doc.entities.find((e) => e.type === "solid3d")?.id!;
+  const meshId = doc.entities.find((e) => e.type === "solid3d")?.id ?? "";
 
   const result = drive("MESHSMOOTHMORE", [{ kind: "entityPick", entityId: meshId, point: { x: 50, y: 50 } }, enter], doc);
   assert.ok(result?.kind === "document", "MESHSMOOTHMORE produce documento");
@@ -340,7 +340,7 @@ assert.ok(CAD_COMMAND_REGISTRY_V2.get("3DFACE"), "3DFACE está en el registro");
   const meshResult = drive("MESH", [point(0, 0), point(100, 100), distance(50)], doc);
   assert.ok(meshResult?.kind === "document", "MESH produce documento para MESHSMOOTHLESS");
   doc = executeCadEntityCommandBatch(doc, meshResult.commands, meshResult.label).document;
-  const meshId = doc.entities.find((e) => e.type === "solid3d")?.id!;
+  const meshId = doc.entities.find((e) => e.type === "solid3d")?.id ?? "";
 
   const lessResult = drive("MESHSMOOTHLESS", [{ kind: "entityPick", entityId: meshId, point: { x: 50, y: 50 } }, enter], doc);
   assert.ok(lessResult?.kind === "message", "MESHSMOOTHLESS produce mensaje (no documento)");
@@ -371,7 +371,7 @@ assert.ok(CAD_COMMAND_REGISTRY_V2.get("3DFACE"), "3DFACE está en el registro");
   const meshResult = drive("MESH", [point(0, 0), point(100, 100), distance(50)], doc);
   assert.ok(meshResult?.kind === "document", "MESH produce documento para MESHREFINE");
   doc = executeCadEntityCommandBatch(doc, meshResult.commands, meshResult.label).document;
-  const meshId = doc.entities.find((e) => e.type === "solid3d")?.id!;
+  const meshId = doc.entities.find((e) => e.type === "solid3d")?.id ?? "";
 
   const originalBody = solid3dBody(doc.entities.find((e) => e.id === meshId) as never);
   const originalFaces = originalBody.faces.length;
@@ -438,13 +438,13 @@ assert.ok(CAD_COMMAND_REGISTRY_V2.get("3DFACE"), "3DFACE está en el registro");
   assert.ok(meshResult?.kind === "document", "MESH produce documento para MESHCOLLAPSE");
   if (meshResult?.kind !== "document") throw new Error("MESH no produjo documento");
   doc = executeCadEntityCommandBatch(doc, meshResult.commands, meshResult.label).document;
-  const meshId = doc.entities.find((e) => e.type === "solid3d")?.id!;
+  const meshId = doc.entities.find((e) => e.type === "solid3d")?.id ?? "";
 
   const refineResult = drive("MESHREFINE", [{ kind: "entityPick", entityId: meshId, point: { x: 50, y: 50 } }, enter], doc);
   assert.ok(refineResult?.kind === "document", "MESHREFINE produce documento para colapsar");
   if (refineResult?.kind !== "document") throw new Error("MESHREFINE no produjo documento");
   doc = executeCadEntityCommandBatch(doc, refineResult.commands, refineResult.label).document;
-  const refinedId = doc.entities.filter((e) => e.type === "solid3d" && e.id !== meshId)[0]?.id!;
+  const refinedId = doc.entities.filter((e) => e.type === "solid3d" && e.id !== meshId)[0]?.id ?? "";
   assert.ok(refinedId, "Hay una malla refinada");
 
   const collapseResult = drive("MESHCOLLAPSE", [{ kind: "entityPick", entityId: refinedId, point: { x: 50, y: 50 } }, enter], doc);
@@ -485,7 +485,7 @@ assert.ok(CAD_COMMAND_REGISTRY_V2.get("3DFACE"), "3DFACE está en el registro");
   const faceResult = drive("3DFACE", [point(0, 0), point(100, 0), point(50, 80), enter], doc);
   assert.ok(faceResult?.kind === "document", "3DFACE produce documento para MESHCAP");
   doc = executeCadEntityCommandBatch(doc, faceResult!.commands, faceResult!.label).document;
-  const faceId = doc.entities.find((e) => e.type === "solid3d")?.id!;
+  const faceId = doc.entities.find((e) => e.type === "solid3d")?.id ?? "";
 
   const capResult = drive("MESHCAP", [{ kind: "entityPick", entityId: faceId, point: { x: 50, y: 40 } }, enter], doc);
   // MESHCAP puede o no encontrar bordes abiertos dependiendo de la geometría
