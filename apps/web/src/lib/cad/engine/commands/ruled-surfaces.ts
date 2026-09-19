@@ -21,7 +21,6 @@ import {
   finishedSolid,
   formatMagnitude,
   makeSolidEntity,
-  selectedEntities,
   solidMessage,
 } from "./solids-support";
 
