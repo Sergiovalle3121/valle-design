@@ -15,7 +15,6 @@ import {
   type CadCommandContext,
   type CadCommandDescriptor,
   type CadCommandInput,
-  type CadCommandStep,
   CAD_ACCEPT_KEYWORD,
 } from "../command-types";
 import type { CadEntityCommand } from "../../entity-commands";

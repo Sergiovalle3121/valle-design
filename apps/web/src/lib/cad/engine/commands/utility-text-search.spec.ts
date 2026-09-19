@@ -22,10 +22,7 @@ function ok(condition: boolean, what: string) {
   checks += 1;
   assert.ok(condition, what);
 }
-function equal(actual: unknown, expected: unknown, what: string) {
-  checks += 1;
-  assert.equal(actual, expected, `${what}: se esperaba ${String(expected)}, salió ${String(actual)}`);
-}
+
 
 // ---------------------------------------------------------------------------
 // Escena de prueba
