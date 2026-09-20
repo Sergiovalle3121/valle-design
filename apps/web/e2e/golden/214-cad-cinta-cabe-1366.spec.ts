@@ -32,12 +32,13 @@ import { CAD_RIBBON_DATA } from "../../src/lib/cad/ribbon";
  *   · Lo que los goldens 61 y 86 pulsan por testid está A LA VISTA en
  *     Inicio (LINE, CIRCLE, ARC, MOVE, COPY, ROTATE, TRIM, ERASE, LAYER) y
  *     en Anotar (DIMLINEAR), sin abrir ningún desplegable.
- *   · Ningún rótulo se sale de su botón: ni los pequeños (una línea) ni los
- *     de los paneles plegados. Elidir un rótulo sería esconder texto.
- *   · El rótulo de un PANEL (plegado, con desplegable o solo) nunca se recorta con puntos
- *     suspensivos: `scrollWidth <= clientWidth` en cada uno, en las ocho pestañas. El botón
- *     pequeño denso SÍ puede recortar el suyo (por diseño, con `aria-label` de red); el del
- *     panel, no.
+ *   · Ningún rótulo se sale de su botón NI SE CORTA dentro de él. Elidir un
+ *     rótulo es esconder texto, y con `truncate` se escondía sin que la caja
+ *     lo delatara: un texto elidido siempre «cabe», así que las tres medidas
+ *     de caja daban verde mientras el nombre salía partido. Se mide lo que el
+ *     texto PIDE (`scrollWidth`) contra lo que tiene (`clientWidth`), y se
+ *     mide en los dos sitios: en el rótulo de cada COMANDO y en el de cada
+ *     PANEL (plegado, con desplegable o solo), en las ocho pestañas.
  *   · Un panel plegado abre su desplegable con TODOS sus comandos, y
  *     Escape lo cierra devolviendo el foco.
  *   · La cinta entera mide ≤ 108 px de alto: a 720 px de alto el lienzo
@@ -114,6 +115,21 @@ async function medirTira(page: Page, tabId: string): Promise<Medida> {
       // que se pisa con el vecino.
       if (r.right > b.right + 1 || r.left < b.left - 1 || r.bottom > b.bottom + 1) {
         rotulosQueSeSalen.push(`${boton.dataset.testid} «${rotulo.textContent}»`);
+        continue;
+      }
+      // Y el caso que la caja NO delata: con `truncate` (overflow oculto más
+      // puntos suspensivos) el rótulo cabe siempre en su botón —por eso las
+      // tres comprobaciones de arriba daban verde— mientras el texto sale
+      // cortado. El 2026-09-20, a 1280 px, «Rectángulo» se leía «Rectáng…»,
+      // «Cota alineada» «Cota ali…» y «Deshacer aislar» «Deshac…». Quien mira
+      // la cinta no sabe qué hace ese botón, que es justo lo que el rótulo
+      // venía a resolver. `scrollWidth > clientWidth` mide lo que el texto
+      // PIDE contra lo que tiene: es lo único que ve la elipsis.
+      if (rotulo.scrollWidth > rotulo.clientWidth + 1) {
+        rotulosQueSeSalen.push(
+          `${boton.dataset.testid} «${rotulo.textContent}» CORTADO ` +
+            `(pide ${rotulo.scrollWidth}px, cabe ${rotulo.clientWidth}px)`,
+        );
       }
     }
     // El rótulo de un PANEL (plegado, con desplegable, o solo) es el único que nunca debería
