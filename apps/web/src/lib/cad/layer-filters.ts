@@ -3,6 +3,20 @@
  * explícita. Lo que un despacho de verdad necesita antes de tocar una capa en
  * un dibujo de 120: encontrar "A-*" sin desplazarse por la tabla entera.
  *
+ * ## No es lo mismo que el filtro de la paleta
+ *
+ * `components/cad/palettes/layer-manager-model.ts` ya tiene un filtro —texto
+ * más UNA propiedad de una lista fija (`CadLayerFilterProperty`)— pero es un
+ * filtro RÁPIDO sobre filas de interfaz: una sola propiedad a la vez, sin
+ * patrón de nombre, sin guardar, sin grupos. Este módulo es la máquina
+ * COMPLETA —criterios combinables con Y, comodín de nombre, filtros
+ * guardados, grupos— y vive en `lib/` por la misma razón por la que
+ * `layer-states.ts` es hoy la maquinaria canónica de LAYERSTATE y no una
+ * copia dentro de la paleta (así lo dice la cabecera de ese archivo): dos
+ * implementaciones del mismo concepto divergen. Cuando una ola de interfaz
+ * necesite el filtro completo, este es el sitio; el de la paleta puede
+ * seguir para el caso rápido, o construirse sobre este.
+ *
  * ## MODELO de datos, no interfaz
  *
  * Esto es sólo el MOTOR de coincidencia y el catálogo de filtros guardados.
