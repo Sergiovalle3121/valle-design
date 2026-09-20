@@ -80,6 +80,7 @@ export const CAD_COMMAND_MODULE_LOADERS = {
   "commands/data-extraction-commands": () => import("./commands/data-extraction-commands"),
   "commands/delivery-review": () => import("./commands/delivery-review"),
   "commands/design-center": () => import("./commands/design-center"),
+  "commands/dimension-reassociate": () => import("./commands/dimension-reassociate"),
   "commands/dimension-tolerance": () => import("./commands/dimension-tolerance"),
   "commands/draw-annotation-v4": () => import("./commands/draw-annotation-v4"),
   "commands/draw-basics": () => import("./commands/draw-basics"),
