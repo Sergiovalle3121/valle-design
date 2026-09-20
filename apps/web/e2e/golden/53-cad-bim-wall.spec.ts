@@ -6,6 +6,7 @@ import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import { saveAndSettle } from "../fixtures/cad-save";
 import { applyNativeProperty } from "../fixtures/dynamic-input";
 import { worldPoint } from "../fixtures/world-point";
+import { abrirPanelDerecho } from "../fixtures/docks";
 import type { CadDocument, CadWallEntity } from "../../src/lib/cad/cad-document";
 import { CAD_DOCUMENT_SCHEMA } from "../../src/lib/cad/cad-document-shared";
 import { fitFootprint } from "../fixtures/camera-preset";
@@ -175,6 +176,12 @@ test("un muro tecleado con ratón y teclado sobrevive a guardar y reabrir, y su 
 
   await select(page, wallId);
   await page.keyboard.press("Control+1");
+  // Ola «armazón»: `select()` ya deja el muelle derecho sin plegar (abrió un
+  // panel profesional para designar), pero Ctrl+1 (`revealPropertiesPalette`)
+  // sólo garantiza `rightDock: true` y no toca `rightDockCollapsed` — de ahí
+  // esta llamada explícita, idempotente, en vez de depender de ese efecto
+  // colateral de `select()`.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId("cad-properties-palette")).toBeVisible();
   // Grosor y altura son filas EDITABLES; la longitud es derivada y no.
   await expect(page.getByTestId("cad-native-property-thickness")).toBeVisible();
