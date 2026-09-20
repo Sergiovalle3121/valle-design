@@ -16,12 +16,50 @@
  * Componente **presentacional**: no conoce el motor ni el documento. Recibe el
  * prompt y emite lo tecleado. Así se pueden probar por separado el tacto (aquí)
  * y la semántica (en las specs del motor).
+ *
+ * ## OLA «comando» — de píldora flotante a franja acoplada
+ *
+ * Hasta esta ola la raíz de este componente era una píldora de `w-[min(30rem,
+ * 42vw)]` anclada con `absolute bottom-3 left-3` DENTRO de `cad-canvas`: 480 px
+ * (33 % de la ventana a 1366 px) flotando sobre el dibujo, con el prompt en un
+ * renglón y la caja en otro — dos filas donde AutoCAD tiene una.
+ *
+ * El armazón (`CadShellFrame`) saca la línea de comandos de `cad-canvas` y la
+ * monta en su propia ranura (`commandDock`, fila 4 de la rejilla). Esta raíz ya
+ * NO se posiciona a sí misma —nada de `absolute`, `fixed`, `bottom-`, `left-`
+ * ni `w-[min(`— y por eso puede ser `w-full`: ancho de ventana entera, como la
+ * ventana de comandos real. Prompt y caja de entrada comparten AHORA un único
+ * renglón de `CAD_SHELL_METRICS.commandRow` (26 px); el diálogo (el registro,
+ * `cad-command-line-log`) se plegó a 0 px por defecto y sólo crece la franja
+ * hasta `commandExpanded` (78 px) cuando alguien lo pide, con F2 o con el botón
+ * `cad-command-log-toggle` — nunca los dos números sueltos, siempre importados
+ * de `cad-shell-layout.ts`, la única fuente de esos px.
+ *
+ * El desplegable de sugerencias (T-74c, más abajo) y el de historial completo
+ * flotan HACIA ARRIBA por un portal a `<body>`: la franja vive pegada al fondo
+ * de la ventana, así que cualquier lista que necesite espacio no puede
+ * crecer hacia abajo sin salirse de la pantalla.
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
+import { createPortal } from "react-dom";
+import { ChevronDown, ChevronUp, History as HistoryIcon } from "lucide-react";
 import type { CadPrompt } from "@/lib/cad/engine/command-types";
 import { formatCadKeyword, formatCadPrompt } from "@/lib/cad/engine/prompt";
 import { buildCadPaletteEntries } from "@/lib/cad/command-palette";
 import { CAD_COMMAND_ALIASES } from "@/lib/cad/engine/alias-table";
+import { CAD_SHELL_METRICS } from "@/components/cad/shell/cad-shell-layout";
+import {
+  readCommandLogExpanded,
+  toggleCommandLogExpanded,
+  writeCommandLogExpanded,
+} from "./command-log-preference";
 
 /**
  * T-74(c): «la línea de comandos no sugiere nada mientras escribo, y el
@@ -109,6 +147,30 @@ const LEVEL_CLASS: Record<CadCommandLineEntry["level"], string> = {
   error: "text-danger-ink",
 };
 
+/** Alto del registro DESPLEGADO, restando el renglón que la franja ya cobra. */
+const LOG_EXPANDED_HEIGHT = CAD_SHELL_METRICS.commandExpanded - CAD_SHELL_METRICS.commandRow;
+
+/** Dónde debe flotar un desplegable que crece HACIA ARRIBA desde la franja. */
+interface FloatingAnchor {
+  left: number;
+  width: number;
+  bottom: number;
+}
+
+function measureAnchor(root: HTMLElement | null): FloatingAnchor | null {
+  if (!root || typeof window === "undefined") return null;
+  const rect = root.getBoundingClientRect();
+  return { left: rect.left, width: rect.width, bottom: window.innerHeight - rect.top };
+}
+
+function floatingStyle(anchor: FloatingAnchor): CSSProperties {
+  // Posición por `style`, no por clase de Tailwind: la raíz de la franja (y
+  // este archivo entero) no puede declarar `fixed`/`bottom-`/`left-` — ver la
+  // regla de oro del armazón — y lo que sigue vive en un portal a `<body>`,
+  // fuera de esa raíz, así que necesita decir DÓNDE ponerse por sí mismo.
+  return { position: "fixed", left: anchor.left, width: anchor.width, bottom: anchor.bottom };
+}
+
 export function CadCommandLine({
   prompt,
   history,
@@ -126,9 +188,23 @@ export function CadCommandLine({
   // El usuario navegó las sugerencias con flechas: sólo entonces Enter
   // "entrega" la sugerencia activa en vez de ejecutar lo tecleado.
   const [_navigated, setNavigated] = useState(false);
+  // T-«comando»: el registro nace plegado (o como lo dejó la última visita:
+  // ver `command-log-preference.ts`). El inicializador perezoso sólo corre
+  // una vez y no toca `localStorage` durante el render del servidor.
+  const [logExpanded, setLogExpandedState] = useState(() =>
+    readCommandLogExpanded(typeof window === "undefined" ? null : window.localStorage),
+  );
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [anchor, setAnchor] = useState<FloatingAnchor | null>(null);
   const localInputRef = useRef<HTMLInputElement | null>(null);
   const inputRef = externalInputRef ?? localInputRef;
   const logRef = useRef<HTMLDivElement | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  const setLogExpanded = useCallback((next: boolean) => {
+    setLogExpandedState(next);
+    writeCommandLogExpanded(typeof window === "undefined" ? null : window.localStorage, next);
+  }, []);
 
   /** Sólo lo tecleado por el usuario se recupera con las flechas. */
   const typed = useMemo(
@@ -158,23 +234,46 @@ export function CadCommandLine({
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [history]);
 
+  // T-«comando»: los dos desplegables (sugerencias, historial completo) viven
+  // en un portal a `<body>` y crecen HACIA ARRIBA desde la franja — la franja
+  // está pegada al fondo de la ventana, así que no hay sitio debajo. Se
+  // remide al abrirse y en cada resize/scroll mientras estén abiertos; sin
+  // ninguno abierto no hay nada que medir ni escuchar.
+  const floatingOpen = suggestions.length > 0 || historyOpen;
+  useEffect(() => {
+    if (!floatingOpen || typeof window === "undefined") return;
+    const update = () => setAnchor(measureAnchor(rootRef.current));
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [floatingOpen]);
+
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
       if (event.key === "F2") {
-        // T-73(h): «el prompt vivo no se puede volver a leer» — no había
-        // forma de repasar el diálogo con teclado, y F2 (la tecla de
-        // AutoCAD para esto) no existía. No abre una ventana de texto nueva
-        // —eso es una superficie completa, fuera de este arreglo—: mueve el
-        // foco al propio diálogo (ya es `role="log"`), que con `tabIndex`
-        // pasa a poder leerse con el lector de pantalla y desplazarse con
-        // las flechas sin robarle el ratón al lienzo (`pointer-events-none`
-        // sigue intacto: eso sólo afecta al puntero, no al teclado).
+        // Como en AutoCAD: F2 pliega/despliega el registro de la línea de
+        // comandos. Al desplegarlo el foco se mueve al propio diálogo (ya es
+        // `role="log"`, `tabIndex={0}`) para poder releerlo o desplazarlo con
+        // las flechas sin robarle el ratón al lienzo — la razón por la que
+        // esto existía antes de que el registro pudiera plegarse (T-73h).
         event.preventDefault();
-        logRef.current?.focus();
+        const next = toggleCommandLogExpanded(logExpanded);
+        setLogExpanded(next);
+        if (next) requestAnimationFrame(() => logRef.current?.focus());
         return;
       }
       if (event.key === "Escape") {
         event.preventDefault();
+        // El historial completo se cierra en su propio paso: un Esc para
+        // cerrar el desplegable, otro para lo de siempre.
+        if (historyOpen) {
+          setHistoryOpen(false);
+          return;
+        }
         // Esc con texto escrito lo borra; sin texto, cancela el comando. Es la
         // cascada de AutoCAD: primero se deshace lo tecleado, luego la orden.
         if (value) setValue("");
@@ -239,137 +338,81 @@ export function CadCommandLine({
         onSubmit(submitted);
       }
     },
-    [activeSuggestionIndex, inputRef, onCancel, onRepeat, onSubmit, recallIndex, suggestions, typed, value],
+    [
+      activeSuggestionIndex,
+      historyOpen,
+      inputRef,
+      logExpanded,
+      onCancel,
+      onRepeat,
+      onSubmit,
+      recallIndex,
+      setLogExpanded,
+      suggestions,
+      typed,
+      value,
+    ],
   );
 
   const line = prompt ? formatCadPrompt(prompt) : "";
   const suggestionListId = "cad-command-line-suggestions";
+  const historyListId = "cad-command-history";
   const logId = "cad-command-line-log";
+  const idlePlaceholder = lastCommand
+    ? `Comando: Espacio repite ${lastCommand}`
+    : "Comando: escribe una orden (L, C, TR, MI…)";
 
   return (
     <div
+      ref={rootRef}
       data-testid="cad-command-line"
-      // El muelle NO captura el ratón como bloque: flota sobre el lienzo y
-      // sobre la barra inferior, y con el puntero enrutado al motor crece hasta
-      // su tope en cuanto se dibuja. Reciben el ratón sólo las dos filas que lo
-      // necesitan —palabras clave y entrada—; el diálogo y el fondo lo dejan
-      // pasar, para que Undo y la barra sigan siendo pulsables debajo.
-      /*
-        La superficie sigue el TEMA, no un azul de medianoche fijo.
-        `bg-[#0b1020]` era el único color escrito a mano que quedaba aquí, y con
-        el texto ya tokenizado producía el peor resultado posible en tema claro:
-        letra oscura sobre panel oscuro. `--popover` es exactamente esta forma —
-        una superficie flotante con su propio color de texto—, así que la línea
-        de comandos conserva su densidad y su monoespaciada, que es lo que la
-        hace leerse como herramienta profesional, y deja de ser una mancha negra
-        en una interfaz clara.
-      */
-      className="pointer-events-none relative flex w-full flex-col rounded-control border border-border bg-popover/95 text-popover-foreground type-caption shadow-floating backdrop-blur"
+      // LA REGLA DE ORO DEL ARMAZÓN: esta raíz vive en la ranura `commandDock`
+      // de `CadShellFrame` (ya no dentro de `cad-canvas`) y NO se posiciona a
+      // sí misma. Nada de `absolute`, `fixed`, `bottom-`, `left-` ni
+      // `w-[min(` en esta clase: `w-full` es la ventana entera, no una
+      // píldora de 480 px. Los dos desplegables (sugerencias, historial) no
+      // están sujetos a esta regla porque NO son hijos en el DOM final — se
+      // portan a `<body>` (ver `floatingStyle`) precisamente para poder
+      // flotar sin que su padre tenga que dejar de ser una franja acoplada.
+      className="flex w-full flex-col border-t border-border bg-popover/95 text-popover-foreground type-caption"
     >
       <div
-        ref={logRef}
-        id={logId}
-        data-testid="cad-command-line-log"
-        // Región viva para lectores de pantalla: cada paso del comando se
-        // anuncia sin robar el foco (polite, no assertive — un dibujante
-        // tecleando no quiere interrupciones a mitad de coordenada).
-        role="log"
-        aria-live="polite"
-        aria-label="Diálogo de la línea de comandos"
-        // T-73(h): sin `tabIndex` el diálogo no podía recibir foco — F2
-        // (arriba) ahora lo manda aquí para releerlo o desplazarlo con las
-        // flechas. Escape lo devuelve a la caja: quedarse atrapado en un
-        // registro de sólo lectura sería peor que no poder entrar.
-        tabIndex={0}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") {
-            event.preventDefault();
-            inputRef.current?.focus();
-          }
-        }}
-        // `pointer-events-none`: el diálogo es texto de SÓLO LECTURA y el
-        // muelle flota sobre el lienzo y sobre la barra inferior. Con el
-        // puntero enrutado al motor, cada paso de cada comando deja su renglón
-        // y el diálogo crece hasta su tope, tapando lo que hay debajo: Undo, la
-        // entrada dinámica y los botones de la barra dejaban de poder pulsarse.
-        // Sólo la entrada y las palabras clave necesitan recibir el ratón.
-        // (El bloqueo es sólo de PUNTERO: el foco y el teclado —F2, flechas,
-        // Escape— no pasan por `pointer-events` y siguen funcionando. Y esta
-        // clase NO apaga el anillo del sistema (nada de outline-none aquí):
-        // el foco visible por defecto —el mismo `:focus-visible` de toda la
-        // app— es justo lo que hace falta, no uno nuevo.)
-        className="pointer-events-none max-h-24 overflow-y-auto px-2 py-1 font-mono leading-snug"
+        // EL RENGLÓN ÚNICO: prompt (o el marcador «Comando:», vía
+        // `placeholder`) y caja de entrada COMPARTEN esta fila — donde antes
+        // había dos filas apiladas (prompt arriba, entrada abajo) ahora hay
+        // una, y su alto es EXACTAMENTE `CAD_SHELL_METRICS.commandRow`: el
+        // número que `cad-shell-layout.ts` publica y que el resto del
+        // armazón usa para calcular cuánto lienzo queda.
+        className="flex w-full items-center gap-1.5 px-2"
+        style={{ height: CAD_SHELL_METRICS.commandRow }}
       >
-        {history.map((entry) => (
-          <div key={entry.id} className={LEVEL_CLASS[entry.level]}>
-            {entry.level === "input" ? `> ${entry.text}` : entry.text}
-          </div>
-        ))}
-      </div>
-
-      {prompt && (
-        <div className="pointer-events-none flex flex-wrap items-center gap-1 border-t border-border px-2 py-1">
-          <span data-testid="cad-command-prompt" className="font-mono text-foreground">
+        {prompt && (
+          <span
+            data-testid="cad-command-prompt"
+            className="min-w-0 shrink truncate font-mono text-foreground"
+          >
             {line}
           </span>
-          {prompt.options.map((option) => (
-            <button
-              key={option.keyword}
-              type="button"
-              data-testid={`cad-command-keyword-${option.keyword}`}
-              onClick={() => {
-                onKeyword(option.shortcut);
-                inputRef.current?.focus();
-              }}
-              className="pointer-events-auto rounded border border-border px-1.5 py-0.5 font-mono type-micro text-primary-ink transition-colors hover:bg-muted"
-              title={`Atajo: ${option.shortcut.toUpperCase()}`}
-            >
-              {formatCadKeyword(option)}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {suggestions.length > 0 && (
-        // T-74(c): patrón combobox estándar — el `input` de abajo declara
-        // `aria-controls`/`aria-activedescendant` hacia este `listbox`, así
-        // que un lector de pantalla anuncia cuántas hay y cuál está
-        // resaltada sin depender del color para saberlo.
-        <ul
-          id={suggestionListId}
-          role="listbox"
-          aria-label="Comandos sugeridos"
-          className="pointer-events-auto flex flex-col gap-0.5 border-t border-border px-1 py-1"
-        >
-          {suggestions.map((s, i) => (
-            <li key={s.nombre}>
+        )}
+        {prompt && prompt.options.length > 0 && (
+          <span className="flex shrink-0 items-center gap-1 overflow-x-auto">
+            {prompt.options.map((option) => (
               <button
+                key={option.keyword}
                 type="button"
-                id={`${suggestionListId}-${i}`}
-                role="option"
-                aria-selected={i === activeSuggestionIndex}
-                data-testid={`cad-command-suggestion-${s.nombre}`}
-                onMouseEnter={() => setSuggestionIndex(i)}
+                data-testid={`cad-command-keyword-${option.keyword}`}
                 onClick={() => {
-                  setValue("");
-                  setRecallIndex(null);
-                  onSubmit(s.nombre);
+                  onKeyword(option.shortcut);
                   inputRef.current?.focus();
                 }}
-                className={`flex w-full items-baseline gap-2 rounded px-1.5 py-0.5 text-left font-mono type-micro ${
-                  i === activeSuggestionIndex ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/60"
-                }`}
+                className="shrink-0 rounded border border-border px-1.5 py-0.5 font-mono type-micro text-primary-ink transition-colors hover:bg-muted"
+                title={`Atajo: ${option.shortcut.toUpperCase()}`}
               >
-                <span className="text-primary-ink">{s.nombre}</span>
-                <span className="truncate text-muted-foreground">{s.descripcion}</span>
+                {formatCadKeyword(option)}
               </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <div className="pointer-events-none flex items-center gap-1 border-t border-border px-2 py-1">
-        <span className="font-mono text-muted-foreground">{prompt ? "»" : "Comando:"}</span>
+            ))}
+          </span>
+        )}
         <input
           ref={inputRef}
           data-testid="cad-command-input"
@@ -387,16 +430,174 @@ export function CadCommandLine({
           aria-expanded={suggestions.length > 0}
           aria-controls={suggestions.length > 0 ? suggestionListId : undefined}
           aria-activedescendant={suggestions.length > 0 ? `${suggestionListId}-${activeSuggestionIndex}` : undefined}
-          placeholder={
-            prompt
-              ? "coordenada, distancia u opción"
-              : lastCommand
-                ? `escribe un comando · Espacio repite ${lastCommand}`
-                : "escribe un comando (L, C, TR, MI…)"
-          }
-          className="pointer-events-auto min-w-0 flex-1 bg-transparent font-mono text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring placeholder:text-muted-foreground"
+          placeholder={prompt ? "coordenada, distancia u opción" : idlePlaceholder}
+          className="min-w-0 flex-1 bg-transparent font-mono text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring placeholder:text-muted-foreground"
         />
+        <button
+          type="button"
+          data-testid="cad-command-history-toggle"
+          onClick={() => setHistoryOpen((open) => !open)}
+          disabled={typed.length === 0}
+          aria-label="Ver historial completo de comandos"
+          aria-expanded={historyOpen}
+          aria-haspopup="listbox"
+          title="Historial completo de comandos"
+          className="shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
+        >
+          <HistoryIcon aria-hidden="true" className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          data-testid="cad-command-log-toggle"
+          onClick={() => setLogExpanded(toggleCommandLogExpanded(logExpanded))}
+          aria-label={logExpanded ? "Ocultar el registro de comandos (F2)" : "Mostrar el registro de comandos (F2)"}
+          aria-expanded={logExpanded}
+          aria-controls={logId}
+          title={logExpanded ? "Ocultar el registro (F2)" : "Mostrar el registro (F2)"}
+          className="shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          {logExpanded ? (
+            <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronUp aria-hidden="true" className="h-3.5 w-3.5" />
+          )}
+        </button>
       </div>
+
+      {/*
+        EL REGISTRO. Siempre montado —el `id`, el `role="log"` y el
+        `aria-live` que la caja ya describe (`aria-describedby`) no pueden
+        aparecer y desaparecer del documento sólo porque está plegado, o un
+        lector de pantalla perdería la región viva entera cada vez— pero su
+        alto lo decide `logExpanded`: 0 cuando está plegado (no gasta ni un
+        píxel de la franja) y `LOG_EXPANDED_HEIGHT` cuando se despliega, que
+        sumado al renglón de arriba da exactamente
+        `CAD_SHELL_METRICS.commandExpanded`.
+      */}
+      <div
+        ref={logRef}
+        id={logId}
+        data-testid="cad-command-line-log"
+        role="log"
+        aria-live="polite"
+        aria-label="Diálogo de la línea de comandos"
+        // T-73(h): sin `tabIndex` el diálogo no podía recibir foco — F2
+        // lo despliega y manda el foco aquí para releerlo o desplazarlo con
+        // las flechas. Escape lo devuelve a la caja.
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            inputRef.current?.focus();
+          }
+        }}
+        className="overflow-y-auto border-t border-border px-2 font-mono leading-snug type-micro"
+        style={{
+          height: logExpanded ? LOG_EXPANDED_HEIGHT : 0,
+          paddingTop: logExpanded ? 4 : 0,
+          paddingBottom: logExpanded ? 4 : 0,
+          borderTopWidth: logExpanded ? 1 : 0,
+        }}
+      >
+        {history.map((entry) => (
+          <div key={entry.id} className={LEVEL_CLASS[entry.level]}>
+            {entry.level === "input" ? `> ${entry.text}` : entry.text}
+          </div>
+        ))}
+      </div>
+
+      {/*
+        T-74(c), reubicado por la ola «comando»: antes esta lista se pintaba
+        DEBAJO de la caja, dentro de la píldora flotante — sitio que existía
+        porque la píldora flotaba sobre el lienzo y podía crecer sin empujar
+        nada. La franja acoplada no tiene ese margen (vive pegada al fondo de
+        la ventana), así que la lista se porta a `<body>` y flota HACIA
+        ARRIBA, anclada al ancho y a la posición de esta raíz.
+      */}
+      {suggestions.length > 0 && anchor && typeof document !== "undefined"
+        ? createPortal(
+            <ul
+              id={suggestionListId}
+              role="listbox"
+              aria-label="Comandos sugeridos"
+              style={floatingStyle(anchor)}
+              className="z-40 flex max-h-[40vh] flex-col gap-0.5 overflow-y-auto rounded-control border border-border bg-popover/95 px-1 py-1 text-popover-foreground shadow-floating backdrop-blur"
+            >
+              {suggestions.map((s, i) => (
+                <li key={s.nombre}>
+                  <button
+                    type="button"
+                    id={`${suggestionListId}-${i}`}
+                    role="option"
+                    aria-selected={i === activeSuggestionIndex}
+                    data-testid={`cad-command-suggestion-${s.nombre}`}
+                    onMouseEnter={() => setSuggestionIndex(i)}
+                    onClick={() => {
+                      setValue("");
+                      setRecallIndex(null);
+                      onSubmit(s.nombre);
+                      inputRef.current?.focus();
+                    }}
+                    className={`flex w-full items-baseline gap-2 rounded px-1.5 py-0.5 text-left font-mono type-micro ${
+                      i === activeSuggestionIndex ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/60"
+                    }`}
+                  >
+                    <span className="text-primary-ink">{s.nombre}</span>
+                    <span className="truncate text-muted-foreground">{s.descripcion}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>,
+            document.body,
+          )
+        : null}
+
+      {/*
+        EL HISTORIAL COMPLETO. Las flechas ya recuperan lo tecleado una línea
+        a la vez (T-73h); esto es para cuando hace falta VER las últimas
+        órdenes de un vistazo y elegir una directamente, en vez de contar
+        pulsaciones de flecha. Mismo mecanismo de anclaje que las sugerencias
+        — un desplegable a la vez, así que abrir uno no exige cerrar el otro
+        a mano: rara vez coinciden (el historial es un clic explícito).
+      */}
+      {historyOpen && anchor && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              id={historyListId}
+              data-testid="cad-command-history"
+              role="listbox"
+              aria-label="Historial de comandos"
+              style={floatingStyle(anchor)}
+              className="z-40 flex max-h-[40vh] flex-col gap-0.5 overflow-y-auto rounded-control border border-border bg-popover/95 px-1 py-1 text-popover-foreground shadow-floating backdrop-blur"
+            >
+              {typed.length === 0 ? (
+                <p className="px-1.5 py-1 type-micro text-muted-foreground">
+                  Todavía no se ha tecleado ningún comando.
+                </p>
+              ) : (
+                [...typed].reverse().map((entry, i) => (
+                  <button
+                    key={`${i}-${entry}`}
+                    type="button"
+                    role="option"
+                    aria-selected={false}
+                    data-testid={`cad-command-history-item-${i}`}
+                    onClick={() => {
+                      setValue(entry);
+                      setRecallIndex(null);
+                      setHistoryOpen(false);
+                      inputRef.current?.focus();
+                    }}
+                    className="block w-full truncate rounded px-1.5 py-0.5 text-left font-mono type-micro text-foreground hover:bg-muted"
+                  >
+                    {entry}
+                  </button>
+                ))
+              )}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

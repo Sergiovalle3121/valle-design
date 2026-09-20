@@ -115,4 +115,114 @@ const ok = (condition: boolean, message: string) => {
   );
 }
 
+// OLA «comando»: de píldora flotante de 480 px (`absolute bottom-3 left-3`,
+// `w-[min(30rem,42vw)]`) a franja acoplada de ancho completo. Estas
+// comprobaciones fijan el contrato de layout por FUENTE — sin navegador, no
+// hay `getBoundingClientRect` que medir — y por eso son deliberadamente
+// literales: si alguien reintroduce `absolute`/`fixed`/`bottom-`/`left-` o la
+// vieja clase de ancho, el string aparece y la comprobación lo caza.
+{
+  const fuente = readFileSync(path.join(__dirname, "CadCommandLine.tsx"), "utf8");
+  // Sólo dentro de `className="..."`: el archivo cita a propósito, EN
+  // COMENTARIOS, las clases viejas (`bottom-3`, `w-[min(...)]`) que esta ola
+  // quitó — un `includes` sobre el texto entero cazaría la propia
+  // explicación de por qué ya no están.
+  const clases = [...fuente.matchAll(/className="([^"]*)"/g)].map((m) => m[1]);
+  const enAlgunaClase = (token: RegExp | string) =>
+    clases.some((c) => (typeof token === "string" ? c.includes(token) : token.test(c)));
+  ok(!enAlgunaClase(/\bfixed\b/), "ninguna clase de Tailwind en este archivo declara `fixed`");
+  ok(!enAlgunaClase(/\babsolute\b/), "ninguna clase declara `absolute`");
+  ok(!enAlgunaClase(/\bbottom-\d/), "ninguna clase declara `bottom-<n>`");
+  ok(!enAlgunaClase(/\bleft-\d/), "ninguna clase declara `left-<n>`");
+  ok(!enAlgunaClase("w-[min("), "ya no queda la píldora de ancho `w-[min(30rem,42vw)]`");
+  ok(
+    Boolean(clases[0]) && /\bw-full\b/.test(clases[0]),
+    "la raíz declara `w-full`: la franja es tan ancha como la ventana, no una píldora",
+  );
+  // Posición de los desplegables flotantes: por `style`, no por clase — es la
+  // EXCEPCIÓN documentada a la regla de arriba, y vive fuera de la raíz (en
+  // un portal a `<body>`), así que no la contradice.
+  ok(
+    fuente.includes('position: "fixed"') && fuente.includes("createPortal"),
+    "las listas flotantes (sugerencias, historial) se posicionan por `style`, en un portal — no son la raíz del muelle",
+  );
+}
+
+// (b) El registro se pliega por defecto y sólo el botón/F2 lo despliega; los
+// dos números de alto salen de `cad-shell-layout.ts`, nunca escritos a mano.
+{
+  const fuente = readFileSync(path.join(__dirname, "CadCommandLine.tsx"), "utf8");
+  ok(
+    fuente.includes("CAD_SHELL_METRICS.commandRow") && fuente.includes("CAD_SHELL_METRICS.commandExpanded"),
+    "el alto plegado/desplegado se LEE de cad-shell-layout.ts, no se reinventa",
+  );
+  ok(
+    fuente.includes("height: CAD_SHELL_METRICS.commandRow"),
+    "el renglón único mide exactamente CAD_SHELL_METRICS.commandRow (26 px hoy)",
+  );
+  ok(
+    /logExpanded \? LOG_EXPANDED_HEIGHT : 0/.test(fuente),
+    "el registro plegado mide 0 px extra; desplegado suma hasta commandExpanded",
+  );
+  ok(
+    fuente.includes("LOG_EXPANDED_HEIGHT = CAD_SHELL_METRICS.commandExpanded - CAD_SHELL_METRICS.commandRow"),
+    "el alto del registro desplegado se DERIVA de los dos números publicados, no es un tercero suelto",
+  );
+  ok(
+    fuente.includes('data-testid="cad-command-log-toggle"'),
+    "existe un botón dedicado para plegar/desplegar el registro",
+  );
+  ok(
+    fuente.includes('event.key === "F2"') && fuente.includes("setLogExpanded"),
+    "F2 seguía siendo el atajo de AutoCAD, y ahora pliega/despliega en vez de sólo mover el foco",
+  );
+  ok(
+    fuente.includes("readCommandLogExpanded") && fuente.includes("writeCommandLogExpanded"),
+    "la preferencia se lee/guarda con el módulo puro (command-log-preference.ts), no a mano",
+  );
+}
+
+// (c) Historial completo: un desplegable nuevo que enseña TODO lo tecleado,
+// sin tocar el recorrido de flechas ya existente (que sigue probado arriba).
+{
+  const fuente = readFileSync(path.join(__dirname, "CadCommandLine.tsx"), "utf8");
+  ok(
+    fuente.includes('data-testid="cad-command-history-toggle"') &&
+      fuente.includes('data-testid="cad-command-history"'),
+    "hay un botón que abre un desplegable de historial completo, separado del recorrido por flechas",
+  );
+  ok(
+    fuente.includes("if (historyOpen)") && fuente.includes("setHistoryOpen(false)"),
+    "Esc cierra el desplegable de historial en su propio paso",
+  );
+}
+
+// (e) El recorrido guiado y la consola LISP NO viven en este archivo: si
+// aparecieran aquí, inflarían la franja que este componente mide en píxeles
+// exactos. Viven en CadCommandLineDock, portados fuera de esta raíz.
+{
+  const fuente = readFileSync(path.join(__dirname, "CadCommandLine.tsx"), "utf8");
+  ok(
+    !fuente.includes("CadGuidedTourDock") && !fuente.includes("CadLispDock"),
+    "el recorrido guiado y la consola LISP no se importan aquí: no pueden inflar la franja",
+  );
+}
+
+{
+  const dockFuente = readFileSync(path.join(__dirname, "CadCommandLineDock.tsx"), "utf8");
+  ok(
+    dockFuente.includes('data-testid="cad-command-dock"'),
+    "CadCommandLineDock publica la raíz que CadShellFrame cuelga en su ranura commandDock",
+  );
+  ok(
+    !/className="[^"]*\babsolute\b[^"]*"/.test(dockFuente.split("createPortal")[0]) &&
+      !/data-testid="cad-command-dock"[\s\S]{0,80}\bfixed\b/.test(dockFuente),
+    "la raíz cad-command-dock (antes del portal) no se posiciona a sí misma",
+  );
+  ok(
+    dockFuente.includes("createPortal") && dockFuente.includes("document.body"),
+    "el recorrido guiado y LISP se portan a <body> desde aquí, no se apilan dentro de la franja",
+  );
+}
+
 console.log(`CadCommandLine: ${checks}/${checks} comprobaciones verdes`);
