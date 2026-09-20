@@ -66,6 +66,10 @@ import {
   toggleCommandLogExpanded,
   writeCommandLogExpanded,
 } from "./command-log-preference";
+// El menú contextual (botón derecho) vive en su propio módulo — ver el
+// comentario junto a `{menu && ...}` más abajo — para mantener este archivo
+// bajo el presupuesto de 800 líneas (`check:monolith-budget`).
+import { CadCommandContextMenu } from "./CadCommandContextMenu";
 
 /**
  * T-74(c): «la línea de comandos no sugiere nada mientras escribo, y el
@@ -195,22 +199,6 @@ function floatingStyle(anchor: FloatingAnchor): CSSProperties {
   return { position: "fixed", left: anchor.left, width: anchor.width, bottom: anchor.bottom };
 }
 
-/** Techo generoso del menú contextual: repetir + 5-6 opciones + separadores. */
-const CONTEXT_MENU_WIDTH = 224;
-const CONTEXT_MENU_MAX_HEIGHT = 320;
-
-/**
- * Dónde abrir el menú contextual, recortado para que un clic cerca del
- * borde de una ventana pequeña (la laptop de 8 GB del dueño, no sólo un
- * monitor grande) no lo deje abriendo fuera de la pantalla.
- */
-function contextMenuStyle(point: { x: number; y: number }): CSSProperties {
-  if (typeof window === "undefined") return { position: "fixed", left: point.x, top: point.y };
-  const left = Math.min(point.x, Math.max(8, window.innerWidth - CONTEXT_MENU_WIDTH));
-  const top = Math.min(point.y, Math.max(8, window.innerHeight - CONTEXT_MENU_MAX_HEIGHT));
-  return { position: "fixed", left, top };
-}
-
 export function CadCommandLine({
   prompt,
   history,
@@ -239,13 +227,14 @@ export function CadCommandLine({
   const [anchor, setAnchor] = useState<FloatingAnchor | null>(null);
   // T-«comandos vivos»: el menú contextual del botón derecho. Coordenadas de
   // la propia pulsación — AutoCAD lo abre justo bajo el puntero, no anclado
-  // a la franja — y `null` cuando está cerrado.
+  // a la franja — y `null` cuando está cerrado. El menú en sí, con su cierre
+  // al pulsar fuera, vive en `CadCommandContextMenu`.
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const closeMenu = useCallback(() => setMenu(null), []);
   const localInputRef = useRef<HTMLInputElement | null>(null);
   const inputRef = externalInputRef ?? localInputRef;
   const logRef = useRef<HTMLDivElement | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const menuRef = useRef<HTMLDivElement | null>(null);
 
   const setLogExpanded = useCallback((next: boolean) => {
     setLogExpandedState(next);
@@ -314,17 +303,8 @@ export function CadCommandLine({
   }, [floatingOpen]);
 
   // El menú contextual (botón derecho) se cierra con un clic fuera de él —
-  // igual que el de `cad-context-menu` del lienzo — o con Escape (más
-  // abajo, en `handleKeyDown`). `pointerdown` y no `click`: se cierra ANTES
-  // de que el clic siguiente pueda activar otra cosa por debajo.
-  useEffect(() => {
-    if (!menu || typeof window === "undefined") return;
-    const cerrar = (event: PointerEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setMenu(null);
-    };
-    window.addEventListener("pointerdown", cerrar);
-    return () => window.removeEventListener("pointerdown", cerrar);
-  }, [menu]);
+  // igual que el de `cad-context-menu` del lienzo, resuelto dentro de
+  // `CadCommandContextMenu` — o con Escape (más abajo, en `handleKeyDown`).
 
   /** Cortar/copiar/pegar del menú contextual — el mismo gesto que Ctrl+X/C/V. */
   const runClipboardAction = useCallback(
@@ -786,124 +766,41 @@ export function CadCommandLine({
         : null}
 
       {/*
-        EL MENÚ CONTEXTUAL — botón derecho, como en AutoCAD: repetir la
-        última orden (o aceptar, con una en curso — `repeat()` ya distingue
-        los dos casos en el motor), las opciones de la orden activa,
-        cortar/copiar/pegar y cancelar. Mismo lenguaje visual que
-        `cad-context-menu` del lienzo (`Layout3DEditor.tsx`): la misma
-        familia de controles en dos sitios distintos se lee igual en los
-        dos. Posición por `style` (coordenadas del propio clic), no por
-        clase — la regla de oro del armazón es de la RAÍZ del muelle, y esto
-        vive en un portal a `<body>`, como sugerencias e historial.
+        EL MENÚ CONTEXTUAL — botón derecho, como en AutoCAD. Extraído a
+        `CadCommandContextMenu` (mismo lenguaje visual que `cad-context-menu`
+        del lienzo en `Layout3DEditor.tsx`) para mantener este archivo bajo
+        el presupuesto de 800 líneas — el estado (`menu`, coordenadas del
+        clic) sigue aquí porque `handleKeyDown` necesita saber si el menú
+        está abierto para darle prioridad a Escape.
       */}
-      {menu && typeof document !== "undefined"
-        ? createPortal(
-            <div
-              ref={menuRef}
-              data-testid="cad-command-context-menu"
-              role="menu"
-              aria-label="Menú de la línea de comandos"
-              style={contextMenuStyle(menu)}
-              className="z-50 w-52 overflow-hidden rounded-xl border border-border bg-surface/80 p-1.5 type-micro text-foreground shadow-2xl backdrop-blur"
-              onPointerDown={(event) => event.stopPropagation()}
-            >
-              <button
-                type="button"
-                role="menuitem"
-                data-testid="cad-command-context-repeat"
-                disabled={!prompt && !lastCommand}
-                onClick={() => {
-                  onRepeat();
-                  setMenu(null);
-                  inputRef.current?.focus();
-                }}
-                className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
-              >
-                {prompt
-                  ? "Intro (aceptar)"
-                  : lastCommand
-                    ? `Repetir última orden (${lastCommand})`
-                    : "Repetir última orden"}
-              </button>
-              {prompt && prompt.options.length > 0 && (
-                <>
-                  <div role="separator" className="my-1 border-t border-border" />
-                  <div className="px-2 py-1 type-micro text-muted-foreground">
-                    {activeCommand ? `Opciones de «${activeCommand}»` : "Opciones de la orden en curso"}
-                  </div>
-                  {prompt.options.map((option) => (
-                    <button
-                      key={option.keyword}
-                      type="button"
-                      role="menuitem"
-                      data-testid={`cad-command-context-option-${option.keyword}`}
-                      onClick={() => {
-                        onKeyword(option.shortcut);
-                        setMenu(null);
-                        inputRef.current?.focus();
-                      }}
-                      className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-muted"
-                    >
-                      {formatCadKeyword(option)}
-                    </button>
-                  ))}
-                </>
-              )}
-              <div role="separator" className="my-1 border-t border-border" />
-              <button
-                type="button"
-                role="menuitem"
-                data-testid="cad-command-context-cut"
-                onClick={() => {
-                  runClipboardAction("cut");
-                  setMenu(null);
-                }}
-                className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-muted"
-              >
-                Cortar
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                data-testid="cad-command-context-copy"
-                onClick={() => {
-                  runClipboardAction("copy");
-                  setMenu(null);
-                }}
-                className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-muted"
-              >
-                Copiar
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                data-testid="cad-command-context-paste"
-                onClick={() => {
-                  runClipboardAction("paste");
-                  setMenu(null);
-                }}
-                className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-muted"
-              >
-                Pegar
-              </button>
-              <div role="separator" className="my-1 border-t border-border" />
-              <button
-                type="button"
-                role="menuitem"
-                data-testid="cad-command-context-cancel"
-                onClick={() => {
-                  onCancel();
-                  setMenu(null);
-                  inputRef.current?.blur();
-                }}
-                className="w-full rounded-lg px-2 py-1.5 text-left text-danger-ink hover:bg-rose-400/10"
-              >
-                Cancelar
-              </button>
-            </div>,
-            document.body,
-          )
-        : null}
+      {menu && (
+        <CadCommandContextMenu
+          point={menu}
+          prompt={prompt}
+          activeCommand={activeCommand}
+          lastCommand={lastCommand}
+          onClose={closeMenu}
+          onRepeat={() => {
+            onRepeat();
+            closeMenu();
+            inputRef.current?.focus();
+          }}
+          onKeyword={(shortcut) => {
+            onKeyword(shortcut);
+            closeMenu();
+            inputRef.current?.focus();
+          }}
+          onCancel={() => {
+            onCancel();
+            closeMenu();
+            inputRef.current?.blur();
+          }}
+          onClipboardAction={(accion) => {
+            runClipboardAction(accion);
+            closeMenu();
+          }}
+        />
+      )}
     </div>
   );
 }

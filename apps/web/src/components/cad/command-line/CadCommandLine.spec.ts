@@ -325,45 +325,66 @@ const ok = (condition: boolean, message: string) => {
 // (i) El menú contextual del botón derecho: repetir/aceptar, las opciones
 // de la orden en curso, cortar/copiar/pegar y cancelar — el mismo lenguaje
 // visual que `cad-context-menu` del lienzo.
+//
+// ESCÉPTICO (carril «comandos-vivos», D-1 sobre 431cdf28): el menú vivía
+// entero en CadCommandLine.tsx y lo dejaba en 902 líneas — 102 por encima
+// del máximo de `check:monolith-budget` para un archivo no presupuestado
+// (`npm run check:monolith-budget` fallaba, sin que ninguna de las
+// «pruebas» reportadas lo hubiera corrido). Se extrajo a
+// `CadCommandContextMenu.tsx`: mismo marcado, mismos testids, mismo
+// comportamiento — estas comprobaciones ahora leen el fichero que
+// corresponde a cada pieza.
 {
-  const fuente = readFileSync(path.join(__dirname, "CadCommandLine.tsx"), "utf8");
+  const fuenteLinea = readFileSync(path.join(__dirname, "CadCommandLine.tsx"), "utf8");
+  const fuenteMenu = readFileSync(path.join(__dirname, "CadCommandContextMenu.tsx"), "utf8");
   ok(
-    fuente.includes('data-testid="cad-command-context-menu"') && fuente.includes('role="menu"'),
+    fuenteMenu.includes('data-testid="cad-command-context-menu"') && fuenteMenu.includes('role="menu"'),
     "hay un menú contextual propio para la línea de comandos",
   );
   ok(
-    fuente.includes("onContextMenu={(event) => {") && fuente.includes("setMenu({ x: event.clientX, y: event.clientY })"),
+    fuenteLinea.includes("onContextMenu={(event) => {") && fuenteLinea.includes("setMenu({ x: event.clientX, y: event.clientY })"),
     "el botón derecho abre el menú en las coordenadas del propio clic, como el del lienzo",
   );
   ok(
-    fuente.includes('data-testid="cad-command-context-repeat"'),
+    fuenteLinea.includes("<CadCommandContextMenu"),
+    "CadCommandLine monta el menú extraído cuando hay coordenadas de clic",
+  );
+  ok(
+    fuenteMenu.includes('data-testid="cad-command-context-repeat"'),
     "el menú ofrece repetir la última orden (o aceptar, con una en curso)",
   );
   ok(
-    fuente.includes("prompt && prompt.options.length > 0") && fuente.includes("Opciones de la orden en curso"),
+    fuenteMenu.includes("prompt && prompt.options.length > 0") && fuenteMenu.includes("Opciones de la orden en curso"),
     "el menú enseña las opciones de la orden EN CURSO cuando las hay, no sólo las del reposo",
   );
   ok(
-    fuente.includes('data-testid="cad-command-context-cut"') &&
-      fuente.includes('data-testid="cad-command-context-copy"') &&
-      fuente.includes('data-testid="cad-command-context-paste"'),
+    fuenteMenu.includes('data-testid="cad-command-context-cut"') &&
+      fuenteMenu.includes('data-testid="cad-command-context-copy"') &&
+      fuenteMenu.includes('data-testid="cad-command-context-paste"'),
     "cortar, copiar y pegar están los tres, cada uno con su propio botón",
   );
   ok(
-    fuente.includes('data-testid="cad-command-context-cancel"'),
+    fuenteMenu.includes('data-testid="cad-command-context-cancel"'),
     "cancelar está en el menú, igual que Escape",
   );
   ok(
-    fuente.includes("document.execCommand(accion)"),
+    // `runClipboardAction` (el que llama a `document.execCommand`) sigue en
+    // CadCommandLine.tsx —necesita `inputRef`, que es del padre—; el menú
+    // extraído sólo reenvía la acción por `onClipboardAction`.
+    fuenteLinea.includes("document.execCommand(accion)") && fuenteMenu.includes("onClipboardAction"),
     "cortar/copiar/pegar actúan de verdad sobre la caja, no son botones mudos",
   );
   ok(
-    fuente.includes("if (menu) {") && /if \(menu\) \{[\s\S]{0,120}Escape/.test(fuente),
-    "con el menú abierto, Escape lo cierra en su propio paso antes que cualquier otro atajo",
+    fuenteLinea.includes("if (menu) {") && /if \(menu\) \{[\s\S]{0,120}Escape/.test(fuenteLinea),
+    "con el menú abierto, Escape lo cierra en su propio paso antes que cualquier otro atajo (decidido en CadCommandLine, que es quien conoce el resto de atajos)",
   );
   ok(
-    fuente.includes("style={contextMenuStyle(menu)}") && fuente.includes('function contextMenuStyle('),
+    fuenteMenu.includes("style={contextMenuStyle(point)}") && fuenteMenu.includes('function contextMenuStyle('),
     "el menú se posiciona por `style` (coordenadas del clic, recortadas al borde de la ventana), no por una clase `fixed` — la regla de oro es de la raíz del muelle, y esto vive en un portal",
+  );
+  ok(
+    fuenteMenu.includes("addEventListener(\"pointerdown\"") && fuenteMenu.includes("onClose()"),
+    "el menú extraído se cierra solo con un clic fuera — no depende de que el padre se lo diga",
   );
 }
 
