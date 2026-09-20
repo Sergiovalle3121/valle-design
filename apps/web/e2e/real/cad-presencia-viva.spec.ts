@@ -32,6 +32,7 @@ import {
   capturedToken,
   latestCapturedEmail,
 } from "../fixtures/first-party";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 test.describe.configure({ mode: "serial" });
 test.skip(
@@ -89,6 +90,9 @@ async function registerAndVerify(
 
 async function openStudioReady(page: Page, documentId: string): Promise<void> {
   await page.goto(`/studio/${documentId}`);
+  // Ola «armazón»: el panel derecho (lista de entidades) arranca plegado a
+  // un riel de iconos — antes se veía abierto de fábrica.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId("cad-native-entity-presence-anchor")).toBeVisible({
     timeout: 120_000,
   });

@@ -35,6 +35,7 @@ import {
 } from "@playwright/test";
 import { API_ORIGIN, BASE_URL } from "../fixtures/constants";
 import { E2E_PASSWORD, apiGet, apiPost, apiPut } from "../fixtures/first-party";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 test.describe.configure({ mode: "serial" });
 test.skip(
@@ -191,6 +192,9 @@ async function laneOf(page: Page): Promise<string | null> {
 /** Abre el estudio y espera a que el documento esté realmente dibujado. */
 async function openStudio(page: Page, documentId: string): Promise<void> {
   await page.goto(`/studio/${documentId}`);
+  // Ola «armazón»: el panel derecho (lista de entidades) arranca plegado a
+  // un riel de iconos — antes se veía abierto de fábrica.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId("cad-native-entity-arc-a")).toBeVisible({
     timeout: 120_000,
   });
@@ -211,6 +215,7 @@ async function editRadius(
   entityId: string,
   radius: number,
 ): Promise<void> {
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId("cad-native-entity-list")).toBeVisible({
     timeout: 60_000,
   });
@@ -582,6 +587,8 @@ test.describe("no se pierde trabajo: offline, dos pestañas y cierre forzado", (
 
     // La resolución es EXPLÍCITA: la persona recarga, ve su rama y decide.
     await tabB.reload();
+    // Recarga = página NUEVA: el panel derecho nace plegado a un riel de iconos.
+    await abrirPanelDerecho(tabB);
     await expect(tabB.getByTestId("cad-native-entity-arc-a")).toBeVisible({
       timeout: 120_000,
     });

@@ -23,6 +23,7 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { API_ORIGIN, BASE_URL } from "../fixtures/constants";
 import { E2E_PASSWORD, apiGet, apiPost, apiPut, csrfHeaders } from "../fixtures/first-party";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 test.describe.configure({ mode: "serial" });
 test.skip(
@@ -177,6 +178,7 @@ async function laneOf(page: Page): Promise<string | null> {
 
 /** Dibuja algo real y espera a que el primer checkpoint quede escrito. */
 async function editAndCheckpoint(page: Page, radius: string): Promise<void> {
+  await abrirPanelDerecho(page);
   await page.getByTestId("cad-native-entity-real-arc").click();
   const field = page.getByTestId("cad-native-property-radius");
   await expect(field).toBeVisible();
@@ -269,6 +271,8 @@ test.describe("recuperación local por carril contra PostgreSQL", () => {
     test.setTimeout(180_000);
     for (const page of [tabA, tabB]) {
       await page.goto(`/studio/${documentId}`);
+      // Ola «armazón»: el panel derecho nace plegado a un riel de iconos.
+      await abrirPanelDerecho(page);
       await expect(page.getByTestId("cad-native-entity-real-arc")).toBeVisible({
         timeout: 120_000,
       });
@@ -315,6 +319,8 @@ test.describe("recuperación local por carril contra PostgreSQL", () => {
     // La pestaña A se pone al día con el servidor —descartando su propio
     // borrador, que es una decisión suya— y guarda de verdad.
     await tabA.reload();
+    // Recarga = página NUEVA: el panel derecho nace plegado a un riel de iconos.
+    await abrirPanelDerecho(tabA);
     await expect(tabA.getByTestId("cad-native-entity-real-arc")).toBeVisible({
       timeout: 120_000,
     });
@@ -377,6 +383,8 @@ test.describe("recuperación local por carril contra PostgreSQL", () => {
     // Al reabrir, el borrador local parte de una versión que el servidor ya
     // superó. ANTES esto lo borraba sin preguntar.
     await tabB.reload();
+    // Recarga = página NUEVA: el panel derecho nace plegado a un riel de iconos.
+    await abrirPanelDerecho(tabB);
     await expect(tabB.getByTestId("cad-native-entity-real-arc")).toBeVisible({
       timeout: 120_000,
     });
@@ -418,6 +426,8 @@ test.describe("recuperación local por carril contra PostgreSQL", () => {
     // La pestaña A vuelve a dejar un checkpoint, para comprobar que el descarte
     // de B no lo toca.
     await tabA.reload();
+    // Recarga = página NUEVA: el panel derecho nace plegado a un riel de iconos.
+    await abrirPanelDerecho(tabA);
     await expect(tabA.getByTestId("cad-native-entity-real-arc")).toBeVisible({
       timeout: 120_000,
     });
@@ -453,6 +463,8 @@ test.describe("recuperación local por carril contra PostgreSQL", () => {
     const errors: string[] = [];
     for (const page of [tabA, tabB]) page.on("pageerror", (error) => errors.push(error.message));
     await tabA.reload();
+    // Recarga = página NUEVA: el panel derecho nace plegado a un riel de iconos.
+    await abrirPanelDerecho(tabA);
     await expect(tabA.getByTestId("cad-native-entity-real-arc")).toBeVisible({
       timeout: 120_000,
     });

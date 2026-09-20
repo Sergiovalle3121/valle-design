@@ -14,6 +14,7 @@
  */
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { abrirPanelDerecho } from '../fixtures/docks';
 
 const TEMAS = ['light', 'dark'] as const;
 
@@ -99,6 +100,13 @@ for (const tema of TEMAS) {
   }) => {
     await fijarTema(page, tema);
     await page.goto('/demo');
+    // Ola «armazón»: el panel derecho arranca PLEGADO a un riel de iconos
+    // (`leftDockCollapsed`/`rightDockCollapsed`, `cad-workspace.ts`) — antes
+    // se veía abierto de fábrica. `cad-native-entity-list` sólo se monta con
+    // el muelle desplegado (`Layout3DEditor.tsx`, `!rightOpen ? null : …`),
+    // así que hay que abrirlo con el mismo gesto que una persona, por el
+    // riel, antes de esperar a que aparezca.
+    await abrirPanelDerecho(page);
     await expect(page.getByTestId('cad-native-entity-list')).toBeVisible({
       timeout: 60_000,
     });

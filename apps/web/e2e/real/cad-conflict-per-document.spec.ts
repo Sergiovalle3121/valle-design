@@ -17,6 +17,7 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { API_ORIGIN, BASE_URL } from "../fixtures/constants";
 import { E2E_PASSWORD, apiGet, apiPost, apiPut } from "../fixtures/first-party";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 test.describe.configure({ mode: "serial" });
 test.skip(
@@ -57,6 +58,10 @@ function canonicalDocument(radius = 120) {
 
 /** Edita el radio del arco. El editor programa autosave a los 2 s. */
 async function editRadius(page: Page, radius: string): Promise<void> {
+  // Ola «armazón»: el panel derecho (entidades + propiedades) arranca
+  // plegado a un riel de iconos — idempotente, así que no molesta que quien
+  // llama ya lo haya abierto antes.
+  await abrirPanelDerecho(page);
   await page.getByTestId("cad-native-entity-real-arc").click();
   const field = page.getByTestId("cad-native-property-radius");
   await expect(field).toBeVisible();
@@ -155,6 +160,8 @@ test.describe("el conflicto CAS se enclava por documento, contra PostgreSQL", ()
   test("1: el documento A choca de verdad contra el servidor", async () => {
     test.setTimeout(180_000);
     await page.goto(`/studio/${documentA}`);
+    // Página NUEVA: el panel derecho nace plegado a un riel de iconos.
+    await abrirPanelDerecho(page);
     await expect(page.getByTestId("cad-native-entity-real-arc")).toBeVisible({
       timeout: 120_000,
     });
@@ -193,6 +200,8 @@ test.describe("el conflicto CAS se enclava por documento, contra PostgreSQL", ()
     // Misma pestaña, otro dibujo: es el caso real —abrir otro plano— y el que
     // heredaba el enclavamiento del anterior.
     await page.goto(`/studio/${documentB}`);
+    // Página NUEVA: el panel derecho nace plegado a un riel de iconos.
+    await abrirPanelDerecho(page);
     await expect(page.getByTestId("cad-native-entity-real-arc")).toBeVisible({
       timeout: 120_000,
     });
@@ -242,6 +251,8 @@ test.describe("el conflicto CAS se enclava por documento, contra PostgreSQL", ()
     ).body.cadDocumentVersion;
 
     await page.goto(`/studio/${documentA}`);
+    // Página NUEVA: el panel derecho nace plegado a un riel de iconos.
+    await abrirPanelDerecho(page);
     await expect(page.getByTestId("cad-native-entity-real-arc")).toBeVisible({
       timeout: 120_000,
     });
@@ -267,6 +278,8 @@ test.describe("el conflicto CAS se enclava por documento, contra PostgreSQL", ()
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.reload();
+    // Recarga = página NUEVA: el panel derecho nace plegado a un riel de iconos.
+    await abrirPanelDerecho(page);
     await expect(page.getByTestId("cad-native-entity-real-arc")).toBeVisible({
       timeout: 120_000,
     });

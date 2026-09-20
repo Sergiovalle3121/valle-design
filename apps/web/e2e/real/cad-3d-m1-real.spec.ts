@@ -39,6 +39,7 @@ import {
   latestCapturedEmail,
 } from "../fixtures/first-party";
 import { applyNativeSelectProperty } from "../fixtures/dynamic-input";
+import { abrirPanelDerecho } from "../fixtures/docks";
 import { CAD_DOCUMENT_SCHEMA } from "../../src/lib/cad/cad-document-shared";
 import type { CadDocument, CadWallEntity, CadOpeningEntity } from "../../src/lib/cad/cad-document";
 
@@ -257,6 +258,9 @@ test.describe("3D-M1: muros/vanos/material nativos de punta a punta contra Postg
       { timeout: 30_000 },
     );
 
+    // Ola «armazón»: el panel derecho (lista de entidades nativas) arranca
+    // plegado a un riel de iconos — antes se veía abierto de fábrica.
+    await abrirPanelDerecho(page);
     for (const id of ["muro-sur", "muro-este", "muro-norte", "muro-oeste"]) {
       await expect(
         page.getByTestId(`cad-native-entity-${id}`),
@@ -267,6 +271,10 @@ test.describe("3D-M1: muros/vanos/material nativos de punta a punta contra Postg
 
   test("4: selecciona el muro sur, su material arranca vacío, lo edita, deshace/rehace y guarda", async () => {
     test.setTimeout(120_000);
+    // El test 3 ya lo abrió en esta misma página, pero `abrirPanelDerecho` es
+    // idempotente: no hace daño repetirlo, y esta prueba no depende de que la
+    // anterior corra antes.
+    await abrirPanelDerecho(page);
     await page.getByTestId(`cad-native-entity-${WALL_SUR_ID}`).click();
     const material = page.getByTestId("cad-native-property-material");
     await expect(material).toBeVisible({ timeout: 15_000 });
@@ -321,6 +329,8 @@ test.describe("3D-M1: muros/vanos/material nativos de punta a punta contra Postg
     await page.goto(`/studio/${documentId}`);
     await skipGuidedTour(page);
     await page.getByRole("button", { name: "3D", exact: true }).click();
+    // Página NUEVA (goto de arriba): el panel derecho vuelve a nacer plegado.
+    await abrirPanelDerecho(page);
     await page.getByTestId(`cad-native-entity-${WALL_SUR_ID}`).click();
     await expect(page.getByTestId("cad-native-property-material")).toHaveValue("brick", {
       timeout: 30_000,

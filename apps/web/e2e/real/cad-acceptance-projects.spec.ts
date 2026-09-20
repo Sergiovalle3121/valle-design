@@ -46,6 +46,7 @@ import {
   planoRealProject,
   viviendaProject,
 } from "../fixtures/acceptance-projects";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 test.describe.configure({ mode: "serial" });
 test.skip(
@@ -279,6 +280,9 @@ test.describe("FASE 6 · aceptación comercial: tres proyectos canónicos", () =
       "true",
       { timeout: 60_000 },
     );
+    // Ola «armazón»: el panel derecho (lista de entidades nativas) arranca
+    // plegado a un riel de iconos — antes se veía abierto de fábrica.
+    await abrirPanelDerecho(page);
     for (const id of VIVIENDA_WALL_IDS)
       await expect(
         page.getByTestId(`cad-native-entity-${id}`),
