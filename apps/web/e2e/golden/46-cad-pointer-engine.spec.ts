@@ -184,7 +184,17 @@ test('con el motor abierto, la máquina heredada no recibe el clic', async ({ co
   await fitFootprint(page);
 
   await startTool(page, 'line');
-  await expect(page.getByTestId('cad-command-prompt')).toBeVisible();
+  // ola1-paleta (2026-09-19): el atajo nativo «L» sólo dispara
+  // TOOLBAR_SHORTCUT_IDS con el muelle de comandos OCULTO — si estuviera a la
+  // vista, Fase 0 (editor-keyboard.ts) tecleaba la «L» EN la caja en vez de
+  // arrancar la herramienta. `startTool` pliega ese muelle antes de pulsar la
+  // tecla (`ensureCommandDockHidden`, tool-palette.ts) y no lo repone, así que
+  // `cad-command-line-dock` — y con él `cad-command-prompt` — no vuelve a
+  // montarse en lo que queda del test: ya no hay nada que mirar ahí. La
+  // entrada dinámica junto al cursor (la señal de que el MOTOR, no la máquina
+  // heredada, abrió el comando) la comprobó `startTool` justo antes de volver.
+  // La prueba de que la heredada no recibió el clic sigue abajo, sobre el
+  // DOCUMENTO: si también escuchara, el contador ya diría 2 antes del Enter.
 
   const a = await screenPointFor(page, { x: 3_000, y: 2_000 });
   const b = await screenPointFor(page, { x: 7_000, y: 2_000 });
@@ -199,11 +209,13 @@ test('con el motor abierto, la máquina heredada no recibe el clic', async ({ co
   await expect(page.getByTestId('cad-native-document-count')).toHaveText('Native 2');
   await expect(page.getByTestId('cad-history-depth')).toHaveAttribute('data-undo', '1');
 
-  // Y Esc sobre un comando nuevo cancela sin escribir nada.
+  // Y Esc sobre un comando nuevo cancela sin escribir nada. (El muelle de
+  // comandos sigue oculto desde el primer `startTool` de arriba, así que
+  // `cad-command-prompt` está oculto por no existir — la prueba real de que
+  // no escribió nada es el contador, que sigue abajo.)
   await startTool(page, 'line');
   await page.mouse.click(a.x, a.y);
   await page.keyboard.press('Escape');
-  await expect(page.getByTestId('cad-command-prompt')).toBeHidden();
   await expect(page.getByTestId('cad-native-document-count')).toHaveText('Native 2');
   await expect(page.getByTestId('cad-history-depth')).toHaveAttribute('data-undo', '1');
 });
