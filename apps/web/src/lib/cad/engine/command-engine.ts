@@ -83,6 +83,18 @@ export interface CadCommandEngineState {
   osnapOverride: readonly SnapType[] | null;
   /** DESDE/M2P/TT a medio resolver (T-22). */
   pointModifier: CadPointModifierPendingState | null;
+  /**
+   * Bloqueo de ángulo tecleado (T-Ola3, F3): lo que dejó un `<37` en una
+   * captura anterior de ESTE comando. De un solo uso, como `osnapOverride`
+   * — la captura de punto siguiente lo consume y lo limpia.
+   */
+  angleOverrideDeg: number | null;
+  /**
+   * Último ángulo bloqueado por teclado de la SESIÓN (no del comando): `<`
+   * solo lo repite sin volver a teclearlo, como en AutoCAD. A diferencia de
+   * `angleOverrideDeg`, sobrevive a que el comando termine.
+   */
+  lastAngleOverrideDeg: number | null;
 }
 
 export const EMPTY_CAD_COMMAND_ENGINE: CadCommandEngineState = {
@@ -91,6 +103,8 @@ export const EMPTY_CAD_COMMAND_ENGINE: CadCommandEngineState = {
   lastRepeatable: null,
   osnapOverride: null,
   pointModifier: null,
+  angleOverrideDeg: null,
+  lastAngleOverrideDeg: null,
 };
 
 export type CadCommandEffect =
@@ -160,6 +174,7 @@ function resume(state: CadCommandEngineState, registry: CadCommandRegistry): Cad
     suspended,
     osnapOverride: null,
     pointModifier: null,
+    angleOverrideDeg: null,
   };
   const effects: CadCommandEffect[] = [{ kind: "osnapOverride", modes: null }];
   if (restored) {
@@ -210,7 +225,7 @@ function begin(
     step = descriptor.begin(context) as CadCommandStep<unknown>;
   } catch (error) {
     return {
-      state: { ...state, osnapOverride: null },
+      state: { ...state, osnapOverride: null, angleOverrideDeg: null },
       effects: [{ kind: "message", text: `${descriptor.name}: ${error instanceof Error ? error.message : String(error)}`, level: "error" }],
     };
   }
@@ -220,7 +235,7 @@ function begin(
   // previa, o ZOOM con encuadre inmediato.
   if (step.result) {
     const finished = finish(
-      { ...state, active, suspended, osnapOverride: null },
+      { ...state, active, suspended, osnapOverride: null, angleOverrideDeg: null },
       descriptor,
       step,
       registry,
@@ -230,7 +245,7 @@ function begin(
   }
 
   return {
-    state: { ...state, active, suspended, osnapOverride: null },
+    state: { ...state, active, suspended, osnapOverride: null, angleOverrideDeg: null },
     effects: stepEffects(active, descriptor),
   };
 }
@@ -318,6 +333,8 @@ export function cadCommandEngineReduce(
       prompt: state.active?.step.prompt,
       lastPoint: anchor ?? lastPointOf(state),
       cursor: context.cursor ?? null,
+      angleOverrideDeg: state.angleOverrideDeg,
+      lastAngleOverrideDeg: state.lastAngleOverrideDeg,
       knownCommands: registry.names(),
       // El SCU llega hasta el analizador de coordenadas: `10,20` es diez y
       // veinte SOBRE EL PLANO DE TRABAJO, no sobre el suelo. Sin esto el SCU
@@ -352,6 +369,21 @@ export function cadCommandEngineReduce(
         state: { ...state, osnapOverride: resolved.modes },
         effects: [{ kind: "osnapOverride", modes: resolved.modes }],
       };
+    if (resolved.kind === "angleOverride")
+      return {
+        // Tampoco consume el paso — como el override de OSNAP, dice «la
+        // dirección, hasta nuevo aviso, es esta» y el mismo prompt sigue
+        // pidiendo el punto. Se recuerda como «el último» de la sesión para
+        // que un `<` solo, más adelante, lo repita sin volver a teclearlo.
+        state: {
+          ...state,
+          angleOverrideDeg: resolved.degrees,
+          lastAngleOverrideDeg: resolved.degrees,
+        },
+        effects: [
+          { kind: "message", text: `Ángulo bloqueado a ${resolved.degrees}°.`, level: "info" },
+        ],
+      };
     if (resolved.kind === "pointModifier") {
       // PAR necesita una ARISTA de referencia —un `entityPick`, no un token—
       // y por eso no se puede abrir aquí: se declara el límite en vez de
@@ -384,7 +416,7 @@ export function cadCommandEngineReduce(
     // ignora en silencio: un clic en el vacío no es un error.
     if (action.input.kind === "cancel")
       return {
-        state: { ...state, osnapOverride: null, pointModifier: null },
+        state: { ...state, osnapOverride: null, pointModifier: null, angleOverrideDeg: null },
         effects: [{ kind: "osnapOverride", modes: null }],
       };
     return { state, effects: [] };
@@ -498,11 +530,15 @@ export function cadCommandEngineReduce(
 
   return {
     // Una captura consume el override; el siguiente punto vuelve a los modos
-    // corrientes, que es como se comporta un override de una sola vez.
+    // corrientes, que es como se comporta un override de una sola vez. El
+    // bloqueo de ángulo (T-Ola3 F3) es igual de efímero: una vez fijado el
+    // punto, la próxima captura vuelve a mirar ORTHO/POLAR o el cursor, salvo
+    // que se teclee `<` para repetirlo.
     state: {
       ...state,
       active: advanced,
       osnapOverride: action.input.kind === "point" ? null : state.osnapOverride,
+      angleOverrideDeg: action.input.kind === "point" ? null : state.angleOverrideDeg,
     },
     effects: [
       ...(action.input.kind === "point" && state.osnapOverride

@@ -10,13 +10,16 @@
  *  2. C            → palabra clave del prompt actual, si la hay
  *  3. MID          → override de OSNAP para ESTA captura; el paso no avanza
  *  4. 10,20 @5<30  → coordenada
- *  5. 250          → distancia, o entrada directa sobre la dirección del cursor
- *  6. <45          → ángulo
+ *  5. 250          → distancia, o entrada directa sobre la dirección del
+ *                    cursor, o sobre el ángulo bloqueado si hay uno (F3/F4)
+ *  6. <45          → ángulo, si el paso lo pide como SU parámetro (ROTATE...)
+ *  6.5 <37 / <     → si no, bloqueo de ángulo para la PRÓXIMA captura de
+ *                    punto; el paso no avanza. `<` solo repite el último.
  *  7. cualquier    → texto, si el paso lo admite
  *  8. sin comando  → resolución de alias e invocación
  * ```
  *
- * Los dos puntos que más se notan:
+ * Los tres puntos que más se notan:
  *
  * - **La palabra clave gana a la coordenada.** Si no, en un PLINE la `C` de
  *   «Cerrar» se interpretaría como un número inválido y el usuario vería un
@@ -25,6 +28,9 @@
  *   dice «la próxima captura, al punto medio». Modelarlo así es lo que permite
  *   que los catorce modos de `snap-engine.ts` compongan sin que el motor sepa
  *   nada de snaps.
+ * - **El bloqueo de ángulo tampoco lo consume**, por la misma razón: `<37`
+ *   fija una dirección, no un punto, y la usa el número que se teclee después
+ *   — la forma exacta de trazar una rampa o un biselado a un grado preciso.
  */
 import { parseCoordinate, type Point } from "../precision-input";
 import {
@@ -93,6 +99,14 @@ export type CadResolvedToken =
    * `point-modifiers.ts` para la aritmética pura de `from`/`m2p`/`tt`—.
    */
   | { kind: "pointModifier"; modifier: CadPointModifierKind }
+  /**
+   * Bloqueo de ángulo tecleado (T-Ola3, F3): `<37` en CUALQUIER petición de
+   * punto. Como `osnapOverride`, NO avanza el paso — dice «la dirección,
+   * hasta nuevo aviso, es esta» para que el PRÓXIMO número desnudo (o punto)
+   * la use, igual que ORTHO o POLAR. Es como se trazan rampas y biselados
+   * exactos en AutoCAD.
+   */
+  | { kind: "angleOverride"; degrees: number }
   | { kind: "error"; message: string };
 
 export interface CadTokenContext {
@@ -101,8 +115,25 @@ export interface CadTokenContext {
   prompt?: CadPrompt;
   /** Último punto fijado; base de `@relativo` y de la entrada directa. */
   lastPoint?: Point | null;
-  /** Dirección actual del cursor: sin ella la entrada directa no existe. */
+  /**
+   * Dirección actual del cursor. Con ella la entrada directa de distancia
+   * funciona sin ORTHO ni ángulo bloqueado —basta apuntar y teclear la
+   * distancia, como en AutoCAD—; sin ella, y sin `angleOverrideDeg`, la
+   * entrada directa no tiene de dónde sacar una dirección.
+   */
   cursor?: Point | null;
+  /**
+   * Ángulo bloqueado por teclado (T-Ola3, F3): lo que dejó un `<37` tecleado
+   * en una captura anterior de este mismo comando. Manda sobre el cursor —un
+   * bloqueo explícito es más fuerte que hacia dónde apunte el ratón— y lo
+   * consume el anfitrión del motor (una sola vez, como el override de OSNAP).
+   */
+  angleOverrideDeg?: number | null;
+  /**
+   * Último ángulo bloqueado por teclado, de ESTA sesión de comandos, para que
+   * `<` solo (sin número) lo repita sin volver a teclearlo — como AutoCAD.
+   */
+  lastAngleOverrideDeg?: number | null;
   /** Nombres canónicos conocidos. Si falta, no se valida la existencia. */
   knownCommands?: ReadonlySet<string>;
   /**
@@ -203,6 +234,26 @@ export function resolveCadToken(raw: string, context: CadTokenContext): CadResol
       : { kind: "error", message: `Ángulo inválido "${token}".` };
   }
 
+  // 6.5. Bloqueo de ángulo tecleado (T-Ola3, F3): `<37` en CUALQUIER petición
+  // de punto que no pida ya un ángulo como SU parámetro (eso es el paso 6, y
+  // gana: `ROTATE` sigue leyendo `<45` como «gira 45°», no como un bloqueo).
+  // No fija un punto — como el override de OSNAP, sólo dice «la dirección,
+  // hasta nuevo aviso, es esta» para que el siguiente número desnudo, o el
+  // cursor, la usen. `<` solo repite el último ángulo bloqueado de esta
+  // sesión, para no volver a teclearlo — también como AutoCAD.
+  if (token.startsWith("<") && accepts(context.accepts, CAD_ACCEPT_POINT)) {
+    const angleText = token.slice(1).trim();
+    if (angleText === "") {
+      return context.lastAngleOverrideDeg !== null && context.lastAngleOverrideDeg !== undefined
+        ? { kind: "angleOverride", degrees: context.lastAngleOverrideDeg }
+        : { kind: "error", message: "No hay ningún ángulo bloqueado que repetir." };
+    }
+    const degrees = parseUserAngle(angleText, context.angleFormat ?? DEFAULT_ANGLE_FORMAT);
+    return degrees !== null
+      ? { kind: "angleOverride", degrees }
+      : { kind: "error", message: `Ángulo inválido "${token}".` };
+  }
+
   // 5. Número suelto: distancia, o entrada directa sobre la dirección actual.
   // La distancia se lee con el analizador de longitudes, no con `Number`:
   // `3000` y `10'-6"` son las dos formas de teclear la misma distancia, y
@@ -222,7 +273,19 @@ export function resolveCadToken(raw: string, context: CadTokenContext): CadResol
     const value = typedLength.value;
     if (accepts(context.accepts, CAD_ACCEPT_DISTANCE))
       return { kind: "input", input: { kind: "distance", value } };
-    if (accepts(context.accepts, CAD_ACCEPT_POINT) && context.lastPoint && context.cursor) {
+    const hasAngleOverride =
+      context.angleOverrideDeg !== null && context.angleOverrideDeg !== undefined;
+    if (
+      accepts(context.accepts, CAD_ACCEPT_POINT) &&
+      context.lastPoint &&
+      context.cursor &&
+      // Con un ángulo bloqueado por teclado (`<37`, T-Ola3 F3) la dirección la
+      // da ESE ángulo, no el cursor — un bloqueo explícito es más fuerte que
+      // hacia dónde apunte el ratón. Se resuelve más abajo, en la coordenada
+      // (paso 4), que YA sabe aplicar el SCU al ángulo tecleado: así `<37`
+      // funciona igual de bien con el SCU girado que `30<45`.
+      !hasAngleOverride
+    ) {
       // La entrada directa toma la dirección del CURSOR, que vive en el plano de
       // la pantalla. Con un SCU inclinado esa dirección no está en el plano de
       // trabajo y el punto saldría fuera de la cara: se dice, en vez de fijar un
@@ -256,6 +319,13 @@ export function resolveCadToken(raw: string, context: CadTokenContext): CadResol
       last: last ?? null,
       ...(context.drawingUnit ? { drawingUnit: context.drawingUnit } : {}),
       ...(context.assumeInches ? { assumeInches: true } : {}),
+      // El bloqueo de ángulo tecleado (`<37`) llega hasta aquí para que un
+      // número desnudo que NO tomó el atajo del cursor (paso 5, porque hay
+      // ángulo bloqueado) se resuelva con ÉL — en el mismo SCU que ya sabe
+      // aplicar `30<45`, ángulos incluidos.
+      ...(context.angleOverrideDeg !== null && context.angleOverrideDeg !== undefined
+        ? { lockedAngleDeg: context.angleOverrideDeg }
+        : {}),
       parseAngle: (text) => parseUserAngle(text, context.angleFormat ?? DEFAULT_ANGLE_FORMAT),
     });
     if (parsed.ok) {
