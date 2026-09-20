@@ -17,6 +17,7 @@ import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import { enter3DView } from '../fixtures/view-mode';
 import { topView, fitFootprint } from "../fixtures/camera-preset";
 import { startTool } from "../fixtures/tool-palette";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 const cadDocument = {
   meta: { version: 1, schema: 3, unit: "mm" },
@@ -109,6 +110,9 @@ test("apagar un modo OSNAP en DSETTINGS deja de capturar por él", async ({
   await loginAsStandaloneOwner(context);
   await installCadBackend(context);
   await page.goto("/legacy/studio");
+  // Ola «armazón»: el muelle derecho arranca plegado a un riel de iconos; sin
+  // abrirlo la lista de entidades no existe en el DOM.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId("cad-native-entity-list")).toBeVisible();
   await enter3DView(page);
   await topView(page);

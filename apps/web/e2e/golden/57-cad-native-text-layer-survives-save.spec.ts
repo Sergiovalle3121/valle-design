@@ -3,6 +3,7 @@ import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
+import { abrirPanelDerecho } from '../fixtures/docks';
 import { migrateCadDocument, type CadDocument } from '../../src/lib/cad/cad-document';
 
 /**
@@ -48,6 +49,9 @@ test('un TEXT en una capa real conserva su capa al abrir y su edición al guarda
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto('/legacy/studio');
+  // Ola «armazón»: el muelle derecho arranca plegado a un riel de iconos; sin
+  // abrirlo la lista de entidades no existe en el DOM.
+  await abrirPanelDerecho(page);
 
   await page.getByTestId('cad-native-entity-seed-text-1').click();
   const properties = page.getByTestId('cad-native-properties');
@@ -70,6 +74,9 @@ test('un TEXT en una capa real conserva su capa al abrir y su edición al guarda
   }
 
   await page.reload();
+  // Idempotente: si la preferencia ya quedó abierta antes del reload no hace
+  // falta pulsar nada, pero si el storage no la conservó, la vuelve a abrir.
+  await abrirPanelDerecho(page);
   await page.getByTestId('cad-native-entity-seed-text-1').click();
   await expect(page.getByTestId('cad-native-property-text')).toHaveValue('Después');
   await expect(page.getByTestId('cad-native-property-layer')).toHaveValue('NOTAS');

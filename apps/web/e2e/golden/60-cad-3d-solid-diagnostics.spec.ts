@@ -3,6 +3,7 @@ import { installMockBackend } from "../fixtures/mock-backend";
 import { installCadStudioBackend } from "../fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import { worldPoint } from "../fixtures/world-point";
+import { abrirPanelDerecho } from "../fixtures/docks";
 import type { CadDocument } from "../../src/lib/cad/cad-document";
 import { fitFootprint } from "../fixtures/camera-preset";
 
@@ -69,6 +70,11 @@ test("3D real: la malla del muro se cuenta, y el botón deja de mentir cuando la
   await installCadBackend(context);
   await page.goto("/legacy/studio");
   await expect(page.getByTestId("cad-command-line")).toBeVisible();
+  // Ola «armazón»: el muelle derecho arranca plegado a un riel de iconos; se
+  // abre ANTES de encuadrar para que `worldPoint` calibre contra el ancho de
+  // lienzo definitivo, ya que el botón heredado de la lista de entidades
+  // (línea 100) vive dentro de este muelle.
+  await abrirPanelDerecho(page);
   await settlePlanView(page);
 
   await type(page, "WA");

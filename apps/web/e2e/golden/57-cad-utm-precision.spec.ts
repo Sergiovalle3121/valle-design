@@ -5,6 +5,7 @@ import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import type { CadDocument } from "../../src/lib/cad/cad-document";
 import { enter3DView } from "../fixtures/view-mode";
 import { topView } from "../fixtures/camera-preset";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 /**
  * EL ORIGEN FLOTANTE (P0-2) en un NAVEGADOR de verdad, no sólo en la sonda de
@@ -156,6 +157,12 @@ test("líneas y un círculo a magnitud UTM (~2,15·10⁶) se dibujan enteros, si
 
   // 3. El lienzo sigue vivo: ni excepción de WebGL ni contexto perdido por un
   //    número que se desbordó camino de la GPU.
+  // Ola «armazón»: el muelle derecho arranca plegado a un riel de iconos; sin
+  // abrirlo la lista de entidades no existe en el DOM. Se abre AQUÍ, después
+  // de las tres primeras aserciones sobre el encuadre automático, para no
+  // interferir con lo que miden (el redimensionado del lienzo es un efecto
+  // colateral de abrir el muelle, y esas tres no dependen de su anchura).
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId("cad-native-entity-list")).toBeVisible();
 
   // 4. El origen flotante es puramente de RENDER: el documento persistido

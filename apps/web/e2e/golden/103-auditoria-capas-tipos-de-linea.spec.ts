@@ -24,6 +24,7 @@ import { installCadStudioBackend } from "../fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import { saveAndSettle } from "../fixtures/cad-save";
 import { fitFootprint } from "../fixtures/camera-preset";
+import { abrirPanelDerecho } from "../fixtures/docks";
 import {
   migrateCadDocument,
   type CadDocument,
@@ -175,6 +176,9 @@ test("el estándar de capas del delineante sobrevive a guardar y recargar", asyn
   await expect(page.getByTestId("cad-canvas")).toBeVisible();
   if (await page.getByTestId("cad-guided-tour-skip").count())
     await page.getByTestId("cad-guided-tour-skip").click();
+  // Ola «armazón»: el muelle derecho arranca plegado a un riel de iconos; sin
+  // abrirlo la lista de entidades no existe en el DOM.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId("cad-native-entity-muro-sur")).toBeVisible();
 
   await test.step("las tres capas del estándar, con su color", async () => {
@@ -249,6 +253,12 @@ test("el estándar de capas del delineante sobrevive a guardar y recargar", asyn
 
     // 2) Ni se edita desde el panel de propiedades.
     await limpiarDesignacion(page);
+    // `limpiarDesignacion` pulsa DOS veces el mismo botón del riel
+    // («Selección profesional»): la segunda es el botón YA activo, que por
+    // diseño pliega el muelle ENTERO (`CadDockRail`/`handleRightRailToggle`),
+    // no sólo la paleta de selección. Sin volver a abrirlo aquí, el clic de
+    // abajo caería sobre un `cad-native-entity-eje-a` que no existe en el DOM.
+    await abrirPanelDerecho(page);
     await page.getByTestId("cad-native-entity-eje-a").click();
     await expect(page.getByTestId("cad-native-property-startX")).toHaveValue(
       "4000",
@@ -327,6 +337,9 @@ test("el estándar de capas del delineante sobrevive a guardar y recargar", asyn
     await expect(page.getByTestId("cad-canvas")).toBeVisible();
     if (await page.getByTestId("cad-guided-tour-skip").count())
       await page.getByTestId("cad-guided-tour-skip").click();
+    // El storage conservó el último estado del muelle (colapsado por el
+    // `limpiarDesignacion` del paso «guardar»); se vuelve a abrir, idempotente.
+    await abrirPanelDerecho(page);
     await expect(page.getByTestId("cad-native-entity-muro-sur")).toContainText(
       "MUROS",
     );
