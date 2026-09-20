@@ -278,6 +278,40 @@ const withAttributes = (() => {
   return { document: executeCadEntityCommandBatch(document, commands, "BLOCK").document, definition };
 })();
 
+// --- 4b. ATTDEF con modo PREDEFINIDO: se guarda, y `cadBlockAttributePrompts`
+// decide según quién pregunta (INSERT calla, ATTEDIT lo sigue ofreciendo) -----
+{
+  const document = baseDocument([
+    ...doorEntities,
+    {
+      id: "attdef-norma",
+      type: "attdef",
+      tag: "NORMA",
+      prompt: "Norma de resistencia al fuego",
+      defaultValue: "EI2 30-C5",
+      insertion: { x: 500, y: 100, z: 0 },
+      preset: true,
+      layer: "0",
+    },
+  ]);
+  const { definition } = cadDefineBlockCommands({
+    id: "block:puerta-ei",
+    name: "PUERTA-EI",
+    basePoint: { x: 0, y: 0, z: 0 },
+    entities: document.entities,
+    insertId: "insert-origen",
+  });
+  ok(definition.attributes?.NORMA?.preset === true, "el modo PREDEFINIDO del ATTDEF se guarda en la definición");
+  ok(
+    cadBlockAttributePrompts(definition).some((prompt) => prompt.tag === "NORMA"),
+    "por defecto (ATTEDIT) SÍ lo ofrece: predefinido no es constante",
+  );
+  ok(
+    !cadBlockAttributePrompts(definition, { includePreset: false }).some((prompt) => prompt.tag === "NORMA"),
+    "con includePreset:false (INSERT) NO lo pregunta: toma su valor por defecto en silencio",
+  );
+}
+
 // --- 5. Los atributos POSICIONADOS nacen colocados y se mueven con el bloque -
 {
   const inserted = executeCadEntityCommandBatch(

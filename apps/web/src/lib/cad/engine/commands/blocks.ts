@@ -490,7 +490,10 @@ const insertCommand: CadCommandDescriptor<InsertState> = {
       const block = cadFindBlock(cadInsertableBlocks(blocksOf(context)), typed);
       if (!block)
         return message(state, `No hay ningún bloque llamado ${typed}. Escriba ? para verlos.`);
-      return insertStep({ ...state, block, pending: cadBlockAttributePrompts(block) });
+      // `includePreset: false`: un atributo PREDEFINIDO toma su valor por
+      // defecto sin preguntarlo al insertar (modo P de ATTDEF) — sigue
+      // editable después con ATTEDIT, que sí pide todos los no constantes.
+      return insertStep({ ...state, block, pending: cadBlockAttributePrompts(block, { includePreset: false }) });
     }
 
     if (!state.insertion) {

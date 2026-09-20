@@ -436,4 +436,65 @@ function context(hasDocument: boolean, propio?: unknown): CadCommandContext {
   }
 }
 
+// --- Atributos (ATTEXT/EATTEXT, Ola 4): la lista de puertas con sus valores -
+{
+  const doorBlock = {
+    id: "block:puerta",
+    name: "PUERTA",
+    basePoint: { x: 0, y: 0, z: 0 },
+    entities: [],
+    attributes: { ANCHO: { defaultValue: "800", prompt: "Ancho de paso" } },
+  };
+  const doorInsert = (id: string, ancho: string) => ({
+    id,
+    type: "insert" as const,
+    block: "block:puerta",
+    insertion: { x: 0, y: 0, z: 0 },
+    scale: { x: 1, y: 1, z: 1 },
+    rotation: 0,
+    attributes: { ANCHO: ancho },
+    layer: "0",
+  });
+  const conBloques = {
+    meta: { version: 1, schema: 4, unit: "mm" },
+    blocks: [doorBlock],
+    layers: [],
+    styles: { text: {}, dimension: {}, mleader: {}, table: {}, plot: {} },
+    externalReferences: [],
+    unsupportedEntities: [],
+    modelSpace: { entityIds: ["p1", "p2"] },
+    entities: [doorInsert("p1", "800"), doorInsert("p2", "900")],
+  } as never;
+
+  // 1) Con el nombre exacto: sale UNA sección con las dos inserciones.
+  const begin = command.begin(context(true, conBloques));
+  ok(begin.prompt.options.some((option) => option.keyword === "Atributos" && option.shortcut === "A"), "ofrece Atributos");
+  const asked = command.step(begin.state, { kind: "keyword", keyword: "Atributos" }, context(true, conBloques));
+  ok(/Indique el bloque/.test(asked.prompt.message), "pide el nombre del bloque");
+  const named = command.step(asked.state, { kind: "text", value: "PUERTA" }, context(true, conBloques));
+  ok(named.result?.kind === "host", "termina en una petición al anfitrión");
+  if (named.result?.kind === "host" && named.result.request.kind === "data-extraction-csv") {
+    ok(named.result.request.fileName === "atributos-puerta.csv", `el nombre del archivo nombra el bloque: ${named.result.request.fileName}`);
+    const expected = ["PUERTA", "Identificador,ANCHO", "p1,800", "p2,900"].join("\r\n");
+    ok(named.result.request.content === expected, `el CSV, carácter a carácter: ${JSON.stringify(named.result.request.content)}`);
+  }
+
+  // 2) Con Intro («todos»): mismo resultado, porque es el único bloque con atributos.
+  const askedTodos = command.step(begin.state, { kind: "keyword", keyword: "Atributos" }, context(true, conBloques));
+  const todos = command.step(askedTodos.state, { kind: "enter" }, context(true, conBloques));
+  ok(todos.result?.kind === "host", "Intro también extrae, para todos los bloques con atributos");
+  if (todos.result?.kind === "host" && todos.result.request.kind === "data-extraction-csv")
+    ok(todos.result.request.content.includes("p1,800") && todos.result.request.content.includes("p2,900"), "con las mismas dos filas");
+
+  // 3) Un nombre que no existe se explica, no se calla.
+  const askedMissing = command.step(begin.state, { kind: "keyword", keyword: "Atributos" }, context(true, conBloques));
+  const missing = command.step(askedMissing.state, { kind: "text", value: "VENTANA" }, context(true, conBloques));
+  ok(missing.result?.kind === "message" && /VENTANA/.test(missing.result.text), "el bloque que no existe se nombra en el mensaje");
+
+  // 4) Sin ningún bloque con atributos, «todos» lo dice.
+  const askedEmpty = command.step(command.begin(context(true)).state, { kind: "keyword", keyword: "Atributos" }, context(true));
+  const empty = command.step(askedEmpty.state, { kind: "enter" }, context(true));
+  ok(empty.result?.kind === "message" && /ningún bloque con atributos/.test(empty.result.text), "sin bloques con atributos, se explica");
+}
+
 console.log(`data-extraction-commands.spec: ${checks} comprobaciones OK`);
