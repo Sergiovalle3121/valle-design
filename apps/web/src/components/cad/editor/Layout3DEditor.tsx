@@ -530,6 +530,9 @@ import { CadNativeGripController } from "@/components/cad/viewport/native-grip-c
 import { CadGripMenuOverlay } from "@/components/cad/viewport/grip-menu-host";
 import { createCadTouchGestures } from "@/components/cad/viewport/touch-gestures";
 import { attachCadPlanWheelAnchor } from "@/components/cad/viewport/plan-wheel-anchor";
+import { computeCadPlanGridTiers, cadPlanGridMinorVisible } from "@/components/cad/viewport/plan-grid-tiers";
+import { createCadUcsIconObject, setCadUcsIconColors } from "@/components/cad/viewport/ucs-icon";
+import { cadSelectionMarqueeStyle, cadSelectionMarqueeKind } from "@/components/cad/viewport/selection-marquee-style";
 import { cadApplyAnnotationScale } from "@/lib/cad/layout/annotative-scale";
 import { attachCadDoubleClickEdit } from "@/components/cad/viewport/double-click-edit";
 import { cadStudioXrefBridge } from "@/components/cad/command-line/xref-host";
@@ -1746,6 +1749,9 @@ export default function Layout3DEditor({
   const [hasDxf, setHasDxf] = useState(false); // a DXF backdrop is loaded → can trace it into walls (Fase 58)
   const groundRef = useRef<THREE.Mesh | null>(null);
   const gridHelperRef = useRef<THREE.Object3D | null>(null);
+  const gridMajorRef = useRef<THREE.Object3D | null>(null); // capa MAYOR (plan-grid-tiers.ts)
+  const gridSpacingRef = useRef(1); // espaciado MENOR — cadPlanGridMinorVisible
+  const ucsIconRef = useRef<THREE.Group | null>(null); // icono de ejes (ucs-icon.ts)
   const dirLightRef = useRef<THREE.DirectionalLight | null>(null);
   const walkRef = useRef(false);
   const walkYawRef = useRef(0);
@@ -2201,6 +2207,7 @@ export default function Layout3DEditor({
     const ground = groundRef.current;
     if (ground)
       (ground.material as THREE.MeshStandardMaterial).color.setHex(th.ground);
+    if (ucsIconRef.current) setCadUcsIconColors(ucsIconRef.current, th);
     if (gg) {
       while (gg.children.length) {
         const o = gg.children[gg.children.length - 1];
@@ -2208,42 +2215,24 @@ export default function Layout3DEditor({
         disposeObject(o);
       }
       const { s, W, H } = ctx;
+      // Dos intensidades (plan-grid-tiers.ts): MENOR con gridB, MAYOR cada 5 con gridA.
       const fpGrid = data?.footprint.gridSize || 1;
-      // Rectangular grid that matches the footprint exactly. A square GridHelper
-      // (side = max dimension) used to overhang non-square plants, drawing cells
-      // outside the placeable area — the user could see the cells but the drag
-      // clamp (ctx.W/ctx.H) refused to drop objects there. Now every visible cell
-      // is inside the plant, with ~square world cells, line count capped for perf.
-      const halfW = (W * s) / 2,
-        halfH = (H * s) / 2;
-      const nx = Math.min(60, Math.max(2, Math.round(W / fpGrid)));
-      const nz = Math.min(60, Math.max(2, Math.round(H / fpGrid)));
-      const gridPts: THREE.Vector3[] = [];
-      for (let i = 0; i <= nx; i++) {
-        const x = -halfW + (i / nx) * (W * s);
-        gridPts.push(
-          new THREE.Vector3(x, 0, -halfH),
-          new THREE.Vector3(x, 0, halfH),
-        );
-      }
-      for (let j = 0; j <= nz; j++) {
-        const z = -halfH + (j / nz) * (H * s);
-        gridPts.push(
-          new THREE.Vector3(-halfW, 0, z),
-          new THREE.Vector3(halfW, 0, z),
-        );
-      }
-      const grid = new THREE.LineSegments(
-        new THREE.BufferGeometry().setFromPoints(gridPts),
-        new THREE.LineBasicMaterial({
-          color: th.gridB,
-          transparent: true,
-          opacity: 0.6,
-        }),
+      gridSpacingRef.current = fpGrid; // unidades de DIBUJO — así combina con viewController.view.pixelsPerUnit
+      const tiers = computeCadPlanGridTiers({ halfWidth: (W * s) / 2, halfHeight: (H * s) / 2, spacing: fpGrid * s });
+      const minor = new THREE.LineSegments(
+        new THREE.BufferGeometry().setFromPoints(tiers.minor),
+        new THREE.LineBasicMaterial({ color: th.gridB, transparent: true, opacity: 0.6 }),
       );
-      grid.position.y = 0.01;
-      gridHelperRef.current = grid;
-      gg.add(grid);
+      minor.position.y = 0.01;
+      gridHelperRef.current = minor;
+      gg.add(minor);
+      const major = new THREE.LineSegments(
+        new THREE.BufferGeometry().setFromPoints(tiers.major),
+        new THREE.LineBasicMaterial({ color: th.gridA, transparent: true, opacity: 0.85 }),
+      );
+      major.position.y = 0.012;
+      gridMajorRef.current = major;
+      gg.add(major);
       const edge = new THREE.LineSegments(
         new THREE.EdgesGeometry(new THREE.PlaneGeometry(W * s, H * s)),
         new THREE.LineBasicMaterial({ color: 0x64748b }),
@@ -5931,6 +5920,11 @@ export default function Layout3DEditor({
     const gridGroup = new THREE.Group();
     deco.add(gridGroup);
     gridGroupRef.current = gridGroup;
+    // Icono de ejes (UCS) en el origen del DIBUJO, no del contorno de la planta (ver ucs-icon.ts).
+    const ucsIcon = createCadUcsIconObject(Math.max(0.4, Math.min(W, H) * s * 0.12), THEMES[themeRef.current]);
+    ucsIcon.position.set(-(W * s) / 2, 0.03, -(H * s) / 2);
+    deco.add(ucsIcon);
+    ucsIconRef.current = ucsIcon;
     // cell floor tints — rebuildable so cells can be created/removed live (unify)
     const cellsGroup = new THREE.Group();
     deco.add(cellsGroup);
@@ -5989,8 +5983,8 @@ export default function Layout3DEditor({
     previewLine.visible = false;
     previewLineRef.current = previewLine;
     dimsGroup.add(previewLine);
-    // Marquee de selección (ADR §220): rectángulo en el piso — cian = ventana
-    // (izq→der, todo contenido), verde = cruce (der→izq, basta intersectar).
+    // Marquee de selección (ADR §220): azul = ventana (izq→der), verde =
+    // cruce (der→izq); color real en selection-marquee-style.ts, no a mano.
     const marqueeLine = new THREE.LineLoop(
       new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -5998,7 +5992,7 @@ export default function Layout3DEditor({
         new THREE.Vector3(),
         new THREE.Vector3(),
       ]),
-      new THREE.LineBasicMaterial({ color: 0x22d3ee, depthTest: false }),
+      new THREE.LineBasicMaterial({ depthTest: false }),
     );
     marqueeLine.renderOrder = 998;
     marqueeLine.visible = false;
@@ -6231,7 +6225,7 @@ export default function Layout3DEditor({
         toWorld(m.x0, m.y1),
       ]);
       (marqueeLine.material as THREE.LineBasicMaterial).color.set(
-        m.x1 >= m.x0 ? 0x22d3ee : 0x34d399,
+        cadSelectionMarqueeStyle(cadSelectionMarqueeKind(m.x0, m.x1), themeRef.current).color,
       );
       marqueeLine.visible = true;
     };
@@ -7545,6 +7539,9 @@ export default function Layout3DEditor({
       } else {
         controls.update();
       }
+      // Sigue el zoom: apaga la subrejilla sola si queda demasiado densa (F7 apaga TODA la rejilla, arriba).
+      if (gridHelperRef.current)
+        gridHelperRef.current.visible = cadPlanGridMinorVisible(viewController.view.pixelsPerUnit, gridSpacingRef.current);
       // Un cuadro del pipeline por lotes: fija la vista, gasta su presupuesto
       // de teselado y reconcilia mallas SÓLO si hubo algo que reconciliar.
       // Va antes de `render` para que lo materializado en este cuadro se vea en
@@ -7634,6 +7631,8 @@ export default function Layout3DEditor({
       gridGroupRef.current = null;
       groundRef.current = null;
       gridHelperRef.current = null;
+      gridMajorRef.current = null;
+      ucsIconRef.current = null;
       dirLightRef.current = null;
       notesGroupRef.current = null;
       dxfGroupRef.current = null;

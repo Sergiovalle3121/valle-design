@@ -18,6 +18,12 @@ export const THEMES: Record<
     gridB: number;
     fog: number;
     label: string;
+    /** Rojo del eje X del icono UCS (`viewport/ucs-icon.ts`), ACI 1. */
+    axisX: number;
+    /** Verde del eje Y del icono UCS, ACI 3. También la captura (crossing). */
+    axisY: number;
+    /** Azul de la ventana de selección (izq→der), continua. */
+    selectWindow: number;
   }
 > = {
   dark: {
@@ -27,6 +33,9 @@ export const THEMES: Record<
     gridB: 0x1b2640,
     fog: 0x0a0f1e,
     label: "Oscuro",
+    axisX: 0xef4444,
+    axisY: 0x22c55e,
+    selectWindow: 0x3b82f6,
   },
   light: {
     bg: 0xeaf0f8,
@@ -35,6 +44,9 @@ export const THEMES: Record<
     gridB: 0xbccce4,
     fog: 0xeaf0f8,
     label: "Claro",
+    axisX: 0xb91c1c,
+    axisY: 0x15803d,
+    selectWindow: 0x1d4ed8,
   },
   night: {
     bg: 0x05070d,
@@ -43,6 +55,9 @@ export const THEMES: Record<
     gridB: 0x121a2e,
     fog: 0x05070d,
     label: "Noche",
+    axisX: 0xef4444,
+    axisY: 0x22c55e,
+    selectWindow: 0x3b82f6,
   },
   studio: {
     bg: 0x202329,
@@ -51,6 +66,9 @@ export const THEMES: Record<
     gridB: 0x2f343d,
     fog: 0x202329,
     label: "Estudio",
+    axisX: 0xef4444,
+    axisY: 0x22c55e,
+    selectWindow: 0x3b82f6,
   },
 };
 
