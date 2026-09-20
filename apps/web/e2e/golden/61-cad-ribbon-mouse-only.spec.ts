@@ -68,8 +68,18 @@ const ribbon = (page: Page) => page.getByTestId('cad-ribbon');
 const ribbonCommand = (page: Page, name: string) =>
   ribbon(page).getByTestId(`cad-ribbon-command-${name}`);
 
+/**
+ * Las PESTAÑAS ya no viven dentro de `cad-ribbon`: desde la ola «armazón»,
+ * `cad-ribbon` marca sólo el CUERPO de la cinta —es su alto el que le resta
+ * lienzo al dibujo, y por eso el testid está ahí— mientras la fila de pestañas
+ * se pinta arriba, junto al título. Buscarlas dentro del cuerpo no encontraba
+ * nada y el clic esperaba los tres minutos enteros. Se acota por el `tablist`,
+ * que es tan estricto como antes y además no depende de dónde se dibuje.
+ */
+const ribbonTabs = (page: Page) => page.getByRole('tablist', { name: 'Pestañas de la cinta' });
+
 async function selectRibbonTab(page: Page, tabId: string) {
-  await ribbon(page).getByTestId(`cad-ribbon-tab-${tabId}`).click();
+  await ribbonTabs(page).getByTestId(`cad-ribbon-tab-${tabId}`).click();
 }
 
 /**

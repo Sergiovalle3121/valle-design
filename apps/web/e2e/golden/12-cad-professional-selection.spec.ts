@@ -4,6 +4,7 @@ import { installCadV1Backend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { enter3DView } from '../fixtures/view-mode';
 import { topView, fitFootprint } from "../fixtures/camera-preset";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 const cadDocument = {
   meta: { version: 1, schema: 3, unit: 'mm' },
@@ -92,6 +93,7 @@ test('professional selection composes quick, add, previous, last, all and invert
   await loginAsStandaloneOwner(context);
   await installCadBackend(context);
   await page.goto('/legacy/studio');
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
 
   await page.getByTitle(/Selección profesional/).click();
@@ -130,6 +132,7 @@ test('professional selection executes window, crossing, lasso and overlap cyclin
   await loginAsStandaloneOwner(context);
   await installCadBackend(context, spatialCadDocument);
   await page.goto('/legacy/studio');
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
 
   const selectionTool = page.getByTitle(/Selecci.n profesional/);

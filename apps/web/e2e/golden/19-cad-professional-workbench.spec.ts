@@ -173,9 +173,16 @@ test('professional workbench persists, scales and keeps every palette outside th
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.getByTitle(/Workspace profesional/).click();
   await page.getByTestId('cad-workspace-profile-presentation').click();
-  await page.getByLabel('Cerrar panel profesional').click();
+  // El perfil «presentación» apaga los dos muelles él solo
+  // (`cad-workspace.ts`: `presentation: { leftDock: false, rightDock: false, … }`),
+  // y con la columna derecha apagada el botón «Cerrar panel profesional» deja
+  // de estar a la vista en el mismo instante: pulsarlo aquí esperaba los 180 s
+  // enteros a un botón que el propio perfil acababa de retirar. Se comprueba lo
+  // que de verdad importa —que ELEGIR el perfil basta— en vez de un clic que ya
+  // no existe; es una afirmación más fuerte, no más débil.
   await expect(page.getByTestId('cad-left-dock')).toBeHidden();
   await expect(page.getByTestId('cad-right-dock')).toBeHidden();
+  await expect(page.getByLabel('Cerrar panel profesional')).toBeHidden();
   const presentationCanvas = await canvas.boundingBox();
   expect(presentationCanvas!.width).toBeGreaterThan(1_850);
 });

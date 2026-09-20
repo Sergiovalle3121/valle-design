@@ -395,7 +395,13 @@ export function CadCommandLine({
           </span>
         )}
         {prompt && prompt.options.length > 0 && (
-          <span className="flex shrink-0 items-center gap-1 overflow-x-auto">
+          // `shrink` y no `shrink-0`: con `shrink-0` la tira de opciones se
+          // quedaba su ancho entero y aplastaba la caja de escribir a CERO px.
+          // Medido el 2026-09-20 con `-LAYER`, que ofrece diez opciones de una
+          // vez: a 1280 px el input desaparecía y no se podía teclear el
+          // nombre de la capa — sólo quedaba pulsar los botones. Ahora la tira
+          // cede ancho y se desplaza dentro de sí misma (`overflow-x-auto`).
+          <span className="flex min-w-0 shrink items-center gap-1 overflow-x-auto">
             {prompt.options.map((option) => (
               <button
                 key={option.keyword}
@@ -431,7 +437,10 @@ export function CadCommandLine({
           aria-controls={suggestions.length > 0 ? suggestionListId : undefined}
           aria-activedescendant={suggestions.length > 0 ? `${suggestionListId}-${activeSuggestionIndex}` : undefined}
           placeholder={prompt ? "coordenada, distancia u opción" : idlePlaceholder}
-          className="min-w-0 flex-1 bg-transparent font-mono text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring placeholder:text-muted-foreground"
+          // `min-w-[9rem]` es el suelo: pase lo que pase con el diálogo y las
+          // opciones, siempre queda sitio para escribir. Una línea de comandos
+          // en la que no se puede escribir no es una línea de comandos.
+          className="min-w-[9rem] flex-1 bg-transparent font-mono text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring placeholder:text-muted-foreground"
         />
         <button
           type="button"

@@ -225,4 +225,24 @@ const ok = (condition: boolean, message: string) => {
   );
 }
 
+// (f) SE PUEDE ESCRIBIR SIEMPRE. `-LAYER` ofrece diez opciones de golpe; el
+// 2026-09-20 esa tira, marcada `shrink-0`, se quedaba el ancho entero y dejaba
+// el input en CERO píxeles: a 1280 px no había dónde teclear el nombre de la
+// capa. Dos reglas, y las dos hacen falta: la tira CEDE ancho y el input tiene
+// SUELO. Si vuelve `shrink-0` en la tira, vuelve el fallo.
+{
+  const fuente = readFileSync(path.join(__dirname, "CadCommandLine.tsx"), "utf8");
+  const tira = fuente.match(/<span className="flex[^"]*overflow-x-auto"/)?.[0] ?? "";
+  ok(tira.length > 0, "la tira de opciones sigue siendo un <span> flex con scroll propio");
+  ok(
+    !tira.includes("shrink-0"),
+    `la tira de opciones debe poder ceder ancho, no aplastar el input: "${tira}"`,
+  );
+  const input = fuente.match(/data-testid="cad-command-input"[\s\S]{0,1600}?className="([^"]*)"/)?.[1] ?? "";
+  ok(
+    /min-w-\[\d/.test(input),
+    `el input necesita un ancho mínimo explícito para no colapsar: "${input}"`,
+  );
+}
+
 console.log(`CadCommandLine: ${checks}/${checks} comprobaciones verdes`);

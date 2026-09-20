@@ -97,12 +97,15 @@ const NO_OPERAN_POR_ESTAR_ACTIVOS: Record<string, string> = {
   Modelo: "la pestaña de espacio modelo ya está seleccionada",
   // Sin «(V)»: el lienzo dejó de robar la V (alias VIEW) y el título ya no la anuncia.
   "Seleccionar / mover": "es la herramienta activa al cargar",
-  // Antes era "Puntos" (compatibilidad con estaciones heredadas del
-  // planificador industrial, ver IDENTITY.md): esa pestaña ahora sólo
-  // aparece cuando el documento cargado de verdad trae estaciones, y el
-  // barrido corre sobre un documento LIMPIO. "Biblioteca" es la pestaña que
-  // abre por defecto en su lugar.
-  Biblioteca: "es la pestaña abierta del panel izquierdo",
+  // Aquí estuvo «Biblioteca», la pestaña que abría por defecto en el panel
+  // izquierdo (antes fue «Puntos», de las estaciones heredadas del planificador
+  // industrial, ver IDENTITY.md). Se retira el 2026-09-20 por la misma regla que
+  // se aplicó al gemelo de «Seleccionar» el 17-sep: el barrido cantó que YA NO
+  // EXISTE en la superficie. Y no existe por una razón buena: desde la ola
+  // «armazón» el panel izquierdo arranca PLEGADO en su carril —así el lienzo
+  // pasa del 50 % al 76 % de la ventana— y sus pestañas no se pintan hasta que
+  // se abre el panel. Quien lo abre y pulsa «Biblioteca» sí ve efecto; el
+  // barrido sólo mira lo que está a la vista al cargar.
   // De la paleta de herramientas extraída. El canal Firefox de CI lo delató: en
   // Chromium el hash del lienzo cambia entre dos capturas y tapaba a cualquier
   // control sin efecto real; el render de Firefox es determinista y midió la

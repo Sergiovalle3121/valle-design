@@ -5,6 +5,7 @@ import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { enter3DView } from '../fixtures/view-mode';
 import { topView, fitFootprint } from "../fixtures/camera-preset";
 import { startTool } from "../fixtures/tool-palette";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 const cadDocument = {
   meta: { version: 1, schema: 3, unit: 'mm' },
@@ -57,6 +58,7 @@ test('LINE pointer HUD proves endpoint, midpoint, intersection, perpendicular an
   await loginAsStandaloneOwner(context);
   await installCadBackend(context);
   await page.goto('/legacy/studio');
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
   await enter3DView(page);
   await topView(page);

@@ -37,6 +37,7 @@ import { join } from 'node:path';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadV1Backend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 // Playwright corre con `apps/web` como cwd (playwright.config.ts vive ahí).
 const BASELINE = join(process.cwd(), 'src', 'lib', 'cad', 'benchmark', 'frontend-load-baseline.json');
@@ -171,6 +172,7 @@ test.describe('Presupuesto de carga del frontend', () => {
     const js = contarJs(page, origen);
     const t0 = Date.now();
     await page.goto('/legacy/studio');
+    await abrirPanelDerecho(page);
     await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
     const usable = Date.now() - t0;
     await page.waitForLoadState('networkidle');

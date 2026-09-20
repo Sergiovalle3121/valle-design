@@ -10,6 +10,7 @@ import { applyDynamicInput, applyDynamicPoint } from '../fixtures/dynamic-input'
 import { worldPoint } from '../fixtures/world-point';
 import { enter3DView } from '../fixtures/view-mode';
 import { topView, fitFootprint } from "../fixtures/camera-preset";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 /**
  * FASE 0 — la autoría canónica es TRANSACCIONAL y respeta el orden de dibujo.
@@ -139,6 +140,7 @@ async function deselect(page: Page) {
     .getByTestId('cad-native-properties')
     .getByRole('button', { name: 'Deseleccionar' });
   if (await release.count()) await release.click();
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
 }
 
@@ -266,6 +268,7 @@ test('editing, copying and deleting preserve adversarial draw order through save
   // `zeta, medio, alfa` es exactamente el inverso del orden alfabético: un
   // `.sort()` sobre el z-order es imposible de confundir con "no pasó nada".
   const backend = await openStudio(context, page, DRAW_ORDER);
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
   expect(backend.snapshot().document.modelSpace.entityIds).toEqual(DRAW_ORDER);
 
@@ -307,6 +310,7 @@ test('editing, copying and deleting preserve adversarial draw order through save
   await test.step('reabrir devuelve el mismo orden, sin fantasmas ni omisiones', async () => {
     const saved = backend.snapshot().document;
     await page.reload();
+    await abrirPanelDerecho(page);
     await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
     await saveAndSettle(page, backend);
     const reloaded = backend.snapshot().document;
@@ -358,6 +362,7 @@ test('switching the active layer changes where the MOUSE draws, and it survives 
   expect(drawn.entities[0].layer).toBe('muros');
 
   await page.reload();
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
   await saveAndSettle(page, backend);
   expect(backend.snapshot().document.entities[0].layer).toBe('muros');
@@ -370,6 +375,7 @@ test('switching the active layer changes where the MOUSE draws, and it survives 
 test('a locked layer refuses drawing and OFFSET, and rejection leaves zero history', async ({ context, page }) => {
   test.setTimeout(180_000);
   const backend = await openStudio(context, page, ['zeta']);
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
   // Modo 2D: la vista superior queda BLOQUEADA y el mapa mundo↔pantalla es
   // afín por construcción. El preset 3D «Vista superior» se destemplaba al
@@ -451,6 +457,7 @@ test('a locked layer refuses drawing and OFFSET, and rejection leaves zero histo
 test('MOVE and COPY run from the ordinary command on the canonical selection', async ({ context, page }) => {
   test.setTimeout(180_000);
   const backend = await openStudio(context, page, ['zeta']);
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
   const original = backend.snapshot().document.entities[0] as Extract<CadEntity, { type: 'line' }>;
 

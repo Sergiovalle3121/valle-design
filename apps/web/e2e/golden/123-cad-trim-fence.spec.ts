@@ -4,6 +4,7 @@ import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 /**
  * T-23 · TRIM sin valla.
@@ -60,6 +61,7 @@ test('TRIM + Valla recorta DOS objetos que cruza, en un solo lote', async ({ con
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto('/legacy/studio');
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
 
   const prompt = page.getByTestId('cad-command-prompt');

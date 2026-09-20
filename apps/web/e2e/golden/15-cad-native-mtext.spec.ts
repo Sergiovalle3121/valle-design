@@ -6,6 +6,7 @@ import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import { migrateCadDocument, type CadDocument } from '../../src/lib/cad/cad-document';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 // MIGRACIÓN R3: mock en la superficie v1 real (el adaptador R2 reescribe las
 // rutas legacy antes de tocar la red). Mismo documento, misma huella y mismo
@@ -66,6 +67,7 @@ test('creates, edits, undoes, reloads and DXF round-trips semantic MTEXT', async
   }
 
   await page.reload();
+  await abrirPanelDerecho(page);
   const list = page.getByTestId('cad-native-entity-list');
   // La lista dejó de hablar en identificadores: cada fila dice «Texto 1», no
   // el slug en inglés. El `data-testid` sigue llevando el id, que es la

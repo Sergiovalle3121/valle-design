@@ -6,6 +6,7 @@ import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 type CadArc = Extract<CadEntity, { type: 'arc' }>;
 
@@ -60,6 +61,7 @@ test('FILLET trims two LINE entities and persists a tangent semantic ARC atomica
   await page.keyboard.press('Control+z');
   await expect(page.getByTestId(/^cad-native-entity-fillet-/)).toHaveCount(2);
   await page.keyboard.press('Control+Shift+z');
+  await abrirPanelDerecho(page);
   await page.getByTestId('cad-native-entity-list').getByRole('button').filter({ hasText: 'ARC' }).click();
   await expect(page.getByTestId('cad-native-properties')).toContainText('ARC');
 
