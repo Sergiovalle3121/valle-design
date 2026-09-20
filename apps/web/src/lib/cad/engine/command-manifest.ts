@@ -258,6 +258,7 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "PIDMTO", aliases: ["LISTAMATERIAL", "PIPEBOM"], kind: "inquiry", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/plant-route" },
   { name: "PAGESETUP", aliases: ["PSET"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: true, cursor: "none", module: "commands/plot-commands" },
   { name: "PLOT", aliases: ["PRINT", "PLO"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: false, cursor: "crosshair", module: "commands/plot-commands" },
+  { name: "PLOTSTAMP", aliases: [], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/plot-commands" },
   { name: "STYLESMANAGER", aliases: [], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/plot-commands" },
   { name: "IMAGEATTACH", aliases: ["IAT"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/raster-image" },
   { name: "IMAGECLIP", aliases: ["ICL"], kind: "modify", transparent: false, selection: "command-first", repeatable: true, mutates: true, cursor: "pick", module: "commands/raster-image" },

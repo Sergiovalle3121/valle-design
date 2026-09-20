@@ -18,6 +18,7 @@
 import type { CadDocument } from "@/lib/cad/cad-document";
 import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
 import { cadFindPlotStyleTable } from "@/lib/cad/plot/plot-style-table";
+import { cadPlotScaleLabel, type CadPageSetup } from "@/lib/cad/plot/page-setup";
 import type { CadVisualStyleId } from "@/lib/cad/view/visual-styles";
 import { cadDocumentExtents } from "@/lib/cad/view/document-extents";
 import { buildCadPlotJob, buildCadPlotPreview, type CadPlotJob } from "@/lib/cad/plot/plot-job";
@@ -331,7 +332,7 @@ export class CadPlotHost {
     if (job.sheets.length === 0)
       return `La presentación ${request.request.layoutId} no está marcada para publicar.`;
 
-    void this.emit(job, request.request.fileName);
+    void this.emit(job, request.request.fileName, request.request.pageSetup);
     return `Trazando ${request.request.fileName} a PDF…`;
   };
 
@@ -459,8 +460,15 @@ export class CadPlotHost {
     }
   }
 
-  private async emit(job: CadPlotJob, fileName: string): Promise<void> {
+  private async emit(job: CadPlotJob, fileName: string, pageSetup: CadPageSetup): Promise<void> {
     try {
+      // PLOTSTAMP (system-variables.ts `PLOTSTAMPMODE`, leído por PLOT en
+      // `plotRequest`) decide SI se pinta; el texto se compone aquí porque
+      // sólo el anfitrión sabe qué hora es — el emisor (`plot-pdf.ts`) es puro
+      // y sólo dibuja la línea que le pasan.
+      const stamp = pageSetup.plotStamp
+        ? `${fileName}.pdf · ${new Date().toLocaleDateString("es-MX")} · Escala ${cadPlotScaleLabel(pageSetup.scale)}`
+        : undefined;
       const result: CadPlotPdfResult = await renderCadPlotPdf(job.sheets, {
         ...(this.bridge.fonts ? { fonts: await this.bridge.fonts() } : {}),
         // El cajetín y las familias de fuente vienen del trabajo de trazado,
@@ -471,6 +479,7 @@ export class CadPlotHost {
         fontByEntity: job.fontByEntity,
         strokedFamilies: job.strokedFamilies,
         metadata: { title: fileName },
+        ...(stamp ? { stamp } : {}),
       });
       if (result.pageCount === 0) {
         this.bridge.onResult?.("El trazado no produjo ninguna página.", "error");

@@ -276,6 +276,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   PLANESURF: "Superficie plana",
   PLINE: "Polilínea",
   PLOT: "Trazar a PDF",
+  PLOTSTAMP: "Sello de trazado",
   POINT: "Punto",
   POINTLIGHT: "Luz puntual",
   POLYGON: "Polígono",

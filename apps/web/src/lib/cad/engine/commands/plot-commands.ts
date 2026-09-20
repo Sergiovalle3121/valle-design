@@ -36,6 +36,7 @@ import { upsertCadLayoutCommand } from "../../layout/layout-operations";
 import {
   applyCadPageSetupToLayout,
   cadPageSetupFromLayout,
+  cadPlotScaleLabel,
   type CadPageSetup,
   type CadPlotArea,
   type CadPlotScale,
@@ -316,7 +317,11 @@ function areaLabel(area: CadPlotArea): string {
 }
 
 function scaleLabel(scale: CadPlotScale): string {
-  return scale.kind === "fit" ? "ajustada a la hoja" : `1:${scale.drawingUnits / scale.paperMm}`;
+  // Comparte el formato con el sello de trazado (`cadPlotScaleLabel`,
+  // page-setup.ts); aquí sólo se minuscula la primera letra porque el prompt
+  // la incrusta a media frase («escala ajustada a la hoja»).
+  const label = cadPlotScaleLabel(scale);
+  return label === "Ajustada a la hoja" ? "ajustada a la hoja" : label;
 }
 
 function plotRequest(
@@ -324,11 +329,17 @@ function plotRequest(
   state: PlotState,
   fileName: string,
   mode: "preview" | "plot",
+  context: CadCommandContext,
 ): CadCommandStep<PlotState> {
+  // PLOTSTAMPMODE es del TRAZADO, no de la presentación (ver el comentario de
+  // `plotStamp` en page-setup.ts): PLOTSTAMP la enciende y PLOT la lee aquí,
+  // en cada trazado, en vez de guardarla en la hoja.
+  const plotStamp = Number(context.variables?.get("PLOTSTAMPMODE") ?? 0) !== 0;
   const setup: CadPageSetup = {
     ...cadPageSetupFromLayout(space),
     area: state.area,
     scale: state.scale,
+    plotStamp,
   };
   return host(
     {
@@ -380,7 +391,7 @@ const plotCommand: CadCommandDescriptor<PlotState> = {
           const mode = input.keyword === "Previa" ? "preview" : "plot";
           // La vista previa no pide nombre: no produce archivo.
           return mode === "preview"
-            ? plotRequest(space, state, space.name, "preview")
+            ? plotRequest(space, state, space.name, "preview", context)
             : plotStep({ ...state, askingFile: true, mode });
         }
         default:
@@ -399,7 +410,7 @@ const plotCommand: CadCommandDescriptor<PlotState> = {
 
     if (input.kind === "enter") {
       if (!space) return say(NO_LAYOUT);
-      if (state.askingFile) return plotRequest(space, state, space.name, "plot");
+      if (state.askingFile) return plotRequest(space, state, space.name, "plot", context);
       // `corner1: undefined` ABANDONA la ventana a medias, igual que ya hacía
       // la palabra clave «Trazar» (el caso `abandonedWindow` del spec). Sin
       // eso, quien picaba la primera esquina y pulsaba Intro se quedaba en un
@@ -427,10 +438,70 @@ const plotCommand: CadCommandDescriptor<PlotState> = {
 
     if (state.askingFile) {
       if (!space) return say(NO_LAYOUT);
-      return plotRequest(space, state, input.value.trim() || space.name, state.mode ?? "plot");
+      return plotRequest(space, state, input.value.trim() || space.name, state.mode ?? "plot", context);
     }
 
     return plotStep(state);
+  },
+};
+
+// ---------------------------------------------------------------------------
+// PLOTSTAMP
+// ---------------------------------------------------------------------------
+
+const PLOTSTAMP_ON = { keyword: "Encender", shortcut: "E" } as const;
+const PLOTSTAMP_OFF = { keyword: "Apagar", shortcut: "A" } as const;
+
+function variableAccess(context: CadCommandContext) {
+  return context.variables;
+}
+
+/**
+ * PLOTSTAMP: enciende o apaga el sello de trazado — fichero, fecha y
+ * escala, impreso en la esquina de cada hoja — para el PRÓXIMO trazado.
+ *
+ * Sin diálogo, como el resto de la familia PLOT/PAGESETUP: enciende o
+ * apaga `PLOTSTAMPMODE` (`system-variables.ts`), y PLOT la lee al componer
+ * la petición (`plotRequest`, arriba). El sello mismo — qué se dibuja y
+ * dónde — lo pinta `plot/plot-pdf.ts`, que es quien fabrica los píxeles del
+ * PDF; este comando sólo decide si se pinta.
+ */
+const plotStampCommand: CadCommandDescriptor<Record<string, never>> = {
+  name: "PLOTSTAMP",
+  aliases: [],
+  kind: "manage",
+  transparent: false,
+  selection: "none",
+  repeatable: false,
+  mutates: false,
+  cursor: "none",
+  begin: (context) => {
+    const current = Number(variableAccess(context)?.get("PLOTSTAMPMODE") ?? 0);
+    return {
+      state: {},
+      prompt: {
+        message: `Sello de trazado (fichero, fecha, escala): ${current ? "Encendido" : "Apagado"}`,
+        options: [PLOTSTAMP_ON, PLOTSTAMP_OFF],
+        defaultOption: current ? PLOTSTAMP_OFF.keyword : PLOTSTAMP_ON.keyword,
+      },
+      accepts: CAD_ACCEPT_KEYWORD,
+    };
+  },
+  step: (_state, input, context) => {
+    if (input.kind === "cancel")
+      return { state: {}, prompt: { message: "", options: [] }, accepts: 0, result: { kind: "none" } };
+    const current = Number(variableAccess(context)?.get("PLOTSTAMPMODE") ?? 0);
+    const next = input.kind === "keyword" ? (input.keyword === PLOTSTAMP_ON.keyword ? 1 : 0) : current ? 0 : 1;
+    return {
+      state: {},
+      prompt: { message: "", options: [] },
+      accepts: 0,
+      result: {
+        kind: "variables",
+        patch: { PLOTSTAMPMODE: next },
+        text: `Sello de trazado: ${next ? "Encendido" : "Apagado"}.`,
+      },
+    };
   },
 };
 
@@ -506,5 +577,6 @@ const stylesManagerCommand: CadCommandDescriptor<never> = {
 export const CAD_PLOT_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(pageSetupCommand),
   asCadCommand(plotCommand),
+  asCadCommand(plotStampCommand),
   asCadCommand(stylesManagerCommand),
 ];

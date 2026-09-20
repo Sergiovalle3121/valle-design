@@ -248,6 +248,7 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   PLAN: "Vuelve la vista a la planta del SCU actual.",
   PLINE: "Polilínea con tramos rectos y curvos.",
   PLOT: "Imprimir la lámina: la traza a PDF con escala exacta.",
+  PLOTSTAMP: "Enciende o apaga el sello de trazado (fichero, fecha, escala) para el próximo PLOT.",
   POINT: "Punto aislado.",
   POINTLIGHT: "Aún no disponible: el dibujo todavía no guarda luces y el visor 3D no las pinta.",
   POLYGON: "Polígono regular inscrito o circunscrito.",
