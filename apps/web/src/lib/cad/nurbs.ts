@@ -83,7 +83,7 @@ function bsplineEval(
   const n = controlPoints.length - 1;
   const k = findSpan(u, degree, knots, n);
   const dim = controlPoints[0].length;
-  let row: number[][] = [];
+  const row: number[][] = [];
   for (let j = 0; j <= degree; j += 1) row.push([...controlPoints[j + k - degree]]);
   for (let r = 1; r <= degree; r += 1) {
     for (let j = degree; j >= r; j -= 1) {
@@ -255,7 +255,7 @@ export function splitNurbsAt(curve: CadNurbsCurve, t: number): [CadNurbsCurve, C
   const n = home.length - 1;
   const k = findSpan(u, p, knots, n);
 
-  let row: number[][] = [];
+  const row: number[][] = [];
   for (let j = 0; j <= p; j += 1) row.push([...home[j + k - p]]);
   const leftDiag: number[][] = [row[0]]; // leftDiag[0] = P_{k-p}
   const rightDiagRev: number[][] = [row[p]]; // valor de d[p] ANTES de iterar (r=0)

@@ -18,7 +18,7 @@
  *
  * Extraído de `surfaces.ts` para respetar el presupuesto de monolito (800 líneas).
  */
-import type { CadPoint2, CadPoint3 } from "../../cad-document";
+import type { CadPoint3 } from "../../cad-document";
 import type { CadSolidProfile } from "../../cad-entities-v5";
 import { bodyToFaceSpecs } from "../../../brep/body-builder";
 import { makeFrame, worldToFrame } from "../../../brep/surfaces";
@@ -339,8 +339,8 @@ const surfextendCommand: CadCommandDescriptor<SurfextendState | null> = {
     if (!offsetProfile)
       return solidMessage(
         state,
-        "SURFEXTEND: el contorno de la cara no es convexo (o esta distancia invierte una esquina); " +
-          "el desplazamiento del contorno sólo está resuelto para contornos convexos.",
+        "SURFEXTEND: esta distancia invierte una esquina del contorno (o el contorno es degenerado); " +
+          "pruebe una distancia menor o recorte antes con TRIM/SURFTRIM.",
       );
     const profile: CadSolidProfile = { outer: offsetProfile };
     const solid = makeSolidEntity(

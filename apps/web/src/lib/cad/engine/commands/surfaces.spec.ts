@@ -642,9 +642,97 @@ assert.ok(solidId, "Hay un solido 3D en el documento");
   assert.ok(CAD_COMMAND_REGISTRY_V2.get("SURFFILLET"), "SURFFILLET está en el registro");
 }
 
+// --- SURFEXTEND sobre un contorno CÓNCAVO: ahora se resuelve bien (ola 7, revisión escéptica) --------
+//
+// `offsetPlanarPolygonOutward` decidía el sentido de "hacia fuera" de cada
+// arista comparándola contra el centroide MEDIO DE LOS VÉRTICES — válido
+// sólo para un contorno convexo. En una "L" (una esquina reflex) ese
+// centroide cae del lado equivocado de las dos aristas que forman la
+// esquina y las invierte EN SILENCIO: el área del resultado sigue creciendo
+// (la comprobación que el código decía usar para detectarlo no lo pilla) y
+// el contorno no se autointerseca, así que parecía una extensión válida
+// siendo, en realidad, la esquina cóncava movida hacia DENTRO en vez de
+// hacia fuera. Se corrigió a usar el sentido GLOBAL del contorno (shoelace
+// una sola vez) en vez de la comparación por arista. Aquí se mide la esquina
+// reflex EXACTA tras extender 5mm una "L" — antes de la corrección caía en
+// (15,15); la correcta es (25,25) (la esquina original está en (20,20) y
+// las dos paredes que la forman se desplazan +5 cada una).
+{
+  const lshape: CadEntity = {
+    id: "lshape", type: "polyline", closed: true,
+    vertices: [
+      { x: 0, y: 0, z: 0 },
+      { x: 60, y: 0, z: 0 },
+      { x: 60, y: 20, z: 0 },
+      { x: 20, y: 20, z: 0 },
+      { x: 20, y: 60, z: 0 },
+      { x: 0, y: 60, z: 0 },
+    ],
+    layer,
+  };
+  let lDoc = documentWith([lshape]);
+  const lPatch = run("SURFPATCH", [enter], lDoc, ["lshape"]);
+  assert.ok(lPatch?.kind === "document", "SURFPATCH de la L produce documento");
+  lDoc = executeCadEntityCommandBatch(lDoc, lPatch.commands, lPatch.label).document;
+  const lSolidId = lDoc.entities.find((e) => e.type === "solid3d")!.id;
+
+  const lExt = run("SURFEXTEND", [distance(5), enter], lDoc, [lSolidId]);
+  assert.ok(lExt?.kind === "document", "SURFEXTEND de la L (contorno cóncavo) ya NO se niega con una distancia razonable");
+  const lAfter = executeCadEntityCommandBatch(lDoc, lExt.commands, lExt.label).document;
+  const lExtended = lAfter.entities.find((e) => e.type === "solid3d" && e.id !== lSolidId)!;
+  const lNode = (lExtended as Extract<CadEntity, { type: "solid3d" }>).nodes[0];
+  assert.equal(lNode.op === "extrude" ? lNode.profile.outer.length : 0, 6, "la L extendida SIGUE teniendo 6 vértices");
+  // El perfil está en coordenadas LOCALES del marco de la cara (no necesariamente alineadas con el
+  // mundo), así que se mide por VOLUMEN en vez de por una coordenada cualquiera: el área correcta del
+  // contorno desplazado 5mm es 3300 (verificada aparte, geometría pura) — la versión con el bug de la
+  // ola 7 (centroide por arista) daba 2400 (la esquina reflex invertida HACIA DENTRO en vez de fuera).
+  // volumen = área × espesor (0,001mm, la convención de SURFPATCH/SURFEXTEND).
+  const lVolume = solid3dMassProperties(lExtended as never).volume;
+  assert.ok(
+    Math.abs(lVolume - 3300 * 0.001) <= 0.01,
+    `el volumen de la L extendida debe corresponder al área CORRECTA 3300 (no a 2400, la invertida): volumen=${lVolume}`,
+  );
+
+  // Muesca ESTRECHA entre DOS esquinas reflex (una "U", separación 20): una distancia mayor que la
+  // mitad de la muesca cruzaría sus dos paredes. El área del resultado seguiría creciendo (esa
+  // comprobación sola no lo pilla); hace falta que ninguna arista no vecina del contorno se
+  // cruce/solape consigo misma. Aquí se mide el rechazo REAL a través del comando completo.
+  const ushape: CadEntity = {
+    id: "ushape", type: "polyline", closed: true,
+    vertices: [
+      { x: 0, y: 0, z: 0 },
+      { x: 100, y: 0, z: 0 },
+      { x: 100, y: 80, z: 0 },
+      { x: 60, y: 80, z: 0 },
+      { x: 60, y: 20, z: 0 },
+      { x: 40, y: 20, z: 0 },
+      { x: 40, y: 80, z: 0 },
+      { x: 0, y: 80, z: 0 },
+    ],
+    layer,
+  };
+  let uDoc = documentWith([ushape]);
+  const uPatch = run("SURFPATCH", [enter], uDoc, ["ushape"]);
+  assert.ok(uPatch?.kind === "document", "SURFPATCH de la U produce documento");
+  uDoc = executeCadEntityCommandBatch(uDoc, uPatch.commands, uPatch.label).document;
+  const uSolidId = uDoc.entities.find((e) => e.type === "solid3d")!.id;
+
+  const uBad = run("SURFEXTEND", [distance(15), enter], uDoc, [uSolidId]);
+  assert.equal(uBad?.kind, "message", "SURFEXTEND se NIEGA cuando la distancia cruzaría las dos paredes de una muesca estrecha");
+  if (uBad?.kind === "message")
+    assert.ok(uBad.text.includes("invierte"), `el mensaje debe decir qué falta: "${uBad.text}"`);
+
+  const uOk = run("SURFEXTEND", [distance(5), enter], uDoc, [uSolidId]);
+  assert.ok(uOk?.kind === "document", "la misma muesca con una distancia segura (< mitad del ancho) SÍ se extiende");
+  const uAfter = executeCadEntityCommandBatch(uDoc, uOk.commands, uOk.label).document;
+  const uExtended = uAfter.entities.find((e) => e.type === "solid3d" && e.id !== uSolidId)!;
+  const uNode = (uExtended as Extract<CadEntity, { type: "solid3d" }>).nodes[0];
+  assert.equal(uNode.op === "extrude" ? uNode.profile.outer.length : 0, 8, "la U extendida con distancia segura conserva sus 8 vértices");
+}
+
 console.log(
   "✅ surfaces.spec: PLANESURF (registro), CONVTOSURFACE, SURFOFFSET (vaciado, cancelación, cóncavo), SURFTRIM (recorte, cancelación), SURFSCULPT y SURFUNTRIM (se niegan con el documento idéntico: 5 casos × 6), " +
     "SURFPATCH (parche en su cota real, contorno no plano se niega, cancelación), SURFNETWORK (red, cancelación), " +
     "SURFBLEND y SURFFILLET (se NIEGAN en vez de fabricar un rectángulo envolvente — documento idéntico, cancelación), " +
-    "SURFEXTEND (extensión, cancelación)",
+    "SURFEXTEND (extensión, cancelación, contorno cóncavo corregido, muesca estrecha rechazada)",
 );
