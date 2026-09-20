@@ -22,7 +22,7 @@
  * tocar este archivo, el golden lo dice.
  */
 import type { CadRibbonCommand, CadRibbonPanel, CadRibbonTab } from "./ribbon";
-import { CAD_RIBBON_PANEL_COLLAPSE_ORDER } from "./ribbon-order";
+import { CAD_RIBBON_PANEL_COLLAPSE_ORDER, CAD_RIBBON_PROTECTED_REDUCE_ORDER } from "./ribbon-order";
 
 /** La forma de un juego de métricas — el disperso y el denso comparten ésta. */
 export interface CadRibbonMetrics {
@@ -344,10 +344,24 @@ export function planCadRibbonLayout(
   const collapsible = CAD_RIBBON_PANEL_COLLAPSE_ORDER[tab.id].filter(
     (label) => labels.has(label) && !manuallyCollapsed.has(label),
   );
+  // Del último al primero, SALVO donde el producto haya dicho otra cosa
+  // (`CAD_RIBBON_PROTECTED_REDUCE_ORDER`): en Inicio, Anotación cede antes que
+  // Capas. Lo declarado manda y lo no declarado va detrás, en el orden inverso
+  // de siempre, así que una pestaña sin entrada se comporta igual que antes.
+  const orden = CAD_RIBBON_PROTECTED_REDUCE_ORDER[tab.id];
   const protectedPanels = tab.panels
     .map((panel) => panel.label)
     .filter((label) => !collapsible.includes(label) && !manuallyCollapsed.has(label))
-    .reverse();
+    .reverse()
+    .sort((a, b) => {
+      if (!orden) return 0;
+      const ia = orden.indexOf(a);
+      const ib = orden.indexOf(b);
+      if (ia === -1 && ib === -1) return 0;
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    });
   // Ola 6 «cinta legible»: ANTES este comentario decía que un panel SIN botón grande (Grupos,
   // Utilidades, Portapapeles) ya costaba lo mínimo en "reduced" (17 px, «ni un botón») y que pasar
   // a "collapsed" (77 px) sólo gastaba presupuesto sin ganar nada. Esa cuenta olvidaba el PIE: un

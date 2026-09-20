@@ -146,9 +146,14 @@ function disabledAttr(html: string, testId: string): boolean {
     store.set(CAD_RIBBON_PANELS_KEY, JSON.stringify(["inicio/Dibujo"]));
     const actual = renderToStaticMarkup(createElement(CadRibbon, { dispatch: () => undefined }));
     ok(layoutOf(actual, "Dibujo") === "collapsed", "lo plegado a propósito (clave nueva) se respeta");
+    // Utilidades SÍ se pliega ahora, y es lo barato: sin botón grande, el panel
+    // «reducido» es sólo su pie —el rótulo con la flecha— y medido cuesta 92 px
+    // contra 85 plegado, enseñando los mismos CERO comandos. Y el botón plegado
+    // no está vacío: lleva el icono del panel (`ribbon-icons.ts`: Utilidades →
+    // Ruler) y su nombre, como en AutoCAD. Lo que sí se comprueba es eso.
     ok(
-      layoutOf(actual, "Utilidades") !== "collapsed",
-      "Utilidades, sin botón grande tras el recorte de primarios, nunca se pliega a un botón-icono vacío",
+      layoutOf(actual, "Utilidades") === "collapsed",
+      "Utilidades se pliega a su botón-icono, que es más barato que dejar el pie suelto",
     );
     ok(layoutOf(actual, "Capas") !== "collapsed", "Capas, protegido, nunca se pliega a un botón aunque Dibujo esté plegado a mano");
   } finally {

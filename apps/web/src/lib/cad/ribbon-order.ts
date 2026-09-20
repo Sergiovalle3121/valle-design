@@ -228,3 +228,28 @@ export function compareDeclared(order: readonly string[] | undefined, a: string,
   if (ra !== rb) return ra - rb;
   return a.localeCompare(b, "es-MX");
 }
+
+/**
+ * EN QUÉ ORDEN CEDEN LOS PANELES PROTEGIDOS.
+ *
+ * Los que no aparecen en `CAD_RIBBON_PANEL_COLLAPSE_ORDER` nunca se pliegan a
+ * un botón, pero cuando ni así cabe la tira alguno tiene que quedarse sólo con
+ * su botón grande. Por defecto ceden del último al primero —el orden inverso
+ * de la pestaña—, y en Inicio eso dejaba a CAPAS cediendo antes que Anotación,
+ * justo al revés de lo que el producto quiere: `CadRibbon.spec.ts` fija desde
+ * la Ola 1 que a 1280 px «Dibujo, Modificar y Capas» conservan sus columnas,
+ * porque el oficio abre y aísla capas todo el rato.
+ *
+ * Con el modelo de anchos ya corregido (el pie del panel se cuenta) a 1272 px
+ * no caben los cuatro: medido, 1318 px de contenido para 1260 de presupuesto.
+ * Así que hay que elegir, y se elige lo que ya estaba escrito — cede
+ * Anotación, se queda Capas.
+ *
+ * Sólo se declara la pestaña donde la elección importa; el resto sigue con el
+ * orden inverso de siempre.
+ */
+export const CAD_RIBBON_PROTECTED_REDUCE_ORDER: Partial<
+  Readonly<Record<CadRibbonTabId, readonly string[]>>
+> = {
+  inicio: ["Vistas", "Anotación", "Capas", "Modificar", "Dibujo"],
+};

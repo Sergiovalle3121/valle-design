@@ -71,7 +71,11 @@ ok(html.includes(panel.label), "el nombre del panel sigue pintándose (sin cambi
   ok(order(collapsed).length === 0, "plegado: ningún botón de comando en el DOM");
   ok(collapsed.includes('data-testid="cad-ribbon-panel-toggle-Dibujo"') && collapsed.includes('aria-expanded="false"'), "plegado: un botón con aria-expanded que abre el panel entero");
   ok(collapsed.includes(`id="${labelId}"`) && collapsed.includes('aria-labelledby="cad-ribbon-panel-label-Dibujo"'), "plegado: el grupo sigue nombrado por su rótulo");
-  ok(collapsed.includes("w-[4.5rem]"), "plegado: el botón mide 4,5 rem (CAD_RIBBON_METRICS.collapsed)");
+  // 5 rem, no 4,5: con 4,5 el rótulo «Portapapeles» (69,7 px) no cabía POR 1,7 PÍXELES y ese panel
+  // se quedaba suelto en su pie, 109 px de tira para cero botones. Ocho píxeles aquí devuelven
+  // columnas allá (ver `ribbon-layout.spec.ts`). Este número y `CAD_RIBBON_METRICS.collapsed` (85 =
+  // 4 + 80 + 1) tienen que moverse JUNTOS: el golden 214 mide en un navegador que no mientan.
+  ok(collapsed.includes("w-[5rem]"), "plegado: el botón mide 5 rem (CAD_RIBBON_METRICS.collapsed)");
   // Ola 6 «cinta legible»: `break-words` partía una palabra suelta sin
   // espacios («Propiedade s», «Portapapele s», queja literal del dueño) —
   // `truncate` recorta con puntos suspensivos en una sola línea y nunca
