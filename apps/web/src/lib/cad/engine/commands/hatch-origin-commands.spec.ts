@@ -156,4 +156,43 @@ ok(
   `DESPUÉS de HATCHORIGIN: B (en una región totalmente distinta) también cae en fase con el origen común (residuo ${phaseBAfter})`,
 );
 
+// ---------------------------------------------------------------------------
+// Selección por CLIC (entityPick), uno por uno — no por ventana. El primer
+// clic sólo pone `targets.length` en 1; un fallo que confunda «ya elegí uno»
+// con «terminé de elegir» pierde el SEGUNDO clic en silencio y manda al
+// dibujante directo a pedir el punto de origen con un solo HATCH designado.
+// ---------------------------------------------------------------------------
+{
+  const c = square("hc", 0, 0, 10);
+  const d = square("hd", 200, 200, 10);
+  const docClicks = document([c, d]);
+  const descriptor = CAD_COMMAND_REGISTRY_V2.get("HATCHORIGIN")!;
+  const context = makeContext(docClicks);
+
+  let step = descriptor.begin(context);
+  step = descriptor.step(step.state, { kind: "entityPick", entityId: "hc", point: { x: 5, y: 5 } }, context);
+  ok(
+    (step.state as { targets: readonly string[] }).targets.length === 1,
+    "tras el primer clic, un HATCH designado",
+  );
+  step = descriptor.step(step.state, { kind: "entityPick", entityId: "hd", point: { x: 205, y: 205 } }, context);
+  ok(
+    (step.state as { targets: readonly string[] }).targets.length === 2,
+    "tras el SEGUNDO clic, los DOS HATCH quedan designados — no se pierde el que no es el primero",
+  );
+  step = descriptor.step(step.state, { kind: "enter" }, context);
+  step = descriptor.step(step.state, { kind: "point", point: { x: 1, y: 1 }, source: "typed" }, context);
+  const resultClicks = step.result;
+  ok(resultClicks?.kind === "document", "HATCHORIGIN por clics produce un lote");
+  checks += 1;
+  const idsClicks =
+    resultClicks?.kind === "document"
+      ? resultClicks.commands.map((command) => (command as { entityId: string }).entityId)
+      : [];
+  ok(
+    idsClicks.includes("hc") && idsClicks.includes("hd"),
+    "el lote final incluye los DOS HATCH elegidos por clic, no sólo el primero",
+  );
+}
+
 console.log(`hatch-origin-commands: ${checks} comprobaciones OK`);

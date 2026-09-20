@@ -45,21 +45,24 @@ import {
 
 const DEFAULT_ORIGIN_OPTION: CadKeyword = { keyword: "Predeterminado", shortcut: "P" };
 
+type HatchOriginPhase = "select" | "origin";
+
 interface HatchOriginState {
+  phase: HatchOriginPhase;
   targets: readonly string[];
 }
-const IDLE: HatchOriginState = { targets: [] };
+const IDLE: HatchOriginState = { phase: "select", targets: [] };
 
 const SELECT_PROMPT = { message: "Designe los HATCH cuyo origen se iguala", options: [] };
 const SELECT_ACCEPTS = CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK;
 
 function selectStep(state: HatchOriginState): CadCommandStep<HatchOriginState> {
-  return { state, prompt: SELECT_PROMPT, accepts: SELECT_ACCEPTS };
+  return { state: { ...state, phase: "select" }, prompt: SELECT_PROMPT, accepts: SELECT_ACCEPTS };
 }
 
 function originStep(state: HatchOriginState): CadCommandStep<HatchOriginState> {
   return {
-    state,
+    state: { ...state, phase: "origin" },
     prompt: {
       message: "Nuevo punto de origen del patrón",
       options: [DEFAULT_ORIGIN_OPTION],
@@ -115,14 +118,22 @@ const hatchOriginCommand: CadCommandDescriptor<HatchOriginState> = {
   mutates: true,
   cursor: "pick",
   begin: (context) =>
-    context.selection.length > 0 ? originStep({ targets: context.selection }) : selectStep(IDLE),
+    context.selection.length > 0
+      ? originStep({ phase: "select", targets: context.selection })
+      : selectStep(IDLE),
   step: (state, input, context) => {
     if (input.kind === "cancel") return { state: IDLE, prompt: { message: "", options: [] }, accepts: 0, result: { kind: "none" } };
 
-    if (state.targets.length === 0) {
-      if (input.kind === "selection") return originStep({ targets: input.entityIds });
-      if (input.kind === "entityPick") return selectStep({ targets: [...state.targets, input.entityId] });
-      if (input.kind === "enter") return selectStep(state);
+    if (state.phase === "select") {
+      // Una selección por ventana llega COMPLETA en un solo input: no hace
+      // falta Intro para confirmarla. Un clic por objeto (`entityPick`) va
+      // ACUMULANDO uno a uno — por eso el fase se queda en «select» y no en
+      // `targets.length === 0`, que sólo era cierto en el PRIMER clic y
+      // perdía cualquier clic siguiente en cuanto `targets` dejaba de estar
+      // vacío. Sólo Intro con algo ya designado cierra la selección.
+      if (input.kind === "selection") return originStep({ ...state, targets: input.entityIds });
+      if (input.kind === "entityPick") return selectStep({ ...state, targets: [...state.targets, input.entityId] });
+      if (input.kind === "enter" && state.targets.length > 0) return originStep(state);
       return selectStep(state);
     }
 
