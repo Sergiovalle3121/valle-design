@@ -309,6 +309,30 @@ const layerById = (document: CadDocument, id: string) =>
     assert.equal(layer.visible, true, `Restituir devuelve ${layer.id}`);
 }
 
+// --- LAYISO y LAYWALK ENCADENADOS comparten memoria: la foto es la de ANTES
+// del primer aislamiento, no la del último paso intermedio ------------------
+{
+  const catalog = new CadLayerStateCatalog();
+  const catalogs = { layerStates: catalog };
+  const before = baseDocument();
+  for (const layer of before.layers) assert.equal(layer.visible, true, "arranca con todo encendido");
+
+  // Primero LAYISO dEja sólo MUROS; la memoria guarda el "todo encendido".
+  const isolated = run(before, ["LAYISO", pick("muro"), "\r"], { catalogs }).document;
+  assert.equal(layerById(isolated, "MUROS").visible, true);
+
+  // LAYWALK, encima, pasea hasta MEP: NO debe pisar la memoria de LAYISO.
+  const walked = run(isolated, ["LAYWALK", "MEP"], { catalogs }).document;
+  assert.equal(layerById(walked, "MEP").visible, true, "el paseo muestra MEP en solitario");
+  assert.equal(layerById(walked, "MUROS").visible, false, "y apaga lo que LAYISO había dejado");
+
+  // LAYUNISO devuelve el estado de ANTES de LAYISO —todo encendido—, no el
+  // de antes de LAYWALK (que habría sido "sólo MUROS").
+  const restored = run(walked, ["LAYUNISO"], { catalogs }).document;
+  for (const layer of restored.layers)
+    assert.equal(layer.visible, true, `LAYUNISO tras encadenar devuelve ${layer.id} a como estaba al principio`);
+}
+
 // --- LAYMRG fusiona A en B: reasigna y purga en UN lote ----------------------
 {
   const before = baseDocument();
