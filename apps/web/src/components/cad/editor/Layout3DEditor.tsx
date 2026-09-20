@@ -13495,9 +13495,11 @@ export default function Layout3DEditor({
     </>
   );
 
-  // EL `trailing` DEL ARMAZÓN: 2D/3D, Modelo/Presentación, herramientas que
-  // YA cubre la cinta (cobertura total, no se perdió nada) y diálogos de
-  // salida sin paleta acoplable. Las 7 profesionales van al riel derecho.
+  // EL `trailing` DEL ARMAZÓN: 2D/3D, herramientas que YA cubre la cinta
+  // (cobertura total, no se perdió nada) y diálogos de salida sin paleta
+  // acoplable. Las 7 profesionales van al riel derecho. Modelo/Presentación
+  // vivían aquí y se mudaron a la barra de estado — ver el comentario justo
+  // abajo del botón 3D.
   const trailingContent = (
     <>
         <div className="inline-flex items-center rounded-lg bg-muted/60 p-0.5 type-caption font-semibold">
@@ -13522,40 +13524,12 @@ export default function Layout3DEditor({
             3D
           </button>
         </div>
-        <div
-          data-cad-readonly-allowed
-          data-testid="cad-space-tabs"
-          className="inline-flex items-center overflow-hidden rounded-lg border border-border bg-muted/40 type-micro font-semibold"
-        >
-          <button
-            onClick={() => setShowSheetPackage(false)}
-            className={`px-2 py-1 ${!showSheetPackage ? "bg-brand-strong text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
-          >
-            Modelo
-          </button>
-          {orderedPaperSpaces.slice(0, 3).map((space) => (
-            <button
-              key={space.id}
-              onClick={() => {
-                selectPaperSpace(space);
-                setShowSheetPackage(true);
-              }}
-              className={`border-l border-border px-2 py-1 ${showSheetPackage && space.id === activePaperSpace?.id ? "bg-brand-strong text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
-            >
-              {space.name}
-            </button>
-          ))}
-          <button
-            onClick={() => setShowSheetPackage(true)}
-            className="border-l border-border px-2 py-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-            title="Administrar layouts, viewports y publicación"
-          >
-            Layout
-            {orderedPaperSpaces.length
-              ? ` · ${orderedPaperSpaces.length}`
-              : " +"}
-          </button>
-        </div>
+        {/* Las pestañas Modelo / Presentación se mudaron a la barra de
+            estado (`CadSpaceTabs`, carril «abajo» de la ola «estado»): aquí
+            vivían mezcladas con el título, que es justo la queja que esa
+            ola vino a resolver. `Layout3DEditor.tsx` sólo entrega los datos
+            (`spaceTabs`, más abajo, en `<CadStatusBar>`); el monolito pierde
+            el bloque de JSX que antes tenía aquí, no gana ninguno. */}
         <div className="w-px h-5 bg-muted mx-1" />
         <T3Btn
           active={tool === "select"}
@@ -14710,6 +14684,17 @@ export default function Layout3DEditor({
   const statusBarElement = hasContent ? (
           <CadStatusBar
             onAnnotationScale={(d) => cadApplyAnnotationScale(loadedCadDocumentRef.current, d, commitNativeCommands)}
+            spaceTabs={{
+              isModelActive: !showSheetPackage,
+              spaces: orderedPaperSpaces,
+              activeSpaceId: activePaperSpace?.id ?? null,
+              onSelectModel: () => setShowSheetPackage(false),
+              onSelectSpace: (space) => {
+                selectPaperSpace(space);
+                setShowSheetPackage(true);
+              },
+              onManage: () => setShowSheetPackage(true),
+            }}
             diagnostics={{
               enabled: diagnosticsEnabled,
               tool,
