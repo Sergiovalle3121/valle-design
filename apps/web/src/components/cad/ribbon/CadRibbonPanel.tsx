@@ -86,8 +86,16 @@ export function CadRibbonPanel({
       data-layout={effectiveLayout.state}
       data-columns={effectiveLayout.columns}
       // pt-0.5 / pb-0: a 720 px de alto el lienzo necesita cada píxel.
+      //
+      // Ola 6 «cinta legible»: el separador entre paneles iba a `/60` de
+      // opacidad — contra `bg-surface` (11,5% de luz en oscuro) casi no
+      // despegaba del fondo y «Dibujo, Modificar, Anotación… se leían como
+      // una sola masa gris» (queja literal del dueño). A plena opacidad es
+      // el MISMO par ya medido por el gate de contraste (`--border` sobre
+      // `--card`/`--surface`, relieve ≥1,3:1: `check-contrast.mjs`), sólo
+      // que sin atenuar.
       className={cx(
-        "flex shrink-0 flex-col border-r border-border/60 pb-0 pt-0.5 last:border-r-0",
+        "flex shrink-0 flex-col border-r border-border pb-0 pt-0.5 last:border-r-0",
         collapsed ? "px-0.5" : "px-2",
         // Sin fila de botones (panel "reduced" sin primario, ver más abajo):
         // el rótulo se centra en el alto del panel en vez de quedar pegado
@@ -145,7 +153,23 @@ export function CadRibbonPanel({
               ) : null}
             </div>
           ) : null}
-          <div className="flex items-center justify-center">
+          <div
+            className={cx(
+              "flex items-center justify-center",
+              // Ola 6 «cinta legible»: el rótulo flotaba sin nada que lo
+              // sujetara — «pequeño y centrado, no ancla nada» (queja
+              // literal). Una línea encima, como el pie de un panel de
+              // AutoCAD, separa visualmente los BOTONES del NOMBRE; sólo
+              // cuando hay fila de botones arriba (si el panel está
+              // "reduced" sin nada que enseñar, el rótulo es lo único que
+              // hay y no necesita ancla propia).
+              // Sin margen ni relleno extra: el borde (1 px) es lo único que
+              // se suma al alto — la cinta no puede crecer (golden 214: ≤108
+              // px con 720 de alto de ventana, donde el lienzo se come cada
+              // píxel que sobra).
+              (split.large.length > 0 || split.small.length > 0) && "border-t border-border",
+            )}
+          >
             {split.flyout.length > 0 ? (
               <CadRibbonPanelFlyout
                 variant="title"

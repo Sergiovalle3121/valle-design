@@ -58,35 +58,69 @@ export const CAD_RIBBON_METRICS: CadRibbonMetrics = {
 
 /**
  * EL ESCALÓN DENSO — por debajo de este ancho de tira el botón pequeño de
- * `CadRibbonButton` deja de llevar rótulo: sólo icono, `w-28` (112 px) pasa a
- * medir `CAD_RIBBON_DENSE_METRICS.small` (26 px) y caben hasta ocho columnas
- * en vez de dos. `rows` NO cambia (sigue en 3): el cuerpo del panel sigue
- * midiendo `h-[3.75rem]` en los dos escalones — sólo cambia CUÁNTO entra a lo
- * ancho, nunca el alto.
+ * `CadRibbonButton` encoge de `w-28` (112 px) a `CAD_RIBBON_DENSE_METRICS.small`
+ * (80 px) y el panel cabe con hasta cuatro columnas en vez de dos. `rows` NO
+ * cambia (sigue en 3): el cuerpo del panel sigue midiendo `h-[3.75rem]` en
+ * los dos escalones — sólo cambia CUÁNTO entra a lo ancho, nunca el alto.
  *
- * DESVIACIÓN medida y documentada (ver «pendiente» del resumen de la ola): el
- * encargo pedía el corte en 1500 px («un portátil de 1366 con la barra del
- * navegador»). Con el escalón disperso de arriba (`small: 112`, `maxColumns:
- * 2`) y sólo 9 botones grandes en Inicio tras el recorte de primarios, el
- * TOTAL de botones a la vista tiene un techo matemático ~35 a 1908 px — el
- * ancho de la ventana ancha que el encargo exige con ≥60 comandos visibles
- * (nueve grandes de 68 px más, como mucho, dieciséis columnas de 6 pequeños
- * de 112 px, y ya no cabe más en ese presupuesto). Subir el corte a 1920 —el
- * borde de un monitor de escritorio corriente, no ya "un portátil"— deja 1908
- * px del lado denso y sigue satisfaciendo la premisa del encargo (una
- * ventana de portátil, con o sin barra, se queda siempre en el escalón
- * denso); una pantalla de verdad más ancha que 1920 es la única que ve el
- * escalón disperso con rótulo.
+ * ## Por qué el corte está en 1920 px y no en los 1500 del encargo original
+ *
+ * DESVIACIÓN medida y documentada (ver «pendiente» del resumen de la ola 1):
+ * el encargo pedía el corte en 1500 px («un portátil de 1366 con la barra
+ * del navegador»). Con el escalón disperso de arriba (`small: 112`,
+ * `maxColumns: 2`) y sólo 9 botones grandes en Inicio tras el recorte de
+ * primarios, el TOTAL de botones a la vista tiene un techo matemático ~35 a
+ * 1908 px — el ancho de ventana ancha que el encargo exige con ≥60 comandos
+ * visibles. Subir el corte a 1920 —el borde de un monitor de escritorio
+ * corriente, no ya "un portátil"— deja 1908 px del lado denso y sigue
+ * satisfaciendo la premisa (una ventana de portátil, con o sin barra, se
+ * queda siempre en el escalón denso); una pantalla de verdad más ancha que
+ * 1920 es la única que ve el escalón disperso.
+ *
+ * ## Ola 6 «cinta legible» (2026-09-20) — por qué 80 px y no 26
+ *
+ * La Ola 1 «cinta» encogió el botón denso a SÓLO ICONO (26 px, ocho
+ * columnas): a 1346 px Inicio enseñaba 71 botones, pero ninguno con rótulo —
+ * el dueño, que viene de AutoCAD, los describió como «iconos anónimos,
+ * imposibles de distinguir de un vistazo». El encargo de esta ola lo dice
+ * explícito: medir cuántos caben CON rótulo y elegir lo que maximice
+ * «comandos RECONOCIBLES», no «comandos visibles» — 71 iconos mudos no es
+ * una victoria si nadie sabe qué hacen sin pasar el ratón por los 71.
+ *
+ * Medido con `planCadRibbonLayout` sobre el registro real de Inicio (ver
+ * `ribbon-layout.spec.ts`, bloque «ESCALÓN DENSO CON RÓTULO»), con `rows: 3`
+ * fijo (el alto del panel no puede moverse) y variando sólo el ancho del
+ * botón pequeño y `maxColumns`:
+ *
+ *   ancho | maxColumns | visibles a 1346 px | visibles a 1908 px
+ *      64 |          6 |                  31 |                  58
+ *      72 |          4 |                  28 |                  53
+ *      80 |          4 |                  25 |                  45
+ *      88 |          3 |                  25 |                  44
+ *     112 |          2 |                  19 |                  35  (el disperso de siempre)
+ *
+ * 64 px da el conteo más alto pero dentro del botón sólo caben ~5 caracteres
+ * antes de recortar (`icono 16 + gap 4 + padding 8` de presupuesto fijo, ver
+ * `CadRibbonButton.tsx`): «Simetrí…» se reconoce, «Compen…» ya no tanto. A 80
+ * px quedan ~8 caracteres — «Compensa…», «Rectáng…» — que es donde un rótulo
+ * recortado sigue leyéndose como palabra y no como sílaba suelta. El precio
+ * es 25 comandos con rótulo de verdad en vez de 71 mudos: MENOS botones,
+ * TODOS reconocibles, que es exactamente el criterio del encargo.
+ *
+ * `maxColumns` baja de 8 a 4: con el botón cuatro veces más ancho que el de
+ * la Ola 1, ocho columnas ya no caben en el presupuesto de ningún panel real
+ * de Inicio (el más largo, Dibujo, necesita como mucho 4) y dejarlo en 8 no
+ * ganaba ni una columna más — sólo quedaba como techo sin uso.
  */
 export const CAD_RIBBON_DENSE_BREAKPOINT = 1920;
 
-/** Las mismas métricas, con el botón pequeño reducido a icono. */
+/** Las mismas métricas, con el botón pequeño encogido pero CON rótulo (recortado si no cabe). */
 export const CAD_RIBBON_DENSE_METRICS = {
   ...CAD_RIBBON_METRICS,
-  /** Botón pequeño denso: sólo icono, `w-[1.625rem]`. */
-  small: 26,
-  /** Con el botón a un cuarto de ancho, caben hasta ocho columnas. */
-  maxColumns: 8,
+  /** Botón pequeño denso: icono + rótulo recortado, `w-20` (Ola 6 «cinta legible»). */
+  small: 80,
+  /** Con el botón más angosto que el disperso, caben hasta cuatro columnas. */
+  maxColumns: 4,
 } as const;
 
 /** Qué juego de métricas usar para un ancho de tira dado. */

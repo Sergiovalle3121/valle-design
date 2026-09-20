@@ -96,15 +96,17 @@ for (const width of [1272, 1358]) {
   ok(cadRibbonTabWidth(inicio, plan) > 600, "a 600 px la tira mide más que la ventana: se desplaza, no se amputa");
 }
 
-// ── EL ESCALÓN DENSO (Ola 1 «cinta», 2026-09-19) ────────────────────────────
+// ── EL ESCALÓN DENSO CON RÓTULO (Ola 6 «cinta legible», 2026-09-20) ─────────
 //
-// Medido en producción: a 1366 px de ventana (1346 disponibles) el lienzo
-// era el 49,8 % porque la cinta sólo enseñaba 17 comandos de los 124 que
-// tiene Inicio. El recorte de botones grandes (`ribbon-order.ts`) y el
-// escalón denso de aquí (botón pequeño SÓLO ICONO, `maxColumns` de 2 a 8) se
-// miden juntos con la misma vara que usará quien continúe: cuántos comandos
-// quedan a la vista SIN abrir nada (`large` + `small` de `cadRibbonPanelSplit`
-// sobre todos los paneles), no cuántos existen en el registro.
+// La Ola 1 «cinta» (2026-09-19) midió aquí «cuántos comandos quedan A LA
+// VISTA» y llegó a 71 a 1346 px encogiendo el botón pequeño a SÓLO ICONO (26
+// px, ocho columnas). El dueño —que dibuja a diario y viene de AutoCAD— los
+// vio y dijo que eran «iconos anónimos, imposibles de distinguir de un
+// vistazo»: visible no es lo mismo que reconocible. El encargo de esta ola
+// pide medir cuántos caben CON RÓTULO LEGIBLE y elegir eso, aunque el total
+// baje — y baja: de 71 mudos a 25 con nombre a 1346 px. La tabla que decidió
+// el ancho (64 a 112 px, con su cuenta de caracteres visibles) vive en el
+// comentario de `CAD_RIBBON_DENSE_METRICS`, en `ribbon-layout.ts`.
 {
   const totalVisible = (width: number) => {
     const plan = planCadRibbonLayout(inicio, width);
@@ -115,8 +117,13 @@ for (const width of [1272, 1358]) {
   };
 
   ok(1346 < CAD_RIBBON_DENSE_BREAKPOINT, "1366 px de ventana (portátil, con o sin barra) cae siempre en el escalón denso");
+  const visibles1272 = totalVisible(1272);
+  ok(visibles1272 >= 20, `Inicio a 1272 px (ventana de 1280) enseña ${visibles1272} comandos CON rótulo; el objetivo de la Ola 6 es ≥20`);
   const visibles1346 = totalVisible(1346);
-  ok(visibles1346 >= 45, `Inicio a 1346 px enseña ${visibles1346} comandos; el objetivo de la Ola 1 «cinta» es ≥45 (hoy son 17)`);
+  ok(
+    visibles1346 >= 24,
+    `Inicio a 1346 px enseña ${visibles1346} comandos CON rótulo; el objetivo de la Ola 6 «cinta legible» es ≥24 (con la Ola 1 eran 71 sin nombre)`,
+  );
   ok(
     cadRibbonTabWidth(inicio, planCadRibbonLayout(inicio, 1346)) <= 1346,
     "a 1346 px la tira sigue sin desbordar: el golden 214 (scrollWidth <= clientWidth) se apoya en esto",
@@ -126,16 +133,18 @@ for (const width of [1272, 1358]) {
   // 1920, con el margen que le resta la barra/los rieles): sigue por debajo
   // del corte (ver `CAD_RIBBON_DENSE_BREAKPOINT`, más arriba, para la
   // desviación medida frente al corte de 1500 px del encargo original) y el
-  // escalón denso tiene de sobra para enseñar todavía más.
+  // escalón denso tiene de sobra para enseñar todavía más, siempre con rótulo.
   ok(1908 < CAD_RIBBON_DENSE_BREAKPOINT, "1908 px (una ventana de escritorio ancha) también cae en el escalón denso");
   const visibles1908 = totalVisible(1908);
-  ok(visibles1908 >= 60, `Inicio a 1908 px enseña ${visibles1908} comandos; el objetivo es ≥60 (hoy son 17)`);
+  ok(visibles1908 >= 40, `Inicio a 1908 px enseña ${visibles1908} comandos CON rótulo; el objetivo de la Ola 6 es ≥40`);
 
-  // El botón pequeño denso mide `CAD_RIBBON_DENSE_METRICS.small` (26 px), no
-  // los 112 px con rótulo del escalón disperso — y por debajo del corte
-  // `maxColumns` es 8, no 2.
-  const denseMetricsChanged = CAD_RIBBON_DENSE_METRICS.small === 26 && CAD_RIBBON_DENSE_METRICS.maxColumns === 8;
-  ok(denseMetricsChanged, "CAD_RIBBON_DENSE_METRICS: botón pequeño de 26 px, hasta ocho columnas");
+  // El botón pequeño denso mide `CAD_RIBBON_DENSE_METRICS.small` (80 px, con
+  // presupuesto para ~8 caracteres de rótulo recortado), no los 26 px de
+  // sólo-icono de la Ola 1 ni los 112 px sin recorte del escalón disperso —
+  // y por debajo del corte `maxColumns` es 4, no 8: con el botón cuatro
+  // veces más ancho, ocho columnas ya no cabían en ningún panel real.
+  const denseMetricsChanged = CAD_RIBBON_DENSE_METRICS.small === 80 && CAD_RIBBON_DENSE_METRICS.maxColumns === 4;
+  ok(denseMetricsChanged, "CAD_RIBBON_DENSE_METRICS: botón pequeño de 80 px (con rótulo recortado), hasta cuatro columnas");
   ok(CAD_RIBBON_DENSE_METRICS.rows === CAD_RIBBON_METRICS.rows, "las filas NO cambian: el cuerpo del panel sigue midiendo lo mismo de alto");
   ok(CAD_RIBBON_DENSE_METRICS.large === CAD_RIBBON_METRICS.large, "el botón grande no cambia de tamaño con el escalón denso");
 

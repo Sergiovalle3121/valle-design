@@ -130,7 +130,16 @@ export function CadRibbonPanelFlyout({
           )}
         >
           {PanelIcon ? <PanelIcon aria-hidden="true" className="h-6 w-6 shrink-0" /> : null}
-          <span id={labelId} className="type-micro w-full break-words text-center leading-tight">
+          {/*
+           * Ola 6 «cinta legible»: `break-words` partía una palabra suelta a
+           * mitad («Propiedade s», «Portapapele s») porque el botón mide
+           * 4,5 rem y ni «Propiedades» ni «Portapapeles» caben enteros en una
+           * sola línea a este tamaño — CSS los partía donde le cupiera, sin
+           * respetar la sílaba. `truncate` (una línea, puntos suspensivos)
+           * nunca corta a mitad de palabra y el nombre completo sigue en el
+           * `title` del botón (`triggerTitle`, más abajo).
+           */}
+          <span id={labelId} className="type-micro w-full truncate text-center leading-tight">
             {panelLabel}
           </span>
           <ChevronDown aria-hidden="true" className="h-3 w-3 shrink-0" />
