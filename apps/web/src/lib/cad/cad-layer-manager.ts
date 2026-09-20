@@ -1,4 +1,5 @@
 import { commitChange, type CadDocument, type CadLayerDef } from './cad-document';
+import { freezeCadLayerInViewport } from './layout/viewport-operations';
 
 const INVALID_LAYER_NAME = /[<>/\\":;?*|=`,]/;
 
@@ -86,4 +87,41 @@ export function deleteCadDocumentLayer(document: CadDocument, id: string, reassi
       }),
     })),
   }, `layer:delete:${id}:reassign:${reassignTo}`);
+}
+
+/**
+ * VP-Freeze from the LAYER MANAGER, not the palette: freeze or thaw one layer
+ * inside one viewport, given only the DOCUMENT — the manager does not carry a
+ * `CadPaperSpace` in hand the way a paper-space command does.
+ *
+ * `freezeCadLayerInViewport` (`layout/viewport-operations.ts`) already does the
+ * write, but it takes a single `CadPaperSpace` — exactly what a command holds
+ * after resolving the active layout, and exactly what the layer manager does
+ * NOT have: `createCadDocumentLayer`/`updateCadDocumentLayer`/
+ * `deleteCadDocumentLayer` all take the whole `CadDocument`, because that is
+ * the manager's own contract (list every layer, touch one, commit). Without
+ * this function, giving the manager's own data model a VP-Freeze meant either
+ * widening its contract to also demand a space (leaking a paper-space concern
+ * into every caller that only wants to rename a layer) or reaching past it
+ * into `layout/viewport-operations.ts` from wherever VP-Freeze was needed —
+ * the same second mutation path this module exists to avoid for
+ * create/update/delete.
+ */
+export function setCadDocumentLayerViewportFreeze(
+  document: CadDocument,
+  input: { layerId: string; viewportId: string; frozen: boolean },
+): CadDocument {
+  if (!document.layers.some((layer) => layer.id === input.layerId))
+    throw new Error(`Layer ${input.layerId} was not found.`);
+  let found = false;
+  const paperSpaces = document.paperSpaces.map((space) => {
+    if (found || !space.viewports?.some((viewport) => viewport.id === input.viewportId)) return space;
+    found = true;
+    return freezeCadLayerInViewport(space, input.viewportId, [input.layerId], input.frozen);
+  });
+  if (!found) throw new Error(`Viewport ${input.viewportId} was not found in any presentation.`);
+  return commitChange(
+    { ...document, paperSpaces },
+    `layer:vp-freeze:${input.layerId}:${input.viewportId}:${input.frozen}`,
+  );
 }
