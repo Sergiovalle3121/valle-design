@@ -32,6 +32,7 @@ import { mleaderAdapter } from "./mleader-entity-adapter";
 import { regionAdapter, solid3dAdapter } from "./solid3d-adapter";
 import { wallAdapter } from "./wall-entity-adapter";
 import { openingAdapter } from "./opening-entity-adapter";
+import { sectionPlaneAdapter } from "./section-plane-adapter";
 import type { CadBoundaryPath } from "./hatch-associativity";
 
 export type CadNativeEntity = Extract<
@@ -48,7 +49,10 @@ export type CadNativeEntity = Extract<
     | "wall"
     // Esquema 7: el hueco ALOJADO en un muro. Misma regla — tipo y adaptador
     // juntos. Es el primer tipo cuya geometría entera sale de OTRA entidad.
-    | "opening" }
+    | "opening"
+    // No abre esquema (`cad-entities-section-plane.ts`). Misma regla — tipo y
+    // adaptador juntos.
+    | "sectionplane" }
 >;
 export type CadNativeEntityType = CadNativeEntity["type"];
 
@@ -307,7 +311,10 @@ export const CAD_ENTITY_REGISTRY = new CadEntityRegistry()
   // Esquema 7. `opening` no guarda ni un punto: deriva TODO del eje de su muro
   // anfitrión (`wall-openings.ts`). Es lo que hace que mover el muro lo lleve
   // consigo y borrarlo lo cierre, sin un regenerador que mantener.
-  .register(openingAdapter);
+  .register(openingAdapter)
+  // No abre esquema. `sectionplane` es el plano de corte persistido: su
+  // rectángulo son cuatro esquinas, como el contorno de `region`.
+  .register(sectionPlaneAdapter);
 
 function rectangularBoundary(entity: Extract<CadEntity, { type: "box" | "station" }>): CadPoint2[] {
   const center = { x: entity.x + entity.w / 2, y: entity.y + entity.h / 2 };

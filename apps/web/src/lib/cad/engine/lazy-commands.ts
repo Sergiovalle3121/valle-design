@@ -144,6 +144,7 @@ export const CAD_COMMAND_MODULE_LOADERS = {
   "commands/plot-commands": () => import("./commands/plot-commands"),
   "commands/raster-image": () => import("./commands/raster-image"),
   "commands/reference-edit": () => import("./commands/reference-edit"),
+  "commands/section-plane-commands": () => import("./commands/section-plane-commands"),
   "commands/select-basic": () => import("./commands/select-basic"),
   "commands/select-query": () => import("./commands/select-query"),
   "commands/select-similar": () => import("./commands/select-similar"),

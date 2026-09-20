@@ -241,6 +241,15 @@ const SAMPLES: Record<CadNativeEntityType, CadNativeEntity> = {
     hinge: "start",
     layer,
   },
+  // El plano de corte: su geometría son sus propias cuatro esquinas, no lee
+  // el documento —a diferencia de INSERT, WALL y OPENING—, así que el barrido
+  // lo confirma SIN marca `needsDocument`.
+  sectionplane: {
+    id: "sectionplane",
+    type: "sectionplane",
+    corners: [p(23_000, 0), p(23_400, 0), p(23_400, 400), p(23_000, 400)],
+    layer,
+  },
 };
 
 /** El vecino del muro: no se barre, existe para que la L exista. */

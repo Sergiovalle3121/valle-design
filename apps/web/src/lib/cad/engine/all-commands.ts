@@ -1,5 +1,5 @@
 /**
- * Los 131 módulos de comandos, con `import` ESTÁTICO. GENERADO — no se edita a mano.
+ * Los 132 módulos de comandos, con `import` ESTÁTICO. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` y `--check`
  * lo verifica, del mismo tirón que `command-manifest.ts`.
@@ -114,43 +114,44 @@ import * as m090 from "./commands/raster-image";
 import * as m091 from "./commands/reference-edit";
 import * as m092 from "./commands/render-commands";
 import * as m093 from "./commands/ruled-surfaces";
-import * as m094 from "./commands/select-basic";
-import * as m095 from "./commands/select-query";
-import * as m096 from "./commands/select-similar";
-import * as m097 from "./commands/settings-drafting-toggles";
-import * as m098 from "./commands/settings-layer-tools";
-import * as m099 from "./commands/settings-mexican-standard";
-import * as m100 from "./commands/settings-palettes";
-import * as m101 from "./commands/settings-variables";
-import * as m102 from "./commands/sheet-set-commands";
-import * as m103 from "./commands/solids-create";
-import * as m104 from "./commands/solids-edit";
-import * as m105 from "./commands/solids-flatshot";
-import * as m106 from "./commands/solids-inquiry";
-import * as m107 from "./commands/solids-interop";
-import * as m108 from "./commands/solids-modify";
-import * as m109 from "./commands/solids-primitives";
-import * as m110 from "./commands/solids-push-face";
-import * as m111 from "./commands/solview-commands";
-import * as m112 from "./commands/surfaces";
-import * as m113 from "./commands/surfaces-ext";
-import * as m114 from "./commands/text-search";
-import * as m115 from "./commands/transform-3d";
-import * as m116 from "./commands/transform-3d-align";
-import * as m117 from "./commands/transform-3d-array";
-import * as m118 from "./commands/transform-3d-mirror";
-import * as m119 from "./commands/transform-3d-rotate";
-import * as m120 from "./commands/transform-3d-scale";
-import * as m121 from "./commands/ucs-commands";
-import * as m122 from "./commands/ucs-view-commands";
-import * as m123 from "./commands/utility-commands";
-import * as m124 from "./commands/vectorize-raster";
-import * as m125 from "./commands/view-navigation";
-import * as m126 from "./commands/view-navigation-3d";
-import * as m127 from "./commands/view-visual";
-import * as m128 from "./commands/view-visualization";
-import * as m129 from "./commands/viewbase-commands";
-import * as m130 from "./commands/xrefs";
+import * as m094 from "./commands/section-plane-commands";
+import * as m095 from "./commands/select-basic";
+import * as m096 from "./commands/select-query";
+import * as m097 from "./commands/select-similar";
+import * as m098 from "./commands/settings-drafting-toggles";
+import * as m099 from "./commands/settings-layer-tools";
+import * as m100 from "./commands/settings-mexican-standard";
+import * as m101 from "./commands/settings-palettes";
+import * as m102 from "./commands/settings-variables";
+import * as m103 from "./commands/sheet-set-commands";
+import * as m104 from "./commands/solids-create";
+import * as m105 from "./commands/solids-edit";
+import * as m106 from "./commands/solids-flatshot";
+import * as m107 from "./commands/solids-inquiry";
+import * as m108 from "./commands/solids-interop";
+import * as m109 from "./commands/solids-modify";
+import * as m110 from "./commands/solids-primitives";
+import * as m111 from "./commands/solids-push-face";
+import * as m112 from "./commands/solview-commands";
+import * as m113 from "./commands/surfaces";
+import * as m114 from "./commands/surfaces-ext";
+import * as m115 from "./commands/text-search";
+import * as m116 from "./commands/transform-3d";
+import * as m117 from "./commands/transform-3d-align";
+import * as m118 from "./commands/transform-3d-array";
+import * as m119 from "./commands/transform-3d-mirror";
+import * as m120 from "./commands/transform-3d-rotate";
+import * as m121 from "./commands/transform-3d-scale";
+import * as m122 from "./commands/ucs-commands";
+import * as m123 from "./commands/ucs-view-commands";
+import * as m124 from "./commands/utility-commands";
+import * as m125 from "./commands/vectorize-raster";
+import * as m126 from "./commands/view-navigation";
+import * as m127 from "./commands/view-navigation-3d";
+import * as m128 from "./commands/view-visual";
+import * as m129 from "./commands/view-visualization";
+import * as m130 from "./commands/viewbase-commands";
+import * as m131 from "./commands/xrefs";
 
 cadRegisterCommandModules([
   m000,
@@ -284,4 +285,5 @@ cadRegisterCommandModules([
   m128,
   m129,
   m130,
+  m131,
 ]);

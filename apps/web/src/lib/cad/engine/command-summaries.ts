@@ -296,6 +296,7 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   SCALE: "Escala la selección desde un punto base.",
   SCRIPT: "Ejecuta un guion .scr de órdenes.",
   SECTION: "Sección de un sólido por un plano.",
+  SECTIONPLANE: "Define un plano de corte persistente; con sólidos designados, corta de verdad y deja la sección como región.",
   SELECT: "Designa objetos para la orden siguiente, sin modificar nada: la deja como selección Previa.",
   SELECTSIMILAR: "Designa todo lo del mismo tipo y capa (y bloque) que lo designado.",
   SETBYLAYER: "Devuelve color, tipo de línea y grosor de la selección a PorCapa.",

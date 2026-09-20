@@ -1,8 +1,8 @@
 /**
- * METADATOS de los 382 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 383 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
- * 131 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
+ * 132 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
  * `npm run check:cad`— falla si lo committeado deja de coincidir con lo que los
  * descriptores dicen hoy. Regla 4 de la campaña de cimientos: ninguna cifra vive
  * en dos lugares, y un comando nuevo no puede entrar sin aparecer aquí.
@@ -288,6 +288,7 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "TABSURF", aliases: ["TSURF", "SUPERFICIETABULADA"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/ruled-surfaces" },
   { name: "REVSURF", aliases: ["RSURFACE", "SUPERFICIEREVOLUCION"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/ruled-surfaces" },
   { name: "EDGESURF", aliases: ["ESURF", "SUPERFICIEBORDE"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/ruled-surfaces" },
+  { name: "SECTIONPLANE", aliases: ["SPLANE", "PLANOCORTE"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/section-plane-commands" },
   { name: "SELECT", aliases: [], kind: "inquiry", transparent: false, selection: "required", repeatable: false, mutates: false, cursor: "pick", module: "commands/select-basic" },
   { name: "QSELECT", aliases: [], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "none", module: "commands/select-query" },
   { name: "FILTER", aliases: ["FI"], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "none", module: "commands/select-query" },

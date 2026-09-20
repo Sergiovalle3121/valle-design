@@ -439,6 +439,7 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   CHAMFEREDGE: Pentagon,
   SLICE: Slice,
   SECTION: Axe,
+  SECTIONPLANE: SquareDashed,
   INTERFERE: TriangleAlert,
   FLATSHOT: ScanLine,
   SOLVIEW: LayoutGrid,
