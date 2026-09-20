@@ -47,7 +47,11 @@ import type { CadAnyCommandDescriptor } from "./command-types";
  * de ella y `--check` falla si el manifiesto committeado no coincide.
  */
 export const CAD_COMMAND_MODULE_LOADERS = {
+  "commands/annotate-dimension-break": () => import("./commands/annotate-dimension-break"),
   "commands/annotate-dimension-chains": () => import("./commands/annotate-dimension-chains"),
+  "commands/annotate-dimension-jogged": () => import("./commands/annotate-dimension-jogged"),
+  "commands/annotate-dimension-space": () => import("./commands/annotate-dimension-space"),
+  "commands/annotate-dimension-tedit": () => import("./commands/annotate-dimension-tedit"),
   "commands/annotate-dimensions": () => import("./commands/annotate-dimensions"),
   "commands/annotate-dimensions-angular": () => import("./commands/annotate-dimensions-angular"),
   "commands/annotate-dimensions-radial": () => import("./commands/annotate-dimensions-radial"),

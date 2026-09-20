@@ -20,18 +20,24 @@
  * Ambas emiten UN lote con toda la cadena: acotar seis tramos seguidos es un
  * Ctrl+Z, no seis.
  *
- * ## DIMEDIT dice lo que no puede hacer
+ * ## DIMEDIT ya no tiene nada que negar
  *
- * `Nuevo` e `Inicio` se pueden: uno escribe la sobrescritura del texto y el otro
- * devuelve el texto a su sitio derivado. `Girar` y `Oblicuo` no: el esquema
- * canónico no tiene ni ángulo de texto propio ni ángulo de líneas de referencia,
- * y fingir que se aplicaron sería peor que negarse.
+ * `Girar` y `Oblicuo` se negaban porque el esquema canónico no tenía ni
+ * ángulo de texto propio ni ángulo de líneas de referencia. Los dos campos
+ * los trae `cad-dimension-day-to-day-fields.ts` (Ola III): `Girar` escribe
+ * `textRotationOverride` —el mismo campo que `DIMTEDIT «Ángulo»`, porque en
+ * AutoCAD son la misma propiedad vista desde dos comandos— y `Oblicuo`
+ * escribe `extensionObliqueAngle`, un ángulo ABSOLUTO (grados CCW desde +X,
+ * el mismo convenio que ya usan HATCH o TEXT) del que
+ * `buildCadDimensionGeometry` lee la dirección de las líneas de extensión en
+ * vez de la perpendicular por defecto.
  */
 import type { CadEntity, CadPoint2 } from "../../cad-document";
 import type { CadDimensionEntity } from "../../associative-dimension";
 import type { CadEntityCommand } from "../../entity-commands";
 import type { CadNativeEntity } from "../../entity-runtime";
 import {
+  CAD_ACCEPT_ANGLE,
   CAD_ACCEPT_ENTITY_PICK,
   CAD_ACCEPT_KEYWORD,
   CAD_ACCEPT_POINT,
@@ -394,11 +400,17 @@ const ROTATE = { keyword: "Girar", shortcut: "G" } as const;
 const OBLIQUE = { keyword: "Oblicuo", shortcut: "O" } as const;
 
 interface EditState {
-  mode: "ask" | "text" | "select";
-  operation: "new" | "home";
+  mode: "ask" | "text" | "angle" | "select";
+  operation: "new" | "home" | "rotate" | "oblique";
   value: string;
+  angle: number;
   entityIds: string[];
 }
+
+const ANGLE_PROMPT: Readonly<Record<"rotate" | "oblique", string>> = {
+  rotate: "Precise el ángulo de rotación del texto",
+  oblique: "Precise el ángulo de las líneas de extensión",
+};
 
 function editStep(state: EditState): CadCommandStep<EditState> {
   if (state.mode === "ask")
@@ -416,6 +428,12 @@ function editStep(state: EditState): CadCommandStep<EditState> {
       state,
       prompt: { message: "Escriba el texto nuevo de la cota", options: [] },
       accepts: CAD_ACCEPT_TEXT,
+    };
+  if (state.mode === "angle")
+    return {
+      state,
+      prompt: { message: ANGLE_PROMPT[state.operation === "oblique" ? "oblique" : "rotate"], options: [] },
+      accepts: CAD_ACCEPT_ANGLE,
     };
   return {
     state,
@@ -435,6 +453,14 @@ function editApply(state: EditState, context: CadCommandContext): CadCommandStep
     if (!dimension) continue;
     if (state.operation === "new") {
       commands.push({ type: "properties", entityId, patch: { textOverride: state.value } });
+      continue;
+    }
+    if (state.operation === "rotate") {
+      commands.push({ type: "replace", entityId, entity: { ...dimension, textRotationOverride: state.angle } });
+      continue;
+    }
+    if (state.operation === "oblique") {
+      commands.push({ type: "replace", entityId, entity: { ...dimension, extensionObliqueAngle: state.angle } });
       continue;
     }
     // `Inicio` devuelve el texto a su sitio derivado. `properties.write` no sabe
@@ -459,24 +485,23 @@ const editCommand: CadCommandDescriptor<EditState> = {
   mutates: true,
   cursor: "pick",
   begin: (context) =>
-    editStep({ mode: "ask", operation: "home", value: "", entityIds: [...context.selection] }),
+    editStep({ mode: "ask", operation: "home", value: "", angle: 0, entityIds: [...context.selection] }),
   step: (state, input, context) => {
     if (input.kind === "cancel") return cadCommandCancelled(state);
 
     if (input.kind === "keyword") {
       if (input.keyword === NEW_TEXT.keyword) return editStep({ ...state, mode: "text", operation: "new" });
       if (input.keyword === HOME.keyword) return editStep({ ...state, mode: "select", operation: "home" });
-      if (input.keyword === ROTATE.keyword || input.keyword === OBLIQUE.keyword)
-        return cadCommandRefused(
-          state,
-          `DIMEDIT ${input.keyword} necesita un ángulo de texto y de líneas de referencia que el ` +
-            "esquema canónico todavía no guarda. No se aplica en vez de fingir que sí.",
-        );
+      if (input.keyword === ROTATE.keyword) return editStep({ ...state, mode: "angle", operation: "rotate" });
+      if (input.keyword === OBLIQUE.keyword) return editStep({ ...state, mode: "angle", operation: "oblique" });
       return editStep(state);
     }
 
     if (input.kind === "text" && state.mode === "text")
       return editStep({ ...state, value: input.value.slice(0, 256), mode: "select" });
+
+    if (input.kind === "angle" && state.mode === "angle")
+      return editStep({ ...state, angle: input.degrees, mode: "select" });
 
     if (input.kind === "entityPick" && state.mode === "select")
       return editStep({ ...state, entityIds: [...new Set([...state.entityIds, input.entityId])] });

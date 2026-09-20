@@ -29,6 +29,7 @@ import type { CadSchema5Entity } from "./cad-entities-v5";
 import type { CadSchema6Entity } from "./cad-entities-v6";
 import type { CadSchema7Entity } from "./cad-entities-v7";
 import type { CadSchema10DimensionFields } from "./cad-entities-v10";
+import type { CadDimensionDayToDayFields } from "./cad-dimension-day-to-day-fields";
 import type { CadHatchImportedPattern } from "./cad-hatch-imported-pattern";
 
 // ---------------------------------------------------------------------------
@@ -203,7 +204,7 @@ export type CadEntity =
       }>;
       associationStatus?: "associated" | "broken" | "detached";
       context?: CadEntityContext;
-    } & CadSchema10DimensionFields)
+    } & CadSchema10DimensionFields & CadDimensionDayToDayFields)
   | {
       id: string;
       type: "connector";

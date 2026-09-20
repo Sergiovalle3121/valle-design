@@ -2,7 +2,7 @@
  * METADATOS de los 374 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
- * 125 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
+ * 129 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
  * `npm run check:cad`— falla si lo committeado deja de coincidir con lo que los
  * descriptores dicen hoy. Regla 4 de la campaña de cimientos: ninguna cifra vive
  * en dos lugares, y un comando nuevo no puede entrar sin aparecer aquí.
@@ -37,10 +37,14 @@ export interface CadCommandManifestEntry {
 }
 
 export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
+  { name: "DIMBREAK", aliases: [], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/annotate-dimension-break" },
   { name: "DIMBASELINE", aliases: ["DBA"], kind: "annotate", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/annotate-dimension-chains" },
   { name: "DIMCONTINUE", aliases: ["DCO"], kind: "annotate", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/annotate-dimension-chains" },
   { name: "DIM", aliases: [], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/annotate-dimension-chains" },
   { name: "DIMEDIT", aliases: ["DED"], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/annotate-dimension-chains" },
+  { name: "DIMJOGGED", aliases: [], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/annotate-dimension-jogged" },
+  { name: "DIMSPACE", aliases: [], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/annotate-dimension-space" },
+  { name: "DIMTEDIT", aliases: [], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/annotate-dimension-tedit" },
   { name: "DIMLINEAR", aliases: ["DLI"], kind: "annotate", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/annotate-dimensions" },
   { name: "DIMALIGNED", aliases: ["DAL"], kind: "annotate", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/annotate-dimensions" },
   { name: "DIMANGULAR", aliases: ["DAN"], kind: "annotate", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/annotate-dimensions-angular" },
