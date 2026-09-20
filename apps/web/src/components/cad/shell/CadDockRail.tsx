@@ -28,6 +28,17 @@ export interface CadDockRailProps {
   activeId: string | null;
   /** Pulsar el botón YA activo vuelve a plegar el muelle (mismo botón, cierra). */
   onToggle: (id: string) => void;
+  /**
+   * El botón que TIENE ALGO QUE ENSEÑAR aunque su panel esté plegado: lleva un
+   * punto, como la barra de actividad de un IDE.
+   *
+   * Hace falta desde que designar dejó de abrir el muelle solo (ola «legible»:
+   * el plano se quedaba quieto, pero quien designaba perdía la única señal de
+   * que hay propiedades que tocar). El punto repone esa señal sin mover ni un
+   * píxel del dibujo. No se pinta en el que ya está abierto: ahí el contenido
+   * se ve, y un aviso de algo que está a la vista es ruido.
+   */
+  badgeId?: string | null;
   className?: string;
 }
 
@@ -38,7 +49,14 @@ export interface CadDockRailProps {
  * la ficha de paletas de AutoCAD. Máximo UN panel abierto por lado: el
  * propio `activeId` lo garantiza — es un valor, no un conjunto.
  */
-export function CadDockRail({ side, items, activeId, onToggle, className }: CadDockRailProps) {
+export function CadDockRail({
+  side,
+  items,
+  activeId,
+  onToggle,
+  badgeId,
+  className,
+}: CadDockRailProps) {
   return (
     <div
       data-testid={side === "left" ? "cad-left-rail" : "cad-right-rail"}
@@ -51,23 +69,33 @@ export function CadDockRail({ side, items, activeId, onToggle, className }: CadD
     >
       {items.map((item) => {
         const active = item.id === activeId;
+        const marcado = !active && item.id === badgeId;
         return (
           <button
             key={item.id}
             type="button"
             data-testid={`cad-rail-${item.id}`}
-            aria-label={item.ariaLabel}
+            data-badge={marcado ? "true" : undefined}
+            aria-label={marcado ? `${item.ariaLabel} (hay algo que ver)` : item.ariaLabel}
             aria-pressed={active}
             title={item.title ?? item.ariaLabel}
             onClick={() => onToggle(item.id)}
             className={cx(
-              "flex h-9 w-9 shrink-0 items-center justify-center rounded-control transition-colors",
+              "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-control transition-colors",
               active
                 ? "bg-brand-strong text-primary-foreground"
                 : "hover:bg-muted hover:text-foreground",
             )}
           >
             {item.icon}
+            {marcado ? (
+              // Un punto, no un número: lo que importa es que HAY algo, y el
+              // recuento exacto ya lo dice la barra de estado («3 sel»).
+              <span
+                aria-hidden="true"
+                className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-brand-strong"
+              />
+            ) : null}
           </button>
         );
       })}

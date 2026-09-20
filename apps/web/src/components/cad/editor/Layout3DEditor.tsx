@@ -12645,12 +12645,11 @@ export default function Layout3DEditor({
   };
   // EL RIEL DERECHO (ola «armazón»): antes 7 botones de la barra de 48/56 px,
   // ahora items de `CadDockRail` (catálogo en `cad-shell-rail-items.tsx`).
-  // «Colapsado» no impide que una designación abra el muelle solo.
+  // DESIGNAR YA NO ABRE EL MUELLE: con `nativeSelectedEntities.length > 0 ||
+  // selSnap` el lienzo pasaba de 1190 a 911 px y volvía EN CADA CLIC (20-sep),
+  // reescalando el dibujo bajo el cursor. Manda el riel (con su punto) o Ctrl+1.
   const rightRailActiveId =
-    !workspacePreferences.rightDockCollapsed ||
-    activeProfessionalDock ||
-    nativeSelectedEntities.length > 0 ||
-    selSnap
+    !workspacePreferences.rightDockCollapsed || activeProfessionalDock
       ? (activeProfessionalDock ?? "properties")
       : null;
   const handleRightRailToggle = (id: string) => {
@@ -14760,6 +14759,7 @@ export default function Layout3DEditor({
         side="right"
         items={CAD_RIGHT_RAIL_ITEMS}
         activeId={rightRailActiveId}
+        badgeId={nativeSelectedEntities.length > 0 || selSnap ? "properties" : null}
         onToggle={handleRightRailToggle}
       />
     ) : null;

@@ -26,6 +26,7 @@
  * instante equivocado.
  */
 import { expect, type ElementHandle, type Page } from "@playwright/test";
+import { abrirPanelDerecho } from "./docks";
 
 /** Plazo por intento de relleno. Corto a propósito: si no cuaja, se reintenta. */
 const ATTEMPT_MS = 1_000;
@@ -314,6 +315,10 @@ export async function applyNativeProperty(
   name: string,
   value: string,
 ): Promise<void> {
+  // Designar ya no despliega el muelle derecho (ola «legible»: el plano se
+  // queda quieto en cada clic), así que el panel de propiedades se abre por el
+  // riel, como haría una persona, antes de tocar ninguno de sus campos.
+  await abrirPanelDerecho(page);
   const field = page.getByTestId(`cad-native-property-${name}`);
   await expect(async () => {
     await expect(field).toBeVisible({ timeout: ATTEMPT_MS });
@@ -356,6 +361,10 @@ export async function applyNativeSelectProperty(
   name: string,
   value: string,
 ): Promise<void> {
+  // Designar ya no despliega el muelle derecho (ola «legible»: el plano se
+  // queda quieto en cada clic), así que el panel de propiedades se abre por el
+  // riel, como haría una persona, antes de tocar ninguno de sus campos.
+  await abrirPanelDerecho(page);
   const field = page.getByTestId(`cad-native-property-${name}`);
   await expect(async () => {
     await expect(field).toBeVisible({ timeout: ATTEMPT_MS });
