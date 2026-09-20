@@ -25,8 +25,26 @@
  * cumplir en general. En AutoCAD en español ese concepto se llama
  * «Presentación», que es además la palabra que ya usa el propio dueño al
  * describir la queja.
+ *
+ * ## Escepticismo del carril «abajo»: el patrón de teclado del tablist
+ *
+ * `role="tablist"` / `role="tab"` es el patrón WAI-ARIA APG, y ese patrón
+ * EXIGE roving tabindex (sólo la pestaña activa es un tab-stop; las demás
+ * llevan `tabIndex={-1}`) más flechas para moverse dentro de la lista — el
+ * repo ya construyó y documentó exactamente esto en
+ * `components/ui/Tabs.tsx` («la parte que casi nadie implementa y es justo
+ * la que importa»). La primera versión de este componente declaraba los
+ * roles sin el resto del patrón: con `Modelo` + cada presentación como
+ * `<button>` normal (tabIndex por defecto = 0), alguien con teclado tenía
+ * que pulsar Tab una vez por cada presentación para salir de la lista — el
+ * antipatrón exacto que `Tabs.tsx` evita, y peor que antes de esta ola: la
+ * versión vieja en `trailingContent` limitaba a 3 presentaciones
+ * (`slice(0, 3)`) y no llevaba `role="tab"`, así que ARIA no prometía nada
+ * que no cumpliera. El botón «Administrar» se queda FUERA de este recorrido
+ * a propósito: no lleva `role="tab"` (es una acción, como el «+ nueva
+ * pestaña» de un navegador), así que las flechas no lo visitan.
  */
-import React from "react";
+import React, { useRef } from "react";
 import type { CadPaperSpace } from "@/lib/cad/cad-paper-viewport";
 
 const TAB_BASE =
@@ -48,6 +66,13 @@ export interface CadSpaceTabsProps {
   onManage: () => void;
 }
 
+/** Los dos tipos de tab-stop del roving tabindex: Modelo, y cada
+ *  presentación. El botón «Administrar» no participa (ver comentario de
+ *  cabecera). */
+type CadSpaceRovingItem =
+  | { kind: "model" }
+  | { kind: "space"; space: CadPaperSpace };
+
 export const CadSpaceTabs = React.memo(function CadSpaceTabs({
   isModelActive,
   spaces,
@@ -56,19 +81,72 @@ export const CadSpaceTabs = React.memo(function CadSpaceTabs({
   onSelectSpace,
   onManage,
 }: CadSpaceTabsProps) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const items: CadSpaceRovingItem[] = [
+    { kind: "model" },
+    ...spaces.map((space): CadSpaceRovingItem => ({ kind: "space", space })),
+  ];
+
+  // Roving tabindex, patrón WAI-ARIA APG — mismo comportamiento que
+  // `components/ui/Tabs.tsx`: las flechas activan de inmediato (no hace
+  // falta Enter/Espacio después) y mueven el foco con ellas. Función normal,
+  // no `useCallback`: este componente ya está memoizado con `React.memo` por
+  // props, y una lista de pestañas no tiene el volumen para que la identidad
+  // de un manejador de teclado importe.
+  const move = (delta: number | "first" | "last") => {
+    if (items.length === 0) return;
+    const fromIndex = items.findIndex((item) =>
+      item.kind === "model"
+        ? isModelActive
+        : !isModelActive && item.space.id === activeSpaceId,
+    );
+    const from = fromIndex === -1 ? 0 : fromIndex;
+    const toIndex =
+      delta === "first"
+        ? 0
+        : delta === "last"
+          ? items.length - 1
+          : (from + delta + items.length) % items.length;
+    const target = items[toIndex];
+    if (target.kind === "model") onSelectModel();
+    else onSelectSpace(target.space);
+    listRef.current
+      ?.querySelector<HTMLButtonElement>(
+        `[data-roving-id="${target.kind === "model" ? "model" : target.space.id}"]`,
+      )
+      ?.focus();
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const map: Record<string, number | "first" | "last"> = {
+      ArrowRight: 1,
+      ArrowLeft: -1,
+      Home: "first",
+      End: "last",
+    };
+    const action = map[event.key];
+    if (action === undefined) return;
+    event.preventDefault();
+    move(action);
+  };
+
   return (
     <div
+      ref={listRef}
       data-testid="cad-space-tabs"
       data-cad-readonly-allowed
       role="tablist"
       aria-label="Espacio de dibujo: modelo o presentación"
+      onKeyDown={handleKeyDown}
       className="inline-flex shrink-0 items-center gap-0.5 rounded-md border border-border bg-muted/30 p-0.5"
     >
       <button
         type="button"
         role="tab"
         data-testid="cad-space-tab-model"
+        data-roving-id="model"
         aria-selected={isModelActive}
+        tabIndex={isModelActive ? 0 : -1}
         title="Espacio modelo — el dibujo a escala real"
         onClick={onSelectModel}
         className={`${TAB_BASE} ${isModelActive ? TAB_ACTIVE : TAB_INACTIVE}`}
@@ -83,7 +161,9 @@ export const CadSpaceTabs = React.memo(function CadSpaceTabs({
             type="button"
             role="tab"
             data-testid={`cad-space-tab-${space.id}`}
+            data-roving-id={space.id}
             aria-selected={active}
+            tabIndex={active ? 0 : -1}
             title={`Presentación «${space.name}»`}
             onClick={() => onSelectSpace(space)}
             className={`${TAB_BASE} ${active ? TAB_ACTIVE : TAB_INACTIVE}`}

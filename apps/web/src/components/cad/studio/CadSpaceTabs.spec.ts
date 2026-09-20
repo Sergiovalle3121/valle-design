@@ -107,4 +107,62 @@ const space = (id: string, name: string): CadPaperSpace => ({
   ok(sinComentarios.includes("bg-brand-strong"), "el relleno de la pestaña activa es bg-brand-strong");
 }
 
+// ── Escepticismo del carril «abajo»: roving tabindex — role="tab" EXIGE el
+//    patrón de teclado completo (WAI-ARIA APG), no sólo los roles. Sólo la
+//    pestaña activa es un tab-stop; el resto queda fuera con tabIndex=-1. ──
+{
+  const spaces = [space("a", "Planta baja"), space("b", "Corte A-A")];
+
+  const conModeloActivo = renderToStaticMarkup(
+    createElement(CadSpaceTabs, {
+      isModelActive: true,
+      spaces,
+      activeSpaceId: null,
+      onSelectModel: noop,
+      onSelectSpace: noop,
+      onManage: noop,
+    }),
+  );
+  const modelo1 = conModeloActivo.match(/data-testid="cad-space-tab-model"[^>]*>/)![0];
+  ok(modelo1.includes('tabindex="0"'), "Modelo activo: es el único tab-stop (tabIndex 0)");
+  const a1 = conModeloActivo.match(/data-testid="cad-space-tab-a"[^>]*>/)![0];
+  const b1 = conModeloActivo.match(/data-testid="cad-space-tab-b"[^>]*>/)![0];
+  ok(a1.includes('tabindex="-1"'), "con Modelo activo, la presentación «a» sale del orden de tabulación");
+  ok(b1.includes('tabindex="-1"'), "con Modelo activo, la presentación «b» sale del orden de tabulación");
+
+  const conEspacioActivo = renderToStaticMarkup(
+    createElement(CadSpaceTabs, {
+      isModelActive: false,
+      spaces,
+      activeSpaceId: "b",
+      onSelectModel: noop,
+      onSelectSpace: noop,
+      onManage: noop,
+    }),
+  );
+  const modelo2 = conEspacioActivo.match(/data-testid="cad-space-tab-model"[^>]*>/)![0];
+  ok(modelo2.includes('tabindex="-1"'), "con una presentación activa, Modelo sale del orden de tabulación");
+  const a2 = conEspacioActivo.match(/data-testid="cad-space-tab-a"[^>]*>/)![0];
+  const b2 = conEspacioActivo.match(/data-testid="cad-space-tab-b"[^>]*>/)![0];
+  ok(a2.includes('tabindex="-1"'), "la presentación inactiva «a» no es un tab-stop");
+  ok(b2.includes('tabindex="0"'), "la presentación activa «b» es el único tab-stop");
+
+  // El botón «Administrar» no participa del roving tabindex: no lleva
+  // role="tab" ni tabIndex propio (tab-stop normal, como cualquier botón).
+  const administrar = conEspacioActivo.match(/data-testid="cad-space-tab-manage"[^>]*>/)![0];
+  ok(!administrar.includes('role="tab"'), "«Administrar» no es una pestaña (no lleva role=\"tab\")");
+  ok(!administrar.includes("tabindex="), "«Administrar» no lleva tabIndex propio: no participa del roving tabindex");
+}
+
+// ── Las flechas y Home/End están cableadas: `onKeyDown` en la raíz del
+//    tablist, no en cada botón (el patrón APG delega en el contenedor). ──
+{
+  const fuente = readFileSync(new URL("./CadSpaceTabs.tsx", import.meta.url), "utf8");
+  const sinComentarios = fuente.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  ok(sinComentarios.includes("onKeyDown={handleKeyDown}"), "el tablist declara su manejador de teclado");
+  for (const tecla of ["ArrowRight", "ArrowLeft", "Home", "End"]) {
+    ok(sinComentarios.includes(tecla), `el manejador de teclado reconoce ${tecla}`);
+  }
+}
+
 console.log(`CadSpaceTabs: ${checks}/${checks} comprobaciones verdes`);
