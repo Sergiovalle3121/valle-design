@@ -1,8 +1,8 @@
 /**
- * METADATOS de los 374 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 382 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
- * 127 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
+ * 131 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
  * `npm run check:cad`— falla si lo committeado deja de coincidir con lo que los
  * descriptores dicen hoy. Regla 4 de la campaña de cimientos: ninguna cifra vive
  * en dos lugares, y un comando nuevo no puede entrar sin aparecer aquí.
@@ -37,10 +37,14 @@ export interface CadCommandManifestEntry {
 }
 
 export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
+  { name: "DIMBREAK", aliases: [], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/annotate-dimension-break" },
   { name: "DIMBASELINE", aliases: ["DBA"], kind: "annotate", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/annotate-dimension-chains" },
   { name: "DIMCONTINUE", aliases: ["DCO"], kind: "annotate", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/annotate-dimension-chains" },
   { name: "DIM", aliases: [], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/annotate-dimension-chains" },
   { name: "DIMEDIT", aliases: ["DED"], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/annotate-dimension-chains" },
+  { name: "DIMJOGGED", aliases: [], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/annotate-dimension-jogged" },
+  { name: "DIMSPACE", aliases: [], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/annotate-dimension-space" },
+  { name: "DIMTEDIT", aliases: [], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/annotate-dimension-tedit" },
   { name: "DIMLINEAR", aliases: ["DLI"], kind: "annotate", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/annotate-dimensions" },
   { name: "DIMALIGNED", aliases: ["DAL"], kind: "annotate", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/annotate-dimensions" },
   { name: "DIMANGULAR", aliases: ["DAN"], kind: "annotate", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/annotate-dimensions-angular" },
@@ -153,6 +157,7 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "REGION", aliases: ["REG"], kind: "draw", transparent: false, selection: "required", repeatable: true, mutates: true, cursor: "pick", module: "commands/inquiry-region" },
   { name: "DXFIN", aliases: [], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "none", module: "commands/interop-dxf" },
   { name: "DXFOUT", aliases: [], kind: "inquiry", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "none", module: "commands/interop-dxf" },
+  { name: "SAVEAS", aliases: [], kind: "inquiry", transparent: false, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/interop-dxf" },
   { name: "LAYOUT", aliases: ["LO"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: true, cursor: "none", module: "commands/layout-commands" },
   { name: "MVIEW", aliases: ["MV"], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/layout-commands" },
   { name: "MSPACE", aliases: ["MS"], kind: "view", transparent: false, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/layout-commands" },
@@ -201,6 +206,8 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "TRIM", aliases: ["TR"], kind: "modify", transparent: false, selection: "command-first", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-edges" },
   { name: "EXTEND", aliases: ["EX"], kind: "modify", transparent: false, selection: "command-first", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-edges" },
   { name: "BREAK", aliases: ["BR"], kind: "modify", transparent: false, selection: "command-first", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-edges" },
+  { name: "BREAKATPOINT", aliases: [], kind: "modify", transparent: false, selection: "command-first", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-edges" },
+  { name: "REVERSE", aliases: [], kind: "modify", transparent: false, selection: "required", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-edges" },
   { name: "XPLODE", aliases: ["XP"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-foreign" },
   { name: "SETBYLAYER", aliases: [], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-foreign" },
   { name: "CHPROP", aliases: [], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-foreign" },
@@ -256,6 +263,7 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "PIDMTO", aliases: ["LISTAMATERIAL", "PIPEBOM"], kind: "inquiry", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/plant-route" },
   { name: "PAGESETUP", aliases: ["PSET"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: true, cursor: "none", module: "commands/plot-commands" },
   { name: "PLOT", aliases: ["PRINT", "PLO"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: false, cursor: "crosshair", module: "commands/plot-commands" },
+  { name: "PLOTSTAMP", aliases: [], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/plot-commands" },
   { name: "STYLESMANAGER", aliases: [], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/plot-commands" },
   { name: "IMAGEATTACH", aliases: ["IAT"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/raster-image" },
   { name: "IMAGECLIP", aliases: ["ICL"], kind: "modify", transparent: false, selection: "command-first", repeatable: true, mutates: true, cursor: "pick", module: "commands/raster-image" },
