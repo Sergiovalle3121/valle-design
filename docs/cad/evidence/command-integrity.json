@@ -3,26 +3,26 @@
   "total": 376,
   "verdicts": {
     "muta": 121,
-    "delegado": 52,
+    "delegado": 53,
     "informa": 32,
-    "honesto-limitado": 162,
+    "honesto-limitado": 161,
     "no-concluyente": 9,
     "ROJO": 0
   },
   "pasadas": {
     "plano2d": {
       "muta": 88,
-      "delegado": 49,
+      "delegado": 50,
       "informa": 39,
-      "honesto-limitado": 191,
+      "honesto-limitado": 190,
       "no-concluyente": 9,
       "ROJO": 0
     },
     "solidos3d": {
       "muta": 105,
-      "delegado": 52,
+      "delegado": 53,
       "informa": 51,
-      "honesto-limitado": 159,
+      "honesto-limitado": 158,
       "no-concluyente": 9,
       "ROJO": 0
     }

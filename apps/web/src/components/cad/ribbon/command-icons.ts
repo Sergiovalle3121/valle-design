@@ -481,6 +481,8 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   MSPACE: Maximize,
   PSPACE: FileText,
   MVIEW: AppWindow,
+  CHSPACE: ArrowLeftRight,
+  VPORTS: Grid2x2,
   LAYOUT: Files,
   PAGESETUP: FileCog,
   PLOT: Printer,
