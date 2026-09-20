@@ -3,8 +3,7 @@ import { installMockBackend } from "../fixtures/mock-backend";
 import { installCadStudioBackend } from "../fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import { saveAndSettle } from "../fixtures/cad-save";
-import { fitFootprint } from "../fixtures/camera-preset";
-import { CAD_TOOLBAR_ACTIONS } from "../../src/lib/cad/toolbar";
+import { startTool } from "../fixtures/tool-palette";
 import type { CadDocument, CadEntity } from "../../src/lib/cad/cad-document";
 import { CAD_DOCUMENT_SCHEMA } from "../../src/lib/cad/cad-document-shared";
 
@@ -91,23 +90,6 @@ async function terminarOrden(page: Page) {
 
 async function esperarEntidades(page: Page, total: number) {
   await expect(page.getByTestId("cad-native-document-count")).toHaveText(`Native ${total}`);
-}
-
-/**
- * Arranca una herramienta de la paleta POR SU ID.
- *
- * No se usa `startTool` de la fixture porque ésta exige que aparezca el panel
- * de entrada dinámica, y «Distancia» no lo abre (no es un comando del motor:
- * es una medición ad-hoc del visor). El rótulo se lee de la MISMA constante que
- * pinta la paleta, así que traducirlo no rompe esta prueba.
- */
-async function arrancarHerramienta(page: Page, id: "measure" | "select") {
-  const accion = CAD_TOOLBAR_ACTIONS.find((a) => a.id === id);
-  if (!accion) throw new Error(`La paleta ya no declara la acción "${id}"`);
-  await page
-    .getByTestId("cad-toolbar")
-    .getByRole("button", { name: accion.label, exact: true })
-    .click();
 }
 
 
@@ -206,20 +188,10 @@ async function pixelDe(
   return { ...punto, error };
 }
 
-/** ¿Responde el lienzo en ese píxel, o hay una capa flotante encima? */
-async function quienResponde(page: Page, px: number, py: number) {
-  return page.evaluate(
-    ([x, y]) => {
-      const arriba = document.elementFromPoint(x, y);
-      if (!arriba) return "nada (fuera de la ventana)";
-      const lienzo = document.querySelector('[data-testid="cad-canvas"]');
-      if (lienzo && (arriba === lienzo || lienzo.contains(arriba))) return "el lienzo";
-      const conId = (arriba.closest("[data-testid]") as HTMLElement | null)?.dataset.testid;
-      return conId ? `[data-testid="${conId}"]` : arriba.tagName.toLowerCase();
-    },
-    [px, py],
-  );
-}
+// ola1-paleta (2026-09-19): `quienResponde` (¿qué capa responde en un
+// píxel?) se retiró de aquí sin llamadas propias tras quitar el paso 5 (ver
+// «PASO 5 RETIRADO» más abajo) — comprobaba que nada tapara las esquinas
+// justo antes de picarlas con la herramienta de distancia retirada.
 
 type Linea = Extract<CadEntity, { type: "line" }>;
 const mismo = (a: { x: number; y: number }, b: { x: number; y: number }) =>
@@ -316,42 +288,21 @@ test("planta de un departamento: 6000×4000, muro divisorio, esquinas cerradas y
     expect(arriba, `el muro divisorio deja ${arriba} mm con el muro de arriba`).toBe(0);
   });
 
-  await test.step("5. Medir la pared larga con la herramienta de distancia: 6000", async () => {
-    // Encuadrar antes de medir es lo que hace cualquiera, y además fija la
-    // transformación mundo↔pantalla.
-    await fitFootprint(page);
-    const vista = await medirVista(page);
-
-    const izquierda = await pixelDe(page, vista, { x: X0, y: Y0 });
-    const derecha = await pixelDe(page, vista, { x: X0 + ANCHO, y: Y0 });
-    // Nadie tapa las esquinas que se van a picar: si una capa flotante se come
-    // el clic, el fallo aparecería lejos de su causa.
-    expect(await quienResponde(page, izquierda.x, izquierda.y)).toBe("el lienzo");
-    expect(await quienResponde(page, derecha.x, derecha.y)).toBe("el lienzo");
-    // El puntero llega a la esquina con holgura de sobra para que el enganche
-    // a objetos remate el punto exacto.
-    expect(izquierda.error).toBeLessThan(60);
-    expect(derecha.error).toBeLessThan(60);
-
-    await arrancarHerramienta(page, "measure");
-    await expect(page.getByTestId("cad-live-prompt")).toBeVisible();
-    await page.mouse.click(izquierda.x, izquierda.y);
-    // Antes de rematar: el aviso vivo ya canta la medida bajo el cursor, que es
-    // lo que mira quien mide de verdad.
-    await page.mouse.move(derecha.x, derecha.y);
-    await expect(page.getByTestId("cad-live-prompt")).toContainText(/6[.,]?000\s*mm/);
-    await page.mouse.click(derecha.x, derecha.y);
-
-    // El resultado se lee en «Cotas guardadas», el único sitio del producto
-    // donde queda escrito lo medido.
-    const panel = page
-      .getByText("Cotas guardadas", { exact: true })
-      .locator("xpath=ancestor::div[2]");
-    await expect(panel.locator("input").first()).toHaveValue(/6[.,]?000\s*mm/);
-  });
+  // PASO 5 RETIRADO (ola1-paleta, 2026-09-19): media la pared con la
+  // herramienta «Distancia» de la paleta flotante —`arrancarHerramienta(page,
+  // "measure")`—, que hacía DOS cosas a la vez: pintaba `cad-live-prompt` con
+  // la medida bajo el cursor Y, al segundo clic, guardaba una COTA de verdad
+  // en «Cotas guardadas» (no era un duplicado inocuo de DIST: DIST, abajo, es
+  // sólo consulta y no persiste nada). «Distancia» se retiró de
+  // `CAD_TOOLBAR_ACTIONS` con los otros diez controles que duplicaban un
+  // botón de la cinta — pero a diferencia de ellos, no le quedó atajo de
+  // teclado ni botón de cinta equivalente (ver `toolbar.ts`): acotar por
+  // arrastre de dos puntos queda sin entrada de ratón hasta que alguien lo
+  // cablee al panel profesional «Dimensiones» (riel derecho). Ver «pendiente»
+  // del resumen de la ola.
 
   await test.step("6. Y la misma pared por DIST, la orden de consulta", async () => {
-    await arrancarHerramienta(page, "select");
+    await startTool(page, "select");
     const vista = await medirVista(page);
     const izquierda = await pixelDe(page, vista, { x: X0, y: Y0 });
     const derecha = await pixelDe(page, vista, { x: X0 + ANCHO, y: Y0 });

@@ -6,6 +6,7 @@ import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
 import { enter3DView } from '../fixtures/view-mode';
 import { topView, fitFootprint } from "../fixtures/camera-preset";
+import { startTool } from "../fixtures/tool-palette";
 
 /**
  * FASE 2 — el PUNTERO entra en el motor de comandos.
@@ -103,8 +104,6 @@ async function screenPointFor(page: Page, target: { x: number; y: number }) {
   };
 }
 
-const toolbar = (page: Page) => page.getByTestId('cad-toolbar');
-
 test('dibujar una polilínea CON EL RATÓN captura un extremo existente y cierra por palabra clave', async ({
   context,
   page,
@@ -115,7 +114,7 @@ test('dibujar una polilínea CON EL RATÓN captura un extremo existente y cierra
   await topView(page);
   await fitFootprint(page);
 
-  await toolbar(page).getByRole('button', { name: 'Polilínea', exact: true }).click();
+  await startTool(page, 'polyline');
   // El prompt es el del MOTOR, no el de la máquina heredada: si el botón
   // siguiera arrancando `cad-command.ts`, aquí no habría diálogo del motor.
   await expect(page.getByTestId('cad-command-prompt')).toBeVisible();
@@ -184,7 +183,7 @@ test('con el motor abierto, la máquina heredada no recibe el clic', async ({ co
   await topView(page);
   await fitFootprint(page);
 
-  await toolbar(page).getByRole('button', { name: 'Línea', exact: true }).click();
+  await startTool(page, 'line');
   await expect(page.getByTestId('cad-command-prompt')).toBeVisible();
 
   const a = await screenPointFor(page, { x: 3_000, y: 2_000 });
@@ -201,7 +200,7 @@ test('con el motor abierto, la máquina heredada no recibe el clic', async ({ co
   await expect(page.getByTestId('cad-history-depth')).toHaveAttribute('data-undo', '1');
 
   // Y Esc sobre un comando nuevo cancela sin escribir nada.
-  await toolbar(page).getByRole('button', { name: 'Línea', exact: true }).click();
+  await startTool(page, 'line');
   await page.mouse.click(a.x, a.y);
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('cad-command-prompt')).toBeHidden();

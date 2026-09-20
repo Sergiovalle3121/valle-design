@@ -3,6 +3,7 @@ import { installMockBackend } from "../fixtures/mock-backend";
 import { installCadStudioBackend } from "../fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import { fitFootprint } from "../fixtures/camera-preset";
+import { startTool } from "../fixtures/tool-palette";
 import type { CadDocument, CadEntity } from "../../src/lib/cad/cad-document";
 import { CAD_DOCUMENT_SCHEMA } from "../../src/lib/cad/cad-document-shared";
 
@@ -400,14 +401,13 @@ test("mover, copiar, desfasar, recortar, alargar — y un deshacer fiel paso a p
   const finalDelRecorrido = fotos[fotos.length - 1];
 
   /* ── 6. DESHACER paso a paso ─────────────────────────────────────────── */
-  const deshacer = page.getByTestId("cad-toolbar").getByRole("button", { name: "Deshacer", exact: true });
-  const rehacer = page.getByTestId("cad-toolbar").getByRole("button", { name: "Rehacer", exact: true });
-
+  // ola1-paleta (2026-09-19): «Deshacer»/«Rehacer» ya no tienen botón de
+  // paleta — se arrancan desde la cinta (`startTool`, fixture).
   const ordenes = ["ALARGAR", "RECORTAR", "DESFASAR", "COPIAR", "MOVER"];
   for (let paso = 0; paso < ordenes.length; paso += 1) {
     await test.step(`6.${paso + 1} Deshacer ${ordenes[paso]}`, async () => {
       await soltarSeleccion(page);
-      await deshacer.click();
+      await startTool(page, "undo");
       const documento = await guardar(page, backend);
       const esperada = fotos[fotos.length - 2 - paso];
       expect(
@@ -426,7 +426,7 @@ test("mover, copiar, desfasar, recortar, alargar — y un deshacer fiel paso a p
   for (let paso = 0; paso < ordenes.length; paso += 1) {
     await test.step(`7.${paso + 1} Rehacer ${ordenes[ordenes.length - 1 - paso]}`, async () => {
       await soltarSeleccion(page);
-      await rehacer.click();
+      await startTool(page, "redo");
       const documento = await guardar(page, backend);
       expect(
         foto(documento),

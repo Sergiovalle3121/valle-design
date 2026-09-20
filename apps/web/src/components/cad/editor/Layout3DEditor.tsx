@@ -14237,24 +14237,27 @@ export default function Layout3DEditor({
             }}
           >
             <div ref={mountRef} className="absolute inset-0" />
-            {/* ViewCube + barra de navegación (`camera-view-presets.ts`); sólo en 3D. */}
+            {/* ViewCube (`camera-view-presets.ts`), sólo en 3D — no tiene
+                sentido de orientación en planta. `CadNavigationBar` (encuadrar
+                todo/selección) SÍ se muestra en 2D también (ola1-paleta): es
+                navegación de cámara, no un control de orientación 3D. */}
             <div
               data-testid="cad-navigation-corner"
               className="pointer-events-none absolute right-3 top-3 z-20 flex flex-col items-end gap-2"
             >
-              {viewMode === "3d" && (
-                <div className="flex items-start gap-2">
+              <div className="flex items-start gap-2">
+                {viewMode === "3d" && (
                   <div className="pointer-events-auto">
                     <CadViewCube active={activeViewPreset} onSelect={viewPreset} />
                   </div>
-                  <div className="pointer-events-auto">
-                    <CadNavigationBar
-                      onFitView={fitView}
-                      hasSelection={selList.length > 0 || nativeSelectionIds.length > 0}
-                    />
-                  </div>
+                )}
+                <div className="pointer-events-auto">
+                  <CadNavigationBar
+                    onFitView={fitView}
+                    hasSelection={selList.length > 0 || nativeSelectionIds.length > 0}
+                  />
                 </div>
-              )}
+              </div>
               {/* El minimapa va con las ayudas de navegación (golden 68). */}
               {showMinimap && workspacePreferences.minimap && (
                 <div className="pointer-events-auto">
@@ -14689,14 +14692,7 @@ export default function Layout3DEditor({
             {/* 5.3 · Icono + etiqueta + atajo, extraído a su propio archivo:
                 el monolito sólo puede bajar, así que la mejora se paga sacando
                 código de aquí. Ver `CadToolPalette`. */}
-            <CadToolPalette
-              activeTool={tool}
-              readOnly={drawingReadOnly}
-              isReadOnlyAllowed={(id) => READ_ONLY_TOOLBAR_ACTION_IDS.has(id)}
-              canUndo={hist.undo > 0}
-              canRedo={hist.redo > 0}
-              onRun={runToolbarAction}
-            />
+            <CadToolPalette activeTool={tool} onRun={runToolbarAction} />
           </div>
       );
 

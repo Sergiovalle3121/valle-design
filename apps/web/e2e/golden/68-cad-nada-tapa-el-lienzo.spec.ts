@@ -92,15 +92,18 @@ async function openStudio(context: BrowserContext, page: Page) {
 const CAPAS_ADMITIDAS: { testid: string; motivo: string }[] = [
   {
     testid: 'cad-toolbar',
-    motivo: 'La barra de herramientas vertical es una paleta anclada al borde del lienzo.',
+    motivo:
+      'ola1-paleta: ya no es la columna vertical de 17 botones — es una barra ' +
+      'horizontal de 3 (Seleccionar, Encuadre, Ajustar todo) anclada abajo a ' +
+      'la derecha del lienzo, ≤140×40 px.',
   },
   {
     testid: 'cad-navigation-corner',
     motivo:
-      'La esquina superior derecha es la de las ayudas de navegación, como el ' +
-      'ViewCube y la barra de navegación de AutoCAD (sólo en 3D) y el minimapa ' +
-      'cuando el usuario lo enciende: está apagado de fábrica justo porque roba ' +
-      'el ratón donde esté.',
+      'La esquina superior derecha es la de las ayudas de navegación: el ' +
+      'ViewCube (sólo en 3D), la barra de navegación de AutoCAD (2D y 3D desde ' +
+      'ola1-paleta) y el minimapa cuando el usuario lo enciende: está apagado ' +
+      'de fábrica justo porque roba el ratón donde esté.',
   },
 ];
 

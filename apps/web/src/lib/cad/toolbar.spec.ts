@@ -11,29 +11,36 @@ assert.equal(
   CAD_TOOLBAR_ACTIONS.length,
   "toolbar action ids are unique",
 );
-// La barra no anuncia lo que el registro no tiene: M, P y B son alias de
-// acad.pgp (MOVE, PAN, BLOCK) y la letra suelta es de la línea de comandos.
-assert.equal(findToolbarAction("measure")?.shortcut, undefined, "measure ya no anuncia M");
+
+// ola1-paleta (2026-09-19): la paleta se podó a los tres controles de
+// navegación de cámara. Los catorce ids que duplicaban una orden de la cinta
+// (o vocabulario industrial heredado) siguen siendo `CadToolbarActionId`
+// válidos —el registro de comandos no se tocó— pero ya no se declaran como
+// acción de paleta. Ese cruce se prueba en `CadToolPalette.spec.ts`; aquí
+// sólo queda el smoke test de lo que de verdad sigue en la paleta.
 assert.equal(
-  findToolbarAction("text")?.shortcut,
-  "T",
-  "text action has shortcut",
+  CAD_TOOLBAR_ACTIONS.map((a) => a.id).sort().join(","),
+  "fit_view,pan,select",
+  "la paleta declara exactamente select, pan y fit_view",
 );
 assert.equal(
-  findToolbarAction("line")?.shortcut,
-  "L",
-  "line action owns the plain drafting shortcut",
+  findToolbarAction("pan")?.shortcut,
+  "Space",
+  "pan action keeps its Space shortcut",
 );
-assert.equal(findToolbarAction("polyline")?.shortcut, undefined, "polyline ya no anuncia P");
-assert.equal(findToolbarAction("rect")?.shortcut, undefined, "rect ya no anuncia B");
+assert.equal(
+  findToolbarAction("select")?.shortcut,
+  undefined,
+  "select ya no anuncia atajo",
+);
+assert.equal(
+  toolbarActionsByGroup("navigate").length,
+  3,
+  "los tres controles restantes son de navegación",
+);
 assert.equal(
   toolbarActionsByGroup("history").length,
-  2,
-  "history group exposes undo/redo",
-);
-assert.equal(
-  toolbarActionsByGroup("insert").some((a) => a.id === "zone"),
-  true,
-  "insert group exposes zone",
+  0,
+  "history ya no tiene botón de paleta (Deshacer/Rehacer viven en la cinta)",
 );
 console.log("cad toolbar specs passed");

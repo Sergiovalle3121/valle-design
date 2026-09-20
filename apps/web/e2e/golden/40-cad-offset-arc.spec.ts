@@ -25,6 +25,7 @@ import { worldPoint } from "../fixtures/world-point";
 import type { CadDocument, CadEntity } from "../../src/lib/cad/cad-document";
 import { enter3DView } from '../fixtures/view-mode';
 import { topView, fitFootprint } from "../fixtures/camera-preset";
+import { startTool } from "../fixtures/tool-palette";
 
 type CadArc = Extract<CadEntity, { type: "arc" }>;
 
@@ -93,10 +94,8 @@ test("OFFSET sobre un arco produce un arco concéntrico y lo persiste", async ({
   await enter3DView(page);
   await topView(page);
   await fitFootprint(page);
-  await page
-    .getByTestId("cad-toolbar")
-    .getByRole("button", { name: "Desfase", exact: true })
-    .click();
+  // ola1-paleta (2026-09-19): «Desfase» ya no tiene botón de paleta.
+  await startTool(page, "offset");
   await applyDynamicInput(page, { offset: "250mm" });
   const on = await worldPoint(page, { x: 4_707, y: 3_707 });
   await page.mouse.click(on.x, on.y);

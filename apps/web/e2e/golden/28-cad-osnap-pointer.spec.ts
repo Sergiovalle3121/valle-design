@@ -4,6 +4,7 @@ import { installCadV1Backend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { enter3DView } from '../fixtures/view-mode';
 import { topView, fitFootprint } from "../fixtures/camera-preset";
+import { startTool } from "../fixtures/tool-palette";
 
 const cadDocument = {
   meta: { version: 1, schema: 3, unit: 'mm' },
@@ -63,13 +64,13 @@ test('LINE pointer HUD proves endpoint, midpoint, intersection, perpendicular an
 
   const probe = async (step: string, anchor: { x: number; y: number }, target: { x: number; y: number }, label: string) => {
     await test.step(step, async () => {
-      // La paleta, no la cinta: el botón de la cinta abre LINE en el motor de
-      // comandos, que no pone la herramienta de dibujo y no monta el HUD
-      // `cad-live-prompt` que este golden lee. La paleta es lo que pulsaba en main.
-      await page
-        .getByTestId('cad-toolbar')
-        .getByRole('button', { name: 'Línea', exact: true })
-        .click();
+      // La paleta, no la cinta: la cinta abre LINE en el motor de comandos,
+      // que no pone `tool` en React y no monta el HUD `cad-live-prompt` que
+      // este golden lee. ola1-paleta (2026-09-19): el botón «Línea» de la
+      // paleta se retiró (duplicaba LINE de la cinta), pero `startTool`
+      // arranca LINE por su atajo nativo («L», con el muelle de comandos
+      // plegado) — el mismo camino que pulsaba el botón, con el mismo HUD.
+      await startTool(page, 'line');
       const anchorScreen = await worldPoint(page, anchor);
       await page.mouse.click(anchorScreen.x, anchorScreen.y);
       const targetScreen = await worldPoint(page, target);

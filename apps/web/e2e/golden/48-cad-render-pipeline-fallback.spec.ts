@@ -6,6 +6,7 @@ import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
 import { enter3DView } from '../fixtures/view-mode';
 import { topView, fitFootprint } from "../fixtures/camera-preset";
+import { startTool } from "../fixtures/tool-palette";
 
 /**
  * La bandera de respaldo, y lo que significa que exista.
@@ -131,7 +132,8 @@ async function drawAndCapture(page: Page, backend: Awaited<ReturnType<typeof ope
   await enter3DView(page);
   await topView(page);
   await fitFootprint(page);
-  await page.getByTestId('cad-toolbar').getByRole('button', { name: 'Línea', exact: true }).click();
+  // ola1-paleta (2026-09-19): «Línea» ya no tiene botón de paleta.
+  await startTool(page, 'line');
   const from = await screenPointFor(page, { x: 3_000, y: 8_000 });
   await page.mouse.click(from.x, from.y);
   const to = await screenPointFor(page, { x: 8_000, y: 8_000 });

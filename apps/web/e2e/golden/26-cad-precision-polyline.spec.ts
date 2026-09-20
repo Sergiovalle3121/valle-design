@@ -24,6 +24,7 @@ import { saveAndSettle } from '../fixtures/cad-save';
 import { applyDynamicInput } from '../fixtures/dynamic-input';
 import { worldPoint } from '../fixtures/world-point';
 import { fitFootprint } from "../fixtures/camera-preset";
+import { startTool } from "../fixtures/tool-palette";
 
 // MIGRACIÓN R3: mock en la superficie v1 real. DIFERENCIA de transporte
 // documentada: el PUT legacy arrastraba el array `assets` junto al documento;
@@ -138,7 +139,9 @@ test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFF
     // que es lo que `worldPoint` necesita para invertir la proyección.
     await page.getByRole('button', { name: '2D', exact: true }).click();
     await fitFootprint(page);
-    await page.getByTestId('cad-toolbar').getByRole('button', { name: 'Desfase', exact: true }).click();
+    // ola1-paleta (2026-09-19): «Desfase» ya no tiene botón de paleta — se
+    // arranca desde la cinta (mismo despacho, `startTool` en la fixture).
+    await startTool(page, 'offset');
     await applyDynamicInput(page, { offset: '250mm' });
     const on = await worldPoint(page, { x: 3_000, y: 4_000 });
     await page.mouse.click(on.x, on.y);

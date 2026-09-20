@@ -53,8 +53,12 @@ const entries = buildCadPaletteEntries();
 }
 
 // --- lo de siempre sigue en su sitio ----------------------------------------------
+// ola1-paleta (2026-09-19): `CAD_TOOLBAR_ACTIONS` se podó a los tres controles
+// de navegación (select/pan/fit_view) — "measure" ya no es una entrada "tool"
+// aquí, pero su comando (DIST) sigue en la paleta como entrada "engine" (la
+// unión de arriba ya lo cubre). Se comprueba con un id que sobrevivió a la poda.
 assert.ok(
-  entries.some((entry) => entry.kind === "tool" && entry.id === "measure"),
+  entries.some((entry) => entry.kind === "tool" && entry.id === "fit_view"),
   "includes toolbar entries",
 );
 assert.ok(

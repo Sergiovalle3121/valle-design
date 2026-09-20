@@ -16,6 +16,7 @@ import { installCadV1Backend } from "../fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import { enter3DView } from '../fixtures/view-mode';
 import { topView, fitFootprint } from "../fixtures/camera-preset";
+import { startTool } from "../fixtures/tool-palette";
 
 const cadDocument = {
   meta: { version: 1, schema: 3, unit: "mm" },
@@ -115,12 +116,11 @@ test("apagar un modo OSNAP en DSETTINGS deja de capturar por él", async ({
 
   /** Apunta al punto medio de la línea horizontal y devuelve lo que dice el HUD. */
   const probeMidpoint = async () => {
-    // La paleta, no la cinta: las dos rotulan «Línea» (la cinta en español
-    // desde bd05e0b0) y ésta es la herramienta que el golden siempre pulsó.
-    await page
-      .getByTestId("cad-toolbar")
-      .getByRole("button", { name: "Línea", exact: true })
-      .click();
+    // La paleta, no la cinta: la cinta despacha LINE por el motor de
+    // comandos y no monta `cad-live-prompt`, que es lo que este golden lee.
+    // ola1-paleta (2026-09-19): el botón «Línea» de la paleta se retiró;
+    // `startTool` arranca el mismo camino nativo por su atajo («L»).
+    await startTool(page, "line");
     const anchor = await worldPoint(page, { x: 1_000, y: 1_000 });
     await page.mouse.click(anchor.x, anchor.y);
     const target = await worldPoint(page, { x: 4_000, y: 3_000 });
