@@ -194,21 +194,18 @@ test('professional selection executes window, crossing, lasso and overlap cyclin
   let overlap = await worldPoint(page, { x: 9_150, y: 2_150 });
   await page.mouse.click(overlap.x, overlap.y);
   await expect(statusCount).toHaveText('1 sel');
+  // El panel de propiedades se abre A MANO, por el riel. Designar ya NO lo
+  // despliega solo (ola «legible»): hacerlo encogía el lienzo de 1190 a 911 px
+  // y lo devolvía en cada clic, con el dibujo reescalándose bajo el cursor —
+  // por eso el segundo clic de este mismo ciclo aterrizaba donde ya no había
+  // nada y limpiaba la designación («0 sel» en vez de ciclar). Ahora el plano
+  // se queda quieto al designar, y quien quiere ver propiedades las pide.
+  await abrirPanelDerecho(page);
   const properties = page.getByTestId('cad-native-properties');
   await expect(properties).toBeVisible();
-  // Designar reabre el muelle derecho AUNQUE `setCanvasMode` lo hubiera dejado
-  // plegado (`Layout3DEditor.tsx`, `rightRailActiveId`: «Colapsado» no impide
-  // que una designación abra el muelle solo — se dispara porque
-  // `nativeSelectedEntities.length` deja de ser cero). Medido el 2026-09-20:
-  // el lienzo pasaba de 1190 a 911 px de ancho EN ESTE CLIC, la misma
-  // transición de siempre (comentario de `esperarLienzoQuieto` en
-  // `docks.ts`), pero aquí la dispara una designación, no un muelle abierto a
-  // mano, así que el spec no la esperaba. El punto de pantalla del SEGUNDO
-  // clic se había calculado con el ancho VIEJO: con el lienzo ya encogido
-  // caía fuera de las dos líneas superpuestas, el editor lo trataba como
-  // fondo y limpiaba la selección («0 sel» en vez de ciclar). Se espera a que
-  // el lienzo se asiente y se vuelve a muestrear la afín antes de repetir el
-  // clic — la geometría no se movió, sólo la pantalla.
+  // Abrir el muelle SÍ mueve el lienzo, así que la transformación
+  // mundo↔pantalla se vuelve a muestrear antes de repetir el clic: la
+  // geometría no se movió, sólo la pantalla.
   await esperarLienzoQuieto(page);
   overlap = await worldPoint(page, { x: 9_150, y: 2_150 });
   // El panel dejó de enseñar `cad_mt60y4ol_uzfo` donde el usuario mira para
