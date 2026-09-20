@@ -2,6 +2,7 @@ import { expect, test, type BrowserContext, type Page, type TestInfo } from '@pl
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadV1Backend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
+import { abrirPanelDerecho } from '../fixtures/docks';
 
 const cadDocument = {
   meta: { version: 1, schema: 3, unit: 'mm' },
@@ -75,6 +76,12 @@ test('professional workbench persists, scales and keeps every palette outside th
   await loginAsStandaloneOwner(context);
   await installCadBackend(context);
   await page.goto('/legacy/studio');
+  // Ola «armazón»: el panel derecho arranca plegado a un riel de iconos; la
+  // lista de entidades sólo se MONTA con el panel abierto. Esta prueba no
+  // afirma nada sobre el estado por defecto (eso lo hace la de abajo, «el
+  // lienzo en reposo…»), así que abrirlo aquí es sólo la señal de que el
+  // documento cargó.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
 
   await page.getByTitle(/Workspace profesional/).click();
@@ -170,7 +177,11 @@ test('el lienzo en reposo se lleva el 74 % de la ventana a 1440×825', async ({ 
   const viewport = { width: 1440, height: 825 };
   await page.setViewportSize(viewport);
   await page.goto('/legacy/studio');
-  await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
+  // Señal de que el documento cargó. NO es `cad-native-entity-list`: esa
+  // lista vive DENTRO del panel derecho y con los rieles plegados de fábrica
+  // ni siquiera se monta — pedirla aquí contradecía la aserción de abajo
+  // (`cad-right-dock` plegado) en el mismo reposo que esta prueba mide.
+  await expect(page.getByTestId('cad-canvas')).toBeVisible();
   // Reposo real: nada abierto. Los rieles arrancan plegados de fábrica
   // (`leftDockCollapsed`/`rightDockCollapsed`) y la cinta, desplegada — el
   // estado en el que abre cualquiera, sin tocar nada.

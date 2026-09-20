@@ -5,6 +5,7 @@ import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
 import { enter3DView } from '../fixtures/view-mode';
 import { topView, fitFootprint } from "../fixtures/camera-preset";
+import { abrirPanelDerecho } from '../fixtures/docks';
 
 /**
  * FASE 1 — el pipeline de render por lotes DIBUJA el producto.
@@ -252,6 +253,9 @@ test('un documento con MTEXT, sombreado e inserción se dibuja con el pipeline p
   expect(await numberOf(page, 'data-dropped-glyphs')).toBe(0);
 
   // 5. El lienzo sigue vivo tras todo esto: ni excepción ni contexto perdido.
+  // Ola «armazón»: el panel derecho arranca plegado a un riel de iconos; la
+  // lista de entidades sólo se MONTA con el panel abierto.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
 });
 

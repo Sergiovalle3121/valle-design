@@ -17,6 +17,7 @@ import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import { saveAndSettle } from "../fixtures/cad-save";
 import { applyNativeProperty } from "../fixtures/dynamic-input";
 import type { CadDocument, CadEntity } from "../../src/lib/cad/cad-document";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 type CadCircle = Extract<CadEntity, { type: "circle" }>;
 type CadArc = Extract<CadEntity, { type: "arc" }>;
@@ -134,6 +135,11 @@ test("la paleta de propiedades edita N objetos a la vez y marca lo que difiere",
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto("/legacy/studio");
+  // Ola «armazón»: el panel derecho arranca plegado a un riel de iconos —éste
+  // es justo el golden donde ese panel es el objeto de la prueba, así que se
+  // abre de una vez y se queda abierto para todo el test (la preferencia
+  // persiste; alternar a un dock profesional y volver con Ctrl+1 no lo pliega).
+  await abrirPanelDerecho(page);
   await expect(
     page.getByTestId("cad-native-entity-multi-circle-a"),
   ).toBeVisible();
@@ -247,6 +253,7 @@ test("la paleta de propiedades edita N objetos a la vez y marca lo que difiere",
   ).toHaveLength(0);
 
   await page.reload();
+  await abrirPanelDerecho(page);
   await page.getByTestId("cad-native-entity-multi-circle-b").click();
   await expect(page.getByTestId("cad-native-property-radius")).toHaveValue(
     "900",

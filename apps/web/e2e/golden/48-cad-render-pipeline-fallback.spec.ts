@@ -7,6 +7,7 @@ import type { CadDocument } from '../../src/lib/cad/cad-document';
 import { enter3DView } from '../fixtures/view-mode';
 import { topView, fitFootprint } from "../fixtures/camera-preset";
 import { startTool } from "../fixtures/tool-palette";
+import { abrirPanelDerecho } from '../fixtures/docks';
 
 /**
  * La bandera de respaldo, y lo que significa que exista.
@@ -164,6 +165,9 @@ test('la bandera devuelve el editor al pipeline heredado y el dibujo no cambia',
 
   // 2. El dibujo sigue ahí: las dos entidades sembradas se reconocen y la
   //    lista del editor las muestra. Un respaldo que no dibuja no es respaldo.
+  // Ola «armazón»: el panel derecho arranca plegado a un riel de iconos; la
+  // lista de entidades sólo se MONTA con el panel abierto.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
   await expect(page.getByTestId('cad-native-entity-base')).toBeVisible();
 
@@ -179,6 +183,10 @@ test('con el pipeline por lotes el mismo gesto produce el mismo documento', asyn
 }) => {
   test.setTimeout(180_000);
   const backend = await openStudio(context, page, '');
+  // Ola «armazón»: se abre aquí porque más abajo se deselecciona (línea 200) y
+  // sin el panel abierto de fábrica el muelle se plegaría solo —al perder la
+  // designación que lo mantenía visible— justo antes de leer la lista.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-render-pipeline')).toHaveAttribute(
     'data-pipeline',
     'batched',
