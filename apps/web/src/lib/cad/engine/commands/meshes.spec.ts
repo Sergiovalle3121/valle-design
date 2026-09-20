@@ -273,65 +273,25 @@ assert.ok(CAD_COMMAND_REGISTRY_V2.get("3DFACE"), "3DFACE está en el registro");
   );
 }
 
-// --- MESHSMOOTH: suaviza una malla (subdivide) --------------------------------
-{
-  assert.ok(CAD_COMMAND_REGISTRY_V2.get("MESHSMOOTH"), "MESHSMOOTH está en el registro");
+// --- MESHSMOOTH / MESHSMOOTHMORE / MESHSMOOTHLESS: registro y cancelación ----
+//
+// La medida REAL de que suavizan de verdad (vértices que se mueven, volumen
+// que converge, caras ×4, ida y vuelta exacta) vive en
+// `mesh-smoothing.spec.ts`, junto al resto de la familia de nivel. Aquí sólo
+// el registro y la cancelación, igual que el resto de este fichero.
+assert.ok(CAD_COMMAND_REGISTRY_V2.get("MESHSMOOTH"), "MESHSMOOTH está en el registro");
+assert.ok(CAD_COMMAND_REGISTRY_V2.get("MESHSMOOTHMORE"), "MESHSMOOTHMORE está en el registro");
 
-  let doc = emptyDocument();
-  const meshResult = drive("MESH", [point(0, 0), point(100, 100), distance(50)], doc);
-  assert.ok(meshResult?.kind === "document", "MESH produce documento para suavizar");
-  doc = executeCadEntityCommandBatch(doc, meshResult.commands, meshResult.label).document;
-  const meshId = doc.entities.find((e) => e.type === "solid3d")?.id;
-  assert.ok(meshId, "Hay una malla para suavizar");
-
-  const originalBody = solid3dBody(doc.entities.find((e) => e.id === meshId!) as never);
-  const originalFaces = originalBody.faces.length;
-
-  const smoothResult = drive("MESHSMOOTH", [{ kind: "entityPick", entityId: meshId!, point: { x: 50, y: 50 } }, enter], doc);
-  assert.ok(smoothResult?.kind === "document", "MESHSMOOTH produce documento");
-
-  doc = executeCadEntityCommandBatch(doc, smoothResult.commands, smoothResult.label).document;
-  const smoothSolids = doc.entities.filter((e) => e.type === "solid3d" && e.id !== meshId);
-  assert.ok(smoothSolids.length >= 1, "MESHSMOOTH añade una entidad");
-
-  const smoothBody = solid3dBody(smoothSolids[smoothSolids.length - 1] as never);
-  assert.ok(
-    smoothBody.faces.length > originalFaces,
-    `MESHSMOOTH: caras aumentan (${originalFaces} → ${smoothBody.faces.length})`,
-  );
-
-  const smoothProps = solid3dMassProperties(smoothSolids[smoothSolids.length - 1] as never);
-  assert.ok(smoothProps.area > 0, `MESHSMOOTH: area positiva (${smoothProps.area.toFixed(1)})`);
-}
-
-// --- MESHSMOOTH: cancelación -------------------------------------------------
-{
-  const descriptor = CAD_COMMAND_REGISTRY_V2.get("MESHSMOOTH")!;
+for (const name of ["MESHSMOOTH", "MESHSMOOTHMORE"]) {
+  const descriptor = CAD_COMMAND_REGISTRY_V2.get(name)!;
   const doc = emptyDocument();
   const context = makeContext(doc);
   let step = descriptor.begin(context);
   step = descriptor.step(step.state, { kind: "cancel" }, context);
   assert.ok(
     step.result?.kind === "message" && step.result.text.includes("cancelado"),
-    "MESHSMOOTH se cancela limpiamente",
+    `${name} se cancela limpiamente`,
   );
-}
-
-// --- MESHSMOOTHMORE: subdivide igual que MESHSMOOTH ---------------------------
-{
-  assert.ok(CAD_COMMAND_REGISTRY_V2.get("MESHSMOOTHMORE"), "MESHSMOOTHMORE está en el registro");
-
-  let doc = emptyDocument();
-  const meshResult = drive("MESH", [point(0, 0), point(100, 100), distance(50)], doc);
-  assert.ok(meshResult?.kind === "document", "MESH produce documento para MESHSMOOTHMORE");
-  doc = executeCadEntityCommandBatch(doc, meshResult.commands, meshResult.label).document;
-  const meshId = doc.entities.find((e) => e.type === "solid3d")?.id ?? "";
-
-  const result = drive("MESHSMOOTHMORE", [{ kind: "entityPick", entityId: meshId, point: { x: 50, y: 50 } }, enter], doc);
-  assert.ok(result?.kind === "document", "MESHSMOOTHMORE produce documento");
-  doc = executeCadEntityCommandBatch(doc, result.commands, result.label).document;
-  const newMeshes = doc.entities.filter((e) => e.type === "solid3d" && e.id !== meshId);
-  assert.ok(newMeshes.length >= 1, "MESHSMOOTHMORE añade una entidad");
 }
 
 // --- MESHSMOOTHLESS: informa nivel mínimo ------------------------------------
@@ -513,5 +473,6 @@ assert.ok(CAD_COMMAND_REGISTRY_V2.get("3DFACE"), "3DFACE está en el registro");
 }
 
 console.log(
-  "✅ meshes.spec: MESH (10) + CONVTOMESH (7) + CONVTOSOLID (7) + 3DFACE (8) + MESHSMOOTH (4) + MESHSMOOTHMORE (2) + MESHSMOOTHLESS (2) + MESHREFINE (4) + MESHCOLLAPSE (se niega, documento idéntico: 5) + MESHCAP (3) — 52 comprobaciones",
+  "✅ meshes.spec: MESH (10) + CONVTOMESH (7) + CONVTOSOLID (7) + 3DFACE (8) + MESHSMOOTH+MESHSMOOTHMORE, sólo registro/cancelación (4; la medida real vive en mesh-smoothing.spec.ts) + " +
+    "MESHSMOOTHLESS (2) + MESHREFINE (4) + MESHCOLLAPSE (se niega, documento idéntico: 5) + MESHCAP (3) — 50 comprobaciones",
 );

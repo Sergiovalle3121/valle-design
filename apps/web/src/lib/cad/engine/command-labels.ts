@@ -340,6 +340,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   SCALE: "Escala",
   SCRIPT: "Ejecutar guion",
   SECTION: "Sección",
+  SECTIONPLANE: "Plano corte",
   SELECT: "Designar",
   SELECTSIMILAR: "Designar similar",
   SETBYLAYER: "Poner PorCapa",

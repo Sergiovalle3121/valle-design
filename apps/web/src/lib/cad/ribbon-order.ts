@@ -85,7 +85,7 @@ export const CAD_RIBBON_COMMAND_ORDER: Readonly<Record<string, readonly string[]
   Primitivas: ["BOX", "CYLINDER", "SPHERE", "CONE", "WEDGE", "TORUS", "PYRAMID", "POLYSOLID"],
   Sólido: ["EXTRUDE", "PRESSPULL", "REVOLVE", "SWEEP", "LOFT"],
   Booleanas: ["UNION", "SUBTRACT", "INTERSECT", "INTERFERE"],
-  "Edición de sólidos": ["SLICE", "FILLETEDGE", "CHAMFEREDGE", "SOLIDEDIT", "SECTION", "3DALIGN", "MIRROR3D", "3DSCALE", "3DARRAY"],
+  "Edición de sólidos": ["SLICE", "FILLETEDGE", "CHAMFEREDGE", "SOLIDEDIT", "SECTION", "SECTIONPLANE", "3DALIGN", "MIRROR3D", "3DSCALE", "3DARRAY"],
   // Fase 2: superficies. SURFSCULPT, SURFUNTRIM y MESHCOLLAPSE no están: aún no
   // disponibles y sin botón (`engine/command-availability.ts`).
   Superficies: [

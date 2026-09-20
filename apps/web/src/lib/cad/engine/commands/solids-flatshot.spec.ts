@@ -30,6 +30,7 @@ import { cadFlatshotEntities } from "../../flatshot";
 import { buildCadDimensionGeometry, type CadDimensionEntity } from "../../associative-dimension";
 import { createCadVariableAccess } from "../../system-variables";
 import { cadDocumentExtents } from "../../view/document-extents";
+import { convexHull } from "../../geom-measure";
 import { cadSnapSceneAddEntities } from "../../snap-scene";
 import { snap, type SnapScene } from "../../snap-engine";
 import { CAD_COMMAND_REGISTRY_V2 } from "../index";
@@ -586,8 +587,80 @@ function boundsOf(lines: readonly CadEntity[]) {
   ok(insert !== undefined, "y la inserción sigue en el espacio modelo");
 }
 
+// ---------------------------------------------------------------------------
+// 8. LA MEDIDA DE LA OLA 5: en isométrica, un cubo proyecta un HEXÁGONO, no
+//    «salieron líneas». Y las tres aristas que se esconden van a su capa.
+//
+// El SCU isométrico se arma con el mismo cruce que ya verificó a mano
+// `hidden-line-solver.spec.ts`: eje X = (1,−1,0)/√2, eje Y = (1,1,−2)/√6, cuyo
+// producto vectorial da un eje Z = (1,1,1)/√3 — la mirada clásica de esquina.
+// Aquí NO se repite esa cuenta: se pasa por la orden REAL, tecleada, con un
+// SCU de verdad, y se mide lo que produce.
+// ---------------------------------------------------------------------------
+{
+  const ISO_UCS = {
+    UCSXDIRX: 1 / Math.SQRT2,
+    UCSXDIRY: -1 / Math.SQRT2,
+    UCSXDIRZ: 0,
+    UCSYDIRX: 1 / Math.sqrt(6),
+    UCSYDIRY: 1 / Math.sqrt(6),
+    UCSYDIRZ: -2 / Math.sqrt(6),
+  };
+  const cubo: CadEntity = {
+    id: "cubo",
+    type: "solid3d",
+    root: "caja",
+    nodes: [{ id: "caja", op: "box", min: { x: 0, y: 0, z: 0 }, max: { x: 100, y: 100, z: 100 } }],
+    layer: LAYER,
+  };
+  const start = documentWith([cubo]);
+  const after = apply("FLATSHOT", [select("cubo"), point(0, 0)], start, { ucs: ISO_UCS });
+
+  const visible = linesOn(after, "APLANADO", "APLANADO-VISTAS");
+  const hidden = linesOn(after, "APLANADO", "APLANADO-OCULTAS");
+  ok(visible.length === 9, `un cubo en isométrica deja NUEVE aristas vistas (salieron ${visible.length})`);
+  ok(hidden.length === 3, `y TRES ocultas —las que tapa el propio cuerpo— (salieron ${hidden.length})`);
+
+  // Cada arista, vista u oculta, proyecta a 100·√(2/3) mm: la misma cuenta de
+  // trigonometría que ancla `hidden-line-solver.spec.ts`, ahora verificada
+  // saliendo de la orden tecleada y no de una llamada directa al solucionador.
+  const longitudEsperada = 100 * Math.sqrt(2 / 3);
+  for (const entity of [...visible, ...hidden]) {
+    if (entity.type !== "line") continue;
+    const longitud = Math.hypot(entity.end.x - entity.start.x, entity.end.y - entity.start.y);
+    ok(
+      Math.abs(longitud - longitudEsperada) < 1e-6,
+      `cada arista del cubo isométrico mide 100·√(2/3) = ${longitudEsperada.toFixed(4)} (salió ${longitud.toFixed(4)})`,
+    );
+  }
+
+  // Y el HEXÁGONO: el casco convexo de las DOCE aristas —vistas y ocultas
+  // juntas, que es la silueta completa del cubo proyectado— tiene SEIS
+  // vértices. «Nueve segmentos» no basta: nueve segmentos mal encadenados, o
+  // con una arista de más o de menos, no dibujan un hexágono regular.
+  const puntos = [...visible, ...hidden].flatMap((entity) =>
+    entity.type === "line" ? [entity.start, entity.end] : [],
+  );
+  const casco = convexHull(puntos);
+  eq(casco.length, 6, "la silueta del cubo en isométrica es un HEXÁGONO de seis vértices");
+
+  // Las tres ocultas son justo las que NO tocan el casco: viven dentro de la
+  // silueta, que es lo que «oculta» significa en un cuerpo convexo.
+  const enElCasco = (p: { x: number; y: number }) =>
+    casco.some((v) => Math.hypot(v.x - p.x, v.y - p.y) < 1e-6);
+  for (const entity of hidden) {
+    if (entity.type !== "line") continue;
+    ok(
+      !enElCasco(entity.start) || !enElCasco(entity.end),
+      "cada arista oculta tiene al menos un extremo DENTRO de la silueta, no en su borde",
+    );
+  }
+  checks += 3 + visible.length + hidden.length;
+}
+
 console.log(
   `FLATSHOT y SOLPROF: ${checks} comprobaciones — alzado 2.000×3.000 desde el SCU de pie, ` +
-    "vistas y ocultas en capas separadas, bloque reemplazable, y el aplanado acotado a 3.000 mm " +
-    "por el enganche y el motor de cotas de siempre",
+    "vistas y ocultas en capas separadas, bloque reemplazable, el aplanado acotado a 3.000 mm " +
+    "por el enganche y el motor de cotas de siempre, y el cubo en isométrica midiendo el HEXÁGONO " +
+    "de verdad —seis vértices, doce aristas de 100·√(2/3)— y no sólo contando segmentos",
 );

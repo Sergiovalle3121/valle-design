@@ -29,6 +29,7 @@ import type { CadSchema5Entity } from "./cad-entities-v5";
 import type { CadSchema6Entity } from "./cad-entities-v6";
 import type { CadSchema7Entity } from "./cad-entities-v7";
 import type { CadSchema10DimensionFields } from "./cad-entities-v10";
+import type { CadSectionPlaneEntity } from "./cad-entities-section-plane";
 import type { CadDimensionDayToDayFields } from "./cad-dimension-day-to-day-fields";
 import type { CadHatchImportedPattern } from "./cad-hatch-imported-pattern";
 
@@ -401,7 +402,14 @@ export type CadEntity =
    * persiste coordenadas de mundo: guarda su anfitrión y su distancia sobre el
    * eje. Vive en `cad-entities-v7.ts`.
    */
-  | CadSchema7Entity;
+  | CadSchema7Entity
+  /**
+   * SECTIONPLANE: el plano de corte persistido como objeto, no como un gesto
+   * efímero de una orden. No abre esquema —ningún documento viejo necesita
+   * ponerse al día para que exista uno con cero—. Vive en
+   * `cad-entities-section-plane.ts`.
+   */
+  | CadSectionPlaneEntity;
 
 export interface CadLayerDef {
   id: string;
@@ -673,6 +681,9 @@ export { CAD_SCHEMA_6_ENTITY_TYPES } from "./cad-entities-v6";
 /** Y el del esquema 7: el hueco alojado en un muro. */
 export type { CadOpeningEntity, CadOpeningKind, CadSchema7Entity } from "./cad-entities-v7";
 export { CAD_SCHEMA_7_ENTITY_TYPES } from "./cad-entities-v7";
+
+/** Y el plano de corte persistido: no abre esquema (ver el módulo). */
+export type { CadSectionPlaneEntity } from "./cad-entities-section-plane";
 
 // ---------------------------------------------------------------------------
 // Versionado + serialización determinista
