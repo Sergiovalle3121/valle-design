@@ -91,9 +91,17 @@ test('dynamic input creates a circle by absolute center and locked diameter', as
   expect((circles[0] as { legacy?: unknown }).legacy).toBeUndefined();
   expect(stored.modelSpace.entityIds).toContain(circles[0].id);
 
-  await expect(page.getByText('POLAR 45° · F10')).toBeVisible();
+  // La barra de estado pasó a una sola fila de conmutadores con icono (ola
+  // «estado»): el rótulo dejó de ser «POLAR 45° · F10» —texto en jerga, en
+  // inglés y en la barra— y ahora el nombre accesible es «Rastreo polar a 45°
+  // activado · F10». Se comprueba por su conmutador y por `data-active`, que
+  // es EL ESTADO en sí y no cómo se redacte: más estricto que buscar texto,
+  // porque un rótulo que mienta sobre el estado ya no pasaría.
+  const polar = page.getByTestId('cad-draft-status-polar');
+  await expect(polar).toHaveAttribute('data-active', 'true');
+  await expect(polar).toHaveAccessibleName(/Rastreo polar a 45° activado · F10/);
   await page.keyboard.press('F10');
-  await expect(page.getByText('POLAR off · F10')).toBeVisible();
+  await expect(polar).toHaveAttribute('data-active', 'false');
   await page.keyboard.press('F11');
-  await expect(page.getByText('OTRACK off · F11')).toBeVisible();
+  await expect(page.getByTestId('cad-draft-status-otrack')).toHaveAttribute('data-active', 'false');
 });

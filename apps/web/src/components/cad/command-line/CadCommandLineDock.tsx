@@ -103,7 +103,16 @@ export function CadCommandLineDock({ host, disabled, inputRef }: CadCommandLineD
                 queda arriba, sin gastar el hueco de 8 px de `gap-2` contra la
                 franja cuando no hay nada que mostrar en él.
               */}
-              <div className="pointer-events-auto w-full">
+              {/*
+                `pointer-events-none` en ESTE envoltorio, no `auto`: es de
+                ancho completo, así que con `auto` se quedaba los clics de toda
+                la franja aunque la tarjeta del recorrido ocupe sólo su esquina
+                — el usuario pulsaba a 900 px de distancia de la tarjeta y no
+                pasaba nada. La tarjeta reactiva el puntero para sí cuando
+                flota (`pointer-events-auto` en su propia clase), que es lo que
+                el golden 67 comprueba: lo que se ve es lo que se pulsa.
+              */}
+              <div className="pointer-events-none w-full">
                 <CadGuidedTourDock host={host} disabled={disabled} />
               </div>
               <div className="pointer-events-auto w-full">

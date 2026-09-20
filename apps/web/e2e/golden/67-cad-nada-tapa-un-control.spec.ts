@@ -390,10 +390,34 @@ async function medirRecorrido(page: Page): Promise<MedidaRecorrido> {
   });
 }
 
+/**
+ * Cuánto lienzo puede tapar la tarjeta, en tanto por uno del área del lienzo.
+ *
+ * Hasta la ola «armazón» esto era CERO y se podía exigir: el muelle izquierdo
+ * nacía abierto, el recorrido se pintaba dentro de él y el lienzo empezaba
+ * donde terminaba el muelle. Desde que los DOS muelles arrancan plegados a su
+ * riel —el cambio que lleva el lienzo del 50 % al 76 % de la ventana— no hay
+ * columna donde pintarlo, así que flota; y un cero que no se puede alcanzar
+ * no es un contrato, es un test roto.
+ *
+ * Lo que sí se puede exigir, y se exige aquí, es un TECHO medido. El
+ * 2026-09-20, a 1280×720, la tarjeta flotante era de ancho completo
+ * (1256×75 px) y tapaba 89 337 px², el 13,4 % del plano, además de comerse los
+ * clics de todo lo que cayera debajo —los goldens 10, 12, 13, 14, 15, 16 y 120
+ * esperaban a botones que interceptaba—. Acotada a 20 rem y anclada a la
+ * esquina son 21 722 px², el 3,3 %. El techo se pone en el 4 %: deja margen
+ * para una línea de texto más larga y no para volver a la franja.
+ *
+ * Lo demás sigue siendo CERO y no se toca: ni un píxel de la paleta, ni un
+ * clic que atraviese la tarjeta, ni un control tapado. Eso es lo que protege a
+ * quien usa el programa; el porcentaje sólo acota el estorbo visual.
+ */
+const MAX_LIENZO_TAPADO = { plegado: 0.04, desplegado: 0.2 } as const;
+
 async function afirmarQueNoTapa(
   page: Page,
   estado: string,
-  { tambienControles }: { tambienControles: boolean },
+  { tambienControles, maxLienzo }: { tambienControles: boolean; maxLienzo: number },
 ) {
   const medida = await medirRecorrido(page);
   const donde = `recorrido ${estado} en ${medida.caja} (colocación: ${medida.colocacion ?? 'sin declarar'})`;
@@ -406,10 +430,22 @@ async function afirmarQueNoTapa(
     medida.solapePaleta,
     `${donde}: pisa ${medida.solapePaleta} px² de la paleta de herramientas`,
   ).toBe(0);
+  // Docked no puede tapar NADA: el lienzo empieza donde termina el muelle.
+  // Flotando, el techo medido de arriba.
+  const areaLienzo = await page.evaluate(() => {
+    const c = document.querySelector('[data-testid="cad-canvas"]');
+    if (!c) return 0;
+    const r = c.getBoundingClientRect();
+    return Math.round(r.width * r.height);
+  });
+  const techo = medida.colocacion === 'dock' ? 0 : Math.round(areaLienzo * maxLienzo);
   expect(
     medida.solapeLienzo,
-    `${donde}: tapa ${medida.solapeLienzo} px² del lienzo; su sitio es el muelle izquierdo`,
-  ).toBe(0);
+    `${donde}: tapa ${medida.solapeLienzo} px² del lienzo (${(
+      (medida.solapeLienzo / Math.max(areaLienzo, 1)) *
+      100
+    ).toFixed(1)} %); el techo de este estado son ${techo} px²`,
+  ).toBeLessThanOrEqual(techo);
 
   // Todos los controles, en la MISMA ventana que el test de arriba (la de
   // serie, 1.280×720): lo único que cambia respecto a él es el recorrido
@@ -432,7 +468,7 @@ test('con el recorrido guiado abierto, su tarjeta recibe sus propios clics y no 
 
   const tarjeta = page.getByTestId('cad-guided-tour');
   const toggle = page.getByTestId('cad-guided-tour-toggle');
-  await afirmarQueNoTapa(page, 'tal como arranca', { tambienControles: true });
+  await afirmarQueNoTapa(page, 'tal como arranca', { tambienControles: true, maxLienzo: MAX_LIENZO_TAPADO.plegado });
 
   // Arranca PLEGADO: una línea con el paso actual.
   await expect(tarjeta).toHaveAttribute('data-collapsed', 'true');
@@ -442,16 +478,16 @@ test('con el recorrido guiado abierto, su tarjeta recibe sus propios clics y no 
   await toggle.click();
   await expect(tarjeta).toHaveAttribute('data-collapsed', 'false');
   await expect(page.getByTestId('cad-guided-tour-progress')).toBeVisible();
-  await afirmarQueNoTapa(page, 'desplegado', { tambienControles: true });
+  await afirmarQueNoTapa(page, 'desplegado', { tambienControles: true, maxLienzo: MAX_LIENZO_TAPADO.desplegado });
 
   // Y en la ventana del reporte: un portátil de 1.366×768, donde paleta,
   // recorrido y aviso de la demo se comían cerca del 40 % del lienzo. Aquí se
   // mide la tarjeta; la cinta a 1.366 la vigila el golden 214.
   await page.setViewportSize({ width: 1366, height: 768 });
-  await afirmarQueNoTapa(page, 'desplegado a 1.366×768', { tambienControles: false });
+  await afirmarQueNoTapa(page, 'desplegado a 1.366×768', { tambienControles: false, maxLienzo: MAX_LIENZO_TAPADO.desplegado });
   await toggle.click();
   await expect(tarjeta).toHaveAttribute('data-collapsed', 'true');
-  await afirmarQueNoTapa(page, 'plegado a 1.366×768', { tambienControles: false });
+  await afirmarQueNoTapa(page, 'plegado a 1.366×768', { tambienControles: false, maxLienzo: MAX_LIENZO_TAPADO.plegado });
 });
 
 test('en una ventana estrecha, donde el recorrido tiene que flotar, sigue quedándose con sus propios clics', async ({

@@ -189,7 +189,18 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
         // flotante: no está encima de nada.
         docked
           ? "m-2 bg-popover"
-          : "pointer-events-auto w-full bg-popover/95 shadow-floating backdrop-blur",
+          : // Flotando: una TARJETA en la esquina, no una franja de lado a
+            // lado. `w-full` venía de cuando flotar era la excepción (ventana
+            // estrecha, modo enfoque); desde que los dos muelles nacen
+            // plegados —para que el lienzo pase del 50 % al 76 %— flotar es lo
+            // NORMAL, y una franja de 1256×75 px medida el 2026-09-20 a
+            // 1280×720 tapaba 89 337 px² del plano (el 13,5 %) y se comía los
+            // clics de todo lo que cayera debajo: los goldens 10, 12, 13, 14,
+            // 15, 16 y 120 se quedaban esperando a botones que la tarjeta
+            // interceptaba. Acotada a 20 rem y anclada a la izquierda
+            // (`items-start` del envoltorio) tapa una cuarta parte de eso y no
+            // alcanza ningún control.
+            "pointer-events-auto w-full max-w-[20rem] bg-popover/95 shadow-floating backdrop-blur",
         // Un tercio de la pantalla como mucho, en el muelle también: desplegado
         // entero no debe empujar la biblioteca fuera de la ventana.
         minimized ? "p-2" : "max-h-[32vh] p-3.5",

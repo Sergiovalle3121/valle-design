@@ -665,7 +665,7 @@ export function CadCommandLine({
                       )}
                       <span className="shrink-0 text-primary-ink">{s.nombre}</span>
                       {s.alias && (
-                        <span className="shrink-0 rounded border border-border px-1 text-[10px] text-muted-foreground">
+                        <span className="type-micro shrink-0 rounded border border-border px-1 text-muted-foreground">
                           {s.alias}
                         </span>
                       )}
