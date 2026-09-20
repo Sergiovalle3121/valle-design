@@ -119,7 +119,7 @@ test("presentación, ventana a escala con capa congelada y trazado a PDF", async
   const backend = await installCadBackend(context);
   await page.goto("/legacy/studio");
   await expect(page.getByTestId("cad-canvas")).toBeVisible();
-  // Ola «armazón»: en una sesión sin `localStorage` previo el recorrido
+  // Ola «armazón»: en una sesión sin `estado guardado previo, el recorrido
   // guiado nace `pending` y, con los dos muelles plegados por defecto, flota
   // sobre la franja inferior en vez de vivir dentro del muelle izquierdo
   // (`CadGuidedTourDock` / `tour-slot.ts`). No tapa la línea de comandos —
