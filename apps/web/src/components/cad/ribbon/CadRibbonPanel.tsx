@@ -89,6 +89,10 @@ export function CadRibbonPanel({
       className={cx(
         "flex shrink-0 flex-col border-r border-border/60 pb-0 pt-0.5 last:border-r-0",
         collapsed ? "px-0.5" : "px-2",
+        // Sin fila de botones (panel "reduced" sin primario, ver más abajo):
+        // el rótulo se centra en el alto del panel en vez de quedar pegado
+        // arriba con una caja vacía debajo.
+        !collapsed && split.large.length === 0 && split.small.length === 0 && "justify-center",
       )}
     >
       {collapsed ? (
@@ -105,30 +109,42 @@ export function CadRibbonPanel({
         />
       ) : (
         <>
-          <div className="flex h-[3.75rem] items-start gap-0.5">
-            {split.large.map((command) => (
-              <CadRibbonButton
-                key={command.name}
-                command={command}
-                size="large"
-                onRun={onRun}
-                disabled={disabledCommands?.has(command.name)}
-              />
-            ))}
-            {split.small.length > 0 ? (
-              <div className="grid auto-cols-max grid-flow-col grid-rows-3 gap-x-0.5">
-                {split.small.map((command) => (
-                  <CadRibbonButton
-                    key={command.name}
-                    command={command}
-                    size="small"
-                    onRun={onRun}
-                    disabled={disabledCommands?.has(command.name)}
-                  />
-                ))}
-              </div>
-            ) : null}
-          </div>
+          {/*
+           * Ola 1 «cinta»: un panel sin botón grande (Grupos, Utilidades,
+           * Portapapeles) puede quedar "reduced" con CERO comandos a la
+           * vista (no tiene primario que enseñar). Pintar esta fila vacía
+           * de todos modos dejaba una caja de 60 px en blanco encima del
+           * rótulo — se omite entera y `justify-center` en el contenedor
+           * centra el rótulo en el alto del panel, como un panel plegado
+           * pero sin gastar los 77 px de un botón-icono que no hace falta.
+           */}
+          {split.large.length > 0 || split.small.length > 0 ? (
+            <div className="flex h-[3.75rem] items-start gap-0.5">
+              {split.large.map((command) => (
+                <CadRibbonButton
+                  key={command.name}
+                  command={command}
+                  size="large"
+                  onRun={onRun}
+                  disabled={disabledCommands?.has(command.name)}
+                />
+              ))}
+              {split.small.length > 0 ? (
+                <div className="grid auto-cols-max grid-flow-col grid-rows-3 gap-x-0.5">
+                  {split.small.map((command) => (
+                    <CadRibbonButton
+                      key={command.name}
+                      command={command}
+                      size="small"
+                      dense={effectiveLayout.dense}
+                      onRun={onRun}
+                      disabled={disabledCommands?.has(command.name)}
+                    />
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           <div className="flex items-center justify-center">
             {split.flyout.length > 0 ? (
               <CadRibbonPanelFlyout

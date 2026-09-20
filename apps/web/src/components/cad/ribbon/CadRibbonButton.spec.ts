@@ -59,6 +59,34 @@ ok(small.includes('data-size="small"'), "un no primario se pinta pequeño por de
 ok(!small.includes("data-primary"), "un no primario no lleva data-primary");
 ok(small.includes("h-4 w-4"), "el icono pequeño mide 16 px");
 ok(small.includes("h-5 w-28"), "el botón pequeño mide 7 rem × 20 px (CAD_RIBBON_METRICS.small)");
+ok(small.includes('aria-label="XLINE"'.replace("XLINE", xline.label)), "el nombre accesible es el rótulo en español, con o sin escalón denso");
+
+// ── Ola 1 «cinta»: el botón pequeño DENSO — sólo icono, pero el mismo
+// nombre accesible y el mismo title. `getByRole('button', { name: 'Línea' })`
+// tiene que seguir resolviendo aunque el rótulo ya no esté pintado.
+{
+  const line2 = findCadRibbonCommand("LINE")!; // grande: dense no debe afectarle.
+  const denseLarge = renderToStaticMarkup(createElement(CadRibbonButton, { command: line2, onRun: () => undefined, dense: true }));
+  ok(denseLarge.includes(">Línea<"), "dense no afecta a un botón grande: conserva su rótulo visible");
+
+  const denseSmall = renderToStaticMarkup(
+    createElement(CadRibbonButton, { command: xline, onRun: () => undefined, dense: true }),
+  );
+  ok(denseSmall.includes('data-dense="true"'), "el botón pequeño denso se marca en el DOM");
+  ok(!denseSmall.includes(`>${xline.label}<`), "denso: el rótulo NO está pintado a la vista");
+  ok(denseSmall.includes(`aria-label="${xline.label}"`), "denso: el nombre accesible sigue siendo el rótulo en español");
+  ok(
+    denseSmall.includes(`title="${cadRibbonButtonTitle(xline)}"`),
+    "denso: el title nativo sigue trayendo rótulo · NOMBRE (alias) — descripción",
+  );
+  ok(denseSmall.includes("h-5 w-[1.625rem]"), "denso: el botón mide 1,625 rem (26 px, CAD_RIBBON_DENSE_METRICS.small)");
+  ok(!denseSmall.includes("w-28"), "denso: ya no mide 7 rem");
+
+  const notDense = renderToStaticMarkup(
+    createElement(CadRibbonButton, { command: xline, onRun: () => undefined, dense: false }),
+  );
+  ok(notDense.includes(`>${xline.label}<`), "sin denso (por defecto): el rótulo pequeño sigue a la vista, como siempre");
+}
 
 const menu = renderToStaticMarkup(
   createElement(CadRibbonButton, { command: xline, onRun: () => undefined, size: "menu" }),

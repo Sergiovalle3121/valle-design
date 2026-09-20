@@ -174,9 +174,13 @@ for (const [label, names] of Object.entries(CAD_RIBBON_PRIMARY)) {
 for (const tab of CAD_RIBBON_DATA) {
   for (const panel of tab.panels) {
     const primaries = panel.commands.filter((command) => command.primary);
+    // Ola 1 «cinta»: un panel puede quedarse SIN botón grande (Grupos,
+    // Utilidades, Portapapeles en Inicio) — sus comandos siguen expuestos,
+    // sólo bajan a botón pequeño. Lo que no puede pasar es que un panel
+    // declare TRES o más: eso era el problema de origen (14 en Inicio).
     assert.ok(
-      primaries.length >= 1 && primaries.length <= 2,
-      `${tab.id}/${panel.label} tiene ${primaries.length} botones grandes; deben ser uno o dos`,
+      primaries.length <= 2,
+      `${tab.id}/${panel.label} tiene ${primaries.length} botones grandes; como mucho dos`,
     );
   }
   for (const label of CAD_RIBBON_PANEL_COLLAPSE_ORDER[tab.id]) {
@@ -186,6 +190,29 @@ for (const tab of CAD_RIBBON_DATA) {
     );
   }
 }
+// ── Ola 1 «cinta»: el recorte concreto de los 14 primarios de Inicio a 9,
+// medido en producción como el motivo de que el lienzo sólo fuera el 49,8 %
+// de la ventana. Dibujo y Modificar conservan sus dos; Anotación, Capas,
+// Bloque y Propiedades bajan a uno; Grupos, Utilidades y Portapapeles se
+// quedan sin botón grande — y sus comandos NO desaparecen del registro.
+{
+  const primariesOf = (label: string) =>
+    inicio.panels.find((panel) => panel.label === label)?.commands.filter((command) => command.primary).length ?? -1;
+  assert.deepEqual(
+    { Dibujo: primariesOf("Dibujo"), Modificar: primariesOf("Modificar") },
+    { Dibujo: 2, Modificar: 2 },
+    "Dibujo y Modificar conservan sus dos botones grandes: el par que abre cada oficio",
+  );
+  for (const label of ["Anotación", "Capas", "Bloque", "Propiedades"]) {
+    assert.equal(primariesOf(label), 1, `Inicio > ${label} baja a un solo botón grande`);
+  }
+  for (const label of ["Grupos", "Utilidades", "Portapapeles"]) {
+    assert.equal(primariesOf(label), 0, `Inicio > ${label} se queda sin botón grande: sus comandos entran como pequeños`);
+    const panel = inicio.panels.find((entry) => entry.label === label)!;
+    assert.ok(panel.commands.length > 0, `Inicio > ${label} sigue teniendo sus comandos, sólo que pequeños`);
+  }
+}
+
 // Lo que los goldens 61 y 86 pulsan sin abrir nada vive en paneles que nunca
 // se pliegan a un botón (no están en el orden de plegado de su pestaña).
 for (const [tabId, name] of [

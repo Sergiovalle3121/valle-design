@@ -6,7 +6,7 @@
  *
  * El botón de la cinta pintaba el nombre canónico en inglés (LINE, RECTANG,
  * MATCHPROP). En AutoCAD es-MX el botón dice «Línea», «Rectángulo», «Igualar
- * propiedades», y el nombre con su alias vive en el tooltip. El resumen
+ * formato», y el nombre con su alias vive en el tooltip. El resumen
  * (`command-summaries.ts`) es una frase; aquí va lo que cabe en un botón:
  * una o dos palabras, tres como mucho.
  *
@@ -221,7 +221,11 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   LWEIGHT: "Grosor de línea",
   MAPIMPORT: "Importar GIS",
   MASSPROP: "Masa y volumen",
-  MATCHPROP: "Igualar propiedades",
+  // Ola 1 «cinta» (2026-09-19): dejó de ser botón grande de «Propiedades»
+  // (PROPERTIES es ahora el único primario del panel) — como botón pequeño
+  // el rótulo tiene que caber en 16 caracteres (`command-labels.spec.ts`);
+  // «Igualar propiedades» (19) no cabía.
+  MATCHPROP: "Igualar formato",
   MATERIALS: "Materiales",
   MATERIALATTACH: "Asignación",
   MATERIALMAP: "Mapeado",

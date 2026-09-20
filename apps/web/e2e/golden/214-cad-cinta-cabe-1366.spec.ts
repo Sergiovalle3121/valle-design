@@ -184,10 +184,14 @@ test("un panel plegado abre su desplegable con todos sus comandos y Escape lo ci
   await page.setViewportSize({ width: 1280, height: 720 });
   await openStudio(context, page);
 
-  // A 1280 px Utilidades es un botón (ribbon-layout.spec.ts lo afirma sin
-  // navegador); LIST vive dentro y no está en el DOM hasta abrir.
+  // Ola 1 «cinta» (2026-09-19): Utilidades ya no tiene botón grande
+  // (`ribbon-order.ts` recortó los catorce primarios de Inicio a nueve), así
+  // que a 1280 px queda "reduced" (su rótulo con un ▾, sin botón-icono de
+  // panel de sobra que ya no tiene nada que enseñar) y no "collapsed" —
+  // `ribbon-layout.spec.ts` lo afirma sin navegador. LIST vive dentro y no
+  // está en el DOM hasta abrir, en los dos estados.
   const utilidades = page.getByTestId("cad-ribbon-panel-Utilidades");
-  await expect(utilidades).toHaveAttribute("data-layout", "collapsed");
+  await expect(utilidades).toHaveAttribute("data-layout", "reduced");
   await expect(page.getByTestId("cad-ribbon-command-LIST")).toHaveCount(0);
 
   const toggle = page.getByTestId("cad-ribbon-panel-toggle-Utilidades");
