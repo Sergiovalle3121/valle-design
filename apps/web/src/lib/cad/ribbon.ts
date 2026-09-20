@@ -170,6 +170,11 @@ const CAD_PANEL_NAME_PATTERNS: readonly [RegExp, string][] = [
   [/^(PARAMETERS|DELCONSTRAINT)$/, "Gestionar"],
   [/^(-?STYLE|-?DIMSTYLE|-?MLEADERSTYLE|TABLESTYLE)$/, "Estilos"],
   [/^(-?DIM[A-Z]*|QDIM|CENTERMARK|CENTERLINE)$/, "Cotas"],
+  // Escala de anotación: el panel «Annotation Scaling» de la pestaña Annotate
+  // de AutoCAD. Las tres órdenes trabajan sobre la MISMA propiedad (qué escalas
+  // conoce un objeto anotativo), así que comparten panel en vez de repartirse
+  // entre Cotas y Texto, donde ninguna de las dos las explicaría.
+  [/^(ANNOSCALE|OBJECTSCALE|ANNORESET)$/, "Escala de anotación"],
   [/^(-?LEADER|MLEADER|QLEADER)$/, "Directrices"],
   [/^(-?TEXT|MTEXT|DTEXT|SPELL|-?TABLE|TABLEDIT|TINSERT|TABLEEXPORT|DDEDIT|TEXTALIGN|FIELD|UPDATEFIELD|TCOUNT|TXT2MTXT)$/, "Texto y tablas"],
   [/^TOLERANCE$/, "Tolerancias"],
@@ -182,7 +187,7 @@ const CAD_PANEL_NAME_PATTERNS: readonly [RegExp, string][] = [
     // El sombreado va en Dibujo, como en el panel Draw de AutoCAD (HATCH,
     // GRADIENT y BOUNDARY son `kind: draw`); un panel «Sombreado» aparte era
     // uno de los trece de Inicio, y a 1366 px no caben trece.
-    /^(LINE|XLINE|RAY|-?PLINE|POLYGON|RECTANG|CIRCLE|ARC|ELLIPSE|-?SPLINE|DONUT|-?POINT|DIVIDE|MEASURE|-?REGION|SOLID|REVCLOUD|WIPEOUT|BREAKLINE|-?HATCH|GRADIENT|-?BOUNDARY)$/,
+    /^(LINE|XLINE|RAY|-?PLINE|POLYGON|RECTANG|CIRCLE|ARC|ELLIPSE|-?SPLINE|DONUT|-?POINT|DIVIDE|MEASURE|-?REGION|SOLID|REVCLOUD|WIPEOUT|BREAKLINE|-?HATCH|HATCHORIGIN|GRADIENT|-?BOUNDARY)$/,
     "Dibujo",
   ],
   [

@@ -108,10 +108,17 @@ function finish(
   };
 }
 
+/**
+ * `kind: "draw"`, no "annotate": el origen del patrón es una propiedad del
+ * SOMBREADO, así que la orden vive en el panel Dibujo junto a HATCH y GRADIENT,
+ * como el control de origen del panel Hatch Creation de AutoCAD. Declararla de
+ * anotación la mandaba a la pestaña Anotación y abría allí un panel «Dibujo»
+ * huérfano, sin botón grande, que el contrato de la cinta rechaza.
+ */
 const hatchOriginCommand: CadCommandDescriptor<HatchOriginState> = {
   name: "HATCHORIGIN",
   aliases: ["ORIGENSOMBREADO"],
-  kind: "annotate",
+  kind: "draw",
   transparent: false,
   selection: "required",
   repeatable: true,

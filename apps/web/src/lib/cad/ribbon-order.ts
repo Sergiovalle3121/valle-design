@@ -27,7 +27,7 @@ export const CAD_RIBBON_PANEL_ORDER: Readonly<Record<CadRibbonTabId, readonly st
     "Grupos", "Utilidades", "Portapapeles",
   ],
   insertar: ["Referencias", "Importar y extraer", "Ubicación", "Normalizados", "Paletas"],
-  anotar: ["Texto y tablas", "Cotas", "Directrices", "Tolerancias", "Mecánica", "Estilos"],
+  anotar: ["Texto y tablas", "Cotas", "Directrices", "Escala de anotación", "Tolerancias", "Mecánica", "Estilos"],
   parametrico: ["Geométricas", "Dimensionales", "Gestionar"],
   vista: ["Encuadre y zoom", "Vistas 3D", "Estilos visuales", "SCU", "Ventanas", "Paletas", "Vistas"],
   solidos3d: ["Primitivas", "Sólido", "Booleanas", "Edición de sólidos", "Consulta 3D"],
@@ -142,6 +142,7 @@ export const CAD_RIBBON_PRIMARY: Readonly<Record<string, readonly string[]>> = {
   Paletas: ["ADCENTER", "TOOLPALETTES"],
   // Anotar.
   "Texto y tablas": ["MTEXT", "TABLE"],
+  "Escala de anotación": ["ANNOSCALE"],
   Cotas: ["DIMLINEAR"],
   Directrices: ["MLEADER"],
   Tolerancias: ["TOLERANCE"],

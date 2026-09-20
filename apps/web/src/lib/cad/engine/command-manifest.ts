@@ -147,7 +147,7 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "GROUP", aliases: ["G"], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/groups" },
   { name: "UNGROUP", aliases: ["UNG"], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/groups" },
   { name: "PURGE", aliases: ["PU"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: true, cursor: "none", module: "commands/groups" },
-  { name: "HATCHORIGIN", aliases: ["ORIGENSOMBREADO"], kind: "annotate", transparent: false, selection: "required", repeatable: true, mutates: true, cursor: "pick", module: "commands/hatch-origin-commands" },
+  { name: "HATCHORIGIN", aliases: ["ORIGENSOMBREADO"], kind: "draw", transparent: false, selection: "required", repeatable: true, mutates: true, cursor: "pick", module: "commands/hatch-origin-commands" },
   { name: "U", aliases: [], kind: "modify", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "none", module: "commands/history-commands" },
   { name: "REDO", aliases: [], kind: "modify", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "none", module: "commands/history-commands" },
   { name: "UNDO", aliases: [], kind: "modify", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "none", module: "commands/history-commands" },
