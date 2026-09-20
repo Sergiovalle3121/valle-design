@@ -278,6 +278,12 @@ export class CadPlotHost {
       return "Este espacio de trabajo no sabe traer dibujos del inquilino para compararlos: falta el anfitrión de comparación.";
     if (request.kind === "download")
       return "La descarga de archivos la atiende el anfitrión del motor, no el de trazado.";
+    // VPORTS tampoco es trazado: el reparto de ventanas de MODELO lo sirve el
+    // anfitrión del visor 3D, que se enchufa antes que éste. Misma razón que
+    // las ramas de arriba — la exhaustividad de la unión es la que avisa
+    // cuando llega una petición sin dueño.
+    if (request.kind === "viewport-split")
+      return "Este espacio de trabajo no sabe dividir el visor de modelo: falta el anfitrión de ventanas.";
     // Aquí había diez ramas de render, luces y materiales que contestaban «lo
     // atiende el anfitrión del motor» — y ése no las atendía: RENDER no producía
     // nada. Esos comandos ahora dicen que aún no están disponibles sin emitir
