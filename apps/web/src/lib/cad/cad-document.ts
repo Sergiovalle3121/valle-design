@@ -474,6 +474,13 @@ export interface CadBlockDefinition {
     style?: string;
     invisible?: boolean;
     constant?: boolean;
+    /**
+     * PREDEFINIDO (el modo `preset` de ATTDEF): toma su valor por defecto SIN
+     * preguntarlo al insertar, pero —a diferencia de `constant`— sigue siendo
+     * editable después con ATTEDIT/EATTEDIT. `cadBlockAttributePrompts` es
+     * quien decide, según quién pregunte, si este atributo entra en la lista.
+     */
+    preset?: boolean;
   }>;
   description?: string;
   keywords?: string[];

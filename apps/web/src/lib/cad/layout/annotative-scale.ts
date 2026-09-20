@@ -32,6 +32,7 @@
  */
 import type { CadEntity, CadPaperSpace, CadPaperViewport } from "../cad-document";
 import type { CadEntityCommand } from "../entity-commands";
+import { cadHatchFamilies } from "../hatch-pattern-table";
 
 /** Clave de metadatos con la altura sobre el papel, en milímetros. */
 export const CAD_ANNOTATIVE_HEIGHT_METADATA = "annotativeHeightMm";
@@ -116,6 +117,72 @@ export function cadEntitySupportsAnnotativeHeight(entity: CadEntity): boolean {
 }
 
 /**
+ * Sombreado anotativo (Ola 4, T-4): un HATCH no tiene altura, tiene
+ * SEPARACIÓN de patrón, y lo que hay que conservar sobre el papel es esa
+ * separación, no un tamaño de letra. La marca guarda cuántos milímetros de
+ * papel debe medir la separación de la PRIMERA familia del patrón — la que ve
+ * el dibujante como «la trama»— y de ahí sale `entity.scale`, que es el único
+ * número que `cadHatchFamilies` multiplica por la separación base de cada
+ * familia (ver `hatch-pattern-table.ts`: «1 es la separación de ANSI31»).
+ */
+export const CAD_ANNOTATIVE_HATCH_SPACING_METADATA = "annotativeHatchSpacingMm";
+
+/** Separación de papel declarada por un HATCH, o `null` si no es anotativo. */
+export function cadAnnotativeHatchSpacingMm(entity: CadEntity): number | null {
+  const raw = entity.context?.metadata?.[CAD_ANNOTATIVE_HATCH_SPACING_METADATA];
+  const value = typeof raw === "number" ? raw : Number(raw);
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+/** Marca un HATCH como anotativo con una separación de papel dada. */
+export function markCadAnnotativeHatchCommand(
+  entityId: string,
+  paperSpacingMm: number,
+): CadEntityCommand {
+  return {
+    type: "metadata",
+    entityId,
+    patch: { [CAD_ANNOTATIVE_HATCH_SPACING_METADATA]: paperSpacingMm },
+  };
+}
+
+/** Le quita la marca de sombreado anotativo. */
+export function clearCadAnnotativeHatchCommand(entityId: string): CadEntityCommand {
+  return {
+    type: "metadata",
+    entityId,
+    patch: { [CAD_ANNOTATIVE_HATCH_SPACING_METADATA]: null },
+  };
+}
+
+/**
+ * Separación, en unidades de dibujo, que produce la PRIMERA familia del
+ * patrón cuando `entity.scale` vale 1. Es el divisor que convierte «milímetros
+ * de papel deseados» en el `scale` que hay que escribir: `hatchScale =
+ * cadAnnotativeModelHeight(paperMm, denominador, unidad) / familyUnitSpacing`.
+ * Un patrón desconocido cae al respaldo de `cadHatchFamilies` (ANSI31), que
+ * es la MISMA regla que ya usa el renderizador — no una segunda tabla que
+ * pudiera discrepar de la primera.
+ */
+export function cadHatchFamilyUnitSpacing(pattern: string, angle: number | undefined): number {
+  const spacing = cadHatchFamilies(pattern, angle, 1).families[0]?.spacing;
+  return spacing && spacing > 0 ? spacing : 1;
+}
+
+/** El `entity.scale` que hace medir `paperSpacingMm` a la escala `denominator`. */
+export function cadAnnotativeHatchScale(
+  paperSpacingMm: number,
+  denominator: number,
+  unit: string,
+  pattern: string,
+  angle: number | undefined,
+): number {
+  const modelSpacing = cadAnnotativeModelHeight(paperSpacingMm, denominator, unit);
+  if (!(modelSpacing > 0)) return 0;
+  return modelSpacing / cadHatchFamilyUnitSpacing(pattern, angle);
+}
+
+/**
  * Tamaños de una COTA anotativa para la escala dada. En una cota lo anotativo
  * no es una altura: es el juego completo de tamaños (flecha, huecos, exceso,
  * separación) que debe medir lo mismo sobre el papel en 1:100 que en 1:5. La
@@ -193,6 +260,19 @@ export function cadAnnotativeRescaleCommands(
     if (!(scale > 0)) continue;
     for (const entity of byId.values()) {
       if (decided.has(entity.id)) continue;
+      if (entity.type === "hatch") {
+        const paperSpacing = cadAnnotativeHatchSpacingMm(entity);
+        if (paperSpacing === null) continue;
+        if (!isVisible(viewport, entity)) continue;
+        decided.add(entity.id);
+        const hatchScale = cadAnnotativeHatchScale(paperSpacing, scale, unit, entity.pattern, entity.angle);
+        const currentScale = entity.scale;
+        if (!(hatchScale > 0)) continue;
+        if (typeof currentScale === "number" && Math.abs(currentScale - hatchScale) < 1e-9) continue;
+        commands.push({ type: "properties", entityId: entity.id, patch: { scale: hatchScale } });
+        rescaledEntityIds.push(entity.id);
+        continue;
+      }
       const paperHeight = cadAnnotativeHeightMm(entity);
       if (paperHeight === null) continue;
       if (!isVisible(viewport, entity)) continue;
@@ -278,6 +358,17 @@ export function cadAnnotativeModelRescaleCommands(
   if (!input || !(denominator > 0)) return { commands, rescaledEntityIds, skippedEntityIds };
   const unit = input.unit ?? "mm";
   for (const entity of input.entities) {
+    if (entity.type === "hatch") {
+      const paperSpacing = cadAnnotativeHatchSpacingMm(entity);
+      if (paperSpacing === null) continue;
+      const hatchScale = cadAnnotativeHatchScale(paperSpacing, denominator, unit, entity.pattern, entity.angle);
+      const currentScale = entity.scale;
+      if (!(hatchScale > 0)) continue;
+      if (typeof currentScale === "number" && Math.abs(currentScale - hatchScale) < 1e-9) continue;
+      commands.push({ type: "properties", entityId: entity.id, patch: { scale: hatchScale } });
+      rescaledEntityIds.push(entity.id);
+      continue;
+    }
     const paperHeight = cadAnnotativeHeightMm(entity);
     if (paperHeight === null) continue;
     if (!cadEntitySupportsAnnotativeHeight(entity)) {

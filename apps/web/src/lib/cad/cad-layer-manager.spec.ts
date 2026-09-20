@@ -1,5 +1,10 @@
 import assert from 'node:assert/strict';
-import { createCadDocumentLayer, deleteCadDocumentLayer, updateCadDocumentLayer } from './cad-layer-manager';
+import {
+  createCadDocumentLayer,
+  deleteCadDocumentLayer,
+  setCadDocumentLayerViewportFreeze,
+  updateCadDocumentLayer,
+} from './cad-layer-manager';
 import type { CadDocument } from './cad-document';
 
 const base: CadDocument = {
@@ -40,5 +45,41 @@ const bloqueada = updateCadDocumentLayer(apagada, 'xref:PLANTA:EJES', { locked: 
 assert.equal(bloqueada.layers.find((layer) => layer.id === 'xref:PLANTA:EJES')!.locked, true);
 assert.throws(() => updateCadDocumentLayer(conXref, '0', { name: 'mal|nombre' }), /valid DXF/);
 assert.throws(() => updateCadDocumentLayer(conXref, '0', { name: '' }), /valid DXF/);
+
+// VP-Freeze desde el GESTOR DE CAPAS: dado sólo el DOCUMENTO (sin pasarle la
+// hoja a mano, como sí exige `freezeCadLayerInViewport`), congela una capa en
+// UNA ventana concreta y dice si la capa o la ventana no existen en vez de
+// fallar en silencio.
+const twoViewports: CadDocument = {
+  ...base,
+  paperSpaces: [
+    {
+      id: 'sheet', name: 'Sheet', order: 0, entityIds: [],
+      page: { width: 297, height: 210, unit: 'mm', orientation: 'landscape' },
+      viewports: [
+        { id: 'vp-a', paperBounds: { x: 10, y: 10, width: 100, height: 80 }, modelBounds: { x: 0, y: 0, width: 10, height: 10 }, scale: 1, locked: false },
+        { id: 'vp-b', paperBounds: { x: 120, y: 10, width: 100, height: 80 }, modelBounds: { x: 0, y: 0, width: 10, height: 10 }, scale: 1, locked: false },
+      ],
+    },
+  ],
+};
+const vpFrozen = setCadDocumentLayerViewportFreeze(twoViewports, { layerId: '0', viewportId: 'vp-a', frozen: true });
+assert.deepEqual(vpFrozen.paperSpaces[0].viewports?.find((v) => v.id === 'vp-a')?.layerVisibility, { 0: false });
+assert.equal(vpFrozen.paperSpaces[0].viewports?.find((v) => v.id === 'vp-b')?.layerVisibility, undefined, 'la otra ventana no se toca');
+assert.equal(vpFrozen.meta.version, twoViewports.meta.version + 1, 'UN paso de historia');
+
+const vpThawed = setCadDocumentLayerViewportFreeze(vpFrozen, { layerId: '0', viewportId: 'vp-a', frozen: false });
+assert.equal(vpThawed.paperSpaces[0].viewports?.find((v) => v.id === 'vp-a')?.layerVisibility, undefined, 'reutilizar borra la anulación, no escribe true');
+
+assert.throws(
+  () => setCadDocumentLayerViewportFreeze(twoViewports, { layerId: 'fantasma', viewportId: 'vp-a', frozen: true }),
+  /was not found/,
+  'una capa inexistente se nombra',
+);
+assert.throws(
+  () => setCadDocumentLayerViewportFreeze(twoViewports, { layerId: '0', viewportId: 'vp-fantasma', frozen: true }),
+  /was not found/,
+  'una ventana inexistente se nombra',
+);
 
 console.log('cad layer manager specs passed');

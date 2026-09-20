@@ -170,6 +170,7 @@ function attributeFromAttdef(attdef: CadAttdefEntity): CadBlockAttributes[string
     ...(attdef.style === undefined ? {} : { style: attdef.style }),
     ...(attdef.invisible ? { invisible: true } : {}),
     ...(attdef.constant ? { constant: true } : {}),
+    ...(attdef.preset ? { preset: true } : {}),
   };
 }
 
@@ -449,16 +450,26 @@ export interface CadBlockAttributePrompt {
 }
 
 /**
- * Lo que hay que preguntar al insertar un bloque con atributos.
+ * Lo que hay que preguntar de un bloque con atributos.
  *
- * Los CONSTANTES no se preguntan —su valor lo fija la definición— y por eso no
- * salen en esta lista: preguntarlos sería ofrecer un campo que no cambia nada.
+ * Los CONSTANTES nunca se preguntan —su valor lo fija la definición, aquí y en
+ * ATTEDIT— y por eso no salen nunca en esta lista: preguntarlos sería ofrecer
+ * un campo que no cambia nada.
+ *
+ * Los PREDEFINIDOS (`preset`) son distintos: SÍ se pueden cambiar después, con
+ * ATTEDIT/EATTEDIT, pero no al insertar — ahí toman su valor por defecto en
+ * silencio, que es la semántica del modo P de ATTDEF. `includePreset: false`
+ * (el INSERT de `engine/commands/blocks.ts`) los saca de la lista; el valor por
+ * defecto en `cadResolveInsertAttributes` hace el resto. `includePreset: true`
+ * (por defecto, y lo que usa ATTEDIT) los deja dentro.
  */
 export function cadBlockAttributePrompts(
   block: Pick<CadBlockDefinition, "attributes">,
+  options: { includePreset?: boolean } = {},
 ): CadBlockAttributePrompt[] {
+  const includePreset = options.includePreset ?? true;
   return Object.entries(block.attributes ?? {})
-    .filter(([, definition]) => !definition.constant)
+    .filter(([, definition]) => !definition.constant && (includePreset || !definition.preset))
     .map(([tag, definition]) => ({
       tag,
       prompt: definition.prompt?.trim() || tag,

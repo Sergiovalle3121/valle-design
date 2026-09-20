@@ -1,5 +1,5 @@
 /**
- * TABLEDIT — cambiar lo que dice una celda.
+ * TABLEDIT — cambiar lo que dice una celda, y su fórmula si la lleva.
  *
  * ## Por qué existe
  *
@@ -10,12 +10,23 @@
  *
  * ## Qué edita, y qué no
  *
- * Una celda: fila, columna, texto. Se dice aquí y se dice en el prompt.
- * Insertar y borrar filas o columnas, fusionar celdas, cambiar estilos por
- * celda o traer los datos de un enlace (`DATALINK`) NO están: son órdenes
- * propias en AutoCAD (`TINSERT`, `TABLEXPORT`, `DATALINK`) y prometerlas dentro
- * de ésta sería exactamente el «éxito falso» que `check:command-integrity`
- * persigue.
+ * Una celda: fila, columna, texto — y, si el texto empieza por `=`, una
+ * fórmula (`tables/table-formulas.ts`). Cambiar estilos por celda o traer los
+ * datos de un enlace (`DATALINK`) NO están: son órdenes propias de AutoCAD que
+ * prometerlas aquí sería exactamente el «éxito falso» que
+ * `check:command-integrity` persigue. Insertar/borrar filas y columnas y
+ * fusionar celdas SÍ existen, pero en `TINSERT`
+ * (`annotate-table-structure.ts`): son operaciones de REJILLA, no de una
+ * celda, y mezclarlas aquí habría hecho de esta orden dos máquinas de estados
+ * en una. `TABLEEXPORT` (`annotate-table-export.ts`) sirve al csv.
+ *
+ * ## Fórmulas: se recalcula TODA la tabla, no sólo la celda tecleada
+ *
+ * Editar A1 puede cambiar lo que muestra `=SUMA(A1:A5)` en otra celda. Por eso
+ * cada escritura pasa la tabla entera por `cadRecalcTableFormulas`: es el
+ * mismo criterio que `UPDATEFIELD` aplica a los campos del dibujo (barato de
+ * recorrer, imposible de acertar a medias) y evita el bug de «edité el total y
+ * ahora dice lo de ayer» sin que ninguna orden lo pidiera.
  *
  * ## Por qué la celda se pide por FILA y COLUMNA
  *
@@ -27,6 +38,7 @@
  */
 import type { CadTableEntity } from "../../cad-entities-v4";
 import type { CadNativeEntity } from "../../entity-runtime";
+import { cadRecalcTableFormulas } from "../../tables/table-formulas";
 import {
   CAD_ACCEPT_DISTANCE,
   CAD_ACCEPT_ENTITY_PICK,
@@ -58,9 +70,14 @@ const VACIO: TableEditState = {
   current: "",
 };
 
-/** Texto de una celda, o cadena vacía si esa celda todavía no tiene fila. */
+/**
+ * Lo que se ofrece para reeditar una celda: su FÓRMULA si la lleva —para que
+ * reeditar una celda calculada no la convierta en texto plano por accidente—,
+ * y si no, su texto tal cual. Cadena vacía si la celda todavía no existe.
+ */
 function textoDe(table: CadTableEntity, row: number, column: number): string {
-  return table.cells.find((cell) => cell.row === row && cell.column === column)?.text ?? "";
+  const cell = table.cells.find((item) => item.row === row && item.column === column);
+  return cell?.formula ?? cell?.text ?? "";
 }
 
 function paso(state: TableEditState): CadCommandStep<TableEditState> {
@@ -172,10 +189,20 @@ const tableEditCommand: CadCommandDescriptor<TableEditState> = {
     if (!entity || entity.type !== "table")
       return cadCommandRefused(state, `La tabla ${state.entityId} ya no está en el dibujo.`);
     const table = entity as unknown as CadTableEntity;
+    // Empieza por `=`: es una fórmula, y `text` la lleva vacía hasta que el
+    // recálculo de más abajo le ponga el valor. Cualquier otra cosa es texto
+    // llano, y si la celda tenía fórmula antes queda retirada — teclear encima
+    // de una fórmula es decir «esto ya no se calcula».
+    const typed = input.value;
+    const isFormula = typed.trim().startsWith("=");
+    const nextCell = isFormula
+      ? { row: state.row, column: state.column, text: "", formula: typed.trim() }
+      : { row: state.row, column: state.column, text: typed };
     const cells = [
       ...table.cells.filter((cell) => !(cell.row === state.row && cell.column === state.column)),
-      { row: state.row, column: state.column, text: input.value },
+      nextCell,
     ].sort((a, b) => a.row - b.row || a.column - b.column);
+    const recalculated = cadRecalcTableFormulas({ ...table, cells });
     // `replace` y no `properties`: un parche de propiedades sólo lleva escalares
     // (`CadPropertyValue = string | number | boolean`) y las celdas son una
     // lista. Reemplazar la entidad conserva su id, que es lo que mantiene vivas
@@ -186,7 +213,7 @@ const tableEditCommand: CadCommandDescriptor<TableEditState> = {
         {
           type: "replace",
           entityId: state.entityId,
-          entity: { ...table, cells } as unknown as CadNativeEntity,
+          entity: { ...table, cells: recalculated } as unknown as CadNativeEntity,
         },
       ],
       "TABLEDIT",
