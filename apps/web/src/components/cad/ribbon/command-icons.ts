@@ -530,6 +530,8 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   DIMEDIT: PenLine,
   DIMSTYLE: Settings2,
   DIMTOLERANCE: Percent,
+  DIMDISASSOCIATE: Unlink,
+  DIMREASSOCIATE: Link2,
   LEADER: CornerUpRight,
   MLEADER: Milestone,
   QLEADER: Signpost,

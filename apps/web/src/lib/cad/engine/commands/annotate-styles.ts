@@ -148,6 +148,24 @@ const STYLE_COMMANDS: readonly StyleCommandSpec[] = [
         fallback: 1,
         min: 1e-6,
       },
+      // Unidades alternas (Ola 7): un segundo rótulo entre corchetes, con su
+      // propia unidad y sus propios decimales — «40.00 [1.57 in]».
+      // `alternateUnits` en blanco desactiva la unidad alterna (DIMALT=No).
+      {
+        key: "alternateUnits",
+        prompt: "Precise la unidad alterna (DIMALTU; vacío = sin unidad alterna)",
+        kind: "text",
+        fallback: "",
+        options: ["", "mm", "cm", "m", "in", "ft"],
+      },
+      {
+        key: "alternatePrecision",
+        prompt: "Precise los decimales de la unidad alterna (DIMALTD)",
+        kind: "number",
+        fallback: 2,
+        min: 0,
+        integer: true,
+      },
     ],
   },
   {

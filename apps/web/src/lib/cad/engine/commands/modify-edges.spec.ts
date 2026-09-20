@@ -26,6 +26,8 @@
  */
 import { strict as assert } from "node:assert";
 import type { CadEntity } from "../../cad-document";
+import { cadEntityCurves, curvePointAt } from "../../curve-model";
+import { nurbsCurvatureAt } from "../../nurbs";
 import type { CadCommandContext, CadCommandInput } from "../command-types";
 import { CAD_MODIFY_EDGE_COMMANDS } from "./modify-edges";
 
@@ -86,6 +88,26 @@ const SCENE: CadEntity[] = [
     closed: false,
     layer: "0",
   },
+  // Cuarto de círculo unidad ×100, centrado en (10000,10000): NURBS racional
+  // EXACTA (grado 2, peso √2/2 en el vértice medio) — lejos de todo lo demás,
+  // para probar SPLINE sin que otro objeto de la escena se cuele.
+  {
+    id: "quarter",
+    type: "spline",
+    degree: 2,
+    controlPoints: [
+      { x: 10100, y: 10000, z: 0 },
+      { x: 10100, y: 10100, z: 0 },
+      { x: 10000, y: 10100, z: 0 },
+    ],
+    weights: [1, Math.SQRT1_2, 1],
+    knots: [0, 0, 0, 1, 1, 1],
+    layer: "0",
+  },
+  // Vertical que cruza el cuarto de círculo por x=10050 (TRIM la recorta).
+  line("qv", 10050, 9900, 10050, 10200),
+  // Horizontal que la cruza por y=10050 (el cuarto de círculo COMO BORDE).
+  line("qh", 9900, 10050, 10200, 10050),
 ];
 
 function makeContext(): CadCommandContext {
@@ -230,7 +252,60 @@ const bordes: CadCommandInput = keyword("Bordes");
   assert.equal(patch.patch.startX, 0, "y el otro extremo no se mueve");
 }
 
+// --- SPLINE recortable por TRIM: NURBS exacta, no su poligonal (ola 7) --------
+{
+  const cutY = 10000 + Math.sqrt(7500); // (10050,cutY) EXACTO sobre el círculo unidad×100
+  // Se pulsa cerca del control point inicial (10100,10000): ESE lado se va.
+  const result = run("TRIM", [bordes, pickAt("qv", 10050, 10100), enter, pickAt("quarter", 10100, 10000), enter]);
+  assert.ok(result && result.kind === "document", "una SPLINE se recorta");
+  const command = result.commands[0];
+  assert.ok(command.type === "replace" && command.entity.type === "spline", "cambia de forma: va por `replace`");
+  assert.equal(command.entityId, "quarter");
+
+  const [trimmed] = cadEntityCurves(command.entity)!;
+  const start = curvePointAt(trimmed, 0);
+  // El extremo recortado está EN el cruce, tolerancia 1e-6 — no en el punto
+  // más cercano de una poligonal muestreada.
+  assert.ok(Math.abs(start.x - 10050) <= 1e-6 && Math.abs(start.y - cutY) <= 1e-6, "extremo recortado EN el cruce real");
+  const end = curvePointAt(trimmed, 1);
+  assert.ok(Math.abs(end.x - 10000) <= 1e-9 && Math.abs(end.y - 10100) <= 1e-9, "el otro extremo no se movió");
+
+  // 20 puntos intermedios: la curvatura del tramo conservado sigue siendo la
+  // del círculo original (1/100) — si el corte hubiera usado la poligonal,
+  // esto NO se cumpliría con esta tolerancia.
+  for (let i = 0; i <= 20; i += 1) {
+    const t = i / 20;
+    const p = curvePointAt(trimmed, t);
+    assert.ok(
+      Math.abs(Math.hypot(p.x - 10000, p.y - 10000) - 100) <= 1e-6,
+      `punto ${i}/20 del tramo recortado se sale del círculo original`,
+    );
+    assert.ok(trimmed.kind === "spline" && Math.abs(Math.abs(nurbsCurvatureAt(trimmed, t)) - 0.01) <= 1e-6, `curvatura en ${i}/20 no coincide con la original`);
+  }
+}
+
+// --- SPLINE como borde: recorta una LINE contra su curva real -----------------
+{
+  const cutX = 10000 + Math.sqrt(7500); // (cutX,10050) EXACTO sobre el círculo unidad×100
+  const result = run("TRIM", [bordes, pickAt("quarter", 10050, 10086), enter, pickAt("qh", 9950, 10050), enter]);
+  assert.ok(result && result.kind === "document", "una LINE se recorta contra una SPLINE de borde");
+  const patch = result.commands[0];
+  assert.ok(patch.type === "properties");
+  assert.ok(Math.abs((patch.patch.startX as number) - cutX) <= 1e-6, "el extremo recortado cae EN la spline real");
+  assert.equal(patch.patch.endX, 10200, "el otro extremo no se mueve");
+}
+
+// --- EXTEND sobre SPLINE: negativa honesta, no una extrapolación fingida ------
+{
+  const result = run("EXTEND", [bordes, pickAt("qv", 10050, 10100), enter, pickAt("quarter", 10000, 10100), enter]);
+  assert.equal(result?.kind, "message", "EXTEND no alarga una SPLINE todavía");
+  assert.ok(
+    result.kind === "message" && result.text.includes("SPLINE") && result.text.includes("extrapola"),
+    `debe decir qué falta: "${result.kind === "message" ? result.text : ""}"`,
+  );
+}
+
 console.log(
   `modificación de bordes: ${CAD_MODIFY_EDGE_COMMANDS.map((command) => command.name).join(", ")} ` +
-    `verificados sobre línea, círculo y arco`,
+    `verificados sobre línea, círculo, arco y SPLINE (recortable, como borde, EXTEND negado)`,
 );

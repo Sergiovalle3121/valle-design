@@ -58,7 +58,12 @@ interface Vec2 {
   y: number;
 }
 
-/** Velocidad p′(t) de una curva acotada, en unidades de dibujo por unidad de t. */
+/**
+ * Velocidad p′(t) de una curva acotada, en unidades de dibujo por unidad de t.
+ * SPLINE nunca llega aquí — `blendCurvesOf` la rechaza antes — así que basta
+ * con fallar alto si algún día lo hiciera, en vez de fingir con la fórmula de
+ * la elipse.
+ */
 function curveVelocityAt(curve: CadCurve, t: number): Vec2 {
   if (curve.kind === "segment")
     return { x: curve.b.x - curve.a.x, y: curve.b.y - curve.a.y };
@@ -70,6 +75,7 @@ function curveVelocityAt(curve: CadCurve, t: number): Vec2 {
       y: curve.radius * rate * Math.cos(angle),
     };
   }
+  if (curve.kind === "spline") throw new Error("curveVelocityAt: BLEND no admite SPLINE.");
   // Elipse: p(t) = c + cosθ·M + sinθ·m, con m el semieje menor girado 90°.
   const minor = { x: -curve.major.y * curve.ratio, y: curve.major.x * curve.ratio };
   const angle = (curve.startParam + curve.sweep * t) * DEG;
@@ -91,6 +97,7 @@ function curveAccelerationAt(curve: CadCurve, t: number): Vec2 {
       y: -curve.radius * rate * rate * Math.sin(angle),
     };
   }
+  if (curve.kind === "spline") throw new Error("curveAccelerationAt: BLEND no admite SPLINE.");
   const minor = { x: -curve.major.y * curve.ratio, y: curve.major.x * curve.ratio };
   const angle = (curve.startParam + curve.sweep * t) * DEG;
   const rate = curve.sweep * DEG;
@@ -141,13 +148,20 @@ interface BlendAnchor {
   frame: CadCurveEndFrame;
 }
 
-/** Las curvas de la entidad, o el motivo (en texto) por el que no se fusiona. */
+/**
+ * Las curvas de la entidad, o el motivo (en texto) por el que no se fusiona.
+ *
+ * SPLINE se rechaza aquí ARRIBA, no por lo que devuelva `cadEntityCurves`: la
+ * ola 7 le dio evaluación racional y curvatura exactas (`nurbs.ts`), pero
+ * BLEND todavía no las usa —fusionar con G1/G2 contra un extremo de NURBS es
+ * trabajo propio, no heredado de TRIM/EXTEND— así que se sigue negando
+ * nombrando el tipo, igual que antes de esa ola.
+ */
 function blendCurvesOf(entity: CadEntity): CadCurve[] | string {
+  if (entity.type === "spline")
+    return "una SPLINE no se puede fusionar todavía: BLEND no calcula su tangente/curvatura de extremo.";
   const curves = cadEntityCurves(entity);
-  if (!curves || curves.length === 0)
-    return entity.type === "spline"
-      ? "una SPLINE no se puede fusionar todavía: el modelo de curvas no cubre NURBS y una tangente sobre su aproximación sería mentira."
-      : `${entity.type.toUpperCase()} no tiene curvas que fusionar.`;
+  if (!curves || curves.length === 0) return `${entity.type.toUpperCase()} no tiene curvas que fusionar.`;
   if (entity.type === "polyline" && entity.closed)
     return "la polilínea está cerrada: BLEND necesita curvas ABIERTAS con un extremo libre.";
   const start = curvePointAt(curves[0], 0);

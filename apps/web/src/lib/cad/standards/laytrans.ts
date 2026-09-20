@@ -88,6 +88,16 @@ export interface CadLayerTranslationPlan {
   invalidDestinations: readonly { to: string; reason: string }[];
   /** Capas de destino que hubo que crear porque el despacho no las tenía. */
   createdLayers: readonly string[];
+  /**
+   * Capas del DOCUMENTO que ningún «from» del mapa menciona: el informe de
+   * «qué NO se tradujo» tiene dos causas distintas y esta es la que faltaba
+   * —`missingSourceLayers` dice qué correspondencia apuntó a algo que ya no
+   * está, pero una capa del dibujo que el mapa simplemente NUNCA nombra
+   * quedaba muda antes de este campo—. Un despacho que traduce un DWG ajeno
+   * necesita las dos listas para saber si terminó, o si aún le falta
+   * mapear algo.
+   */
+  untouchedLayers: readonly string[];
 }
 
 function destinationLayerDef(id: string): CadLayerDef {
@@ -144,5 +154,17 @@ export function planCadLayerTranslation(
     movedCounts[`${entry.from}→${destinationId}`] = moved;
   }
 
-  return { commands, movedCounts, missingSourceLayers, invalidDestinations, createdLayers };
+  const mentioned = new Set(map.entries.map((entry) => entry.from));
+  const untouchedLayers = document.layers
+    .filter((layer) => !mentioned.has(layer.id))
+    .map((layer) => layer.id);
+
+  return {
+    commands,
+    movedCounts,
+    missingSourceLayers,
+    invalidDestinations,
+    createdLayers,
+    untouchedLayers,
+  };
 }

@@ -303,8 +303,9 @@ function tangentMessage(outcome: CadCurveEditOutcome): string {
   const unreachable = extend(line("l", 0, 0, 1, 0), [line("v", 0, 50, 0, 60)], 1, 0);
   assert.ok("error" in unreachable && unreachable.error.includes("más allá"), "lo que no alcanza, también");
 
-  // Un SPLINE como borde no se aproxima por su poligonal: aplanarlo cortaría en
-  // el sitio equivocado, y un corte equivocado parece geometría buena.
+  // Ola 7: un SPLINE SÍ sirve de borde, cortando en su cruce REAL (no en el
+  // de su poligonal). Puntos de control colineales en x=5 ⇒ la NURBS traza
+  // exactamente esa recta, así que corta la línea `l` en x=5 EXACTO.
   const spline: CadEntity = {
     id: "sp",
     type: "spline",
@@ -318,8 +319,13 @@ function tangentMessage(outcome: CadCurveEditOutcome): string {
     knots: [0, 0, 0, 0, 1, 1, 1, 1],
     layer: "0",
   };
-  const refused = trim(line("l", 0, 0, 10, 0), [spline], 2, 0);
-  assert.ok("error" in refused, "un SPLINE no sirve de borde todavía");
+  const cut = trim(line("l", 0, 0, 10, 0), [spline], 2, 0);
+  assertFinite(cut, "SPLINE como borde");
+  assert.ok("patch" in cut && cut.patch);
+  if ("patch" in cut && cut.patch) {
+    near(cut.patch.startX as number, 5, 1e-9, "SPLINE-borde: corte EN x=5 exacto");
+    near(cut.patch.endX as number, 10, 1e-9, "SPLINE-borde: el otro extremo no se mueve");
+  }
 }
 
 // --- ningún número no finito, ni siquiera con geometría degenerada -----------------------

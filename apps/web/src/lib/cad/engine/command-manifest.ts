@@ -1,8 +1,8 @@
 /**
- * METADATOS de los 391 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 393 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
- * 139 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
+ * 140 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
  * `npm run check:cad`— falla si lo committeado deja de coincidir con lo que los
  * descriptores dicen hoy. Regla 4 de la campaña de cimientos: ninguna cifra vive
  * en dos lugares, y un comando nuevo no puede entrar sin aparecer aquí.
@@ -102,6 +102,8 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "DATAEXTRACTION", aliases: ["DX"], kind: "annotate", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/data-extraction-commands" },
   { name: "REVISA", aliases: ["ENTREGA", "PREFLIGHT"], kind: "inquiry", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/delivery-review" },
   { name: "ADCENTER", aliases: ["AC", "ADC", "DC"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: true, cursor: "none", module: "commands/design-center" },
+  { name: "DIMDISASSOCIATE", aliases: ["DIMDISASOC"], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/dimension-reassociate" },
+  { name: "DIMREASSOCIATE", aliases: ["DIMREASOC"], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/dimension-reassociate" },
   { name: "DIMTOLERANCE", aliases: ["TOLERANCIA", "DTOL"], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/dimension-tolerance" },
   { name: "ATTDEF", aliases: ["ATT"], kind: "annotate", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/draw-annotation-v4" },
   { name: "TABLE", aliases: ["TB"], kind: "annotate", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/draw-annotation-v4" },

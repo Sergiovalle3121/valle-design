@@ -29,12 +29,14 @@
  *
  * ## Alcance
  *
- * TRIM y EXTEND aceptan LINE, ARC, CIRCLE, ELLIPSE y POLYLINE, como objeto y
- * como borde. La regla es una sola —conservar el tramo entre los cortes vecinos
- * al clic— y vive en `curve-edit.ts`, escrita sobre el parámetro de
- * `curve-model.ts`; aquí sólo se recoge la designación y se emite el lote. Lo
- * que ese módulo no sabe convertir (hoy, SPLINE) se rechaza nombrándolo en vez
- * de aproximarlo por su poligonal, que cortaría en el sitio equivocado.
+ * TRIM y EXTEND aceptan LINE, ARC, CIRCLE, ELLIPSE, POLYLINE y —desde la ola 7—
+ * SPLINE, como objeto y como borde. La regla es una sola —conservar el tramo
+ * entre los cortes vecinos al clic— y vive en `curve-edit.ts`, escrita sobre
+ * el parámetro de `curve-model.ts`; aquí sólo se recoge la designación y se
+ * emite el lote. Lo que ese módulo no sabe convertir (una SPLINE CERRADA, un
+ * MTEXT) se rechaza nombrándolo en vez de aproximarlo por su poligonal, que
+ * cortaría en el sitio equivocado. EXTEND sobre una SPLINE en sí —alargarla
+ * más allá de su propio dominio— sigue negándose: ver `curve-edit.ts`.
  *
  * BREAK usaba la geometría de segmentos de `geom-trim.ts` y admitía sólo LINE.
  * Ahora usa `computeCadCurveBreak` de `curve-edit.ts` —la misma generalización
@@ -500,6 +502,10 @@ function entityAnchor(entity: CadEditableEntity): CadPoint2 {
   if (entity.type === "polyline")
     return entity.vertices.length > 0
       ? { x: entity.vertices[0].x, y: entity.vertices[0].y }
+      : { x: 0, y: 0 };
+  if (entity.type === "spline")
+    return entity.controlPoints.length > 0
+      ? { x: entity.controlPoints[0].x, y: entity.controlPoints[0].y }
       : { x: 0, y: 0 };
   return { x: entity.center.x, y: entity.center.y };
 }

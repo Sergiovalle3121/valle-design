@@ -81,6 +81,7 @@ const VISIBILITY_SCOPE: CadLayerStateScope = {
   linetype: false,
   lineweight: false,
   plot: false,
+  frozen: false,
 };
 
 function isolationMemory(context: CadCommandContext) {

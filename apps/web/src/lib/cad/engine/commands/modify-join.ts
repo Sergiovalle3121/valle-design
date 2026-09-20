@@ -185,10 +185,13 @@ function samePoint(a: CadPoint2, b: CadPoint2, tolerance = JOIN_EXACT): boolean 
   return Math.hypot(a.x - b.x, a.y - b.y) <= tolerance;
 }
 
+// SPLINE nunca llega aquí: `joinChain` ya la rechazó por no ser segmento ni
+// arco (mismo filtro que la ELIPSE, ver arriba).
 function reverseCurve(curve: CadCurve): CadCurve {
   if (curve.kind === "segment") return { kind: "segment", a: curve.b, b: curve.a };
   if (curve.kind === "arc")
     return { ...curve, startAngle: curve.startAngle + curve.sweep, sweep: -curve.sweep };
+  if (curve.kind === "spline") throw new Error("reverseCurve: JOIN no admite SPLINE.");
   return { ...curve, startParam: curve.startParam + curve.sweep, sweep: -curve.sweep };
 }
 
@@ -209,7 +212,7 @@ function joinChain(entities: readonly CadEntity[], tolerance = JOIN_EXACT): CadE
     if (!curves || curves.length === 0)
       return `${entity.type.toUpperCase()} no se puede encadenar.`;
     if (curves.length === 1 && curves[0].kind !== "segment" && curves[0].kind !== "arc")
-      return `una ELIPSE no cabe en una polilínea; JOIN no la puede encadenar.`;
+      return `una ELIPSE o una SPLINE no caben en una polilínea; JOIN no las puede encadenar.`;
     pieces.push({ id: entity.id, curves });
   }
 
