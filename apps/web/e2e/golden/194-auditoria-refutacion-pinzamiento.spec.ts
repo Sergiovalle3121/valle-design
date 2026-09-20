@@ -3,6 +3,7 @@ import { installMockBackend } from "../fixtures/mock-backend";
 import { installCadStudioBackend } from "../fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import { fitFootprint } from "../fixtures/camera-preset";
+import { abrirPanelDerecho } from "../fixtures/docks";
 import type { CadDocument } from "../../src/lib/cad/cad-document";
 import { CAD_DOCUMENT_SCHEMA } from "../../src/lib/cad/cad-document-shared";
 
@@ -67,6 +68,10 @@ async function abrirEstudio(context: BrowserContext, page: Page) {
   estado.lectura = null;
   const saltar = page.getByTestId("cad-guided-tour-skip");
   if (await saltar.count()) await saltar.click();
+  // El panel derecho arranca plegado a un riel desde la ola «armazón»; la
+  // prueba B designa pinchando `cad-native-entity-eje` en esa lista, así que
+  // hay que abrirlo antes.
+  await abrirPanelDerecho(page);
   return backend;
 }
 
