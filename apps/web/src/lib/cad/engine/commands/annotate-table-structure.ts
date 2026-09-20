@@ -203,6 +203,27 @@ function deleteColumnAt(table: CadTableEntity, at: number): CadTableEntity {
   return { ...table, columns: table.columns - 1, columnWidths, cells };
 }
 
+/** El rectángulo que de verdad ocupa una celda, span incluido (no sólo su ancla). */
+function footprint(cell: CadTableCell): { r0: number; r1: number; c0: number; c1: number } {
+  const rows = Math.max(1, Math.floor(cell.rowSpan ?? 1));
+  const columns = Math.max(1, Math.floor(cell.columnSpan ?? 1));
+  return { r0: cell.row, r1: cell.row + rows - 1, c0: cell.column, c1: cell.column + columns - 1 };
+}
+
+function intersects(
+  a: { r0: number; r1: number; c0: number; c1: number },
+  b: { r0: number; r1: number; c0: number; c1: number },
+): boolean {
+  return a.r0 <= b.r1 && b.r0 <= a.r1 && a.c0 <= b.c1 && b.c0 <= a.c1;
+}
+
+function contains(
+  outer: { r0: number; r1: number; c0: number; c1: number },
+  inner: { r0: number; r1: number; c0: number; c1: number },
+): boolean {
+  return inner.r0 >= outer.r0 && inner.r1 <= outer.r1 && inner.c0 >= outer.c0 && inner.c1 <= outer.c1;
+}
+
 function mergeRegion(
   table: CadTableEntity,
   rowA: number,
@@ -216,6 +237,20 @@ function mergeRegion(
   const c1 = Math.max(columnA, columnB);
   if (r0 === r1 && c0 === c1)
     return { error: "Fusionar necesita más de una celda; las dos designadas son la misma." };
+  const target = { r0, r1, c0, c1 };
+  // Una celda YA fusionada (rowSpan/columnSpan > 1) cuyo rectángulo se cruza con
+  // el objetivo pero no cabe entero dentro: fusionar de todos modos dejaría DOS
+  // celdas fusionadas reclamando la misma casilla (ver skeptic-merge-overlap.ts).
+  // Si el objetivo la CONTIENE entera, en cambio, es un agrandar legítimo — la
+  // vieja fusión desaparece dentro de la nueva, como en AutoCAD.
+  for (const cell of table.cells) {
+    if ((cell.rowSpan ?? 1) <= 1 && (cell.columnSpan ?? 1) <= 1) continue;
+    const existing = footprint(cell);
+    if (intersects(existing, target) && !contains(target, existing))
+      return {
+        error: `Fusionar se cruza con la celda ya fusionada de la fila ${cell.row + 1}, columna ${cell.column + 1}; designe una región que la incluya entera.`,
+      };
+  }
   const anchor = table.cells.find((cell) => cell.row === r0 && cell.column === c0);
   const survivors = table.cells.filter(
     (cell) => !(cell.row >= r0 && cell.row <= r1 && cell.column >= c0 && cell.column <= c1),
