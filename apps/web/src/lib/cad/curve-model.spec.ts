@@ -92,10 +92,31 @@ const line = (x1: number, y1: number, x2: number, y2: number): CadEntity => ({
   near(wrapped.sweep, 20, 1e-9, "barrido del arco que cruza el origen");
   assert.ok(!curveIsClosed(wrapped), "un arco de 20° no está cerrado");
 
-  // SPLINE no se modela y se dice con `null`, no con una lista vacía.
+  // SPLINE abierta (ola 7): se convierte en una curva "spline" de verdad, con
+  // sus mismos puntos de control/nudos/grado — no en `null` ni en su poligonal.
+  const [openSpline] = cadEntityCurves({
+    id: "s",
+    type: "spline",
+    degree: 3,
+    controlPoints: [
+      { x: 0, y: 0, z: 0 },
+      { x: 1, y: 1, z: 0 },
+      { x: 2, y: 0, z: 0 },
+      { x: 3, y: 1, z: 0 },
+    ],
+    knots: [0, 0, 0, 0, 1, 1, 1, 1],
+    layer: "0",
+  })!;
+  assert.equal(openSpline.kind, "spline");
+  pointNear(curvePointAt(openSpline, 0), { x: 0, y: 0 }, 1e-9, "spline: arranca en su primer control point");
+  pointNear(curvePointAt(openSpline, 1), { x: 3, y: 1 }, 1e-9, "spline: termina en su último control point");
+  assert.ok(!curveIsClosed(openSpline), "una spline abierta no está cerrada");
+
+  // SPLINE CERRADA: sigue sin modelarse (tramo de cierre implícito, no NURBS
+  // periódica) y se dice con `null`, no con una lista vacía.
   assert.equal(
     cadEntityCurves({
-      id: "s",
+      id: "sc",
       type: "spline",
       degree: 3,
       controlPoints: [
@@ -105,10 +126,11 @@ const line = (x1: number, y1: number, x2: number, y2: number): CadEntity => ({
         { x: 3, y: 1, z: 0 },
       ],
       knots: [0, 0, 0, 0, 1, 1, 1, 1],
+      closed: true,
       layer: "0",
     }),
     null,
-    "un SPLINE no se convierte: quien lo pida debe rechazarlo nombrándolo",
+    "una SPLINE CERRADA no se convierte: quien la pida debe rechazarla nombrándola",
   );
 }
 
@@ -451,6 +473,49 @@ const line = (x1: number, y1: number, x2: number, y2: number): CadEntity => ({
   checks += 1;
   assert.ok(curveBoundsOverlap(left, right, 1.5), "con margen, se tocan");
   assert.equal(curveBoundsUnion([]), null, "sin curvas no hay caja");
+}
+
+// --- SPLINE: cruce con recta y con arco, afinado por Newton (ola 7) -----------
+{
+  // Cuarto de círculo unidad como NURBS racional exacta (grado 2).
+  const quarterCircle: CadCurve = {
+    kind: "spline",
+    controlPoints: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }],
+    weights: [1, Math.SQRT1_2, 1],
+    degree: 2,
+    knots: [0, 0, 0, 1, 1, 1],
+  };
+  const vertical: CadCurve = { kind: "segment", a: { x: 0.5, y: -5 }, b: { x: 0.5, y: 5 } };
+  const hits = curveIntersections(quarterCircle, vertical);
+  assert.equal(hits.length, 1, "spline × recta: un solo cruce");
+  pointNear(hits[0].point, { x: 0.5, y: Math.sqrt(0.75) }, 1e-8, "spline × recta: el punto EXACTO del círculo");
+  near(curveParamAt(quarterCircle, hits[0].point), hits[0].tA, 1e-9, "tA es el parámetro real sobre la spline");
+
+  // La misma spline como frontera contra un segmento: el orden de los
+  // argumentos no debería cambiar el punto de cruce.
+  const swapped = curveIntersections(vertical, quarterCircle);
+  assert.equal(swapped.length, 1, "recta × spline (orden invertido): un solo cruce");
+  pointNear(swapped[0].point, hits[0].point, 1e-9, "mismo punto sin importar el orden");
+
+  // Spline × arco: círculo unidad completo cruza la quarter-circle en su
+  // propio arranque/final (comparten el mismo círculo de apoyo) — se pide un
+  // círculo DISTINTO, centrado en (1,1) radio 1, que cruza el cuarto de
+  // círculo en un punto interior conocido por simetría: (1,0) y (0,1) son las
+  // intersecciones de x²+y²=1 con (x-1)²+(y-1)²=1, que también están en los
+  // EXTREMOS de la spline — se usa el arco de círculo (0.6,0.8)-radio 0.2
+  // centrado en (0.6, 0.6) para forzar un cruce estrictamente interior.
+  const innerArc: CadCurve = { kind: "arc", center: { x: 0.6, y: 0.6 }, radius: 0.2, startAngle: 0, sweep: 360 };
+  const archits = curveIntersections(quarterCircle, innerArc);
+  checks += 1;
+  assert.ok(archits.length >= 1, "spline × arco encuentra al menos un cruce");
+  for (const hit of archits) {
+    near(Math.hypot(hit.point.x, hit.point.y), 1, 1e-6, "cruce spline×arco cae en el círculo unidad");
+    near(Math.hypot(hit.point.x - 0.6, hit.point.y - 0.6), 0.2, 1e-6, "y en el arco interior");
+  }
+
+  // Spline × spline: declarado sin resolver — [] honesto, no una aproximación.
+  const other: CadCurve = { ...quarterCircle, controlPoints: [{ x: 2, y: 0 }, { x: 2, y: 2 }, { x: 0, y: 2 }] };
+  assert.deepEqual(curveIntersections(quarterCircle, other), [], "spline × spline: sin resolver, no se aproxima");
 }
 
 console.log(

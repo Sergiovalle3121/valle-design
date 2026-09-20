@@ -11,14 +11,21 @@
  * `FILLETEDGE`). En vez de fingir el envolvente, las dos SE NIEGAN diciendo
  * qué falta: ningún sólido se escribe.
  *
+ * SURFNETWORK y SURFEXTEND fingían igual —la misma caja envolvente— hasta la
+ * ola 7 (2026-09-20): ahora construyen geometría REAL (`surfaces-mesh.ts`),
+ * con el límite exacto de lo que esa geometría sabe hacer dicho en su propia
+ * cabecera en vez de disfrazado de caja.
+ *
  * Extraído de `surfaces.ts` para respetar el presupuesto de monolito (800 líneas).
  */
-import type { CadPoint3 } from "../../cad-document";
+import type { CadPoint2, CadPoint3 } from "../../cad-document";
 import type { CadSolidProfile } from "../../cad-entities-v5";
+import { bodyToFaceSpecs } from "../../../brep/body-builder";
 import { makeFrame, worldToFrame } from "../../../brep/surfaces";
-import { bodyBounds, newellNormal } from "../../../brep/topology";
+import { newellNormal } from "../../../brep/topology";
 import { v3Length } from "../../../brep/vec3";
 import { solid3dBody } from "../../solid3d-build";
+import { offsetPlanarPolygonOutward, resampleOpenPolylineByArcLength, ruledShellMesh } from "./surfaces-mesh";
 import {
   asCadCommand,
   CAD_ACCEPT_DISTANCE,
@@ -172,40 +179,34 @@ const surfnetworkCommand: CadCommandDescriptor<SurfaceExtState | null> = {
     if (ids.length < 2) return solidMessage(state, "SURFNETWORK necesita al menos dos curvas.");
     const entities = selectedEntities(context, ids);
     if (entities.length < 2) return solidMessage(state, "SURFNETWORK: no se encontraron suficientes curvas.");
-    const allVerts: { x: number; y: number }[] = [];
+    const rawRails: CadPoint3[][] = [];
     for (const e of entities) {
       if (e.type !== "polyline" || !("vertices" in e))
         return solidMessage(state, "SURFNETWORK: solo se aceptan polilineas para la red.");
-      const verts = (e as { vertices: { x: number; y: number }[] }).vertices;
+      const verts = (e as { vertices: CadPoint3[] }).vertices;
       if (verts.length < 2) return solidMessage(state, "SURFNETWORK: una curva tiene menos de 2 vertices.");
-      allVerts.push(...verts);
+      rawRails.push(verts);
     }
-    const xs = allVerts.map((v) => v.x);
-    const ys = allVerts.map((v) => v.y);
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    const minY = Math.min(...ys);
-    const maxY = Math.max(...ys);
-    if (maxX - minX < 1e-9 || maxY - minY < 1e-9)
-      return solidMessage(state, "SURFNETWORK: las curvas son degeneradas (sin area).");
-    const profile: CadSolidProfile = {
-      outer: [
-        { x: minX, y: minY },
-        { x: maxX, y: minY },
-        { x: maxX, y: maxY },
-        { x: minX, y: maxY },
-      ],
-    };
+    // Se remuestrea TODA la red al mayor número de vértices de sus rieles: es
+    // la correspondencia por longitud de arco (como `loftProfiles`), no por
+    // índice, así que dos rieles con distinto número de tramos siguen
+    // reglándose sin torcerse.
+    const samples = Math.max(8, Math.min(48, ...rawRails.map((r) => r.length)));
+    const rails = rawRails.map((r) => resampleOpenPolylineByArcLength(r, samples));
+    const mesh = ruledShellMesh(rails, SURFACE_THICKNESS);
+    if ("error" in mesh) return solidMessage(state, `SURFNETWORK: ${mesh.error}`);
     const solid = makeSolidEntity(
       context.newEntityId(),
-      [{ id: "red", op: "extrude", profile, height: SURFACE_THICKNESS }],
+      [{ id: "red", op: "brep", points: mesh.points, faces: mesh.faces }],
       "red",
       context.activeLayer,
     );
     return finishedSolid(solid, {
       state: undefined as never,
       label: "SURFNETWORK",
-      notice: `Superficie de red creada (${entities.length} curvas, ${(maxX - minX).toFixed(1)} x ${(maxY - minY).toFixed(1)} mm).`,
+      notice:
+        `Superficie reglada creada (${entities.length} curvas, ${samples} puntos por riel) — solevado LINEAL entre ` +
+        "rieles consecutivos, no la red bidireccional de Gordon con curvas cruzadas.",
     });
   },
 };
@@ -314,18 +315,44 @@ const surfextendCommand: CadCommandDescriptor<SurfextendState | null> = {
     if (entity.type !== "solid3d") return solidMessage(state, "SURFEXTEND: solo se aceptan solidos 3D.");
     const body = solid3dBody(entity as never);
     if (body.faces.length === 0) return solidMessage(state, "SURFEXTEND: el solido no tiene caras.");
-    const bb = bodyBounds(body);
     const dist = state?.distance ?? 10;
-    const newMinX = bb.min.x - dist;
-    const newMaxX = bb.max.x + dist;
-    const newMinY = bb.min.y - dist;
-    const newMaxY = bb.max.y + dist;
-    const profile: CadSolidProfile = { outer: [{ x: newMinX, y: newMinY }, { x: newMaxX, y: newMinY }, { x: newMaxX, y: newMaxY }, { x: newMinX, y: newMaxY }] };
-    const solid = makeSolidEntity(context.newEntityId(), [{ id: "extendida", op: "extrude", profile, height: SURFACE_THICKNESS }], "extendida", context.activeLayer);
+    if (!(dist > 0))
+      return solidMessage(state, "SURFEXTEND necesita una distancia positiva; para encoger el contorno use TRIM/SURFTRIM.");
+    // La "superficie" es normalmente un sólido delgado (convención SURFPATCH/
+    // SURFNETWORK): su cara de MAYOR área es la que de verdad se prolonga.
+    // Con caras empatadas en área (un cubo, por ejemplo) la elección es
+    // arbitraria pero determinista — AutoCAD desambigua pidiendo la ARISTA a
+    // extender; esta orden sólo recibe sólido + distancia, así que hasta que
+    // acepte esa designación explícita, "la mayor" es la mejor respuesta que
+    // puede dar sin preguntar.
+    let best: { points: { x: number; y: number; z: number }[]; normal: { x: number; y: number; z: number }; area: number } | null = null;
+    for (const spec of bodyToFaceSpecs(body)) {
+      const loop = spec.outer.map((index) => body.vertices[index].point);
+      const normal = newellNormal(loop);
+      const area = v3Length(normal) / 2;
+      if (!best || area > best.area) best = { points: loop, normal, area };
+    }
+    if (!best || best.area < 1e-9) return solidMessage(state, "SURFEXTEND: el sólido no tiene una cara con área.");
+    const frame = makeFrame(best.points[0], best.normal);
+    const local = best.points.map((p) => worldToFrame(frame, p)).map(({ x, y }) => ({ x, y }));
+    const offsetProfile = offsetPlanarPolygonOutward(local, dist);
+    if (!offsetProfile)
+      return solidMessage(
+        state,
+        "SURFEXTEND: el contorno de la cara no es convexo (o esta distancia invierte una esquina); " +
+          "el desplazamiento del contorno sólo está resuelto para contornos convexos.",
+      );
+    const profile: CadSolidProfile = { outer: offsetProfile };
+    const solid = makeSolidEntity(
+      context.newEntityId(),
+      [{ id: "extendida", op: "extrude", profile, height: SURFACE_THICKNESS, frame: { origin: frame.origin, zAxis: frame.zAxis, xAxis: frame.xAxis } }],
+      "extendida",
+      context.activeLayer,
+    );
     return finishedSolid(solid, {
       state: undefined as never,
       label: "SURFEXTEND",
-      notice: `Superficie extendida ${formatMagnitude(dist)} mm en cada borde (${formatMagnitude(newMaxX - newMinX)} x ${formatMagnitude(newMaxY - newMinY)} mm).`,
+      notice: `Superficie extendida ${formatMagnitude(dist)} mm en su propio plano, tangente por construcción.`,
     });
   },
 };

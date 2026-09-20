@@ -313,6 +313,10 @@ export function tessellatePath(
       points.push({ x: curve.b.x, y: curve.b.y });
       continue;
     }
+    // `entity` es la polilínea que se acaba de construir arriba: sus curvas
+    // sólo pueden ser segmento o arco (`polylineCurves`, en `curve-model.ts`,
+    // nunca da elipse ni spline para un tramo de polilínea).
+    if (curve.kind !== "arc") continue;
     const steps = Math.max(1, Math.ceil((Math.abs(curve.sweep) * segments) / 360));
     for (let index = 1; index <= steps; index += 1) points.push(curvePointAt(curve, index / steps));
   }

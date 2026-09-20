@@ -454,6 +454,34 @@ assert.ok(solidId, "Hay un solido 3D en el documento");
   assert.ok(step.result.text.includes("cancelado"), "SURFNETWORK se cancela limpiamente");
 }
 
+// --- SURFNETWORK: superficie REGLADA de verdad, no la caja envolvente (ola 7) ---
+//
+// Dos rieles PARALELOS (el caso de arriba) no distinguen una superficie
+// reglada real de su caja envolvente: dan el mismo resultado. Aquí un riel
+// tiene un QUIEBRO real en (50,0); la caja envolvente de los dos rieles sigue
+// siendo el rectángulo [0,100]×[0,100] sin ningún vértice en (50,0), así que
+// medir un punto de la malla CERCA de ese quiebro es una prueba que la caja
+// envolvente no podría pasar.
+{
+  const bent: CadEntity = { id: "bent", type: "polyline", closed: false, vertices: [{ x: 0, y: 0, z: 0 }, { x: 50, y: 0, z: 0 }, { x: 100, y: 50, z: 0 }], layer };
+  const straight: CadEntity = { id: "straight", type: "polyline", closed: false, vertices: [{ x: 0, y: 100, z: 0 }, { x: 100, y: 100, z: 0 }], layer };
+  const netDoc = documentWith([bent, straight]);
+  const result = run("SURFNETWORK", [enter], netDoc, ["bent", "straight"]);
+  assert.ok(result?.kind === "document", "SURFNETWORK (rieles distintos) produce documento");
+  const netDoc2 = executeCadEntityCommandBatch(netDoc, result.commands, result.label).document;
+  const netSolid = netDoc2.entities.find((e) => e.type === "solid3d");
+  assert.ok(netSolid, "SURFNETWORK (rieles distintos) crea un solido 3D");
+  const node = (netSolid as Extract<CadEntity, { type: "solid3d" }>).nodes[0];
+  assert.equal(node.op, "brep", "SURFNETWORK construye la malla EXPLÍCITA — no un extrude de caja envolvente");
+  const points = node.op === "brep" ? node.points : [];
+  assert.ok(
+    points.some((p) => Math.hypot(p.x - 50, p.y - 0) < 5),
+    "la malla sigue el quiebro real del riel (50,0); una caja envolvente no tendría ningún vértice ahí",
+  );
+  for (const p of points)
+    assert.ok(p.y >= -1e-6 && p.y <= 100 + 1e-6, "la malla no se sale del rango Y de las curvas de entrada");
+}
+
 // --- SURFBLEND: SE NIEGA, no fabrica un rectángulo envolvente -------------------
 //
 // Antes esta orden medía «produce documento» y «volumen > 0» sobre el
@@ -518,6 +546,38 @@ assert.ok(solidId, "Hay un solido 3D en el documento");
   assert.ok(extBody.faces.length > 0, "SURFEXTEND tiene caras");
   const extVolume = solid3dMassProperties(extSolid[extSolid.length - 1] as never).volume;
   assert.ok(extVolume > 0, `SURFEXTEND tiene volumen positivo: ${extVolume.toFixed(1)}`);
+}
+
+// --- SURFEXTEND: desplaza el CONTORNO real, no la caja envolvente (ola 7) -----
+//
+// Sobre una SUPERFICIE triangular (delgada, como la que da SURFPATCH — no un
+// prisma grueso, donde una pared lateral podría competir en área con la
+// tapa), una caja envolvente desplazada da un rectángulo de 4 vértices; el
+// contorno desplazado de verdad sigue siendo un TRIÁNGULO de 3. Contar los
+// vértices del resultado es la prueba.
+{
+  const triangle: CadEntity = {
+    id: "tri", type: "polyline", closed: true,
+    vertices: [{ x: 0, y: 0, z: 0 }, { x: 100, y: 0, z: 0 }, { x: 50, y: 80, z: 0 }],
+    layer,
+  };
+  let triDoc = documentWith([triangle]);
+  const patchResult = run("SURFPATCH", [enter], triDoc, ["tri"]);
+  assert.ok(patchResult?.kind === "document", "SURFPATCH del triángulo produce documento");
+  triDoc = executeCadEntityCommandBatch(triDoc, patchResult.commands, patchResult.label).document;
+  const triSolidId = triDoc.entities.find((e) => e.type === "solid3d")!.id;
+
+  const result = run("SURFEXTEND", [distance(10), enter], triDoc, [triSolidId]);
+  assert.ok(result?.kind === "document", "SURFEXTEND (superficie triangular) produce documento");
+  const afterDoc = executeCadEntityCommandBatch(triDoc, result.commands, result.label).document;
+  const extended = afterDoc.entities.find((e) => e.type === "solid3d" && e.id !== triSolidId);
+  assert.ok(extended, "SURFEXTEND (superficie triangular) añade un sólido nuevo");
+  const node = (extended as Extract<CadEntity, { type: "solid3d" }>).nodes[0];
+  assert.equal(node.op, "extrude", "SURFEXTEND desplaza el contorno de la cara y lo vuelve a extruir");
+  assert.equal(node.op === "extrude" ? node.profile.outer.length : 0, 3, "el contorno desplazado SIGUE SIENDO un triángulo, no una caja de 4 vértices");
+  const extBody2 = solid3dBody(extended as never);
+  const extVolume2 = solid3dMassProperties(extended as never).volume;
+  assert.ok(extBody2.faces.length > 0 && extVolume2 > 0, "SURFEXTEND (superficie triangular) produce un sólido válido");
 }
 
 // --- SURFEXTEND: cancelación --------------------------------------------------

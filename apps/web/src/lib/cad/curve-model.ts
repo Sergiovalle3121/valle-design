@@ -40,9 +40,16 @@
  * tamaño: es el único caso en el que este módulo puede fallar por un pelo, y se
  * dice aquí en vez de fingir exactitud.
  *
- * NURBS (SPLINE) NO se modela. Un spline no se recorta con esta matemática y
- * devolver su poligonal aproximada cortaría en el sitio equivocado; quien lo
- * pida recibe `null` de `cadEntityCurves` y puede negarse nombrando el tipo.
+ * ## NURBS (SPLINE), ola 7 (2026-09-20)
+ *
+ * Dos auditorías dejaron escrito que aquí SPLINE no se modelaba, y que TRIM y
+ * EXTEND la rechazaban nombrándola en vez de recortar su poligonal —que habría
+ * cortado en el sitio equivocado—. La evaluación racional, su derivada y la
+ * partición EXACTA por inserción de nudo viven en `nurbs.ts` (geometría pura,
+ * sin nada de esto); aquí sólo se ENCHUFA: una SPLINE abierta (no cerrada; ver
+ * su rama en `cadEntityCurves`) es una curva más, con su parámetro `t∈[0,1]`,
+ * sus cruces con recta/arco/elipse afinados por Newton y su corte EXACTO —no
+ * aproximado— al recortarla.
  */
 import type { CadEntity } from "./cad-document";
 import {
@@ -50,6 +57,15 @@ import {
   lineCircleIntersections,
   lineLineIntersection,
 } from "./intersect";
+import {
+  nurbsClosestParam,
+  nurbsImplicitCrossings,
+  nurbsLineIntersections,
+  nurbsPointAt,
+  numericGradient,
+  resolveKnots,
+  type CadNurbsCurve,
+} from "./nurbs";
 import { norm360, type CadVec2 } from "./primitives";
 
 const EPS = 1e-9;
@@ -75,7 +91,18 @@ export type CadCurve =
       ratio: number;
       startParam: number;
       sweep: number;
+    }
+  | {
+      /** NURBS abierta. Racional: `weights` siempre presente (1 = no racional). */
+      kind: "spline";
+      controlPoints: readonly CadVec2[];
+      weights: readonly number[];
+      degree: number;
+      knots: readonly number[];
     };
+
+/** El caso `spline` de `CadCurve`, con la forma exacta que pide `nurbs.ts`. */
+type CadSplineCurve = Extract<CadCurve, { kind: "spline" }>;
 
 export interface CadCurveHit {
   point: CadVec2;
@@ -178,7 +205,36 @@ export function cadEntityCurves(entity: CadEntity): CadCurve[] | null {
       },
     ];
   if (entity.type === "polyline") return polylineCurves(entity);
+  if (entity.type === "spline") return splineCurve(entity);
   return null;
+}
+
+type CadSplineEntity = Extract<CadEntity, { type: "spline" }>;
+
+/**
+ * `null` cuando esta ola todavía no la cubre: una SPLINE CERRADA (`closed`)
+ * tiene un tramo de cierre implícito —último punto de control al primero—
+ * que NO está en `controlPoints`/`knots`, y modelarlo pide una NURBS
+ * periódica de verdad, no la abierta que da `nurbs.ts` hoy. Una SPLINE
+ * ABIERTA con menos de dos puntos de control tampoco tiene curva. Los dos
+ * casos se rechazan nombrando el motivo, igual que hacía el módulo entero
+ * antes de esta ola — el hueco encogió, no desapareció en silencio.
+ */
+function splineCurve(entity: CadSplineEntity): CadCurve[] | null {
+  if (entity.closed === true) return null;
+  if (entity.controlPoints.length < 2) return [];
+  const controlPoints = entity.controlPoints.map((p) => ({ x: p.x, y: p.y }));
+  const degree = Math.max(1, Math.min(Math.floor(entity.degree), controlPoints.length - 1));
+  const weights = entity.weights && entity.weights.length === controlPoints.length
+    ? [...entity.weights]
+    : controlPoints.map(() => 1);
+  const knots = resolveKnots(entity.knots, controlPoints.length, degree);
+  return [{ kind: "spline", controlPoints, weights, degree, knots }];
+}
+
+/** El `CadCurve` spline tal cual lo pide `nurbs.ts` (mismos campos, tipo con nombre). */
+function asNurbs(curve: CadSplineCurve): CadNurbsCurve {
+  return curve;
 }
 
 function polylineCurves(entity: CadPolylineEntity): CadCurve[] {
@@ -224,6 +280,7 @@ export function curvePointAt(curve: CadCurve, t: number): CadVec2 {
       y: curve.center.y + curve.radius * Math.sin(angle),
     };
   }
+  if (curve.kind === "spline") return nurbsPointAt(asNurbs(curve), t);
   const { minor } = ellipseFrame(curve);
   const angle = (curve.startParam + curve.sweep * t) * DEG;
   const cos = Math.cos(angle);
@@ -268,6 +325,11 @@ export function curveParamAt(curve: CadCurve, point: CadVec2): number {
     if (lengthSquared <= EPS) return 0;
     return ((point.x - curve.a.x) * rx + (point.y - curve.a.y) * ry) / lengthSquared;
   }
+  // SPLINE no tiene un ángulo del que despejar el avance: se PROYECTA sobre
+  // la curva (Newton sobre su tangente racional, `nurbs.ts`). Siempre acotado
+  // a [0,1] — extenderla más allá de su dominio no está modelado (ver EXTEND
+  // en `curve-edit.ts`), así que no hace falta un periodo ni un signo aquí.
+  if (curve.kind === "spline") return nurbsClosestParam(asNurbs(curve), point);
   const start = curve.kind === "arc" ? curve.startAngle : curve.startParam;
   const sweep = curve.sweep;
   const advance = norm360((angularParamOf(curve, point) - start) * Math.sign(sweep || 1));
@@ -283,12 +345,31 @@ export function curveParamAt(curve: CadCurve, point: CadVec2): number {
  * que es lo que EXTEND quiere oír.
  */
 export function curveExtensionPeriod(curve: CadCurve): number | null {
-  if (curve.kind === "segment") return null;
+  // Una SPLINE extendida más allá de su dominio no está modelada (habría que
+  // extrapolar la NURBS; ver el rechazo explícito de EXTEND en
+  // `curve-edit.ts`), así que tampoco tiene periodo — igual que un segmento.
+  if (curve.kind === "segment" || curve.kind === "spline") return null;
   return 360 / Math.abs(curve.sweep || 360);
 }
 
 export function curveIsClosed(curve: CadCurve): boolean {
-  return curve.kind !== "segment" && Math.abs(curve.sweep) >= 360 - 1e-7;
+  if (curve.kind === "segment" || curve.kind === "spline") return false;
+  return Math.abs(curve.sweep) >= 360 - 1e-7;
+}
+
+/**
+ * `null` si se puede prolongar alguna de estas curvas más allá de su dominio;
+ * si no, el motivo. Sólo la SPLINE lo impide hoy: `curveParamAt` de una
+ * NURBS SIEMPRE acota a `[0,1]` —es una proyección, no una extrapolación—, así
+ * que EXTEND, LENGTHEN y el lado que estira FILLET (`curve-edit.ts`) tienen
+ * que negarse aquí en vez de recortar en silencio al extremo real creyendo
+ * que alargaron. `nurbs.ts` no resuelve todavía la NURBS extrapolada que
+ * haría falta para hacerlo de verdad.
+ */
+export function curveExtrapolationRefusal(curves: readonly CadCurve[]): string | null {
+  return curves.some((curve) => curve.kind === "spline")
+    ? "una SPLINE no se alarga/extrapola todavía: hace falta una NURBS más allá de su dominio y no está implementado."
+    : null;
 }
 
 /**
@@ -381,6 +462,15 @@ export function curveBounds(curve: CadCurve): CadCurveBounds {
       maxX: curve.center.x + curve.radius,
       maxY: curve.center.y + curve.radius,
     };
+  // SPLINE: la caja de sus puntos de CONTROL. Es un superconjunto por la
+  // propiedad de la envolvente convexa de una B-spline —la curva nunca sale
+  // del casco convexo de su polígono de control—, así que sigue siendo
+  // conservadora aunque no sea ajustada.
+  if (curve.kind === "spline") {
+    const xs = curve.controlPoints.map((p) => p.x);
+    const ys = curve.controlPoints.map((p) => p.y);
+    return { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) };
+  }
   const { minor } = ellipseFrame(curve);
   const halfWidth = Math.hypot(curve.major.x, minor.x);
   const halfHeight = Math.hypot(curve.major.y, minor.y);
@@ -419,6 +509,10 @@ export function curveBoundsOverlap(
 export function curveScale(curve: CadCurve): number {
   if (curve.kind === "segment") return Math.hypot(curve.b.x - curve.a.x, curve.b.y - curve.a.y);
   if (curve.kind === "arc") return curve.radius;
+  if (curve.kind === "spline") {
+    const bounds = curveBounds(curve);
+    return Math.hypot(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY) || 1;
+  }
   return Math.hypot(curve.major.x, curve.major.y);
 }
 
@@ -426,10 +520,21 @@ export function curveScale(curve: CadCurve): number {
 // Intersecciones
 // ---------------------------------------------------------------------------
 
-/** Distancia con signo a la curva cerrada de apoyo; cero sobre ella. */
+/**
+ * Distancia con signo a la curva cerrada de apoyo; cero sobre ella.
+ *
+ * SPLINE no tiene forma implícita —no hay una fórmula cerrada de «distancia
+ * con signo a una NURBS»— y no debería llamarse con ella: sus cruces se
+ * resuelven al revés, muestreando la SPLINE y evaluando aquí la curva DE
+ * ENFRENTE (ver `splineAgainstHits`). Si esto se llama con una spline es un
+ * error de quien programó el cruce, no una entrada de usuario, así que falla
+ * alto en vez de devolver un número que no significa nada.
+ */
 function implicitOf(curve: CadCurve): (point: CadVec2) => number {
   if (curve.kind === "arc")
     return (point) => Math.hypot(point.x - curve.center.x, point.y - curve.center.y) - curve.radius;
+  if (curve.kind === "spline")
+    throw new Error("implicitOf: una SPLINE no tiene forma implícita.");
   if (curve.kind === "ellipse") {
     const { minor, det } = ellipseFrame(curve);
     const scale = Math.hypot(curve.major.x, curve.major.y);
@@ -448,6 +553,30 @@ function implicitOf(curve: CadCurve): (point: CadVec2) => number {
   const dy = curve.b.y - curve.a.y;
   const length = Math.hypot(dx, dy) || 1;
   return (point) => ((point.x - curve.a.x) * dy - (point.y - curve.a.y) * dx) / length;
+}
+
+/**
+ * Cruces de una SPLINE contra cualquier otra curva —incluida otra SPLINE,
+ * donde se declara el hueco en vez de fingir—.
+ *
+ * Recta: `nurbsLineIntersections` con el gradiente EXACTO de la recta (el
+ * camino que importa para recortar una spline con TRIM/EXTEND, y el que mide
+ * la auditoría). Arco o elipse: `nurbsImplicitCrossings` reutilizando
+ * `implicitOf` del otro lado, con su gradiente por diferencia central —Newton
+ * vuelve a refinar hasta la tolerancia, así que un gradiente aproximado sólo
+ * cuesta una iteración más, nunca precisión—. Spline contra spline: dos
+ * curvas sin forma implícita a la vez piden un Newton de DOS parámetros que
+ * este módulo no resuelve todavía; se devuelve `[]` —ningún cruce— en vez de
+ * aproximar por su poligonal, que es precisamente lo que esta ola prohíbe.
+ */
+function splineAgainstHits(spline: CadSplineCurve, other: CadCurve): CadVec2[] {
+  const nurbs = asNurbs(spline);
+  if (other.kind === "segment") return nurbsLineIntersections(nurbs, other.a, other.b).map((t) => nurbsPointAt(nurbs, t));
+  if (other.kind === "spline") return [];
+  const f = implicitOf(other);
+  const scale = Math.max(curveScale(spline), curveScale(other), 1);
+  const grad = (point: CadVec2) => numericGradient(f, point, scale);
+  return nurbsImplicitCrossings(nurbs, f, grad).map((t) => nurbsPointAt(nurbs, t));
 }
 
 /**
@@ -528,6 +657,11 @@ function supportHits(a: CadCurve, b: CadCurve): CadVec2[] {
   // y una afín lleva rectas a rectas. Se resuelve EXACTO en el marco local.
   if (a.kind === "segment" && b.kind === "ellipse") return segmentEllipseHits(a, b);
   if (a.kind === "ellipse" && b.kind === "segment") return segmentEllipseHits(b, a);
+  // SPLINE: sin forma implícita, así que se resuelve al revés de las demás —
+  // muestreando la spline y evaluando la curva de enfrente— en vez de por
+  // `sampledHits`, que asume que AMBAS partes tienen `implicitOf`.
+  if (a.kind === "spline") return splineAgainstHits(a, b);
+  if (b.kind === "spline") return splineAgainstHits(b, a);
   // Elipse contra curva cerrada: cuártica. Se muestrea la que no es elipse
   // cuando se puede (un círculo es más barato de muestrear que una elipse).
   return a.kind === "ellipse" ? sampledHits(b, a) : sampledHits(a, b);
