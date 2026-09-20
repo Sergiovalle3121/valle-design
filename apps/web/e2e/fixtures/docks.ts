@@ -27,6 +27,37 @@ export async function abrirPanelDerecho(page: Page) {
   await expect(dock).toHaveAttribute("data-collapsed", "false");
 }
 
+/**
+ * Espera a que el LIENZO deje de cambiar de tamaño.
+ *
+ * Plegar o desplegar un muelle no es instantáneo: la columna de 280 px se va
+ * con una transición y el lienzo crece detrás de ella. Medido el 2026-09-20 en
+ * la vista previa de la ola «armazón» —abrir el panel derecho, cerrarlo y
+ * pinchar dos segundos después— el lienzo todavía declaraba 911 px de los
+ * 1191 finales, así que el punto pinchado correspondía a OTRA parte del
+ * dibujo y no designaba nada. No es un fallo del producto: es que medir la
+ * transformación mundo↔pantalla a mitad de la transición devuelve una
+ * transformación que ya no vale cuando se suelta el ratón.
+ *
+ * Dos lecturas iguales seguidas bastan: la transición es monótona.
+ */
+export async function esperarLienzoQuieto(page: Page) {
+  const canvas = page.getByTestId("cad-canvas");
+  let anterior = -1;
+  await expect
+    .poll(
+      async () => {
+        const caja = await canvas.boundingBox();
+        const ancho = caja ? Math.round(caja.width) : -1;
+        const quieto = ancho > 0 && ancho === anterior;
+        anterior = ancho;
+        return quieto;
+      },
+      { timeout: 15_000, intervals: [100, 100, 150, 200, 300] },
+    )
+    .toBe(true);
+}
+
 export async function abrirPanelIzquierdo(page: Page) {
   const dock = page.getByTestId("cad-left-dock");
   await expect(dock).toBeVisible({ timeout: 60_000 });

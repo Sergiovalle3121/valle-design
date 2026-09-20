@@ -4,7 +4,7 @@ import { installCadV1Backend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { enter3DView } from '../fixtures/view-mode';
 import { topView, fitFootprint } from "../fixtures/camera-preset";
-import { abrirPanelDerecho } from "../fixtures/docks";
+import { abrirPanelDerecho, esperarLienzoQuieto } from "../fixtures/docks";
 
 const cadDocument = {
   meta: { version: 1, schema: 3, unit: 'mm' },
@@ -62,6 +62,23 @@ async function worldPoint(page: Page, target: { x: number; y: number }) {
     };
   };
   const originScreen = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  // LA CÁMARA TODAVÍA SE MUEVE. `fitFootprint` no coloca la vista de golpe, y
+  // muestrear la transformación mundo↔pantalla a mitad del encuadre devuelve
+  // una que ya no vale cuando se suelta el ratón: el 2026-09-20 el arrastre
+  // acababa en X = 12 617 mm —fuera del contorno de 12 000— y designaba cero.
+  // Dos lecturas iguales seguidas en el MISMO punto bastan para saber que la
+  // vista se quedó quieta; a partir de ahí los tres muestreos de abajo
+  // describen una transformación que sigue siendo cierta al arrastrar.
+  await expect
+    .poll(
+      async () => {
+        const antes = await sample(originScreen.x, originScreen.y);
+        const despues = await sample(originScreen.x, originScreen.y);
+        return antes.x === despues.x && antes.y === despues.y;
+      },
+      { timeout: 20_000, intervals: [100, 150, 200, 300, 500] },
+    )
+    .toBe(true);
   const origin = await sample(originScreen.x, originScreen.y);
   const horizontal = await sample(originScreen.x + 80, originScreen.y);
   const vertical = await sample(originScreen.x, originScreen.y + 80);
@@ -146,6 +163,10 @@ test('professional selection executes window, crossing, lasso and overlap cyclin
     await selectionTool.click();
     await expect(palette).toBeHidden();
     await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+    // El muelle se pliega con una transición: sin esperar a que el lienzo
+    // deje de crecer, la transformación que se mide abajo ya no vale cuando se
+    // suelta el ratón y el arrastre designa cero.
+    await esperarLienzoQuieto(page);
     await enter3DView(page);
     await topView(page);
     await fitFootprint(page);
