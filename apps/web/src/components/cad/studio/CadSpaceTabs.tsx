@@ -70,8 +70,7 @@ export interface CadSpaceTabsProps {
  *  presentación. El botón «Administrar» no participa (ver comentario de
  *  cabecera). */
 type CadSpaceRovingItem =
-  | { kind: "model" }
-  | { kind: "space"; space: CadPaperSpace };
+  { kind: "model" } | { kind: "space"; space: CadPaperSpace };
 
 export const CadSpaceTabs = React.memo(function CadSpaceTabs({
   isModelActive,
@@ -131,47 +130,56 @@ export const CadSpaceTabs = React.memo(function CadSpaceTabs({
   };
 
   return (
-    <div
-      ref={listRef}
-      data-testid="cad-space-tabs"
-      data-cad-readonly-allowed
-      role="tablist"
-      aria-label="Espacio de dibujo: modelo o presentación"
-      onKeyDown={handleKeyDown}
-      className="inline-flex shrink-0 items-center gap-0.5 rounded-md border border-border bg-muted/30 p-0.5"
-    >
-      <button
-        type="button"
-        role="tab"
-        data-testid="cad-space-tab-model"
-        data-roving-id="model"
-        aria-selected={isModelActive}
-        tabIndex={isModelActive ? 0 : -1}
-        title="Espacio modelo — el dibujo a escala real"
-        onClick={onSelectModel}
-        className={`${TAB_BASE} ${isModelActive ? TAB_ACTIVE : TAB_INACTIVE}`}
+    // DOS CAJAS, no una. La de fuera es la píldora (borde, fondo, relleno) y la
+    // de dentro es el `tablist` DE VERDAD: sólo pestañas. Antes eran la misma,
+    // y «Administrar presentaciones» —que no es una pestaña, es una acción—
+    // vivía dentro; axe-core lo marcaba como violación CRÍTICA
+    // (`aria-required-children`: un `tablist` sólo admite `tab`), y con razón:
+    // un lector de pantalla anunciaba «pestaña 3 de 3» sobre algo que no
+    // selecciona ningún espacio. Se ve exactamente igual y ahora es cierto.
+    <div className="inline-flex shrink-0 items-center gap-0.5 rounded-md border border-border bg-muted/30 p-0.5">
+      <div
+        ref={listRef}
+        data-testid="cad-space-tabs"
+        data-cad-readonly-allowed
+        role="tablist"
+        aria-label="Espacio de dibujo: modelo o presentación"
+        onKeyDown={handleKeyDown}
+        className="inline-flex items-center gap-0.5"
       >
-        Modelo
-      </button>
-      {spaces.map((space) => {
-        const active = !isModelActive && space.id === activeSpaceId;
-        return (
-          <button
-            key={space.id}
-            type="button"
-            role="tab"
-            data-testid={`cad-space-tab-${space.id}`}
-            data-roving-id={space.id}
-            aria-selected={active}
-            tabIndex={active ? 0 : -1}
-            title={`Presentación «${space.name}»`}
-            onClick={() => onSelectSpace(space)}
-            className={`${TAB_BASE} ${active ? TAB_ACTIVE : TAB_INACTIVE}`}
-          >
-            {space.name}
-          </button>
-        );
-      })}
+        <button
+          type="button"
+          role="tab"
+          data-testid="cad-space-tab-model"
+          data-roving-id="model"
+          aria-selected={isModelActive}
+          tabIndex={isModelActive ? 0 : -1}
+          title="Espacio modelo — el dibujo a escala real"
+          onClick={onSelectModel}
+          className={`${TAB_BASE} ${isModelActive ? TAB_ACTIVE : TAB_INACTIVE}`}
+        >
+          Modelo
+        </button>
+        {spaces.map((space) => {
+          const active = !isModelActive && space.id === activeSpaceId;
+          return (
+            <button
+              key={space.id}
+              type="button"
+              role="tab"
+              data-testid={`cad-space-tab-${space.id}`}
+              data-roving-id={space.id}
+              aria-selected={active}
+              tabIndex={active ? 0 : -1}
+              title={`Presentación «${space.name}»`}
+              onClick={() => onSelectSpace(space)}
+              className={`${TAB_BASE} ${active ? TAB_ACTIVE : TAB_INACTIVE}`}
+            >
+              {space.name}
+            </button>
+          );
+        })}
+      </div>
       <button
         type="button"
         data-testid="cad-space-tab-manage"
