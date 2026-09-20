@@ -135,6 +135,12 @@ export const CAD_SYSTEM_VARIABLES: readonly CadSystemVariableDef[] = [
   int("ORTHOMODE", 0, "Modo orto: 0 apagado, 1 encendido", { enumerated: [0, 1] }),
   int("SNAPMODE", 0, "Forzado de cursor: 0 apagado, 1 encendido", { enumerated: [0, 1] }),
   int("GRIDMODE", 0, "Rejilla: 0 apagada, 1 encendida", { enumerated: [0, 1] }),
+  // El paso de SNAP y de GRID (T-Ola3, F2): antes no había ninguna variable de
+  // sistema para él, así que `ORTHO`/`SNAP`/`GRID` tecleados y los botones de
+  // ayuda al dibujo no tenían dónde coincidir. Un solo paso para los dos, a
+  // propósito: es la variable que el puente declara, y separar SNAP de GRID en
+  // dos pasos distintos inventaría una segunda variable que nadie pidió.
+  real("SNAPUNIT", 10, "Paso de forzado de cursor y de la rejilla, en unidades de dibujo", { min: 1e-9 }),
   int("POLARMODE", 0, "Opciones del rastreo polar, como suma de bits", { min: 0, max: 15 }),
   int("PDMODE", 0, "Aspecto de los puntos", { min: 0, max: 98 }),
   real("PDSIZE", 0, "Tamaño de los puntos; negativo, en porcentaje de la pantalla"),
