@@ -96,8 +96,12 @@ assert.ok(CAD_COMMAND_REGISTRY_V2.get("MESHSPLIT"), "MESHSPLIT está en el regis
   if (result?.kind !== "document") throw new Error("sin documento");
   const after = executeCadEntityCommandBatch(doc, result.commands, result.label).document;
 
-  const meshes = after.entities.filter((e) => e.type === "solid3d" && e.id !== meshId);
-  assert.equal(meshes.length, 1, "MESHSPLIT inserta UNA entidad nueva, deja la original intacta");
+  assert.ok(
+    !after.entities.some((e) => e.id === meshId),
+    "MESHSPLIT BORRA la malla de origen — si no, quedarían dos sólidos ocupando el mismo volumen",
+  );
+  const meshes = after.entities.filter((e) => e.type === "solid3d");
+  assert.equal(meshes.length, 1, "MESHSPLIT deja UNA sola malla en el documento, no un duplicado fantasma");
 
   const splitBody = solid3dBody(meshes[0] as never);
   assert.equal(splitBody.faces.length, 7, `una cara de más: 6 → 7 (${splitBody.faces.length})`);

@@ -118,9 +118,15 @@ const meshsplitCommand: CadCommandDescriptor<MeshSplitState | null> = {
       solid.name,
     );
 
+    // La malla de origen se BORRA: MESHSPLIT parte una cara de la MISMA malla,
+    // no combina varias entidades en una nueva (a diferencia de MESHCAP o
+    // MESHMERGE, que sí dejan sus orígenes intactos a propósito — ver la
+    // cabecera de `mesh-smoothing.ts`). Insertar sin borrar dejaba DOS sólidos
+    // ocupando exactamente el mismo volumen — un duplicado fantasma con el
+    // mismo relleno silencioso que esta ola debía eliminar.
     return solidBatch(
       state,
-      [{ type: "insert", entity: newSolid }],
+      [{ type: "delete", entityId: solid.id }, { type: "insert", entity: newSolid }],
       "MESHSPLIT",
       `MESHSPLIT: la cara ${state.face.index} se dividió en dos — la malla pasó de ${specs.length} a ${result.faces.length} caras (${result.points.length} vértices).`,
     );
