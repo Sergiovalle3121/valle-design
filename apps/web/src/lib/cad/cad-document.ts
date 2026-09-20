@@ -103,6 +103,14 @@ export interface CadEntityPresentation {
   color?: { source: CadPropertySource; value?: string };
   linetype?: { source: CadPropertySource; value?: string; scale?: number };
   lineweight?: { source: CadPropertySource; value?: number };
+  /**
+   * Transparencia (CETRANSPARENCY): 0 opaco, 100 invisible. Igual que color y
+   * grosor, `byLayer`/`byBlock` no llevan `value` —lo heredan— y `explicit` sí.
+   * Se añade aquí, y no como número suelto en la entidad, porque MATCHPROP ya
+   * copia color/tipo de línea/grosor por esta misma puerta y una transparencia
+   * que viviera en otro sitio necesitaría su propio camino de copiado.
+   */
+  transparency?: { source: CadPropertySource; value?: number };
 }
 
 export interface CadEntityMetadata {

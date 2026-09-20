@@ -1,7 +1,7 @@
 /**
  * TRIM, EXTEND y BREAK.
  *
- * Las cuatro afirmaciones que importan:
+ * Las afirmaciones que importan:
  *
  *   1. TRIM ELIMINA el trozo del lado DONDE SE PULSÓ — la convención de
  *      AutoCAD desde la campaña de cimientos. Es lo único que
@@ -14,11 +14,21 @@
  *      calla deja creyendo que trató los doce.
  *   4. BREAK conserva el id del primer trozo, para no romper lo que apunta a la
  *      entidad original.
+ *   5. Ola 3 «recortar» (2026-09-19): el comando abre en modo RÁPIDO — sin fase
+ *      de bordes, un clic recorta contra todo lo visible —, y `Bordes` vuelve
+ *      al flujo clásico de dos fases dentro de la MISMA invocación. La mayoría
+ *      de los casos de abajo usan `Bordes` a propósito, para acotar el corte a
+ *      UN borde concreto y comprobar la geometría sin que otro objeto de la
+ *      escena se cuele; el primer bloque nuevo prueba el modo rápido en sí.
+ *   6. La opción `Arista` (`Extender`) trata un borde CORTO como si llegara:
+ *      recortar o alargar contra su prolongación implícita, no sólo contra el
+ *      cruce que ya existe.
  */
 import { strict as assert } from "node:assert";
 import type { CadEntity } from "../../cad-document";
 import type { CadEntityCommand } from "../../entity-commands";
 import { tessellateSpline } from "../../curve-tessellate";
+import { createCadVariableAccess } from "../../system-variables";
 import type { CadCommandContext, CadCommandInput } from "../command-types";
 import { CAD_MODIFY_EDGE_COMMANDS } from "./modify-edges";
 
@@ -118,12 +128,20 @@ const point = (x: number, y: number): CadCommandInput => ({
   source: "typed",
 });
 const keyword = (value: string): CadCommandInput => ({ kind: "keyword", keyword: value });
+/**
+ * El comando abre en modo rápido (T-1, ola 3); este input, en cabeza de la
+ * secuencia, lo devuelve al flujo clásico de dos fases para que el resto de la
+ * prueba —heredada de antes de esa ola— siga acotando el corte a los bordes
+ * que designa a mano, sin que colarse cualquier otro objeto de la escena
+ * cambie el resultado.
+ */
+const bordes: CadCommandInput = keyword("Bordes");
 
 // --- TRIM elimina el lado donde se pulsó (convención AutoCAD) -------------------
 {
   // Borde: la vertical en x=500. Se pulsa la horizontal a la IZQUIERDA (x=100),
   // así que ESE trozo se va y sobrevive el 500→1000.
-  const left = run("TRIM", [pickAt("v", 500, 100), enter, pickAt("h", 100, 100), enter]);
+  const left = run("TRIM", [bordes, pickAt("v", 500, 100), enter, pickAt("h", 100, 100), enter]);
   assert.ok(left && left.kind === "document");
   const leftPatch = left.commands[0];
   assert.ok(leftPatch.type === "properties");
@@ -133,7 +151,7 @@ const keyword = (value: string): CadCommandInput => ({ kind: "keyword", keyword:
 
   // La misma orden pulsando a la DERECHA elimina el OTRO trozo. Si el punto
   // de designación no se usara, saldría idéntico a lo anterior.
-  const right = run("TRIM", [pickAt("v", 500, 100), enter, pickAt("h", 900, 100), enter]);
+  const right = run("TRIM", [bordes, pickAt("v", 500, 100), enter, pickAt("h", 900, 100), enter]);
   assert.ok(right && right.kind === "document");
   const rightPatch = right.commands[0];
   assert.ok(rightPatch.type === "properties");
@@ -147,6 +165,7 @@ const keyword = (value: string): CadCommandInput => ({ kind: "keyword", keyword:
   assert.ok(descriptor);
   const context = makeContext();
   let step = descriptor.begin(context);
+  step = descriptor.step(step.state, bordes, context);
   step = descriptor.step(step.state, pickAt("v", 500, 100), context);
   step = descriptor.step(step.state, enter, context);
   // Se recorta la misma horizontal dos veces (a un lado y al otro): dos
@@ -164,7 +183,7 @@ const keyword = (value: string): CadCommandInput => ({ kind: "keyword", keyword:
   );
 }
 
-// --- `Todos` toma cualquier línea como borde ----------------------------------
+// --- `Todos` toma cualquier línea como borde (y es lo que ya hace el modo rápido) --
 {
   const result = run("TRIM", [
     { kind: "keyword", keyword: "Todos" },
@@ -178,7 +197,7 @@ const keyword = (value: string): CadCommandInput => ({ kind: "keyword", keyword:
 {
   // Dos cortes (x=±50) contra la horizontal que lo atraviesa. Pinchando arriba
   // SE VA la media superior y sobrevive la inferior, como en AutoCAD.
-  const result = run("TRIM", [pickAt("low", 0, 0), enter, pickAt("circ", 0, 50), enter]);
+  const result = run("TRIM", [bordes, pickAt("low", 0, 0), enter, pickAt("circ", 0, 50), enter]);
   assert.ok(result && result.kind === "document", "el círculo se recorta");
   const command = result.commands[0];
   assert.ok(
@@ -193,7 +212,7 @@ const keyword = (value: string): CadCommandInput => ({ kind: "keyword", keyword:
 
 // --- lo que no es geometría se cuenta -------------------------------------------
 {
-  const result = run("TRIM", [pickAt("v", 500, 100), enter, pickAt("note", 0, 0), enter]);
+  const result = run("TRIM", [bordes, pickAt("v", 500, 100), enter, pickAt("note", 0, 0), enter]);
   assert.equal(result?.kind, "message", "un MTEXT no se recorta, y se dice");
   assert.ok(
     result.kind === "message" && result.text.includes("MTEXT"),
@@ -202,14 +221,14 @@ const keyword = (value: string): CadCommandInput => ({ kind: "keyword", keyword:
 }
 {
   // Una línea que no cruza el borde: no se recorta, y se explica.
-  const result = run("TRIM", [pickAt("v", 500, 100), enter, pickAt("far", 100, 900), enter]);
+  const result = run("TRIM", [bordes, pickAt("v", 500, 100), enter, pickAt("far", 100, 900), enter]);
   assert.equal(result?.kind, "message");
   assert.ok(result.kind === "message" && result.text.includes("no cruza"));
 }
 
 // --- EXTEND alarga hasta el borde ----------------------------------------------
 {
-  const result = run("EXTEND", [pickAt("v", 500, 50), enter, pickAt("short", 100, 50), enter]);
+  const result = run("EXTEND", [bordes, pickAt("v", 500, 50), enter, pickAt("short", 100, 50), enter]);
   assert.ok(result && result.kind === "document", "la corta alcanza el borde alargándose");
   assert.equal(result.commands.length, 1);
   const patch = result.commands[0];
@@ -592,6 +611,7 @@ const keyword = (value: string): CadCommandInput => ({ kind: "keyword", keyword:
   // la cruza en x=100 — el MISMO punto de designación, así que el resultado
   // tiene que ser idéntico: se va el lado izquierdo.
   const fence = run("TRIM", [
+    bordes,
     pickAt("v", 500, 100),
     enter,
     { kind: "keyword", keyword: "Valla" },
@@ -632,6 +652,7 @@ const keyword = (value: string): CadCommandInput => ({ kind: "keyword", keyword:
   const cancel: CadCommandInput = { kind: "cancel" };
   // Borde: vertical en x=500. Recortar h en x=100 y luego en x=900, después Esc.
   const result = run("TRIM", [
+    bordes,
     pickAt("v", 500, 100), enter,  // borde
     pickAt("h", 100, 100),         // primer trim
     pickAt("h", 900, 100),         // segundo trim
@@ -661,6 +682,7 @@ const keyword = (value: string): CadCommandInput => ({ kind: "keyword", keyword:
   };
   const trim = commands.get("TRIM")!;
   let step = trim.begin(t16Ctx);
+  step = trim.step(step.state, bordes, t16Ctx);
   // Fase bordes: e1 y e2
   step = trim.step(step.state, { kind: "entityPick", entityId: "e1", point: { x: 100, y: 100 } }, t16Ctx);
   step = trim.step(step.state, { kind: "entityPick", entityId: "e2", point: { x: 900, y: 100 } }, t16Ctx);
@@ -677,6 +699,139 @@ const keyword = (value: string): CadCommandInput => ({ kind: "keyword", keyword:
   assert.equal(hPatches.length, 2, "T16: 2 propiedades para h (un trim por borde)");
   assert.equal(hPatches[0].patch.startX, 100, "T16: primer trim — startX pasa a 100 (borde e1)");
   assert.equal(hPatches[1].patch.endX, 900, "T16: segundo trim — endX pasa a 900 (borde e2, sobre geometría ya recortada)");
+}
+
+// --- T-1 (ola 3): modo RÁPIDO por defecto — sin fase de bordes -----------------
+{
+  // Tres líneas que se cruzan DOS A DOS («en cruz»): «a» horizontal, cruzada
+  // por «b» (vertical, x=60) y por «c» (diagonal) en x=40; «b» y «c» se cruzan
+  // entre sí en (60,20), así que ningún par comparte designación con otro. Sin
+  // fase de bordes ni palabra clave, un solo clic en el tramo sobrante de «a»
+  // —entre sus dos cortes— lo recorta contra el borde correcto.
+  const crossScene: CadEntity[] = [
+    line("a", 0, 0, 200, 0),
+    line("b", 60, -100, 60, 100),
+    line("c", 0, -40, 200, 160),
+  ];
+  const entities = new Map(crossScene.map((entity) => [entity.id, entity]));
+  const context: CadCommandContext = {
+    entityIds: [...entities.keys()],
+    entity: (id) => entities.get(id),
+    selection: [],
+    activeLayer: "0",
+    view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+    newEntityId: () => "cross1",
+  };
+  const trim = commands.get("TRIM")!;
+  const begin = trim.begin(context);
+  assert.equal(
+    begin.prompt.message,
+    "Designe el objeto a recortar",
+    "modo rápido: sin fase de bordes, se pide directamente el objeto",
+  );
+  assert.ok(
+    begin.prompt.options.some((option) => option.keyword === "Bordes"),
+    "y ofrece Bordes para quien quiera el flujo clásico",
+  );
+  assert.ok(
+    begin.prompt.options.some((option) => option.keyword === "Arista"),
+    "y Arista para el borde corto que no llega a cruzar",
+  );
+  let step = trim.step(begin.state, pickAt("a", 50, 0), context);
+  assert.ok(!step.result, "el recorte se acumula; falta Intro para cerrar el lote");
+  step = trim.step(step.state, enter, context);
+  assert.ok(step.result && step.result.kind === "document", "un solo clic basta en modo rápido");
+  assert.equal(step.result.commands.length, 2, "el tramo del medio se va: «a» queda partida en dos");
+  const [kept, created] = step.result.commands;
+  assert.ok(kept.type === "properties" && kept.entityId === "a");
+  assert.equal(kept.patch.startX, 0);
+  assert.equal(kept.patch.endX, 40, "el primer cacho llega hasta el corte con «c» (x=40)");
+  assert.ok(created.type === "insert" && created.entity.type === "line");
+  assert.equal(created.entity.start.x, 60, "el segundo cacho arranca en el corte con «b» (x=60)");
+  assert.equal(created.entity.end.x, 200);
+}
+
+// --- TRIMEXTENDMODE decide el arranque, no sólo `Bordes` dentro del comando ---
+{
+  const context: CadCommandContext = { ...makeContext(), variables: createCadVariableAccess({ TRIMEXTENDMODE: 0 }) };
+  const trim = commands.get("TRIM")!;
+  const begin = trim.begin(context);
+  assert.equal(
+    begin.prompt.message,
+    "Designe los bordes de corte",
+    "TRIMEXTENDMODE=0 arranca en el flujo clásico sin que nadie teclee Bordes",
+  );
+}
+
+// --- Opción `Arista`: un borde corto cuenta prolongado -------------------------
+{
+  // «e» es un tramo vertical en x=100 de y=10 a y=50: NO incluye y=0, así que
+  // no cruza a «t» de verdad. Prolongado (Arista: Extender) sí lo hace, en
+  // x=100.
+  const edgeScene: CadEntity[] = [line("t", 0, 0, 200, 0), line("e", 100, 10, 100, 50)];
+  const entities = new Map(edgeScene.map((entity) => [entity.id, entity]));
+  const context: CadCommandContext = {
+    entityIds: [...entities.keys()],
+    entity: (id) => entities.get(id),
+    selection: [],
+    activeLayer: "0",
+    view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+    newEntityId: () => "edge1",
+  };
+  const trim = commands.get("TRIM")!;
+
+  // Sin Arista (Sinextender, el valor de fábrica): el borde no llega.
+  let plain = trim.step(trim.begin(context).state, pickAt("t", 50, 0), context);
+  assert.ok(!plain.result, "el rechazo se cuenta; la orden sigue viva");
+  plain = trim.step(plain.state, enter, context);
+  assert.equal(plain.result?.kind, "message", "sin Arista, un borde que no llega no cuenta");
+  assert.ok(plain.result?.kind === "message" && plain.result.text.includes("no cruza"));
+
+  // Con Arista: Extender, el MISMO borde, prolongado, sí cuenta.
+  let extended = trim.step(trim.begin(context).state, keyword("Arista"), context);
+  extended = trim.step(extended.state, keyword("Extender"), context);
+  extended = trim.step(extended.state, pickAt("t", 50, 0), context);
+  extended = trim.step(extended.state, enter, context);
+  assert.ok(
+    extended.result && extended.result.kind === "document",
+    "con Arista: Extender, el borde corto sí recorta",
+  );
+  const patch = extended.result.commands[0];
+  assert.ok(patch.type === "properties");
+  assert.equal(patch.patch.startX, 100, "recorta contra la prolongación implícita de «e» (x=100)");
+  assert.equal(patch.patch.endX, 200);
+}
+
+// --- `Arista` también alarga contra un contorno corto (EXTEND) -----------------
+{
+  const edgeScene: CadEntity[] = [line("s", 0, 0, 50, 0), line("e2", 100, 10, 100, 50)];
+  const entities = new Map(edgeScene.map((entity) => [entity.id, entity]));
+  const context: CadCommandContext = {
+    entityIds: [...entities.keys()],
+    entity: (id) => entities.get(id),
+    selection: [],
+    activeLayer: "0",
+    view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+    newEntityId: () => "edge2",
+  };
+  const extend = commands.get("EXTEND")!;
+
+  let plain = extend.step(extend.begin(context).state, pickAt("s", 40, 0), context);
+  plain = extend.step(plain.state, enter, context);
+  assert.equal(plain.result?.kind, "message", "sin Arista, EXTEND tampoco alcanza el contorno corto");
+
+  let extended = extend.step(extend.begin(context).state, keyword("Arista"), context);
+  extended = extend.step(extended.state, keyword("Extender"), context);
+  extended = extend.step(extended.state, pickAt("s", 40, 0), context);
+  extended = extend.step(extended.state, enter, context);
+  assert.ok(
+    extended.result && extended.result.kind === "document",
+    "con Arista: Extender, EXTEND alcanza la prolongación de «e2»",
+  );
+  const patch = extended.result.commands[0];
+  assert.ok(patch.type === "properties");
+  assert.equal(patch.patch.endX, 100, "el extremo que apuntaba al contorno llega hasta su prolongación");
+  assert.equal(patch.patch.startX, 0);
 }
 
 console.log(

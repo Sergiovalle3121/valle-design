@@ -92,6 +92,10 @@ function tidy(presentation: CadEntityPresentation): CadEntityPresentation | null
   if (presentation.color) next.color = presentation.color;
   if (presentation.linetype) next.linetype = presentation.linetype;
   if (presentation.lineweight) next.lineweight = presentation.lineweight;
+  // CHPROP no toca la transparencia, pero SÍ reescribe `presentation` entero:
+  // sin copiarla aquí, un MATCHPROP de Transparencia se borraría en cuanto
+  // alguien tocara el color o el grosor del mismo objeto con CHPROP.
+  if (presentation.transparency) next.transparency = presentation.transparency;
   return Object.keys(next).length > 0 ? next : null;
 }
 

@@ -10,11 +10,18 @@
  *
  * ## La forma de la orden, que es la mitad de la función
  *
- * En AutoCAD TRIM y EXTEND son de dos fases: primero se designan los BORDES
- * (`Enter` para tomarlos todos), después se van designando los objetos a
- * recortar, uno tras otro, sin salir de la orden. Esa segunda fase repetitiva
- * es lo que hace la orden útil: recortar quince líneas contra un muro son
- * quince clics, no quince invocaciones.
+ * Hasta 2021 AutoCAD era de dos fases: primero se designaban los BORDES
+ * (`Enter` para tomarlos todos), después se iban designando los objetos a
+ * recortar, uno tras otro, sin salir de la orden. Desde entonces el modo POR
+ * DEFECTO es «rápido»: la orden entra YA en la segunda fase, con todo lo
+ * visible como borde, y un clic sobre el tramo que sobra basta —sin designar
+ * nada antes—. `TRIMEXTENDMODE` (ola 3, `system-variables.ts`) decide con cuál
+ * arranca cada invocación, y la opción `Bordes` deja volver al flujo clásico
+ * sin tocar esa variable, para cuando de verdad hace falta acotar el corte a
+ * un puñado de líneas. La fase repetitiva de designar objetos —una vez
+ * abierta, en cualquiera de los dos modos— es lo que hace la orden útil:
+ * recortar quince líneas contra un muro son quince clics, no quince
+ * invocaciones.
  *
  * Aquí se implementa esa forma. El comando **acumula** los recortes y los emite
  * como UN lote al terminar, así que las quince líneas son un solo paso de
@@ -83,6 +90,53 @@ const ALL_EDGES = { keyword: "Todos", shortcut: "T" } as const;
 const FENCE = { keyword: "Valla", shortcut: "V" } as const;
 
 /**
+ * `Bordes` (ola 3 «recortar», 2026-09-19): vuelve al flujo clásico de dos
+ * fases —designar los bordes antes de recortar— cuando `TRIMEXTENDMODE` abrió
+ * el comando en modo rápido. Es la salida de emergencia para el dibujo con
+ * miles de objetos donde «todo visible es borde» busca demasiado, o para
+ * quien de verdad quiere acotar el corte a un puñado de líneas.
+ */
+const BORDERS_OPTION = { keyword: "Bordes", shortcut: "B" } as const;
+
+/**
+ * Opción `Arista` de AutoCAD (EDGEMODE): un borde de corte o contorno que NO
+ * llega a cruzar el objetivo cuenta igual si, prolongado, lo haría. `Extender`
+ * lo trata como recta/curva infinita SÓLO para este cruce; `Sinextender`
+ * —el valor de fábrica— vuelve al comportamiento clásico. Vive por invocación,
+ * no en una variable de sistema: es una decisión del recorte de HOY, no una
+ * preferencia que deba sobrevivir al siguiente TRIM.
+ */
+const EDGE_OPTION = { keyword: "Arista", shortcut: "A" } as const;
+const EDGE_EXTEND = { keyword: "Extender", shortcut: "E" } as const;
+const EDGE_NO_EXTEND = { keyword: "Sinextender", shortcut: "S" } as const;
+
+/**
+ * `TRIMEXTENDMODE` (ola 3): 0 abre el comando en el flujo clásico de dos
+ * fases; cualquier otro valor —incluido no tener variables de sistema, como en
+ * una spec desnuda— abre en modo RÁPIDO, que es el que trae AutoCAD desde
+ * 2021. Ausente ⇒ rápido, no clásico: un anfitrión que todavía no expone
+ * `variables` tiene que comportarse como el AutoCAD de hoy, no como el de
+ * hace un lustro.
+ */
+function beginsInQuickMode(context: CadCommandContext): boolean {
+  const raw = context.variables?.get("TRIMEXTENDMODE");
+  return raw === undefined || Number(raw) !== 0;
+}
+
+function asLine(entity: CadEntity | undefined): CadLineEntity | null {
+  return entity && entity.type === "line" ? entity : null;
+}
+
+function flat(point: CadPoint2) {
+  return { x: point.x, y: point.y, z: 0 };
+}
+
+/** Coordenadas de un segmento como par de puntos planos. */
+function ends(line: CadLineEntity): { a: CadPoint2; b: CadPoint2 } {
+  return { a: { x: line.start.x, y: line.start.y }, b: { x: line.end.x, y: line.end.y } };
+}
+
+/**
  * T16: aplica los comandos pendientes de `state.commands` sobre una entidad
  * para que el segundo TRIM/EXTEND opere sobre la geometría ya modificada.
  */
@@ -114,9 +168,22 @@ interface EdgeState {
   refusals: string[];
   /** `Valla` (sólo TRIM) a medio reunir: `null` en reposo. */
   fence: CadPoint2[] | null;
+  /** Opción `Arista`: `true` = «Extender», un borde corto cuenta prolongado. */
+  edgeExtend: boolean;
+  /** Mientras se responde `Extender`/`Sinextender` al submenú `Arista`. */
+  awaitingEdgeChoice: boolean;
 }
 
-const EMPTY: EdgeState = { edges: [], cutting: false, commands: [], touched: 0, refusals: [], fence: null };
+const EMPTY: EdgeState = {
+  edges: [],
+  cutting: false,
+  commands: [],
+  touched: 0,
+  refusals: [],
+  fence: null,
+  edgeExtend: false,
+  awaitingEdgeChoice: false,
+};
 
 type EdgeOperation = "TRIM" | "EXTEND";
 
@@ -140,6 +207,16 @@ function edgeStep(state: EdgeState, operation: EdgeOperation): CadCommandStep<Ed
       prompt: { message: "Precise el punto de la valla (Intro para terminar)", options: [] },
       accepts: CAD_ACCEPT_POINT,
     };
+  if (state.awaitingEdgeChoice)
+    return {
+      state,
+      prompt: {
+        message: "Arista de corte/contorno",
+        options: [EDGE_EXTEND, EDGE_NO_EXTEND],
+        defaultOption: state.edgeExtend ? EDGE_EXTEND.keyword : EDGE_NO_EXTEND.keyword,
+      },
+      accepts: CAD_ACCEPT_KEYWORD,
+    };
   return {
     state,
     prompt: {
@@ -147,10 +224,13 @@ function edgeStep(state: EdgeState, operation: EdgeOperation): CadCommandStep<Ed
         operation === "TRIM"
           ? "Designe el objeto a recortar"
           : "Designe el objeto a alargar",
-      options: operation === "TRIM" ? [FENCE] : [],
+      options: [
+        EDGE_OPTION,
+        BORDERS_OPTION,
+        ...(operation === "TRIM" ? [FENCE] : []),
+      ],
     },
-    accepts:
-      CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_POINT | (operation === "TRIM" ? CAD_ACCEPT_KEYWORD : 0),
+    accepts: CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_POINT | CAD_ACCEPT_KEYWORD,
   };
 }
 
@@ -262,7 +342,11 @@ function edgeCommand(
     repeatable: true,
     mutates: true,
     cursor: "pick",
-    begin: () => edgeStep(EMPTY, operation),
+    // TRIMEXTENDMODE decide la fase de arranque: rápido (por defecto) entra
+    // YA recortando con «todo visible es borde»; clásico pide antes los
+    // bordes, como siempre. `Bordes` deja pasar de uno a otro dentro de la
+    // misma invocación sin tocar la variable.
+    begin: (context) => edgeStep(beginsInQuickMode(context) ? { ...EMPTY, cutting: true } : EMPTY, operation),
     step: (state, input, context) => {
       if (input.kind === "cancel")
         // T15: preserve accumulated trims/extends on Esc
@@ -294,6 +378,7 @@ function edgeCommand(
               boundaries: edgeEntities(state, context),
               pick,
               newEntityId: context.newEntityId,
+              edgeExtend: state.edgeExtend,
             });
             const produced = editCommands(target.id, outcome);
             if (produced.length === 0) {
@@ -305,6 +390,17 @@ function edgeCommand(
           }
           return edgeStep({ ...state, fence: null, commands, touched, refusals }, operation);
         }
+        return edgeStep(state, operation);
+      }
+
+      // Submenú `Arista` a medio responder: igual que la valla, su respuesta
+      // es SUYA y se resuelve antes que el Intro/palabra clave genéricos.
+      if (state.awaitingEdgeChoice) {
+        if (input.kind === "keyword" && input.keyword === EDGE_EXTEND.keyword)
+          return edgeStep({ ...state, edgeExtend: true, awaitingEdgeChoice: false }, operation);
+        if (input.kind === "keyword" && input.keyword === EDGE_NO_EXTEND.keyword)
+          return edgeStep({ ...state, edgeExtend: false, awaitingEdgeChoice: false }, operation);
+        if (input.kind === "enter") return edgeStep({ ...state, awaitingEdgeChoice: false }, operation);
         return edgeStep(state, operation);
       }
 
@@ -320,6 +416,15 @@ function edgeCommand(
 
       if (input.kind === "keyword" && input.keyword === FENCE.keyword && state.cutting && operation === "TRIM")
         return edgeStep({ ...state, fence: [] }, operation);
+
+      // `Arista`: abre el submenú Extender/Sinextender. `Bordes`: abandona el
+      // modo rápido y vuelve a pedir los bordes de la forma clásica, para ESTA
+      // invocación — no toca `TRIMEXTENDMODE`.
+      if (input.kind === "keyword" && input.keyword === EDGE_OPTION.keyword && state.cutting)
+        return edgeStep({ ...state, awaitingEdgeChoice: true }, operation);
+
+      if (input.kind === "keyword" && input.keyword === BORDERS_OPTION.keyword && state.cutting)
+        return edgeStep({ ...state, cutting: false, edges: [] }, operation);
 
       const picked =
         input.kind === "entityPick"
@@ -371,6 +476,7 @@ function edgeCommand(
         pick,
         // Un TRIM por el medio parte el objeto: la segunda mitad necesita id.
         newEntityId: context.newEntityId,
+        edgeExtend: state.edgeExtend,
       };
       const outcome =
         operation === "TRIM" ? computeCadCurveTrim(payload) : computeCadCurveExtend(payload);
