@@ -152,6 +152,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
 
   DXFIN: "Importar DXF",
   DXFOUT: "Exportar DXF",
+  SAVEAS: "Guardar como",
   ELLIPSE: "Elipse",
   ERASE: "Borrar",
   ETRANSMIT: "Empaquetar",

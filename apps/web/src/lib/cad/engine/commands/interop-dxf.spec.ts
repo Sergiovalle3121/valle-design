@@ -317,8 +317,86 @@ let exported = "";
   assert.ok(all.content.includes("MUROS"), "las capas del dibujo llegan al archivo");
 }
 
+// --- 8. SAVEAS: existe por su nombre real, y por el registro real -----------
+{
+  const descriptor = CAD_COMMAND_REGISTRY_V2.get("SAVEAS");
+  assert.ok(descriptor, "SAVEAS debe estar en el registro");
+  assert.equal(registry.get("-SAVEAS")?.name, "SAVEAS");
+  assert.equal(registry.get("_SAVEAS")?.name, "SAVEAS");
+}
+
+// --- 9. SAVEAS declara la versión PEDIDA en la cabecera, para las tres ------
+//
+// La medida que exige la regla de aceptación: no basta con que "salga un
+// archivo" — la cabecera tiene que decir la versión que se pidió, y el
+// documento tiene que SOBREVIVIR la ida y vuelta (exportar con esa versión,
+// reimportar, y recuperar la misma geometría).
+{
+  const versions: Array<[string, string]> = [
+    ["2000", "AC1015"],
+    ["2007", "AC1021"],
+    ["2018", "AC1032"],
+  ];
+  for (const [year, code] of versions) {
+    const result = run(
+      "SAVEAS",
+      [keyword(year), text(`planta-${year}`)],
+      makeContext({ document: makeDocument() }),
+    );
+    assert.ok(result && result.kind === "host", `SAVEAS ${year} debía pedir trabajo al anfitrión`);
+    if (!result || result.kind !== "host") throw new Error("tipo");
+    const request = result.request;
+    assert.equal(request.kind, "dxf-export");
+    if (request.kind !== "dxf-export") throw new Error("tipo");
+    assert.equal(request.fileName, `planta-${year}.dxf`);
+
+    // 1) La CABECERA declara la versión pedida — no siempre AC1015, que era
+    //    el bug: el escritor lo tenía fijo antes de esta orden.
+    const header = /\$ACADVER\n1\n(AC\d+)/.exec(request.content);
+    assert.ok(header, `${code}: la cabecera trae \$ACADVER`);
+    assert.equal(header?.[1], code, `SAVEAS "${year}" declara ${code} en la cabecera, no otra versión`);
+
+    // 2) El documento SOBREVIVE la ida y vuelta: las cuatro entidades del
+    //    dibujo de prueba, con su geometría, reaparecen al reimportar. Tres
+    //    son primitivas (línea, polilínea, círculo) y la cuarta —el
+    //    rótulo— viaja aparte, en `mtexts` (igual que en DXFIN, prueba 3).
+    const reimported = importDxfPrimitives(request.content);
+    assert.equal(reimported.primitives.length, 3, `${code}: las tres primitivas regresan`);
+    assert.equal(reimported.mtexts.length, 1, `${code}: y el rótulo, aparte`);
+    const wall = reimported.primitives.find((primitive) => primitive.kind === "line");
+    assert.ok(wall, `${code}: el muro vuelve`);
+    assert.equal(wall?.layer, "MUROS");
+    assert.deepEqual(
+      [wall?.points[0]?.x, wall?.points[0]?.y, wall?.points[1]?.x, wall?.points[1]?.y],
+      [0, 0, 4_000, 0],
+      `${code}: con las mismas coordenadas que el original`,
+    );
+  }
+
+  // Enter sin teclear nada toma AC1015 por defecto — el mismo valor que el
+  // escritor tenía fijo, así que un script viejo sigue produciendo lo mismo.
+  const byDefault = run("SAVEAS", [enter, enter], makeContext({ document: makeDocument() }));
+  assert.ok(byDefault && byDefault.kind === "host");
+  if (!byDefault || byDefault.kind !== "host") throw new Error("tipo");
+  if (byDefault.request.kind !== "dxf-export") throw new Error("tipo");
+  assert.match(byDefault.request.content, /\$ACADVER\n1\nAC1015/, "Enter = AC1015 por defecto");
+}
+
+// --- 10. SAVEAS falla cerrado sobre un dibujo sin nada que exportar --------
+{
+  const emptyDocument = { ...makeDocument(), entities: [], modelSpace: { entityIds: [] } };
+  const nothing = run("SAVEAS", [keyword("2000"), enter], makeContext({ document: emptyDocument }));
+  assert.ok(nothing && nothing.kind === "message");
+  if (nothing?.kind !== "message") throw new Error("tipo");
+  assert.ok(nothing.text.includes("No se ha guardado"), nothing.text);
+
+  const noDocument = run("SAVEAS", [], makeContext());
+  assert.ok(noDocument && noDocument.kind === "message" && /no puede leer el dibujo/.test(noDocument.text));
+}
+
 console.log(
-  "interop-dxf: DXFIN y DXFOUT resuelven por nombre, con guion y con guion bajo; el ciclo " +
-    "exportar→reimportar devuelve las cuatro entidades con su bulge; y los seis fallos cerrados " +
-    "terminan en mensaje sin tocar el dibujo",
+  "interop-dxf: DXFIN, DXFOUT y SAVEAS resuelven por nombre, con guion y con guion bajo; el ciclo " +
+    "exportar→reimportar devuelve las cuatro entidades con su bulge; SAVEAS declara en la cabecera " +
+    "la versión de DXF pedida (AC1015/AC1021/AC1032) y el documento sobrevive la ida y vuelta " +
+    "en las tres; y los ocho fallos cerrados terminan en mensaje sin tocar el dibujo",
 );

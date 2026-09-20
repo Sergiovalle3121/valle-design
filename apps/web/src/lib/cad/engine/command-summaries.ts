@@ -108,6 +108,7 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   DVIEW: "Aún no disponible: no hay vista dinámica. Para orientar la vista, 3DORBIT o VPOINT.",
   DXFIN: "Importa un archivo DXF al dibujo.",
   DXFOUT: "Exporta el dibujo a DXF.",
+  SAVEAS: "Guarda el dibujo completo en DXF, con la versión que se elija (2000/2007/2018).",
   ELLIPSE: "Elipse por sus ejes, o arco elíptico.",
   ERASE: "Borra la selección.",
   ETRANSMIT:
