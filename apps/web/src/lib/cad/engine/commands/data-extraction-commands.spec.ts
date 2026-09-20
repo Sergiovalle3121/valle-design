@@ -495,6 +495,29 @@ function context(hasDocument: boolean, propio?: unknown): CadCommandContext {
   const askedEmpty = command.step(command.begin(context(true)).state, { kind: "keyword", keyword: "Atributos" }, context(true));
   const empty = command.step(askedEmpty.state, { kind: "enter" }, context(true));
   ok(empty.result?.kind === "message" && /ningún bloque con atributos/.test(empty.result.text), "sin bloques con atributos, se explica");
+
+  // 5) Un nombre de bloque con acentos/Ñ no debe vaciar el nombre de fichero:
+  // quitar el acento y conservar la letra es lo correcto, no perder la
+  // palabra entera. («CLIMATIZACIÓN» es un nombre de bloque de lo más normal
+  // en un plano en español; «bloque» a secas confundiría dos extracciones.)
+  const conBloqueAcentuado = {
+    meta: { version: 1, schema: 4, unit: "mm" },
+    blocks: [{ ...doorBlock, name: "CLIMATIZACIÓN" }],
+    layers: [],
+    styles: { text: {}, dimension: {}, mleader: {}, table: {}, plot: {} },
+    externalReferences: [],
+    unsupportedEntities: [],
+    modelSpace: { entityIds: [] },
+    entities: [],
+  } as never;
+  const askedAccent = command.step(command.begin(context(true, conBloqueAcentuado)).state, { kind: "keyword", keyword: "Atributos" }, context(true, conBloqueAcentuado));
+  const accented = command.step(askedAccent.state, { kind: "text", value: "CLIMATIZACIÓN" }, context(true, conBloqueAcentuado));
+  if (accented.result?.kind === "host" && accented.result.request.kind === "data-extraction-csv")
+    ok(
+      accented.result.request.fileName === "atributos-climatizacion.csv",
+      `el nombre de fichero conserva la palabra sin acentos, no "bloque": ${accented.result.request.fileName}`,
+    );
+  else ok(false, "CLIMATIZACIÓN debía terminar en una petición de CSV al anfitrión");
 }
 
 console.log(`data-extraction-commands.spec: ${checks} comprobaciones OK`);

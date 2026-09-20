@@ -92,9 +92,17 @@ interface DataExtractionState {
     | null;
 }
 
-/** `atributos-puerta.csv`: legible, y sin nada que un sistema de ficheros rechace. */
+/**
+ * `atributos-puerta.csv`: legible, y sin nada que un sistema de ficheros
+ * rechace. Quita los acentos ANTES de descartar lo que no es a-z0-9 (mismo
+ * patrón que ya usa `initialOf` en `drawing-fields.ts`): sin este paso, un
+ * bloque tan corriente en un plano español como «CLIMATIZACIÓN» o
+ * «PUERTA-BAÑO» perdía la vocal acentuada o la Ñ entera en vez de perder
+ * sólo el acento, y «ÁREA-ÚTIL» se quedaba sin ninguna letra reconocible.
+ */
 function attributeFileSlug(name: string): string {
-  return name.trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "bloque";
+  const withoutAccents = name.trim().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+  return withoutAccents.toLocaleLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "bloque";
 }
 
 const TABLE_NAMES = {
