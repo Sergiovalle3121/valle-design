@@ -118,6 +118,17 @@ test("presentación, ventana a escala con capa congelada y trazado a PDF", async
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto("/legacy/studio");
+  await expect(page.getByTestId("cad-canvas")).toBeVisible();
+  // Ola «armazón»: en una sesión sin `localStorage` previo el recorrido
+  // guiado nace `pending` y, con los dos muelles plegados por defecto, flota
+  // sobre la franja inferior en vez de vivir dentro del muelle izquierdo
+  // (`CadGuidedTourDock` / `tour-slot.ts`). No tapa la línea de comandos —
+  // arranca minimizado y su franja se ancla por encima de `commandDock` +
+  // `statusBar`— pero se descarta aquí por lo mismo que ya hacen los otros
+  // goldens de este grupo (102, 104, 190, 100): no depender de ese cálculo de
+  // píxeles para que un `input.click()` no compita nunca con la tarjeta.
+  const saltar = page.getByTestId("cad-guided-tour-skip");
+  if (await saltar.count()) await saltar.click();
 
   const commandLine = page.getByTestId("cad-command-line");
   await expect(commandLine).toBeVisible();
