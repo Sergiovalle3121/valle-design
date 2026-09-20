@@ -707,12 +707,14 @@ function reversedEntity(entity: CadReversibleEntity): CadNativeEntity {
   if (entity.type === "line") return { ...entity, start: entity.end, end: entity.start };
   if (entity.type === "polyline")
     return { ...entity, vertices: reversedPolylineVertices(entity.vertices, entity.closed) };
-  // SPLINE: los pesos van CON su punto de control, igual que hace SPLINEDIT
-  // `inVertir` (`modify-pedit.ts`) — invertir unos sin los otros cambiaría la
-  // forma de la curva sin mover un solo punto.
+  // SPLINE: pesos CON su punto (SPLINEDIT `inVertir`). Nudos invertidos con
+  // `nuevo(i)=primero+último−original(m-i)`: un clamped uniforme es simétrico
+  // y no se notaba, pero uno de DXF ajeno es arbitrario y sin esto sale OTRA curva.
+  const [k0, kN] = [entity.knots[0], entity.knots.at(-1)!];
   return {
     ...entity,
     controlPoints: [...entity.controlPoints].reverse(),
+    knots: [...entity.knots].reverse().map((k) => k0 + kN - k),
     ...(entity.weights ? { weights: [...entity.weights].reverse() } : {}),
   };
 }

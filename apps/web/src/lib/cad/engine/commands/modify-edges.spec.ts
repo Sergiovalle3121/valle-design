@@ -18,6 +18,7 @@
 import { strict as assert } from "node:assert";
 import type { CadEntity } from "../../cad-document";
 import type { CadEntityCommand } from "../../entity-commands";
+import { tessellateSpline } from "../../curve-tessellate";
 import type { CadCommandContext, CadCommandInput } from "../command-types";
 import { CAD_MODIFY_EDGE_COMMANDS } from "./modify-edges";
 
@@ -483,6 +484,77 @@ const keyword = (value: string): CadCommandInput => ({ kind: "keyword", keyword:
     "primer punto de control = antiguo último",
   );
   assert.deepEqual(command.entity.weights, [3, 2, 1], "los pesos viajan CON su punto, también invertidos");
+}
+
+// --- REVERSE invierte también los NUDOS de una SPLINE, no sólo puntos y pesos --
+// (hallazgo del escepticismo de la ola 2): un vector de nudos CLAMPED UNIFORME
+// —el único que este producto escribe al dibujar una spline propia— es
+// simétrico, así que dejar los nudos intactos no se nota. Pero una spline
+// IMPORTADA de un DXF ajeno trae nudos arbitrarios, y sin invertirlos la
+// "misma curva al revés" es en realidad OTRA curva, distinta y silenciosa —
+// exactamente el defecto que este comando existe para evitar. La medida real
+// es geométrica: se tesela la curva ANTES de invertir y se compara, punto a
+// punto, contra la curva que deja REVERSE recorrida en el mismo sentido.
+{
+  const controlPoints = [
+    { x: 0, y: 0, z: 0 },
+    { x: 10, y: 40, z: 0 },
+    { x: 30, y: -20, z: 0 },
+    { x: 60, y: 50, z: 0 },
+    { x: 100, y: 0, z: 0 },
+  ];
+  const degree = 3;
+  // Longitud correcta (n=5, grado=3 → 9 nudos) y ASIMÉTRICA a propósito: el
+  // nudo interior está en 0.35, no en 0.5. Un vector simétrico no distinguiría
+  // "invertir los nudos" de "no tocarlos".
+  const knots = [0, 0, 0, 0, 0.35, 1, 1, 1, 1];
+  const spline: CadEntity = {
+    id: "asymspl",
+    type: "spline",
+    degree,
+    controlPoints,
+    knots,
+    layer: "0",
+  };
+  const entities = new Map([spline].map((e) => [e.id, e]));
+  const context: CadCommandContext = {
+    entityIds: [...entities.keys()],
+    entity: (id) => entities.get(id),
+    selection: [],
+    activeLayer: "0",
+    view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+    newEntityId: () => "asymrev1",
+  };
+  const descriptor = commands.get("REVERSE")!;
+  let step = descriptor.begin(context);
+  step = descriptor.step(step.state, pickAt("asymspl", 0, 0), context);
+  step = descriptor.step(step.state, enter, context);
+  assert.ok(step.result && step.result.kind === "document");
+  const [command] = step.result.commands;
+  assert.ok(command.type === "replace" && command.entity.type === "spline");
+
+  const originalCurve = tessellateSpline(controlPoints, degree, knots, 32);
+  const expectedReversedCurve = [...originalCurve].reverse();
+  const producedCurve = tessellateSpline(
+    command.entity.controlPoints,
+    command.entity.degree,
+    command.entity.knots,
+    32,
+  );
+  let maxError = 0;
+  for (let i = 0; i < expectedReversedCurve.length; i += 1) {
+    maxError = Math.max(
+      maxError,
+      Math.hypot(
+        producedCurve[i].x - expectedReversedCurve[i].x,
+        producedCurve[i].y - expectedReversedCurve[i].y,
+      ),
+    );
+  }
+  assert.ok(
+    maxError < 1e-6,
+    `REVERSE con nudos asimétricos debe dibujar la MISMA curva al revés, no otra (error máximo: ${maxError})`,
+  );
 }
 
 // --- REVERSE rechaza ARC a propósito: el esquema no guarda dirección propia ----

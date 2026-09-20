@@ -367,9 +367,14 @@ function cornerFinish(
 ): CadCommandStep<CornerState> {
   const all = [...state.pending, ...commands];
   return {
-    // Las magnitudes y `Múltiple` SOBREVIVEN al comando: en AutoCAD el radio de
-    // FILLET es pegajoso y repetir con Espacio vuelve a usarlo. Reiniciarlo
-    // obligaría a teclearlo en cada esquina de un contorno.
+    // `Múltiple` sólo sobrevive DENTRO de esta invocación —entre una esquina
+    // encadenada y la siguiente—, no de aquí en adelante: al terminar el
+    // comando (aquí) hay que volver a teclearla la próxima vez, igual que en
+    // AutoCAD. Lo que SÍ es pegajoso de una invocación a la siguiente es la
+    // MAGNITUD (radio de FILLET, distancias de CHAMFER), y no por este objeto
+    // de estado —que `begin` descarta al repetir con Espacio y reconstruye
+    // desde cero— sino por `FILLETRAD`/`CHAMFERA`/`CHAMFERB` en
+    // `context.variables`, que sí persisten entre invocaciones.
     state: { ...state, asking: "none", picks: [], pickPoints: [], pending: [] },
     prompt: { message: "", options: [] },
     accepts: 0,
