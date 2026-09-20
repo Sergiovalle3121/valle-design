@@ -131,10 +131,30 @@ const styles: CadStyleTable = {
     prefix: "≈",
     suffix: " m",
     units: "m",
+    alternateUnits: "in",
+    alternatePrecision: 3,
   };
   const roundTripped = cadDimensionStyleFromEntries(cadDimensionStyleToEntries(full));
-  eq(roundTripped, full, "clave=valor ida y vuelta sin pérdida (30 campos)");
-  ok(cadDimensionStyleToEntries(full).length === 30, "el núcleo son 30 campos");
+  eq(roundTripped, full, "clave=valor ida y vuelta sin pérdida (32 campos)");
+  ok(cadDimensionStyleToEntries(full).length === 32, "el núcleo son 32 campos (Ola 7 suma DIMALTU/DIMALTD)");
+}
+
+// ── Unidades alternas (Ola 7): DIMALTU/DIMALTD ──
+{
+  const withAlt: CadDimensionStyleDefinition = { alternateUnits: "in", alternatePrecision: 3 };
+  const baked = cadDimensionStyleBake(withAlt);
+  eq(baked.alternateUnits, "in", "DIMALTU se hornea");
+  eq(baked.alternatePrecision, 3, "DIMALTD se hornea");
+  // Ninguno de los dos es un tamaño: DIMSCALE no los toca.
+  const scaled = cadDimensionStyleBake({ ...withAlt, overallScale: 10 });
+  eq(scaled.alternateUnits, "in", "DIMALTU no escala");
+  eq(scaled.alternatePrecision, 3, "DIMALTD no escala");
+  // «vacío = off» de la orden DIMSTYLE ida y vuelta por la XDATA propia.
+  eq(
+    cadDimensionStyleFromEntries(cadDimensionStyleToEntries({ alternateUnits: "mm", alternatePrecision: 0 })),
+    { alternateUnits: "mm", alternatePrecision: 0 },
+    "alternatePrecision=0 sobrevive (cero no es ausente)",
+  );
 }
 
 // ── Códigos estándar: la cara para lectores ajenos, ida y vuelta tolerante ──
@@ -197,6 +217,21 @@ const styles: CadStyleTable = {
   eq(pairs.length, 0, "un CSS no produce código ACI falso");
   const entries = cadDimensionStyleToEntries({ textColor: "#336699" });
   eq(entries, [["textColor", "#336699"]], "…pero la XDATA lo conserva exacto");
+}
+
+// ── DIMALTU/DIMALTD (Ola 7): sin código DXF estándar verificado, sólo XDATA ──
+{
+  const pairs = cadDimensionStyleStandardPairs({ alternateUnits: "in", alternatePrecision: 3 });
+  eq(pairs.length, 0, "sin fuente verificada del código de grupo, no se inventa uno");
+  const entries = cadDimensionStyleToEntries({ alternateUnits: "in", alternatePrecision: 3 });
+  eq(
+    entries,
+    [
+      ["alternateUnits", "in"],
+      ["alternatePrecision", "3"],
+    ],
+    "…pero la XDATA propia sí los lleva enteros",
+  );
 }
 
 if (fails.length) {

@@ -440,13 +440,13 @@ const toleranceOf = (commands: readonly { type: string }[], index = 0) => {
 {
   const styles = { dimension: { "ISO-25": { arrowSize: 250, precision: 2, textHeight: 35 } } } as unknown as Partial<CadStyleTable>;
   const context = makeContext({ styles });
-  const driven = drive("DIMSTYLE", [keyword("Familia"), keyword("Radio"), text("ISO-25"), enter, enter, enter, text("dot"), enter, enter, enter], context);
+  const driven = drive("DIMSTYLE", [keyword("Familia"), keyword("Radio"), text("ISO-25"), enter, enter, enter, text("dot"), enter, enter, enter, enter, enter], context);
   eq(driven.prompts.slice(0, 4), ["Escriba el nombre del estilo de cota", "Indique la familia del subestilo", "Escriba el estilo PADRE del subestilo radial", "Precise el estilo de texto (DIMTXSTY)"], "Familia → familia → padre → campos");
   const { commands } = written(driven, "DIMSTYLE subestilo");
   eq(commands, [{ type: "style", op: "upsert", family: "dimension", name: "ISO-25$4", values: { arrowhead: "dot" } }], "el subestilo radial declara SÓLO lo que cambia");
   ok(messageOf(drive("DIMSTYLE", [keyword("Familia"), keyword("Radio"), text("NADIE")], context)).includes("no existe"), "un padre que no existe se niega");
-  ok(messageOf(drive("DIMSTYLE", [keyword("Familia"), keyword("Radio"), text("ISO-25"), enter, enter, enter, enter, enter, enter, enter], context)).includes("no cambia nada"), "un subestilo idéntico al padre no se escribe");
-  const standardSub = written(drive("DIMSTYLE", [keyword("Familia"), keyword("Angular"), text("Standard"), enter, enter, enter, enter, distance(1), enter, enter], context), "DIMSTYLE subestilo");
+  ok(messageOf(drive("DIMSTYLE", [keyword("Familia"), keyword("Radio"), text("ISO-25"), enter, enter, enter, enter, enter, enter, enter, enter, enter], context)).includes("no cambia nada"), "un subestilo idéntico al padre no se escribe");
+  const standardSub = written(drive("DIMSTYLE", [keyword("Familia"), keyword("Angular"), text("Standard"), enter, enter, enter, enter, distance(1), enter, enter, enter, enter], context), "DIMSTYLE subestilo");
   eq(standardSub.commands, [{ type: "style", op: "upsert", family: "dimension", name: "Standard$2", values: { precision: 1 } }], "Standard también tiene subestilos");
 
   const withSub = makeContext({

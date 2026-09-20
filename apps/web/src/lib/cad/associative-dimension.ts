@@ -112,7 +112,12 @@ export function formatCadDimensionMeasurement(entity: CadDimensionEntity, measur
   let label = `${entity.prefix ?? ''}${body}${entity.suffix ?? ''}`;
   if (entity.alternateUnits) {
     const alternate = (measurement * UNIT_TO_MM[sourceUnit]) / UNIT_TO_MM[entity.alternateUnits];
-    label += ` [${alternate.toFixed(precision)} ${entity.alternateUnits}]`;
+    // DIMALTD (Ola 7): la unidad alterna rotula con SUS PROPIOS decimales, no
+    // con los de la principal — mm en 2 decimales y pulgadas en 3 son
+    // precisiones distintas, y antes de este campo la alterna se quedaba
+    // pegada a `precision` sin forma de pedir otra cosa.
+    const alternatePrecision = Math.max(0, Math.min(8, Math.floor(entity.alternatePrecision ?? precision)));
+    label += ` [${alternate.toFixed(alternatePrecision)} ${entity.alternateUnits}]`;
   }
   return label;
 }

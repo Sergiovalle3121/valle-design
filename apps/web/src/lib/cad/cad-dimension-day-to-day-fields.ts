@@ -26,13 +26,18 @@
  * produce— que es exactamente el pecado que `corpus-sha-provenance.spec.ts`
  * existe para atrapar.
  *
- * Así que estos seis campos son opcionales-AUSENTES sin cambiar el entero:
+ * Así que estos campos son opcionales-AUSENTES sin cambiar el entero:
  * ninguna entidad existente pierde ni gana un byte al serializarse — más
  * estricto todavía que una subida de esquema, que sólo promete eso para las
  * cotas que no usan el campo nuevo. Quien quiera atarlos formalmente a un
  * `meta.schema: 11` con su census y su cadena de procedencia puede hacerlo
  * después, con la máquina de referencia delante; aquí queda escrito el motivo
  * de por qué no se hizo en esta rama, en vez de callarlo.
+ *
+ * Ola 7 (2026-09-20, DIMSTYLE → unidades alternas) añade `alternatePrecision`
+ * bajo la MISMA regla y por el MISMO motivo: portátil de 8 GB, sin permiso
+ * para el benchmark completo ni para tocar ficheros de las dos olas de
+ * interfaz en vuelo.
  */
 
 export interface CadPoint2Like {
@@ -89,4 +94,14 @@ export interface CadDimensionDayToDayFields {
    * grados (DIMJOGANG). Ausente → 45, el valor de fábrica de AutoCAD.
    */
   jogAngle?: number;
+  /**
+   * DIMALTD — decimales del rótulo de unidad alterna (`alternateUnits`),
+   * independientes de `precision` (DIMDEC). Sin este campo, el rótulo alterno
+   * rotulaba SIEMPRE con los decimales de la unidad principal — un despacho
+   * que acota en mm con 2 decimales y alterna en pulgadas no puede pedir 2
+   * decimales en pulgadas también sin perder precisión, ni 4 sin que la
+   * principal se llene de ceros. Ausente → se sigue usando `precision`, igual
+   * que antes de este campo.
+   */
+  alternatePrecision?: number;
 }
