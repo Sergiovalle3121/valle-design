@@ -30,12 +30,21 @@ import type { CadDocument } from '../../src/lib/cad/cad-document';
  *
  * ## Lo que se admite, y por qué está escrito
  *
- * Hay capas que SÍ viven sobre el dibujo a propósito, como en AutoCAD: la
- * línea de comandos flotante (abajo a la izquierda) y la barra de herramientas.
- * Van en `CAPAS_ADMITIDAS` con su motivo. Un punto que caiga sobre una de
- * ellas no es un hallazgo. Todo lo demás, sí: la lista de residuos es un
- * trinquete en las dos direcciones, igual que en el golden 67 — un residuo que
- * desaparece exige borrar su línea.
+ * Hay capas que SÍ viven sobre el dibujo a propósito: la paleta de
+ * herramientas anclada al borde y la esquina de navegación (ViewCube +
+ * minimapa). Van en `CAPAS_ADMITIDAS` con su motivo. Un punto que caiga sobre
+ * una de ellas no es un hallazgo. Todo lo demás, sí: la lista de residuos es
+ * un trinquete en las dos direcciones, igual que en el golden 67 — un residuo
+ * que desaparece exige borrar su línea.
+ *
+ * ## Ola «armazón»
+ *
+ * La línea de comandos (`cad-command-line`) vivía AQUÍ, admitida a propósito:
+ * flotaba sobre el lienzo abajo a la izquierda, como la ventana de comandos
+ * de AutoCAD. Ya no flota — vive acoplada en su propia franja, la ranura
+ * `commandDock` de `CadShellFrame`, fuera de `cad-canvas` por completo. Se
+ * borra de `CAPAS_ADMITIDAS` en vez de dejarla ahí sin hallazgo: una admisión
+ * que ya no aplica es un permiso que sobra, no una que no se usa.
  */
 
 function seedDocument(): CadDocument {
@@ -81,13 +90,6 @@ async function openStudio(context: BrowserContext, page: Page) {
  * forma de reconocerla (un `data-testid` propio o de un ancestro).
  */
 const CAPAS_ADMITIDAS: { testid: string; motivo: string }[] = [
-  {
-    testid: 'cad-command-line',
-    motivo:
-      'La línea de comandos flota sobre el dibujo abajo a la izquierda, como la ' +
-      'ventana de comandos de AutoCAD desde 2013. Su envoltorio es ' +
-      'pointer-events-none; sólo el muelle propio toma el ratón.',
-  },
   {
     testid: 'cad-toolbar',
     motivo: 'La barra de herramientas vertical es una paleta anclada al borde del lienzo.',
@@ -214,4 +216,18 @@ test('ninguna capa flotante roba el ratón al área de dibujo', async ({ context
       : 'Estas entradas de RESIDUO_CONOCIDO ya no tienen hallazgo: alguien las arregló. ' +
           'Borre la línea para que la lista no mienta.',
   ).toEqual([]);
+
+  // Ola «armazón»: la afirmación positiva, no sólo la ausencia de hallazgos.
+  // La línea de comandos ya no es descendiente de `cad-canvas` — vive
+  // acoplada en `commandDock`, fuera del lienzo por completo.
+  const lineaDentroDelLienzo = await page.evaluate(() => {
+    const lienzo = document.querySelector('[data-testid="cad-canvas"]');
+    const linea = document.querySelector('[data-testid="cad-command-line"]');
+    return !!lienzo && !!linea && lienzo.contains(linea);
+  });
+  expect(
+    lineaDentroDelLienzo,
+    'la línea de comandos volvió a montarse dentro de `cad-canvas`: debe vivir en la ' +
+      'ranura `commandDock` del armazón, no flotando sobre el lienzo.',
+  ).toBe(false);
 });

@@ -153,24 +153,22 @@ export function CadStatusBar({
     // estado de AutoCAD. Ya no es `absolute` dentro del lienzo: montada así se
     // comía el pointerdown de los arrastres de selección que empezaban abajo a
     // la derecha (auditoría 2026-09-01; golden 68). El gancho `cad-status-bar`
-    // se conserva: `globals.css` lo lee para dejarla en un solo renglón.
-    // Envuelve en DOS renglones apretados (gap-y-0.5, py-0.5): a 1280 px el
-    // contenido mide ~1000 px y no cabe en uno; sin envolver, los conmutadores
-    // de dibujo quedaban debajo del panel derecho, visibles y sin poder
-    // pulsarse (golden 67). Medido: 36 px de barra frente a los 75 de antes.
-    // `@container` + `@max-[40rem]:hidden` en los elementos de segundo
-    // orden: con el panel derecho ancho (Bloques, 538 px) el lienzo baja a 502
-    // px y la barra envolvía en TRES renglones (62 px), que a 720 px de alto
-    // dejan el lienzo en 494 (mínimo 520, golden 19). Por debajo de 40 rem se
-    // ocultan los avisos y accesos que no son de dibujo; los conmutadores F3/
-    // F8/F10/F11, el guardado, la capa y las coordenadas se quedan siempre.
+    // se conserva: `globals.css` fija su contrato de altura (ola «armazón»,
+    // `CAD_SHELL_METRICS.statusRow`, 26 px) — una fila `flex-nowrap`, no dos
+    // renglones de texto. Antes envolvía a 1280 px (~1000 px de contenido en
+    // una fila); ahora desplaza con `overflow-x-auto` en vez de envolver, como
+    // ya hacía la fila superior: la información no se pierde, sólo deja de
+    // empujar el lienzo hacia arriba en pantallas apretadas. `@container` +
+    // `@max-[40rem]:hidden` en los elementos de segundo orden siguen
+    // ocultando avisos no esenciales en contenedores angostos; los
+    // conmutadores F3/F8/F10/F11, el guardado, la capa y las coordenadas se
+    // quedan siempre.
     //
     // Todos los elementos miden lo mismo (`.cad-status-bar > *` en
     // globals.css, capa `components` para que `hidden` la gane). Sin esto, un
     // renglón con el <select> del incremento polar medía 3 px más que uno de
-    // texto, y al reenvolver tras una designación la barra cambiaba de alto,
-    // el lienzo con ella y la cámara «se movía» 33 unidades (golden 72).
-    <div className="cad-status-bar @container flex shrink-0 flex-wrap items-center gap-x-2 gap-y-0.5 border-t border-border bg-surface px-3 py-0.5 type-micro text-foreground">
+    // texto, y la cámara del lienzo «se movía» al cambiar de alto (golden 72).
+    <div className="cad-status-bar @container flex shrink-0 flex-nowrap items-center gap-x-2 overflow-x-auto whitespace-nowrap border-t border-border bg-surface px-3 py-0.5 type-micro text-foreground [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
       {/* Las coordenadas van PRIMERO, a la izquierda: es lo primero que un
           dibujante de AutoCAD busca en la barra, y estaban en medio. */}
       <span

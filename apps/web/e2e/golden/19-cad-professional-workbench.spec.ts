@@ -31,7 +31,33 @@ async function assertDockedGeometry(page: Page) {
   expect(canvas!.width).toBeGreaterThan(420);
   expect(canvas!.height).toBeGreaterThan(520);
   expect(canvas!.x + canvas!.width).toBeLessThanOrEqual(right!.x + 1);
-  expect(toolbar!.height).toBeLessThanOrEqual(52);
+  // Ola «armazón»: el appBar (cerrar + título + pestañas de la cinta) es UNA
+  // fila de 32 px (`CAD_SHELL_METRICS.appBar`), no la barra de 48/56 más la
+  // fila de pestañas aparte de antes. 40 px deja margen para bordes/redondeo
+  // sin admitir que vuelva a crecer una segunda fila.
+  expect(toolbar!.height).toBeLessThanOrEqual(40);
+}
+
+/**
+ * EL LIENZO EN REPOSO — el número que de verdad importa. `assertDockedGeometry`
+ * mide con una paleta profesional abierta (360 px de panel): un piso de
+ * `>420 x >520` era todo lo que decía porque a esa anchura el lienzo nunca se
+ * acerca al 74 %. En REPOSO (nada abierto, rieles plegados, cinta desplegada
+ * — el estado con el que abre cualquiera) sí hay un contrato real que
+ * defender: `cadShellCanvasBox` (`cad-shell-layout.spec.ts`) fija el 74 % a
+ * 1440×825; este golden confirma que el DOM real lo cumple, no sólo la
+ * función pura.
+ */
+async function assertLienzoEnReposo(page: Page, viewport: { width: number; height: number }) {
+  const canvas = (await page.getByTestId('cad-canvas').boundingBox())!;
+  const area = canvas.width * canvas.height;
+  const piso = 0.74 * viewport.width * viewport.height;
+  expect(
+    area,
+    `lienzo ${canvas.width}×${canvas.height} = ${Math.round(area)} px² en una ventana de ` +
+      `${viewport.width}×${viewport.height} (${Math.round((area / (viewport.width * viewport.height)) * 100)} %); ` +
+      `el contrato del armazón exige ≥74 %`,
+  ).toBeGreaterThanOrEqual(piso);
 }
 
 async function capture(page: Page, testInfo: TestInfo, label: string) {
@@ -134,4 +160,29 @@ test('professional workbench persists, scales and keeps every palette outside th
   await expect(page.getByTestId('cad-right-dock')).toBeHidden();
   const presentationCanvas = await canvas.boundingBox();
   expect(presentationCanvas!.width).toBeGreaterThan(1_850);
+});
+
+test('el lienzo en reposo se lleva el 74 % de la ventana a 1440×825', async ({ context, page }) => {
+  test.setTimeout(120_000);
+  await installMockBackend(context);
+  await loginAsStandaloneOwner(context);
+  await installCadBackend(context);
+  const viewport = { width: 1440, height: 825 };
+  await page.setViewportSize(viewport);
+  await page.goto('/legacy/studio');
+  await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
+  // Reposo real: nada abierto. Los rieles arrancan plegados de fábrica
+  // (`leftDockCollapsed`/`rightDockCollapsed`) y la cinta, desplegada — el
+  // estado en el que abre cualquiera, sin tocar nada.
+  await expect(page.getByTestId('cad-left-dock')).toHaveAttribute('data-collapsed', 'true');
+  await expect(page.getByTestId('cad-right-dock')).toHaveAttribute('data-collapsed', 'true');
+  await expect(page.getByTestId('cad-ribbon')).toHaveAttribute('data-collapsed', 'false');
+  await assertLienzoEnReposo(page, viewport);
+
+  // Con la cinta minimizada el contrato sube a 78 % (`cad-shell-layout.spec.ts`).
+  await page.getByTestId('cad-ribbon-collapse').click();
+  await expect(page.getByTestId('cad-ribbon')).toHaveAttribute('data-collapsed', 'true');
+  const canvasMinimizado = (await page.getByTestId('cad-canvas').boundingBox())!;
+  const areaMinimizada = canvasMinimizado.width * canvasMinimizado.height;
+  expect(areaMinimizada).toBeGreaterThanOrEqual(0.78 * viewport.width * viewport.height);
 });

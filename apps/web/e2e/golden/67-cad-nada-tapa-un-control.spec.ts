@@ -301,6 +301,12 @@ test('ninguna capa flotante deja un control del estudio sin poder pulsarse', asy
           'arregló. Borre la línea para que la lista no mienta ni sirva de escondite ' +
           'a la próxima capa que caiga en ese hueco.',
   ).toEqual([]);
+
+  // Ola «armazón»: la línea de comandos dejó de ser una capa flotante
+  // (`absolute bottom-3 left-3` dentro de `cad-canvas`) y pasó a vivir
+  // acoplada en su propia franja (`commandDock`). Afirmación positiva, no
+  // sólo ausencia de hallazgos: sigue montada y alcanzable.
+  await expect(page.getByTestId('cad-command-line')).toBeVisible();
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════

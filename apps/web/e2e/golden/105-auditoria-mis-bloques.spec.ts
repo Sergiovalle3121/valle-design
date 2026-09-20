@@ -137,6 +137,9 @@ test("«Mis bloques»: la fila del catálogo no inserta; la que tiene assets sí
   if (await page.getByTestId("cad-guided-tour-skip").count())
     await page.getByTestId("cad-guided-tour-skip").click();
 
+  // Ola «armazón»: el muelle arranca PLEGADO a su riel (`leftDockCollapsed:
+  // true` de fábrica); hay que abrirlo por su icono antes de buscar contenido.
+  await page.getByTestId("cad-rail-biblioteca").click();
   const muelle = page.getByTestId("cad-left-dock");
   await expect(muelle).toBeVisible();
   await expect(

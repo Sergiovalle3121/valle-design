@@ -48,12 +48,19 @@ assert.equal(robado.find((shortcut) => shortcut.id === 'select')?.key, '', 'sele
 assert.equal(robado.find((shortcut) => shortcut.id === 'polyline')?.key, '', 'polyline:P no se arma (P=PAN)');
 assert.deepEqual(cadWorkspaceAliasCollisions({ shortcutOverrides: { select: 'm', polyline: 'P', line: 'Ctrl+Shift+L' } }), ['polyline:p→PAN', 'select:m→MOVE']);
 assert.equal(normalizeCadWorkspacePreferences(null).profile, CAD_WORKSPACE_DEFAULTS.profile);
-// El riel de la biblioteca: colapsado de fábrica es `false` (panel entero
-// visible) y sólo un booleano explícito lo cambia — igual que `leftDock`.
-assert.equal(CAD_WORKSPACE_DEFAULTS.leftDockCollapsed, false);
-assert.equal(normalizeCadWorkspacePreferences({}).leftDockCollapsed, false);
-assert.equal(normalizeCadWorkspacePreferences({ leftDockCollapsed: true }).leftDockCollapsed, true);
-assert.equal(normalizeCadWorkspacePreferences({ leftDockCollapsed: 'yes' }).leftDockCollapsed, false);
+// El riel de la biblioteca: colapsado de fábrica es `true` (sólo el riel de
+// iconos, como AutoCAD) desde la ola «armazón», y sólo un booleano explícito
+// lo cambia — igual que `leftDock`.
+assert.equal(CAD_WORKSPACE_DEFAULTS.leftDockCollapsed, true);
+assert.equal(normalizeCadWorkspacePreferences({}).leftDockCollapsed, true);
+assert.equal(normalizeCadWorkspacePreferences({ leftDockCollapsed: false }).leftDockCollapsed, false);
+assert.equal(normalizeCadWorkspacePreferences({ leftDockCollapsed: 'yes' }).leftDockCollapsed, true);
+// El riel derecho (propiedades + paletas profesionales) es el mismo trato,
+// con su propia preferencia — no reutiliza la del izquierdo.
+assert.equal(CAD_WORKSPACE_DEFAULTS.rightDockCollapsed, true);
+assert.equal(normalizeCadWorkspacePreferences({}).rightDockCollapsed, true);
+assert.equal(normalizeCadWorkspacePreferences({ rightDockCollapsed: false }).rightDockCollapsed, false);
+assert.equal(normalizeCadWorkspacePreferences({ rightDockCollapsed: 'yes' }).rightDockCollapsed, true);
 // Arrastre sobre el fondo: ventana de fábrica; sólo 'pan' explícito la quita.
 assert.equal(CAD_WORKSPACE_DEFAULTS.backgroundDrag, 'marquee');
 assert.equal(normalizeCadWorkspacePreferences({}).backgroundDrag, 'marquee');

@@ -4,14 +4,15 @@
  * El estudio en modo demostración: el MISMO editor, con el puerto de
  * documentos sin red (`createDemoDocumentPort`). Nada está capado por
  * interfaz — dibujar, acotar, capas, línea de comandos y trazar a PDF
- * funcionan; lo que no existe aquí es la nube, y el banner lo dice.
+ * funcionan; lo que no existe aquí es la nube, y el aviso lo dice.
  *
- * El banner es PERMANENTE y discreto a la vez: una tira fija abajo que no
- * roba puntero fuera de sí misma. El offset `bottom-24` despeja la línea de
- * comandos (`absolute bottom-3 left-3 z-30` en Layout3DEditor.tsx) y la barra
- * de estado (CadStatusBar.tsx). Con `bottom-3` la píldora tapa ambas; con
- * `bottom-14` tapa la línea de comandos. `z-[75]` es el nivel que el estudio
- * ya define para chrome flotante sobre el piso `z-[70]` del shell.
+ * OLA «ARMAZÓN»: el aviso era una tarjeta FLOTANTE (`fixed bottom-24`) que
+ * tapaba el lienzo por encima del plano — exactamente la clase de capa
+ * permanente que esta ola vino a quitar. Ahora es una pastilla más DENTRO de
+ * la fila superior (`demoBanner`, prop de `Layout3DEditor`, pintada en
+ * `trailing` junto a Guardar/Cerrar editor): no flota, no tapa nada, y sigue
+ * siendo tan permanente y alcanzable como antes — sólo que vive donde vive
+ * el resto del chrome, no encima del dibujo.
  */
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -50,6 +51,23 @@ export function DemoStudio() {
   if (!documentPort) {
     return <CadStudioSkeleton etapa="Preparando la demostración…" />;
   }
+  const demoBanner = (
+    <aside
+      data-testid="demo-banner"
+      aria-label="Aviso de demostración"
+      className="flex h-8 shrink-0 items-center gap-2 rounded-full border border-border bg-card/95 pl-3 pr-1 type-micro"
+    >
+      <span className="text-foreground">Demostración — se guarda en tu navegador</span>
+      <Link
+        href={`/register?returnTo=${encodeURIComponent("/dashboard?demo=1")}`}
+        data-testid="demo-register-cta"
+        className={buttonClass({ variant: "primary", size: "sm" })}
+      >
+        Crea tu cuenta
+        <ArrowRight aria-hidden="true" className="h-3.5 w-3.5" />
+      </Link>
+    </aside>
+  );
   return (
     <div className="relative h-dvh">
       <CadStudioHost
@@ -63,26 +81,8 @@ export function DemoStudio() {
         withCollaboration={false}
         title="Demostración"
         subtitle="Casa habitación · se guarda en tu navegador"
+        demoBanner={demoBanner}
       />
-      <aside
-        data-testid="demo-banner"
-        aria-label="Aviso de demostración"
-        className="pointer-events-none fixed inset-x-0 bottom-24 z-[75] flex justify-center px-3"
-      >
-        <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-x-4 gap-y-2 rounded-full border border-border bg-card/95 py-2 pl-5 pr-2 shadow-elevated backdrop-blur">
-          <p className="type-small text-foreground">
-            Estás en la demostración — tu dibujo vive en este navegador.
-          </p>
-          <Link
-            href={`/register?returnTo=${encodeURIComponent("/dashboard?demo=1")}`}
-            data-testid="demo-register-cta"
-            className={buttonClass({ variant: "primary", size: "sm" })}
-          >
-            Crea tu cuenta gratis y llévatelo
-            <ArrowRight aria-hidden="true" className="h-3.5 w-3.5" />
-          </Link>
-        </div>
-      </aside>
     </div>
   );
 }

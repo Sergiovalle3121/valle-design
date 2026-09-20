@@ -1,14 +1,11 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { RefObject } from "react";
 import {
   Boxes,
   BrickWall,
   ChevronRight,
   MapPin,
-  PanelLeft,
-  PanelLeftClose,
   Trash2,
 } from "lucide-react";
 import { ASSET_CATEGORIES } from "@/components/cad/viewport/asset-catalog";
@@ -17,10 +14,10 @@ import {
   type CadSymbolCategory,
   type CadSymbolDefinition,
 } from "@/lib/cad/symbols";
-import type { CadWorkspacePreferences } from "@/lib/cad/cad-workspace";
 import type { CadLayoutTemplateId } from "@/lib/cad/templates";
 import type { St, CadBlockRow } from "@/components/cad/editor/Layout3DEditor";
 import { attachCadTourSlot } from "@/components/cad/onboarding/tour-slot";
+import { CAD_SHELL_METRICS } from "@/components/cad/shell/cad-shell-layout";
 
 // Carga diferida REAL del catálogo de plantillas: la tarjeta (y con ella las
 // 149 plantillas de @/lib/cad/templates) sólo se descarga cuando el panel la
@@ -49,19 +46,20 @@ const CadTemplateChooserCard = dynamic(
  * por prop. Ningún `data-testid` cambia de valor — varios tienen un lock de
  * los goldens 211-213.
  *
- * EL RIEL (`leftDockCollapsed`). `leftDock` ya apaga el dock entero desde
- * «Workspace profesional», pero está enterrado en un panel de ajustes y
- * OCULTA, no angosta — nadie lo encuentra a media sesión de dibujo para
- * recuperar un cuarto de pantalla. El botón `cad-left-dock-toggle` vive donde
- * se ve, siempre: colapsa el dock a 2,25rem (un icono) y el mismo control lo
- * vuelve a abrir.
+ * EL RIEL (`leftDockCollapsed`). Ola «armazón»: el riel de iconos que
+ * colapsa/expande este panel se independizó a `CadDockRail` — vive en
+ * `shell/CadDockRail.tsx` y lo monta `Layout3DEditor` en la ranura
+ * `leftRail` de `CadShellFrame`, junto a ÉSTE panel en `leftPanel`. Este
+ * componente ya NO trae su propio botón de plegar: sólo pinta el PANEL
+ * (280 px, `CAD_SHELL_METRICS.panel`) cuando `leftDockCollapsed` es falso, y
+ * un `<div>` de 0 px con el mismo `data-testid` cuando es verdadero — el
+ * golden 213 mide su ancho REAL en los dos estados con el mismo localizador,
+ * así que la ranura no puede desmontarse, sólo vaciarse.
  */
 export function CadLeftDockPanel({
   focusMode,
   leftDock,
   leftDockCollapsed,
-  workspacePreferencesRef,
-  updateWorkspacePreferences,
   hasStations,
   tab,
   setTab,
@@ -89,8 +87,6 @@ export function CadLeftDockPanel({
   focusMode: boolean;
   leftDock: boolean;
   leftDockCollapsed: boolean;
-  workspacePreferencesRef: RefObject<CadWorkspacePreferences>;
-  updateWorkspacePreferences: (next: CadWorkspacePreferences) => void;
   /** `(data?.stations.length ?? 0) > 0` — hay estaciones heredadas en el documento. */
   hasStations: boolean;
   tab: "stations" | "equipment";
@@ -116,30 +112,15 @@ export function CadLeftDockPanel({
   addCadSymbol: (symbolId: string) => void;
   addAsset: (kind: string) => void;
 }) {
+  const open = leftDock && !leftDockCollapsed;
   return (
     <div
       data-testid="cad-left-dock"
       data-collapsed={leftDockCollapsed ? "true" : "false"}
-      className={`${leftDockCollapsed ? "w-9" : "w-60"} shrink-0 border-r border-border bg-surface/90 text-foreground flex-col max-[1100px]:hidden ${focusMode || !leftDock ? "hidden" : "flex"}`}
+      style={{ width: open ? CAD_SHELL_METRICS.panel : 0 }}
+      className={`shrink-0 overflow-hidden border-r border-border bg-surface/90 text-foreground flex-col max-[1100px]:hidden ${focusMode || !leftDock ? "hidden" : "flex"}`}
     >
-      {leftDock && (leftDockCollapsed ? (
-        <button
-          type="button"
-          data-testid="cad-left-dock-toggle"
-          onClick={() =>
-            updateWorkspacePreferences({
-              ...workspacePreferencesRef.current,
-              leftDockCollapsed: false,
-            })
-          }
-          title="Mostrar la biblioteca"
-          aria-label="Mostrar la biblioteca"
-          aria-expanded={false}
-          className="flex h-9 w-9 shrink-0 items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground"
-        >
-          <PanelLeft aria-hidden="true" className="h-4 w-4" />
-        </button>
-      ) : (
+      {open && (
         <>
           {/* EL HUECO DEL RECORRIDO GUIADO. Aquí no tapa nada: el lienzo
               empieza donde termina este muelle. El recorrido se pinta en él
@@ -170,22 +151,6 @@ export function CadLeftDockPanel({
               className={`flex-1 px-3 py-2 inline-flex items-center justify-center gap-1.5 ${tab === "equipment" ? "text-foreground bg-muted/60" : "text-muted-foreground dark:text-muted-foreground hover:text-foreground"}`}
             >
               <Boxes className="w-3.5 h-3.5" /> Biblioteca
-            </button>
-            <button
-              type="button"
-              data-testid="cad-left-dock-toggle"
-              onClick={() =>
-                updateWorkspacePreferences({
-                  ...workspacePreferencesRef.current,
-                  leftDockCollapsed: true,
-                })
-              }
-              title="Colapsar la biblioteca"
-              aria-label="Colapsar la biblioteca"
-              aria-expanded={true}
-              className="shrink-0 px-2 text-muted-foreground hover:text-foreground"
-            >
-              <PanelLeftClose aria-hidden="true" className="h-3.5 w-3.5" />
             </button>
           </div>
           <div className="flex-1 overflow-y-auto p-3">
@@ -434,7 +399,7 @@ export function CadLeftDockPanel({
             )}
           </div>
         </>
-      ))}
+      )}
     </div>
   );
 }
