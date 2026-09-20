@@ -2,19 +2,19 @@
   "generatedBy": "scripts/cad/check-command-integrity.mjs --write",
   "total": 382,
   "verdicts": {
-    "muta": 121,
+    "muta": 119,
     "delegado": 55,
     "informa": 33,
-    "honesto-limitado": 164,
+    "honesto-limitado": 166,
     "no-concluyente": 9,
     "ROJO": 0
   },
   "pasadas": {
     "plano2d": {
-      "muta": 90,
+      "muta": 88,
       "delegado": 52,
       "informa": 40,
-      "honesto-limitado": 191,
+      "honesto-limitado": 193,
       "no-concluyente": 9,
       "ROJO": 0
     },

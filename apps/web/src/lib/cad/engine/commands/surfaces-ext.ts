@@ -1,11 +1,24 @@
 /**
- * Extensiones de la familia Superficies: SURFPATCH y SURFNETWORK.
+ * Extensiones de la familia Superficies: SURFPATCH, SURFNETWORK, SURFBLEND,
+ * SURFEXTEND y SURFFILLET.
+ *
+ * SURFBLEND y SURFFILLET fingían: la auditoría del 19-sep midió que las dos
+ * devolvían el RECTÁNGULO ENVOLVENTE de las dos superficies designadas,
+ * extruido 0,001 mm — una mezcla o un filete de verdad exige resolver la
+ * curva de intersección entre las dos superficies y ajustar una franja con
+ * continuidad tangente (G1) a lo largo de ella, y eso no está en
+ * `lib/brep/` (que sólo sabe redondear ARISTAS de un mismo sólido,
+ * `FILLETEDGE`). En vez de fingir el envolvente, las dos SE NIEGAN diciendo
+ * qué falta: ningún sólido se escribe.
  *
  * Extraído de `surfaces.ts` para respetar el presupuesto de monolito (800 líneas).
  */
+import type { CadPoint3 } from "../../cad-document";
 import type { CadSolidProfile } from "../../cad-entities-v5";
-import { bodyBounds } from "../../../brep/topology";
-import { solid3dBody, solid3dMassProperties } from "../../solid3d-build";
+import { makeFrame, worldToFrame } from "../../../brep/surfaces";
+import { bodyBounds, newellNormal } from "../../../brep/topology";
+import { v3Length } from "../../../brep/vec3";
+import { solid3dBody } from "../../solid3d-build";
 import {
   asCadCommand,
   CAD_ACCEPT_DISTANCE,
@@ -71,19 +84,44 @@ const surfpatchCommand: CadCommandDescriptor<SurfaceExtState | null> = {
     if (entities.length === 0) return solidMessage(state, "SURFPATCH: no se encontraron las entidades designadas.");
     if (entities[0].type !== "polyline" || !("vertices" in entities[0]))
       return solidMessage(state, "SURFPATCH requiere una polilinea como contorno.");
-    const verts = (entities[0] as { vertices: { x: number; y: number }[] }).vertices;
+    const verts = (entities[0] as { vertices: CadPoint3[] }).vertices;
     if (verts.length < 3) return solidMessage(state, "La polilinea tiene menos de 3 vertices.");
-    const profile: CadSolidProfile = { outer: verts.map((v) => ({ x: v.x, y: v.y })) };
+
+    // El plano del parche es el de la polilínea REAL, no el plano XY: dos
+    // esquinas a distinta Z ya no se aplastan en silencio.
+    const normalRaw = newellNormal(verts);
+    if (!(v3Length(normalRaw) > 1e-9))
+      return solidMessage(state, "SURFPATCH: el contorno es degenerado (sus vértices son colineales o coincidentes).");
+    const frame = makeFrame(verts[0], normalRaw);
+    const scale = Math.max(1, ...verts.flatMap((v) => [Math.abs(v.x), Math.abs(v.y), Math.abs(v.z)]));
+    const tol = 1e-6 * scale;
+    for (let i = 0; i < verts.length; i += 1) {
+      const local = worldToFrame(frame, verts[i]);
+      if (Math.abs(local.z) > tol) {
+        return solidMessage(
+          state,
+          `SURFPATCH: el contorno no es plano — el vértice ${i} se aparta ${local.z.toExponential(2)} mm del ` +
+            "plano de los demás. Un parche sólo puede rellenar un contorno plano; recorte o proyecte la polilínea primero.",
+        );
+      }
+    }
+    const profile: CadSolidProfile = { outer: verts.map((v) => worldToFrame(frame, v)).map(({ x, y }) => ({ x, y })) };
     const solid = makeSolidEntity(
       context.newEntityId(),
-      [{ id: "parche", op: "extrude", profile, height: SURFACE_THICKNESS }],
+      [{
+        id: "parche",
+        op: "extrude",
+        profile,
+        height: SURFACE_THICKNESS,
+        frame: { origin: frame.origin, zAxis: frame.zAxis, xAxis: frame.xAxis },
+      }],
       "parche",
       context.activeLayer,
     );
     return finishedSolid(solid, {
       state: undefined as never,
       label: "SURFPATCH",
-      notice: `Parche de superficie creado (${profile.outer.length} vertices).`,
+      notice: `Parche de superficie creado (${profile.outer.length} vertices, en su plano real).`,
     });
   },
 };
@@ -213,20 +251,19 @@ const surfblendCommand: CadCommandDescriptor<SurfblendState> = {
     const second = context.entity?.(state.second);
     if (!first || first.type !== "solid3d") return solidMessage(state, "SURFBLEND: la primera entidad no es un solido 3D.");
     if (!second || second.type !== "solid3d") return solidMessage(state, "SURFBLEND: la segunda entidad no es un solido 3D.");
-    const bb1 = bodyBounds(solid3dBody(first as never));
-    const bb2 = bodyBounds(solid3dBody(second as never));
-    const minX = Math.min(bb1.min.x, bb2.min.x);
-    const maxX = Math.max(bb1.max.x, bb2.max.x);
-    const minY = Math.min(bb1.min.y, bb2.min.y);
-    const maxY = Math.max(bb1.max.y, bb2.max.y);
-    const profile: CadSolidProfile = { outer: [{ x: minX, y: minY }, { x: maxX, y: minY }, { x: maxX, y: maxY }, { x: minX, y: maxY }] };
-    const solid = makeSolidEntity(context.newEntityId(), [{ id: "mezcla", op: "extrude", profile, height: SURFACE_THICKNESS }], "mezcla", context.activeLayer);
-    const blendVolume = solid3dMassProperties(solid as never).volume;
-    return finishedSolid(solid, {
-      state: { first: null, second: null },
-      label: "SURFBLEND",
-      notice: `Superficie de mezcla creada (${formatMagnitude(maxX - minX)} x ${formatMagnitude(maxY - minY)} mm, vol ${blendVolume.toFixed(6)}).`,
-    });
+    // No se escribe NADA: no hay con qué. Una mezcla de verdad necesita la
+    // curva de intersección entre las dos caras y una franja tangente (G1) a
+    // lo largo de ella; el kernel B-rep sólo redondea aristas de un mismo
+    // sólido (FILLETEDGE), no la costura entre dos sólidos independientes. El
+    // rectángulo envolvente que esta orden devolvía antes no era una mezcla:
+    // se ha quitado en vez de disfrazarlo.
+    return solidMessage(
+      state,
+      "SURFBLEND no mezcló nada: hace falta la curva de intersección entre las dos superficies y una franja con " +
+        "continuidad tangente (G1) a lo largo de ella, y el núcleo B-rep todavía no la resuelve — sólo redondea " +
+        "aristas de un mismo sólido (FILLETEDGE). Antes esta orden devolvía el rectángulo envolvente de las dos " +
+        "superficies; eso no era una mezcla, así que se ha quitado.",
+    );
   },
 };
 
@@ -339,29 +376,19 @@ const surffilletCommand: CadCommandDescriptor<SurffilletState> = {
     if (!first || first.type !== "solid3d") return solidMessage(state, "SURFFILLET: la primera entidad no es un solido 3D.");
     if (!second || second.type !== "solid3d") return solidMessage(state, "SURFFILLET: la segunda entidad no es un solido 3D.");
     const radius = state.radius ?? 5;
-    const bb1 = bodyBounds(solid3dBody(first as never));
-    const bb2 = bodyBounds(solid3dBody(second as never));
-    const midX = (Math.max(bb1.max.x, bb2.max.x) + Math.min(bb1.min.x, bb2.min.x)) / 2;
-    const midY = (Math.max(bb1.max.y, bb2.max.y) + Math.min(bb1.min.y, bb2.min.y)) / 2;
-    const spanX = Math.abs(bb1.max.x - bb2.min.x) + radius * 2;
-    const spanY = Math.abs(bb1.max.y - bb2.min.y) + radius * 2;
-    const halfX = Math.max(spanX / 2, radius);
-    const halfY = Math.max(spanY / 2, radius);
-    const profile: CadSolidProfile = {
-      outer: [
-        { x: midX - halfX, y: midY - halfY },
-        { x: midX + halfX, y: midY - halfY },
-        { x: midX + halfX, y: midY + halfY },
-        { x: midX - halfX, y: midY + halfY },
-      ],
-    };
-    const solid = makeSolidEntity(context.newEntityId(), [{ id: "filete", op: "extrude", profile, height: SURFACE_THICKNESS }], "filete", context.activeLayer);
-    const filletVolume = solid3dMassProperties(solid as never).volume;
-    return finishedSolid(solid, {
-      state: { first: null, second: null, radius: null },
-      label: "SURFFILLET",
-      notice: `Superficie de filete creada (radio ${formatMagnitude(radius)}, vol ${filletVolume.toFixed(6)}).`,
-    });
+    // Mismo límite que SURFBLEND, con el radio pedido pero sin usar: un filete
+    // de verdad entre dos superficies independientes necesita su curva de
+    // intersección para saber POR DÓNDE pasa la transición tangente, y esa
+    // intersección superficie-superficie no está resuelta en el kernel. El
+    // rectángulo envolvente de antes no era un filete — no dependía ni del
+    // radio pedido, que es la señal de que no calculaba nada real.
+    return solidMessage(
+      state,
+      `SURFFILLET no redondeó nada: un filete de radio ${formatMagnitude(radius)} entre dos superficies ` +
+        "independientes necesita la curva de intersección entre ellas antes de poder trazar la transición " +
+        "tangente, y esa intersección superficie-superficie no está resuelta en el núcleo B-rep (que sólo " +
+        "redondea aristas YA EXISTENTES de un mismo sólido: use FILLETEDGE si las dos caras son del mismo cuerpo).",
+    );
   },
 };
 

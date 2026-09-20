@@ -363,6 +363,61 @@ assert.ok(solidId, "Hay un solido 3D en el documento");
   assert.ok(patchVolume > 0, `SURFPATCH tiene volumen positivo: ${patchVolume.toFixed(6)}`);
 }
 
+// --- SURFPATCH: un contorno a cota constante pero distinta de 0 se parchea EN esa cota ---
+//
+// La auditoría del 19-sep midió que SURFPATCH tiraba la Z de sus vértices
+// (`v.x, v.y`) y siempre parcheaba en el plano XY. Aquí el contorno vive
+// ENTERO a Z=40: si el parche siguiera aplastando a Z=0, sus vértices no
+// medirían 40 de cota.
+{
+  const elevated: CadEntity = {
+    id: "contornoZ",
+    type: "polyline",
+    closed: true,
+    vertices: [
+      { x: 0, y: 0, z: 40 },
+      { x: 100, y: 0, z: 40 },
+      { x: 100, y: 100, z: 40 },
+      { x: 0, y: 100, z: 40 },
+    ],
+    layer,
+  };
+  const elevatedDoc = documentWith([elevated]);
+  const result = run("SURFPATCH", [enter], elevatedDoc, ["contornoZ"]);
+  assert.ok(result?.kind === "document", "SURFPATCH (cota 40) produce documento");
+  const afterDoc = executeCadEntityCommandBatch(elevatedDoc, result.commands, result.label).document;
+  const patchSolid = afterDoc.entities.find((e) => e.type === "solid3d");
+  assert.ok(patchSolid, "SURFPATCH (cota 40) crea un solido 3D");
+  const body = solid3dBody(patchSolid as never);
+  const zs = body.vertices.map((v) => v.point.z);
+  assert.ok(
+    zs.some((z) => Math.abs(z - 40) < 1e-6),
+    `SURFPATCH (cota 40) tiene vértices en Z=40 (cotas vistas: ${[...new Set(zs.map((z) => z.toFixed(4)))].join(", ")})`,
+  );
+}
+
+// --- SURFPATCH: un contorno NO plano se niega, no se aplana en silencio -----------
+{
+  const warped: CadEntity = {
+    id: "contornoAlabeado",
+    type: "polyline",
+    closed: true,
+    vertices: [
+      { x: 0, y: 0, z: 0 },
+      { x: 100, y: 0, z: 0 },
+      { x: 100, y: 100, z: 50 }, // fuera del plano de los otros tres
+      { x: 0, y: 100, z: 0 },
+    ],
+    layer,
+  };
+  const warpedDoc = documentWith([warped]);
+  const antes = serializeCadDocument(warpedDoc);
+  const result = run("SURFPATCH", [enter], warpedDoc, ["contornoAlabeado"]);
+  assert.ok(result?.kind === "message", "SURFPATCH (alabeado) se niega en vez de aplanar");
+  assert.ok(result.text.includes("no es plano"), `SURFPATCH dice que el contorno no es plano: ${result.text}`);
+  assert.equal(serializeCadDocument(warpedDoc), antes, "SURFPATCH (alabeado) deja el documento idéntico");
+}
+
 // --- SURFPATCH: cancelación ------------------------------------------------------
 {
   const descriptor = CAD_COMMAND_REGISTRY_V2.get("SURFPATCH")!;
@@ -399,7 +454,13 @@ assert.ok(solidId, "Hay un solido 3D en el documento");
   assert.ok(step.result.text.includes("cancelado"), "SURFNETWORK se cancela limpiamente");
 }
 
-// --- SURFBLEND: mezcla de dos superficies (bounding-box union) ------------------
+// --- SURFBLEND: SE NIEGA, no fabrica un rectángulo envolvente -------------------
+//
+// Antes esta orden medía «produce documento» y «volumen > 0» sobre el
+// RECTÁNGULO ENVOLVENTE de los dos sólidos designados — exactamente el relleno
+// que la auditoría del 19-sep pidió quitar. El kernel no resuelve la curva de
+// intersección entre dos superficies, así que ahora SURFBLEND se niega: aquí se
+// mide la negativa (mensaje, documento sin cambios), no un volumen inventado.
 {
   const rect2: CadEntity = {
     id: "base2",
@@ -424,16 +485,15 @@ assert.ok(solidId, "Hay un solido 3D en el documento");
   }
   const solids = blendDoc.entities.filter((e) => e.type === "solid3d");
   assert.ok(solids.length >= 2, "SURFBLEND: hay dos solidos");
+  const antes = serializeCadDocument(blendDoc);
   const result = run("SURFBLEND", [enter], blendDoc, [solids[0].id, solids[1].id]);
-  assert.ok(result?.kind === "document", "SURFBLEND produce documento");
-  assert.ok(result.commands.length > 0, "SURFBLEND genera comandos");
-  const blendDoc2 = executeCadEntityCommandBatch(blendDoc, result.commands, result.label).document;
-  const blendSolid = blendDoc2.entities.filter((e) => e.type === "solid3d" && e.id !== solids[0].id && e.id !== solids[1].id);
-  assert.ok(blendSolid.length >= 1, "SURFBLEND añade un solido nuevo");
-  const blendBody = solid3dBody(blendSolid[blendSolid.length - 1] as never);
-  assert.ok(blendBody.faces.length > 0, "SURFBLEND tiene caras");
-  const blendVolume = solid3dMassProperties(blendSolid[blendSolid.length - 1] as never).volume;
-  assert.ok(blendVolume > 0, `SURFBLEND tiene volumen positivo: ${blendVolume.toFixed(1)}`);
+  assert.ok(result?.kind === "message", "SURFBLEND no produce documento: se niega");
+  assert.ok(result.text.includes("no mezcló nada"), `SURFBLEND dice que no mezcló nada: ${result.text}`);
+  assert.ok(
+    result.text.includes("curva de intersección"),
+    `SURFBLEND dice qué falta (la curva de intersección): ${result.text}`,
+  );
+  assert.equal(serializeCadDocument(blendDoc), antes, "SURFBLEND deja el documento idéntico");
 }
 
 // --- SURFBLEND: cancelación ---------------------------------------------------
@@ -470,7 +530,11 @@ assert.ok(solidId, "Hay un solido 3D en el documento");
   assert.ok(step.result.text.includes("cancelado"), "SURFEXTEND se cancela limpiamente");
 }
 
-// --- SURFFILLET: filete de transición entre dos superficies --------------------
+// --- SURFFILLET: SE NIEGA, no fabrica un rectángulo envolvente ------------------
+//
+// Mismo defecto que SURFBLEND: el filete que devolvía antes no dependía del
+// radio pedido (la señal de que no calculaba nada real). Aquí se mide que
+// pedir un radio y confirmar produce un mensaje honesto y ningún sólido nuevo.
 {
   const rect3: CadEntity = {
     id: "base3",
@@ -495,16 +559,12 @@ assert.ok(solidId, "Hay un solido 3D en el documento");
   }
   const fSolids = filletDoc.entities.filter((e) => e.type === "solid3d");
   assert.ok(fSolids.length >= 2, "SURFFILLET: hay dos solidos");
+  const antes = serializeCadDocument(filletDoc);
   const result = run("SURFFILLET", [distance(8), enter], filletDoc, [fSolids[0].id, fSolids[1].id]);
-  assert.ok(result?.kind === "document", "SURFFILLET produce documento");
-  assert.ok(result.commands.length > 0, "SURFFILLET genera comandos");
-  const filletDoc2 = executeCadEntityCommandBatch(filletDoc, result.commands, result.label).document;
-  const filletSolid = filletDoc2.entities.filter((e) => e.type === "solid3d" && e.id !== fSolids[0].id && e.id !== fSolids[1].id);
-  assert.ok(filletSolid.length >= 1, "SURFFILLET añade un solido nuevo");
-  const filletBody = solid3dBody(filletSolid[filletSolid.length - 1] as never);
-  assert.ok(filletBody.faces.length > 0, "SURFFILLET tiene caras");
-  const filletVolume = solid3dMassProperties(filletSolid[filletSolid.length - 1] as never).volume;
-  assert.ok(filletVolume > 0, `SURFFILLET tiene volumen positivo: ${filletVolume.toFixed(1)}`);
+  assert.ok(result?.kind === "message", "SURFFILLET no produce documento: se niega");
+  assert.ok(result.text.includes("no redondeó nada"), `SURFFILLET dice que no redondeó nada: ${result.text}`);
+  assert.ok(result.text.includes("radio 8"), `SURFFILLET nombra el radio pedido: ${result.text}`);
+  assert.equal(serializeCadDocument(filletDoc), antes, "SURFFILLET deja el documento idéntico");
 }
 
 // --- SURFFILLET: cancelación --------------------------------------------------
@@ -523,5 +583,8 @@ assert.ok(solidId, "Hay un solido 3D en el documento");
 }
 
 console.log(
-  "✅ surfaces.spec: PLANESURF (registro), CONVTOSURFACE, SURFOFFSET (vaciado, cancelación, cóncavo), SURFTRIM (recorte, cancelación), SURFSCULPT y SURFUNTRIM (se niegan con el documento idéntico: 5 casos × 6), SURFPATCH (parche, cancelación), SURFNETWORK (red, cancelación), SURFBLEND (mezcla, cancelación), SURFEXTEND (extensión, cancelación), SURFFILLET (filete, cancelación) — 52 comprobaciones",
+  "✅ surfaces.spec: PLANESURF (registro), CONVTOSURFACE, SURFOFFSET (vaciado, cancelación, cóncavo), SURFTRIM (recorte, cancelación), SURFSCULPT y SURFUNTRIM (se niegan con el documento idéntico: 5 casos × 6), " +
+    "SURFPATCH (parche en su cota real, contorno no plano se niega, cancelación), SURFNETWORK (red, cancelación), " +
+    "SURFBLEND y SURFFILLET (se NIEGAN en vez de fabricar un rectángulo envolvente — documento idéntico, cancelación), " +
+    "SURFEXTEND (extensión, cancelación)",
 );
