@@ -100,15 +100,20 @@ const BORDERS_OPTION = { keyword: "Bordes", shortcut: "B" } as const;
 
 /**
  * Opción `Arista` de AutoCAD (EDGEMODE): un borde de corte o contorno que NO
- * llega a cruzar el objetivo cuenta igual si, prolongado, lo haría. `Extender`
- * lo trata como recta/curva infinita SÓLO para este cruce; `Sinextender`
+ * llega a cruzar el objetivo cuenta igual si, prolongado, lo haría. `Alargar`
+ * lo trata como recta/curva infinita SÓLO para este cruce; `No alargar`
  * —el valor de fábrica— vuelve al comportamiento clásico. Vive por invocación,
  * no en una variable de sistema: es una decisión del recorte de HOY, no una
  * preferencia que deba sobrevivir al siguiente TRIM.
+ *
+ * Los nombres son los de la ayuda oficial de AutoCAD en español (RECORTA/
+ * ALARGA, opción Arista): «Alargar» / «No alargar», NO «Extender»/
+ * «Sinextender» —que no existen en el AutoCAD real y romperían la memoria
+ * muscular de quien viene de él, que es justo lo que esta ola persigue—.
  */
 const EDGE_OPTION = { keyword: "Arista", shortcut: "A" } as const;
-const EDGE_EXTEND = { keyword: "Extender", shortcut: "E" } as const;
-const EDGE_NO_EXTEND = { keyword: "Sinextender", shortcut: "S" } as const;
+const EDGE_EXTEND = { keyword: "Alargar", shortcut: "AL" } as const;
+const EDGE_NO_EXTEND = { keyword: "No alargar", shortcut: "NA" } as const;
 
 /**
  * `TRIMEXTENDMODE` (ola 3): 0 abre el comando en el flujo clásico de dos
@@ -168,9 +173,9 @@ interface EdgeState {
   refusals: string[];
   /** `Valla` (sólo TRIM) a medio reunir: `null` en reposo. */
   fence: CadPoint2[] | null;
-  /** Opción `Arista`: `true` = «Extender», un borde corto cuenta prolongado. */
+  /** Opción `Arista`: `true` = «Alargar», un borde corto cuenta prolongado. */
   edgeExtend: boolean;
-  /** Mientras se responde `Extender`/`Sinextender` al submenú `Arista`. */
+  /** Mientras se responde `Alargar`/`No alargar` al submenú `Arista`. */
   awaitingEdgeChoice: boolean;
 }
 
@@ -417,7 +422,7 @@ function edgeCommand(
       if (input.kind === "keyword" && input.keyword === FENCE.keyword && state.cutting && operation === "TRIM")
         return edgeStep({ ...state, fence: [] }, operation);
 
-      // `Arista`: abre el submenú Extender/Sinextender. `Bordes`: abandona el
+      // `Arista`: abre el submenú Alargar/No alargar. `Bordes`: abandona el
       // modo rápido y vuelve a pedir los bordes de la forma clásica, para ESTA
       // invocación — no toca `TRIMEXTENDMODE`.
       if (input.kind === "keyword" && input.keyword === EDGE_OPTION.keyword && state.cutting)

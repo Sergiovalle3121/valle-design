@@ -20,7 +20,7 @@
  *      de los casos de abajo usan `Bordes` a propósito, para acotar el corte a
  *      UN borde concreto y comprobar la geometría sin que otro objeto de la
  *      escena se cuele; el primer bloque nuevo prueba el modo rápido en sí.
- *   6. La opción `Arista` (`Extender`) trata un borde CORTO como si llegara:
+ *   6. La opción `Arista` (`Alargar`) trata un borde CORTO como si llegara:
  *      recortar o alargar contra su prolongación implícita, no sólo contra el
  *      cruce que ya existe.
  */
@@ -766,7 +766,7 @@ const bordes: CadCommandInput = keyword("Bordes");
 // --- Opción `Arista`: un borde corto cuenta prolongado -------------------------
 {
   // «e» es un tramo vertical en x=100 de y=10 a y=50: NO incluye y=0, así que
-  // no cruza a «t» de verdad. Prolongado (Arista: Extender) sí lo hace, en
+  // no cruza a «t» de verdad. Prolongado (Arista: Alargar) sí lo hace, en
   // x=100.
   const edgeScene: CadEntity[] = [line("t", 0, 0, 200, 0), line("e", 100, 10, 100, 50)];
   const entities = new Map(edgeScene.map((entity) => [entity.id, entity]));
@@ -780,21 +780,21 @@ const bordes: CadCommandInput = keyword("Bordes");
   };
   const trim = commands.get("TRIM")!;
 
-  // Sin Arista (Sinextender, el valor de fábrica): el borde no llega.
+  // Sin Arista (No alargar, el valor de fábrica): el borde no llega.
   let plain = trim.step(trim.begin(context).state, pickAt("t", 50, 0), context);
   assert.ok(!plain.result, "el rechazo se cuenta; la orden sigue viva");
   plain = trim.step(plain.state, enter, context);
   assert.equal(plain.result?.kind, "message", "sin Arista, un borde que no llega no cuenta");
   assert.ok(plain.result?.kind === "message" && plain.result.text.includes("no cruza"));
 
-  // Con Arista: Extender, el MISMO borde, prolongado, sí cuenta.
+  // Con Arista: Alargar, el MISMO borde, prolongado, sí cuenta.
   let extended = trim.step(trim.begin(context).state, keyword("Arista"), context);
-  extended = trim.step(extended.state, keyword("Extender"), context);
+  extended = trim.step(extended.state, keyword("Alargar"), context);
   extended = trim.step(extended.state, pickAt("t", 50, 0), context);
   extended = trim.step(extended.state, enter, context);
   assert.ok(
     extended.result && extended.result.kind === "document",
-    "con Arista: Extender, el borde corto sí recorta",
+    "con Arista: Alargar, el borde corto sí recorta",
   );
   const patch = extended.result.commands[0];
   assert.ok(patch.type === "properties");
@@ -821,12 +821,12 @@ const bordes: CadCommandInput = keyword("Bordes");
   assert.equal(plain.result?.kind, "message", "sin Arista, EXTEND tampoco alcanza el contorno corto");
 
   let extended = extend.step(extend.begin(context).state, keyword("Arista"), context);
-  extended = extend.step(extended.state, keyword("Extender"), context);
+  extended = extend.step(extended.state, keyword("Alargar"), context);
   extended = extend.step(extended.state, pickAt("s", 40, 0), context);
   extended = extend.step(extended.state, enter, context);
   assert.ok(
     extended.result && extended.result.kind === "document",
-    "con Arista: Extender, EXTEND alcanza la prolongación de «e2»",
+    "con Arista: Alargar, EXTEND alcanza la prolongación de «e2»",
   );
   const patch = extended.result.commands[0];
   assert.ok(patch.type === "properties");

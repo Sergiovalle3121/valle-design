@@ -314,9 +314,9 @@ export interface CadCurveEditInput {
    * Opción «Arista» de AutoCAD: un borde que NO llega a cruzar al objetivo
    * cuenta igual si, prolongado, lo haría —la recta de una LINE se trata como
    * infinita, el arco de un ARC o CIRCLE como su circunferencia completa, la
-   * ELLIPSE como su elipse completa—. `false` (por defecto, «Sinextender») es
-   * el comportamiento clásico: sólo cuenta un cruce que ya exista dentro del
-   * propio borde dibujado.
+   * ELLIPSE como su elipse completa—. `false` (por defecto, «No alargar» en la
+   * ayuda oficial de AutoCAD en español) es el comportamiento clásico: sólo
+   * cuenta un cruce que ya exista dentro del propio borde dibujado.
    */
   edgeExtend?: boolean;
 }
@@ -333,7 +333,7 @@ export interface CadCurveEditInput {
  *
  * EXTEND no la usa: allí el objetivo se prolonga sin límite y una caja calculada
  * sobre su geometría actual descartaría justo los contornos lejanos que EXTEND
- * existe para alcanzar. TRIM tampoco la usa con «Arista: Extender» (`within`
+ * existe para alcanzar. TRIM tampoco la usa con «Arista: Alargar» (`within`
  * llega en `null`), por la misma razón: el cruce con un borde prolongado puede
  * caer fuera de la caja del objetivo.
  */
@@ -426,7 +426,7 @@ export function computeCadCurveTrim(input: CadCurveEditInput): CadCurveEditOutco
   const curves = cadEntityCurves(input.target);
   if (!curves || curves.length === 0)
     return { error: `${input.target.type.toUpperCase()} no tiene geometría que recortar.` };
-  // Con «Arista: Extender» la caja de descarte no vale: el cruce puede caer
+  // Con «Arista: Alargar» la caja de descarte no vale: el cruce puede caer
   // fuera de la caja del objetivo porque el borde se prolonga hasta él.
   const boundaries = boundaryCurves(
     input.target,
