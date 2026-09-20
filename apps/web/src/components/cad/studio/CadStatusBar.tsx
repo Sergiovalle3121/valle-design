@@ -348,7 +348,15 @@ export function CadStatusBar({
           type="button"
           data-testid="cad-status-overflow-trigger"
           aria-expanded={overflowOpen}
-          aria-controls="cad-status-overflow"
+          // `cad-status-overflow` sólo existe en el DOM con `overflowOpen`
+          // (ver más abajo, `{overflowOpen && (...)}`): apuntar `aria-controls`
+          // ahí siempre, plegado o no, deja el atributo señalando un id que no
+          // existe la mitad del tiempo — axe-core lo marca «aria-valid-attr-
+          // value» (violación seria/crítica) en los dos temas, porque no
+          // depende de color. Mismo patrón que ya usa `aria-controls` en
+          // `CadCommandLine.tsx` para su lista de sugerencias: el ref sólo se
+          // declara cuando el destino está montado.
+          aria-controls={overflowOpen ? "cad-status-overflow" : undefined}
           onClick={() => setOverflowOpen((open) => !open)}
           className="inline-flex h-full items-center gap-0.5 rounded-sm px-1 text-muted-foreground hover:bg-muted hover:text-foreground"
         >

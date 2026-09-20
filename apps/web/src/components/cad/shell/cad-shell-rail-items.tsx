@@ -6,6 +6,13 @@
  * presupuesto de líneas sólo puede bajar (`scripts/cad/monolith-budget.
  * json`). El COMPORTAMIENTO (qué abre cada uno) se queda en el editor, que
  * es quien tiene el estado; esto es sólo el catálogo.
+ *
+ * Cada icono lleva `aria-hidden="true"`, igual que `Ellipsis` en
+ * `CadStatusBar.tsx` o `HistoryIcon`/`ChevronDown`/`ChevronUp` en
+ * `CadCommandLine.tsx`: el botón que lo envuelve ya trae su nombre accesible
+ * por `ariaLabel` (`CadDockRail.tsx` lo pasa a `aria-label`), así que el SVG
+ * decorativo no debe anunciarse aparte. Sin esto axe-core marca «svg-img-alt»
+ * — violación seria — en los dos temas por igual, porque no depende de color.
  */
 import {
   BrickWall,
@@ -27,7 +34,7 @@ import type { CadRailItem } from "./CadDockRail";
 export const CAD_LEFT_RAIL_ITEMS: readonly CadRailItem[] = [
   {
     id: "biblioteca",
-    icon: <Boxes className="h-4 w-4" />,
+    icon: <Boxes aria-hidden="true" className="h-4 w-4" />,
     ariaLabel: "Abrir biblioteca",
     title: "Biblioteca: plantillas, mis bloques, arquitectura y símbolos CAD",
   },
@@ -40,49 +47,49 @@ export const CAD_LEFT_RAIL_ITEMS: readonly CadRailItem[] = [
 export const CAD_RIGHT_RAIL_ITEMS: readonly CadRailItem[] = [
   {
     id: "properties",
-    icon: <PanelRight className="h-4 w-4" />,
+    icon: <PanelRight aria-hidden="true" className="h-4 w-4" />,
     ariaLabel: "Abrir propiedades",
     title: "Propiedades de la selección",
   },
   {
     id: "selection",
-    icon: <ScanEye className="h-4 w-4" />,
+    icon: <ScanEye aria-hidden="true" className="h-4 w-4" />,
     ariaLabel: "Abrir selección profesional",
     title: "Selección profesional: ventana, cruce, polígono, fence, lasso, filtros y cycling",
   },
   {
     id: "hatch",
-    icon: <BrickWall className="h-4 w-4" />,
+    icon: <BrickWall aria-hidden="true" className="h-4 w-4" />,
     ariaLabel: "Abrir HATCH",
     title: "HATCH: selección, pick point, islands y asociatividad",
   },
   {
     id: "dimension",
-    icon: <RulerDimensionLine className="h-4 w-4" />,
+    icon: <RulerDimensionLine aria-hidden="true" className="h-4 w-4" />,
     ariaLabel: "Abrir dimensiones",
     title: "Dimensiones asociativas: linear, aligned, angular, radius, diameter, ordinate y arc length",
   },
   {
     id: "mleader",
-    icon: <Waypoints className="h-4 w-4" />,
+    icon: <Waypoints aria-hidden="true" className="h-4 w-4" />,
     ariaLabel: "Abrir MLEADER",
     title: "MLEADER: directriz semántica asociativa con una o múltiples líneas",
   },
   {
     id: "blocks",
-    icon: <Boxes className="h-4 w-4" />,
+    icon: <Boxes aria-hidden="true" className="h-4 w-4" />,
     ariaLabel: "Abrir bloques y xrefs",
     title: "BLOCK/INSERT: definiciones vivas, atributos, biblioteca y XREF, redefine, replace, explode y purge",
   },
   {
     id: "collaboration",
-    icon: <GitMerge className="h-4 w-4" />,
+    icon: <GitMerge aria-hidden="true" className="h-4 w-4" />,
     ariaLabel: "Abrir colaboración",
     title: "Compare / Merge / Review: base, mine, theirs, conflictos, comentarios, markups y links de revisión",
   },
   {
     id: "workspace",
-    icon: <Settings2 className="h-4 w-4" />,
+    icon: <Settings2 aria-hidden="true" className="h-4 w-4" />,
     ariaLabel: "Abrir workspace profesional",
     title: "Workspace profesional: docks, tema, idioma, puntero, clic derecho y atajos",
   },
