@@ -5,11 +5,22 @@ import {
   resolveCadDynamicInput,
 } from './dynamic-input';
 
-assert.equal(parseCadDynamicScalar('1,5m', 'mm', 'es-MX'), 1_500);
+// La coma NUNCA es decimal, ni siquiera en es-MX: era la trampa (T-Ola3, F1).
+// «1,5m» ya no vale 1500 — la coma solo separa componentes de coordenada,
+// como en `precision-input.ts` y como en AutoCAD. El decimal se escribe con
+// punto, lo lea quien lo lea: ver `dynamic-input-precision-input-parity.spec.ts`.
+assert.equal(parseCadDynamicScalar('1,5m', 'mm', 'es-MX'), null);
+assert.equal(parseCadDynamicScalar('1.5m', 'mm', 'es-MX'), 1_500);
 assert.equal(parseCadDynamicScalar('2ft', 'mm'), 609.6);
 assert.equal(parseCadDynamicScalar('25.4mm', 'm'), 0.0254);
 assert.equal(parseCadDynamicScalar('45°', 'mm', 'es-MX', 'angle'), 45);
 assert.equal(parseCadDynamicScalar('4m', 'mm', 'es-MX', 'angle'), null);
+// Pies/pulgadas tecleados directos también funcionan aquí ahora (regalo de
+// compartir gramática con `precision-input.ts`): la marca manda sobre la
+// unidad del documento. (Tolerancia de coma flotante: 6 × 25.4 no es exacto
+// en binario.)
+assert.ok(Math.abs((parseCadDynamicScalar('6"', 'mm', 'en-US') ?? NaN) - 152.4) < 1e-9);
+assert.ok(Math.abs((parseCadDynamicScalar("1'-6\"", 'mm', 'en-US') ?? NaN) - 457.2) < 1e-9);
 
 assert.deepEqual(resolveCadDynamicInput({ x: '10', y: '20' }, {
   mode: 'absolute', documentUnit: 'mm',

@@ -22,6 +22,17 @@ export interface ParseContext {
   last?: Point | null;
   lockedAngleDeg?: number | null;
   /**
+   * Posición actual del cursor (T-Ola3, F4). Sin ángulo bloqueado —ni por
+   * ORTHO/POLAR ni por un `<37` tecleado— un número desnudo se lee sobre la
+   * dirección en la que YA apunta el ratón: es la entrada directa de
+   * distancia de AutoCAD, y no exige ortho encendido. Antes esta función
+   * exigía `lockedAngleDeg` sin excepción y decía «requiere ángulo
+   * bloqueado (ortho/polar)», que era falso — en AutoCAD basta apuntar y
+   * teclear. `lockedAngleDeg`, cuando existe, sigue ganando: un bloqueo
+   * explícito es más fuerte que hacia dónde mire el ratón en ese instante.
+   */
+  cursor?: Point | null;
+  /**
    * Unidad del documento. `10'-6"` son 3200.4 en un dibujo en milímetros y
    * 126 en uno en pulgadas. Sin declararla se supone la pulgada, que es lo
    * que AutoCAD hace cuando el dibujo no dice su unidad.
@@ -54,6 +65,16 @@ export function distance(a: Point, b: Point): number {
 
 export function angleDeg(a: Point, b: Point): number {
   return normalizeDeg(Math.atan2(b.y - a.y, b.x - a.x) / DEG);
+}
+
+/**
+ * Dirección hacia el CURSOR desde el último punto — la que usa la entrada
+ * directa de distancia sin ORTHO ni ángulo bloqueado. `null` cuando el
+ * cursor coincide con el punto previo: ahí no hay dirección que leer, no un
+ * cero que fingir.
+ */
+export function directionFromCursor(last: Point, cursor: Point): number | null {
+  return distance(last, cursor) > 1e-9 ? angleDeg(last, cursor) : null;
 }
 
 export function polarPoint(origin: Point, dist: number, deg: number): Point {
@@ -179,21 +200,25 @@ export function parseCoordinate(
 
   const d = num(body, ctx);
   if (d !== null) {
-    if (
-      ctx.last &&
-      ctx.lockedAngleDeg !== null &&
-      ctx.lockedAngleDeg !== undefined
-    ) {
-      return {
-        ok: true,
-        point: polarPoint(ctx.last, d, ctx.lockedAngleDeg),
-        mode: "direct",
-      };
+    if (ctx.last) {
+      // Un ángulo bloqueado (ORTHO/POLAR, o un `<37` tecleado) manda sobre el
+      // cursor: es más explícito que hacia dónde apunte el ratón en ese
+      // instante.
+      const angle =
+        ctx.lockedAngleDeg !== null && ctx.lockedAngleDeg !== undefined
+          ? ctx.lockedAngleDeg
+          : ctx.cursor
+            ? directionFromCursor(ctx.last, ctx.cursor)
+            : null;
+      if (angle !== null) {
+        return { ok: true, point: polarPoint(ctx.last, d, angle), mode: "direct" };
+      }
     }
     return {
       ok: false,
-      error:
-        "Entrada directa requiere ángulo bloqueado (ortho/polar) y punto previo",
+      error: ctx.last
+        ? "Entrada directa requiere una dirección: bloquea el ángulo (ortho/polar, o teclea <ángulo) o mueve el cursor"
+        : "Entrada directa requiere un punto previo",
     };
   }
 

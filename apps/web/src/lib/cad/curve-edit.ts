@@ -48,7 +48,23 @@ import { norm360, type CadVec2 } from "./primitives";
 
 const EPS = 1e-9;
 
-/** Tipos de objetivo que este módulo sabe recortar y alargar. */
+/**
+ * Tipos de objetivo que este módulo sabe recortar y alargar.
+ *
+ * SPLINE queda FUERA a propósito (ola 3 «recortar», 2026-09-19): el resto de
+ * esta ola —modo rápido, opción Arista, MATCHPROP completo— entraba con
+ * margen y SPLINE, no. No es que falte poco: `curve-model.ts` no modela NURBS
+ * en absoluto, y aproximar el spline por su poligonal para cortarlo —lo único
+ * que cabría en el margen que quedaba— es EXACTAMENTE lo que ese módulo
+ * rechaza hacer (ver su cabecera): un corte en el sitio equivocado es peor que
+ * no cortar. Hacerlo bien pide dos piezas que no existen todavía y que no son
+ * pequeñas: evaluación racional de la B-spline con su derivada (para afinar el
+ * cruce por Newton, como ya hace este módulo con arco×elipse) y partirla por
+ * INSERCIÓN DE NUDO (de Boor) para que el tramo conservado sea una NURBS
+ * exacta, no una aproximación. Con eso, SPLINE entra en `CAD_EDITABLE_TYPES` y
+ * en `cadEntityCurves` como un caso más; sin eso, sigue rechazándose
+ * nombrándolo, que es lo que ya hacía antes de esta ola.
+ */
 export type CadEditableEntity = Extract<
   CadEntity,
   { type: "line" | "arc" | "circle" | "ellipse" | "polyline" }
@@ -117,17 +133,20 @@ function entityIsClosed(entity: CadEditableEntity, curves: readonly CadCurve[]):
  * Cortes de la entidad contra las fronteras, en parámetro global y ordenados.
  *
  * `extend` decide si se buscan también los cruces de FUERA del objeto: TRIM no
- * los quiere, EXTEND sólo quiere esos.
+ * los quiere, EXTEND sólo quiere esos. `edgeExtend` es la opción «Arista»: el
+ * BORDE, y no el objetivo, es el que se trata como infinito —un borde corto
+ * que no llega a cruzar cuenta igual si, prolongado, lo haría—.
  */
 function cutParameters(
   curves: readonly CadCurve[],
   boundaries: readonly CadCurve[],
   extend: boolean,
+  edgeExtend = false,
 ): number[] {
   const cuts: number[] = [];
   curves.forEach((curve, index) => {
     for (const boundary of boundaries)
-      for (const hit of curveIntersections(curve, boundary, { extendA: extend })) {
+      for (const hit of curveIntersections(curve, boundary, { extendA: extend, extendB: edgeExtend })) {
         const parameter = index + hit.tA;
         if (cuts.some((seen) => Math.abs(seen - parameter) <= 1e-7)) continue;
         cuts.push(parameter);
@@ -291,6 +310,15 @@ export interface CadCurveEditInput {
    * corte exigiría partir en dos.
    */
   newEntityId?: () => string;
+  /**
+   * Opción «Arista» de AutoCAD: un borde que NO llega a cruzar al objetivo
+   * cuenta igual si, prolongado, lo haría —la recta de una LINE se trata como
+   * infinita, el arco de un ARC o CIRCLE como su circunferencia completa, la
+   * ELLIPSE como su elipse completa—. `false` (por defecto, «No alargar» en la
+   * ayuda oficial de AutoCAD en español) es el comportamiento clásico: sólo
+   * cuenta un cruce que ya exista dentro del propio borde dibujado.
+   */
+  edgeExtend?: boolean;
 }
 
 /**
@@ -305,7 +333,9 @@ export interface CadCurveEditInput {
  *
  * EXTEND no la usa: allí el objetivo se prolonga sin límite y una caja calculada
  * sobre su geometría actual descartaría justo los contornos lejanos que EXTEND
- * existe para alcanzar.
+ * existe para alcanzar. TRIM tampoco la usa con «Arista: Alargar» (`within`
+ * llega en `null`), por la misma razón: el cruce con un borde prolongado puede
+ * caer fuera de la caja del objetivo.
  */
 function boundaryCurves(
   target: CadEditableEntity,
@@ -396,10 +426,16 @@ export function computeCadCurveTrim(input: CadCurveEditInput): CadCurveEditOutco
   const curves = cadEntityCurves(input.target);
   if (!curves || curves.length === 0)
     return { error: `${input.target.type.toUpperCase()} no tiene geometría que recortar.` };
-  const boundaries = boundaryCurves(input.target, input.boundaries, curveBoundsUnion(curves));
+  // Con «Arista: Alargar» la caja de descarte no vale: el cruce puede caer
+  // fuera de la caja del objetivo porque el borde se prolonga hasta él.
+  const boundaries = boundaryCurves(
+    input.target,
+    input.boundaries,
+    input.edgeExtend ? null : curveBoundsUnion(curves),
+  );
   if (boundaries.convertible === 0) return { error: "ningún borde designado sabe cortar." };
 
-  const cuts = cutParameters(curves, boundaries.curves, false);
+  const cuts = cutParameters(curves, boundaries.curves, false, input.edgeExtend);
   if (cuts.length === 0) return { error: "no cruza ningún borde." };
 
   const domain = globalDomain(curves);
@@ -483,7 +519,7 @@ export function computeCadCurveExtend(input: CadCurveEditInput): CadCurveEditOut
 
   let best: number | null = null;
   for (const boundary of boundaries.curves)
-    for (const hit of curveIntersections(terminal, boundary, { extendA: true })) {
+    for (const hit of curveIntersections(terminal, boundary, { extendA: true, extendB: input.edgeExtend })) {
       // Un arco extendido da la vuelta: un cruce a 3/4 de vuelta hacia delante
       // es en realidad 1/4 hacia atrás, y sin restar el periodo EXTEND
       // alargaría por el lado contrario.

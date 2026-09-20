@@ -47,7 +47,11 @@ import type { CadAnyCommandDescriptor } from "./command-types";
  * de ella y `--check` falla si el manifiesto committeado no coincide.
  */
 export const CAD_COMMAND_MODULE_LOADERS = {
+  "commands/annotate-dimension-break": () => import("./commands/annotate-dimension-break"),
   "commands/annotate-dimension-chains": () => import("./commands/annotate-dimension-chains"),
+  "commands/annotate-dimension-jogged": () => import("./commands/annotate-dimension-jogged"),
+  "commands/annotate-dimension-space": () => import("./commands/annotate-dimension-space"),
+  "commands/annotate-dimension-tedit": () => import("./commands/annotate-dimension-tedit"),
   "commands/annotate-dimensions": () => import("./commands/annotate-dimensions"),
   "commands/annotate-dimensions-angular": () => import("./commands/annotate-dimensions-angular"),
   "commands/annotate-dimensions-radial": () => import("./commands/annotate-dimensions-radial"),
@@ -140,8 +144,10 @@ export const CAD_COMMAND_MODULE_LOADERS = {
   "commands/plot-commands": () => import("./commands/plot-commands"),
   "commands/raster-image": () => import("./commands/raster-image"),
   "commands/reference-edit": () => import("./commands/reference-edit"),
+  "commands/select-basic": () => import("./commands/select-basic"),
   "commands/select-query": () => import("./commands/select-query"),
   "commands/select-similar": () => import("./commands/select-similar"),
+  "commands/settings-drafting-toggles": () => import("./commands/settings-drafting-toggles"),
   "commands/settings-layer-tools": () => import("./commands/settings-layer-tools"),
   "commands/settings-mexican-standard": () => import("./commands/settings-mexican-standard"),
   "commands/settings-palettes": () => import("./commands/settings-palettes"),

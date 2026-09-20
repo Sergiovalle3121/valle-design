@@ -117,14 +117,92 @@ export function formatCadDimensionMeasurement(entity: CadDimensionEntity, measur
   return label;
 }
 
+/**
+ * Línea de extensión a un ángulo ABSOLUTO (grados CCW desde +X) en vez de la
+ * perpendicular por defecto — DIMEDIT «Oblicuo». Se dispara desde el punto
+ * medido y se corta contra la RECTA que forma la línea de cota, no contra el
+ * segmento: un ángulo que no sea el de fábrica puede cruzarla fuera de los
+ * dos extremos.
+ *
+ * Devuelve `null` si ese ángulo no cruza la recta del lado del dibujo —
+ * paralelo a ella, o cruzando hacia atrás—, y quien llama conserva la
+ * extensión perpendicular en vez de dibujar un disparate.
+ */
+function obliqueExtensionSegment(
+  witness: CadPoint2,
+  dimLineOrigin: CadPoint2,
+  dimDir: CadPoint2,
+  angleDeg: number,
+  style: DimensionStyle,
+): { a: CadPoint2; b: CadPoint2 } | null {
+  const angle = (angleDeg * Math.PI) / 180;
+  const dir = { x: Math.cos(angle), y: Math.sin(angle) };
+  const denom = dir.x * dimDir.y - dir.y * dimDir.x;
+  if (Math.abs(denom) < 1e-9) return null;
+  const t = ((dimLineOrigin.x - witness.x) * dimDir.y - (dimLineOrigin.y - witness.y) * dimDir.x) / denom;
+  if (!(t > 0)) return null;
+  const hit = add(witness, scale(dir, t));
+  return { a: add(witness, scale(dir, style.extensionGap)), b: add(hit, scale(dir, style.extensionOvershoot)) };
+}
+
+/**
+ * La línea de cota, partida en los huecos de DIMBREAK.
+ *
+ * Los huecos son fracciones [0,1] de `a` a `b`: se recortan a ese rango, se
+ * fusionan si se solapan y lo que queda entre ellos sale como un tramo
+ * `'dimension'` por hueco. Sin huecos —el caso de siempre— es exactamente el
+ * único tramo de antes.
+ */
+function dimensionLinePathsWithBreaks(
+  a: CadPoint2,
+  b: CadPoint2,
+  breaks: CadDimensionEntity['breaks'],
+): CadDimensionPath[] {
+  const whole: CadDimensionPath[] = [{ points: [a, b], closed: false, role: 'dimension' }];
+  if (!breaks || breaks.length === 0) return whole;
+  const clipped = breaks
+    .map((gap): [number, number] => [Math.max(0, Math.min(gap.start, gap.end)), Math.min(1, Math.max(gap.start, gap.end))])
+    .filter(([start, end]) => end > start)
+    .sort((x, y) => x[0] - y[0]);
+  if (clipped.length === 0) return whole;
+  const merged: [number, number][] = [];
+  for (const [start, end] of clipped) {
+    const last = merged.at(-1);
+    if (last && start <= last[1]) last[1] = Math.max(last[1], end);
+    else merged.push([start, end]);
+  }
+  const at = (t: number): CadPoint2 => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+  const paths: CadDimensionPath[] = [];
+  let cursor = 0;
+  for (const [start, end] of merged) {
+    if (start > cursor) paths.push({ points: [at(cursor), at(start)], closed: false, role: 'dimension' });
+    cursor = end;
+  }
+  if (cursor < 1) paths.push({ points: [at(cursor), at(1)], closed: false, role: 'dimension' });
+  // Un hueco que tapara la línea entera es un caso que DIMBREAK no produce
+  // (su hueco por defecto es mucho más corto que la cota); si pasara, se
+  // prefiere la línea entera a no dibujar nada, que haría creer que la cota
+  // desapareció.
+  return paths.length > 0 ? paths : whole;
+}
+
 function fromLinearGeometry(entity: CadDimensionEntity, geometry: NonNullable<ReturnType<typeof alignedDimension>>): CadDimensionGeometry {
   const paths: CadDimensionPath[] = [
-    { points: [geometry.dimLine.a, geometry.dimLine.b], closed: false, role: 'dimension' },
+    ...dimensionLinePathsWithBreaks(geometry.dimLine.a, geometry.dimLine.b, entity.breaks),
   ];
   if (entity.extensionLines !== false) {
+    const oblique = entity.extensionObliqueAngle;
+    let extA = geometry.extensionA;
+    let extB = geometry.extensionB;
+    if (oblique !== undefined) {
+      const style = dimensionStyle(entity);
+      const dimDir = sub(geometry.dimLine.b, geometry.dimLine.a);
+      extA = obliqueExtensionSegment(entity.a, geometry.dimLine.a, dimDir, oblique, style) ?? extA;
+      extB = obliqueExtensionSegment(entity.b, geometry.dimLine.a, dimDir, oblique, style) ?? extB;
+    }
     paths.push(
-      { points: [geometry.extensionA.a, geometry.extensionA.b], closed: false, role: 'extension' },
-      { points: [geometry.extensionB.a, geometry.extensionB.b], closed: false, role: 'extension' },
+      { points: [extA.a, extA.b], closed: false, role: 'extension' },
+      { points: [extB.a, extB.b], closed: false, role: 'extension' },
     );
   }
   paths.push(
@@ -134,10 +212,39 @@ function fromLinearGeometry(entity: CadDimensionEntity, geometry: NonNullable<Re
   return {
     measurement: geometry.measurement,
     label: formatCadDimensionMeasurement(entity, geometry.measurement),
-    textAnchor: entity.textPosition ?? geometry.textAnchor,
+    textAnchor: entity.textPosition ?? justifiedTextAnchor(entity, geometry),
     textAngle: geometry.textAngle,
     paths,
   };
+}
+
+/**
+ * DIMJUST (`entity.textJustification`) — dónde a lo largo de la línea de cota
+ * cae el rótulo, cuando nadie lo arrastró a mano (`textPosition` manda
+ * siempre que exista, igual que antes de esta ola). `'first'`/`'second'` lo
+ * sacan fuera de las flechas, junto a la línea de extensión que le da nombre
+ * — «pegado a la primera» es DIMTEDIT «Izquierda» en AutoCAD, dicho con el
+ * vocabulario de DIMSTYLE en vez del de la orden—; ausente o `'centered'` es
+ * el centrado de siempre.
+ *
+ * El desfase PERPENDICULAR (qué tan lejos de la línea de cota) es el mismo
+ * en los tres casos: se reutiliza el que ya calculó el centrado por defecto
+ * en vez de repetir la cuenta de `extDirA`, que es interna de `dimension.ts`.
+ */
+function justifiedTextAnchor(
+  entity: CadDimensionEntity,
+  geometry: NonNullable<ReturnType<typeof alignedDimension>>,
+): CadPoint2 {
+  const justification = entity.textJustification;
+  if (justification !== 'first' && justification !== 'second') return geometry.textAnchor;
+  const dimDir = normalize(sub(geometry.dimLine.b, geometry.dimLine.a));
+  if (!dimDir) return geometry.textAnchor;
+  const perpendicularOffset = sub(geometry.textAnchor, midpoint(geometry.dimLine.a, geometry.dimLine.b));
+  const margin = dimensionStyle(entity).arrowSize;
+  const along = justification === 'first'
+    ? add(geometry.dimLine.a, scale(dimDir, -margin))
+    : add(geometry.dimLine.b, scale(dimDir, margin));
+  return add(along, perpendicularOffset);
 }
 
 function arcPoints(center: CadPoint2, radius: number, start: number, sweep: number, count = 48): CadPoint2[] {
@@ -147,7 +254,59 @@ function arcPoints(center: CadPoint2, radius: number, start: number, sweep: numb
   });
 }
 
-export function buildCadDimensionGeometry(entity: CadDimensionEntity): CadDimensionGeometry | null {
+/**
+ * DIMJOGGED: cota de radio con quiebre, para un arco cuyo centro real cae
+ * fuera del plano. La MEDIDA sigue siendo el radio real (`a` a `b`/`radius`);
+ * lo único que cambia es hasta dónde llega la línea de referencia — hasta
+ * `jogCenterOverride`, un punto cerca del arco, en vez de hasta el centro de
+ * verdad.
+ *
+ * El quiebre se dibuja en el punto de la línea entre el borde del arco y
+ * `jogCenterOverride` más cercano a `jogPosition` — el usuario marca POR
+ * DÓNDE, no una coordenada libre fuera de esa línea— y es un único zigzag de
+ * dos tramos a `jogAngle` grados de esa línea, que es lo mínimo que hace
+ * reconocible un quiebre sin inventar una convención de cuatro tramos que
+ * ISO no fija en un número.
+ *
+ * `null` si el override coincide con el borde del arco (no hay línea que
+ * partir) o si el quiebre no cabe en ella; quien llama cae al radio recto.
+ */
+function joggedRadiusGeometry(entity: CadDimensionEntity, style: DimensionStyle): CadDimensionGeometry | null {
+  const override = entity.jogCenterOverride!;
+  const radial = sub(entity.b, entity.a);
+  const radius = entity.radius ?? length(radial);
+  const direction = normalize(radial);
+  if (!direction || !(radius > 0)) return null;
+  const edge = add(entity.a, scale(direction, radius));
+  const leaderDir = normalize(sub(override, edge));
+  if (!leaderDir) return null;
+  const totalLength = length(sub(override, edge));
+  const along = Math.min(style.arrowSize, totalLength / 2 - 1e-6);
+  if (!(along > 0)) return null;
+  const angleDeg = entity.jogAngle ?? 45;
+  const off = along * Math.tan((angleDeg * Math.PI) / 180);
+  const perpendicular = { x: -leaderDir.y, y: leaderDir.x };
+  const pick = entity.jogPosition ?? add(edge, scale(leaderDir, totalLength / 2));
+  const rawProjection = (pick.x - edge.x) * leaderDir.x + (pick.y - edge.y) * leaderDir.y;
+  const t = Math.min(Math.max(rawProjection, along), totalLength - along);
+  const jogCenterPoint = add(edge, scale(leaderDir, t));
+  const jogStart = add(jogCenterPoint, scale(leaderDir, -along));
+  const jogEnd = add(jogCenterPoint, scale(leaderDir, along));
+  const jogPeak = add(jogCenterPoint, scale(perpendicular, off));
+  const paths: CadDimensionPath[] = [
+    { points: [edge, jogStart, jogPeak, jogEnd, override], closed: false, role: 'dimension' },
+    ...arrowPaths(entity, edge, scale(direction, -1)),
+  ];
+  return {
+    measurement: radius,
+    label: formatCadDimensionMeasurement({ ...entity, prefix: entity.prefix ?? 'R' }, radius),
+    textAnchor: entity.textPosition ?? add(override, scale(perpendicular, style.textGap)),
+    textAngle: readableAngle(leaderDir),
+    paths,
+  };
+}
+
+function computeCadDimensionGeometry(entity: CadDimensionEntity): CadDimensionGeometry | null {
   const kind = entity.dimensionKind ?? 'aligned';
   const style = dimensionStyle(entity);
   if (kind === 'aligned' || kind === 'linear') {
@@ -191,6 +350,13 @@ export function buildCadDimensionGeometry(entity: CadDimensionEntity): CadDimens
       paths,
     };
   }
+  if (kind === 'radius' && entity.jogCenterOverride) {
+    const jogged = joggedRadiusGeometry(entity, style);
+    // Degenerado (el override coincide con el borde, o no cabe el quiebre):
+    // se cae al radio recto de siempre en vez de devolver null, igual que el
+    // resto de "fallback" de este módulo.
+    if (jogged) return jogged;
+  }
   if (kind === 'radius' || kind === 'diameter') {
     const radial = sub(entity.b, entity.a);
     const radius = entity.radius ?? length(radial);
@@ -232,6 +398,72 @@ export function buildCadDimensionGeometry(entity: CadDimensionEntity): CadDimens
     };
   }
   return null;
+}
+
+/**
+ * La geometría de una cota, lista para render y exportación DXF.
+ *
+ * Envuelve `computeCadDimensionGeometry` para aplicar `textRotationOverride`
+ * (DIMEDIT «Girar» / DIMTEDIT «Ángulo») en UN solo sitio en vez de en las
+ * cinco ramas de tipo de cota que devuelven un ángulo: presente, sustituye al
+ * ángulo derivado — que es justo lo que «Girar» promete.
+ */
+export function buildCadDimensionGeometry(entity: CadDimensionEntity): CadDimensionGeometry | null {
+  const geometry = computeCadDimensionGeometry(entity);
+  if (!geometry) return null;
+  return entity.textRotationOverride === undefined
+    ? geometry
+    : { ...geometry, textAngle: entity.textRotationOverride };
+}
+
+/**
+ * Los dos extremos de la línea de cota, ignorando cualquier hueco de DIMBREAK
+ * ya cortado. Es lo que DIMBREAK necesita para medir POR DÓNDE cruza el
+ * objeto designado: el hueco es un RESULTADO de esa medida, no un dato de
+ * partida, así que no puede leerse de `paths` —que ya vendría partido—.
+ *
+ * `null` en cualquier cota que no tenga una línea de cota RECTA que partir
+ * (angular, radial, de coordenada): DIMBREAK sólo corta lineales y alineadas.
+ */
+export function cadDimensionLineEnds(entity: CadDimensionEntity): { a: CadPoint2; b: CadPoint2 } | null {
+  const kind = entity.dimensionKind ?? 'aligned';
+  if (kind !== 'aligned' && kind !== 'linear') return null;
+  const style = dimensionStyle(entity);
+  const geometry = kind === 'aligned'
+    ? alignedDimension(entity.a, entity.b, entity.offset ?? style.arrowSize * 1.5, style)
+    : linearDimension(entity.a, entity.b, entity.offset ?? style.arrowSize * 1.5, entity.axis ?? 'x', style);
+  return geometry ? { a: geometry.dimLine.a, b: geometry.dimLine.b } : null;
+}
+
+/**
+ * DIMBREAK cuelga cada hueco del objeto que lo abrió. Si ese objeto ya no
+ * está en el documento, el hueco no significa nada — la línea de cota vuelve
+ * a estar entera SOLA, sin que nadie la retoque a mano. Es la mitad
+ * «restituye al quitarlo» del encargo, y por eso vive junto a
+ * `regenerateAssociativeDimensions`: es la misma familia de regla —una
+ * referencia que ya no señala a nada deja de tener efecto—, sólo que aquí lo
+ * que cae es el hueco y no la cota entera.
+ *
+ * Deliberadamente NO recalcula el hueco si el objeto se movió sin
+ * desaparecer — repetir aquí la intersección segmento-segmento que ya hace
+ * `annotate-dimension-break.ts` es trabajo de otra ola; el encargo de ésta es
+ * que DESAPARECER restituya, no que seguir cruzando persiga. Queda anotado.
+ */
+export function restoreCadDimensionBreaks(
+  entities: readonly CadEntity[],
+): { entities: CadEntity[]; restoredIds: string[] } {
+  const present = new Set(entities.map((entity) => entity.id));
+  const restoredIds: string[] = [];
+  const next = entities.map((entity): CadEntity => {
+    if (entity.type !== 'dimension' || !entity.breaks || entity.breaks.length === 0) return entity;
+    const kept = entity.breaks.filter((gap) => present.has(gap.entityId));
+    if (kept.length === entity.breaks.length) return entity;
+    restoredIds.push(entity.id);
+    if (kept.length > 0) return { ...entity, breaks: kept };
+    const { breaks: _dropped, ...rest } = entity;
+    return rest as CadEntity;
+  });
+  return { entities: next, restoredIds };
 }
 
 export function cadEntityAssociationAnchor(

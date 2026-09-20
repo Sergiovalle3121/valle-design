@@ -135,6 +135,12 @@ export const CAD_SYSTEM_VARIABLES: readonly CadSystemVariableDef[] = [
   int("ORTHOMODE", 0, "Modo orto: 0 apagado, 1 encendido", { enumerated: [0, 1] }),
   int("SNAPMODE", 0, "Forzado de cursor: 0 apagado, 1 encendido", { enumerated: [0, 1] }),
   int("GRIDMODE", 0, "Rejilla: 0 apagada, 1 encendida", { enumerated: [0, 1] }),
+  // El paso de SNAP y de GRID (T-Ola3, F2): antes no había ninguna variable de
+  // sistema para él, así que `ORTHO`/`SNAP`/`GRID` tecleados y los botones de
+  // ayuda al dibujo no tenían dónde coincidir. Un solo paso para los dos, a
+  // propósito: es la variable que el puente declara, y separar SNAP de GRID en
+  // dos pasos distintos inventaría una segunda variable que nadie pidió.
+  real("SNAPUNIT", 10, "Paso de forzado de cursor y de la rejilla, en unidades de dibujo", { min: 1e-9 }),
   int("POLARMODE", 0, "Opciones del rastreo polar, como suma de bits", { min: 0, max: 15 }),
   int("PDMODE", 0, "Aspecto de los puntos", { min: 0, max: 98 }),
   real("PDSIZE", 0, "Tamaño de los puntos; negativo, en porcentaje de la pantalla"),
@@ -167,6 +173,17 @@ export const CAD_SYSTEM_VARIABLES: readonly CadSystemVariableDef[] = [
   int("UCSICONSIZE", 12, "Lado del icono del SCU en píxeles", { min: 12, max: 120 }),
 
   // --- valores recordados por los comandos ----------------------------------
+  // Ola 3 «recortar» (2026-09-19): desde 2021 el AutoCAD real abre TRIM y
+  // EXTEND en modo RÁPIDO —todo lo visible es borde, un clic recorta, sin la
+  // fase previa de designarlos— y sólo cae al flujo clásico de dos fases si se
+  // pide con la opción `Bordes` del propio comando. Es una variable de sesión
+  // como TRIMMODE (que en AutoCAD real es OTRA cosa: el recorte de esquina de
+  // FILLET/CHAMFER) y no del documento, porque es preferencia de quien dibuja,
+  // no del plano: dos personas con el mismo archivo pueden querer cada una su
+  // flujo.
+  int("TRIMEXTENDMODE", 1, "TRIM y EXTEND en modo rápido (1: cualquier objeto visible es borde, un clic recorta) o clásico de dos fases (0: hay que designar antes los bordes)", {
+    enumerated: [0, 1],
+  }),
   real("FILLETRAD", 0, "Radio de empalme actual", { min: 0 }),
   real("CHAMFERA", 0, "Primera distancia de chaflán", { min: 0 }),
   real("CHAMFERB", 0, "Segunda distancia de chaflán", { min: 0 }),
