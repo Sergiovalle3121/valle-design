@@ -54,23 +54,7 @@ import {
 import { hatchLoops, pushHatch } from "./dxf-export-hatch";
 
 export type CadDxfExportUnit = "mm" | "m";
-/**
- * `$ACADVER` que declara la cabecera. El escritor sólo emite entidades
- * válidas desde AC1015 (AutoCAD 2000) — ver el comentario de `pushHeader` —
- * así que las tres opciones son AC1015 y dos versiones POSTERIORES: declarar
- * una versión más nueva es honesto (un DXF de AC1015 lo abre cualquier
- * lector más nuevo, igual que un .xlsx viejo abre en un Excel nuevo); lo que
- * este escritor NO ofrece es una versión ANTERIOR (R12/AC1009), porque ahí sí
- * faltarían entidades que ya usa, como ELLIPSE.
- */
-export type CadDxfVersion = "AC1015" | "AC1021" | "AC1032";
-export const CAD_DXF_VERSIONS: readonly CadDxfVersion[] = ["AC1015", "AC1021", "AC1032"];
-/** Rótulo AutoCAD de cada versión, para un cuadro o un prompt que no debe decir sólo el código. */
-export const CAD_DXF_VERSION_NAMES: Readonly<Record<CadDxfVersion, string>> = {
-  AC1015: "2000",
-  AC1021: "2007",
-  AC1032: "2018",
-};
+import type { CadDxfVersion } from "./dxf-version"; // dxf-version.ts: presupuesto de monolito
 export interface CadDxfExportOptions {
   units?: CadDxfExportUnit;
   fileComment?: string;
@@ -81,7 +65,6 @@ export interface CadDxfExportOptions {
    * ellas, el ajuste arquitectónico del dibujo no sobrevive al fichero.
    */
   lengthUnits?: { lunits: number; luprec: number };
-  /** `$ACADVER` de la cabecera. Sin ella, AC1015 — el valor de siempre. */
   dxfVersion?: CadDxfVersion;
 }
 export interface CadDxfExportLayer {
@@ -292,10 +275,6 @@ function pushHeader(
 ) {
   pushPair(lines, 0, "SECTION");
   pushPair(lines, 2, "HEADER");
-  // AC1015 (AutoCAD 2000) es la versión MÍNIMA honesta para las entidades que
-  // emitimos — ELLIPSE no existe en R12 (AC1009) — y el valor por defecto si
-  // nadie pide otra. SAVEAS/EXPORT (interop-dxf.ts) dejan elegir una más
-  // nueva; ver `CadDxfVersion`.
   pushPair(lines, 9, "$ACADVER");
   pushPair(lines, 1, options.dxfVersion ?? "AC1015");
   pushPair(lines, 9, "$INSUNITS");

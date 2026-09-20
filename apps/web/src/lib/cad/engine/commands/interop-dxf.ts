@@ -54,12 +54,8 @@ import {
   exportCadDocumentDxf,
   type CadDxfDocumentExportSource,
 } from "../../dxf-document-export";
-import {
-  CAD_DXF_VERSIONS,
-  CAD_DXF_VERSION_NAMES,
-  type CadDxfExportOptions,
-  type CadDxfVersion,
-} from "../../dxf-export";
+import type { CadDxfExportOptions } from "../../dxf-export";
+import { CAD_DXF_VERSIONS, CAD_DXF_VERSION_NAMES, type CadDxfVersion } from "../../dxf-version";
 import { importDxfPrimitives } from "../../dxf-import";
 import {
   buildCadDxfImportReport,
