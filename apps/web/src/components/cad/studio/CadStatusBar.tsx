@@ -1,6 +1,7 @@
 "use client";
 
-import type { RefObject } from "react";
+import { useState, type RefObject } from "react";
+import { Ellipsis } from "lucide-react";
 import { cadHistoryDepthHint } from "./history-depth-hint";
 import {
   CadDiagnosticsReadout,
@@ -37,6 +38,20 @@ import type { CadValidationReport } from "@/lib/cad/validation-report";
  *
  * Invariante: ningún `data-testid` se movió, ningún texto cambió. Es la misma
  * marca de esta pieza, sólo que ahora vive fuera del trinquete de tamaño.
+ *
+ * ## Ola «estado»: el desplegable «Más»
+ *
+ * Nueve avisos de segundo orden (conexión, rejilla/forzcursor, modelo ·
+ * revisión · versión, los dos resúmenes de validación, holguras, seguridad,
+ * avisos DXF, instantáneas) vivían con `@max-[40rem]:hidden`: bajo 40 rem
+ * desaparecían del DOM sin quedar alcanzables en ningún otro sitio — el
+ * defecto exacto que esta ola prohíbe. Ahora viven SIEMPRE en el desplegable
+ * `data-testid="cad-status-overflow"`, detrás del botón «Más»: alcanzables a
+ * cualquier ancho, en vez de recortados por uno. Lo que SÍ tenía un
+ * `data-testid` propio o un golden que lo localiza por texto directo
+ * (coordenadas, guardado, recuperación, capa, «Revisión…», «Resaltados N») se
+ * queda exactamente donde estaba — moverlo exigiría abrir el desplegable
+ * antes de leerlo, y ningún golden lo hace hoy.
  */
 
 export interface CadStatusBarDiagnostics {
@@ -148,6 +163,7 @@ export function CadStatusBar({
   // T-24·2: cuando el presupuesto de memoria —no las acciones— fija la
   // profundidad, el indicador lo dice en vez de quedarse mudo en U1/R0.
   const historyHint = cadHistoryDepthHint(diagnostics.historyUndo, diagnostics.nativeEntityCount);
+  const [overflowOpen, setOverflowOpen] = useState(false);
   return (
     // Franja propia bajo el área de dibujo, ancho completo, como la barra de
     // estado de AutoCAD. Ya no es `absolute` dentro del lienzo: montada así se
@@ -155,20 +171,22 @@ export function CadStatusBar({
     // la derecha (auditoría 2026-09-01; golden 68). El gancho `cad-status-bar`
     // se conserva: `globals.css` fija su contrato de altura (ola «armazón»,
     // `CAD_SHELL_METRICS.statusRow`, 26 px) — una fila `flex-nowrap`, no dos
-    // renglones de texto. Antes envolvía a 1280 px (~1000 px de contenido en
-    // una fila); ahora desplaza con `overflow-x-auto` en vez de envolver, como
-    // ya hacía la fila superior: la información no se pierde, sólo deja de
-    // empujar el lienzo hacia arriba en pantallas apretadas. `@container` +
-    // `@max-[40rem]:hidden` en los elementos de segundo orden siguen
-    // ocultando avisos no esenciales en contenedores angostos; los
-    // conmutadores F3/F8/F10/F11, el guardado, la capa y las coordenadas se
-    // quedan siempre.
+    // renglones de texto (el `h-[1.625rem]` de aquí es el mismo número en
+    // clase de Tailwind, no un segundo contrato). Antes envolvía a 1280 px
+    // (~1000 px de contenido en una fila); ahora desplaza con
+    // `overflow-x-auto` en vez de envolver, como ya hacía la fila superior —
+    // la información no se pierde, sólo deja de empujar el lienzo hacia
+    // arriba en pantallas apretadas. Los nueve avisos de segundo orden que
+    // antes se ocultaban bajo 40 rem con `@max-[40rem]:hidden` sin quedar
+    // alcanzables ahora viven siempre en el desplegable «Más»
+    // (`cad-status-overflow`, ver más abajo); los conmutadores F3/F8/F10/F11,
+    // el guardado, la capa y las coordenadas se quedan siempre en la fila.
     //
     // Todos los elementos miden lo mismo (`.cad-status-bar > *` en
     // globals.css, capa `components` para que `hidden` la gane). Sin esto, un
     // renglón con el <select> del incremento polar medía 3 px más que uno de
     // texto, y la cámara del lienzo «se movía» al cambiar de alto (golden 72).
-    <div className="cad-status-bar @container flex shrink-0 flex-nowrap items-center gap-x-2 overflow-x-auto whitespace-nowrap border-t border-border bg-surface px-3 py-0.5 type-micro text-foreground [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
+    <div className="cad-status-bar @container flex h-[1.625rem] shrink-0 flex-nowrap items-center gap-x-2 overflow-x-auto whitespace-nowrap border-t border-border bg-surface px-3 py-0.5 type-micro text-foreground [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
       {/* Las coordenadas van PRIMERO, a la izquierda: es lo primero que un
           dibujante de AutoCAD busca en la barra, y estaban en medio. */}
       <span
@@ -272,21 +290,6 @@ export function CadStatusBar({
           Recuperación local en riesgo
         </span>
       )}
-      <span
-        className={`@max-[40rem]:hidden ${
-          saveState.connectionState === "online"
-            ? "text-success-ink"
-            : saveState.connectionState === "offline"
-              ? "text-danger-ink"
-              : "text-muted-foreground"
-        }`}
-      >
-        {saveState.connectionState === "online"
-          ? "API en línea"
-          : saveState.connectionState === "offline"
-            ? "API sin conexión"
-            : "API…"}
-      </span>
       <span>
         Capa{" "}
         {layersInfo.cadLayers.find((layer) => layer.id === layersInfo.activeCadLayer)
@@ -303,10 +306,6 @@ export function CadStatusBar({
           {layersInfo.cadLayerSummary.lockedObjectCount}
         </span>
       )}
-      <span className="@max-[40rem]:hidden">
-        Rejilla {layersInfo.gridOn ? "activada" : "desactivada"} / Forzcursor{" "}
-        {layersInfo.snapOn ? "rejilla" : "libre"}
-      </span>
       <CadAnnotationScaleSelect onChange={onAnnotationScale} />
       <CadDraftStatusBar
         settings={draftSettings}
@@ -320,16 +319,6 @@ export function CadStatusBar({
         onOpenSettings={paletteHost.toggleDraftSettings}
         onOpenStyles={paletteHost.toggleStyles}
       />
-      {/* Modelo · revisión · versión CAS va al final y truncado: en un renglón
-          sin envolver, un nombre largo (o el UUID que el backend simulado usa
-          como modelo: 377 px medidos) desplazaba fuera de la vista los
-          conmutadores de dibujo, que se usan cien veces por sesión. */}
-      <span
-        className="max-w-48 truncate @max-[40rem]:hidden"
-        title={`Modelo, revisión funcional y versión CAS: ${documentInfo.model} · ${documentInfo.revision} · v${documentInfo.version}`}
-      >
-        {documentInfo.model} · {documentInfo.revision} · v{documentInfo.version}
-      </span>
       {validation.report && (
         <button
           onClick={validation.onOpenChecks}
@@ -337,42 +326,6 @@ export function CadStatusBar({
         >
           Revisión {validation.releaseState}
         </button>
-      )}
-      {validation.report && (
-        <span
-          className={`@max-[40rem]:hidden ${
-            validation.report.score === "error"
-              ? "text-danger-ink"
-              : validation.report.score === "warn"
-                ? "text-warning-ink"
-                : "text-success-ink"
-          }`}
-        >
-          Validación {validation.report.score === "ok" ? "correcta" : validation.report.score === "warn" ? "con avisos" : "con errores"}
-        </span>
-      )}
-      {validation.cadValidationReport && (
-        <span
-          className={`@max-[40rem]:hidden ${
-            validation.cadValidationReport.severity === "critical"
-              ? "text-danger-ink"
-              : validation.cadValidationReport.severity === "warning"
-                ? "text-warning-ink"
-                : "text-success-ink"
-          }`}
-        >
-          {validation.cadValidationReport.severity === "critical" ? "CAD crítico" : validation.cadValidationReport.severity === "warning" ? "CAD con avisos" : "CAD correcto"}
-        </span>
-      )}
-      {validation.clearanceIssuesCount > 0 && (
-        <span className="text-warning-ink @max-[40rem]:hidden">
-          Holguras {validation.clearanceIssuesCount}
-        </span>
-      )}
-      {validation.safetyIssuesCount > 0 && (
-        <span className="text-warning-ink @max-[40rem]:hidden">
-          Seguridad {validation.safetyIssuesCount}
-        </span>
       )}
       {validation.validationHighlightCount > 0 && (
         <button
@@ -382,12 +335,98 @@ export function CadStatusBar({
           Resaltados {validation.validationHighlightCount}
         </button>
       )}
-      {misc.dxfWarningsCount > 0 && (
-        <span className="text-warning-ink @max-[40rem]:hidden">DXF {misc.dxfWarningsCount}</span>
-      )}
-      {misc.snapshotsCount > 0 && (
-        <span className="@max-[40rem]:hidden">Instantáneas {misc.snapshotsCount}</span>
-      )}
+      {/* EL DESPLEGABLE «MÁS»: los nueve avisos de segundo orden que antes se
+          escondían con `@max-[40rem]:hidden` sin quedar alcanzables. Siempre
+          en el DOM, siempre reachable — sólo su visibilidad depende de
+          `overflowOpen`. No es la raíz de la ranura `statusBar` (esa es el
+          `<div className="cad-status-bar …">` de más arriba), así que puede
+          llevar `absolute`/`z-*` sin romper el contrato del armazón: es un
+          menú transitorio, como cualquier popover del CAD, no una capa
+          permanente sobre el lienzo. */}
+      <span className="relative ml-auto inline-flex h-full items-center">
+        <button
+          type="button"
+          data-testid="cad-status-overflow-trigger"
+          aria-expanded={overflowOpen}
+          aria-controls="cad-status-overflow"
+          onClick={() => setOverflowOpen((open) => !open)}
+          className="inline-flex h-full items-center gap-0.5 rounded-sm px-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <Ellipsis aria-hidden="true" className="h-3.5 w-3.5" />
+          Más
+        </button>
+        {overflowOpen && (
+          <div
+            id="cad-status-overflow"
+            data-testid="cad-status-overflow"
+            role="group"
+            aria-label="Más información de estado"
+            className="absolute bottom-full right-0 z-10 mb-1 flex w-max max-w-xs flex-col gap-1 rounded-card border border-border bg-popover p-2 text-popover-foreground shadow-elevated"
+          >
+            <span
+              className={
+                saveState.connectionState === "online"
+                  ? "text-success-ink"
+                  : saveState.connectionState === "offline"
+                    ? "text-danger-ink"
+                    : "text-muted-foreground"
+              }
+            >
+              {saveState.connectionState === "online"
+                ? "API en línea"
+                : saveState.connectionState === "offline"
+                  ? "API sin conexión"
+                  : "API…"}
+            </span>
+            <span>
+              Rejilla {layersInfo.gridOn ? "activada" : "desactivada"} / Forzcursor{" "}
+              {layersInfo.snapOn ? "rejilla" : "libre"}
+            </span>
+            <span
+              className="truncate"
+              title={`Modelo, revisión funcional y versión CAS: ${documentInfo.model} · ${documentInfo.revision} · v${documentInfo.version}`}
+            >
+              {documentInfo.model} · {documentInfo.revision} · v{documentInfo.version}
+            </span>
+            {validation.report && (
+              <span
+                className={
+                  validation.report.score === "error"
+                    ? "text-danger-ink"
+                    : validation.report.score === "warn"
+                      ? "text-warning-ink"
+                      : "text-success-ink"
+                }
+              >
+                Validación {validation.report.score === "ok" ? "correcta" : validation.report.score === "warn" ? "con avisos" : "con errores"}
+              </span>
+            )}
+            {validation.cadValidationReport && (
+              <span
+                className={
+                  validation.cadValidationReport.severity === "critical"
+                    ? "text-danger-ink"
+                    : validation.cadValidationReport.severity === "warning"
+                      ? "text-warning-ink"
+                      : "text-success-ink"
+                }
+              >
+                {validation.cadValidationReport.severity === "critical" ? "CAD crítico" : validation.cadValidationReport.severity === "warning" ? "CAD con avisos" : "CAD correcto"}
+              </span>
+            )}
+            {validation.clearanceIssuesCount > 0 && (
+              <span className="text-warning-ink">Holguras {validation.clearanceIssuesCount}</span>
+            )}
+            {validation.safetyIssuesCount > 0 && (
+              <span className="text-warning-ink">Seguridad {validation.safetyIssuesCount}</span>
+            )}
+            {misc.dxfWarningsCount > 0 && (
+              <span className="text-warning-ink">DXF {misc.dxfWarningsCount}</span>
+            )}
+            {misc.snapshotsCount > 0 && <span>Instantáneas {misc.snapshotsCount}</span>}
+          </div>
+        )}
+      </span>
       {/* La BANDEJA: el chrome del estudio que no es del dibujo (videollamada
           hoy) se posa aquí, en el extremo derecho, como la bandeja de la barra
           de estado de AutoCAD. Medido el 2026-09-02 en los goldens 19 y 72: la
@@ -400,7 +439,7 @@ export function CadStatusBar({
           (`use-studio-tray.ts`). */}
       <span
         data-testid="cad-status-tray"
-        className="ml-auto inline-flex items-center gap-1.5 [&>*]:pointer-events-auto"
+        className="inline-flex items-center gap-1.5 [&>*]:pointer-events-auto"
       />
     </div>
   );
