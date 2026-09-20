@@ -92,9 +92,15 @@ const NO_OPERAN_POR_ESTAR_ACTIVOS: Record<string, string> = {
   // la de inactivo en «3D».
   "Vista de plano 2D (superior, solo paneo y zoom)":
     "el estudio carga ya en vista de planta",
-  // Era «Model» (rótulo en inglés en una barra en español); la pestaña se
-  // llama «Modelo» desde el pulido del editor. La razón no cambia.
-  Modelo: "la pestaña de espacio modelo ya está seleccionada",
+  // Era «Model» (rótulo en inglés en una barra en español), luego «Modelo», y
+  // desde el carril «abajo» del armazón la pestaña trae un tooltip que explica
+  // qué es ese espacio. El barrido nombra cada control por `aria-label`, luego
+  // `title` y sólo al final por su texto, así que ahora se llama por el
+  // tooltip. La razón de estar aquí no cambia en ninguna de las tres: la
+  // pestaña del espacio modelo YA está seleccionada al abrir, así que pulsarla
+  // no puede producir ningún efecto observable.
+  "Espacio modelo — el dibujo a escala real":
+    "la pestaña de espacio modelo ya está seleccionada",
   // Sin «(V)»: el lienzo dejó de robar la V (alias VIEW) y el título ya no la anuncia.
   "Seleccionar / mover": "es la herramienta activa al cargar",
   // Aquí estuvo «Biblioteca», la pestaña que abría por defecto en el panel
