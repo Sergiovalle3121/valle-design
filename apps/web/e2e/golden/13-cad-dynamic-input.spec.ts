@@ -19,6 +19,7 @@ import { installCadV1Backend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 // MIGRACIÓN R3: mock en la superficie v1 real. Documento nunca guardado
 // (cadDocument null, versión 0): el editor arranca en el lienzo por defecto —
@@ -37,6 +38,9 @@ test('dynamic input creates a circle by absolute center and locked diameter', as
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto('/legacy/studio');
+  // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+  // como una persona, antes de leer nada de lo que vive dentro.
+  await abrirPanelDerecho(page);
 
   await page.getByTestId('cad-ribbon-command-CIRCLE').click();
   const dynamic = page.getByTestId('cad-dynamic-input');

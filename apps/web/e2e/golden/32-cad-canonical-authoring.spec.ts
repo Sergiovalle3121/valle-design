@@ -9,6 +9,7 @@ import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
 import { applyDynamicInput, applyDynamicPoint, applyNativeProperty } from '../fixtures/dynamic-input';
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 /**
  * PRIORIDAD 2 — corte VERTICAL de la autoría 2D canónica.
@@ -82,6 +83,9 @@ test('LINE, PLINE, RECT and CIRCLE author canonical geometry end to end', async 
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto('/legacy/studio');
+  // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+  // como una persona, antes de leer nada de lo que vive dentro.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-canvas')).toBeVisible();
 
   await test.step('1. LINE crea UNA entidad `line`', async () => {

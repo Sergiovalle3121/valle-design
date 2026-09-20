@@ -5,6 +5,7 @@ import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import type { CadDocument, CadEntity } from "../../src/lib/cad/cad-document";
 import { CAD_DOCUMENT_SCHEMA } from "../../src/lib/cad/cad-document-shared";
 import { resolveCadInsert } from "../../src/lib/cad/professional-blocks";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 /**
  * EL DELINEANTE QUE REUTILIZA MOBILIARIO — graduada de `e2e/auditoria/bloques.spec.ts`.
@@ -340,6 +341,9 @@ test("la biblioteca de mobiliario: buscar, insertar, mover, copiar y redefinir",
   await loginAsStandaloneOwner(context);
   const backend = await instalarBackend(context);
   await page.goto("/legacy/studio");
+  // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+  // como una persona, antes de leer nada de lo que vive dentro.
+  await abrirPanelDerecho(page);
 
   await expect(page.getByTestId("cad-canvas")).toBeVisible({ timeout: 90_000 });
   await expect(page.getByTestId("cad-command-line")).toBeVisible();

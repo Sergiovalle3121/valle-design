@@ -26,6 +26,7 @@ import type { CadDocument, CadEntity } from "../../src/lib/cad/cad-document";
 import { enter3DView } from '../fixtures/view-mode';
 import { topView, fitFootprint } from "../fixtures/camera-preset";
 import { startTool } from "../fixtures/tool-palette";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 type CadArc = Extract<CadEntity, { type: "arc" }>;
 
@@ -84,6 +85,9 @@ test("OFFSET sobre un arco produce un arco concéntrico y lo persiste", async ({
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto("/legacy/studio");
+  // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+  // como una persona, antes de leer nada de lo que vive dentro.
+  await abrirPanelDerecho(page);
 
   await page.getByTestId("cad-native-entity-muro-curvo").click();
   await expect(page.getByTestId("cad-native-properties")).toContainText("ARC");

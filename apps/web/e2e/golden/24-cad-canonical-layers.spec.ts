@@ -4,6 +4,7 @@ import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 function canonicalDocument(): CadDocument {
   return {
@@ -30,6 +31,9 @@ test('canonical layer manager creates, edits, locks, assigns, deletes and persis
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto('/legacy/studio');
+  // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+  // como una persona, antes de leer nada de lo que vive dentro.
+  await abrirPanelDerecho(page);
   await page.getByTestId('cad-native-entity-layer-line').click();
   await expect(page.getByTestId('cad-native-property-startX')).toHaveValue('1000');
 

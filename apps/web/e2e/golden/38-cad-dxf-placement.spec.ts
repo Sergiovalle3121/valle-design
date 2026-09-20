@@ -22,6 +22,7 @@ import { installMockBackend } from "../fixtures/mock-backend";
 import { installCadStudioBackend } from "../fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import type { CadDocument } from "../../src/lib/cad/cad-document";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 /** Huella de la planta: 12 × 10 m. El plano de abajo mide 1000 × 500. */
 const FOOTPRINT = {
@@ -82,6 +83,9 @@ test("el plano DXF se guarda con la colocación que el editor calculó, no con l
   await loginAsStandaloneOwner(context);
   await installCadBackend(context);
   await page.goto("/legacy/studio");
+  // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+  // como una persona, antes de leer nada de lo que vive dentro.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId("cad-native-entity-planta-line")).toBeVisible();
 
   // Lo que se mide es el CUERPO de la subida: que lleve la colocación. Era

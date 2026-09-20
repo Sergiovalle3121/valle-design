@@ -4,6 +4,7 @@ import { installCadStudioBackend } from "../fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import { saveAndSettle } from "../fixtures/cad-save";
 import type { CadDocument, CadEntity } from "../../src/lib/cad/cad-document";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 /**
  * OLA D — el TRABAJO AJENO: las órdenes que faltaban para trabajar sobre un
@@ -72,6 +73,9 @@ async function openStudio(context: BrowserContext, page: Page) {
     gridSize: 100,
   });
   await page.goto("/legacy/studio");
+  // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+  // como una persona, antes de leer nada de lo que vive dentro.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId("cad-command-line")).toBeVisible();
   await expect(page.getByTestId("cad-native-document-count")).toHaveText("Native 4");
   return backend;

@@ -25,6 +25,7 @@ import { applyDynamicInput } from '../fixtures/dynamic-input';
 import { worldPoint } from '../fixtures/world-point';
 import { fitFootprint } from "../fixtures/camera-preset";
 import { startTool } from "../fixtures/tool-palette";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 // MIGRACIÓN R3: mock en la superficie v1 real. DIFERENCIA de transporte
 // documentada: el PUT legacy arrastraba el array `assets` junto al documento;
@@ -82,6 +83,9 @@ test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFF
 
   await test.step('1. Abrir dibujo', async () => {
     await page.goto('/legacy/studio');
+    // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+    // como una persona, antes de leer nada de lo que vive dentro.
+    await abrirPanelDerecho(page);
     await expect(page.getByTestId('cad-canvas')).toBeVisible();
   });
   await test.step('2. Elegir unidades', async () => {
