@@ -91,7 +91,7 @@ export function CadCommandLineDock({ host, disabled, inputRef }: CadCommandLineD
       {typeof document !== "undefined"
         ? createPortal(
             <div
-              className="pointer-events-none fixed inset-x-3 z-30 flex flex-col-reverse items-start gap-2"
+              className="pointer-events-none fixed inset-x-3 z-[80] flex flex-col-reverse items-start gap-2"
               style={{ bottom: FLOATING_DOCK_BOTTOM_OFFSET + 12 }}
             >
               {/*
