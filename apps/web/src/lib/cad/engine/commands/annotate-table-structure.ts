@@ -240,9 +240,10 @@ function mergeRegion(
   const target = { r0, r1, c0, c1 };
   // Una celda YA fusionada (rowSpan/columnSpan > 1) cuyo rectángulo se cruza con
   // el objetivo pero no cabe entero dentro: fusionar de todos modos dejaría DOS
-  // celdas fusionadas reclamando la misma casilla (ver skeptic-merge-overlap.ts).
-  // Si el objetivo la CONTIENE entera, en cambio, es un agrandar legítimo — la
-  // vieja fusión desaparece dentro de la nueva, como en AutoCAD.
+  // celdas fusionadas reclamando la misma casilla (ver el caso "se cruza" en
+  // annotate-table-structure.spec.ts). Si el objetivo la CONTIENE entera, en
+  // cambio, es un agrandar legítimo — la vieja fusión desaparece dentro de la
+  // nueva, como en AutoCAD (ver el caso "agrandar" en el mismo spec).
   for (const cell of table.cells) {
     if ((cell.rowSpan ?? 1) <= 1 && (cell.columnSpan ?? 1) <= 1) continue;
     const existing = footprint(cell);
