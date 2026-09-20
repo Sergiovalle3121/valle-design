@@ -70,9 +70,6 @@ function run(name: string, inputs: readonly CadCommandInput[], doc: CadDocument)
 function circle(id: string, x: number, y: number, radius: number): CadEntity {
   return { id, type: "circle", center: { x, y, z: 0 }, radius, layer } as CadEntity;
 }
-function line(id: string, ax: number, ay: number, bx: number, by: number): CadEntity {
-  return { id, type: "line", start: { x: ax, y: ay, z: 0 }, end: { x: bx, y: by, z: 0 }, layer } as CadEntity;
-}
 
 function linesOf(doc: CadDocument, layer_: string): Extract<CadEntity, { type: "line" }>[] {
   return doc.entities.filter(
