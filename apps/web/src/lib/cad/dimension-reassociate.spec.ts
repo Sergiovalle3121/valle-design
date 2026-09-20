@@ -51,7 +51,6 @@ function drive(name: string, inputs: readonly CadCommandInput[], ctx: CadCommand
 }
 
 const enter: CadCommandInput = { kind: "enter" };
-const point = (x: number, y: number): CadCommandInput => ({ kind: "point", point: { x, y }, source: "typed" });
 const entityPick = (entityId: string, x: number, y: number): CadCommandInput => ({
   kind: "entityPick",
   entityId,
