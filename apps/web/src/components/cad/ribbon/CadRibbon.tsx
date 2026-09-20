@@ -331,7 +331,13 @@ export function CadRibbon({
         className="min-w-0 flex-1 border-b-0 px-2 [&_button]:py-1"
       />
       {trailing ? (
-        <div className="flex shrink-0 items-center gap-1.5">{trailing}</div>
+        // `border-l`: separa la cola de la fila de pestañas — antes las dos
+        // sólo compartían un `gap-1.5`, sin ancla visual entre "pestañas" y
+        // "el resto de controles" (sistema-visual, regla 1: barra ordenada
+        // en grupos, no una masa).
+        <div className="flex shrink-0 items-center gap-1.5 border-l border-border pl-2">
+          {trailing}
+        </div>
       ) : null}
       <button
         type="button"

@@ -13574,7 +13574,7 @@ export default function Layout3DEditor({
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         )}
-        <div className="w-px h-5 bg-muted mx-1" />
+        <div className="w-px h-5 bg-border mx-1" />
         <T3Btn
           onClick={undo}
           disabled={hist.undo === 0}
@@ -13589,9 +13589,9 @@ export default function Layout3DEditor({
         >
           <Redo2 className="w-4 h-4" />
         </T3Btn>
-        <div className="w-px h-5 bg-muted mx-1" />
+        <div className="w-px h-5 bg-border mx-1" />
         <T3Btn
-          active={layers.grid}
+          active={layers.grid} variant="soft"
           onClick={() => setLayers((v) => ({ ...v, grid: !v.grid }))}
           title={
             layers.grid
@@ -13602,20 +13602,20 @@ export default function Layout3DEditor({
           <Grid3x3 className="w-4 h-4" />
         </T3Btn>
         <T3Btn
-          active={snap}
+          active={snap} variant="soft"
           onClick={() => setSnap((v) => !v)}
           title="Snap a grilla"
         >
           <Crosshair className="w-4 h-4" />
         </T3Btn>
         <T3Btn
-          active={draftSettings.osnap}
+          active={draftSettings.osnap} variant="soft"
           onClick={() => draftSettingsHost.toggleOsnap()}
           title="Snap a objetos y al plano DXF — alinea con bordes/centros y engancha a vértices y puntos medios del plano al medir o trazar muros"
         >
           <Magnet className="w-4 h-4" />
         </T3Btn>
-        <div className="w-px h-5 bg-muted mx-1" />
+        <div className="w-px h-5 bg-border mx-1" />
         {viewMode === "3d" && (
           <>
             {CAD_CAMERA_VIEW_PRESET_BUTTONS.map(([preset, title, Icon]) => (
@@ -13663,7 +13663,7 @@ export default function Layout3DEditor({
           )}
         </T3Btn>
         <T3Btn
-          active={showMinimap}
+          active={showMinimap} variant="soft"
           onClick={() =>
             updateWorkspacePreferences({
               ...workspacePreferencesRef.current,
@@ -13674,9 +13674,9 @@ export default function Layout3DEditor({
         >
           <MapPin className="w-4 h-4" />
         </T3Btn>
-        <div className="w-px h-5 bg-muted mx-1" />
+        <div className="w-px h-5 bg-border mx-1" />
         <T3Btn
-          active={showGaps}
+          active={showGaps} variant="soft"
           onClick={() => setShowGaps((v) => !v)}
           title="Holguras de seguridad — marca los objetos demasiado juntos (ámbar) o traslapados (rojo)"
         >
@@ -13937,7 +13937,7 @@ export default function Layout3DEditor({
               document.body,
             )}
         </div>
-        <div className="w-px h-5 bg-muted mx-1" />
+        <div className="w-px h-5 bg-border mx-1" />
         <T3Btn
           active={showPalette}
           onClick={() => setShowPalette((v) => !v)}
