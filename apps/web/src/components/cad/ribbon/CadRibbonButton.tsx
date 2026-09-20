@@ -19,8 +19,8 @@ import { CAD_RIBBON_PANEL_ICONS } from "./ribbon-icons";
  *   · `large`: el botón grande del panel (`command.primary`): icono de 24 px
  *     y el rótulo debajo, en dos líneas si hace falta. Mide 4,25 rem.
  *   · `small`: una fila de 20 px con el icono de 16 px y el rótulo a la
- *     derecha; el panel apila tres. Mide 7 rem — o, con `dense`, 1,625 rem
- *     SIN rótulo (ver más abajo).
+ *     derecha; el panel apila tres. Mide 7 rem — o, con `dense`, 5 rem (80 px)
+ *     con el rótulo recortado si no cabe (ver más abajo).
  *   · `menu`: la fila del desplegable del panel, más ancha porque ahí no
  *     hay presupuesto de cinta.
  *
