@@ -191,11 +191,26 @@ test('professional selection executes window, crossing, lasso and overlap cyclin
   await expect(statusCount).toHaveText('1 sel');
 
   await setCanvasMode('pick');
-  const overlap = await worldPoint(page, { x: 9_150, y: 2_150 });
+  let overlap = await worldPoint(page, { x: 9_150, y: 2_150 });
   await page.mouse.click(overlap.x, overlap.y);
   await expect(statusCount).toHaveText('1 sel');
   const properties = page.getByTestId('cad-native-properties');
   await expect(properties).toBeVisible();
+  // Designar reabre el muelle derecho AUNQUE `setCanvasMode` lo hubiera dejado
+  // plegado (`Layout3DEditor.tsx`, `rightRailActiveId`: «Colapsado» no impide
+  // que una designación abra el muelle solo — se dispara porque
+  // `nativeSelectedEntities.length` deja de ser cero). Medido el 2026-09-20:
+  // el lienzo pasaba de 1190 a 911 px de ancho EN ESTE CLIC, la misma
+  // transición de siempre (comentario de `esperarLienzoQuieto` en
+  // `docks.ts`), pero aquí la dispara una designación, no un muelle abierto a
+  // mano, así que el spec no la esperaba. El punto de pantalla del SEGUNDO
+  // clic se había calculado con el ancho VIEJO: con el lienzo ya encogido
+  // caía fuera de las dos líneas superpuestas, el editor lo trataba como
+  // fondo y limpiaba la selección («0 sel» en vez de ciclar). Se espera a que
+  // el lienzo se asiente y se vuelve a muestrear la afín antes de repetir el
+  // clic — la geometría no se movió, sólo la pantalla.
+  await esperarLienzoQuieto(page);
+  overlap = await worldPoint(page, { x: 9_150, y: 2_150 });
   // El panel dejó de enseñar `cad_mt60y4ol_uzfo` donde el usuario mira para
   // saber qué designó: ahora dice «Línea 1» y el identificador técnico viaja
   // en el detalle de la celda. Se lee de ahí, que además es una aserción MÁS
