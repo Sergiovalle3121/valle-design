@@ -180,6 +180,7 @@ const LAYERS: CadLayerDef[] = [
     linetype: false,
     lineweight: false,
     plot: false,
+    frozen: false,
   });
   const patched = partial.commands[0];
   ok(

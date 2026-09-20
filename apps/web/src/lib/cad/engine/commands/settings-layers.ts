@@ -11,7 +11,14 @@
  * `LAYER` a secas abre el gestor y dejaría el script esperando un clic.
  */
 import type { CadLayerDef } from "../../cad-document";
-import { captureCadLayerState, planCadLayerStateRestore } from "../../layer-states";
+import {
+  captureCadLayerState,
+  CadLayerStateFormatError,
+  parseCadLayerState,
+  planCadLayerStateRestore,
+  serializeCadLayerState,
+  type CadNamedLayerState,
+} from "../../layer-states";
 import {
   CAD_ACCEPT_KEYWORD,
   CAD_ACCEPT_TEXT,
@@ -240,18 +247,29 @@ const layerCliCommand: CadCommandDescriptor<LayerCliState> = {
 const LS_SAVE = { keyword: "Guardar", shortcut: "G" } as const;
 const LS_RESTORE = { keyword: "Restituir", shortcut: "R" } as const;
 const LS_DELETE = { keyword: "Suprimir", shortcut: "S" } as const;
+const LS_RENAME = { keyword: "Renombrar", shortcut: "N" } as const;
+const LS_EXPORT = { keyword: "eXportar", shortcut: "X" } as const;
+const LS_IMPORT = { keyword: "Importar", shortcut: "I" } as const;
 const LS_LIST = { keyword: "?", shortcut: "?" } as const;
 
+type LayerStateAction = "save" | "restore" | "delete" | "rename" | "export" | "import" | null;
+
 interface LayerStateState {
-  action: "save" | "restore" | "delete" | null;
+  action: LayerStateAction;
+  /** En Renombrar se pide primero el nombre actual y luego el nuevo. */
+  pendingFrom: string | null;
 }
 
 /**
  * LAYERSTATE lee y escribe `document.layerStates` (esquema 9): el estado
  * sobrevive a la recarga y viaja con el documento, que es lo que este comando
- * avisaba de que NO hacía cuando el catálogo era de sesión. Guardar y suprimir
- * emiten órdenes `layer-state` por el lote; restituir emite los parches de
- * capa — deshacer devuelve cualquiera de las tres.
+ * avisaba de que NO hacía cuando el catálogo era de sesión. Guardar, suprimir
+ * y renombrar emiten órdenes `layer-state` por el lote; restituir emite los
+ * parches de capa — deshacer devuelve cualquiera de las cuatro. Exportar e
+ * importar NO tocan la tabla de capas: mueven el JSON de un estado por texto
+ * plano, igual que LAYTRANS deja su mapa en el historial para pegarlo en otra
+ * sesión (`../../standards/laytrans.ts`) — así un estado viaja entre dibujos
+ * sin depender de que los dos estén abiertos a la vez.
  */
 const layerStateCommand: CadCommandDescriptor<LayerStateState> = {
   name: "LAYERSTATE",
@@ -263,10 +281,10 @@ const layerStateCommand: CadCommandDescriptor<LayerStateState> = {
   mutates: true,
   cursor: "none",
   begin: (context) => ({
-    state: { action: null },
+    state: { action: null, pendingFrom: null },
     prompt: {
       message: `Estados de capa del documento: ${context.document?.().layerStates?.length ?? 0}`,
-      options: [LS_SAVE, LS_RESTORE, LS_DELETE, LS_LIST],
+      options: [LS_SAVE, LS_RESTORE, LS_DELETE, LS_RENAME, LS_EXPORT, LS_IMPORT, LS_LIST],
       defaultOption: LS_RESTORE.keyword,
     },
     accepts: CAD_ACCEPT_KEYWORD,
@@ -292,15 +310,33 @@ const layerStateCommand: CadCommandDescriptor<LayerStateState> = {
             : states.map((entry) => `${entry.name} (${entry.entries.length} capa(s))`).join("\n"),
         );
       }
-      const action =
-        keyword === LS_SAVE.keyword ? "save" : keyword === LS_DELETE.keyword ? "delete" : "restore";
+      const action: LayerStateAction =
+        keyword === LS_SAVE.keyword
+          ? "save"
+          : keyword === LS_DELETE.keyword
+            ? "delete"
+            : keyword === LS_RENAME.keyword
+              ? "rename"
+              : keyword === LS_EXPORT.keyword
+                ? "export"
+                : keyword === LS_IMPORT.keyword
+                  ? "import"
+                  : "restore";
+      if (action === "import")
+        return {
+          state: { action, pendingFrom: null },
+          prompt: { message: "Pegue el texto exportado de un estado de capa", options: [] },
+          accepts: CAD_ACCEPT_TEXT,
+        };
       return {
-        state: { action },
+        state: { action, pendingFrom: null },
         prompt: {
           message:
             action === "save"
               ? "Nombre del estado nuevo"
-              : `Nombre del estado (${states.map((entry) => entry.name).join(", ")})`,
+              : action === "rename"
+                ? `Nombre actual del estado (${states.map((entry) => entry.name).join(", ")})`
+                : `Nombre del estado (${states.map((entry) => entry.name).join(", ")})`,
           options: [],
         },
         accepts: CAD_ACCEPT_TEXT,
@@ -308,8 +344,8 @@ const layerStateCommand: CadCommandDescriptor<LayerStateState> = {
     }
 
     if (input.kind !== "text") return cancelled(state);
-    const name = input.value.trim();
-    if (!name) return cancelled(state);
+    const typed = input.value.trim();
+    if (!typed) return cancelled(state);
 
     if (state.action === "save") {
       const layers = layersOf(context);
@@ -321,28 +357,96 @@ const layerStateCommand: CadCommandDescriptor<LayerStateState> = {
         accepts: 0,
         result: {
           kind: "document",
-          commands: [{ type: "layer-state", op: "upsert", state: captureCadLayerState(name, layers) }],
-          label: `LAYERSTATE "${name}": ${layers.length} capa(s) guardadas en el documento`,
+          commands: [{ type: "layer-state", op: "upsert", state: captureCadLayerState(typed, layers) }],
+          label: `LAYERSTATE "${typed}": ${layers.length} capa(s) guardadas en el documento`,
         },
       };
     }
 
     if (state.action === "delete") {
-      if (!find(name)) return message(state, `No hay ningún estado llamado "${name}".`);
+      if (!find(typed)) return message(state, `No hay ningún estado llamado "${typed}".`);
       return {
         state,
         prompt: { message: "", options: [] },
         accepts: 0,
         result: {
           kind: "document",
-          commands: [{ type: "layer-state", op: "delete", name }],
-          label: `LAYERSTATE "${name}": estado suprimido del documento`,
+          commands: [{ type: "layer-state", op: "delete", name: typed }],
+          label: `LAYERSTATE "${typed}": estado suprimido del documento`,
         },
       };
     }
 
-    const saved = find(name);
-    if (!saved) return message(state, `No hay ningún estado llamado "${name}".`);
+    if (state.action === "rename") {
+      if (state.pendingFrom === null) {
+        const source = find(typed);
+        if (!source) return message(state, `No hay ningún estado llamado "${typed}".`);
+        return {
+          state: { ...state, pendingFrom: source.name },
+          prompt: { message: `Nombre nuevo para "${source.name}"`, options: [] },
+          accepts: CAD_ACCEPT_TEXT,
+        };
+      }
+      const source = find(state.pendingFrom);
+      if (!source) return message(state, `El estado "${state.pendingFrom}" ha dejado de existir.`);
+      if (source.name === typed) return message(state, `El estado ya se llama "${typed}".`);
+      // `find` no distingue mayúsculas: si lo que encuentra ES el propio
+      // origen, es sólo un cambio de mayúsculas, no una colisión.
+      const clash = find(typed);
+      if (clash && clash.name.toUpperCase() !== source.name.toUpperCase())
+        return message(state, `Ya existe un estado llamado "${clash.name}".`);
+      return {
+        state,
+        prompt: { message: "", options: [] },
+        accepts: 0,
+        // Borrar el viejo y crear el nuevo con las MISMAS entradas, en el
+        // mismo lote: un paso de deshacer devuelve el nombre de origen.
+        result: {
+          kind: "document",
+          commands: [
+            { type: "layer-state", op: "delete", name: source.name },
+            { type: "layer-state", op: "upsert", state: { ...source, name: typed } },
+          ],
+          label: `LAYERSTATE: estado "${source.name}" renombrado a "${typed}"`,
+        },
+      };
+    }
+
+    if (state.action === "export") {
+      const found = find(typed);
+      if (!found) return message(state, `No hay ningún estado llamado "${typed}".`);
+      return message(
+        state,
+        `LAYERSTATE "${found.name}" exportado (${found.entries.length} capa(s)); ` +
+          `pegue este texto en Importar en el dibujo de destino:\n${serializeCadLayerState(found)}`,
+      );
+    }
+
+    if (state.action === "import") {
+      let parsed: CadNamedLayerState;
+      try {
+        parsed = parseCadLayerState(typed);
+      } catch (error) {
+        if (!(error instanceof CadLayerStateFormatError)) throw error;
+        return message(state, `LAYERSTATE no pudo importar: ${error.message}`);
+      }
+      const overwriting = !!find(parsed.name);
+      return {
+        state,
+        prompt: { message: "", options: [] },
+        accepts: 0,
+        result: {
+          kind: "document",
+          commands: [{ type: "layer-state", op: "upsert", state: parsed }],
+          label:
+            `LAYERSTATE "${parsed.name}" importado (${parsed.entries.length} capa(s))` +
+            (overwriting ? "; sustituyó al estado del mismo nombre" : ""),
+        },
+      };
+    }
+
+    const saved = find(typed);
+    if (!saved) return message(state, `No hay ningún estado llamado "${typed}".`);
     const plan = planCadLayerStateRestore(saved, layersOf(context));
     const notes = [
       ...(plan.missing.length > 0
@@ -353,7 +457,7 @@ const layerStateCommand: CadCommandDescriptor<LayerStateState> = {
         : []),
     ];
     if (plan.commands.length === 0)
-      return message(state, [`El estado "${name}" ya está puesto.`, ...notes].join("\n"));
+      return message(state, [`El estado "${typed}" ya está puesto.`, ...notes].join("\n"));
     return {
       state,
       prompt: { message: "", options: [] },
@@ -362,7 +466,7 @@ const layerStateCommand: CadCommandDescriptor<LayerStateState> = {
       result: {
         kind: "document",
         commands: plan.commands,
-        label: `LAYERSTATE "${name}": ${plan.changed} capa(s) restauradas`,
+        label: `LAYERSTATE "${typed}": ${plan.changed} capa(s) restauradas`,
       },
     };
   },

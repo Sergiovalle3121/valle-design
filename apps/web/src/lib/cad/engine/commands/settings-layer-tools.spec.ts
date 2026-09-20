@@ -382,6 +382,117 @@ const layerById = (document: CadDocument, id: string) =>
   assert.ok(!serializeCadDocument(removed).includes("layerStates"));
 }
 
+// --- LAYERSTATE recuerda CONGELADA, y Renombrar/eXportar/Importar viajan ----
+{
+  const before = baseDocument();
+  const frozenDoc = run(before, ["-LAYER", "I", "MEP"]).document; // MEP congelada
+  const saved = run(frozenDoc, ["LAYERSTATE", "G", "ConCongelada"]).document;
+  const frozenEntry = saved.layerStates?.[0].entries.find((entry) => entry.layerName === "MEP");
+  assert.equal(frozenEntry?.frozen, true, "la foto recuerda que MEP estaba congelada");
+  const thawedEntry = saved.layerStates?.[0].entries.find((entry) => entry.layerName === "MUROS");
+  assert.equal(thawedEntry?.frozen, undefined, "y que MUROS NO lo estaba (ausente, no `false`)");
+
+  // Se descongela de verdad, se estropea el reparto… y Restituir vuelve a
+  // congelar: el bit de CONGELADA hace la ida y vuelta completa, no sólo la
+  // visibilidad que ya se comprobaba arriba.
+  const messed = run(saved, ["-LAYER", "R", "MEP"]).document;
+  assert.ok(!("frozen" in layerById(messed, "MEP")), "MEP queda descongelada antes de restituir");
+  const restored = run(messed, ["LAYERSTATE", "R", "ConCongelada"]).document;
+  assert.equal(layerById(restored, "MEP").frozen, true, "restituir vuelve a congelar MEP");
+  assert.equal(restored.meta.version - messed.meta.version, 1, "en UN paso de historia");
+
+  // Renombrar: las MISMAS entradas —congelada incluida— bajo un nombre nuevo,
+  // en un solo paso de deshacer (borrar el viejo y crear el nuevo es UN lote).
+  const renamed = run(restored, ["LAYERSTATE", "N", "ConCongelada", "Entrega"]).document;
+  assert.equal(renamed.layerStates?.length, 1, "renombrar no duplica el estado");
+  assert.equal(renamed.layerStates?.[0].name, "Entrega", "el nombre cambia");
+  assert.equal(
+    renamed.layerStates?.[0].entries.find((entry) => entry.layerName === "MEP")?.frozen,
+    true,
+    "y las entradas viajan intactas",
+  );
+  assert.equal(renamed.meta.version - restored.meta.version, 1, "renombrar también en UN paso");
+
+  const noSource = run(renamed, ["LAYERSTATE", "N", "NoExiste"]);
+  assert.ok(
+    messages(noSource.effects).some((text) => text.includes("No hay ningún estado")),
+    "renombrar un estado que no existe se dice, no se aproxima",
+  );
+  const withSecond = run(renamed, ["LAYERSTATE", "G", "Otra"]).document;
+  const collision = run(withSecond, ["LAYERSTATE", "N", "Otra", "Entrega"]);
+  assert.ok(
+    messages(collision.effects).some((text) => text.includes("Ya existe un estado")),
+    "renombrar a un nombre ya usado por OTRO estado se niega",
+  );
+
+  // eXportar: el texto sale en el mensaje, listo para copiar a otro dibujo.
+  const exported = run(renamed, ["LAYERSTATE", "X", "Entrega"]);
+  const exportedText = messages(exported.effects).find((text) => text.includes("exportado"));
+  assert.ok(exportedText, "eXportar responde con el texto");
+  const payload = exportedText!.split("\n").pop()!;
+  assert.ok(payload.includes('"Entrega"') && payload.includes('"frozen":true'), "el JSON trae el nombre y la capa congelada");
+  const exportMissing = run(renamed, ["LAYERSTATE", "X", "NoExiste"]);
+  assert.ok(
+    messages(exportMissing.effects).some((text) => text.includes("No hay ningún estado")),
+    "eXportar de un nombre inexistente se dice",
+  );
+
+  // Importar: el MISMO texto, pegado en un dibujo SIN ese estado, reconstruye
+  // el estado completo — y restituirlo allí vuelve a congelar la capa. Esa es
+  // la ida y vuelta completa: capturar → exportar → importar → restituir.
+  const otherDrawing = baseDocument();
+  const imported = run(otherDrawing, [
+    "LAYERSTATE",
+    "I",
+    { kind: "text", value: payload },
+  ]).document;
+  assert.equal(imported.layerStates?.length, 1, "el estado importado queda en el documento destino");
+  assert.equal(imported.layerStates?.[0].name, "Entrega");
+  assert.equal(
+    imported.layerStates?.[0].entries.find((entry) => entry.layerName === "MEP")?.frozen,
+    true,
+    "la capa congelada sobrevive al viaje exportar→importar",
+  );
+  const restoredThere = run(imported, ["LAYERSTATE", "R", "Entrega"]).document;
+  assert.equal(layerById(restoredThere, "MEP").frozen, true, "y restituirlo en el dibujo destino congela MEP");
+
+  // Importar texto que no es JSON, o al que le falta forma, se NIEGA con la
+  // razón: nunca aproxima un estado a medias.
+  const badJson = run(otherDrawing, [
+    "LAYERSTATE",
+    "I",
+    { kind: "text", value: "esto no es json" },
+  ]);
+  assert.ok(
+    messages(badJson.effects).some((text) => text.includes("no pudo importar")),
+    "JSON inválido se rechaza con la razón",
+  );
+  const missingShape = run(otherDrawing, [
+    "LAYERSTATE",
+    "I",
+    { kind: "text", value: JSON.stringify({ name: "X" }) },
+  ]);
+  assert.ok(
+    messages(missingShape.effects).some((text) => text.includes("no pudo importar")),
+    "un objeto sin «entries» también se rechaza",
+  );
+
+  // Importar un nombre que YA existe SUSTITUYE, y lo dice (en la etiqueta del
+  // lote: importar SÍ muta el documento, así que no es un mensaje suelto).
+  const overwritten = run(imported, [
+    "LAYERSTATE",
+    "I",
+    { kind: "text", value: payload },
+  ]);
+  assert.ok(
+    overwritten.effects.some(
+      (effect) => effect.kind === "execute" && effect.label.includes("sustituyó"),
+    ),
+    "reimportar el mismo nombre avisa de que sustituyó",
+  );
+  assert.equal(overwritten.document.layerStates?.length, 1, "y no duplica el estado");
+}
+
 // --- LAYCUR escribe CLAYER (no CCLAYER) y lo dibujado después cae ahí -------
 {
   // Bug real: escribía `CCLAYER`, una variable que nadie lee. LAYCUR

@@ -30,6 +30,15 @@ export interface CadLayerStateEntry {
   linetype?: string;
   lineweight?: number;
   plot?: boolean;
+  /**
+   * CONGELADA en el momento de la foto. Opcional-ausente igual que `plot`:
+   * sólo se escribe cuando es `true`, así que un estado guardado ANTES de
+   * este campo (sin ninguna entrada con la llave) se distingue de uno que sí
+   * la trae pero con todas las capas descongeladas — ambos casos existen y
+   * `planCadLayerStateRestore` los trata igual (ver más abajo), pero la
+   * distinción queda en el dato por si una futura lectura la necesita.
+   */
+  frozen?: boolean;
 }
 
 export interface CadNamedLayerState {
@@ -45,6 +54,7 @@ export interface CadLayerStateScope {
   linetype: boolean;
   lineweight: boolean;
   plot: boolean;
+  frozen: boolean;
 }
 
 export const CAD_LAYER_STATE_FULL_SCOPE: CadLayerStateScope = {
@@ -54,6 +64,7 @@ export const CAD_LAYER_STATE_FULL_SCOPE: CadLayerStateScope = {
   linetype: true,
   lineweight: true,
   plot: true,
+  frozen: true,
 };
 
 export function captureCadLayerState(
@@ -70,6 +81,7 @@ export function captureCadLayerState(
       ...(layer.linetype === undefined ? {} : { linetype: layer.linetype }),
       ...(layer.lineweight === undefined ? {} : { lineweight: layer.lineweight }),
       ...(layer.plot === undefined ? {} : { plot: layer.plot }),
+      ...(layer.frozen === true ? { frozen: true as const } : {}),
     })),
   };
 }
@@ -115,6 +127,12 @@ export function planCadLayerStateRestore(
     if (scope.linetype && entry.linetype !== undefined) next.linetype = entry.linetype;
     if (scope.lineweight && entry.lineweight !== undefined) next.lineweight = entry.lineweight;
     if (scope.plot && entry.plot !== undefined) next.plot = entry.plot;
+    // Igual que `visible`/`locked`: la AUSENCIA de `frozen` en la entrada es
+    // «no congelada» (el mismo convenio que usa `thawedLayer` al borrar la
+    // llave), así que se aplica siempre dentro del alcance, sin condicionar a
+    // que la entrada la traiga — eso es lo que permite que restaurar
+    // descongele de verdad una capa que el estado guardó descongelada.
+    if (scope.frozen) next.frozen = entry.frozen === true ? true : undefined;
     if (sameLayer(layer, next)) continue;
     commands.push({ type: "layer", op: "upsert", layer: next });
   }
@@ -136,7 +154,8 @@ function sameLayer(a: CadLayerDef, b: CadLayerDef): boolean {
     a.locked === b.locked &&
     a.linetype === b.linetype &&
     a.lineweight === b.lineweight &&
-    a.plot === b.plot
+    a.plot === b.plot &&
+    a.frozen === b.frozen
   );
 }
 
@@ -180,6 +199,103 @@ export function deleteCadDocumentLayerState(
   // La sección es opcional-ausente: borrar el último estado la retira entera.
   if (layerStates.length === 0) delete (next as Partial<CadDocument>).layerStates;
   return commitChange(next, `layer-state:delete:${name.trim()}`);
+}
+
+/**
+ * Renombra un estado guardado SIN tocar sus entradas. `undefined` cuando el
+ * origen no existe, hay colisión con otro nombre ya usado (que no sea el
+ * mismo, sin distinguir mayúsculas — sería fusionar dos estados, no
+ * renombrar uno) o el nombre nuevo viene vacío: así el llamador dice por qué
+ * en vez de que esto devuelva el documento intacto en silencio.
+ */
+export function renameCadDocumentLayerState(
+  document: CadDocument,
+  from: string,
+  to: string,
+): CadDocument | { error: string } {
+  const trimmedTo = to.trim();
+  if (!trimmedTo) return { error: "El nombre nuevo no puede quedar vacío." };
+  const key = from.trim().toUpperCase();
+  const state = (document.layerStates ?? []).find((entry) => entry.name.toUpperCase() === key);
+  if (!state) return { error: `No hay ningún estado llamado "${from.trim()}".` };
+  if (state.name === trimmedTo) return { error: `El estado ya se llama "${trimmedTo}".` };
+  const clash = (document.layerStates ?? []).find(
+    (entry) => entry.name.toUpperCase() === trimmedTo.toUpperCase(),
+  );
+  if (clash) return { error: `Ya existe un estado llamado "${clash.name}".` };
+  const layerStates = [
+    ...(document.layerStates ?? []).filter((entry) => entry.name.toUpperCase() !== key),
+    { ...state, name: trimmedTo },
+  ].sort((a, b) => a.name.localeCompare(b.name));
+  return commitChange({ ...document, layerStates }, `layer-state:rename:${state.name}:${trimmedTo}`);
+}
+
+export class CadLayerStateFormatError extends Error {
+  readonly code = "cad_layerstate_invalid";
+  constructor(reason: string) {
+    super(`El estado de capa no es válido: ${reason}`);
+    this.name = "CadLayerStateFormatError";
+  }
+}
+
+/** LAYERSTATE «Exportar»: el mismo texto que LAYTRANS deja en el historial para pegar en otra sesión. */
+export function serializeCadLayerState(state: CadNamedLayerState): string {
+  return JSON.stringify(state);
+}
+
+/**
+ * LAYERSTATE «Importar»: reconstruye el estado desde el texto de Exportar.
+ * Rechaza CON RAZÓN cualquier cosa que no tenga la forma exacta —nombre y
+ * lista de entradas con capa/color/visible/bloqueada— en vez de importar a
+ * medias y dejar un estado roto en el documento.
+ */
+export function parseCadLayerState(json: string): CadNamedLayerState {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(json);
+  } catch (error) {
+    throw new CadLayerStateFormatError(
+      `no es JSON válido (${error instanceof Error ? error.message : String(error)}).`,
+    );
+  }
+  if (!raw || typeof raw !== "object") throw new CadLayerStateFormatError("se esperaba un objeto.");
+  const candidate = raw as Record<string, unknown>;
+  if (typeof candidate.name !== "string" || !candidate.name.trim())
+    throw new CadLayerStateFormatError('falta «name» (el nombre del estado).');
+  if (!Array.isArray(candidate.entries))
+    throw new CadLayerStateFormatError('falta «entries» (una lista de capas).');
+  const entries = candidate.entries.map((raw, index): CadLayerStateEntry => {
+    const entry = raw as Record<string, unknown>;
+    if (
+      !entry || typeof entry !== "object" ||
+      typeof entry.layerName !== "string" || !entry.layerName ||
+      typeof entry.color !== "string" || !entry.color ||
+      typeof entry.visible !== "boolean" ||
+      typeof entry.locked !== "boolean"
+    )
+      throw new CadLayerStateFormatError(
+        `la capa #${index + 1} no tiene layerName/color/visible/locked válidos.`,
+      );
+    if (entry.linetype !== undefined && typeof entry.linetype !== "string")
+      throw new CadLayerStateFormatError(`la capa #${index + 1} tiene «linetype» no textual.`);
+    if (entry.lineweight !== undefined && typeof entry.lineweight !== "number")
+      throw new CadLayerStateFormatError(`la capa #${index + 1} tiene «lineweight» no numérico.`);
+    if (entry.plot !== undefined && typeof entry.plot !== "boolean")
+      throw new CadLayerStateFormatError(`la capa #${index + 1} tiene «plot» no booleano.`);
+    if (entry.frozen !== undefined && typeof entry.frozen !== "boolean")
+      throw new CadLayerStateFormatError(`la capa #${index + 1} tiene «frozen» no booleano.`);
+    return {
+      layerName: entry.layerName,
+      color: entry.color,
+      visible: entry.visible,
+      locked: entry.locked,
+      ...(entry.linetype === undefined ? {} : { linetype: entry.linetype as string }),
+      ...(entry.lineweight === undefined ? {} : { lineweight: entry.lineweight as number }),
+      ...(entry.plot === undefined ? {} : { plot: entry.plot as boolean }),
+      ...(entry.frozen === true ? { frozen: true as const } : {}),
+    };
+  });
+  return { name: candidate.name.trim(), entries };
 }
 
 /**
