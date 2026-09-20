@@ -20,7 +20,6 @@ import "@/lib/cad/engine/all-commands";
 
 let checks = 0;
 const ok = (cond: boolean, msg: string) => { assert.ok(cond, msg); checks += 1; };
-const near = (a: number, b: number, eps: number, msg: string) => { assert.ok(Math.abs(a - b) <= eps, `${msg}: ${a} != ${b} (±${eps})`); checks += 1; };
 /** Tolerancia relativa: para comparar con una fórmula ANALÍTICA (Pappus), no con el propio kernel. */
 const nearRel = (actual: number, expected: number, relTol: number, msg: string) => {
   const tol = Math.abs(expected) * relTol;

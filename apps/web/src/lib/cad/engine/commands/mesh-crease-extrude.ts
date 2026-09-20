@@ -30,7 +30,7 @@
  * directo que el kernel ya sabe hacer, aplicado a una malla en vez de a un
  * sólido paramétrico.
  */
-import { bodyToFaceSpecs, halfEdgeDestination } from "../../../brep";
+import { halfEdgeDestination } from "../../../brep";
 import { solid3dBody } from "../../solid3d-build";
 import { meshAtLevel, meshRecipe } from "./mesh-smoothing";
 import { meshEdgeKey, type MeshCrease } from "../../mesh/subdivision";

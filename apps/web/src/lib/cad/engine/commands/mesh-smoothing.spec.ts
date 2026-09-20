@@ -155,8 +155,8 @@ assert.ok(CAD_COMMAND_REGISTRY_V2.get("MESHSMOOTHLESS"), "MESHSMOOTHLESS registr
 // --- Ida y vuelta EXACTA: subir a nivel 2, bajar a 1, volver a subir a 2 ------
 {
   const { doc, meshId } = buildMeshBox();
-  let lvl1 = applySmooth("MESHSMOOTH", doc, meshId);
-  let lvl2 = applySmooth("MESHSMOOTH", lvl1, meshId);
+  const lvl1 = applySmooth("MESHSMOOTH", doc, meshId);
+  const lvl2 = applySmooth("MESHSMOOTH", lvl1, meshId);
   const bodyAt2First = solid3dBody(lvl2.entities.find((e) => e.id === meshId) as never);
   const volAt2First = solid3dMassProperties(lvl2.entities.find((e) => e.id === meshId) as never).volume;
 
