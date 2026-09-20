@@ -160,6 +160,17 @@ async function teclear(page: Page, valor: string) {
   await entrada.press("Enter");
 }
 
+// Reauditoría ola1-g2-estudio (2026-09-20), sobre el fix de `abrirPanelDerecho`
+// ya aplicado (ver comentarios de arriba): «Vista, capas y plano» y «Selección
+// profesional…» son títulos únicos en el código fuente (sin ambigüedad de
+// `getByTitle`) — el gestor de capas sigue siendo un panel flotante propio,
+// ajeno al armazón de docks, y «Selección profesional» es hoy un item del riel
+// derecho (`cad-shell-rail-items.tsx`) que abre/cierra con el mismo botón,
+// exactamente como ya hace `prepararDesignacionPorCruce`/`limpiarDesignacion`.
+// La barra de estado dejó de flotar SOBRE el lienzo (ahora es su propia fila
+// del armazón, `CadShellFrame`), así que el comentario de `designarTodoPorCruce`
+// sobre esquivar `cad-save-status` queda como margen de sobra, no como
+// necesidad — no se tocó, sigue siendo inofensivo. No hizo falta más cambios.
 test("el estándar de capas del delineante sobrevive a guardar y recargar", async ({
   context,
   page,

@@ -84,6 +84,13 @@ async function instalarTableroVacio(context: BrowserContext) {
  */
 const BETA_DWG = process.env.NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA === "true";
 
+// Auditoría ola1-g2-estudio (2026-09-20): `cad-dxf-input` es un `<input
+// type="file" className="hidden">` acoplado al T3Btn de `trailingContent`
+// (fila superior, no un muelle); `setInputFiles` no exige visibilidad, así
+// que le da igual el riel/panel. `app-toast` es el sistema de notificaciones
+// global (ajeno al armazón). Ni docks, ni paleta flotante, ni cinta entran en
+// esta prueba — el flujo entero (tablero → estudio) no tocó nada del layout
+// nuevo. No hizo falta tocar nada.
 test("el tablero y el estudio contestan lo mismo al mismo .dwg: la razón DWG con la beta apagada, por dónde entra con la beta encendida", async ({
   context,
   page,

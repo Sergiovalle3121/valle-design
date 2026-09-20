@@ -323,6 +323,15 @@ async function installCadBackend(context: BrowserContext) {
   };
 }
 
+// Auditoría ola1-g2-estudio (2026-09-20): este golden ya trae el ajuste de
+// `ac278984` (el recorrido guiado arranca plegado en el muelle izquierdo, se
+// despliega con `cad-guided-tour-toggle`). Se reauditó contra `tour-slot.ts` y
+// `CadCommandLineDock.tsx`: con `leftDockCollapsed: true` de fábrica, el
+// recorrido nace FLOTANDO (el hueco del muelle sólo se publica con el panel
+// abierto) y su franja —`fixed`, `bottom: commandRow+statusRow+12`— queda por
+// encima de la fila de comandos sin taparla, así que `type()` sobre
+// `cad-command-input` no choca con la tarjeta. `BLOCK/INSERT:` sigue siendo un
+// título único del riel derecho. No hizo falta tocar nada.
 test("de una cuenta nueva a un PDF: muro, puerta de la biblioteca sembrada, cota y trazado", async ({
   context,
   page,

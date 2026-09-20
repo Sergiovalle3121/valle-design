@@ -67,6 +67,17 @@ async function capture(page: Page, testInfo: TestInfo, label: string) {
 
 test.use({ deviceScaleFactor: 2 });
 
+// Auditoría ola1-g2-estudio (2026-09-20), carril «estudio y paletas»: sin
+// poder correr Playwright (regla de los 8 GB), se comprobó por lectura de
+// código, testid por testid, que este golden sigue casando con el armazón
+// nuevo — `cad-top-toolbar` (32 px, `cad-shell-rail-items.tsx`), el riel y
+// panel del muelle derecho (`abrirPanelDerecho`), `cad-block-palette` dentro
+// de `cad-right-dock` y el 74 %/78 % de `assertLienzoEnReposo` contra
+// `cadShellCanvasBox` (`cad-shell-layout.spec.ts`: 1352×669/904488 px² a
+// 1440×825 = 76,1 %; con la cinta plegada, 1352×741/1001832 px² = 84,3 %,
+// ambos por encima de los pisos que el golden exige). Es EL contrato del
+// layout por defecto: no se relajó ni un número, se verificó contra
+// `CAD_SHELL_METRICS`.
 test('professional workbench persists, scales and keeps every palette outside the drawing', async ({ context, page }, testInfo) => {
   // 5 viewports hasta 3840×2160 con deviceScaleFactor 2 son framebuffers de
   // hasta 7680×4320 en SwiftShader: el runner de CI (2 núcleos, GL por

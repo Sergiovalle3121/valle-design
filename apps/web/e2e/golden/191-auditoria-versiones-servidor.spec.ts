@@ -77,6 +77,15 @@ async function teclear(page: Page, texto: string) {
 const lineas = (documento: CadDocument) =>
   documento.entities.filter((e) => e.type === "line").map((e) => e.id);
 
+// Auditoría ola1-g2-estudio (2026-09-20): «Versiones» (`page.getByTitle(/^Versiones/)`)
+// vive en `trailingContent` de la fila superior de 32 px (Layout3DEditor.tsx,
+// junto a 2D/3D y Modelo/Presentación — item 6 del contrato), no en un muelle;
+// su título («Versiones — historial del servidor y snapshots locales») sigue
+// siendo el único que casa con la expresión regular. `CadVersionsDialog` sigue
+// siendo un modal condicionado por `showVersions`, ajeno al armazón de docks.
+// `cad-guided-tour-skip` (ya defendido con `if (await saltar.count())`) sigue
+// existiendo siempre que el recorrido esté pendiente/corriendo, plegado o
+// flotante — su cabecera se pinta pase lo que pase. No hizo falta tocar nada.
 test("«Versiones» lista el historial del servidor y restaurar guarda la versión vieja como nueva", async ({
   context,
   page,
