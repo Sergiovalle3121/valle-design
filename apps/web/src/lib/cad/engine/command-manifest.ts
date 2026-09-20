@@ -1,5 +1,5 @@
 /**
- * METADATOS de los 372 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 374 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
  * 125 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
@@ -153,6 +153,7 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "REGION", aliases: ["REG"], kind: "draw", transparent: false, selection: "required", repeatable: true, mutates: true, cursor: "pick", module: "commands/inquiry-region" },
   { name: "DXFIN", aliases: [], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "none", module: "commands/interop-dxf" },
   { name: "DXFOUT", aliases: [], kind: "inquiry", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "none", module: "commands/interop-dxf" },
+  { name: "SAVEAS", aliases: [], kind: "inquiry", transparent: false, selection: "none", repeatable: true, mutates: false, cursor: "none", module: "commands/interop-dxf" },
   { name: "LAYOUT", aliases: ["LO"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: true, cursor: "none", module: "commands/layout-commands" },
   { name: "MVIEW", aliases: ["MV"], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/layout-commands" },
   { name: "MSPACE", aliases: ["MS"], kind: "view", transparent: false, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/layout-commands" },
