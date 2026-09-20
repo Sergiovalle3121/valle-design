@@ -225,7 +225,149 @@ const ok = (condition: boolean, message: string) => {
   );
 }
 
-// (f) SE PUEDE ESCRIBIR SIEMPRE. `-LAYER` ofrece diez opciones de golpe; el
+// T-«comandos vivos», carril «la línea de comandos se siente viva»:
+// (f) qué ORDEN está activa, sin tener que leer el prompt para adivinarlo.
+{
+  const conOrden = renderToStaticMarkup(
+    createElement(CadCommandLine, {
+      prompt: { message: "Precise el centro del círculo", options: [] },
+      history: [],
+      activeCommand: "CIRCLE",
+      onSubmit: () => undefined,
+      onKeyword: () => undefined,
+      onCancel: () => undefined,
+      onRepeat: () => undefined,
+    }),
+  );
+  ok(
+    conOrden.includes('data-testid="cad-command-active"') && conOrden.includes("CIRCLE"),
+    "con un comando en curso, su nombre canónico se ve sin tener que leer el prompt entero",
+  );
+
+  const sinOrden = renderToStaticMarkup(
+    createElement(CadCommandLine, {
+      prompt: null,
+      history: [],
+      activeCommand: null,
+      onSubmit: () => undefined,
+      onKeyword: () => undefined,
+      onCancel: () => undefined,
+      onRepeat: () => undefined,
+    }),
+  );
+  ok(
+    !sinOrden.includes('data-testid="cad-command-active"'),
+    "sin comando en curso no queda una insignia de orden activa a medias",
+  );
+}
+
+// (g) Autocompletado con icono y alias, como el de AutoCAD: no sólo el
+// nombre canónico y el resumen — también el DIBUJO del comando (mismo
+// catálogo que la cinta, `command-icons.ts`) y el atajo corto («L», no sólo
+// «LINE», el PRIMER alias del manifiesto).
+{
+  const fuente = readFileSync(path.join(__dirname, "CadCommandLine.tsx"), "utf8");
+  ok(
+    fuente.includes("alias: entry.shortcut"),
+    "cada sugerencia lleva su alias más corto, tomado del mismo registro que ya resuelve Ctrl+K",
+  );
+  ok(
+    fuente.includes("CAD_COMMAND_ICONS[s.nombre]") && fuente.includes("CAD_COMMAND_ICONS[activeCommand.toUpperCase()]"),
+    "el icono de la sugerencia y el de la insignia activa salen del MISMO catálogo que ya usa la cinta, sin un segundo mapa",
+  );
+  // `cadCommandIcon()` (la función) dispara `react-hooks/static-components`
+  // — «componente creado durante el render» — porque el linter no puede
+  // demostrar que una LLAMADA a función siempre da el mismo componente,
+  // aunque el catálogo sea estático. `CadRibbonButton.tsx` ya resuelve esto
+  // con el acceso directo por índice; este archivo hace lo mismo.
+  ok(
+    !fuente.includes("import { cadCommandIcon }"),
+    "el icono se lee por índice directo del catálogo (CAD_COMMAND_ICONS[...]), no importando la función envoltorio",
+  );
+  ok(
+    fuente.includes("s.alias &&"),
+    "el alias sólo se pinta cuando el comando tiene uno — no todos los 291 lo tienen",
+  );
+}
+
+// (h) «El historial se ve»: un asomo de las últimas líneas del diálogo,
+// visible SIN pedirlo, que no puede crecer el `commandDock` — ahí vive el
+// 74 % de lienzo medido en la ola «armazón» — así que flota en vez de
+// empujar la rejilla.
+{
+  const fuente = readFileSync(path.join(__dirname, "CadCommandLine.tsx"), "utf8");
+  ok(
+    fuente.includes('data-testid="cad-command-transcript-peek"'),
+    "existe el asomo del diálogo, separado del registro completo (F2)",
+  );
+  ok(
+    fuente.includes("showTranscriptPeek = !logExpanded && !historyOpen && suggestions.length === 0 && history.length > 0"),
+    "el asomo sólo se pinta plegado el registro y sin otro desplegable abierto encima",
+  );
+  ok(
+    fuente.includes("history.slice(-3)"),
+    "el asomo enseña como mucho las últimas 3 líneas, no el diálogo entero (eso sigue siendo F2)",
+  );
+  ok(
+    /cad-command-transcript-peek[\s\S]{0,40}aria-hidden="true"/.test(fuente),
+    "el asomo se oculta a los lectores de pantalla: el registro real de abajo (role=log) ya anuncia, y duplicarlo repetiría cada línea dos veces",
+  );
+  ok(
+    /cad-command-transcript-peek[\s\S]{0,400}pointer-events-none/.test(fuente),
+    "el asomo no puede comerse el clic del lienzo que sobrevuela: `pointer-events-none`, igual que el recorrido guiado y la consola LISP",
+  );
+  ok(
+    /cad-command-transcript-peek[\s\S]{0,400}style=\{floatingStyle\(anchor\)\}/.test(fuente),
+    "el asomo se posiciona con el mismo mecanismo que sugerencias e historial — por `style`, no por una clase nueva que sumara altura al commandDock",
+  );
+}
+
+// (i) El menú contextual del botón derecho: repetir/aceptar, las opciones
+// de la orden en curso, cortar/copiar/pegar y cancelar — el mismo lenguaje
+// visual que `cad-context-menu` del lienzo.
+{
+  const fuente = readFileSync(path.join(__dirname, "CadCommandLine.tsx"), "utf8");
+  ok(
+    fuente.includes('data-testid="cad-command-context-menu"') && fuente.includes('role="menu"'),
+    "hay un menú contextual propio para la línea de comandos",
+  );
+  ok(
+    fuente.includes("onContextMenu={(event) => {") && fuente.includes("setMenu({ x: event.clientX, y: event.clientY })"),
+    "el botón derecho abre el menú en las coordenadas del propio clic, como el del lienzo",
+  );
+  ok(
+    fuente.includes('data-testid="cad-command-context-repeat"'),
+    "el menú ofrece repetir la última orden (o aceptar, con una en curso)",
+  );
+  ok(
+    fuente.includes("prompt && prompt.options.length > 0") && fuente.includes("Opciones de la orden en curso"),
+    "el menú enseña las opciones de la orden EN CURSO cuando las hay, no sólo las del reposo",
+  );
+  ok(
+    fuente.includes('data-testid="cad-command-context-cut"') &&
+      fuente.includes('data-testid="cad-command-context-copy"') &&
+      fuente.includes('data-testid="cad-command-context-paste"'),
+    "cortar, copiar y pegar están los tres, cada uno con su propio botón",
+  );
+  ok(
+    fuente.includes('data-testid="cad-command-context-cancel"'),
+    "cancelar está en el menú, igual que Escape",
+  );
+  ok(
+    fuente.includes("document.execCommand(accion)"),
+    "cortar/copiar/pegar actúan de verdad sobre la caja, no son botones mudos",
+  );
+  ok(
+    fuente.includes("if (menu) {") && /if \(menu\) \{[\s\S]{0,120}Escape/.test(fuente),
+    "con el menú abierto, Escape lo cierra en su propio paso antes que cualquier otro atajo",
+  );
+  ok(
+    fuente.includes("style={contextMenuStyle(menu)}") && fuente.includes('function contextMenuStyle('),
+    "el menú se posiciona por `style` (coordenadas del clic, recortadas al borde de la ventana), no por una clase `fixed` — la regla de oro es de la raíz del muelle, y esto vive en un portal",
+  );
+}
+
+// (j) SE PUEDE ESCRIBIR SIEMPRE. `-LAYER` ofrece diez opciones de golpe; el
 // 2026-09-20 esa tira, marcada `shrink-0`, se quedaba el ancho entero y dejaba
 // el input en CERO píxeles: a 1280 px no había dónde teclear el nombre de la
 // capa. Dos reglas, y las dos hacen falta: la tira CEDE ancho y el input tiene

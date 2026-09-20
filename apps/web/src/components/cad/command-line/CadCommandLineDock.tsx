@@ -66,6 +66,7 @@ export function CadCommandLineDock({ host, disabled, inputRef }: CadCommandLineD
         prompt={snapshot.prompt}
         history={snapshot.history}
         lastCommand={snapshot.lastCommand}
+        activeCommand={snapshot.activeCommand}
         disabled={disabled}
         // Lo tecleado se APUNTA antes de despacharlo por si es una expresión
         // LISP: el motor normaliza a mayúsculas y eso destrozaría sus cadenas.

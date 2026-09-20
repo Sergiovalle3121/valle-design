@@ -54,6 +54,12 @@ import type { CadPrompt } from "@/lib/cad/engine/command-types";
 import { formatCadKeyword, formatCadPrompt } from "@/lib/cad/engine/prompt";
 import { buildCadPaletteEntries } from "@/lib/cad/command-palette";
 import { CAD_COMMAND_ALIASES } from "@/lib/cad/engine/alias-table";
+// Lectura DIRECTA del catálogo, no `cadCommandIcon()`: una llamada a función
+// que DEVUELVE un componente dispara `react-hooks/static-components` («se
+// crea un componente durante el render») aunque el catálogo sea estático —
+// el lector del acceso a `[]` sobre un objeto literal SÍ lo reconoce como
+// estable, que es exactamente como ya lo lee `CadRibbonButton.tsx`.
+import { CAD_COMMAND_ICONS } from "@/components/cad/ribbon/command-icons";
 import { CAD_SHELL_METRICS } from "@/components/cad/shell/cad-shell-layout";
 import {
   readCommandLogExpanded,
@@ -75,9 +81,19 @@ import {
  */
 const COMANDOS_SUGERIBLES = buildCadPaletteEntries()
   .filter((entry) => entry.kind === "engine")
-  .map((entry) => ({ nombre: entry.label, descripcion: entry.description }));
+  .map((entry) => ({
+    nombre: entry.label,
+    descripcion: entry.description,
+    // El PRIMER alias del manifiesto («L» para LINE, «REC» antes que
+    // «RECTANGLE») — la misma memoria muscular que ya resuelve la tabla de
+    // alias, mostrada aquí para que la sugerencia enseñe el atajo, no sólo
+    // el nombre largo. AutoCAD hace exactamente esto en su autocompletado.
+    alias: entry.shortcut,
+  }));
 
-function sugerirComandos(valorCrudo: string): readonly { nombre: string; descripcion: string }[] {
+function sugerirComandos(
+  valorCrudo: string,
+): readonly { nombre: string; descripcion: string; alias?: string }[] {
   const valor = valorCrudo.trim().toUpperCase();
   if (!valor) return [];
   // La coincidencia EXACTA de alias va primero: teclear «L» debe mostrar
@@ -129,6 +145,14 @@ export interface CadCommandLineProps {
   history: readonly CadCommandLineEntry[];
   /** Nombre del último comando repetible, para el marcador de posición. */
   lastCommand?: string | null;
+  /**
+   * Nombre canónico del comando EN CURSO (`LINE`, `TRIM`…), o `null` sin
+   * ninguno activo. Antes había que LEER el prompt entero para saber qué
+   * orden lo emitió («Precise el punto siguiente» no dice si es LINE o
+   * PLINE); esto lo dice de un vistazo, como el título de la ventana de
+   * comandos de AutoCAD.
+   */
+  activeCommand?: string | null;
   disabled?: boolean;
   onSubmit(value: string): void;
   /** Pulsar una opción equivale a teclear su atajo. */
@@ -171,10 +195,27 @@ function floatingStyle(anchor: FloatingAnchor): CSSProperties {
   return { position: "fixed", left: anchor.left, width: anchor.width, bottom: anchor.bottom };
 }
 
+/** Techo generoso del menú contextual: repetir + 5-6 opciones + separadores. */
+const CONTEXT_MENU_WIDTH = 224;
+const CONTEXT_MENU_MAX_HEIGHT = 320;
+
+/**
+ * Dónde abrir el menú contextual, recortado para que un clic cerca del
+ * borde de una ventana pequeña (la laptop de 8 GB del dueño, no sólo un
+ * monitor grande) no lo deje abriendo fuera de la pantalla.
+ */
+function contextMenuStyle(point: { x: number; y: number }): CSSProperties {
+  if (typeof window === "undefined") return { position: "fixed", left: point.x, top: point.y };
+  const left = Math.min(point.x, Math.max(8, window.innerWidth - CONTEXT_MENU_WIDTH));
+  const top = Math.min(point.y, Math.max(8, window.innerHeight - CONTEXT_MENU_MAX_HEIGHT));
+  return { position: "fixed", left, top };
+}
+
 export function CadCommandLine({
   prompt,
   history,
   lastCommand,
+  activeCommand,
   disabled,
   onSubmit,
   onKeyword,
@@ -196,10 +237,15 @@ export function CadCommandLine({
   );
   const [historyOpen, setHistoryOpen] = useState(false);
   const [anchor, setAnchor] = useState<FloatingAnchor | null>(null);
+  // T-«comandos vivos»: el menú contextual del botón derecho. Coordenadas de
+  // la propia pulsación — AutoCAD lo abre justo bajo el puntero, no anclado
+  // a la franja — y `null` cuando está cerrado.
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const localInputRef = useRef<HTMLInputElement | null>(null);
   const inputRef = externalInputRef ?? localInputRef;
   const logRef = useRef<HTMLDivElement | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   const setLogExpanded = useCallback((next: boolean) => {
     setLogExpandedState(next);
@@ -234,12 +280,27 @@ export function CadCommandLine({
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [history]);
 
-  // T-«comando»: los dos desplegables (sugerencias, historial completo) viven
-  // en un portal a `<body>` y crecen HACIA ARRIBA desde la franja — la franja
-  // está pegada al fondo de la ventana, así que no hay sitio debajo. Se
-  // remide al abrirse y en cada resize/scroll mientras estén abiertos; sin
-  // ninguno abierto no hay nada que medir ni escuchar.
-  const floatingOpen = suggestions.length > 0 || historyOpen;
+  // T-«comandos vivos»: «el historial se ve» — con el registro PLEGADO (el
+  // reposo de la franja, 26 px) ya no había ni un renglón de lo dicho o
+  // tecleado antes; el usuario tenía que acordarse o pulsar F2. Este
+  // asomo enseña los últimos 3 renglones SIN pedirlo, y desaparece solo en
+  // cuanto F2 despliega el registro de verdad (dejaría de tener sentido
+  // duplicar lo que ya se ve abajo) o se abre cualquier otro desplegable.
+  // No puede crecer el `commandDock` (26 px es el contrato que
+  // `cad-shell-layout.ts` mide para el 74 % de lienzo con los rieles
+  // plegados) así que flota — el mismo truco que ya usan sugerencias e
+  // historial completo, sólo lectura y `pointer-events-none`: el ratón del
+  // lienzo pasa a través como si no estuviera.
+  const showTranscriptPeek = !logExpanded && !historyOpen && suggestions.length === 0 && history.length > 0;
+  const transcriptPeek = showTranscriptPeek ? history.slice(-3) : [];
+
+  // T-«comando»: los desplegables (sugerencias, historial completo, el
+  // asomo del diálogo) viven en un portal a `<body>` y crecen HACIA ARRIBA
+  // desde la franja — la franja está pegada al fondo de la ventana, así que
+  // no hay sitio debajo. Se remide al abrirse y en cada resize/scroll
+  // mientras estén abiertos; sin ninguno abierto no hay nada que medir ni
+  // escuchar.
+  const floatingOpen = suggestions.length > 0 || historyOpen || showTranscriptPeek;
   useEffect(() => {
     if (!floatingOpen || typeof window === "undefined") return;
     const update = () => setAnchor(measureAnchor(rootRef.current));
@@ -252,8 +313,51 @@ export function CadCommandLine({
     };
   }, [floatingOpen]);
 
+  // El menú contextual (botón derecho) se cierra con un clic fuera de él —
+  // igual que el de `cad-context-menu` del lienzo — o con Escape (más
+  // abajo, en `handleKeyDown`). `pointerdown` y no `click`: se cierra ANTES
+  // de que el clic siguiente pueda activar otra cosa por debajo.
+  useEffect(() => {
+    if (!menu || typeof window === "undefined") return;
+    const cerrar = (event: PointerEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setMenu(null);
+    };
+    window.addEventListener("pointerdown", cerrar);
+    return () => window.removeEventListener("pointerdown", cerrar);
+  }, [menu]);
+
+  /** Cortar/copiar/pegar del menú contextual — el mismo gesto que Ctrl+X/C/V. */
+  const runClipboardAction = useCallback(
+    (accion: "cut" | "copy" | "paste") => {
+      if (disabled) return;
+      const el = inputRef.current;
+      el?.focus();
+      try {
+        // Sin `execCommand` no hay forma síncrona de cortar/pegar sobre un
+        // <input> desde un menú propio; la Clipboard API async exige
+        // permisos que un menú de clic derecho no puede pedir a tiempo.
+        // Falla en silencio si el navegador lo bloquea (pestaña sin foco,
+        // iframe sin permiso): el atajo de teclado real (Ctrl+X/C/V) sigue
+        // funcionando siempre.
+        document.execCommand(accion);
+      } catch {
+        /* bloqueado por el navegador: no hay nada más que intentar aquí */
+      }
+    },
+    [disabled, inputRef],
+  );
+
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (menu) {
+        // El menú abierto se traga el Escape: un paso para cerrar el menú,
+        // otro (ya con el menú cerrado) para lo de siempre.
+        if (event.key === "Escape") {
+          event.preventDefault();
+          setMenu(null);
+        }
+        return;
+      }
       if (event.key === "F2") {
         // Como en AutoCAD: F2 pliega/despliega el registro de la línea de
         // comandos. Al desplegarlo el foco se mueve al propio diálogo (ya es
@@ -343,6 +447,7 @@ export function CadCommandLine({
       historyOpen,
       inputRef,
       logExpanded,
+      menu,
       onCancel,
       onRepeat,
       onSubmit,
@@ -361,6 +466,10 @@ export function CadCommandLine({
   const idlePlaceholder = lastCommand
     ? `Comando: Espacio repite ${lastCommand}`
     : "Comando: escribe una orden (L, C, TR, MI…)";
+  // T-«comandos vivos»: qué orden está activa, SIN tener que leer el prompt
+  // entero para adivinarlo — «Precise el punto siguiente» no dice si es
+  // LINE o PLINE; este rótulo sí.
+  const ActiveIcon = activeCommand ? CAD_COMMAND_ICONS[activeCommand.toUpperCase()] : undefined;
 
   return (
     <div
@@ -385,7 +494,26 @@ export function CadCommandLine({
         // armazón usa para calcular cuánto lienzo queda.
         className="flex w-full items-center gap-1.5 px-2"
         style={{ height: CAD_SHELL_METRICS.commandRow }}
+        // T-«comandos vivos»: el botón derecho abre el menú contextual de
+        // AutoCAD (repetir, opciones de la orden en curso, portapapeles,
+        // cancelar) en vez del menú nativo del navegador — el mismo trato
+        // que ya recibe el lienzo en `cad-context-menu`.
+        onContextMenu={(event) => {
+          if (disabled) return;
+          event.preventDefault();
+          setMenu({ x: event.clientX, y: event.clientY });
+        }}
       >
+        {prompt && activeCommand && (
+          <span
+            data-testid="cad-command-active"
+            title={`Orden activa: ${activeCommand}`}
+            className="flex shrink-0 items-center gap-1 rounded-control border border-primary/30 bg-primary/15 px-1.5 py-0.5 font-mono type-micro font-semibold text-primary-ink"
+          >
+            {ActiveIcon && <ActiveIcon aria-hidden="true" className="h-3 w-3" />}
+            {activeCommand}
+          </span>
+        )}
         {prompt && (
           <span
             data-testid="cad-command-prompt"
@@ -532,30 +660,48 @@ export function CadCommandLine({
               style={floatingStyle(anchor)}
               className="z-40 flex max-h-[40vh] flex-col gap-0.5 overflow-y-auto rounded-control border border-border bg-popover/95 px-1 py-1 text-popover-foreground shadow-floating backdrop-blur"
             >
-              {suggestions.map((s, i) => (
-                <li key={s.nombre}>
-                  <button
-                    type="button"
-                    id={`${suggestionListId}-${i}`}
-                    role="option"
-                    aria-selected={i === activeSuggestionIndex}
-                    data-testid={`cad-command-suggestion-${s.nombre}`}
-                    onMouseEnter={() => setSuggestionIndex(i)}
-                    onClick={() => {
-                      setValue("");
-                      setRecallIndex(null);
-                      onSubmit(s.nombre);
-                      inputRef.current?.focus();
-                    }}
-                    className={`flex w-full items-baseline gap-2 rounded px-1.5 py-0.5 text-left font-mono type-micro ${
-                      i === activeSuggestionIndex ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/60"
-                    }`}
-                  >
-                    <span className="text-primary-ink">{s.nombre}</span>
-                    <span className="truncate text-muted-foreground">{s.descripcion}</span>
-                  </button>
-                </li>
-              ))}
+              {suggestions.map((s, i) => {
+                // Icono + alias, como el autocompletado de AutoCAD: un
+                // renglón muestra el DIBUJO del comando, su atajo corto
+                // («L», no sólo «LINE») y el resumen — antes sólo había
+                // nombre y resumen, y un veterano reconoce el comando por el
+                // icono y el alias antes que por leer el nombre entero.
+                const Icono = CAD_COMMAND_ICONS[s.nombre];
+                return (
+                  <li key={s.nombre}>
+                    <button
+                      type="button"
+                      id={`${suggestionListId}-${i}`}
+                      role="option"
+                      aria-selected={i === activeSuggestionIndex}
+                      data-testid={`cad-command-suggestion-${s.nombre}`}
+                      onMouseEnter={() => setSuggestionIndex(i)}
+                      onClick={() => {
+                        setValue("");
+                        setRecallIndex(null);
+                        onSubmit(s.nombre);
+                        inputRef.current?.focus();
+                      }}
+                      className={`flex w-full items-center gap-2 rounded px-1.5 py-0.5 text-left font-mono type-micro ${
+                        i === activeSuggestionIndex ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/60"
+                      }`}
+                    >
+                      {Icono ? (
+                        <Icono aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      ) : (
+                        <span aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+                      )}
+                      <span className="shrink-0 text-primary-ink">{s.nombre}</span>
+                      {s.alias && (
+                        <span className="shrink-0 rounded border border-border px-1 text-[10px] text-muted-foreground">
+                          {s.alias}
+                        </span>
+                      )}
+                      <span className="truncate text-muted-foreground">{s.descripcion}</span>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>,
             document.body,
           )
@@ -603,6 +749,157 @@ export function CadCommandLine({
                   </button>
                 ))
               )}
+            </div>,
+            document.body,
+          )
+        : null}
+
+      {/*
+        EL ASOMO DEL DIÁLOGO — «el historial se ve». Con el registro plegado
+        (el reposo, 26 px) ya no quedaba ni un renglón de lo último dicho o
+        tecleado; había que ACORDARSE o pulsar F2. Esto enseña los últimos 3
+        renglones sin que nadie lo pida, con el mismo tono que el registro
+        real (`LEVEL_CLASS`: el aviso del motor en un gris, lo tecleado en la
+        tinta de marca). No puede sumarse al alto de `commandDock` —ahí vive
+        el 74 % de lienzo que esta ola no toca— así que flota, de sólo
+        lectura (`aria-hidden`: el registro real de abajo, `role="log"`, es
+        quien anuncia de verdad) y `pointer-events-none`: el ratón del
+        lienzo pasa a través como si no estuviera, igual que el recorrido
+        guiado y la consola LISP que ya flotan ahí (`CadCommandLineDock`).
+      */}
+      {transcriptPeek.length > 0 && anchor && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              data-testid="cad-command-transcript-peek"
+              aria-hidden="true"
+              style={floatingStyle(anchor)}
+              className="pointer-events-none z-30 flex flex-col gap-0.5 overflow-hidden rounded-control border border-border bg-popover/90 px-2 py-1 font-mono type-micro leading-snug text-popover-foreground shadow-floating backdrop-blur"
+            >
+              {transcriptPeek.map((entry) => (
+                <div key={entry.id} className={`truncate ${LEVEL_CLASS[entry.level]}`}>
+                  {entry.level === "input" ? `> ${entry.text}` : entry.text}
+                </div>
+              ))}
+            </div>,
+            document.body,
+          )
+        : null}
+
+      {/*
+        EL MENÚ CONTEXTUAL — botón derecho, como en AutoCAD: repetir la
+        última orden (o aceptar, con una en curso — `repeat()` ya distingue
+        los dos casos en el motor), las opciones de la orden activa,
+        cortar/copiar/pegar y cancelar. Mismo lenguaje visual que
+        `cad-context-menu` del lienzo (`Layout3DEditor.tsx`): la misma
+        familia de controles en dos sitios distintos se lee igual en los
+        dos. Posición por `style` (coordenadas del propio clic), no por
+        clase — la regla de oro del armazón es de la RAÍZ del muelle, y esto
+        vive en un portal a `<body>`, como sugerencias e historial.
+      */}
+      {menu && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              ref={menuRef}
+              data-testid="cad-command-context-menu"
+              role="menu"
+              aria-label="Menú de la línea de comandos"
+              style={contextMenuStyle(menu)}
+              className="z-50 w-52 overflow-hidden rounded-xl border border-border bg-surface/80 p-1.5 type-micro text-foreground shadow-2xl backdrop-blur"
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="cad-command-context-repeat"
+                disabled={!prompt && !lastCommand}
+                onClick={() => {
+                  onRepeat();
+                  setMenu(null);
+                  inputRef.current?.focus();
+                }}
+                className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
+              >
+                {prompt
+                  ? "Intro (aceptar)"
+                  : lastCommand
+                    ? `Repetir última orden (${lastCommand})`
+                    : "Repetir última orden"}
+              </button>
+              {prompt && prompt.options.length > 0 && (
+                <>
+                  <div role="separator" className="my-1 border-t border-border" />
+                  <div className="px-2 py-1 type-micro text-muted-foreground">
+                    {activeCommand ? `Opciones de «${activeCommand}»` : "Opciones de la orden en curso"}
+                  </div>
+                  {prompt.options.map((option) => (
+                    <button
+                      key={option.keyword}
+                      type="button"
+                      role="menuitem"
+                      data-testid={`cad-command-context-option-${option.keyword}`}
+                      onClick={() => {
+                        onKeyword(option.shortcut);
+                        setMenu(null);
+                        inputRef.current?.focus();
+                      }}
+                      className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-muted"
+                    >
+                      {formatCadKeyword(option)}
+                    </button>
+                  ))}
+                </>
+              )}
+              <div role="separator" className="my-1 border-t border-border" />
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="cad-command-context-cut"
+                onClick={() => {
+                  runClipboardAction("cut");
+                  setMenu(null);
+                }}
+                className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-muted"
+              >
+                Cortar
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="cad-command-context-copy"
+                onClick={() => {
+                  runClipboardAction("copy");
+                  setMenu(null);
+                }}
+                className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-muted"
+              >
+                Copiar
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="cad-command-context-paste"
+                onClick={() => {
+                  runClipboardAction("paste");
+                  setMenu(null);
+                }}
+                className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-muted"
+              >
+                Pegar
+              </button>
+              <div role="separator" className="my-1 border-t border-border" />
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="cad-command-context-cancel"
+                onClick={() => {
+                  onCancel();
+                  setMenu(null);
+                  inputRef.current?.blur();
+                }}
+                className="w-full rounded-lg px-2 py-1.5 text-left text-danger-ink hover:bg-rose-400/10"
+              >
+                Cancelar
+              </button>
             </div>,
             document.body,
           )
