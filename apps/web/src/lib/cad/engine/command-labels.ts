@@ -92,6 +92,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   BOUNDARY: "Contorno",
   BOX: "Caja",
   BREAK: "Partir",
+  BREAKATPOINT: "Partir punto",
   BREAKLINE: "Línea de rotura",
   BURST: "Estallar",
   CABLETRAY: "Charola",
@@ -308,6 +309,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   RENAME: "Renombrar",
 
   REVCLOUD: "Nube de revisión",
+  REVERSE: "Invertir",
   REVISA: "Revisar entrega",
   REVOLVE: "Revolución",
   ROOF: "Cubierta",

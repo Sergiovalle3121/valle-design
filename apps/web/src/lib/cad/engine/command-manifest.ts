@@ -1,5 +1,5 @@
 /**
- * METADATOS de los 370 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 372 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
  * 125 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
@@ -201,6 +201,8 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "TRIM", aliases: ["TR"], kind: "modify", transparent: false, selection: "command-first", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-edges" },
   { name: "EXTEND", aliases: ["EX"], kind: "modify", transparent: false, selection: "command-first", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-edges" },
   { name: "BREAK", aliases: ["BR"], kind: "modify", transparent: false, selection: "command-first", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-edges" },
+  { name: "BREAKATPOINT", aliases: [], kind: "modify", transparent: false, selection: "command-first", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-edges" },
+  { name: "REVERSE", aliases: [], kind: "modify", transparent: false, selection: "required", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-edges" },
   { name: "XPLODE", aliases: ["XP"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-foreign" },
   { name: "SETBYLAYER", aliases: [], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-foreign" },
   { name: "CHPROP", aliases: [], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-foreign" },

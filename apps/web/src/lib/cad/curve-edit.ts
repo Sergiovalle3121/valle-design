@@ -536,6 +536,103 @@ function reshapeTerminal(
 }
 
 // ---------------------------------------------------------------------------
+// BREAK
+// ---------------------------------------------------------------------------
+
+export interface CadCurveBreakInput {
+  target: CadEditableEntity;
+  /** Primer punto de ruptura, ya proyectado sobre la curva. */
+  first: CadPoint2;
+  /**
+   * Segundo punto de ruptura. `null` es BREAKATPOINT: el mismo punto en los
+   * dos lados, hueco cero.
+   */
+  second: CadPoint2 | null;
+  /**
+   * Generador de ids para el segundo tramo, cuando el hueco cae por el medio
+   * de una curva ABIERTA y hacen falta dos objetos. Una curva CERRADA nunca lo
+   * necesita: su resultado es SIEMPRE una sola pieza.
+   */
+  newEntityId?: () => string;
+}
+
+/**
+ * BREAK: quita el tramo entre dos puntos —o parte por UNO solo con hueco cero,
+ * que es BREAKATPOINT— y devuelve lo que sobra.
+ *
+ * La regla es la misma que la de TRIM, con los cortes dados por el usuario en
+ * vez de por un borde: una curva ABIERTA (LINE, ARC, POLILÍNEA abierta) puede
+ * quedar partida en DOS —cuando el hueco cae por el medio— o reducida a UNA
+ * sola si alguno de los dos puntos cae en un extremo o más allá. Una curva
+ * CERRADA (CIRCLE, POLILÍNEA cerrada) sólo puede terminar en UNA pieza: quitar
+ * un tramo de un anillo deja un arco, no dos. El tramo que se quita es el que
+ * va del primer punto al segundo AVANZANDO en el sentido positivo de la curva
+ * —antihorario en un círculo—, la misma convención con la que un ARC de DXF
+ * recorre de `startAngle` a `endAngle`.
+ */
+export function computeCadCurveBreak(input: CadCurveBreakInput): CadCurveEditOutcome {
+  const curves = cadEntityCurves(input.target);
+  if (!curves || curves.length === 0)
+    return { error: `${input.target.type.toUpperCase()} no tiene geometría que partir.` };
+
+  const domain = globalDomain(curves);
+  const closed = entityIsClosed(input.target, curves);
+  const p1 = globalClosest(curves, input.first);
+
+  if (closed) {
+    if (input.second === null)
+      return { error: "una curva CERRADA no se parte en un solo punto: hacen falta dos." };
+    const p2 = globalClosest(curves, input.second);
+    if (Math.abs(p2 - p1) <= EPS)
+      return { error: "los dos puntos de ruptura coinciden: no hay tramo que quitar." };
+    const removeFrom = p1;
+    const removeTo = p2 > p1 ? p2 : p2 + domain;
+    const keepFrom = removeTo;
+    let keepTo = removeFrom;
+    while (keepTo <= keepFrom + EPS) keepTo += domain;
+    return restrict(input.target, curves, keepFrom, keepTo);
+  }
+
+  const p2 = input.second === null ? p1 : globalClosest(curves, input.second);
+  const lo = Math.min(p1, p2);
+  const hi = Math.max(p1, p2);
+
+  if (hi - lo <= EPS) {
+    // BREAKATPOINT (o dos puntos que coincidieron): hueco cero, un solo corte.
+    // En un extremo no habría dos tramos que crear.
+    if (lo <= EPS || lo >= domain - EPS)
+      return { error: "el punto cae en un extremo; no habría dos tramos." };
+    const head = restrict(input.target, curves, 0, lo);
+    if ("error" in head) return head;
+    if (!input.newEntityId)
+      return {
+        error: "partir por el medio crea un segundo tramo y este camino no puede generarlo.",
+      };
+    const tail = materialize(input.target, curves, lo, domain, input.newEntityId());
+    if (!tail) return { error: "no se pudo construir el segundo tramo." };
+    return { ...head, create: tail };
+  }
+
+  if (lo <= EPS && hi >= domain - EPS)
+    return { error: "el hueco cubre todo el objeto: no quedaría ningún tramo." };
+  // Uno de los dos puntos cae en un extremo o más allá: se reduce a UN tramo,
+  // igual que TRIM cuando el cruce toca el arranque o el final.
+  if (lo <= EPS) return restrict(input.target, curves, hi, domain);
+  if (hi >= domain - EPS) return restrict(input.target, curves, 0, lo);
+
+  // El hueco cae por el medio: el objeto se PARTE en dos.
+  const head = restrict(input.target, curves, 0, lo);
+  if ("error" in head) return head;
+  if (!input.newEntityId)
+    return {
+      error: "el hueco cae por el medio y crea un segundo tramo; este camino no puede generarlo.",
+    };
+  const tail = materialize(input.target, curves, hi, domain, input.newEntityId());
+  if (!tail) return { error: "no se pudo construir el segundo tramo." };
+  return { ...head, create: tail };
+}
+
+// ---------------------------------------------------------------------------
 // LENGTHEN
 // ---------------------------------------------------------------------------
 
