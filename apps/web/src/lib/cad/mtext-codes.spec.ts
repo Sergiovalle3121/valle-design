@@ -111,12 +111,13 @@ const eq = <T>(actual: T, expected: T, message: string) => {
   // Es la diferencia entre «no lo entiendo» y «lo borro»: un dibujo importado
   // puede traer códigos que este módulo no conoce, y tragárselos quitaría texto
   // del plano sin que nada avisara.
-  // `\T` (espaciado entre caracteres) y `\p` (sangrías de párrafo) siguen sin
-  // reconocerse, y por eso sirven de ejemplo: la lista de lo que NO se entiende
-  // está declarada en la cabecera del módulo y afirmada en
-  // `mtext-rich-format.spec.ts`.
+  // `\T` (espaciado entre caracteres) sigue sin reconocerse, y sirve de
+  // ejemplo: la lista de lo que NO se entiende está declarada en la cabecera
+  // del módulo y afirmada en `mtext-rich-format.spec.ts`. `\p` (sangría de
+  // párrafo) SÍ se interpreta desde que `mtext-layout.ts` sabe sangrar — ver
+  // `mtext-lists.spec.ts` — y por eso ya NO es un ejemplo de código
+  // desconocido: se prueba aparte, con la sangría medida.
   eq(cadMTextPlainText("\\T2;espaciado"), "\\T2;espaciado", "el código desconocido queda visible");
-  eq(cadMTextPlainText("\\pxi-2;sangría"), "\\pxi-2;sangría", "y el de párrafo, también");
 }
 
 // --- constructor de apilados --------------------------------------------------------
@@ -148,5 +149,5 @@ const eq = <T>(actual: T, expected: T, message: string) => {
 
 console.log(
   `mtext-codes: ${checks} comprobaciones · \\P \\L \\l \\O \\o \\S(^ / #) \\f \\C \\H \\W \\Q \\A ` +
-    "\\~ {} y escapes; \\T y \\p conservados sin interpretar; `layoutCadMText` los consume",
+    "\\~ {} y escapes; \\T conservado sin interpretar; `layoutCadMText` los consume",
 );

@@ -281,9 +281,24 @@ function mtext(text: string, extra: Partial<CadMTextEntity> = {}): CadMTextEntit
   // quitaría contenido del plano sin que nada avisara. Que se vea es feo; que
   // desaparezca es una entrega mal hecha que nadie detecta.
   eq(cadMTextPlainText("\\T2;espaciado"), "\\T2;espaciado", "\\T (espaciado) se conserva visible");
-  eq(cadMTextPlainText("\\pxi-2,l2;sangría"), "\\pxi-2,l2;sangría", "\\p (sangrías) también");
   eq(cadMTextPlainText("\\Z"), "\\Z", "y cualquier otro código desconocido");
   ok(cadMTextHasCodes("\\T2;x"), "y siguen contando como texto CON códigos");
+}
+
+// --- \p: la sangría (i, l) SÍ se interpreta; lo demás, aceptado sin efecto ---
+{
+  // A diferencia de \T, \p tiene un consumidor real: mtext-layout.ts sangra la
+  // línea con este dato (ver mtext-lists.spec.ts). Aquí sólo se comprueba que
+  // el código deja de verse — que es la mitad honesta de la promesa: la otra
+  // mitad, que la sangría se aplique de verdad, se mide con geometría.
+  eq(cadMTextPlainText("\\pxi-2,l2;sangría"), "sangría", "el código de sangría ya no se ve");
+  const [primero] = parseCadMText("\\pxi-2,l2;sangría");
+  eq(primero[0].paragraphIndent, { first: -2, left: 2 }, "i y l, leídos");
+  // q (justificación) y t (tabuladores) no rompen el análisis ni dejan basura,
+  // pero tampoco fingen sangrar: sólo i/l lo hacen.
+  eq(cadMTextPlainText("\\pxql,i-3,l3;centrado"), "centrado", "q se acepta y se ignora");
+  const [conQ] = parseCadMText("\\pxql,i-3,l3;centrado");
+  eq(conQ[0].paragraphIndent, { first: -3, left: 3 }, "y i/l se leen igual con q por medio");
 }
 
 // --- Un rótulo real, con todo junto -----------------------------------------
@@ -500,7 +515,7 @@ function mtext(text: string, extra: Partial<CadMTextEntity> = {}): CadMTextEntit
 
 console.log(
   `mtext-rich-format: ${checks} comprobaciones verdes · códigos \\P \\S(^ / #) \\f \\H \\W \\Q \\C ` +
-    "\\L\\l \\O\\o \\A \\~ \\\\ y llaves anidadas; \\T y \\p declarados sin interpretar; " +
+    "\\L\\l \\O\\o \\A \\~ \\\\ y llaves anidadas; \\p (sangría i/l) interpretado, \\T declarado sin interpretar; " +
     "SHX SIEMPRE sustituida (las cinco comunes a trazos Hershey en pantalla; " +
     "gdt/ltypeshp/symath como símbolos perdidos), TTF resuelta sólo si está.",
 );

@@ -220,6 +220,7 @@ import {
   Table2,
   TableCellsMerge,
   TableProperties,
+  TableRowsSplit,
   Tag,
   Tags,
   Terminal,
@@ -502,7 +503,9 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   TIME: Info,
   TABLE: Table,
   TABLEDIT: TableProperties,
+  TABLEEXPORT: FileSpreadsheet,
   TABLESTYLE: TableCellsMerge,
+  TINSERT: TableRowsSplit,
   STYLE: Baseline,
   // Las plumas del trazado: el dibujo de la pluma, no el del papel.
   STYLESMANAGER: PenTool,

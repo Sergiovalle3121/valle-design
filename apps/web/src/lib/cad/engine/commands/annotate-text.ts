@@ -27,7 +27,7 @@
  */
 import type { CadPoint2 } from "../../cad-document";
 import type { CadNativeEntity } from "../../entity-runtime";
-import { cadMTextPlainText, cadMTextStackCode } from "../../mtext-codes";
+import { cadMTextBulletCode, cadMTextNumberedCode, cadMTextPlainText, cadMTextStackCode } from "../../mtext-codes";
 import { measureCadMText } from "../../mtext-layout";
 import {
   CAD_ACCEPT_ANGLE,
@@ -62,6 +62,8 @@ const ROTATION_OPTION = { keyword: "Rotación", shortcut: "R" } as const;
 const SPACING_OPTION = { keyword: "Interlineado", shortcut: "I" } as const;
 const COLUMNS_OPTION = { keyword: "Columnas", shortcut: "C" } as const;
 const STACK_OPTION = { keyword: "Apilar", shortcut: "P" } as const;
+const BULLET_OPTION = { keyword: "Viñeta", shortcut: "V" } as const;
+const NUMBER_OPTION = { keyword: "Numerar", shortcut: "N" } as const;
 
 const LEFT = { keyword: "Izquierda", shortcut: "I" } as const;
 const CENTER = { keyword: "Centro", shortcut: "C" } as const;
@@ -248,7 +250,8 @@ type MTextPending =
   | "justify"
   | "text"
   | "stack-upper"
-  | "stack-lower";
+  | "stack-lower"
+  | "list-item";
 
 interface MTextState {
   first: CadPoint2 | null;
@@ -260,6 +263,10 @@ interface MTextState {
   alignment: Alignment;
   text: string;
   stackUpper: string;
+  /** Qué construir con el próximo `text` en el paso `list-item`. */
+  listKind: "bullet" | "number" | null;
+  /** El siguiente número de una lista `Numerar`. Sube uno por elemento. */
+  listNumber: number;
   pending: MTextPending;
 }
 
@@ -274,6 +281,7 @@ const MTEXT_PROMPTS: Readonly<Record<MTextPending, string>> = {
   text: "Escriba el párrafo (\\P salta de línea)",
   "stack-upper": "Escriba la parte superior del apilado",
   "stack-lower": "Escriba la parte inferior del apilado",
+  "list-item": "Escriba el elemento de la lista",
 };
 
 function mtextStep(state: MTextState, context: CadCommandContext): CadCommandStep<MTextState> {
@@ -283,9 +291,9 @@ function mtextStep(state: MTextState, context: CadCommandContext): CadCommandSte
       : state.pending === "justify"
         ? [LEFT, CENTER, RIGHT]
         : state.pending === "text"
-          ? [STACK_OPTION]
+          ? [STACK_OPTION, BULLET_OPTION, NUMBER_OPTION]
           : [];
-  const textual = state.pending === "text" || state.pending.startsWith("stack-");
+  const textual = state.pending === "text" || state.pending.startsWith("stack-") || state.pending === "list-item";
   return {
     state,
     prompt: {
@@ -386,6 +394,8 @@ const mtextCommand: CadCommandDescriptor<MTextState> = {
         alignment: "top-left",
         text: "",
         stackUpper: "",
+        listKind: null,
+        listNumber: 1,
         pending: "first",
       },
       context,
@@ -401,6 +411,10 @@ const mtextCommand: CadCommandDescriptor<MTextState> = {
       if (input.keyword === JUSTIFY.keyword) return mtextStep({ ...state, pending: "justify" }, context);
       if (input.keyword === STACK_OPTION.keyword && state.pending === "text")
         return mtextStep({ ...state, pending: "stack-upper" }, context);
+      if (input.keyword === BULLET_OPTION.keyword && state.pending === "text")
+        return mtextStep({ ...state, pending: "list-item", listKind: "bullet" }, context);
+      if (input.keyword === NUMBER_OPTION.keyword && state.pending === "text")
+        return mtextStep({ ...state, pending: "list-item", listKind: "number" }, context);
       const alignment = JUSTIFY_TO_ALIGNMENT[input.keyword];
       if (alignment) return mtextStep({ ...state, alignment, pending: "opposite" }, context);
       return mtextStep(state, context);
@@ -425,6 +439,26 @@ const mtextCommand: CadCommandDescriptor<MTextState> = {
           },
           context,
         );
+      if (state.pending === "list-item") {
+        const item = input.value.trim();
+        // Vacío cancela SÓLO la lista, no el MTEXT entero: es el mismo gesto
+        // que Enter con la caja vacía en AutoCAD para salir de una lista.
+        if (!item) return mtextStep({ ...state, listKind: null, pending: "text" }, context);
+        const code =
+          state.listKind === "number"
+            ? cadMTextNumberedCode(state.listNumber, item, state.height * 2)
+            : cadMTextBulletCode(item, state.height * 1.5);
+        return mtextStep(
+          {
+            ...state,
+            text: appendParagraph(state.text, code),
+            listNumber: state.listKind === "number" ? state.listNumber + 1 : state.listNumber,
+            listKind: null,
+            pending: "text",
+          },
+          context,
+        );
+      }
       if (state.pending === "text")
         return mtextStep({ ...state, text: appendParagraph(state.text, input.value) }, context);
       return mtextStep(state, context);
@@ -464,6 +498,10 @@ const mtextCommand: CadCommandDescriptor<MTextState> = {
       if (state.pending === "text") return mtextFinish(state, context);
       if (state.pending === "height" || state.pending === "spacing" || state.pending === "columns" || state.pending === "rotation")
         return mtextStep({ ...state, pending: "opposite" }, context);
+      // Enter sin escribir el elemento sale de la LISTA, no del MTEXT entero:
+      // lo acumulado hasta aquí se conserva y se puede seguir escribiendo texto
+      // corriente o rematar con otro Enter.
+      if (state.pending === "list-item") return mtextStep({ ...state, listKind: null, pending: "text" }, context);
       return cadCommandCancelled(state);
     }
 

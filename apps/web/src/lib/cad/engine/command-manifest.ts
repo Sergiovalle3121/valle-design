@@ -1,5 +1,5 @@
 /**
- * METADATOS de los 378 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 376 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
  * 127 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
@@ -61,13 +61,12 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "MLEADERSTYLE", aliases: ["MLS"], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "none", module: "commands/annotate-styles" },
   { name: "TABLESTYLE", aliases: ["TS"], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "none", module: "commands/annotate-styles" },
   { name: "TABLEDIT", aliases: [], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/annotate-table-edit" },
+  { name: "TABLEEXPORT", aliases: [], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "pick", module: "commands/annotate-table-export" },
+  { name: "TINSERT", aliases: [], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/annotate-table-structure" },
   { name: "TEXT", aliases: ["DT", "DTEXT"], kind: "annotate", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/annotate-text" },
   { name: "MTEXT", aliases: ["T", "MT"], kind: "annotate", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/annotate-text" },
   { name: "DDEDIT", aliases: ["ED", "TEXTEDIT"], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/annotate-text" },
   { name: "TOLERANCE", aliases: ["TOL"], kind: "annotate", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/annotate-tolerance" },
-  { name: "ANNOSCALE", aliases: ["ESCANOTA"], kind: "annotate", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "none", module: "commands/annotative-scale-commands" },
-  { name: "OBJECTSCALE", aliases: ["ESCALAOBJETO"], kind: "annotate", transparent: false, selection: "required", repeatable: true, mutates: true, cursor: "pick", module: "commands/annotative-scale-commands" },
-  { name: "ANNORESET", aliases: ["REINICIOANOTA"], kind: "annotate", transparent: false, selection: "required", repeatable: true, mutates: true, cursor: "pick", module: "commands/annotative-scale-commands" },
   { name: "ROOF", aliases: ["ROOFADD", "CUBIERTA"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/architecture-roof" },
   { name: "SLAB", aliases: ["SLABADD", "LOSA"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/architecture-roof" },
   { name: "STAIR", aliases: ["STAIRADD", "ESCALERA"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, spatial: "elevation", cursor: "crosshair", module: "commands/architecture-stair" },
@@ -144,7 +143,6 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "GROUP", aliases: ["G"], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/groups" },
   { name: "UNGROUP", aliases: ["UNG"], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/groups" },
   { name: "PURGE", aliases: ["PU"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: true, cursor: "none", module: "commands/groups" },
-  { name: "HATCHORIGIN", aliases: ["ORIGENSOMBREADO"], kind: "annotate", transparent: false, selection: "required", repeatable: true, mutates: true, cursor: "pick", module: "commands/hatch-origin-commands" },
   { name: "U", aliases: [], kind: "modify", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "none", module: "commands/history-commands" },
   { name: "REDO", aliases: [], kind: "modify", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "none", module: "commands/history-commands" },
   { name: "UNDO", aliases: [], kind: "modify", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "none", module: "commands/history-commands" },
