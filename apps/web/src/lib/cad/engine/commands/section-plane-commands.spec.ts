@@ -344,6 +344,48 @@ function rectangle(id: string, x: number, y: number, w: number, h: number): CadE
   near(derived.origin.x, 30, "y sigue siendo el plano YZ a cota 30", 1e-9);
 }
 
+// ---------------------------------------------------------------------------
+// 9. El área también se mide bien fuera del plano XY (YZ y vertical inclinado)
+//
+// Las secciones 2 y 3 sólo cortaron por XY: un plano horizontal cuyos puntos,
+// al perder la z, siguen dando el área correcta por pura coincidencia — así
+// que por sí solas no demuestran que la MEDIDA sirva para los otros modos que
+// el propio prompt de SECTIONPLANE ofrece (YZ, ZX, plano vertical por dos
+// puntos). Aquí se corta por YZ y por un plano vertical oblicuo, y el área se
+// compara con la fórmula analítica, no con «salió una región».
+// ---------------------------------------------------------------------------
+{
+  let doc = documentWith([rectangle("base", 0, 0, 100, 100)]);
+  const extruded = apply("EXTRUDE", [select("base"), distance(100)], doc, ["base"]);
+  doc = extruded.document;
+  const cuboId = soleSolid(doc).id;
+
+  // Plano YZ a x=50: corta el cubo por su plano medio vertical — un cuadrado
+  // de 100×100, igual que la sección 2 pero girado 90°.
+  const { document: afterYZ } = apply("SECTIONPLANE", [ENTER, keyword("YZ"), distance(50), ENTER], doc, [cuboId]);
+  const regionYZ = regionsOf(afterYZ)[0];
+  ok(regionYZ !== undefined, "el corte por YZ SÍ produce una región");
+  near(regionArea(regionYZ), 10_000, "y su área es la del cuadrado 100×100, no cero", 1e-6);
+  ok(
+    regionYZ.outer.every((vertex) => Math.abs(vertex.x - 50) < 1e-9),
+    "la sección por YZ queda a x = 50, la cota del corte",
+  );
+
+  // Plano vertical por dos puntos NO alineados con los ejes: (20,0)→(80,100).
+  // La recta de corte mide √(60² + 100²) dentro de la base, así que la
+  // sección es un rectángulo de esa anchura por 100 mm de alto.
+  const { document: afterOblicuo } = apply(
+    "SECTIONPLANE",
+    [ENTER, point(20, 0), point(80, 100), ENTER],
+    doc,
+    [cuboId],
+  );
+  const regionOblicua = regionsOf(afterOblicuo)[0];
+  ok(regionOblicua !== undefined, "el corte por el plano vertical oblicuo SÍ produce una región");
+  const anchoEsperado = Math.hypot(80 - 20, 100 - 0);
+  near(regionArea(regionOblicua), anchoEsperado * 100, "y su área es ancho-de-corte × altura, medida contra la fórmula", 1e-6);
+}
+
 console.log(
   `✅ section-plane-commands.spec: ${checks} comprobaciones — cubo 100³ → sección 10.000 mm², ` +
     "cilindro r=50 → sección π·50² (al millón, no al 1 %), negación honesta y reutilización real del plano",
