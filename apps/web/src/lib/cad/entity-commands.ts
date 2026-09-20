@@ -40,6 +40,7 @@ import { solveConstraintSystem } from "./constraints/solver";
 import { regenerateAssociativeDimensions } from "./associative-dimension";
 import { regenerateAssociativeMleaders } from "./associative-mleader";
 import { regenerateAssociativeHatches } from "./hatch-associativity";
+import { regenerateAssociativeCenterMarks } from "./associative-center-mark";
 import {
   applyDocumentTables,
   isCadTableCommand,
@@ -550,7 +551,8 @@ export function executeCadEntityCommandBatch(
   );
   const regeneratedDimensions = regenerateAssociativeDimensions(regenerated.entities, regenerationSources);
   const regeneratedMleaders = regenerateAssociativeMleaders(regeneratedDimensions.entities, regenerationSources);
-  entities = regeneratedMleaders.entities;
+  const regeneratedCenterMarks = regenerateAssociativeCenterMarks(regeneratedMleaders.entities, regenerationSources);
+  entities = regeneratedCenterMarks.entities;
   // `entities` se ordena por id para que el serializado sea determinista y los
   // hashes reproducibles. El Z-ORDER NO vive aquí: vive en
   // `modelSpace.entityIds`, y ahí alfabetizar destruía el dibujo — editar,

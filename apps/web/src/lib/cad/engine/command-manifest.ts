@@ -1,8 +1,8 @@
 /**
- * METADATOS de los 383 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 378 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
- * 132 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
+ * 127 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
  * `npm run check:cad`— falla si lo committeado deja de coincidir con lo que los
  * descriptores dicen hoy. Regla 4 de la campaña de cimientos: ninguna cifra vive
  * en dos lugares, y un comando nuevo no puede entrar sin aparecer aquí.
@@ -37,14 +37,10 @@ export interface CadCommandManifestEntry {
 }
 
 export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
-  { name: "DIMBREAK", aliases: [], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/annotate-dimension-break" },
   { name: "DIMBASELINE", aliases: ["DBA"], kind: "annotate", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/annotate-dimension-chains" },
   { name: "DIMCONTINUE", aliases: ["DCO"], kind: "annotate", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/annotate-dimension-chains" },
   { name: "DIM", aliases: [], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/annotate-dimension-chains" },
   { name: "DIMEDIT", aliases: ["DED"], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/annotate-dimension-chains" },
-  { name: "DIMJOGGED", aliases: [], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/annotate-dimension-jogged" },
-  { name: "DIMSPACE", aliases: [], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/annotate-dimension-space" },
-  { name: "DIMTEDIT", aliases: [], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/annotate-dimension-tedit" },
   { name: "DIMLINEAR", aliases: ["DLI"], kind: "annotate", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/annotate-dimensions" },
   { name: "DIMALIGNED", aliases: ["DAL"], kind: "annotate", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/annotate-dimensions" },
   { name: "DIMANGULAR", aliases: ["DAN"], kind: "annotate", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/annotate-dimensions-angular" },
@@ -69,6 +65,9 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "MTEXT", aliases: ["T", "MT"], kind: "annotate", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/annotate-text" },
   { name: "DDEDIT", aliases: ["ED", "TEXTEDIT"], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/annotate-text" },
   { name: "TOLERANCE", aliases: ["TOL"], kind: "annotate", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/annotate-tolerance" },
+  { name: "ANNOSCALE", aliases: ["ESCANOTA"], kind: "annotate", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "none", module: "commands/annotative-scale-commands" },
+  { name: "OBJECTSCALE", aliases: ["ESCALAOBJETO"], kind: "annotate", transparent: false, selection: "required", repeatable: true, mutates: true, cursor: "pick", module: "commands/annotative-scale-commands" },
+  { name: "ANNORESET", aliases: ["REINICIOANOTA"], kind: "annotate", transparent: false, selection: "required", repeatable: true, mutates: true, cursor: "pick", module: "commands/annotative-scale-commands" },
   { name: "ROOF", aliases: ["ROOFADD", "CUBIERTA"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/architecture-roof" },
   { name: "SLAB", aliases: ["SLABADD", "LOSA"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/architecture-roof" },
   { name: "STAIR", aliases: ["STAIRADD", "ESCALERA"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, spatial: "elevation", cursor: "crosshair", module: "commands/architecture-stair" },
@@ -145,6 +144,7 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "GROUP", aliases: ["G"], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/groups" },
   { name: "UNGROUP", aliases: ["UNG"], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/groups" },
   { name: "PURGE", aliases: ["PU"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: true, cursor: "none", module: "commands/groups" },
+  { name: "HATCHORIGIN", aliases: ["ORIGENSOMBREADO"], kind: "annotate", transparent: false, selection: "required", repeatable: true, mutates: true, cursor: "pick", module: "commands/hatch-origin-commands" },
   { name: "U", aliases: [], kind: "modify", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "none", module: "commands/history-commands" },
   { name: "REDO", aliases: [], kind: "modify", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "none", module: "commands/history-commands" },
   { name: "UNDO", aliases: [], kind: "modify", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "none", module: "commands/history-commands" },
@@ -183,15 +183,15 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "3DFACE", aliases: ["CARA3D"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, spatial: true, cursor: "crosshair", module: "commands/meshes" },
   { name: "MESHSMOOTH", aliases: ["SUAVIZARMALLA"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/meshes" },
   { name: "MESHSMOOTHMORE", aliases: ["SUAVIZARMALLAMAS"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/meshes" },
-  { name: "MESHSMOOTHLESS", aliases: ["SUAVIZARMALLAMENOS"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/meshes" },
+  { name: "MESHSMOOTHLESS", aliases: ["SUAVIZARMALLAMENOS"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "crosshair", module: "commands/meshes" },
   { name: "MESHREFINE", aliases: ["REFINARMALLA"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/meshes" },
   { name: "MESHCOLLAPSE", aliases: ["COLAPSARMALLA"], kind: "modify", transparent: false, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/meshes" },
   { name: "MESHCAP", aliases: ["TAPARMALLA"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/meshes" },
   { name: "MESHMERGE", aliases: ["UNIRMALLA"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/meshes" },
-  { name: "MESHSPLIT", aliases: ["DIVIDIRMALLA"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/meshes" },
-  { name: "MESHCREASE", aliases: ["CRESTAMALLA"], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/meshes" },
-  { name: "MESHUNCREASE", aliases: ["QUITARCRESTA"], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/meshes" },
-  { name: "MESHEXTRUDE", aliases: ["EXTRUIRMALLA"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/meshes" },
+  { name: "MESHSPLIT", aliases: ["DIVIDIRMALLA"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "crosshair", module: "commands/meshes" },
+  { name: "MESHUNCREASE", aliases: ["QUITARCRESTA"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/meshes" },
+  { name: "MESHCREASE", aliases: ["CRESTAMALLA"], kind: "inquiry", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "crosshair", module: "commands/meshes" },
+  { name: "MESHEXTRUDE", aliases: ["EXTRUIRMALLA"], kind: "inquiry", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "crosshair", module: "commands/meshes" },
   { name: "ALIGN", aliases: ["AL"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-align" },
   { name: "MATCHPROP", aliases: ["MA"], kind: "modify", transparent: false, selection: "command-first", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-align" },
   { name: "ARRAY", aliases: ["AR", "ARR"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-array" },
@@ -288,15 +288,10 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "TABSURF", aliases: ["TSURF", "SUPERFICIETABULADA"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/ruled-surfaces" },
   { name: "REVSURF", aliases: ["RSURFACE", "SUPERFICIEREVOLUCION"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/ruled-surfaces" },
   { name: "EDGESURF", aliases: ["ESURF", "SUPERFICIEBORDE"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/ruled-surfaces" },
-  { name: "SECTIONPLANE", aliases: ["SPLANE", "PLANOCORTE"], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/section-plane-commands" },
-  { name: "SELECT", aliases: [], kind: "inquiry", transparent: false, selection: "required", repeatable: false, mutates: false, cursor: "pick", module: "commands/select-basic" },
   { name: "QSELECT", aliases: [], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "none", module: "commands/select-query" },
   { name: "FILTER", aliases: ["FI"], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "none", module: "commands/select-query" },
   { name: "SELECTSIMILAR", aliases: [], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "pick", module: "commands/select-similar" },
   { name: "ADDSELECTED", aliases: [], kind: "draw", transparent: false, selection: "optional", repeatable: true, mutates: false, cursor: "pick", module: "commands/select-similar" },
-  { name: "ORTHO", aliases: [], kind: "manage", transparent: true, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/settings-drafting-toggles" },
-  { name: "SNAP", aliases: ["SN"], kind: "manage", transparent: true, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/settings-drafting-toggles" },
-  { name: "GRID", aliases: [], kind: "manage", transparent: true, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/settings-drafting-toggles" },
   { name: "VPLAYER", aliases: [], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "none", module: "commands/settings-layer-tools" },
   { name: "LAYISO", aliases: [], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/settings-layer-tools" },
   { name: "LAYUNISO", aliases: [], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: true, cursor: "none", module: "commands/settings-layer-tools" },
