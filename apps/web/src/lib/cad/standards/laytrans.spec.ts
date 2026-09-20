@@ -50,7 +50,21 @@ throws(() => parseCadLayerTranslationMap(JSON.stringify({ entries: [{ from: "A" 
   assert.ok(plan.commands.some((command) => JSON.stringify(command) === JSON.stringify({ type: "properties", entityId: "b", patch: { layer: "MURO" } })));
   assert.deepEqual(plan.movedCounts, { "CAPA_1→MURO": 2 });
   assert.deepEqual(plan.missingSourceLayers, []);
-  checks += 5;
+  // "0" no aparece en ningún «from»: el informe lo dice, no se calla.
+  assert.deepEqual(plan.untouchedLayers, ["0"]);
+  checks += 6;
+}
+
+// --- un mapa que cubre TODAS las capas del documento no deja nada sin mapear --
+{
+  const plan = planCadLayerTranslation(doc(), {
+    entries: [
+      { from: "CAPA_1", to: "MURO" },
+      { from: "0", to: "0" },
+    ],
+  });
+  assert.deepEqual(plan.untouchedLayers, []);
+  checks += 1;
 }
 
 // --- no crea el destino si ya existe en el documento --------------------------

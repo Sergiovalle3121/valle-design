@@ -71,8 +71,11 @@ const text = (value: string): CadCommandInput => ({ kind: "text", value });
   if (result?.kind === "document") {
     assert.ok(result.commands.some((command) => JSON.stringify(command) === JSON.stringify({ type: "properties", entityId: "a", patch: { layer: "MURO" } })));
     assert.ok(result.commands.some((command) => command.type === "layer" && command.op === "upsert" && command.layer.id === "MURO"));
+    // El informe de «qué no se tradujo» nombra la capa "0", que el mapa
+    // nunca mencionó — no sólo las que fallaron por origen o destino inválidos.
+    assert.ok(/sin mapear: 0/.test(result.label), `la etiqueta dice qué quedó sin mapear: ${result.label}`);
   }
-  checks += 2;
+  checks += 3;
 }
 
 console.log(`engine/commands/manage-laytrans.spec: ${checks} comprobaciones OK`);
