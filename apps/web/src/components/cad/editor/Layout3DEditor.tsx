@@ -2002,21 +2002,11 @@ export default function Layout3DEditor({
     setShowCollaborationDock(false);
     setShowWorkspaceDock(false);
     setFocusMode(false);
-    // Ola «armazón»: `rightDock` (ocultar el muelle entero) y
-    // `rightDockCollapsed` (plegarlo a su riel de iconos) son dos apagados
-    // distintos desde que el muelle ganó su propio riel. Esta función sólo
-    // comprobaba el primero — Ctrl+1 en una sesión nueva, con el riel
-    // plegado de fábrica, marcaba `rightDock: true` (que ya lo estaba) y no
-    // hacía NADA visible: la paleta de propiedades seguía detrás del riel.
-    if (
-      !workspacePreferencesRef.current.rightDock ||
-      workspacePreferencesRef.current.rightDockCollapsed
-    )
-      updateWorkspacePreferences({
-        ...workspacePreferencesRef.current,
-        rightDock: true,
-        rightDockCollapsed: false,
-      });
+    // Ola «armazón»: Ctrl+1 sólo apagaba `rightDock` (visibilidad); no tocaba
+    // `rightDockCollapsed` (plegado al riel), así que con el riel plegado de fábrica no revelaba nada. Limpia ambos.
+    if (!workspacePreferencesRef.current.rightDock || workspacePreferencesRef.current.rightDockCollapsed) {
+      updateWorkspacePreferences({ ...workspacePreferencesRef.current, rightDock: true, rightDockCollapsed: false });
+    }
   }, [updateWorkspacePreferences, setShowHatchPalette]);
   const applyWorkspaceProfile = useCallback(
     (profile: CadWorkspaceProfile) => {
