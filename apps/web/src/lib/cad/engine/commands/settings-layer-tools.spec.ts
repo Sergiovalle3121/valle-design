@@ -382,9 +382,50 @@ const layerById = (document: CadDocument, id: string) =>
   assert.ok(!serializeCadDocument(removed).includes("layerStates"));
 }
 
+// --- LAYCUR escribe CLAYER (no CCLAYER) y lo dibujado después cae ahí -------
+{
+  // Bug real: escribía `CCLAYER`, una variable que nadie lee. LAYCUR
+  // designaba la capa "actual" pero el dibujo seguía cayendo en la 0.
+  const before = baseDocument();
+  const { effects } = run(before, ["LAYCUR", pick("tubo")]);
+  const variableEffect = effects.find((effect) => effect.kind === "variables");
+  assert.ok(variableEffect, "LAYCUR emite un cambio de variables");
+  assert.equal(
+    variableEffect?.kind === "variables" ? variableEffect.patch.CLAYER : undefined,
+    "MEP",
+    "escribe CLAYER (no CCLAYER) con la capa del objeto designado",
+  );
+  assert.equal(
+    variableEffect?.kind === "variables" ? "CCLAYER" in variableEffect.patch : false,
+    false,
+    "y no deja la clave vieja a medias",
+  );
+
+  // La prueba de verdad: ese CLAYER alimenta context.activeLayer como lo haría
+  // el anfitrión, y una LINE dibujada a continuación cae de verdad en "MEP",
+  // no en "0" (la capa por defecto de la sesión).
+  const nextLayer =
+    variableEffect?.kind === "variables" ? String(variableEffect.patch.CLAYER) : "0";
+  const drawn = run(
+    before,
+    [
+      "LINE",
+      { kind: "point", point: { x: 10, y: 10 }, source: "typed" },
+      { kind: "point", point: { x: 20, y: 20 }, source: "typed" },
+      "\r",
+    ],
+    { activeLayer: nextLayer },
+  );
+  const newLine = drawn.document.entities.find(
+    (entity) => !before.entities.some((original) => original.id === entity.id),
+  );
+  assert.ok(newLine, "LINE dibuja un segmento nuevo");
+  assert.equal(newLine?.layer, "MEP", "el objeto nuevo queda en la capa que designó LAYCUR");
+}
+
 console.log(
   "settings-layer-tools: VPLAYER congela y descongela por ventana en un lote y la publicación lo respeta; " +
     "LAYISO/LAYUNISO aíslan con memoria de sesión, LAYFRZ/LAYTHW y LAYOFF/LAYON tocan el documento canónico, " +
-    "LAYMCH iguala capas, LAYWALK pasea de verdad con vuelta, LAYMRG fusiona y purga en un lote " +
-    "y -LAYER aprende Inutilizar/Reutilizar",
+    "LAYMCH iguala capas, LAYWALK pasea de verdad con vuelta, LAYMRG fusiona y purga en un lote, " +
+    "-LAYER aprende Inutilizar/Reutilizar y LAYCUR escribe CLAYER de verdad (no CCLAYER)",
 );

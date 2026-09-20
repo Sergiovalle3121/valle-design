@@ -327,6 +327,13 @@ const scaleCommand: CadCommandDescriptor<BasePointState> = {
 
 const RADIUS_OPTION = { keyword: "Radio", shortcut: "R" } as const;
 const DISTANCE_OPTION = { keyword: "Distancia", shortcut: "D" } as const;
+/**
+ * `Múltiple`: encadena esquinas sin reinvocar la orden. Cada esquina resuelta
+ * se ACUMULA en `pending` en vez de emitirse, como TRIM/EXTEND acumulan sus
+ * recortes; el lote entero sale de un tirón al pulsar Enter/Esc. Un rechazo a
+ * media cadena no tira lo ya empalmado: sale con el motivo en `notice`.
+ */
+const MULTIPLE_OPTION = { keyword: "Múltiple", shortcut: "M" } as const;
 
 interface CornerState {
   /** Radio de FILLET, o primera distancia de CHAMFER. */
@@ -345,23 +352,62 @@ interface CornerState {
    * cercano al cruce; en cuanto entra un arco, deja de bastar.
    */
   pickPoints: CadPoint2[];
+  /** `Múltiple` activada: encadenar esquinas en vez de terminar tras la primera. */
+  multiple: boolean;
+  /** Empalmes ya resueltos en esta invocación, esperando el Enter que los emite. */
+  pending: CadEntityCommand[];
 }
 
+/** Cierre DEFINITIVO: emite `state.pending` más `commands` como UN lote, con `notice` si lo hay. */
 function cornerFinish(
   commands: CadEntityCommand[],
   label: string,
   state: CornerState,
+  notice?: string,
 ): CadCommandStep<CornerState> {
+  const all = [...state.pending, ...commands];
   return {
-    // Las magnitudes SOBREVIVEN al comando: en AutoCAD el radio de FILLET es
-    // pegajoso y repetir con Espacio vuelve a usarlo. Reiniciarlo obligaría a
-    // teclearlo en cada esquina de un contorno.
-    state: { ...state, asking: "none", picks: [] },
+    // `Múltiple` sólo sobrevive DENTRO de esta invocación —entre una esquina
+    // encadenada y la siguiente—, no de aquí en adelante: al terminar el
+    // comando (aquí) hay que volver a teclearla la próxima vez, igual que en
+    // AutoCAD. Lo que SÍ es pegajoso de una invocación a la siguiente es la
+    // MAGNITUD (radio de FILLET, distancias de CHAMFER), y no por este objeto
+    // de estado —que `begin` descarta al repetir con Espacio y reconstruye
+    // desde cero— sino por `FILLETRAD`/`CHAMFERA`/`CHAMFERB` en
+    // `context.variables`, que sí persisten entre invocaciones.
+    state: { ...state, asking: "none", picks: [], pickPoints: [], pending: [] },
     prompt: { message: "", options: [] },
     accepts: 0,
     result:
-      commands.length > 0 ? { kind: "document", commands, label } : { kind: "none" },
+      all.length > 0
+        ? { kind: "document", commands: all, label, ...(notice ? { notice } : {}) }
+        : notice
+          ? { kind: "message", text: notice }
+          : { kind: "none" },
   };
+}
+
+/** Esquina resuelta: con `Múltiple` se ACUMULA y la orden sigue viva; si no, se emite ya. */
+function cornerProduced(
+  state: CornerState,
+  label: "FILLET" | "CHAMFER",
+  commands: CadEntityCommand[],
+): CadCommandStep<CornerState> {
+  if (state.multiple)
+    return cornerStep(
+      { ...state, asking: "none", picks: [], pickPoints: [], pending: [...state.pending, ...commands] },
+      label,
+    );
+  return cornerFinish(commands, label, state);
+}
+
+/** Esquina rechazada: fuera de `Múltiple` termina con el mensaje; dentro, emite lo ya empalmado con el motivo en `notice` en vez de perderlo. */
+function cornerRefuse(
+  state: CornerState,
+  label: "FILLET" | "CHAMFER",
+  text: string,
+): CadCommandStep<CornerState> {
+  return cornerFinish([], label, { ...state, picks: [], pickPoints: [] }, `${label}: ${text}`);
 }
 
 function cornerStep(
@@ -397,9 +443,12 @@ function cornerStep(
     prompt: {
       message:
         state.picks.length === 0
-          ? `${magnitude}. Designe la primera línea`
+          ? `${magnitude}${state.multiple ? " (Múltiple)" : ""}. Designe la primera línea`
           : "Designe la segunda línea",
-      options: state.picks.length === 0 ? [label === "FILLET" ? RADIUS_OPTION : DISTANCE_OPTION] : [],
+      options:
+        state.picks.length === 0
+          ? [label === "FILLET" ? RADIUS_OPTION : DISTANCE_OPTION, MULTIPLE_OPTION]
+          : [],
     },
     accepts: CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_SELECTION | CAD_ACCEPT_KEYWORD,
   };
@@ -423,7 +472,7 @@ function twoCorners(
   picks: readonly string[],
   context: CadCommandContext,
   label: "FILLET" | "CHAMFER",
-) {
+): { error: string } | { first: CadCornerEntity; second: CadCornerEntity } {
   const allowed: readonly string[] = label === "FILLET" ? ["line", "arc", "circle"] : ["line"];
   const found = picks.map((id) => context.entity?.(id));
   for (let index = 0; index < found.length; index += 1) {
@@ -479,12 +528,7 @@ function curveFillet(
   pickPoints: readonly CadPoint2[],
   context: CadCommandContext,
 ): CadCommandStep<CornerState> {
-  const refuseCorner = (text: string): CadCommandStep<CornerState> => ({
-    state: { ...state, picks: [], pickPoints: [] },
-    prompt: { message: "", options: [] },
-    accepts: 0,
-    result: { kind: "message", text: `FILLET: ${text}` },
-  });
+  const refuseCorner = (text: string): CadCommandStep<CornerState> => cornerRefuse(state, "FILLET", text);
 
   const pickFirst = pickPoints[0] ?? entityAnchorPoint(first);
   const pickSecond = pickPoints[1] ?? entityAnchorPoint(second);
@@ -509,7 +553,7 @@ function curveFillet(
     return refuseCorner(
       "el cálculo produjo coordenadas no finitas y no se ha escrito nada. Es un fallo del empalme, no del dibujo.",
     );
-  return cornerFinish(commands, "FILLET", state);
+  return cornerProduced(state, "FILLET", commands);
 }
 
 /**
@@ -555,12 +599,7 @@ function cornerJoin(
   second: CadCornerEntity,
   pickPoints: readonly CadPoint2[],
 ): CadCommandStep<CornerState> {
-  const refuse = (text: string): CadCommandStep<CornerState> => ({
-    state: { ...state, picks: [], pickPoints: [] },
-    prompt: { message: "", options: [] },
-    accepts: 0,
-    result: { kind: "message", text: `${label}: ${text}` },
-  });
+  const refuse = (text: string): CadCommandStep<CornerState> => cornerRefuse(state, label, text);
   const pickFirst = pickPoints[0] ?? entityAnchorPoint(first);
   const pickSecond = pickPoints[1] ?? entityAnchorPoint(second);
   const corner = cadCornerPoint(first, second, pickFirst, pickSecond);
@@ -576,7 +615,7 @@ function cornerJoin(
     return refuse(
       "el cálculo produjo coordenadas no finitas y no se ha escrito nada. Es un fallo de la esquina, no del dibujo.",
     );
-  return cornerFinish(commands, label, state);
+  return cornerProduced(state, label, commands);
 }
 
 /** Punto de referencia cuando se designó por selección y no hay clic. */
@@ -613,6 +652,8 @@ function cornerCommand(
     asking: "none",
     picks: [],
     pickPoints: [],
+    multiple: false,
+    pending: [],
   };
   return {
     name,
@@ -633,6 +674,9 @@ function cornerCommand(
     step: (state, input, context) => {
       if (input.kind === "cancel" || input.kind === "enter")
         return cornerFinish([], label, state);
+
+      if (input.kind === "keyword" && input.keyword === MULTIPLE_OPTION.keyword)
+        return cornerStep({ ...state, multiple: true }, label);
 
       if (input.kind === "keyword")
         return cornerStep({ ...state, asking: "primary" }, label);
@@ -677,13 +721,7 @@ function cornerCommand(
       if (picks.length < 2) return cornerStep({ ...state, picks, pickPoints }, label);
 
       const resolved = twoCorners(picks, context, label);
-      if ("error" in resolved)
-        return {
-          state: { ...state, picks: [], pickPoints: [] },
-          prompt: { message: "", options: [] },
-          accepts: 0,
-          result: { kind: "message", text: `${label}: ${resolved.error}` },
-        };
+      if ("error" in resolved) return cornerRefuse(state, label, resolved.error);
 
       // FILLET con radio 0 y CHAMFER con 0×0 cierran la ESQUINA EXACTA, como
       // en AutoCAD — que además es el valor con el que las dos órdenes
@@ -714,46 +752,34 @@ function cornerCommand(
             ? computeCadLineFillet(lineA, lineB, state.primary, newId)
             : computeCadLineChamfer(lineA, lineB, state.primary, state.secondary, newId);
         const inserted = "arc" in geometry ? geometry.arc : geometry.chamfer;
-        return cornerFinish(
-          [
-            {
-              type: "properties",
-              entityId: lineA.id,
-              patch: {
-                startX: geometry.lineA.start.x,
-                startY: geometry.lineA.start.y,
-                endX: geometry.lineA.end.x,
-                endY: geometry.lineA.end.y,
-              },
+        return cornerProduced(state, label, [
+          {
+            type: "properties",
+            entityId: lineA.id,
+            patch: {
+              startX: geometry.lineA.start.x,
+              startY: geometry.lineA.start.y,
+              endX: geometry.lineA.end.x,
+              endY: geometry.lineA.end.y,
             },
-            {
-              type: "properties",
-              entityId: lineB.id,
-              patch: {
-                startX: geometry.lineB.start.x,
-                startY: geometry.lineB.start.y,
-                endX: geometry.lineB.end.x,
-                endY: geometry.lineB.end.y,
-              },
+          },
+          {
+            type: "properties",
+            entityId: lineB.id,
+            patch: {
+              startX: geometry.lineB.start.x,
+              startY: geometry.lineB.start.y,
+              endX: geometry.lineB.end.x,
+              endY: geometry.lineB.end.y,
             },
-            { type: "insert", entity: inserted },
-          ],
-          label,
-          state,
-        );
+          },
+          { type: "insert", entity: inserted },
+        ]);
       } catch (cause) {
         // Paralelas, radio imposible o distancias más largas que las líneas:
         // la geometría ya lo comprueba y lo dice. Se propaga su explicación tal
         // cual en vez de sustituirla por un «no se pudo».
-        return {
-          state: { ...state, picks: [] },
-          prompt: { message: "", options: [] },
-          accepts: 0,
-          result: {
-            kind: "message",
-            text: `${label}: ${cause instanceof Error ? cause.message : String(cause)}`,
-          },
-        };
+        return cornerRefuse(state, label, cause instanceof Error ? cause.message : String(cause));
       }
     },
   };

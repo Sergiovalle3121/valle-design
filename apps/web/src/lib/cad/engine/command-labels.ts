@@ -92,6 +92,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   BOUNDARY: "Contorno",
   BOX: "Caja",
   BREAK: "Partir",
+  BREAKATPOINT: "Partir punto",
   BREAKLINE: "Línea de rotura",
   BURST: "Estallar",
   CABLETRAY: "Charola",
@@ -151,6 +152,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
 
   DXFIN: "Importar DXF",
   DXFOUT: "Exportar DXF",
+  SAVEAS: "Guardar como",
   ELLIPSE: "Elipse",
   ERASE: "Borrar",
   ETRANSMIT: "Empaquetar",
@@ -274,6 +276,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   PLANESURF: "Superficie plana",
   PLINE: "Polilínea",
   PLOT: "Trazar a PDF",
+  PLOTSTAMP: "Sello",
   POINT: "Punto",
   POINTLIGHT: "Luz puntual",
   POLYGON: "Polígono",
@@ -308,6 +311,7 @@ export const CAD_COMMAND_LABELS: Readonly<Record<string, string>> = {
   RENAME: "Renombrar",
 
   REVCLOUD: "Nube de revisión",
+  REVERSE: "Invertir",
   REVISA: "Revisar entrega",
   REVOLVE: "Revolución",
   ROOF: "Cubierta",

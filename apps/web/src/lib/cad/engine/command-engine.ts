@@ -257,6 +257,11 @@ function finish(
     });
   if (result?.kind === "document" && result.notice)
     effects.push({ kind: "message", text: result.notice, level: "info" });
+  // WBLOCK: la entrega del archivo viaja PEGADA a la escritura del documento
+  // (ver el comentario de `host` en `CadCommandResult`), así que aquí se
+  // desdobla en su propio efecto "host" — el mismo que produce DXFOUT.
+  if (result?.kind === "document" && result.host)
+    effects.push({ kind: "host", request: result.host.request, label: result.host.label });
   if (result?.kind === "view")
     effects.push({ kind: "view", request: result.request, label: result.label });
   if (result?.kind === "host")

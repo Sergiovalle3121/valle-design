@@ -562,6 +562,37 @@ async function pdfSpecs(): Promise<void> {
     const fillCount = (contentStream.match(/(?:^|\s)f(?=\s)/g) ?? []).length;
     assert.ok(fillCount >= 2, `esperaba al menos 2 rellenos (hatch + máscara), hubo ${fillCount}`);
   }
+
+  // --- PLOTSTAMP: el sello (fichero, fecha, escala) llega al ARCHIVO --------
+  //
+  // `PLOTSTAMPMODE` (engine/commands/plot-commands.spec.ts) decide si PLOT
+  // pide el sello; el texto lo compone el anfitrión (plot-host.ts) y AQUÍ se
+  // mide que el emisor de verdad lo pinta — en las DOS hojas del trabajo, no
+  // sólo en la primera— y que sin la opción no aparece ninguno.
+  {
+    const stampText = "planta-general.pdf · 19/09/2026 · Escala 1:50";
+    const stamped = await renderCadPlotPdf(job.sheets, { compress: false, stamp: stampText });
+    const measured = measureCadPdf(stamped.bytes);
+    const stampLabels = measured.labels.filter((label) => label.text.includes("planta-general.pdf"));
+    assert.equal(
+      stampLabels.length,
+      job.sheets.length,
+      "el sello se pinta en CADA hoja del trabajo, no sólo en la primera",
+    );
+    for (const label of stampLabels) {
+      assert.ok(label.text.includes("19/09/2026"), "el sello trae la fecha pedida");
+      assert.ok(label.text.includes("1:50"), "el sello trae la escala pedida");
+    }
+
+    // Sin la opción, el PDF no lleva NINGÚN rótulo con ese texto: PLOTSTAMP es
+    // de verdad una OPCIÓN, no algo que sale siempre.
+    const unstamped = await renderCadPlotPdf(job.sheets, { compress: false });
+    const unstampedMeasured = measureCadPdf(unstamped.bytes);
+    assert.ok(
+      !unstampedMeasured.labels.some((label) => label.text.includes("planta-general.pdf")),
+      "sin PLOTSTAMP no aparece ningún sello",
+    );
+  }
 }
 
 // Sin `await` de nivel superior: el runner de specs compila a CommonJS. El

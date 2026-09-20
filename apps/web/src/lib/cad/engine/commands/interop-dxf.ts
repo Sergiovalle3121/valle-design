@@ -55,6 +55,7 @@ import {
   type CadDxfDocumentExportSource,
 } from "../../dxf-document-export";
 import type { CadDxfExportOptions } from "../../dxf-export";
+import { CAD_DXF_VERSIONS, CAD_DXF_VERSION_NAMES, type CadDxfVersion } from "../../dxf-version";
 import { importDxfPrimitives } from "../../dxf-import";
 import {
   buildCadDxfImportReport,
@@ -484,7 +485,130 @@ const dxfOutCommand: CadCommandDescriptor<DxfOutState> = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// SAVEAS — guarda el dibujo ENTERO con la versión de DXF que pida el destino
+// ---------------------------------------------------------------------------
+
+/**
+ * `DXFOUT` ya escribe el dibujo o la selección; lo que le faltaba a este
+ * producto es la ORDEN que un dibujante de AutoCAD teclea sin pensar —
+ * `SAVEAS`— y la elección que trae consigo: el municipio pide 2000, la
+ * ingeniería estructural pide 2007, el cliente nuevo pide lo último. Hasta
+ * hoy el escritor sólo declaraba AC1015 en la cabecera, sin que nada lo
+ * pidiera ni lo mostrase.
+ *
+ * `SAVEAS` guarda el dibujo COMPLETO — a diferencia de `DXFOUT`, no ofrece
+ * "Selección": es lo que hace AutoCAD, y mezclar los dos ámbitos en la misma
+ * orden confundiría cuál ámbito trae cuál ficha.
+ */
+const SAVEAS_VERSION_OPTIONS = CAD_DXF_VERSIONS.map((version) => ({
+  keyword: CAD_DXF_VERSION_NAMES[version],
+  shortcut: CAD_DXF_VERSION_NAMES[version],
+})) as { keyword: string; shortcut: string }[];
+
+const SAVEAS_YEAR_TO_VERSION: Readonly<Record<string, CadDxfVersion>> = Object.fromEntries(
+  CAD_DXF_VERSIONS.map((version) => [CAD_DXF_VERSION_NAMES[version], version]),
+);
+
+const DEFAULT_SAVEAS_VERSION: CadDxfVersion = "AC1015";
+
+interface SaveAsState {
+  /** `null` mientras no se ha elegido versión. */
+  version: CadDxfVersion | null;
+}
+
+const saveAsVersionStep: CadCommandStep<SaveAsState> = {
+  state: { version: null },
+  prompt: {
+    // Se nombran las dos cosas — año Y código — porque el municipio pide una
+    // ("DXF 2000") y el dato que de verdad escribe la cabecera es el otro.
+    message: "Versión de DXF: 2000 (AC1015) / 2007 (AC1021) / 2018 (AC1032)",
+    options: SAVEAS_VERSION_OPTIONS,
+    defaultOption: CAD_DXF_VERSION_NAMES[DEFAULT_SAVEAS_VERSION],
+  },
+  accepts: CAD_ACCEPT_KEYWORD,
+};
+
+function saveAsNameStep(version: CadDxfVersion, suggested: string): CadCommandStep<SaveAsState> {
+  return {
+    state: { version },
+    prompt: { message: "Nombre del archivo DXF", options: [], defaultValue: suggested },
+    accepts: CAD_ACCEPT_TEXT,
+  };
+}
+
+const saveAsCommand: CadCommandDescriptor<SaveAsState> = {
+  name: "SAVEAS",
+  aliases: [],
+  kind: "inquiry",
+  transparent: false,
+  selection: "none",
+  repeatable: true,
+  mutates: false,
+  cursor: "none",
+  begin: (context) =>
+    context.document
+      ? saveAsVersionStep
+      : say({ version: null }, "SAVEAS no puede leer el dibujo en este espacio de trabajo."),
+  step: (state, input, context) => {
+    if (input.kind === "cancel") return quiet(state);
+    const view = context.document?.();
+    if (!view) return say(state, "SAVEAS no puede leer el dibujo en este espacio de trabajo.");
+
+    // --- primera fase: versión ------------------------------------------------
+    if (state.version === null) {
+      const year =
+        input.kind === "keyword" && SAVEAS_YEAR_TO_VERSION[input.keyword]
+          ? input.keyword
+          : input.kind === "enter"
+            ? CAD_DXF_VERSION_NAMES[DEFAULT_SAVEAS_VERSION]
+            : null;
+      if (year === null) return saveAsVersionStep;
+      return saveAsNameStep(SAVEAS_YEAR_TO_VERSION[year], DEFAULT_DXF_FILE_NAME);
+    }
+
+    // --- segunda fase: nombre y entrega ---------------------------------------
+    if (input.kind !== "text" && input.kind !== "enter")
+      return saveAsNameStep(state.version, DEFAULT_DXF_FILE_NAME);
+    const typed = input.kind === "text" ? input.value.trim() : "";
+    const fileName = /\.dxf$/i.test(typed) ? typed : typed ? `${typed}.dxf` : DEFAULT_DXF_FILE_NAME;
+
+    // SAVEAS guarda el dibujo ENTERO: sin filtro de ámbito, a diferencia de
+    // DXFOUT, que sí ofrece "Selección".
+    const plan = planCadDxfExport({ ...view, layers: view.layers }, undefined, {
+      lengthUnits: {
+        lunits: Number(context.variables?.get("LUNITS") ?? 2),
+        luprec: Number(context.variables?.get("LUPREC") ?? 4),
+      },
+      dxfVersion: state.version,
+    });
+    // Mismo fallo cerrado que DXFOUT: un archivo de cero entidades es
+    // indistinguible de haber perdido el trabajo.
+    if (plan.entityCount === 0)
+      return say(state, "SAVEAS: el dibujo no tiene ninguna entidad exportable. No se ha guardado ningún archivo.");
+
+    return {
+      state,
+      prompt: { message: "", options: [] },
+      accepts: 0,
+      result: {
+        kind: "host",
+        request: {
+          kind: "dxf-export",
+          fileName,
+          content: plan.content,
+          entityCount: plan.entityCount,
+          layers: plan.layers,
+          losses: plan.losses,
+        },
+        label: `SAVEAS ${fileName} (${state.version})`,
+      },
+    };
+  },
+};
+
 export const CAD_DXF_INTEROP_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(dxfInCommand),
   asCadCommand(dxfOutCommand),
+  asCadCommand(saveAsCommand),
 ];

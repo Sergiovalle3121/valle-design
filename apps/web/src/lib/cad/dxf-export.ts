@@ -54,6 +54,7 @@ import {
 import { hatchLoops, pushHatch } from "./dxf-export-hatch";
 
 export type CadDxfExportUnit = "mm" | "m";
+import type { CadDxfVersion } from "./dxf-version"; // dxf-version.ts: presupuesto de monolito
 export interface CadDxfExportOptions {
   units?: CadDxfExportUnit;
   fileComment?: string;
@@ -64,6 +65,7 @@ export interface CadDxfExportOptions {
    * ellas, el ajuste arquitectónico del dibujo no sobrevive al fichero.
    */
   lengthUnits?: { lunits: number; luprec: number };
+  dxfVersion?: CadDxfVersion;
 }
 export interface CadDxfExportLayer {
   name: string;
@@ -273,10 +275,8 @@ function pushHeader(
 ) {
   pushPair(lines, 0, "SECTION");
   pushPair(lines, 2, "HEADER");
-  // AC1015 (AutoCAD 2000): la versión mínima honesta para las entidades que
-  // emitimos — ELLIPSE no existe en R12 (AC1009).
   pushPair(lines, 9, "$ACADVER");
-  pushPair(lines, 1, "AC1015");
+  pushPair(lines, 1, options.dxfVersion ?? "AC1015");
   pushPair(lines, 9, "$INSUNITS");
   pushPair(lines, 70, DXF_UNIT_CODES[options.units ?? "mm"]);
   // El FORMATO de las longitudes es del dibujo, igual que su unidad. Sin

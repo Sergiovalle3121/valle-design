@@ -191,6 +191,10 @@ export const CAD_SYSTEM_VARIABLES: readonly CadSystemVariableDef[] = [
   int("ATTDIA", 0, "Atributos al insertar: 0 por la línea, 1 en cuadro de diálogo", { enumerated: [0, 1] }),
   int("ATTREQ", 1, "Pedir atributos al insertar: 0 usar defectos, 1 preguntar", { enumerated: [0, 1] }),
   int("OVERKILLTOL", 0, "Tolerancia de OVERKILL en milésimas de unidad", { min: 0, max: 1000000 }),
+  // Lo escribe PLOTSTAMP (engine/commands/plot-commands.ts); lo lee PLOT al
+  // componer la petición de trazado, y plot/plot-pdf.ts dibuja el sello —
+  // fichero, fecha y escala— si está encendido.
+  int("PLOTSTAMPMODE", 0, "Sello de trazado en la salida: 0 apagado, 1 encendido", { enumerated: [0, 1] }),
 
   // --- casillas del usuario, tal cual las tiene AutoCAD ---------------------
   int("USERI1", 0, "Entero libre nº 1"),

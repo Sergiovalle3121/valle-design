@@ -769,7 +769,7 @@ const laycurCommand: CadCommandDescriptor<null> = {
       state: null,
       prompt: { message: "", options: [] },
       accepts: 0,
-      result: { kind: "variables", patch: { CCLAYER: entity.layer }, text: `Capa actual: ${entity.layer}` },
+      result: { kind: "variables", patch: { CLAYER: entity.layer }, text: `Capa actual: ${entity.layer}` },
     };
   },
 };
