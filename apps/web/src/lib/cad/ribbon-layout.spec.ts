@@ -125,17 +125,22 @@ for (const width of [1272, 1358]) {
   // golden 214 lo pescó por `scrollWidth > clientWidth`. Con el pie ya contado
   // (`cadRibbonLabelWidth`, en `ribbon-layout.ts`) el reparto real dispone de menos sitio del que
   // este archivo creía, así que menos comandos caben CON rótulo legible — siguen siendo muchos más
-  // que los 71 MUDOS de la Ola 1, que es lo que este bloque afirma. «Propiedades» y «Portapapeles»
-  // además dejan de poder PLEGARSE a un botón en este reparto: su rótulo (66 y 70 px reales) no
-  // cabe en los 68 px del botón plegado sin recortarse con puntos suspensivos
-  // (`cadRibbonLabelFitsCollapsed`), así que se quedan "reduced" —más caros en píxeles, pero con
-  // el nombre completo— y eso resta todavía más columnas al resto.
+  // que los 71 MUDOS de la Ola 1, que es lo que este bloque afirma.
+  //
+  // Y EL BOTÓN PLEGADO PASÓ DE 4,5 A 5 REM POR ESTO. Con 68 px de hueco para el rótulo,
+  // «Portapapeles» (69,7 px) se quedaba fuera POR 1,7 PÍXELES, y un panel que no puede plegarse se
+  // queda "reduced": un renglón con su nombre y una flecha, 109 px de tira para CERO botones a la
+  // vista. Lo mismo «Propiedades» (66 px, al filo). Ensanchar el botón plegado ocho píxeles deja
+  // que los cinco paneles de la derecha se plieguen a su icono, y lo que se gasta en ellos se
+  // recupera con creces en columnas para Dibujo, Modificar y Capas: medido, 14→16 comandos con
+  // rótulo a 1272 px, 17→19 a 1346 y 38→40 a 1908 — el objetivo original de la Ola 6 en la ventana
+  // ancha, ahora sí con un modelo que no miente.
   const visibles1272 = totalVisible(1272);
-  ok(visibles1272 >= 14, `Inicio a 1272 px (ventana de 1280) enseña ${visibles1272} comandos CON rótulo; el objetivo tras la corrección del golden 214 es ≥14`);
+  ok(visibles1272 >= 16, `Inicio a 1272 px (ventana de 1280) enseña ${visibles1272} comandos CON rótulo; el objetivo tras la corrección del golden 214 es ≥16`);
   const visibles1346 = totalVisible(1346);
   ok(
-    visibles1346 >= 17,
-    `Inicio a 1346 px enseña ${visibles1346} comandos CON rótulo; el objetivo tras la corrección del golden 214 es ≥17 (con la Ola 1 eran 71 sin nombre)`,
+    visibles1346 >= 19,
+    `Inicio a 1346 px enseña ${visibles1346} comandos CON rótulo; el objetivo tras la corrección del golden 214 es ≥19 (con la Ola 1 eran 71 sin nombre)`,
   );
   ok(
     cadRibbonTabWidth(inicio, planCadRibbonLayout(inicio, 1346)) <= 1346,
@@ -149,7 +154,7 @@ for (const width of [1272, 1358]) {
   // escalón denso tiene de sobra para enseñar todavía más, siempre con rótulo.
   ok(1908 < CAD_RIBBON_DENSE_BREAKPOINT, "1908 px (una ventana de escritorio ancha) también cae en el escalón denso");
   const visibles1908 = totalVisible(1908);
-  ok(visibles1908 >= 38, `Inicio a 1908 px enseña ${visibles1908} comandos CON rótulo; el objetivo tras la corrección del golden 214 es ≥38`);
+  ok(visibles1908 >= 40, `Inicio a 1908 px enseña ${visibles1908} comandos CON rótulo; el objetivo tras la corrección del golden 214 es ≥40`);
 
   // El botón pequeño denso mide `CAD_RIBBON_DENSE_METRICS.small` (80 px, con
   // presupuesto para ~8 caracteres de rótulo recortado), no los 26 px de

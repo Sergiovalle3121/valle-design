@@ -124,7 +124,7 @@ export function CadRibbonPanelFlyout({
           onClick={toggle}
           title={triggerTitle}
           className={cx(
-            "flex h-[3.75rem] w-[4.5rem] shrink-0 flex-col items-center justify-start gap-0.5 rounded-control px-0.5 py-0.5",
+            "flex h-[3.75rem] w-[5rem] shrink-0 flex-col items-center justify-start gap-0.5 rounded-control px-0.5 py-0.5",
             "text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           )}

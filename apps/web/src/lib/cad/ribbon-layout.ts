@@ -47,7 +47,7 @@ export const CAD_RIBBON_METRICS: CadRibbonMetrics = {
   /** Panel: `px-2` (16) + `border-r` (1). */
   panelPad: 17,
   /** Panel plegado a un botón: `px-0.5` (4) + `w-[4.5rem]` (72) + `border-r` (1). */
-  collapsed: 77,
+  collapsed: 85,
   /** Filas de botones pequeños: `grid-rows-3`. */
   rows: 3,
   /** Columnas de botones pequeños como mucho, desplegado del todo. */
@@ -215,7 +215,7 @@ export function cadRibbonLabelWidth(label: string): number {
  * panel no es una opción—. `planCadRibbonLayout` comprueba esto ANTES de plegar cualquier panel
  * del orden de plegado.
  */
-export const CAD_RIBBON_COLLAPSED_LABEL_BUDGET = 68;
+export const CAD_RIBBON_COLLAPSED_LABEL_BUDGET = 76;
 
 export function cadRibbonLabelFitsCollapsed(label: string): boolean {
   return cadRibbonLabelWidth(label) <= CAD_RIBBON_COLLAPSED_LABEL_BUDGET;
