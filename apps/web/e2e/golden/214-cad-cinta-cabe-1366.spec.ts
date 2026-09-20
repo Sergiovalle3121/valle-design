@@ -18,6 +18,13 @@ import { CAD_RIBBON_DATA } from "../../src/lib/cad/ribbon";
  * coincidir con las clases de los botones; este golden es el que comprueba
  * que esas constantes no mienten en un navegador real.
  *
+ * Corrección del 2026-09-20: `cadRibbonPanelWidth` (`ribbon-layout.ts`) nunca contaba el PIE del
+ * panel (el rótulo bajo la fila de botones) —sólo la fila—, y un panel "reduced" sin botón grande
+ * no pinta fila ninguna: el pie es lo ÚNICO que hay. Este golden lo pescó por `scrollWidth >
+ * clientWidth` de la tira (1579 px de contenido en 1366, 1415 en 1280) y ahora TAMBIÉN mide el
+ * rótulo de cada panel por separado (más abajo), para que un rótulo demasiado ancho para su caja
+ * no se cuele mudo con una elipsis en vez de desbordar la tira entera.
+ *
  * ## Qué comprueba
  *
  *   · En las ocho pestañas, `scrollWidth <= clientWidth` de la tira, y
@@ -27,6 +34,10 @@ import { CAD_RIBBON_DATA } from "../../src/lib/cad/ribbon";
  *     en Anotar (DIMLINEAR), sin abrir ningún desplegable.
  *   · Ningún rótulo se sale de su botón: ni los pequeños (una línea) ni los
  *     de los paneles plegados. Elidir un rótulo sería esconder texto.
+ *   · El rótulo de un PANEL (plegado, con desplegable o solo) nunca se recorta con puntos
+ *     suspensivos: `scrollWidth <= clientWidth` en cada uno, en las ocho pestañas. El botón
+ *     pequeño denso SÍ puede recortar el suyo (por diseño, con `aria-label` de red); el del
+ *     panel, no.
  *   · Un panel plegado abre su desplegable con TODOS sus comandos, y
  *     Escape lo cierra devolviendo el foco.
  *   · La cinta entera mide ≤ 108 px de alto: a 720 px de alto el lienzo
@@ -80,6 +91,7 @@ interface Medida {
   tira: { scrollWidth: number; clientWidth: number };
   fuera: string[];
   rotulosQueSeSalen: string[];
+  rotulosDePanelRecortados: string[];
 }
 
 /** Todo en una evaluación: la tira, sus botones y sus rótulos. */
@@ -104,10 +116,24 @@ async function medirTira(page: Page, tabId: string): Promise<Medida> {
         rotulosQueSeSalen.push(`${boton.dataset.testid} «${rotulo.textContent}»`);
       }
     }
+    // El rótulo de un PANEL (plegado, con desplegable, o solo) es el único que nunca debería
+    // recortarse con puntos suspensivos — a diferencia del botón pequeño denso, que SÍ está
+    // diseñado para recortar su rótulo si hace falta (`CadRibbonButton.tsx`, con `aria-label` de
+    // red). Un rótulo de panel recortado esconde el nombre del panel entero, no de un comando:
+    // `scrollWidth > clientWidth` lo delata aunque su caja no se salga de nada (la elipsis, por
+    // diseño, SIEMPRE cabe en la caja).
+    const rotulosDePanelRecortados: string[] = [];
+    const rotulosDePanel = tira.querySelectorAll<HTMLElement>('[id^="cad-ribbon-panel-label-"]');
+    for (const rotulo of rotulosDePanel) {
+      if (rotulo.scrollWidth > rotulo.clientWidth + 1) {
+        rotulosDePanelRecortados.push(`${rotulo.id} «${rotulo.textContent}»`);
+      }
+    }
     return {
       tira: { scrollWidth: tira.scrollWidth, clientWidth: tira.clientWidth },
       fuera,
       rotulosQueSeSalen,
+      rotulosDePanelRecortados,
     };
   }, tabId);
 }
@@ -168,6 +194,10 @@ for (const viewport of [
       ).toBeLessThanOrEqual(medida.tira.clientWidth);
       expect(medida.fuera, `${tab.label}: botones con la caja fuera de la tira`).toEqual([]);
       expect(medida.rotulosQueSeSalen, `${tab.label}: rótulos que se salen de su botón`).toEqual([]);
+      expect(
+        medida.rotulosDePanelRecortados,
+        `${tab.label}: rótulos de panel recortados con puntos suspensivos (esconden el nombre del panel)`,
+      ).toEqual([]);
     }
 
     await page.getByTestId("cad-ribbon-tab-inicio").click();
@@ -184,14 +214,15 @@ test("un panel plegado abre su desplegable con todos sus comandos y Escape lo ci
   await page.setViewportSize({ width: 1280, height: 720 });
   await openStudio(context, page);
 
-  // Ola 1 «cinta» (2026-09-19): Utilidades ya no tiene botón grande
-  // (`ribbon-order.ts` recortó los catorce primarios de Inicio a nueve), así
-  // que a 1280 px queda "reduced" (su rótulo con un ▾, sin botón-icono de
-  // panel de sobra que ya no tiene nada que enseñar) y no "collapsed" —
-  // `ribbon-layout.spec.ts` lo afirma sin navegador. LIST vive dentro y no
-  // está en el DOM hasta abrir, en los dos estados.
+  // Corrección del golden 214 (2026-09-20): Utilidades no tiene botón grande (`ribbon-order.ts`
+  // recortó los catorce primarios de Inicio a nueve), así que no tiene nada que perder al
+  // plegarse del todo — y "collapsed" (77 px, un icono) sale MÁS BARATO que "reduced" (su pie
+  // llevaba de todos modos un botón con el rótulo y la flecha, sin fila de botones encima: 92 px
+  // medidos, no los 17 que creía el modelo antes de esta corrección). Por eso a 1280 px queda
+  // "collapsed", no "reduced" — `ribbon-layout.spec.ts` lo afirma sin navegador. LIST vive dentro
+  // y no está en el DOM hasta abrir.
   const utilidades = page.getByTestId("cad-ribbon-panel-Utilidades");
-  await expect(utilidades).toHaveAttribute("data-layout", "reduced");
+  await expect(utilidades).toHaveAttribute("data-layout", "collapsed");
   await expect(page.getByTestId("cad-ribbon-command-LIST")).toHaveCount(0);
 
   const toggle = page.getByTestId("cad-ribbon-panel-toggle-Utilidades");

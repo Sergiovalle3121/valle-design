@@ -172,16 +172,96 @@ export function cadRibbonPanelSplit(
   return { large: primaries, small: smalls.slice(0, visible), flyout: smalls.slice(visible) };
 }
 
+/**
+ * ANCHO ESTIMADO DEL RÓTULO DE UN PANEL, en píxeles — SIN navegador.
+ *
+ * ## Por qué es una ESTIMACIÓN y no una medida
+ *
+ * `ribbon-layout.ts` corre en Node (`npx tsx ribbon-layout.spec.ts`, sin DOM), así que no hay
+ * `getBoundingClientRect` que consultar: el ancho de un rótulo se aproxima contando caracteres.
+ *
+ * ## De dónde salen los números
+ *
+ * El rótulo pinta con `.type-micro` (`globals.css`): Inter, 11 px (`0.6875rem`), peso 500.
+ * `ctx.measureText` en un `<canvas>` con esa MISMA fuente (navegador real, sin depender de ninguna
+ * caja del DOM) dio el ancho exacto de los 43 rótulos de panel que existen hoy en las ocho
+ * pestañas —de «SCU» (23,3 px) a «Normas y reparación» (110,0 px)— con un avance de 4,9 a 7,8 px
+ * por carácter según las letras (más alto en palabras cortas: «SCU», 3 letras, pesa 7,8 px/car
+ * sólo por el redondeo fijo). Ninguna recta `caracteres × avance` pasa nunca por debajo de los 43
+ * puntos a la vez —se probó por barrido—, así que `CAD_RIBBON_LABEL_PX_PER_CHAR` (5,6) y
+ * `CAD_RIBBON_LABEL_MARGIN` (8) son la pareja con el margen más ajustado (0,7 px en el peor caso,
+ * «Encuadre y zoom») que SIGUE sin quedar corta en ninguno de los 43: nunca por debajo del ancho
+ * real, que es lo que importa —subestimar el rótulo es lo que dejaba la tira 132 px corta a
+ * 1280 px (ver el comentario de `CAD_RIBBON_FOOTER_PADDING_WITH_FLYOUT`, más abajo)—, y tampoco
+ * tan generoso como para plegar de más un panel que en realidad cabía. Quien verifica que la cota
+ * sigue siendo válida —para estos 43 rótulos y para cualquiera que se añada— es el golden 214
+ * (`e2e/golden/214-cad-cinta-cabe-1366.spec.ts`) en un navegador real: mide `scrollWidth` contra
+ * `clientWidth` de la tira Y de cada rótulo de panel.
+ */
+export const CAD_RIBBON_LABEL_PX_PER_CHAR = 5.6;
+export const CAD_RIBBON_LABEL_MARGIN = 8;
+
+export function cadRibbonLabelWidth(label: string): number {
+  return Math.ceil(label.length * CAD_RIBBON_LABEL_PX_PER_CHAR) + CAD_RIBBON_LABEL_MARGIN;
+}
+
+/**
+ * CUÁNTO RÓTULO CABE en un panel PLEGADO sin recortarse con puntos suspensivos. El botón plegado
+ * mide `w-[4.5rem]` (72 px, `CAD_RIBBON_METRICS.collapsed`) con `px-0.5` (4 px) de relleno
+ * horizontal alrededor del rótulo (`CadRibbonPanelFlyout.tsx`, variante "panel"): 68 px libres,
+ * medido en un navegador real (`rotulo.clientWidth` de «Bloque» y «Propiedades» plegados). Un
+ * panel cuyo rótulo no quepa ahí NO puede plegarse a un botón: `truncate` lo recortaría con «…», y
+ * el golden 214 exige `scrollWidth <= clientWidth` en cada rótulo de panel —esconder el nombre del
+ * panel no es una opción—. `planCadRibbonLayout` comprueba esto ANTES de plegar cualquier panel
+ * del orden de plegado.
+ */
+export const CAD_RIBBON_COLLAPSED_LABEL_BUDGET = 68;
+
+export function cadRibbonLabelFitsCollapsed(label: string): boolean {
+  return cadRibbonLabelWidth(label) <= CAD_RIBBON_COLLAPSED_LABEL_BUDGET;
+}
+
+/**
+ * EL PIE DE UN PANEL NO PLEGADO (el rótulo, bajo la fila de botones) mide más que sólo el texto —
+ * y `cadRibbonPanelWidth` lo ignoraba entero: sólo contaba la fila de botones, nunca el pie. Un
+ * panel "reduced" (Grupos, Utilidades, Portapapeles en Inicio: sin botón grande) no PINTA fila de
+ * botones — el pie es lo ÚNICO que hay — así que el ancho previsto caía a los 17 px del borde y el
+ * relleno, cuando el pie real medía hasta 92 px (Utilidades) o 109 (Portapapeles): 54 px que
+ * faltaban en la cuenta, la mitad de los 132 px de más que medía la tira a 1280 px.
+ *
+ *   · Si al panel le queda algo sin enseñar —el desplegable no está vacío—, el pie es un BOTÓN
+ *     (`CadRibbonPanelFlyout`, variante "title"): `px-1` (8) + `gap-0.5` (2) + la flecha
+ *     `h-3 w-3` (12) alrededor del rótulo. Un panel "reduced" SIEMPRE tiene algo en el desplegable
+ *     (si no tuviera comandos, el panel no existiría), así que su pie SIEMPRE lleva flecha.
+ *   · Si el panel enseña TODO (desplegable vacío) el pie es sólo el `<span>` con `px-1` (8), sin
+ *     flecha.
+ */
+export const CAD_RIBBON_FOOTER_PADDING_WITH_FLYOUT = 22; // px-1 (8) + gap-0.5 (2) + flecha h-3 w-3 (12)
+export const CAD_RIBBON_FOOTER_PADDING_PLAIN = 8; // px-1 (8), sin flecha
+
 /** Ancho del panel en píxeles para un plan, con las constantes de arriba. */
 export function cadRibbonPanelWidth(panel: CadRibbonPanel, layout: CadRibbonPanelLayout): number {
   const m = layout.dense ? CAD_RIBBON_DENSE_METRICS : CAD_RIBBON_METRICS;
+  // Plegado: un único botón de ancho FIJO (`w-[4.5rem]`, con el rótulo recortado por `truncate`
+  // si hiciera falta — de ahí que este golden mida `scrollWidth` contra `clientWidth` de cada
+  // rótulo, para que un panel con un nombre demasiado largo no se cuele mudo). El ancho no
+  // depende del rótulo, así que aquí no hace falta estimarlo.
   if (layout.state === "collapsed") return m.collapsed;
-  const { primaries } = splitCadRibbonPanel(panel);
+  const { primaries, smalls } = splitCadRibbonPanel(panel);
   const primaryCols = primaries.length > m.maxColumns ? m.maxColumns : primaries.length;
   const largeBlock = primaryCols * m.large + Math.max(0, primaryCols - 1) * m.gap;
   const columns = layout.state === "reduced" ? 0 : layout.columns;
   const smallBlock = columns > 0 ? columns * m.small + (columns - 1) * m.gap + m.gap : 0;
-  return m.panelPad + largeBlock + smallBlock;
+  const rowWidth = m.panelPad + largeBlock + smallBlock;
+
+  // El pie va DEBAJO de la fila (columna, no lado a lado): el panel mide lo que pida el más ancho
+  // de los dos, nunca la suma.
+  const shownSmalls = columns * m.rows;
+  const hasFlyout = smalls.length > shownSmalls;
+  const footerWidth =
+    m.panelPad + cadRibbonLabelWidth(panel.label) + (hasFlyout ? CAD_RIBBON_FOOTER_PADDING_WITH_FLYOUT : CAD_RIBBON_FOOTER_PADDING_PLAIN);
+
+  return Math.max(rowWidth, footerWidth);
 }
 
 export function cadRibbonTabWidth(tab: CadRibbonTab, plan: ReadonlyMap<string, CadRibbonPanelLayout>): number {
@@ -268,15 +348,19 @@ export function planCadRibbonLayout(
     .map((panel) => panel.label)
     .filter((label) => !collapsible.includes(label) && !manuallyCollapsed.has(label))
     .reverse();
-  // Un panel SIN botón grande (Ola 1 «cinta»: Grupos, Utilidades,
-  // Portapapeles) ya cuesta lo mínimo (17 px, ni un botón) en "reduced": no
-  // muestra nada, pero tampoco nada que mostrar tiene "collapsed" (77 px, el
-  // botón-icono del panel) — pasar de uno a otro no gana ni un comando más a
-  // la vista y sólo gasta presupuesto que un panel PROTEGIDO necesita más.
-  // "collapsed" queda para los paneles que sí tienen un primario que esconder.
-  const panelByLabel = new Map(tab.panels.map((panel) => [panel.label, panel]));
-  const hasPrimary = (label: string) => splitCadRibbonPanel(panelByLabel.get(label)!).primaries.length > 0;
-
+  // Ola 6 «cinta legible»: ANTES este comentario decía que un panel SIN botón grande (Grupos,
+  // Utilidades, Portapapeles) ya costaba lo mínimo en "reduced" (17 px, «ni un botón») y que pasar
+  // a "collapsed" (77 px) sólo gastaba presupuesto sin ganar nada. Esa cuenta olvidaba el PIE: un
+  // panel "reduced" sin primario no pinta la fila de botones, así que el pie —el rótulo, siempre
+  // visible, nunca recortado con puntos suspensivos— es lo ÚNICO que queda, y un pie con
+  // desplegable lleva flecha (ver `CAD_RIBBON_FOOTER_PADDING_WITH_FLYOUT`). Medido: «Utilidades»
+  // cuesta 92 px reducido contra 77 plegado; «Grupos» 78 contra 77. Para paneles así "collapsed"
+  // es MÁS BARATO que "reduced" y enseña los mismos CERO comandos (ninguno tiene primario que
+  // perder) — así que aquí SÍ conviene plegarlos, sin la condición `hasPrimary` que tenía esta
+  // pasada antes. La única condición que queda es que el rótulo QUEPA plegado
+  // (`cadRibbonLabelFitsCollapsed`, más arriba): «Portapapeles» (69,7 px de rótulo real) no cabe
+  // en los 68 px del botón plegado, así que se queda en "reduced" —más caro, pero con el nombre
+  // completo a la vista— en vez de recortarse con puntos suspensivos.
   if (reduceColumnsEvenly(collapsible, plan, fits)) return plan;
   for (const label of collapsible) {
     const layout = plan.get(label)!;
@@ -284,8 +368,9 @@ export function planCadRibbonLayout(
     if (fits()) return plan;
   }
   for (const label of collapsible) {
+    if (!cadRibbonLabelFitsCollapsed(label)) continue;
     const layout = plan.get(label)!;
-    if (layout.state !== "collapsed" && hasPrimary(label)) plan.set(label, { ...layout, state: "collapsed", columns: 0 });
+    if (layout.state !== "collapsed") plan.set(label, { ...layout, state: "collapsed", columns: 0 });
     if (fits()) return plan;
   }
 
