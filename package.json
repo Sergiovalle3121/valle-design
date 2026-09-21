@@ -112,8 +112,8 @@
   },
   "devDependencies": {
     "@lhci/cli": "^0.15.1",
-    "@redocly/cli": "2.49.0",
-    "@types/node": "^22.18.0",
+    "@redocly/cli": "2.52.1",
+    "@types/node": "^22.20.2",
     "eslint": "^9.18.0",
     "openapi-typescript": "7.13.0",
     "prettier": "^3.4.2",
