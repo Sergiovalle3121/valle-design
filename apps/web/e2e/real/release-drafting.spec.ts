@@ -198,7 +198,11 @@ test.describe("Entregables sintéticos por teclado y ratón, con persistencia re
     expect((await readDocument(context, id)).cadDocument.entities).toEqual(
       original.cadDocument.entities,
     );
-    await page.screenshot({ path: info.outputPath("placa-reabierta.png") });
+    // La vista de sesión no se persiste: encuadrar explícitamente al reabrir.
+    await command(page, "ZOOM", "E");
+    await expect(page.getByTestId("cad-command-prompt")).toBeHidden();
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    await page.screenshot({ path: info.outputPath("placa-reabierta-encuadrada.png") });
     await page.getByTitle(/Exportar a DXF/iu).click();
     const losses = page.getByTestId("cad-dxf-loss-manifest");
     if (await losses.isVisible()) {
