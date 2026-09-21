@@ -40,6 +40,11 @@ test('creates, edits, undoes, reloads and DXF round-trips semantic MTEXT', async
   await page.getByTestId('cad-mtext-background-mask').click();
   await page.getByTestId('cad-mtext-save').click();
 
+  // Guardar el MTEXT lo deja designado, pero designar ya NO despliega el
+  // muelle derecho (ola «legible»: hacerlo encogía el lienzo de 1190 a 911 px
+  // y lo devolvía en cada clic). Se abre por el riel, como haría una persona,
+  // antes de leer sus propiedades.
+  await abrirPanelDerecho(page);
   const properties = page.getByTestId('cad-native-properties');
   await expect(properties).toContainText('MTEXT');
   await expect(page.getByTestId('cad-native-property-text')).toHaveValue('Instrucción de proceso\nSegunda línea');
