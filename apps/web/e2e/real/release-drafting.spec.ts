@@ -286,6 +286,9 @@ test.describe("Entregables sintéticos por teclado y ratón, con persistencia re
     await page.mouse.click(window.x, window.y);
     await expect(page.getByTestId("cad-command-prompt")).toBeHidden();
     await layer(page, "Cotas");
+    // Texto nominal de 2.5 mm en papel: 125 mm de modelo a escala 1:50.
+    await command(page, "DIMSTYLE", "A_1_50", "Standard", "125", "125", "architectural-tick", "0", "mm", "1", "", "2");
+    await command(page, "SETVAR", "DIMSTYLE", "A_1_50");
     await command(page, "DIMLINEAR", "0,0", "8000,0", "4000,-800");
     // Calibration segment: its independent PDF measurement must be 160 ±0.1 mm.
     await command(page, "LINE", "0,-500", "8000,-500", "");
