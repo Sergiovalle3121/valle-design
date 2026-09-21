@@ -34,6 +34,7 @@ import { createCadStarterDocument } from "../src/lib/cad/starter-templates";
 import type { CadDocument } from "../src/lib/cad/cad-document";
 import { forbiddenTextFragments } from "../../../scripts/cad/check-no-industrial-domain.mjs";
 import { createProductCaptureDiagnostics } from "./product-capture-diagnostics";
+import { removeUnusedExampleLayer } from "./product-capture-example";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const webRoot = path.resolve(here, "..");
@@ -563,7 +564,9 @@ async function main() {
   await mkdir(DOC_DIR, { recursive: true });
   const server = await maybeStartServer();
 
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({
+    ...(process.env.CAD_PERF_REAL_GPU === "1" ? { channel: "chromium" } : {}),
+  });
   try {
     for (const theme of ["dark", "light"] as const) {
       diagnostics.mark(`Preparar estudio: tema ${theme}`);
@@ -586,6 +589,7 @@ async function main() {
       await page
         .getByTestId("cad-command-line")
         .waitFor({ state: "visible", timeout: 120_000 });
+      await diagnostics.reportRenderer(page);
 
       // El acompañante se cierra: en una captura de venta estorba, y su propia
       // pantalla se fotografía aparte.
@@ -599,6 +603,8 @@ async function main() {
       await frameThePlan(page);
       await placeOpenings(page);
       await annotateSamplePlan(page);
+      diagnostics.mark("Eliminar capa vacía del ejemplo y guardar");
+      await removeUnusedExampleLayer(page, snapshot);
       // Y otra vez después: el plano creció con los rótulos y las cotas, y un
       // encuadre hecho sobre el contorno pelado los deja fuera de cuadro.
       await frameThePlan(page);
@@ -640,18 +646,7 @@ async function main() {
         }
         await page.keyboard.press("Escape");
 
-        /*
-         * El gestor de capas, por su BOTÓN.
-         *
-         * Teclear `LAYER` contesta «El gestor de capas no está montado en este
-         * espacio de trabajo. Use -LAYER…» —el gestor vive anclado y su
-         * visibilidad la decide el editor, no el puente de comandos
-         * (`palettes/use-palettes.ts` lo explica y lo asume)—, así que la
-         * captura salía enseñando ese renglón en rojo. Que dos comandos tan
-         * usados de AutoCAD no abran su paleta desde la línea es un defecto
-         * abierto, anotado en la bitácora; lo que NO puede pasar es que la
-         * portada lo anuncie.
-         */
+        /* Abrir el gestor con su control visible en la barra del estudio. */
         const layersButton = page.getByTitle(/Vista, capas y plano/);
         diagnostics.mark("Paleta de capas");
         await layersButton.click();

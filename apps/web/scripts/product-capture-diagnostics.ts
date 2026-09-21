@@ -16,6 +16,34 @@ export function createProductCaptureDiagnostics(directory?: string) {
       page = next;
       page.setDefaultTimeout(30_000);
     },
+    async reportRenderer(next: Page) {
+      const metadata = await next
+        .getByTestId("cad-canvas")
+        .evaluate((element) => {
+          const canvas =
+            element instanceof HTMLCanvasElement
+              ? element
+              : element.querySelector("canvas");
+          const gl =
+            canvas?.getContext("webgl2") ?? canvas?.getContext("webgl");
+          if (!gl)
+            return {
+              renderer: "unavailable",
+              devicePixelRatio: window.devicePixelRatio,
+            };
+          const debug = gl.getExtension("WEBGL_debug_renderer_info");
+          return {
+            renderer: gl.getParameter(
+              debug ? debug.UNMASKED_RENDERER_WEBGL : gl.RENDERER,
+            ),
+            vendor: gl.getParameter(
+              debug ? debug.UNMASKED_VENDOR_WEBGL : gl.VENDOR,
+            ),
+            devicePixelRatio: window.devicePixelRatio,
+          };
+        });
+      console.log(`[captura GPU] ${JSON.stringify(metadata)}`);
+    },
     async failure(error: unknown) {
       console.error(`[captura] Fallo en etapa: ${stage}`);
       if (!directory || !page || page.isClosed()) return;
