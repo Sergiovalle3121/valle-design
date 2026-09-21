@@ -64,6 +64,16 @@ async function type(page: Page, value: string) {
   await input.press('Enter');
 }
 
+// Auditoría ola1-g2-estudio (2026-09-20): este golden sólo toca la línea de
+// comandos (`cad-command-line`/`cad-command-input`/`cad-command-line-log`,
+// siempre montada de ancho completo, `CadCommandLine.tsx`) y DSETTINGS, que
+// sigue siendo un diálogo modal con fondo oscuro (`CadPaletteOverlays.tsx`),
+// no un panel de muelle. Ninguno de los dos cambió con el armazón nuevo: no
+// abre paletas laterales, no usa la paleta flotante de herramientas (que se
+// podó a 3 botones) ni la cinta. `cad-command-line-log` se pliega a 0 px por
+// defecto, pero `toContainText` lee `textContent` sin exigir visibilidad, así
+// que las aserciones de DIST/UNITS/SETVAR siguen siendo válidas sin desplegar
+// el registro. No hizo falta tocar nada.
 test('consultar, configurar unidades, abrir paletas y crear una capa desde la línea de comandos', async ({
   context,
   page,

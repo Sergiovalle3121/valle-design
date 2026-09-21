@@ -4,6 +4,7 @@ import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
+import { abrirPanelDerecho } from '../fixtures/docks';
 
 /**
  * Las órdenes de modificación que faltaban, contra el producto de verdad.
@@ -95,6 +96,9 @@ test('STRETCH y ARRAY se teclean, mutan el documento canónico y sobreviven al g
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto('/legacy/studio');
+  // Ola «armazón»: el panel derecho arranca plegado a un riel de iconos; la
+  // lista de entidades sólo se MONTA con el panel abierto.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
 
   const commandLine = page.getByTestId('cad-command-line');

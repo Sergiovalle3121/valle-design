@@ -5,6 +5,7 @@ import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
 import { resolveCadInsert } from '../../src/lib/cad/professional-blocks';
+import { abrirPanelDerecho } from '../fixtures/docks';
 
 /**
  * OLA 4 — el bloque, la unidad de reutilización de un CAD.
@@ -109,6 +110,9 @@ test('BLOCK define, INSERT coloca con escala y giro —incluida la escala negati
   const backend = await installCadBackend(context);
   await page.goto('/legacy/studio');
 
+  // Ola «armazón»: el panel derecho arranca plegado a un riel de iconos; la
+  // lista de entidades sólo se MONTA con el panel abierto.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
   await expect(page.getByTestId('cad-command-line')).toBeVisible();
 

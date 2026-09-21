@@ -4,6 +4,7 @@ import { installCadStudioBackend } from "../fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import { saveAndSettle } from "../fixtures/cad-save";
 import { applyNativeSelectProperty } from "../fixtures/dynamic-input";
+import { abrirPanelDerecho } from "../fixtures/docks";
 import type { CadDocument, CadWallEntity } from "../../src/lib/cad/cad-document";
 import { CAD_DOCUMENT_SCHEMA } from "../../src/lib/cad/cad-document-shared";
 import { fitFootprint } from "../fixtures/camera-preset";
@@ -156,6 +157,13 @@ test("el muro nativo se selecciona pinchando su sólido 3D, su material se edita
     canvasBox.y + canvasBox.height / 2,
   );
   await page.keyboard.press("Control+1");
+  // Ola «armazón»: sin este arreglo, Ctrl+1 (`revealPropertiesPalette`) sólo
+  // garantizaba `rightDock: true` y dejaba `rightDockCollapsed` intacto — con
+  // el riel plegado de fábrica la paleta de propiedades seguía sin existir en
+  // el DOM. `revealPropertiesPalette` ya lo arregla en el producto
+  // (Layout3DEditor.tsx); esta llamada es la red de seguridad explícita e
+  // idempotente que pide el contrato del fixture.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId("cad-properties-palette")).toHaveAttribute(
     "data-count",
     "1",

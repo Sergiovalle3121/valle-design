@@ -13,6 +13,7 @@ import { installMockBackend } from "../fixtures/mock-backend";
 import { installCadStudioBackend } from "../fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import { saveAndSettle } from "../fixtures/cad-save";
+import { abrirPanelDerecho } from "../fixtures/docks";
 import type { CadDocument } from "../../src/lib/cad/cad-document";
 
 function canonicalDocument(): CadDocument {
@@ -102,6 +103,9 @@ test("el gestor define estilos de texto, cota y ploteo, y se niega a borrar uno 
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto("/legacy/studio");
+  // Ola «armazón»: el muelle derecho arranca plegado a un riel de iconos; sin
+  // abrirlo la lista de entidades no existe en el DOM.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId("cad-native-entity-style-line")).toBeVisible();
 
   await page.getByTestId("cad-draft-status-styles").click();
@@ -180,6 +184,9 @@ test("el gestor define estilos de texto, cota y ploteo, y se niega a borrar uno 
   ).toBe(true);
 
   await page.reload();
+  // Idempotente: si la preferencia ya quedó abierta antes del reload no hace
+  // falta pulsar nada, pero si el storage no la conservó, la vuelve a abrir.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId("cad-native-entity-style-line")).toBeVisible();
   await page.getByTestId("cad-draft-status-styles").click();
   await expect(page.getByTestId("cad-style-field-Titulos-height")).toHaveValue(

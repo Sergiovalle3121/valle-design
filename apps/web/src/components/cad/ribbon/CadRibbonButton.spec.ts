@@ -58,7 +58,41 @@ const small = renderToStaticMarkup(createElement(CadRibbonButton, { command: xli
 ok(small.includes('data-size="small"'), "un no primario se pinta pequeño por defecto");
 ok(!small.includes("data-primary"), "un no primario no lleva data-primary");
 ok(small.includes("h-4 w-4"), "el icono pequeño mide 16 px");
-ok(small.includes("h-5 w-28"), "el botón pequeño mide 7 rem × 20 px (CAD_RIBBON_METRICS.small)");
+ok(small.includes("h-5") && small.includes("w-28"), "el botón pequeño mide 7 rem × 20 px (CAD_RIBBON_METRICS.small)");
+ok(small.includes('aria-label="XLINE"'.replace("XLINE", xline.label)), "el nombre accesible es el rótulo en español, con o sin escalón denso");
+
+// ── Ola 6 «cinta legible»: el botón pequeño DENSO recupera el rótulo —
+// más angosto (5 rem) que el disperso (7 rem), con el texto recortado por
+// `truncate` si no cabe, pero SIEMPRE pintado junto al icono. El nombre
+// accesible y el title no cambian con `dense`: `getByRole('button', { name:
+// 'Línea' })` sigue resolviendo igual, con o sin recorte visual.
+{
+  const line2 = findCadRibbonCommand("LINE")!; // grande: dense no debe afectarle.
+  const denseLarge = renderToStaticMarkup(createElement(CadRibbonButton, { command: line2, onRun: () => undefined, dense: true }));
+  ok(denseLarge.includes(">Línea<"), "dense no afecta a un botón grande: conserva su rótulo visible");
+
+  const denseSmall = renderToStaticMarkup(
+    createElement(CadRibbonButton, { command: xline, onRun: () => undefined, dense: true }),
+  );
+  ok(denseSmall.includes('data-dense="true"'), "el botón pequeño denso se marca en el DOM");
+  ok(
+    denseSmall.includes(`>${xline.label}<`),
+    "denso: el rótulo SIGUE pintado a la vista (Ola 6 «cinta legible»: antes, Ola 1, desaparecía)",
+  );
+  ok(denseSmall.includes("truncate"), "denso: el rótulo se recorta con puntos suspensivos si no cabe, no envuelve ni desborda");
+  ok(denseSmall.includes(`aria-label="${xline.label}"`), "denso: el nombre accesible sigue siendo el rótulo en español");
+  ok(
+    denseSmall.includes(`title="${cadRibbonButtonTitle(xline)}"`),
+    "denso: el title nativo sigue trayendo rótulo · NOMBRE (alias) — descripción, con el nombre COMPLETO aunque el rótulo se recorte",
+  );
+  ok(denseSmall.includes("w-20"), "denso: el botón mide 5 rem (80 px, CAD_RIBBON_DENSE_METRICS.small)");
+  ok(!denseSmall.includes("w-28"), "denso: ya no mide 7 rem (el disperso)");
+
+  const notDense = renderToStaticMarkup(
+    createElement(CadRibbonButton, { command: xline, onRun: () => undefined, dense: false }),
+  );
+  ok(notDense.includes(`>${xline.label}<`), "sin denso (por defecto): el rótulo pequeño sigue a la vista, como siempre");
+}
 
 const menu = renderToStaticMarkup(
   createElement(CadRibbonButton, { command: xline, onRun: () => undefined, size: "menu" }),

@@ -8,6 +8,7 @@ import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadBlockDefinition, CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
 import { applyNativeProperty } from '../fixtures/dynamic-input';
+import { abrirPanelDerecho } from '../fixtures/docks';
 
 type CadInsert = Extract<CadEntity, { type: 'insert' }>;
 
@@ -62,6 +63,9 @@ test('BLOCK/INSERT stays native through tenant library, attributes, persistence,
   const backend = await installCadBackend(context);
   await page.goto('/legacy/studio');
 
+  // Ola «armazón»: el panel derecho arranca plegado a un riel de iconos; la
+  // lista de entidades y las propiedades sólo se MONTAN con el panel abierto.
+  await abrirPanelDerecho(page);
   await page.getByTestId('cad-native-entity-block-source-line').click();
   await page.getByTitle(/^BLOCK\/INSERT:/).click();
   const palette = page.getByTestId('cad-block-palette');
@@ -153,6 +157,7 @@ test('BLOCK/INSERT stays native through tenant library, attributes, persistence,
   expect(transformed).toMatchObject({ rotation: 45, scale: { x: 2, y: 0.75, z: 1 } });
 
   await page.reload();
+  await abrirPanelDerecho(page);
   await page.getByTestId(`cad-native-entity-${transformed!.id}`).click();
   await expect(page.getByTestId('cad-native-property-attribute:MARK')).toHaveValue('D-03');
   await page.getByTitle(/Exportar a DXF/).click();

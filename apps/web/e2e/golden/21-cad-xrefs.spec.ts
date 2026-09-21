@@ -6,6 +6,7 @@ import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
 import { cadTenantLayoutUri } from '../../src/lib/cad/cad-xrefs';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 const HOST_MODEL = 'AXOS-CAD-STUDIO';
 const HOST_REVISION = 'UNIVERSAL';
@@ -93,6 +94,9 @@ test('tenant Xrefs attach, compare, reload, unload, bind, detach and preserve ho
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto('/legacy/studio');
+  // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+  // como una persona, antes de leer nada de lo que vive dentro.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-host-line')).toBeVisible();
   await openXrefs(page);
 

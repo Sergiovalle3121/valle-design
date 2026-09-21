@@ -13,6 +13,7 @@
  */
 import { expect, test, type Page } from '@playwright/test';
 import { DEMO_STORAGE_KEY } from '@/lib/cad/demo/demo-constants';
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 function collectDocumentRequests(page: Page): string[] {
   const requests: string[] = [];
@@ -43,6 +44,7 @@ test.describe('Demostración sin cuenta', () => {
     // El editor real, con las entidades nativas de la plantilla en su panel.
     // El TOTAL se lee del encabezado del panel: la lista se trunca («y 2 más»)
     // y contar nodos renderizados mentiría.
+    await abrirPanelDerecho(page);
     const entityList = page.getByTestId('cad-native-entity-list');
     await expect(entityList).toBeVisible({ timeout: 60_000 });
     const readTotal = async () => {

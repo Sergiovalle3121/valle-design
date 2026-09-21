@@ -25,13 +25,29 @@ export interface CadToolbarAction {
   description: string;
 }
 
-/*
- * Sin `shortcut` en Seleccionar, Distancia, Polilínea, Rectángulo, Pasillo,
- * Área y Ajustar todo: V, M, P, B, A, Z y F son alias de una letra de
- * acad.pgp (VIEW, MOVE, PAN, BLOCK, ARC, ZOOM, FILLET) y el lienzo ya no las
- * roba —la letra suelta es de la línea de comandos—. Anunciar una tecla que
- * no está dada de alta es una etiqueta falsa (ver arriba). Quedan L, C, I, T,
- * que coinciden con LINE, CIRCLE, INSERT y MTEXT.
+/**
+ * LA PALETA, PODADA (ola1-paleta, 2026-09-19).
+ *
+ * De los diecisiete controles que tenía la columna flotante quedan TRES: los
+ * que no son una orden sino navegación de cámara. Once eran duplicados
+ * exactos de un botón de la cinta —Distancia=DIST, Línea=LINE,
+ * Polilínea=PLINE, Rectángulo=RECTANG, Círculo=CIRCLE, Mover=MOVE,
+ * Copiar=COPY, Desfase=OFFSET, Texto=TEXT, Deshacer=U, Rehacer=REDO— y tres
+ * más (Pasillo, Área, Símbolos) eran vocabulario industrial heredado que no
+ * pertenece a la superficie general del producto (ver IDENTITY.md); ninguno
+ * de los catorce se declara ya como ACCIÓN DE PALETA.
+ *
+ * `CadToolPalette.spec.ts` cruza esta lista contra `cadRibbonExposedNames()`
+ * y afirma que es EXACTAMENTE {select, pan, fit_view} — cero duplicados,
+ * verificado por código.
+ *
+ * EL REGISTRO DE COMANDOS NO SE TOCA: `CadToolbarActionId` sigue siendo la
+ * unión cerrada de siempre porque los catorce ids retirados de aquí siguen
+ * siendo destinos válidos de `runToolbarAction` (el switch de
+ * `Layout3DEditor.tsx`) y de `TOOLBAR_SHORTCUT_IDS`
+ * (`editor-keyboard.ts`) — sus atajos de una letra (L, C, I, T…) y su
+ * despacho por `commandEngineRef.invoke(...)` desde la cinta no cambian. Lo
+ * único que se retira es EL BOTÓN FLOTANTE que los duplicaba.
  */
 export const CAD_TOOLBAR_ACTIONS: CadToolbarAction[] = [
   {
@@ -48,117 +64,10 @@ export const CAD_TOOLBAR_ACTIONS: CadToolbarAction[] = [
     description: "Navegar el plano sin cambiar la geometria.",
   },
   {
-    id: "measure",
-    label: "Distancia",
-    group: "draw",
-    description: "Medir distancia entre puntos.",
-  },
-  {
-    id: "line",
-    label: "Línea",
-    shortcut: "L",
-    group: "draw",
-    description: "Trazar muros por segmentos encadenados con precisión.",
-  },
-  {
-    id: "polyline",
-    label: "Polilínea",
-    group: "draw",
-    description: "Trazar una polilínea de muros y terminar con Enter.",
-  },
-  {
-    id: "rect",
-    label: "Rectángulo",
-    group: "draw",
-    description: "Dibujar un rectangulo desde dos esquinas.",
-  },
-  {
-    id: "circle",
-    label: "Círculo",
-    shortcut: "C",
-    group: "draw",
-    description: "Dibujar un círculo por centro y radio o diámetro.",
-  },
-  // MOVE y COPY existían en la máquina de comandos (`cad-command.ts`), en
-  // `CAD_DRAW_TOOLS` y en sus pruebas unitarias, pero NO tenían entrada de
-  // barra ni de paleta: el comando estaba implementado y era inalcanzable.
-  // Ahora se exponen, y su mutación es la canónica —la misma que los botones
-  // del panel—, así que heredan capa bloqueada, atomicidad y undo/redo.
-  // Sin `shortcut`: el registro de teclado (`keyboard-shortcuts.ts`) es otra
-  // lista, y anunciar una combinación que no está dada de alta sería una
-  // etiqueta falsa en la interfaz.
-  {
-    id: "move",
-    label: "Mover",
-    group: "draw",
-    description: "Desplazar la selección de un punto base a un punto destino.",
-  },
-  {
-    id: "copy",
-    label: "Copiar",
-    group: "draw",
-    description: "Duplicar la selección de un punto base a un punto destino.",
-  },
-  {
-    id: "offset",
-    label: "Desfase",
-    shortcut: "Shift+O",
-    group: "draw",
-    description: "Desfasar la selección por una distancia exacta.",
-  },
-  // Antes "Corridor": inglés y vocabulario del planificador industrial del
-  // que nació el producto (ver IDENTITY.md). El comportamiento —preparar un
-  // pasillo entre dos objetos seleccionados— es arquitectónico de verdad
-  // (un pasillo es un espacio de circulación de cualquier plano) y ya está
-  // endurecido contra el barrido de cables sueltos (`cables-sueltos.spec.ts`);
-  // sólo cambia la etiqueta, nunca el id ni el despacho.
-  {
-    id: "aisle",
-    label: "Pasillo",
-    group: "draw",
-    description: "Preparar un pasillo o una holgura entre dos objetos.",
-  },
-  // Antes "Area": mismo defecto que "Corridor" arriba, misma corrección —
-  // sólo la etiqueta pasa a español; el id "zone" y su despacho no cambian.
-  {
-    id: "zone",
-    label: "Área",
-    group: "insert",
-    description: "Insertar un área rectangular editable.",
-  },
-  {
-    id: "equipment",
-    label: "Símbolos",
-    shortcut: "I",
-    group: "insert",
-    description: "Abrir la biblioteca de simbolos y bloques.",
-  },
-  {
-    id: "text",
-    label: "Texto",
-    shortcut: "T",
-    group: "insert",
-    description: "Agregar etiqueta o nota.",
-  },
-  {
     id: "fit_view",
     label: "Ajustar todo",
     group: "navigate",
     description: "Encuadrar el dibujo completo.",
-  },
-  {
-    id: "undo",
-    label: "Deshacer",
-    shortcut: "Ctrl+Z",
-    group: "history",
-    description: "Deshacer el ultimo cambio.",
-  },
-  {
-    id: "redo",
-    label: "Rehacer",
-    shortcut: "Ctrl+Shift+Z",
-    group: "history",
-    description: "Rehacer el ultimo cambio.",
   },
 ];
 

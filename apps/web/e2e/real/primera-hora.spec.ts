@@ -171,7 +171,15 @@ test.describe("La primera hora de un desconocido", () => {
   test("4 · Ctrl+K encuentra un comando de verdad, para quien no sabe dónde está nada", async () => {
     test.setTimeout(300_000);
 
-    await page.locator("body").click({ position: { x: 5, y: 5 } });
+    // Se quita el foco de cualquier caja ANTES del atajo, porque Ctrl+K tiene
+    // que funcionar para quien no ha tocado nada. Antes esto era un clic a
+    // ciegas en la esquina de la página, `body` en (5,5) — y desde la ola
+    // «armazón» ahí vive «Cerrar el CAD» (medido: caja 0,2 de 28×28). El clic
+    // CERRABA el plano y se iba al tablero, así que el atajo se pulsaba en
+    // otra página y no abría nada: 30 s esperando un buscador que ya no podía
+    // existir. Escape no navega a ninguna parte y hace justo lo que esto
+    // quería: soltar el foco y dejar el estudio en reposo.
+    await page.keyboard.press("Escape");
     await page.keyboard.press("Control+k");
     const buscador = page.getByPlaceholder(/Buscar comando/iu);
     await expect(buscador).toBeVisible({ timeout: 30_000 });

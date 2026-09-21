@@ -5,6 +5,7 @@ import { installCadV1Backend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 function canonicalDocument(): CadDocument {
   return {
@@ -50,6 +51,9 @@ test('multiple paper viewports persist, preflight and publish as one audited vec
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto('/legacy/studio');
+  // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+  // como una persona, antes de leer nada de lo que vive dentro.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-layout-line')).toBeVisible();
 
   await page.getByTitle(/Paquete de entrega/).click();

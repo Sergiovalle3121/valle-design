@@ -62,6 +62,7 @@ import { expect, test, type BrowserContext, type Page, type TestInfo } from '@pl
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadV1Backend, seedFootprint } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
+import { abrirPanelDerecho } from "../fixtures/docks";
 import {
   evaluateCadViewportExperience,
   findCadViewportProfile,
@@ -193,6 +194,9 @@ test.describe('CAD viewport performance · 10k/100k', () => {
     const startedAt = Date.now();
 
     await page.goto('/legacy/studio');
+    // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+    // como una persona, antes de leer nada de lo que vive dentro.
+    await abrirPanelDerecho(page);
     await expect(page.getByTestId('cad-native-document-count')).toHaveText(`Native ${MEDIUM_ENTITY_COUNT}`, { timeout: 60_000 });
     const canonicalReadyMs = Date.now() - startedAt;
     const frameLatencyMs = await page.evaluate(() => new Promise<number>((resolve) => {
@@ -253,6 +257,9 @@ test.describe('CAD viewport performance · 10k/100k', () => {
     const startedAt = Date.now();
 
     await page.goto('/legacy/studio');
+    // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+    // como una persona, antes de leer nada de lo que vive dentro.
+    await abrirPanelDerecho(page);
     const stats = page.getByTestId('cad-native-render-stats');
     await expect(stats).toHaveAttribute('data-total', String(LARGE_ENTITY_COUNT), { timeout: 120_000 });
     const canonicalReadyMs = Date.now() - startedAt;

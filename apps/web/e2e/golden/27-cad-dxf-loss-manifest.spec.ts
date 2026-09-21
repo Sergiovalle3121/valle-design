@@ -6,6 +6,7 @@ import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 // El tipo no soportado de este golden era POINT. Dejó de serlo: el esquema 4 lo
 // importa como entidad de pleno derecho, así que el ejemplo pasa a 3DFACE, que
@@ -81,6 +82,9 @@ test('DXF import remains editable/exportable and persists an explicit loss manif
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto('/legacy/studio');
+  // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+  // como una persona, antes de leer nada de lo que vive dentro.
+  await abrirPanelDerecho(page);
 
   await test.step('42. Importar DXF', async () => {
     await page.locator('input[accept=".dxf,.dwg"]').setInputFiles({

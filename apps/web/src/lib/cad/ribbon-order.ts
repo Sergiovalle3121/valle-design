@@ -105,15 +105,15 @@ export const CAD_RIBBON_INICIO_ESPEJOS: Readonly<Record<string, readonly string[
 };
 
 /**
- * LOS BOTONES GRANDES de cada panel: uno o dos por panel, como los botones
- * grandes de la cinta de AutoCAD (Línea y Polilínea en Dibujo; Desplazar y
- * Copiar en Modificar; Capa en Capas). Se declara POR PANEL y no como un
- * conjunto plano (así venía en a742a410: veinte nombres sueltos, cinco de
- * ellos en Dibujo y siete en Modificar, sin límite ni validación) para que
- * `ribbon.spec.ts` pueda exigir que todo panel montado tenga entre uno y dos,
- * que todo nombre exista en el registro y que ninguna clave nombre un panel
- * que ya no existe. La selección es por oficio, no por telemetría — el mismo
- * razonamiento que encabeza `CAD_RIBBON_COMMAND_ORDER`.
+ * LOS BOTONES GRANDES de cada panel: como mucho dos por panel, como los
+ * botones grandes de la cinta de AutoCAD (Línea y Polilínea en Dibujo;
+ * Desplazar y Copiar en Modificar; Capa en Capas). Se declara POR PANEL y no
+ * como un conjunto plano (así venía en a742a410: veinte nombres sueltos,
+ * cinco de ellos en Dibujo y siete en Modificar, sin límite ni validación)
+ * para que `ribbon.spec.ts` pueda exigir que todo panel montado tenga como
+ * mucho dos, que todo nombre exista en el registro y que ninguna clave nombre
+ * un panel que ya no existe. La selección es por oficio, no por telemetría —
+ * el mismo razonamiento que encabeza `CAD_RIBBON_COMMAND_ORDER`.
  *
  * Los demás comandos del panel se pintan como botones pequeños (icono +
  * rótulo, tres filas) y, si no caben, en el desplegable del panel: un
@@ -121,18 +121,31 @@ export const CAD_RIBBON_INICIO_ESPEJOS: Readonly<Record<string, readonly string[
  *
  * Un panel con el mismo nombre en dos pestañas (Ventanas, Paletas) declara un
  * primario por cada una: en cada pestaña sólo se monta el que existe ahí.
+ *
+ * ## Recorte de la Ola 1 «cinta» (2026-09-19)
+ *
+ * Inicio declaraba 14 botones grandes — 952 de los 1346 px disponibles a
+ * 1366, para sólo 17 comandos visibles en total (medido en producción). Un
+ * botón grande cuesta 4,25 rem contra los 7 rem — ahora 1,625 rem denso — de
+ * uno pequeño con rótulo o icono: cinco botones grandes menos (de 14 a 9) son
+ * sitio de sobra para que muchos más comandos entren como pequeños dentro del
+ * mismo alto de cinta. Dibujo y Modificar conservan sus dos (el par que abre
+ * cada oficio); Anotación, Capas, Bloque y Propiedades bajan a uno; Grupos,
+ * Utilidades y Portapapeles se quedan sin botón grande — sus comandos NO
+ * desaparecen (`ribbon.spec.ts` sigue exigiendo cobertura total), entran como
+ * pequeños igual que cualquier otro comando del panel. Ningún comando se
+ * quitó del registro: sólo bajó de tamaño.
  */
 export const CAD_RIBBON_PRIMARY: Readonly<Record<string, readonly string[]>> = {
   // Inicio.
   Dibujo: ["LINE", "PLINE"],
   Modificar: ["MOVE", "COPY"],
-  Anotación: ["MTEXT", "DIMLINEAR"],
+  Anotación: ["MTEXT"],
   Capas: ["LAYER"],
   Bloque: ["INSERT"],
-  Propiedades: ["PROPERTIES", "MATCHPROP"],
-  Grupos: ["GROUP"],
-  Utilidades: ["DIST", "ABOUT"],
-  Portapapeles: ["PASTECLIP"],
+  Propiedades: ["PROPERTIES"],
+  // Grupos, Utilidades y Portapapeles: sin botón grande — ver nota de la Ola 1
+  // «cinta» arriba. Sus comandos siguen expuestos, como botones pequeños.
 
   // Insertar.
   Referencias: ["XATTACH"],
@@ -216,3 +229,28 @@ export function compareDeclared(order: readonly string[] | undefined, a: string,
   if (ra !== rb) return ra - rb;
   return a.localeCompare(b, "es-MX");
 }
+
+/**
+ * EN QUÉ ORDEN CEDEN LOS PANELES PROTEGIDOS.
+ *
+ * Los que no aparecen en `CAD_RIBBON_PANEL_COLLAPSE_ORDER` nunca se pliegan a
+ * un botón, pero cuando ni así cabe la tira alguno tiene que quedarse sólo con
+ * su botón grande. Por defecto ceden del último al primero —el orden inverso
+ * de la pestaña—, y en Inicio eso dejaba a CAPAS cediendo antes que Anotación,
+ * justo al revés de lo que el producto quiere: `CadRibbon.spec.ts` fija desde
+ * la Ola 1 que a 1280 px «Dibujo, Modificar y Capas» conservan sus columnas,
+ * porque el oficio abre y aísla capas todo el rato.
+ *
+ * Con el modelo de anchos ya corregido (el pie del panel se cuenta) a 1272 px
+ * no caben los cuatro: medido, 1318 px de contenido para 1260 de presupuesto.
+ * Así que hay que elegir, y se elige lo que ya estaba escrito — cede
+ * Anotación, se queda Capas.
+ *
+ * Sólo se declara la pestaña donde la elección importa; el resto sigue con el
+ * orden inverso de siempre.
+ */
+export const CAD_RIBBON_PROTECTED_REDUCE_ORDER: Partial<
+  Readonly<Record<CadRibbonTabId, readonly string[]>>
+> = {
+  inicio: ["Vistas", "Anotación", "Capas", "Modificar", "Dibujo"],
+};

@@ -115,4 +115,297 @@ const ok = (condition: boolean, message: string) => {
   );
 }
 
+// OLA «comando»: de píldora flotante de 480 px (`absolute bottom-3 left-3`,
+// `w-[min(30rem,42vw)]`) a franja acoplada de ancho completo. Estas
+// comprobaciones fijan el contrato de layout por FUENTE — sin navegador, no
+// hay `getBoundingClientRect` que medir — y por eso son deliberadamente
+// literales: si alguien reintroduce `absolute`/`fixed`/`bottom-`/`left-` o la
+// vieja clase de ancho, el string aparece y la comprobación lo caza.
+{
+  const fuente = readFileSync(path.join(__dirname, "CadCommandLine.tsx"), "utf8");
+  // Sólo dentro de `className="..."`: el archivo cita a propósito, EN
+  // COMENTARIOS, las clases viejas (`bottom-3`, `w-[min(...)]`) que esta ola
+  // quitó — un `includes` sobre el texto entero cazaría la propia
+  // explicación de por qué ya no están.
+  const clases = [...fuente.matchAll(/className="([^"]*)"/g)].map((m) => m[1]);
+  const enAlgunaClase = (token: RegExp | string) =>
+    clases.some((c) => (typeof token === "string" ? c.includes(token) : token.test(c)));
+  ok(!enAlgunaClase(/\bfixed\b/), "ninguna clase de Tailwind en este archivo declara `fixed`");
+  ok(!enAlgunaClase(/\babsolute\b/), "ninguna clase declara `absolute`");
+  ok(!enAlgunaClase(/\bbottom-\d/), "ninguna clase declara `bottom-<n>`");
+  ok(!enAlgunaClase(/\bleft-\d/), "ninguna clase declara `left-<n>`");
+  ok(!enAlgunaClase("w-[min("), "ya no queda la píldora de ancho `w-[min(30rem,42vw)]`");
+  ok(
+    Boolean(clases[0]) && /\bw-full\b/.test(clases[0]),
+    "la raíz declara `w-full`: la franja es tan ancha como la ventana, no una píldora",
+  );
+  // Posición de los desplegables flotantes: por `style`, no por clase — es la
+  // EXCEPCIÓN documentada a la regla de arriba, y vive fuera de la raíz (en
+  // un portal a `<body>`), así que no la contradice.
+  ok(
+    fuente.includes('position: "fixed"') && fuente.includes("createPortal"),
+    "las listas flotantes (sugerencias, historial) se posicionan por `style`, en un portal — no son la raíz del muelle",
+  );
+}
+
+// (b) El registro se pliega por defecto y sólo el botón/F2 lo despliega; los
+// dos números de alto salen de `cad-shell-layout.ts`, nunca escritos a mano.
+{
+  const fuente = readFileSync(path.join(__dirname, "CadCommandLine.tsx"), "utf8");
+  ok(
+    fuente.includes("CAD_SHELL_METRICS.commandRow") && fuente.includes("CAD_SHELL_METRICS.commandExpanded"),
+    "el alto plegado/desplegado se LEE de cad-shell-layout.ts, no se reinventa",
+  );
+  ok(
+    fuente.includes("height: CAD_SHELL_METRICS.commandRow"),
+    "el renglón único mide exactamente CAD_SHELL_METRICS.commandRow (26 px hoy)",
+  );
+  ok(
+    /logExpanded \? LOG_EXPANDED_HEIGHT : 0/.test(fuente),
+    "el registro plegado mide 0 px extra; desplegado suma hasta commandExpanded",
+  );
+  ok(
+    fuente.includes("LOG_EXPANDED_HEIGHT = CAD_SHELL_METRICS.commandExpanded - CAD_SHELL_METRICS.commandRow"),
+    "el alto del registro desplegado se DERIVA de los dos números publicados, no es un tercero suelto",
+  );
+  ok(
+    fuente.includes('data-testid="cad-command-log-toggle"'),
+    "existe un botón dedicado para plegar/desplegar el registro",
+  );
+  ok(
+    fuente.includes('event.key === "F2"') && fuente.includes("setLogExpanded"),
+    "F2 seguía siendo el atajo de AutoCAD, y ahora pliega/despliega en vez de sólo mover el foco",
+  );
+  ok(
+    fuente.includes("readCommandLogExpanded") && fuente.includes("writeCommandLogExpanded"),
+    "la preferencia se lee/guarda con el módulo puro (command-log-preference.ts), no a mano",
+  );
+}
+
+// (c) Historial completo: un desplegable nuevo que enseña TODO lo tecleado,
+// sin tocar el recorrido de flechas ya existente (que sigue probado arriba).
+{
+  const fuente = readFileSync(path.join(__dirname, "CadCommandLine.tsx"), "utf8");
+  ok(
+    fuente.includes('data-testid="cad-command-history-toggle"') &&
+      fuente.includes('data-testid="cad-command-history"'),
+    "hay un botón que abre un desplegable de historial completo, separado del recorrido por flechas",
+  );
+  ok(
+    fuente.includes("if (historyOpen)") && fuente.includes("setHistoryOpen(false)"),
+    "Esc cierra el desplegable de historial en su propio paso",
+  );
+}
+
+// (e) El recorrido guiado y la consola LISP NO viven en este archivo: si
+// aparecieran aquí, inflarían la franja que este componente mide en píxeles
+// exactos. Viven en CadCommandLineDock, portados fuera de esta raíz.
+{
+  const fuente = readFileSync(path.join(__dirname, "CadCommandLine.tsx"), "utf8");
+  ok(
+    !fuente.includes("CadGuidedTourDock") && !fuente.includes("CadLispDock"),
+    "el recorrido guiado y la consola LISP no se importan aquí: no pueden inflar la franja",
+  );
+}
+
+{
+  const dockFuente = readFileSync(path.join(__dirname, "CadCommandLineDock.tsx"), "utf8");
+  ok(
+    dockFuente.includes('data-testid="cad-command-dock"'),
+    "CadCommandLineDock publica la raíz que CadShellFrame cuelga en su ranura commandDock",
+  );
+  ok(
+    !/className="[^"]*\babsolute\b[^"]*"/.test(dockFuente.split("createPortal")[0]) &&
+      !/data-testid="cad-command-dock"[\s\S]{0,80}\bfixed\b/.test(dockFuente),
+    "la raíz cad-command-dock (antes del portal) no se posiciona a sí misma",
+  );
+  ok(
+    dockFuente.includes("createPortal") && dockFuente.includes("document.body"),
+    "el recorrido guiado y LISP se portan a <body> desde aquí, no se apilan dentro de la franja",
+  );
+}
+
+// T-«comandos vivos», carril «la línea de comandos se siente viva»:
+// (f) qué ORDEN está activa, sin tener que leer el prompt para adivinarlo.
+{
+  const conOrden = renderToStaticMarkup(
+    createElement(CadCommandLine, {
+      prompt: { message: "Precise el centro del círculo", options: [] },
+      history: [],
+      activeCommand: "CIRCLE",
+      onSubmit: () => undefined,
+      onKeyword: () => undefined,
+      onCancel: () => undefined,
+      onRepeat: () => undefined,
+    }),
+  );
+  ok(
+    conOrden.includes('data-testid="cad-command-active"') && conOrden.includes("CIRCLE"),
+    "con un comando en curso, su nombre canónico se ve sin tener que leer el prompt entero",
+  );
+
+  const sinOrden = renderToStaticMarkup(
+    createElement(CadCommandLine, {
+      prompt: null,
+      history: [],
+      activeCommand: null,
+      onSubmit: () => undefined,
+      onKeyword: () => undefined,
+      onCancel: () => undefined,
+      onRepeat: () => undefined,
+    }),
+  );
+  ok(
+    !sinOrden.includes('data-testid="cad-command-active"'),
+    "sin comando en curso no queda una insignia de orden activa a medias",
+  );
+}
+
+// (g) Autocompletado con icono y alias, como el de AutoCAD: no sólo el
+// nombre canónico y el resumen — también el DIBUJO del comando (mismo
+// catálogo que la cinta, `command-icons.ts`) y el atajo corto («L», no sólo
+// «LINE», el PRIMER alias del manifiesto).
+{
+  const fuente = readFileSync(path.join(__dirname, "CadCommandLine.tsx"), "utf8");
+  ok(
+    fuente.includes("alias: entry.shortcut"),
+    "cada sugerencia lleva su alias más corto, tomado del mismo registro que ya resuelve Ctrl+K",
+  );
+  ok(
+    fuente.includes("CAD_COMMAND_ICONS[s.nombre]") && fuente.includes("CAD_COMMAND_ICONS[activeCommand.toUpperCase()]"),
+    "el icono de la sugerencia y el de la insignia activa salen del MISMO catálogo que ya usa la cinta, sin un segundo mapa",
+  );
+  // `cadCommandIcon()` (la función) dispara `react-hooks/static-components`
+  // — «componente creado durante el render» — porque el linter no puede
+  // demostrar que una LLAMADA a función siempre da el mismo componente,
+  // aunque el catálogo sea estático. `CadRibbonButton.tsx` ya resuelve esto
+  // con el acceso directo por índice; este archivo hace lo mismo.
+  ok(
+    !fuente.includes("import { cadCommandIcon }"),
+    "el icono se lee por índice directo del catálogo (CAD_COMMAND_ICONS[...]), no importando la función envoltorio",
+  );
+  ok(
+    fuente.includes("s.alias &&"),
+    "el alias sólo se pinta cuando el comando tiene uno — no todos los 291 lo tienen",
+  );
+}
+
+// (h) «El historial se ve»: un asomo de las últimas líneas del diálogo,
+// visible SIN pedirlo, que no puede crecer el `commandDock` — ahí vive el
+// 74 % de lienzo medido en la ola «armazón» — así que flota en vez de
+// empujar la rejilla.
+{
+  const fuente = readFileSync(path.join(__dirname, "CadCommandLine.tsx"), "utf8");
+  ok(
+    fuente.includes('data-testid="cad-command-transcript-peek"'),
+    "existe el asomo del diálogo, separado del registro completo (F2)",
+  );
+  ok(
+    fuente.includes("showTranscriptPeek = !logExpanded && !historyOpen && suggestions.length === 0 && history.length > 0"),
+    "el asomo sólo se pinta plegado el registro y sin otro desplegable abierto encima",
+  );
+  ok(
+    fuente.includes("history.slice(-3)"),
+    "el asomo enseña como mucho las últimas 3 líneas, no el diálogo entero (eso sigue siendo F2)",
+  );
+  ok(
+    /cad-command-transcript-peek[\s\S]{0,40}aria-hidden="true"/.test(fuente),
+    "el asomo se oculta a los lectores de pantalla: el registro real de abajo (role=log) ya anuncia, y duplicarlo repetiría cada línea dos veces",
+  );
+  ok(
+    /cad-command-transcript-peek[\s\S]{0,400}pointer-events-none/.test(fuente),
+    "el asomo no puede comerse el clic del lienzo que sobrevuela: `pointer-events-none`, igual que el recorrido guiado y la consola LISP",
+  );
+  ok(
+    /cad-command-transcript-peek[\s\S]{0,400}style=\{floatingStyle\(anchor\)\}/.test(fuente),
+    "el asomo se posiciona con el mismo mecanismo que sugerencias e historial — por `style`, no por una clase nueva que sumara altura al commandDock",
+  );
+}
+
+// (i) El menú contextual del botón derecho: repetir/aceptar, las opciones
+// de la orden en curso, cortar/copiar/pegar y cancelar — el mismo lenguaje
+// visual que `cad-context-menu` del lienzo.
+//
+// ESCÉPTICO (carril «comandos-vivos», D-1 sobre 431cdf28): el menú vivía
+// entero en CadCommandLine.tsx y lo dejaba en 902 líneas — 102 por encima
+// del máximo de `check:monolith-budget` para un archivo no presupuestado
+// (`npm run check:monolith-budget` fallaba, sin que ninguna de las
+// «pruebas» reportadas lo hubiera corrido). Se extrajo a
+// `CadCommandContextMenu.tsx`: mismo marcado, mismos testids, mismo
+// comportamiento — estas comprobaciones ahora leen el fichero que
+// corresponde a cada pieza.
+{
+  const fuenteLinea = readFileSync(path.join(__dirname, "CadCommandLine.tsx"), "utf8");
+  const fuenteMenu = readFileSync(path.join(__dirname, "CadCommandContextMenu.tsx"), "utf8");
+  ok(
+    fuenteMenu.includes('data-testid="cad-command-context-menu"') && fuenteMenu.includes('role="menu"'),
+    "hay un menú contextual propio para la línea de comandos",
+  );
+  ok(
+    fuenteLinea.includes("onContextMenu={(event) => {") && fuenteLinea.includes("setMenu({ x: event.clientX, y: event.clientY })"),
+    "el botón derecho abre el menú en las coordenadas del propio clic, como el del lienzo",
+  );
+  ok(
+    fuenteLinea.includes("<CadCommandContextMenu"),
+    "CadCommandLine monta el menú extraído cuando hay coordenadas de clic",
+  );
+  ok(
+    fuenteMenu.includes('data-testid="cad-command-context-repeat"'),
+    "el menú ofrece repetir la última orden (o aceptar, con una en curso)",
+  );
+  ok(
+    fuenteMenu.includes("prompt && prompt.options.length > 0") && fuenteMenu.includes("Opciones de la orden en curso"),
+    "el menú enseña las opciones de la orden EN CURSO cuando las hay, no sólo las del reposo",
+  );
+  ok(
+    fuenteMenu.includes('data-testid="cad-command-context-cut"') &&
+      fuenteMenu.includes('data-testid="cad-command-context-copy"') &&
+      fuenteMenu.includes('data-testid="cad-command-context-paste"'),
+    "cortar, copiar y pegar están los tres, cada uno con su propio botón",
+  );
+  ok(
+    fuenteMenu.includes('data-testid="cad-command-context-cancel"'),
+    "cancelar está en el menú, igual que Escape",
+  );
+  ok(
+    // `runClipboardAction` (el que llama a `document.execCommand`) sigue en
+    // CadCommandLine.tsx —necesita `inputRef`, que es del padre—; el menú
+    // extraído sólo reenvía la acción por `onClipboardAction`.
+    fuenteLinea.includes("document.execCommand(accion)") && fuenteMenu.includes("onClipboardAction"),
+    "cortar/copiar/pegar actúan de verdad sobre la caja, no son botones mudos",
+  );
+  ok(
+    fuenteLinea.includes("if (menu) {") && /if \(menu\) \{[\s\S]{0,120}Escape/.test(fuenteLinea),
+    "con el menú abierto, Escape lo cierra en su propio paso antes que cualquier otro atajo (decidido en CadCommandLine, que es quien conoce el resto de atajos)",
+  );
+  ok(
+    fuenteMenu.includes("style={contextMenuStyle(point)}") && fuenteMenu.includes('function contextMenuStyle('),
+    "el menú se posiciona por `style` (coordenadas del clic, recortadas al borde de la ventana), no por una clase `fixed` — la regla de oro es de la raíz del muelle, y esto vive en un portal",
+  );
+  ok(
+    fuenteMenu.includes("addEventListener(\"pointerdown\"") && fuenteMenu.includes("onClose()"),
+    "el menú extraído se cierra solo con un clic fuera — no depende de que el padre se lo diga",
+  );
+}
+
+// (j) SE PUEDE ESCRIBIR SIEMPRE. `-LAYER` ofrece diez opciones de golpe; el
+// 2026-09-20 esa tira, marcada `shrink-0`, se quedaba el ancho entero y dejaba
+// el input en CERO píxeles: a 1280 px no había dónde teclear el nombre de la
+// capa. Dos reglas, y las dos hacen falta: la tira CEDE ancho y el input tiene
+// SUELO. Si vuelve `shrink-0` en la tira, vuelve el fallo.
+{
+  const fuente = readFileSync(path.join(__dirname, "CadCommandLine.tsx"), "utf8");
+  const tira = fuente.match(/<span className="flex[^"]*overflow-x-auto"/)?.[0] ?? "";
+  ok(tira.length > 0, "la tira de opciones sigue siendo un <span> flex con scroll propio");
+  ok(
+    !tira.includes("shrink-0"),
+    `la tira de opciones debe poder ceder ancho, no aplastar el input: "${tira}"`,
+  );
+  const input = fuente.match(/data-testid="cad-command-input"[\s\S]{0,1600}?className="([^"]*)"/)?.[1] ?? "";
+  ok(
+    /min-w-\[\d/.test(input),
+    `el input necesita un ancho mínimo explícito para no colapsar: "${input}"`,
+  );
+}
+
 console.log(`CadCommandLine: ${checks}/${checks} comprobaciones verdes`);

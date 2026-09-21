@@ -6,6 +6,7 @@ import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import { migrateCadDocument, type CadDocument } from '../../src/lib/cad/cad-document';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 // MIGRACIÓN R3: mock en la superficie v1 real (el adaptador R2 reescribe las
 // rutas legacy antes de tocar la red). Mismo documento, misma huella y mismo
@@ -39,6 +40,11 @@ test('creates, edits, undoes, reloads and DXF round-trips semantic MTEXT', async
   await page.getByTestId('cad-mtext-background-mask').click();
   await page.getByTestId('cad-mtext-save').click();
 
+  // Guardar el MTEXT lo deja designado, pero designar ya NO despliega el
+  // muelle derecho (ola «legible»: hacerlo encogía el lienzo de 1190 a 911 px
+  // y lo devolvía en cada clic). Se abre por el riel, como haría una persona,
+  // antes de leer sus propiedades.
+  await abrirPanelDerecho(page);
   const properties = page.getByTestId('cad-native-properties');
   await expect(properties).toContainText('MTEXT');
   await expect(page.getByTestId('cad-native-property-text')).toHaveValue('Instrucción de proceso\nSegunda línea');
@@ -66,6 +72,7 @@ test('creates, edits, undoes, reloads and DXF round-trips semantic MTEXT', async
   }
 
   await page.reload();
+  await abrirPanelDerecho(page);
   const list = page.getByTestId('cad-native-entity-list');
   // La lista dejó de hablar en identificadores: cada fila dice «Texto 1», no
   // el slug en inglés. El `data-testid` sigue llevando el id, que es la

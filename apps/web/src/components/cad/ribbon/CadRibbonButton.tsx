@@ -19,19 +19,42 @@ import { CAD_RIBBON_PANEL_ICONS } from "./ribbon-icons";
  *   · `large`: el botón grande del panel (`command.primary`): icono de 24 px
  *     y el rótulo debajo, en dos líneas si hace falta. Mide 4,25 rem.
  *   · `small`: una fila de 20 px con el icono de 16 px y el rótulo a la
- *     derecha; el panel apila tres. Mide 7 rem.
+ *     derecha; el panel apila tres. Mide 7 rem — o, con `dense`, 5 rem (80 px)
+ *     con el rótulo recortado si no cabe (ver más abajo).
  *   · `menu`: la fila del desplegable del panel, más ancha porque ahí no
  *     hay presupuesto de cinta.
  *
  * Los anchos son FIJOS a propósito: `lib/cad/ribbon-layout.ts` calcula con
  * ellos cuántos botones caben en la ventana sin medir el DOM
- * (`CAD_RIBBON_METRICS`). Cambiar un `w-*` aquí exige cambiar la constante.
+ * (`CAD_RIBBON_METRICS` / `CAD_RIBBON_DENSE_METRICS`). Cambiar un `w-*` aquí
+ * exige cambiar la constante que le corresponde.
  *
  * El rótulo es el español del oficio (`command-labels.ts`: «Línea», no
  * LINE); el nombre canónico y su alias viven en el tooltip y en el `title`
  * nativo, que es lo que lee un lector de pantalla y lo que sobrevive sin CSS.
  * El tooltip se pinta en un portal (`CadRibbonTooltip.tsx`): colgado del
  * botón, la tira de paneles lo recortaba y no se veía nunca.
+ *
+ * ## `dense`: el botón pequeño, MÁS ANGOSTO PERO CON RÓTULO (Ola 6 «cinta legible»)
+ *
+ * Por debajo de `CAD_RIBBON_DENSE_BREAKPOINT` la cinta pasa `dense` a cada
+ * botón pequeño: encoge de 7 rem a `CAD_RIBBON_DENSE_METRICS.small` (5 rem =
+ * 80 px) — con eso caben hasta cuatro columnas donde antes cabían dos. El
+ * rótulo SIGUE PINTADO (icono a la izquierda, texto a la derecha, como en
+ * AutoCAD): la Ola 1 «cinta» lo quitaba entero (sólo icono, 26 px, ocho
+ * columnas) y el dueño —que viene de AutoCAD— los describió como «iconos
+ * anónimos, imposibles de distinguir de un vistazo». Con `truncate` el
+ * rótulo se recorta con puntos suspensivos si no cabe en los ~8 caracteres
+ * de presupuesto (ver la nota de `CAD_RIBBON_DENSE_METRICS` en
+ * `ribbon-layout.ts` para la tabla medida que decidió 80 px), pero nunca
+ * envuelve ni se sale de su botón — el golden 214 lo comprueba en un
+ * navegador real. El nombre accesible tampoco depende de si el rótulo cabe
+ * entero: el botón siempre lleva `aria-label={command.label}`, así que
+ * `getByRole('button', { name: 'Línea' })` sigue resolviendo igual que
+ * antes de esta ola, y el `title` nativo (rótulo · NOMBRE (alias) —
+ * descripción) tampoco cambia. `large` y `menu` no tienen versión densa: el
+ * encogido es sólo para el botón pequeño, que es el que se multiplica por
+ * columna.
  */
 export type CadRibbonButtonSize = "large" | "small" | "menu";
 
@@ -56,11 +79,14 @@ export function CadRibbonButton({
   onRun,
   disabled,
   size = command.primary ? "large" : "small",
+  dense = false,
 }: {
   command: CadRibbonCommand;
   onRun: (name: string) => void;
   disabled?: boolean;
   size?: CadRibbonButtonSize;
+  /** Sólo tiene efecto en `size="small"` — ver la nota «dense» de arriba. */
+  dense?: boolean;
 }) {
   // UN icono POR COMANDO (`command-icons.ts`, con su gate). El del PANEL
   // queda de red: sólo lo alcanzaría un comando sin fila, y
@@ -72,6 +98,7 @@ export function CadRibbonButton({
   // el acceso directo a una tabla estática — que es justo lo que esto es.
   const Icon = CAD_COMMAND_ICONS[command.name] ?? CAD_RIBBON_PANEL_ICONS[command.panel];
   const large = size === "large";
+  const denseSmall = size === "small" && dense;
   return (
     <CadRibbonTooltip {...cadRibbonButtonTooltip(command)} className={large ? "h-full" : undefined}>
       <button
@@ -79,9 +106,15 @@ export function CadRibbonButton({
         data-testid={`cad-ribbon-command-${command.name}`}
         data-primary={command.primary ? "true" : undefined}
         data-size={size}
+        data-dense={denseSmall ? "true" : undefined}
         disabled={disabled}
         onClick={() => onRun(command.name)}
         title={cadRibbonButtonTitle(command)}
+        // El nombre accesible NO puede depender de si el rótulo está
+        // pintado: denso lo esconde a la vista, pero `getByRole('button',
+        // { name: command.label })` (los localizadores de e2e) sigue
+        // resolviendo porque `aria-label` no cambia con `dense`.
+        aria-label={command.label}
         className={cx(
           // Sólo tokens: reposo transparente, `bg-muted` al pasar el ratón
           // (relleno y tinta son tokens distintos; `--primary` no es relleno
@@ -94,7 +127,7 @@ export function CadRibbonButton({
           large
             ? "h-full w-[4.25rem] flex-col justify-start gap-0.5 px-0.5 py-0.5"
             : size === "small"
-              ? "h-5 w-28 gap-1 px-1"
+              ? cx("h-5 gap-1 px-1", denseSmall ? "w-20" : "w-28")
               : "h-6 w-48 gap-1.5 px-1.5",
         )}
       >
@@ -103,7 +136,10 @@ export function CadRibbonButton({
           className={
             large
               ? "type-micro w-full break-words text-center leading-tight"
-              : "type-micro whitespace-nowrap leading-none"
+              : // `min-w-0`: sin él un hijo flex no encoge bajo su ancho de
+                // contenido y `truncate` no tiene nada que recortar — el
+                // rótulo se saldría del botón denso en vez de recortarse.
+                "type-micro min-w-0 flex-1 truncate text-left leading-none"
           }
         >
           {command.label}

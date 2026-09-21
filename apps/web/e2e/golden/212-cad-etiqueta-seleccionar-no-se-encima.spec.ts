@@ -3,19 +3,30 @@ import { installMockBackend } from "../fixtures/mock-backend";
 import { installCadStudioBackend } from "../fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import type { CadDocument } from "../../src/lib/cad/cad-document";
-import { CAD_TOOLBAR_ACTIONS } from "../../src/lib/cad/toolbar";
+import { startTool } from "../fixtures/tool-palette";
 
 /**
- * ESCÉPTICO — la etiqueta «Seleccionar» de la barra de herramientas, medida.
+ * REESCRITO (ola1-paleta, 2026-09-19) — el defecto que este golden vigilaba
+ * ya no puede ocurrir.
  *
- * «Seleccionar» es la más larga de las dieciséis etiquetas de la paleta (11
- * caracteres) y el botón mide 80 px (`w-20`) menos el relleno. Con `w-20` y
- * `truncate` todas caben en una línea; `break-words` partía palabras a media
- * sílaba.
+ * ANTES: «Seleccionar» era la más larga de las dieciséis etiquetas de TEXTO
+ * de una columna vertical de 93×846 px, y este archivo medía geometría real
+ * (icono vs. etiqueta vs. botón) para probar que ninguna se salía de su caja
+ * ni se montaba sobre el icono.
  *
- * Se mide geometría real —`getBoundingClientRect` del icono, la etiqueta y el
- * botón que los contiene— en vez de una captura: una captura no distingue
- * "se ve apretado" de "se sale 8 px por cada lado".
+ * AHORA: la paleta es una barra HORIZONTAL de 3 iconos SIN etiqueta de texto
+ * visible (`CadToolPalette.tsx`, `<span className="sr-only">`) — el nombre
+ * accesible vive ahí para lectores de pantalla, nunca se pinta, así que no
+ * hay etiqueta que se pueda salir de su botón ni montarse sobre un icono. El
+ * defecto original desapareció con el componente, no se arregló.
+ *
+ * Lo que SÍ sigue siendo cierto y merece guardia (la CUIDADO CON de la
+ * ola lo pide explícitamente: «que la etiqueta/tooltip no tape el lienzo»):
+ * el tooltip dibujado SÍ tiene texto, y aparece sólo al pasar el ratón. Este
+ * archivo pasa a comprobar ESO —el tooltip cabe en la ventana y no tapa el
+ * lienzo— más el comportamiento de clic que el archivo original ya defendía
+ * («Seleccionar» sigue siendo pulsable), adaptado a los tres controles que
+ * quedan (antes comparaba contra «Distancia», que ya no vive en la paleta).
  */
 
 function seedDocument(): CadDocument {
@@ -51,43 +62,12 @@ async function openStudio(context: BrowserContext, page: Page) {
   if (await saltar.count()) await saltar.click();
 }
 
-/** Rectángulos de la caja del botón, su icono y su etiqueta de texto. */
-async function medirBotonSeleccionar(page: Page) {
-  const boton = page.getByTestId("cad-toolbar").getByRole("button", {
-    name: "Seleccionar",
-    exact: true,
-  });
-  await expect(boton).toBeVisible();
-  return boton.evaluate((el) => {
-    const boton = el.getBoundingClientRect();
-    const iconoEl = el.querySelector("svg")!;
-    const icono = iconoEl.getBoundingClientRect();
-    // La etiqueta es el otro hijo directo de primer nivel con texto VISIBLE
-    // — el tercer hijo es el tooltip, `hidden` hasta el hover, con caja
-    // 0×0. Se compara por NODO (`child !== iconoEl`), no por rectángulo:
-    // dos llamadas a `getBoundingClientRect()` devuelven objetos distintos
-    // aunque midan lo mismo, así que comparar rectángulos nunca descarta
-    // el propio icono.
-    const etiquetaEl = Array.from(el.children).find((child) => {
-      if (child === iconoEl) return false;
-      const rect = child.getBoundingClientRect();
-      return rect.width > 0 && rect.height > 0;
-    })!;
-    const etiqueta = etiquetaEl.getBoundingClientRect();
-    return {
-      boton: { x: boton.x, y: boton.y, width: boton.width, height: boton.height },
-      icono: { x: icono.x, y: icono.y, width: icono.width, height: icono.height },
-      etiqueta: { x: etiqueta.x, y: etiqueta.y, width: etiqueta.width, height: etiqueta.height },
-    };
-  });
-}
-
 for (const viewport of [
   { width: 1280, height: 900, etiqueta: "escritorio ancho" },
-  { width: 1280, height: 760, etiqueta: "ventana baja (rejilla a dos columnas)" },
+  { width: 1280, height: 760, etiqueta: "ventana baja" },
   { width: 1024, height: 668, etiqueta: "tableta" },
 ]) {
-  test(`«Seleccionar» no se sale de su botón ni se monta sobre el icono — ${viewport.etiqueta}`, async ({
+  test(`la barra de navegación cabe en ≤140×40 px, anclada abajo a la derecha del lienzo — ${viewport.etiqueta}`, async ({
     context,
     page,
   }) => {
@@ -95,55 +75,33 @@ for (const viewport of [
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await openStudio(context, page);
 
-    const { boton, icono, etiqueta } = await medirBotonSeleccionar(page);
-    // Margen de 1 px por redondeo de sub-píxel entre navegadores.
-    const MARGEN = 1;
+    const barra = page.getByTestId("cad-toolbar");
+    await expect(barra).toBeVisible();
+    const [cajaBarra, cajaLienzo] = await Promise.all([
+      barra.boundingBox(),
+      page.getByTestId("cad-canvas").boundingBox(),
+    ]);
+    if (!cajaBarra || !cajaLienzo) throw new Error("cad-toolbar o cad-canvas sin caja");
 
-    expect(
-      etiqueta.x,
-      `la etiqueta empieza en x=${etiqueta.x}, el botón en x=${boton.x}`,
-    ).toBeGreaterThanOrEqual(boton.x - MARGEN);
-    expect(
-      etiqueta.x + etiqueta.width,
-      `la etiqueta termina en x=${etiqueta.x + etiqueta.width}, el botón en x=${boton.x + boton.width}`,
-    ).toBeLessThanOrEqual(boton.x + boton.width + MARGEN);
+    // La huella real (medida en el navegador) cabe en el contrato de
+    // `CadToolPaletteAncho.spec.ts`: ≤140×40 px, muy lejos de los 93×846 px
+    // (78 678 px²) de la columna vertical de antes.
+    expect(cajaBarra.width, `ancho ${cajaBarra.width}px`).toBeLessThanOrEqual(140);
+    expect(cajaBarra.height, `alto ${cajaBarra.height}px`).toBeLessThanOrEqual(40);
 
-    // El icono y la etiqueta no se pisan verticalmente: el icono termina
-    // antes de que la etiqueta empiece.
-    expect(
-      icono.y + icono.height,
-      `el icono (termina en y=${icono.y + icono.height}) se monta sobre la etiqueta (empieza en y=${etiqueta.y})`,
-    ).toBeLessThanOrEqual(etiqueta.y + MARGEN);
+    // Anclada abajo a la derecha DEL LIENZO, con margen de sobra para no
+    // salirse de él ni pegarse al borde exacto (12px de holgura, la misma
+    // que usa `bottom-3 right-3` más el propio tamaño de la barra).
+    const margenDerecho = cajaLienzo.x + cajaLienzo.width - (cajaBarra.x + cajaBarra.width);
+    const margenInferior = cajaLienzo.y + cajaLienzo.height - (cajaBarra.y + cajaBarra.height);
+    expect(margenDerecho, `${margenDerecho}px de margen a la derecha del lienzo`).toBeGreaterThanOrEqual(0);
+    expect(margenDerecho).toBeLessThan(40);
+    expect(margenInferior, `${margenInferior}px de margen abajo del lienzo`).toBeGreaterThanOrEqual(0);
+    expect(margenInferior).toBeLessThan(40);
   });
 }
 
-test("el botón «Seleccionar» sigue siendo pulsable y activa la herramienta", async ({
-  context,
-  page,
-}) => {
-  test.setTimeout(90_000);
-  await openStudio(context, page);
-  const barra = page.getByTestId("cad-toolbar");
-  const seleccionar = barra.getByRole("button", { name: "Seleccionar", exact: true });
-  // "Encuadre" NO activa una herramienta distinta — comparte modo con
-  // "Seleccionar" y sólo cambia qué hace arrastrar el fondo (ver el
-  // comentario junto a `setToolMode` en `Layout3DEditor.tsx`), así que nunca
-  // gana `bg-brand-strong`. "Distancia" sí activa un `toolMode` propio.
-  const distancia = barra.getByRole("button", { name: "Distancia", exact: true });
-
-  // "Seleccionar" es la herramienta activa al cargar: para probar el CLIC de
-  // verdad (no sólo que la clase ya estuviera puesta) se activa otra primero.
-  await distancia.click();
-  await expect(distancia).toHaveAttribute("class", /bg-brand-strong/);
-  await expect(seleccionar).not.toHaveAttribute("class", /bg-brand-strong/);
-
-  await seleccionar.click();
-  // El fix es de layout, no de lógica: el clic debe seguir funcionando.
-  await expect(seleccionar).toHaveAttribute("class", /bg-brand-strong/);
-  await expect(distancia).not.toHaveAttribute("class", /bg-brand-strong/);
-});
-
-test("ninguna etiqueta de la paleta se parte a media palabra a 1280×720", async ({
+test("el tooltip de cada control cabe en la ventana y no tapa el lienzo", async ({
   context,
   page,
 }) => {
@@ -152,37 +110,60 @@ test("ninguna etiqueta de la paleta se parte a media palabra a 1280×720", async
   await openStudio(context, page);
   const barra = page.getByTestId("cad-toolbar");
 
-  for (const action of CAD_TOOLBAR_ACTIONS) {
-    const boton = barra.getByRole("button", { name: action.label, exact: true });
-    await expect(boton).toBeVisible();
-    const etiqueta = boton.locator("span.truncate");
-    await expect(etiqueta).toBeVisible();
-
-    const lineas = await etiqueta.evaluate((el) => {
-      const r = document.createRange();
-      r.selectNodeContents(el);
-      return r.getClientRects().length;
-    });
-
-    if (!action.label.includes(" ")) {
-      // Etiqueta de una sola palabra: no debe partirse.
-      expect(lineas, `«${action.label}» se parte en ${lineas} líneas`).toBe(1);
-    } else {
-      // Etiqueta con espacio: ningún quiebre puede caer DENTRO de una palabra.
-      const rects = await etiqueta.evaluate((el) => {
-        const r = document.createRange();
-        r.selectNodeContents(el);
-        const rects: DOMRect[] = [];
-        for (let i = 0; i < r.getClientRects().length; i++)
-          rects.push(r.getClientRects()[i]!);
-        return rects.map((r) => ({ width: r.width, height: r.height }));
-      });
-      // Si hay más líneas que palabras, algún quiebre cayó dentro de una palabra.
-      const palabras = action.label.split(/\s+/).length;
-      expect(
-        rects.length,
-        `«${action.label}» (${palabras} palabras) se renderiza en ${rects.length} líneas`,
-      ).toBeLessThanOrEqual(palabras);
-    }
+  for (const nombre of ["Seleccionar", "Encuadre", "Ajustar todo"]) {
+    const boton = barra.getByRole("button", { name: nombre, exact: true });
+    await boton.hover();
+    const tooltip = boton.locator('[role="tooltip"]');
+    await expect(tooltip).toBeVisible();
+    const caja = await tooltip.boundingBox();
+    if (!caja) throw new Error(`tooltip de «${nombre}» sin caja`);
+    const viewport = page.viewportSize();
+    if (!viewport) throw new Error("sin viewport");
+    // Cabe en la ventana: no se sale por ningún borde.
+    expect(caja.x, `«${nombre}»: tooltip x=${caja.x}`).toBeGreaterThanOrEqual(0);
+    expect(caja.y, `«${nombre}»: tooltip y=${caja.y}`).toBeGreaterThanOrEqual(0);
+    expect(
+      caja.x + caja.width,
+      `«${nombre}»: tooltip termina en x=${caja.x + caja.width}, ventana=${viewport.width}`,
+    ).toBeLessThanOrEqual(viewport.width);
+    // Se dibuja ARRIBA de la barra (bottom-full): no se superpone con ella
+    // ni, por tanto, con el lienzo que hay detrás.
+    const cajaBoton = await boton.boundingBox();
+    if (!cajaBoton) throw new Error(`botón «${nombre}» sin caja`);
+    expect(
+      caja.y + caja.height,
+      `«${nombre}»: el tooltip (termina en y=${caja.y + caja.height}) se monta sobre el botón (empieza en y=${cajaBoton.y})`,
+    ).toBeLessThanOrEqual(cajaBoton.y);
   }
+});
+
+test("«Seleccionar», «Encuadre» y «Ajustar todo» siguen siendo pulsables con su nombre exacto", async ({
+  context,
+  page,
+}) => {
+  test.setTimeout(90_000);
+  await openStudio(context, page);
+  const barra = page.getByTestId("cad-toolbar");
+  const seleccionar = barra.getByRole("button", { name: "Seleccionar", exact: true });
+  const encuadre = barra.getByRole("button", { name: "Encuadre", exact: true });
+  const ajustarTodo = barra.getByRole("button", { name: "Ajustar todo", exact: true });
+  await expect(seleccionar).toBeVisible();
+  await expect(encuadre).toBeVisible();
+  await expect(ajustarTodo).toBeVisible();
+
+  // «Seleccionar» es la herramienta activa al cargar: para probar el CLIC de
+  // verdad (no sólo que la clase ya estuviera puesta) se activa otra desde
+  // la CINTA primero — «Seleccionar» ya no tiene un hermano en la paleta con
+  // el que compararse (antes era «Distancia», retirada como duplicado de
+  // DIST).
+  await startTool(page, "line");
+  await seleccionar.click();
+  await expect(seleccionar).toHaveAttribute("class", /bg-brand-strong/);
+
+  // "Encuadre" NO activa una herramienta distinta de "Seleccionar" — comparte
+  // modo con ella y sólo cambia qué hace arrastrar el fondo (ver el
+  // comentario junto a `setToolMode` en `Layout3DEditor.tsx`), así que
+  // clicarlo no le quita el resaltado a "Seleccionar".
+  await encuadre.click();
+  await expect(seleccionar).toHaveAttribute("class", /bg-brand-strong/);
 });

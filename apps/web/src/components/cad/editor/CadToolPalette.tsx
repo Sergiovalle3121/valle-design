@@ -1,24 +1,6 @@
 "use client";
 
-import {
-  Circle,
-  Copy,
-  Expand,
-  Hand,
-  Move,
-  MousePointer2,
-  Redo2,
-  Rows3,
-  Ruler,
-  Spline,
-  Square,
-  Type,
-  Undo2,
-  Waypoints,
-  PanelLeftClose,
-  PanelLeftOpen,
-} from "lucide-react";
-import { useEffect, useState } from "react";
+import { Expand, Hand, MousePointer2 } from "lucide-react";
 import {
   CAD_TOOLBAR_ACTIONS,
   type CadToolbarAction,
@@ -27,125 +9,66 @@ import {
 import { cx } from "@/components/ui";
 
 /**
- * LA PALETA DE HERRAMIENTAS.
+ * LA PALETA DE HERRAMIENTAS — podada a lo que NO es una orden (ola1-paleta,
+ * 2026-09-19).
  *
- * Lo que había: dieciocho etiquetas de texto a 10,5 px, apiladas en una columna
- * —«Select», «Pan», «Measure», «Line», «Pline», «Rect»…—, en un producto que ya
- * tenía 79 iconos de lucide importados. Una paleta de texto obliga a LEER cada
- * vez; una de iconos se recorre con la periferia de la vista, que es lo que hace
- * un dibujante mientras tiene los ojos en el lienzo.
+ * Medido en producción (vallecad.com/demo, 1440×825): esta columna flotante
+ * medía 93×846 px encima del lienzo y de sus diecisiete botones, once
+ * duplicaban un botón exacto de la cinta (Distancia=DIST, Línea=LINE,
+ * Polilínea=PLINE, Rectángulo=RECTANG, Círculo=CIRCLE, Mover=MOVE,
+ * Copiar=COPY, Desfase=OFFSET, Texto=TEXT, Deshacer=U, Rehacer=REDO) y tres
+ * eran vocabulario industrial heredado (Pasillo, Área, Símbolos, ver
+ * IDENTITY.md). Esos catorce se retiraron de `CAD_TOOLBAR_ACTIONS`
+ * (`toolbar.ts`) — el comando sigue intacto, alcanzable desde la cinta y
+ * desde su atajo de una letra; sólo se borró el botón que lo repetía.
  *
- * ICONO **Y** ETIQUETA, no icono solo. Un icono sin texto es un acertijo la
- * primera semana, y ésta es exactamente la primera semana de alguien que viene
- * de AutoCAD. El texto se queda debajo, en el piso de la escala.
+ * Quedan tres controles que NO son una orden sino NAVEGACIÓN de cámara
+ * (Seleccionar, Encuadre, Ajustar todo) y por eso siguen aquí, ahora como
+ * una barra HORIZONTAL de iconos —sin etiqueta de texto, sólo tooltip—
+ * anclada abajo a la derecha del lienzo: 3 botones de 28 px con 4 px de
+ * relleno y de separación caben en ≤140×40 px (huella real: 112×40, ver
+ * `CadToolPaletteAncho.spec.ts`), muy lejos de los 93×846 px de antes.
  *
- * EL TOOLTIP ENSEÑA EL ATAJO, y ésa es la joya que estaba enterrada: la tabla de
- * alias ya existe (`L` para línea, `C` para círculo, `M` para medir) y no se
- * anunciaba en ningún sitio. Un usuario de AutoCAD que pasa el cursor sobre
- * «Línea» y lee «L» acaba de descubrir que su memoria muscular de veinte años
- * sirve aquí. Eso no es una ayuda: es el argumento de venta del producto,
- * puesto donde se tropieza con él.
- *
- * SE EXTRAJO DEL MONOLITO. `Layout3DEditor.tsx` tiene un trinquete de tamaño que
- * SÓLO BAJA: cualquier mejora ahí dentro se paga sacando código, no añadiéndolo.
+ * `data-testid="cad-toolbar"` y el nombre accesible de cada botón NO
+ * cambian: `e2e/fixtures/tool-palette.ts` y los goldens 72/212 siguen
+ * encontrando «Seleccionar» y «Encuadre» exactamente igual.
  */
-
-/**
- * El icono de cada herramienta. Vive aquí y no en `toolbar.ts` porque `toolbar`
- * es la DEFINICIÓN de las acciones —id, atajo, grupo, descripción— y la consume
- * también la máquina de comandos, que no pinta nada. Un icono es presentación.
- */
-const ICONS: Record<CadToolbarActionId, typeof Circle> = {
+// `Partial`, no `Record` completo: la UNIÓN `CadToolbarActionId` sigue
+// teniendo diecisiete miembros (el registro de comandos no se tocó), pero
+// sólo tres tienen botón de paleta hoy. Un `Record` completo obligaría a
+// fingir un icono para los catorce que ya no se pintan aquí.
+const ICONS: Partial<Record<CadToolbarActionId, typeof MousePointer2>> = {
   select: MousePointer2,
   pan: Hand,
-  measure: Ruler,
-  line: Waypoints,
-  polyline: Spline,
-  rect: Square,
-  circle: Circle,
-  move: Move,
-  copy: Copy,
-  offset: Rows3,
-  aisle: Rows3,
-  zone: Square,
-  equipment: Type,
-  text: Type,
   fit_view: Expand,
-  undo: Undo2,
-  redo: Redo2,
 };
-
-const STORAGE_KEY = "cad-tool-palette-open";
 
 export function CadToolPalette({
   activeTool,
-  readOnly,
-  isReadOnlyAllowed,
-  canUndo,
-  canRedo,
   onRun,
 }: {
   activeTool: string;
-  readOnly: boolean;
-  isReadOnlyAllowed: (id: CadToolbarActionId) => boolean;
-  /**
-   * Deshacer y rehacer se deshabilitan sin historia, igual que sus gemelos de
-   * la barra superior: un botón habilitado que no hace nada es un cable suelto
-   * (lo caza `e2e/real/cables-sueltos.spec.ts`); uno deshabilitado es honesto.
-   */
-  canUndo: boolean;
-  canRedo: boolean;
   onRun: (id: CadToolbarActionId) => void;
 }) {
-  // Arranca abierto: Encuadre·Space y los demás deben verse por defecto.
-  // El usuario puede cerrarla y se recuerda en localStorage.
-  const [open, setOpen] = useState(() => {
-    try { return localStorage.getItem(STORAGE_KEY) !== "false"; }
-    catch { return true; }
-  });
-  useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, String(open)); }
-    catch { /* storage no disponible */ }
-  }, [open]);
-  const unavailable = (id: CadToolbarActionId): boolean =>
-    (id === "undo" && !canUndo) || (id === "redo" && !canRedo);
+  // Los tres controles que quedan están en `READ_ONLY_TOOLBAR_ACTION_IDS`
+  // (editor-keyboard.ts) SIEMPRE: son navegación de cámara, no mutan el
+  // dibujo, así que un plano de sólo lectura no tiene motivo para
+  // deshabilitarlos. Por eso el componente ya no recibe `readOnly` ni
+  // `canUndo`/`canRedo` — Deshacer/Rehacer vivían aquí y se mudaron a la
+  // cinta con su propio estado habilitado/deshabilitado.
   return (
     <div
       data-testid="cad-toolbar"
-      className="absolute top-3 left-3 z-20 flex flex-col items-start gap-1"
+      className="absolute bottom-3 right-3 z-20 flex items-center gap-1 rounded-control border border-border bg-surface/90 p-1 shadow-floating backdrop-blur"
     >
-      <button
-        type="button"
-        data-testid="cad-toolbar-toggle"
-        onClick={() => setOpen((v) => !v)}
-        title={open ? "Cerrar paleta de herramientas" : "Abrir paleta de herramientas"}
-        className="rounded-control border border-border bg-surface/90 p-1.5 text-muted-foreground shadow-floating backdrop-blur hover:text-foreground"
-      >
-        {open ? <PanelLeftClose aria-hidden="true" className="h-4 w-4" /> : <PanelLeftOpen aria-hidden="true" className="h-4 w-4" />}
-      </button>
-      {open && (
-        <div className="rounded-card border border-border bg-surface/90 p-1.5 shadow-floating backdrop-blur">
-          {/* `cad-tool-grid`: en una ventana baja (≤820 px) la columna de 16
-              botones no cabe en el lienzo y los últimos quedaban bajo la barra de
-              estado —el golden 67 los midió tapados a 720 px—; ahí la rejilla pasa
-              a dos columnas (`globals.css`). Todos los botones siguen a la vista. */}
-          <div className="cad-tool-grid grid grid-cols-1 gap-0.5">
-            {CAD_TOOLBAR_ACTIONS.map((action) => (
-              <ToolButton
-                key={action.id}
-                action={action}
-                active={activeTool === action.id}
-                disabled={
-                  (readOnly && !isReadOnlyAllowed(action.id)) ||
-                  unavailable(action.id)
-                }
-                readOnlyAllowed={isReadOnlyAllowed(action.id)}
-                onRun={onRun}
-              />
-            ))}
-          </div>
-        </div>
-      )}
+      {CAD_TOOLBAR_ACTIONS.map((action) => (
+        <ToolButton
+          key={action.id}
+          action={action}
+          active={activeTool === action.id}
+          onRun={onRun}
+        />
+      ))}
     </div>
   );
 }
@@ -153,61 +76,47 @@ export function CadToolPalette({
 function ToolButton({
   action,
   active,
-  disabled,
-  readOnlyAllowed,
   onRun,
 }: {
   action: CadToolbarAction;
   active: boolean;
-  disabled: boolean;
-  readOnlyAllowed: boolean;
   onRun: (id: CadToolbarActionId) => void;
 }) {
-  const Icon = ICONS[action.id];
+  // No-null: `ICONS` cubre cada id que `CAD_TOOLBAR_ACTIONS` declara hoy
+  // (los tres controles de navegación); si alguien añade un cuarto sin
+  // icono, `CadToolPalette.spec.ts` lo dice al iterar `CAD_TOOLBAR_ACTIONS`.
+  const Icon = ICONS[action.id]!;
   return (
     <button
-      data-cad-readonly-allowed={readOnlyAllowed || undefined}
-      disabled={disabled}
+      type="button"
       onClick={() => onRun(action.id)}
-      // El `title` nativo se conserva ADEMÁS del tooltip dibujado: es lo que lee
-      // un lector de pantalla y lo que sobrevive si el CSS no carga.
+      // El `title` nativo se conserva ADEMÁS del tooltip dibujado: es lo que
+      // lee un lector de pantalla y lo que sobrevive si el CSS no carga. Sin
+      // paréntesis de una letra: `keyboard-alias-collisions.spec.ts` los lee
+      // como un atajo anunciado, y sólo «Encuadre» tiene uno (Space, no una
+      // letra suelta de acad.pgp).
       title={`${action.label}${action.shortcut ? ` · ${action.shortcut}` : ""} — ${action.description}`}
       className={cx(
-        "group/tool relative flex w-20 flex-col items-center gap-0.5 rounded-control px-1 py-1.5",
+        "group/tool relative flex h-7 w-7 shrink-0 items-center justify-center rounded-control",
         "transition-colors duration-150",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        "disabled:pointer-events-none disabled:opacity-40",
         active
           ? "bg-brand-strong text-primary-foreground"
           : "text-muted-foreground hover:bg-muted hover:text-foreground",
       )}
     >
       <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
-      {/*
-        `truncate` en vez de `break-words`: con w-20 (72 px útiles tras px-1),
-        todas las etiquetas caben en una línea a 0.6875 rem / 500. La más ancha
-        es «Ajustar todo» (64.73 px), luego «Seleccionar» (62.65). `truncate`
-        recorta con elipsis si algún tamaño de fuente del sistema desborda;
-        `break-words` partía palabras a media sílaba.
-      */}
-      <span className="w-full truncate text-center type-micro font-medium leading-snug">
-        {action.label}
-      </span>
+      <span className="sr-only">{action.label}</span>
 
       {/*
-        El tooltip se dibuja a la DERECHA porque la paleta vive pegada al borde
-        izquierdo del lienzo: arriba o abajo se saldría de la columna, y a la
-        izquierda quedaría fuera de la pantalla.
-
-        En CSS puro con `group-hover`: son dieciocho herramientas, y un estado de
-        React por cada una costaría dieciocho re-renders en un componente que ya
-        repinta con cada movimiento del cursor.
+        El tooltip se dibuja ARRIBA porque la barra vive pegada al borde
+        inferior del lienzo: abajo se saldría de la ventana.
       */}
       <span
         role="tooltip"
         aria-hidden="true"
         className={cx(
-          "pointer-events-none absolute left-full top-1/2 z-50 ml-2 hidden w-max max-w-56 -translate-y-1/2 flex-col gap-0.5",
+          "pointer-events-none absolute bottom-full right-0 z-50 mb-2 hidden w-max max-w-56 flex-col gap-0.5",
           "rounded-control border border-border bg-popover px-2.5 py-1.5 text-popover-foreground shadow-floating",
           "group-hover/tool:flex group-focus-visible/tool:flex",
         )}

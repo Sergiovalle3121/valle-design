@@ -19,6 +19,7 @@ import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { installMockBackend } from "../fixtures/mock-backend";
 import { installCadV1Backend } from "../fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 const SILLA = {
   id: "block:silla",
@@ -131,6 +132,9 @@ test("teclear BLOCK con el nombre de un bloque que ya existe pregunta, redefine 
   await loginAsStandaloneOwner(context);
   const { snapshot } = await instalarBackend(context);
   await page.goto("/legacy/studio");
+  // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+  // como una persona, antes de leer nada de lo que vive dentro.
+  await abrirPanelDerecho(page);
 
   await expect(page.getByTestId("cad-canvas")).toBeVisible({ timeout: 90_000 });
   await expect(page.getByTestId("cad-command-line")).toBeVisible();

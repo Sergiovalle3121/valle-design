@@ -6,6 +6,7 @@ import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import { saveAndSettle } from "../fixtures/cad-save";
 import { applyNativeProperty } from "../fixtures/dynamic-input";
 import { worldPoint } from "../fixtures/world-point";
+import { abrirPanelDerecho } from "../fixtures/docks";
 import type { CadDocument, CadWallEntity } from "../../src/lib/cad/cad-document";
 import { CAD_DOCUMENT_SCHEMA } from "../../src/lib/cad/cad-document-shared";
 import { fitFootprint } from "../fixtures/camera-preset";
@@ -73,6 +74,25 @@ async function settlePlanView(page: Page) {
   await fitFootprint(page);
 }
 
+/**
+ * Descarta el recorrido guiado si está flotando sobre el lienzo.
+ *
+ * Ola «armazón»: el muelle izquierdo (donde vive el recorrido) arranca
+ * PLEGADO, así que la tarjeta «Primeros cinco minutos» —nace `pending` en
+ * cada contexto nuevo de Playwright— cae a su respaldo flotante, anclado
+ * sobre el borde inferior del lienzo. El eje del muro de este golden entra en
+ * (2000,2000): Y baja, justo la esquina donde cae esa tarjeta. `worldPoint` ya
+ * se defiende solo antes de CADA muestreo, pero eso es la red de seguridad, no
+ * la primera línea: saltarlo aquí, como haría cualquiera con el aviso de
+ * bienvenida delante, evita gastar los reintentos de `worldPoint` en una
+ * tarjeta que de todas formas se va a cerrar. Mismo síntoma que documentó el
+ * golden 58 para su clic al centro.
+ */
+async function skipGuidedTour(page: Page) {
+  const skip = page.getByTestId("cad-guided-tour-skip");
+  if (await skip.isVisible().catch(() => false)) await skip.click();
+}
+
 /** Designa por el panel profesional, sin depender del lienzo. */
 async function select(page: Page, id: string) {
   await page.getByTitle(/Selección profesional/).click();
@@ -100,6 +120,7 @@ test("un muro tecleado con ratón y teclado sobrevive a guardar y reabrir, y su 
   await page.goto("/legacy/studio");
 
   await expect(page.getByTestId("cad-command-line")).toBeVisible();
+  await skipGuidedTour(page);
   await settlePlanView(page);
 
   // --- 1. WALL por su alias, con el grosor cambiado por palabra clave --------
@@ -175,6 +196,12 @@ test("un muro tecleado con ratón y teclado sobrevive a guardar y reabrir, y su 
 
   await select(page, wallId);
   await page.keyboard.press("Control+1");
+  // Ola «armazón»: `select()` ya deja el muelle derecho sin plegar (abrió un
+  // panel profesional para designar), pero Ctrl+1 (`revealPropertiesPalette`)
+  // sólo garantiza `rightDock: true` y no toca `rightDockCollapsed` — de ahí
+  // esta llamada explícita, idempotente, en vez de depender de ese efecto
+  // colateral de `select()`.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId("cad-properties-palette")).toBeVisible();
   // Grosor y altura son filas EDITABLES; la longitud es derivada y no.
   await expect(page.getByTestId("cad-native-property-thickness")).toBeVisible();
@@ -212,6 +239,7 @@ test("el GLB del botón lleva el edificio, y con la capa del muro congelada se N
   await installCadBackend(context);
   await page.goto("/legacy/studio");
   await expect(page.getByTestId("cad-command-line")).toBeVisible();
+  await skipGuidedTour(page);
   await settlePlanView(page);
 
   // Un muro por el MISMO camino del test anterior: WA + dos clics + Enter.

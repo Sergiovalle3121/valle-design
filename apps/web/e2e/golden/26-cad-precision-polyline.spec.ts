@@ -24,6 +24,8 @@ import { saveAndSettle } from '../fixtures/cad-save';
 import { applyDynamicInput } from '../fixtures/dynamic-input';
 import { worldPoint } from '../fixtures/world-point';
 import { fitFootprint } from "../fixtures/camera-preset";
+import { startTool } from "../fixtures/tool-palette";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 // MIGRACIÓN R3: mock en la superficie v1 real. DIFERENCIA de transporte
 // documentada: el PUT legacy arrastraba el array `assets` junto al documento;
@@ -81,6 +83,9 @@ test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFF
 
   await test.step('1. Abrir dibujo', async () => {
     await page.goto('/legacy/studio');
+    // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+    // como una persona, antes de leer nada de lo que vive dentro.
+    await abrirPanelDerecho(page);
     await expect(page.getByTestId('cad-canvas')).toBeVisible();
   });
   await test.step('2. Elegir unidades', async () => {
@@ -138,7 +143,9 @@ test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFF
     // que es lo que `worldPoint` necesita para invertir la proyección.
     await page.getByRole('button', { name: '2D', exact: true }).click();
     await fitFootprint(page);
-    await page.getByTestId('cad-toolbar').getByRole('button', { name: 'Desfase', exact: true }).click();
+    // ola1-paleta (2026-09-19): «Desfase» ya no tiene botón de paleta — se
+    // arranca desde la cinta (mismo despacho, `startTool` en la fixture).
+    await startTool(page, 'offset');
     await applyDynamicInput(page, { offset: '250mm' });
     const on = await worldPoint(page, { x: 3_000, y: 4_000 });
     await page.mouse.click(on.x, on.y);

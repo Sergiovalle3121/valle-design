@@ -7,6 +7,7 @@
  * que el usuario haya navegado con flechas.
  */
 import { expect, test } from "@playwright/test";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 const ALIASES: [string, RegExp][] = [
   ["L", /LINE/],
@@ -22,6 +23,7 @@ const ALIASES: [string, RegExp][] = [
 for (const [alias, patron] of ALIASES) {
   test(`${alias} + Enter arranca ${patron.source}`, async ({ page }) => {
     await page.goto("/demo");
+    await abrirPanelDerecho(page);
     await expect(page.getByTestId("cad-native-entity-list")).toBeVisible({
       timeout: 60_000,
     });

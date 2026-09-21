@@ -4,6 +4,7 @@ import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 /**
  * T-25 · Un ángulo tecleado respeta ANGBASE/ANGDIR (y AUNITS).
@@ -65,6 +66,7 @@ test('con ANGBASE 90 y ANGDIR horario, @100<0 apunta al norte del mundo, no al e
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto('/legacy/studio');
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
   const log = page.getByTestId('cad-command-line-log');
 
@@ -104,6 +106,7 @@ test('sin ANGBASE/ANGDIR declarados, <45 sigue siendo 45° decimales de siempre'
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto('/legacy/studio');
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
 
   await type(page, 'LINE');

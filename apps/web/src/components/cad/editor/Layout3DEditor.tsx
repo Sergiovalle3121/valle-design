@@ -51,7 +51,6 @@ import {
   AlignHorizontalDistributeCenter,
   AlignVerticalDistributeCenter,
   RulerDimensionLine,
-  Waypoints,
   ShieldCheck,
   CircleCheck,
   CircleAlert,
@@ -67,8 +66,6 @@ import {
   Focus,
   PanelLeft,
   PanelLeftClose,
-  ScanEye,
-  GitMerge,
 } from "lucide-react";
 import { legacyCadFetch } from "@/lib/cad/legacy/layout-http-adapter";
 import {
@@ -105,6 +102,14 @@ import {
 import dynamic from "next/dynamic";
 import { CadToolPalette } from "@/components/cad/editor/CadToolPalette";
 import { CadLeftDockPanel } from "@/components/cad/editor/CadLeftDockPanel";
+import { CadShellFrame } from "@/components/cad/shell/CadShellFrame";
+import { CadDockRail } from "@/components/cad/shell/CadDockRail";
+import { CAD_SHELL_METRICS } from "@/components/cad/shell/cad-shell-layout";
+import { attachCadRibbonBodySlot } from "@/components/cad/shell/ribbon-body-slot";
+import {
+  CAD_LEFT_RAIL_ITEMS,
+  CAD_RIGHT_RAIL_ITEMS,
+} from "@/components/cad/shell/cad-shell-rail-items";
 import { CadCommandPalette } from "@/components/cad/editor/CadCommandPalette";
 
 // Las paletas que se abren A DEMANDA viajan en su chunk y no en el del
@@ -525,6 +530,9 @@ import { CadNativeGripController } from "@/components/cad/viewport/native-grip-c
 import { CadGripMenuOverlay } from "@/components/cad/viewport/grip-menu-host";
 import { createCadTouchGestures } from "@/components/cad/viewport/touch-gestures";
 import { attachCadPlanWheelAnchor } from "@/components/cad/viewport/plan-wheel-anchor";
+import { computeCadPlanGridTiers, cadPlanGridMinorVisible } from "@/components/cad/viewport/plan-grid-tiers";
+import { createCadUcsIconObject, setCadUcsIconColors } from "@/components/cad/viewport/ucs-icon";
+import { cadSelectionMarqueeStyle, cadSelectionMarqueeKind } from "@/components/cad/viewport/selection-marquee-style";
 import { cadApplyAnnotationScale } from "@/lib/cad/layout/annotative-scale";
 import { attachCadDoubleClickEdit } from "@/components/cad/viewport/double-click-edit";
 import { cadStudioXrefBridge } from "@/components/cad/command-line/xref-host";
@@ -1029,6 +1037,8 @@ export interface Layout3DEditorProps extends Layout3DEditorPlatformProps {
    * still expose their explicitly scoped collaboration controls.
    */
   readOnly?: boolean;
+  /** Pastilla del aviso de demo, dentro de la fila superior (ver DemoStudio.tsx). */
+  demoBanner?: React.ReactNode;
 }
 
 /**
@@ -1052,6 +1062,7 @@ export default function Layout3DEditor({
   title,
   subtitle,
   readOnly = false,
+  demoBanner,
   identity,
   scope: platformScope,
   theme: resolvedScheme = "light",
@@ -1738,6 +1749,9 @@ export default function Layout3DEditor({
   const [hasDxf, setHasDxf] = useState(false); // a DXF backdrop is loaded → can trace it into walls (Fase 58)
   const groundRef = useRef<THREE.Mesh | null>(null);
   const gridHelperRef = useRef<THREE.Object3D | null>(null);
+  const gridMajorRef = useRef<THREE.Object3D | null>(null); // capa MAYOR (plan-grid-tiers.ts)
+  const gridSpacingRef = useRef(1); // espaciado MENOR — cadPlanGridMinorVisible
+  const ucsIconRef = useRef<THREE.Group | null>(null); // icono de ejes (ucs-icon.ts)
   const dirLightRef = useRef<THREE.DirectionalLight | null>(null);
   const walkRef = useRef(false);
   const walkYawRef = useRef(0);
@@ -1994,11 +2008,11 @@ export default function Layout3DEditor({
     setShowCollaborationDock(false);
     setShowWorkspaceDock(false);
     setFocusMode(false);
-    if (!workspacePreferencesRef.current.rightDock)
-      updateWorkspacePreferences({
-        ...workspacePreferencesRef.current,
-        rightDock: true,
-      });
+    // Ola «armazón»: Ctrl+1 sólo apagaba `rightDock` (visibilidad); no tocaba
+    // `rightDockCollapsed` (plegado al riel), así que con el riel plegado de fábrica no revelaba nada. Limpia ambos.
+    if (!workspacePreferencesRef.current.rightDock || workspacePreferencesRef.current.rightDockCollapsed) {
+      updateWorkspacePreferences({ ...workspacePreferencesRef.current, rightDock: true, rightDockCollapsed: false });
+    }
   }, [updateWorkspacePreferences, setShowHatchPalette]);
   const applyWorkspaceProfile = useCallback(
     (profile: CadWorkspaceProfile) => {
@@ -2193,6 +2207,7 @@ export default function Layout3DEditor({
     const ground = groundRef.current;
     if (ground)
       (ground.material as THREE.MeshStandardMaterial).color.setHex(th.ground);
+    if (ucsIconRef.current) setCadUcsIconColors(ucsIconRef.current, th);
     if (gg) {
       while (gg.children.length) {
         const o = gg.children[gg.children.length - 1];
@@ -2200,42 +2215,24 @@ export default function Layout3DEditor({
         disposeObject(o);
       }
       const { s, W, H } = ctx;
+      // Dos intensidades (plan-grid-tiers.ts): MENOR con gridB, MAYOR cada 5 con gridA.
       const fpGrid = data?.footprint.gridSize || 1;
-      // Rectangular grid that matches the footprint exactly. A square GridHelper
-      // (side = max dimension) used to overhang non-square plants, drawing cells
-      // outside the placeable area — the user could see the cells but the drag
-      // clamp (ctx.W/ctx.H) refused to drop objects there. Now every visible cell
-      // is inside the plant, with ~square world cells, line count capped for perf.
-      const halfW = (W * s) / 2,
-        halfH = (H * s) / 2;
-      const nx = Math.min(60, Math.max(2, Math.round(W / fpGrid)));
-      const nz = Math.min(60, Math.max(2, Math.round(H / fpGrid)));
-      const gridPts: THREE.Vector3[] = [];
-      for (let i = 0; i <= nx; i++) {
-        const x = -halfW + (i / nx) * (W * s);
-        gridPts.push(
-          new THREE.Vector3(x, 0, -halfH),
-          new THREE.Vector3(x, 0, halfH),
-        );
-      }
-      for (let j = 0; j <= nz; j++) {
-        const z = -halfH + (j / nz) * (H * s);
-        gridPts.push(
-          new THREE.Vector3(-halfW, 0, z),
-          new THREE.Vector3(halfW, 0, z),
-        );
-      }
-      const grid = new THREE.LineSegments(
-        new THREE.BufferGeometry().setFromPoints(gridPts),
-        new THREE.LineBasicMaterial({
-          color: th.gridB,
-          transparent: true,
-          opacity: 0.6,
-        }),
+      gridSpacingRef.current = fpGrid; // unidades de DIBUJO — así combina con viewController.view.pixelsPerUnit
+      const tiers = computeCadPlanGridTiers({ halfWidth: (W * s) / 2, halfHeight: (H * s) / 2, spacing: fpGrid * s });
+      const minor = new THREE.LineSegments(
+        new THREE.BufferGeometry().setFromPoints(tiers.minor),
+        new THREE.LineBasicMaterial({ color: th.gridB, transparent: true, opacity: 0.6 }),
       );
-      grid.position.y = 0.01;
-      gridHelperRef.current = grid;
-      gg.add(grid);
+      minor.position.y = 0.01;
+      gridHelperRef.current = minor;
+      gg.add(minor);
+      const major = new THREE.LineSegments(
+        new THREE.BufferGeometry().setFromPoints(tiers.major),
+        new THREE.LineBasicMaterial({ color: th.gridA, transparent: true, opacity: 0.85 }),
+      );
+      major.position.y = 0.012;
+      gridMajorRef.current = major;
+      gg.add(major);
       const edge = new THREE.LineSegments(
         new THREE.EdgesGeometry(new THREE.PlaneGeometry(W * s, H * s)),
         new THREE.LineBasicMaterial({ color: 0x64748b }),
@@ -5923,6 +5920,11 @@ export default function Layout3DEditor({
     const gridGroup = new THREE.Group();
     deco.add(gridGroup);
     gridGroupRef.current = gridGroup;
+    // Icono de ejes (UCS) en el origen del DIBUJO, no del contorno de la planta (ver ucs-icon.ts).
+    const ucsIcon = createCadUcsIconObject(Math.max(0.4, Math.min(W, H) * s * 0.12), THEMES[themeRef.current]);
+    ucsIcon.position.set(-(W * s) / 2, 0.03, -(H * s) / 2);
+    deco.add(ucsIcon);
+    ucsIconRef.current = ucsIcon;
     // cell floor tints — rebuildable so cells can be created/removed live (unify)
     const cellsGroup = new THREE.Group();
     deco.add(cellsGroup);
@@ -5981,8 +5983,8 @@ export default function Layout3DEditor({
     previewLine.visible = false;
     previewLineRef.current = previewLine;
     dimsGroup.add(previewLine);
-    // Marquee de selección (ADR §220): rectángulo en el piso — cian = ventana
-    // (izq→der, todo contenido), verde = cruce (der→izq, basta intersectar).
+    // Marquee de selección (ADR §220): azul = ventana (izq→der), verde =
+    // cruce (der→izq); color real en selection-marquee-style.ts, no a mano.
     const marqueeLine = new THREE.LineLoop(
       new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -5990,7 +5992,7 @@ export default function Layout3DEditor({
         new THREE.Vector3(),
         new THREE.Vector3(),
       ]),
-      new THREE.LineBasicMaterial({ color: 0x22d3ee, depthTest: false }),
+      new THREE.LineBasicMaterial({ depthTest: false }),
     );
     marqueeLine.renderOrder = 998;
     marqueeLine.visible = false;
@@ -6223,7 +6225,7 @@ export default function Layout3DEditor({
         toWorld(m.x0, m.y1),
       ]);
       (marqueeLine.material as THREE.LineBasicMaterial).color.set(
-        m.x1 >= m.x0 ? 0x22d3ee : 0x34d399,
+        cadSelectionMarqueeStyle(cadSelectionMarqueeKind(m.x0, m.x1), themeRef.current).color,
       );
       marqueeLine.visible = true;
     };
@@ -7537,6 +7539,9 @@ export default function Layout3DEditor({
       } else {
         controls.update();
       }
+      // Sigue el zoom: apaga la subrejilla sola si queda demasiado densa (F7 apaga TODA la rejilla, arriba).
+      if (gridHelperRef.current)
+        gridHelperRef.current.visible = cadPlanGridMinorVisible(viewController.view.pixelsPerUnit, gridSpacingRef.current);
       // Un cuadro del pipeline por lotes: fija la vista, gasta su presupuesto
       // de teselado y reconcilia mallas SÓLO si hubo algo que reconciliar.
       // Va antes de `render` para que lo materializado en este cuadro se vea en
@@ -7626,6 +7631,8 @@ export default function Layout3DEditor({
       gridGroupRef.current = null;
       groundRef.current = null;
       gridHelperRef.current = null;
+      gridMajorRef.current = null;
+      ucsIconRef.current = null;
       dirLightRef.current = null;
       notesGroupRef.current = null;
       dxfGroupRef.current = null;
@@ -12619,10 +12626,11 @@ export default function Layout3DEditor({
     closeProfessionalDocks();
     if (wasOpen) return;
     setFocusMode(false);
-    if (!workspacePreferencesRef.current.rightDock) {
+    if (!workspacePreferencesRef.current.rightDock || workspacePreferencesRef.current.rightDockCollapsed) {
       updateWorkspacePreferences({
         ...workspacePreferencesRef.current,
         rightDock: true,
+        rightDockCollapsed: false,
       });
     }
     if (dock === "selection") {
@@ -12634,6 +12642,35 @@ export default function Layout3DEditor({
     else if (dock === "blocks") setShowBlockPalette(true);
     else if (dock === "collaboration") setShowCollaborationDock(true);
     else setShowWorkspaceDock(true);
+  };
+  // EL RIEL DERECHO (ola «armazón»): antes 7 botones de la barra de 48/56 px,
+  // ahora items de `CadDockRail` (catálogo en `cad-shell-rail-items.tsx`).
+  // DESIGNAR YA NO ABRE EL MUELLE: con `nativeSelectedEntities.length > 0 ||
+  // selSnap` el lienzo pasaba de 1190 a 911 px y volvía EN CADA CLIC (20-sep),
+  // reescalando el dibujo bajo el cursor. Manda el riel (con su punto) o Ctrl+1.
+  const rightRailActiveId =
+    !workspacePreferences.rightDockCollapsed || activeProfessionalDock
+      ? (activeProfessionalDock ?? "properties")
+      : null;
+  const handleRightRailToggle = (id: string) => {
+    if (id === rightRailActiveId) {
+      closeProfessionalDocks();
+      updateWorkspacePreferences({
+        ...workspacePreferencesRef.current,
+        rightDockCollapsed: true,
+      });
+      return;
+    }
+    if (id === "properties") {
+      closeProfessionalDocks();
+      updateWorkspacePreferences({
+        ...workspacePreferencesRef.current,
+        rightDock: true,
+        rightDockCollapsed: false,
+      });
+      return;
+    }
+    toggleProfessionalDock(id as NonNullable<typeof activeProfessionalDock>);
   };
   const handleCadContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -13391,47 +13428,22 @@ export default function Layout3DEditor({
       />
     ) : null;
 
-  // Portal to <body> so the full-screen overlay escapes the editor's glass
-  // container (backdrop-filter would otherwise be the containing block for our
-  // position:fixed and trap it inside the box instead of the viewport).
-  return createPortal(
-    <div
-      data-color-scheme={resolvedScheme}
-      data-cad-drawing-read-only={drawingReadOnly ? "true" : "false"}
-      onClickCapture={guardReadOnlyUi}
-      onChangeCapture={guardReadOnlyUi}
-      onInputCapture={guardReadOnlyUi}
-      onSubmitCapture={guardReadOnlyUi}
-      onPointerDownCapture={guardReadOnlyUi}
-      onKeyDownCapture={guardReadOnlyUi}
-      // Sin ternario de tema: `bg-background` y `text-foreground` YA giran con
-      // la clase `.dark` que gobierna toda la aplicación. El ternario existía
-      // porque las paletas de dentro no giraban, así que había que decidir el
-      // armazón a mano; ahora que giran, decidirlo dos veces sólo garantiza que
-      // las dos decisiones se separen.
-      className="cad-shell fixed inset-0 z-[70] flex flex-col bg-background text-foreground"
-    >
-      {/* top bar (relative z-30 so dropdown popovers paint above the 3D content,
-          which would otherwise stack over the backdrop-blur'd bar) */}
-      <div
-        data-testid="cad-top-toolbar"
-        className={`relative z-30 flex items-center border-b border-border bg-surface/90 px-4 backdrop-blur ${workspacePreferences.toolbarDensity === "compact" ? "h-12 py-1.5" : "h-14 py-2.5"}`}
-      >
-        {/* Banda de iconos: scrollable horizontalmente */}
-        <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
-        {/* Cierre persistente y SIEMPRE alcanzable, anclado al inicio de la
-            barra. Regla que no cambia: ninguna pantalla a foco total puede
-            atrapar al usuario.
+  // EL `quickAccess` DEL ARMAZÓN: cerrar + título, prop de `CadRibbon`.
+  const quickAccessContent = (
+    <>
+      {/* Cierre persistente y SIEMPRE alcanzable, anclado al inicio de la
+          barra. Regla que no cambia: ninguna pantalla a foco total puede
+          atrapar al usuario.
 
-            LO QUE SÍ CAMBIA: era un botón ROJO con sombra máxima, es decir, el
-            elemento visualmente más fuerte de todo el estudio. En una
-            herramienta profesional, SALIR nunca es lo más llamativo — el rojo
-            es el color con el que se avisa de que algo se va a destruir, y
-            gastarlo en «volver al tablero» lo deja sin significado para cuando
-            de verdad haga falta. Ahora es un control discreto, del mismo peso
-            que el resto del chrome, y el peso visual vuelve a donde importa: el
-            nombre del documento. */}
-        <button
+          LO QUE SÍ CAMBIA: era un botón ROJO con sombra máxima, es decir, el
+          elemento visualmente más fuerte de todo el estudio. En una
+          herramienta profesional, SALIR nunca es lo más llamativo — el rojo
+          es el color con el que se avisa de que algo se va a destruir, y
+          gastarlo en «volver al tablero» lo deja sin significado para cuando
+          de verdad haga falta. Ahora es un control discreto, del mismo peso
+          que el resto del chrome, y el peso visual vuelve a donde importa: el
+          nombre del documento. */}
+      <button
           data-cad-readonly-allowed
           onClick={onClose}
           title="Cerrar el CAD — volver al dashboard (Esc)"
@@ -13479,7 +13491,17 @@ export default function Layout3DEditor({
             {placedCount} colocados · {assetCount} heredados
           </span>
         </CadDiagnosticsReadout>
-        <div className="inline-flex items-center rounded-lg bg-muted/60 p-0.5 type-caption font-semibold ml-1">
+    </>
+  );
+
+  // EL `trailing` DEL ARMAZÓN: 2D/3D, herramientas que YA cubre la cinta
+  // (cobertura total, no se perdió nada) y diálogos de salida sin paleta
+  // acoplable. Las 7 profesionales van al riel derecho. Modelo/Presentación
+  // vivían aquí y se mudaron a la barra de estado — ver el comentario justo
+  // abajo del botón 3D.
+  const trailingContent = (
+    <>
+        <div className="inline-flex items-center rounded-lg bg-muted/60 p-0.5 type-caption font-semibold">
           <button
             data-cad-readonly-allowed
             onClick={() => {
@@ -13501,40 +13523,12 @@ export default function Layout3DEditor({
             3D
           </button>
         </div>
-        <div
-          data-cad-readonly-allowed
-          data-testid="cad-space-tabs"
-          className="inline-flex items-center overflow-hidden rounded-lg border border-border bg-muted/40 type-micro font-semibold"
-        >
-          <button
-            onClick={() => setShowSheetPackage(false)}
-            className={`px-2 py-1 ${!showSheetPackage ? "bg-brand-strong text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
-          >
-            Modelo
-          </button>
-          {orderedPaperSpaces.slice(0, 3).map((space) => (
-            <button
-              key={space.id}
-              onClick={() => {
-                selectPaperSpace(space);
-                setShowSheetPackage(true);
-              }}
-              className={`border-l border-border px-2 py-1 ${showSheetPackage && space.id === activePaperSpace?.id ? "bg-brand-strong text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
-            >
-              {space.name}
-            </button>
-          ))}
-          <button
-            onClick={() => setShowSheetPackage(true)}
-            className="border-l border-border px-2 py-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-            title="Administrar layouts, viewports y publicación"
-          >
-            Layout
-            {orderedPaperSpaces.length
-              ? ` · ${orderedPaperSpaces.length}`
-              : " +"}
-          </button>
-        </div>
+        {/* Las pestañas Modelo / Presentación se mudaron a la barra de
+            estado (`CadSpaceTabs`, carril «abajo» de la ola «estado»): aquí
+            vivían mezcladas con el título, que es justo la queja que esa
+            ola vino a resolver. `Layout3DEditor.tsx` sólo entrega los datos
+            (`spaceTabs`, más abajo, en `<CadStatusBar>`); el monolito pierde
+            el bloque de JSX que antes tenía aquí, no gana ninguno. */}
         <div className="w-px h-5 bg-muted mx-1" />
         <T3Btn
           active={tool === "select"}
@@ -13543,19 +13537,6 @@ export default function Layout3DEditor({
         >
           <MousePointer2 className="w-4 h-4" />
         </T3Btn>
-        <div className="relative">
-          <T3Btn
-            active={
-              showSelectionPalette ||
-              selectionGeometryMode !== "pick" ||
-              selectionOperation !== "replace"
-            }
-            onClick={() => toggleProfessionalDock("selection")}
-            title="Selección profesional: ventana, cruce, polígono, fence, lasso, filtros y cycling"
-          >
-            <ScanEye className="h-4 w-4" />
-          </T3Btn>
-        </div>
         <T3Btn
           active={tool === "measure"}
           onClick={toggleMeasure}
@@ -13576,51 +13557,6 @@ export default function Layout3DEditor({
         >
           <StickyNote className="w-4 h-4" />
         </T3Btn>
-        <div className="relative">
-          <T3Btn
-            active={showHatchPalette || hatchPickMode}
-            onClick={() => toggleProfessionalDock("hatch")}
-            title="HATCH: selección, pick point, islands y asociatividad"
-          >
-            <BrickWall className="h-4 w-4" />
-          </T3Btn>
-        </div>
-        <div className="relative">
-          <T3Btn
-            active={showDimensionPalette}
-            onClick={() => toggleProfessionalDock("dimension")}
-            title="Dimensiones asociativas: linear, aligned, angular, radius, diameter, ordinate y arc length"
-          >
-            <RulerDimensionLine className="w-4 h-4" />
-          </T3Btn>
-        </div>
-        <div className="relative">
-          <T3Btn
-            active={showMleaderPalette}
-            onClick={() => toggleProfessionalDock("mleader")}
-            title="MLEADER: directriz semántica asociativa con una o múltiples líneas"
-          >
-            <Waypoints className="h-4 w-4" />
-          </T3Btn>
-        </div>
-        <div className="relative">
-          <T3Btn
-            active={showBlockPalette}
-            onClick={() => toggleProfessionalDock("blocks")}
-            title="BLOCK/INSERT: definiciones vivas, atributos, biblioteca y XREF, redefine, replace, explode y purge"
-          >
-            <Boxes className="h-4 w-4" />
-          </T3Btn>
-        </div>
-        <div className="relative">
-          <T3Btn
-            active={showCollaborationDock}
-            onClick={() => toggleProfessionalDock("collaboration")}
-            title="Compare / Merge / Review: base, mine, theirs, conflictos, comentarios, markups y links de revisión"
-          >
-            <GitMerge className="h-4 w-4" />
-          </T3Btn>
-        </div>
         <T3Btn
           onClick={autoDimension}
           title="Acotar automáticamente — medidas generales y pasos del layout (o de la selección)"
@@ -13637,7 +13573,7 @@ export default function Layout3DEditor({
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         )}
-        <div className="w-px h-5 bg-muted mx-1" />
+        <div className="w-px h-5 bg-border mx-1" />
         <T3Btn
           onClick={undo}
           disabled={hist.undo === 0}
@@ -13652,9 +13588,9 @@ export default function Layout3DEditor({
         >
           <Redo2 className="w-4 h-4" />
         </T3Btn>
-        <div className="w-px h-5 bg-muted mx-1" />
+        <div className="w-px h-5 bg-border mx-1" />
         <T3Btn
-          active={layers.grid}
+          active={layers.grid} variant="soft"
           onClick={() => setLayers((v) => ({ ...v, grid: !v.grid }))}
           title={
             layers.grid
@@ -13665,20 +13601,20 @@ export default function Layout3DEditor({
           <Grid3x3 className="w-4 h-4" />
         </T3Btn>
         <T3Btn
-          active={snap}
+          active={snap} variant="soft"
           onClick={() => setSnap((v) => !v)}
           title="Snap a grilla"
         >
           <Crosshair className="w-4 h-4" />
         </T3Btn>
         <T3Btn
-          active={draftSettings.osnap}
+          active={draftSettings.osnap} variant="soft"
           onClick={() => draftSettingsHost.toggleOsnap()}
           title="Snap a objetos y al plano DXF — alinea con bordes/centros y engancha a vértices y puntos medios del plano al medir o trazar muros"
         >
           <Magnet className="w-4 h-4" />
         </T3Btn>
-        <div className="w-px h-5 bg-muted mx-1" />
+        <div className="w-px h-5 bg-border mx-1" />
         {viewMode === "3d" && (
           <>
             {CAD_CAMERA_VIEW_PRESET_BUTTONS.map(([preset, title, Icon]) => (
@@ -13726,14 +13662,7 @@ export default function Layout3DEditor({
           )}
         </T3Btn>
         <T3Btn
-          active={showWorkspaceDock}
-          onClick={() => toggleProfessionalDock("workspace")}
-          title="Workspace profesional: docks, tema, idioma, puntero, clic derecho y atajos"
-        >
-          <Settings2 className="w-4 h-4" />
-        </T3Btn>
-        <T3Btn
-          active={showMinimap}
+          active={showMinimap} variant="soft"
           onClick={() =>
             updateWorkspacePreferences({
               ...workspacePreferencesRef.current,
@@ -13744,9 +13673,9 @@ export default function Layout3DEditor({
         >
           <MapPin className="w-4 h-4" />
         </T3Btn>
-        <div className="w-px h-5 bg-muted mx-1" />
+        <div className="w-px h-5 bg-border mx-1" />
         <T3Btn
-          active={showGaps}
+          active={showGaps} variant="soft"
           onClick={() => setShowGaps((v) => !v)}
           title="Holguras de seguridad — marca los objetos demasiado juntos (ámbar) o traslapados (rojo)"
         >
@@ -14007,7 +13936,7 @@ export default function Layout3DEditor({
               document.body,
             )}
         </div>
-        <div className="w-px h-5 bg-muted mx-1" />
+        <div className="w-px h-5 bg-border mx-1" />
         <T3Btn
           active={showPalette}
           onClick={() => setShowPalette((v) => !v)}
@@ -14128,9 +14057,16 @@ export default function Layout3DEditor({
         >
           <HelpCircle className="w-4 h-4" />
         </T3Btn>
-        </div>
-        {/* Cola fija: estado, guardar, cerrar — siempre visible, fuera del scroll */}
-        <div className="flex shrink-0 items-center gap-2">
+    </>
+  );
+
+  // LA COLA FIJA: lo único que NO puede exigir un desplazamiento para llegar.
+  // Lo de arriba cede y se desplaza cuando la ventana aprieta; esto NO. Medido
+  // el 20-sep-2026 a 1280 px con todo en el mismo bloque: «Guardar» acababa en
+  // x = 2008 de una ventana de 1280 — el botón más importante del programa,
+  // fuera de la pantalla.
+  const trailingFixedContent = (
+    <>
         {approval && (
           <div
             className="inline-flex items-center gap-1.5 mr-1.5"
@@ -14172,7 +14108,12 @@ export default function Layout3DEditor({
           // persistida no emite escritura ni versión CAS nueva, y la cola de un
           // solo escritor serializa el clic con cualquier autosave en vuelo.
           disabled={drawingReadOnly}
-          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-sm font-medium bg-brand-strong text-primary-foreground disabled:opacity-50"
+          // `py-1` y no `py-1.5`: con 1.5 el botón medía EXACTAMENTE 32 px y la
+          // fila de 32 px lleva `border-b`, así que su interior son 31 — el
+          // botón se centraba en y = -0,5, medio píxel fuera de la ventana
+          // (golden 215). Con 28 px respira dentro de la barra en vez de tocar
+          // sus dos bordes.
+          className="inline-flex items-center gap-2 px-3.5 py-1 rounded-xl text-sm font-medium bg-brand-strong text-primary-foreground disabled:opacity-50"
         >
           {saving ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -14188,50 +14129,55 @@ export default function Layout3DEditor({
           aria-label="Cerrar editor"
           title="Cerrar editor"
         >
-          <X className="w-5 h-5" />
+          {/* 4 y no 5: con el icono a 20 px el botón medía 32 justos y se
+              salía medio píxel de la fila (mismo motivo que «Guardar»). A 16
+              queda del tamaño del resto de iconos de esta barra. */}
+          <X className="w-4 h-4" />
         </button>
-        </div>
-      </div>
+        {demoBanner}
+    </>
+  );
 
-      {/* LA CINTA. Va debajo de la barra de título/atajos de arriba, igual que
-          en AutoCAD: título + acceso rápido primero, cinta después, lienzo
-          debajo de las dos. `cad-shell` es `flex flex-col`, así que un hijo
-          nuevo aquí sólo empuja el lienzo — no reordena nada que ya exista.
-          `commandEngineRef.current.invoke` es el MISMO despacho que usa la
-          línea de comandos: un botón de la cinta no es un camino nuevo. */}
-      <CadRibbon
-        dispatch={(name) => {
-          if (enginePointerRouterRef.current) {
-            enginePointerRouterRef.current.invoke(name);
-          } else {
-            commandEngineRef.current.invoke(name);
-          }
-        }}
-        readOnly={drawingReadOnly}
+  // LA CINTA. `dispatch` es el MISMO despacho que la línea de comandos.
+  // `ribbonElement` va en la ranura `appBar` (es la fila de pestañas, la raíz
+  // que `CadRibbon` devuelve); su CUERPO sale por portal hacia el
+  // `<div ref={attachCadRibbonBodySlot}>` de la ranura `ribbon`, más abajo.
+  const ribbonElement = (
+    <CadRibbon
+      dispatch={(name) => {
+        if (enginePointerRouterRef.current) {
+          enginePointerRouterRef.current.invoke(name);
+        } else {
+          commandEngineRef.current.invoke(name);
+        }
+      }}
+      readOnly={drawingReadOnly}
+      quickAccess={quickAccessContent}
+      trailing={trailingContent}
+      trailingFixed={trailingFixedContent}
+    />
+  );
+
+  // Error/"cargando" reemplazan sólo el LIENZO (`canvasElement`); el resto
+  // del armazón no tiene nada que ofrecer sin documento, así que no se monta.
+  const hasContent = !error && !!data;
+  const leftRailElement =
+    hasContent && !focusMode && workspacePreferences.leftDock ? (
+      <CadDockRail
+        side="left"
+        items={CAD_LEFT_RAIL_ITEMS}
+        activeId={workspacePreferences.leftDockCollapsed ? null : "biblioteca"}
+        onToggle={() => updateWorkspacePreferences({
+          ...workspacePreferencesRef.current,
+          leftDockCollapsed: !workspacePreferencesRef.current.leftDockCollapsed,
+        })}
       />
-
-      {error ? (
-        <div className="flex-1 grid place-items-center text-amber-400 text-sm">
-          {error}
-        </div>
-      ) : !data ? (
-        <div className="flex-1 grid place-items-center text-muted-foreground dark:text-muted-foreground">
-          <Loader2 className="w-7 h-7 animate-spin" />
-        </div>
-      ) : (
-        <div className="flex flex-1 min-h-0">
-          {/* left: bandeja de puntos. EN TABLETA SE PLIEGA: con los dos
-              muelles fijos, a 768 px el lienzo se quedaba con el 34 % de la
-              ventana y la barra flotante llegaba a comerse el primer toque
-              (`docs/cad/evidence/touch-support.json`). La línea de comandos NO
-              se va con él: flota sobre el lienzo, que es donde está la memoria
-              muscular. */}
-          <CadLeftDockPanel
+    ) : null;
+  const leftPanelElement = hasContent ? (
+    <CadLeftDockPanel
             focusMode={focusMode}
             leftDock={workspacePreferences.leftDock}
             leftDockCollapsed={workspacePreferences.leftDockCollapsed}
-            workspacePreferencesRef={workspacePreferencesRef}
-            updateWorkspacePreferences={updateWorkspacePreferences}
             hasStations={(data?.stations.length ?? 0) > 0}
             tab={tab}
             setTab={setTab}
@@ -14255,15 +14201,21 @@ export default function Layout3DEditor({
             setSymbolCategory={setSymbolCategory}
             addCadSymbol={addCadSymbol}
             addAsset={addAsset}
-          />
+    />
+  ) : null;
 
-          {/* 3D viewport, y debajo la barra de estado en su propia franja (como
-              en AutoCAD): montada DENTRO de `cad-canvas` se comía el pointerdown
-              de los arrastres que empezaban ahí; el golden 68 lo vigila. */}
-          <div className="flex min-w-0 flex-1 flex-col">
+  const canvasElement = error ? (
+        <div className="flex-1 grid place-items-center text-amber-400 text-sm">
+          {error}
+        </div>
+      ) : !data ? (
+        <div className="flex-1 grid place-items-center text-muted-foreground dark:text-muted-foreground">
+          <Loader2 className="w-7 h-7 animate-spin" />
+        </div>
+      ) : (
           <div
             data-testid="cad-canvas"
-            className="relative min-h-0 min-w-0 flex-1 overflow-hidden"
+            className="relative h-full w-full overflow-hidden"
             onContextMenu={handleCadContextMenu}
             onPointerDown={() => setCadContextMenu(null)}
             // F8-2 (T-63f): soltar un archivo entra por la puerta del input de fondo.
@@ -14276,24 +14228,27 @@ export default function Layout3DEditor({
             }}
           >
             <div ref={mountRef} className="absolute inset-0" />
-            {/* ViewCube + barra de navegación (`camera-view-presets.ts`); sólo en 3D. */}
+            {/* ViewCube (`camera-view-presets.ts`), sólo en 3D — no tiene
+                sentido de orientación en planta. `CadNavigationBar` (encuadrar
+                todo/selección) SÍ se muestra en 2D también (ola1-paleta): es
+                navegación de cámara, no un control de orientación 3D. */}
             <div
               data-testid="cad-navigation-corner"
               className="pointer-events-none absolute right-3 top-3 z-20 flex flex-col items-end gap-2"
             >
-              {viewMode === "3d" && (
-                <div className="flex items-start gap-2">
+              <div className="flex items-start gap-2">
+                {viewMode === "3d" && (
                   <div className="pointer-events-auto">
                     <CadViewCube active={activeViewPreset} onSelect={viewPreset} />
                   </div>
-                  <div className="pointer-events-auto">
-                    <CadNavigationBar
-                      onFitView={fitView}
-                      hasSelection={selList.length > 0 || nativeSelectionIds.length > 0}
-                    />
-                  </div>
+                )}
+                <div className="pointer-events-auto">
+                  <CadNavigationBar
+                    onFitView={fitView}
+                    hasSelection={selList.length > 0 || nativeSelectionIds.length > 0}
+                  />
                 </div>
-              )}
+              </div>
               {/* El minimapa va con las ayudas de navegación (golden 68). */}
               {showMinimap && workspacePreferences.minimap && (
                 <div className="pointer-events-auto">
@@ -14697,33 +14652,6 @@ export default function Layout3DEditor({
                 }}
               />
             )}
-            {/*
-              La línea de comandos. Se enfoca sola cuando el lienzo recibe un
-              CARÁCTER (editor-keyboard.ts, fase 0) y devuelve el foco al
-              terminar con Intro o Esc: así Supr, Ctrl+Z y las teclas de
-              captura siguen siendo del lienzo (golden 44 lo mide sin un solo
-              input.click()).
-            */}
-            {/* El envoltorio lleva `pointer-events-none`: flota sobre la barra
-                inferior y, con el diálogo lleno, tapaba Undo. Los controles del
-                muelle reactivan el ratón por su cuenta. */}
-            {/* showCommand ES la preferencia commandDock del workspace. */}
-            {!walk && showCommand && (
-              /* `bottom-3`, no `bottom-14`: los 56 px reservaban el hueco de la
-                 barra de estado cuando ésta flotaba sobre el lienzo. Desde la
-                 Ola B la barra vive DEBAJO del lienzo en su propia franja, y la
-                 línea de comandos se queda pegada al borde inferior del dibujo,
-                 como la ventana de comandos de AutoCAD. Medido: con 56 px más
-                 27 px de holgura la línea tapaba y=2000 del plano y los clics
-                 de LINE del golden 46 caían sobre ella. */
-              <div className="pointer-events-none absolute bottom-3 left-3 z-30 w-[min(30rem,42vw)]">
-                <CadCommandLineDock
-                  host={commandEngine}
-                  inputRef={commandInputRef}
-                  disabled={drawingReadOnly}
-                />
-              </div>
-            )}
             <CadViewportHint
               kind={
                 walk
@@ -14755,17 +14683,36 @@ export default function Layout3DEditor({
             {/* 5.3 · Icono + etiqueta + atajo, extraído a su propio archivo:
                 el monolito sólo puede bajar, así que la mejora se paga sacando
                 código de aquí. Ver `CadToolPalette`. */}
-            <CadToolPalette
-              activeTool={tool}
-              readOnly={drawingReadOnly}
-              isReadOnlyAllowed={(id) => READ_ONLY_TOOLBAR_ACTION_IDS.has(id)}
-              canUndo={hist.undo > 0}
-              canRedo={hist.redo > 0}
-              onRun={runToolbarAction}
-            />
+            <CadToolPalette activeTool={tool} onRun={runToolbarAction} />
           </div>
+      );
+
+  // LA LÍNEA DE COMANDOS: antes flotaba DENTRO de `cad-canvas` (`absolute
+  // bottom-3 left-3`); ahora vive acoplada en `commandDock` — golden 68 deja
+  // de admitirla como capa flotante porque deja de serlo.
+  const commandDockElement =
+    hasContent && !walk && showCommand ? (
+      <CadCommandLineDock
+        host={commandEngine}
+        inputRef={commandInputRef}
+        disabled={drawingReadOnly}
+      />
+    ) : null;
+
+  const statusBarElement = hasContent ? (
           <CadStatusBar
             onAnnotationScale={(d) => cadApplyAnnotationScale(loadedCadDocumentRef.current, d, commitNativeCommands)}
+            spaceTabs={{
+              isModelActive: !showSheetPackage,
+              spaces: orderedPaperSpaces,
+              activeSpaceId: activePaperSpace?.id ?? null,
+              onSelectModel: () => setShowSheetPackage(false),
+              onSelectSpace: (space) => {
+                selectPaperSpace(space);
+                setShowSheetPackage(true);
+              },
+              onManage: () => setShowSheetPackage(true),
+            }}
             diagnostics={{
               enabled: diagnosticsEnabled,
               tool,
@@ -14821,17 +14768,34 @@ export default function Layout3DEditor({
               snapshotsCount: localSnapshots.snapshots.length,
             }}
           />
-          </div>
+  ) : null;
 
-          {/* right: propiedades. En tableta sólo aparece si el usuario ABRIÓ una
-              paleta profesional: 256 px permanentes son la cuarta parte del
-              plano en una pantalla de 1024, y una paleta pedida a mano sí se
-              gana su sitio mientras dura. */}
+  // `panelProMax` (360 px) sólo para las 7 profesionales; «Propiedades» 280.
+  const rightOpen = hasContent && rightRailActiveId !== null;
+  const rightRailElement =
+    hasContent && !focusMode && workspacePreferences.rightDock ? (
+      <CadDockRail
+        side="right"
+        items={CAD_RIGHT_RAIL_ITEMS}
+        activeId={rightRailActiveId}
+        badgeId={nativeSelectedEntities.length > 0 || selSnap ? "properties" : null}
+        onToggle={handleRightRailToggle}
+      />
+    ) : null;
+  const rightPanelElement = hasContent ? (
           <div
             data-testid="cad-right-dock"
-            className={`${activeProfessionalDock ? "w-[min(560px,42vw)] overflow-hidden" : "w-64 overflow-y-auto max-[1100px]:hidden"} shrink-0 border-l border-border bg-surface/90 text-foreground ${focusMode || (!workspacePreferences.rightDock && !activeProfessionalDock) ? "hidden" : ""}`}
+            data-collapsed={workspacePreferences.rightDockCollapsed ? "true" : "false"}
+            style={{
+              width: rightOpen
+                ? activeProfessionalDock
+                  ? CAD_SHELL_METRICS.panelProMax
+                  : CAD_SHELL_METRICS.panel
+                : 0,
+            }}
+            className={`shrink-0 overflow-hidden border-l border-border bg-surface/90 text-foreground ${focusMode || !workspacePreferences.rightDock ? "hidden" : ""}`}
           >
-            {activeProfessionalDock ? (
+            {!rightOpen ? null : activeProfessionalDock ? (
               <div className="flex h-full min-h-0 flex-col">
                 <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2">
                   <div className="inline-flex items-center gap-2 type-caption font-semibold text-primary-ink">
@@ -14851,7 +14815,7 @@ export default function Layout3DEditor({
                 </div>
               </div>
             ) : (
-              <>
+              <div className="h-full overflow-y-auto">
                 {nativeSelectedEntities.length > 0 ? (
                   <div className="p-3.5" data-testid="cad-native-properties">
                     <CadNativeSelectionHeading
@@ -16199,11 +16163,43 @@ export default function Layout3DEditor({
                     </p>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </div>
-        </div>
-      )}
+  ) : null;
+
+  // Portal to <body> so the full-screen overlay escapes the editor's glass
+  // container (backdrop-filter would otherwise be the containing block for our
+  // position:fixed and trap it inside the box instead of the viewport).
+  return createPortal(
+    <div
+      data-color-scheme={resolvedScheme}
+      data-cad-drawing-read-only={drawingReadOnly ? "true" : "false"}
+      onClickCapture={guardReadOnlyUi}
+      onChangeCapture={guardReadOnlyUi}
+      onInputCapture={guardReadOnlyUi}
+      onSubmitCapture={guardReadOnlyUi}
+      onPointerDownCapture={guardReadOnlyUi}
+      onKeyDownCapture={guardReadOnlyUi}
+      // Sin ternario de tema: `bg-background` y `text-foreground` YA giran con
+      // la clase `.dark` que gobierna toda la aplicación. El ternario existía
+      // porque las paletas de dentro no giraban, así que había que decidir el
+      // armazón a mano; ahora que giran, decidirlo dos veces sólo garantiza que
+      // las dos decisiones se separen.
+      className="cad-shell fixed inset-0 z-[70] bg-background text-foreground"
+    >
+      <CadShellFrame
+        className="h-full"
+        appBar={ribbonElement}
+        ribbon={<div ref={attachCadRibbonBodySlot} className="w-full" />}
+        leftRail={leftRailElement}
+        leftPanel={leftPanelElement}
+        canvas={canvasElement}
+        rightRail={rightRailElement}
+        rightPanel={rightPanelElement}
+        commandDock={commandDockElement}
+        statusBar={statusBarElement}
+      />
 
       {showSheetPackage && (
         <div

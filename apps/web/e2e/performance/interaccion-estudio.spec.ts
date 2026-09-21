@@ -26,6 +26,7 @@ import { join } from 'node:path';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadV1Backend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
+import { abrirPanelDerecho } from "../fixtures/docks";
 import {
   resumirLatencia,
   type CadInteraction,
@@ -118,6 +119,7 @@ test('la latencia de interacción del estudio se mide y se publica', async ({
   await instalarObservador(page);
 
   await page.goto('/legacy/studio');
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
 
   const lienzo = page.getByTestId('cad-canvas');

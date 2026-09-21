@@ -7,6 +7,7 @@ import { applyNativeProperty } from "../fixtures/dynamic-input";
 import type { CadDocument, CadEntity } from "../../src/lib/cad/cad-document";
 import { CAD_DOCUMENT_SCHEMA } from "../../src/lib/cad/cad-document-shared";
 import { fitFootprint } from "../fixtures/camera-preset";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 /**
  * AUDITORÍA — ACOTAR UN PLANO PARA OBRA.
@@ -148,6 +149,7 @@ const propiedades = (page: Page) => page.getByTestId("cad-native-properties");
  * es la que no estaba antes.
  */
 async function entidadesDelPlano(page: Page): Promise<string[]> {
+  await abrirPanelDerecho(page);
   return page
     .getByTestId("cad-native-entity-list")
     .locator('button[data-testid^="cad-native-entity-"]')
@@ -186,6 +188,7 @@ async function deseleccionar(page: Page) {
 async function soltarSeleccion(page: Page) {
   const boton = propiedades(page).getByRole("button", { name: "Deseleccionar" });
   if (await boton.count()) await boton.click();
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId("cad-native-entity-list")).toBeVisible();
 }
 

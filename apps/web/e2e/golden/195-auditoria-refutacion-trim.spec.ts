@@ -5,6 +5,7 @@ import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import { fitFootprint } from "../fixtures/camera-preset";
 import type { CadDocument } from "../../src/lib/cad/cad-document";
 import { CAD_DOCUMENT_SCHEMA } from "../../src/lib/cad/cad-document-shared";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 /**
  * AUDITORÍA — EL DÍA A DÍA DE QUIEN EDITA UN PLANO QUE YA EXISTE.
@@ -96,6 +97,9 @@ async function abrirEstudio(context: BrowserContext, page: Page) {
     gridSize: 100,
   });
   await page.goto("/legacy/studio");
+  // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+  // como una persona, antes de leer nada de lo que vive dentro.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId("cad-canvas")).toBeVisible();
   // El cacheo del visor es de módulo: cada prueba abre una página nueva.
   estado.pixel = null;

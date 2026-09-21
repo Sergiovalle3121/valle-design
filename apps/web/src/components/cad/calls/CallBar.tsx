@@ -17,6 +17,7 @@ import type { CallHangupReason, PeerLinkStatus } from "@/lib/cad/calls/call-stat
 import { useCallSession } from "./use-call-session";
 import type { CallSessionHost, CallSessionSnapshot } from "./call-session-host";
 import { useStudioTraySlot } from "@/components/cad/studio/use-studio-tray";
+import { CAD_SHELL_METRICS } from "@/components/cad/shell/cad-shell-layout";
 
 /**
  * LA BARRA DE LLAMADA — autocontenida, montable con una línea:
@@ -167,9 +168,37 @@ export function CallBar({
   // altura fija sobre una columna de paneles tapa algo de esa columna; sobre
   // el lienzo la rechaza el golden 68. La barra de estado no tiene nada
   // debajo.
+  //
+  // LA LLAMADA ACTIVA NO CUELGA DE LA BANDEJA, SE PORTA A `<body>`. Antes se
+  // desplegaba con `absolute bottom-full` desde el propio botón, y la fila de
+  // la barra de estado lleva `overflow: auto`: un panel que crece HACIA ARRIBA
+  // desde dentro de una caja con overflow queda recortado por ella. El panel
+  // conservaba caja —Playwright lo veía «visible»— pero en sus píxeles
+  // respondía el lienzo, así que «Prender cámara» era IMPOSIBLE de pulsar
+  // (`e2e/real/llamada-webrtc-real.spec.ts`, 60 s de reintentos). Portado a
+  // `<body>` y anclado justo encima de la línea de comandos, con el mismo
+  // criterio que el recorrido guiado: sin caja que lo recorte y por encima
+  // del editor (`fixed inset-0 z-[70]`), en la esquina DERECHA, que es la que
+  // el recorrido —anclado a la izquierda— deja libre.
   if (tray)
     return createPortal(
       <span className="relative inline-flex items-center">
+        {state.phase !== "inactiva"
+          ? createPortal(
+              <div
+                className="pointer-events-none fixed right-3 z-[80] [&>*]:pointer-events-auto"
+                style={{ bottom: CAD_SHELL_METRICS.commandRow + CAD_SHELL_METRICS.statusRow + 12 }}
+              >
+                <CallBarContent
+                  state={state}
+                  toggles={toggles}
+                  mediaError={mediaError}
+                  host={host}
+                />
+              </div>,
+              document.body,
+            )
+          : null}
         {state.phase === "inactiva" ? (
           <button
             type="button"
@@ -185,11 +214,7 @@ export function CallBar({
             <Phone className="h-3 w-3" aria-hidden="true" />
             <span className="sr-only">Videollamada</span>
           </button>
-        ) : (
-          <div className="absolute bottom-full right-0 z-[75] mb-2">
-            <CallBarContent state={state} toggles={toggles} mediaError={mediaError} host={host} />
-          </div>
-        )}
+        ) : null}
       </span>,
       tray,
     );

@@ -80,6 +80,7 @@ import {
   capturedToken,
   latestCapturedEmail,
 } from "../fixtures/first-party";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 test.describe.configure({ mode: "serial" });
 
@@ -419,6 +420,9 @@ test.describe("importación DWG AC1015 real contra PostgreSQL (no circular)", ()
     await page.getByRole("button", { name: "Abrir documento importado" }).click();
     await expect(page).toHaveURL(new RegExp(`/studio/${importedDocumentId2}$`, "u"));
 
+    // Ola «armazón»: el panel derecho (lista de entidades) arranca plegado a
+    // un riel de iconos — antes se veía abierto de fábrica.
+    await abrirPanelDerecho(page);
     const dwgEntities = page.locator('[data-testid^="cad-native-entity-dwg:"]');
     await expect(dwgEntities.first()).toBeVisible({ timeout: 120_000 });
     const entityCount = await dwgEntities.count();
@@ -487,6 +491,8 @@ test.describe("importación DWG AC1015 real contra PostgreSQL (no circular)", ()
     });
 
     await page.goto(`/studio/${importedDocumentId2}`);
+    // Página NUEVA: el panel derecho nace plegado a un riel de iconos.
+    await abrirPanelDerecho(page);
     const line = page.getByTestId("cad-native-entity-dwg:entity:000000");
     await expect(line).toBeVisible({ timeout: 60_000 });
     await line.click();
@@ -510,6 +516,8 @@ test.describe("importación DWG AC1015 real contra PostgreSQL (no circular)", ()
     test.setTimeout(120_000);
     await page.goto(`/studio/${importedDocumentId}`);
     await expect(page).toHaveURL(new RegExp(`/studio/${importedDocumentId}$`, "u"));
+    // Página NUEVA: el panel derecho nace plegado a un riel de iconos.
+    await abrirPanelDerecho(page);
 
     // Hasta que existió `text-entity-adapter.ts`, `type:"text"` no estaba en
     // `CAD_ENTITY_REGISTRY` y este elemento nunca llegaba a crearse en el
@@ -580,6 +588,8 @@ test.describe("importación DWG AC1015 real contra PostgreSQL (no circular)", ()
     });
 
     await page.goto(`/studio/${importedDocumentId}`);
+    // Página NUEVA: el panel derecho nace plegado a un riel de iconos.
+    await abrirPanelDerecho(page);
     const textEntity = page.getByTestId(`cad-native-entity-${textEntityId}`);
     await expect(textEntity).toBeVisible({ timeout: 60_000 });
     await textEntity.click();
