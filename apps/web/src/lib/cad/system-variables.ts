@@ -135,9 +135,16 @@ export const CAD_SYSTEM_VARIABLES: readonly CadSystemVariableDef[] = [
   int("ORTHOMODE", 0, "Modo orto: 0 apagado, 1 encendido", { enumerated: [0, 1] }),
   int("SNAPMODE", 0, "Forzado de cursor: 0 apagado, 1 encendido", { enumerated: [0, 1] }),
   int("GRIDMODE", 0, "Rejilla: 0 apagada, 1 encendida", { enumerated: [0, 1] }),
+  // El paso de SNAP y de GRID (T-Ola3, F2): antes no había ninguna variable de
+  // sistema para él, así que `ORTHO`/`SNAP`/`GRID` tecleados y los botones de
+  // ayuda al dibujo no tenían dónde coincidir. Un solo paso para los dos, a
+  // propósito: es la variable que el puente declara, y separar SNAP de GRID en
+  // dos pasos distintos inventaría una segunda variable que nadie pidió.
+  real("SNAPUNIT", 10, "Paso de forzado de cursor y de la rejilla, en unidades de dibujo", { min: 1e-9 }),
   int("POLARMODE", 0, "Opciones del rastreo polar, como suma de bits", { min: 0, max: 15 }),
   int("PDMODE", 0, "Aspecto de los puntos", { min: 0, max: 98 }),
   real("PDSIZE", 0, "Tamaño de los puntos; negativo, en porcentaje de la pantalla"),
+  int("FILLMODE", 1, "Relleno de sombreados y sólidos: 0 contorno, 1 relleno", { enumerated: [0, 1] }),
 
   // --- sistema de coordenadas personal --------------------------------------
   // El SCU es un ORIGEN y un MARCO de tres ejes. El marco se guarda en los seis
@@ -166,11 +173,27 @@ export const CAD_SYSTEM_VARIABLES: readonly CadSystemVariableDef[] = [
   int("UCSICONSIZE", 12, "Lado del icono del SCU en píxeles", { min: 12, max: 120 }),
 
   // --- valores recordados por los comandos ----------------------------------
+  // Ola 3 «recortar» (2026-09-19): desde 2021 el AutoCAD real abre TRIM y
+  // EXTEND en modo RÁPIDO —todo lo visible es borde, un clic recorta, sin la
+  // fase previa de designarlos— y sólo cae al flujo clásico de dos fases si se
+  // pide con la opción `Bordes` del propio comando. Es una variable de sesión
+  // como TRIMMODE (que en AutoCAD real es OTRA cosa: el recorte de esquina de
+  // FILLET/CHAMFER) y no del documento, porque es preferencia de quien dibuja,
+  // no del plano: dos personas con el mismo archivo pueden querer cada una su
+  // flujo.
+  int("TRIMEXTENDMODE", 1, "TRIM y EXTEND en modo rápido (1: cualquier objeto visible es borde, un clic recorta) o clásico de dos fases (0: hay que designar antes los bordes)", {
+    enumerated: [0, 1],
+  }),
   real("FILLETRAD", 0, "Radio de empalme actual", { min: 0 }),
   real("CHAMFERA", 0, "Primera distancia de chaflán", { min: 0 }),
   real("CHAMFERB", 0, "Segunda distancia de chaflán", { min: 0 }),
+  real("OFFSETDIST", 0, "Distancia de desfase recordada"),
   real("TEXTSIZE", 2.5, "Altura de texto por defecto", { min: 1e-6 }),
   real("DIMSCALE", 1, "Escala general de las cotas", { min: 1e-6 }),
+  text("DIMSTYLE", "", "Estilo de cota vigente: nombre del estilo que reciben las cotas nuevas"),
+
+  // --- vista 3D ---------------------------------------------------------------
+  int("PERSPECTIVE", 1, "Proyección 3D: 0 paralela (ortográfica), 1 perspectiva", { enumerated: [0, 1] }),
 
   // --- resultados de las consultas ------------------------------------------
   real("AREA", 0, "Última área calculada por AREA o LIST", { readOnly: true }),
@@ -185,6 +208,10 @@ export const CAD_SYSTEM_VARIABLES: readonly CadSystemVariableDef[] = [
   int("ATTDIA", 0, "Atributos al insertar: 0 por la línea, 1 en cuadro de diálogo", { enumerated: [0, 1] }),
   int("ATTREQ", 1, "Pedir atributos al insertar: 0 usar defectos, 1 preguntar", { enumerated: [0, 1] }),
   int("OVERKILLTOL", 0, "Tolerancia de OVERKILL en milésimas de unidad", { min: 0, max: 1000000 }),
+  // Lo escribe PLOTSTAMP (engine/commands/plot-commands.ts); lo lee PLOT al
+  // componer la petición de trazado, y plot/plot-pdf.ts dibuja el sello —
+  // fichero, fecha y escala— si está encendido.
+  int("PLOTSTAMPMODE", 0, "Sello de trazado en la salida: 0 apagado, 1 encendido", { enumerated: [0, 1] }),
 
   // --- casillas del usuario, tal cual las tiene AutoCAD ---------------------
   int("USERI1", 0, "Entero libre nº 1"),

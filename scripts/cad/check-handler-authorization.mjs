@@ -127,7 +127,7 @@ export function auditHandlerAuthorization({ apiRoot, exemptions }) {
   const seenKeys = new Set();
   for (const file of listControllerFiles(apiRoot)) {
     const relative = path
-      .relative(REPO_ROOT, file)
+      .relative(apiRoot, file)
       .replaceAll("\\", "/");
     const source = fs.readFileSync(file, "utf8");
     for (const handler of extractHandlers(source)) {

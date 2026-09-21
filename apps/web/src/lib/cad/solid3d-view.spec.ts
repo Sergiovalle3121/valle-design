@@ -88,7 +88,7 @@ const block: CadSolid3dEntity = {
 // 2. Los cuatro estilos visuales son cuatro cosas distintas
 // ---------------------------------------------------------------------------
 {
-  check("hay exactamente cuatro estilos", CAD_VISUAL_STYLES.length === 4);
+  check("hay exactamente cinco estilos", CAD_VISUAL_STYLES.length === 5);
   check("Alámbrico se resuelve por nombre", resolveCadVisualStyle("Alámbrico")?.id === "wireframe");
   check("y sin acentos también", resolveCadVisualStyle("alambrico")?.id === "wireframe");
   check("«Sombreado con aristas» se resuelve entero", resolveCadVisualStyle("SOMBREADO CON ARISTAS")?.id === "shaded-edges");
@@ -118,6 +118,8 @@ const block: CadSolid3dEntity = {
     counts.get("shaded-edges")!.faces === 1 && counts.get("shaded-edges")!.edges === 1,
   );
   check("y el ocultador no se pinta del color del sólido", cadVisualStyle("hidden").faces === false);
+  // Rayos X se distingue de Sombreado con aristas: opacidad 0.35 y sin ocultar
+  check("Rayos X: translúcido y sin ocultar", cadVisualStyle("xray").opacity === 0.35 && cadVisualStyle("xray").occludes === false);
 }
 
 // ---------------------------------------------------------------------------

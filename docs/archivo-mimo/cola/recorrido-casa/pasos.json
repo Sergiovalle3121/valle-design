@@ -1,0 +1,274 @@
+[
+  {
+    "paso": "a0 orientacion del eje Y en pantalla (HUD arriba vs abajo del lienzo)",
+    "resultado": "roto",
+    "detalle": "HUD arriba y=1537, abajo y=6379; izq x=1650, der x=10350 → +Y hacia ABAJO en pantalla (al revés que AutoCAD y que el PDF)",
+    "evidencia": [
+      "captura=C:/Users/sergi/AppData/Local/Temp/claude/D--/c64212a0-a5ad-4cc3-b6f6-73151d608bab/scratchpad/recorrido/01-a0-orientacion-del-eje-Y-en-pantalla-HUD.png"
+    ],
+    "ms": 3380
+  },
+  {
+    "paso": "a1 muros tecleados con WALL y coordenadas relativas @",
+    "resultado": "ok",
+    "detalle": "4 muros; largos de eje [6000,4000,6000,4000]; grosor 200 mm; altura 2400",
+    "evidencia": [
+      "prompt inicial=Precise el punto inicial del muro o [Grosor/Altura]:",
+      "prompt antes de Cerrar=Precise el punto siguiente o [Grosor/Altura/Cerrar/desHacer]:",
+      "prompt tras C=(sin prompt)",
+      "ejes=(2000,2000)→(8000,2000) (8000,2000)→(8000,6000) (8000,6000)→(2000,6000) (2000,6000)→(2000,2000)",
+      "tipos={\"wall\":4}",
+      "log=Precise el punto siguiente ⏎ > @6000,0 ⏎ Precise el punto siguiente ⏎ > @0,4000 ⏎ Precise el punto siguiente ⏎ > @-6000,0 ⏎ Precise el punto siguiente ⏎ > C",
+      "captura=C:/Users/sergi/AppData/Local/Temp/claude/D--/c64212a0-a5ad-4cc3-b6f6-73151d608bab/scratchpad/recorrido/02-a1-muros-tecleados-con-WALL-y-coordenada.png"
+    ],
+    "ms": 10715
+  },
+  {
+    "paso": "b1 puerta tecleando PUERTA y un punto sobre el muro (sin raton)",
+    "resultado": "imposible",
+    "detalle": "El hueco sólo acepta DESIGNAR el muro con el ratón (CAD_ACCEPT_ENTITY_PICK | KEYWORD, draw-opening.ts:189); una coordenada tecleada no designa. Prompt tras teclear el punto: «Designe el muro donde alojar la puerta P-090 o [TIpo/Anchura/alTura/antePecho/Lado/Bisagra]:»",
+    "evidencia": [
+      "prompt inicial=Designe el muro donde alojar la puerta P-090 o [TIpo/Anchura/alTura/antePecho/Lado/Bisagra]:",
+      "log=> PUERTA ⏎ Designe el muro donde alojar la puerta P-090 ⏎ > 3500,2000 ⏎ Entrada no válida \"3500,2000\".",
+      "captura=C:/Users/sergi/AppData/Local/Temp/claude/D--/c64212a0-a5ad-4cc3-b6f6-73151d608bab/scratchpad/recorrido/03-b1-puerta-tecleando-PUERTA-y-un-punto-so.png"
+    ],
+    "ms": 5798
+  },
+  {
+    "paso": "b2 puerta designando el muro inferior con el raton",
+    "resultado": "ok",
+    "detalle": "puerta 900×2100 mm en muro cad_mu6n5vak_6jd6, a 1503.2726553230946 mm del arranque del eje",
+    "evidencia": [
+      "prompt=Designe el muro donde alojar la puerta P-090 o [TIpo/Anchura/alTura/antePecho/Lado/Bisagra]:",
+      "log=> 3500,2000 ⏎ Entrada no válida \"3500,2000\". ⏎ > PUERTA ⏎ Designe el muro donde alojar la puerta P-090",
+      "captura=C:/Users/sergi/AppData/Local/Temp/claude/D--/c64212a0-a5ad-4cc3-b6f6-73151d608bab/scratchpad/recorrido/04-b2-puerta-designando-el-muro-inferior-co.png"
+    ],
+    "ms": 19053
+  },
+  {
+    "paso": "b3 ventana designando el muro superior con el raton",
+    "resultado": "ok",
+    "detalle": "ventana 1200×1200 mm, antepecho 900",
+    "evidencia": [
+      "prompt=Designe el muro donde alojar la ventana V-120x120 o [TIpo/Anchura/alTura/antePecho]:",
+      "log=> PUERTA ⏎ Designe el muro donde alojar la puerta P-090 ⏎ > VENTANA ⏎ Designe el muro donde alojar la ventana V-120x120",
+      "tipos={\"wall\":4,\"opening\":2}",
+      "captura=C:/Users/sergi/AppData/Local/Temp/claude/D--/c64212a0-a5ad-4cc3-b6f6-73151d608bab/scratchpad/recorrido/05-b3-ventana-designando-el-muro-superior-c.png"
+    ],
+    "ms": 20486
+  },
+  {
+    "paso": "c1 acotar lado largo y lado corto tecleando",
+    "resultado": "ok",
+    "detalle": "2 cotas; rótulos [\"6000.00 mm\",\"4000.00 mm\"]",
+    "evidencia": [
+      "prompt DLI=Precise el origen de la primera línea de referencia o [Objeto] <Objeto>:",
+      "assoc=true refs=[{\"anchor\":\"start\",\"entityId\":\"cad_mu6n5vak_6jd6\"},{\"anchor\":\"end\",\"entityId\":\"cad_mu6n5vak_6jd6\"}]",
+      "assoc=true refs=[{\"anchor\":\"start\",\"entityId\":\"cad_mu6n5vak_6jd6\"},{\"anchor\":\"end\",\"entityId\":\"cad_mu6n5wz0_fqql\"}]",
+      "captura=C:/Users/sergi/AppData/Local/Temp/claude/D--/c64212a0-a5ad-4cc3-b6f6-73151d608bab/scratchpad/recorrido/06-c1-acotar-lado-largo-y-lado-corto-teclea.png"
+    ],
+    "ms": 21055
+  },
+  {
+    "paso": "c2 la cota sigue al muro si el muro se estira (asociatividad con muros)",
+    "resultado": "parcial",
+    "detalle": "muros tras estirar [6000,4000,6000,4000]; rótulos [\"6000.00 mm\",\"4000.00 mm\"]; tras U [6000,4000,6000,4000]",
+    "evidencia": [
+      "prompt tras ventana=Precise el punto base:",
+      "log=> 8300,6300 ⏎ Precise el punto base ⏎ > 0,0 ⏎ Precise el segundo punto de desplazamiento ⏎ > 500,0 ⏎ STRETCH: la ventana de captura no toca ningún objeto.",
+      "captura=C:/Users/sergi/AppData/Local/Temp/claude/D--/c64212a0-a5ad-4cc3-b6f6-73151d608bab/scratchpad/recorrido/07-c2-la-cota-sigue-al-muro-si-el-muro-se-e.png"
+    ],
+    "ms": 14744
+  },
+  {
+    "paso": "d1 crear capa A-COTAS desde el gestor de capas",
+    "resultado": "ok",
+    "detalle": "capa creada con id «A-COTAS»",
+    "evidencia": [
+      "captura=C:/Users/sergi/AppData/Local/Temp/claude/D--/c64212a0-a5ad-4cc3-b6f6-73151d608bab/scratchpad/recorrido/08-d1-crear-capa-A-COTAS-desde-el-gestor-de.png"
+    ],
+    "ms": 5732
+  },
+  {
+    "paso": "d2 mover las cotas a A-COTAS con CHPROP (designando con el raton)",
+    "resultado": "ok",
+    "detalle": "2/2 cotas en A-COTAS (id A-COTAS); capas de las cotas [\"A-COTAS\",\"A-COTAS\"]",
+    "evidencia": [
+      "p0=Designe los objetos:",
+      "tras clics=Designe los objetos:",
+      "tras Enter=Precise la propiedad que desea cambiar [Color/CApa/TipoLínea/EScala tl/Grosor], o Intro para aplicar o [Color/CApa/TipoLínea (TL)/EScala/Grosor]:",
+      "tras CA=Nueva capa:",
+      "tras nombre=Cambios: capa A-COTAS. Precise la propiedad que desea cambiar [Color/CApa/TipoLínea/EScala tl/Grosor], o Intro para aplicar o [Color/CApa/TipoLínea (TL)/EScala/Grosor]:",
+      "log=Designe los objetos ⏎ Precise la propiedad que desea cambiar [Color/CApa/TipoLínea/EScala tl/Grosor], o Intro para aplicar ⏎ > CA ⏎ Nueva capa ⏎ > A-COTAS ⏎ Cambios: capa A-COTAS. Precise la propiedad que desea cambiar [Color/CApa/TipoLínea/EScala tl/Grosor], o Intro para aplicar",
+      "captura=C:/Users/sergi/AppData/Local/Temp/claude/D--/c64212a0-a5ad-4cc3-b6f6-73151d608bab/scratchpad/recorrido/09-d2-mover-las-cotas-a-A-COTAS-con-CHPROP-.png"
+    ],
+    "ms": 46391
+  },
+  {
+    "paso": "d3 apagar la capa A-COTAS",
+    "resultado": "ok",
+    "detalle": "capa A-COTAS visible=false; el botón ahora dice «Mostrar capa»",
+    "evidencia": [
+      "captura=C:/Users/sergi/AppData/Local/Temp/claude/D--/c64212a0-a5ad-4cc3-b6f6-73151d608bab/scratchpad/recorrido/10-d3-apagar-la-capa-A-COTAS.png"
+    ],
+    "ms": 8166
+  },
+  {
+    "paso": "d4 volver a encender la capa (para el resto del plano)",
+    "resultado": "ok",
+    "detalle": "visible=true",
+    "evidencia": [
+      "captura=C:/Users/sergi/AppData/Local/Temp/claude/D--/c64212a0-a5ad-4cc3-b6f6-73151d608bab/scratchpad/recorrido/11-d4-volver-a-encender-la-capa-para-el-res.png"
+    ],
+    "ms": 6842
+  },
+  {
+    "paso": "e1 texto RECAMARA con TEXT (altura 200)",
+    "resultado": "ok",
+    "detalle": "mtext «RECÁMARA 1» altura 200",
+    "evidencia": [
+      "p0=Precise el punto inicial del texto o [Justificar/Estilo]:",
+      "p1=Precise la altura del texto <120>:",
+      "p2=Precise el ángulo de rotación del texto <0>:",
+      "p3=Escriba el texto:",
+      "p4=(sin prompt)",
+      "captura=C:/Users/sergi/AppData/Local/Temp/claude/D--/c64212a0-a5ad-4cc3-b6f6-73151d608bab/scratchpad/recorrido/12-e1-texto-RECAMARA-con-TEXT-altura-200-.png"
+    ],
+    "ms": 14398
+  },
+  {
+    "paso": "e2 sombreado por punto interior dentro de los muros",
+    "resultado": "roto",
+    "detalle": "NO se creó sombreado. Prompt tras el punto «(sin prompt)»",
+    "evidencia": [
+      "p0=Precise un punto interior del contorno o [Objetos/Patrón/ánGulo/Escala/Islas/Sólido/Tolerancia]:",
+      "log=> H ⏎ Precise un punto interior del contorno ⏎ > 2800,2800 ⏎ El punto (2800, 2800) no está dentro de ningún contorno cerrado. Cierra el perímetro o designa los objetos que lo forman.",
+      "avisos=[\"Guardado\\n\\nLayout 3D guardado.\",\"Capas\\n\\nCapa A-COTAS creada.\",\"Capas\\n\\nCapa A-COTAS oculta.\",\"Capas\\n\\nCapa A-COTAS visible.\"]",
+      "captura=C:/Users/sergi/AppData/Local/Temp/claude/D--/c64212a0-a5ad-4cc3-b6f6-73151d608bab/scratchpad/recorrido/13-e2-sombreado-por-punto-interior-dentro-d.png"
+    ],
+    "ms": 8331
+  },
+  {
+    "paso": "e3 sombreado de respaldo: polilinea cerrada interior + H",
+    "resultado": "parcial",
+    "detalle": "sólo se sombrea dibujando antes una polilínea cerrada a mano dentro de los muros",
+    "evidencia": [
+      "log=> 2800,2800 ⏎ El punto (2800, 2800) no está dentro de ningún contorno cerrado. Cierra el perímetro o designa los objetos que lo forman. ⏎ > PLINE ⏎ Precise el punto inicial ⏎ > 2200,2200 ⏎ Precise el punto siguiente ⏎ > 3700,2200 ⏎ Precise el punto siguiente ⏎ > 3700,3700 ⏎ Precise el punto siguiente ⏎ > 2200,3700 ⏎ Precise el punto siguiente ⏎ > C ⏎ > H ⏎ Precise un punto interior del contorno ⏎ > 2900,2900",
+      "tipos={\"wall\":4,\"opening\":2,\"dimension\":2,\"mtext\":1,\"polyline\":1,\"hatch\":1}",
+      "captura=C:/Users/sergi/AppData/Local/Temp/claude/D--/c64212a0-a5ad-4cc3-b6f6-73151d608bab/scratchpad/recorrido/14-e3-sombreado-de-respaldo-polilinea-cerra.png"
+    ],
+    "ms": 23021
+  },
+  {
+    "paso": "e4 lo que se ve en pantalla (zoom a la casa)",
+    "resultado": "ok",
+    "detalle": "captura de la planta con zoom en C:/Users/sergi/AppData/Local/Temp/claude/D--/c64212a0-a5ad-4cc3-b6f6-73151d608bab/scratchpad/recorrido/15-e4-zoom-casa.png",
+    "evidencia": [
+      "captura=C:/Users/sergi/AppData/Local/Temp/claude/D--/c64212a0-a5ad-4cc3-b6f6-73151d608bab/scratchpad/recorrido/16-e4-lo-que-se-ve-en-pantalla-zoom-a-la-ca.png"
+    ],
+    "ms": 10144
+  },
+  {
+    "paso": "f0 teclear LAYOUT (camino AutoCAD)",
+    "resultado": "ok",
+    "detalle": "prompt de LAYOUT: «Indique una opción de presentación o [Nueva/COpiar/Renombrar/Suprimir/PLantilla/Definir/LIstar]:»",
+    "evidencia": [
+      "log=ZOOM Ventana. ⏎ > LAYOUT ⏎ Indique una opción de presentación",
+      "captura=C:/Users/sergi/AppData/Local/Temp/claude/D--/c64212a0-a5ad-4cc3-b6f6-73151d608bab/scratchpad/recorrido/17-f0-teclear-LAYOUT-camino-AutoCAD-.png"
+    ],
+    "ms": 5799
+  },
+  {
+    "paso": "f1 crear hoja desde Paquete de entrega y fijar 1:50",
+    "resultado": "ok",
+    "detalle": "hoja creada; escala inicial 1:50; escala nacía bloqueada=true; ahora 1:50",
+    "evidencia": [
+      "selects del paquete=A3 | Horizontal | Monocromo | Cajetín vectorial estándar | 1:50",
+      "captura=C:/Users/sergi/AppData/Local/Temp/claude/D--/c64212a0-a5ad-4cc3-b6f6-73151d608bab/scratchpad/recorrido/18-f1-crear-hoja-desde-Paquete-de-entrega-y.png"
+    ],
+    "ms": 12470
+  },
+  {
+    "paso": "f2 rellenar el cajetin",
+    "resultado": "parcial",
+    "detalle": "atributos del cajetín guardados: {\"APPROVED_BY\":\"\",\"CHECKED_BY\":\"\",\"DISCIPLINE\":\"Architecture / Engineering\",\"DRAWING_NO\":\"A-01\",\"NOTES\":\"\",\"PREPARED_BY\":\"Arq. S. Valle\",\"PROJECT\":\"Casa Habitación Pérez\",\"REVISION\":\"P01\",\"SHEET_NO\":\"1 de 1\",\"TITLE\":\"Hoja 1\"}",
+    "evidencia": [
+      "rótulos del formulario del paquete=[\"Nombre\",\"Papel\",\"Orientación\",\"Margen top\",\"Margen right\",\"Margen bottom\",\"Margen left\",\"Color\",\"Lineweight\",\"Biblioteca de cajetines\",\"0\",\"A-COTAS\",\"project\",\"Drawing No.\",\"discipline\",\"sheet\",\"revision\",\"scale\",\"Prepared by\",\"Checked by\",\"Approved by\",\"Notas de emisión\"]",
+      "captura=C:/Users/sergi/AppData/Local/Temp/claude/D--/c64212a0-a5ad-4cc3-b6f6-73151d608bab/scratchpad/recorrido/19-f2-rellenar-el-cajetin.png"
+    ],
+    "ms": 14835
+  },
+  {
+    "paso": "g1 publicar PDF y medir la escala dentro del PDF",
+    "resultado": "ok",
+    "detalle": "00000000-0000-4000-8000-000000000001-DOCUMENT-sheet-set.pdf · 4125 bytes · tramos 120mm=true 80mm=true; declara 1:50=true; «Pérez» en texto=true; «A-01»=true; «6000» en texto=true",
+    "evidencia": [
+      "10 tramos más largos (mm papel)=[120,84,82.9,80,78.9,76,60,56,42.4,40.3,40,38.2,36.1,36]",
+      "textos (pt → mm)=[\"6000.00 mm @ 1.98pt=0.70mm\",\"4000.00 mm @ 1.98pt=0.70mm\",\"RECÁMARA 1 @ 4.00pt=1.41mm\",\"Model · 1:50 @ 6.00pt=2.12mm\",\"PROYECTO @ 5.50pt=1.94mm\",\"Casa Habitación Pérez @ 8.00pt=2.82mm\"]",
+      "captura=C:/Users/sergi/AppData/Local/Temp/claude/D--/c64212a0-a5ad-4cc3-b6f6-73151d608bab/scratchpad/recorrido/20-g1-publicar-PDF-y-medir-la-escala-dentro.png"
+    ],
+    "ms": 6487
+  },
+  {
+    "paso": "g2 PLOT tecleado: la misma hoja por el otro motor, midiendo el texto",
+    "resultado": "ok",
+    "detalle": "casa-plot.pdf · 4408 bytes · textos [\"6000.00 mm @ 5.61pt=1.98mm\",\"4000.00 mm @ 5.61pt=1.98mm\",\"RECÁMAR @ 11.34pt=4.00mm\",\"PROYECTO @ 5.10pt=1.80mm\",\"Casa Habitación Pérez @ 11.34pt=4.00mm\"]",
+    "evidencia": [
+      "tramos=[180,120,84,82.9,80,78.9,76,60,56,42.4,40.3,40]",
+      "captura=C:/Users/sergi/AppData/Local/Temp/claude/D--/c64212a0-a5ad-4cc3-b6f6-73151d608bab/scratchpad/recorrido/21-g2-PLOT-tecleado-la-misma-hoja-por-el-ot.png"
+    ],
+    "ms": 10234
+  },
+  {
+    "paso": "h1 DXFOUT de todo el dibujo",
+    "resultado": "ok",
+    "detalle": "casa-perez.dxf · 6491 chars · $ACADVER=AC1015 · $INSUNITS=4 · ENTITIES {\"POLYLINE\":14,\"VERTEX\":53,\"SEQEND\":14,\"HATCH\":1,\"MTEXT\":1,\"DIMENSION\":2,\"EOF\":1} · capas [{\"nombre\":\"0\",\"color\":7},{\"nombre\":\"A-COTAS\",\"color\":151}]",
+    "evidencia": [
+      "p0=Qué exportar a DXF o [Todo/Selección] <Todo>:",
+      "p1=Nombre del archivo DXF <dibujo.dxf>:",
+      "log=Nombre del archivo DXF ⏎ > casa-perez ⏎ casa-perez.dxf: 18 entidad(es) en 2 capa(s). ⏎ 0 cosa(s) NO viajan en el archivo y 4 viajan con menos información: ⏎ · WALL — el muro se exporta como su CONTORNO en planta (polilínea cerrada), no como muro paramétrico: el DXF plano no tiene entidad de muro, así que el eje, el grosor editable (200) y la altura (2400) no viajan. Al reimportar volverá como polilínea. Conserva el documento canónico como original. ⏎ · … y 1 más.",
+      "captura=C:/Users/sergi/AppData/Local/Temp/claude/D--/c64212a0-a5ad-4cc3-b6f6-73151d608bab/scratchpad/recorrido/22-h1-DXFOUT-de-todo-el-dibujo.png"
+    ],
+    "ms": 10308
+  },
+  {
+    "paso": "h2 DXFIN del mismo archivo en un dibujo nuevo",
+    "resultado": "parcial",
+    "detalle": "original {\"wall\":4,\"opening\":2,\"dimension\":2,\"mtext\":1,\"polyline\":1,\"hatch\":1} → reimportado {\"dimension\":2,\"polyline\":14,\"hatch\":1,\"mtext\":1}; tipos que NO vuelven: [\"wall\",\"opening\"]; capas [\"0\",\"A-COTAS\"]; rótulos de cota [\"6000.00 mm\",\"4000.00 mm\"]",
+    "evidencia": [
+      "prompt DXFIN=Pega el contenido del DXF que importar o [Archivo] <Archivo>:",
+      "informe=Entró completo: 18 entidad(es) y 0 bloque(s), sin pérdidas. ¿Insertar en el dibujo? o [Sí/No] <Sí>:",
+      "prompt final=(sin prompt)",
+      "log=Pega el contenido del DXF que importar ⏎ > A ⏎ Elige el archivo .dxf que importar. ⏎ > DXFIN ⏎ Pega el contenido del DXF que importar ⏎ > 61e2f534-4ab9-4744-a1aa-d7f60005ff40 (6491 caracteres) ⏎ Entró completo: 18 entidad(es) y 0 bloque(s), sin pérdidas. ⏎ ¿Insertar en el dibujo?",
+      "captura=C:/Users/sergi/AppData/Local/Temp/claude/D--/c64212a0-a5ad-4cc3-b6f6-73151d608bab/scratchpad/recorrido/24-h2-DXFIN-del-mismo-archivo-en-un-dibujo-.png"
+    ],
+    "ms": 74611
+  },
+  {
+    "paso": "p1 RECTANG 0,0 @6000,4000 y PLINE con @ (dibujo nuevo)",
+    "resultado": "roto",
+    "detalle": "RECTANG con @ → NADA. Prompt «Precise la esquina opuesta o [ÁreA/Dimensiones/Rotación]:»; log «Precise la esquina opuesta ⏎ > @6000,4000 ⏎ Sin punto previo para coordenada relativa (@)»; PLINE con @ → «> @1000,0 ⏎ Sin punto previo para coordenada relativa (@)»; LINE con @ → tipos {\"line\":1}",
+    "evidencia": [
+      "captura=C:/Users/sergi/AppData/Local/Temp/claude/D--/c64212a0-a5ad-4cc3-b6f6-73151d608bab/scratchpad/recorrido/26-p1-RECTANG-0-0-6000-4000-y-PLINE-con-dib.png"
+    ],
+    "ms": 83067
+  },
+  {
+    "paso": "x1 exportar DWG (lo que pide el cliente)",
+    "resultado": "imposible",
+    "detalle": "EXPORT pide «Designe los sólidos que exportar:»; opciones []; controles con «DWG» en title: 0; SAVEAS → «(sin prompt)» / > SAVEAS ⏎ Comando desconocido \"SAVEAS\". Pulsa F1 para ayuda.; DWGOUT → > DWGOUT ⏎ Comando desconocido \"DWGOUT\". Pulsa F1 para ayuda.",
+    "evidencia": [
+      "captura=C:/Users/sergi/AppData/Local/Temp/claude/D--/c64212a0-a5ad-4cc3-b6f6-73151d608bab/scratchpad/recorrido/27-x1-exportar-DWG-lo-que-pide-el-cliente-.png"
+    ],
+    "ms": 16116
+  },
+  {
+    "paso": "z errores de consola durante el recorrido",
+    "resultado": "parcial",
+    "detalle": "1 errores",
+    "evidencia": [
+      "eval() is not supported in this environment. If this page was served with a `Content-Security-Policy` header, make sure that `unsafe-eval` is included. React requires eval() in development mode for various debugging features like reconstructing callstacks from a different environment.\nReact will nev"
+    ],
+    "ms": 0
+  }
+]

@@ -31,6 +31,7 @@ import type {
 } from "./controller";
 import type { CadDocument } from "@/lib/cad/cad-document";
 import { buildCadTemplateDocument } from "@/lib/cad/template-document";
+import { buildDemoVolumeDocument } from "@/lib/cad/demo/demo-volume";
 
 export { DEMO_DOCUMENT_ID, DEMO_STORAGE_KEY } from "@/lib/cad/demo/demo-constants";
 import { DEMO_STORAGE_KEY } from "@/lib/cad/demo/demo-constants";
@@ -57,9 +58,10 @@ function readStored(storage: Pick<Storage, "getItem">): StoredDemo | null {
 /** El documento con el que arranca la demostración. */
 export function buildDemoDocument(): CadDocument {
   const built = buildCadTemplateDocument("casa-habitacion");
+  const volumed = buildDemoVolumeDocument(built.document);
   return {
-    ...built.document,
-    paperSpaces: built.document.paperSpaces.map((space, index) =>
+    ...volumed,
+    paperSpaces: volumed.paperSpaces.map((space, index) =>
       index === 0
         ? {
             ...space,
@@ -67,7 +69,8 @@ export function buildDemoDocument(): CadDocument {
               ...space.titleBlock,
               attributes: {
                 ...space.titleBlock?.attributes,
-                PROJECT: "Demostración · Valle Design",
+                // Literal: demo-port no importa @/config/brand; el host le pasa la etiqueta.
+                PROJECT: "Demostración · VALLECAD",
                 CLIENTE: "Demostración",
               },
             },

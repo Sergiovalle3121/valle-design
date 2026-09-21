@@ -60,6 +60,7 @@ import {
   SeatEntitlementService,
   seatDenialMessage,
 } from '../commercial/seat-entitlement.service';
+import { PRODUCT_DISPLAY_NAME } from '../../common/brand/brand';
 
 class OrganizationDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
@@ -197,7 +198,7 @@ export class OrganizationsController {
         if (!trialPlan?.active || !trialEntitlement) {
           throw new ServiceUnavailableException({
             code: 'trial_catalog_unavailable',
-            message: 'El trial de Valle Design no está disponible.',
+            message: `El trial de ${PRODUCT_DISPLAY_NAME} no está disponible.`,
           });
         }
         const existingTrial = await manager

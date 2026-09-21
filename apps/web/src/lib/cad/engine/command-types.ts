@@ -532,6 +532,18 @@ export type CadCommandResult =
        * mensaje DESPUÉS del lote.
        */
       notice?: string;
+      /**
+       * Entrega del anfitrión que viaja PEGADA a la escritura, no en su lugar.
+       *
+       * WBLOCK necesita las dos cosas de la MISMA pulsación: publicar la
+       * definición en el documento (scope tenant, para ADCENTER) Y entregar un
+       * DXF descargable de lo designado — hoy no hacía ni lo segundo. Un
+       * `CadCommandResult` es una unión discriminada por `kind`, así que no
+       * puede devolver `"document"` y `"host"` a la vez; este campo es el
+       * mismo reparto que `notice` (que ya viaja pegado a un resultado
+       * `"document"`) para una petición completa en vez de una frase.
+       */
+      host?: { request: CadHostRequest; label: string };
     }
   /**
    * Cambio de ENCUADRE, no de documento.
@@ -589,6 +601,8 @@ export interface CadCommandStep<S = unknown> {
   preview?: readonly CadPreviewPath[];
   /** Modos de snap forzados sólo para este paso (p. ej. TANGENTE en CIRCLE TTR). */
   osnapOverride?: readonly SnapType[];
+  /** Último punto fijado por este comando (para `@` relativo y distancia directa). */
+  lastPoint?: { x: number; y: number } | null;
   /**
    * Presente cuando el comando ha terminado. Que exista `result` es lo que
    * indica el final; no hay un `done` aparte que pueda quedar descoordinado.

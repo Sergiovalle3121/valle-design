@@ -120,13 +120,13 @@ const base: CadDimensionEntity = {
   sourceUnit: "mm",
   precision: 2,
 };
-eq(formatCadDimensionMeasurement(base, 40), "40.00 mm", "sin tolerancia, lo de siempre");
+eq(formatCadDimensionMeasurement(base, 40), "40.00", "sin tolerancia, lo de siempre");
 const toleranced: CadDimensionEntity = { ...base, context: { metadata: cadDimensionToleranceMetadata({ mode: "deviation", upper: 0.025, lower: 0, decimals: 3, fit: "H7" }) } };
-eq(formatCadDimensionMeasurement(toleranced, 40), "40.00 +0.025/0 mm", "con tolerancia, entre la medida y la unidad");
-eq(buildCadDimensionGeometry(toleranced)?.label, "40.00 +0.025/0 mm", "…y es lo que la geometría rotula (visor, lámina, DXF)");
-eq(formatCadDimensionMeasurement({ ...toleranced, prefix: "Ø", suffix: " H7" }, 40), "Ø40.00 +0.025/0 mm H7", "prefijo y sufijo alrededor");
+eq(formatCadDimensionMeasurement(toleranced, 40), "40.00 +0.025/0", "con tolerancia, entre la medida y la unidad");
+eq(buildCadDimensionGeometry(toleranced)?.label, "40.00 +0.025/0", "…y es lo que la geometría rotula (visor, lámina, DXF)");
+eq(formatCadDimensionMeasurement({ ...toleranced, prefix: "Ø", suffix: " H7" }, 40), "Ø40.00 +0.025/0 H7", "prefijo y sufijo alrededor");
 eq(formatCadDimensionMeasurement({ ...toleranced, text: "VER DETALLE" }, 40), "VER DETALLE", "el texto sobrescrito manda");
-eq(formatCadDimensionMeasurement({ ...toleranced, units: "cm" }, 40), "4.00 +0.003/0 cm", "en centímetros la tolerancia se convierte");
+eq(formatCadDimensionMeasurement({ ...toleranced, units: "cm" }, 40), "4.00 +0.003/0", "en centímetros la tolerancia se convierte");
 eq(formatCadDimensionMeasurement({ ...base, dimensionKind: "angular", context: { metadata: cadDimensionToleranceMetadata({ mode: "symmetric", upper: 0.5, lower: -0.5, decimals: 1 }) } }, 90), "90.00 ±0.5°", "la angular en grados");
 
 /* ── DXF: sube al modelo de export, sale por la XDATA y vuelve al bolsillo ── */
@@ -138,7 +138,7 @@ eq(formatCadDimensionMeasurement({ ...base, dimensionKind: "angular", context: {
   ok(!("context" in exported[0]), "…y no el contexto");
   const dxf = exportCadDxf({ layers: [{ name: "COTAS" }], semanticDimensions: exported } as unknown as Parameters<typeof exportCadDxf>[0]).content;
   ok(dxf.includes("tolerance=deviation") && dxf.includes("toleranceUpper=0.025") && dxf.includes("toleranceLower=0") && dxf.includes("toleranceFit=H7"), "las claves en la XDATA");
-  ok(dxf.includes("40.00 +0.025/0 mm"), "el rótulo con tolerancia en el grupo 1 y en el bloque *D, para un lector ajeno");
+  ok(dxf.includes("40.00 +0.025/0"), "el rótulo con tolerancia en el grupo 1 y en el bloque *D, para un lector ajeno");
   const read = parseRawDxfSemanticDimensions(dxf);
   eq(read.length, 1, "vuelve una cota");
   eq(read[0].tolerance, { mode: "deviation", upper: 0.025, lower: 0, decimals: 3, fit: "H7" }, "la XDATA se lee entera");
@@ -146,7 +146,7 @@ eq(formatCadDimensionMeasurement({ ...base, dimensionKind: "angular", context: {
   assert.ok(entity.type === "dimension");
   eq(cadDimensionToleranceOf(entity), { mode: "deviation", upper: 0.025, lower: 0, decimals: 3, fit: "H7" }, "…y vuelve a `context.metadata`");
   ok(!("tolerance" in entity), "sin campo nuevo en la entidad");
-  eq(buildCadDimensionGeometry(entity)?.label, "40.00 +0.025/0 mm", "la cota reimportada rotula igual");
+  eq(buildCadDimensionGeometry(entity)?.label, "40.00 +0.025/0", "la cota reimportada rotula igual");
 
   const plain = exportCadDxf({ layers: [{ name: "COTAS" }], semanticDimensions: cadDocumentNativeDxfSemanticDimensions({ entities: [base], layers: [], blocks: [] } as unknown as Parameters<typeof cadDocumentNativeDxfSemanticDimensions>[0]) } as unknown as Parameters<typeof exportCadDxf>[0]).content;
   ok(plain.includes("tolerance=\n") && !plain.includes("toleranceFit=H"), "sin tolerancia, la clave sale vacía: «esta cota no lleva»");

@@ -41,6 +41,11 @@ import {
   type CadBlockAttributePrompt,
 } from "../../blocks/block-workflow";
 import { cadAttsyncCommands } from "../../blocks/attribute-sync";
+// WBLOCK reutiliza el MISMO ensamblador que DXFOUT (ver interop-dxf.ts): un
+// segundo ensamblaje habría acabado escribiendo un DXF distinto para el mismo
+// dibujo, con la matriz del corpus certificando el que ninguna orden usa.
+import { exportCadDocumentDxf, type CadDxfDocumentExportSource } from "../../dxf-document-export";
+import type { CadHostRequest } from "../host-requests";
 import {
   CAD_ACCEPT_ANGLE,
   CAD_ACCEPT_DISTANCE,
@@ -70,19 +75,43 @@ function nothing<S>(state: S): CadCommandStep<S> {
   return { state, prompt: NO_PROMPT, accepts: 0, result: { kind: "none" } };
 }
 
-function batch<S>(state: S, commands: readonly CadEntityCommand[], label: string): CadCommandStep<S> {
+function batch<S>(
+  state: S,
+  commands: readonly CadEntityCommand[],
+  label: string,
+  extra?: { notice?: string; host?: { request: CadHostRequest; label: string } },
+): CadCommandStep<S> {
   return {
     state,
     prompt: NO_PROMPT,
     accepts: 0,
-    result: commands.length > 0 ? { kind: "document", commands, label } : { kind: "none" },
+    result:
+      commands.length > 0
+        ? { kind: "document", commands, label, ...extra }
+        : { kind: "none" },
   };
 }
 
+/** Lo que compone una orden que escribe: el lote y, a veces, un archivo o un aviso. */
+interface BuiltBatch {
+  commands: readonly CadEntityCommand[];
+  notice?: string;
+  host?: { request: CadHostRequest; label: string };
+}
+
 /** Una orden que falla se cuenta, no se traga: el motor no tiene excepciones. */
-function attempt<S>(state: S, label: string, build: () => readonly CadEntityCommand[]): CadCommandStep<S> {
+function attempt<S>(
+  state: S,
+  label: string,
+  build: () => readonly CadEntityCommand[] | BuiltBatch,
+): CadCommandStep<S> {
   try {
-    return batch(state, build(), label);
+    const built = build();
+    // `Array.isArray` no estrecha bien una unión con un `readonly T[]`
+    // genérico; `"commands" in built` sí distingue el objeto del lote suelto.
+    return "commands" in built
+      ? batch(state, built.commands, label, { notice: built.notice, host: built.host })
+      : batch(state, built, label);
   } catch (error) {
     return message(state, error instanceof Error ? error.message : String(error));
   }
@@ -125,6 +154,59 @@ interface DefineState {
 
 const REDEFINE_YES = { keyword: "Sí", shortcut: "S" } as const;
 const REDEFINE_NO = { keyword: "No", shortcut: "N" } as const;
+
+/**
+ * WBLOCK entrega, además de publicar la definición, un DXF real de lo
+ * designado: mismo ensamblador y mismo manifiesto de pérdidas que DXFOUT (ver
+ * `interop-dxf.ts`), con ámbito "Selección". Hasta hoy WBLOCK no producía
+ * nada descargable fuera del programa — publicaba en la biblioteca del
+ * inquilino y ahí se quedaba.
+ *
+ * Si el anfitrión no puede leer el documento completo, o si la selección no
+ * produce ninguna entidad exportable, la definición se publica IGUAL: negar
+ * el bloque por un problema de exportación sería fix-or-hide al revés — el
+ * dibujante pierde su bloque por algo que no le compete. Se avisa con
+ * `notice` y no se entrega archivo, en vez de fingir uno vacío.
+ */
+function wblockDxf(
+  selection: readonly string[],
+  name: string,
+  context: CadCommandContext,
+): { notice?: string; host?: { request: CadHostRequest; label: string } } {
+  const view = context.document?.();
+  if (!view)
+    return {
+      notice: `WBLOCK: "${name}" se publicó en la biblioteca, pero este espacio de trabajo no pudo generar el DXF descargable.`,
+    };
+  const selected = new Set(selection);
+  const source: CadDxfDocumentExportSource = { ...view, layers: view.layers };
+  // Mismo par LUNITS/LUPREC que lee DXFOUT (P-express-09): sin él, un dibujo
+  // en pies y pulgadas se entrega en decimal y nadie puede saber que cambió.
+  const plan = exportCadDocumentDxf(source, (entity) => selected.has(entity.id), {
+    lengthUnits: {
+      lunits: Number(context.variables?.get("LUNITS") ?? 2),
+      luprec: Number(context.variables?.get("LUPREC") ?? 4),
+    },
+  });
+  if (plan.entityCount === 0)
+    return {
+      notice: `WBLOCK: "${name}" se publicó en la biblioteca, pero lo designado no produjo ninguna entidad exportable a DXF.`,
+    };
+  const fileName = `${name}.dxf`;
+  return {
+    host: {
+      request: {
+        kind: "dxf-export",
+        fileName,
+        content: plan.content,
+        entityCount: plan.entityCount,
+        layers: plan.layers,
+        losses: plan.losses,
+      },
+      label: `WBLOCK ${fileName}`,
+    },
+  };
+}
 
 /**
  * BLOCK y WBLOCK comparten diálogo y difieren en dos decisiones, que es
@@ -184,14 +266,18 @@ function defineDescriptor(options: {
         .filter((entity): entity is CadEntity => !!entity);
       if (entities.length !== state.selection.length)
         throw new Error("El anfitrión no puede leer la geometría designada.");
-      if (state.redefine && "target" in state.redefine)
-        return cadRedefineBlockCommands({
+      if (state.redefine && "target" in state.redefine) {
+        const commands = cadRedefineBlockCommands({
           target: state.redefine.target,
           basePoint: state.basePoint!,
           entities,
           scope: options.scope,
         });
-      return cadDefineBlockCommands({
+        return options.scope === "tenant"
+          ? { commands, ...wblockDxf(state.selection, state.name!, context) }
+          : commands;
+      }
+      const commands = cadDefineBlockCommands({
         id: blockId(state.name!),
         name: state.name!,
         basePoint: state.basePoint!,
@@ -200,6 +286,9 @@ function defineDescriptor(options: {
         disposition: options.disposition,
         scope: options.scope,
       }).commands;
+      return options.scope === "tenant"
+        ? { commands, ...wblockDxf(state.selection, state.name!, context) }
+        : commands;
     });
 
   return {
@@ -401,7 +490,10 @@ const insertCommand: CadCommandDescriptor<InsertState> = {
       const block = cadFindBlock(cadInsertableBlocks(blocksOf(context)), typed);
       if (!block)
         return message(state, `No hay ningún bloque llamado ${typed}. Escriba ? para verlos.`);
-      return insertStep({ ...state, block, pending: cadBlockAttributePrompts(block) });
+      // `includePreset: false`: un atributo PREDEFINIDO toma su valor por
+      // defecto sin preguntarlo al insertar (modo P de ATTDEF) — sigue
+      // editable después con ATTEDIT, que sí pide todos los no constantes.
+      return insertStep({ ...state, block, pending: cadBlockAttributePrompts(block, { includePreset: false }) });
     }
 
     if (!state.insertion) {

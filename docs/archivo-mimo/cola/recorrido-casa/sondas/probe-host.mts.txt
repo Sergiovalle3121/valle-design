@@ -1,0 +1,68 @@
+// Sonda de auditoria (fuera del repo): conduce el anfitrion real del motor.
+import { CAD_COMMAND_REGISTRY_V2 } from "file:///D:/dev/valle-design/apps/web/src/lib/cad/engine/index.ts";
+import { CadCommandEngineHost } from "file:///D:/dev/valle-design/apps/web/src/components/cad/command-line/command-engine-host.ts";
+
+const line = (id: string, x1: number, y1: number, x2: number, y2: number) => ({
+  id, type: "line", start: { x: x1, y: y1, z: 0 }, end: { x: x2, y: y2, z: 0 }, layer: "0",
+});
+
+async function scenario(title: string, scene: any[], selection: string[], run: (h: any) => void) {
+  const entities = new Map(scene.map((e) => [e.id, e]));
+  const applied: any[] = [];
+  const previews: any[] = [];
+  let n = 0;
+  const host = new CadCommandEngineHost(CAD_COMMAND_REGISTRY_V2 as any, {
+    context: () => ({
+      entityIds: [...entities.keys()], entity: (id: string) => entities.get(id), selection,
+      activeLayer: "0", view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+      newEntityId: () => `nuevo${++n}`, cursor: { x: 700, y: 700 },
+    }) as any,
+    apply: (cmds: any, label: any) => applied.push({ label, n: cmds.length, types: cmds.map((c: any) => c.type) }),
+    preview: (p: any) => previews.push(p),
+    osnapOverride: () => {},
+    cursor: () => {},
+  } as any);
+  await host.warmCommands(["COPY", "OFFSET", "TRIM", "MOVE", "MATCHPROP"]);
+  run(host);
+  console.log(`\n=== ${title} ===`);
+  console.log("apply() llamado:", applied.length, "veces", applied.length ? JSON.stringify(applied) : "");
+  const last = previews.at(-1);
+  console.log("ultima preview:", JSON.stringify(last)?.slice(0, 200));
+}
+
+const scene = [line("a", 0, 0, 100, 0), line("b", 0, 0, 0, 100), line("w", 50, -50, 50, 50)];
+
+await scenario("COPY x3 y luego Escape", scene, ["a"], (h) => {
+  h.invoke("COPY");
+  h.pickPoint({ x: 0, y: 0 });
+  h.pickPoint({ x: 0, y: 200 });
+  h.pickPoint({ x: 0, y: 400 });
+  h.pickPoint({ x: 0, y: 600 });
+  h.cancel();
+});
+
+await scenario("COPY x3 y luego Intro", scene, ["a"], (h) => {
+  h.invoke("COPY");
+  h.pickPoint({ x: 0, y: 0 });
+  h.pickPoint({ x: 0, y: 200 });
+  h.pickPoint({ x: 0, y: 400 });
+  h.pickPoint({ x: 0, y: 600 });
+  h.accept();
+});
+
+await scenario("OFFSET dos veces y luego Escape", scene, [], (h) => {
+  h.invoke("OFFSET");
+  h.submit("15");
+  h.pickEntity("a", { x: 50, y: 0 });
+  h.pickPoint({ x: 50, y: 10 });
+  h.pickEntity("b", { x: 0, y: 50 });
+  h.pickPoint({ x: 10, y: 50 });
+  h.cancel();
+});
+
+await scenario("TRIM un objeto y luego Escape", scene, [], (h) => {
+  h.invoke("TRIM");
+  h.accept();
+  h.pickEntity("a", { x: 90, y: 0 });
+  h.cancel();
+});

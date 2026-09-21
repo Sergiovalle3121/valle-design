@@ -29,6 +29,7 @@ import type { CadEntity, CadPoint2 } from "../../cad-document";
 import type { CadDimensionEntity } from "../../associative-dimension";
 import type { CadNativeEntity } from "../../entity-runtime";
 import type { CadCommandContext, CadCommandInput } from "../command-types";
+import { cadDimensionStyleBake, resolveCadDimensionStyle } from "../../dimension-style";
 import {
   cadAnchorReference,
   cadDirection,
@@ -88,6 +89,11 @@ export function cadDimensionEnds(entity: CadEntity): [CadDimensionPick, CadDimen
     const end = pick("end");
     return start && end ? [start, end] : null;
   }
+  if (entity.type === "wall") {
+    const start = pick("start");
+    const end = pick("end");
+    return start && end ? [start, end] : null;
+  }
   if (entity.type === "arc" || entity.type === "circle") {
     const start = pick("arc-start");
     const end = pick("arc-end");
@@ -99,12 +105,9 @@ export function cadDimensionEnds(entity: CadEntity): [CadDimensionPick, CadDimen
     return start && end ? [start, end] : null;
   }
   if (entity.type === "polyline" && entity.vertices.length >= 2) {
-    // Sin anclaje de vértice de polilínea en el vocabulario del esquema, esta
-    // cota nace SUELTA. Se dice aquí y en `annotate-support.ts`: es mejor una
-    // cota honesta que no se actualiza que una que finge estar enganchada.
-    const first = entity.vertices[0];
-    const last = entity.vertices[entity.vertices.length - 1];
-    return [{ point: { x: first.x, y: first.y } }, { point: { x: last.x, y: last.y } }];
+    const start = pick("start");
+    const end = pick("end");
+    return start && end ? [start, end] : null;
   }
   return null;
 }
@@ -137,6 +140,19 @@ export function cadDimensionReferenceCount(kind: CadDimensionKind): number {
  * punto que falta y `regenerateAssociativeDimensions` la daría por rota en el
  * primer movimiento. Media asociatividad es peor que ninguna, porque el
  * indicador dice «asociada» y el número no cambia.
+ *
+ * ## Nace con el estilo, no sólo con su nombre
+ *
+ * Hasta aquí la cota nueva sólo heredaba el NOMBRE de DIMSTYLE; lo que dibuja
+ * —tamaño de flecha, huecos, altura de texto— seguía saliendo de
+ * `DEFAULT_DIMENSION_STYLE` hasta que alguien corriera `DIMSTYLE → Aplicar` a
+ * mano. Una norma que hay que reaplicar después de cada cota no gobierna el
+ * dibujo, lo persigue. Por eso, cuando el estilo vigente es uno CON NOMBRE
+ * (no «Standard», que ya son los números de fábrica), se hornea aquí con la
+ * misma `cadDimensionStyleBake` que usa Aplicar: la cota nace exactamente
+ * como la vería alguien que aplicara la norma un segundo después de dibujarla.
+ * Sin `context.document` (algunos anfitriones de test no lo dan) se omite el
+ * horneado en vez de fingir un estilo que no se pudo leer.
  */
 export function cadDimensionEntity(
   draft: CadDimensionDraft,
@@ -145,6 +161,12 @@ export function cadDimensionEntity(
   const needed = cadDimensionReferenceCount(draft.kind);
   const references = draft.references.slice(0, needed);
   const associative = references.length === needed && references.every(Boolean);
+  const dimStyle = context.variables?.get("DIMSTYLE");
+  const style = draft.style ?? (typeof dimStyle === "string" && dimStyle ? dimStyle : undefined);
+  const baked =
+    style && style !== "Standard" && context.document
+      ? cadDimensionStyleBake(resolveCadDimensionStyle(context.document().styles, style, draft.kind))
+      : {};
   return {
     id: context.newEntityId(),
     type: "dimension",
@@ -156,7 +178,8 @@ export function cadDimensionEntity(
     ...(draft.offset !== undefined ? { offset: draft.offset } : {}),
     ...(draft.radius !== undefined ? { radius: draft.radius } : {}),
     ...(draft.text ? { text: draft.text } : {}),
-    ...(draft.style ? { style: draft.style } : {}),
+    ...(style ? { style } : {}),
+    ...baked,
     ...(associative
       ? {
           associative: true,

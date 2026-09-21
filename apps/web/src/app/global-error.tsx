@@ -4,6 +4,7 @@ import { BrandGlyph } from "@/components/brand/BrandGlyph";
 import {
   BRAND_INK,
 } from "@/components/brand/logo-geometry";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 /**
  * EL ÚLTIMO RECURSO — cuando falla el propio `layout` raíz.
@@ -63,7 +64,7 @@ export default function GlobalError({
               letterSpacing: "-0.024em",
             }}
           >
-            Valle Design no pudo arrancar
+            {PRODUCT_LABEL.design} no pudo arrancar
           </h1>
           <p
             style={{

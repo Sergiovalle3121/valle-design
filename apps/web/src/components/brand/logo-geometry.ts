@@ -72,4 +72,12 @@ export const BRAND_INK = {
   accent: "#6b4def",
 } as const;
 
-export const WORDMARK = "Valle Design";
+/**
+ * El wordmark de los SVG generados. Es el MISMO valor que
+ * `DEFAULT_BRAND_MANIFEST.productNames.design` (`packages/contracts`), escrito
+ * como literal porque `scripts/brand/build-brand-assets.mjs` lee este módulo
+ * como texto, sin transpilar, y extrae la cadena con una expresión regular.
+ * Si el manifiesto cambia, este literal cambia con él y se regeneran los
+ * siete SVG de `public/brand/` (`--check` lo delata si alguien olvida uno).
+ */
+export const WORDMARK = "VALLECAD";

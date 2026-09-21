@@ -110,9 +110,13 @@ export interface CadTourEvidence {
   document?: CadCommandDocumentView | null;
   /** El anfitrión entregó un PDF. Trazar no deja rastro en el documento. */
   plotted?: boolean;
-  /** El primer paso es de lectura: se cierra al decir «entendido». */
+  /** El primer paso es de lectura: se cierra al decir «entendido» (o al
+   *  hacer cualquiera de los pasos de dibujo, ver `cadTourStepDone`). */
   acknowledged?: boolean;
 }
+
+/** Los pasos que son ACCIONES sobre el dibujo: todos menos la lámina. */
+const CAD_TOUR_DRAWING_STEP_IDS: readonly CadTourStepId[] = ["muro", "puerta", "cota", "pdf"];
 
 /** ¿Este bloque es una puerta? Vale la sembrada, la dinámica y la propia. */
 export function cadTourBlockIsDoor(block: { id: string; name?: string }): boolean {
@@ -197,7 +201,16 @@ export function cadGuidedTourStepCopy(
 }
 
 export function cadTourStepDone(id: CadTourStepId, evidence: CadTourEvidence): boolean {
-  if (id === "lamina") return evidence.acknowledged === true;
+  if (id === "lamina") {
+    // De lectura: se cierra con «Entendido»… o poniéndose a dibujar. El
+    // recorrido arranca PLEGADO y plegado ese botón no se ve; si sólo él
+    // cerrara el paso, quien trabaja con el recorrido plegado vería «Tu lámina
+    // ya está puesta» para siempre y el recorrido no se cerraría nunca.
+    return (
+      evidence.acknowledged === true ||
+      CAD_TOUR_DRAWING_STEP_IDS.some((other) => cadTourStepDone(other, evidence))
+    );
+  }
   if (id === "pdf") return evidence.plotted === true;
   const document = evidence.document;
   if (!document) return false;
@@ -249,6 +262,7 @@ export interface CadTourRecord {
   finishedAt: number;
   acknowledged: boolean;
   plotted: boolean;
+  minimized: boolean;
 }
 
 export const EMPTY_CAD_TOUR_RECORD: CadTourRecord = {
@@ -257,6 +271,12 @@ export const EMPTY_CAD_TOUR_RECORD: CadTourRecord = {
   finishedAt: 0,
   acknowledged: false,
   plotted: false,
+  /** ARRANCA PLEGADO: una línea con el paso actual, no los cinco pasos encima
+   *  del plano. Ya no tapa nada —vive en el muelle izquierdo—, pero desplegado
+   *  empujaba la biblioteca, y cuando tiene que flotar (ventana estrecha)
+   *  desplegado era un tercio del lienzo. Quien lo despliega lo encuentra
+   *  desplegado la próxima vez: la elección persiste en localStorage. */
+  minimized: true,
 };
 
 /**
@@ -294,6 +314,7 @@ export type CadTourAction =
   | { type: "start"; now: number }
   | { type: "acknowledge" }
   | { type: "plot"; now: number }
+  | { type: "minimize"; minimized: boolean }
   | { type: "skip"; now: number }
   | { type: "complete"; now: number }
   | { type: "reset" };
@@ -327,6 +348,10 @@ export function cadGuidedTourReduce(
     return record.acknowledged ? record : { ...record, acknowledged: true };
   if (action.type === "plot")
     return record.plotted ? record : { ...record, plotted: true };
+  if (action.type === "minimize")
+    return record.minimized === action.minimized
+      ? record
+      : { ...record, minimized: action.minimized };
   if (action.type === "skip")
     return { ...record, status: "skipped", finishedAt: action.now };
   return { ...record, status: "completed", finishedAt: action.now };
@@ -347,6 +372,10 @@ export function parseCadTourRecord(raw: string | null): CadTourRecord {
       finishedAt: Number.isFinite(parsed.finishedAt) ? Number(parsed.finishedAt) : 0,
       acknowledged: parsed.acknowledged === true,
       plotted: parsed.plotted === true,
+      // Sólo un `false` guardado lo despliega: es lo que escribe quien pulsó
+      // «Mostrar». Un registro de antes del pliegue (sin el campo) o con
+      // basura arranca como todos, plegado.
+      minimized: parsed.minimized !== false,
     };
   } catch {
     // Un registro corrupto NO puede tirar el editor ni dejar al usuario sin

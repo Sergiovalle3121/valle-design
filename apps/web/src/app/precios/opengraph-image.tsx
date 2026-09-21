@@ -1,4 +1,5 @@
 import { socialCard, SOCIAL_CARD_SIZE, SOCIAL_CARD_CONTENT_TYPE } from "@/lib/seo/social-card";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 /**
  * Tarjeta social de PRECIOS.
@@ -8,7 +9,7 @@ import { socialCard, SOCIAL_CARD_SIZE, SOCIAL_CARD_CONTENT_TYPE } from "@/lib/se
  * en una imagen que ya no se puede corregir es una promesa que el producto
  * acabaría incumpliendo sin querer.
  */
-export const alt = "Valle Design · Planes y precios";
+export const alt = `${PRODUCT_LABEL.design} · Planes y precios`;
 export const size = SOCIAL_CARD_SIZE;
 export const contentType = SOCIAL_CARD_CONTENT_TYPE;
 

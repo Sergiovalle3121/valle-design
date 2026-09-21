@@ -38,6 +38,7 @@ import { BodyBuilder } from "./body-builder";
 import { attachPlanarSurfaces } from "./primitives";
 import { faceCentroid, faceGeometricNormal, loopPoints, type BrepBody } from "./topology";
 import { v3Basis, vec3, type Vec3 } from "./vec3";
+import { DEFAULT_BRAND_MANIFEST } from "@valle-design/contracts";
 
 export interface IgesExportOptions {
   /** Nombre del producto. */
@@ -65,7 +66,7 @@ class IgesWriter {
   }
 
   build(header: { name: string; timestamp: string; author: string; organization: string; maxCoordinate: number }): string {
-    const startLines = [pad72("Valle Design - B-rep facetado exportado a IGES 5.3")];
+    const startLines = [pad72(`${DEFAULT_BRAND_MANIFEST.productNames.design} - B-rep facetado exportado a IGES 5.3`)];
 
     const global = [
       "1H,",
@@ -256,8 +257,8 @@ export function exportIges(body: BrepBody, options: IgesExportOptions = {}): str
   return writer.build({
     name: options.name ?? "VALLE_DESIGN_SOLID",
     timestamp: options.timestamp ?? "19700101.000000",
-    author: options.author ?? "Valle Design",
-    organization: options.organization ?? "Valle Design",
+    author: options.author ?? DEFAULT_BRAND_MANIFEST.productNames.design,
+    organization: options.organization ?? DEFAULT_BRAND_MANIFEST.productNames.design,
     maxCoordinate,
   });
 }

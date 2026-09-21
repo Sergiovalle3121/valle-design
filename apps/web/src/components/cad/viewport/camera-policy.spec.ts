@@ -141,4 +141,63 @@ for (const modo of ["2d", "3d"] as const) {
   eq(c.enableDamping, false, `y la cámara no planea al soltar en ${modo}`);
 }
 
+// --- 8 · alzados reales: OrbitControls.update() no degrada φ = 90° -----------
+//
+// Con maxPolarAngle = π/2.05, OrbitControls.update() tiraba la cámara de φ=90°
+// a 87,8° en el primer cuadro del bucle de render. Los cuatro alzados
+// (front/back/left/right) nunca se sostenían. Con π/2 exactos, φ=90° es punto
+// fijo: camera.position.y − target.y < 1e-15 tras dos update().
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+
+{
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
+  const controls = new OrbitControls(camera, null);
+  controls.enableDamping = false;
+  controls.target.set(0, 0, 0);
+
+  applyCadCameraPolicy(controls, "3d");
+  eq(
+    controls.maxPolarAngle,
+    Math.PI / 2,
+    "el tope polar en 3D es π/2 exactos",
+  );
+
+  for (const vista of ["front", "back", "left", "right"] as const) {
+    // Posición real de applyCadCameraViewPreset para elevationDeg = 0:
+    // el componente y de la posición es 0 (= target.y), φ = 90° exactos.
+    const d = 4;
+    if (vista === "front") camera.position.set(0, 0, d * 1.3);
+    else if (vista === "back") camera.position.set(0, 0, -d * 1.3);
+    else if (vista === "left") camera.position.set(-d * 1.3, 0, 0);
+    else camera.position.set(d * 1.3, 0, 0);
+    camera.position.y = controls.target.y; // φ = 90°
+
+    controls.update();
+    controls.update();
+
+    const dy = camera.position.y - controls.target.y;
+    ok(
+      Math.abs(dy) < 1e-6,
+      `${vista}: camera.y − target.y = ${dy.toExponential(2)}, se sostiene tras 2 update()`,
+    );
+
+    const offset = camera.position.clone().sub(controls.target);
+    const phi = Math.acos(offset.y / offset.length()) * (180 / Math.PI);
+    ok(
+      Math.abs(phi - 90) < 0.01,
+      `${vista}: φ = ${phi.toFixed(4)}° ≈ 90°`,
+    );
+  }
+
+  // No-regresión: top y las isométricas siguen dentro de sus topes.
+  camera.position.set(0, 10, 0.01);
+  controls.update();
+  const topPhi =
+    Math.acos(
+      (camera.position.y - controls.target.y) /
+        camera.position.distanceTo(controls.target),
+    ) * (180 / Math.PI);
+  ok(topPhi < 5, `top: φ = ${topPhi.toFixed(2)}° < 5°`);
+}
+
 console.log(`✔ política de cámara: ${verdes} aserciones verdes`);

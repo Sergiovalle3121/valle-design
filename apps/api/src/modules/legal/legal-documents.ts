@@ -20,23 +20,13 @@
  * anteriores siguen apuntando a lo que la persona realmente leyó.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * PENDIENTE (fuera del alcance de este cambio): las páginas
- * `apps/web/src/app/terms/page.tsx` y `apps/web/src/app/privacy/page.tsx` NO
- * muestran todavía versión ni fecha, y el registro no está enganchado a ningún
- * flujo del web. Falta:
- *
- *   1. que cada página lea `GET /v1/legal/documents` (público) y publique
- *      versión + fecha de entrada en vigor junto al texto;
- *   2. que el registro o el primer acceso presente la aceptación de `terms` y
- *      llame a `POST /v1/legal/acceptances` con la versión EXACTA mostrada;
- *   3. que la reaparición de una versión nueva se detecte comparando
- *      `GET /v1/legal/acceptances` con `LEGAL_DOCUMENTS`.
- *
- * El API es la mitad que faltaba y la que no se puede improvisar (tabla,
- * migración, invariantes de esquema y especificación). La mitad del web es
- * presentación sobre un contrato ya publicado — y `apps/web` está siendo
- * modificado por otro agente en paralelo, así que tocarlo aquí produciría un
- * conflicto sin ganar nada que no se pueda añadir después.
+ * INTEGRACIÓN DEL WEB (2026-09-06): las páginas `/terms` y `/privacy` ya
+ * muestran versión y fecha (`legalVersionLine`), el checkout de autoservicio
+ * (`CheckoutStarter.tsx`) pide `GET /v1/legal/documents` + acceptances y
+ * postea la versión exacta, y el alta (`AuthPage.tsx`) cubre la aceptación
+ * inicial. El golden `197-auditoria-terminos-al-alta.spec.ts` lo vigila.
+ * Quien ya aceptara terms 2026-09-06 quedaría bloqueado en el checkout hasta
+ * reaceptar; se publica ahora precisamente porque todavía no hay usuarios.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -73,55 +63,29 @@ export interface LegalDocumentVersion {
  * texto no vale más que no tener registro.
  */
 export const LEGAL_DOCUMENTS: readonly LegalDocumentVersion[] = [
-  // 2026-08-27 (campaña de lanzamiento gratuito): sustituye a la versión
-  // 2026-08-26. Los TÉRMINOS pasan a describir el lanzamiento gratuito —no se
-  // pide medio de pago, no hay cargo automático al terminar, y los documentos
-  // NO quedan condicionados al pago: la cuenta vencida conserva abrir,
-  // imprimir y exportar—, que es la regla de oro del guard puesta por escrito
-  // donde el cliente la puede leer. El AVISO DE PRIVACIDAD declara las
-  // métricas de activación que se publicaron en el mismo cambio
-  // (`health/activation-metrics.controller.ts`): conteos agregados derivados
-  // de datos que la aplicación ya guardaba, sin contenido de planos ni
-  // rastreadores. Los dos añaden, además, que son BORRADOR pendiente de
-  // revisión legal: decirlo es más honesto que aparentar solidez jurídica.
-
-  // 2026-08-26 (COMMERCIAL-RC1): sustituye a la versión 2026-08-15 — las
-  // páginas pasan a mostrar versión y fecha, los términos corrigen la sección
-  // comercial (las tarifas SÍ se publican en /precios y el checkout de
-  // autoservicio existe; el texto anterior lo negaba y contradecía a la
-  // página de precios), y cada versión queda candada por contentHash
-  // (`scripts/legal/check-legal-content.mjs`). El registro guarda UNA fila por
-  // documento — la vigente (el validador de abajo lo exige): las versiones
-  // anteriores viven en el historial de git y en las filas de aceptación que
-  // las nombran.
-  // 2026-09-06 (T-62b): sustituye a la versión 2026-08-27 — la sección
-  // comercial deja de decir «no se publica un nivel de servicio (SLA)»,
-  // que se volvió falso en cuanto `/sla` se publicó en el mismo cambio;
-  // ahora enlaza ahí y aclara que sigue sin ser un compromiso VINCULANTE
-  // sin acuerdo escrito. La versión anterior no se editó: se publica una
-  // nueva, como exige el candado.
+  // 2026-09-16 (campaña MiMo): sustituye a la versión 2026-09-06 — la marca
+  // pasa de «Valle Design» a «VALLECAD» en la metadata de ambas páginas. Una
+  // versión publicada nunca se edita: se publica una nueva.
   {
     documento: 'terms',
-    version: '2026-09-06',
-    publicadoEn: '2026-09-06',
+    version: '2026-09-16',
+    publicadoEn: '2026-09-16',
     url: '/terms',
     requiereAceptacion: true,
     contentHash:
-      'bff1c51e26f7372bfb91446046d7a08f35dd7d64af0ed3f37b439b4a87fbcc38',
+      '2580b460cc609d0a5e03afbf9821ca806df6acaa6257b218580a6b5cb55dfbea',
   },
-  // 2026-08-27.2 (campaña de lanzamiento, OLA 4.2): sustituye a 2026-08-27 —
-  // el estudio estrena el botón «algo salió mal», y lo que ese botón envía
-  // tiene que estar declarado ANTES de que exista una forma de pulsarlo. La
-  // versión anterior no se editó: se publica una nueva, que es lo que exige el
-  // candado y lo que merece quien aceptó la anterior.
+  // 2026-09-16 (campaña MiMo): sustituye a la versión 2026-08-27.2 — la marca
+  // pasa de «Valle Design» a «VALLECAD» en la metadata. Una versión publicada
+  // nunca se edita: se publica una nueva.
   {
     documento: 'privacy',
-    version: '2026-08-27.2',
-    publicadoEn: '2026-08-27',
+    version: '2026-09-16',
+    publicadoEn: '2026-09-16',
     url: '/privacy',
     requiereAceptacion: false,
     contentHash:
-      'dfcaea169cab631e335c17bf728ca8da17d2b59214787a3b36e245517a8997ac',
+      'bd9d75e4bbd0448e2502778f9bdad6da20b8263c1d574471e70b10e87fb83b05',
   },
 ] as const;
 

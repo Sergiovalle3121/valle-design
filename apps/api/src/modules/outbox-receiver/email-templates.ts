@@ -16,6 +16,7 @@
  * Los enlaces son ABSOLUTOS sobre OUTBOX_EMAIL_LINK_BASE_URL: el correo se lee
  * fuera del producto y un enlace relativo no lleva a ninguna parte.
  */
+import { PRODUCT_DISPLAY_NAME } from '../../common/brand/brand';
 
 export interface RenderedEmail {
   subject: string;
@@ -35,7 +36,9 @@ export class EmailTemplateError extends Error {
   }
 }
 
-const PRODUCT_NAME = 'Valle Design';
+// Del manifiesto, no de un literal: el asunto de cada correo lleva el nombre
+// que el despliegue configuró en `BRAND_PRODUCT_NAME_DESIGN` (o el default).
+const PRODUCT_NAME = PRODUCT_DISPLAY_NAME;
 
 export function renderEmailTemplate(
   template: string,

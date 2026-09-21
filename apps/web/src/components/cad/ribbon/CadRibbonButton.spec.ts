@@ -1,0 +1,73 @@
+/**
+ * El botón de la cinta, renderizado: rótulo en español en el botón; nombre,
+ * alias y descripción en el tooltip (que se abre en un portal, fuera de la
+ * tira que lo recortaba); dos tamaños según `command.primary`.
+ *
+ * Se renderiza con `renderToStaticMarkup` sobre comandos REALES de
+ * `CAD_RIBBON_DATA` (los iconos están indexados por nombre y un comando
+ * inventado reventaría el render), y se afirma sobre el marcado, no sobre el
+ * texto fuente.
+ *
+ * Correr: npx tsx src/components/cad/ribbon/CadRibbonButton.spec.ts
+ */
+import { strict as assert } from "node:assert";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { findCadRibbonCommand } from "@/lib/cad/ribbon";
+import { CadRibbonButton, cadRibbonButtonTitle, cadRibbonButtonTooltip } from "./CadRibbonButton";
+import { CadRibbonTooltipCard } from "./CadRibbonTooltip";
+
+let checks = 0;
+const ok = (condition: boolean, message: string) => {
+  assert.ok(condition, message);
+  checks += 1;
+};
+
+const line = findCadRibbonCommand("LINE")!;
+const xline = findCadRibbonCommand("XLINE")!;
+assert.ok(line.primary && !xline.primary, "LINE es grande y XLINE pequeño: el par que distingue los tamaños");
+
+const html = renderToStaticMarkup(createElement(CadRibbonButton, { command: line, onRun: () => undefined }));
+
+ok(html.includes('data-testid="cad-ribbon-command-LINE"'), "el testid sigue siendo cad-ribbon-command-<NOMBRE>");
+ok(html.includes('data-primary="true"'), "un primario lleva data-primary");
+ok(html.includes('data-size="large"'), "un primario se pinta grande por defecto");
+ok(html.includes("h-6 w-6"), "el icono grande mide 24 px");
+ok(html.includes(">Línea<"), "el botón pinta el rótulo en español, no LINE");
+// El tooltip ya NO cuelga del botón: dentro de la tira de paneles
+// (`overflow-x-auto`, que fuerza `overflow-y`) quedaba recortado y no se veía
+// nunca. Se monta al pasar el ratón, en un portal a <body> (`CadRibbonTooltip`).
+ok(!html.includes('role="tooltip"'), "el tooltip no se pinta dentro de la cinta, donde la tira lo recortaba");
+ok(html.includes("data-cad-ribbon-tooltip"), "el botón va envuelto en el disparador de su tooltip");
+// La tarjeta que se monta trae las tres líneas: rótulo · NOMBRE (alias) · descripción.
+const tip = renderToStaticMarkup(createElement(CadRibbonTooltipCard, cadRibbonButtonTooltip(line)));
+ok(tip.includes('role="tooltip"'), "hay tooltip");
+ok(tip.includes(">Línea<"), "el tooltip dice el rótulo en español");
+ok(tip.includes("LINE (L)"), "el tooltip dice el nombre canónico con su alias");
+ok(tip.includes(line.summary), "el tooltip dice la descripción");
+ok(
+  /\bfixed\b/.test(tip) && tip.includes("pointer-events-none") && tip.includes("z-[90]") && tip.includes("invisible"),
+  "la tarjeta es fixed (la coloca ribbon-floating al montarla), no roba clics y queda sobre los desplegables",
+);
+ok(html.includes(`title="${cadRibbonButtonTitle(line)}"`), "el title nativo trae rótulo · NOMBRE (alias) — descripción");
+ok(cadRibbonButtonTitle(line) === `Línea · LINE (L) — ${line.summary}`, "formato del title nativo");
+ok(!/bg-primary|bg-brand/.test(html), "sin relleno --primary/brand en el botón: relleno y tinta son tokens distintos");
+ok(html.includes("focus-visible:ring-ring"), "anillo de foco del sistema");
+
+const small = renderToStaticMarkup(createElement(CadRibbonButton, { command: xline, onRun: () => undefined }));
+ok(small.includes('data-size="small"'), "un no primario se pinta pequeño por defecto");
+ok(!small.includes("data-primary"), "un no primario no lleva data-primary");
+ok(small.includes("h-4 w-4"), "el icono pequeño mide 16 px");
+ok(small.includes("h-5 w-28"), "el botón pequeño mide 7 rem × 20 px (CAD_RIBBON_METRICS.small)");
+
+const menu = renderToStaticMarkup(
+  createElement(CadRibbonButton, { command: xline, onRun: () => undefined, size: "menu" }),
+);
+ok(menu.includes('data-size="menu"'), "el desplegable pide el tamaño de menú");
+
+const disabled = renderToStaticMarkup(
+  createElement(CadRibbonButton, { command: line, onRun: () => undefined, disabled: true }),
+);
+ok(/<button[^>]*\sdisabled/.test(disabled) && disabled.includes("disabled:opacity-40"), "deshabilitado: atributo y señal visual");
+
+console.log(`CadRibbonButton: ${checks}/${checks} comprobaciones verdes`);

@@ -241,7 +241,7 @@ test("el estándar de capas del delineante sobrevive a guardar y recargar", asyn
     await limpiarDesignacion(page);
     await abrirCapas(page);
     await page.getByTestId("cad-layer-lock-EJES").click();
-    await expect(page.getByTestId("cad-layer-lock-EJES")).toHaveText("Lock");
+    await expect(page.getByTestId("cad-layer-lock-EJES")).toHaveText("Bloqueada");
     await cerrarCapas(page);
 
     // 1) No se designa con el ratón: el barrido ya no lo captura.
@@ -344,7 +344,7 @@ test("el estándar de capas del delineante sobrevive a guardar y recargar", asyn
     await expect(page.getByTestId("cad-layer-color-EJES")).toHaveValue(
       "#22d3ee",
     );
-    await expect(page.getByTestId("cad-layer-lock-EJES")).toHaveText("Lock");
+    await expect(page.getByTestId("cad-layer-lock-EJES")).toHaveText("Bloqueada");
     await expect(page.getByTestId("cad-layer-frozen-COTAS")).toHaveAttribute(
       "data-state",
       "frozen",

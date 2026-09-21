@@ -1,14 +1,29 @@
 "use client";
 
 /**
- * El recorrido guiado, encima del diálogo de comandos.
+ * El recorrido guiado, en el muelle izquierdo.
  *
- * ## Por qué se monta AQUÍ y no en el editor
+ * ## Por qué se monta en la línea de comandos y se PINTA en el muelle
  *
- * Porque montarlo en `Layout3DEditor.tsx` costaría JSX y un `useState` en un
- * archivo cuyo presupuesto sólo puede bajar. Se cuelga de `CadCommandLineDock`,
- * que ya vive fuera del monolito, exactamente como hace la consola AutoLISP.
- * El editor no se entera de que existe.
+ * Se monta en `CadCommandLineDock` porque ahí está el anfitrión del motor, que
+ * es de donde lee el dibujo, y porque montarlo en `Layout3DEditor.tsx` costaría
+ * JSX y un `useState` en un archivo cuyo presupuesto sólo puede bajar. Pero se
+ * PINTA, por portal, en el hueco que el muelle izquierdo publica
+ * (`tour-slot.ts`): ésa es la columna que no tapa nada.
+ *
+ * Antes flotaba sobre el lienzo, encima de la línea de comandos, y media caja
+ * caía sobre la paleta de herramientas. Como era `pointer-events-none`, pulsar
+ * la tarjeta encendía la herramienta de debajo —«Pasillo», «Área», «Ajustar
+ * todo»—. Sólo vuelve a flotar cuando el muelle no está a la vista (ventana
+ * estrecha, modo enfoque, muelle plegado o apagado), y entonces la tarjeta se
+ * queda con sus propios clics: lo que se ve es lo que se pulsa.
+ *
+ * ## Por qué arranca plegado
+ *
+ * Porque un recién llegado necesita saber EN QUÉ PASO va, no leer los cinco a
+ * la vez encima de su plano. Plegado es una línea —«Primeros cinco minutos» y
+ * el paso actual— con el botón para desplegarlo; la elección de la persona se
+ * guarda en el registro (`tour-host.ts`) y manda desde entonces.
  *
  * ## Cómo sabe por dónde va
  *
@@ -29,6 +44,7 @@
  * avisar de nada, y se apaga en cuanto el recorrido se cierra.
  */
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronDown, ChevronRight, ChevronUp, PartyPopper } from "lucide-react";
 import { Button, ProgressBar, cx } from "@/components/ui";
 import {
@@ -42,6 +58,7 @@ import type { CadCommandDocumentView } from "@/lib/cad/engine/command-types";
 import type { CadCommandEngineHost } from "../command-line/command-engine-host";
 import { onCadPlotDelivered } from "../command-line/plot-host";
 import { cadTourHost, noteCadTourPlot } from "./tour-host";
+import { cadTourSlot } from "./tour-slot";
 
 /** Latido del acompañante. Sólo late mientras el recorrido está abierto. */
 const HEARTBEAT_MS = 700;
@@ -73,17 +90,20 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
     now: number;
   }>({ document: null, now: 0 });
   /**
-   * Plegado, no persistido. La cabecera SIEMPRE se ve — el usuario nunca
-   * pierde el hilo de en qué paso va— pero el cuerpo (barra de progreso,
-   * lista de pasos) se puede quitar de en medio: medido en un lienzo de
-   * 1.280×720 con el paso «Sigue dibujando» activo, el acompañante
-   * completo deja sólo 4 px de aire sobre la línea de comandos —visualmente
-   * pegados, aunque el rectángulo no llegue a tocarla—. Plegado baja la
-   * altura del panel a una sola línea y multiplica ese margen. No se guarda
-   * en `localStorage` a propósito: es un gesto de «ahora estorba», no una
-   * preferencia — la próxima vez que el recorrido se abra, se abre entero.
+   * Plegado, persistido en el registro del recorrido. La cabecera SIEMPRE se
+   * ve — el usuario nunca pierde el hilo de en qué paso va— pero el cuerpo
+   * (barra de progreso, lista de pasos) sólo sale cuando se pide. El registro
+   * nace plegado (`EMPTY_CAD_TOUR_RECORD`) y lo que el usuario elija se guarda
+   * en localStorage: si lo despliega, la próxima vez sigue desplegado.
    */
-  const [minimized, setMinimized] = useState(false);
+  const minimized = record.minimized;
+  /** El hueco del muelle izquierdo, sólo mientras se ve. `null`: se flota. */
+  const slot = useSyncExternalStore(
+    cadTourSlot.subscribe,
+    cadTourSlot.getSnapshot,
+    cadTourSlot.getServerSnapshot,
+  );
+  const docked = slot !== null;
 
   // El aviso de trazado se escucha SIEMPRE que el recorrido esté vivo, esté o no
   // desplegado: alguien puede plegar el panel, trazar y volver a abrirlo.
@@ -128,29 +148,26 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
   const elapsed = record.startedAt > 0 && seen.now > record.startedAt
     ? seen.now - record.startedAt
     : null;
-  return (
+  const card = (
     <section
       data-testid="cad-guided-tour"
       aria-label="Recorrido guiado"
+      data-placement={docked ? "dock" : "floating"}
       /*
-        QUIÉN SE QUEDA EL RATÓN, y por qué el panel entero ya no.
+        QUIÉN SE QUEDA EL RATÓN: la tarjeta entera, siempre.
 
-        El envoltorio del muelle de comandos es `pointer-events-none` a
-        propósito —flota sobre la barra inferior y taparía Undo—, así que cada
-        control que quiera ratón lo reactiva por su cuenta. Este panel lo hacía
-        ENTERO, y eso lo convertía en un telón: medido con
-        `elementsFromPoint`, en una ventana de 1.280×720 el acompañante cubría
-        el CENTRO del lienzo, y el editor dejaba de ver el ratón ahí —el HUD de
-        coordenadas se quedaba en blanco y con él la captura a objeto, la banda
-        elástica y cualquier clic de dibujo—. Un acompañante que impide dibujar
-        es peor que ninguno.
+        Hubo una época en que flotaba sobre el lienzo con `pointer-events-none`
+        para no taparle el ratón al plano, y ése fue el defecto: se VEÍA
+        encima de la paleta y del dibujo pero los clics la atravesaban, así que
+        pulsar el texto del recorrido encendía la herramienta de debajo. Una
+        capa que se ve y no se puede pulsar miente sobre lo que hay debajo.
 
-        Ahora el ratón lo reclaman sólo los CONTROLES —el botón «Saltar
-        recorrido» y el botón del paso—, no las filas que los envuelven: un
-        contenedor de ancho completo que reclama el puntero es el mismo telón en
-        pequeño. El resto del panel se ve, se lee y deja pasar el puntero al
-        plano. Y la altura baja a un tercio de la pantalla: en una tableta,
-        medio viewport de acompañante es medio plano menos.
+        La salida no era devolverle el puntero a la capa sino quitar la capa
+        de encima: en el muelle izquierdo (`data-placement="dock"`) no hay nada
+        debajo que tapar. Cuando tiene que flotar —el muelle no se ve—, el
+        envoltorio de la línea de comandos es `pointer-events-none` y la
+        tarjeta lo reactiva para sí; arranca plegada, así que lo que reclama es
+        una franja de una línea, no un tercio del plano. Golden 67.
       */
       /*
         5.5 · LA PIEL, no la lógica. La lógica de este acompañante es lo mejor
@@ -167,81 +184,78 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
       */
       data-collapsed={minimized ? "true" : "false"}
       className={cx(
-        "pointer-events-none w-full overflow-y-auto rounded-card border border-border bg-popover/95 text-popover-foreground shadow-floating backdrop-blur",
+        "overflow-y-auto rounded-card border border-border text-popover-foreground",
+        // En el muelle es una tarjeta más de la columna, sin sombra de capa
+        // flotante: no está encima de nada.
+        docked
+          ? "m-2 bg-popover"
+          : "pointer-events-auto w-full bg-popover/95 shadow-floating backdrop-blur",
+        // Un tercio de la pantalla como mucho, en el muelle también: desplegado
+        // entero no debe empujar la biblioteca fuera de la ventana.
         minimized ? "p-2" : "max-h-[32vh] p-3.5",
       )}
     >
       {/*
-        La cabecera NO reclama el ratón: sólo sus botones.
-
-        `pointer-events-auto` en una fila `flex` de ancho completo no deja pasar
-        el puntero por el TÍTULO ni por el hueco entre el título y el botón, y
-        eso convierte la cabecera en una PERSIANA de 458×25 px flotando sobre el
-        plano —medido con `elementsFromPoint`: en 1.280×720 se comía la banda
-        donde el golden 28 busca el punto medio y el 40 designa el arco—. Peor
-        aún, la persiana se MUEVE: el panel es bottom-anchored sobre el diálogo
-        de comandos, así que crece hacia arriba cada vez que el diálogo suma una
-        línea, y la banda muerta cae cada vez a una altura distinta del lienzo.
-
-        Un botón de 83 px sí puede reclamarlo; la fila que lo contiene, no.
+        Dos renglones: arriba el rótulo con los botones, abajo el paso actual a
+        todo el ancho. En el muelle (240 px) título y botones no caben en una
+        fila: el título se partía en tres renglones y la cabecera «plegada»
+        medía casi lo que el cuerpo. Abajo, sólo, el paso cabe en uno.
       */}
-      <header className={cx("flex items-start justify-between gap-3", !minimized && "mb-3")}>
-        <span className="min-w-0">
-          <span className="type-eyebrow block text-primary-ink">
+      <header className={cx("flex flex-col gap-1", !minimized && "mb-3")}>
+        <span className="flex items-center justify-between gap-2">
+          <span className="type-eyebrow min-w-0 text-primary-ink">
             Primeros cinco minutos
           </span>
-          <span className="type-small mt-1 block font-semibold text-foreground">
-            {progress.completed
-              ? "Recorrido terminado"
-              : (() => {
-                  const current = CAD_GUIDED_TOUR_STEPS.find(
-                    (step) => step.id === progress.currentStepId,
-                  );
-                  return current
-                    ? cadGuidedTourStepCopy(current, evidence).title
-                    : "Sigue dibujando";
-                })()}
+          <span className="flex shrink-0 items-center gap-1">
+            {/*
+              EL PLIEGUE. Deja sólo la cabecera sin mover ni un dato del
+              recorrido. La flecha apunta hacia donde se abrirá el cuerpo:
+              hacia abajo en el muelle, hacia arriba cuando flota sobre la
+              línea de comandos (ahí crece hacia arriba).
+            */}
+            <Button
+              variant="ghost"
+              size="sm"
+              data-testid="cad-guided-tour-toggle"
+              onClick={() => cadTourHost.dispatch({ type: "minimize", minimized: !minimized })}
+              aria-expanded={!minimized}
+              title={minimized ? "Mostrar el recorrido guiado" : "Minimizar el recorrido guiado"}
+              className="shrink-0 px-1.5"
+            >
+              {minimized === docked ? (
+                <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
+              ) : (
+                <ChevronUp aria-hidden="true" className="h-3.5 w-3.5" />
+              )}
+              <span className="sr-only">
+                {minimized ? "Mostrar el recorrido guiado" : "Minimizar el recorrido guiado"}
+              </span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              data-testid="cad-guided-tour-skip"
+              onClick={() => cadTourHost.dispatch({ type: "skip", now: Date.now() })}
+              className="shrink-0"
+            >
+              Saltar
+            </Button>
           </span>
         </span>
-        {/* Sólo los BOTONES reclaman el puntero, nunca la fila que los envuelve:
-            ver la nota de arriba sobre el telón. */}
-        <span className="flex shrink-0 items-center gap-1">
-          {/*
-            EL PLIEGUE. Con el paso «Sigue dibujando» activo y el panel
-            entero desplegado, el hueco sobre la línea de comandos medía 4 px
-            en 1.280×720 — el rectángulo no llega a tocarla, pero el ojo no
-            distingue dos tarjetas de 4 px de por medio: se lee como una
-            sola. Este botón pliega el cuerpo (progreso + pasos) y deja sólo
-            la cabecera, que es una línea — el hueco pasa de 4 px a más de
-            200 px sin mover ni un dato del recorrido.
-          */}
-          <Button
-            variant="ghost"
-            size="sm"
-            data-testid="cad-guided-tour-toggle"
-            onClick={() => setMinimized((value) => !value)}
-            aria-expanded={!minimized}
-            title={minimized ? "Mostrar el recorrido guiado" : "Minimizar el recorrido guiado"}
-            className="pointer-events-auto shrink-0 px-1.5"
-          >
-            {minimized ? (
-              <ChevronUp aria-hidden="true" className="h-3.5 w-3.5" />
-            ) : (
-              <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
-            )}
-            <span className="sr-only">
-              {minimized ? "Mostrar el recorrido guiado" : "Minimizar el recorrido guiado"}
-            </span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            data-testid="cad-guided-tour-skip"
-            onClick={() => cadTourHost.dispatch({ type: "skip", now: Date.now() })}
-            className="pointer-events-auto shrink-0"
-          >
-            Saltar
-          </Button>
+        <span
+          data-testid="cad-guided-tour-title"
+          className="type-small block font-semibold text-foreground"
+        >
+          {progress.completed
+            ? "Recorrido terminado"
+            : (() => {
+                const current = CAD_GUIDED_TOUR_STEPS.find(
+                  (step) => step.id === progress.currentStepId,
+                );
+                return current
+                  ? cadGuidedTourStepCopy(current, evidence).title
+                  : "Sigue dibujando";
+              })()}
         </span>
       </header>
       {!minimized && (
@@ -309,7 +323,7 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
                         onClick={() =>
                           cadTourHost.dispatch({ type: "acknowledge" })
                         }
-                        className="pointer-events-auto mt-2"
+                        className="mt-2"
                       >
                         Entendido, a dibujar
                       </Button>
@@ -350,6 +364,9 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
       )}
     </section>
   );
+  // En el muelle, por portal: el hueco no tiene hijos de React y el árbol de
+  // React (eventos, estado, latido) sigue siendo éste.
+  return slot ? createPortal(card, slot) : card;
 }
 
 export default CadGuidedTourDock;

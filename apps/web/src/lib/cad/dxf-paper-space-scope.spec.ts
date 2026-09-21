@@ -28,6 +28,7 @@ import type { CadEntity, CadLayerDef } from "./cad-document";
 import { importDocumentText } from "./document-import";
 import { exportCadDocumentDxf } from "./dxf-document-export";
 import { planCadDxfImport } from "./engine/commands/interop-dxf";
+import { createCadPaperSpace } from "./paper-space";
 
 // --- 1. exportación: excluida y declarada CUANDO se declara `paperSpaces` --
 {
@@ -68,34 +69,57 @@ import { planCadDxfImport } from "./engine/commands/interop-dxf";
     "0", "SECTION", "2", "ENTITIES",
     "0", "LINE", "8", "MUROS", "10", "0", "20", "0", "11", "100", "21", "0",
     "0", "LINE", "8", "CAJETIN", "67", "1", "10", "9999", "20", "9999", "11", "9999", "21", "9998",
+    "0", "VIEWPORT", "8", "VP", "67", "1", "10", "5000", "20", "5000",
     "0", "ENDSEC", "0", "EOF",
   ].join("\n");
 
   const imported = importDocumentText("plano.dxf", rawWithPaperSpace);
-  assert.equal(imported.importedEntityCount, 1, "solo la línea de modelo entra al documento");
+  assert.equal(imported.importedEntityCount, 2, "modelo y papel entran al documento (VIEWPORT no cuenta: es unsupported)");
   assert.equal(
     imported.document.modelSpace.entityIds.length,
-    imported.document.entities.length,
-    "modelSpace no referencia más entidades de las que el documento realmente trae",
+    1,
+    "modelSpace solo referencia la entidad de modelo",
+  );
+  assert.equal(
+    imported.document.paperSpaces.length,
+    1,
+    "hay una presentación de papel",
+  );
+  assert.equal(
+    imported.document.paperSpaces[0].name,
+    "Presentación1",
+    "la presentación se llama Presentación1",
   );
   const paperLine = imported.document.entities.find(
     (entity) => entity.type === "line" && "start" in entity && (entity as { start: { x: number } }).start.x === 9_999,
   );
-  assert.equal(paperLine, undefined, "la línea de espacio papel NO está en el documento");
+  assert.ok(paperLine, "la línea de espacio papel SÍ está en el documento");
+  assert.ok(
+    imported.document.paperSpaces[0].entityIds.includes(paperLine!.id),
+    "la línea de papel vive en paperSpaces[0].entityIds",
+  );
 
-  const docLoss = imported.document.lossManifest.find((entry) => entry.code === "dxf_paper_space_excluded");
-  assert.ok(docLoss, "la exclusión se declara en el manifiesto de pérdidas del documento");
+  const docLoss = imported.document.lossManifest.find(
+    (entry) => entry.code === "dxf_paper_space_single_layout",
+  );
+  assert.ok(docLoss, "el manifiesto declara la presentación única sin ventanas gráficas");
 
   const reportRow = imported.dxfReport?.rows.find((row) => row.code === "dxf_paper_space_excluded");
-  assert.ok(reportRow, "el informe en español también la declara");
+  assert.ok(reportRow, "el informe de importación aún declara las entidades excluidas del espacio modelo");
   assert.equal(reportRow!.count, 1);
-  assert.equal(reportRow!.fidelity, "lost");
 
   // El recuento de "conservado" cuenta la línea de MUROS (1), NO las dos: si
   // contara 2, el informe diría "2 líneas con su geometría exacta" mintiendo
   // sobre cuántas entraron de verdad.
   const keptLine = imported.dxfReport?.rows.find((row) => row.code === "kept_line");
   assert.equal(keptLine?.count, 1, "el recuento de líneas conservadas NO incluye la de papel");
+
+  // (d) VIEWPORT en espacio papel aparece como pérdida en el informe.
+  const vpRow = imported.dxfReport?.rows.find(
+    (row) => row.code === "unsupported_entity" && row.detail.includes("VIEWPORT"),
+  );
+  assert.ok(vpRow, "VIEWPORT aparece en el informe como unsupported_entity");
+  assert.equal(vpRow!.fidelity, "lost", "VIEWPORT tiene fidelity 'lost'");
 
   // Prueba negativa: SIN el código 67 (o en 0), las dos líneas entran.
   const rawAllModel = [
@@ -118,6 +142,7 @@ import { planCadDxfImport } from "./engine/commands/interop-dxf";
     "0", "SECTION", "2", "ENTITIES",
     "0", "LINE", "8", "MUROS", "10", "0", "20", "0", "11", "100", "21", "0",
     "0", "LINE", "8", "CAJETIN", "67", "1", "10", "9999", "20", "9999", "11", "9999", "21", "9998",
+    "0", "VIEWPORT", "8", "VP", "67", "1", "10", "5000", "20", "5000",
     "0", "ENDSEC", "0", "EOF",
   ].join("\n");
   let ids = 0;
@@ -133,7 +158,88 @@ import { planCadDxfImport } from "./engine/commands/interop-dxf";
   );
 }
 
+// --- 5. C09: la presentación vacía pero publicable se declara siempre --------
+{
+  const modelLine: CadEntity = {
+    id: "modelo-1",
+    type: "line",
+    layer: "0",
+    start: { x: 0, y: 0, z: 0 },
+    end: { x: 1000, y: 0, z: 0 },
+  };
+  const layout = createCadPaperSpace({
+    id: "layout:A-101",
+    name: "A-101",
+    order: 0,
+    paper: "A1",
+    orientation: "landscape",
+    modelBounds: { x: 0, y: 0, width: 1000, height: 500 },
+    metadata: { project: "Casa", drawingNumber: "A-101", title: "Planta", sheetNumber: "A-101", revision: "A", discipline: "ARQ" },
+    scale: 50,
+  });
+  // Una ventana por defecto de createCadPaperSpace
+  const doc = {
+    entities: [modelLine],
+    blocks: [],
+    layers: [{ id: "0", name: "0", color: "#ffffff", visible: true, locked: false }] as CadLayerDef[],
+    paperSpaces: [layout],
+  };
+
+  // exportCadDocumentDxf
+  const exported = exportCadDocumentDxf(doc);
+  const loss = exported.losses.find((e) => e.code === "dxf_export_paper_space_excluded");
+  assert.ok(loss, "C09: la hoja vacía pero publicable dispara el aviso");
+  assert.ok(loss!.detail.includes("A-101"), "C09: el detalle nombra A-101: " + loss!.detail);
+  assert.ok(loss!.detail.includes("1 ventana"), "C09: el detalle cuenta ventanas: " + loss!.detail);
+  assert.ok(!exported.content.includes("LAYOUT"), "C09: el DXF no escribe secciones LAYOUT");
+
+  // planCadDxfImport (DXFOUT)
+  let ids = 0;
+  const plan = planCadDxfImport(
+    "0\nSECTION\n2\nENTITIES\n0\nLINE\n8\n0\n10\n0\n20\n0\n11\n1000\n21\n0\n0\nENDSEC\n0\nEOF\n",
+    { newEntityId: () => `p${++ids}` },
+  );
+  assert.ok(plan.ok, "C09: plan sale ok");
+  // planCadDxfImport no pasa por exportCadDocumentDxf, pero DXFOUT sí;
+  // la prueba de plan se limita a que no explote con el tipo ensanchado.
+
+  // Negativo 1: sin paperSpaces no se declara
+  const noSpaces = exportCadDocumentDxf({
+    entities: [modelLine],
+    blocks: [],
+    layers: doc.layers,
+  });
+  assert.ok(
+    !noSpaces.losses.some((e) => e.code === "dxf_export_paper_space_excluded"),
+    "C09 negativo: sin presentaciones no se inventa pérdida",
+  );
+
+  // Negativo 2: hoja con includeInPublish:false y entityIds vacío no dispara
+  const excluded = createCadPaperSpace({
+    id: "layout:B-01",
+    name: "B-01",
+    order: 0,
+    paper: "A1",
+    orientation: "landscape",
+    modelBounds: { x: 0, y: 0, width: 100, height: 100 },
+    metadata: { project: "X", drawingNumber: "B-01", title: "X", sheetNumber: "B-01", revision: "A", discipline: "ARQ" },
+    scale: 50,
+  });
+  (excluded as { includeInPublish: boolean }).includeInPublish = false;
+  const noPublish = exportCadDocumentDxf({
+    entities: [modelLine],
+    blocks: [],
+    layers: doc.layers,
+    paperSpaces: [excluded],
+  });
+  assert.ok(
+    !noPublish.losses.some((e) => e.code === "dxf_export_paper_space_excluded"),
+    "C09 negativo: hoja no publicable no dispara el aviso",
+  );
+}
+
 console.log(
   "dxf-paper-space-scope: exportación e importación (archivo completo y DXFIN) excluyen y declaran " +
-    "el espacio papel, y ninguna de las dos lo hace cuando el archivo no lo trae",
+    "el espacio papel, y ninguna de las dos lo hace cuando el archivo no lo trae. " +
+    "C09: hoja vacía publicable se declara con nombre y ventanas.",
 );

@@ -7,10 +7,11 @@
  * funcionan; lo que no existe aquí es la nube, y el banner lo dice.
  *
  * El banner es PERMANENTE y discreto a la vez: una tira fija abajo que no
- * roba puntero fuera de sí misma ni tapa la línea de comandos (queda por
- * encima del borde inferior del lienzo, con `pointer-events` solo en la
- * tira). No se puede cerrar a propósito: una demostración que se disfraza de
- * producto completo es una promesa falsa.
+ * roba puntero fuera de sí misma. El offset `bottom-24` despeja la línea de
+ * comandos (`absolute bottom-3 left-3 z-30` en Layout3DEditor.tsx) y la barra
+ * de estado (CadStatusBar.tsx). Con `bottom-3` la píldora tapa ambas; con
+ * `bottom-14` tapa la línea de comandos. `z-[75]` es el nivel que el estudio
+ * ya define para chrome flotante sobre el piso `z-[70]` del shell.
  */
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -66,7 +67,7 @@ export function DemoStudio() {
       <aside
         data-testid="demo-banner"
         aria-label="Aviso de demostración"
-        className="pointer-events-none fixed inset-x-0 bottom-3 z-40 flex justify-center px-3"
+        className="pointer-events-none fixed inset-x-0 bottom-24 z-[75] flex justify-center px-3"
       >
         <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-x-4 gap-y-2 rounded-full border border-border bg-card/95 py-2 pl-5 pr-2 shadow-elevated backdrop-blur">
           <p className="type-small text-foreground">

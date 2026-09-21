@@ -83,6 +83,7 @@ export default function ScaleBar({
   if (!bar) return null;
   return (
     <div
+      data-testid="cad-scale-bar"
       className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 pointer-events-none select-none"
       title="Escala aproximada"
     >

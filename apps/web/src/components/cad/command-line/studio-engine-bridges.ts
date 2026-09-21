@@ -72,6 +72,8 @@ export interface CadStudioEngineBridgeInputs {
   nativeMassHosts?: {
     current: { applyVisualStyle(style: CadVisualStyleId): string; visualStyle: CadVisualStyleId } | null;
   };
+  /** Controlador de vista, para PERSPECTIVE. */
+  viewControllerRef: { current: { setProjection?(p: "perspective" | "parallel"): void } | null };
   /** LTSCALE es del DOCUMENTO: se lee de `meta` y se escribe por la fachada. */
   setLinetypeScale: (value: number) => void;
   /** ¿La orden en curso la arrancó el PUNTERO (barra) o el teclado? */
@@ -93,6 +95,7 @@ export function cadStudioEngineBridges(
   | "activeLayout"
   | "setSelection"
   | "setSpace"
+  | "setProjection"
   | "openPageSetup"
   | "history"
   | "osnapOverride"
@@ -120,6 +123,7 @@ export function cadStudioEngineBridges(
     syncRedefinedBlock,
     cursor,
     drawPreview,
+    viewControllerRef,
   } = inputs;
   /** Da un paso y dice si de verdad lo dio: la profundidad tiene que bajar. */
   const step = (direction: "undo" | "redo", run: () => void) => (): boolean => {
@@ -163,6 +167,10 @@ export function cadStudioEngineBridges(
     visualStyle: (styleId) => {
       const label = solidShadeHost.current?.applyVisualStyle(styleId) ?? null;
       nativeMassHosts?.current?.applyVisualStyle(styleId);
+      // D-04 (visualización 3D): VSCURRENT confirma éxito aunque no haya
+      // cambiado nada. Si no hay ningún objeto sombreable, lo dice.
+      if (label && !solidShadeHost.current && !nativeMassHosts?.current)
+        return `${label} (0 objetos: este dibujo no tiene sólidos sombreables)`;
       return label;
     },
     // VSCURRENT + Intro sin teclear nada CONSULTA el vigente (T-10a): antes
@@ -184,6 +192,10 @@ export function cadStudioEngineBridges(
           spaces[0]);
       if (!target) return false;
       setActivePaperSpaceId(target.id);
+      return true;
+    },
+    setProjection: (projection) => {
+      viewControllerRef.current?.setProjection?.(projection);
       return true;
     },
     openPageSetup: (layoutId) => {

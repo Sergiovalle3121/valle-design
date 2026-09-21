@@ -223,7 +223,7 @@ const revisa = (en: CatalogoCrudo, es: CatalogoCrudo): DefectoDeCatalogo[] =>
    sin que ningún marcador ICU se queje: es un defecto propio. */
 {
   const es = clona(SANO_ES);
-  es.detail = "El motor de dibujo sigue trabajando. Valle Design guarda tu borrador aquí.";
+  es.detail = "El motor de dibujo sigue trabajando. VALLECAD guarda tu borrador aquí.";
   const defectos = revisa(SANO_EN, es);
   assert.equal(defectos.length, 1, `se esperaba exactamente un defecto: ${defectos.map((d) => d.detalle)}`);
   assert.equal(defectos[0].tipo, "ficha-discordante");

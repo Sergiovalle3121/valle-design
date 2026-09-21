@@ -76,6 +76,14 @@ export interface CadPageSetup {
   /** Trazar los grosores de línea. Apagarlo saca todo a un grosor fino. */
   plotLineweights: boolean;
   plotTransparency: boolean;
+  /**
+   * Sello de trazado: fichero, fecha y escala impresos en la salida. Opción
+   * DEL TRAZADO, no de la presentación — como `area`, `scale` y `centered`,
+   * no se escribe en `space.pageSetup` (ver `applyCadPageSetupToLayout`);
+   * PLOTSTAMP (engine/commands/plot-commands.ts) la enciende y PLOT la lee
+   * de `PLOTSTAMPMODE` al componer la petición.
+   */
+  plotStamp: boolean;
 }
 
 export interface CadPlotRequest {
@@ -112,6 +120,16 @@ export function cadPrintableArea(setup: CadPageSetup): {
     width: Math.max(1, page.width - setup.margins.left - setup.margins.right),
     height: Math.max(1, page.height - setup.margins.top - setup.margins.bottom),
   };
+}
+
+/**
+ * La escala en TEXTO, como se lee en el rótulo del cajetín y en el sello de
+ * trazado (`PLOTSTAMP`, `plot-commands.ts`). Un solo sitio para el formato:
+ * dos textos que dicen «1:50» de dos maneras distintas es la clase de
+ * inconsistencia que un cliente nota antes que un error de geometría.
+ */
+export function cadPlotScaleLabel(scale: CadPlotScale): string {
+  return scale.kind === "fit" ? "Ajustada a la hoja" : `1:${scale.drawingUnits / scale.paperMm}`;
 }
 
 export interface CadPlotAreaSources {
@@ -273,6 +291,7 @@ export function defaultCadPageSetup(input: {
   colorMode?: "color" | "monochrome";
   lineweightScale?: number;
   plotStyleTable?: string | null;
+  plotStamp?: boolean;
 } = {}): CadPageSetup {
   return {
     name: "",
@@ -289,6 +308,7 @@ export function defaultCadPageSetup(input: {
     lineweightScale: input.lineweightScale ?? 1,
     plotLineweights: true,
     plotTransparency: false,
+    plotStamp: input.plotStamp ?? false,
   };
 }
 

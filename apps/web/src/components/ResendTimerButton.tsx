@@ -27,7 +27,7 @@ export function ResendTimerButton({
   className,
 }: {
   seconds?: number;
-  onResend: () => void | Promise<void>;
+  onResend: () => boolean | Promise<boolean>;
   label?: string;
   className?: string;
 }) {
@@ -47,8 +47,8 @@ export function ResendTimerButton({
     if (left > 0 || busy) return;
     setBusy(true);
     try {
-      await onResend();
-      setLeft(seconds);
+      const enviado = await onResend();
+      if (enviado) setLeft(seconds);
     } finally {
       setBusy(false);
     }

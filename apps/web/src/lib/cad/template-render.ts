@@ -65,6 +65,8 @@ export interface CadTemplateSvgOptions {
   theme: ThemeName;
   /** Ancho del lienzo en px (alto en proporción a la huella + cajetín). */
   width?: number;
+  /** Nombre del producto para el cajetín; evita importar @valle-design/contracts. */
+  productName?: string;
 }
 
 export interface CadTemplateSvgResult {
@@ -150,7 +152,7 @@ export function renderCadTemplateSvg(
     `<text x="${PLAN_MARGIN_PX}" y="${tbTop + 30}" font-size="17" font-weight="600" fill="${surface.foreground}">${escapeXml(template.label)}</text>`,
     `<text x="${PLAN_MARGIN_PX}" y="${tbTop + 52}" font-size="11" fill="${surface.foreground}" fill-opacity="0.66">${escapeXml(discipline)} · ${escapeXml(String(sheetNumber))} · ${footprintW / 1000} × ${footprintH / 1000} m</text>`,
     `<text x="${width - PLAN_MARGIN_PX}" y="${tbTop + 30}" text-anchor="end" font-size="14" font-weight="600" fill="${surface.primary}">ESC 1:${scaleDenominator}</text>`,
-    `<text x="${width - PLAN_MARGIN_PX}" y="${tbTop + 52}" text-anchor="end" font-size="11" fill="${surface.foreground}" fill-opacity="0.66">VALLE DESIGN · plantilla del catálogo</text>`,
+    `<text x="${width - PLAN_MARGIN_PX}" y="${tbTop + 52}" text-anchor="end" font-size="11" fill="${surface.foreground}" fill-opacity="0.66">${escapeXml(options.productName ?? "VALLECAD")} · plantilla del catálogo</text>`,
     `</g>`,
   ].join("");
 

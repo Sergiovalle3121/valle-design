@@ -10,10 +10,9 @@
  * · IMPORT recibe el contenido del archivo como texto. El anfitrión que ya sabe
  *   abrir un DXF puede pasárselo tal cual; pegarlo también funciona, y eso hace
  *   que la orden sea probable en Node sin montar medio navegador.
- * · EXPORT devuelve el archivo COMO MENSAJE. Es la única salida que el contrato
- *   del motor permite hoy, y se dice aquí en voz alta en vez de disimularlo: el
- *   botón de descarga es un cambio del anfitrión, no del motor, y va anotado en
- *   el PR junto al gancho del visor 3D.
+ * · EXPORT entrega el archivo con una petición `download` al anfitrión
+ *   (host-requests.ts); el motor sólo produce el texto y el anfitrión lo
+ *   descarga.
  *
  * El formato de IMPORT se detecta por la cabecera; el de EXPORT se elige con una
  * palabra clave y el defecto es STEP AP214, que es lo que acepta cualquier
@@ -136,6 +135,8 @@ const exportCommand: CadCommandDescriptor<ExportState> = {
     const solids = selectedSolids(context, state.selection);
     if (solids.length === 0)
       return solidMessage(state, "EXPORT necesita SOLID3D designados.");
+    if (solids.length > 1)
+      return solidMessage(state, "EXPORT: designe un solo sólido; varios sólidos en un archivo aún no se admiten.");
     const format = input.kind === "keyword" && input.keyword === FORMAT_IGES.keyword ? "iges" : "step";
     const parts: string[] = [];
     for (const solid of solids) {
@@ -143,8 +144,6 @@ const exportCommand: CadCommandDescriptor<ExportState> = {
         parts.push(
           exportSolidEntity(solid, {
             format,
-            // Marca de tiempo fija: un archivo que cambia con el reloj no se
-            // puede comparar byte a byte entre dos corridas.
             timestamp: format === "step" ? CAD_INTEROP_EPOCH : "19700101.000000",
           }),
         );
@@ -152,10 +151,20 @@ const exportCommand: CadCommandDescriptor<ExportState> = {
         return solidMessage(state, `EXPORT: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
-    return solidMessage(
-      state,
-      `${solids.length} sólido(s) exportados a ${format.toUpperCase()}:\n${parts.join("\n")}`,
-    );
+    const content = parts.join("\n");
+    const ext = format === "step" ? "stp" : "igs";
+    const filename = `export.${ext}`;
+    const mime = format === "step" ? "application/step" : "application/iges";
+    return {
+      state: { selection: [] },
+      prompt: { message: "", options: [] },
+      accepts: 0,
+      result: {
+        kind: "host",
+        request: { kind: "download", filename, mime, content },
+        label: `EXPORT ${format.toUpperCase()}`,
+      },
+    };
   },
 };
 

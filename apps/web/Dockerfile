@@ -39,12 +39,48 @@ COPY packages/contracts/package.json packages/contracts/
 COPY packages/design-sdk/package.json packages/design-sdk/
 COPY packages/dwg-codec/package.json packages/dwg-codec/
 
+# `--ignore-scripts` se sigue pidiendo, y sigue siendo lo correcto: nada de
+# scripts de terceros en el build. Pero NO basta, y la suposición contraria es
+# la que dejó esta imagen sin construir ni una sola vez.
+#
+# npm 10 ejecuta el `prepare` de los workspaces LOCALES pese a la bandera.
+# `packages/contracts` es el único workspace con `prepare` y es
+# `tsc -p tsconfig.json`; en este punto sólo se han copiado los `package.json`,
+# así que su tsconfig todavía no existe y `tsc` muere con «TS5058: The
+# specified path does not exist: 'tsconfig.json'», llevándose el build entero.
+# Ésa es, exactamente, la firma con la que Railway falló las dos veces.
+#
+# Medido sobre ESTE lockfile y ESTE orden de COPY, no supuesto:
+#   npm 10.9.7  → ejecuta `prepare` → TS5058          (la firma de Railway)
+#   npm 11.19.1 → no lo ejecuta     → added 1221 packages
+#
+# Se ancla a una versión EXACTA para que la imagen siga siendo DERIVABLE del
+# commit, que es el principio que gobierna este archivo. Y es npm 11, no 12:
+# npm 12 exige Node «^22.22.2 || ^24.15.0 || >=26.0.0», y la base anclada
+# arriba es Node 20.20.2, así que npm 12 ni siquiera arrancaría aquí. npm
+# 11.19.1 exige «^20.17.0 || >=22.9.0», que 20.20.2 sí satisface.
+RUN npm i -g npm@11.19.1
+
 RUN npm ci --no-audit --no-fund --ignore-scripts
 
 COPY packages/contracts packages/contracts
 COPY packages/design-sdk packages/design-sdk
 COPY packages/dwg-codec packages/dwg-codec
 COPY apps/web apps/web
+# La portada inlina TRES artefactos de evidencia en tiempo de build
+# (`src/lib/marketing/site-evidence.ts`). Sin ellos el build revienta, y
+# revienta A PROPÓSITO: una cifra pública sale de un artefacto medido o no
+# sale.
+#
+# Se nombran los tres, uno por uno, y no el directorio: `.dockerignore` excluye
+# `docs` entero —1,6 MB de evidencia que la imagen no usa— y reincluye
+# EXACTAMENTE estos tres (44 KB). Las dos listas dicen lo mismo a propósito: si
+# alguien añade un cuarto import a site-evidence.ts y no lo declara en los dos
+# sitios, el build falla en vez de publicar un hueco.
+COPY docs/cad/evidence/cad-math-cases.json \
+     docs/cad/evidence/command-integrity.json \
+     docs/cad/evidence/template-gallery.json \
+     docs/cad/evidence/
 
 # El origen PÚBLICO exacto de la API. No tiene default: un valor por omisión
 # produciría una imagen que apunta a localhost y falla sólo en el navegador

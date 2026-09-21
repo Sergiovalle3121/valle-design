@@ -20,6 +20,7 @@ import {
 import type { CadWorkspacePreferences } from "@/lib/cad/cad-workspace";
 import type { CadLayoutTemplateId } from "@/lib/cad/templates";
 import type { St, CadBlockRow } from "@/components/cad/editor/Layout3DEditor";
+import { attachCadTourSlot } from "@/components/cad/onboarding/tour-slot";
 
 // Carga diferida REAL del catálogo de plantillas: la tarjeta (y con ella las
 // 149 plantillas de @/lib/cad/templates) sólo se descarga cuando el panel la
@@ -140,6 +141,12 @@ export function CadLeftDockPanel({
         </button>
       ) : (
         <>
+          {/* EL HUECO DEL RECORRIDO GUIADO. Aquí no tapa nada: el lienzo
+              empieza donde termina este muelle. El recorrido se pinta en él
+              por portal (ver `onboarding/tour-slot.ts`); con el muelle
+              plegado u oculto vuelve a flotar sobre la línea de comandos.
+              Sin hijos de React a propósito: su contenido lo pone el portal. */}
+          <div ref={attachCadTourSlot} data-testid="cad-left-dock-tour" className="shrink-0" />
           {/* La pestaña "Puntos heredados" SÓLO aparece cuando el
               documento cargado de verdad trae estaciones de un plano
               del antiguo planificador industrial (columna `stations`

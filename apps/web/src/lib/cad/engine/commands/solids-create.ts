@@ -283,6 +283,19 @@ export function extrudeDescriptor(
 }
 
 /** Altura implícita al precisar un punto: su separación del centro del perfil. */
+/**
+ * Altura de extrusión señalada con el cursor.
+ *
+ * Usa la componente Y del desplazamiento desde el centroide del perfil, NO la
+ * distancia radial: señalar ARRIBA del centro extruye hacia arriba (positivo),
+ * señalar ABAJO extruye hacia abajo (negativo). En AutoCAD la extrusión sigue
+ * la dirección del arrastre, y la componente Y es la proyección de esa
+ * dirección en el eje Z del dibujo (el eje vertical de pantalla).
+ *
+ * El `Math.hypot` anterior daba siempre un valor positivo, así que no había
+ * forma de extruir hacia abajo señalando — había que teclear un número
+ * negativo (D-05 de la auditoría).
+ */
 function heightFromPoint(point: CadPoint2, extracted: CadExtractedProfile): number {
   const ring = extracted.profile.outer;
   if (ring.length === 0) return 0;
@@ -290,7 +303,7 @@ function heightFromPoint(point: CadPoint2, extracted: CadExtractedProfile): numb
     (total, vertex) => ({ x: total.x + vertex.x / ring.length, y: total.y + vertex.y / ring.length }),
     { x: 0, y: 0 },
   );
-  return Math.hypot(point.x - centre.x, point.y - centre.y);
+  return point.y - centre.y;
 }
 
 // ---------------------------------------------------------------------------
@@ -334,9 +347,13 @@ function revolveResult(
   for (const extracted of profiles) {
     const setup = revolveSetupFromProfile(extracted, state.axisStart!, state.axisEnd!);
     if (!setup)
+      // Empieza diciendo que NO GIRÓ. El mensaje decía sólo por qué —«el perfil
+      // CRUZA el eje»—, que es un límite legítimo pero deja al lector (y al
+      // gate de integridad) sin saber si además escribió algo. La carga de la
+      // prueba es del comando: quien promete mutar y no muta lo dice primero.
       return solidMessage(
         state,
-        "El perfil CRUZA el eje de revolución. Al girar, el sólido se atravesaría a sí mismo: mueve el eje fuera del contorno.",
+        "REVOLVE no giró nada: el perfil CRUZA el eje de revolución. Al girar, el sólido se atravesaría a sí mismo: mueve el eje fuera del contorno.",
       );
     const node: CadSolidNode = {
       id: "revolucion",

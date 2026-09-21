@@ -25,7 +25,11 @@ import {
   User,
 } from './entities/identity.entity';
 import { IdentityModule } from './identity.module';
-import { CSRF_COOKIE, DEVELOPMENT_SESSION_COOKIE } from './identity-security';
+import {
+  CSRF_COOKIE,
+  DEVELOPMENT_SESSION_COOKIE,
+  hashOpaqueToken,
+} from './identity-security';
 
 const TEST_HARNESS_KEY = 'identity-harness-key-with-at-least-32-chars';
 const EMAIL = 'flow.user+identity@example.test';
@@ -52,8 +56,8 @@ function setCookieHeaders(response: request.Response): string[] {
 
 function cookieValue(response: request.Response, name: string): string {
   const prefix = `${name}=`;
-  const header = setCookieHeaders(response).find((entry) =>
-    entry.startsWith(prefix),
+  const header = setCookieHeaders(response).find(
+    (entry) => entry.startsWith(prefix) && !entry.startsWith(`${prefix};`),
   );
   if (!header) throw new Error(`Missing ${name} response cookie.`);
   return decodeURIComponent(header.slice(prefix.length).split(';', 1)[0]);
@@ -215,11 +219,15 @@ describe('first-party identity HTTP integration', () => {
       .post('/v1/auth/verify-email')
       .send({ token: verification.payload.token })
       .expect(201)
-      .expect({ verified: true });
+      .expect({ verified: true, email: EMAIL });
+    // Segundo canje del MISMO enlace: sigue siendo de un solo uso (no cambia
+    // nada), pero la respuesta dice la verdad —ya estaba verificado— en vez
+    // de un 400 que parecía un fallo del producto.
     await request(server)
       .post('/v1/auth/verify-email')
       .send({ token: verification.payload.token })
-      .expect(400);
+      .expect(201)
+      .expect({ verified: true, alreadyVerified: true, email: EMAIL });
 
     const verifiedUser = await dataSource
       .getRepository(User)
@@ -246,7 +254,18 @@ describe('first-party identity HTTP integration', () => {
       primaryCookies.find((entry) => entry.startsWith(`${CSRF_COOKIE}=`)),
     ).not.toMatch(/HttpOnly/iu);
 
-    const primarySession = await primary.get('/v1/auth/session').expect(200);
+    const primarySession = (await primary
+      .get('/v1/auth/session')
+      .expect(200)) as {
+      body: {
+        session: { id: string };
+        user: {
+          id: string;
+          email: string;
+          emailVerified: boolean;
+        };
+      };
+    };
     expect(primarySession.body).toMatchObject({
       user: { id: verifiedUser.id, email: EMAIL, emailVerified: true },
     });
@@ -260,11 +279,18 @@ describe('first-party identity HTTP integration', () => {
     expect(cookieValue(secondaryLogin, CSRF_COOKIE)).toMatch(
       /^[A-Za-z0-9_-]{43}$/u,
     );
-    const secondarySession = await secondary
+    const secondarySession = (await secondary
       .get('/v1/auth/session')
-      .expect(200);
+      .expect(200)) as { body: { session: { id: string } } };
 
-    const listed = await primary.get('/v1/auth/sessions').expect(200);
+    interface SessionInfo {
+      id: string;
+      current: boolean;
+      userAgent: string;
+    }
+    const listed = (await primary.get('/v1/auth/sessions').expect(200)) as {
+      body: { sessions: SessionInfo[] };
+    };
     expect(listed.body.sessions).toHaveLength(2);
     expect(
       listed.body.sessions.filter(
@@ -286,11 +312,10 @@ describe('first-party identity HTTP integration', () => {
       .set('x-csrf-token', primaryCsrf)
       .expect(204);
     await secondary.get('/v1/auth/session').expect(401);
-    await expect(
-      dataSource.getRepository(Session).findOneByOrFail({
-        id: secondarySession.body.session.id,
-      }),
-    ).resolves.toMatchObject({ revokedAt: expect.any(Date) });
+    const revokedSession = await dataSource
+      .getRepository(Session)
+      .findOneByOrFail({ id: secondarySession.body.session.id });
+    expect(revokedSession.revokedAt).toBeInstanceOf(Date);
 
     await crossSecondBoundary();
     const forgot = await request(server)
@@ -382,5 +407,244 @@ describe('first-party identity HTTP integration', () => {
     }
     expect(knownForgot.body).toEqual(unknownForgot.body);
     expect(knownResend.body).toEqual(unknownResend.body);
+  });
+
+  it('el reenvío no mata el correo anterior, y cada negativa dice por qué', async () => {
+    const server = app.getHttpServer();
+    const email = 'resend.user+identity@example.test';
+    await request(server)
+      .post('/v1/auth/register')
+      .send({ email, password: OLD_PASSWORD, displayName: 'Resend Flow' })
+      .expect(202);
+    await request(server)
+      .post('/v1/auth/verify-email/resend')
+      .send({ email })
+      .expect(202);
+    await request(server)
+      .post('/v1/auth/verify-email/resend')
+      .send({ email })
+      .expect(202);
+
+    const outbox = await dataSource.getRepository(EmailOutbox).find({
+      where: { recipient: email, template: 'identity.verify-email' },
+      order: { createdAt: 'ASC' },
+    });
+    expect(outbox).toHaveLength(3);
+    const tokens = outbox.map(
+      (row) => (row.payload as EmailHarnessBody['payload']).token,
+    );
+    expect(new Set(tokens).size).toBe(3);
+
+    const user = await dataSource
+      .getRepository(User)
+      .findOneByOrFail({ email });
+    const oneTimeTokens = dataSource.getRepository(OneTimeToken);
+    await expect(
+      oneTimeTokens.countBy({
+        subjectId: user.id,
+        purpose: 'verify_email',
+        consumedAt: IsNull(),
+      }),
+    ).resolves.toBe(3);
+
+    // Un enlace caducado (aún sin consumir) lo dice con su código propio.
+    // Por hash y no por orden: SQLite guarda `createdAt` con precisión de
+    // segundo y tres filas del mismo segundo no tienen orden estable.
+    const secondToken = await oneTimeTokens.findOneByOrFail({
+      tokenHash: hashOpaqueToken(tokens[1]),
+    });
+    await oneTimeTokens.update(secondToken.id, {
+      expiresAt: new Date(Date.now() - 1_000),
+    });
+    const expired = await request(server)
+      .post('/v1/auth/verify-email')
+      .send({ token: tokens[1] })
+      .expect(400);
+    expect(expired.body).toMatchObject({ code: 'verification_token_expired' });
+
+    // Un enlace consumido por un reemplazo (cambio de correo) sin que la
+    // cuenta esté verificada: «abre el correo más reciente».
+    await oneTimeTokens.update(secondToken.id, {
+      expiresAt: new Date(Date.now() + 3_600_000),
+      consumedAt: new Date(),
+    });
+    const superseded = await request(server)
+      .post('/v1/auth/verify-email')
+      .send({ token: tokens[1] })
+      .expect(400);
+    expect(superseded.body).toMatchObject({
+      code: 'verification_token_superseded',
+    });
+
+    // El PRIMER correo —el que llegó antes— sigue verificando tras dos
+    // reenvíos. Antes moría con el primer «enviar otro».
+    await request(server)
+      .post('/v1/auth/verify-email')
+      .send({ token: tokens[0] })
+      .expect(201)
+      .expect({ verified: true, email });
+    await expect(
+      oneTimeTokens.countBy({
+        subjectId: user.id,
+        purpose: 'verify_email',
+        consumedAt: IsNull(),
+      }),
+    ).resolves.toBe(0);
+    // El tercero ya no abre nada, pero tampoco asusta: ya estaba verificado.
+    await request(server)
+      .post('/v1/auth/verify-email')
+      .send({ token: tokens[2] })
+      .expect(201)
+      .expect({ verified: true, alreadyVerified: true, email });
+    // Un token que nunca existió sigue siendo el 400 genérico.
+    await request(server)
+      .post('/v1/auth/verify-email')
+      .send({ token: 'x'.repeat(43) })
+      .expect(400)
+      .expect((response: { body: Record<string, unknown> }) => {
+        expect(response.body.code).toBeUndefined();
+      });
+  });
+});
+
+describe('CSRF cookie domain integration', () => {
+  jest.setTimeout(30_000);
+
+  let app: NestExpressApplication;
+  const originalDomain = process.env.CSRF_COOKIE_DOMAIN;
+  const originalAllowed = process.env.ALLOWED_ORIGIN;
+  const originalHarness = process.env.IDENTITY_TEST_HARNESS;
+  const originalHarnessKey = process.env.IDENTITY_TEST_HARNESS_KEY;
+
+  beforeAll(async () => {
+    process.env.CSRF_COOKIE_DOMAIN = '.ejemplo.test';
+    process.env.ALLOWED_ORIGIN = 'https://app.ejemplo.test';
+    process.env.IDENTITY_TEST_HARNESS = 'true';
+    process.env.IDENTITY_TEST_HARNESS_KEY =
+      'csrf-domain-harness-key-at-least-32';
+
+    const moduleRef = await Test.createTestingModule({
+      imports: [
+        TypeOrmModule.forRoot({
+          type: 'better-sqlite3',
+          database: ':memory:',
+          dropSchema: true,
+          synchronize: true,
+          autoLoadEntities: true,
+          entities: [
+            User,
+            Credential,
+            Session,
+            OneTimeToken,
+            IdentityAuditEvent,
+            Organization,
+            Membership,
+            Invitation,
+            PlanCatalog,
+            PlanEntitlement,
+            Subscription,
+            UsageLedger,
+            DomainOutbox,
+            EmailOutbox,
+          ],
+        }),
+        IdentityModule,
+      ],
+    }).compile();
+
+    app = moduleRef.createNestApplication<NestExpressApplication>();
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        transform: true,
+        forbidNonWhitelisted: true,
+        transformOptions: { enableImplicitConversion: true },
+      }),
+    );
+    await app.init();
+  });
+
+  afterAll(async () => {
+    if (app) await app.close();
+    const restore = (key: string, original: string | undefined) => {
+      if (original === undefined) delete process.env[key];
+      else process.env[key] = original;
+    };
+    restore('CSRF_COOKIE_DOMAIN', originalDomain);
+    restore('ALLOWED_ORIGIN', originalAllowed);
+    restore('IDENTITY_TEST_HARNESS', originalHarness);
+    restore('IDENTITY_TEST_HARNESS_KEY', originalHarnessKey);
+  });
+
+  it('sets CSRF cookie with Domain and clears the host-only legacy cookie on login', async () => {
+    const server = app.getHttpServer();
+    const EMAIL = 'csrf-domain-flow@example.test';
+    const PASSWORD = 'Csrf-domain-test-2026!';
+
+    await request(server)
+      .post('/v1/auth/register')
+      .send({ email: EMAIL, password: PASSWORD, displayName: 'CSRF Test' })
+      .expect(202);
+
+    const verificationEmail = await request(server)
+      .get('/_development/email-outbox')
+      .set('x-valle-test-harness', 'csrf-domain-harness-key-at-least-32')
+      .query({ recipient: EMAIL })
+      .expect(200);
+    const token = (verificationEmail.body as EmailHarnessBody).payload.token;
+    await request(server)
+      .post('/v1/auth/verify-email')
+      .send({ token })
+      .expect(201);
+
+    const login = await request(server)
+      .post('/v1/auth/login')
+      .send({ email: EMAIL, password: PASSWORD })
+      .expect(200);
+
+    const headers = setCookieHeaders(login);
+    const csrfHeaders = headers.filter((h) => h.startsWith(`${CSRF_COOKIE}=`));
+    expect(csrfHeaders.length).toBeGreaterThanOrEqual(1);
+
+    const withDomain = csrfHeaders.find((h) =>
+      h.includes('Domain=.ejemplo.test'),
+    );
+    expect(withDomain).toBeDefined();
+
+    const clearing = csrfHeaders.find(
+      (h) => h.includes('Expires=') && !h.includes('Domain='),
+    );
+    expect(clearing).toBeDefined();
+
+    const sessionHeader = headers.find((h) =>
+      h.startsWith(`${DEVELOPMENT_SESSION_COOKIE}=`),
+    );
+    expect(sessionHeader).toBeDefined();
+    expect(sessionHeader).not.toContain('Domain=');
+
+    const csrf = cookieValue(login, CSRF_COOKIE);
+    const sessionCookie = cookieValue(login, DEVELOPMENT_SESSION_COOKIE);
+    // Debug: verify cookies are extracted
+    expect(csrf).toMatch(/^[A-Za-z0-9_-]{43}$/u);
+    expect(sessionCookie).toBeTruthy();
+    const logout = await request(server)
+      .post('/v1/auth/logout')
+      .set(
+        'Cookie',
+        `${CSRF_COOKIE}=${csrf}; ${DEVELOPMENT_SESSION_COOKIE}=${sessionCookie}`,
+      )
+      .set('x-csrf-token', csrf)
+      .expect(204);
+
+    const logoutHeaders = setCookieHeaders(logout);
+    const logoutCsrf = logoutHeaders.filter((h) =>
+      h.startsWith(`${CSRF_COOKIE}=;`),
+    );
+    const logoutWithDomain = logoutCsrf.find((h) =>
+      h.includes('Domain=.ejemplo.test'),
+    );
+    const logoutWithoutDomain = logoutCsrf.find((h) => !h.includes('Domain='));
+    expect(logoutWithDomain).toBeDefined();
+    expect(logoutWithoutDomain).toBeDefined();
   });
 });

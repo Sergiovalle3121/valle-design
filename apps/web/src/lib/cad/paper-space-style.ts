@@ -17,6 +17,7 @@ export function unitToMm(unit: string): number {
   if (unit === "m") return 1000;
   if (unit === "cm") return 10;
   if (unit === "in") return 25.4;
+  if (unit === "ft") return 304.8;
   return 1;
 }
 
@@ -63,8 +64,16 @@ export function styleFor(
     layer?.lineweight ??
     0.18;
   const lineWidth = Math.max(0.05, rawWidth * Math.max(0.1, lineweightScale));
+  // VPLAYER fija el tipo de línea SOLO en esta ventana, igual que ya hacía con
+  // el color y el grosor: `layerOverrides.linetype` tenía sitio en el esquema
+  // 8 desde que se guardaba, pero aquí SÓLO se leían `color` y `lineweight` —
+  // la anulación se guardaba y la lámina seguía trazando el tipo de línea de
+  // la capa (o el CONTINUOUS por defecto). Gana sobre lo explícito del bloque
+  // por la misma razón que `override?.color`: es la VENTANA, no la entidad,
+  // quien decide qué se ve en ella.
   const linetypeName =
-    presentation?.linetype?.source === "explicit" ? presentation.linetype.value : layer?.linetype;
+    override?.linetype ??
+    (presentation?.linetype?.source === "explicit" ? presentation.linetype.value : layer?.linetype);
   const pattern = linetypeName ? cadLinetypePatternFor(document, linetypeName) : undefined;
   const dash =
     pattern && pattern.length > 0

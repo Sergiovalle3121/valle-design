@@ -1,4 +1,5 @@
 import { polarPoint, type Point } from './precision-input';
+import { parseImperialLength } from './units-imperial';
 import { DEFAULT_REGION_PROFILE } from './region';
 
 export type CadDynamicInputMode = 'absolute' | 'relative' | 'polar' | 'radius' | 'diameter' | 'offset';
@@ -17,7 +18,7 @@ export interface CadDynamicInputValues {
 export interface CadDynamicInputContext {
   mode: CadDynamicInputMode;
   anchor?: Point | null;
-  documentUnit: 'mm' | 'm';
+  documentUnit: CadLengthUnit;
   locale?: string;
   defaults?: Partial<Record<keyof CadDynamicInputValues, number>>;
 }
@@ -35,33 +36,62 @@ const UNIT_TO_MM: Record<CadLengthUnit, number> = {
   ft: 304.8,
 };
 
-function normalizedNumber(raw: string, locale: string): number | null {
-  let value = raw.trim().replace(/\s+/g, '');
-  const commaDecimal = locale.toLocaleLowerCase().startsWith('es') || locale.toLocaleLowerCase().startsWith('de');
-  if (value.includes(',') && value.includes('.')) {
-    value = commaDecimal ? value.replace(/\./g, '').replace(',', '.') : value.replace(/,/g, '');
-  } else if (value.includes(',')) {
-    value = value.replace(',', '.');
-  }
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
+/**
+ * El número desnudo de un campo de la entrada dinámica (sin la marca de
+ * unidad, que ya se separó antes de llegar aquí).
+ *
+ * ANTES esto era `normalizedNumber(raw, locale)`, y la coma valía decimal
+ * cuando el idioma empezaba por «es» o «de» — «1,5m» eran 1500 mm en
+ * es-MX. Era una TRAMPA activa: `precision-input.ts` trata la MISMA coma
+ * como AutoCAD, que la usa solo para separar componentes de una coordenada
+ * (`5,300`) y JAMÁS como separador decimal, sea cual sea el idioma. Con dos
+ * analizadores que no coinciden, la misma tecla producía un número distinto
+ * según qué mitad del formulario la leyera.
+ *
+ * Ahora los dos caminos comparten gramática: se delega en
+ * `parseImperialLength` (la de `precision-input.ts`), que además regala
+ * pies/pulgadas tecleados directos (`1'-6"`) en cualquier campo de
+ * longitud. `dynamic-input-precision-input-parity.spec.ts` compara las dos
+ * rutas con la misma entrada.
+ */
+function parseBareLengthToken(text: string): { value: number; isInches: boolean } | null {
+  const trimmed = text.trim();
+  if (trimmed === '') return null;
+  const parsed = parseImperialLength(trimmed);
+  if (!parsed.ok) return null;
+  return { value: parsed.inches, isInches: parsed.explicit };
 }
 
 export function parseCadDynamicScalar(
   raw: string,
-  documentUnit: 'mm' | 'm',
+  documentUnit: CadLengthUnit,
   locale = DEFAULT_REGION_PROFILE.numberLocale,
   kind: 'length' | 'angle' = 'length',
 ): number | null {
+  void locale; // La coma nunca es decimal: ver el porqué en `parseBareLengthToken`.
   const match = raw.trim().toLocaleLowerCase().match(/^(.+?)(mm|cm|m|in|ft|°|deg)?$/);
   if (!match) return null;
-  const value = normalizedNumber(match[1], locale);
-  if (value === null) return null;
-  if (kind === 'angle') return match[2] && !['°', 'deg'].includes(match[2]) ? null : value;
-  const inputUnit = (match[2] || documentUnit) as CadLengthUnit;
+  const token = parseBareLengthToken(match[1]!);
+  if (token === null) return null;
+  if (kind === 'angle') {
+    // Un ángulo no lleva marca de pie/pulgada: `45'` como ángulo no significa
+    // nada, así que un texto que SÍ trajo esas marcas se rechaza en vez de
+    // convertir 45 pies en 540 grados en silencio.
+    if (token.isInches) return null;
+    return match[2] && !['°', 'deg'].includes(match[2]) ? null : token.value;
+  }
+  // Si el propio texto traía marca de pie/pulgada (`6"`, `1'-6"`), la unidad
+  // la puso el usuario y gana sobre cualquier sufijo o unidad del documento.
+  const inputUnit = token.isInches ? 'in' : ((match[2] || documentUnit) as CadLengthUnit);
   if (!(inputUnit in UNIT_TO_MM)) return null;
-  const millimeters = value * UNIT_TO_MM[inputUnit];
-  return documentUnit === 'm' ? millimeters / 1_000 : millimeters;
+  // Sin conversión de unidad — igual que el atajo de `convertCadLength` en
+  // `units-imperial.ts` — para que un valor que no cambia de unidad no
+  // arrastre el redondeo binario de multiplicar y volver a dividir por el
+  // mismo factor (`6 * 25.4 / 25.4` no siempre da 6 exacto).
+  if (inputUnit === documentUnit) return token.value;
+  const millimeters = token.value * UNIT_TO_MM[inputUnit];
+  const docMm = UNIT_TO_MM[documentUnit] ?? 1;
+  return millimeters / docMm;
 }
 
 function rawOrDefault(

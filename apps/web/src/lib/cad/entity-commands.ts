@@ -40,6 +40,7 @@ import { solveConstraintSystem } from "./constraints/solver";
 import { regenerateAssociativeDimensions } from "./associative-dimension";
 import { regenerateAssociativeMleaders } from "./associative-mleader";
 import { regenerateAssociativeHatches } from "./hatch-associativity";
+import { regenerateAssociativeCenterMarks } from "./associative-center-mark";
 import {
   applyDocumentTables,
   isCadTableCommand,
@@ -58,20 +59,12 @@ import {
 
 export type CadEntityCommand =
   | { type: "transform"; entityId: string; transform: CadEntityTransform }
+  | { type: "transform3d"; entityId: string; transform3d: import("./cad-entities-v5").CadSolidPlacement }
   | { type: "properties"; entityId: string; patch: Partial<CadPropertyBag> }
   | { type: "grip"; entityId: string; gripId: string; point: CadPoint2 }
   | {
-      type: "copy";
-      entityId: string;
-      newEntityId: string;
-      offset?: CadPoint2;
-      /**
-       * T-19·2: nuevo `hostId` de un HUECO copiado cuyo anfitrión viaja en la
-       * MISMA ronda. Lo calcula quien genera el comando —ver
-       * `cadOpeningRehostId` en `wall-openings.ts`—, no este ejecutor: un
-       * muro puede copiarse varias veces en un lote y sólo el generador sabe
-       * cuál copia es la de esta ronda.
-       */
+      type: "copy"; entityId: string; newEntityId: string; offset?: CadPoint2;
+      /** T-19·2: hostId de hueco copiado cuyo anfitrión viaja en la misma ronda. */
       rehostId?: string;
     }
   /**
@@ -414,10 +407,14 @@ export function executeCadEntityCommandBatch(
     } else if (command.type === "copy") {
       if (present.has(command.newEntityId))
         throw new Error(`CAD entity id ${command.newEntityId} already exists.`);
-      const copy = adapter.commands.transform(
+      const moved = adapter.commands.transform(
         { ...source, id: command.newEntityId, context: cloneContext(source.context) },
         { translation: command.offset ?? { x: 0, y: 0 } },
       );
+      // La COPIA de una cota o directriz nace desasociada (T17 lo sacó del adaptador por MOVE):
+      // sus `references` apuntan a la geometría ORIGINAL y la regeneración la devolvía encima.
+      const copy = moved.type === "dimension" || moved.type === "mleader"
+        ? { ...moved, associative: false, associationStatus: "detached" as const } : moved;
       // T-19·2: un hueco copiado junto con su muro queda hospedado en el
       // MURO COPIADO vía `rehostId` (ver el tipo, arriba), no en el original.
       const rehosted =
@@ -499,6 +496,10 @@ export function executeCadEntityCommandBatch(
       });
       if (command.associative)
         regenerationSourceIds.push(...(source.references ?? []).map((reference) => reference.entityId));
+    } else if (command.type === "transform3d") {
+      if (source.type !== "solid3d") throw new Error("La transformación3D sólo aplica a SOLID3D.");
+      present.set(source.id, { ...source, placement: { ...(source.placement ?? {}), ...command.transform3d } });
+      regenerationSourceIds.push(source.id);
     } else {
       present.set(
         source.id,
@@ -550,7 +551,8 @@ export function executeCadEntityCommandBatch(
   );
   const regeneratedDimensions = regenerateAssociativeDimensions(regenerated.entities, regenerationSources);
   const regeneratedMleaders = regenerateAssociativeMleaders(regeneratedDimensions.entities, regenerationSources);
-  entities = regeneratedMleaders.entities;
+  const regeneratedCenterMarks = regenerateAssociativeCenterMarks(regeneratedMleaders.entities, regenerationSources);
+  entities = regeneratedCenterMarks.entities;
   // `entities` se ordena por id para que el serializado sea determinista y los
   // hashes reproducibles. El Z-ORDER NO vive aquí: vive en
   // `modelSpace.entityIds`, y ahí alfabetizar destruía el dibujo — editar,

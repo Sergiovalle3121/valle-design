@@ -31,6 +31,7 @@
  * | `\W<factor>;`         | factor de anchura: 0,8 aprieta, 1,2 ensancha        |
  * | `\Q<grados>;`         | oblicuidad: la cursiva de las fuentes de trazo      |
  * | `\A<0\|1\|2>;`        | alineación vertical del tramo: abajo, centro, arriba|
+ * | `\pxi<primera>,l<izq>;`| sangría de párrafo: primera línea e izquierda (ver abajo)|
  * | `\~`                  | espacio DURO: no parte la línea                     |
  * | `{` … `}`             | grupo: los atributos vuelven a su valor al cerrar   |
  * | `\\`, `\{`, `\}`      | barra y llaves LITERALES                            |
@@ -39,15 +40,26 @@
  * un dibujo importado puede traer códigos que este módulo todavía no entiende y
  * comérselos borraría contenido del plano en silencio. Mejor que se vea.
  *
- * ## Los que NO se reconocen, y por qué se dice
+ * ## `\p`: sólo la sangría, no la justificación ni los tabuladores
  *
- * `\T<factor>;` —espaciado entre caracteres— y `\p…;` —sangrías y tabuladores
- * de párrafo— se conservan literales. No es olvido: el primero necesita que la
- * medida sepa de kerning, que hoy es una suma de anchuras por carácter, y el
- * segundo necesita que la maqueta tenga tabuladores, que no los tiene. Se
+ * `\pxi<primera>,l<izquierda>,r…,q…,t…;` es la sintaxis real de AutoCAD para
+ * el párrafo entero: sangría de primera línea, sangría izquierda, derecha,
+ * justificación y tabuladores. Aquí sólo se LEEN `i` y `l` —lo que hace falta
+ * para una sangría francesa, que es lo que necesita una viñeta o un número de
+ * lista (`cadMTextBulletCode`/`cadMTextNumberedCode`)— y se guardan en
+ * `CadMTextRun.paragraphIndent`, en las MISMAS unidades de dibujo del código,
+ * no relativas a la altura del texto. `r`, `q` y `t` se RECONOCEN como
+ * sintaxis —no dejan el código crudo a la vista— pero no producen ningún
+ * efecto: justificar párrafo y tabuladores necesitan que la maqueta sepa de
+ * columnas de tabulación, que no las tiene, y ampliarlo es trabajo aparte.
+ *
+ * ## Lo que NO se reconoce en absoluto, y por qué se dice
+ *
+ * `\T<factor>;` —espaciado entre caracteres— se conserva literal: necesita que
+ * la medida sepa de kerning, que hoy es una suma de anchuras por carácter. Se
  * declara aquí y se comprueba en `mtext-rich-format.spec.ts` para que un plano
  * importado enseñe el código en pantalla —feo pero visible— en vez de perder
- * silenciosamente una sangría que alguien puso a propósito.
+ * silenciosamente un espaciado que alguien puso a propósito.
  *
  * ## Camino rápido
  *
@@ -104,6 +116,31 @@ export interface CadMTextRun {
    * consumidores que todavía no saben apilar.
    */
   stack?: CadMTextStack;
+  /**
+   * Sangría del PÁRRAFO (`\pxi<primera>,l<izquierda>;`), si el párrafo la fija.
+   * Ver `CadMTextParagraphIndent` para qué significa cada número. Vive en el
+   * tramo —no en el párrafo, que es sólo un array— porque así lo consulta
+   * `mtext-layout.ts`: el primer tramo del párrafo lo lleva, y basta con
+   * mirarlo para saber cómo sangrar toda la línea.
+   */
+  paragraphIndent?: CadMTextParagraphIndent;
+}
+
+/**
+ * Sangría de párrafo real de AutoCAD (`\pxi<primera>,l<izquierda>;`), en las
+ * MISMAS unidades de dibujo que `width` de la entidad — no relativas a la
+ * altura del texto, para que el número que se lee en un `.dxf` importado
+ * signifique lo mismo aquí que allí.
+ *
+ * `first` es el desplazamiento de la PRIMERA línea del párrafo RESPECTO de
+ * `left`; con `first` negativo y `left` positivo del mismo valor absoluto la
+ * primera línea vuelve a la columna 0 y las siguientes quedan sangradas — la
+ * sangría FRANCESA que hace una viñeta o un número de lista, y que construyen
+ * `cadMTextBulletCode`/`cadMTextNumberedCode`.
+ */
+export interface CadMTextParagraphIndent {
+  first: number;
+  left: number;
 }
 
 /** Un párrafo es la lista de tramos entre dos `\P`. */
@@ -118,6 +155,7 @@ interface Attributes {
   fontFamily?: string;
   color?: string;
   verticalAlign?: CadMTextVerticalAlign;
+  paragraphIndent?: CadMTextParagraphIndent;
 }
 
 const INITIAL: Attributes = {
@@ -207,7 +245,12 @@ function sameAttributes(a: Attributes, b: Attributes): boolean {
     a.oblique === b.oblique &&
     a.fontFamily === b.fontFamily &&
     a.color === b.color &&
-    a.verticalAlign === b.verticalAlign
+    a.verticalAlign === b.verticalAlign &&
+    // Comparación por REFERENCIA, no por valor: el objeto viaja por `{...attributes,
+    // paragraphIndent: {...}}` cada vez que `\p` lo fija, así que dos tramos del
+    // MISMO párrafo comparten literalmente el mismo objeto y sólo dejan de
+    // fusionarse cuando de verdad cambia.
+    a.paragraphIndent === b.paragraphIndent
   );
 }
 
@@ -414,6 +457,38 @@ export function parseCadMText(source: string): CadMTextParagraph[] {
       continue;
     }
 
+    if (code === "p") {
+      const read = readValue(normalized, index + 2);
+      flush();
+      // `\pxi<primera>,l<izquierda>[,r…][,q…][,t…];` — sólo `i` (primera línea)
+      // y `l` (izquierda) se interpretan; el resto (justificación de párrafo,
+      // tabuladores) se ACEPTA sin efecto, igual que `\T` y el resto de `\p`
+      // se declaran arriba: reconocer la sintaxis sin dibujar nada evita que un
+      // dibujo importado enseñe el código crudo, sin fingir soporte que no hay.
+      const body = read.value.replace(/^[xX]/, "");
+      let first: number | undefined;
+      let left: number | undefined;
+      for (const token of body.split(",")) {
+        const match = /^\s*([ilqrt])\s*(-?[0-9]*\.?[0-9]+)?/i.exec(token);
+        if (!match) continue;
+        const value = match[2] === undefined ? undefined : Number.parseFloat(match[2]);
+        if (value === undefined || !Number.isFinite(value)) continue;
+        const letter = match[1].toLowerCase();
+        if (letter === "i") first = value;
+        else if (letter === "l") left = value;
+      }
+      if (first !== undefined || left !== undefined)
+        attributes = {
+          ...attributes,
+          paragraphIndent: {
+            first: first ?? attributes.paragraphIndent?.first ?? 0,
+            left: left ?? attributes.paragraphIndent?.left ?? 0,
+          },
+        };
+      index = read.next;
+      continue;
+    }
+
     // Código desconocido: literal, barra incluida.
     pending += "\\";
     index += 1;
@@ -468,4 +543,40 @@ export function cadMTextStackCode(
 ): string {
   const separator = style === "tolerance" ? "^" : style === "diagonal" ? "#" : "/";
   return `\\S${escapeCadMText(upper)}${separator}${escapeCadMText(lower)};`;
+}
+
+/** El número tal como lo escribe AutoCAD en un `\p`: sin ceros de cola. */
+function paragraphNumber(value: number): string {
+  return String(Math.round(value * 1e4) / 1e4);
+}
+
+/**
+ * El código de sangría de un párrafo, sólo.
+ *
+ * Exportado aparte de `cadMTextBulletCode`/`cadMTextNumberedCode` porque
+ * cualquier párrafo puede querer una sangría francesa sin ser una lista —una
+ * nota que empieza con un rótulo corto y sigue en la línea de abajo alineada
+ * con el texto, no con el rótulo.
+ */
+export function cadMTextParagraphIndentCode(first: number, left: number): string {
+  return `\\pxi${paragraphNumber(first)},l${paragraphNumber(left)};`;
+}
+
+/**
+ * Un párrafo de lista con VIÑETA: sangría francesa (la marca en la columna 0,
+ * el texto que se ajusta a la izquierda de `indent`) y un espacio DURO (`\~`)
+ * entre la viñeta y el texto para que no se separen al partir línea.
+ *
+ * No usa `\t` (tabulador) porque `mtext-layout.ts` no lo mide — es la misma
+ * frontera que ya declara este módulo para `\p`. El espacio duro consigue lo
+ * que aquí hace falta —viñeta y primera palabra pegadas— sin fingir que hay
+ * columnas de tabulación.
+ */
+export function cadMTextBulletCode(text: string, indent = 6, bullet = "•"): string {
+  return `${cadMTextParagraphIndentCode(-indent, indent)}${bullet}\\~${escapeCadMText(text)}`;
+}
+
+/** Un párrafo de lista NUMERADA: `<n>.` en vez de una viñeta, mismo mecanismo. */
+export function cadMTextNumberedCode(number: number, text: string, indent = 8): string {
+  return `${cadMTextParagraphIndentCode(-indent, indent)}${number}.\\~${escapeCadMText(text)}`;
 }

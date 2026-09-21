@@ -19,7 +19,7 @@ import { type Page } from "@playwright/test";
  * ## Por qué la BARRA y no el ViewCube
  *
  * Porque es lo que estos goldens ya ejercitaban: cambiar el objetivo cambiaría
- * silenciosamente lo que miden. El ViewCube tiene su propio golden.
+ * silenciosamente lo que miden. El ViewCube tiene su propio golden (215).
  */
 const toolbar = (page: Page) => page.getByTestId("cad-top-toolbar");
 

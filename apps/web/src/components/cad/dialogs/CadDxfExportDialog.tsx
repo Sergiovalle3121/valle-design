@@ -7,6 +7,7 @@ import type {
 } from "@/lib/cad/dxf-export-readiness";
 import type { CadLossManifestEntry } from "@/lib/cad/cad-document";
 import { CadDialogShell } from "./CadDialogShell";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 /**
  * EXPORTAR DXF, FUERA DEL MONOLITO.
@@ -308,8 +309,8 @@ export function CadDxfExportDialog({
               />
               <span>
                 Entiendo lo que este DXF no representa y quiero
-                descargarlo igualmente. El documento de Valle Design sigue
-                siendo el original.
+                descargarlo igualmente. El documento de {PRODUCT_LABEL.design}{" "}
+                sigue siendo el original.
               </span>
             </label>
           </div>

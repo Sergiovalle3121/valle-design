@@ -15,6 +15,7 @@ import {
   cadPageSetupFromLayout,
   cadPrintableArea,
 } from "../../plot/page-setup";
+import { createCadVariableAccess } from "../../system-variables";
 import {
   EMPTY_CAD_COMMAND_ENGINE,
   cadCommandEngineReduce,
@@ -67,6 +68,10 @@ function documentWithLayout(): CadDocument {
 function run(
   document: CadDocument,
   tokens: readonly string[],
+  // Almacén de variables COMPARTIDO entre los tokens de esta llamada: como
+  // lo haría el anfitrión real, un "variables" que PLOTSTAMP escribe lo lee
+  // PLOT dentro del MISMO run() (ver el bloque PLOTSTAMP más abajo).
+  variables = createCadVariableAccess(),
 ): { document: CadDocument; effects: CadCommandEffect[] } {
   let state = EMPTY_CAD_COMMAND_ENGINE;
   let current = document;
@@ -83,6 +88,7 @@ function run(
       drawingExtents: () => ({ minX: 0, minY: 0, maxX: 10_000, maxY: 6_000 }),
       view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
       newEntityId: () => `new-${(ids += 1)}`,
+      variables,
     };
     const reduction =
       token === "\r"
@@ -90,9 +96,12 @@ function run(
         : cadCommandEngineReduce(state, { kind: "token", value: token }, context, registry);
     state = reduction.state;
     effects.push(...reduction.effects);
-    for (const effect of reduction.effects)
+    for (const effect of reduction.effects) {
       if (effect.kind === "execute")
         current = executeCadEntityCommandBatch(current, effect.commands, effect.label).document;
+      if (effect.kind === "variables")
+        for (const [name, value] of Object.entries(effect.patch)) variables.set(name, value);
+    }
   }
   return { document: current, effects };
 }
@@ -270,6 +279,16 @@ const messages = (effects: readonly CadCommandEffect[]) =>
   if (abandonedRequest.kind !== "plot") throw new Error("se esperaba una petición de trazado");
   assert.deepEqual(abandonedRequest.request.pageSetup.area, { kind: "layout" });
 
+  // Intro con la PRIMERA esquina ya picada abandona la ventana a medias, igual
+  // que la palabra clave «Trazar». Antes se quedaba en un bucle: `plotStep`
+  // mira `corner1` antes que `askingFile` y devolvía otra vez «Precise la
+  // esquina opuesta», sin más salida que cancelar.
+  const halfWindow = run(base, ["PLOT", "V", "0,0", "\r", "media-ventana"]);
+  const halfRequest = hosts(halfWindow.effects)[0];
+  if (halfRequest.kind !== "plot") throw new Error("se esperaba una petición de trazado");
+  assert.deepEqual(halfRequest.request.pageSetup.area, { kind: "layout" });
+  assert.equal(halfRequest.request.fileName, "media-ventana");
+
   // «Ajustar» es una escala válida y se dice así.
   const fitted = run(base, ["PLOT", "ESC", "ajustar", "T", "ajustado"]);
   const fittedRequest = hosts(fitted.effects)[0];
@@ -298,6 +317,43 @@ const messages = (effects: readonly CadCommandEffect[]) =>
   const styledRequest = hosts(styledPlot.effects)[0];
   if (styledRequest.kind !== "plot") throw new Error("se esperaba una petición de trazado");
   assert.equal(styledRequest.request.pageSetup.plotStyleTable, "estudio-2004");
+}
+
+// --- PLOTSTAMP enciende PLOTSTAMPMODE y PLOT lo lee al componer la petición --
+{
+  const base = documentWithLayout();
+
+  // Por defecto, apagado: nadie pidió sello y la petición no debe llevarlo.
+  const off = run(base, ["PLOT", "T", "sin-sello"]);
+  const offRequest = hosts(off.effects)[0];
+  if (offRequest.kind !== "plot") throw new Error("se esperaba una petición de trazado");
+  assert.equal(offRequest.request.pageSetup.plotStamp, false, "sin PLOTSTAMP, plotStamp queda apagado");
+
+  // PLOTSTAMP Encender, y LUEGO PLOT, en la MISMA sesión: es el escenario
+  // real — el usuario enciende el sello una vez y traza varias hojas.
+  const on = run(base, ["PLOTSTAMP", "E", "PLOT", "T", "con-sello"]);
+  assert.ok(
+    messages(on.effects).some((text) => text.includes("Encendido")),
+    "PLOTSTAMP dice que quedó encendido",
+  );
+  const onRequests = hosts(on.effects);
+  assert.equal(onRequests.length, 1, "PLOTSTAMP no traza: sólo cambia la variable");
+  const onRequest = onRequests[0];
+  if (onRequest.kind !== "plot") throw new Error("se esperaba una petición de trazado");
+  assert.equal(onRequest.request.pageSetup.plotStamp, true, "PLOT lee PLOTSTAMPMODE encendido");
+
+  // Enter alterna en vez de fijar: sobre "Apagado" enciende, sobre
+  // "Encendido" apaga — como FILL, LAYON/LAYOFF y el resto de la familia.
+  const toggled = run(base, ["PLOTSTAMP", "\r", "PLOTSTAMP", "\r", "PLOT", "T", "doble"]);
+  const toggledRequest = hosts(toggled.effects)[0];
+  if (toggledRequest.kind !== "plot") throw new Error("se esperaba una petición de trazado");
+  assert.equal(toggledRequest.request.pageSetup.plotStamp, false, "dos Intros vuelven a apagado");
+
+  // Apagar explícito sobre lo ya encendido.
+  const explicitOff = run(base, ["PLOTSTAMP", "E", "PLOTSTAMP", "A", "PLOT", "T", "apagado-explicito"]);
+  const explicitOffRequest = hosts(explicitOff.effects)[0];
+  if (explicitOffRequest.kind !== "plot") throw new Error("se esperaba una petición de trazado");
+  assert.equal(explicitOffRequest.request.pageSetup.plotStamp, false);
 }
 
 // --- PLOT no se declara mutante ----------------------------------------------

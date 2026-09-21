@@ -57,6 +57,7 @@ import { wallLength } from "./wall-geometry";
 import { cadWallJunctionOverlaps } from "./wall-junction-overlap";
 import { wallOpeningFit } from "./wall-openings";
 import { cadPointInBoundary } from "./hatch-associativity";
+import { cadToMillimetres } from "./engine/commands/architecture-support";
 import { roomDepartmentFromTags, roomUseTypeFromTags } from "./architecture";
 import {
   cadRoomBuiltArea,
@@ -190,7 +191,7 @@ type OpeningLike = CadOpeningEntity;
  * huecos por muro y la lista de problemas: separarlas obligaría a recorrer el
  * documento dos veces y a decidir cuál de las dos reporta un hueco huérfano.
  */
-export function buildCadBimSchedule(document: Pick<CadDocument, "entities">): CadBimSchedule {
+export function buildCadBimSchedule(document: Pick<CadDocument, "entities">, unit?: string): CadBimSchedule {
   const walls: WallLike[] = [];
   const openings: OpeningLike[] = [];
   const labels: RoomLabel[] = [];
@@ -229,7 +230,7 @@ export function buildCadBimSchedule(document: Pick<CadDocument, "entities">): Ca
       host.id,
       (openingAreaByWall.get(host.id) ?? 0) + area,
     );
-    const mark = openingMark(opening);
+    const mark = openingMark(opening, unit);
     // La marca cuenta ancho × alto; el antepecho no entra en ella pero SÍ
     // separa filas: una ventana a 900 y otra a 1.200 no son la misma pieza.
     const rowKey = `${mark}\u0000${opening.sill}`;
@@ -365,9 +366,12 @@ export function nameCadRoom(room: CadRoomAreaRow, labels: readonly RoomLabel[]):
 
 export function openingMark(
   opening: Pick<CadOpeningEntity, "kind" | "width" | "height">,
+  unit?: string,
 ): string {
+  const widthMm = cadToMillimetres(opening.width, unit);
+  const heightMm = cadToMillimetres(opening.height, unit);
   const cm = (value: number) => String(Math.round(value / 10)).padStart(3, "0");
-  return `${opening.kind === "door" ? "P" : "V"}-${cm(opening.width)}x${cm(opening.height)}`;
+  return `${opening.kind === "door" ? "P" : "V"}-${cm(widthMm)}x${cm(heightMm)}`;
 }
 
 // ---------------------------------------------------------------------------

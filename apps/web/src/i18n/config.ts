@@ -1,5 +1,5 @@
 /**
- * Configuración central de i18n para Valle Design.
+ * Configuración central de i18n para VALLECAD.
  *
  * Estrategia: next-intl SIN routing por segmento `[locale]`. La app tiene ~113
  * rutas ya consolidadas bajo `/dashboard/*`; reescribirlas a `/[locale]/...`

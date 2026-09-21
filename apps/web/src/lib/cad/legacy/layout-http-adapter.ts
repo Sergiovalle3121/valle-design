@@ -220,7 +220,7 @@ function json(body: unknown, status = 200): Response {
 function legacyNotFound(route: string): Response {
   return json(
     {
-      message: `El endpoint legacy line-engineering/${route} no existe en el contrato /v1/cad de Valle Design.`,
+      message: `El endpoint legacy line-engineering/${route} no existe en el contrato /v1/cad de VALLECAD.`,
     },
     404,
   );

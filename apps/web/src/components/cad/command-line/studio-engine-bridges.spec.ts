@@ -35,6 +35,7 @@ function baseInputs(overrides: Partial<CadStudioEngineBridgeInputs> = {}): CadSt
     syncRedefinedBlock: () => {},
     cursor: { current: null },
     drawPreview: () => {},
+    viewControllerRef: { current: null },
     ...overrides,
   };
 }

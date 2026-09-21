@@ -25,7 +25,7 @@
     "entidadesParcheadas": 0,
     "entidadesQueYaLosTraian": 22,
     "queSignifica": "Este experimento existia para PROBAR P-evidencia-07 antes de pedirla: parcheaba los marcadores de subclase sobre el texto ya exportado y volvia a leerlo. Desde que el producto los escribe (2026-09-05) es un CONTROL, y su lectura correcta es entidadesParcheadas = 0 con entidadesQueYaLosTraian = todas.",
-    "sha256Origen": "ad3990fcb1c9e7b491441c42c0d1165bd4035e383d49bd0299b85ee52d4e8bbc",
+    "sha256Origen": "208bf6b07a3e23108ec7c6189dd8a4ca3a1067efbaf9d10b7fb12f3c3ef40747",
     "leido": true,
     "espacioModelo": {
       "ARC": 20,
@@ -95,7 +95,7 @@
       },
       "lineas": {
         "n": 624,
-        "longitudTotal": 18120.082421577223,
+        "longitudTotal": 18120.08242157724,
         "porGeometria": [
           [
             "-0.772926,39.367132|47.227074,39.367132",
@@ -2766,7 +2766,7 @@
         "n": 124,
         "cerradas": 54,
         "conVerticeDeCierreRepetido": 2,
-        "longitudTotal": 20844.841682808965,
+        "longitudTotal": 20844.84168280898,
         "porGeometria": [
           [
             "-160.772926,91.867132",
@@ -3971,8 +3971,8 @@
     },
     {
       "etiqueta": "exportado/jornada-completa",
-      "sha256": "ad3990fcb1c9e7b491441c42c0d1165bd4035e383d49bd0299b85ee52d4e8bbc",
-      "bytes": 398106,
+      "sha256": "208bf6b07a3e23108ec7c6189dd8a4ca3a1067efbaf9d10b7fb12f3c3ef40747",
+      "bytes": 397392,
       "leido": true,
       "dialecto": "AC1015",
       "version": "R2000",
@@ -4018,7 +4018,7 @@
       },
       "lineas": {
         "n": 625,
-        "longitudTotal": 18620.082418607923,
+        "longitudTotal": 18620.082418607893,
         "porGeometria": [
           [
             "0.000000,0.000000|300.000000,400.000000",
@@ -6656,7 +6656,7 @@
         "n": 124,
         "cerradas": 54,
         "conVerticeDeCierreRepetido": 0,
-        "longitudTotal": 20844.84168604028,
+        "longitudTotal": 20844.841686040312,
         "porGeometria": [
           [
             "1.552187,420.365051",
@@ -7862,8 +7862,8 @@
     },
     {
       "etiqueta": "exportado/jornada-sin-mtext-ni-hatch",
-      "sha256": "56226d18492b4f432faff1d9ebc12bfdd1b36c6c2e7761a7bbd41036a11f17aa",
-      "bytes": 390498,
+      "sha256": "2d3093633c0f6349552588e39489d60871e3143041a5c9526f57f5fe759f1d87",
+      "bytes": 389784,
       "leido": true,
       "dialecto": "AC1015",
       "version": "R2000",
@@ -7907,7 +7907,7 @@
       },
       "lineas": {
         "n": 625,
-        "longitudTotal": 18620.082418607923,
+        "longitudTotal": 18620.082418607893,
         "porGeometria": [
           [
             "0.000000,0.000000|300.000000,400.000000",
@@ -10545,7 +10545,7 @@
         "n": 124,
         "cerradas": 54,
         "conVerticeDeCierreRepetido": 0,
-        "longitudTotal": 20844.84168604028,
+        "longitudTotal": 20844.841686040312,
         "porGeometria": [
           [
             "1.552187,420.365051",

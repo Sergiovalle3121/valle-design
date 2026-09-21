@@ -123,6 +123,51 @@ function inserted(result: ReturnType<typeof run>) {
   assert.ok(Math.abs(entity.endAngle - 0) < 1e-6, `end ${entity.endAngle}`);
 }
 
+// --- ARC inicio-fin-radio: radio POSITIVO da el arco MENOR ------------------
+{
+  // Cuerda de 100 (de (-50,0) a (50,0)) con radio 100: el arco menor bulge
+  // hacia +y, con centro por debajo del eje (el sagital es corto).
+  const entity = inserted(run("ARC", [point(-50, 0), keyword("Fin"), point(50, 0), distance(100)]));
+  if (entity.type !== "arc") throw new Error("tipo");
+  assert.ok(Math.abs(entity.radius - 100) < 1e-6, `radio ${entity.radius}`);
+  const sweep = ((entity.endAngle - entity.startAngle + 360) % 360) || 360;
+  assert.ok(sweep < 180, `radio positivo debe dar el arco MENOR: barrido ${sweep}`);
+  // Pasa exactamente por los dos puntos designados.
+  const DEG = Math.PI / 180;
+  const at = (deg: number) => ({
+    x: entity.center.x + entity.radius * Math.cos(deg * DEG),
+    y: entity.center.y + entity.radius * Math.sin(deg * DEG),
+  });
+  const p0 = at(entity.startAngle);
+  const p1 = at(entity.endAngle);
+  const hitsBoth =
+    (Math.abs(p0.x - -50) < 1e-6 && Math.abs(p1.x - 50) < 1e-6) ||
+    (Math.abs(p0.x - 50) < 1e-6 && Math.abs(p1.x - -50) < 1e-6);
+  assert.ok(hitsBoth, `el arco no pasa por los dos puntos: ${JSON.stringify({ p0, p1 })}`);
+}
+
+// --- ARC inicio-fin-radio: radio NEGATIVO da el arco MAYOR ------------------
+{
+  const entity = inserted(run("ARC", [point(-50, 0), keyword("Fin"), point(50, 0), distance(-100)]));
+  if (entity.type !== "arc") throw new Error("tipo");
+  assert.ok(Math.abs(entity.radius - 100) < 1e-6, "el radio es el VALOR ABSOLUTO del tecleado");
+  const sweep = ((entity.endAngle - entity.startAngle + 360) % 360) || 360;
+  assert.ok(sweep > 180, `radio negativo debe dar el arco MAYOR: barrido ${sweep}`);
+}
+
+// --- ARC inicio-fin-ángulo incluido: 90° exactos entre los dos puntos ------
+{
+  const entity = inserted(
+    run("ARC", [point(0, 0), keyword("Fin"), point(100, 0), keyword("Ángulo"), { kind: "angle", degrees: 90 }]),
+  );
+  if (entity.type !== "arc") throw new Error("tipo");
+  const sweep = ((entity.endAngle - entity.startAngle + 360) % 360) || 360;
+  assert.ok(Math.abs(sweep - 90) < 1e-6, `barrido ${sweep}, se pidieron 90°`);
+  // Radio que le corresponde a una cuerda de 100 con 90° incluidos: r = d / (2·sen(45°)).
+  const expectedRadius = 100 / (2 * Math.sin(Math.PI / 4));
+  assert.ok(Math.abs(entity.radius - expectedRadius) < 1e-6, `radio ${entity.radius}, se esperaba ${expectedRadius}`);
+}
+
 // --- ELLIPSE: eje por dos extremos, y el semieje menor por distancia ---------
 {
   const entity = inserted(run("ELLIPSE", [point(-100, 0), point(100, 0), point(0, 50)]));

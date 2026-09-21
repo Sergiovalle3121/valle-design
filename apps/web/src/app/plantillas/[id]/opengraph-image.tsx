@@ -1,12 +1,13 @@
 import { socialCard, SOCIAL_CARD_SIZE, SOCIAL_CARD_CONTENT_TYPE } from "@/lib/seo/social-card";
 import { galleryTemplate } from "@/lib/marketing/template-gallery";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 /**
  * Tarjeta social POR PLANTILLA: quien comparte «plano de taquería» en un chat
  * ve el giro y el dato duro, no una tarjeta genérica. Sin cifras de precio ni
  * promesas: huella y objetos salen del catálogo.
  */
-export const alt = "Plantilla de plano CAD de Valle Design";
+export const alt = `Plantilla de plano CAD de ${PRODUCT_LABEL.design}`;
 export const size = SOCIAL_CARD_SIZE;
 export const contentType = SOCIAL_CARD_CONTENT_TYPE;
 

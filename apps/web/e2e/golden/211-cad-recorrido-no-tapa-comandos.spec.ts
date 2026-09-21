@@ -16,6 +16,13 @@ import type { CadDocument } from "../../src/lib/cad/cad-document";
  * defiende el pliegue (`cad-guided-tour-toggle`) que lo resuelve cuando ni el
  * aire de la escala alcanza.
  *
+ * Desde que el recorrido vive en el muelle izquierdo (`tour-slot.ts`) y arranca
+ * plegado, en una ventana de escritorio ya no comparte columna con la línea de
+ * comandos; sólo vuelve a apilarse sobre ella cuando el muelle se oculta (el
+ * segundo test, a 1.024 px). Las dos colocaciones se miden igual: sin solape,
+ * con aire de verdad, plegado Y desplegado. El golden 67 mide lo otro: que la
+ * tarjeta no tape la paleta ni el lienzo y reciba sus propios clics.
+ *
  * Se abre el estudio SIN saltar el recorrido a propósito: es el único estado
  * donde el defecto existe. El resto de los goldens lo saltan por diseño (ver
  * el golden 67) y por eso nadie lo había medido.
@@ -82,52 +89,58 @@ test("el recorrido guiado y la línea de comandos nunca se solapan, y dejan aire
 
   const tour = page.getByTestId("cad-guided-tour");
   const cmd = page.getByTestId("cad-command-line");
+  const toggle = page.getByTestId("cad-guided-tour-toggle");
+  const progreso = page.getByTestId("cad-guided-tour-progress");
 
-  const tourBox = (await tour.boundingBox())!;
+  /* ── Arranca plegado ──────────────────────────────────────────────────── */
+  await expect(tour).toHaveAttribute("data-collapsed", "true");
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(progreso).toBeHidden();
+
+  const tourPlegado = (await tour.boundingBox())!;
   const cmdBox = (await cmd.boundingBox())!;
-
-  expect(sinSolapeVertical(tourBox, cmdBox), "el recorrido no debe solaparse con la línea de comandos").toBe(true);
+  expect(sinSolapeVertical(tourPlegado, cmdBox), "el recorrido no debe solaparse con la línea de comandos").toBe(true);
   // No basta con "no negativo": un hueco de 3-4 px no se distingue de estar
   // pegados. Se exige el mínimo real de la escala (`gap-2` = 8 px) menos un
   // margen de redondeo del navegador.
-  const separacion = hueco(tourBox, cmdBox);
-  expect(separacion, `hueco medido: ${separacion}px`).toBeGreaterThanOrEqual(7);
+  const separacionPlegada = hueco(tourPlegado, cmdBox);
+  expect(separacionPlegada, `hueco medido plegado: ${separacionPlegada}px`).toBeGreaterThanOrEqual(7);
 
-  /* ── El pliegue: existe, y de verdad libera espacio ──────────────────── */
-  const toggle = page.getByTestId("cad-guided-tour-toggle");
-  await expect(toggle).toBeVisible();
-  await expect(toggle).toHaveAttribute("aria-expanded", "true");
-
-  const alturaAbierta = tourBox.height;
+  /* ── Desplegado tampoco pisa la línea de comandos ─────────────────────── */
   await toggle.click();
-  await expect(toggle).toHaveAttribute("aria-expanded", "false");
-  await expect(page.getByTestId("cad-guided-tour-progress")).toBeHidden();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  await expect(tour).toHaveAttribute("data-collapsed", "false");
+  await expect(progreso).toBeVisible();
 
-  const tourPlegado = (await tour.boundingBox())!;
+  const tourAbierto = (await tour.boundingBox())!;
+  const cmdAbierto = (await cmd.boundingBox())!;
+  expect(sinSolapeVertical(tourAbierto, cmdAbierto), "desplegado tampoco debe solaparse").toBe(true);
+  const separacion = hueco(tourAbierto, cmdAbierto);
+  expect(separacion, `hueco medido desplegado: ${separacion}px`).toBeGreaterThanOrEqual(7);
+
+  /* ── El pliegue de verdad libera espacio ──────────────────────────────── */
   expect(
     tourPlegado.height,
-    `plegado (${tourPlegado.height}px) debe ser bastante menor que desplegado (${alturaAbierta}px)`,
-  ).toBeLessThan(alturaAbierta * 0.5);
-
-  // El hueco INMEDIATO entre el recorrido y la línea de comandos es el mismo
-  // `gap-2` (8 px) plegado o desplegado — es un espacio fijo entre hermanos
-  // de un `flex`, no crece con el contenido. Lo que el pliegue libera es la
-  // ALTURA del panel entero (ya probado arriba): con el paso "Sigue
-  // dibujando" desplegado, esa altura completa es exactamente lo que antes
-  // dejaba sólo 4 px sobre la línea de comandos.
-  const cmdTrasPlegar = (await cmd.boundingBox())!;
-  expect(sinSolapeVertical(tourPlegado, cmdTrasPlegar)).toBe(true);
-  // Comparación con tolerancia de medio píxel: `boundingBox()` en Firefox
-  // devuelve valores de subpíxel (p.ej. 7.99993896484375 en vez de 8) por
-  // redondeo interno del motor de composición, así que la igualdad estricta
-  // del mismo `gap-2` falla en un margen que no es un fallo de layout.
-  const separacionPlegada = hueco(tourPlegado, cmdTrasPlegar);
+    `plegado (${tourPlegado.height}px) debe ser bastante menor que desplegado (${tourAbierto.height}px)`,
+  ).toBeLessThan(tourAbierto.height * 0.5);
+  // Plegado deja AL MENOS el aire de desplegado: igual si comparten columna
+  // (el mismo `gap-2` fijo entre hermanos de un `flex`), más si el recorrido
+  // está en el muelle. Tolerancia de medio píxel: `boundingBox()` en Firefox
+  // devuelve subpíxeles (p.ej. 7.99993896484375 en vez de 8).
   expect(separacionPlegada).toBeGreaterThanOrEqual(separacion - 0.5);
 
-  /* ── Se puede volver a abrir ──────────────────────────────────────────── */
-  await toggle.click();
+  /* ── La elección de la persona sobrevive a recargar (D12) ─────────────── */
+  // El de fábrica es plegado, así que lo que tiene que persistir es lo
+  // contrario: quien lo desplegó lo encuentra desplegado.
+  await page.reload();
+  await expect(page.getByTestId("cad-command-line")).toBeVisible({ timeout: 90_000 });
+  await expect(tour).toHaveAttribute("data-collapsed", "false");
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
-  await expect(page.getByTestId("cad-guided-tour-progress")).toBeVisible();
+
+  /* ── Y se puede volver a plegar ───────────────────────────────────────── */
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(progreso).toBeHidden();
 });
 
 test("el hueco tampoco se cierra en una ventana baja (tableta apaisada)", async ({
@@ -141,8 +154,22 @@ test("el hueco tampoco se cierra en una ventana baja (tableta apaisada)", async 
   await page.setViewportSize({ width: 1024, height: 700 });
   await openStudioConRecorrido(context, page);
 
-  const tourBox = (await page.getByTestId("cad-guided-tour").boundingBox())!;
-  const cmdBox = (await page.getByTestId("cad-command-line").boundingBox())!;
-  expect(sinSolapeVertical(tourBox, cmdBox)).toBe(true);
-  expect(hueco(tourBox, cmdBox)).toBeGreaterThanOrEqual(7);
+  const tour = page.getByTestId("cad-guided-tour");
+  const cmd = page.getByTestId("cad-command-line");
+  // Aquí el muelle izquierdo está oculto (`max-[1100px]:hidden`): el recorrido
+  // vuelve a apilarse sobre la línea de comandos, que es lo que se mide.
+  await expect(tour).toHaveAttribute("data-placement", "floating");
+
+  for (const estado of ["plegado", "desplegado"] as const) {
+    if (estado === "desplegado") {
+      await page.getByTestId("cad-guided-tour-toggle").click();
+      await expect(tour).toHaveAttribute("data-collapsed", "false");
+    } else {
+      await expect(tour).toHaveAttribute("data-collapsed", "true");
+    }
+    const tourBox = (await tour.boundingBox())!;
+    const cmdBox = (await cmd.boundingBox())!;
+    expect(sinSolapeVertical(tourBox, cmdBox), `${estado}: sin solape`).toBe(true);
+    expect(hueco(tourBox, cmdBox), `${estado}: hueco`).toBeGreaterThanOrEqual(7);
+  }
 });

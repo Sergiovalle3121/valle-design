@@ -13,6 +13,10 @@
  *      nada es un adorno.
  *   4. Copiar «sin color explícito» BORRA el color del destino. Es la única
  *      forma de devolver algo a PorCapa con MATCHPROP, y la que se olvida.
+ *   5. Ola 3 «recortar» (2026-09-19): `Texto`, `Cota`, `Tabla` y `Sombreado`
+ *      copian su estilo/aspecto SÓLO entre el mismo tipo de entidad, y en
+ *      silencio no hacen nada sobre un tipo que no lo usa. `Transparencia`
+ *      viaja por la misma puerta que color/tipo de línea/grosor.
  */
 import { strict as assert } from "node:assert";
 import type { CadEntity } from "../../cad-document";
@@ -54,6 +58,62 @@ const SCENE: CadEntity[] = [
     layer: "0",
     context: { presentation: { color: { source: "explicit", value: "#00ff00" } } },
   },
+  // Ola 3 «recortar»: escena para los cuatro grupos nuevos de MATCHPROP.
+  { id: "textA", type: "text", x: 0, y: 20, text: "A", layer: "0", style: "Romans" },
+  { id: "textB", type: "text", x: 0, y: 21, text: "B", layer: "0" },
+  { id: "dimA", type: "dimension", a: { x: 0, y: 30 }, b: { x: 10, y: 30 }, layer: "0", style: "ISO-25" },
+  { id: "dimB", type: "dimension", a: { x: 0, y: 31 }, b: { x: 10, y: 31 }, layer: "0" },
+  {
+    id: "tableA",
+    type: "table",
+    insertion: { x: 0, y: 40, z: 0 },
+    rows: 1,
+    columns: 1,
+    rowHeights: [5],
+    columnWidths: [10],
+    cells: [],
+    layer: "0",
+    style: "MiTabla",
+  },
+  {
+    id: "tableB",
+    type: "table",
+    insertion: { x: 0, y: 41, z: 0 },
+    rows: 1,
+    columns: 1,
+    rowHeights: [5],
+    columnWidths: [10],
+    cells: [],
+    layer: "0",
+  },
+  {
+    id: "hatchA",
+    type: "hatch",
+    pattern: "ANSI31",
+    solid: false,
+    scale: 2,
+    angle: 30,
+    islandStyle: "outer",
+    boundaries: [[{ x: 0, y: 50, z: 0 }, { x: 10, y: 50, z: 0 }, { x: 10, y: 60, z: 0 }]],
+    layer: "0",
+  },
+  {
+    id: "hatchB",
+    type: "hatch",
+    pattern: "NET",
+    solid: false,
+    boundaries: [[{ x: 0, y: 51, z: 0 }, { x: 10, y: 51, z: 0 }, { x: 10, y: 61, z: 0 }]],
+    layer: "0",
+  },
+  {
+    id: "transA",
+    type: "line",
+    start: { x: 0, y: 70, z: 0 },
+    end: { x: 10, y: 70, z: 0 },
+    layer: "0",
+    context: { presentation: { transparency: { source: "explicit", value: 50 } } },
+  },
+  { id: "transB", type: "line", start: { x: 0, y: 71, z: 0 }, end: { x: 10, y: 71, z: 0 }, layer: "0" },
 ];
 
 function makeContext(): CadCommandContext {
@@ -235,6 +295,79 @@ const keyword = (word: string): CadCommandInput => ({ kind: "keyword", keyword: 
   step = descriptor.step(step.state, enter, context);
   assert.ok(step.result && step.result.kind === "document");
   assert.equal(step.result.commands.length, 4, "dos destinos × (capa + presentación), UN lote");
+}
+
+// --- MATCHPROP: `Texto` copia el estilo de TEXT/MTEXT ---------------------------
+{
+  const result = run("MATCHPROP", [pick("textA"), pick("textB"), enter]);
+  assert.ok(result && result.kind === "document");
+  assert.equal(result.commands.length, 1, "sólo cambia el estilo de texto");
+  const patch = result.commands[0];
+  assert.ok(patch.type === "properties");
+  assert.equal(patch.patch.style, "Romans");
+}
+
+// --- …y NO se cuela en un tipo que no usa estilo de texto -----------------------
+{
+  // «part» es una LINE sin presentación propia, igual que «textA»: ningún
+  // grupo por defecto encuentra nada que copiar, y MATCHPROP lo dice con
+  // "none" en vez de fabricar un cambio vacío.
+  const result = run("MATCHPROP", [pick("textA"), pick("part"), enter]);
+  assert.equal(result?.kind, "none", "Texto sobre una LINE no significa nada, y se salta en silencio");
+}
+
+// --- MATCHPROP: `Cota` copia el estilo de DIMENSION -----------------------------
+{
+  const result = run("MATCHPROP", [pick("dimA"), pick("dimB"), enter]);
+  assert.ok(result && result.kind === "document");
+  assert.equal(result.commands.length, 1);
+  const patch = result.commands[0];
+  assert.ok(patch.type === "properties");
+  assert.equal(patch.patch.style, "ISO-25");
+}
+
+// --- MATCHPROP: `Tabla` copia el estilo de TABLE --------------------------------
+{
+  const result = run("MATCHPROP", [pick("tableA"), pick("tableB"), enter]);
+  assert.ok(result && result.kind === "document");
+  assert.equal(result.commands.length, 1);
+  const patch = result.commands[0];
+  assert.ok(patch.type === "properties");
+  assert.equal(patch.patch.style, "MiTabla");
+}
+
+// --- MATCHPROP: `Sombreado` copia el aspecto de HATCH ---------------------------
+{
+  const result = run("MATCHPROP", [pick("hatchA"), pick("hatchB"), enter]);
+  assert.ok(result && result.kind === "document");
+  assert.equal(result.commands.length, 1);
+  const patch = result.commands[0];
+  assert.ok(patch.type === "properties");
+  assert.equal(patch.patch.pattern, "ANSI31");
+  assert.equal(patch.patch.solid, false);
+  assert.equal(patch.patch.scale, 2);
+  assert.equal(patch.patch.angle, 30);
+  assert.equal(patch.patch.islandStyle, "outer");
+}
+
+// --- …y apagando `Sombreado`, ese mismo par no copia nada -----------------------
+{
+  const result = run("MATCHPROP", [pick("hatchA"), keyword("Sombreado"), pick("hatchB"), enter]);
+  assert.equal(
+    result?.kind,
+    "none",
+    "con Sombreado apagado, un HATCH↔HATCH sin capa ni presentación distinta no copia nada",
+  );
+}
+
+// --- MATCHPROP: `Transparencia` viaja por la misma puerta que color/grosor ------
+{
+  const result = run("MATCHPROP", [pick("transA"), pick("transB"), enter]);
+  assert.ok(result && result.kind === "document");
+  const presentation = result.commands.find((command) => command.type === "presentation");
+  assert.ok(presentation && presentation.type === "presentation");
+  assert.equal(presentation.presentation?.transparency?.value, 50);
+  assert.equal(presentation.presentation?.transparency?.source, "explicit");
 }
 
 console.log(

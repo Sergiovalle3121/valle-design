@@ -8,6 +8,7 @@ import {
   type CadGlyphMetrics,
   type CadGlyphSource,
 } from "./text-atlas";
+import { PLAN_AXIS_Y_SCREEN_SIGN } from "../view/plan-axis";
 import { unpackCadColor } from "./line-batch";
 
 let checks = 0;
@@ -110,7 +111,7 @@ assert.ok(Math.abs(straight.instanceStyle[1] - 0.5) < 1e-6, "la profundidad viaj
 assert.deepEqual(unpackCadColor(straight.instanceStyle[0]), { r: 0xff, g: 0x88, b: 0x00 });
 ok(true, "sin rotación los quads salen en 100,5 y 106,5 con recuadro 5 × 7");
 
-// La Y de PANTALLA va al revés que la del dibujo (`yScreenSign: 1`, la
+// La Y de PANTALLA va al revés que la del dibujo (PLAN_AXIS_Y_SCREEN_SIGN = 1, la
 // convención actual del producto), así que el marco local del glifo se refleja
 // en Y: el vector de altura apunta a −Y del mundo, que en pantalla es ARRIBA.
 // Con sprites esto no importaba porque miran siempre a la cámara; con quads en
@@ -138,7 +139,7 @@ const descender: CadGlyphSource = {
   }),
 };
 const request = { text: "p", fontKey: "arial", fontSize: 10, x: 0, y: 0, color: 0, depth: 0 };
-const down = buildCadTextQuads([request], flat, descender, { yScreenSign: 1 });
+const down = buildCadTextQuads([request], flat, descender, { yScreenSign: PLAN_AXIS_Y_SCREEN_SIGN });
 const up2 = buildCadTextQuads([request], flat, descender, { yScreenSign: -1 });
 assert.equal(up2.instanceOrigin[1], -2, "con Y hacia arriba la cola baja a −2");
 assert.equal(down.instanceOrigin[1], 2, "con Y hacia abajo se refleja a +2");

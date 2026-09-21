@@ -9,12 +9,15 @@
  *
  * ## Estado actual, para que nadie lo deduzca mal
  *
- * `breakSegment` sigue siendo la geometría de BREAK. `trimSegment` y
- * `extendSegment` YA NO los usa ningún comando: TRIM y EXTEND pasaron a
- * `curve-edit.ts`, que expresa la misma regla sobre el parámetro de cualquier
- * curva y por eso admite arcos, círculos, elipses y polilíneas. Se conservan
+ * NINGÚN comando llama ya a estas cuatro funciones. `trimSegment` y
+ * `extendSegment` pasaron a `curve-edit.ts` cuando TRIM y EXTEND se
+ * generalizaron a cualquier curva; `breakSegment` y `breakSegmentBetween`
+ * (ola 2 de «editar 2D») las sustituyó `computeCadCurveBreak`, del mismo
+ * módulo, que expresa la misma regla —un hueco, o un corte de hueco cero,
+ * sobre el parámetro de la curva— y por eso BREAK y BREAKATPOINT ya admiten
+ * también ARC, CIRCLE y POLYLINE, no sólo LINE. Las cuatro se conservan aquí
  * porque su spec documenta el caso de dos segmentos con anclas propias, pero
- * si alguien los amplía sin tocar `curve-edit.ts` estará mejorando código que
+ * si alguien las amplía sin tocar `curve-edit.ts` estará mejorando código que
  * el producto no ejecuta.
  */
 import type { CadVec2 } from "./primitives";

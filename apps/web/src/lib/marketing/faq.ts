@@ -1,5 +1,7 @@
 import { DOC_GUIDES, PRICING_PATH, docGuidePath } from "@/config/site-routes";
 import { COMMERCIAL_LINKS } from "@/config/commercial";
+import { dwgClaim } from "./dwg-claim";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 /**
  * EL CENTRO DE PREGUNTAS.
@@ -218,13 +220,13 @@ export const FAQ_ENTRIES: readonly FaqEntry[] = [
     categoria: "dibujo",
     pregunta: "¿El muro aloja puertas y ventanas?",
     respuesta:
-      "Todavía no. Los muros resuelven sus uniones solos —esquina, T y continuación colineal—, pero una puerta o una ventana se coloca hoy como bloque encima del muro: el muro no recorta su hueco. El plano sale correcto y la puerta se ve donde va; lo que falta es que el hueco sea una propiedad del muro en vez de un dibujo encima.",
+      "Sí. Una puerta o una ventana se aloja en el muro que la recibe: designas el muro anfitrión, el hueco se sitúa sobre su eje y el contorno del muro se parte para dejarlo pasar. Si mueves, giras o escalas el muro, el hueco viaja con él, porque es una propiedad del muro y no un dibujo encima. Un hueco que no cabe entero en el muro se rechaza en vez de recortarse: media puerta pegada a una esquina sería creíble, medible y falsa. Los muros, además, resuelven sus uniones solos: esquina, T y continuación colineal.",
   },
   {
     categoria: "dibujo",
     pregunta: "¿Hay 3D?",
     respuesta:
-      "Hay una vista tridimensional del modelo para comprobar el volumen de lo dibujado, no un modelador. Valle Design es un CAD 2D: su trabajo es producir planos correctos, y el 3D está para verificar, no para diseñar. Todo documento abre en 2D salvo que tú hayas dejado otra vista activa.",
+      `Sí: modelado directo de sólidos sobre el mismo documento que tu plano. ${PRODUCT_LABEL.design} lleva un kernel B-rep propio de medias aristas —extrusión, PRESSPULL sobre una cara, booleanas, redondeo y vaciado— y cada gesto entra al historial del documento, así que se corrige por número en propiedades en vez de deshacer. El límite, dicho entero: es facetado, no exacto —un cilindro es un prisma de N lados y no hay caras NURBS analíticas— y no es BIM: sin IFC ni detección de interferencias. Todo documento abre en 2D salvo que tú hayas dejado otra vista activa.`,
   },
   {
     categoria: "dibujo",
@@ -244,14 +246,16 @@ export const FAQ_ENTRIES: readonly FaqEntry[] = [
     categoria: "archivos",
     pregunta: "¿Cómo intercambio planos con quien usa otro programa?",
     respuesta:
-      "En DXF de texto, que es el formato estándar de intercambio que cualquier programa de dibujo sabe abrir y escribir. Valle Design lo importa y lo exporta con comprobación previa y un manifiesto de pérdidas que dice, entidad por entidad, qué no viajó igual. Pide a tus colaboradores una copia en DXF y entrégales DXF: es el terreno común.",
+      `En DXF de texto, que es el formato estándar de intercambio que cualquier programa de dibujo sabe abrir y escribir. ${PRODUCT_LABEL.design} lo importa y lo exporta con comprobación previa y un manifiesto de pérdidas que dice, entidad por entidad, qué no viajó igual. Pide a tus colaboradores una copia en DXF y entrégales DXF: es el terreno común.`,
     enlace: guia("dxf-vs-dwg", "Qué significa cada formato para tu despacho"),
   },
   {
     categoria: "archivos",
     pregunta: "¿Abre archivos DWG?",
-    respuesta:
-      "No en la versión pública. Existe una lectura en beta muy acotada que hoy está apagada por defecto, y cuando está apagada el editor DETECTA ese formato y lo rechaza con un mensaje claro en vez de fingir que lo entiende y devolverte un dibujo roto. Un plano degradado en silencio es peor que un plano que no abre, porque el error viaja hasta la obra.",
+    // La respuesta se DERIVA de las banderas de esta build (`dwg-claim.ts`):
+    // un despliegue con la beta apagada dice que no abre; uno con la beta
+    // encendida nombra las versiones exactas que lee. Nunca se escribe a mano.
+    respuesta: dwgClaim().long,
     enlace: guia("dxf-vs-dwg", "La diferencia entre los dos formatos"),
   },
   {

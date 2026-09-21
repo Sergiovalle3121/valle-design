@@ -238,6 +238,76 @@ const enter: CadCommandInput = { kind: "enter" };
   eq(layoutCadMText(entity).lines[0].text, "Ø25+0.05/-0.02", "y la maqueta ya no ve el código");
 }
 
+// --- MTEXT: Viñeta compone la lista sin saberse la sintaxis \\p ------------------------------
+{
+  const entity = insertedEntity(
+    run("MTEXT", [
+      point(0, 0),
+      point(4_000, -2_000),
+      keyword("Viñeta"),
+      text("Zapata corrida"),
+      keyword("Viñeta"),
+      text("Losa de cimentación"),
+      enter,
+    ]),
+  );
+  if (entity.type !== "mtext") throw new Error("tipo");
+  eq(
+    entity.text,
+    "\\pxi-180,l180;•\\~Zapata corrida\\P\\pxi-180,l180;•\\~Losa de cimentación",
+    // 120 (altura por defecto) × 1.5 = 180: la sangría que construye MTEXT.
+    "dos párrafos con el código \\pxi real, uno por viñeta",
+  );
+  const layout = layoutCadMText(entity);
+  eq(layout.lines.length, 2, "dos líneas, una por viñeta");
+  eq(layout.lines[0].x, 0, "la viñeta arranca en la columna 0 del párrafo");
+  eq(layout.lines[1].x, 0, "la segunda viñeta también");
+}
+
+// --- MTEXT: Numerar lleva la cuenta sola, un párrafo por elemento ----------------------------
+{
+  const entity = insertedEntity(
+    run("MTEXT", [
+      point(0, 0),
+      point(4_000, -2_000),
+      text("Notas generales"),
+      keyword("Numerar"),
+      text("Verificar niveles"),
+      keyword("Numerar"),
+      text("Replantear ejes"),
+      enter,
+    ]),
+  );
+  if (entity.type !== "mtext") throw new Error("tipo");
+  eq(
+    entity.text,
+    "Notas generales\\P\\pxi-240,l240;1.\\~Verificar niveles\\P\\pxi-240,l240;2.\\~Replantear ejes",
+    "la primera es texto llano; 1. y 2. se numeran solos, sin que se tecleen",
+  );
+}
+
+// --- MTEXT: Enter vacío en «Numerar» sale de la lista sin cancelar el párrafo ----------------
+{
+  const entity = insertedEntity(
+    run("MTEXT", [
+      point(0, 0),
+      point(4_000, -2_000),
+      keyword("Numerar"),
+      text("Único punto"),
+      keyword("Numerar"),
+      enter, // Enter con la caja vacía: sale de la lista, no del MTEXT.
+      text("Cierre del párrafo"),
+      enter,
+    ]),
+  );
+  if (entity.type !== "mtext") throw new Error("tipo");
+  eq(
+    entity.text,
+    "\\pxi-240,l240;1.\\~Único punto\\PCierre del párrafo",
+    "sólo un elemento numerado; el segundo Numerar se abandonó y el texto siguió",
+  );
+}
+
 // --- DDEDIT: reedita el texto de una anotación ------------------------------------------------
 {
   const doc = document([

@@ -3,6 +3,7 @@ import {
   Boxes,
   ClipboardPaste,
   Cog,
+  Combine,
   Command,
   Compass,
   CornerUpRight,
@@ -14,21 +15,25 @@ import {
   Globe,
   Group,
   Layers,
+  Layers2,
   LayoutGrid,
   Link,
   ListChecks,
   Orbit,
-  PaintBucket,
   Palette,
   PenLine,
   Printer,
   Puzzle,
   Ruler,
+  Scale,
+  Scissors,
   Settings2,
+  Scaling,
   Shapes,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
+  Square,
   Tag,
   Target,
   Terminal,
@@ -58,13 +63,12 @@ export const CAD_RIBBON_PANEL_ICONS: Readonly<Record<string, LucideIcon>> = {
   Grupos: Group,
   Utilidades: Ruler,
   Portapapeles: ClipboardPaste,
-  Sombreado: PaintBucket,
   Arquitectura: DoorOpen,
   Instalaciones: Droplets,
+  Superficies: Square,
   // Mechanical (Ola I): los normalizados en Insertar, el detallado en Anotar.
   Normalizados: Cog,
   Mecánica: Wrench,
-  Sólidos: Box,
   // Insertar.
   Referencias: Link,
   "Importar y extraer": Download,
@@ -74,6 +78,7 @@ export const CAD_RIBBON_PANEL_ICONS: Readonly<Record<string, LucideIcon>> = {
   "Texto y tablas": Type,
   Cotas: Ruler,
   Directrices: CornerUpRight,
+  "Escala de anotación": Scaling,
   Tolerancias: Target,
   Estilos: Palette,
   // Paramétrico.
@@ -87,15 +92,24 @@ export const CAD_RIBBON_PANEL_ICONS: Readonly<Record<string, LucideIcon>> = {
   SCU: Compass,
   Ventanas: LayoutGrid,
   Vistas: Eye,
+  // Sólidos 3D.
+  Primitivas: Box,
+  Sólido: Layers2,
+  Booleanas: Combine,
+  "Edición de sólidos": Scissors,
+  "Consulta 3D": Scale,
   // Salida.
   "Trazar y publicar": Printer,
   Exportar: Upload,
+  // «Render» no: sus comandos aún no están disponibles y el panel no se monta
+  // (ribbon-icons.spec exige que cada clave nombre un panel que existe).
   // Administrar.
   "Normas y reparación": ShieldCheck,
   Variables: Settings2,
   "AutoLISP y scripts": Terminal,
   Comparar: GitCompare,
   Herramientas: Wrench,
+  Mallas: Boxes,
 };
 
 export function cadRibbonPanelIcon(panel: string): LucideIcon {

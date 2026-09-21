@@ -565,4 +565,24 @@ for (const bad of ["verde", "0", "256", "#GG0000"]) {
   );
 }
 
+// --- FILL: alterna FILLMODE ------------------------------------------------
+{
+  const store = session();
+  // Por defecto FILLMODE = 1 (encendido).
+  equal(store.variables.get("FILLMODE"), 1, "FILLMODE arranca en 1");
+  // Teclear FILL y elegir Apagar.
+  const off = run("FILL", [keyword("Apagar")], context(store));
+  ok(off.result?.kind === "variables" && off.result.patch.FILLMODE === 0, "FILL Apagar pone FILLMODE en 0");
+  // Ahora Encender.
+  const on = run("FILL", [keyword("Encender")], context(store));
+  ok(on.result?.kind === "variables" && on.result.patch.FILLMODE === 1, "FILL Encender pone FILLMODE en 1");
+  // Enter con FILLMODE=1 alterna a 0.
+  store.variables.set("FILLMODE", 1);
+  const toggle = run("FILL", [{ kind: "enter" }], context(store));
+  ok(toggle.result?.kind === "variables" && toggle.result.patch.FILLMODE === 0, "FILL + Enter alterna 1→0");
+  // Cancelar no hace nada.
+  const cancel = run("FILL", [{ kind: "cancel" }], context(store));
+  ok(cancel.result?.kind === "none", "FILL cancelar no muta");
+}
+
 console.log(`settings-commands.spec: ${checks} comprobaciones verdes.`);

@@ -105,32 +105,42 @@ function arcEntity(
 const ARC_CENTER = { keyword: "Centro", shortcut: "C" } as const;
 const ARC_ANGLE = { keyword: "Ángulo", shortcut: "A" } as const;
 const ARC_RADIUS = { keyword: "Radio", shortcut: "R" } as const;
+const ARC_END = { keyword: "Fin", shortcut: "F" } as const;
 
 /**
- * Las tres formas de ARC que cubren el uso real.
+ * Las cinco formas de ARC que cubren el uso real.
  *
- * AutoCAD ofrece once combinaciones; casi todas son permutaciones del mismo
- * terceto de datos. Se implementan las tres que un dibujante teclea de verdad
- * y se dice cuáles faltan, en vez de anunciar once y tener nueve a medias:
+ * AutoCAD ofrece once combinaciones, casi todas permutaciones del mismo
+ * terceto de datos: `three-point` (por defecto), `start-center`,
+ * `center-start` (centro primero, `C`) y `start-end` —inicio, fin (`F`) y el
+ * tercer dato: radio o ángulo incluido, con `Radio`/`Ángulo`—.
  *
- *   - `three-point`  — el modo por defecto: inicio, un punto del arco, final.
- *   - `start-center` — inicio y centro, y luego final, ángulo o cuerda.
- *   - `center-start` — centro primero (`C`), que es como se traza un abanico.
- *
- * Faltan las variantes por dirección tangente y por longitud de cuerda.
+ * Faltan dos, declaradas y no fingidas: `Dirección` (tangente en el inicio)
+ * porque de las DOS direcciones tangentes posibles en un punto sólo UNA es
+ * alcanzable con `start` como arranque de un arco antihorario DXF —la otra
+ * exige horario, que el formato no admite— y decidir cuál sin dibujar el arco
+ * opuesto sin avisar pide más verificación de la que esta ola puede darle; y
+ * `Continuar` (tangente al último objeto dibujado), que pide memoria de SESIÓN
+ * que hoy no llega al motor por ningún `CadCommandContext`. Las dos van en
+ * «pendiente» del resumen de la ola.
  */
-type ArcMode = "three-point" | "start-center" | "center-start";
+type ArcMode = "three-point" | "start-center" | "center-start" | "start-end";
+/** Qué tercer dato se está pidiendo en el modo `start-end`. */
+type ArcThirdKind = "radius" | "angle";
 
 interface ArcState {
   mode: ArcMode;
   points: CadPoint2[];
   /** El tercer dato llegará como ángulo incluido, no como punto. */
   byAngle: boolean;
+  thirdKind: ArcThirdKind;
 }
+
+const ARC_INITIAL_STATE: ArcState = { mode: "three-point", points: [], byAngle: false, thirdKind: "radius" };
 
 function arcFinish(commands: CadEntityCommand[]): CadCommandStep<ArcState> {
   return {
-    state: { mode: "three-point", points: [], byAngle: false },
+    state: ARC_INITIAL_STATE,
     prompt: { message: "", options: [] },
     accepts: 0,
     result:
@@ -207,6 +217,84 @@ function arcFromCenter(
   ];
 }
 
+/**
+ * ARC inicio-fin-radio: de las dos circunferencias que pasan por `start` y
+ * `end` con ese radio —una a cada lado de la cuerda—, un radio POSITIVO elige
+ * el arco MENOR (≤180°) y uno NEGATIVO el MAYOR (>180°), como en AutoCAD; el
+ * signo no cambia el tamaño (se usa su valor absoluto), sólo cuál se dibuja.
+ */
+function arcByStartEndRadius(
+  start: CadPoint2,
+  end: CadPoint2,
+  signedRadius: number,
+  context: CadCommandContext,
+): CadEntityCommand[] {
+  const chordX = end.x - start.x;
+  const chordY = end.y - start.y;
+  const chord = Math.hypot(chordX, chordY);
+  if (!(chord > 1e-9)) return [];
+  const radius = Math.abs(signedRadius);
+  // La cuerda no puede ser más larga que el diámetro: no hay círculo de ese
+  // radio que pase por los dos puntos.
+  if (radius < chord / 2 - 1e-9) return [];
+  const mid = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+  const h = Math.sqrt(Math.max(0, radius * radius - (chord / 2) * (chord / 2)));
+  const normal = { x: -chordY / chord, y: chordX / chord };
+  const c1 = { x: mid.x + normal.x * h, y: mid.y + normal.y * h };
+  const c2 = { x: mid.x - normal.x * h, y: mid.y - normal.y * h };
+  const sweepOf = (center: CadPoint2) => normalizeDeg(angleDeg(center, end) - angleDeg(center, start));
+  const minorIsC1 = sweepOf(c1) <= 180;
+  const wantMinor = signedRadius >= 0;
+  const center = minorIsC1 === wantMinor ? c1 : c2;
+  const from = angleDeg(center, start);
+  const to = angleDeg(center, end);
+  return [
+    {
+      type: "insert",
+      entity: arcEntity(context.newEntityId(), cadLiftPoint(center, start), radius, from, to, context.activeLayer),
+    },
+  ];
+}
+
+/**
+ * ARC inicio-fin-ángulo incluido: `d = 2·r·sen(θ/2)` relaciona cuerda, radio y
+ * barrido; se despeja el radio y el centro se sitúa a `r·cos(θ/2)` del punto
+ * medio, girando la normal 90°. Un ángulo negativo es el mismo arco recorrido
+ * en horario —la convención de `arcFromCenter`—: se intercambian inicio y fin
+ * antes de calcular, no se emite un ángulo negativo que DXF no admite.
+ */
+function arcByStartEndAngle(
+  start: CadPoint2,
+  end: CadPoint2,
+  includedDeg: number,
+  context: CadCommandContext,
+): CadEntityCommand[] {
+  const magnitude = Math.abs(includedDeg);
+  if (!(magnitude > 1e-9) || magnitude >= 360 - 1e-9) return [];
+  const from2 = includedDeg < 0 ? end : start;
+  const to2 = includedDeg < 0 ? start : end;
+  const chordX = to2.x - from2.x;
+  const chordY = to2.y - from2.y;
+  const chord = Math.hypot(chordX, chordY);
+  if (!(chord > 1e-9)) return [];
+  const half = (magnitude * Math.PI) / 360;
+  const sinHalf = Math.sin(half);
+  if (Math.abs(sinHalf) < 1e-9) return [];
+  const radius = chord / (2 * sinHalf);
+  const mid = { x: (from2.x + to2.x) / 2, y: (from2.y + to2.y) / 2 };
+  const h = radius * Math.cos(half);
+  const normal = { x: -chordY / chord, y: chordX / chord };
+  const center = { x: mid.x + normal.x * h, y: mid.y + normal.y * h };
+  const fromAngle = angleDeg(center, from2);
+  const toAngle = angleDeg(center, to2);
+  return [
+    {
+      type: "insert",
+      entity: arcEntity(context.newEntityId(), cadLiftPoint(center, start), radius, fromAngle, toAngle, context.activeLayer),
+    },
+  ];
+}
+
 function arcStep(state: ArcState, context: CadCommandContext): CadCommandStep<ArcState> {
   const count = state.points.length;
   if (state.mode === "three-point") {
@@ -219,7 +307,7 @@ function arcStep(state: ArcState, context: CadCommandContext): CadCommandStep<Ar
     if (count === 1)
       return {
         state,
-        prompt: { message: "Precise el segundo punto del arco", options: [ARC_CENTER] },
+        prompt: { message: "Precise el segundo punto del arco", options: [ARC_CENTER, ARC_END] },
         accepts: CAD_ACCEPT_POINT | CAD_ACCEPT_KEYWORD,
         preview: rubberBand(state.points[0], context.cursor),
       };
@@ -228,6 +316,27 @@ function arcStep(state: ArcState, context: CadCommandContext): CadCommandStep<Ar
       prompt: { message: "Precise el punto final del arco", options: [] },
       accepts: CAD_ACCEPT_POINT,
       preview: rubberBand(state.points[1], context.cursor),
+    };
+  }
+
+  if (state.mode === "start-end") {
+    if (count < 2)
+      return {
+        state,
+        prompt: { message: "Precise el punto final del arco", options: [] },
+        accepts: CAD_ACCEPT_POINT,
+        preview: count === 1 ? rubberBand(state.points[0], context.cursor) : [],
+      };
+    if (state.thirdKind === "angle")
+      return {
+        state,
+        prompt: { message: "Precise el ángulo incluido", options: [ARC_RADIUS] },
+        accepts: CAD_ACCEPT_ANGLE | CAD_ACCEPT_DISTANCE | CAD_ACCEPT_KEYWORD,
+      };
+    return {
+      state,
+      prompt: { message: "Precise el radio del arco", options: [ARC_ANGLE] },
+      accepts: CAD_ACCEPT_DISTANCE | CAD_ACCEPT_KEYWORD,
     };
   }
 
@@ -284,18 +393,36 @@ const arcCommand: CadCommandDescriptor<ArcState> = {
   // sobre uno inclinado, donde el arco por tres puntos se resuelve en planta.
   spatial: "elevation",
   cursor: "crosshair",
-  begin: (context) => arcStep({ mode: "three-point", points: [], byAngle: false }, context),
+  begin: (context) => arcStep(ARC_INITIAL_STATE, context),
   step: (state, input, context) => {
     if (input.kind === "cancel" || input.kind === "enter") return arcFinish([]);
 
     if (input.kind === "keyword") {
       if (input.keyword === ARC_CENTER.keyword && state.points.length === 0)
-        return arcStep({ mode: "center-start", points: [], byAngle: false }, context);
-      if (input.keyword === ARC_CENTER.keyword && state.points.length === 1)
-        return arcStep({ mode: "start-center", points: state.points, byAngle: false }, context);
+        return arcStep({ ...ARC_INITIAL_STATE, mode: "center-start" }, context);
+      if (input.keyword === ARC_CENTER.keyword && state.points.length === 1 && state.mode === "three-point")
+        return arcStep({ ...ARC_INITIAL_STATE, mode: "start-center", points: state.points }, context);
+      if (input.keyword === ARC_END.keyword && state.mode === "three-point" && state.points.length === 1)
+        return arcStep({ ...state, mode: "start-end" }, context);
       if (input.keyword === ARC_ANGLE.keyword)
-        return arcStep({ ...state, byAngle: true }, context);
+        return arcStep(
+          state.mode === "start-end" ? { ...state, thirdKind: "angle" } : { ...state, byAngle: true },
+          context,
+        );
+      if (input.keyword === ARC_RADIUS.keyword && state.mode === "start-end")
+        return arcStep({ ...state, thirdKind: "radius" }, context);
       return arcStep(state, context);
+    }
+
+    if (state.mode === "start-end" && state.points.length === 2) {
+      const [start, end] = state.points;
+      if (state.thirdKind === "radius") {
+        if (input.kind !== "distance") return arcStep(state, context);
+        return arcFinish(arcByStartEndRadius(start, end, input.value, context));
+      }
+      const degrees = input.kind === "angle" ? input.degrees : input.kind === "distance" ? input.value : null;
+      if (degrees === null) return arcStep(state, context);
+      return arcFinish(arcByStartEndAngle(start, end, degrees, context));
     }
 
     if (input.kind === "angle" || input.kind === "distance") {
@@ -309,6 +436,7 @@ const arcCommand: CadCommandDescriptor<ArcState> = {
 
     if (input.kind !== "point") return arcStep(state, context);
     const points = [...state.points, input.point];
+    if (state.mode === "start-end") return arcStep({ ...state, points }, context);
     if (points.length < 3) return arcStep({ ...state, points }, context);
     if (state.mode === "three-point")
       return arcFinish(arcFromThreePoints(points[0], points[1], points[2], context));

@@ -278,7 +278,7 @@ assert.equal(everyDimensionRoundTrip.primitives.length, 0);
 const mleaders = cadDocumentNativeDxfMleaders(source);
 assert.equal(mleaders.length, 1);
 const mleaderDxf = exportCadDxf({ mleaders }, { units: "mm" });
-assert.match(mleaderDxf.content, /0\r?\nMLEADER/);
+assert.match(mleaderDxf.content, /0\r?\nMULTILEADER/);
 assert.match(mleaderDxf.content, /1001\r?\nVALLE_MLEADER/);
 const reimportedMleaders = importDxfPrimitives(mleaderDxf.content);
 assert.equal(reimportedMleaders.mleaders.length, 1);

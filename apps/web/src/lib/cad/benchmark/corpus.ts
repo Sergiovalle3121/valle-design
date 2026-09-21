@@ -123,6 +123,10 @@ export function createEmptyCadEntityMix(): Record<
     // también muros con longitud suficiente, y eso cambia la mezcla y sus
     // hashes. Se declara a cero para que el compilador siga avisando.
     opening: 0,
+    // Tampoco lo emite ninguna mezcla determinista: es el plano de corte
+    // persistido (ver `cad-entities-section-plane.ts`), no abre esquema y no
+    // tiene generador propio en el corpus. Cero por el mismo criterio.
+    sectionplane: 0,
   };
 }
 

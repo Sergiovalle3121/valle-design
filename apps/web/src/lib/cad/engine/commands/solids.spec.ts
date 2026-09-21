@@ -15,6 +15,7 @@
  */
 import { strict as assert } from "node:assert";
 import { eulerCounts, validateBody } from "../../../brep";
+import { loopSignedArea } from "../../../brep/topology";
 import {
   migrateCadDocument,
   parseCadDocument,
@@ -221,12 +222,15 @@ function rectangle(id: string, x: number, y: number, w: number, h: number, z = 0
   assert.equal(eulerCounts(solid3dBody(solid)).genus, 1, "un tubo tiene género 1");
 
   // Un perfil que CRUZA el eje se rechaza con su motivo, no con un error del
-  // kernel sobre coordenadas que el usuario nunca ha visto.
+  // kernel sobre coordenadas que el usuario nunca ha visto. Y el rechazo
+  // EMPIEZA diciendo que no giró nada: el motivo solo dejaba al lector sin
+  // saber si además había escrito algo.
   const crossing = documentWith([rectangle("cruza", -10, 0, 40, 20)]);
-  assert.match(
-    messageOf(run("REVOLVE", [select("cruza"), point(0, 0), point(0, 10), ENTER], crossing, ["cruza"])),
-    /CRUZA el eje/,
+  const cruzado = messageOf(
+    run("REVOLVE", [select("cruza"), point(0, 0), point(0, 10), ENTER], crossing, ["cruza"]),
   );
+  assert.match(cruzado, /^REVOLVE no giró nada:/);
+  assert.match(cruzado, /CRUZA el eje/);
 }
 
 // --- SWEEP --------------------------------------------------------------------
@@ -373,6 +377,37 @@ function rectangle(id: string, x: number, y: number, w: number, h: number, z = 0
   );
   near(total, 400_000, "las dos mitades suman el original", 1e-3);
 
+  // Un plano que PASA DE LARGO no corta nada, y SLICE lo dice en vez de apilar
+  // un nodo `slice` que deja el cuerpo idéntico. Es el falso verde que la sonda
+  // de integridad regalaba: con el plano (10,10)→(80,40) contra una caja que
+  // vive lejos, «conservar el positivo» conservaba el sólido ENTERO —mismo
+  // volumen, misma área, misma malla— y la orden escribía el lote sin mensaje.
+  const sinCorte = messageOf(
+    run("SLICE", [select(solidId), point(500, 0), point(580, 40), keyword("Izquierda")], document, [solidId]),
+  );
+  assert.match(sinCorte, /^SLICE no cortó nada:/);
+  assert.match(sinCorte, /no atraviesa ninguno de los sólidos designados/);
+
+  // Designados DOS y atravesado UNO: corta el que puede, deja el otro TAL CUAL
+  // —sin nodo apilado— y lo nombra. Un corte que se callara el sólido que se
+  // quedó fuera sería el mismo problema en pequeño.
+  let dos = documentWith([rectangle("cerca", 0, 0, 100, 100), rectangle("lejos", 400, 0, 100, 100)]);
+  dos = apply("EXTRUDE", [select("cerca"), distance(40)], dos, ["cerca"]);
+  dos = apply("EXTRUDE", [select("lejos"), distance(40)], dos, ["lejos"]);
+  const dosIds = dos.entities.flatMap((entity) => (entity.type === "solid3d" ? [entity.id] : []));
+  assert.equal(dosIds.length, 2, "la probeta del caso mixto tiene dos sólidos");
+  const mixto = run("SLICE", [select(...dosIds), point(50, 0), point(50, 100), keyword("Izquierda")], dos, dosIds);
+  assert.ok(mixto && mixto.kind === "document", `el sólido atravesado sí se corta, dio ${mixto?.kind}`);
+  if (!mixto || mixto.kind !== "document") throw new Error("tipo");
+  assert.match(mixto.notice ?? "", /^SLICE no cortó 1 de los 2 sólidos designados:/);
+  assert.equal(mixto.commands.length, 1, "sólo se reemplaza el sólido que el plano atraviesa");
+  const mixtoDocumento = executeCadEntityCommandBatch(dos, mixto.commands, mixto.label).document;
+  const volumenes = mixtoDocumento.entities
+    .flatMap((entity) => (entity.type === "solid3d" ? [solid3dMassProperties(entity).volume] : []))
+    .sort((a, b) => a - b);
+  near(volumenes[0], 200_000, "el sólido atravesado queda a la mitad", 1e-3);
+  near(volumenes[1], 400_000, "el sólido que el plano no toca conserva su volumen", 1e-3);
+
   const sectioned = apply(
     "SECTION",
     [select(solidId), point(50, 0), point(50, 100), ENTER],
@@ -384,6 +419,34 @@ function rectangle(id: string, x: number, y: number, w: number, h: number, z = 0
   const region = regions[0];
   if (region.type !== "region") throw new Error("tipo");
   assert.equal(region.outer.length, 4, "la sección de un prisma recto es un rectángulo");
+
+  // LA MEDIDA, no sólo el recuento de vértices: el plano x=50 corta la pieza
+  // de 100×100×40 en un rectángulo de 100 (el fondo, en Y) por 40 (la altura,
+  // en Z) — 4.000 mm². «Salió una región de 4 vértices» pasaría igual con un
+  // rectángulo de cualquier otro tamaño; el área no.
+  const normal = { x: 1, y: 0, z: 0 };
+  const areaCorte = Math.abs(loopSignedArea(region.outer, normal));
+  near(areaCorte, 4_000, "el área de la sección x=50 del prisma es 100×40", 1e-6);
+
+  // Y el caso literal de la regla de aceptación: un cubo de 100 cortado por su
+  // PLANO MEDIO (z=50) da una sección de 100×100 = 10.000 mm². Se corta un
+  // cubo aparte —el prisma de arriba mide 40 de alto, no 100— con el plano
+  // coordenado XY, que es la otra forma de definir el plano que ya acepta
+  // SECTION.
+  let cuboDoc = documentWith([rectangle("cubo", 0, 0, 100, 100)]);
+  cuboDoc = apply("EXTRUDE", [select("cubo"), distance(100)], cuboDoc, ["cubo"]);
+  const cuboId = soleSolid(cuboDoc).id;
+  const cuboSectioned = apply(
+    "SECTION",
+    [select(cuboId), keyword("XY"), distance(50), ENTER],
+    cuboDoc,
+    [cuboId],
+  );
+  const cuboRegion = cuboSectioned.entities.find((entity) => entity.type === "region");
+  assert.ok(cuboRegion && cuboRegion.type === "region", "SECTION también corta por el plano coordenado XY");
+  if (!cuboRegion || cuboRegion.type !== "region") throw new Error("tipo");
+  const areaCubo = Math.abs(loopSignedArea(cuboRegion.outer, { x: 0, y: 0, z: 1 }));
+  near(areaCubo, 10_000, "la sección de un cubo de 100 por su plano medio es 100×100", 1e-6);
 
   // Un plano que no toca la pieza no inventa ninguna sección.
   assert.match(
@@ -456,10 +519,16 @@ function rectangle(id: string, x: number, y: number, w: number, h: number, z = 0
     assert.equal(eulerCounts(body).characteristic, 2, `${format}: χ = 2 tras la ida y vuelta`);
   }
 
-  // Y por el COMANDO, que es como lo teclea un usuario.
-  const exported = messageOf(run("EXPORT", [select(solid.id), keyword("STEP")], document, [solid.id]));
-  assert.match(exported, /ISO-10303-21/, "EXPORT devuelve el archivo STEP");
-  const payload = exported.slice(exported.indexOf("ISO-10303-21") - 1);
+  // EXPORT ahora devuelve una petición de descarga al anfitrión.
+  const exportResult = run("EXPORT", [select(solid.id), keyword("STEP")], document, [solid.id]);
+  assert.ok(exportResult && exportResult.kind === "host", "EXPORT devuelve kind host");
+  if (exportResult.kind !== "host") throw new Error("tipo");
+  const downloadRequest = exportResult.request;
+  assert.equal(downloadRequest.kind, "download", "la petición es de descarga");
+  assert.equal(downloadRequest.filename, "export.stp", "el nombre es export.stp");
+  assert.equal(downloadRequest.mime, "application/step", "el MIME es application/step");
+  assert.match(downloadRequest.content, /ISO-10303-21/, "EXPORT devuelve el archivo STEP");
+  const payload = downloadRequest.content.slice(Math.max(0, downloadRequest.content.indexOf("ISO-10303-21") - 1));
   const importResult = run("IMPORT", [text(payload)], documentWith([]));
   assert.ok(importResult && importResult.kind === "document", "IMPORT escribe el sólido en el documento");
   if (importResult.kind !== "document") throw new Error("tipo");

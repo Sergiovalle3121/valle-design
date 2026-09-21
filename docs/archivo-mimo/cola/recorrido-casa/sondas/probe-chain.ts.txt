@@ -1,0 +1,27 @@
+// Sonda de auditoria (no toca el repo): DIMCONTINUE desde una cota con norma mexicana.
+import { createCadStarterDocument } from "D:/dev/valle-design/apps/web/src/lib/cad/starter-templates";
+import { CAD_COMMAND_REGISTRY_V2 } from "D:/dev/valle-design/apps/web/src/lib/cad/engine/index";
+import "D:/dev/valle-design/apps/web/src/lib/cad/engine/all-commands";
+import { executeCadEntityCommandBatch } from "D:/dev/valle-design/apps/web/src/lib/cad/entity-commands";
+import { buildCadDimensionGeometry } from "D:/dev/valle-design/apps/web/src/lib/cad/associative-dimension";
+import { cadDimensionFamilyStyle } from "D:/dev/valle-design/apps/web/src/lib/cad/dimension-family";
+import { cadDimensionStyleBake } from "D:/dev/valle-design/apps/web/src/lib/cad/dimension-style";
+
+let doc: any = createCadStarterDocument({ templateId: "planta-arquitectonica", date: "2026-09-18" });
+const baked = cadDimensionStyleBake(cadDimensionFamilyStyle(doc.styles, "COTA 1:50", "linear"));
+const base: any = { id: "base", type: "dimension", dimensionKind: "linear", a: { x: 0, y: 0 }, b: { x: 3450, y: 0 }, axis: "x", offset: 800, style: "COTA 1:50", ...baked, layer: "COTA" };
+const r: any = executeCadEntityCommandBatch(doc, [{ type: "insert", entity: base } as any], "probe");
+doc = r.document ?? r;
+const d: any = CAD_COMMAND_REGISTRY_V2.get("DIMCONTINUE");
+let ids = 0;
+const ctx: any = {
+  entityIds: doc.entities.map((e: any) => e.id), entity: (id: string) => doc.entities.find((e: any) => e.id === id),
+  selection: [], activeLayer: "COTA", view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 }, newEntityId: () => `c${++ids}`,
+  document: () => doc, session: { lastDimensionId: "base" },
+};
+let step: any = d.begin(ctx);
+for (const input of [{ kind: "point", point: { x: 4650, y: 0 } }, { kind: "enter" }]) { if (step.result) break; step = d.step(step.state, input, ctx); }
+const cmds = step.result?.commands ?? [];
+console.log("base se rotula:", buildCadDimensionGeometry(base)?.label, "flecha:", base.arrowhead, base.arrowSize);
+for (const c of cmds) if (c.entity) console.log("eslabon se rotula:", buildCadDimensionGeometry(c.entity)?.label, "flecha:", c.entity.arrowhead ?? "(default closed-filled)", c.entity.arrowSize ?? "(default 180)", "style:", c.entity.style);
+if (!cmds.length) console.log("step:", JSON.stringify(step).slice(0, 400));

@@ -20,16 +20,30 @@
  *
  * En AutoCAD hay un cuadro donde se marca qué propiedades se copian. Aquí ese
  * cuadro son palabras clave que encienden y apagan cada grupo antes de
- * designar los destinos: `Capa`, `Color`, `TipoLínea`, `Grosor` y `Todo`. Sin
- * ellas, MATCHPROP sería «copia todo», que es justo lo que un dibujante NO
- * quiere cuando arrastra el color de una cota a un muro.
+ * designar los destinos: `Capa`, `Color`, `TipoLínea`, `Grosor`, `Texto`,
+ * `Cota`, `Tabla`, `Sombreado`, `Transparencia` y `Todo`. Sin ellas, MATCHPROP
+ * sería «copia todo», que es justo lo que un dibujante NO quiere cuando
+ * arrastra el color de una cota a un muro.
  *
- * La capa viaja por `properties` y el resto por `presentation`, porque la
- * presentación EXPLÍCITA de una entidad (su color propio frente al heredado de
- * la capa) vive en el contexto y ningún adaptador la expone como propiedad.
+ * La capa viaja por `properties` y color/tipo de línea/grosor/transparencia
+ * por `presentation`, porque la presentación EXPLÍCITA de una entidad (su
+ * color propio frente al heredado de la capa) vive en el contexto y ningún
+ * adaptador la expone como propiedad.
+ *
+ * `Texto`, `Cota` y `Tabla` copian el ESTILO con nombre (`style`) de TEXT/
+ * MTEXT, DIMENSION y TABLE respectivamente — y sólo cuando origen Y destino
+ * son del mismo tipo: pedir el estilo de texto de un TEXT sobre una LINE no
+ * significa nada, y MATCHPROP lo salta en silencio, como salta AutoCAD un
+ * grupo que no aplica. `Sombreado` copia el aspecto de un HATCH (trama, sólido,
+ * escala, ángulo, islas) del mismo modo. Ninguno de los tres borra el estilo
+ * del destino cuando el origen no tiene uno explícito —a diferencia de
+ * `Color`—: el bolsillo de propiedades de estas entidades no distingue «sin
+ * estilo» de «Standard a secas», así que forzar esa distinción inventaría un
+ * dato que el adaptador no guarda.
  */
-import type { CadEntityPresentation, CadPoint2 } from "../../cad-document";
+import type { CadEntity, CadEntityPresentation, CadPoint2 } from "../../cad-document";
 import type { CadEntityCommand } from "../../entity-commands";
+import { cadHatchPatternBaseAngle } from "../../hatch-pattern-table";
 import {
   CAD_ACCEPT_ENTITY_PICK,
   CAD_ACCEPT_KEYWORD,
@@ -250,6 +264,13 @@ const MATCH_GROUPS = {
   color: { keyword: "Color", shortcut: "CO" },
   linetype: { keyword: "TipoLínea", shortcut: "T" },
   lineweight: { keyword: "Grosor", shortcut: "G" },
+  // Ola 3 «recortar» (2026-09-19): los cuatro grupos que le faltaban a
+  // MATCHPROP frente al de AutoCAD.
+  textStyle: { keyword: "Texto", shortcut: "TX" },
+  dimStyle: { keyword: "Cota", shortcut: "CT" },
+  tableStyle: { keyword: "Tabla", shortcut: "TA" },
+  hatch: { keyword: "Sombreado", shortcut: "SO" },
+  transparency: { keyword: "Transparencia", shortcut: "TR" },
 } as const;
 const MATCH_ALL = { keyword: "Todo", shortcut: "TO" } as const;
 
@@ -267,6 +288,11 @@ const ALL_GROUPS: Record<MatchGroup, boolean> = {
   color: true,
   linetype: true,
   lineweight: true,
+  textStyle: true,
+  dimStyle: true,
+  tableStyle: true,
+  hatch: true,
+  transparency: true,
 };
 
 const EMPTY_MATCH: MatchState = {
@@ -320,7 +346,74 @@ function filteredPresentation(
     if (source?.lineweight === undefined) delete next.lineweight;
     else next.lineweight = { ...source.lineweight };
   }
+  if (groups.transparency) {
+    if (source?.transparency === undefined) delete next.transparency;
+    else next.transparency = { ...source.transparency };
+  }
   return Object.keys(next).length === 0 ? null : next;
+}
+
+/** Tipo de entidad que `Cota` y `Tabla` saben tratar (`Texto` casa dos: ver abajo). */
+const STYLE_GROUP_TYPES: Record<"dimStyle" | "tableStyle", CadEntity["type"]> = {
+  dimStyle: "dimension",
+  tableStyle: "table",
+};
+
+/**
+ * El `properties` que copia el estilo con nombre (o el aspecto del
+ * sombreado) de `source` a `target`, o `null` si el grupo no aplica a este
+ * par —tipos distintos, o el mismo tipo pero no es el de este grupo— o no
+ * cambia nada.
+ *
+ * `text`/`mtext` comparten el grupo `Texto`: los dos citan un estilo de TEXTO
+ * por nombre y AutoCAD los trata como la misma «propiedad de texto» en
+ * MATCHPROP. `Cota` y `Tabla` sólo casan con su propio tipo: una DIMENSION y
+ * una TABLE tienen cada una su propia tabla de estilos con nombre, y no tiene
+ * sentido escribir el de la una en la otra.
+ */
+function styleGroupPatch(
+  group: "textStyle" | "dimStyle" | "tableStyle",
+  source: CadEntity,
+  target: CadEntity,
+): CadEntityCommand | null {
+  const matches = (entity: CadEntity) =>
+    group === "textStyle"
+      ? entity.type === "text" || entity.type === "mtext"
+      : entity.type === STYLE_GROUP_TYPES[group];
+  if (!matches(source) || !matches(target)) return null;
+  const sourceStyle = (source as { style?: string }).style;
+  const targetStyle = (target as { style?: string }).style;
+  // Sin estilo explícito en el origen no se toca el destino: el bolsillo de
+  // propiedades de estas cuatro entidades no distingue «sin estilo» de
+  // «Standard a secas» (a diferencia de `color`, que sí lo hace vía
+  // `context.presentation`), así que forzar la limpieza escribiría un nombre
+  // inventado.
+  if (sourceStyle === undefined || sourceStyle === targetStyle) return null;
+  return { type: "properties", entityId: target.id, patch: { style: sourceStyle } };
+}
+
+/**
+ * El ASPECTO efectivo de un HATCH —trama, sólido, escala, ángulo, islas—, con
+ * los mismos valores por defecto que enseña `hatch-entity-adapter.ts`: el
+ * ángulo AUSENTE no es 0, es la base del propio patrón (45° en ANSI31), y
+ * copiar el 0 crudo dibujaría un rayado que no es el que se ve en origen.
+ */
+function hatchLook(entity: Extract<CadEntity, { type: "hatch" }>) {
+  return {
+    pattern: entity.pattern,
+    solid: entity.solid,
+    scale: entity.scale ?? 1,
+    angle: entity.angle ?? cadHatchPatternBaseAngle(entity.pattern),
+    islandStyle: entity.islandStyle ?? "normal",
+  };
+}
+
+function hatchGroupPatch(source: CadEntity, target: CadEntity): CadEntityCommand | null {
+  if (source.type !== "hatch" || target.type !== "hatch") return null;
+  const patch = hatchLook(source);
+  const current = hatchLook(target);
+  const changed = (Object.keys(patch) as (keyof typeof patch)[]).some((key) => patch[key] !== current[key]);
+  return changed ? { type: "properties", entityId: target.id, patch } : null;
 }
 
 const matchCommand: CadCommandDescriptor<MatchState> = {
@@ -346,7 +439,16 @@ const matchCommand: CadCommandDescriptor<MatchState> = {
             : { kind: "none" },
     });
     if (input.kind === "cancel")
-      return { state: EMPTY_MATCH, prompt: { message: "", options: [] }, accepts: 0, result: { kind: "none" } };
+      // T15: preserve accumulated property changes on Esc
+      return {
+        state: EMPTY_MATCH,
+        prompt: { message: "", options: [] },
+        accepts: 0,
+        result:
+          state.commands.length > 0
+            ? { kind: "document", commands: state.commands, label: "MATCHPROP" }
+            : { kind: "none" },
+      };
     if (input.kind === "enter") return done();
 
     if (input.kind === "keyword") {
@@ -398,16 +500,32 @@ const matchCommand: CadCommandDescriptor<MatchState> = {
       }
       if (state.groups.layer && target.layer !== source.layer)
         commands.push({ type: "properties", entityId, patch: { layer: source.layer } });
-      if (state.groups.color || state.groups.linetype || state.groups.lineweight)
-        commands.push({
-          type: "presentation",
-          entityId,
-          presentation: filteredPresentation(
-            source.context?.presentation,
-            state.groups,
-            target.context?.presentation,
-          ),
-        });
+      if (state.groups.color || state.groups.linetype || state.groups.lineweight || state.groups.transparency) {
+        // Con `Transparencia` sumada al grupo, los otros tres pueden estar
+        // todos apagados y aun así entrar aquí; comparar contra lo que YA
+        // tenía el destino evita un `presentation` que no cambia nada —el
+        // mismo criterio que usa CHPROP en `modify-foreign.ts`.
+        const next = filteredPresentation(source.context?.presentation, state.groups, target.context?.presentation);
+        const before = target.context?.presentation ?? null;
+        if (JSON.stringify(next) !== JSON.stringify(before))
+          commands.push({ type: "presentation", entityId, presentation: next });
+      }
+      if (state.groups.textStyle) {
+        const patch = styleGroupPatch("textStyle", source, target);
+        if (patch) commands.push(patch);
+      }
+      if (state.groups.dimStyle) {
+        const patch = styleGroupPatch("dimStyle", source, target);
+        if (patch) commands.push(patch);
+      }
+      if (state.groups.tableStyle) {
+        const patch = styleGroupPatch("tableStyle", source, target);
+        if (patch) commands.push(patch);
+      }
+      if (state.groups.hatch) {
+        const patch = hatchGroupPatch(source, target);
+        if (patch) commands.push(patch);
+      }
     }
     // MATCHPROP es repetitivo: se siguen designando destinos hasta aceptar.
     return matchStep({ ...state, commands, refusals });

@@ -3,15 +3,15 @@ import { installMockBackend } from "../fixtures/mock-backend";
 import { installCadStudioBackend } from "../fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import type { CadDocument } from "../../src/lib/cad/cad-document";
+import { CAD_TOOLBAR_ACTIONS } from "../../src/lib/cad/toolbar";
 
 /**
  * ESCÉPTICO — la etiqueta «Seleccionar» de la barra de herramientas, medida.
  *
  * «Seleccionar» es la más larga de las dieciséis etiquetas de la paleta (11
- * caracteres) y el botón mide 56 px (`w-14`) menos el relleno. Sin un punto de
- * quiebre, una palabra sin espacios no se envuelve sola: el texto se salía del
- * botón por los dos lados y quedaba montado sobre lo que hubiera al lado — un
- * defecto de layout/tamaño, no de lógica (el `onClick` seguía funcionando).
+ * caracteres) y el botón mide 80 px (`w-20`) menos el relleno. Con `w-20` y
+ * `truncate` todas caben en una línea; `break-words` partía palabras a media
+ * sílaba.
  *
  * Se mide geometría real —`getBoundingClientRect` del icono, la etiqueta y el
  * botón que los contiene— en vez de una captura: una captura no distingue
@@ -141,4 +141,48 @@ test("el botón «Seleccionar» sigue siendo pulsable y activa la herramienta", 
   // El fix es de layout, no de lógica: el clic debe seguir funcionando.
   await expect(seleccionar).toHaveAttribute("class", /bg-brand-strong/);
   await expect(distancia).not.toHaveAttribute("class", /bg-brand-strong/);
+});
+
+test("ninguna etiqueta de la paleta se parte a media palabra a 1280×720", async ({
+  context,
+  page,
+}) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await openStudio(context, page);
+  const barra = page.getByTestId("cad-toolbar");
+
+  for (const action of CAD_TOOLBAR_ACTIONS) {
+    const boton = barra.getByRole("button", { name: action.label, exact: true });
+    await expect(boton).toBeVisible();
+    const etiqueta = boton.locator("span.truncate");
+    await expect(etiqueta).toBeVisible();
+
+    const lineas = await etiqueta.evaluate((el) => {
+      const r = document.createRange();
+      r.selectNodeContents(el);
+      return r.getClientRects().length;
+    });
+
+    if (!action.label.includes(" ")) {
+      // Etiqueta de una sola palabra: no debe partirse.
+      expect(lineas, `«${action.label}» se parte en ${lineas} líneas`).toBe(1);
+    } else {
+      // Etiqueta con espacio: ningún quiebre puede caer DENTRO de una palabra.
+      const rects = await etiqueta.evaluate((el) => {
+        const r = document.createRange();
+        r.selectNodeContents(el);
+        const rects: DOMRect[] = [];
+        for (let i = 0; i < r.getClientRects().length; i++)
+          rects.push(r.getClientRects()[i]!);
+        return rects.map((r) => ({ width: r.width, height: r.height }));
+      });
+      // Si hay más líneas que palabras, algún quiebre cayó dentro de una palabra.
+      const palabras = action.label.split(/\s+/).length;
+      expect(
+        rects.length,
+        `«${action.label}» (${palabras} palabras) se renderiza en ${rects.length} líneas`,
+      ).toBeLessThanOrEqual(palabras);
+    }
+  }
 });

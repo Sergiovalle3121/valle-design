@@ -1,0 +1,5 @@
+# 18-sep 19:00 · VACIO A PROPOSITO. Correr goldens en esta laptop mientras MiMo trabaja no es fiable:
+# el servidor de desarrollo tarda mas de 60 s en compilar la pagina bajo esta carga (8 GB) y los
+# primeros tests caen por reloj. A las 16:24 el 13 y el dashboard pasaron; a las 18:53, sin ningun
+# commit nuevo sobre la cinta, fallaron por timeout de click. Ese candado bloqueo el push 7 horas.
+# El veredicto de los goldens lo da el CI (4 fragmentos, entorno limpio). Lista anterior: goldens-vigilados.bak-1900

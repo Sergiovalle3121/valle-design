@@ -30,6 +30,7 @@
  */
 import type { CadPoint2, CadPoint3 } from "./cad-document";
 import type { CadSolidPlacement } from "./cad-entities-v5";
+import { newellNormal } from "../brep";
 import { cloneContext } from "./entity-context";
 import {
   boundsContained,
@@ -160,10 +161,10 @@ const solidHitTester: CadHitTester<SolidEntity> = {
   },
 };
 
-/** Punto base del sólido: la traslación de su colocación. */
+/** Punto base del sólido: la traslación efectiva de su colocación (e+tx, f+ty). */
 function solidBasePoint(entity: SolidEntity): CadPoint2 {
   const placement = resolveSolidPlacement(entity.placement);
-  return { x: placement.e, y: placement.f };
+  return { x: placement.e + (placement.tx ?? 0), y: placement.f + (placement.ty ?? 0) };
 }
 
 function withPlacement(entity: SolidEntity, placement: CadSolidPlacement): SolidEntity {
@@ -194,8 +195,14 @@ const solid3dAdapter: CadEntityAdapter<SolidEntity> = {
     },
     moveGrip: (entity, gripId, point) => {
       const placement = resolveSolidPlacement(entity.placement);
-      if (gripId === "base")
+      if (gripId === "base") {
+        const has3D = (placement.m02 ?? 0) !== 0 || (placement.m12 ?? 0) !== 0 ||
+          (placement.m20 ?? 0) !== 0 || (placement.m21 ?? 0) !== 0 || (placement.m22 ?? 1) !== 1 ||
+          (placement.tx ?? 0) !== 0 || (placement.ty ?? 0) !== 0 || (placement.tz ?? 0) !== 0;
+        if (has3D)
+          return withPlacement(entity, { ...placement, tx: point.x - placement.e, ty: point.y - placement.f });
         return withPlacement(entity, { ...placement, e: point.x, f: point.y });
+      }
       if (!gripId.startsWith("corner:")) return entity;
       const bounds = solidBounds(entity);
       const width = bounds.maxX - bounds.minX;
@@ -242,9 +249,9 @@ const solid3dAdapter: CadEntityAdapter<SolidEntity> = {
       const issues = validateSolidTree(entity);
       const base: Record<string, CadPropertyValue> = {
         name: entity.name ?? "",
-        baseX: placement.e,
-        baseY: placement.f,
-        elevation: placement.dz,
+        baseX: placement.e + (placement.tx ?? 0),
+        baseY: placement.f + (placement.ty ?? 0),
+        elevation: placement.dz + (placement.tz ?? 0),
         nodes: entity.nodes.length,
         root: entity.root,
         layer: entity.layer,
@@ -276,16 +283,28 @@ const solid3dAdapter: CadEntityAdapter<SolidEntity> = {
      */
     write: (entity, patch) => {
       const placement = resolveSolidPlacement(entity.placement);
+      const has3D = (placement.m02 ?? 0) !== 0 || (placement.m12 ?? 0) !== 0 ||
+        (placement.m20 ?? 0) !== 0 || (placement.m21 ?? 0) !== 0 || (placement.m22 ?? 1) !== 1 ||
+        (placement.tx ?? 0) !== 0 || (placement.ty ?? 0) !== 0 || (placement.tz ?? 0) !== 0;
+      const effX = placement.e + (placement.tx ?? 0);
+      const effY = placement.f + (placement.ty ?? 0);
+      const effZ = placement.dz + (placement.tz ?? 0);
+      const newX = finite(patch.baseX, effX);
+      const newY = finite(patch.baseY, effY);
+      const newZ = finite(patch.elevation, effZ);
+      if (has3D) {
+        return {
+          ...entity,
+          name: typeof patch.name === "string" ? patch.name.slice(0, 128) : entity.name,
+          layer: typeof patch.layer === "string" ? patch.layer : entity.layer,
+          placement: { ...placement, tx: newX - placement.e, ty: newY - placement.f, tz: newZ - placement.dz },
+        };
+      }
       return {
         ...entity,
         name: typeof patch.name === "string" ? patch.name.slice(0, 128) : entity.name,
         layer: typeof patch.layer === "string" ? patch.layer : entity.layer,
-        placement: {
-          ...placement,
-          e: finite(patch.baseX, placement.e),
-          f: finite(patch.baseY, placement.f),
-          dz: finite(patch.elevation, placement.dz),
-        },
+        placement: { ...placement, e: newX, f: newY, dz: newZ },
       };
     },
   },
@@ -306,7 +325,8 @@ const solid3dAdapter: CadEntityAdapter<SolidEntity> = {
      */
     transform: (entity, transform) => {
       const current = resolveSolidPlacement(entity.placement);
-      const composed = cadAffineCompose(cadAffineFromTransform(transform), {
+      const t2d = cadAffineFromTransform(transform);
+      const composed = cadAffineCompose(t2d, {
         a: current.a,
         b: current.b,
         c: current.c,
@@ -314,7 +334,28 @@ const solid3dAdapter: CadEntityAdapter<SolidEntity> = {
         e: current.e,
         f: current.f,
       });
-      return withPlacement(entity, { ...composed, dz: current.dz });
+      // Preservar campos3D: componer la rotación3D y aplicar la traslación2D
+      // a la traslación efectiva existente (e+tx, f+ty).
+      const m02 = current.m02 ?? 0;
+      const m12 = current.m12 ?? 0;
+      const effX = (current.e ?? 0) + (current.tx ?? 0);
+      const effY = (current.f ?? 0) + (current.ty ?? 0);
+      const has3D = m02 !== 0 || m12 !== 0 ||
+        (current.m20 ?? 0) !== 0 || (current.m21 ?? 0) !== 0 || (current.m22 ?? 1) !== 1 ||
+        (current.tx ?? 0) !== 0 || (current.ty ?? 0) !== 0 || (current.tz ?? 0) !== 0;
+      if (!has3D) return withPlacement(entity, { ...composed, dz: current.dz });
+      return withPlacement(entity, {
+        ...composed,
+        m02: t2d.a * m02 + t2d.c * m12,
+        m12: t2d.b * m02 + t2d.d * m12,
+        m20: current.m20 ?? 0,
+        m21: current.m21 ?? 0,
+        m22: current.m22 ?? 1,
+        tx: t2d.a * effX + t2d.c * effY + t2d.e - composed.e,
+        ty: t2d.b * effX + t2d.d * effY + t2d.f - composed.f,
+        tz: current.tz ?? 0,
+        dz: current.dz ?? 0,
+      });
     },
   },
 };
@@ -336,25 +377,41 @@ function regionPaths(entity: RegionEntity): CadRenderPath[] {
 const regionBounds = (entity: RegionEntity): CadBounds =>
   pointsBounds(regionRings(entity).flatMap(flat));
 
+/**
+ * Área de un anillo en SU PROPIO plano, sea cual sea su orientación.
+ *
+ * `entity.outer`/`inners` son `CadPoint3[]`: una región puede venir de un corte
+ * vertical (SECTIONPLANE por YZ/ZX o por dos puntos), no sólo de un contorno
+ * dibujado en XY. Proyectar a (x, y) descartando z —lo que hacía esta función
+ * antes— da el área real sólo cuando el anillo YA es paralelo a XY; para un
+ * anillo vertical los tres son (casi) colineales en XY y el resultado sale
+ * cerca de CERO aunque el anillo tenga área real. La fórmula de Newell
+ * (`newellNormal`) mide el área de un polígono plano en 3D sin necesitar su
+ * normal de antemano: su magnitud es el doble del área sea cual sea el plano,
+ * y para un anillo YA paralelo a XY se reduce exactamente al shoelace 2D de
+ * siempre (la componente x/y de Newell se cancela y sólo queda z) — así que
+ * ningún caso existente cambia de resultado.
+ */
+function ringArea3(points: readonly CadPoint3[]): number {
+  const normal = newellNormal(points);
+  return Math.hypot(normal.x, normal.y, normal.z) / 2;
+}
+
 /** Área NETA: exterior menos agujeros, en valor absoluto. */
 export function regionArea(entity: RegionEntity): number {
-  const outer = Math.abs(ringSignedArea(flat(entity.outer)));
-  const holes = (entity.inners ?? []).reduce(
-    (total, ring) => total + Math.abs(ringSignedArea(flat(ring))),
-    0,
-  );
+  const outer = ringArea3(entity.outer);
+  const holes = (entity.inners ?? []).reduce((total, ring) => total + ringArea3(ring), 0);
   return Math.max(0, outer - holes);
 }
 
-/** Perímetro de TODOS los contornos: el exterior y los agujeros. */
+/** Perímetro de TODOS los contornos: el exterior y los agujeros, en 3D. */
 export function regionPerimeter(entity: RegionEntity): number {
   let total = 0;
-  for (const ring of regionRings(entity)) {
-    const points = flat(ring);
+  for (const points of regionRings(entity)) {
     for (let index = 0; index < points.length; index += 1) {
       const a = points[index];
       const b = points[(index + 1) % points.length];
-      total += Math.hypot(b.x - a.x, b.y - a.y);
+      total += Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
     }
   }
   return total;

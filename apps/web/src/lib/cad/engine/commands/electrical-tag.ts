@@ -77,10 +77,18 @@ function entitiesOf(context: CadCommandContext): CadEntity[] | null {
  */
 function familyForBlock(block: string): string | null {
   const nombre = block.toUpperCase();
+  // Símbolos de planta MEP
   if (nombre.includes("LUMINARIA")) return "LT";
   if (nombre.includes("CONTACTO")) return "CT";
   if (nombre.includes("APAGADOR")) return "SW";
   if (nombre.includes("TABLERO")) return "TB";
+  // Símbolos de esquema IEC (T16)
+  if (nombre.includes("MOTOR")) return "M";
+  if (nombre.includes("BOBINA")) return "K";
+  if (nombre.includes("FUSIBLE") || nombre.includes("GUARDAMOTOR") || nombre.includes("RELEVADOR")) return "F";
+  if (nombre.includes("SECCIONADOR")) return "Q";
+  if (nombre.includes("BORNE")) return "X";
+  if (nombre.includes("PILOTO")) return "H";
   return null;
 }
 

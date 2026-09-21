@@ -1,5 +1,6 @@
 import {
   EmailSenderConfigurationError,
+  assertEmailSenderConfigured,
   resolveEmailSenderConfiguration,
 } from './email-sender.config';
 
@@ -89,5 +90,29 @@ describe('resolveEmailSenderConfiguration', () => {
         }),
       ).toThrow(EmailSenderConfigurationError);
     }
+  });
+
+  it('assertEmailSenderConfigured lanza en producción sin las cuatro variables', () => {
+    expect(() =>
+      assertEmailSenderConfigured({
+        NODE_ENV: 'production',
+        EMAIL_SENDER_PROVIDER: '',
+        EMAIL_SENDER_API_KEY: '',
+        EMAIL_SENDER_FROM: '',
+        OUTBOX_EMAIL_LINK_BASE_URL: '',
+      }),
+    ).toThrow(EmailSenderConfigurationError);
+  });
+
+  it('assertEmailSenderConfigured NO lanza en desarrollo sin las cuatro variables', () => {
+    expect(() =>
+      assertEmailSenderConfigured({
+        NODE_ENV: 'development',
+        EMAIL_SENDER_PROVIDER: '',
+        EMAIL_SENDER_API_KEY: '',
+        EMAIL_SENDER_FROM: '',
+        OUTBOX_EMAIL_LINK_BASE_URL: '',
+      }),
+    ).not.toThrow();
   });
 });

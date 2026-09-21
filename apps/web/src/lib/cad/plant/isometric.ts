@@ -116,6 +116,15 @@ export interface CadIsoDrawingInput {
   /** Dónde cae la esquina inferior izquierda del dibujo, en el espacio modelo. */
   origin: CadPoint2;
   newEntityId: () => string;
+  /**
+   * Todas las rutas del dibujo, no sólo las de esta línea.
+   *
+   * D3: una te que une un ramal con un cabezal existe por las dos líneas, y
+   * calcular los accesorios sólo con las rutas de una las pierde justo donde
+   * importa. Si se proporciona, los accesorios se deducen de TODAS las rutas
+   * y se filtran por línea después.
+   */
+  allRoutes?: readonly CadPipeRoute[];
 }
 
 export interface CadIsoDrawing {
@@ -135,7 +144,10 @@ export interface CadIsoDrawing {
  */
 export function cadIsoDrawing(input: CadIsoDrawingInput): CadIsoDrawing {
   const { routes, line, unitsPerMetre, origin, newEntityId } = input;
-  const fittings = cadPipeFittings(routes).filter((fitting) => fitting.line === line);
+  // D3: deducir accesorios de TODAS las rutas cuando están disponibles,
+  // para que una te que une dos líneas no se pierda.
+  const fittingSource = input.allRoutes ?? routes;
+  const fittings = cadPipeFittings(fittingSource).filter((fitting) => fitting.line === line);
 
   // Primero se proyecta todo para conocer el tamaño, y sólo después se coloca:
   // la altura de rótulo depende del tamaño, y el desplazamiento de los dos.

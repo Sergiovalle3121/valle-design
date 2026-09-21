@@ -63,7 +63,13 @@ test('LINE pointer HUD proves endpoint, midpoint, intersection, perpendicular an
 
   const probe = async (step: string, anchor: { x: number; y: number }, target: { x: number; y: number }, label: string) => {
     await test.step(step, async () => {
-      await page.getByRole('button', { name: 'Línea', exact: true }).click();
+      // La paleta, no la cinta: el botón de la cinta abre LINE en el motor de
+      // comandos, que no pone la herramienta de dibujo y no monta el HUD
+      // `cad-live-prompt` que este golden lee. La paleta es lo que pulsaba en main.
+      await page
+        .getByTestId('cad-toolbar')
+        .getByRole('button', { name: 'Línea', exact: true })
+        .click();
       const anchorScreen = await worldPoint(page, anchor);
       await page.mouse.click(anchorScreen.x, anchorScreen.y);
       const targetScreen = await worldPoint(page, target);

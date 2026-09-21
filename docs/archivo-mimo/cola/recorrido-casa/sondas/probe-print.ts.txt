@@ -1,0 +1,45 @@
+// Sonda de auditoria (no toca el repo): que mide IMPRESA una cota con la norma mexicana.
+import { createCadStarterDocument } from "D:/dev/valle-design/apps/web/src/lib/cad/starter-templates";
+import { executeCadEntityCommandBatch } from "D:/dev/valle-design/apps/web/src/lib/cad/entity-commands";
+import { buildCadPublishPlan } from "D:/dev/valle-design/apps/web/src/lib/cad/paper-space";
+import { cadDimensionFamilyStyle } from "D:/dev/valle-design/apps/web/src/lib/cad/dimension-family";
+import { cadDimensionStyleBake } from "D:/dev/valle-design/apps/web/src/lib/cad/dimension-style";
+import { buildCadDimensionGeometry } from "D:/dev/valle-design/apps/web/src/lib/cad/associative-dimension";
+
+const base: any = createCadStarterDocument({ templateId: "planta-arquitectonica", date: "2026-09-18" });
+const vp = base.paperSpaces[0]?.viewports?.[0];
+console.log("viewport scale:", vp?.scale, "annotationScale:", vp?.annotationScale, "modelBounds:", JSON.stringify(vp?.modelBounds));
+const mb = vp.modelBounds;
+const x0 = mb.x + mb.width * 0.3, y0 = mb.y + mb.height * 0.4;
+
+const style = cadDimensionFamilyStyle(base.styles, "COTA 1:50", "linear");
+const baked = cadDimensionStyleBake(style);
+console.log("baked COTA 1:50:", JSON.stringify(baked));
+const text = base.styles.text["ROTULO"];
+console.log("ROTULO text style:", JSON.stringify(text));
+
+const dimStyled: any = { id: "dimMX", type: "dimension", dimensionKind: "linear", a: { x: x0, y: y0 }, b: { x: x0 + 3450, y: y0 }, axis: "x", offset: 800, style: "COTA 1:50", ...baked, layer: "COTA" };
+const dimTxt: any = { ...dimStyled, id: "dimTXT", a: { x: x0, y: y0 - 3000 }, b: { x: x0 + 3450, y: y0 - 3000 }, textHeight: 125 };
+const dimPlain: any = { id: "dimPLAIN", type: "dimension", dimensionKind: "linear", a: { x: x0, y: y0 - 6000 }, b: { x: x0 + 3450, y: y0 - 6000 }, axis: "x", offset: 800, layer: "COTA" };
+const txt: any = { id: "nota", type: "mtext", insertion: { x: x0, y: y0 - 9000, z: 0 }, text: "NOTA", height: 125, width: 3000, layer: "TEXTO" };
+
+let doc: any = base;
+for (const e of [dimStyled, dimTxt, dimPlain, txt]) {
+  const r: any = executeCadEntityCommandBatch(doc, [{ type: "insert", entity: e } as any], "probe");
+  doc = r.document ?? r;
+}
+for (const id of ["dimMX", "dimTXT", "dimPLAIN"]) {
+  const e = doc.entities.find((x: any) => x.id === id);
+  console.log(id, "screen label:", buildCadDimensionGeometry(e)?.label, "screen textHeight:", e.textHeight ?? (e.arrowSize ?? 180) * 0.55);
+}
+const plan: any = buildCadPublishPlan(doc);
+for (const sheet of plan.sheets) {
+  for (const v of sheet.viewports ?? []) {
+    for (const c of v.commands ?? []) {
+      if (c.kind === "text" && ["dimMX", "dimTXT", "dimPLAIN", "nota"].includes(c.entityId))
+        console.log("PRINT", c.entityId, "text:", JSON.stringify(c.text), "size(mm papel):", c.size);
+      if (c.kind === "path" && c.entityId === "dimPLAIN" && c.closed) console.log("PRINT arrow path closed, fill:", c.fill, "style.fill:", c.style?.fill);
+    }
+  }
+}
+console.log("warnings:", plan.warnings.filter((w: any) => /dim|text/i.test(JSON.stringify(w))).slice(0, 5));

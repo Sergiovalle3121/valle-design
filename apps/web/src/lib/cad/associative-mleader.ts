@@ -96,11 +96,13 @@ export function cadMleaderAssociationAnchor(entity: CadEntity, reference: CadMle
   }
   if (reference.anchor === 'start') {
     if (entity.type === 'line') return entity.start;
+    if (entity.type === 'wall') return entity.start;
     if (entity.type === 'polyline') return entity.vertices[0] ?? null;
     if (entity.type === 'spline') return entity.controlPoints[0] ?? null;
   }
   if (reference.anchor === 'end') {
     if (entity.type === 'line') return entity.end;
+    if (entity.type === 'wall') return entity.end;
     if (entity.type === 'polyline') return entity.vertices.at(-1) ?? null;
     if (entity.type === 'spline') return entity.controlPoints.at(-1) ?? null;
   }

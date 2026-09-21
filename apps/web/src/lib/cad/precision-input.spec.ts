@@ -105,7 +105,27 @@ ok(!parseCoordinate("1,2,3,4").ok, "cuatro componentes se rechazan");
 }
 {
   const r = parseCoordinate("25", { last: { x: 0, y: 0 } });
-  ok(!r.ok, "directa sin ángulo bloqueado → error");
+  ok(!r.ok, "directa sin ángulo bloqueado ni cursor → error");
+}
+// F4 (T-Ola3): sin ORTHO/POLAR ni `<ángulo`, el CURSOR da la dirección — como
+// AutoCAD, que no exige ortho para la entrada directa de distancia.
+{
+  const r = parseCoordinate("25", { last: { x: 0, y: 0 }, cursor: { x: 10, y: 0 } });
+  ok(r.ok && r.mode === "direct" && nearP(r.point, 25, 0), "directa 25 por el cursor, sin ortho");
+}
+{
+  const r = parseCoordinate("10", { last: { x: 5, y: 5 }, cursor: { x: 5, y: 15 } });
+  ok(r.ok && r.mode === "direct" && nearP(r.point, 5, 15), "directa 10 hacia el cursor en (5,15): cae en (5,15)");
+}
+{
+  // El ángulo BLOQUEADO manda sobre el cursor, aunque el cursor apunte a otro lado.
+  const r = parseCoordinate("10", { last: { x: 0, y: 0 }, lockedAngleDeg: 90, cursor: { x: 10, y: 0 } });
+  ok(r.ok && r.mode === "direct" && nearP(r.point, 0, 10), "el ángulo bloqueado gana al cursor");
+}
+{
+  // El cursor EN el punto previo no da dirección: no se inventa un ángulo.
+  const r = parseCoordinate("10", { last: { x: 3, y: 3 }, cursor: { x: 3, y: 3 } });
+  ok(!r.ok, "cursor pegado al punto previo → sin dirección, error");
 }
 {
   const r = parseCoordinate("");
@@ -137,6 +157,28 @@ ok(!parseCoordinate("1,2,3,4").ok, "cuatro componentes se rechazan");
 {
   const c = constrainPoint({ x: 0, y: 0 }, { x: 10, y: 1 }, {});
   ok(!c.snapped, "sin restricción no ajusta");
+}
+
+// ── La coma separa coordenadas, como en AutoCAD (nunca es decimal) ──
+{
+  const r = parseCoordinate("4,325");
+  ok(r.ok && r.mode === "absolute" && nearP(r.point, 4, 325), "4,325 es el punto (4, 325)");
+}
+{
+  const r = parseCoordinate("5,300");
+  ok(r.ok && nearP(r.point, 5, 300), "5,300 es el punto (5, 300)");
+}
+{
+  const r = parseCoordinate("4,325.5");
+  ok(r.ok && r.mode === "absolute" && nearP(r.point, 4, 325.5), "4,325.5 sigue siendo coordenada (la coma separa)");
+}
+{
+  const r = parseCoordinate("10,20");
+  ok(r.ok && nearP(r.point, 10, 20), "10,20 sigue siendo coordenada (segunda parte <3 dígitos)");
+}
+{
+  const r = parseCoordinate("@1,500", { last: { x: 10, y: 10 } });
+  ok(r.ok && nearP(r.point, 11, 510), "@1,500 es relativo al último punto");
 }
 
 if (fails.length) {

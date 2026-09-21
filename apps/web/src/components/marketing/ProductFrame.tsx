@@ -25,7 +25,10 @@ export function ProductFrame({
   caption,
   priority = false,
   float = true,
+  halo = true,
+  sizes = "(min-width: 1024px) 46rem, 100vw",
   className,
+  "data-testid": dataTestId,
 }: {
   src: string;
   alt: string;
@@ -34,7 +37,19 @@ export function ProductFrame({
   /** `true` sólo en la imagen del hero: es el LCP de la página. */
   priority?: boolean;
   float?: boolean;
+  /**
+   * `false` en la portada: a lo ancho de la página el producto ya tiene peso
+   * propio y un resplandor debajo es exactamente el adorno que se retiró.
+   */
+  halo?: boolean;
+  /**
+   * El `sizes` de `next/image`. El valor por defecto es el de una captura a
+   * media anchura; una captura a lo ancho de `max-w-6xl` declara la suya para
+   * que el optimizador no sirva una imagen del doble de píxeles necesarios.
+   */
+  sizes?: string;
   className?: string;
+  "data-testid"?: string;
 }) {
   return (
     /*
@@ -47,12 +62,14 @@ export function ProductFrame({
       moría dos aserciones antes, así que el defecto llevaba desde el rediseño
       sin que nadie lo viera.
     */
-    <figure className={cx("relative overflow-hidden", className)}>
+    <figure data-testid={dataTestId} className={cx("relative overflow-hidden", className)}>
       {/* Halo bajo el producto: le da peso y lo separa del fondo sin sombra. */}
-      <div
-        aria-hidden="true"
-        className="product-halo pointer-events-none absolute -inset-8 -z-10"
-      />
+      {halo ? (
+        <div
+          aria-hidden="true"
+          className="product-halo pointer-events-none absolute -inset-8 -z-10"
+        />
+      ) : null}
 
       <div
         className={cx(
@@ -91,7 +108,7 @@ export function ProductFrame({
           width={2880}
           height={1800}
           priority={priority}
-          sizes="(min-width: 1024px) 46rem, 100vw"
+          sizes={sizes}
           className="block h-auto w-full"
         />
       </div>

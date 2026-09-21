@@ -1,0 +1,21 @@
+{
+  // PROYECTO DE BUILD PRODUCTIVO — sólo lo que VIAJA en la imagen.
+  //
+  // `next build` type-chequea el proyecto entero, y el proyecto entero incluye
+  // cosas que la imagen NO contiene a propósito. Medido sobre todos los
+  // imports de apps/web: exactamente DOS ficheros salen de lo que el
+  // Dockerfile copia, y ninguno de los dos viaja en el bundle —
+  //   scripts/capture-product-shots.mts  → scripts/cad/ de la raíz
+  //   src/lib/cad/verification/events-hmac.spec.ts → apps/api/src/
+  // — así que el build de la imagen fallaba con dos TS2307 por ficheros que
+  // no se publican. CERO código de aplicación sale del contexto: por eso se
+  // puede recortar el proyecto de build sin perder nada de lo que se sirve.
+  //
+  // NO se relaja la cobertura: `npm run typecheck` sigue usando
+  // `tsconfig.json`, con specs, e2e y scripts dentro, y es lo que corre el
+  // paso «Typecheck (web, incluye specs y e2e)» del CI. Lo único que cambia
+  // es que la IMAGEN ya no depende de fuentes que la imagen no lleva.
+  "extends": "./tsconfig.json",
+  // `exclude` REEMPLAZA el del padre, así que node_modules se repite aquí.
+  "exclude": ["node_modules", "scripts/**", "e2e/**", "**/*.spec.ts", "**/*.spec.tsx"]
+}

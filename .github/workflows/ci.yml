@@ -65,9 +65,9 @@ on:
   # su veredicto sobre su propio SHA, que es además el SHA que la protección
   # de rama exige verde (`pullRequestsRequireExactShaChecks` en
   # docs/governance/repository-protection-baseline.json). Cuando el PR sí es
-  # fusionable, las dos corridas —push y pull_request— comparten grupo de
-  # concurrencia por nombre de rama (abajo) y la segunda cancela a la primera:
-  # se paga UNA corrida, la del commit de fusión, que es la que más dice.
+  # fusionable corren las dos —push y pull_request— en grupos de concurrencia
+  # distintos (abajo): antes compartían grupo y la segunda cancelaba a la
+  # primera, y esa corrida «cancelled» bloqueaba el merge (19-sep).
   #
   # Lo que esto NO arregla, y hay que decirlo: fusionar sin esperar el
   # veredicto. #157 se fusionó 17 s después de que arrancara su corrida y
@@ -112,12 +112,17 @@ permissions:
   contents: read
 
 concurrency:
-  # El grupo es el NOMBRE DE LA RAMA, no el ref del evento. Con `github.ref`
-  # la corrida de `push` (refs/heads/x) y la de `pull_request` (refs/pull/N/
-  # merge) de la misma rama caían en grupos distintos y se pagaban las dos;
-  # con `head_ref || ref_name` comparten grupo y la que llega segunda —la del
-  # commit de fusión, si el PR es fusionable— cancela a la primera.
-  group: ci-${{ github.head_ref || github.ref_name }}
+  # El grupo es EVENTO + NOMBRE DE LA RAMA. Antes era sólo la rama, para que la
+  # corrida de `pull_request` cancelara a la de `push` y se pagara una sola.
+  # Medido el 19-sep: esa cancelación BLOQUEA el merge. La corrida de `push`
+  # queda «cancelled» sobre el MISMO SHA que exige la protección de rama, y
+  # GitHub la cuenta como check requerido fallido aunque la de `pull_request`
+  # salga verde entera (#217, #218 y #219: los tres BLOCKED con todo verde,
+  # cada uno necesitó relanzar a mano la corrida cancelada, 90 min más). Con el
+  # evento en el grupo, las dos corren en paralelo y las dos dan veredicto. El
+  # repositorio es público: Actions no cobra minutos. Si vuelve a ser privado,
+  # esta línea duplica el consumo y hay que volver a pesarla.
+  group: ci-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
   # SÓLO se cancelan las corridas de rama, donde el push siguiente sustituye
   # al anterior sobre el MISMO código propuesto.
   #
@@ -146,7 +151,12 @@ jobs:
     # Sin techo, un cuelgue hereda el default de GitHub (360 min) y quema seis
     # horas de cuota sin producir veredicto. El techo es holgura sobre lo
     # medido (~35 min en main), no una aspiración.
-    timeout-minutes: ${{ github.ref != 'refs/heads/main' && 45 || 75 }}
+    #
+    # Subido de 45/75 a 60/90 al entrar el build real de las dos imágenes
+    # (último paso del job). No se relaja ningún umbral: se añade trabajo, y
+    # un techo que CANCELA es peor que uno holgado — cancelado no es fallo, no
+    # dice qué se rompió, y en este repo ya pasó dos veces con el E2E.
+    timeout-minutes: ${{ github.ref != 'refs/heads/main' && 60 || 90 }}
 
     # Postgres efímero: las suites *.pg.spec.ts y el smoke de bootstrap deben
     # correr contra Postgres real (tipos jsonb/enum), no SQLite.
@@ -220,19 +230,123 @@ jobs:
       # una regresión de código, es que CI nunca vio el corpus. El repo
       # hermano es público hoy, así que el checkout no necesita credencial;
       # se fija al commit exacto del pin para no depender de su HEAD.
+      # ─────────────────────────────────────────────────────────────────────
+      # ¿COMPILA la imagen? — el hueco exacto que dejó pasar el fallo de
+      # Railway.
+      #
+      # `check:deploy` verifica 31 INVARIANTES DE FORMA sobre los tres
+      # archivos y las pasaba TODAS: usuario no root, NODE_ENV=production,
+      # HEALTHCHECK, `npm ci` contra el lockfile, cero secretos embebidos,
+      # digest inmutable de la base. Lo que nunca hizo fue construir una
+      # imagen. Y un archivo puede cumplir 31 invariantes de forma y no
+      # compilar: los dos Dockerfiles de producción murieron en Railway las
+      # dos veces, en el mismo `npm ci`, con este gate en verde. No es un
+      # fallo del validador —mide lo que dice medir— es que faltaba la única
+      # prueba que no admite interpretación: construir.
+      #
+      # Va ANTES del espejo del corpus DWG, y esa posición está pagada: el
+      # 2026-09-15 el repo hermano del corpus pasó a privado, su checkout
+      # empezó a fallar con «Repository not found» —el GITHUB_TOKEN por
+      # defecto no lee otro repositorio— y se llevó el job entero en `main` y
+      # en todo PR. Con estos pasos al final, el build de imagen NO llegaba a
+      # ejecutarse nunca: un fallo que no tiene nada que ver con la imagen
+      # tapaba justo la prueba que este job existe para dar. El build no
+      # necesita el corpus, ni Postgres, ni el artefacto de `api-dist`: sólo
+      # el contexto del repositorio, así que va detrás de los gates baratos y
+      # delante de todo lo que dependa de algo externo.
+      #
+      # Va en ESTE job y no en `deploy-readiness`, que es donde encajaría por
+      # nombre, porque «Contrato · Build · Test · Lint · Smoke» SÍ es un check
+      # requerido para fusionar (docs/governance/repository-protection-
+      # baseline.json) y `deploy-readiness` no lo es. Aquí el build bloquea el
+      # merge; allí sólo lo contaría después.
+      #
+      # Con caché de capas de Actions y un ámbito por imagen: mientras el
+      # lockfile no cambie se reutiliza la capa de `npm ci`, que es la cara.
+      # Sin caché, cada PR pagaría los dos árboles completos más un
+      # `next build`, y la cuota de runner de este repo ya se agotó una vez
+      # a mitad de ciclo (por eso el filtro `paths` de arriba existe).
+      - name: Preparar Buildx (caché de capas)
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Imagen api construye de verdad
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: false
+          load: false
+          provenance: false
+          cache-from: type=gha,scope=ci-api
+          cache-to: type=gha,mode=max,scope=ci-api
+
+      # Toda `NEXT_PUBLIC_*` se INCRUSTA en el bundle durante `next build`, así
+      # que sin ellas el build del web no termina: primero el `test -n` del
+      # Dockerfile y después `check:production-config`, que rechaza `*.invalid`,
+      # `*.test`, `*.example`, `*.localhost` y los subdominios de
+      # `example.com/.org/.net`. Por eso aquí no sirve un placeholder.
+      #
+      # SON VALORES DE CI, NO DE PRODUCCIÓN. `ci.valle-design.dev` no es un
+      # despliegue ni apunta a ninguno: existe para que el gate de marca tenga
+      # un valor real que validar y el build pueda llegar al final. La imagen
+      # que sale de aquí se construye y se descarta (`push: false`,
+      # `load: false`) — lo que se prueba es que COMPILA. Las URLs y correos
+      # reales viven en las variables de Railway y en release.yml, que es el
+      # único sitio que publica imágenes.
+      - name: Imagen web construye de verdad
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: false
+          load: false
+          provenance: false
+          cache-from: type=gha,scope=ci-web
+          cache-to: type=gha,mode=max,scope=ci-web
+          build-args: |
+            NEXT_PUBLIC_API_URL=https://api.ci.valle-design.dev
+            NEXT_PUBLIC_BRAND_WEBSITE_URL=https://ci.valle-design.dev
+            NEXT_PUBLIC_BRAND_SUPPORT_EMAIL=support@ci.valle-design.dev
+            NEXT_PUBLIC_BRAND_SALES_EMAIL=sales@ci.valle-design.dev
+            NEXT_PUBLIC_BRAND_PRIVACY_EMAIL=privacy@ci.valle-design.dev
+
       - name: Leer el pin del corpus DWG
         id: dwg-corpus-pin
         run: echo "commit=$(node -p "require('./scripts/dwg/corpus-pin.json').commit")" >> "$GITHUB_OUTPUT"
 
+      # Visibilidad del repo hermano del corpus (2026-09-15): pasó a PRIVADO
+      # por la mañana y el titular lo volvió PÚBLICO hacia las 11:05 (hora de
+      # México) para que el CI lo lea sin credencial. Un `actions/checkout`
+      # con el GITHUB_TOKEN por defecto sólo alcanza otro repo si es público.
+      #
+      # Por eso el checkout usa `CORPUS_TOKEN` si existe y, si no, el token
+      # por defecto. Si alguien vuelve a hacer privado el corpus, este paso
+      # falla con «repository not found»; el arreglo es un fine-grained token
+      # de sólo lectura (Contents: Read-only, sólo valle-design-dwg-conformance)
+      # guardado como CORPUS_TOKEN en los secretos de Actions. NO es
+      # `continue-on-error`: el corpus es una entrada real de los gates de DWG,
+      # y saltárselo en silencio los dejaría verdes sin haber medido nada.
       - name: Checkout del espejo del corpus DWG (repo hermano, sólo lectura)
+        # SHA anclado a propósito, NO `@v5`: `check:governance` compara este
+        # valor contra su mapa de SHA revisados y una etiqueta móvil lo rompe.
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: Sergiovalle3121/valle-design-dwg-conformance
           ref: ${{ steps.dwg-corpus-pin.outputs.commit }}
+          token: ${{ secrets.CORPUS_TOKEN || github.token }}
           path: .dwg-corpus-mirror
 
       - name: Exportar VALLE_DWG_CORPUS_MIRROR
         run: echo "VALLE_DWG_CORPUS_MIRROR=$GITHUB_WORKSPACE/.dwg-corpus-mirror" >> "$GITHUB_ENV"
+
+      # `check:template-gallery` carga `template-render.ts` →
+      # `@valle-design/contracts` vía `node --import tsx`, que NO intercepta
+      # `require()` con los paths de TypeScript y cae a la resolución estándar
+      # de Node (`dist/index.js`). Sin este paso, la puerta moría con
+      # `Cannot find module …/dist/index.js` en cada corrida con caché caliente
+      # (donde `npm ci` no ejecuta el script `prepare` de cada workspace).
+      - name: Compilar @valle-design/contracts (requerido por check:cad)
+        run: npm run build --workspace=@valle-design/contracts
 
       - name: CAD contract and legacy-route gates
         run: npm run check:cad
@@ -642,7 +756,20 @@ jobs:
     # sigue siendo exactamente la de siempre. La única excepción es el barrido
     # de cables sueltos, que un solo archivo no puede repartir: cada fragmento
     # corre su rebanada en una segunda invocación (ver el paso Playwright E2E).
-    timeout-minutes: 60
+    #
+    # 90 y no 60 desde el 17-sep-2026. Medido, no estimado: en `main` @1d1c8345 los cuatro
+    # fragmentos tardaron 31, 43, 44 y 49 min, o sea que el tope de 60 ya sólo dejaba 11 min de
+    # margen al más lento. Con la rama de la campaña de comandos —más goldens, más superficie de
+    # estudio que barrer— los fragmentos 2/4 y 3/4 se CANCELARON al llegar a los 60 en la corrida
+    # 35300771925, y un fragmento cancelado tiñe de rojo el veredicto sin enseñar nada: no dice
+    # qué falla, sólo que no cabía. Cada fragmento suma su rebanada de goldens MÁS una rebanada
+    # del barrido de cables sueltos, que por sí sola declara 30 min de tope (`test.setTimeout`
+    # en cables-sueltos.spec.ts), así que el techo real de un fragmento es la suma de las dos.
+    # Esto NO afloja ninguna prueba: corre exactamente las mismas y sólo deja que terminen.
+    # Cuando la suite vuelva a rozar el tope, lo que toca es repartir en más rebanadas (el
+    # inventario se parte por índice módulo cuatro y los títulos dicen «barrido k/4»: hay que
+    # cambiar las dos cosas a la vez), no seguir subiendo el reloj.
+    timeout-minutes: 90
     needs: quality-gates
 
     strategy:
@@ -701,11 +828,17 @@ jobs:
         id: dwg-corpus-pin
         run: echo "commit=$(node -p "require('./scripts/dwg/corpus-pin.json').commit")" >> "$GITHUB_OUTPUT"
 
+      # Mismo criterio que en `quality-gates`: el corpus es público y el token
+      # por defecto basta; si vuelve a ser privado, CORPUS_TOKEN lo cubre. Este
+      # job es OTRO runner y no hereda el checkout de aquél.
       - name: Checkout del espejo del corpus DWG (repo hermano, sólo lectura)
+        # SHA anclado a propósito, NO `@v5`: `check:governance` compara este
+        # valor contra su mapa de SHA revisados y una etiqueta móvil lo rompe.
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: Sergiovalle3121/valle-design-dwg-conformance
           ref: ${{ steps.dwg-corpus-pin.outputs.commit }}
+          token: ${{ secrets.CORPUS_TOKEN || github.token }}
           path: .dwg-corpus-mirror
 
       - name: Exportar VALLE_DWG_CORPUS_MIRROR

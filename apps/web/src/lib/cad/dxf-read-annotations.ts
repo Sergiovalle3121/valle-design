@@ -33,7 +33,7 @@ const DIMENSION_ARROWS = new Set<NonNullable<CadDxfSemanticDimension["arrowhead"
 ]);
 
 /**
- * Valle Design dimensions use ordinary DIMENSION entities plus registered XDATA. The
+ * VALLECAD dimensions use ordinary DIMENSION entities plus registered XDATA. The
  * metadata retains semantic formatting while the anonymous *D block keeps the
  * drawing visible in CAD readers that do not understand the XDATA.
  */
@@ -173,7 +173,7 @@ export function parseRawDxfSemanticMleaders(text: string): CadDxfSemanticMleader
   const mleaders: CadDxfSemanticMleader[] = [];
   let sourceOrdinal = -1;
   for (let start = 0; start < pairs.length && mleaders.length < MAX_DXF_ENTITIES; start += 1) {
-    if (pairs[start].code !== 0 || pairs[start].value.toUpperCase() !== "MLEADER") continue;
+    if (pairs[start].code !== 0 || (pairs[start].value.toUpperCase() !== "MLEADER" && pairs[start].value.toUpperCase() !== "MULTILEADER")) continue;
     sourceOrdinal += 1;
     let end = start + 1;
     while (end < pairs.length && pairs[end].code !== 0) end += 1;

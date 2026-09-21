@@ -24,7 +24,10 @@ import { EMAIL_SENDER, type EmailSender } from './ports/email-sender.port';
  *
  * - Sin variables EMAIL_SENDER_* el adaptador es el NULO: el receptor
  *   responde 503 y el worker conserva cada correo en su outbox con
- *   reintentos. Nada se pierde; nada finge enviarse.
+ *   reintentos. Nada se pierde; nada finge enviarse. En producción esto
+ *   NO ALCANZA: `assertEmailSenderConfigured` (en email-sender.config.ts)
+ *   mata el arranque antes de llegar aquí, porque sin proveedor de correo
+ *   nadie verifica su cuenta.
  * - Con la configuración COMPLETA (las cuatro variables) se enchufa Resend.
  * - Con una configuración incompleta el arranque FALLA
  *   (resolveEmailSenderConfiguration lanza), porque un despliegue que cree

@@ -1,0 +1,915 @@
+import { expect, test, type BrowserContext, type Page } from "@playwright/test";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { inflateSync } from "node:zlib";
+import { installMockBackend } from "./fixtures/mock-backend";
+import { installCadStudioBackend } from "./fixtures/cad-v1-backend";
+import { loginAsStandaloneOwner } from "./fixtures/standalone-identity";
+import { BASE_URL } from "./fixtures/constants";
+import type { CadDocument } from "../src/lib/cad/cad-document";
+import { CAD_DOCUMENT_SCHEMA } from "../src/lib/cad/cad-document-shared";
+import { buildCadDimensionGeometry } from "../src/lib/cad/associative-dimension";
+import { worldPoint } from "./fixtures/world-point";
+import { fitFootprint } from "./fixtures/camera-preset";
+
+/**
+ * MARCADOR DE LA CAMPANA NIVEL AUTOCAD. Se corre como apps/web/e2e/zz-recorrido-casa.spec.ts (zz- esta en .gitignore).
+ * Un arquitecto entrega la planta de una casa pequeña de 6000 × 4000 mm.
+ */
+
+const SCRATCH =
+  process.env.RECORRIDO_SALIDA ?? "D:/dev/valle-design/.mimocode/recorrido-casa/salida";
+
+type Resultado = "ok" | "parcial" | "roto" | "imposible";
+interface Paso {
+  paso: string;
+  resultado: Resultado;
+  detalle: string;
+  evidencia: string[];
+  ms: number;
+}
+const pasos: Paso[] = [];
+
+/** Casa: esquina inferior izquierda en (2000,2000); 6000 × 4000 mm. */
+const X0 = 2_000;
+const Y0 = 2_000;
+const W = 6_000;
+const H = 4_000;
+
+function documentoVacio(): CadDocument {
+  return {
+    meta: { version: 1, schema: CAD_DOCUMENT_SCHEMA, unit: "mm" },
+    layers: [{ id: "0", name: "0", color: "#ffffff", visible: true, locked: false }],
+    entities: [],
+    history: [],
+    modelSpace: { entityIds: [] },
+    paperSpaces: [],
+    styles: { text: {}, dimension: {}, mleader: {}, table: {}, plot: {} },
+    blocks: [],
+    constraints: [],
+    externalReferences: [],
+    unsupportedEntities: [],
+    lossManifest: [],
+    publications: [],
+  } as unknown as CadDocument;
+}
+
+async function abrirEstudio(context: BrowserContext, page: Page, url = "/legacy/studio") {
+  await installMockBackend(context);
+  await loginAsStandaloneOwner(context);
+  const backend = await installCadStudioBackend<CadDocument>(context, documentoVacio(), {
+    footprintW: 12_000,
+    footprintH: 10_000,
+    unit: "mm",
+    gridSize: 100,
+  });
+  await page.goto(url);
+  await expect(page.getByTestId("cad-canvas")).toBeVisible({ timeout: 60_000 });
+  const saltar = page.getByTestId("cad-guided-tour-skip");
+  if (await saltar.count()) await saltar.click().catch(() => {});
+  await anotarAvisos(page);
+  return backend;
+}
+
+async function anotarAvisos(page: Page) {
+  await page.evaluate(() => {
+    const w = window as unknown as { __avisos?: string[] };
+    if (w.__avisos) return;
+    w.__avisos = [];
+    const recoger = () => {
+      document.querySelectorAll('[data-testid="app-toast"]').forEach((n) => {
+        const t = (n as HTMLElement).innerText.trim();
+        if (t && !w.__avisos!.includes(t)) w.__avisos!.push(t);
+      });
+    };
+    new MutationObserver(recoger).observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+    recoger();
+  });
+}
+
+async function avisos(page: Page): Promise<string[]> {
+  return page
+    .evaluate(() => (window as unknown as { __avisos?: string[] }).__avisos ?? [])
+    .catch(() => []);
+}
+
+async function teclear(page: Page, valor: string) {
+  const input = page.getByTestId("cad-command-input");
+  await input.click({ timeout: 10_000 });
+  await input.fill(valor);
+  await input.press("Enter");
+}
+
+async function prompt(page: Page): Promise<string> {
+  const p = page.getByTestId("cad-command-prompt");
+  if (!(await p.isVisible().catch(() => false))) return "(sin prompt)";
+  return (await p.innerText().catch(() => "")).trim().replace(/\s+/g, " ");
+}
+
+async function log(page: Page, ultimas = 8): Promise<string> {
+  const l = page.getByTestId("cad-command-line-log");
+  const texto = await l.innerText({ timeout: 2_000 }).catch(() => "");
+  return texto.trim().split("\n").slice(-ultimas).join(" ⏎ ");
+}
+
+async function nativos(page: Page): Promise<string> {
+  return (
+    (await page
+      .getByTestId("cad-native-document-count")
+      .innerText({ timeout: 2_000 })
+      .catch(() => "?")) ?? "?"
+  ).trim();
+}
+
+let nCaptura = 0;
+async function captura(page: Page, nombre: string): Promise<string> {
+  nCaptura += 1;
+  const ruta = `${SCRATCH}/${String(nCaptura).padStart(2, "0")}-${nombre}.png`;
+  await page.screenshot({ path: ruta, fullPage: false }).catch(() => {});
+  return ruta;
+}
+
+async function guardar(page: Page, backend: { snapshot(): { version: number; document: CadDocument } }) {
+  const cerrarPk = page.getByLabel("Cerrar paquete de entrega");
+  if (await cerrarPk.count()) await cerrarPk.first().click().catch(() => {});
+  await page.getByTestId("cad-save").click({ timeout: 10_000 });
+  await expect(page.getByTestId("cad-save-status")).toHaveText("Guardado", { timeout: 20_000 });
+  return backend.snapshot().document;
+}
+
+async function paso(
+  page: Page,
+  nombre: string,
+  fn: () => Promise<{ resultado: Resultado; detalle: string; evidencia?: string[] }>,
+) {
+  const t0 = Date.now();
+  let registro: Paso;
+  try {
+    const r = await fn();
+    registro = {
+      paso: nombre,
+      resultado: r.resultado,
+      detalle: r.detalle,
+      evidencia: r.evidencia ?? [],
+      ms: Date.now() - t0,
+    };
+  } catch (error) {
+    const mensaje = String((error as Error)?.message ?? error)
+      .replace(/\u001b\[[0-9;]*m/g, "")
+      .slice(0, 900);
+    registro = {
+      paso: nombre,
+      resultado: "roto",
+      detalle: `EXCEPCIÓN: ${mensaje}`,
+      evidencia: [
+        `prompt=${await prompt(page)}`,
+        `log=${await log(page)}`,
+        `nativos=${await nativos(page)}`,
+        `avisos=${JSON.stringify(await avisos(page))}`,
+      ],
+      ms: Date.now() - t0,
+    };
+    // Deja la línea de comandos limpia para el paso siguiente.
+    await page.keyboard.press("Escape").catch(() => {});
+    await page.keyboard.press("Escape").catch(() => {});
+  }
+  registro.evidencia.push(`captura=${await captura(page, nombre.replace(/[^a-z0-9]+/gi, "-").slice(0, 40))}`);
+  pasos.push(registro);
+  console.log(`[recorrido] ${registro.resultado.toUpperCase()} · ${nombre} · ${registro.detalle}`);
+  await writeFile(`${SCRATCH}/pasos.json`, JSON.stringify(pasos, null, 2));
+}
+
+// ── PDF ────────────────────────────────────────────────────────────────────
+const PT_POR_MM = 72 / 25.4;
+function flujosDelPdf(pdf: Buffer): string[] {
+  const crudo = pdf.toString("latin1");
+  const fuera: string[] = [];
+  let cursor = 0;
+  for (;;) {
+    const inicio = crudo.indexOf("stream", cursor);
+    if (inicio < 0) break;
+    if (crudo.slice(inicio - 3, inicio) === "end") {
+      cursor = inicio + 6;
+      continue;
+    }
+    let datos = inicio + "stream".length;
+    if (crudo[datos] === "\r") datos += 1;
+    if (crudo[datos] === "\n") datos += 1;
+    const fin = crudo.indexOf("endstream", datos);
+    if (fin < 0) break;
+    let ultimo = fin;
+    while (ultimo > datos && (crudo[ultimo - 1] === "\n" || crudo[ultimo - 1] === "\r")) ultimo -= 1;
+    const trozo = pdf.subarray(datos, ultimo);
+    try {
+      fuera.push(inflateSync(trozo).toString("latin1"));
+    } catch {
+      fuera.push(trozo.toString("latin1"));
+    }
+    cursor = fin + "endstream".length;
+  }
+  return fuera;
+}
+let textosPdf: string[] = [];
+/** Cada texto del PDF con su cuerpo: `Tf` en puntos y su equivalente en mm. */
+function tamanosDeTexto(pdf: Buffer): string[] {
+  const t = flujosDelPdf(pdf).join("\n");
+  const fuera: string[] = [];
+  const re = /([\d.]+)\s+Tf[\s\S]{0,220}?\(([^)]*)\)\s*Tj/g;
+  for (const m of t.matchAll(re))
+    fuera.push(`${m[2]} @ ${Number(m[1]).toFixed(2)}pt=${((Number(m[1]) * 25.4) / 72).toFixed(2)}mm`);
+  return fuera;
+}
+function tramosMm(pdf: Buffer): number[] {
+  const tramos: number[] = [];
+  const op = /(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s+(m|l)(?![A-Za-z0-9])/g;
+  for (const f of flujosDelPdf(pdf)) {
+    let actual: { x: number; y: number } | null = null;
+    for (const e of f.matchAll(op)) {
+      const p = { x: Number(e[1]), y: Number(e[2]) };
+      if (e[3] === "l" && actual) tramos.push(Math.hypot(p.x - actual.x, p.y - actual.y) / PT_POR_MM);
+      actual = p;
+    }
+  }
+  return tramos;
+}
+
+// ── DXF ────────────────────────────────────────────────────────────────────
+function dxfPares(texto: string): Array<[number, string]> {
+  const lineas = texto.split(/\r?\n/);
+  const pares: Array<[number, string]> = [];
+  for (let i = 0; i + 1 < lineas.length; i += 2) pares.push([Number(lineas[i].trim()), lineas[i + 1].trim()]);
+  return pares;
+}
+function dxfResumen(texto: string) {
+  const pares = dxfPares(texto);
+  const porTipo: Record<string, number> = {};
+  const capas: Array<{ nombre: string; color: number }> = [];
+  let seccion = "";
+  let tabla = "";
+  for (let i = 0; i < pares.length; i += 1) {
+    const [c, v] = pares[i];
+    if (c === 0 && v === "SECTION") {
+      seccion = pares[i + 1]?.[1] ?? "";
+      continue;
+    }
+    if (c === 0 && v === "TABLE") tabla = pares[i + 1]?.[1] ?? "";
+    if (seccion === "ENTITIES" && c === 0 && v !== "ENDSEC") porTipo[v] = (porTipo[v] ?? 0) + 1;
+    if (seccion === "TABLES" && tabla === "LAYER" && c === 0 && v === "LAYER") {
+      let nombre = "";
+      let color = 7;
+      for (let j = i + 1; j < pares.length && pares[j][0] !== 0; j += 1) {
+        if (pares[j][0] === 2) nombre = pares[j][1];
+        if (pares[j][0] === 62) color = Number(pares[j][1]);
+      }
+      capas.push({ nombre, color });
+    }
+  }
+  const version = pares.find((p, i) => p[1] === "$ACADVER" && pares[i + 1])?.[1];
+  const idx = pares.findIndex((p) => p[1] === "$ACADVER");
+  return { porTipo, capas, acadver: idx >= 0 ? pares[idx + 1]?.[1] : version, insunits: (() => {
+    const k = pares.findIndex((p) => p[1] === "$INSUNITS");
+    return k >= 0 ? pares[k + 1]?.[1] : "(no declara $INSUNITS)";
+  })() };
+}
+
+function contarTipos(doc: CadDocument): Record<string, number> {
+  const r: Record<string, number> = {};
+  for (const e of doc.entities as Array<{ type: string }>) r[e.type] = (r[e.type] ?? 0) + 1;
+  return r;
+}
+
+test("un día de trabajo: la planta de una casa pequeña, de punta a punta", async ({ context, page, browser }) => {
+  test.setTimeout(900_000);
+  await mkdir(SCRATCH, { recursive: true });
+  page.setDefaultTimeout(15_000);
+
+  const erroresConsola: string[] = [];
+  page.on("console", (m) => {
+    if (m.type() === "error") erroresConsola.push(m.text().slice(0, 300));
+  });
+  page.on("pageerror", (e) => erroresConsola.push(`pageerror: ${String(e.message).slice(0, 300)}`));
+  const backend = await abrirEstudio(context, page);
+  await fitFootprint(page).catch(() => {});
+  let doc: CadDocument = backend.snapshot().document;
+
+  await paso(page, "a0 orientacion del eje Y en pantalla (HUD arriba vs abajo del lienzo)", async () => {
+    const box = (await page.getByTestId("cad-canvas").boundingBox())!;
+    const hud = page.getByTestId("cad-cursor-coordinate");
+    const leer = async (x: number, y: number) => {
+      await page.mouse.move(x, y);
+      await page.waitForTimeout(300);
+      return { x: Number(await hud.getAttribute("data-x")), y: Number(await hud.getAttribute("data-y")) };
+    };
+    const cx = box.x + box.width / 2;
+    const arriba = await leer(cx, box.y + box.height * 0.25);
+    const abajo = await leer(cx, box.y + box.height * 0.6);
+    const izq = await leer(box.x + box.width * 0.3, box.y + box.height * 0.4);
+    const der = await leer(box.x + box.width * 0.7, box.y + box.height * 0.4);
+    const yArribaMayor = arriba.y > abajo.y;
+    return {
+      resultado: yArribaMayor ? "ok" : "roto",
+      detalle: `HUD arriba y=${arriba.y.toFixed(0)}, abajo y=${abajo.y.toFixed(0)}; izq x=${izq.x.toFixed(0)}, der x=${der.x.toFixed(0)} → ${yArribaMayor ? "+Y hacia ARRIBA (como AutoCAD)" : "+Y hacia ABAJO en pantalla (al revés que AutoCAD y que el PDF)"}`,
+    };
+  });
+
+  // ── a) MUROS 6000 × 4000 TECLEADOS ──────────────────────────────────────
+  await paso(page, "a1 muros tecleados con WALL y coordenadas relativas @", async () => {
+    await teclear(page, "MURO");
+    const p0 = await prompt(page);
+    await teclear(page, `${X0},${Y0}`);
+    await teclear(page, `@${W},0`);
+    await teclear(page, `@0,${H}`);
+    await teclear(page, `@-${W},0`);
+    const antesCerrar = await prompt(page);
+    await teclear(page, "C");
+    await page.waitForTimeout(500);
+    const trasCerrar = await prompt(page);
+    if (trasCerrar !== "(sin prompt)") await page.getByTestId("cad-command-input").press("Enter");
+    await expect(page.getByTestId("cad-command-prompt")).toBeHidden({ timeout: 8_000 });
+    doc = await guardar(page, backend);
+    const muros = doc.entities.filter((e) => e.type === "wall") as unknown as Array<{
+      start: { x: number; y: number };
+      end: { x: number; y: number };
+      thickness: number;
+      height: number;
+    }>;
+    const largos = muros.map((m) => Math.round(Math.hypot(m.end.x - m.start.x, m.end.y - m.start.y)));
+    const esquinas = muros.map((m) => `(${m.start.x},${m.start.y})→(${m.end.x},${m.end.y})`);
+    const bien =
+      muros.length === 4 &&
+      largos.filter((l) => l === W).length === 2 &&
+      largos.filter((l) => l === H).length === 2;
+    return {
+      resultado: bien ? "ok" : muros.length ? "parcial" : "roto",
+      detalle: `${muros.length} muros; largos de eje ${JSON.stringify(largos)}; grosor ${muros[0]?.thickness} mm; altura ${muros[0]?.height}`,
+      evidencia: [
+        `prompt inicial=${p0}`,
+        `prompt antes de Cerrar=${antesCerrar}`,
+        `prompt tras C=${trasCerrar}`,
+        `ejes=${esquinas.join(" ")}`,
+        `tipos=${JSON.stringify(contarTipos(doc))}`,
+        `log=${await log(page)}`,
+      ],
+    };
+  });
+
+  // ── b) PUERTA Y VENTANA ─────────────────────────────────────────────────
+  await paso(page, "b1 puerta tecleando PUERTA y un punto sobre el muro (sin raton)", async () => {
+    await teclear(page, "PUERTA");
+    const p0 = await prompt(page);
+    await teclear(page, `${X0 + 1500},${Y0}`);
+    await page.waitForTimeout(400);
+    const p1 = await prompt(page);
+    const l = await log(page, 4);
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
+    return {
+      resultado: "imposible",
+      detalle: `El hueco sólo acepta DESIGNAR el muro con el ratón (CAD_ACCEPT_ENTITY_PICK | KEYWORD, draw-opening.ts:189); una coordenada tecleada no designa. Prompt tras teclear el punto: «${p1}»`,
+      evidencia: [`prompt inicial=${p0}`, `log=${l}`],
+    };
+  });
+
+  await paso(page, "b2 puerta designando el muro inferior con el raton", async () => {
+    const antes = doc.entities.length;
+    await teclear(page, "PUERTA");
+    const p0 = await prompt(page);
+    const punto = await worldPoint(page, { x: X0 + 1_500, y: Y0 });
+    await page.mouse.click(punto.x, punto.y);
+    await page.waitForTimeout(600);
+    const p1 = await prompt(page);
+    if (p1 !== "(sin prompt)") await page.keyboard.press("Escape");
+    doc = await guardar(page, backend);
+    const huecos = doc.entities.filter((e) => e.type === "opening") as unknown as Array<{
+      kind: string;
+      width: number;
+      height: number;
+      sill: number;
+      position: number;
+      hostId: string;
+    }>;
+    const puerta = huecos.find((h) => h.kind === "door");
+    return {
+      resultado: puerta ? "ok" : "roto",
+      detalle: puerta
+        ? `puerta ${puerta.width}×${puerta.height} mm en muro ${puerta.hostId}, a ${puerta.position} mm del arranque del eje`
+        : `no se creó puerta (entidades ${antes}→${doc.entities.length}); prompt tras clic «${p1}»`,
+      evidencia: [`prompt=${p0}`, `log=${await log(page, 4)}`],
+    };
+  });
+
+  await paso(page, "b3 ventana designando el muro superior con el raton", async () => {
+    await teclear(page, "VENTANA");
+    const p0 = await prompt(page);
+    const punto = await worldPoint(page, { x: X0 + 3_500, y: Y0 + H });
+    await page.mouse.click(punto.x, punto.y);
+    await page.waitForTimeout(600);
+    const p1 = await prompt(page);
+    if (p1 !== "(sin prompt)") await page.keyboard.press("Escape");
+    doc = await guardar(page, backend);
+    const ventana = (doc.entities as unknown as Array<{ type: string; kind?: string; width?: number; height?: number; sill?: number }>).find(
+      (e) => e.type === "opening" && e.kind === "window",
+    );
+    return {
+      resultado: ventana ? "ok" : "roto",
+      detalle: ventana
+        ? `ventana ${ventana.width}×${ventana.height} mm, antepecho ${ventana.sill}`
+        : `no se creó ventana; prompt tras clic «${p1}»`,
+      evidencia: [`prompt=${p0}`, `log=${await log(page, 4)}`, `tipos=${JSON.stringify(contarTipos(doc))}`],
+    };
+  });
+
+  // ── c) COTAS ────────────────────────────────────────────────────────────
+  await paso(page, "c1 acotar lado largo y lado corto tecleando", async () => {
+    await teclear(page, "DLI");
+    const p0 = await prompt(page);
+    await teclear(page, `${X0},${Y0}`);
+    await teclear(page, `${X0 + W},${Y0}`);
+    await teclear(page, `${X0 + W / 2},${Y0 - 900}`);
+    await expect(page.getByTestId("cad-command-prompt")).toBeHidden({ timeout: 8_000 });
+    await teclear(page, "DLI");
+    await teclear(page, `${X0},${Y0}`);
+    await teclear(page, `${X0},${Y0 + H}`);
+    await teclear(page, `${X0 - 900},${Y0 + H / 2}`);
+    await expect(page.getByTestId("cad-command-prompt")).toBeHidden({ timeout: 8_000 });
+    doc = await guardar(page, backend);
+    const cotas = doc.entities.filter((e) => e.type === "dimension");
+    const rotulos = cotas.map((c) => buildCadDimensionGeometry(c as never)?.label ?? "(sin rótulo)");
+    const assoc = cotas.map((c) => {
+      const d = c as unknown as { associative?: boolean; references?: unknown[] };
+      return `assoc=${d.associative} refs=${JSON.stringify(d.references ?? [])}`;
+    });
+    const dice6000 = rotulos.some((r) => /6[\s,.]?000/.test(r));
+    const dice4000 = rotulos.some((r) => /4[\s,.]?000/.test(r));
+    return {
+      resultado: cotas.length === 2 && dice6000 && dice4000 ? "ok" : cotas.length ? "parcial" : "roto",
+      detalle: `${cotas.length} cotas; rótulos ${JSON.stringify(rotulos)}`,
+      evidencia: [`prompt DLI=${p0}`, ...assoc],
+    };
+  });
+
+  await paso(page, "c2 la cota sigue al muro si el muro se estira (asociatividad con muros)", async () => {
+    // STRETCH del muro derecho +500 en X: ventana de captura sobre el lado derecho.
+    await teclear(page, "S");
+    await teclear(page, `${X0 + W - 300},${Y0 - 300}`);
+    await teclear(page, `${X0 + W + 300},${Y0 + H + 300}`);
+    const p = await prompt(page);
+    if (/objetos|Designe/i.test(p)) await page.getByTestId("cad-command-input").press("Enter");
+    await teclear(page, "0,0");
+    await teclear(page, "500,0");
+    await page.waitForTimeout(500);
+    const pf = await prompt(page);
+    if (pf !== "(sin prompt)") await page.keyboard.press("Escape");
+    doc = await guardar(page, backend);
+    const rotulos = doc.entities
+      .filter((e) => e.type === "dimension")
+      .map((c) => buildCadDimensionGeometry(c as never)?.label ?? "?");
+    const largos = (doc.entities.filter((e) => e.type === "wall") as unknown as Array<{ start: { x: number; y: number }; end: { x: number; y: number } }>).map(
+      (m) => Math.round(Math.hypot(m.end.x - m.start.x, m.end.y - m.start.y)),
+    );
+    const muroEstirado = largos.includes(W + 500);
+    const cotaSiguio = rotulos.some((r) => /6[\s,.]?500/.test(r));
+    // Deshacer SÓLO si algo se estiró: un U tras un STRETCH vacío se come la
+    // operación anterior (la segunda cota), medido en la corrida 1.
+    if (muroEstirado || cotaSiguio) {
+      await teclear(page, "U").catch(() => {});
+      await page.waitForTimeout(400);
+    }
+    doc = await guardar(page, backend);
+    const largosTrasU = (doc.entities.filter((e) => e.type === "wall") as unknown as Array<{ start: { x: number; y: number }; end: { x: number; y: number } }>).map(
+      (m) => Math.round(Math.hypot(m.end.x - m.start.x, m.end.y - m.start.y)),
+    );
+    return {
+      resultado: muroEstirado && cotaSiguio ? "ok" : muroEstirado ? "roto" : "parcial",
+      detalle: `muros tras estirar ${JSON.stringify(largos)}; rótulos ${JSON.stringify(rotulos)}; tras U ${JSON.stringify(largosTrasU)}`,
+      evidencia: [`prompt tras ventana=${p}`, `log=${await log(page, 6)}`],
+    };
+  });
+
+  // ── d) CAPAS ────────────────────────────────────────────────────────────
+  let capaId = "";
+  await paso(page, "d1 crear capa A-COTAS desde el gestor de capas", async () => {
+    await teclear(page, "LA");
+    const manager = page.getByTestId("cad-layer-manager");
+    await expect(manager).toBeVisible({ timeout: 8_000 });
+    await page.getByTestId("cad-layer-new-name").fill("A-COTAS");
+    await page.getByTestId("cad-layer-create").click();
+    await page.waitForTimeout(500);
+    capaId = await page.evaluate(() => {
+      const filas = Array.from(document.querySelectorAll('[data-testid^="cad-layer-row-"]')) as HTMLElement[];
+      for (const f of filas) {
+        const valores = Array.from(f.querySelectorAll("input")).map((i) => (i as HTMLInputElement).value);
+        if (f.innerText.includes("A-COTAS") || valores.includes("A-COTAS"))
+          return (f.dataset.testid ?? "").replace("cad-layer-row-", "");
+      }
+      return "";
+    });
+    return {
+      resultado: capaId ? "ok" : "roto",
+      detalle: capaId ? `capa creada con id «${capaId}»` : "no aparece la fila de la capa nueva",
+    };
+  });
+
+  await paso(page, "d2 mover las cotas a A-COTAS con CHPROP (designando con el raton)", async () => {
+    await page.keyboard.press("Escape");
+    await teclear(page, "CHPROP");
+    const p0 = await prompt(page);
+    const a = await worldPoint(page, { x: X0 + W / 2 - 1_200, y: Y0 - 900 });
+    await page.mouse.click(a.x, a.y);
+    const b = await worldPoint(page, { x: X0 - 900, y: Y0 + H / 2 - 900 });
+    await page.mouse.click(b.x, b.y);
+    const p1 = await prompt(page);
+    await page.getByTestId("cad-command-input").press("Enter");
+    const p2 = await prompt(page);
+    await teclear(page, "CA");
+    const p3 = await prompt(page);
+    await teclear(page, "A-COTAS");
+    const p4 = await prompt(page);
+    if (p4 !== "(sin prompt)") await page.getByTestId("cad-command-input").press("Enter");
+    await page.waitForTimeout(400);
+    doc = await guardar(page, backend);
+    const capaDoc = doc.layers.find((l) => l.name === "A-COTAS");
+    const cotas = doc.entities.filter((e) => e.type === "dimension") as unknown as Array<{ layer: string }>;
+    const enCapa = cotas.filter((c) => c.layer === capaDoc?.id || c.layer === "A-COTAS").length;
+    return {
+      resultado: enCapa === cotas.length && cotas.length > 0 ? "ok" : enCapa ? "parcial" : "roto",
+      detalle: `${enCapa}/${cotas.length} cotas en A-COTAS (id ${capaDoc?.id}); capas de las cotas ${JSON.stringify(cotas.map((c) => c.layer))}`,
+      evidencia: [`p0=${p0}`, `tras clics=${p1}`, `tras Enter=${p2}`, `tras CA=${p3}`, `tras nombre=${p4}`, `log=${await log(page, 6)}`],
+    };
+  });
+
+  await paso(page, "d3 apagar la capa A-COTAS", async () => {
+    await page.keyboard.press("Escape");
+    const manager = page.getByTestId("cad-layer-manager");
+    if (!(await manager.isVisible().catch(() => false))) await teclear(page, "LA");
+    await expect(manager).toBeVisible({ timeout: 8_000 });
+    const id = capaId || doc.layers.find((l) => l.name === "A-COTAS")?.id || "";
+    await page.getByTestId(`cad-layer-visible-${id}`).click();
+    await page.waitForTimeout(400);
+    const titulo = await page.getByTestId(`cad-layer-visible-${id}`).getAttribute("title");
+    doc = await guardar(page, backend);
+    const capaDoc = doc.layers.find((l) => l.name === "A-COTAS");
+    return {
+      resultado: capaDoc && capaDoc.visible === false ? "ok" : "roto",
+      detalle: `capa A-COTAS visible=${capaDoc?.visible}; el botón ahora dice «${titulo}»`,
+    };
+  });
+
+  await paso(page, "d4 volver a encender la capa (para el resto del plano)", async () => {
+    const id = capaId || doc.layers.find((l) => l.name === "A-COTAS")?.id || "";
+    if (!(await page.getByTestId("cad-layer-manager").isVisible().catch(() => false))) await teclear(page, "LA");
+    await page.getByTestId(`cad-layer-visible-${id}`).click();
+    // Y la capa activa vuelve a «0»: crear A-COTAS la dejó ACTIVA sin pedirlo.
+    await page.getByTestId("cad-layer-active-0").click().catch(() => {});
+    doc = await guardar(page, backend);
+    const capaDoc = doc.layers.find((l) => l.name === "A-COTAS");
+    // Cerrar el gestor.
+    await page.keyboard.press("Escape");
+    const cerrar = page.getByTestId("cad-layer-manager").getByRole("button", { name: /Cerrar/i });
+    if (await cerrar.count()) await cerrar.first().click().catch(() => {});
+    return { resultado: capaDoc?.visible ? "ok" : "roto", detalle: `visible=${capaDoc?.visible}` };
+  });
+
+  // ── e) TEXTO Y SOMBREADO ────────────────────────────────────────────────
+  await paso(page, "e1 texto RECAMARA con TEXT (altura 200)", async () => {
+    await teclear(page, "TEXT");
+    const p0 = await prompt(page);
+    await teclear(page, `${X0 + 2_200},${Y0 + 2_400}`);
+    const p1 = await prompt(page);
+    await teclear(page, "200");
+    const p2 = await prompt(page);
+    await page.getByTestId("cad-command-input").press("Enter");
+    const p3 = await prompt(page);
+    await teclear(page, "RECÁMARA 1");
+    const p4 = await prompt(page);
+    if (p4 !== "(sin prompt)") await page.getByTestId("cad-command-input").press("Enter");
+    await page.waitForTimeout(300);
+    if ((await prompt(page)) !== "(sin prompt)") await page.keyboard.press("Escape");
+    doc = await guardar(page, backend);
+    const texto = (doc.entities as unknown as Array<{ type: string; text?: string; height?: number }>).find(
+      (e) => (e.type === "text" || e.type === "mtext") && /REC/.test(e.text ?? ""),
+    );
+    return {
+      resultado: texto && texto.text === "RECÁMARA 1" ? "ok" : texto ? "parcial" : "roto",
+      detalle: texto ? `${texto.type} «${texto.text}» altura ${texto.height}` : "no hay texto",
+      evidencia: [`p0=${p0}`, `p1=${p1}`, `p2=${p2}`, `p3=${p3}`, `p4=${p4}`],
+    };
+  });
+
+  await paso(page, "e2 sombreado por punto interior dentro de los muros", async () => {
+    await teclear(page, "H");
+    const p0 = await prompt(page);
+    await teclear(page, `${X0 + 800},${Y0 + 800}`);
+    await page.waitForTimeout(800);
+    const p1 = await prompt(page);
+    const l = await log(page, 4);
+    if (p1 !== "(sin prompt)") {
+      await page.getByTestId("cad-command-input").press("Enter");
+      await page.waitForTimeout(300);
+      if ((await prompt(page)) !== "(sin prompt)") await page.keyboard.press("Escape");
+    }
+    doc = await guardar(page, backend);
+    const sombreado = (doc.entities as unknown as Array<{ type: string; boundaryRefs?: string[]; pattern?: string; associative?: boolean }>).find(
+      (e) => e.type === "hatch",
+    );
+    return {
+      resultado: sombreado ? "ok" : "roto",
+      detalle: sombreado
+        ? `hatch ${sombreado.pattern} asociativo=${sombreado.associative} bordes=${JSON.stringify(sombreado.boundaryRefs)}`
+        : `NO se creó sombreado. Prompt tras el punto «${p1}»`,
+      evidencia: [`p0=${p0}`, `log=${l}`, `avisos=${JSON.stringify(await avisos(page))}`],
+    };
+  });
+
+  await paso(page, "e3 sombreado de respaldo: polilinea cerrada interior + H", async () => {
+    if (doc.entities.some((e) => e.type === "hatch"))
+      return { resultado: "ok", detalle: "no hizo falta: el sombreado por punto interior ya funcionó" };
+    await page.keyboard.press("Escape");
+    await teclear(page, "PLINE");
+    await teclear(page, `${X0 + 200},${Y0 + 200}`);
+    await teclear(page, `${X0 + 1_700},${Y0 + 200}`);
+    await teclear(page, `${X0 + 1_700},${Y0 + 1_700}`);
+    await teclear(page, `${X0 + 200},${Y0 + 1_700}`);
+    await teclear(page, "C");
+    await page.waitForTimeout(300);
+    if ((await prompt(page)) !== "(sin prompt)") await page.keyboard.press("Escape");
+    await teclear(page, "H");
+    await teclear(page, `${X0 + 900},${Y0 + 900}`);
+    await page.waitForTimeout(800);
+    const p1 = await prompt(page);
+    if (p1 !== "(sin prompt)") await page.keyboard.press("Escape");
+    doc = await guardar(page, backend);
+    const sombreado = doc.entities.find((e) => e.type === "hatch");
+    return {
+      resultado: sombreado ? "parcial" : "roto",
+      detalle: sombreado
+        ? "sólo se sombrea dibujando antes una polilínea cerrada a mano dentro de los muros"
+        : `ni con polilínea cerrada: prompt «${p1}»`,
+      evidencia: [`log=${await log(page, 16)}`, `tipos=${JSON.stringify(contarTipos(doc))}`],
+    };
+  });
+
+  await paso(page, "e4 lo que se ve en pantalla (zoom a la casa)", async () => {
+    await teclear(page, "ZOOM");
+    await teclear(page, "V");
+    await teclear(page, `${X0 - 1_500},${Y0 - 1_500}`);
+    await teclear(page, `${X0 + W + 500},${Y0 + H + 500}`);
+    await page.waitForTimeout(800);
+    const ruta = await captura(page, "e4-zoom-casa");
+    return { resultado: "ok", detalle: `captura de la planta con zoom en ${ruta}` };
+  });
+
+  // ── f) PRESENTACIÓN 1:50 + CAJETÍN ─────────────────────────────────────
+  await paso(page, "f0 teclear LAYOUT (camino AutoCAD)", async () => {
+    await teclear(page, "LAYOUT");
+    const p0 = await prompt(page);
+    const l = await log(page, 3);
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
+    return { resultado: p0 !== "(sin prompt)" ? "ok" : "parcial", detalle: `prompt de LAYOUT: «${p0}»`, evidencia: [`log=${l}`] };
+  });
+
+  await paso(page, "f1 crear hoja desde Paquete de entrega y fijar 1:50", async () => {
+    await page.getByTitle(/Paquete de entrega/).first().click();
+    await expect(page.getByTestId("cad-sheet-package")).toBeVisible({ timeout: 8_000 });
+    await page.getByRole("button", { name: "+ Hoja" }).click();
+    await expect(page.getByTestId("cad-layout-manager")).toContainText("Ventanas · 1", { timeout: 8_000 });
+    const escalaInicial = await page.getByTestId("cad-viewport-custom-scale").inputValue();
+    const bloqueada = await page.getByTestId("cad-viewport-scale").isDisabled();
+    if (bloqueada) await page.getByTestId("cad-viewport-lock").click();
+    await page.getByTestId("cad-viewport-scale").selectOption("50");
+    await expect(page.getByTestId("cad-viewport-custom-scale")).toHaveValue("50");
+    const papel = await page.evaluate(() => {
+      const s = Array.from(document.querySelectorAll('[data-testid="cad-sheet-package"] select')) as HTMLSelectElement[];
+      return s.map((x) => x.options[x.selectedIndex]?.text ?? "").join(" | ");
+    });
+    return {
+      resultado: "ok",
+      detalle: `hoja creada; escala inicial 1:${escalaInicial}; escala nacía bloqueada=${bloqueada}; ahora 1:50`,
+      evidencia: [`selects del paquete=${papel}`],
+    };
+  });
+
+  await paso(page, "f2 rellenar el cajetin", async () => {
+    const etiquetas = await page.evaluate(() => {
+      const raiz = document.querySelector('[data-testid="cad-sheet-package"]');
+      if (!raiz) return [];
+      return Array.from(raiz.querySelectorAll("label"))
+        .map((l) => (l.querySelector("span")?.textContent ?? "").trim())
+        .filter(Boolean);
+    });
+    const pk = page.getByTestId("cad-sheet-package");
+    await pk.getByLabel("project", { exact: true }).fill("Casa Habitación Pérez");
+    await pk.getByLabel("Drawing No.", { exact: true }).fill("A-01");
+    await pk.getByLabel("sheet", { exact: true }).fill("1 de 1");
+    await pk.getByLabel("Prepared by", { exact: true }).fill("Arq. S. Valle");
+    await pk.getByRole("button", { name: "Aplicar cajetín a la hoja activa" }).click();
+    await page.waitForTimeout(500);
+    doc = await guardar(page, backend);
+    const hoja = (doc.paperSpaces as unknown as Array<{ name: string; titleBlock?: { attributes?: Record<string, string> } }>)[0];
+    const attrs = hoja?.titleBlock?.attributes ?? {};
+    const tiene = Object.values(attrs).some((v) => String(v).includes("Pérez"));
+    return {
+      resultado: tiene ? "parcial" : "roto",
+      detalle: `atributos del cajetín guardados: ${JSON.stringify(attrs)}`,
+      evidencia: [`rótulos del formulario del paquete=${JSON.stringify(etiquetas)}`],
+    };
+  });
+
+  // ── g) PDF ──────────────────────────────────────────────────────────────
+  let pdfBytes: Buffer | null = null;
+  await paso(page, "g1 publicar PDF y medir la escala dentro del PDF", async () => {
+    if (!(await page.getByTestId("cad-sheet-package").isVisible().catch(() => false))) {
+      await page.getByTitle(/Paquete de entrega/).first().click();
+      await expect(page.getByTestId("cad-sheet-package")).toBeVisible({ timeout: 8_000 });
+    }
+    const descarga = page.waitForEvent("download", { timeout: 45_000 });
+    await page.getByRole("button", { name: /Publicar PDF/ }).click();
+    const archivo = await descarga;
+    pdfBytes = await readFile((await archivo.path())!);
+    textosPdf = tamanosDeTexto(pdfBytes);
+    await writeFile(`${SCRATCH}/plano.pdf`, pdfBytes);
+    const tramos = tramosMm(pdfBytes);
+    const unicos = [...new Set(tramos.map((t) => Number(t.toFixed(1))))].sort((a, b) => b - a);
+    const texto = flujosDelPdf(pdfBytes).join("\n");
+    const hay = (mm: number, tol = 0.6) => tramos.some((t) => Math.abs(t - mm) <= tol);
+    // A 1:50 el eje de 6000 = 120 mm, el de 4000 = 80 mm; con grosor de muro, las
+    // caras exteriores serían algo mayores.
+    const buscados = { eje6000: hay(W / 50), eje4000: hay(H / 50) };
+    return {
+      resultado: buscados.eje6000 && buscados.eje4000 ? "ok" : "parcial",
+      detalle: `${archivo.suggestedFilename()} · ${pdfBytes.byteLength} bytes · tramos 120mm=${buscados.eje6000} 80mm=${buscados.eje4000}; declara 1:50=${texto.includes("1:50")}; «Pérez» en texto=${texto.includes("P") && /P.rez/.test(texto)}; «A-01»=${texto.includes("A-01")}; «6000» en texto=${texto.includes("6000")}`,
+      evidencia: [
+        `10 tramos más largos (mm papel)=${JSON.stringify(unicos.slice(0, 14))}`,
+        `textos (pt → mm)=${JSON.stringify(textosPdf.slice(0, 6))}`,
+      ],
+    };
+  });
+
+  await paso(page, "g2 PLOT tecleado: la misma hoja por el otro motor, midiendo el texto", async () => {
+    const cerrar = page.getByLabel("Cerrar paquete de entrega");
+    if (await cerrar.count()) await cerrar.first().click().catch(() => {});
+    const descarga = page.waitForEvent("download", { timeout: 45_000 });
+    await teclear(page, "PLOT");
+    await expect(page.getByTestId("cad-command-keyword-Trazar")).toBeVisible({ timeout: 8_000 });
+    await page.getByTestId("cad-command-keyword-Trazar").click();
+    await page.getByTestId("cad-command-input").fill("casa-plot");
+    await page.getByTestId("cad-command-input").press("Enter");
+    const archivo = await descarga;
+    const bytes = await readFile((await archivo.path())!);
+    await writeFile(`${SCRATCH}/plano-plot.pdf`, bytes);
+    const tx = tamanosDeTexto(bytes);
+    const tramos = tramosMm(bytes);
+    const unicos = [...new Set(tramos.map((t) => Number(t.toFixed(1))))].sort((a, b) => b - a);
+    return {
+      resultado: "ok",
+      detalle: `${archivo.suggestedFilename()} · ${bytes.byteLength} bytes · textos ${JSON.stringify(tx.slice(0, 5))}`,
+      evidencia: [`tramos=${JSON.stringify(unicos.slice(0, 12))}`],
+    };
+  });
+
+  // ── h) DXF ida y vuelta ─────────────────────────────────────────────────
+  let dxfRuta = "";
+  let dxfTexto = "";
+  await paso(page, "h1 DXFOUT de todo el dibujo", async () => {
+    const cerrar = page.getByLabel("Cerrar paquete de entrega");
+    if (await cerrar.count()) await cerrar.click().catch(() => {});
+    const descarga = page.waitForEvent("download", { timeout: 30_000 });
+    await teclear(page, "DXFOUT");
+    const p0 = await prompt(page);
+    await page.getByTestId("cad-command-input").press("Enter");
+    const p1 = await prompt(page);
+    await teclear(page, "casa-perez");
+    const archivo = await descarga;
+    dxfRuta = (await archivo.path())!;
+    dxfTexto = await readFile(dxfRuta, "utf8");
+    await writeFile(`${SCRATCH}/casa-perez.dxf`, dxfTexto);
+    const r = dxfResumen(dxfTexto);
+    return {
+      resultado: "ok",
+      detalle: `${archivo.suggestedFilename()} · ${dxfTexto.length} chars · $ACADVER=${r.acadver} · $INSUNITS=${r.insunits} · ENTITIES ${JSON.stringify(r.porTipo)} · capas ${JSON.stringify(r.capas)}`,
+      evidencia: [`p0=${p0}`, `p1=${p1}`, `log=${await log(page, 6)}`],
+    };
+  });
+
+  await paso(page, "h2 DXFIN del mismo archivo en un dibujo nuevo", async () => {
+    if (!dxfRuta) return { resultado: "imposible", detalle: "no hubo DXF que reimportar" };
+    const ctx2 = await browser.newContext({ baseURL: BASE_URL, acceptDownloads: true });
+    const page2 = await ctx2.newPage();
+    page2.setDefaultTimeout(15_000);
+    try {
+      const backend2 = await abrirEstudio(ctx2, page2);
+      const chooser = page2.waitForEvent("filechooser", { timeout: 15_000 });
+      await teclear(page2, "DXFIN");
+      const p0 = await prompt(page2);
+      const kw = page2.getByTestId("cad-command-keyword-Archivo");
+      if (await kw.count()) await kw.click();
+      else await page2.getByTestId("cad-command-input").press("Enter");
+      const fc = await chooser;
+      await fc.setFiles(dxfRuta);
+      await page2.waitForTimeout(1_500);
+      const p1 = await prompt(page2);
+      const informe = p1;
+      if (p1 !== "(sin prompt)") await page2.getByTestId("cad-command-input").press("Enter");
+      await page2.waitForTimeout(1_000);
+      const p2 = await prompt(page2);
+      const doc2 = await guardar(page2, backend2);
+      const tiposOrig = contarTipos(doc);
+      const tiposNuevo = contarTipos(doc2);
+      const capas2 = doc2.layers.map((l) => `${l.name}${l.visible === false ? "(off)" : ""}`);
+      const cotas2 = doc2.entities
+        .filter((e) => e.type === "dimension")
+        .map((c) => buildCadDimensionGeometry(c as never)?.label ?? "?");
+      const perdidos = Object.keys(tiposOrig).filter((t) => !tiposNuevo[t]);
+      await captura(page2, "h2-dxfin-reimportado");
+      return {
+        resultado: perdidos.length === 0 ? "ok" : Object.keys(tiposNuevo).length ? "parcial" : "roto",
+        detalle: `original ${JSON.stringify(tiposOrig)} → reimportado ${JSON.stringify(tiposNuevo)}; tipos que NO vuelven: ${JSON.stringify(perdidos)}; capas ${JSON.stringify(capas2)}; rótulos de cota ${JSON.stringify(cotas2)}`,
+        evidencia: [`prompt DXFIN=${p0}`, `informe=${informe.slice(0, 700)}`, `prompt final=${p2}`, `log=${await log(page2, 8)}`],
+      };
+    } finally {
+      await ctx2.close();
+    }
+  });
+
+  // ── extra: el rectángulo de AutoCAD, tecleado con @ ─────────────────────
+  await paso(page, "p1 RECTANG 0,0 @6000,4000 y PLINE con @ (dibujo nuevo)", async () => {
+    const ctx3 = await browser.newContext({ baseURL: BASE_URL });
+    const page3 = await ctx3.newPage();
+    page3.setDefaultTimeout(15_000);
+    try {
+      const backend3 = await abrirEstudio(ctx3, page3);
+      await teclear(page3, "RECTANG");
+      await teclear(page3, "0,0");
+      await teclear(page3, "@6000,4000");
+      await page3.waitForTimeout(400);
+      const pRec = await prompt(page3);
+      const lRec = await log(page3, 3);
+      await page3.keyboard.press("Escape");
+      await page3.keyboard.press("Escape");
+      await teclear(page3, "PLINE");
+      await teclear(page3, "0,6000");
+      await teclear(page3, "@1000,0");
+      await page3.waitForTimeout(300);
+      const lPl = await log(page3, 2);
+      await page3.keyboard.press("Escape");
+      await page3.keyboard.press("Escape");
+      await teclear(page3, "LINE");
+      await teclear(page3, "0,8000");
+      await teclear(page3, "@1000,0");
+      await page3.getByTestId("cad-command-input").press("Enter");
+      await page3.waitForTimeout(300);
+      const doc3 = await guardar(page3, backend3);
+      const tipos = contarTipos(doc3);
+      const rect = (doc3.entities as unknown as Array<{ type: string; vertices?: Array<{ x: number; y: number }> }>).find(
+        (e) => e.type === "polyline",
+      );
+      await captura(page3, "p1-rectang-arroba");
+      return {
+        resultado: rect ? "ok" : "roto",
+        detalle: `RECTANG con @ → ${rect ? `polilínea ${JSON.stringify(rect.vertices)}` : `NADA. Prompt «${pRec}»; log «${lRec}»`}; PLINE con @ → «${lPl}»; LINE con @ → tipos ${JSON.stringify(tipos)}`,
+      };
+    } finally {
+      await ctx3.close();
+    }
+  });
+
+  // ── extra: DWG, lo que de verdad manda el cliente ───────────────────────
+  await paso(page, "x1 exportar DWG (lo que pide el cliente)", async () => {
+    await teclear(page, "EXPORT");
+    const p0 = await prompt(page);
+    const botones = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('[data-testid^="cad-command-keyword-"]')).map((b) => (b as HTMLElement).dataset.testid),
+    );
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
+    const dwgBoton = await page.getByTitle(/DWG/i).count();
+    await teclear(page, "SAVEAS");
+    await page.waitForTimeout(400);
+    const pSave = await prompt(page);
+    const lSave = await log(page, 2);
+    await page.keyboard.press("Escape");
+    await teclear(page, "DWGOUT");
+    await page.waitForTimeout(400);
+    const lDwg = await log(page, 2);
+    await page.keyboard.press("Escape");
+    return {
+      resultado: "imposible",
+      detalle: `EXPORT pide «${p0}»; opciones ${JSON.stringify(botones)}; controles con «DWG» en title: ${dwgBoton}; SAVEAS → «${pSave}» / ${lSave}; DWGOUT → ${lDwg}`,
+    };
+  });
+
+  pasos.push({
+    paso: "z errores de consola durante el recorrido",
+    resultado: erroresConsola.length ? "parcial" : "ok",
+    detalle: `${erroresConsola.length} errores`,
+    evidencia: [...new Set(erroresConsola)].slice(0, 12),
+    ms: 0,
+  });
+  const resumen = pasos.map((p) => `${p.resultado.padEnd(9)} ${p.paso} — ${p.detalle}`).join("\n");
+  console.log(`\n[recorrido] RESUMEN\n${resumen}`);
+  await writeFile(`${SCRATCH}/pasos.json`, JSON.stringify(pasos, null, 2));
+});

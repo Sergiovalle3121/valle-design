@@ -63,6 +63,13 @@ export function Badge({
 /* ── TOOLTIP ────────────────────────────────────────────────────────────── */
 
 export interface TooltipProps {
+  /**
+   * Primera línea opcional, en negrita: el NOMBRE de la cosa. La cinta CAD la
+   * usa para el rótulo del botón («Línea»), con el nombre canónico y su
+   * alias en `shortcut` y la descripción en `label`: tres líneas, como el
+   * tooltip de AutoCAD (nombre · alias · descripción).
+   */
+  title?: ReactNode;
   label: ReactNode;
   /** Segunda línea, más apagada: el atajo de teclado va aquí. */
   shortcut?: string;
@@ -79,6 +86,38 @@ const SIDES = {
 } as const;
 
 /**
+ * La tarjeta de la etiqueta, sin decidir cómo se muestra ni dónde: la
+ * comparten `Tooltip` (CSS puro, absoluta junto a su control) y la etiqueta
+ * de la cinta CAD, que se pinta en un portal porque la tira de paneles la
+ * recortaba (`components/cad/ribbon/CadRibbonTooltip.tsx`).
+ */
+export const tooltipSurfaceClass =
+  "w-max max-w-56 flex-col gap-0.5 rounded-control border border-border bg-popover px-2.5 py-1.5 text-popover-foreground shadow-floating";
+
+/** Las líneas de la etiqueta: nombre (o descripción) · atajo · descripción. */
+export function TooltipContent({
+  title,
+  label,
+  shortcut,
+}: Pick<TooltipProps, "title" | "label" | "shortcut">) {
+  return (
+    <>
+      {title ? (
+        <span className="type-caption font-semibold">{title}</span>
+      ) : (
+        <span className="type-caption font-medium">{label}</span>
+      )}
+      {shortcut ? (
+        <span className="type-mono type-micro text-muted-foreground">
+          {shortcut}
+        </span>
+      ) : null}
+      {title ? <span className="type-micro text-muted-foreground">{label}</span> : null}
+    </>
+  );
+}
+
+/**
  * Etiqueta emergente, en CSS puro.
  *
  * Sin estado ni efectos: `group-hover` y `group-focus-within` lo resuelven, así
@@ -91,6 +130,7 @@ const SIDES = {
  * de pantalla por el `aria-label` del control, y anunciarlo dos veces molesta.
  */
 export function Tooltip({
+  title,
   label,
   shortcut,
   children,
@@ -104,20 +144,15 @@ export function Tooltip({
         role="tooltip"
         aria-hidden="true"
         className={cx(
-          "pointer-events-none absolute z-50 hidden w-max max-w-56 flex-col gap-0.5",
-          "rounded-control border border-border bg-popover px-2.5 py-1.5 text-popover-foreground shadow-floating",
+          "pointer-events-none absolute z-50 hidden",
+          tooltipSurfaceClass,
           "opacity-0 group-hover/tip:flex group-hover/tip:opacity-100",
           "group-focus-within/tip:flex group-focus-within/tip:opacity-100",
           motionBase,
           SIDES[side],
         )}
       >
-        <span className="type-caption font-medium">{label}</span>
-        {shortcut ? (
-          <span className="type-mono type-micro text-muted-foreground">
-            {shortcut}
-          </span>
-        ) : null}
+        <TooltipContent title={title} label={label} shortcut={shortcut} />
       </span>
     </span>
   );

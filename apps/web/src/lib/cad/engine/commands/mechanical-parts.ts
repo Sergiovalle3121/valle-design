@@ -288,6 +288,8 @@ interface ShapeState {
   values: Record<string, number>;
   index: number;
   point: CadPoint2 | null;
+  /** Longitud del tramo en mm; null = sólo la sección, sin longitud. */
+  length: number | null;
 }
 
 function askShape(state: ShapeState): CadCommandStep<ShapeState> {
@@ -298,6 +300,8 @@ function askShape(state: ShapeState): CadCommandStep<ShapeState> {
     return { state, prompt: { message: parameter.prompt, options: [], defaultValue: String(parameter.fallback) }, accepts: CAD_ACCEPT_DISTANCE };
   if (!state.point)
     return { state, prompt: { message: `${state.shape.label}. Precise el punto de inserción`, options: [] }, accepts: CAD_ACCEPT_POINT };
+  if (state.length === null)
+    return { state, prompt: { message: "Longitud del tramo (mm), Intro para sólo la sección", options: [] }, accepts: CAD_ACCEPT_DISTANCE };
   return { state, prompt: { message: "Ángulo de rotación", options: [], defaultValue: "0" }, accepts: CAD_ACCEPT_ANGLE | CAD_ACCEPT_DISTANCE };
 }
 
@@ -310,7 +314,7 @@ const steelShapeCommand: CadCommandDescriptor<ShapeState> = {
   repeatable: true,
   mutates: true,
   cursor: "crosshair",
-  begin: () => askShape({ shape: null, values: {}, index: 0, point: null }),
+  begin: () => askShape({ shape: null, values: {}, index: 0, point: null, length: null }),
   step: (state, input, context) => {
     if (input.kind === "cancel") return cadCommandCancelled(state);
     if (!state.shape) {
@@ -330,12 +334,24 @@ const steelShapeCommand: CadCommandDescriptor<ShapeState> = {
       if (input.kind === "enter") return cadCommandRefused(state, "STEELSHAPE necesita un punto de inserción.");
       return askShape(state);
     }
+    // Longitud del tramo: Intro = sin longitud (sólo la sección).
+    if (state.length === null) {
+      if (input.kind === "enter") return askShape({ ...state, length: 0 });
+      if (input.kind === "distance") {
+        if (!(input.value > 0)) return cadCommandRefused(state, "La longitud debe ser mayor que cero.");
+        return askShape({ ...state, length: input.value });
+      }
+      return askShape(state);
+    }
     const degrees = input.kind === "enter" ? 0 : input.kind === "angle" ? input.degrees : input.kind === "distance" ? input.value : null;
     if (degrees === null) return askShape(state);
     const part = cadMechanicalSteelShape(state.shape.kind, state.values);
     if (typeof part === "string") return cadCommandRefused(state, part);
     const area = part.areaMm2 ?? 0;
-    return finishPart(state, part, state.point, degrees, context, "STEELSHAPE", `, sección ${(area / 100).toFixed(2)} cm², ${cadSteelKgPerMetre(area).toFixed(2)} kg/m`);
+    const lengthNote = state.length > 0
+      ? `, ${state.length.toFixed(0)} mm, ${(cadSteelKgPerMetre(area) * state.length / 1000).toFixed(2)} kg`
+      : "";
+    return finishPart(state, part, state.point, degrees, context, "STEELSHAPE", `, sección ${(area / 100).toFixed(2)} cm², ${cadSteelKgPerMetre(area).toFixed(2)} kg/m${lengthNote}`);
   },
 };
 

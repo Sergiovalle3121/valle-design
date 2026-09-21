@@ -9,7 +9,7 @@ export type CadSafetyZoneKind =
   | "esd_zone"
   /**
    * VALOR LEGADO Y CONGELADO. Viene del planificador de plantas del que nació
-   * Valle Design y sigue aquí porque está PERSISTIDO en documentos guardados.
+   * VALLECAD y sigue aquí porque está PERSISTIDO en documentos guardados.
    * Se LEE para no romperlos; ya no se OFRECE: ninguna acción del editor crea
    * uno nuevo — los pasillos se crean como `aisle`. Ver `IDENTITY.md`.
    */

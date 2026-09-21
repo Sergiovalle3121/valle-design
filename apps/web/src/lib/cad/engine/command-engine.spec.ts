@@ -298,6 +298,43 @@ assert.equal(
   "un rectángulo de ancho cero no se dibuja",
 );
 
+// --- T7: RECTANG con @ relativo -----------------------------------------------
+{
+  const { effects } = run([
+    { kind: "invoke", command: "REC" },
+    point(0, 0),
+    { kind: "token", value: "@6000,4000" },
+  ]);
+  const command = executed(effects)[0]?.commands[0];
+  assert.ok(command?.type === "insert" && command.entity.type === "polyline", "RECTANG @relativo da polilínea");
+  const vertices = command?.type === "insert" && command.entity.type === "polyline" ? command.entity.vertices : [];
+  const xs = vertices.map((v) => v.x);
+  const ys = vertices.map((v) => v.y);
+  assert.ok(
+    Math.max(...xs) - Math.min(...xs) === 6000 && Math.max(...ys) - Math.min(...ys) === 4000,
+    `RECTANG 0,0 @6000,4000 dibuja 6000×4000 (xs=${xs.join(",")}, ys=${ys.join(",")})`,
+  );
+}
+
+// --- T7: PLINE con @ relativo -------------------------------------------------
+{
+  const { effects } = run([
+    { kind: "invoke", command: "PLINE" },
+    point(0, 0),
+    { kind: "token", value: "@1000,0" },
+    { kind: "token", value: "@0,500" },
+    { kind: "input", input: { kind: "enter" } },
+  ]);
+  const command = executed(effects)[0]?.commands[0];
+  assert.ok(command?.type === "insert" && command.entity.type === "polyline", "PLINE @relativo da polilínea");
+  const vertices = command?.type === "insert" && command.entity.type === "polyline" ? command.entity.vertices : [];
+  assert.deepEqual(
+    vertices.map((v) => [v.x, v.y]),
+    [[0, 0], [1000, 0], [1000, 500]],
+    "PLINE 0,0 @1000,0 @0,500 dibuja sus vértices",
+  );
+}
+
 // --- CIRCLE: centro-radio, diámetro, 2P y 3P ---------------------------------
 {
   const { effects } = run([{ kind: "invoke", command: "C" }, point(0, 0), { kind: "token", value: "50" }]);
@@ -383,6 +420,89 @@ for (const option of ["T", "TT"]) {
   const points = (typed.state.active?.step.state as { points: { x: number; y: number }[] }).points;
   assert.equal(points.length, 2, "la distancia fija un vértice");
   assert.ok(Math.abs(points[1].x - 250) < 1e-9 && Math.abs(points[1].y) < 1e-9, "sobre la dirección del cursor");
+}
+
+// --- bloqueo de ángulo tecleado (T-Ola3, F3): <37 fija la dirección ---------
+{
+  // <37 en «Precise el punto siguiente» NO fija un punto: el paso sigue
+  // pidiéndolo, como el override de OSNAP. El cursor, a propósito, apunta a
+  // 0° — muy lejos de 37° — para que lo que salga después no pueda deberse
+  // a él.
+  const started = run([{ kind: "invoke", command: "LINE" }, point(0, 0)]);
+  const locked = cadCommandEngineReduce(
+    started.state,
+    { kind: "token", value: "<37" },
+    context({ x: 10, y: 0 }),
+    registry,
+  );
+  assert.equal(locked.state.angleOverrideDeg, 37, "el ángulo queda bloqueado en el estado del motor");
+  const pointsAfterLock = (locked.state.active?.step.state as { points: { x: number; y: number }[] }).points;
+  assert.equal(pointsAfterLock.length, 1, "<37 no fija un punto: LINE sigue esperando el siguiente");
+  assert.ok(
+    locked.effects.some((e) => e.kind === "message" && e.text.includes("37")),
+    "avisa qué ángulo quedó bloqueado, en vez de callar",
+  );
+
+  // Con el ángulo bloqueado, teclear una distancia cae en ESA dirección — no
+  // en la del cursor, que sigue apuntando a 0°.
+  const typed = cadCommandEngineReduce(
+    locked.state,
+    { kind: "token", value: "100" },
+    context({ x: 10, y: 0 }),
+    registry,
+  );
+  const points = (typed.state.active?.step.state as { points: { x: number; y: number }[] }).points;
+  assert.equal(points.length, 2, "la distancia con ángulo bloqueado SÍ fija el vértice");
+  assert.ok(
+    Math.abs(points[1].x - 100 * Math.cos((37 * Math.PI) / 180)) < 1e-6 &&
+      Math.abs(points[1].y - 100 * Math.sin((37 * Math.PI) / 180)) < 1e-6,
+    "el vértice cae sobre los 37° bloqueados, no sobre el cursor a 0°",
+  );
+
+  // El bloqueo es de UN solo uso, como el override de OSNAP: la captura
+  // siguiente vuelve a mirar el cursor.
+  assert.equal(typed.state.angleOverrideDeg, null, "se consume al fijar el punto");
+  const afterLock = cadCommandEngineReduce(
+    typed.state,
+    { kind: "token", value: "50" },
+    context({ x: points[1].x + 10, y: points[1].y }),
+    registry,
+  );
+  const pointsAfter = (afterLock.state.active?.step.state as { points: { x: number; y: number }[] }).points;
+  assert.ok(
+    Math.abs(pointsAfter[2].x - (points[1].x + 50)) < 1e-6 && Math.abs(pointsAfter[2].y - points[1].y) < 1e-6,
+    "sin bloqueo activo, vuelve a mandar el cursor",
+  );
+}
+
+// --- `<` solo repite el ÚLTIMO ángulo bloqueado de la sesión ----------------
+{
+  const started = run([{ kind: "invoke", command: "LINE" }, point(0, 0)]);
+  const withAngle = cadCommandEngineReduce(started.state, { kind: "token", value: "<40" }, context(), registry);
+  const withDistance = cadCommandEngineReduce(withAngle.state, { kind: "token", value: "10" }, context(), registry);
+  const finished = cadCommandEngineReduce(
+    withDistance.state,
+    { kind: "input", input: { kind: "enter" } },
+    context(),
+    registry,
+  );
+  assert.equal(finished.state.active, null, "LINE terminó");
+  assert.equal(finished.state.lastAngleOverrideDeg, 40, "el último ángulo bloqueado sobrevive a que el comando termine");
+
+  // Un comando NUEVO, con el bloqueo del anterior todavía en la sesión.
+  const secondLine = run([{ kind: "invoke", command: "LINE" }, point(0, 0)], finished.state);
+  const recalled = cadCommandEngineReduce(secondLine.state, { kind: "token", value: "<" }, context(), registry);
+  assert.equal(recalled.state.angleOverrideDeg, 40, "`<` solo repite el último ángulo, sin volver a teclearlo");
+}
+
+// --- `<` solo sin ningún ángulo previo: error, no un bloqueo inventado ------
+{
+  const started = run([{ kind: "invoke", command: "LINE" }, point(0, 0)]);
+  const resolved = cadCommandEngineReduce(started.state, { kind: "token", value: "<" }, context(), registry);
+  assert.ok(
+    resolved.effects.some((e) => e.kind === "message" && e.level === "error"),
+    "sin ángulo previo que repetir, se dice en vez de fingir un bloqueo a 0°",
+  );
 }
 
 // --- coordenadas relativas y polares ------------------------------------------

@@ -24,6 +24,7 @@
  */
 import { strict as assert } from "node:assert";
 import { existsSync, readFileSync } from "node:fs";
+import { BRAND } from "@/config/brand";
 import {
   DOC_GUIDES,
   PRICING_PATH,
@@ -48,6 +49,10 @@ import {
  * describe nada y por encima del máximo el buscador la corta a media frase, que
  * es peor que una corta porque parece descuidado.
  */
+/** Escapa un texto para usarlo literal dentro de una expresión regular. */
+const escapeRegExp = (text: string) =>
+  text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const TITLE_MIN = 10;
 const TITLE_MAX = 70;
 const DESCRIPTION_MIN = 70;
@@ -188,10 +193,13 @@ void (async () => {
       titleText.length >= TITLE_MIN && titleText.length <= TITLE_MAX,
       `${path}: title de ${titleText.length} caracteres, fuera de [${TITLE_MIN}, ${TITLE_MAX}]`,
     );
-    // El layout raíz ya añade "· Valle Design": repetirlo aquí duplicaría marca.
+    // El layout raíz ya añade «· <producto>»: repetirlo aquí duplicaría marca.
+    // El sufijo se construye desde el manifiesto, no se escribe: un rebranding
+    // que cambiara el nombre dejaría un literal fijo mirando una marca que ya
+    // no existe, y la comprobación seguiría en verde sin medir nada.
     assert.doesNotMatch(
       titleText,
-      /· Valle Design/,
+      new RegExp(`· ${escapeRegExp(BRAND.productNames.design)}`),
       `${path}: el title no debe repetir el sufijo de marca que pone la plantilla`,
     );
 

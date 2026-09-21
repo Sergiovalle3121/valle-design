@@ -2,7 +2,8 @@
  * Detección de formato CAD: DWG vs DXF (Fase 74 — interop).
  *
  * Helper PURO para identificar qué subió el usuario antes de intentar parsearlo:
- * un **DWG** binario (formato nativo de AutoCAD, que aún no parseamos en casa) o
+ * un **DWG** binario (formato nativo de AutoCAD, que se importa en beta cuando
+ * las banderas `NEXT_PUBLIC_DWG_*_IMPORT_BETA` están encendidas) o
  * un **DXF** de texto (que sí leemos). Lee la cabecera de versión (`AC10xx`,
  * igual que `$ACADVER`) y devuelve formato + versión legible + si lo soportamos
  * nativamente + un mensaje accionable para el usuario.

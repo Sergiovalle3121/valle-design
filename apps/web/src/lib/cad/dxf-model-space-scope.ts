@@ -85,3 +85,58 @@ export function scopeDxfImportToModelSpace(result: CadDxfImportResult): CadDxfMo
       inserts.excluded,
   };
 }
+
+/**
+ * Reparte el resultado de `importDxfPrimitives` entre espacio modelo y
+ * espacio papel. `scopeDxfImportToModelSpace` sigue excluyendo el papel
+ * (DXFIN lo llama y no debe meter entidades ajenas en el dibujo vivo);
+ * `document-import.ts` usa esta función para construir UNA presentación
+ * con las entidades de papel.
+ */
+export interface CadDxfSplitScope {
+  model: CadDxfModelSpaceScope;
+  paper: {
+    primitives: CadDxfPrimitive[];
+    hatches: CadDxfHatch[];
+    mtexts: CadDxfMText[];
+    semanticDimensions: CadDxfSemanticDimension[];
+    mleaders: CadDxfSemanticMleader[];
+    inserts: CadDxfSemanticInsert[];
+    count: number;
+  };
+}
+
+export function splitDxfImportBySpace(result: CadDxfImportResult): CadDxfSplitScope {
+  const model = scopeDxfImportToModelSpace(result);
+  // Re-clasificar para el lado de papel: lo que model NO tiene menos lo
+  // que scopeDxfImportToModelSpace ya filtró por "insert".
+  function splitBySpace<T extends { paperSpace?: boolean }>(
+    items: readonly T[],
+  ): { paper: T[] } {
+    return { paper: items.filter((item) => item.paperSpace) };
+  }
+  const paperPrimitives = splitBySpace(
+    result.primitives.filter((_, index) => result.primitiveSources[index] !== "insert"),
+  );
+  const paperHatches = splitBySpace(result.hatches);
+  const paperMtexts = splitBySpace(result.mtexts);
+  const paperDims = splitBySpace(result.semanticDimensions);
+  const paperMleaders = splitBySpace(result.mleaders);
+  const paperInserts = splitBySpace(result.inserts);
+  const paper = {
+    primitives: paperPrimitives.paper,
+    hatches: paperHatches.paper,
+    mtexts: paperMtexts.paper,
+    semanticDimensions: paperDims.paper,
+    mleaders: paperMleaders.paper,
+    inserts: paperInserts.paper,
+    count:
+      paperPrimitives.paper.length +
+      paperHatches.paper.length +
+      paperMtexts.paper.length +
+      paperDims.paper.length +
+      paperMleaders.paper.length +
+      paperInserts.paper.length,
+  };
+  return { model, paper };
+}

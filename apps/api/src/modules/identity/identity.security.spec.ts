@@ -9,10 +9,8 @@ import {
 } from './entities/identity.entity';
 import {
   EmailDto,
-  parseCookieHeader,
   RegisterDto,
   ResetDto,
-  sessionCookiePolicy,
   TokenDto,
 } from './identity.controller';
 import { BoundedMemoryIdentityRateLimitStore } from './identity-rate-limit.store';
@@ -20,12 +18,16 @@ import {
   assertIdentitySecurityConfiguration,
   constantTimeEqual,
   createOpaqueRateLimitKey,
+  csrfCookieDomain,
+  assertCsrfCookieDomainAgainstOrigins,
   DEVELOPMENT_SESSION_COOKIE,
   MAX_DISPLAY_NAME_LENGTH,
   MAX_EMAIL_LENGTH,
   MAX_PASSWORD_LENGTH,
   MAX_TOKEN_LENGTH,
+  parseCookieHeader,
   SECURE_SESSION_COOKIE,
+  sessionCookiePolicy,
 } from './identity-security';
 import { IdentityService } from './identity.service';
 
@@ -289,5 +291,77 @@ describe('identity entity metadata', () => {
         await dataSource.destroy();
       }
     }
+  });
+});
+
+describe('CSRF cookie domain', () => {
+  it('returns undefined when CSRF_COOKIE_DOMAIN is not set', () => {
+    expect(csrfCookieDomain(undefined)).toBeUndefined();
+    expect(csrfCookieDomain('')).toBeUndefined();
+    expect(csrfCookieDomain('  ')).toBeUndefined();
+  });
+
+  it('accepts a valid dot-prefixed domain', () => {
+    expect(csrfCookieDomain('.ejemplo.com')).toBe('.ejemplo.com');
+    expect(csrfCookieDomain('.sub.ejemplo.com')).toBe('.sub.ejemplo.com');
+  });
+
+  it('rejects a domain without a leading dot', () => {
+    expect(() => csrfCookieDomain('ejemplo.com')).toThrow(
+      /must start with a dot/u,
+    );
+  });
+
+  it('rejects a public suffix like .com', () => {
+    expect(() => csrfCookieDomain('.com')).toThrow(/at least two labels/u);
+  });
+
+  it('rejects a domain with invalid characters or scheme', () => {
+    expect(() => csrfCookieDomain('.ejemplo.com:3000')).toThrow(
+      /invalid characters/u,
+    );
+    expect(() => csrfCookieDomain('https://.ejemplo.com')).toThrow(
+      /must start with a dot/u,
+    );
+  });
+
+  it('validates against ALLOWED_ORIGIN at startup', () => {
+    expect(() =>
+      assertCsrfCookieDomainAgainstOrigins('.ejemplo.com', [
+        'https://app.ejemplo.com',
+      ]),
+    ).not.toThrow();
+
+    expect(() =>
+      assertCsrfCookieDomainAgainstOrigins('.ejemplo.com', [
+        'https://otrodominio.com',
+      ]),
+    ).toThrow(/not a suffix of any ALLOWED_ORIGIN/u);
+  });
+
+  it('accepts when domain matches as exact host', () => {
+    expect(() =>
+      assertCsrfCookieDomainAgainstOrigins('.ejemplo.com', [
+        'https://ejemplo.com',
+      ]),
+    ).not.toThrow();
+  });
+
+  it('validates through assertIdentitySecurityConfiguration', () => {
+    expect(() =>
+      assertIdentitySecurityConfiguration({
+        NODE_ENV: 'test',
+        CSRF_COOKIE_DOMAIN: '.ejemplo.com',
+        ALLOWED_ORIGIN: 'https://app.ejemplo.com',
+      }),
+    ).not.toThrow();
+
+    expect(() =>
+      assertIdentitySecurityConfiguration({
+        NODE_ENV: 'test',
+        CSRF_COOKIE_DOMAIN: '.otrodominio.com',
+        ALLOWED_ORIGIN: 'https://app.ejemplo.com',
+      }),
+    ).toThrow(/not a suffix/u);
   });
 });

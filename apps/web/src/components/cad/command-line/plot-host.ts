@@ -18,6 +18,7 @@
 import type { CadDocument } from "@/lib/cad/cad-document";
 import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
 import { cadFindPlotStyleTable } from "@/lib/cad/plot/plot-style-table";
+import { cadPlotScaleLabel, type CadPageSetup } from "@/lib/cad/plot/page-setup";
 import type { CadVisualStyleId } from "@/lib/cad/view/visual-styles";
 import { cadDocumentExtents } from "@/lib/cad/view/document-extents";
 import { buildCadPlotJob, buildCadPlotPreview, type CadPlotJob } from "@/lib/cad/plot/plot-job";
@@ -41,8 +42,8 @@ export interface CadPlotHostBridge {
   document(): CadDocument | null;
   /** Tablas de plumas cargadas, por nombre. */
   plotStyleTables?(): ReadonlyMap<string, CadPlotStyleTable>;
-  /** Programas de fuente para incrustar. Sin ellos se usan las estándar. */
-  fonts?(): readonly CadPlotFontProgram[];
+  /** Programas de fuente para incrustar. Puede ser async para carga bajo demanda. */
+  fonts?(): readonly CadPlotFontProgram[] | Promise<readonly CadPlotFontProgram[]>;
   /** Entrega el archivo al usuario. Inyectado para poder probarlo en Node. */
   download(fileName: string, bytes: Uint8Array, mimeType: string): void;
   /** Muestra la vista previa. */
@@ -57,6 +58,8 @@ export interface CadPlotHostBridge {
   setSpace?(space: "model" | "paper", layoutId?: string): boolean;
   /** Cambia el estilo visual del visor (VSCURRENT). Devuelve el aplicado. */
   setVisualStyle?(styleId: CadVisualStyleId): string | null;
+  /** Cambia la proyección 3D (PERSPECTIVE). Devuelve si cambió. */
+  setProjection?(projection: "perspective" | "parallel"): boolean;
   /**
    * Conjunto de planos ya cargado, con los dibujos que necesitan sus hojas.
    *
@@ -178,6 +181,15 @@ export class CadPlotHost {
         : "Este espacio de trabajo no tiene visor de estilos visuales.";
     }
 
+    if (request.kind === "view-projection") {
+      if (!this.bridge.setProjection)
+        return "La conmutación de proyección no está disponible en este espacio de trabajo.";
+      const switched = this.bridge.setProjection(request.projection);
+      if (!switched)
+        return "La proyección sólo se puede cambiar en modo 3D.";
+      return `Proyección: ${request.projection === "parallel" ? "Paralela" : "Perspectiva"}.`;
+    }
+
     if (request.kind === "space") {
       // Sin puente no hubo cambio, y con puente sólo lo hubo si él lo dice.
       // El renglón anterior afirmaba «Espacio papel.» incondicionalmente: un
@@ -264,6 +276,19 @@ export class CadPlotHost {
     // falta en vez de caer en la rama de PLOT y pedir una hoja.
     if (request.kind === "compare-fetch")
       return "Este espacio de trabajo no sabe traer dibujos del inquilino para compararlos: falta el anfitrión de comparación.";
+    if (request.kind === "download")
+      return "La descarga de archivos la atiende el anfitrión del motor, no el de trazado.";
+    // VPORTS tampoco es trazado: el reparto de ventanas de MODELO lo sirve el
+    // anfitrión del visor 3D, que se enchufa antes que éste. Misma razón que
+    // las ramas de arriba — la exhaustividad de la unión es la que avisa
+    // cuando llega una petición sin dueño.
+    if (request.kind === "viewport-split")
+      return "Este espacio de trabajo no sabe dividir el visor de modelo: falta el anfitrión de ventanas.";
+    // Aquí había diez ramas de render, luces y materiales que contestaban «lo
+    // atiende el anfitrión del motor» — y ése no las atendía: RENDER no producía
+    // nada. Esos comandos ahora dicen que aún no están disponibles sin emitir
+    // petición (`engine/command-availability.ts`), y sus clases salieron de la
+    // unión `CadHostRequest`.
 
     const document = this.bridge.document();
     if (!document) return "No hay ningún dibujo abierto que trazar.";
@@ -313,7 +338,7 @@ export class CadPlotHost {
     if (job.sheets.length === 0)
       return `La presentación ${request.request.layoutId} no está marcada para publicar.`;
 
-    void this.emit(job, request.request.fileName);
+    void this.emit(job, request.request.fileName, request.request.pageSetup);
     return `Trazando ${request.request.fileName} a PDF…`;
   };
 
@@ -441,10 +466,17 @@ export class CadPlotHost {
     }
   }
 
-  private async emit(job: CadPlotJob, fileName: string): Promise<void> {
+  private async emit(job: CadPlotJob, fileName: string, pageSetup: CadPageSetup): Promise<void> {
     try {
+      // PLOTSTAMP (system-variables.ts `PLOTSTAMPMODE`, leído por PLOT en
+      // `plotRequest`) decide SI se pinta; el texto se compone aquí porque
+      // sólo el anfitrión sabe qué hora es — el emisor (`plot-pdf.ts`) es puro
+      // y sólo dibuja la línea que le pasan.
+      const stamp = pageSetup.plotStamp
+        ? `${fileName}.pdf · ${new Date().toLocaleDateString("es-MX")} · Escala ${cadPlotScaleLabel(pageSetup.scale)}`
+        : undefined;
       const result: CadPlotPdfResult = await renderCadPlotPdf(job.sheets, {
-        ...(this.bridge.fonts ? { fonts: this.bridge.fonts() } : {}),
+        ...(this.bridge.fonts ? { fonts: await this.bridge.fonts() } : {}),
         // El cajetín y las familias de fuente vienen del trabajo de trazado,
         // que es quien leyó el documento. El anfitrión no los recompone: si lo
         // hiciera, el PDF descargado y la vista previa podrían discrepar.
@@ -453,6 +485,7 @@ export class CadPlotHost {
         fontByEntity: job.fontByEntity,
         strokedFamilies: job.strokedFamilies,
         metadata: { title: fileName },
+        ...(stamp ? { stamp } : {}),
       });
       if (result.pageCount === 0) {
         this.bridge.onResult?.("El trazado no produjo ninguna página.", "error");

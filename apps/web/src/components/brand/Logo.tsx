@@ -11,7 +11,7 @@ import {
 import { cx } from "@/components/ui";
 
 /**
- * EL LOGOTIPO DE VALLE DESIGN.
+ * EL LOGOTIPO DE VALLECAD.
  *
  * Lo que sustituye: hasta hoy el "logo" eran cuatro `<DraftingCompass/>` de
  * lucide pintados a mano en cuatro archivos distintos — un icono genérico que

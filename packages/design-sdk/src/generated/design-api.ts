@@ -287,7 +287,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Consume una vez un token opaco de verificacion. */
+        /**
+         * Consume una vez un token opaco de verificacion.
+         * @description Los reenvíos acumulan enlaces vigentes (cada uno de un solo uso); verificar con cualquiera consume los demás. Un enlace que ya no abre nada responde 201 con `alreadyVerified` si la cuenta ya está verificada, y 400 con `code` `verification_token_superseded` (lo reemplazó un cambio de correo: abre el correo más reciente) o `verification_token_expired` si no.
+         */
         post: operations["verifyIdentityEmail"];
         delete?: never;
         options?: never;
@@ -2034,6 +2037,13 @@ export interface components {
         EmailVerificationResponse: {
             /** @constant */
             verified: true;
+            /** @description Presente y `true` cuando el enlace ya no abre nada porque la cuenta YA estaba verificada (segundo canje del mismo enlace, o el enlace de otro correo tras verificar con el primero). Idempotente: no cambia estado. */
+            alreadyVerified?: boolean;
+            /**
+             * Format: email
+             * @description Correo verificado, para que el inicio de sesión llegue rellenado.
+             */
+            email?: string;
         };
         PasswordResetResponse: {
             /** @constant */
@@ -2651,7 +2661,7 @@ export interface components {
             statusCode?: number;
             /** @description Mensaje humano; la validación de payload (class-validator) puede responder un array de mensajes. */
             message: string | string[];
-            /** @description Código de error estable y contractual. Catálogo v1: `cad_document_version_required`, `cad_document_version_conflict`, `cad_publications_server_managed`, `entitlement_required`, `review_token_invalid`, `review_token_expired`, `review_token_revoked`, `review_session_closed`, `review_read_only`, `review_comments_disabled`, `rate_limited`. */
+            /** @description Código de error estable y contractual. Catálogo v1: `cad_document_version_required`, `cad_document_version_conflict`, `cad_publications_server_managed`, `entitlement_required`, `review_token_invalid`, `review_token_expired`, `review_token_revoked`, `review_session_closed`, `review_read_only`, `review_comments_disabled`, `rate_limited`, `verification_token_superseded`, `verification_token_expired`. */
             code?: string;
             details?: unknown;
             /** @description Correlación con los logs del servidor (`x-request-id`). */
@@ -3668,7 +3678,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Correo verificado. */
+            /** @description Correo verificado (o ya lo estaba). */
             201: {
                 headers: {
                     [name: string]: unknown;

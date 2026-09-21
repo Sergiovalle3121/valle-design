@@ -69,14 +69,14 @@ ok(table.type === "table", "la orden inserta una entidad TABLE nativa");
 ok(table.id === "t1", "usa el generador de ids inyectado, no uno propio");
 ok(table.insertion.x === 100 && table.insertion.y === 100 && table.insertion.z === 0, "inserción en el punto pedido, aplanada a z=0");
 ok(table.layer === "0", "en la capa que pidió el comando");
-ok(table.columns === 6, "seis columnas: capa, espesor, cantidad, longitud, área, volumen");
+ok(table.columns === 7, "siete columnas: capa, espesor, cantidad, longitud, área, volumen, fase");
 ok(table.rows === schedule.walls.length + 2, "cabecera + aviso + una fila por grupo de muro");
 ok(
   table.cells.some((cell) => cell.text.includes(CAD_DATA_EXTRACTION_VOLUME_CAVEAT)),
   "el aviso de sesgo viaja DENTRO de la tabla, no sólo en el CSV",
 );
 const wallRowCells = table.cells.filter((cell) => cell.row === 2);
-ok(wallRowCells.length === 6, "la primera fila de datos tiene sus seis celdas");
+ok(wallRowCells.length === 7, "la primera fila de datos tiene sus siete celdas");
 ok(
   wallRowCells.some((cell) => cell.text === "14.000"),
   `la longitud agregada tiene que estar en la tabla: ${JSON.stringify(wallRowCells)}`,

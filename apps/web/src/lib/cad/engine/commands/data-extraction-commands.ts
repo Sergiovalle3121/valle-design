@@ -32,9 +32,16 @@ import {
   buildCadOpeningScheduleTable,
   buildCadRoomScheduleTable,
 } from "../../data-extraction/data-extraction";
+// ATTEXT/EATTEXT (Ola 4 «bloques con atributos»): la lista de puertas, la de
+// luminarias… con sus valores por bloque. `buildCadDataExtractionCsv` mide
+// GEOMETRÍA; esto lee ATRIBUTOS de inserción, que es un eje distinto.
+import { buildCadAttributeExtractionCsv, cadAttributeExtractionSections, cadBlockHasAttributes } from "../../blocks/attribute-extraction";
+import { cadFindBlock, cadInsertableBlocks } from "../../blocks/block-workflow";
+import type { CadBlockDefinition } from "../../cad-document";
 import {
   CAD_ACCEPT_KEYWORD,
   CAD_ACCEPT_POINT,
+  CAD_ACCEPT_TEXT,
   asCadCommand,
   type CadAnyCommandDescriptor,
   type CadCommandContext,
@@ -65,11 +72,37 @@ const OUTPUT_OPTIONS = [
   // TABLE, como ya hace `mep-schedule-table.ts`.
   { keyword: "líNeas", shortcut: "N" },
   { keyword: "Materiales", shortcut: "M" },
+  // `Atributos` (ATTEXT/EATTEXT, Ola 4): la lista de puertas, la de
+  // luminarias… con sus valores de bloque, una fila por inserción.
+  { keyword: "Atributos", shortcut: "A" },
   { keyword: "CSV", shortcut: "C" },
 ] as const;
 
 interface DataExtractionState {
-  output: "table" | "rooms" | "openings" | "mep" | "circuits" | "plant-lines" | "plant-mto" | "csv" | null;
+  output:
+    | "table"
+    | "rooms"
+    | "openings"
+    | "mep"
+    | "circuits"
+    | "plant-lines"
+    | "plant-mto"
+    | "csv"
+    | "attributes"
+    | null;
+}
+
+/**
+ * `atributos-puerta.csv`: legible, y sin nada que un sistema de ficheros
+ * rechace. Quita los acentos ANTES de descartar lo que no es a-z0-9 (mismo
+ * patrón que ya usa `initialOf` en `drawing-fields.ts`): sin este paso, un
+ * bloque tan corriente en un plano español como «CLIMATIZACIÓN» o
+ * «PUERTA-BAÑO» perdía la vocal acentuada o la Ñ entera en vez de perder
+ * sólo el acento, y «ÁREA-ÚTIL» se quedaba sin ninguna letra reconocible.
+ */
+function attributeFileSlug(name: string): string {
+  const withoutAccents = name.trim().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+  return withoutAccents.toLocaleLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "bloque";
 }
 
 const TABLE_NAMES = {
@@ -83,6 +116,16 @@ const TABLE_NAMES = {
 } as const;
 
 function ask(state: DataExtractionState): CadCommandStep<DataExtractionState> {
+  if (state.output === "attributes")
+    return {
+      state,
+      prompt: {
+        message: "Indique el bloque a extraer — Intro para todos los que tengan atributos, ? para verlos",
+        options: [],
+        defaultValue: "todos",
+      },
+      accepts: CAD_ACCEPT_TEXT,
+    };
   if (
     state.output === "table" ||
     state.output === "rooms" ||
@@ -132,7 +175,7 @@ const dataExtractionCommand: CadCommandDescriptor<DataExtractionState> = {
       if (input.keyword === "CSV") {
         const view = context.document?.();
         if (!view) return cadCommandRefused({ output: "csv" }, NO_DOCUMENT_VIEW);
-        const schedule = buildCadBimSchedule(view);
+        const schedule = buildCadBimSchedule(view, context.unit);
         // T-35: el CSV es el único fichero que DATAEXTRACTION entrega, así
         // que lleva la lista COMPLETA de conductores y etiquetas — no el
         // renglón truncado de AEWIRELIST/AETAGLIST. Documentos sin nada
@@ -140,7 +183,7 @@ const dataExtractionCommand: CadCommandDescriptor<DataExtractionState> = {
         const content = buildCadDataExtractionCsv(schedule, {
           wires: cadWireConnectionReport(view, { unit: context.unit }).connections,
           tags: cadDeviceTagsOf(view),
-        });
+        }, context.unit);
         return {
           state: { output: "csv" },
           prompt: { message: "", options: [] },
@@ -159,17 +202,66 @@ const dataExtractionCommand: CadCommandDescriptor<DataExtractionState> = {
       if (input.keyword === "circUitos") return ask({ output: "circuits" });
       if (input.keyword === "líNeas") return ask({ output: "plant-lines" });
       if (input.keyword === "Materiales") return ask({ output: "plant-mto" });
+      if (input.keyword === "Atributos") return ask({ output: "attributes" });
       return ask(state);
+    }
+
+    if (state.output === "attributes") {
+      if (input.kind !== "text" && input.kind !== "enter") return ask(state);
+      const view = context.document?.();
+      if (!view) return cadCommandRefused({ output: "csv" }, NO_DOCUMENT_VIEW);
+      const typed = input.kind === "text" ? input.value.trim() : "";
+      const insertable = cadInsertableBlocks(view.blocks);
+      if (typed === "?") {
+        const names = insertable.filter(cadBlockHasAttributes).map((block) => block.name).sort();
+        return cadCommandRefused(
+          { output: "csv" },
+          names.length > 0
+            ? `Bloques con atributos: ${names.join(", ")}.`
+            : "El dibujo no tiene ningún bloque con atributos.",
+        );
+      }
+      // «todos»: cada bloque insertable entra a concurso, y quien no tenga
+      // atributos se descarta solo en `cadAttributeExtractionSections`.
+      let candidates: readonly CadBlockDefinition[] = insertable;
+      if (typed) {
+        const found = cadFindBlock(insertable, typed);
+        if (!found)
+          return cadCommandRefused({ output: "csv" }, `No hay ningún bloque llamado ${typed}. Escriba ? para verlos.`);
+        if (!cadBlockHasAttributes(found))
+          return cadCommandRefused({ output: "csv" }, `El bloque ${found.name} no tiene ningún atributo que extraer.`);
+        candidates = [found];
+      }
+      const sections = cadAttributeExtractionSections(view.entities, candidates);
+      if (sections.length === 0)
+        return cadCommandRefused(
+          { output: "csv" },
+          typed
+            ? `El bloque ${typed} no tiene ninguna inserción en el dibujo: no hay nada que extraer.`
+            : "El dibujo no tiene ningún bloque con atributos insertado: no hay nada que extraer.",
+        );
+      const content = buildCadAttributeExtractionCsv(sections);
+      const fileName = typed ? `atributos-${attributeFileSlug(typed)}.csv` : "atributos-de-bloques.csv";
+      return {
+        state: { output: "csv" },
+        prompt: { message: "", options: [] },
+        accepts: 0,
+        result: {
+          kind: "host",
+          request: { kind: "data-extraction-csv", fileName, content },
+          label: "DATAEXTRACTION",
+        },
+      };
     }
 
     if (input.kind !== "point") return ask(state);
     const view = context.document?.();
     if (!view) return cadCommandRefused(state, NO_DOCUMENT_VIEW);
-    const schedule = buildCadBimSchedule(view);
+    const schedule = buildCadBimSchedule(view, context.unit);
     if (state.output === "rooms") {
       if (schedule.rooms.length === 0)
         return cadCommandRefused(state, "Los muros no cierran ningún local: no hay cuadro de superficies que insertar. Rotule cada local con un TEXT dentro para que salga con su nombre.");
-      const table = buildCadRoomScheduleTable(schedule, input.point, context.activeLayer, context.newEntityId);
+      const table = buildCadRoomScheduleTable(schedule, input.point, context.activeLayer, context.newEntityId, context.unit);
       return cadCommandWrites(state, [{ type: "insert", entity: table }], "DATAEXTRACTION Superficies");
     }
     if (state.output === "mep") {
@@ -189,7 +281,7 @@ const dataExtractionCommand: CadCommandDescriptor<DataExtractionState> = {
     if (state.output === "openings") {
       if (schedule.openings.length === 0)
         return cadCommandRefused(state, "El dibujo no tiene puertas ni ventanas alojadas en muro: no hay cuadro de carpintería que insertar.");
-      const table = buildCadOpeningScheduleTable(schedule, input.point, context.activeLayer, context.newEntityId);
+      const table = buildCadOpeningScheduleTable(schedule, input.point, context.activeLayer, context.newEntityId, context.unit);
       return cadCommandWrites(state, [{ type: "insert", entity: table }], "DATAEXTRACTION Carpintería");
     }
     if (state.output === "plant-lines") {
@@ -207,7 +299,7 @@ const dataExtractionCommand: CadCommandDescriptor<DataExtractionState> = {
     }
     if (schedule.walls.length === 0)
       return cadCommandRefused(state, "El dibujo no tiene ningún muro que contar: no hay tabla que insertar.");
-    const table = buildCadDataExtractionTable(schedule, input.point, context.activeLayer, context.newEntityId);
+    const table = buildCadDataExtractionTable(schedule, input.point, context.activeLayer, context.newEntityId, context.unit);
     return cadCommandWrites(state, [{ type: "insert", entity: table }], "DATAEXTRACTION");
   },
 };

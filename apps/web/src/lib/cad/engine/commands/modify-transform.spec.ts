@@ -19,6 +19,7 @@
 import { strict as assert } from "node:assert";
 import type { CadEntity } from "../../cad-document";
 import type { CadCommandContext, CadCommandInput } from "../command-types";
+import { CadSystemVariableStore } from "../../system-variables";
 import { CAD_MODIFY_TRANSFORM_COMMANDS } from "./modify-transform";
 
 const commands = new Map(CAD_MODIFY_TRANSFORM_COMMANDS.map((command) => [command.name, command]));
@@ -335,24 +336,130 @@ const pick = (entityId: string): CadCommandInput => ({
   assert.ok(Math.abs((qPatch.patch.startY as number) - 0) < 1e-9, `q nace en la esquina: ${qPatch.patch.startY}`);
 }
 
-// --- el radio es pegajoso entre esquinas ---------------------------------------
+// --- el radio es pegajoso entre invocaciones (por variables de sistema) ------
 {
   const descriptor = commands.get("FILLET");
   assert.ok(descriptor);
-  const context = makeContext();
+  const store = new CadSystemVariableStore();
+  const entities = new Map([LINE_A, LINE_B].map((entity) => [entity.id, entity]));
+  let ids = 0;
+  const context: CadCommandContext = {
+    entityIds: [...entities.keys()],
+    entity: (id) => entities.get(id),
+    selection: [],
+    activeLayer: "0",
+    view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+    newEntityId: () => `sticky${++ids}`,
+    variables: store,
+  };
+  // Primera invocación: fija radio a 50 y ejecuta
   let step = descriptor.begin(context);
   step = descriptor.step(step.state, keyword("Radio"), context);
   step = descriptor.step(step.state, distance(50), context);
   step = descriptor.step(step.state, pick("a"), context);
   step = descriptor.step(step.state, pick("b"), context);
-  assert.ok(step.result?.kind === "document");
-  // Tras terminar, el estado conserva el radio: repetir con Espacio no obliga a
-  // teclearlo otra vez en cada esquina del contorno.
-  const next = descriptor.step(step.state, pick("a"), context);
+  assert.ok(step.result?.kind === "document", "FILLET con radio 50 produce documento");
+  assert.equal(store.get("FILLETRAD"), 50, "FILLETRAD quedó en 50 en la variable de sistema");
+  // Segunda invocación: begin de nuevo SIN teclear radio — debe recordar 50
+  const step2 = descriptor.begin(context);
   assert.ok(
-    next.prompt.message.includes("50") || (next.state as { primary: number }).primary === 50,
-    "el radio sobrevive al comando",
+    step2.prompt.message.includes("50"),
+    `el radio sobrevive a begin: «${step2.prompt.message}»`,
   );
+}
+
+// --- FILLET Múltiple: encadena DOS esquinas en UN solo lote -------------------
+{
+  // Un cuadrado con esquinas en (0,0)-(100,0)-(100,100)-(0,100): cuatro lados
+  // sueltos («bottom», «right», «top», «left»). `Múltiple` empalma
+  // bottom×right y top×left sin volver a invocar FILLET.
+  const square = new Map<string, CadEntity>([
+    ["bottom", { id: "bottom", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 100, y: 0, z: 0 }, layer: "0" }],
+    ["right", { id: "right", type: "line", start: { x: 100, y: 0, z: 0 }, end: { x: 100, y: 100, z: 0 }, layer: "0" }],
+    ["top", { id: "top", type: "line", start: { x: 100, y: 100, z: 0 }, end: { x: 0, y: 100, z: 0 }, layer: "0" }],
+    ["left", { id: "left", type: "line", start: { x: 0, y: 100, z: 0 }, end: { x: 0, y: 0, z: 0 }, layer: "0" }],
+  ]);
+  let ids = 0;
+  const context: CadCommandContext = {
+    entityIds: [...square.keys()],
+    entity: (id) => square.get(id),
+    selection: [],
+    activeLayer: "0",
+    view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+    newEntityId: () => `multi${++ids}`,
+  };
+  const descriptor = commands.get("FILLET")!;
+  let step = descriptor.begin(context);
+  step = descriptor.step(step.state, keyword("Múltiple"), context);
+  step = descriptor.step(step.state, keyword("Radio"), context);
+  step = descriptor.step(step.state, distance(10), context);
+  // Primera esquina: bottom×right.
+  step = descriptor.step(step.state, pick("bottom"), context);
+  step = descriptor.step(step.state, pick("right"), context);
+  assert.ok(!step.result, "Múltiple: tras la primera esquina la orden SIGUE viva");
+  // Segunda esquina: top×left, SIN volver a teclear FILLET.
+  step = descriptor.step(step.state, pick("top"), context);
+  step = descriptor.step(step.state, pick("left"), context);
+  assert.ok(!step.result, "Múltiple: y tras la segunda también");
+  // Enter cierra la orden y emite las DOS esquinas en un solo lote.
+  step = descriptor.step(step.state, { kind: "enter" }, context);
+  assert.ok(step.result && step.result.kind === "document", "Múltiple: Enter emite el lote acumulado");
+  const arcs = step.result.commands.filter(
+    (command) => command.type === "insert" && command.entity.type === "arc",
+  );
+  assert.equal(arcs.length, 2, "las DOS esquinas encadenadas, en UN solo paso de deshacer");
+}
+
+// --- FILLET sin Múltiple sigue terminando tras la primera esquina -------------
+{
+  const result = run("FILLET", [keyword("Radio"), distance(50), pick("a"), pick("b")]);
+  assert.ok(result && result.kind === "document");
+  const arcs = result.commands.filter(
+    (command) => command.type === "insert" && command.entity.type === "arc",
+  );
+  assert.equal(arcs.length, 1, "sin Múltiple, UNA esquina y se acabó");
+}
+
+// --- FILLET Múltiple: un rechazo a media cadena NO tira lo ya empalmado -------
+{
+  // Bottom×right primero (esquina válida), luego un intento imposible (radio
+  // mayor que las dos líneas disponibles) que debe reportarse SIN perder la
+  // primera esquina.
+  const square = new Map<string, CadEntity>([
+    ["bottom", { id: "bottom", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 100, y: 0, z: 0 }, layer: "0" }],
+    ["right", { id: "right", type: "line", start: { x: 100, y: 0, z: 0 }, end: { x: 100, y: 100, z: 0 }, layer: "0" }],
+    ["tiny", { id: "tiny", type: "line", start: { x: 200, y: 0, z: 0 }, end: { x: 205, y: 0, z: 0 }, layer: "0" }],
+    ["tiny2", { id: "tiny2", type: "line", start: { x: 205, y: 0, z: 0 }, end: { x: 205, y: 5, z: 0 }, layer: "0" }],
+  ]);
+  let ids = 0;
+  const context: CadCommandContext = {
+    entityIds: [...square.keys()],
+    entity: (id) => square.get(id),
+    selection: [],
+    activeLayer: "0",
+    view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+    newEntityId: () => `keep${++ids}`,
+  };
+  const descriptor = commands.get("FILLET")!;
+  let step = descriptor.begin(context);
+  step = descriptor.step(step.state, keyword("Múltiple"), context);
+  step = descriptor.step(step.state, keyword("Radio"), context);
+  step = descriptor.step(step.state, distance(10), context);
+  step = descriptor.step(step.state, pick("bottom"), context);
+  step = descriptor.step(step.state, pick("right"), context);
+  assert.ok(!step.result, "primera esquina acumulada, orden viva");
+  // Radio 10 no cabe entre dos líneas de 5 de largo: la geometría lo rechaza.
+  step = descriptor.step(step.state, pick("tiny"), context);
+  step = descriptor.step(step.state, pick("tiny2"), context);
+  assert.ok(step.result, "el rechazo TERMINA la orden");
+  assert.equal(step.result.kind, "document", "pero no vacío: lo ya empalmado se emite igual");
+  if (step.result.kind === "document") {
+    const arcs = step.result.commands.filter(
+      (command) => command.type === "insert" && command.entity.type === "arc",
+    );
+    assert.equal(arcs.length, 1, "la primera esquina sobrevive al rechazo de la segunda");
+    assert.ok(step.result.notice?.includes("FILLET"), `debe avisar del rechazo: ${step.result.notice}`);
+  }
 }
 
 console.log(

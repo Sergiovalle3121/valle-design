@@ -130,8 +130,50 @@ const UNDO: CadCommandDescriptor<State> = {
   },
 };
 
+/**
+ * `MREDO`: cuántas operaciones rehacer, con 1 por defecto.
+ * Simétrico de `UNDO` pero en la dirección de avance.
+ */
+const MREDO: CadCommandDescriptor<State> = {
+  name: "MREDO",
+  aliases: [],
+  kind: "modify",
+  transparent: false,
+  selection: "none",
+  repeatable: true,
+  mutates: true,
+  cursor: "none",
+  begin: () => ({
+    state: {},
+    prompt: {
+      message: "Indique el número de operaciones que se rehacen",
+      options: [],
+      defaultValue: "1",
+    },
+    accepts: CAD_ACCEPT_DISTANCE | CAD_ACCEPT_TEXT,
+  }),
+  step: (_state, input) => {
+    if (input.kind === "enter") return DONE("redo", 1, "MREDO 1");
+    if (input.kind === "cancel") return NOTHING;
+    const raw = input.kind === "distance" ? input.value : input.kind === "text" ? Number(input.value) : NaN;
+    const steps = Math.floor(raw);
+    if (!Number.isFinite(steps) || steps < 1)
+      return {
+        state: {},
+        prompt: {
+          message: "El número de operaciones tiene que ser un entero de 1 en adelante",
+          options: [],
+          defaultValue: "1",
+        },
+        accepts: CAD_ACCEPT_DISTANCE | CAD_ACCEPT_TEXT,
+      };
+    return DONE("redo", steps, `MREDO ${steps}`);
+  },
+};
+
 export const CAD_HISTORY_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(oneStep("U", [], "undo")),
-  asCadCommand(oneStep("REDO", ["MREDO"], "redo")),
+  asCadCommand(oneStep("REDO", [], "redo")),
   asCadCommand(UNDO),
+  asCadCommand(MREDO),
 ];

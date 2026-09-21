@@ -157,7 +157,7 @@ test('DIMLINEAR, MTEXT y HATCH se teclean; la cota nace asociativa y cambia de v
     { entityId: 'wall', anchor: 'start' },
     { entityId: 'wall', anchor: 'end' },
   ]);
-  expect(buildCadDimensionGeometry(created)?.label).toBe('2000.00 mm');
+  expect(buildCadDimensionGeometry(created)?.label).toBe('2000.00');
 
   const hatch = backend
     .snapshot()
@@ -218,5 +218,5 @@ test('DIMLINEAR, MTEXT y HATCH se teclean; la cota nace asociativa y cambia de v
   // Y el TEXTO. Es la aserción que separa «la cota se movió» de «la cota dice la
   // verdad»: con un ancla absoluta, una implementación que arrastrara la
   // geometría y dejara el número viejo fallaría aquí y sólo aquí.
-  expect(buildCadDimensionGeometry(updated)?.label).toBe('2500.00 mm');
+  expect(buildCadDimensionGeometry(updated)?.label).toBe('2500.00');
 });

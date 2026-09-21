@@ -24,6 +24,7 @@ import {
   CAD_LEGACY_POINTER_TOOLS,
   CadEnginePointerRouter,
   cadEngineCommandForTool,
+  cadEngineCommandHasDraftToolbar,
   type CadPointerCursorSurface,
   type CadPointerPreviewSurface,
 } from "./pointer-router";
@@ -224,6 +225,15 @@ assert.equal(cadEngineCommandForTool("offset"), "OFFSET");
 assert.equal(cadEngineCommandForTool("inventada"), null);
 ok(true, "enrutado explícito: 7 al motor, 3 al camino viejo con su motivo, cero solapes");
 
+// La barra de borrador (ORTO + entrada dinámica) es de ESOS siete, lleguen por
+// la paleta, la cinta o el teclado; cualquier otro comando deja el lienzo libre
+// (golden 56: con DIMLINEAR tecleado la barra tapaba el muro que se acota).
+for (const command of Object.values(CAD_ENGINE_POINTER_COMMANDS))
+  ok(cadEngineCommandHasDraftToolbar(command), `${command} monta la barra de borrador`);
+for (const command of ["DIMLINEAR", "DIMALIGNED", "TRIM", "ERASE", "MIRROR"])
+  ok(!cadEngineCommandHasDraftToolbar(command), `${command} no monta la barra de borrador`);
+ok(!cadEngineCommandHasDraftToolbar(null), "sin comando no hay barra del motor");
+
 // ---------------------------------------------------------------------------
 // 2. Sin comando activo el enrutador NO toca el puntero: es del camino viejo.
 // ---------------------------------------------------------------------------
@@ -310,6 +320,64 @@ ok(
 const created = drawing.applied.filter((command) => command.type === "insert");
 assert.equal(created.length, 3, "0,0 → 2000,0 → 2000,1500 → 0,0 son TRES segmentos");
 ok(true, "el ratón produce el mismo lote canónico que el teclado, con Cerrar incluido");
+
+// ---------------------------------------------------------------------------
+// 3b. CLIC SIN MOVER: el punto se toma Y SE VE.
+//
+//     Queja del dueño (19-sep): con LINE, «el clic no se toma» si no se mueve
+//     antes el ratón. El punto SÍ se tomaba —de las coordenadas del propio
+//     evento—; lo que no había era feedback: el cursor del motor sólo lo
+//     movía `pointermove`, y la preview de LINE era sólo la banda desde el
+//     último punto hasta ese cursor. Tres clics sin mover: lienzo vacío.
+// ---------------------------------------------------------------------------
+const still = harness();
+still.router.invoke("LINE");
+still.router.click(still.at(0, 0));
+still.router.click(still.at(1_000, 0));
+still.router.click(still.at(1_000, 1_000));
+ok(
+  still.preview.paths.some(
+    (path) =>
+      path.points.length === 3 &&
+      path.points[0].x === 0 && path.points[0].y === 0 &&
+      path.points[2].x === 1_000 && path.points[2].y === 1_000,
+  ),
+  `tres clics sin ningún pointermove dejan a la vista los DOS tramos fijados (preview: ${JSON.stringify(still.preview.paths)})`,
+);
+still.router.accept();
+assert.equal(
+  still.applied.filter((command) => command.type === "insert").length,
+  2,
+  "e Intro escribe esos dos tramos",
+);
+assert.equal(still.router.active, false);
+
+// El clic ES la posición del cursor. El cursor del motor no puede depender de
+// que haya llegado un pointermove justo ahí: si el último quedó en otro sitio,
+// la banda no puede salir hacia ese sitio viejo, ni la entrada directa de
+// distancia tomar de allí su dirección.
+const stale = harness();
+stale.router.invoke("LINE");
+stale.router.move(stale.at(0, 5_000));
+stale.router.click(stale.at(0, 0));
+ok(
+  !stale.preview.paths.some((path) =>
+    path.points.some((p) => p.x === 0 && p.y === 5_000),
+  ),
+  `tras el clic la banda no apunta al cursor VIEJO (preview: ${JSON.stringify(stale.preview.paths)})`,
+);
+stale.host.submit("1000");
+stale.router.accept();
+ok(
+  !stale.applied.some(
+    (command) =>
+      command.type === "insert" &&
+      command.entity.type === "line" &&
+      command.entity.end.y === 1_000,
+  ),
+  "una distancia tecleada tras el clic no dibuja hacia donde estuvo el ratón antes del clic",
+);
+ok(true, "clic sin mover: el cursor del motor es el del clic y LINE enseña lo fijado");
 
 // ---------------------------------------------------------------------------
 // 4. La CAPTURA A OBJETO viaja con el punto. Es lo que hace que el ratón sea
@@ -548,5 +616,5 @@ assert.equal(offsetting.router.active, false);
 ok(true, "OFFSET entero con el puntero: distancia, objeto, Enter");
 
 console.log(
-  `pointer-router: ${checks} comprobaciones — enrutado explícito sin solapes, LINE con el ratón produce 3 comandos insert canónicos con Cerrar, banda elástica anclada al último punto, captura a objeto, entrada directa de distancia, y el clic designa ENTIDADES cuando el paso lo acepta (MOVE al vacío no fija puntos, ERASE termina al designar, OFFSET entero con el puntero).`,
+  `pointer-router: ${checks} comprobaciones — enrutado explícito sin solapes, LINE con el ratón produce 3 comandos insert canónicos con Cerrar, banda elástica anclada al último punto, el clic sin mover se ve (tramos fijados y cursor = clic), captura a objeto, entrada directa de distancia, y el clic designa ENTIDADES cuando el paso lo acepta (MOVE al vacío no fija puntos, ERASE termina al designar, OFFSET entero con el puntero).`,
 );

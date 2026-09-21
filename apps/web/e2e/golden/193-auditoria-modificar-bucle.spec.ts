@@ -362,9 +362,9 @@ test("mover, copiar, desfasar, recortar, alargar — y un deshacer fiel paso a p
   /* ── 4. TRIM ─────────────────────────────────────────────────────────── */
   await test.step("4. RECORTAR el muro contra el tabique", async () => {
     await teclear(page, "TRIM");
-    await expect(prompt).toContainText("bordes de corte");
-    // Intro sin designar = todos los bordes del dibujo, como en cualquier CAD.
-    await terminar(page);
+    // Modo rápido (AutoCAD 2021+): TRIM entra YA en la fase de designar el
+    // objeto, con todo lo visible como borde. La fase previa de bordes vive
+    // ahora tras la opción «Bordes», y este golden mide el clic, no esa fase.
     await expect(prompt).toContainText("recortar");
     await page.mouse.click(pxMuroSobrante.x, pxMuroSobrante.y);
     await terminar(page);
@@ -382,8 +382,9 @@ test("mover, copiar, desfasar, recortar, alargar — y un deshacer fiel paso a p
   /* ── 5. EXTEND ───────────────────────────────────────────────────────── */
   await test.step("5. ALARGAR la viga hasta el pilar", async () => {
     await teclear(page, "EXTEND");
-    await expect(prompt).toContainText("bordes de contorno");
-    await terminar(page);
+    // Modo rápido (AutoCAD 2021+): EXTEND entra YA en la fase de designar el
+    // objeto, con todo lo visible como contorno. La fase previa vive tras la
+    // opción «Bordes», y este golden mide el alargado, no esa fase.
     await expect(prompt).toContainText("alargar");
     await page.mouse.click(pxVigaFinal.x, pxVigaFinal.y);
     await terminar(page);
@@ -561,8 +562,9 @@ test("el clic con el que se designa LLEGA al comando aunque caiga sobre un pinza
     const pxExtremoMuro = await pixelDe(page, afin, { x: 9_000, y: 1_000 });
     await designar(page, "muro-largo");
     await teclear(page, "TRIM");
-    await expect(prompt).toContainText("bordes de corte");
-    await terminar(page);
+    // Modo rápido (AutoCAD 2021+): TRIM entra YA en la fase de designar el
+    // objeto, con todo lo visible como borde. La fase previa de bordes vive
+    // ahora tras la opción «Bordes», y este golden mide el clic, no esa fase.
     await expect(prompt).toContainText("recortar");
     await page.mouse.click(pxExtremoMuro.x, pxExtremoMuro.y);
     await terminar(page);
@@ -585,7 +587,7 @@ test("el clic con el que se designa LLEGA al comando aunque caiga sobre un pinza
     const pxExtremoMuro = await pixelDe(page, afin, { x: 9_000, y: 1_000 });
     await soltarSeleccion(page);
     await teclear(page, "TRIM");
-    await terminar(page);
+    // Modo rápido: la orden ya está en la fase de designar; un Intro aquí la TERMINARÍA.
     await expect(prompt).toContainText("recortar");
     await page.mouse.click(pxExtremoMuro.x, pxExtremoMuro.y);
     await terminar(page);

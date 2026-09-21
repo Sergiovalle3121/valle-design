@@ -154,6 +154,8 @@ const enter: CadCommandInput = { kind: "enter" };
       distance(3.4), // DIMDEC → 3
       text("m"), // unidad
       distance(2), // DIMSCALE
+      text("in"), // DIMALTU
+      distance(3.4), // DIMALTD → 3
     ]),
   );
   eq(
@@ -171,10 +173,33 @@ const enter: CadCommandInput = { kind: "enter" };
         precision: 3,
         units: "m",
         overallScale: 2,
+        alternateUnits: "in",
+        alternatePrecision: 3,
       },
     },
     "la precisión son dígitos: se redondea; el núcleo curado viaja entero",
   );
+}
+
+// --- DIMSTYLE: sin tocar la unidad alterna, se guarda «apagada» (vacío) -----------------------
+{
+  const commands = commandsOf(
+    run("DIMSTYLE", [
+      text("SIN-ALT"),
+      enter, // DIMTXSTY: Standard
+      enter, // DIMTXT: 120
+      enter, // DIMASZ: 180
+      enter, // DIMBLK: closed-filled
+      enter, // DIMDEC: 2
+      enter, // unidad: mm
+      enter, // DIMSCALE: 1
+      enter, // DIMALTU: vacío (sin unidad alterna)
+      enter, // DIMALTD: 2
+    ]),
+  );
+  const values = (commands[0] as { values: Record<string, unknown> }).values;
+  eq(values.alternateUnits, "", "sin teclear nada, DIMALTU queda apagado");
+  eq(values.alternatePrecision, 2, "DIMALTD toma su valor de fábrica");
 }
 
 // --- DIMSTYLE: el vocabulario cerrado se niega en el momento de teclear -----------------------

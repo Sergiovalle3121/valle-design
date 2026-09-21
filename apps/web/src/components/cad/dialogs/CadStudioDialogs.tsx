@@ -1,6 +1,7 @@
 "use client";
 
 import { Copy, Group, HelpCircle, Printer, Trash2 } from "lucide-react";
+import { PRODUCT_LABEL } from "@/config/brand";
 import { CadDialogShell } from "./CadDialogShell";
 
 /**
@@ -105,7 +106,7 @@ export function CadHelpOverlay({
           marca, columnas por sección y el pie del oficio. */}
       <div className="cad-print-sheet" aria-hidden="true">
         <header>
-          <strong>VALLE DESIGN</strong>
+          <strong>{PRODUCT_LABEL.design}</strong>
           <span>Atajos del estudio · pégala junto al monitor</span>
         </header>
         <div className="cad-print-grid">

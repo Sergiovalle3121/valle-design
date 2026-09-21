@@ -21,6 +21,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { CadPrompt } from "@/lib/cad/engine/command-types";
 import { formatCadKeyword, formatCadPrompt } from "@/lib/cad/engine/prompt";
 import { buildCadPaletteEntries } from "@/lib/cad/command-palette";
+import { CAD_COMMAND_ALIASES } from "@/lib/cad/engine/alias-table";
 
 /**
  * T-74(c): «la línea de comandos no sugiere nada mientras escribo, y el
@@ -41,7 +42,30 @@ const COMANDOS_SUGERIBLES = buildCadPaletteEntries()
 function sugerirComandos(valorCrudo: string): readonly { nombre: string; descripcion: string }[] {
   const valor = valorCrudo.trim().toUpperCase();
   if (!valor) return [];
-  return COMANDOS_SUGERIBLES.filter((c) => c.nombre.startsWith(valor)).slice(0, 6);
+  // La coincidencia EXACTA de alias va primero: teclear «L» debe mostrar
+  // «LINE» como primera sugerencia, no como la séptima (cortada por slice).
+  const aliasResuelto = CAD_COMMAND_ALIASES[valor];
+  const coincidencias = COMANDOS_SUGERIBLES.filter((c) => c.nombre.startsWith(valor));
+  if (aliasResuelto && coincidencias.every((c) => c.nombre !== aliasResuelto)) {
+    const destino = COMANDOS_SUGERIBLES.find((c) => c.nombre === aliasResuelto);
+    if (destino) return [destino, ...coincidencias].slice(0, 6);
+  }
+  // El alias resuelto ya está en la lista: muévelo al frente.
+  if (aliasResuelto) {
+    coincidencias.sort((a, b) => {
+      if (a.nombre === aliasResuelto) return -1;
+      if (b.nombre === aliasResuelto) return 1;
+      return 0;
+    });
+  }
+  // Deduplicar por nombre: el manifiesto y la paleta pueden producir
+  // entradas con el mismo label.
+  const vistos = new Set<string>();
+  return coincidencias.filter((c) => {
+    if (vistos.has(c.nombre)) return false;
+    vistos.add(c.nombre);
+    return true;
+  }).slice(0, 6);
 }
 
 export interface CadCommandLineEntry {
@@ -99,6 +123,9 @@ export function CadCommandLine({
   const [value, setValue] = useState("");
   const [recallIndex, setRecallIndex] = useState<number | null>(null);
   const [suggestionIndex, setSuggestionIndex] = useState(0);
+  // El usuario navegó las sugerencias con flechas: sólo entonces Enter
+  // "entrega" la sugerencia activa en vez de ejecutar lo tecleado.
+  const [_navigated, setNavigated] = useState(false);
   const localInputRef = useRef<HTMLInputElement | null>(null);
   const inputRef = externalInputRef ?? localInputRef;
   const logRef = useRef<HTMLDivElement | null>(null);
@@ -117,6 +144,9 @@ export function CadCommandLine({
     () => (prompt || value.includes(" ") ? [] : sugerirComandos(value)),
     [prompt, value],
   );
+  // Cada tecla reinicia la navegación del desplegable: el usuario no ha
+  // pulsado flechas sobre las nuevas sugerencias hasta que lo haga.
+  useEffect(() => { setNavigated(false); }, [value]); // eslint-disable-line react-hooks/set-state-in-effect -- resetear navegación al teclear es intencional, no un error de sincronización
   // Sin efecto para "reiniciar" el índice en cada tecla (evita el aviso de
   // `react-hooks/set-state-in-effect` y una cascada de renders): en vez de
   // guardar un índice que hay que mantener sincronizado, se AJUSTA al leerlo
@@ -163,6 +193,7 @@ export function CadCommandLine({
       // que completar, eso es lo que se está mirando.
       if (suggestions.length > 0 && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
         event.preventDefault();
+        setNavigated(true);
         const total = suggestions.length;
         setSuggestionIndex((i) => {
           const next = event.key === "ArrowDown" ? i + 1 : i - 1;
@@ -204,6 +235,7 @@ export function CadCommandLine({
         }
         const submitted = value;
         setValue("");
+        setNavigated(false);
         onSubmit(submitted);
       }
     },

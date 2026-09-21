@@ -5,6 +5,8 @@ import {
   GuideSection,
   guideMetadata,
 } from "../GuideShell";
+import { PRODUCT_LABEL } from "@/config/brand";
+import { dwgClaim } from "@/lib/marketing/dwg-claim";
 
 /**
  * Guía de captación #2, y la más delicada del conjunto.
@@ -54,9 +56,9 @@ export default function Page() {
         </p>
       </GuideSection>
 
-      <GuideSection title="Qué hace exactamente Valle Design">
+      <GuideSection title={`Qué hace exactamente ${PRODUCT_LABEL.design}`}>
         <p>
-          Valle Design importa y exporta <strong>DXF de texto</strong>. La
+          {PRODUCT_LABEL.design} importa y exporta <strong>DXF de texto</strong>. La
           exportación escribe DXF de AutoCAD 2000, que es la versión mínima capaz
           de representar honestamente las entidades que emitimos —una elipse, por
           ejemplo, no existe en versiones anteriores—.
@@ -83,18 +85,29 @@ export default function Page() {
 
       <GuideSection title="Qué NO hace, dicho sin rodeos">
         <p>
-          <strong>Valle Design no abre ni escribe archivos DWG.</strong> No es
+          <strong>{PRODUCT_LABEL.design} no escribe archivos DWG.</strong> No es
           una limitación temporal disfrazada: es una decisión documentada. Sin
-          una biblioteca con licencia del titular del formato, cualquier lectura
-          de DWG sería una reconstrucción aproximada, y un plano aproximado es
-          peor que un plano que no abre, porque el error no se ve hasta que ya
-          está en obra.
+          una biblioteca con licencia del titular del formato, escribir DWG
+          sería una reconstrucción aproximada, y un plano aproximado es peor que
+          un plano que no abre, porque el error no se ve hasta que ya está en
+          obra.
+        </p>
+        {/*
+          La LECTURA es distinta y depende de cómo se construyó este
+          despliegue: hay dos betas de sólo importación firmadas por el titular
+          (AC1015 y AC1018) que se encienden por variable de build. El párrafo
+          sale de `dwg-claim.ts`, el mismo módulo que alimenta la portada y el
+          FAQ, para que la guía no diga una cosa y el hero otra.
+        */}
+        <p>
+          <strong>La lectura está acotada por despliegue.</strong>{" "}
+          {dwgClaim().long}
         </p>
         <p>
-          Por eso el editor <em>detecta</em> el formato y lo rechaza con un
-          mensaje claro en lugar de intentarlo. Renombrar un archivo tampoco
-          sirve: cambiarle la extensión a un DXF no lo convierte en DWG, ni al
-          revés.
+          Cuando la lectura está apagada, el editor <em>detecta</em> el formato
+          y lo rechaza con un mensaje claro en lugar de intentarlo. Renombrar
+          un archivo tampoco sirve: cambiarle la extensión a un DXF no lo
+          convierte en DWG, ni al revés.
         </p>
       </GuideSection>
 
@@ -160,13 +173,13 @@ export default function Page() {
         </GuideLimit>
         <p>
           Si tu flujo de trabajo depende de entregar el archivo nativo de
-          AutoCAD, hoy Valle Design no es la herramienta. Si lo que necesitas es
+          AutoCAD, hoy {PRODUCT_LABEL.design} no es la herramienta. Si lo que necesitas es
           producir planos y entregarlos en un formato que cualquiera pueda abrir,
           el intercambio en DXF cubre ese camino con las pérdidas escritas
           delante.
         </p>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          AutoCAD y DWG son marcas de Autodesk, Inc. Valle Design no está
+          AutoCAD y DWG son marcas de Autodesk, Inc. {PRODUCT_LABEL.design} no está
           afiliado a Autodesk ni respaldado por Autodesk.
         </p>
       </GuideSection>

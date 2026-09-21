@@ -609,3 +609,33 @@ export function cadMexicanLayerSourceProblems(): string[] {
   }
   return problems;
 }
+
+/**
+ * Fase de renovación derivada del sufijo de la capa.
+ *
+ * Las capas de demolición de la norma mexicana usan el sufijo `-EXI` (existente),
+ * `-DEM` (demoler) y `-NUE` (nuevo). El cuadro de cantidades agrupa por capa
+ * y grosor, así que en la práctica sí obtengo tres filas separadas — pero la
+ * capa no sabe si es demolición. Esta función deriva la fase del sufijo para
+ * que el cuadro pueda mostrar «Fase» y tres totales al pie (H-11).
+ *
+ * `null` si la capa no tiene sufijo de demolición: no es un error, es que el
+ * muro no declara fase (un plano sin obra no tiene por qué).
+ */
+export function cadRenovationPhase(layerName: string): "existente" | "demoler" | "nuevo" | null {
+  const upper = layerName.toUpperCase();
+  if (upper.endsWith("-EXI")) return "existente";
+  if (upper.endsWith("-DEM")) return "demoler";
+  if (upper.endsWith("-NUE")) return "nuevo";
+  return null;
+}
+
+/**
+ * ¿El dibujo tiene alguna capa de demolición?
+ *
+ * Si no la tiene, no se debe producir el hallazgo «este muro no dice de qué
+ * fase es»: un plano sin obra no tiene por qué declarar fase.
+ */
+export function cadHasRenovationLayers(layers: readonly { name: string }[]): boolean {
+  return layers.some((layer) => cadRenovationPhase(layer.name) !== null);
+}

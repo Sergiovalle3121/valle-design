@@ -1,0 +1,136 @@
+/**
+ * Sonda de PRECISION Y ENTRADA: conduce el motor real solo con teclado.
+ * Solo LEE modulos del repo; no escribe nada dentro del repo.
+ */
+const ROOT = "file:///D:/dev/valle-design/apps/web/src/lib/cad";
+
+const { EMPTY_CAD_COMMAND_ENGINE, cadCommandEngineReduce } = await import(
+  `${ROOT}/engine/command-engine.ts`
+);
+const { createCadCommandRegistry } = await import(`${ROOT}/engine/registry.ts`);
+const { CAD_DRAW_BASIC_COMMANDS } = await import(`${ROOT}/engine/commands/draw-basics.ts`);
+const { CAD_DRAW_WALL_COMMANDS } = await import(`${ROOT}/engine/commands/draw-wall.ts`).catch(
+  () => ({ CAD_DRAW_WALL_COMMANDS: [] }),
+);
+const { resolveCadToken } = await import(`${ROOT}/engine/input-pipeline.ts`);
+const { parseCoordinate } = await import(`${ROOT}/precision-input.ts`);
+const { createCadVariableAccess } = await import(`${ROOT}/system-variables.ts`);
+const { cadOsmodeToSnaps, cadSnapsToOsmode, describeCadOsmode } = await import(
+  `${ROOT}/osnap-bits.ts`
+);
+const { parseMeasurement } = await import(
+  "file:///D:/dev/valle-design/apps/web/src/components/cad/viewport/live-cursor.ts"
+).catch(() => ({ parseMeasurement: null as any }));
+const { parseCadDynamicScalar } = await import(`${ROOT}/dynamic-input.ts`);
+
+const registry = createCadCommandRegistry([...CAD_DRAW_BASIC_COMMANDS, ...CAD_DRAW_WALL_COMMANDS]);
+
+let nextId = 0;
+function ctx(cursor?: { x: number; y: number }, vars?: any) {
+  return {
+    entityIds: [],
+    selection: [],
+    activeLayer: "0",
+    view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+    cursor,
+    variables: vars,
+    newEntityId: () => `e${++nextId}`,
+  };
+}
+
+function drive(tokens: string[], cursor?: { x: number; y: number }, vars?: any) {
+  let state: any = EMPTY_CAD_COMMAND_ENGINE;
+  const effects: any[] = [];
+  for (const t of tokens) {
+    const action: any =
+      t === "<ENTER>" ? { kind: "input", input: { kind: "enter" } } : { kind: "token", value: t };
+    const r = cadCommandEngineReduce(state, action, ctx(cursor, vars), registry);
+    state = r.state;
+    effects.push(...r.effects);
+  }
+  return { state, effects };
+}
+
+const geom = (effects: any[]) =>
+  effects
+    .filter((e) => e.kind === "execute")
+    .flatMap((e) => e.commands ?? [])
+    .map((c: any) => JSON.stringify(c).slice(0, 320));
+const msgs = (effects: any[]) =>
+  effects.filter((e) => e.kind === "message").map((e) => `[${e.level}] ${e.text}`);
+
+function show(title: string, r: { state: any; effects: any[] }) {
+  console.log("\n### " + title);
+  const g = geom(r.effects);
+  if (g.length) g.forEach((x) => console.log("   GEOM " + x));
+  else console.log("   GEOM (ninguna)");
+  msgs(r.effects).forEach((m) => console.log("   MSG  " + m));
+}
+
+// ---------------------------------------------------------------------------
+console.log("=========== A. UN MURO DE 4.325 m A 37 GRADOS, SOLO TECLADO ===========");
+
+// Dibujo en MILIMETROS: INSUNITS 4.
+const mm = () => {
+  const v = createCadVariableAccess();
+  v.set("INSUNITS", 4);
+  return v;
+};
+
+show("A1  LINE  0,0  @4325<37   (dibujo en mm, sin raton)", drive(["LINE", "0,0", "@4325<37", "<ENTER>"], undefined, mm()));
+
+// Dibujo en METROS: INSUNITS 6.
+const m = () => {
+  const v = createCadVariableAccess();
+  v.set("INSUNITS", 6);
+  return v;
+};
+show("A2  LINE  0,0  @4.325<37  (dibujo en m, punto decimal)", drive(["LINE", "0,0", "@4.325<37", "<ENTER>"], undefined, m()));
+show("A3  LINE  0,0  @4,325<37  (dibujo en m, COMA decimal)", drive(["LINE", "0,0", "@4,325<37", "<ENTER>"], undefined, m()));
+show("A4  LINE  0,0  4,325      (coma decimal suelta, en m)", drive(["LINE", "0,0", "4,325", "<ENTER>"], undefined, m()));
+
+console.log("\n=========== B. ENTRADA DIRECTA DE DISTANCIA ===========");
+show("B1  LINE 0,0  4325  SIN cursor (teclado puro)", drive(["LINE", "0,0", "4325", "<ENTER>"], undefined, mm()));
+show("B2  LINE 0,0  4325  CON cursor en (1,0)", drive(["LINE", "0,0", "4325", "<ENTER>"], { x: 1, y: 0 }, mm()));
+show("B3  LINE 0,0  <37  (solo angulo: bloquear direccion)", drive(["LINE", "0,0", "<37", "<ENTER>"], undefined, mm()));
+
+console.log("\n=========== C. parseCoordinate directo ===========");
+for (const s of ["@4325<37", "@4,325<37", "4,325", "4.325", "@4325<37g", "4325", "@0,0,3000", "1'-6\"", "@10<37d30'"]) {
+  const r = parseCoordinate(s, { last: { x: 0, y: 0 }, drawingUnit: "mm" });
+  console.log("   " + JSON.stringify(s).padEnd(16) + " -> " + JSON.stringify(r));
+}
+console.log("   -- con lockedAngleDeg=37 (nadie lo pone en la app):");
+console.log("   " + JSON.stringify(parseCoordinate("4325", { last: { x: 0, y: 0 }, lockedAngleDeg: 37, drawingUnit: "mm" })));
+
+console.log("\n=========== D. LOS TRES ANALIZADORES DE NUMEROS ===========");
+const cases = ["4.325", "4,325", "1,500", "1500", "4325 mm", "4.325m", "1'-6\"", "37d30'", "1e3", "0x10"];
+for (const c of cases) {
+  const cli = parseCoordinate(c, { last: { x: 0, y: 0 }, drawingUnit: "mm" });
+  const dyn = parseCadDynamicScalar(c, "mm", "es-MX", "length");
+  const live = parseMeasurement ? parseMeasurement(c) : "n/d";
+  console.log(
+    "   " + JSON.stringify(c).padEnd(12) +
+      " | linea-comandos " + (cli.ok ? JSON.stringify(cli.point) : "ERROR").padEnd(26) +
+      " | panel-dinamico " + String(dyn).padEnd(10) +
+      " | caja-al-cursor " + String(live),
+  );
+}
+
+console.log("\n=========== E. OSMODE: ida y vuelta de los bits ===========");
+for (const bits of [1, 2, 35, 512, 1024, 2048, 4096, 8192, 16384, 16383]) {
+  console.log(
+    "   OSMODE " + String(bits).padEnd(6) + " -> " + JSON.stringify(cadOsmodeToSnaps(bits)).padEnd(46) +
+      " | " + describeCadOsmode(bits),
+  );
+}
+console.log("   snaps->osmode de los 14 modos: " + cadSnapsToOsmode([
+  "endpoint","midpoint","center","geometric-center","node","quadrant","intersection",
+  "insertion","perpendicular","tangent","nearest","apparent-intersection","extension","grid",
+] as any));
+
+console.log("\n=========== F. OVERRIDES / MODIFICADORES desde teclado ===========");
+const CAD_ACCEPT_POINT = 1;
+for (const t of ["MID","END","PER","TAN","NEA","PAR","PARALELO","FROM","DESDE","M2P","TT","NON","CEN","EXT","INS","QUA","GCE","APP","NOD"]) {
+  const r = resolveCadToken(t, { accepts: 0xffff, lastPoint: { x: 0, y: 0 }, cursor: { x: 1, y: 1 } });
+  console.log("   " + t.padEnd(10) + " -> " + JSON.stringify(r).slice(0, 150));
+}

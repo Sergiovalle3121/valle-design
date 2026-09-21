@@ -1,0 +1,15 @@
+@echo off
+title Noche de MiMo (reanudar al iniciar sesion)
+rem Lo lanza la tarea programada «MiMo Valle Design» al iniciar sesion (autorizada por Sergio el 15-sep-2026).
+rem Borra el candado si ningun lanzador esta vivo (tras un reinicio el PID guardado puede pertenecer a otro proceso)
+rem y arranca el lanzador: adopta a MiMo si ya corre o lo relanza en sesion nueva, y mergea como titular.
+echo.
+echo   Reanudando a MiMo tras iniciar sesion. Deja esta ventana abierta (puedes minimizarla).
+echo.
+powershell.exe -NoProfile -Command "$vivo = @(Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'powershell.exe' -and $_.CommandLine -match 'noche-mimo\.ps1' -and $_.CommandLine -notmatch 'Get-CimInstance' }).Count; if ($vivo -eq 0) { Remove-Item -LiteralPath 'D:\dev\_mimo\noche.lock' -ErrorAction SilentlyContinue; 'Sin lanzador vivo: arranco uno.' } else { 'Ya hay un lanzador vivo: no arranco otro.'; exit 1 }"
+if errorlevel 1 goto fin
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "D:\dev\_mimo\noche-mimo.ps1" -Adoptar -Reorientar -Merge titular -MinutosPrimeraIntegracion 60
+:fin
+echo.
+echo   El lanzador ha terminado. Revisa D:\dev\_logs\noche\resumen.txt
+pause

@@ -463,6 +463,62 @@ assert.equal(
 ok(true, "editar y borrar entran por la misma llamada, con el contrato documentado");
 
 // ---------------------------------------------------------------------------
+// 6b. Un ALTA se ve con la cámara QUIETA, y el indicador la cuenta.
+//
+//     Medido el 2026-09-19 en la demo: LINE creaba la entidad y el lienzo no
+//     la pintaba hasta designar algo; y el indicador (`data-rendered` /
+//     `data-total`, lo que leen los goldens) seguía en la cifra de antes. Aquí
+//     los cuadros van SIN viewport, como los da el editor
+//     (`batchedHost.frame({ bounds, pixelsPerUnit })`): el `settle` de arriba
+//     pasa viewport en cada cuadro, eso fuerza `setView` y escondía el fallo.
+// ---------------------------------------------------------------------------
+function instancesOf(hostUnderTest: CadViewportRenderHost): number {
+  let instances = 0;
+  for (const child of hostUnderTest.group.children) {
+    if (child.userData.cadLineBatch !== true) continue;
+    instances += ((child as THREE.Mesh).geometry as THREE.InstancedBufferGeometry).instanceCount;
+  }
+  return instances;
+}
+function stillFrames(hostUnderTest: CadViewportRenderHost, frames = 20): void {
+  for (let frame = 0; frame < frames; frame += 1) hostUnderTest.frame(view);
+}
+const altaParent = new THREE.Group();
+const altaHost = new CadViewportRenderHost({ parent: altaParent, viewport });
+const altaDocument = mixedDocument();
+altaHost.replace(altaDocument);
+stillFrames(altaHost);
+assert.equal(altaHost.getSnapshot().total, 8, "el indicador arranca con las ocho entidades");
+assert.equal(altaHost.getSnapshot().rendered, 8);
+const gpuBefore = instancesOf(altaHost);
+// Una línea dentro del tile que ya dibuja todo y otra en la esquina del
+// encuadre, a la izquierda de todo el contenido: un tile que no existía.
+const drawnLines = [
+  { id: "linea-nueva", type: "line", start: { x: 100, y: 300, z: 0 }, end: { x: 500, y: 300, z: 0 }, layer: "0" },
+  { id: "linea-esquina", type: "line", start: { x: -190, y: 850, z: 0 }, end: { x: -110, y: 850, z: 0 }, layer: "0" },
+] as CadEntity[];
+const afterLine: CadDocument = {
+  ...altaDocument,
+  entities: [...altaDocument.entities, ...drawnLines],
+  modelSpace: { ...altaDocument.modelSpace, entityIds: [...altaDocument.modelSpace.entityIds, ...drawnLines.map((entity) => entity.id)] },
+};
+// Lo que hace `syncNativeScene` con el parche de un LINE: ids y upserts.
+altaHost.invalidate(drawnLines.map((entity) => entity.id), drawnLines as never[], afterLine);
+stillFrames(altaHost);
+assert.equal(
+  instancesOf(altaHost),
+  gpuBefore + 2,
+  `las dos líneas nuevas llegan a la GPU sin mover la cámara: ${instancesOf(altaHost)} instancias, antes ${gpuBefore}`,
+);
+ok(true, "un alta se dibuja con la cámara quieta, en un tile residente y en uno nuevo");
+const published = altaHost.getSnapshot();
+assert.equal(published.total, 10, `el indicador publica el total nuevo: ${published.total}`);
+assert.equal(published.rendered, 10, `y el detalle nuevo: ${published.rendered}`);
+assert.equal(published.settled, true);
+ok(true, "el indicador (data-rendered/data-total) refleja la edición asentada en el mismo cuadro");
+altaHost.dispose();
+
+// ---------------------------------------------------------------------------
 // 7. Apagar una capa no reconstruye nada, y ocultar el anfitrión lo silencia.
 // ---------------------------------------------------------------------------
 host.setHiddenLayers(new Set(["0"]));

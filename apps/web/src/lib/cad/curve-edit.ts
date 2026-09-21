@@ -5,20 +5,17 @@
  *
  * Recortar es quedarse con el TRAMO ENTRE LOS DOS CORTES VECINOS al sitio donde
  * se pinchó. Escrita sobre el parámetro de `curve-model.ts`, esa frase vale
- * igual para un segmento, un arco, una elipse y una polilínea, y por eso aquí
- * hay una implementación y no cuatro. Extender es la misma cuenta con la curva
- * sin acotar: se busca el cruce inmediato MÁS ALLÁ del extremo que se estira.
+ * igual para un segmento, un arco, una elipse, una spline y una polilínea, y
+ * por eso aquí hay una implementación y no cinco. Extender es la misma cuenta
+ * con la curva sin acotar: se busca el cruce inmediato MÁS ALLÁ del extremo
+ * que se estira.
  *
  * ## La convención es la de AutoCAD: se designa el trozo que SE VA
  *
- * Hasta la campaña de cimientos (2026-08-22) aquí se conservaba el trozo
- * designado — al revés que AutoCAD, donde el clic señala lo que SE ELIMINA.
- * Para alguien con memoria muscular de AutoCAD, TRIM es de los cinco comandos
- * más usados del día, y la divergencia significaba borrar exactamente lo que
- * el usuario quería conservar. La decisión de producto pendiente que este
- * comentario anunciaba se tomó: TRIM elimina el tramo pinchado entre sus dos
- * cortes vecinos, y si eso parte una curva abierta por el medio, nacen DOS
- * trozos (el segundo viaja en `create`), igual que en AutoCAD.
+ * TRIM elimina el tramo pinchado entre sus dos cortes vecinos —el clic señala
+ * lo que SE ELIMINA, no lo que se conserva— y si eso parte una curva abierta
+ * por el medio, nacen DOS trozos (el segundo viaja en `create`), igual que en
+ * AutoCAD.
  *
  * ## Lo que sale de aquí
  *
@@ -35,6 +32,7 @@ import {
   curveClosestParam,
   curveDistanceTo,
   curveExtensionPeriod,
+  curveExtrapolationRefusal,
   curveIntersections,
   curveIsClosed,
   curveLength,
@@ -43,18 +41,27 @@ import {
   type CadCurve,
   type CadCurveBounds,
 } from "./curve-model";
+import { nurbsSubcurve } from "./nurbs";
 import type { CadNativeEntity, CadPropertyBag } from "./entity-runtime";
 import { norm360, type CadVec2 } from "./primitives";
 
 const EPS = 1e-9;
 
-/** Tipos de objetivo que este módulo sabe recortar y alargar. */
+/**
+ * Tipos de objetivo que este módulo sabe recortar y alargar.
+ *
+ * SPLINE entra en la ola 7: evaluación racional + derivada y partición EXACTA
+ * por inserción de nudo viven en `nurbs.ts`. Dos límites propios quedan: una
+ * SPLINE CERRADA no se modela (`cadEntityCurves` la rechaza) y nada que la
+ * extrapole (EXTEND, LENGTHEN, el lado de FILLET) sabe alargarla —ver
+ * `curveExtrapolationRefusal`—. Recortarla y usarla como borde sí funcionan.
+ */
 export type CadEditableEntity = Extract<
   CadEntity,
-  { type: "line" | "arc" | "circle" | "ellipse" | "polyline" }
+  { type: "line" | "arc" | "circle" | "ellipse" | "polyline" | "spline" }
 >;
 
-export const CAD_EDITABLE_TYPES = ["line", "arc", "circle", "ellipse", "polyline"] as const;
+export const CAD_EDITABLE_TYPES = ["line", "arc", "circle", "ellipse", "polyline", "spline"] as const;
 
 export function asCadEditableEntity(entity: CadEntity | undefined): CadEditableEntity | null {
   if (!entity) return null;
@@ -67,10 +74,9 @@ export function asCadEditableEntity(entity: CadEntity | undefined): CadEditableE
  * El cambio a aplicar sobre la entidad, conservando SIEMPRE su id.
  *
  * `patch` cuando basta mover números; `replace` cuando cambia el tipo (un
- * círculo recortado es un arco) o cuando la propiedad no es escribible por el
- * adaptador (los vértices de una polilínea). Nunca borrar y crear: eso rompería
- * las cotas asociativas, los sombreados y el orden de dibujo que apuntan a esta
- * entidad.
+ * círculo recortado es un arco) o la propiedad no es escribible (vértices de
+ * una polilínea, control points de una spline). Nunca borrar y crear: eso
+ * rompería cotas asociativas, sombreados y orden de dibujo.
  */
 export interface CadCurveEdit {
   patch?: Partial<CadPropertyBag>;
@@ -117,17 +123,20 @@ function entityIsClosed(entity: CadEditableEntity, curves: readonly CadCurve[]):
  * Cortes de la entidad contra las fronteras, en parámetro global y ordenados.
  *
  * `extend` decide si se buscan también los cruces de FUERA del objeto: TRIM no
- * los quiere, EXTEND sólo quiere esos.
+ * los quiere, EXTEND sólo quiere esos. `edgeExtend` es la opción «Arista»: el
+ * BORDE, y no el objetivo, es el que se trata como infinito —un borde corto
+ * que no llega a cruzar cuenta igual si, prolongado, lo haría—.
  */
 function cutParameters(
   curves: readonly CadCurve[],
   boundaries: readonly CadCurve[],
   extend: boolean,
+  edgeExtend = false,
 ): number[] {
   const cuts: number[] = [];
   curves.forEach((curve, index) => {
     for (const boundary of boundaries)
-      for (const hit of curveIntersections(curve, boundary, { extendA: extend })) {
+      for (const hit of curveIntersections(curve, boundary, { extendA: extend, extendB: edgeExtend })) {
         const parameter = index + hit.tA;
         if (cuts.some((seen) => Math.abs(seen - parameter) <= 1e-7)) continue;
         cuts.push(parameter);
@@ -143,6 +152,8 @@ function cutParameters(
 function subCurve(curve: CadCurve, t0: number, t1: number): CadCurve {
   if (curve.kind === "segment")
     return { kind: "segment", a: curvePointAt(curve, t0), b: curvePointAt(curve, t1) };
+  // NURBS exacta por inserción de nudo (`nurbs.ts`), no una poligonal.
+  if (curve.kind === "spline") return { kind: "spline", ...nurbsSubcurve(curve, t0, t1) };
   if (curve.kind === "arc")
     return {
       kind: "arc",
@@ -258,6 +269,25 @@ function restrict(
     return { patch: { startParameter, endParameter } };
   }
 
+  if (entity.type === "spline") {
+    const piece = subCurve(curves[0], from, to);
+    if (piece.kind !== "spline") return { error: "una SPLINE sólo puede reducirse a una SPLINE" };
+    const z = entity.controlPoints[0]?.z ?? 0;
+    return {
+      replace: {
+        id: entity.id,
+        type: "spline",
+        degree: piece.degree,
+        controlPoints: piece.controlPoints.map((p) => ({ x: p.x, y: p.y, z })),
+        knots: [...piece.knots],
+        weights: [...piece.weights],
+        closed: false,
+        layer: entity.layer,
+        ...(entity.context ? { context: entity.context } : {}),
+      },
+    };
+  }
+
   const slices = sliceCurves(curves, from, to);
   if (slices.length === 0) return { error: "el tramo conservado quedaría vacío" };
   const z = entity.vertices[0]?.z ?? 0;
@@ -291,21 +321,29 @@ export interface CadCurveEditInput {
    * corte exigiría partir en dos.
    */
   newEntityId?: () => string;
+  /**
+   * Opción «Arista» de AutoCAD: un borde que NO llega a cruzar al objetivo
+   * cuenta igual si, prolongado, lo haría —la recta de una LINE se trata como
+   * infinita, el arco de un ARC o CIRCLE como su circunferencia completa, la
+   * ELLIPSE como su elipse completa—. `false` (por defecto, «No alargar» en la
+   * ayuda oficial de AutoCAD en español) es el comportamiento clásico: sólo
+   * cuenta un cruce que ya exista dentro del propio borde dibujado.
+   */
+  edgeExtend?: boolean;
 }
 
 /**
  * Las curvas de los bordes, ya convertidas.
  *
- * `within` descarta por caja envolvente lo que ni se acerca al objetivo. No es
- * una micro-optimización: TRIM con la opción `Todos` pasa el dibujo ENTERO como
- * borde, y sin este filtro un plano de 100.000 entidades pagaría una
- * intersección curva-curva —hasta 720 muestras si hay una elipse por medio— por
- * cada objeto del plano y por cada recorte. La caja es un SUPERCONJUNTO, así
- * que sólo puede dejar pasar de más.
+ * `within` descarta por caja envolvente lo que ni se acerca al objetivo —TRIM
+ * con `Todos` pasa el dibujo ENTERO como borde, y sin este filtro un plano de
+ * 100.000 entidades pagaría una intersección curva-curva por cada objeto y
+ * cada recorte—. La caja es un SUPERCONJUNTO: sólo puede dejar pasar de más.
  *
- * EXTEND no la usa: allí el objetivo se prolonga sin límite y una caja calculada
- * sobre su geometría actual descartaría justo los contornos lejanos que EXTEND
- * existe para alcanzar.
+ * EXTEND no la usa —el objetivo se prolonga sin límite y la caja descartaría
+ * justo los contornos lejanos que EXTEND busca—, ni TRIM con «Arista: Alargar»
+ * (`within` llega en `null`), por la misma razón: el cruce con un borde
+ * prolongado puede caer fuera de la caja del objetivo.
  */
 function boundaryCurves(
   target: CadEditableEntity,
@@ -317,9 +355,8 @@ function boundaryCurves(
   for (const boundary of boundaries) {
     if (boundary.id === target.id) continue;
     const converted = cadEntityCurves(boundary);
-    // Lo que no se sabe convertir NO se aproxima. Un SPLINE aplanado cortaría
-    // en el sitio equivocado, y un corte en el sitio equivocado es peor que no
-    // cortar: el usuario ve una geometría plausible y falsa.
+    // Lo que no se sabe convertir NO se aproxima (un MTEXT, una SPLINE
+    // cerrada): un corte en el sitio equivocado es peor que no cortar.
     if (!converted) continue;
     convertible += 1;
     // Descartado por caja: el borde EXISTE y sabe cortar, sólo que no llega.
@@ -396,10 +433,16 @@ export function computeCadCurveTrim(input: CadCurveEditInput): CadCurveEditOutco
   const curves = cadEntityCurves(input.target);
   if (!curves || curves.length === 0)
     return { error: `${input.target.type.toUpperCase()} no tiene geometría que recortar.` };
-  const boundaries = boundaryCurves(input.target, input.boundaries, curveBoundsUnion(curves));
+  // Con «Arista: Alargar» la caja de descarte no vale: el cruce puede caer
+  // fuera de la caja del objetivo porque el borde se prolonga hasta él.
+  const boundaries = boundaryCurves(
+    input.target,
+    input.boundaries,
+    input.edgeExtend ? null : curveBoundsUnion(curves),
+  );
   if (boundaries.convertible === 0) return { error: "ningún borde designado sabe cortar." };
 
-  const cuts = cutParameters(curves, boundaries.curves, false);
+  const cuts = cutParameters(curves, boundaries.curves, false, input.edgeExtend);
   if (cuts.length === 0) return { error: "no cruza ningún borde." };
 
   const domain = globalDomain(curves);
@@ -468,6 +511,8 @@ export function computeCadCurveExtend(input: CadCurveEditInput): CadCurveEditOut
     return { error: `${input.target.type.toUpperCase()} no tiene geometría que alargar.` };
   if (entityIsClosed(input.target, curves))
     return { error: "una curva cerrada no tiene extremos que alargar." };
+  const splineRefusal = curveExtrapolationRefusal(curves);
+  if (splineRefusal) return { error: splineRefusal };
   const boundaries = boundaryCurves(input.target, input.boundaries);
   if (boundaries.convertible === 0) return { error: "ningún contorno designado sabe alargar." };
 
@@ -483,7 +528,7 @@ export function computeCadCurveExtend(input: CadCurveEditInput): CadCurveEditOut
 
   let best: number | null = null;
   for (const boundary of boundaries.curves)
-    for (const hit of curveIntersections(terminal, boundary, { extendA: true })) {
+    for (const hit of curveIntersections(terminal, boundary, { extendA: true, extendB: input.edgeExtend })) {
       // Un arco extendido da la vuelta: un cruce a 3/4 de vuelta hacia delante
       // es en realidad 1/4 hacia atrás, y sin restar el periodo EXTEND
       // alargaría por el lado contrario.
@@ -536,6 +581,101 @@ function reshapeTerminal(
 }
 
 // ---------------------------------------------------------------------------
+// BREAK
+// ---------------------------------------------------------------------------
+
+export interface CadCurveBreakInput {
+  target: CadEditableEntity;
+  /** Primer punto de ruptura, ya proyectado sobre la curva. */
+  first: CadPoint2;
+  /**
+   * Segundo punto de ruptura. `null` es BREAKATPOINT: el mismo punto en los
+   * dos lados, hueco cero.
+   */
+  second: CadPoint2 | null;
+  /**
+   * Generador de ids para el segundo tramo, cuando el hueco cae por el medio
+   * de una curva ABIERTA y hacen falta dos objetos. Una curva CERRADA nunca lo
+   * necesita: su resultado es SIEMPRE una sola pieza.
+   */
+  newEntityId?: () => string;
+}
+
+/**
+ * BREAK: quita el tramo entre dos puntos —o parte por UNO solo con hueco cero,
+ * que es BREAKATPOINT— y devuelve lo que sobra.
+ *
+ * Misma regla que TRIM, con los cortes dados por el usuario en vez de por un
+ * borde: una curva ABIERTA puede quedar partida en DOS —hueco por el medio— o
+ * reducida a UNA si algún punto cae en un extremo o más allá; una CERRADA sólo
+ * termina en UNA pieza (quitar un tramo de un anillo deja un arco, no dos). El
+ * tramo que se quita avanza del primer punto al segundo en el sentido POSITIVO
+ * de la curva —antihorario en un círculo—, como un ARC de `startAngle` a
+ * `endAngle`.
+ */
+export function computeCadCurveBreak(input: CadCurveBreakInput): CadCurveEditOutcome {
+  const curves = cadEntityCurves(input.target);
+  if (!curves || curves.length === 0)
+    return { error: `${input.target.type.toUpperCase()} no tiene geometría que partir.` };
+
+  const domain = globalDomain(curves);
+  const closed = entityIsClosed(input.target, curves);
+  const p1 = globalClosest(curves, input.first);
+
+  if (closed) {
+    if (input.second === null)
+      return { error: "una curva CERRADA no se parte en un solo punto: hacen falta dos." };
+    const p2 = globalClosest(curves, input.second);
+    if (Math.abs(p2 - p1) <= EPS)
+      return { error: "los dos puntos de ruptura coinciden: no hay tramo que quitar." };
+    const removeFrom = p1;
+    const removeTo = p2 > p1 ? p2 : p2 + domain;
+    const keepFrom = removeTo;
+    let keepTo = removeFrom;
+    while (keepTo <= keepFrom + EPS) keepTo += domain;
+    return restrict(input.target, curves, keepFrom, keepTo);
+  }
+
+  const p2 = input.second === null ? p1 : globalClosest(curves, input.second);
+  const lo = Math.min(p1, p2);
+  const hi = Math.max(p1, p2);
+
+  if (hi - lo <= EPS) {
+    // BREAKATPOINT (o dos puntos que coincidieron): hueco cero, un solo corte.
+    // En un extremo no habría dos tramos que crear.
+    if (lo <= EPS || lo >= domain - EPS)
+      return { error: "el punto cae en un extremo; no habría dos tramos." };
+    const head = restrict(input.target, curves, 0, lo);
+    if ("error" in head) return head;
+    if (!input.newEntityId)
+      return {
+        error: "partir por el medio crea un segundo tramo y este camino no puede generarlo.",
+      };
+    const tail = materialize(input.target, curves, lo, domain, input.newEntityId());
+    if (!tail) return { error: "no se pudo construir el segundo tramo." };
+    return { ...head, create: tail };
+  }
+
+  if (lo <= EPS && hi >= domain - EPS)
+    return { error: "el hueco cubre todo el objeto: no quedaría ningún tramo." };
+  // Uno de los dos puntos cae en un extremo o más allá: se reduce a UN tramo,
+  // igual que TRIM cuando el cruce toca el arranque o el final.
+  if (lo <= EPS) return restrict(input.target, curves, hi, domain);
+  if (hi >= domain - EPS) return restrict(input.target, curves, 0, lo);
+
+  // El hueco cae por el medio: el objeto se PARTE en dos.
+  const head = restrict(input.target, curves, 0, lo);
+  if ("error" in head) return head;
+  if (!input.newEntityId)
+    return {
+      error: "el hueco cae por el medio y crea un segundo tramo; este camino no puede generarlo.",
+    };
+  const tail = materialize(input.target, curves, hi, domain, input.newEntityId());
+  if (!tail) return { error: "no se pudo construir el segundo tramo." };
+  return { ...head, create: tail };
+}
+
+// ---------------------------------------------------------------------------
 // LENGTHEN
 // ---------------------------------------------------------------------------
 
@@ -572,6 +712,8 @@ export function computeCadCurveLengthen(input: CadLengthenInput): CadCurveEditOu
       error:
         "una ELIPSE no se alarga por longitud: su arco no es proporcional a su parámetro y el extremo caería donde no dice el número.",
     };
+  const splineRefusal = curveExtrapolationRefusal(curves);
+  if (splineRefusal) return { error: splineRefusal };
 
   const domain = globalDomain(curves);
   const pick = globalClosest(curves, input.pick);
@@ -616,13 +758,9 @@ export function computeCadCurveLengthen(input: CadLengthenInput): CadCurveEditOu
 
 /**
  * Corta la curva en `at` conservando el lado donde está `pick`, y ALARGÁNDOLA
- * si `at` cae fuera.
- *
- * Es lo que necesita FILLET: el punto de tangencia puede quedar dentro del
- * objeto (hay que recortar) o más allá de su extremo (hay que prolongar), y en
- * los dos casos el trozo que sobrevive es el del lado por donde se designó.
- * Tratar los dos casos como operaciones distintas fue lo que dejó a FILLET
- * admitiendo sólo líneas.
+ * si `at` cae fuera —lo que necesita FILLET: el punto de tangencia puede
+ * quedar dentro del objeto (recorte) o más allá de su extremo (prolongar), y
+ * en los dos casos sobrevive el trozo del lado por donde se designó.
  */
 export function computeCadCurveKeepSide(
   target: CadEditableEntity,
@@ -636,6 +774,8 @@ export function computeCadCurveKeepSide(
     return { error: "una polilínea no se corta por un punto suelto; use TRIM o BREAK." };
   if (entityIsClosed(target, curves))
     return { error: "una curva cerrada no se corta en un solo punto." };
+  const splineRefusal = curveExtrapolationRefusal(curves);
+  if (splineRefusal) return { error: `FILLET: ${splineRefusal}` };
 
   const curve = curves[0];
   const pickParam = curveClosestParam(curve, pick);

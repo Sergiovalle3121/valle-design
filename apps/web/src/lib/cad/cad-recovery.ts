@@ -124,7 +124,7 @@ export class CadRecoveryQuotaError extends Error {
 export class CadRecoveryBlockedError extends Error {
   constructor() {
     super(
-      'La recuperación local está bloqueada porque otra pestaña de Valle Design tiene una versión distinta abierta. Cierra las demás pestañas y recarga ésta.',
+      'La recuperación local está bloqueada porque otra pestaña de VALLECAD tiene una versión distinta abierta. Cierra las demás pestañas y recarga ésta.',
     );
     this.name = 'CadRecoveryBlockedError';
   }

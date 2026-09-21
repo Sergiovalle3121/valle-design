@@ -65,7 +65,7 @@ test("escéptico: hoja recién creada, ¿escala apagada y candado mudo?", async 
   await expect(page.getByTestId("cad-sheet-package")).toBeVisible();
   await page.getByRole("button", { name: "+ Hoja" }).click();
   const manager = page.getByTestId("cad-layout-manager");
-  await expect(manager).toContainText("Viewports · 1");
+  await expect(manager).toContainText("Ventanas · 1");
 
   // Se deja asentar la vista: nada de medir un render a medias.
   await expect(page.getByTestId("cad-viewport-custom-scale")).toHaveValue("50");

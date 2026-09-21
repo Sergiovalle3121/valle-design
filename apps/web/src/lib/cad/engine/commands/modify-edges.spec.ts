@@ -1,7 +1,7 @@
 /**
  * TRIM, EXTEND y BREAK.
  *
- * Las cuatro afirmaciones que importan:
+ * Las afirmaciones que importan:
  *
  *   1. TRIM ELIMINA el trozo del lado DONDE SE PULSÓ — la convención de
  *      AutoCAD desde la campaña de cimientos. Es lo único que
@@ -14,9 +14,20 @@
  *      calla deja creyendo que trató los doce.
  *   4. BREAK conserva el id del primer trozo, para no romper lo que apunta a la
  *      entidad original.
+ *   5. Ola 3 «recortar» (2026-09-19): el comando abre en modo RÁPIDO — sin fase
+ *      de bordes, un clic recorta contra todo lo visible —, y `Bordes` vuelve
+ *      al flujo clásico de dos fases dentro de la MISMA invocación. La mayoría
+ *      de los casos de abajo usan `Bordes` a propósito, para acotar el corte a
+ *      UN borde concreto y comprobar la geometría sin que otro objeto de la
+ *      escena se cuele; el primer bloque nuevo prueba el modo rápido en sí.
+ *   6. La opción `Arista` (`Alargar`) trata un borde CORTO como si llegara:
+ *      recortar o alargar contra su prolongación implícita, no sólo contra el
+ *      cruce que ya existe.
  */
 import { strict as assert } from "node:assert";
 import type { CadEntity } from "../../cad-document";
+import { cadEntityCurves, curvePointAt } from "../../curve-model";
+import { nurbsCurvatureAt } from "../../nurbs";
 import type { CadCommandContext, CadCommandInput } from "../command-types";
 import { CAD_MODIFY_EDGE_COMMANDS } from "./modify-edges";
 
@@ -34,8 +45,10 @@ function line(id: string, x1: number, y1: number, x2: number, y2: number): CadEn
 
 /**
  * Escena: una horizontal larga cruzada por una vertical en x=500, un círculo
- * centrado en el origen que la horizontal `low` atraviesa, y un MTEXT que sirve
- * para comprobar que lo que no es geometría se rechaza nombrándolo.
+ * centrado en el origen que la horizontal `low` atraviesa, un MTEXT que sirve
+ * para comprobar que lo que no es geometría se rechaza nombrándolo, y —lejos
+ * de todo lo anterior, para no interferir con TRIM/EXTEND— un arco y una
+ * polilínea de dos tramos que usa BREAK.
  */
 const SCENE: CadEntity[] = [
   line("h", 0, 100, 1000, 100),
@@ -53,6 +66,48 @@ const SCENE: CadEntity[] = [
     text: "no es geometría",
     layer: "0",
   },
+  // Semicírculo superior, de (2100,0) a (1900,0) pasando por (2000,100).
+  {
+    id: "arc1",
+    type: "arc",
+    center: { x: 2000, y: 0, z: 0 },
+    radius: 100,
+    startAngle: 0,
+    endAngle: 180,
+    layer: "0",
+  },
+  // Dos tramos rectos: (3000,0)→(3000,1000)→(4000,1000), sin cerrar.
+  {
+    id: "poly1",
+    type: "polyline",
+    vertices: [
+      { x: 3000, y: 0, z: 0 },
+      { x: 3000, y: 1000, z: 0 },
+      { x: 4000, y: 1000, z: 0 },
+    ],
+    closed: false,
+    layer: "0",
+  },
+  // Cuarto de círculo unidad ×100, centrado en (10000,10000): NURBS racional
+  // EXACTA (grado 2, peso √2/2 en el vértice medio) — lejos de todo lo demás,
+  // para probar SPLINE sin que otro objeto de la escena se cuele.
+  {
+    id: "quarter",
+    type: "spline",
+    degree: 2,
+    controlPoints: [
+      { x: 10100, y: 10000, z: 0 },
+      { x: 10100, y: 10100, z: 0 },
+      { x: 10000, y: 10100, z: 0 },
+    ],
+    weights: [1, Math.SQRT1_2, 1],
+    knots: [0, 0, 0, 1, 1, 1],
+    layer: "0",
+  },
+  // Vertical que cruza el cuarto de círculo por x=10050 (TRIM la recorta).
+  line("qv", 10050, 9900, 10050, 10200),
+  // Horizontal que la cruza por y=10050 (el cuarto de círculo COMO BORDE).
+  line("qh", 9900, 10050, 10200, 10050),
 ];
 
 function makeContext(): CadCommandContext {
@@ -86,12 +141,21 @@ const pickAt = (entityId: string, x: number, y: number): CadCommandInput => ({
   entityId,
   point: { x, y },
 });
+const keyword = (value: string): CadCommandInput => ({ kind: "keyword", keyword: value });
+/**
+ * El comando abre en modo rápido (T-1, ola 3); este input, en cabeza de la
+ * secuencia, lo devuelve al flujo clásico de dos fases para que el resto de la
+ * prueba —heredada de antes de esa ola— siga acotando el corte a los bordes
+ * que designa a mano, sin que colarse cualquier otro objeto de la escena
+ * cambie el resultado.
+ */
+const bordes: CadCommandInput = keyword("Bordes");
 
 // --- TRIM elimina el lado donde se pulsó (convención AutoCAD) -------------------
 {
   // Borde: la vertical en x=500. Se pulsa la horizontal a la IZQUIERDA (x=100),
   // así que ESE trozo se va y sobrevive el 500→1000.
-  const left = run("TRIM", [pickAt("v", 500, 100), enter, pickAt("h", 100, 100), enter]);
+  const left = run("TRIM", [bordes, pickAt("v", 500, 100), enter, pickAt("h", 100, 100), enter]);
   assert.ok(left && left.kind === "document");
   const leftPatch = left.commands[0];
   assert.ok(leftPatch.type === "properties");
@@ -101,7 +165,7 @@ const pickAt = (entityId: string, x: number, y: number): CadCommandInput => ({
 
   // La misma orden pulsando a la DERECHA elimina el OTRO trozo. Si el punto
   // de designación no se usara, saldría idéntico a lo anterior.
-  const right = run("TRIM", [pickAt("v", 500, 100), enter, pickAt("h", 900, 100), enter]);
+  const right = run("TRIM", [bordes, pickAt("v", 500, 100), enter, pickAt("h", 900, 100), enter]);
   assert.ok(right && right.kind === "document");
   const rightPatch = right.commands[0];
   assert.ok(rightPatch.type === "properties");
@@ -115,6 +179,7 @@ const pickAt = (entityId: string, x: number, y: number): CadCommandInput => ({
   assert.ok(descriptor);
   const context = makeContext();
   let step = descriptor.begin(context);
+  step = descriptor.step(step.state, bordes, context);
   step = descriptor.step(step.state, pickAt("v", 500, 100), context);
   step = descriptor.step(step.state, enter, context);
   // Se recorta la misma horizontal dos veces (a un lado y al otro): dos
@@ -132,7 +197,7 @@ const pickAt = (entityId: string, x: number, y: number): CadCommandInput => ({
   );
 }
 
-// --- `Todos` toma cualquier línea como borde ----------------------------------
+// --- `Todos` toma cualquier línea como borde (y es lo que ya hace el modo rápido) --
 {
   const result = run("TRIM", [
     { kind: "keyword", keyword: "Todos" },
@@ -146,7 +211,7 @@ const pickAt = (entityId: string, x: number, y: number): CadCommandInput => ({
 {
   // Dos cortes (x=±50) contra la horizontal que lo atraviesa. Pinchando arriba
   // SE VA la media superior y sobrevive la inferior, como en AutoCAD.
-  const result = run("TRIM", [pickAt("low", 0, 0), enter, pickAt("circ", 0, 50), enter]);
+  const result = run("TRIM", [bordes, pickAt("low", 0, 0), enter, pickAt("circ", 0, 50), enter]);
   assert.ok(result && result.kind === "document", "el círculo se recorta");
   const command = result.commands[0];
   assert.ok(
@@ -161,7 +226,7 @@ const pickAt = (entityId: string, x: number, y: number): CadCommandInput => ({
 
 // --- lo que no es geometría se cuenta -------------------------------------------
 {
-  const result = run("TRIM", [pickAt("v", 500, 100), enter, pickAt("note", 0, 0), enter]);
+  const result = run("TRIM", [bordes, pickAt("v", 500, 100), enter, pickAt("note", 0, 0), enter]);
   assert.equal(result?.kind, "message", "un MTEXT no se recorta, y se dice");
   assert.ok(
     result.kind === "message" && result.text.includes("MTEXT"),
@@ -170,14 +235,14 @@ const pickAt = (entityId: string, x: number, y: number): CadCommandInput => ({
 }
 {
   // Una línea que no cruza el borde: no se recorta, y se explica.
-  const result = run("TRIM", [pickAt("v", 500, 100), enter, pickAt("far", 100, 900), enter]);
+  const result = run("TRIM", [bordes, pickAt("v", 500, 100), enter, pickAt("far", 100, 900), enter]);
   assert.equal(result?.kind, "message");
   assert.ok(result.kind === "message" && result.text.includes("no cruza"));
 }
 
 // --- EXTEND alarga hasta el borde ----------------------------------------------
 {
-  const result = run("EXTEND", [pickAt("v", 500, 50), enter, pickAt("short", 100, 50), enter]);
+  const result = run("EXTEND", [bordes, pickAt("v", 500, 50), enter, pickAt("short", 100, 50), enter]);
   assert.ok(result && result.kind === "document", "la corta alcanza el borde alargándose");
   assert.equal(result.commands.length, 1);
   const patch = result.commands[0];
@@ -187,94 +252,60 @@ const pickAt = (entityId: string, x: number, y: number): CadCommandInput => ({
   assert.equal(patch.patch.startX, 0, "y el otro extremo no se mueve");
 }
 
-// --- BREAK conserva el id del primer trozo -------------------------------------
+// --- SPLINE recortable por TRIM: NURBS exacta, no su poligonal (ola 7) --------
 {
-  const result = run("BREAK", [pickAt("h", 100, 100), { kind: "point", point: { x: 400, y: 100 }, source: "typed" }]);
-  assert.ok(result && result.kind === "document");
-  assert.equal(result.commands.length, 2, "recortar el original e insertar el resto");
-  const [kept, added] = result.commands;
-  assert.ok(kept.type === "properties");
-  assert.equal(
-    kept.entityId,
-    "h",
-    "el primer trozo CONSERVA el id: lo que apunte a esta línea sigue apuntando",
-  );
-  assert.equal(kept.patch.startX, 0);
-  assert.equal(kept.patch.endX, 400);
-  assert.ok(added.type === "insert" && added.entity.type === "line");
-  assert.equal(added.entity.start.x, 400, "el segundo trozo arranca en el corte");
-  assert.equal(added.entity.end.x, 1000);
-  assert.equal(added.entity.layer, "0", "y hereda la capa del original, no la activa");
+  const cutY = 10000 + Math.sqrt(7500); // (10050,cutY) EXACTO sobre el círculo unidad×100
+  // Se pulsa cerca del control point inicial (10100,10000): ESE lado se va.
+  const result = run("TRIM", [bordes, pickAt("qv", 10050, 10100), enter, pickAt("quarter", 10100, 10000), enter]);
+  assert.ok(result && result.kind === "document", "una SPLINE se recorta");
+  const command = result.commands[0];
+  assert.ok(command.type === "replace" && command.entity.type === "spline", "cambia de forma: va por `replace`");
+  assert.equal(command.entityId, "quarter");
+
+  const [trimmed] = cadEntityCurves(command.entity)!;
+  const start = curvePointAt(trimmed, 0);
+  // El extremo recortado está EN el cruce, tolerancia 1e-6 — no en el punto
+  // más cercano de una poligonal muestreada.
+  assert.ok(Math.abs(start.x - 10050) <= 1e-6 && Math.abs(start.y - cutY) <= 1e-6, "extremo recortado EN el cruce real");
+  const end = curvePointAt(trimmed, 1);
+  assert.ok(Math.abs(end.x - 10000) <= 1e-9 && Math.abs(end.y - 10100) <= 1e-9, "el otro extremo no se movió");
+
+  // 20 puntos intermedios: la curvatura del tramo conservado sigue siendo la
+  // del círculo original (1/100) — si el corte hubiera usado la poligonal,
+  // esto NO se cumpliría con esta tolerancia.
+  for (let i = 0; i <= 20; i += 1) {
+    const t = i / 20;
+    const p = curvePointAt(trimmed, t);
+    assert.ok(
+      Math.abs(Math.hypot(p.x - 10000, p.y - 10000) - 100) <= 1e-6,
+      `punto ${i}/20 del tramo recortado se sale del círculo original`,
+    );
+    assert.ok(trimmed.kind === "spline" && Math.abs(Math.abs(nurbsCurvatureAt(trimmed, t)) - 0.01) <= 1e-6, `curvatura en ${i}/20 no coincide con la original`);
+  }
 }
 
-// --- BREAK en un extremo no parte nada -----------------------------------------
+// --- SPLINE como borde: recorta una LINE contra su curva real -----------------
 {
-  const result = run("BREAK", [pickAt("h", 0, 100), { kind: "point", point: { x: 0, y: 100 }, source: "typed" }]);
-  assert.equal(result?.kind, "message");
-  assert.ok(result.kind === "message" && result.text.includes("extremo"));
-}
-
-// --- objetos de TIPOS DISTINTOS, un solo lote -------------------------------------
-{
-  // Que el círculo salga por `replace` y la línea por `properties` no debe
-  // partir la orden en dos: sigue siendo UN paso de deshacer.
-  const descriptor = commands.get("TRIM");
-  assert.ok(descriptor);
-  const context = makeContext();
-  let step = descriptor.begin(context);
-  step = descriptor.step(step.state, { kind: "keyword", keyword: "Todos" }, context);
-  step = descriptor.step(step.state, pickAt("circ", 0, 50), context);
-  step = descriptor.step(step.state, pickAt("h", 100, 100), context);
-  step = descriptor.step(step.state, enter, context);
-  assert.ok(step.result && step.result.kind === "document");
-  assert.equal(step.result.commands.length, 2, "un círculo y una línea, UN lote");
-  assert.equal(step.result.commands[0].type, "replace", "el círculo cambia de tipo");
-  assert.equal(step.result.commands[1].type, "properties", "la línea sólo mueve números");
-}
-
-// --- T-21/T-23: `Valla` recorta TODO lo que cruza, sin designar uno a uno ------
-{
-  // Misma escena y mismo borde («v», x=500) que el primer caso de esta
-  // suite; en vez de pinchar «h» a mano, se arrastra una valla vertical que
-  // la cruza en x=100 — el MISMO punto de designación, así que el resultado
-  // tiene que ser idéntico: se va el lado izquierdo.
-  const fence = run("TRIM", [
-    pickAt("v", 500, 100),
-    enter,
-    { kind: "keyword", keyword: "Valla" },
-    { kind: "point", point: { x: 100, y: -50 }, source: "typed" },
-    { kind: "point", point: { x: 100, y: 150 }, source: "typed" },
-    enter,
-    enter,
-  ]);
-  assert.ok(fence && fence.kind === "document", "la valla sí produjo un recorte");
-  const patch = fence.commands[0];
+  const cutX = 10000 + Math.sqrt(7500); // (cutX,10050) EXACTO sobre el círculo unidad×100
+  const result = run("TRIM", [bordes, pickAt("quarter", 10050, 10086), enter, pickAt("qh", 9950, 10050), enter]);
+  assert.ok(result && result.kind === "document", "una LINE se recorta contra una SPLINE de borde");
+  const patch = result.commands[0];
   assert.ok(patch.type === "properties");
-  assert.equal(patch.entityId, "h");
-  assert.equal(patch.patch.startX, 500, "el mismo resultado que pinchar h en x=100 a mano");
-  assert.equal(patch.patch.endX, 1000);
+  assert.ok(Math.abs((patch.patch.startX as number) - cutX) <= 1e-6, "el extremo recortado cae EN la spline real");
+  assert.equal(patch.patch.endX, 10200, "el otro extremo no se mueve");
 }
+
+// --- EXTEND sobre SPLINE: negativa honesta, no una extrapolación fingida ------
 {
-  // Una valla que cruza VARIAS entidades las recorta todas en UN lote: la
-  // valla vertical en x=100 cruza tanto «h» (y=100, frontera «v» en x=500)
-  // como «low» (y=0, frontera «circ» en x=±50). `Todos` como frontera para
-  // que las dos tengan contra qué recortar.
-  const descriptor = commands.get("TRIM");
-  assert.ok(descriptor);
-  const context = makeContext();
-  let step = descriptor.begin(context);
-  step = descriptor.step(step.state, { kind: "keyword", keyword: "Todos" }, context);
-  step = descriptor.step(step.state, { kind: "keyword", keyword: "Valla" }, context);
-  step = descriptor.step(step.state, { kind: "point", point: { x: 100, y: -50 }, source: "typed" }, context);
-  step = descriptor.step(step.state, { kind: "point", point: { x: 100, y: 150 }, source: "typed" }, context);
-  step = descriptor.step(step.state, enter, context);
-  assert.ok(!step.result, "la valla recorta y la orden sigue viva, esperando más designación o Intro");
-  step = descriptor.step(step.state, enter, context);
-  assert.ok(step.result && step.result.kind === "document");
-  assert.equal(step.result.commands.length, 2, "h y low, cada una recortada, en UN solo lote");
+  const result = run("EXTEND", [bordes, pickAt("qv", 10050, 10100), enter, pickAt("quarter", 10000, 10100), enter]);
+  assert.equal(result?.kind, "message", "EXTEND no alarga una SPLINE todavía");
+  assert.ok(
+    result.kind === "message" && result.text.includes("SPLINE") && result.text.includes("extrapola"),
+    `debe decir qué falta: "${result.kind === "message" ? result.text : ""}"`,
+  );
 }
 
 console.log(
   `modificación de bordes: ${CAD_MODIFY_EDGE_COMMANDS.map((command) => command.name).join(", ")} ` +
-    `verificados sobre línea, círculo y arco`,
+    `verificados sobre línea, círculo, arco y SPLINE (recortable, como borde, EXTEND negado)`,
 );

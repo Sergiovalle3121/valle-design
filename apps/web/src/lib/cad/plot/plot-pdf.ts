@@ -28,6 +28,7 @@ import { cadImageOpacity, CAD_IMAGE_BRIGHTNESS_NEUTRAL, CAD_IMAGE_CONTRAST_NEUTR
 import { cadImagePlotPlacement, type CadImagePlotCommand } from "../paper-space-image";
 import type { CadPublishSheet, CadVectorCommand } from "../paper-space";
 import { parseHexColor } from "./aci-palette";
+import { DEFAULT_BRAND_MANIFEST } from "@valle-design/contracts";
 import {
   CAD_DEFAULT_FONT_FAMILY,
   cadStandardFontFor,
@@ -92,6 +93,14 @@ export interface CadPlotPdfOptions {
    * contenido del PDF sin descomprimir nada.
    */
   compress?: boolean;
+  /**
+   * Texto del SELLO de trazado — fichero, fecha, escala — que PLOTSTAMP
+   * enciende (`engine/commands/plot-commands.ts`, `PLOTSTAMPMODE`). Ya viene
+   * COMPUESTO: este emisor no sabe qué hora es ni cómo se llama el archivo,
+   * sólo dibuja la línea que le pasan, en la esquina de CADA hoja del trabajo
+   * — incluida la que no lleva cajetín (`drawPlainFrame`).
+   */
+  stamp?: string;
 }
 
 export interface CadPlotPdfFontReport extends CadPlotFontResolution {
@@ -269,10 +278,10 @@ export async function renderCadPlotPdf(
   const metadata = options.metadata ?? {};
   pdf.setProperties({
     title: metadata.title ?? first.name,
-    subject: metadata.subject ?? "Plano trazado con Valle Design",
-    author: metadata.author ?? "Valle Design",
+    subject: metadata.subject ?? `Plano trazado con ${DEFAULT_BRAND_MANIFEST.productNames.design}`,
+    author: metadata.author ?? DEFAULT_BRAND_MANIFEST.productNames.design,
     keywords: metadata.keywords ?? "CAD, plano, trazado",
-    creator: "Valle Design",
+    creator: DEFAULT_BRAND_MANIFEST.productNames.design,
   });
 
   const pages: CadPlotPdfResult["pages"] = [];
@@ -365,6 +374,10 @@ export async function renderCadPlotPdf(
         bodyFont,
         styleFor,
       );
+
+    // PLOTSTAMP: en TODA hoja del trabajo, con o sin cajetín — la portada sin
+    // cajetín (`framedOnly`) es la que más se fotocopia suelta.
+    if (options.stamp) drawPlotStamp(pdf, sheet, options.stamp, bodyFont, styleFor);
   });
 
   const bytes = new Uint8Array(pdf.output("arraybuffer") as ArrayBuffer);
@@ -531,6 +544,26 @@ function drawPlainFrame(pdf: PdfLike, sheet: CadPublishSheet): void {
   pdf.setDrawColor(17, 24, 39);
   pdf.setLineWidth(0.5);
   pdf.rect(10, 10, sheet.width - 20, sheet.height - 20);
+}
+
+/**
+ * El sello de PLOTSTAMP: una línea pequeña y gris en la esquina inferior
+ * izquierda, DENTRO del margen imprimible — el mismo sitio que AutoCAD deja
+ * libre para el suyo. `text` ya viene compuesto (fichero · fecha · escala);
+ * aquí sólo se pinta, del mismo tamaño en cualquier hoja del trabajo.
+ */
+function drawPlotStamp(
+  pdf: PdfLike,
+  sheet: CadPublishSheet,
+  text: string,
+  bodyFont: string,
+  styleFor: StyleResolver,
+): void {
+  const sizeMm = 2.2;
+  pdf.setTextColor(90, 90, 90);
+  pdf.setFont(bodyFont, styleFor(bodyFont, "normal"));
+  pdf.setFontSize(sizeMm * MM_TO_POINTS);
+  pdf.text(text, 5, sheet.height - 3);
 }
 
 /**

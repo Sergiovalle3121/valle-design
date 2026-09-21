@@ -1,0 +1,42 @@
+// Falla si la cadena de ficheros que usan los scripts de evidencia importa un paquete del monorepo
+// que en el CI NO esta compilado: alli se instala con --ignore-scripts y no hay dist/. En la laptop
+// suele existir un dist viejo, asi que el gate pasa en local y revienta en el CI. Ocurrio el 17-sep
+// con template-render.ts y tumbo la corrida de 4d2a0c27 con 255 commits dentro.
+import { readFileSync } from "node:fs";
+
+const RAIZ = "D:/dev/valle-design/";
+const PROHIBIDO = "@valle-design/contracts";
+const FICHEROS = [
+  "apps/web/src/lib/cad/template-render.ts",
+  "apps/web/src/lib/cad/templates.ts",
+  "apps/web/src/lib/cad/template-document.ts",
+  "apps/web/src/lib/marketing/template-gallery.ts",
+  "apps/web/src/lib/marketing/template-seo.ts",
+];
+
+const culpables = [];
+for (const fichero of FICHEROS) {
+  let texto;
+  try {
+    texto = readFileSync(RAIZ + fichero, "utf8");
+  } catch {
+    continue;
+  }
+  const lineas = texto.split("\n");
+  for (let i = 0; i < lineas.length; i += 1) {
+    const linea = lineas[i].replace("\r", "");
+    if (linea.includes(PROHIBIDO) && linea.trimStart().startsWith("import")) {
+      culpables.push(fichero + ":" + (i + 1) + "  " + linea.trim());
+    }
+  }
+}
+
+if (culpables.length > 0) {
+  console.error("GUARDIA DE IMPORTS: la cadena de la galeria importa " + PROHIBIDO + ".");
+  console.error("En el CI ese paquete NO esta compilado, asi que check:template-gallery falla.");
+  console.error("Pasa el dato por parametro, o sacalo a un modulo que no importe el paquete.");
+  console.error("Culpables:");
+  for (const c of culpables) console.error("  " + c);
+  process.exit(1);
+}
+console.log("GUARDIA DE IMPORTS OK: la cadena de la galeria no depende de paquetes compilados.");

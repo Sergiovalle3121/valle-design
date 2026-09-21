@@ -469,6 +469,50 @@ const getvarCommand: CadCommandDescriptor<SetVarState> = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// FILL — alterna FILLMODE (0 contorno / 1 relleno)
+// ---------------------------------------------------------------------------
+
+const FILL_ON = { keyword: "Encender", shortcut: "E" } as const;
+const FILL_OFF = { keyword: "Apagar", shortcut: "A" } as const;
+
+const fillCommand: CadCommandDescriptor<Record<string, never>> = {
+  name: "FILL",
+  aliases: ["RELLENO"],
+  kind: "manage",
+  transparent: false,
+  selection: "none",
+  repeatable: false,
+  mutates: false,
+  cursor: "none",
+  begin: (context) => {
+    const access = variables(context);
+    const current = access.get("FILLMODE") as number;
+    return {
+      state: {},
+      prompt: {
+        message: `Relleno de sombreados: ${current ? "Encendido" : "Apagar"}`,
+        options: [FILL_ON, FILL_OFF],
+        defaultOption: current ? FILL_OFF.keyword : FILL_ON.keyword,
+      },
+      accepts: CAD_ACCEPT_KEYWORD,
+    };
+  },
+  step: (_state, input, context) => {
+    if (input.kind === "cancel") return cancelled({});
+    const access = variables(context);
+    const current = access.get("FILLMODE") as number;
+    let next: number;
+    if (input.kind === "keyword") {
+      next = input.keyword === FILL_ON.keyword ? 1 : 0;
+    } else {
+      // Enter u otra entrada: alterna.
+      next = current ? 0 : 1;
+    }
+    return write({}, { FILLMODE: next }, `Relleno de sombreados: ${next ? "Encendido" : "Apagado"}.`);
+  },
+};
+
 export const CAD_SETTINGS_VARIABLE_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(unitsCommand),
   asCadCommand(
@@ -481,4 +525,5 @@ export const CAD_SETTINGS_VARIABLE_COMMANDS: readonly CadAnyCommandDescriptor[] 
   asCadCommand(colorCommand),
   asCadCommand(setvarCommand),
   asCadCommand(getvarCommand),
+  asCadCommand(fillCommand),
 ];

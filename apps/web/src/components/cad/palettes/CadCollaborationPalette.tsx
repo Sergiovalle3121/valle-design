@@ -105,7 +105,10 @@ export function CadCollaborationPalette({
   const [message, setMessage] = useState<string | null>(null);
   const [commentBody, setCommentBody] = useState("");
   const [assignee, setAssignee] = useState("");
-  const [markup, setMarkup] = useState<"note" | "arrow" | "cloud">("cloud");
+  // D5 (fix-or-hide): sin selector, el hilo es una nota de texto. Dejar «cloud»
+  // por defecto rotulaba cada comentario de la lista como una nube que nunca
+  // se dibuja: la misma promesa incumplida que retiró el selector.
+  const markup = "note" as const;
   const [linkLabel, setLinkLabel] = useState("Authenticated design review");
   // Token en claro devuelto por el servidor: vive SOLO en memoria de este
   // componente, se muestra una vez para copiarlo y desaparece al cerrarlo.
@@ -564,7 +567,7 @@ export function CadCollaborationPalette({
           }
           className={`${input} mt-2`}
         />
-        <div className="mt-1 grid grid-cols-[1fr_90px_58px] gap-1">
+        <div className="mt-1 grid grid-cols-[1fr_58px] gap-1">
           <input
             disabled={reviewReadOnly}
             value={assignee}
@@ -572,17 +575,9 @@ export function CadCollaborationPalette({
             placeholder="Assign to"
             className={input}
           />
-          <select
-            data-testid="cad-review-markup"
-            disabled={reviewReadOnly}
-            value={markup}
-            onChange={(event) => setMarkup(event.target.value as typeof markup)}
-            className={input}
-          >
-            <option value="cloud">Cloud</option>
-            <option value="arrow">Arrow</option>
-            <option value="note">Note</option>
-          </select>
+          {/* D5: selector de markup oculto — Cloud/Arrow/Note no dibujan nada.
+              Fix-or-hide: se elimina el selector hasta que las opciones generen
+              geometría real. El valor por defecto "note" se mantiene como metadata. */}
           <button
             data-testid="cad-review-add"
             disabled={reviewReadOnly || !commentBody.trim()}

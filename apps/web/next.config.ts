@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
@@ -37,7 +38,11 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob:",
       "font-src 'self' data:",
-      "connect-src *",
+      "connect-src 'self' " + (() => {
+        const raw = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || "";
+        if (!raw) return "";
+        try { return new URL(raw).origin; } catch { return ""; }
+      })(),
       "worker-src 'self' blob:",
       "frame-ancestors 'none'",
       "base-uri 'self'",
@@ -70,10 +75,47 @@ const nextConfig: NextConfig = {
   // `next dev`, `next start` y Playwright del repo esperan la salida normal.
   // Atarla a una variable deja el desarrollo intacto y hace la imagen
   // reproducible desde el mismo commit.
-  // La raíz de trazado la infiere Next desde el lockfile: sólo hay uno, en la
-  // raíz del monorepo, así que `standalone` recoge las dependencias del
-  // workspace sin configuración extra.
+  // La raíz del monorepo va DECLARADA, no inferida — ver `turbopack.root`
+  // abajo. `standalone` recoge las dependencias del workspace desde esa misma
+  // raíz; sólo hay un lockfile y está ahí.
   output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
+  poweredByHeader: false,
+  /**
+   * LA RAÍZ DEL MONOREPO, DECLARADA A MANO.
+   *
+   * `src/lib/marketing/site-evidence.ts` importa tres artefactos de evidencia
+   * de `docs/cad/evidence/` — cinco niveles por encima de este directorio— y
+   * ese acoplamiento es deliberado: una cifra pública de la portada sale de un
+   * artefacto medido o el build revienta.
+   *
+   * Next 16 compila con Turbopack, que sólo resuelve dentro de la raíz del
+   * workspace, y esa raíz la INFIERE. `next/dist/lib/find-root.js` sube
+   * buscando el `package.json` con `workspaces` y luego DESCARTA el candidato
+   * si es el directorio home o está por encima, o si queda por encima de la
+   * frontera de git. Es decir: la raíz no depende sólo del repositorio, sino
+   * del entorno donde se construye — y por eso el mismo commit compila en un
+   * portátil y no en un contenedor.
+   *
+   * Medido, no supuesto: `npm run build --workspace=web` pasa en un checkout
+   * normal y falla con `HOME=<raíz del repo>` —lo que hacen los builders que
+   * ponen la app en el home— con este mensaje, que trae su propia receta:
+   *
+   *   ⚠ Next.js ignored package.json in <raíz> because it would include your
+   *     home directory. To use this directory, set `turbopack.root` in your
+   *     Next.js config.
+   *
+   * Esto es esa receta, aplicada. Declararla quita la inferencia de la
+   * ecuación: la raíz es la misma en local, en CI y en la imagen.
+   *
+   * La opción es de NIVEL SUPERIOR y se llama `turbopack`: en Next 16 salió de
+   * experimental — `experimental.turbo` ya no existe en el tipo instalado
+   * (16.3.5), igual que le pasó a `reactCompiler` más abajo. Y absoluta a
+   * propósito: Next avisa («turbopack.root should be absolute») y la resuelve
+   * contra el cwd, que en el monorepo depende de quién lance el build.
+   */
+  turbopack: {
+    root: path.join(__dirname, "../.."),
+  },
   experimental: {
     // lucide-react se importa con decenas de iconos nombrados en el editor CAD:
     // optimizePackageImports hace tree-shaking de los imports nombrados.
@@ -100,6 +142,29 @@ const nextConfig: NextConfig = {
    * internet desactualizada convierte en media hora de build roto.
    */
   reactCompiler: process.env.VALLE_REACT_COMPILER === "1",
+  /**
+   * EL TYPE-CHECK DEL BUILD MIRA SÓLO LO QUE VIAJA EN LA IMAGEN.
+   *
+   * `next build` type-chequea el proyecto de `tsconfig.json`, que incluye
+   * `scripts/**`, `e2e/**` y los `*.spec.ts`. Dos de esos ficheros importan
+   * fuera de lo que `apps/web/Dockerfile` copia —`scripts/` de la raíz y
+   * `apps/api/src/`— así que la imagen moría con dos TS2307 por código que no
+   * se publica. Medido sobre TODOS los imports de apps/web: son exactamente
+   * esos dos, y CERO código de aplicación sale del contexto.
+   *
+   * Cubrirlo copiando `apps/api` entero al stage de build del web sería lo
+   * contrario de lo que este Dockerfile declara: la imagen del web no debe
+   * necesitar el código de la API para construirse.
+   *
+   * Aquí no se pierde cobertura. `npm run typecheck` sigue con
+   * `tsconfig.json` —specs, e2e y scripts incluidos— y es lo que ejecuta el
+   * paso «Typecheck (web, incluye specs y e2e)» del CI. `ignoreBuildErrors`
+   * NO se toca: el build sigue fallando ante cualquier error de tipos del
+   * código que sí se sirve.
+   */
+  typescript: {
+    tsconfigPath: "tsconfig.build.json",
+  },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },

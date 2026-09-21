@@ -20,6 +20,7 @@ import type { CadSystemVariableValue } from "../system-variables";
 import type { CadPlotRequest } from "../plot/page-setup";
 import type { CadVisualStyleId } from "../view/visual-styles";
 import type { CadUcsPlanView } from "../ucs-view";
+import type { CadModelViewportLayoutId } from "../model-viewports";
 
 export type CadHostRequest =
   /** Abre el cuadro de configuración de página de una presentación. */
@@ -112,6 +113,12 @@ export type CadHostRequest =
    */
   | { kind: "visual-style"; styleId: CadVisualStyleId }
   /**
+   * Cambia la proyección 3D: perspectiva o paralela.
+   *
+   * Estado del visor, igual que `visual-style`: no ensucia el dibujo.
+   */
+  | { kind: "view-projection"; projection: "perspective" | "parallel" }
+  /**
    * Entrega el DXF que produjo `DXFOUT`.
    *
    * El fichero VIENE HECHO. Escribir DXF es aritmética sobre cadenas y el motor
@@ -193,4 +200,34 @@ export type CadHostRequest =
       kind: "chain-command";
       command: string;
       variables: Readonly<Record<string, CadSystemVariableValue>>;
-    };
+    }
+  /**
+   * Descarga un archivo generado por un comando (STEP, IGES, STL, etc.).
+   *
+   * El motor genera el contenido como texto; el anfitrión lo empaqueta en un
+   * `Blob` y dispara la descarga del navegador. Va por aquí porque crear un
+   * `Blob` y un enlace de descarga es I/O de navegador, y el motor es puro.
+   */
+  | {
+      kind: "download";
+      filename: string;
+      mime: string;
+      content: string;
+    }
+  /**
+   * `VPORTS` en espacio MODELO: divide el visor en varias ventanas, cada una
+   * con su propia cámara (`model-viewports.ts`).
+   *
+   * Va por aquí y no por el documento por lo mismo que `space`: es estado de
+   * SESIÓN —dos personas con el mismo plano abierto reparten su pantalla cada
+   * una a su manera—, y crear la geometría de las cámaras exige el visor 3D
+   * real, que el motor no tiene. El comando decide el REPARTO; el anfitrión
+   * construye cada ventana a partir de la cámara que tenga puesta ahora mismo
+   * (`createCadModelViewportSplit`) y las dibuja.
+   */
+  | { kind: "viewport-split"; layout: CadModelViewportLayoutId };
+// Aquí vivían diez clases de render, luces y materiales (`render-capture`,
+// `light-create`, `material-attach`…) que ningún anfitrión atendía. Se
+// retiraron con sus emisores: esos comandos dicen ahora que aún no están
+// disponibles (`command-availability.ts`). Una petición vuelve a la unión el
+// día que llegue con el anfitrión que la sirve.

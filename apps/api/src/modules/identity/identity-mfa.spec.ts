@@ -227,8 +227,17 @@ describe('cifrado del secreto en reposo', () => {
     // dejó de funcionar».
     const cifrado = encryptMfaSecret(generateTotpSecret());
     const partes = cifrado.split('.');
-    const alterado = `${partes[0]}.${partes[1]}.${partes[2]}.${partes[3].slice(0, -2)}AA`;
-    expect(decryptMfaSecret(alterado)).toBeNull();
+    // Manipular un byte real del ciphertext (no los últimos2 caracteres, que
+    // podrían ser cero y no cambiar — test inestable que tumbó CI #211).
+    const buf = Buffer.from(partes[3], 'base64url');
+    buf[0] ^= 0x01;
+    const alteradoCiphertext = `${partes[0]}.${partes[1]}.${partes[2]}.${buf.toString('base64url')}`;
+    expect(decryptMfaSecret(alteradoCiphertext)).toBeNull();
+    // Manipular un byte real del tag GCM.
+    const tagBuf = Buffer.from(partes[2], 'base64url');
+    tagBuf[0] ^= 0x01;
+    const alteradoTag = `${partes[0]}.${partes[1]}.${tagBuf.toString('base64url')}.${partes[3]}`;
+    expect(decryptMfaSecret(alteradoTag)).toBeNull();
   });
 
   it('rechaza formatos que no reconoce', () => {

@@ -145,6 +145,11 @@ test.describe("La primera hora de un desconocido", () => {
     const recorrido = page.getByTestId("cad-guided-tour");
     await expect(recorrido).toBeVisible({ timeout: 60_000 });
 
+    // Sale plegado, en el muelle izquierdo: una línea con el paso actual. Los
+    // cinco pasos están a un clic.
+    await expect(recorrido).toHaveAttribute("data-collapsed", "true");
+    await page.getByTestId("cad-guided-tour-toggle").click();
+
     // Los cinco pasos, y que terminen en un archivo: un recorrido que sólo
     // señala botones enseña dónde están los botones.
     for (const paso of ["lamina", "muro", "puerta", "cota", "pdf"])

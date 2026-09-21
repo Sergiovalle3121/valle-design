@@ -430,15 +430,63 @@ function assertPlacement(value: unknown, id: string): void {
   if (placement.dz !== undefined && !finite(placement.dz)) {
     reject(`el sólido ${id} tiene una colocación con \`dz\` no finito.`);
   }
-  const determinant =
-    (placement.a as number) * (placement.d as number) -
-    (placement.b as number) * (placement.c as number);
-  // Determinante cero aplasta el sólido contra un plano. No es un sólido
-  // pequeño: es un cuerpo sin volumen que rompe toda booleana posterior.
-  if (!(Math.abs(determinant) > 0)) {
-    reject(
-      `el sólido ${id} tiene una colocación singular: aplastaría el sólido a un plano.`,
-    );
+  // Campos3D opcionales: m02, m12, m20, m21, m22, tx, ty, tz.
+  const fields3d = [
+    'm02',
+    'm12',
+    'm20',
+    'm21',
+    'm22',
+    'tx',
+    'ty',
+    'tz',
+  ] as const;
+  let has3D = false;
+  for (const key of fields3d) {
+    if (placement[key] !== undefined) {
+      if (!finite(placement[key])) {
+        reject(
+          `el sólido ${id} tiene una colocación con \`${key}\` no finito.`,
+        );
+      }
+      if (key !== 'tx' && key !== 'ty' && key !== 'tz' && placement[key] !== 0)
+        has3D = true;
+      if (
+        (key === 'tx' || key === 'ty' || key === 'tz') &&
+        placement[key] !== 0
+      )
+        has3D = true;
+    }
+  }
+  if (has3D) {
+    // Determinante3×3: a*(d*m22 - m12*m21) - c*(b*m22 - m12*m20) + m02*(b*m21 - d*m20)
+    const a = placement.a as number,
+      b = placement.b as number;
+    const c = placement.c as number,
+      d = placement.d as number;
+    const m02 = (placement.m02 as number) ?? 0;
+    const m12 = (placement.m12 as number) ?? 0;
+    const m20 = (placement.m20 as number) ?? 0;
+    const m21 = (placement.m21 as number) ?? 0;
+    const m22 = (placement.m22 as number) ?? 1;
+    const det3 =
+      a * (d * m22 - m12 * m21) -
+      c * (b * m22 - m12 * m20) +
+      m02 * (b * m21 - d * m20);
+    if (!(Math.abs(det3) > 0)) {
+      reject(
+        `el sólido ${id} tiene una colocación3D singular: aplastaría el sólido a un plano.`,
+      );
+    }
+  } else {
+    const determinant =
+      (placement.a as number) * (placement.d as number) -
+      (placement.b as number) * (placement.c as number);
+    if (!(Math.abs(determinant) > 0)) {
+      reject(
+        `el sólido ${id} tiene una colocación singular: aplastaría el sólido a un plano.`,
+      );
+    }
   }
 }
 

@@ -53,6 +53,20 @@ const SCENE: CadEntity[] = [
   },
   { id: "arc", type: "arc", center: { x: 0, y: 0, z: 0 }, radius: 10, startAngle: 0, endAngle: 90, layer: "0" },
   { id: "note", type: "mtext", insertion: { x: 0, y: 500, z: 0 }, text: "x", layer: "0" },
+  // Cota de 4000 con extremo b en x=4000: la ventana [3900,4100] captura solo b.
+  {
+    id: "dim1",
+    type: "dimension",
+    dimensionKind: "aligned",
+    a: { x: 0, y: 0 },
+    b: { x: 4000, y: 0 },
+    c: { x: 0, y: -500 },
+    offset: 500,
+    layer: "0",
+    precision: 0,
+    sourceUnit: "mm",
+    units: "mm",
+  },
 ];
 
 function makeContext(): CadCommandContext {
@@ -138,6 +152,27 @@ const pickAt = (entityId: string, x: number, y: number): CadCommandInput => ({
   const result = run("STRETCH", [point(-500, -500), point(-490, -490), point(0, 0), point(1, 0)]);
   assert.equal(result?.kind, "message");
   assert.ok(result.kind === "message" && result.text.includes("no toca ningún objeto"));
+}
+
+// --- STRETCH de cota: sólo los puntos de definición dentro se mueven (T18) -----------
+{
+  // Ventana [3900, -10]–[4100, 10]: captura solo el punto b (x=4000).
+  // Desplazamiento (+500, 0): b pasa a (4500, 0), a se queda en (0, 0).
+  const result = run("STRETCH", [point(3900, -10), point(4100, 10), point(0, 0), point(500, 0)]);
+  assert.ok(result && result.kind === "document", "STRETCH de cota produce documento");
+  const byId = new Map(
+    result.commands.map((cmd) => ["entityId" in cmd ? cmd.entityId : "", cmd]),
+  );
+  const dim = byId.get("dim1");
+  assert.ok(dim, "la cota se estira");
+  if (dim && dim.type === "replace" && dim.entity.type === "dimension") {
+    near(dim.entity.a.x, 0, 1e-12, "punto a no se mueve (fuera de ventana)");
+    near(dim.entity.b.x, 4500, 1e-12, "punto b se estira 500 (dentro de ventana)");
+    near(dim.entity.b.y, 0, 1e-12, "punto b.y sin cambios");
+  } else if (dim && dim.type === "transform") {
+    // Si ambos puntos entraran, sería transformación completa
+    near(dim.transform.translation!.x, 500, 1e-12, "ambos dentro: traslación completa");
+  }
 }
 
 // --- LENGTHEN: los cuatro modos, con longitudes calculadas a mano -----------------------

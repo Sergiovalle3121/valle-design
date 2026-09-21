@@ -54,6 +54,7 @@ import {
 import { hatchLoops, pushHatch } from "./dxf-export-hatch";
 
 export type CadDxfExportUnit = "mm" | "m";
+import type { CadDxfVersion } from "./dxf-version"; // dxf-version.ts: presupuesto de monolito
 export interface CadDxfExportOptions {
   units?: CadDxfExportUnit;
   fileComment?: string;
@@ -64,6 +65,7 @@ export interface CadDxfExportOptions {
    * ellas, el ajuste arquitectónico del dibujo no sobrevive al fichero.
    */
   lengthUnits?: { lunits: number; luprec: number };
+  dxfVersion?: CadDxfVersion;
 }
 export interface CadDxfExportLayer {
   name: string;
@@ -273,10 +275,8 @@ function pushHeader(
 ) {
   pushPair(lines, 0, "SECTION");
   pushPair(lines, 2, "HEADER");
-  // AC1015 (AutoCAD 2000): la versión mínima honesta para las entidades que
-  // emitimos — ELLIPSE no existe en R12 (AC1009).
   pushPair(lines, 9, "$ACADVER");
-  pushPair(lines, 1, "AC1015");
+  pushPair(lines, 1, options.dxfVersion ?? "AC1015");
   pushPair(lines, 9, "$INSUNITS");
   pushPair(lines, 70, DXF_UNIT_CODES[options.units ?? "mm"]);
   // El FORMATO de las longitudes es del dibujo, igual que su unidad. Sin
@@ -741,12 +741,12 @@ function writePrimitiveGeometry(
  * cerrado). dxf-parser lo DESCARTA al leer (el import lo avisa honesto); los
  * CAD reales lo pintan como área rellena.
  */
-
 function pushMleader(lines: string[], entity: CadDxfExportMleader): boolean {
   const geometry = buildCadMleaderGeometry({ id: "dxf-mleader", type: "mleader", ...entity });
   if (!geometry) return false;
   const layer = safeLayerName(entity.layer ?? TEXT_LAYER);
-  pushPair(lines, 0, "MLEADER");
+  pushPair(lines, 0, "MULTILEADER");
+  pushPair(lines, 100, "AcDbEntity");
   pushPair(lines, 8, layer);
   pushPair(lines, 100, "AcDbMLeader");
   pushPair(lines, 270, 2);

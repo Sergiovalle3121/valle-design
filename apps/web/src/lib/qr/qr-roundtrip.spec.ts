@@ -266,7 +266,7 @@ function verificaSindromes(matrix: QrMatrix, etiqueta: string): void {
 
 const CASOS: ReadonlyArray<readonly [etiqueta: string, texto: string]> = [
   ["un solo carácter", "A"],
-  ["ASCII corto", "Valle Design"],
+  ["ASCII corto", "VALLECAD"],
   [
     "otpauth realista",
     "otpauth://totp/Valle%20Design:sergio.valle@ejemplo.mx?secret=JBSWY3DPEHPK3PXP&issuer=Valle%20Design&algorithm=SHA1&digits=6&period=30",

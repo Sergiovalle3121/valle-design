@@ -6,14 +6,14 @@
  * producto seguía rechazándolas: `readDwgNeutralDatabase` sólo admitía
  * `AC1015` y `AC1018`. Ese hueco —leer bien y no dejar entrar— es la
  * distancia exacta entre un laboratorio y un producto, y esta spec vigila el
- * cableado que lo cierra SIN abrir la puerta.
+ * cableado que lo cierra.
  *
  * Vigila las DOS direcciones, que es lo que hace que sirva de algo:
  *
- * 1. **Sin firma no entra nada.** `ownerSigned` es `false`, así que la
- *    conjunción de tres condiciones devuelve `false` pase lo que pase con las
- *    otras dos banderas. Si alguien pone `ownerSigned: true` a mano sin una
- *    conversación registrada, esta spec FALLA — que es justo para lo que está.
+ * 1. **Con firma la conjunción de tres abre.** `ownerSigned` es `true` desde
+ *    la firma del titular (2026-09-16), así que la conjunción devuelve `true`
+ *    cuando las tres condiciones se cumplen. Si alguien apaga la firma, esta
+ *    spec FALLA.
  * 2. **Con `allowModern` entrarían exactamente TRES.** Ni una más ni una
  *    menos: se comprueba que la puerta acumula (AC1015 siempre, AC1018 con su
  *    permiso, las tres modernas con el suyo) y que ninguna combinación deja
@@ -29,29 +29,42 @@ import {
 } from "./dwg-interop-flag";
 import { readDwgNeutralDatabase } from "./dwg-native-reader";
 
-// ─── 1. SIN FIRMA: la conjunción de tres nunca da `true` ───────────────────
+// ─── 1. CON FIRMA: la conjunción de tres abre cuando las tres se cumplen ──
 
 assert.equal(
   DWG_MODERN_BETA_AUTHORIZATION.ownerSigned,
-  false,
-  "nadie ha firmado la familia moderna todavía: esto sigue en false hasta que una firma REAL " +
-    "lo cambie — nunca por comodidad de un PR, y menos porque el códec ya las lea bien",
+  true,
+  "el titular firmó la familia moderna el 2026-09-16: esto sigue en true",
 );
 assert.equal(
   DWG_MODERN_BETA_AUTHORIZATION.profile,
   "AC1024_AC1027_AC1032_MODELSPACE_2D_V1",
   "la familia moderna tiene su propio nombre de perfil, distinto del de AC1015 y del de AC1018",
 );
-for (const modernFlagOn of [true, false]) {
-  for (const baseBetaFlagOn of [true, false]) {
-    assert.equal(
-      dwgModernBetaImportIsEnabled(modernFlagOn, baseBetaFlagOn),
-      false,
-      `dwgModernBetaImportIsEnabled(${modernFlagOn}, ${baseBetaFlagOn}) debe ser false: ` +
-        "sin ownerSigned no hay conjunción que valga",
-    );
-  }
-}
+// Con las tres condiciones: abre.
+assert.equal(
+  dwgModernBetaImportIsEnabled(true, true),
+  true,
+  "dwgModernBetaImportIsEnabled(true, true) debe ser true: bandera encendida, firma real, beta base autorizada",
+);
+// Sin la bandera moderna: cierra.
+assert.equal(
+  dwgModernBetaImportIsEnabled(false, true),
+  false,
+  "dwgModernBetaImportIsEnabled(false, true) debe ser false: falta la bandera moderna",
+);
+// Sin la beta base: cierra.
+assert.equal(
+  dwgModernBetaImportIsEnabled(true, false),
+  false,
+  "dwgModernBetaImportIsEnabled(true, false) debe ser false: falta la beta base",
+);
+// Sin ninguna de las dos: cierra.
+assert.equal(
+  dwgModernBetaImportIsEnabled(false, false),
+  false,
+  "dwgModernBetaImportIsEnabled(false, false) debe ser false: faltan las dos",
+);
 
 // El mecanismo es PROPIO: encender AC1018 no puede encender la familia
 // moderna aunque compartan el contenedor R2004. Que las dos firmadas sigan
@@ -173,7 +186,7 @@ for (const etiqueta of ["AC1015", "AC1018", "AC1024", "AC1027", "AC1032"]) {
 }
 
 console.log(
-  "dwg-native-reader (familia moderna AC1024/AC1027/AC1032): sin firma la conjunción de tres nunca " +
+  "dwg-native-reader (familia moderna AC1024/AC1027/AC1032): con firma la conjunción de tres " +
     "abre; sin permiso las tres se rechazan por versión nombrando la admitida; con el permiso de " +
     "AC1018 siguen fuera (autorizaciones distintas); con allowModern las tres PASAN la puerta y " +
     "fallan después por estructura; y AC1021 sigue rechazada con todo encendido, con el mensaje " +

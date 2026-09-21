@@ -197,12 +197,23 @@ export interface CadStudioCommandEngineOptions {
    * el cambio no está disponible en vez de afirmarlo.
    */
   setSpace?(space: "model" | "paper", layoutId?: string): boolean;
+  /** Cambia la proyección 3D (PERSPECTIVE). Devuelve si cambió. */
+  setProjection?(projection: "perspective" | "parallel"): boolean;
   /**
    * Lleva al usuario a la configuración de página de esa presentación
    * (PAGESETUP por cuadro). Sin él, PAGESETUP lo dice y ofrece sus opciones
    * por línea de comandos, que siguen completas.
    */
   openPageSetup?(layoutId: string): void;
+  /**
+   * Superficie para la vista previa de trazado (PLOT modo preview).
+   *
+   * Opcional: sin él, el anfitrión responde honestamente «La vista previa de
+   * trazado no está disponible en esta versión». Con él, PLOT en modo
+   * `preview` le entrega un `CadPlotPreview` con la hoja, los trazos, las
+   * etiquetas y los issues para que lo pinte.
+   */
+  plotPreview?(preview: import("@/lib/cad/plot/plot-job").CadPlotPreview): void;
   /**
    * La pila de deshacer del editor, un paso cada vez (`U`, `UNDO`, `REDO`).
    *
@@ -262,7 +273,7 @@ export function useCadStudioNavigation(
 export function useCadStudioPlotHost(
   options: Pick<
     CadStudioCommandEngineOptions,
-    "document" | "visualStyle" | "setSpace" | "openPageSetup"
+    "document" | "visualStyle" | "setSpace" | "setProjection" | "openPageSetup" | "plotPreview"
   > & {
     /** Adónde va el renglón del trazado cuando termina. */
     note?: (text: string, level: "info" | "error") => void;
@@ -300,6 +311,14 @@ export function useCadStudioPlotHost(
     // monochrome` dejaba escrita en la hoja una tabla que PLOT no podía
     // encontrar, y trazar esa hoja pasaba a ser imposible.
     const plotStyles = options.plotStyles ?? new CadPlotStyleCatalog();
+    // Fuentes OFL disponibles para incrustar en el PDF. Se cargan bajo demanda
+    // con fetch + base64 para no inflar el bundle de /studio (techo 232,8 KB
+    // gzip). La caché vive fuera del useMemo para sobrevivir a los renders.
+    const oflFontCache = new Map<string, import("@/lib/cad/plot/plot-pdf").CadPlotFontProgram>();
+    const oflFonts: Array<{ family: string; fileName: string }> = [
+      { family: "JetBrainsMono", fileName: "JetBrainsMono-wght.ttf" },
+      { family: "SpaceGrotesk", fileName: "SpaceGrotesk-wght.ttf" },
+    ];
     return new CadPlotHost({
       document: () => live.current.document.current,
       download: downloadCadFile,
@@ -309,6 +328,12 @@ export function useCadStudioPlotHost(
       loadSheetSet: (sheetSetId) => sheetSets.loadSheetSet(sheetSetId, note),
       saveSheetSet: (set) => sheetSets.saveSheetSet(set, note),
       setVisualStyle: (styleId) => live.current.visualStyle?.(styleId) ?? null,
+      ...(options.setProjection
+        ? {
+            setProjection: (projection: "perspective" | "parallel") =>
+              live.current.setProjection?.(projection) ?? false,
+          }
+        : {}),
       // Los puentes de espacio y de configuración de página sólo existen si
       // el editor los aporta: pasarlos como funciones que devuelven «no» los
       // convertiría en éxitos falsos otra vez, que es lo que se acaba de
@@ -325,6 +350,40 @@ export function useCadStudioPlotHost(
               live.current.openPageSetup?.(layoutId),
           }
         : {}),
+      ...(options.plotPreview
+        ? {
+            preview: (p: import("@/lib/cad/plot/plot-job").CadPlotPreview) =>
+              live.current.plotPreview?.(p),
+          }
+        : {}),
+      fonts: async () => {
+        const result: import("@/lib/cad/plot/plot-pdf").CadPlotFontProgram[] = [];
+        for (const spec of oflFonts) {
+          if (oflFontCache.has(spec.family)) {
+            result.push(oflFontCache.get(spec.family)!);
+            continue;
+          }
+          try {
+            const res = await fetch(`/fonts/${spec.fileName}`);
+            if (!res.ok) continue;
+            const buf = await res.arrayBuffer();
+            const base64 = btoa(
+              Array.from(new Uint8Array(buf), (b) => String.fromCharCode(b)).join(""),
+            );
+            const program: import("@/lib/cad/plot/plot-pdf").CadPlotFontProgram = {
+              family: spec.family,
+              style: "normal",
+              fileName: spec.fileName,
+              base64,
+            };
+            oflFontCache.set(spec.family, program);
+            result.push(program);
+          } catch {
+            // fetch falló (offline, CSP, etc.): la familia sale como sustituida.
+          }
+        }
+        return result;
+      },
     });
   }, []);
 }
@@ -369,7 +428,9 @@ export function useCadStudioCommandEngine(
     plotStyles: session.plotStyles,
     visualStyle: options.visualStyle,
     ...(options.setSpace ? { setSpace: options.setSpace } : {}),
+    ...(options.setProjection ? { setProjection: options.setProjection } : {}),
     ...(options.openPageSetup ? { openPageSetup: options.openPageSetup } : {}),
+    ...(options.plotPreview ? { plotPreview: options.plotPreview } : {}),
   });
   const live = useRef(options);
   live.current = options;
@@ -454,18 +515,28 @@ export function useCadStudioCommandEngine(
     // mismo que DXFOUT ya usa— así que llegan al dibujo REAL sin que
     // `Layout3DEditor.tsx` tenga que aportar nada nuevo: ese archivo está en
     // su techo exacto (19.002/19.002 líneas) y `check:cad` prohíbe tocarlo.
-    host: (request) =>
-      live.current.host?.(request) ??
-      handleCadXrefHostRequest(request, live.current.attachXref ?? null) ??
-      handleCadHistoryHostRequest(request, {
-        undo: () => live.current.history?.undo() ?? false,
-        redo: () => live.current.history?.redo() ?? false,
-      }) ??
-      handleCadUcsPlanRequest(request, { controller: () => live.current.view.current ?? null }) ??
-      handleCadDxfHostRequest(request, { download: downloadCadFile }) ??
-      handleCadEtransmitHostRequest(request, { download: downloadCadFile }) ??
-      handleCadDataExtractionHostRequest(request, { download: downloadCadFile }) ??
-      plot.handle(request),
+    host: (request) => {
+      if (request.kind === "view-projection") {
+        // PERSPECTIVE es espejo del controlador: la variable se escribe aquí,
+        // al aplicar la petición, para que SETVAR PERSPECTIVE refleje el estado
+        // real. La alternativa —dejarla escrita por el comando y leída por
+        // nadie— ya estuvo así y fue un éxito falso.
+        variables.publish("PERSPECTIVE", request.projection === "perspective" ? 1 : 0);
+      }
+      return (
+        live.current.host?.(request) ??
+        handleCadXrefHostRequest(request, live.current.attachXref ?? null) ??
+        handleCadHistoryHostRequest(request, {
+          undo: () => live.current.history?.undo() ?? false,
+          redo: () => live.current.history?.redo() ?? false,
+        }) ??
+        handleCadUcsPlanRequest(request, { controller: () => live.current.view.current ?? null }) ??
+        handleCadDxfHostRequest(request, { download: downloadCadFile }) ??
+        handleCadEtransmitHostRequest(request, { download: downloadCadFile }) ??
+        handleCadDataExtractionHostRequest(request, { download: downloadCadFile }) ??
+        plot.handle(request)
+      );
+    },
     // Previsualización, captura forzada y forma del cursor pertenecen al
     // puntero, y el puntero YA llegó: las tres las sirve el enrutador del
     // viewport a través de estas opciones. Sin enrutador —un guion, una

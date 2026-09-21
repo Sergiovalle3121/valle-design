@@ -70,13 +70,15 @@ import {
   cadActiveUcsIsTilted,
   type CadSystemVariableValue,
 } from "@/lib/cad/system-variables";
+import { cadCommandAliasEcho } from "./command-echo";
+import { handleClipboardRequest, handleDownloadRequest } from "./command-engine-host-helpers";
 import type { CadNamedUcs } from "@/lib/cad/ucs";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
-import { CAD_SHARED_CLIPBOARD, cadClipboardContent, type CadClipboard } from "@/lib/cad/clipboard";
+import { CAD_SHARED_CLIPBOARD, type CadClipboard } from "@/lib/cad/clipboard";
 import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
 import type { SnapType } from "@/lib/cad/snap-engine";
 import type { CadSolidFaceRef } from "@/lib/cad/cad-entities-v5";
-import type { CadPoint3 } from "@/lib/cad/cad-document";
+import type { CadPoint2, CadPoint3 } from "@/lib/cad/cad-document";
 import type { CadViewRequest } from "@/lib/cad/view/view-navigation";
 import type { CadCommandLineEntry } from "./CadCommandLine";
 
@@ -215,29 +217,7 @@ export class CadCommandEngineHost {
    * diálogo enseña, con la negativa cuando no había nada canónico que copiar.
    */
   private clipboardRequest(request: Extract<CadHostRequest, { kind: "clipboard" }>): string {
-    const context = this.bridge.context();
-    const entities = request.entityIds.flatMap((id) => {
-      const entity = context.entity?.(id);
-      return entity ? [entity] : [];
-    });
-    const content = cadClipboardContent(
-      entities,
-      context.blocks?.() ?? [],
-      request.basePoint,
-      request.op,
-      context.document?.(),
-    );
-    if (typeof content === "string") return `${request.op === "cut" ? "CUTCLIP" : "COPYCLIP"}: ${content}`;
-    this.clipboard.write(content);
-    if (request.op === "cut")
-      this.bridge.apply(
-        content.entities.map((entity): CadEntityCommand => ({ type: "delete", entityId: entity.id })),
-        "CUTCLIP",
-      );
-    const base = `${content.basePoint.x}, ${content.basePoint.y}`;
-    return request.op === "cut"
-      ? `${content.entities.length} objeto(s) cortado(s) al portapapeles; punto base ${base}.`
-      : `${content.entities.length} objeto(s) copiado(s) al portapapeles; punto base ${base}.`;
+    return handleClipboardRequest(request, this.bridge.context(), this.clipboard, (cmds, lbl) => this.bridge.apply(cmds, lbl));
   }
 
   /**
@@ -314,6 +294,10 @@ export class CadCommandEngineHost {
   /** Texto tecleado en la línea de comandos. */
   submit(value: string): void {
     this.log(value, "input");
+    // Eco de AutoCAD («L» → «LINE») sólo si lo tecleado ABRE una orden: la «E»
+    // que responde a ZOOM es Extensión, no ERASE (ver `command-echo.ts`).
+    const echo = cadCommandAliasEcho(value, this.busy, (name) => Boolean(this.registry.get(name)));
+    if (echo) this.log(echo, "info");
     this.dispatch({ kind: "token", value });
   }
 
@@ -365,16 +349,7 @@ export class CadCommandEngineHost {
     this.dispatch({ kind: "input", input: { kind: "entityPick", entityId, point } });
   }
 
-  /**
-   * Designación de una CARA de sólido, ya resuelta por el rayo de cámara.
-   *
-   * Entra por la MISMA puerta que todo lo demás —`dispatch`— y no por un canal
-   * propio: el enrutador del puntero tiene una regla dura, «cuando el motor
-   * tiene un comando activo, la máquina heredada no recibe nada», y un segundo
-   * canal sería una segunda máquina escuchando el clic. La huella y la normal
-   * las calcula quien ve la geometría (el anfitrión de designación 3D); aquí
-   * sólo viajan.
-   */
+  /** Designación de cara de sólido. Entra por dispatch, no por canal propio. */
   pickFace(input: {
     entityId: string;
     face: CadSolidFaceRef;
@@ -382,6 +357,16 @@ export class CadCommandEngineHost {
     normal: CadPoint3;
   }): void {
     this.dispatch({ kind: "input", input: { kind: "facePick", ...input } });
+  }
+
+  pickEdge(input: {
+    entityId: string;
+    edge: number;
+    from: CadPoint3;
+    to: CadPoint3;
+    point: CadPoint2;
+  }): void {
+    this.dispatch({ kind: "input", input: { kind: "edgePick", ...input } });
   }
 
   select(entityIds: readonly string[]): void {
@@ -740,6 +725,10 @@ export class CadCommandEngineHost {
         if (effect.request.kind === "clipboard") {
           const answered = this.clipboardRequest(effect.request);
           this.log(answered, answered.includes(": no ") || answered.includes(": lo ") ? "error" : "info");
+          return;
+        }
+        if (effect.request.kind === "download") {
+          handleDownloadRequest(effect.request, effect.label, (msg, lvl) => this.log(msg, lvl));
           return;
         }
         const answered = this.bridge.host?.(effect.request) ?? null;

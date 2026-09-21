@@ -1,0 +1,226 @@
+﻿#Requires -Version 5.1
+<#
+    subir-y-mergear.ps1
+    Publica el trabajo de la sesion: commit -> push -> PR -> auto-merge.
+
+    El merge NO es a ciegas. Tu main exige 3 checks:
+      - Contrato . Build . Test . Lint . Smoke
+      - E2E Playwright (PostgreSQL . Chromium + Firefox)
+      - Gitleaks (historial completo)
+    Se activa el auto-merge de GitHub: mergea SOLO cuando los tres pasan.
+    Si alguno falla, la PR se queda abierta esperando. Esa es la red.
+#>
+
+param(
+    [string]$Mensaje = '',
+    [switch]$SinGates,
+    [switch]$SinMerge
+)
+
+$ErrorActionPreference = 'Continue'
+$ProgressPreference    = 'SilentlyContinue'
+
+$ProjectPath = 'D:\dev\valle-design'
+$RepoSlug    = 'Sergiovalle3121/valle-design'
+
+function Say  ($m) { Write-Host $m -ForegroundColor Cyan }
+function Ok   ($m) { Write-Host ('  OK    ' + $m) -ForegroundColor Green }
+function Warn ($m) { Write-Host ('  AVISO ' + $m) -ForegroundColor Yellow }
+function Bad  ($m) { Write-Host ('  FALLO ' + $m) -ForegroundColor Red }
+
+function Salir ($code) {
+    if ($Host.Name -eq 'ConsoleHost') { Read-Host 'Pulsa ENTER para cerrar' | Out-Null }
+    exit $code
+}
+
+Write-Host ''
+Say '=================================================='
+Say '  SUBIR A GITHUB Y MERGEAR'
+Say '=================================================='
+Write-Host ''
+
+if (-not (Test-Path -LiteralPath (Join-Path $ProjectPath '.git'))) {
+    Bad ('No hay repositorio en ' + $ProjectPath)
+    Salir 1
+}
+Set-Location -LiteralPath $ProjectPath
+
+$gh = Get-Command gh -ErrorAction SilentlyContinue
+if (-not $gh) {
+    Bad 'Falta GitHub CLI (gh). Sin el no puedo crear la PR ni activar el auto-merge.'
+    Write-Host '        Instalalo desde https://cli.github.com'
+    Salir 1
+}
+
+# ---------------------------------------------------------------- 1. Rama
+Say '[1/6] Comprobando la rama...'
+
+$rama = (& git rev-parse --abbrev-ref HEAD | Select-Object -First 1)
+
+if ($rama -eq 'main') {
+    Bad 'Estas en main, y main esta protegido: el push seria rechazado.'
+    Write-Host ''
+    Write-Host '        Mueve tu trabajo a una rama y vuelve a ejecutar esto:' -ForegroundColor Yellow
+    Write-Host '          git switch -c mimo/lo-que-hiciste'
+    Salir 1
+}
+Ok ('Rama: ' + $rama)
+
+# ---------------------------------------------------------------- 2. Que se sube
+Say ''
+Say '[2/6] Revisando cambios...'
+
+$estado = @(& git status --porcelain)
+$yaCommiteado = $false
+
+if ($estado.Count -eq 0) {
+    Warn 'No hay cambios sin guardar.'
+    $pend = (& git rev-list --count "origin/$rama..HEAD" 2>$null | Select-Object -First 1)
+    if (-not $pend) { $pend = (& git rev-list --count "main..HEAD" 2>$null | Select-Object -First 1) }
+    if ($pend -and ([int]$pend) -gt 0) {
+        Ok ($pend + ' commit(s) ya hechos, pendientes de subir. Sigo.')
+        $yaCommiteado = $true
+    } else {
+        Warn 'Y tampoco hay commits nuevos. No hay nada que publicar.'
+        Salir 0
+    }
+} else {
+    Write-Host ''
+    & git status --short
+    Write-Host ''
+
+    # Staging explicito: NUNCA "git add -A". Primero lo ya rastreado.
+    & git add -u
+    Ok 'Preparados los cambios en ficheros ya rastreados (git add -u).'
+
+    $nuevos = @(& git ls-files --others --exclude-standard)
+    if ($nuevos.Count -gt 0) {
+        Write-Host ''
+        Warn ($nuevos.Count.ToString() + ' fichero(s) NUEVOS, sin rastrear:')
+        $nuevos | Select-Object -First 25 | ForEach-Object { Write-Host ('          + ' + $_) }
+        if ($nuevos.Count -gt 25) { Write-Host ('          ... y ' + ($nuevos.Count - 25) + ' mas') }
+        Write-Host ''
+        Write-Host '        El repositorio es PUBLICO. Mira la lista antes de decir que si.' -ForegroundColor Yellow
+        $r = Read-Host '        Incluirlos en el commit? (s/N)'
+        if ($r -eq 's' -or $r -eq 'S') {
+            foreach ($f in $nuevos) { & git add -- $f }
+            Ok 'Ficheros nuevos incluidos.'
+        } else {
+            Ok 'Ficheros nuevos EXCLUIDOS. Se quedan en tu disco sin subir.'
+        }
+    }
+}
+
+# ---------------------------------------------------------------- 3. Gates locales
+if (-not $SinGates) {
+    Say ''
+    Say '[3/6] Gates locales antes de gastar CI...'
+    Write-Host '        Tus corridas de CI tardan 46-48 min. Vale la pena filtrar aqui.' -ForegroundColor DarkGray
+    Write-Host ''
+
+    Write-Host '        npm run typecheck ...'
+    & npm.cmd run typecheck
+    $tc = $LASTEXITCODE
+    if ($tc -ne 0) {
+        Bad 'typecheck FALLA. No subo nada.'
+        Write-Host ''
+        Write-Host '        Arreglalo y repite. O si sabes lo que haces, salta los gates:' -ForegroundColor Yellow
+        Write-Host '          2-SUBIR-Y-MERGEAR.cmd -SinGates'
+        Salir 1
+    }
+    Ok 'typecheck en verde.'
+} else {
+    Say ''
+    Warn '[3/6] Gates locales SALTADOS por peticion (-SinGates).'
+    Write-Host '        Los 3 checks de GitHub siguen siendo obligatorios para el merge.'
+}
+
+# ---------------------------------------------------------------- 4. Commit
+Say ''
+Say '[4/6] Commit...'
+
+if (-not $yaCommiteado) {
+    $hayStaged = @(& git diff --cached --name-only)
+    if ($hayStaged.Count -eq 0) {
+        Warn 'No queda nada preparado para commitear.'
+    } else {
+        if (-not $Mensaje) {
+            Write-Host ''
+            $Mensaje = Read-Host '        Mensaje del commit'
+        }
+        if (-not $Mensaje) {
+            $Mensaje = 'trabajo de sesion MiMo ' + (Get-Date -Format 'yyyy-MM-dd HH:mm')
+            Warn ('Sin mensaje. Uso: ' + $Mensaje)
+        }
+        & git commit -m $Mensaje
+        if ($LASTEXITCODE -ne 0) { Bad 'El commit fallo.'; Salir 1 }
+        Ok 'Commit hecho.'
+    }
+}
+
+# ---------------------------------------------------------------- 5. Push
+Say ''
+Say '[5/6] Subiendo a GitHub...'
+
+& git push -u origin $rama
+if ($LASTEXITCODE -ne 0) {
+    Bad 'El push fallo.'
+    Write-Host '        Si dice "non-fast-forward", alguien subio antes que tu. Ejecuta:'
+    Write-Host '          git pull --rebase --autostash'
+    Write-Host '        y vuelve a intentarlo.'
+    Salir 1
+}
+Ok ('Rama ' + $rama + ' subida a origin.')
+
+# ---------------------------------------------------------------- 6. PR y auto-merge
+Say ''
+Say '[6/6] Pull request...'
+
+$prUrl = (& gh pr view --json url --jq '.url' 2>$null | Select-Object -First 1)
+
+if (-not $prUrl) {
+    $titulo = $Mensaje
+    if (-not $titulo) { $titulo = (& git log -1 --pretty=format:'%s' | Select-Object -First 1) }
+    & gh pr create --repo $RepoSlug --base main --head $rama --title $titulo --body "Trabajo de una sesion de MiMo Code.`n`nMerge automatico cuando pasen los 3 checks obligatorios."
+    if ($LASTEXITCODE -ne 0) { Bad 'No pude crear la PR. Creala a mano en GitHub.'; Salir 1 }
+    $prUrl = (& gh pr view --json url --jq '.url' 2>$null | Select-Object -First 1)
+    Ok 'PR creada.'
+} else {
+    Ok 'Ya existia una PR para esta rama; se actualiza con el push.'
+}
+
+Write-Host ('        ' + $prUrl)
+
+if ($SinMerge) {
+    Say ''
+    Warn 'Auto-merge NO activado (-SinMerge). La PR se queda esperando a que la revises.'
+    Salir 0
+}
+
+Say ''
+Say 'Activando el auto-merge...'
+& gh pr merge --repo $RepoSlug --auto --squash --delete-branch
+if ($LASTEXITCODE -eq 0) {
+    Write-Host ''
+    Write-Host '  LISTO.' -ForegroundColor Green
+    Write-Host ''
+    Write-Host '  GitHub mergeara esta PR a main EL SOLO en cuanto pasen:' -ForegroundColor Cyan
+    Write-Host '    - Contrato . Build . Test . Lint . Smoke'
+    Write-Host '    - E2E Playwright (PostgreSQL . Chromium + Firefox)'
+    Write-Host '    - Gitleaks (historial completo)'
+    Write-Host ''
+    Write-Host '  Si alguno falla, la PR se queda abierta y NO se mergea.' -ForegroundColor Yellow
+    Write-Host '  Tus corridas tardan 46-48 min, asi que no esperes al momento.'
+    Write-Host ''
+    Write-Host ('  Seguimiento:  gh pr checks --repo ' + $RepoSlug) -ForegroundColor DarkGray
+} else {
+    Warn 'No pude activar el auto-merge. La PR esta creada; mergeala tu desde GitHub.'
+    Write-Host ('        ' + $prUrl)
+}
+
+Write-Host ''
+Write-Host '  La proxima vez que abras MiMo con 1-ABRIR-MIMO.cmd, se traera' -ForegroundColor Cyan
+Write-Host '  este avance de GitHub y arrancara desde ahi, no desde codigo viejo.' -ForegroundColor Cyan
+Write-Host ''
+
+Salir 0

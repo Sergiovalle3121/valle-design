@@ -90,10 +90,11 @@ test("MED, y sólo MED, sobre un tramo de POLYLINE anuncia «medio» en el HUD",
   await page.mouse.move(midpoint.x, midpoint.y);
   const prompt = page.getByTestId("cad-live-prompt");
   await expect(prompt).toBeVisible();
-  const text = (await prompt.textContent()) ?? "";
+  // Aserción auto-retrying: el snap label se escribe imperativamente desde
+  // pointermove → snapFloor → setSnap, y puede no estar en el DOM al instante
+  // en que Playwright lee textContent. toContainText reintenta hasta el timeout.
+  await expect(prompt).toContainText("medio");
+  await expect(prompt).not.toContainText("nodo");
+  await expect(prompt).not.toContainText("centro");
   await page.keyboard.press("Escape");
-
-  expect(text).toContain("medio");
-  expect(text).not.toContain("nodo");
-  expect(text).not.toContain("centro");
 });

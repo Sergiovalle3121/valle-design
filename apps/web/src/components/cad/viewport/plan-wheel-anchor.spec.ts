@@ -9,6 +9,7 @@
 import { strict as assert } from "node:assert";
 import { cadPlanWheelAnchorCorrection } from "./plan-wheel-anchor";
 import { cadViewScreenToWorld, type CadView } from "@/lib/cad/view/cad-view";
+import { PLAN_AXIS_Y_SCREEN_SIGN } from "@/lib/cad/view/plan-axis";
 
 let verdes = 0;
 const cerca = (actual: number, esperado: number, mensaje: string, tol = 1e-9) => {
@@ -24,7 +25,7 @@ const vista = (pixelsPerUnit: number, centerX = 4_000, centerY = 3_000): CadView
   widthPx: 784,
   heightPx: 507,
   twistDeg: 0,
-  yScreenSign: 1,
+  yScreenSign: PLAN_AXIS_Y_SCREEN_SIGN,
 });
 
 // --- 1 · acercar sobre un píxel cualquiera deja ese punto quieto -------------

@@ -101,6 +101,15 @@ export interface CadDimensionStyleDefinition {
   suffix?: string;
   /** Unidad de presentación de la medida (junto a DIMLFAC cubre DIMALTF/UNIT). */
   units?: "mm" | "cm" | "m" | "in" | "ft";
+
+  /* ── Unidades alternas ─────────────────────────────────────────────────── */
+  /**
+   * DIMALT + DIMALTU — presencia = activadas: unidad del segundo rótulo entre
+   * corchetes, «40.00 [1.57 in]». Ausente = sin unidad alterna, como hoy.
+   */
+  alternateUnits?: "mm" | "cm" | "m" | "in" | "ft";
+  /** DIMALTD — decimales del rótulo alterno, INDEPENDIENTES de los de DIMDEC. */
+  alternatePrecision?: number;
 }
 
 /** Defaults del estilo `Standard`: los mismos números que el kernel dibuja hoy. */
@@ -199,6 +208,9 @@ export function cadDimensionStyleBake(
   extensionLineColor?: string;
   textVertical?: "centered" | "above";
   textJustification?: "centered" | "first" | "second";
+  /* ── Unidades alternas: no son medidas de DIBUJO, DIMSCALE no las toca ──── */
+  alternateUnits?: "mm" | "cm" | "m" | "in" | "ft";
+  alternatePrecision?: number;
 } {
   const scale = definition.overallScale ?? 1;
   const scaled = (value: number | undefined) =>
@@ -232,6 +244,12 @@ export function cadDimensionStyleBake(
     ...emit(definition.extensionLineColor, "extensionLineColor"),
     ...emit(definition.textVertical, "textVertical"),
     ...emit(definition.textJustification, "textJustification"),
+    /*
+     * Unidades alternas: DIMALTU no es un tamaño y DIMALTD son dígitos, así
+     * que ninguno de los dos escala con DIMSCALE.
+     */
+    ...emit(definition.alternateUnits, "alternateUnits"),
+    ...emit(definition.alternatePrecision, "alternatePrecision"),
   };
 }
 
@@ -267,6 +285,8 @@ const FIELD_LABELS: ReadonlyArray<[keyof CadDimensionStyleDefinition, string]> =
   ["prefix", "prefijo (DIMPOST)"],
   ["suffix", "sufijo (DIMPOST)"],
   ["units", "unidad de medida"],
+  ["alternateUnits", "unidad alterna (DIMALTU)"],
+  ["alternatePrecision", "decimales de la unidad alterna (DIMALTD)"],
 ];
 
 /**
@@ -337,6 +357,8 @@ const FIELD_KINDS: Record<keyof CadDimensionStyleDefinition, "number" | "boolean
   prefix: "string",
   suffix: "string",
   units: "string",
+  alternateUnits: "string",
+  alternatePrecision: "number",
 };
 
 /** Campos que son LONGITUDES de modelo (se reescalan al importar un DXF). */
@@ -387,6 +409,12 @@ export function cadDimensionStyleFromEntries(
  * Es la cara del fichero para lectores ajenos; la fidelidad exacta propia
  * viaja aparte por XDATA. Los colores sólo se escriben si ya son un índice
  * ACI (un CSS `#rrggbb` no tiene código estándar y va sólo en la XDATA).
+ *
+ * `alternateUnits` y `alternatePrecision` (DIMALTU/DIMALTD, Ola 7) se quedan
+ * FUERA de este subconjunto a propósito: sin una fuente verificada de sus
+ * números de grupo DXF en esta base de código, inventar uno sería peor que no
+ * tenerlo — un lector ajeno leería un campo distinto con ese código. Viajan
+ * enteros por la XDATA propia, que sí es nuestra.
  */
 export function cadDimensionStyleStandardPairs(
   definition: CadDimensionStyleDefinition,

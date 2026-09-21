@@ -37,6 +37,7 @@ import type { CadPreviewPath } from "@/lib/cad/engine/command-types";
 import {
   CAD_ACCEPT_ENTITY_PICK,
   CAD_ACCEPT_FACE_PICK,
+  CAD_ACCEPT_EDGE_PICK,
   CAD_ACCEPT_SELECTION,
   CAD_ACCEPT_POINT,
 } from "@/lib/cad/engine/command-types";
@@ -127,6 +128,27 @@ export function cadEngineCommandForTool(tool: string): string | null {
   );
 }
 
+const CAD_DRAFT_TOOLBAR_COMMANDS: ReadonlySet<string> = new Set(
+  Object.values(CAD_ENGINE_POINTER_COMMANDS),
+);
+
+/**
+ * ¿Lleva ESTE comando del motor la barra de borrador (ORTO + entrada dinámica)?
+ *
+ * Sólo los siete de la tabla de arriba, se arranquen desde la paleta, la cinta
+ * o el teclado: son los que consumen lo que la barra ofrece —punto
+ * ABS/REL/POLAR, radio, desfase—. Con cualquier otro comando la barra no aporta
+ * nada y SÍ quita lienzo: flota en `top-12` sobre casi todo el ancho, y con
+ * puntero grueso (objetivos de 44 px) mide 76 px de alto. Medido en el golden 56
+ * (tableta 1.024×768): con DIMLINEAR tecleado la barra quedaba encima del muro
+ * sur y el dedo que se posa 24 px antes del extremo caía en `cad-dynamic-input`,
+ * no en el lienzo; la cota no avanzaba. Antes de montarla para «cualquier
+ * comando del motor» un comando tecleado nunca la tuvo.
+ */
+export function cadEngineCommandHasDraftToolbar(command: string | null): boolean {
+  return command !== null && CAD_DRAFT_TOOLBAR_COMMANDS.has(command);
+}
+
 export interface CadEnginePointerBridge {
   host: CadCommandEngineHost;
   preview: CadPointerPreviewSurface;
@@ -178,6 +200,22 @@ export interface CadEnginePointerBridge {
     face: CadSolidFaceRef;
     point: CadPoint3;
     normal: CadPoint3;
+  } | null;
+  /**
+   * ARISTA de sólido bajo el evento, resuelta con el rayo de cámara.
+   *
+   * Opcional como `hitFace`: sólo el lienzo 3D puede responderla. Se consulta
+   * SÓLO cuando el paso activo acepta EDGE_PICK (T-4). La arista va antes que
+   * la cara en el orden de precedencia: un sólido tiene caras y aristas, y
+   * preguntar primero por cara haría que FILLETEDGE designara la cara y no la
+   * arista que el usuario está mirando.
+   */
+  hitEdge?(event: PointerEvent | MouseEvent): {
+    entityId: string;
+    edge: number;
+    from: CadPoint3;
+    to: CadPoint3;
+    point: CadPoint2;
   } | null;
   /** Publica el cursor vivo; es lo que el contexto del motor devuelve. */
   setCursor(point: CadPoint2 | null): void;
@@ -335,6 +373,19 @@ export class CadEnginePointerRouter {
     // como exige MOVE, cuyo paso de designación se tragaría el punto como
     // punto base si llegara hasta él.
     const accepts = this.bridge.host.accepts;
+    // La ARISTA va antes que la cara: un sólido tiene caras y aristas, y
+    // preguntar primero por cara haría que FILLETEDGE designara el sólido
+    // entero y no la arista que el usuario está mirando.
+    if (accepts & CAD_ACCEPT_EDGE_PICK) {
+      const edge = this.bridge.hitEdge?.(event) ?? null;
+      if (edge) {
+        this.bridge.host.pickEdge(edge);
+        this.afterDispatch();
+        return true;
+      }
+      if (!(accepts & (CAD_ACCEPT_FACE_PICK | CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_POINT | CAD_ACCEPT_SELECTION)))
+        return true;
+    }
     // La CARA va antes que la entidad, y el orden importa: un sólido es también
     // una entidad, así que preguntar primero por entidad haría que PRESSPULL
     // designara el sólido entero y no la cara que el usuario está mirando.
@@ -361,6 +412,14 @@ export class CadEnginePointerRouter {
       if (!(accepts & CAD_ACCEPT_POINT)) return true;
     }
     const resolved = this.bridge.snap(raw, this.bridge.host.osnapOverride);
+    // El clic también ES la posición del cursor, y se publica ANTES de
+    // despachar: el paso siguiente calcula su preview con `context.cursor`
+    // al recibir el punto. Hasta ahora el cursor sólo lo movía `pointermove`,
+    // así que un clic sin mover antes (o un toque con el dedo, que no
+    // flota) dejaba el cursor viejo o a null: la banda salía de un sitio
+    // falso o no salía, y el punto parecía «no tomarse». Sólo el CLIC: un
+    // punto tecleado o de la entrada dinámica no es donde está el ratón.
+    this.bridge.setCursor(resolved.point);
     this.commitPoint(resolved.point, resolved.snap);
     return true;
   }

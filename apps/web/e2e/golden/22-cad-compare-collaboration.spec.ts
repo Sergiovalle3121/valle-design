@@ -106,7 +106,7 @@ test('canonical Base/Mine/Theirs compare, collision review, comments, links and 
   await expect(page.getByTestId('cad-merge-summary')).toContainText('1 auto · 0 collision · 0 unresolved');
   await expect(page.getByTestId('cad-diff-selected')).toContainText('Geometry: radius');
   await page.getByTestId('cad-diff-overlay').click();
-  await expect(page.getByText('Highlights 2')).toBeVisible();
+  await expect(page.getByText('Resaltados 2')).toBeVisible();
   await page.getByTestId('cad-merge-apply').click();
   await expect(page.getByTestId('cad-collaboration-message')).toContainText('Three-way merge applied');
 
@@ -140,7 +140,10 @@ test('canonical Base/Mine/Theirs compare, collision review, comments, links and 
 
   await page.getByTestId('cad-review-comment').fill('Verify the revised arc against the redline.');
   await page.getByPlaceholder('Assign to').fill('qa@example.com');
-  await page.getByTestId('cad-review-markup').selectOption('arrow');
+  // D5 (fix-or-hide, a908a8e9): el selector Cloud/Arrow/Note se retiró porque
+  // ninguna de las tres opciones dibujaba nada en el lienzo. Sin selector no se
+  // ofrece marcado: el hilo es una nota de texto y así se persiste (abajo).
+  await expect(page.getByTestId('cad-review-markup')).toHaveCount(0);
   await page.getByTestId('cad-review-add').click();
   await expect(page.getByRole('paragraph').filter({ hasText: 'Verify the revised arc against the redline.' })).toBeVisible();
   await page.getByRole('button', { name: 'Resolve' }).click();
@@ -165,7 +168,7 @@ test('canonical Base/Mine/Theirs compare, collision review, comments, links and 
   expect(storedArcA?.type === 'arc' ? storedArcA.radius : null).toBe(175);
   expect(storedArcB?.type === 'arc' ? storedArcB.radius : null).toBe(200);
   expect(stored.collaboration?.versions.map((version) => version.label)).toEqual(expect.arrayContaining(['Base', 'Mine disjoint', 'Theirs disjoint', 'Merged base', 'Mine collision', 'Theirs collision']));
-  expect(stored.collaboration?.threads[0]).toMatchObject({ status: 'resolved', assignedTo: 'qa@example.com', markup: { kind: 'arrow' } });
+  expect(stored.collaboration?.threads[0]).toMatchObject({ status: 'resolved', assignedTo: 'qa@example.com', markup: { kind: 'note' } });
   expect(stored.collaboration?.audit.some((entry) => entry.action === 'merge_applied')).toBe(true);
   const reviewLink = stored.collaboration?.reviewLinks[0];
   expect(reviewLink?.readOnly).toBe(true);

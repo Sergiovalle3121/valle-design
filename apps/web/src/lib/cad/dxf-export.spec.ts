@@ -29,7 +29,7 @@ const result = exportCadDxf(
       { from: { x: 0, y: 0 }, to: { x: 0, y: 12 }, label: "12 mm" },
     ],
   },
-  { units: "mm", fileComment: "Valle Design CAD export" },
+  { units: "mm", fileComment: "VALLECAD CAD export" },
 );
 
 assert.ok(result.content.includes("SECTION\n2\nHEADER"), "writes DXF header");

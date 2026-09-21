@@ -116,7 +116,7 @@ export function SlaPage() {
     <PublicPageShell
       eyebrow="Operación"
       title="Niveles de servicio"
-      intro="Compromisos de disponibilidad, respaldo y respuesta, con la misma fuente que usa el resto del producto: el catálogo real, no una propuesta aparte."
+      intro="Compromisos de disponibilidad, respaldo y respuesta por plan. Los nombres de columna se leen del catálogo público; los compromisos vienen de la política operativa."
     >
       <PublicSection title="Disponibilidad y respaldo por plan">
         <Tabla
@@ -228,8 +228,7 @@ export function SlaPage() {
       <PublicSection title="Borrador pendiente de revisión legal">
         <p>
           Este texto lo redactó el equipo de producto a partir de lo que el
-          sistema puede medir hoy (`docs/ops/SLA.md`, con sus consultas y
-          procedimientos ejecutables).{" "}
+          sistema puede medir hoy.{" "}
           <strong>No ha pasado revisión legal profesional</strong> y no
           sustituye el acuerdo escrito que requiere un compromiso de
           disponibilidad vinculante.

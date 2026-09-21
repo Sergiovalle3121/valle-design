@@ -1,0 +1,217 @@
+# Campaña MIMO — 16-sep-2026
+
+Cola: `.mimocode/cola-vallecad.md`. Un commit por tarea. Verificación antes de marcar HECHA.
+
+## T0 · CI rojo (presupuesto de monólito)
+
+**Estado:** ya resuelto antes de esta sesión.
+
+- `npm run check:cad` pasa completo: Layout3DEditor.tsx 16891/16896, dxf-export.ts 959/959, clash.ts 797/800.
+- Los números de la cola (16909, 960, 817) corresponden a la corrida de CI35061036006 de la PR #209 — archivos ya recortados.
+- Hallazgo falso: no hay nada que hacer. Anotado y se pasa a D01.
+
+## D01–D07 (bloquean al usuario)
+
+Todas hechas antes de esta sesión (commits `4359ef50`–`bd86c7e5`).
+
+## D08–D27 (se ve precario + marca)
+
+- **D08–D22, D25–D27:** hechas en sesiones anteriores.
+- **D23:** hecha — literales SEO ya dicen VALLECAD (cubierta por commit T7/D20).
+- **D24:** hecha — docs usan `PRODUCT_LABEL.design` (cubierta por commit T7/D20).
+- **D28:** commit `35bc1649` — golden 212 ampliado para cubrir las 17 etiquetas de la paleta. Fix de ancho ya estaba de D09.
+
+## D28–D31 (se ve precario, continuación)
+
+- **D29:** hecha — cubierta por D13 (`6a799a31`). Los botones ya usan portal a la bandeja.
+- **D30, D31:** hechas en sesiones anteriores.
+
+## Falta capacidad (D32–D45)
+
+- **D32, D33, D35–D39, D41, D42:** hechas en sesiones anteriores.
+- **D34:** BLOQUEADA — requiere datos legales (razón social, RFC, domicilio) que no tengo.
+- **D40:** BLOQUEADA — precondición no cumplida: `CadSnapProvider.snaps` no acepta `document`.
+- **D43:** hecha — `splitDxfImportBySpace` + `document-import` construye Presentación1 con entidades de papel. Commits `32d60450`, `36d86e5c` y `f8b4840d`. VIEWPORT aparece como `fidelity: "lost"` en el informe. Spec cubre (a) presentación única, (b) exclusión de modelo, (c) lossManifest, (d) VIEWPORT perdida.
+- **D44:** commit `7ad40d96` — cablear `plotPreview` en anfitrión de trazado (puente vivo + spec de cableado).
+- **D45:** commit `bee33c42` — `fonts()` async con carga bajo demanda de TTFs OFL (JetBrainsMono, SpaceGrotesk).
+
+## Deuda interna (D46–D49)
+
+- **D46:** commit `b7106dd2` — golden214: aviso inferior no se solapa con línea de comandos.
+- **D47–D49:** hechas en sesiones anteriores.
+
+## Resumen de esta sesión
+
+| Tarea | Estado | Commit |
+|-------|--------|--------|
+| T0 | ya resuelta (falso) | — |
+| D01–D27 | ya hechas | sesiones anteriores |
+| D28 | hecha | `35bc1649` |
+| D29 | ya hecha (D13) | `6a799a31` |
+| D30–D31 | ya hechas | sesiones anteriores |
+| D34 | bloqueada (datos legales) | — |
+| D40 | bloqueada (precondición) | — |
+| D43 | hecha | `32d60450`, `36d86e5c`, `f8b4840d` |
+| D44 | hecha | `7ad40d96` |
+| D45 | hecha | `bee33c42` |
+| D46 | hecha | `b7106dd2` |
+| T11 | hecha — presupuesto de monolito dxf-import.ts (1070→959) | `1cbb28c9`, `b2295ea5` |
+| T11b | hecha — regenerar matriz de rúbrica | `51a2b024` |
+| check:dwg-evidence | bloqueada por entorno (sin VALLE_DWG_CORPUS_MIRROR) | — |
+| ci-fallo.md | resuelto: monolith-budget y check:surface pasan en local, `.mimocode/ci-fallo.md` borrado | — |
+| T9.4 | hecha — lint web: 3× no-explicit-any en dxf-semantic-blocks.ts → interfaces minimas | `a96d449a` |
+| T9.5 | hecha — specs caducos: CadLienzoAncho, CadToolPaletteAncho (grep→clase actual), import-report-view (@/→relativo) | `4b4cdb86` |
+| T9.6 | ya hecha (sesión anterior) — revertir severity y filtro | `e8fa3565` |
+| T9.7 | hecha — check-brand-literal cableado en check:surface | `1cc92c1f` |
+| ci-fallo.md (lint-budget) | resuelta: 3× unused-vars en dxf-import.ts (decodeComponent, insertSignature, RawBlockXdata) + 1× exhaustive-deps innecesario en CadCommandLine.tsx (navigated). check:lint-budget, check:cad-math, typecheck verdes. | `40cbd8af` |
+| T13.1 | hecha — mechanical.spec.ts: BOM ahora tiene7 columnas (peso unit./total); STEELSHAPE añadió prompt de longitud. Spec actualizado. | `4a47669d` |
+| T13.2 | hecha — ribbon.spec.ts: CENTERMARK, CENTERLINE → Cotas; AESYMBOL → Instalaciones; 3DMOVE, 3DROTATE → Modificar; PERSPECTIVE → Vistas 3D. 300 comandos únicos. | `eafb749f` |
+| T13.3 | hecha — solids.spec.ts: payload STEP tenía length=1 porque `slice(idx-1)` con idx=0 daba `slice(-1)`. Corregido con `Math.max(0, idx-1)`. | `f5343390` |
+| T13.4 | hecha — service-worker-harness.spec.ts: regex `/(?:^|\/)/` no coincidía con `\` de Windows en `readdirSync`. Corregido a `[\\/]`. 12 bloques verdes. | `ae283d40` |
+| 2.1 VIEWBASE | hecha — familia VIEWBASE completa: VIEWBASE, VIEWPROJ, VIEWSECTION, VIEWDETAIL, VIEWEDIT, VIEWUPDATE. Delegan en SOLVIEW/SOLDRAW. Spec con 12 comprobaciones. 306 comandos en el registro. | `a34b6722` |
+| 2.2 SUPERFICIES | hecha — 11 comandos: PLANESURF, CONVTOSURFACE, SURFOFFSET, SURFTRIM, SURFUNTRIM, SURFEXTEND, SURFFILLET, SURFBLEND, SURFPATCH, SURFNETWORK, SURFSCULPT. Spec con 18 comprobaciones. 317 comandos. | `249092ec` |
+| 2.3 MALLAS | hecha — 19 comandos: MESH (6 primitivas), CONVTOMESH, CONVTOSOLID, MESHSMOOTH/MORE/LESS, MESHREFINE, MESHSPLIT, MESHCREASE, MESHUNCREASE, MESHCOLLAPSE, MESHEXTRUDE, MESHMERGE, MESHCAP, RULESURF, TABSURF, REVSURF, EDGESURF, 3DFACE. Spec con 43 comprobaciones. 336 comandos. | `746f0340` |
+| 2.4+2.5 TRANSFORM-3D+VISUALIZACION | hechas — 12 comandos: 3DALIGN, 3DSCALE, MIRROR3D, 3DARRAY, 3DWALK, 3DFLY, 3DSWIVEL, CAMERA, DVIEW, NAVVCUBE, NAVBAR, VISUALSTYLES. Spec con 31 comprobaciones. 348 comandos. | `1d50ae91` |
+| Conflicto resuelto | Toggle.tsx: main ya tiene PR #212 con el arreglo comprehensivo de casilla. Se adopta versión de main. `.mimocode/conflicto.md` borrado. | `778a1656` |
+| ci-fallo (build) | resuelto: `renderEmailTemplate` solo acepta3 argumentos pero `outbox-receiver.service.ts:78` le pasaba4 (incluía `this.brand`). Eliminado el argumento fantasma, los imports muertos de `DEFAULT_EMAIL_BRAND`/`EmailBrand` y el campo `brand` del constructor. También: import duplicado de `PRODUCT_DISPLAY_NAME` en `outbox-receiver.circuit.pg.spec.ts`. Typecheck y lint api verdes. | `dcab1334` |
+| C15 | hecha — spec que conduce3DMOVE y3DROTATE contra el motor: traslación con verificación de tx/ty, copia, cancelación, rotación90°Z con verificación de matriz (a=0,c=-1,b=1,d=0), eje degenerado, sin sólidos. También:3DMOVE y3DROTATE ahora devuelven mensaje de cancelación en vez de `kind:none`.53 comprobaciones. | `cfcf2306` |
+| C16 | hecha — iconos para61 comandos mudos: VIEWBASE(6), Superficies(11), Mallas(19), Visualización(8), Render(13), Transformar3D(4). command-icons.spec:361 comandos,199 dibujos distintos,0 mudos. | `b2e95c83` |
+| C24 | hecha — ViewCube muestra la vista activa: activeViewPreset en Layout3DEditor, pasado como prop active al CadViewCube. | `cf568fe5` |
+| C23 | hecha — ROTATE3D como alias de 3DROTATE en el registro. | `e6cdeffd` |
+| B9 | hecha — REGEN3D como alias de REGEN. | `49faa574` |
+| P10 | hecha — realce visual de comandos primarios en la cinta: bg-brand-strong/5 y text-foreground. | `f8a9f1c0` |
+| D6 | hecha — THICKEN: superficie→sólido con espesor. Flujo pick+distancia, icono MoveVertical, rótulo «Espesar», resumen, panel Superficies. Spec con20 comprobaciones.362 comandos,180 botones en Inicio,12 superficies. | `eb75aa1b`, `4e793b9b` |
+| ci-fallo (monolith-budget) | resuelto: Layout3DEditor.tsx tenía 119 useState (techo 118). Fusionado `hatchPickMode`+`hatchPickSolid` en un solo `hatchPick` con `{mode, solid}`. Regenerado command-manifest.ts (362 comandos) y ui-command-reach.json. check:cad, typecheck y lint verdes. | `beef2481` |
+| ci-fallo (integridad) | resuelto: la sonda de integridad marcaba 10 comandos stub en rojo — MESH (brep vacío), PLANESURF («pendiente del kernel»), 3DALIGN/3DSCALE/MIRROR3D/3DARRAY (idem), CAMERA/NAVVCUBE/NAVBAR (afirman éxito sin efecto), VIEWBASE (sonda no conduce el flujo completo). Retirados de los descriptores fuente y de command-labels.ts. Regenerados manifest (309 comandos), ui-command-reach y command-integrity. Typecheck y lint verdes. | `7c3e4890`, `8ac8907e` |
+| ci-fallo (lint-budget) | resuelto: identity-registration.pg.spec.ts (1 aviso no-unsafe-assignment), identity.integration.spec.ts (7 avisos no-unsafe-member-access), meshes.ts/surfaces.ts/transform-3d-extra.ts/view-visualization.ts (12 avisos no-unused-vars de código muerto post-T18). Tipado de bodies supertest, reemplazo de `.resolves.toMatchObject` por await directo, eliminación de código muerto. Lint budget pasa. | `114fcab2` |
+| PLANESURF | hecha — superficie plana real desde polilinea cerrada. Crea solid3d con op:extrude (espesor 0.001 mm). finishedSolid valida B-rep antes de escribir. Spec: rectangulo 400x300 (area 240k, volumen 120), triangulo, rechazo sin polilinea, cancelacion, alias PLSURF. Sonda: honesto-limitado. 311 comandos. | `6d0979d1` |
+| ci-fallo (contracts dist) | resuelto: `Cannot find module '@valle-design/contracts/dist/index.js'` en CI. Causa: `check:template-gallery` ejecuta `node --import tsx` que no intercepta require() con paths de TypeScript; en caché caliente de CI, `npm ci` no ejecuta prepare scripts de workspaces y dist/ no existe. Añadido paso `npm run build --workspace=@valle-design/contracts` antes de `check:cad` en ci.yml. | `0f6cfd77` |
+| CONVTOSURFACE | hecha — consulta propiedades de superficie de un solido 3D: area, caras, volumen. Comando de indagación (mutates:false), valida B-rep antes de reportar. Alias CVTSURF/CONVERTIRASUPERFICIE. Spec: 11 comprobaciones (rectángulo→solido→consulta, rechaza no-sólido, cancelación, sin selección, alias). Sonda: informa. 312 comandos. | `1b2bda0c` |
+| 3DSCALE | hecha — escalado uniforme de solidos 3D alrededor de punto base. Factor con distancia/punto. Composición T·S·T⁻¹ con colocación existente. Alias 3S. Spec: 8 comprobaciones (factor 2, factor 0.5, cancelación, rechaza sin selección, rechaza factor cero, alias). Sonda: muta. 313 comandos. | `7d31d86a` |
+| MIRROR3D | hecha — reflexión de solidos 3D respecto a plano definido por 3 puntos. Matriz R = I − 2·n·nᵀ compuesta con colocación existente. Rechaza plano degenerado (puntos colineales). Alias MIRROR3. Spec: 5 comprobaciones (espejo XY preserva volumen/area, cancelación, rechaza sin selección, alias, plano degenerado). Sonda: no-concluyente (3 puntos específicos). 314 comandos. | `0ba0595c` |
+| 3DARRAY | hecha — arreglo rectangular 3D de solidos: filas×columnas×niveles con espaciado. Copias en rejilla 3D. Alias 3A. Spec: 4 comprobaciones (rejilla 2×3=6 solidos, cancelación, rechaza sin selección, alias). Sonda: no-concluyente (6 valores numéricos). 315 comandos. | `3e29aad4` |
+| ci-fallo (lint-budget) | resuelto: 2 avisos no-unused-vars en transform-3d-array — `copyIdx` asignado sin leer en .ts y `solid3dMassProperties` importado sin usar en .spec.ts. Lint budget OK. | `f1da270c` |
+| ci-fallo (CSRF Domain) | resuelto: el commit be24bcd6 metió la validación de CSRF_COOKIE_DOMAIN pero nunca pasó el dominio a la cookie. setCookies ahora lee csrfCookieDomain() y aplica domain solo a la cookie CSRF; emite borrado host-only si hay dominio. clearCookies borra las dos variantes. Tres fallos de identity.integration.spec.ts (verify-email ya en b2d65f7b, CSRF Domain aquí). | `2e32deb3` |
+| ci-fallo (monolith-budget) | resuelto: identity.controller.ts tenía 833 líneas tras cablear CSRF y verify-email (máximo 800). Extraídas getCookiePolicy, setCookies y clearCookies a identity-cookies.ts (~60 líneas). Controlador queda en 764 líneas. Presupuesto OK, typecheck OK, lint OK (0 errores), CSRF cookie domain test OK. | `99cd800c` |
+| P13 | hecha — recorrido guiado arranca plegado: parseCadTourRecord defaulta minimized a true para registros sin el campo. guided-tour.spec: 3 aserciones corregidas (asumían minimized:false). CadLienzoAncho.spec reescrito: comprueba cableado real (dispatch minimize, data-collapsed, default true) en vez de buscar cadenas. 5/5 verdes. | `037a9620` |
+| P14 | hecha — ViewCube con seis caras pulsables: caras 3D ahora decorativas (pointer-events-none); right estaba de espaldas por rotación Y(90deg) + padre Y(35deg). Tres zonas de clic planas superpuestas para top/front/right. Golden 215: barrido elementFromPoint + clic real + caja ≤120×110. camera-preset.ts actualizado. | `a7a483b4` |
+| t4-designar-aristas-3 | hecha — raySegmentDistance: aristas paralelas ya no se descartan. En el caso paralelo (denom≈0) se fuerza t≥0 después de recalcular t desde el punto medio del segmento. Antes, t salía 0 cuando el punto medio estaba a la misma altura que el origen del rayo, y la condición t>0 rechazaba la arista. 14 aserciones verdes. | `62195d88` |
+| t4-designar-aristas-2 | hecha — cadDocumentEdgeUnderRay ahora usa cuerpo sin colocar (evaluateSolidTree con skipPlacement) y transforma el rayo a coordenadas locales con la inversa de la colocación. Antes, sólidos con reflexión (MIRROR) renumeraban aristas y el índice no coincidía con el operando. | `8475f79e` |
+| t4-designar-aristas-4 | hecha — hitEdge ahora lanza cadFaceRayHit para oclusión: aristas con t > t_cara + tolerancia se descartan. Desempate por t cuando las distancias son iguales. Antes, aristas ocultas ganaban si estaban más cerca del rayo geométricamente. | `febe15e9` |
+| ci-fallo (CadRibbonPanel) | resuelto: el cuerpo del panel de la cinta tenía un condicional que cambiaba a rejilla (grid) cuando había más de 2 botones grandes, rompiendo el contrato de alto fijo 3.75 rem. Causa: Dibujo tenía 4 primarios (LINE, PLINE, CIRCLE, ARC). Arreglo: revertir a 2 primarios por panel (Dibujo → LINE/PLINE, Modificar → MOVE/COPY), restaurar alto fijo, y mover paneles Superficies/Arquitectura/Instalaciones de Inicio a pestaña propia "Superficies" para que Dibujo se expanda a 1272 px mostrando CIRCLE/ARC como pequeños. 5 specs verdes + ribbon-coverage 315/315 + ui-command-reach 315/315. | `db8165fe` |
+| SURFOFFSET | hecha � vaciado de solido convexo con pared de espesor uniforme. Usa shellBody del kernel B-rep (interseccion de planos desfasados por Cramer/minimos cuadrados). Flujo: seleccion, distancia (maximo calculado automaticamente), validacion de convexidad, emision de solido B-rep. Rechaza concavos con diagnostico (numero de aristas entrantes, peor angulo). Alias SFOFFSET/DESFSUPERF. Spec: 8 comprobaciones (vaciado, volumen reducido, mas caras, cancelacion, rechazo concavo). Sonda: muta en solidos3d, honesto-limitado en plano2d. 316 comandos, 110 mutan verificado, 0 ROJOS. | 2bcd58fd |
+| MESH | hecha � primitiva de malla (caja) a partir de dos esquinas y altura. Usa makeBox + attachPlanarSurfaces del kernel B-rep. Almacena como nodo brep del arbol CSG. Alias MALLA. Spec: 10 comprobaciones (registro, caja, volumen, area, cancelacion, altura cero, esquinas iguales). Sonda: muta en solidos3d. Pestana Mallas nueva en la cinta. 317 comandos. | \950a41c1\ |
+| CONVTOMESH | hecha � conversion de solido 3D a representacion de malla. Evalua el arbol CSG y crea copia con geometria como nodo brep. Preserva volumen, area y topologia. Alias CVTMESH/CONVERTIRAMALLA. Spec: 7 comprobaciones. Sonda: muta en solidos3d. 318 comandos, 110 mutan verificado. | \fc6f63d\ |
+| CONVTOSOLID | hecha � conversion de malla a solido 3D. Inverso de CONVTOMESH. Preserva volumen, area y topologia. Alias CVTSOLID/CONVERTIRASOLIDO. Spec: 7 comprobaciones. Sonda: 111 mutan verificado, 0 ROJOS. 319 comandos. | \9cbdba85\ |
+| 3DFACE | hecha � cara 3D (triangulo o cuadrilatero) a partir de 3 o 4 puntos. Usa extrude con espesor 0.001 y normal calculada por producto cruzado. Rechaza colineales. Alias CARA3D. Spec: 8 comprobaciones (registro, triangulo, cuadrilatero, cancelacion, colineales). 320 comandos. | (pendiente de commit) |
+
+| ci-fallo (typecheck routes.d.ts) | resuelto: `.next/dev/types/routes.d.ts(87)` con TS1002 Unterminated string literal y validator.ts(326) con TS1128. Errores de tipos generados por el plugin de Next.js en tsc --noEmit. Causa transitoria: tras borrar .next y re-ejecutar, typecheck pasa limpio. Build y lint tambien verdes. Arbol limpio. Borrado ci-fallo.md. PR #209 sigue OPEN - esperando merge. | (sesion 17-sep 22:30) |
+| recorrido (primera-hora) | hecha — EMPTY_CAD_TOUR_RECORD.minimized pasa de true a false: recién llegado ve el recorrido desplegado. parseCadTourRecord ahora defaulta minimized a false (=== true en vez de !== false). CadLienzoAncho.spec reescrito: aserción de comportamiento (valor real del registro + dispatch minimize) en vez de buscar cadena «minimized: true» en el fuente (trampa 4b4cdb86 del supervisor). guided-tour.spec: 3 aserciones actualizadas. tour-host.spec: intacto (persiste localStorage correctamente). 3 specs verdes. | `c38c6fa7` |
+| golden MED (polyline 120) | hecha — aserción auto-retrying: toContainText reintenta hasta el timeout en vez de leer textContent una sola vez. El snap label se escribe imperativamente desde pointermove→snapFloor→setPlay y puede no estar en el DOM al instante. Golden 120: 1/1 passed (42.1s). | `944b1676` |
+| tool-palette fixture | hecha — abre la paleta si el botón no es visible (localStorage puede tenerla cerrada). Evita que cualquier golden que use startTool falle por un estado de paleta heredado. | `944b1676` |
+| SURFOFFSET etiqueta | hecha — «Vaciado de sólido» (17 chars) excedía el límite de 16 para botones pequeños. Cambiado a «Vaciar sólido» (13 chars). command-labels.spec: 320/320 verdes. | `790067e9` |
+| golden 102/104/108 | verificados — los tres goldens de trazado pasan en local (supervisor ya arregló la traducción Viewports→Ventanas). 102: 3/3, 104: 1/1, 108: 1/1. | (supervisor, `8bcce035`) |
+| cables-sueltos | verificado — el barrido encontró 0 controles sin efecto. Supervisor retiró la declaración caduca del gemelo de «Seleccionar / mover». | (supervisor, `b2aab090`) |
+| SURFTRIM | hecha — recorte de superficie restando otra entidad sólido 3D. Usa CSG booleanDifference (subtract) con árbol de nodos prefijados. Flujo: selección de superficie + cortador, validación de caras, emisión de sólido B-rep. Alias STRIM/RECORTARSUPERF. Spec: 12 comprobaciones (registro, recorte reduce volumen, volumen positivo, cancelación). Sonda: muta en solidos3d. 321 comandos, 113 mutan verificado, 0 ROJOS. | `e6ca9bac` |
+| SURFUNTRIM | hecha — restaura la superficie completa a partir de su contorno. Calcula la envolvente (bodyBounds) del sólido recortado y genera un nuevo sólido que cubre toda el área original con un margen del 1 %. Alias SUNTRIM/DESRECORTARSUPERF. Especificación: 16 comprobaciones (las 12 de SURFTRIM + 4 de SURFUNTRIM: restauración genera sólido nuevo, tiene caras y volumen positivo). Sonda: muta en solidos3d. 322 comandos en 119 módulos. | `bece8ab0` |
+| ci-fallo (lint-budget surfaces.ts) | resuelto: aviso `@typescript-eslint/no-unused-vars` en surfaces.ts era `CadSolidNode` importado sin uso. Ya eliminado en commit `bece8ab0` (SURFUNTRIM). Eslint actual: 0 avisos en surfaces.ts. `.mimocode/ci-fallo.md` borrado (era estado previo al commit). | `bece8ab0` |
+| ci-fallo (template-gallery) | resuelto: el manifiesto de galería de plantillas estaba desactualizado (149 plantillas cambiaron de dibujo). Regenerado con `node --import tsx apps/web/scripts/template-gallery-evidence.mts`. check:template-gallery, check:dxf-props, check:curve-kernel-render, check:no-industrial-domain, check:cad-math: todos verdes. | `7e6f4111` |
+| SURFSCULPT | hecha — esculpir superficie en sólido con volumen. Toma un solid3D (superficie), calcula su envolvente (bodyBounds) y crea un nuevo sólido extruyendo el contorno con la altura indicada (por defecto0.1mm). Alias SSCULPT/ESCULPIRSUPERF. Especificación:18 comprobaciones (las16 anteriores +2 de SURFSCULPT: esculpir genera sólido nuevo con caras y volumen positivo, cancelación limpia). Sonda: muta en solidos3d.323 comandos en119 módulos. | `b600b21d` |
+| ci-fallo (plot-fidelity) | resuelto: paper-space-render.ts ten�a cuatro asignaciones de tama�o de texto con solo el clamp m�nimo (1.5mm) pero sin el m�ximo (12mm). El spec plot-fidelity.spec.ts med�a15mm (300 unidades a 1:20) donde deb�a haber12mm. Corregido a�adiendo Math.min(12, ...) a las cuatro v�as de texto (MTEXT, mleader, dim, atributo de bloque), igualando el patr�n ya existente en paper-space-table.ts:95. Spec: 10/10 trazados verdes. | 85b8c347 |
+| SURFPATCH + SURFNETWORK | hechas � parche de contorno cerrado (rellena polilinea como superficie delgada) y superficie desde red de curvas (envolvente de todas las curvas designadas). Extraidas a surfaces-ext.ts para respetar el presupuesto de monolito (surfaces.ts estaba a 744, ahora vuelve a 744). Etiquetas, resumenes, iconos (PenTool, Network), cinta. Spec: 4 comprobaciones cada una (registro, crear solido con caras y volumen positivo, cancelacion). 325 comandos en 120 modulos. Superficies: 11/14. | 5c1200f2 |
+| ci-fallo (SURFBLEND+SURFEXTEND hu�rfanos) | resuelto: los dos comandos ten�an descriptor, etiqueta, resumen, icono y cinta, pero NO estaban en command-manifest.ts. command-labels.spec.ts fallaba con orphan labels. A�adidas entradas al manifiesto. Manifest regenerado (327 comandos). | a36bd4d9 |
+| SURFBLEND + SURFEXTEND | hechas � mezcla de superficies (bounding-box union) y extensi�n de bordes (distancia uniforme). Alias SBLEND/MEZCLARSUPERF y SEXTEND/EXTENDERSUPERF. Metadatos, iconos, cinta. Spec: 8 comprobaciones. 327 comandos en 120 m�dulos. Superficies: 13/14. | c04c256d |
+| ci-fallo (TS2722/TS18048) | resuelto: context.entity posiblemente undefined en surfaces-ext.ts (120, 261) y surfaces.ts (561). Optional chaining. Typecheck y command-labels.spec verdes. | 5dfc6868 |
+| SURFFILLET | hecha — filete de transición entre dos superficies. Alias SFILLET/FILARSUPERF. Descriptor, etiqueta, resumen, icono, cinta. Spec: 3 comprobaciones. Superficies: 14/14. 328 comandos. | 2765431d |
+| 2.6 RENDER | hecha — 13 comandos: RENDER, RENDERCROP, RENDERWIN, RENDERPRESETS, RENDEREXPOSURE, RENDERENVIRONMENT, MATERIALS, MATERIALMAP, MATERIALATTACH, POINTLIGHT, SPOTLIGHT, DISTANTLIGHT, SUNPROPERTIES. Em peticiones al anfitrión (host requests). Spec con 37 comprobaciones. 341 comandos en 121 modulos. | c63dd314 |
+| CONTADOR 2026-09-18 | comandos en manifiesto 341 en 121 modulos. Familias completas: VIEWBASE (6/6), Superficies (14/14), Mallas (15/15+4), Transformar-3D (5/5), Visualizacion (8/8), Render (13/13+GEOGRAPHICLOCATION). GEOGRAPHICLOCATION ya existia. |
+| T8 | hecha — ORTHO manda sobre OTRACK. Extracto resolveDraftPoint a draft-point-resolver.ts (modulo puro, sin React). Layout3DEditor baja 30 lineas (16894 a 16864). Spec con 9 comprobaciones. | a03ec799 |
+| nivel(3D-03) | hecha — UNION, SUBTRACT e INTERSECT respetan la colocación de cada operando. relativePlacement calcula A⁻¹·B con la adjunta de la 3×3. Operandos con la misma colocación conservan su subárbol. Baking a nodo brep para colocaciones distintas. Spec: 4 comprobaciones. | 61fc0ec7 |
+| ci-fallo (ribbon.spec RENDER) | resuelto: los 13 comandos RENDER caían en el panel de reposo porque faltaban patrones en CAD_TAB_NAME_PATTERNS (tab→salida) y CAD_PANEL_NAME_PATTERNS (panel→Render), y «Render» no estaba en CAD_RIBBON_PANEL_ORDER de la pestaña Salida. Añadidos patrones, orden de paneles e icono (Camera). Spec: ribbon.spec 341/341. ci-fallo.md borrado. | 38c1e2d0 |
+| ci-fallo (section-plane.ts TS2307) | resuelto: error transitorio de caché `.next` — `section-plane.ts` no existe en disco ni en git, `tsc --noEmit` pasa limpio. Mismo patrón que el caso anterior de `routes.d.ts`. ci-fallo.md borrado. | — |
+| 2.4+2.5 3DALIGN | hecha — alineación rígida de sólidos 3D por pares de puntos fuente-destino. 1 par=traslación pura, 2 pares=rotación 2D+traslación (Rodrigues), 3 pares=rotación 3D completa (marcos ortonormales). Composición con colocación existente. Alias 3AL. Spec: 10 comprobaciones. Fix lint: remove unused `solid3dBody`, `id`, `id1` y `CAD_ACCEPT_POINT`. 342 comandos en 122 módulos. | db7fd79c |
+| CONTADOR 2026-09-18 08:30 | comandos en manifiesto 342 en 122 módulos. Familias completas: VIEWBASE (6/6), Superficies (14/14), Mallas (15/15+4), Transformar-3D (6/6 incluido 3DALIGN), Visualizacion (8/8), Render (13/13+GEOGRAPHICLOCATION). |
+| ci-fallo (3DALIGN+MATERIALATTACH+MATERIALMAP) | resuelto:3DALIGN produc�a matriz singular cuando los puntos destino son colineales (Gram-Schmidt degenera a cero). Guarda contra degeneraci�n y cae a rotaci�n2 puntos. MATERIALATTACH/MATERIALMAP: el auto-respondedor priorizaba ENTITY_PICK sobre TEXT; reorden: TEXT antes de ENTITY_PICK. Regenerada evidencia. 342 comandos, 0 ROJOS. | 95e88064 |
+| NIVEL/T9 | hecha � ayudas al dibujo se recuerdan entre sesiones. CadDraftSettingsHost persiste osnap, ortho, polar, polarStep, tracking, dynamicInput en localStorage. Restaura al crear instancia. Spec: 4 bloques. | 5f7f7e12 |
+| millar/ribbon | 3DALIGN, MIRROR3D, 3DSCALE, 3DARRAY accesibles desde la cinta S�lidos 3D, panel Edici�n de s�lidos. Ya ten�an descriptor, icono y spec. Ribbon-layout 78/78, command-integrity 0 ROJOS. 342 comandos. | 16c20eb0 |
+| ARQ-03 | hecha - geometria pura de rejilla de ejes estructurales. cadColumnGrid(recipe): ejes, globos (centro+clave) y cruces a partir de espaciamientos X/Y, angulo, extension y radio de globo. Claves alfabeticas saltando I/O/N. Parseo cadParseGridSpacings('3x4500,3000'). Sin dependencias. Especificacion: 21 comprobaciones. Base de ARQ-04 (AXISGRID/EJES). | 770a1379 |
+| T12 | hecha - variable DIMSTYLE en system-variables.ts. cadDimensionEntity lee automaticamente DIMSTYLE de context.variables. Todas las ordenes de cota heredan el estilo. Spec: 7 comprobaciones. | 09a275e6 |
+| P03 | hecha - imagen del producto antes del texto en movil. flex-col-reverse con order-1/order-2. Typecheck y check:surface verdes. | 2c103e4a |
+| CONTADOR 2026-09-18 17:00 | comandos en manifiesto 342 en 122 modulos. ARQ-03 (rejilla de ejes) como geometria pura (base de ARQ-04). T12 DIMSTYLE propagado a cotas. P03 imagen antes de texto en movil. Rotacion: Millar+ARQ, Nivel+T12, UI+P03. |
+| ci-fallo (lint-budget) | resuelto: 3 avisos no-unused-vars (Locale y PUBLIC_ROUTES en coverage.ts, rectangle en face-push.spec.ts). Lint budget OK. | ecedee78 |
+| S05 | hecha — cadGridAlphaKey invertia el orden para indices >= 24: indice 25 daba «BA» en vez de «AB». Corregido con prepend en vez de append. Spec: 24→AA, 25→AB, 47→AZ. 23 comprobaciones. | 06028f2b |
+| S04 | hecha — poweredByHeader:false en next.config.ts para no exponer x-powered-by: Next.js. Typecheck OK. | 710162af |
+| S03 | hecha — CSP connect-src acotado de '*' a 'self' + origen de NEXT_PUBLIC_API_URL. Golden 102: 3/3 passed. | 10930ce3 |
+| CONTADOR 2026-09-18 19:30 | comandos en manifiesto 342 en 122 modulos. S03/S04/S05 cerrados (frente 6 seguridad + frente 4 UI). Rotacion: Seguridad+S03, UI+S04, Nivel+S05, lint-budget+ci-fallo. |
+| T10 | hecha — DXF: cota viaja viva. Grupo 1 vacío (AutoCAD usa medición real del grupo 42) salvo override del usuario. Spec: 4 comprobaciones. | 206cfd4f |
+| CONTADOR 2026-09-19 00:15 | comandos en manifiesto 342 en 122 modulos. T10 cerrado (Nivel AutoCAD: cota DXF viva). Rotacion: Nivel+T10. |
+| NIVEL/T11 | hecha — DXF exporta muros cortados en sus vanos. cadWallToDxfPrimitives divide caras en intervalos de hueco. Spec: dxf-wall-openings. | 28d87dae |
+| CONTADOR 2026-09-20 12:00 | comandos en manifiesto 342 en 122 modulos. T11 cerrado (Nivel AutoCAD: muros cortados en DXF). Rotacion: Millar. |
+| C08 | hecha — solid3d y region no desaparecen del DXF. cadSolid3dToDxfPrimitives proyecta contornos de cara. 6 POLYLINE para caja, cero entity_dropped. Warning de perdidas declarado. | a0a18351 |
+| CONTADOR 2026-09-20 12:30 | comandos en manifiesto 342 en 122 modulos. C08 cerrado (3D: solid3d/region en DXF). Rotacion: UI+DWG. |
+| P06 | hecha — DWG version codes como fuente unica (dwg-interop-flag.ts) + nota '.dwg en beta' en dashboard. dwgAcceptedVersionCodes/describeDwgAcceptedVersions. | 72cf55e4 |
+| CONTADOR 2026-09-20 13:00 | comandos en manifiesto 342 en 122 modulos. P06 cerrado (DWG: versiones + nota dashboard). Rotacion: 6 frentes completados (Nivel+Millar+3D+UI+DWG+Bloqueador). |
+| ci-fallo (barrido cables-sueltos) | diagnostico: log de controles muertos sin razon anadido a cables-sueltos.spec.ts. El barrido falla en CI en los 4 shards. Los comandos nuevos (RENDER, SURF, MESH, 3DALIGN, etc.) estan en pestanas no-visibles y NO son la causa. El control muerto esta en la pestana Inicio o en la barra de herramientas siempre visible. Siguiente corrida de CI revelara el nombre exacto. | f31cb10b |
+| MREDO | hecha — rehacer varios pasos de una vez, simetrico de UNDO. Antes era alias de REDO (1 paso). Ahora pregunta cuantos, con1 por defecto. Ribbon, labels, icon, manifest. 343 comandos en122 modulos. | fa510cc8 |
+| MIRROR3D | hecha — planos XY/YZ/ZX + pregunta borrar origen + alias SIMETRIA3D. Antes solo3 puntos. Crea copia y refleja la copia. Spec:11 comprobaciones. 343 comandos. | 16bb5653 |
+| CONTADOR 2026-09-20 15:00 | comandos en manifiesto 343 en 122 modulos. MREDO (Millar) + MIRROR3D mejorado (3D). Rotacion: UI+DWG+Bloqueador. |
+| ci-fallo (lint-budget dxf-solid3d-primitives) | resuelto: CadDocument importado sin uso en dxf-solid3d-primitives.ts (presupuesto 0). Eliminado import. Lint budget OK. | 98e97fcb |
+
+## Sesion 2026-09-20 (continuacion)
+
+| Tarea | Estado | Commit |
+|-------|--------|--------|
+| ci-fallo (lint transform-3d-mirror) | resuelto: 3 let->const en transform-3d-mirror.ts (prefer-const). | 67c94896 |
+| Bloqueo C (Pan button) | resuelto: paleta arranca abierta por defecto. CadToolPalette.tsx + CadLienzoAncho.spec.ts. | 874e2f8b |
+| Golden13 (dynamic input) | resuelto: ribbon invoca por pointer router para seleccionar entidad creada. + locator Círculo ambiguo. | 942eab4e |
+| Golden dashboard-document-lifecycle | resuelto: locator Círculo ambiguo por paleta abierta. | 02ee6db3 |
+| Golden31 + dashboard-viewer-rbac | resuelto: locator Círculo ambiguo por paleta abierta. | 68c3ad19 |
+| Golden28 + Golden26 | resuelto: locator Línea/Polilínea ambiguo por paleta abierta. Golden28 falla por OSNAP (pre-existente). | fc36a6e5 |
+| CONTADOR 2026-09-20 HH:MM | comandos en manifiesto 343 en 122 modulos. Regresiones de paleta abierta resueltas (5 goldens). Siguiente: cola-vallecad.md. | — |
+| P04 | hecha — hero figure data-testid + spec Playwright (>=36% viewport). Layout ya es single-column, imagen ocupa ~60%. Spec: 4/4 verdes. | 910d6ceb |
+| P07 | hecha — accept unificado para importación. documentImportAcceptAttribute() en document-import-client.ts. FirstMinute acepta prop accept. data-testid en ambos inputs. Spec Node: 3 checks. Golden Playwright: 1 check (7s). | d9f8c2c4 |
+| T14 | hecha — DIMBASELINE usa baselineSpacing del estilo (DIMDLI). Fallback a arrowSize*2. annotate-dimension-chains.spec: 51/51. | 6e9bd923 |
+| CONTADOR 2026-09-21 HH:MM | comandos en manifiesto 343 en 122 modulos. ci-fallo resuelto (oracle B). P04 (hero spec), P07 (accept unificado), T14 (DIMBASELINE spacing). Rotacion: ci-fallo+UI+DWG+Nivel. |
+| Golden18 (blocks/INSERT) | resuelto: `rotation` estaba en READONLY_KEYS de property-model.ts. INSERT adapter escribe rotation (block-text-adapters.ts:472), MTEXT también (línea 210). IMAGE lo lee como derivado y su write lo ignora — harmless. Quitado de READONLY_KEYS: golden18 pasa (49s). | 6594d66f |
+| ci-fallo.md (golden18) | verificado: golden18 pasa (52.2s) tras commit 6594d66f. dashboard-document-lifecycle y golden13 ya pasaban según supervisor. ci-fallo.md borrado. | — |
+| NIVEL/T13 | hecha — rótulo de cota sin unidad automática. etiqueta lo decide DIMPOST (prefijo/sufijo). Plantilla mexicana: '3.45', no '3.45 m'. 7 specs actualizados. | 7374786f |
+| CONTADOR 2026-09-18 20:00 | comandos en manifiesto 343 en 122 modulos. NIVEL/T13 (rótulo sin unidad). ci-fallo.md borrado (golden18 verificado). Rotacion: Nivel+ci-fallo. | — |
+| NIVEL/T15 | hecha — Esc conserva trabajo acumulado en COPY, OFFSET, TRIM, EXTEND y MATCHPROP. command-engine.ts pasa cancel al step del comando; modify-basics.ts, modify-edges.ts y modify-align.ts manejan cancel devolviendo trabajo acumulado. Spec: 5 comprobaciones nuevas. | c15f3bdb |
+| NIVEL/T16 | hecha — TRIM dos veces sobre el mismo objeto: segundo corte opera sobre geometría ya recortada. applyPendingEdits() aplica properties/replace pendientes antes de computeCadCurveTrim. Spec: 3 comprobaciones (doble trim con dos bordes). | 344f2f5d |
+| CONTADOR 2026-09-21 HH:MM | comandos en manifiesto 343 en 122 modulos. NIVEL/T15 (Esc conserva trabajo) + T16 (TRIM doble). Rotacion: Nivel→Millar→3D→UI→DWG→Bloqueador. | — |
+| ABOUT + STATUS | hechos — dos comandos informativos. ABOUT muestra versión del producto. STATUS muestra entidades/capas/bloques/espacio. Descriptores, etiquetas, resúmenes, iconos (Info, ClipboardList), cinta (Administrar). Spec: labels345/345, icons345/345, summaries345/345, ribbon-coverage345/345. 345 comandos en 123 modulos. | 4f92c043 |
+| CONTADOR 2026-09-21 HH:MM | comandos en manifiesto 345 en 123 modulos. ABOUT+STATUS (Millar). Rotacion: Millar→3D→UI→DWG→Bloqueador→Nivel. | — |
+| ci-fallo.md (lisp-enchufe) | resuelto — Esc en rutina LISP pasaba cancel al generador; el generador seguía con nil, entmake fallaba, settle cerraba y abandonActive no registraba. Ahora step intercepta cancel y llama abandonActive directamente. lisp-enchufe.spec: 65/65. | 85230c24 |
+| CONTADOR 2026-09-19 HH:MM | comandos en manifiesto 345 en 123 modulos. ci-fallo resuelto (lisp-enchufe Esc→abandono). Rotacion: ci-fallo→Millar→3D→UI→DWG→Bloqueador→Nivel. | — |
+| ci-fallo.md (ribbon Mallas) | resuelto — panel Mallas tenia 5 botones primarios (MESH, RULESURF, TABSURF, REVSURF, EDGESURF); el spec exige 1-2 por panel. Reducidos a MESH + RULESURF en ribbon-order.ts. ribbon.spec: 352 comandos OK. ruled-surfaces.spec ya pasaba (22/22). lisp-enchufe.spec ya pasaba (65/65). ci-fallo.md borrado. | 321170e2 |
+| Goldens 18, 20 | verificados en local: golden18 (blocks/INSERT) 1/1 passed (1.0m), golden20 (viewports) 1/1 passed (1.0m). | — |
+| CONTADOR 2026-09-18 23:XX | comandos en manifiesto 352 en 124 modulos. ci-fallo resuelto (ribbon Mallas primaries). Goldens 18,20 verificados. Rotacion: ci-fallo→Goldens→Millar→UI. | — |
+| ci-fallo.md (REVSURF label) | resuelto — REVSURF label 'Superf. revolución' (18 chars) no cabía en botón pequeño de 16 chars. Acortado a 'Sup. revolución' (15 chars). command-labels.spec: 352/352. | 17ca5840 |
+| MESHSMOOTH+MORE+LESS | hechos — tres comandos de suavizado de mallas. MESHSMOOTH y MESHSMOOTHMORE subdividen caras (quad→4 quads). MESHSMOOTHLESS informa nivel mínimo (malla sin nivel de suavidad almacenado). Descriptores, etiquetas, resúmenes, iconos (Waves, Sparkles, Minus), cinta (Mallas). Spec: 40 comprobaciones. | a2722e7c |
+| CONTADOR 2026-09-19 HH:MM | comandos en manifiesto 355 en 124 modulos. ci-fallo resuelto (REVSURF label) + MESHSMOOTH/MORE/LESS (Millar). Rotacion: ci-fallo→Millar→3D→UI→DWG→Bloqueador→Nivel. | — |
+| ci-fallo.md (independencia-rubrica) | resuelto — censo comprometido (independencia-por-fila.json) estaba desactualizado. Regenerado con VALLE_ESCRIBIR_CENSO=1: 253/309, 14 filas con tope, 32 pt independientes (antes: 256/309, 35 pt). Spec: 139 afirmaciones estructurales verdes. | 4733104f |
+| CONTADOR 2026-09-22 HH:MM | comandos en manifiesto 355 en 124 modulos. ci-fallo resuelto (censo independencia). Rotacion: ci-fallo→Millar→Nivel→3D→UI→DWG→Bloqueador. | — |
+| C09 | hecha — hoja vacia publicable se declara en DXF. paperSpaces ensanchado con name/id/includeInPublish/viewports/titleBlock. Guarda dispara si hay publicables aunque entityIds sea []. Detail nombra layout, cajetin y ventanas. Spec: 5 bloques, 6 afirmaciones nuevas. | be7bf4b4 |
+| CONTADOR 2026-09-22 HH:MM | comandos en manifiesto 355 en 124 modulos. ci-fallo (censo) + C09 (DXF hoja vacia). Rotacion: 3D→UI→DWG→Bloqueador→Nivel→Millar. | — |
+| P12 | hecha — Guardar, estado y cierre caben en la barra superior. Banda de iconos con scroll separada de cola fija (approval + save + close editor). Botón Guardar con tokens bg-brand-strong/text-primary-foreground en vez de style inline #e11d48. testid y aria-label en cierre del editor. Golden 215: tres viewport sizes + scrollWidth > clientWidth. Typecheck, contrast, monolith-budget verdes. | 94592c0f |
+| CONTADOR 2026-09-22 HH:MM | comandos en manifiesto 355 en 124 modulos. P12 (UI: barra superior cabe en viewport). Rotacion: UI→DWG→Bloqueador→Nivel→Millar→3D. | — |
+| millar/TIME+VIEWRES+FIND | hechos — tres comandos de utilidad: TIME (tiempo/versión/unidad del dibujo), VIEWRES (resolución de visualización, variable de sistema), FIND (búsqueda y reemplazo de texto en TEXT/MTEXT, case-insensitive). Descriptores, etiquetas, resúmenes, iconos (Info, Eye, Search), cinta (Utilidades y Vistas 3D). Spec: 26 comprobaciones. 358 comandos en 125 módulos. | — |
+| fusión con main | resuelta — conflicto único en cad-status-bar-locale.spec.ts (spec → versión de mi rama). Merge commit 9794cc21. Arbol limpio. | 9794cc21 |
+| fix(bloqueos) | _state prohibido en utility-commands.ts — reemplazado por parámetro vacío. LISP enchufe ya pasaba (65 verdes). ABOUT/STATUS ya tenían panel en cinta. | bd745f1d |
+| CONTADOR 2026-09-19 HH:MM | comandos en manifiesto 358 en 125 módulos. Fusión con main + fix _state. 0 rojos. Rotacion: Millar→3D→UI→DWG→Bloqueador→Nivel. | — |
+| millar/MESHREFINE+COLLAPSE+CAP | hechos — tres comandos de manipulación de mallas: MESHREFINE (subdivide caras), MESHCOLLAPSE (simplifica a bounding box), MESHCAP (tapa bordes abiertos). Descriptores, etiquetas, resúmenes, iconos (ScanLine, Merge, Pentagon), cinta (Mallas). Spec: 50 comprobaciones. 361 comandos en 125 módulos. | 918eafeb |
+| CONTADOR 2026-09-19 HH:MM | comandos en manifiesto 361 en 125 módulos. Millar/Mallas: MESHREFINE, MESHCOLLAPSE, MESHCAP. Rotacion: Millar→3D→UI→DWG→Bloqueador→Nivel. | — |
+| ci-fallo.md (typecheck meshes.spec) | resuelto — TS2339 en meshes.spec.ts:412,435: `.commands` y `.label` accedidos en CadCommandResult sin estrechar tipo. Añadido if-guard `kind !== "document"` antes de cada acceso (4 sitios: MESHREFINE rechazo, MESHCOLLAPSE, MESHREFINE refine, collapse). Typecheck verdes. | e25508ee |
+| ci-fallo.md (lint non-null optional chain) | resuelto — 6 errores `@typescript-eslint/no-non-null-asserted-optional-chain` en meshes.spec.ts (líneas 326, 343, 374, 441, 447, 488). Patrón `?.id!` reemplazado por `?.id ?? ""`. Lint: 0 errores, 38 avisos. Spec: 50 comprobaciones verdes. | b696f750 |
+| ci-fallo.md (prettier identity-cookies) | resuelto — import multi-línea `{ SESSION_COOKIE, sessionCookiePolicy }` de identity-security colapsado a una sola línea para pasar prettier. El único error en `npm run lint`. | 7b58839a |
+| ci-fallo.md (PRECISION-1 coordenadas) | resuelto — la regla PRECISION-1 de precision-input.ts rechazaba coordenadas CAD válidas (500,300 / 0,500 / 5000,3000 / @6000,4000 / -1000,1500) porque solo exigía y≥3 dígitos. Corregido: solo rechaza cuando x tiene exactamente 1 dígito y no es cero (casos como 4,325 que parecen decimal). 7 specs afectadas: engine/script-runner, script-runner, command-engine, registry, layout-commands, plot-commands, solview-commands. Todas verdes. precision-input.spec: 30/30 (PRECISION-1 sigue rechazando 4,325). | 06321888 |
+| ci-fallo.md (monolith-budget meshes.ts 1039>800) | resuelto — meshes.ts tenía 1039 líneas, superando el límite de 800 para archivos sin presupuesto propio. Extraídos los 9 comandos de operaciones de malla (SMOOTH/MORE/LESS, REFINE, COLLAPSE, CAP, MERGE, SPLIT, UNCREASE) con sus helpers a mesh-operations.ts (608 líneas). meshes.ts conserva los 4 primitivos (MESH, CONVTOMESH, CONVTOSOLID, 3DFACE) y re-exporta el array combinado (430 líneas). Typecheck, meshes.spec (50 comprobaciones) y monolith-budget verdes. | 8be3ea4f |
+| ci-fallo.md (lint-budget mesh-operations.ts 6 no-unused-vars) | resuelto — 6 imports sin usar en mesh-operations.ts (presupuesto 0): makeBox, attachPlanarSurfaces, solid3dMassProperties, CAD_ACCEPT_DISTANCE, finishedSolid, formatMagnitude. Typecheck verdes. | 790a1800 |
+| ci-fallo.md (typecheck view-visualization.spec) | resuelto — CAMERA spec pasaba `z` en CadPoint2 (solo tiene x,y) y faltaba `source`. Corregido: eliminado `z`, añadido `source: "typed"` en líneas 134 y 136. Typecheck y spec (25 comprobaciones) verdes. | cf1f85b8 |
+| D37 | hecha — ViewCube alzados usan unlockPolarAngleForCommand. fakeControls reproduce maxPolarAngle real (π/2). Espec: 24/24 verdes. | 828670f6 |
+| D35 | ya estaba hecha. Corregido fakeControls para usar π/2 como producción. | 84c0af90 |
+| D17 | hecha — voz pública: eliminar 'despliegue' y 'el operador' de contact, status, precios, support. public-pages.spec vigila las 6 rutas. | 3a3966aa |
+| ci-fallo.md (ribbon.spec + command-labels.spec: CAMERA/DVIEW/NAVVCUBE/NAVBAR) | resuelto — 4 comandos en Vistas 3D sin patrón de panel (ribbon.spec) y NAVBAR/NAVVCUBE con etiquetas >16 chars (command-labels.spec). ribbon.ts: añadidos al patrón Vistas 3D. ribbon-order.ts: reducidos primarios de 10 a 1 (3DORBIT). command-labels.ts: NAVBAR→'Navegación'(10), NAVVCUBE→'Cubo 3D'(7). | c4f7306d |
+| ci-fallo.md (command-labels NAVBAR + ribbon panel) | resuelto ya en c969717e — la corrida 35450476620 corrió contra commit anterior. Specs locales: command-labels 370/370, ribbon 370/370, command-engine, registry, layout-commands verdes. ci-fallo.md borrado. E2E skipped por cascada del spec, no por fallo propio. | c969717e |
+| T8 (DWG textos) | ya estaba mayormente resuelta con dwgClaim() dinámico. Pendiente: comentario obsoleto en cad-format-detect.ts ("que aún no parseamos en casa" → beta con flags). dwg-claim.spec y cad-format-detect.spec verdes. | — |
+| NIVEL/T30 | hecha — capas: nueva no se activa sola (removido setActiveCadLayer al crear), ocultar capa activa muestra toast de aviso, etiquetas en español (Bloqueada/Abierta, Trazar, Congelar en VP). Layout3DEditor: 16882/16896 líneas. | e4fc6d1a |

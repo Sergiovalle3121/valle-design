@@ -1,0 +1,861 @@
+diff --git a/apps/web/e2e/fixtures/constants.ts b/apps/web/e2e/fixtures/constants.ts
+index 4acf6990..e85e35f1 100644
+--- a/apps/web/e2e/fixtures/constants.ts
++++ b/apps/web/e2e/fixtures/constants.ts
+@@ -23,7 +23,7 @@ export const API_ORIGIN = process.env.E2E_API_ORIGIN || 'http://localhost:4010';
+  * UUIDs deliberately follow the public contract, and organization.id is the
+  * tenant identifier just like it is in the standalone product.
+  */
+-export const OWNER_EMAIL = process.env.E2E_OWNER_EMAIL || 'sergiovallezarate@gmail.com';
++export const OWNER_EMAIL = process.env.E2E_OWNER_EMAIL || 'owner@valledesign.test';
+ export const OWNER_USER_ID = '10000000-0000-4000-8000-000000000001';
+ export const OWNER_SESSION_ID = '10000000-0000-4000-8000-000000000002';
+ export const ORGANIZATION_ID = '10000000-0000-4000-8000-000000000003';
+diff --git a/apps/web/e2e/real/free-launch-funnel.spec.ts b/apps/web/e2e/real/free-launch-funnel.spec.ts
+index 5bc3c8fd..7ee1156c 100644
+--- a/apps/web/e2e/real/free-launch-funnel.spec.ts
++++ b/apps/web/e2e/real/free-launch-funnel.spec.ts
+@@ -173,9 +173,12 @@ test.describe("el embudo gratuito, medido contra el stack real", () => {
+     await screen("verificación");
+ 
+     // ── 4. Sesión ─────────────────────────────────────────────────────────
+-    await page.goto("/login?returnTo=/dashboard");
++    // Desde «tu correo está verificado», «Iniciar sesión» lleva al login con
++    // el correo YA puesto: nadie vuelve a teclear lo que acaba de verificar.
++    await click(page.getByRole("link", { name: /Iniciar sesi.*n/iu }));
++    await page.waitForURL((url) => url.pathname === "/login");
+     await screen("acceso");
+-    await page.getByLabel(/Correo electr.*nico/iu).fill(email);
++    await expect(page.getByLabel(/Correo electr.*nico/iu)).toHaveValue(email);
+     await page.getByLabel(/^Contrase/iu).fill(E2E_PASSWORD);
+     await Promise.all([
+       page.waitForURL((url) => url.pathname === "/dashboard"),
+diff --git a/apps/web/src/app/login/page.tsx b/apps/web/src/app/login/page.tsx
+index 585f9353..b16b4b41 100644
+--- a/apps/web/src/app/login/page.tsx
++++ b/apps/web/src/app/login/page.tsx
+@@ -1,6 +1,7 @@
+ import type { Metadata } from "next";
+ import { AuthPage } from "@/components/AuthPage";
+ import { publicPageMetadata } from "@/lib/seo/page-metadata";
++import { productName } from "@/config/brand";
+ 
+ /**
+  * La pantalla de acceso también es pública: alguien que busca el producto por
+@@ -11,7 +12,7 @@ export const metadata: Metadata = publicPageMetadata({
+   path: "/login",
+   title: "Iniciar sesión",
+   description:
+-    "Entra a tu cuenta de Valle Design y abre tus proyectos de CAD en línea desde el navegador, sin instalar nada.",
++    `Entra a tu cuenta de ${productName("design")} y abre tus proyectos de CAD en línea desde el navegador, sin instalar nada.`,
+ });
+ 
+ export default function LoginPage() {
+diff --git a/apps/web/src/app/register/page.tsx b/apps/web/src/app/register/page.tsx
+index f59bab4d..8b275b60 100644
+--- a/apps/web/src/app/register/page.tsx
++++ b/apps/web/src/app/register/page.tsx
+@@ -1,6 +1,7 @@
+ import type { Metadata } from "next";
+ import { AuthPage } from "@/components/AuthPage";
+ import { publicPageMetadata } from "@/lib/seo/page-metadata";
++import { productName } from "@/config/brand";
+ 
+ /**
+  * Es la página al final del embudo: casi todos los CTA de la landing y de las
+@@ -11,7 +12,7 @@ export const metadata: Metadata = publicPageMetadata({
+   path: "/register",
+   title: "Crear cuenta",
+   description:
+-    "Crea tu cuenta y empieza a dibujar planos en línea con Valle Design: proyectos en la nube, intercambio DXF e impresión a PDF a escala.",
++    `Crea tu cuenta y empieza a dibujar planos en línea con ${productName("design")}: proyectos en la nube, intercambio DXF e impresión a PDF a escala.`,
+ });
+ 
+ export default function RegisterPage() {
+diff --git a/apps/web/src/components/AuthPage.tsx b/apps/web/src/components/AuthPage.tsx
+index a5b15101..2df4a4da 100644
+--- a/apps/web/src/components/AuthPage.tsx
++++ b/apps/web/src/components/AuthPage.tsx
+@@ -9,12 +9,13 @@ import { localReturnTo } from "@/lib/session";
+ import { useDesignAuth } from "@/contexts/DesignAuthContext";
+ import {
+   authFailureMessage,
++  loginEmailFromQuery,
+   loginPayload,
+   registerPayload,
+ } from "@/lib/identity-actions";
+ import { AuthShell } from "@/components/AuthShell";
++import { CheckYourInbox } from "@/components/CheckYourInbox";
+ import { FreeLaunchNote } from "@/components/marketing/FreeLaunchNote";
+-import { ResendTimerButton } from "@/components/ResendTimerButton";
+ import { Button, Checkbox, Input, PasswordField } from "@/components/ui";
+ 
+ type AuthMode = "login" | "register";
+@@ -38,6 +39,11 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
+   const router = useRouter();
+   const searchParams = useSearchParams();
+   const returnTo = searchParams.get("returnTo");
++  // Quien llega desde «tu correo está verificado» trae el correo en la URL:
++  // se valida como cualquier otro y sólo rellena el campo (no controlado).
++  const prefilledEmail = register
++    ? ""
++    : loginEmailFromQuery(searchParams.get("email"));
+   const auth = useDesignAuth();
+   const [busy, setBusy] = useState(false);
+   const submitting = useRef(false);
+@@ -237,6 +243,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
+           inputMode="email"
+           autoComplete="email"
+           maxLength={254}
++          defaultValue={prefilledEmail}
+           required
+         />
+         {/*
+@@ -315,113 +322,6 @@ function legalLinksFor(documents: LegalLink[] | null): { terms: LegalLink; priva
+   return { terms: find("terms", "/terms"), privacy: find("privacy", "/privacy") };
+ }
+ 
+-/**
+- * 4.1 · SIN CALLEJÓN TRAS EL REGISTRO.
+- *
+- * Lo que había: un `<p>` verde que decía "Cuenta creada. Completa la
+- * verificación de correo antes de continuar." — y ahí terminaba. No decía a qué
+- * dirección se había enviado (así que quien tecleó mal una letra no tenía cómo
+- * saberlo), no ofrecía reenviar, y no llevaba a ningún sitio. El siguiente paso
+- * del embudo quedaba a cargo de la memoria del usuario.
+- *
+- * Se extrae a su propio componente en vez de crecer el formulario: son dos
+- * pantallas distintas del mismo paso, no dos estados de un mismo formulario.
+- */
+-function CheckYourInbox({ email }: { email: string }) {
+-  const [resendError, setResendError] = useState<string | null>(null);
+-  return (
+-    <AuthShell
+-      titleId="check-inbox-title"
+-      title="Revisa tu correo"
+-      description="El último paso es confirmar que la dirección es tuya."
+-      // El fallo del reenvío sale por la región `role="alert"` de la cáscara,
+-      // con la tinta de peligro del sistema (`text-danger-ink`); el relleno
+-      // `destructive` no es tinta y no se usa como tal.
+-      error={resendError}
+-      // El resultado se anuncia con `role="status"`, no sólo se pinta: quien usa
+-      // lector de pantalla acaba de pulsar un botón y la página no ha navegado,
+-      // así que sin una región viva no se entera de que la cuenta ya existe.
+-      // `status` y no `alert` porque es una buena noticia: espera turno en vez
+-      // de cortar la frase que se estaba leyendo.
+-      message={
+-        <>
+-          Cuenta creada. Enviamos un enlace de verificación a{" "}
+-          <strong className="type-mono font-semibold text-foreground">
+-            {email}
+-          </strong>
+-          . Ábrelo desde este dispositivo y entrarás directo.
+-        </>
+-      }
+-      footer={
+-        <div className="mt-6 space-y-4">
+-          <div className="rounded-card border border-border bg-muted/50 p-4">
+-            <p className="type-small font-semibold text-foreground">
+-              ¿No llegó?
+-            </p>
+-            <ul className="type-small mt-2 list-disc space-y-1 pl-4 text-muted-foreground">
+-              <li>Mira en la carpeta de correo no deseado.</li>
+-              <li>
+-                Tarda hasta un par de minutos: el envío se encola y se
+-                reintenta.
+-              </li>
+-              <li>
+-                Si escribiste mal la dirección, vuelve a{" "}
+-                <Link
+-                  className="underline underline-offset-4 hover:text-foreground"
+-                  href="/register"
+-                >
+-                  registrarte
+-                </Link>{" "}
+-                con la correcta.
+-              </li>
+-            </ul>
+-          </div>
+-          {/*
+-            El reenvío se hace AQUÍ, sin salir de la pantalla: mandar al usuario
+-            a otra página a reescribir el correo que acaba de teclear es pedirle
+-            que repita trabajo en el momento en que ya dudaba de si funcionó.
+-            El temporizador evita los cinco correos y los cinco tokens que
+-            produce un botón sin espera.
+-          */}
+-          <ResendTimerButton
+-            onResend={async () => {
+-              setResendError(null);
+-              try {
+-                await designClient.identity.resendVerification(email);
+-                return true;
+-              } catch (cause) {
+-                // Antes se tragaba TODO y el temporizador arrancaba igual: un
+-                // 429 o un fallo de red parecían un reenvío exitoso. Ahora los
+-                // dos se dicen y el botón sigue disponible. Lo demás se sigue
+-                // tratando como enviado: la API responde igual exista o no la
+-                // cuenta —no se filtra quién está registrado— y el primer
+-                // correo ya va en camino.
+-                const rateLimited =
+-                  cause instanceof DesignApiError && cause.status === 429;
+-                if (rateLimited || cause instanceof TypeError) {
+-                  setResendError(authFailureMessage(cause, "register"));
+-                  return false;
+-                }
+-                return true;
+-              }
+-            }}
+-          />
+-          <p className="type-small text-center text-muted-foreground">
+-            <Link
+-              className="underline underline-offset-4 hover:text-foreground"
+-              href="/verify-email"
+-            >
+-              Tengo un código
+-            </Link>
+-          </p>
+-        </div>
+-      }
+-    >
+-      <div className="mt-8" />
+-    </AuthShell>
+-  );
+-}
+-
+ /**
+  * EL SEGUNDO ACTO DEL INICIO DE SESIÓN.
+  *
+diff --git a/apps/web/src/components/CheckYourInbox.tsx b/apps/web/src/components/CheckYourInbox.tsx
+new file mode 100644
+index 00000000..71db6d48
+--- /dev/null
++++ b/apps/web/src/components/CheckYourInbox.tsx
+@@ -0,0 +1,131 @@
++"use client";
++
++import Link from "next/link";
++import { useState } from "react";
++import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
++import { authFailureMessage } from "@/lib/identity-actions";
++import { INBOX_COPY, RESEND_WAIT_SECONDS } from "@/lib/check-your-inbox";
++import { AuthShell } from "@/components/AuthShell";
++import { ResendTimerButton } from "@/components/ResendTimerButton";
++
++/**
++ * 4.1 · SIN CALLEJÓN TRAS EL REGISTRO.
++ *
++ * Lo que había: un `<p>` verde que decía "Cuenta creada. Completa la
++ * verificación de correo antes de continuar." — y ahí terminaba. No decía a qué
++ * dirección se había enviado (así que quien tecleó mal una letra no tenía cómo
++ * saberlo), no ofrecía reenviar, y no llevaba a ningún sitio. El siguiente paso
++ * del embudo quedaba a cargo de la memoria del usuario.
++ *
++ * Componente propio y no un estado más del formulario: son dos pantallas
++ * distintas del mismo paso.
++ *
++ * Lo que cambió el 16-sep: la pantalla decía «ábrelo y entrarás directo» (no
++ * era verdad: tras verificar hay que iniciar sesión), no mencionaba el correo
++ * no deseado en la frase principal, y el botón «Enviar otro correo» estaba
++ * activo desde el segundo cero. Ese clic reflejo era el origen de los DOS
++ * correos en el mismo minuto que veía cada usuario nuevo, y como el reenvío
++ * invalidaba el token anterior, el primer correo —el que llega antes— moría
++ * en la bandeja. El API ya no invalida los anteriores; esta pantalla, además,
++ * espera 60 s antes de ofrecer el reenvío y NUNCA reenvía sola.
++ */
++export function CheckYourInbox({ email }: { email: string }) {
++  const [resendError, setResendError] = useState<string | null>(null);
++  const [resent, setResent] = useState(false);
++  return (
++    <AuthShell
++      titleId="check-inbox-title"
++      title="Revisa tu correo"
++      description="El último paso es confirmar que la dirección es tuya."
++      // El fallo del reenvío sale por la región `role="alert"` de la cáscara,
++      // con la tinta de peligro del sistema (`text-danger-ink`); el relleno
++      // `destructive` no es tinta y no se usa como tal.
++      error={resendError}
++      // El resultado se anuncia con `role="status"`, no sólo se pinta: quien usa
++      // lector de pantalla acaba de pulsar un botón y la página no ha navegado,
++      // así que sin una región viva no se entera de que la cuenta ya existe.
++      // `status` y no `alert` porque es una buena noticia: espera turno en vez
++      // de cortar la frase que se estaba leyendo.
++      message={
++        <>
++          {INBOX_COPY.created} {INBOX_COPY.sentTo}{" "}
++          <strong className="type-mono font-semibold text-foreground">
++            {email}
++          </strong>
++          {INBOX_COPY.action}
++          {resent ? (
++            <span className="mt-2 block" data-testid="resend-verification-note">
++              {INBOX_COPY.resent}
++            </span>
++          ) : null}
++        </>
++      }
++      footer={
++        <div className="mt-6 space-y-4">
++          <div className="rounded-card border border-border bg-muted/50 p-4">
++            <p className="type-small font-semibold text-foreground">
++              ¿No llegó?
++            </p>
++            <ul className="type-small mt-2 list-disc space-y-1 pl-4 text-muted-foreground">
++              <li>Mira en la carpeta de correo no deseado.</li>
++              <li>{INBOX_COPY.patience}</li>
++              <li>
++                Si escribiste mal la dirección, vuelve a{" "}
++                <Link
++                  className="underline underline-offset-4 hover:text-foreground"
++                  href="/register"
++                >
++                  registrarte
++                </Link>{" "}
++                con la correcta.
++              </li>
++            </ul>
++          </div>
++          {/*
++            El reenvío se hace AQUÍ, sin salir de la pantalla: mandar al usuario
++            a otra página a reescribir el correo que acaba de teclear es pedirle
++            que repita trabajo en el momento en que ya dudaba de si funcionó.
++            La cuenta atrás arranca al MONTAR (`initialSeconds`): el primer
++            correo tarda unos segundos en llegar, y un botón activo desde el
++            segundo cero invita al clic que producía el segundo correo.
++          */}
++          <ResendTimerButton
++            initialSeconds={RESEND_WAIT_SECONDS}
++            seconds={RESEND_WAIT_SECONDS}
++            onResend={async () => {
++              setResendError(null);
++              try {
++                await designClient.identity.resendVerification(email);
++                setResent(true);
++                return true;
++              } catch (cause) {
++                // El 429 y el fallo de red se dicen y el botón sigue
++                // disponible. Lo demás se trata como enviado: la API responde
++                // igual exista o no la cuenta —no se filtra quién está
++                // registrado— y el primer correo ya va en camino.
++                const rateLimited =
++                  cause instanceof DesignApiError && cause.status === 429;
++                if (rateLimited || cause instanceof TypeError) {
++                  setResendError(authFailureMessage(cause, "register"));
++                  return false;
++                }
++                setResent(true);
++                return true;
++              }
++            }}
++          />
++          <p className="type-small text-center text-muted-foreground">
++            <Link
++              className="underline underline-offset-4 hover:text-foreground"
++              href="/verify-email"
++            >
++              Tengo un código
++            </Link>
++          </p>
++        </div>
++      }
++    >
++      <div className="mt-8" />
++    </AuthShell>
++  );
++}
+diff --git a/apps/web/src/components/IdentityActionForm.tsx b/apps/web/src/components/IdentityActionForm.tsx
+index fdf4e333..2dd7a1f3 100644
+--- a/apps/web/src/components/IdentityActionForm.tsx
++++ b/apps/web/src/components/IdentityActionForm.tsx
+@@ -80,6 +80,8 @@ export function IdentityActionForm({
+   const submitting = useRef(false);
+   const [message, setMessage] = useState<string | null>(null);
+   const [error, setError] = useState<string | null>(null);
++  /** El correo que el API confirmó verificado: rellena el inicio de sesión. */
++  const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
+ 
+   useEffect(() => {
+     const cleanUrl = cleanIdentityUrl(window.location.href);
+@@ -109,7 +111,8 @@ export function IdentityActionForm({
+           designClient.identity,
+         );
+         if (result.kind === "success") {
+-          setMessage(identitySuccessMessage(action));
++          setMessage(identitySuccessMessage(action, result));
++          if (result.email) setVerifiedEmail(result.email);
+           setEmail("");
+           setToken("");
+           setPassword("");
+@@ -176,7 +179,12 @@ export function IdentityActionForm({
+     );
+   }
+ 
+-  /** Verificado. El siguiente paso es entrar, así que se ofrece entrar. */
++  /**
++   * Verificado. El siguiente paso es entrar, así que se ofrece entrar — con
++   * el correo ya puesto: volver a teclearlo tras verificarlo es trabajo que
++   * el usuario no tiene por qué hacer. Sólo el correo viaja en la URL; el
++   * token nunca (ya se limpia arriba).
++   */
+   if (action === "verify" && message) {
+     return (
+       <AuthShell
+@@ -186,7 +194,11 @@ export function IdentityActionForm({
+         message={message}
+         footer={
+           <Link
+-            href="/login"
++            href={
++              verifiedEmail
++                ? `/login?email=${encodeURIComponent(verifiedEmail)}`
++                : "/login"
++            }
+             className={`${buttonClass({ variant: "primary", size: "lg", fullWidth: true })} mt-6`}
+           >
+             Iniciar sesión
+diff --git a/apps/web/src/components/ResendTimerButton.tsx b/apps/web/src/components/ResendTimerButton.tsx
+index bcf5e170..9caacaf1 100644
+--- a/apps/web/src/components/ResendTimerButton.tsx
++++ b/apps/web/src/components/ResendTimerButton.tsx
+@@ -22,16 +22,24 @@ import { Button } from "@/components/ui";
+  */
+ export function ResendTimerButton({
+   seconds = 60,
++  initialSeconds = 0,
+   onResend,
+   label = "Enviar otro correo",
+   className,
+ }: {
++  /** Espera tras cada reenvío. */
+   seconds?: number;
++  /**
++   * Espera desde que el botón APARECE. Cero por defecto (el botón nace
++   * activo); la pantalla tras el alta pasa 60 para que el primer correo
++   * tenga tiempo de llegar antes de ofrecer otro.
++   */
++  initialSeconds?: number;
+   onResend: () => boolean | Promise<boolean>;
+   label?: string;
+   className?: string;
+ }) {
+-  const [left, setLeft] = useState(0);
++  const [left, setLeft] = useState(initialSeconds);
+   const [busy, setBusy] = useState(false);
+ 
+   useEffect(() => {
+diff --git a/apps/web/src/components/check-your-inbox.spec.ts b/apps/web/src/components/check-your-inbox.spec.ts
+new file mode 100644
+index 00000000..97263c5f
+--- /dev/null
++++ b/apps/web/src/components/check-your-inbox.spec.ts
+@@ -0,0 +1,69 @@
++/**
++ * LA PANTALLA TRAS EL ALTA, EN ASERCIONES.
++ *
++ * Tres contratos que un cambio con prisa rompe sin que nadie lo vea:
++ *
++ *   1. El texto dice «Cuenta creada» (lo buscan las suites reales en la región
++ *      `role="status"`), a QUÉ correo se envió, QUÉ hacer (abrirlo para
++ *      activar la cuenta) y DÓNDE mirar (correo no deseado). Y no promete
++ *      «entrarás directo»: tras verificar hay que iniciar sesión.
++ *   2. El botón de reenvío espera 60 s DESDE QUE APARECE la pantalla. El clic
++ *      reflejo en el segundo cero era el origen de los dos correos en el mismo
++ *      minuto que veía cada usuario nuevo.
++ *   3. NADIE reenvía solo. El único llamador de `resendVerification` es el
++ *      `onResend` del botón; no hay `useEffect` en la pantalla.
++ *
++ * Se mira el código fuente porque el runner no tiene DOM y porque el contrato
++ * 3 es sobre lo que el fichero NO contiene.
++ *
++ * Correr:  npx tsx src/components/check-your-inbox.spec.ts
++ */
++import { strict as assert } from "node:assert";
++import { readFileSync } from "node:fs";
++import { INBOX_COPY, RESEND_WAIT_SECONDS } from "../lib/check-your-inbox";
++
++/** El spec corre con el cwd en `apps/web`. */
++const fuente = readFileSync("src/components/CheckYourInbox.tsx", "utf8");
++const sinComentarios = fuente
++  .replace(/\/\*[\s\S]*?\*\//g, "")
++  .replace(/^\s*\/\/.*$/gm, "");
++
++// 1 · El texto.
++const frase = `${INBOX_COPY.created} ${INBOX_COPY.sentTo} X${INBOX_COPY.action}`;
++assert.match(frase, /^Cuenta creada\./u, "las suites reales buscan «Cuenta creada»");
++assert.match(frase, /Te enviamos un correo a X/u);
++assert.match(frase, /ábrelo para activar tu cuenta/u);
++assert.match(frase, /correo no deseado/u);
++assert.doesNotMatch(frase, /entrarás directo/u, "promesa falsa: tras verificar se inicia sesión");
++assert.match(INBOX_COPY.resent, /los anteriores siguen valiendo/u);
++for (const texto of Object.values(INBOX_COPY)) {
++  assert.doesNotMatch(texto, /\b(email|inbox|spam|resend|click)\b/iu, `texto en inglés: ${texto}`);
++}
++assert.match(sinComentarios, /INBOX_COPY\.created/u, "la pantalla usa el texto compartido");
++assert.match(sinComentarios, /INBOX_COPY\.resent/u, "tras reenviar se dice que los anteriores valen");
++assert.match(sinComentarios, /message=\{/u, "el texto va en la región role=status de AuthShell");
++
++// 2 · La espera arranca al montar.
++assert.equal(RESEND_WAIT_SECONDS, 60);
++assert.match(
++  sinComentarios,
++  /initialSeconds=\{RESEND_WAIT_SECONDS\}/u,
++  "el botón de reenvío cuenta 60 s desde que aparece la pantalla",
++);
++
++// 3 · Sin reenvío automático.
++assert.doesNotMatch(sinComentarios, /useEffect/u, "ningún efecto: sólo un clic humano reenvía");
++const llamadas = sinComentarios.match(/resendVerification\(/gu) ?? [];
++assert.equal(llamadas.length, 1, "un único llamador de resendVerification");
++const indiceOnResend = sinComentarios.indexOf("onResend=");
++const indiceLlamada = sinComentarios.indexOf("resendVerification(");
++assert.ok(indiceOnResend !== -1 && indiceLlamada > indiceOnResend, "la llamada vive dentro de onResend");
++
++// El botón de reenvío: `initialSeconds` existe y arranca el contador.
++const boton = readFileSync("src/components/ResendTimerButton.tsx", "utf8");
++assert.match(boton, /initialSeconds = 0/u, "por defecto el botón nace activo (otras pantallas)");
++assert.match(boton, /useState\(initialSeconds\)/u, "la cuenta atrás inicial es el estado de partida");
++
++console.log(
++  "check-your-inbox: texto con qué hacer y dónde mirar, espera de 60 s desde el montaje y sin reenvío automático verificados",
++);
+diff --git a/apps/web/src/lib/check-your-inbox.ts b/apps/web/src/lib/check-your-inbox.ts
+new file mode 100644
+index 00000000..8ce5a1a6
+--- /dev/null
++++ b/apps/web/src/lib/check-your-inbox.ts
+@@ -0,0 +1,39 @@
++/**
++ * Lo que dice la pantalla «Revisa tu correo» tras crear la cuenta, y cuánto
++ * espera el botón de reenvío. Vive fuera del componente para que las
++ * pruebas de texto no necesiten DOM y para que los contratos que otras
++ * suites esperan queden a la vista:
++ *
++ *   · «Cuenta creada» lo buscan las suites reales (`free-launch-funnel`,
++ *     `jornada-real`, …) en la región `role="status"`. No se reformula.
++ *   · La frase principal dice QUÉ hacer —abrir el correo para activar la
++ *     cuenta— y DÓNDE mirar si no aparece (correo no deseado). Antes prometía
++ *     «entrarás directo», y no era verdad: tras verificar hay que iniciar
++ *     sesión.
++ */
++export const INBOX_COPY = {
++  created: "Cuenta creada.",
++  sentTo: "Te enviamos un correo a",
++  action:
++    "; ábrelo para activar tu cuenta (mira también en correo no deseado).",
++  /**
++   * Tras reenviar. Desde que el API acumula los enlaces de verificación
++   * (cada uno de un solo uso hasta caducar), el correo anterior NO se
++   * invalida, y la pantalla lo dice para que nadie tire el primero.
++   */
++  resent:
++    "Enviamos otro correo; los anteriores siguen valiendo hasta caducar.",
++  /** El correo tarda: se encola y se reintenta. */
++  patience: "Tarda hasta un par de minutos: el envío se encola y se reintenta.",
++} as const;
++
++/**
++ * Cuánto espera el botón «Enviar otro correo» DESDE QUE APARECE la pantalla.
++ *
++ * Antes estaba activo desde el segundo cero y el clic reflejo —«no llega,
++ * pulso»— era exactamente lo que producía dos correos en el mismo minuto.
++ * Sesenta segundos es lo que tarda en llegar un correo normal; el botón dice
++ * cuánto falta, así que la espera está explicada. No hay reenvío automático:
++ * sólo envía un clic humano.
++ */
++export const RESEND_WAIT_SECONDS = 60;
+diff --git a/apps/web/src/lib/identity-actions.spec.ts b/apps/web/src/lib/identity-actions.spec.ts
+index a0d461fb..c49bbec5 100644
+--- a/apps/web/src/lib/identity-actions.spec.ts
++++ b/apps/web/src/lib/identity-actions.spec.ts
+@@ -9,6 +9,7 @@ import {
+   identityFailureMessage,
+   identitySuccessMessage,
+   initialIdentityToken,
++  loginEmailFromQuery,
+   performIdentityAction,
+   type IdentityAction,
+   type IdentityActionClient,
+@@ -255,8 +256,71 @@ async function main() {
+   );
+   assert.doesNotMatch(authFailureMessage(new Error("algo raro"), "register"), /algo raro/u);
+ 
++  // ── Verificación: el correo vuelve y un enlace ya usado dice la verdad ──
++  const clientVerifying = (response: unknown): IdentityActionClient => ({
++    verifyEmail: async () => response,
++    resendVerification: async () => undefined,
++    requestPasswordReset: async () => undefined,
++    resetPassword: async () => undefined,
++  });
++  assert.deepEqual(
++    await performIdentityAction(
++      "verify",
++      { token },
++      clientVerifying({ verified: true, email: "Nueva@Example.com" }),
++    ),
++    { kind: "success", email: "nueva@example.com" },
++  );
++  const yaVerificado = await performIdentityAction(
++    "verify",
++    { token },
++    clientVerifying({ verified: true, alreadyVerified: true, email: "u@example.com" }),
++  );
++  assert.deepEqual(yaVerificado, { kind: "success", email: "u@example.com", alreadyVerified: true });
++  assert.equal(yaVerificado.kind, "success");
++  assert.match(identitySuccessMessage("verify", yaVerificado), /ya estaba verificado/u);
++  assert.match(identitySuccessMessage("verify"), /quedó verificado/u);
++  // Un correo inválido en la respuesta no se propaga a la URL del login.
++  assert.deepEqual(
++    await performIdentityAction("verify", { token }, clientVerifying({ verified: true, email: "no es correo" })),
++    { kind: "success" },
++  );
++
++  const superseded = await performIdentityAction(
++    "verify",
++    { token },
++    clientThrowing({ status: 400, body: { code: "verification_token_superseded", message: "x" } }),
++  );
++  assert.deepEqual(superseded, { kind: "request-error", code: "verification_token_superseded" });
++  assert.equal(superseded.kind, "request-error");
++  assert.match(identityFailureMessage("verify", superseded), /correo más reciente/u);
++  const expired = await performIdentityAction(
++    "verify",
++    { token },
++    clientThrowing({ status: 400, body: { code: "verification_token_expired", message: "x" } }),
++  );
++  assert.equal(expired.kind, "request-error");
++  assert.match(identityFailureMessage("verify", expired), /caducó/u);
++  // Un código desconocido cae en el mensaje genérico, y `reset` no hereda
++  // los mensajes de la verificación.
++  assert.match(
++    identityFailureMessage("verify", { kind: "request-error", code: "otro" }),
++    /no es válido o ya expiró/u,
++  );
++  assert.match(
++    identityFailureMessage("reset", { kind: "request-error", code: "verification_token_expired" }),
++    /no es válido o ya expiró/u,
++  );
++
++  // ── El correo que rellena /login?email=… ──
++  assert.equal(loginEmailFromQuery(" Ana@Example.com "), "ana@example.com");
++  assert.equal(loginEmailFromQuery("no-es-correo"), "");
++  assert.equal(loginEmailFromQuery(null), "");
++  assert.equal(loginEmailFromQuery(undefined), "");
++  assert.equal(loginEmailFromQuery(`a@b.c${"x".repeat(300)}`), "");
++
+   console.log(
+-    "identity-actions: validación, transporte SDK seguro de secretos y mensajes de fallo en español verificados",
++    "identity-actions: validación, transporte SDK seguro de secretos, resultado de la verificación y mensajes de fallo en español verificados",
+   );
+ }
+ 
+diff --git a/apps/web/src/lib/identity-actions.ts b/apps/web/src/lib/identity-actions.ts
+index 8c70c154..2bcddb5b 100644
+--- a/apps/web/src/lib/identity-actions.ts
++++ b/apps/web/src/lib/identity-actions.ts
+@@ -17,10 +17,20 @@ export interface IdentityActionValues {
+ }
+ 
+ export type IdentityActionResult =
+-  | { kind: "success" }
++  | {
++      kind: "success";
++      /** Correo verificado (sólo `verify`): rellena el inicio de sesión. */
++      email?: string;
++      /** El enlace ya no abría nada porque la cuenta YA estaba verificada. */
++      alreadyVerified?: boolean;
++    }
+   | { kind: "validation"; message: string }
+   | { kind: "rate-limited" }
+-  | { kind: "request-error" }
++  | {
++      kind: "request-error";
++      /** `code` contractual del ApiError, si el API lo dio. */
++      code?: string;
++    }
+   | { kind: "network-error" };
+ 
+ export interface IdentityActionClient {
+@@ -195,11 +205,11 @@ function httpStatusOf(cause: unknown): number | null {
+ 
+ function httpBodyOf(
+   cause: unknown,
+-): { message?: unknown; retryAfterSeconds?: unknown } | null {
++): { message?: unknown; retryAfterSeconds?: unknown; code?: unknown } | null {
+   if (!cause || typeof cause !== "object" || !("body" in cause)) return null;
+   const body = cause.body;
+   return body && typeof body === "object"
+-    ? (body as { message?: unknown; retryAfterSeconds?: unknown })
++    ? (body as { message?: unknown; retryAfterSeconds?: unknown; code?: unknown })
+     : null;
+ }
+ 
+@@ -255,7 +265,7 @@ export async function performIdentityAction(
+ 
+   try {
+     if (action === "verify") {
+-      await client.verifyEmail(payload.body.token);
++      return verificationSuccess(await client.verifyEmail(payload.body.token));
+     } else if (action === "resend") {
+       await client.resendVerification(payload.body.email);
+     } else if (action === "forgot") {
+@@ -276,16 +286,46 @@ export async function performIdentityAction(
+     ) {
+       return { kind: "rate-limited" };
+     }
+-    return error instanceof TypeError
+-      ? { kind: "network-error" }
++    if (error instanceof TypeError) return { kind: "network-error" };
++    const code = httpBodyOf(error)?.code;
++    return typeof code === "string"
++      ? { kind: "request-error", code }
+       : { kind: "request-error" };
+   }
+ }
+ 
+-export function identitySuccessMessage(action: IdentityAction): string {
++/**
++ * Lo que trae el 201 de `POST /v1/auth/verify-email`: el correo verificado
++ * (para que el inicio de sesión llegue rellenado) y si el enlace ya no abría
++ * nada porque la cuenta ya estaba verificada. Se lee con cuidado porque la
++ * respuesta es `unknown` para el cliente genérico.
++ */
++function verificationSuccess(response: unknown): IdentityActionResult {
++  const body =
++    response && typeof response === "object"
++      ? (response as { email?: unknown; alreadyVerified?: unknown })
++      : null;
++  const email = validateEmail(
++    typeof body?.email === "string" ? body.email : undefined,
++  );
++  return {
++    kind: "success",
++    ...(email.ok ? { email: email.value } : {}),
++    ...(body?.alreadyVerified === true ? { alreadyVerified: true } : {}),
++  };
++}
++
++export function identitySuccessMessage(
++  action: IdentityAction,
++  result?: Extract<IdentityActionResult, { kind: "success" }>,
++): string {
+   switch (action) {
+     case "verify":
+-      return "Tu correo quedó verificado. Ya puedes iniciar sesión.";
++      // Abrir dos veces el mismo enlace, o el de otro correo tras verificar
++      // con el primero, no es un error: se dice lo que pasó.
++      return result?.alreadyVerified
++        ? "Tu correo ya estaba verificado. Ya puedes iniciar sesión."
++        : "Tu correo quedó verificado. Ya puedes iniciar sesión.";
+     case "resend":
+       return "Si existe una cuenta pendiente de verificación para ese correo, enviaremos nuevas instrucciones.";
+     case "forgot":
+@@ -306,12 +346,28 @@ export function identityFailureMessage(
+   if (result.kind === "network-error") {
+     return "No se pudo conectar con el servicio de identidad. Intenta de nuevo.";
+   }
++  if (action === "verify" && result.code === "verification_token_superseded") {
++    return "Este enlace ya no sirve: abre el correo más reciente que te enviamos o pide otro.";
++  }
++  if (action === "verify" && result.code === "verification_token_expired") {
++    return "Este enlace caducó. Pide otro correo de verificación.";
++  }
+   if (action === "verify" || action === "reset") {
+     return "El enlace o token no es válido o ya expiró. Solicita uno nuevo.";
+   }
+   return "No se pudo procesar la solicitud. Intenta de nuevo más tarde.";
+ }
+ 
++/**
++ * El correo con el que llega alguien a `/login?email=…` desde «tu correo
++ * está verificado»: se acepta sólo si es un correo válido (misma regla que el
++ * formulario), y nunca se confía en él para nada más que rellenar el campo.
++ */
++export function loginEmailFromQuery(raw: string | null | undefined): string {
++  const email = validateEmail(raw ?? undefined);
++  return email.ok ? email.value : "";
++}
++
+ export function cleanIdentityUrl(rawUrl: string): string {
+   const url = new URL(rawUrl);
+   url.searchParams.delete("token");
+diff --git a/docs/governance/assisted-development-log.json b/docs/governance/assisted-development-log.json
+index e2d445b0..dee3bda0 100644
+--- a/docs/governance/assisted-development-log.json
++++ b/docs/governance/assisted-development-log.json
+@@ -3788,6 +3788,51 @@
+       },
+       "aiCoAuthorTrailers": true,
+       "aiClaimsAuthorship": false
++    },
++    {
++      "id": "CORREO-ALTA-VALLECAD-20260916",
++      "date": "2026-09-16",
++      "initiative": "Frente «correo»: el alta de un usuario cualquiera es tan fácil como en cualquier sitio serio y ningún cliente ve la cuenta personal del dueño. Cinco hechos medidos en producción el 16-sep y su causa raíz en el repo: (1) los correos se firmaban «Valle Design» porque PRODUCT_NAME estaba escrito a mano en email-templates.ts; ahora la API resuelve el manifiesto de marca de @valle-design/contracts con BRAND_PRODUCT_NAME_DESIGN / BRAND_NAME / BRAND_SUPPORT_EMAIL (sin prefijo NEXT_PUBLIC_) y el pie dice «<producto> · <soporte>»; IDENTITY_MFA_ISSUER toma el mismo default. (2) Dos correos de verificación en el mismo minuto con tokens distintos: el segundo lo emitió POST /v1/auth/verify-email/resend (el único emisor posible de un segundo token para un usuario recién creado; el alta devuelve {accepted} sin encolar si el usuario existe, el outbox congela el payload y deduplica, y no existe reenvío automático en el web), y como emitir consumía el token anterior, el primer correo —el que llega antes— moría en la bandeja; Gmail apila los dos mensajes iguales y recorta el texto repetido (la línea de caducidad), de ahí la «otra plantilla». Ahora el reenvío de verificación ACUMULA tokens vigentes (cada uno de un solo uso; verificar con cualquiera consume el resto), reset/MFA/cambio de correo siguen reemplazando, y verifyEmail devuelve un resultado con nombre: 201 alreadyVerified idempotente, 400 con code verification_token_superseded («abre el correo más reciente») o verification_token_expired. (3) SUPPORT_EMAIL y NEXT_PUBLIC_BRAND_SUPPORT_EMAIL apuntaban al Gmail personal por configuración de Railway, no por código: la guía de despliegue pasa a soporte@vallecad.com y el único literal del Gmail en el repo (apps/web/e2e/fixtures/constants.ts y el `contact` de los dos contratos OpenAPI) se sustituye; EMAIL_SENDER_FROM ya admitía «Nombre <correo@dominio>» y se documenta con «VALLECAD <no-reply@vallecad.com>». (4) La pantalla tras el alta (nuevo CheckYourInbox.tsx) dice «Cuenta creada. Te enviamos un correo a X; ábrelo para activar tu cuenta (mira también en correo no deseado)», el botón de reenvío espera 60 s desde que aparece (ResendTimerButton gana initialSeconds), tras reenviar avisa de que los anteriores siguen valiendo, y sigue sin reenvío automático. (5) Tras verificar, «Iniciar sesión» lleva a /login?email=… con el correo que devolvió el API y AuthPage lo valida y lo pone como defaultValue.",
++      "branch": "claude/vc-correo",
++      "assistants": [
++        "Claude Code (Anthropic), modelo Claude Fable 5.1, sesión local operada por el titular: traza del alta y del outbox, diagnóstico del segundo correo, rotación de tokens, resultados de la verificación, contrato y SDK regenerado, marca de los correos, pantalla tras el alta, login rellenado, documentación y esta entrada"
++      ],
++      "authority": "Sergio Valle Zárate. Encargo: «el alta es tan fácil y rápida como en cualquier sitio web serio, y ningún cliente ve la cuenta personal del dueño; el segundo correo debe desaparecer de raíz, no taparse». Ningún gate, umbral, presupuesto ni trinquete se relajó. El único cambio de comportamiento observable en pruebas existentes se declara: el segundo canje del mismo enlace de verificación pasa de 400 a 201 alreadyVerified (identity.integration.spec.ts); la propiedad «un solo uso» sigue probada porque el segundo canje no cambia estado.",
++      "firstPartyInputs": [
++        "apps/api/src/modules/identity/identity-token-issuance.ts, identity.service.ts, identity.controller.ts, identity-registration.pg.spec.ts, identity.integration.spec.ts (main b90a9a42)",
++        "apps/api/src/modules/outbox-receiver/email-templates.ts, email-templates.spec.ts, outbox-receiver.module.ts, outbox-receiver.service.ts, email-sender.config.ts (FROM_PATTERN ya admitía nombre visible)",
++        "packages/contracts/src/brand.ts (resolveBrandManifest, productDisplayName), packages/contracts/specs/design-api.v1.yaml (EmailVerificationResponse, ApiError.code)",
++        "apps/web/src/components/AuthPage.tsx, ResendTimerButton.tsx, IdentityActionForm.tsx, apps/web/src/lib/identity-actions.ts (rama claude/vc-registro, PR #212, fusionada como base)",
++        "apps/web/e2e/real/free-launch-funnel.spec.ts y jornada-real.spec.ts (contrato «Cuenta creada» en role=status, conservado)",
++        "docs/onboarding/DESPLIEGUE-RAILWAY.md, docs/guides/environment-variables.md, .env.example"
++      ],
++      "externalSources": [],
++      "externalImplementationConsulted": "Ninguna implementación copiada, traducida ni portada.",
++      "derivedAreas": [
++        "apps/api/src/modules/identity/identity-token-issuance.ts (TokenRotation, consumeRemainingTokensWithManager)",
++        "apps/api/src/modules/identity/identity.service.ts (sendVerificationEmail acumula; verifyEmail con EmailVerificationOutcome)",
++        "apps/api/src/modules/identity/identity.controller.ts (201 alreadyVerified / 400 con code; MFA_ISSUER desde el manifiesto)",
++        "apps/api/src/common/brand/product-brand.ts y .spec.ts (resolveProductBrand)",
++        "apps/api/src/modules/outbox-receiver/email-templates.ts, .spec.ts, outbox-receiver.module.ts, outbox-receiver.service.ts (EmailBrand inyectado)",
++        "apps/api/src/production-readiness.spec.ts (las variables de marca deben estar en la guía de despliegue)",
++        "apps/api/src/modules/identity/identity-registration.pg.spec.ts e identity.integration.spec.ts (casos de acumulación y de cada negativa)",
++        "packages/contracts/specs/design-api.v1.yaml y design-events.v1.yaml (contrato y contacto), packages/design-sdk/src/generated/design-api.ts (regenerado)",
++        "apps/web/src/components/CheckYourInbox.tsx (nuevo), check-your-inbox.spec.ts (nuevo), apps/web/src/lib/check-your-inbox.ts (nuevo), ResendTimerButton.tsx (initialSeconds), AuthPage.tsx (import y defaultValue del correo), IdentityActionForm.tsx (enlace con el correo), identity-actions.ts y .spec.ts (resultado de la verificación, códigos, loginEmailFromQuery)",
++        "apps/web/src/app/login/page.tsx y register/page.tsx (productName('design') en la metadata)",
++        "apps/web/e2e/fixtures/constants.ts (OWNER_EMAIL sin correo personal), apps/web/e2e/real/free-launch-funnel.spec.ts (paso 4: el login llega rellenado)",
++        "docs/onboarding/DESPLIEGUE-RAILWAY.md, docs/guides/environment-variables.md, .env.example",
++        "docs/governance/assisted-development-log.json (esta entrada)"
++      ],
++      "fixtures": "Ninguno.",
++      "dependenciesAdded": [],
++      "adoption": {
++        "required": true,
++        "status": "proposed",
++        "adopter": "Sergio Valle Zárate",
++        "evidence": "Local: typecheck y lint:check de la api, specs de la api sin base de datos (plantillas, marca, cobertura, remitente, readiness), `npm test` del SDK (byte-igualdad del generado), redocly lint, check:api-console, typecheck y lint del web, test:specs del web y los check:* del root, de uno en uno (ver la PR). En esta laptop no hay binding nativo de better-sqlite3 ni Postgres, así que los specs de identidad contra base de datos (integration y pg) y Playwright los juzga el CI sobre el SHA exacto candidato. Fuera del código, el titular fija en Railway las variables listadas en la PR (las NEXT_PUBLIC_* exigen reconstruir el web) y verifica vallecad.com en Resend antes de cambiar EMAIL_SENDER_FROM. La adopción es el merge de la PR por el titular tras revisar el diff."
++      },
++      "aiCoAuthorTrailers": true,
++      "aiClaimsAuthorship": false
+     }
+   ]
+ }
+diff --git a/packages/contracts/specs/design-api.v1.yaml b/packages/contracts/specs/design-api.v1.yaml
+index 89b1830d..e9bf238a 100644
+--- a/packages/contracts/specs/design-api.v1.yaml
++++ b/packages/contracts/specs/design-api.v1.yaml
+@@ -76,7 +76,7 @@ info:
+     `packages/design-sdk` (R3); cualquier cambio incompatible es `v2`.
+   contact:
+     name: Plataforma Valle — separación de productos (Fase 2)
+-    email: sergiovallezarate@gmail.com
++    email: soporte@vallecad.com
+   license:
+     name: UNLICENSED
+     identifier: UNLICENSED
+diff --git a/packages/contracts/specs/design-events.v1.yaml b/packages/contracts/specs/design-events.v1.yaml
+index 526cb284..e8fc25e6 100644
+--- a/packages/contracts/specs/design-events.v1.yaml
++++ b/packages/contracts/specs/design-events.v1.yaml
+@@ -34,7 +34,7 @@ info:
+     name: UNLICENSED
+   contact:
+     name: Plataforma Valle — separación de productos (Fase 2)
+-    email: sergiovallezarate@gmail.com
++    email: soporte@vallecad.com
+     url: https://valle.interno/docs/product-split
+ tags:
+   - name: design

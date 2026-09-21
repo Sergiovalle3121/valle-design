@@ -18,7 +18,7 @@ import {
   makeBox,
   makeBoxWithThroughHole,
   planarBodyVolume,
-  rectangle,
+
   regularPolygon,
   validateBody,
   vec3,

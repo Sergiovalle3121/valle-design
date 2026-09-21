@@ -1,7 +1,7 @@
 /**
  * EL PIE DE SITIO SERIO — el mapa que la barra pública no es.
  *
- * La barra de arriba lleva CUATRO enlaces a propósito (la ruta corta de
+ * La barra de arriba lleva CINCO enlaces a propósito (la ruta corta de
  * decisión); el pie es lo contrario: el mapa completo, donde se busca lo que
  * no se decide. Cuatro columnas con dueño claro —producto, recursos,
  * confianza, legal— más la identidad, el correo de soporte VISIBLE (una
@@ -14,6 +14,7 @@
  */
 import Link from "next/link";
 import { Logo } from "@/components/brand/Logo";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { TrademarkNotice } from "./TrademarkNotice";
 import { BRAND } from "@/config/brand";
 import { COMMERCIAL_CONTACTS, COMMERCIAL_LINKS } from "@/config/commercial";
@@ -65,8 +66,8 @@ export function SiteFooter() {
         <div>
           <Logo />
           <p className="type-small mt-3 max-w-xs text-muted-foreground">
-            CAD 2D profesional en el navegador: dibuja, acota y publica láminas
-            a escala sin instalar nada.
+            CAD 2D y 3D en el navegador: dibuja, acota, modela sólidos y publica
+            láminas a escala sin instalar nada.
           </p>
           <p className="type-small mt-4 text-muted-foreground">{BRAND.copyright}</p>
         </div>
@@ -112,8 +113,14 @@ export function SiteFooter() {
           </nav>
         ))}
       </div>
-      <div className="mx-auto mt-10 max-w-7xl border-t border-border pt-6">
+      {/*
+        El conmutador de tema vive aquí desde que la barra pública bajó a
+        cinco enlaces: es una preferencia, no una decisión, y el pie es el
+        sitio de lo que no se decide. En móvil sigue además dentro del menú.
+      */}
+      <div className="mx-auto mt-10 flex max-w-7xl flex-col gap-6 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">
         <TrademarkNotice className="type-small max-w-2xl text-muted-foreground" />
+        <ThemeToggle className="self-start sm:self-auto" />
       </div>
     </footer>
   );

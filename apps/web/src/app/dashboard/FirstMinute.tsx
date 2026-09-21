@@ -35,6 +35,7 @@ export function FirstMinute({
   onOpenSample,
   onCreateBlank,
   onImport,
+  accept,
   className,
 }: {
   canEdit: boolean;
@@ -42,6 +43,7 @@ export function FirstMinute({
   onOpenSample: () => void;
   onCreateBlank: () => void;
   onImport: (files: FileList | null) => void;
+  accept: string;
   className?: string;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -154,7 +156,8 @@ export function FirstMinute({
                   ref={fileRef}
                   type="file"
                   className="sr-only"
-                  accept=".dxf,.json,.shp,.shx,.dbf,.prj,.cpg"
+                  accept={accept}
+                  data-testid="first-minute-import-input"
                   multiple
                   onChange={(event) => {
                     onImport(event.target.files);

@@ -555,7 +555,13 @@ function radioDe(route: CadPipeRoute, unit: string): number | null {
  * quien las cuenta es `cadPipeFittings`. Acusarlas de choque sería llenar el
  * informe de falsos justo en los sitios donde el proyecto está bien.
  */
-function seEmpalman(a: CadPipeRoute, b: CadPipeRoute): boolean {
+function _seEmpalman(a: CadPipeRoute, b: CadPipeRoute): boolean {
+  return empalmePoints(a, b).length > 0;
+}
+
+/** Puntos donde las dos rutas se tocan (dentro de CAD_PL_JOIN_TOLERANCE). */
+function empalmePoints(a: CadPipeRoute, b: CadPipeRoute): CadPoint3[] {
+  const puntos: CadPoint3[] = [];
   const puntas = (route: CadPipeRoute) =>
     [route.points[0], route.points[route.points.length - 1]].filter(
       (punto): punto is CadPoint3 => !!punto,
@@ -572,10 +578,13 @@ function seEmpalman(a: CadPipeRoute, b: CadPipeRoute): boolean {
     }
     return false;
   };
-  return (
-    puntas(a).some((punta) => tocaCuerpo(punta, b)) ||
-    puntas(b).some((punta) => tocaCuerpo(punta, a))
-  );
+  for (const punta of puntas(a)) {
+    if (tocaCuerpo(punta, b)) puntos.push(punta);
+  }
+  for (const punta of puntas(b)) {
+    if (tocaCuerpo(punta, a)) puntos.push(punta);
+  }
+  return puntos;
 }
 
 function severidad(gap: number, clearance: number): CadPipeClashKind | null {
@@ -698,16 +707,40 @@ export function cadPipeClashReport(
 
   // Ruta contra ruta. Cada par una sola vez, y sólo si las dos entran en el
   // filtro o al menos una de ellas: un choque es de las dos.
-  for (let i = 0; i < todas.length; i += 1)
-    for (let j = i + 1; j < todas.length; j += 1) {
-      const a = todas[i];
+  // D5: el bucle exterior itera sólo sobre `mias` (las rutas filtradas) en
+  // vez de `todas`, para que cuando hay `routeIds` no se recorran todos los
+  // pares del documento. El interior sigue sobre `todas` para detectar choques
+  // contra rutas que no están en el filtro.
+  for (let i = 0; i < mias.length; i += 1)
+    for (let j = 0; j < todas.length; j += 1) {
+      const a = mias[i];
       const b = todas[j];
-      if (options.routeIds && !options.routeIds.includes(a.entityId) && !options.routeIds.includes(b.entityId))
-        continue;
+      if (a.entityId === b.entityId) continue;
+      // Evitar duplicados: sólo procesar si a <= b en entityId.
+      if (a.entityId > b.entityId) continue;
       const ra = radioDe(a, unit);
       const rb = radioDe(b, unit);
-      if (ra === null || rb === null) continue;
-      if (seEmpalman(a, b)) continue;
+      // D7: una conducción sin diámetro se declara en `sinDiametro` en vez de
+      // descartarse en silencio. El pase contra obstáculos ya lo hace (línea
+      // 625-635); el pase ruta-contra-ruta no lo hacía.
+      if (ra === null && rb === null) {
+        sinDiametro.push({ entityId: a.entityId, reason: `${a.line} no tiene diámetro: no se puede medir contra ${b.line}` });
+        sinDiametro.push({ entityId: b.entityId, reason: `${b.line} no tiene diámetro: no se puede medir contra ${a.line}` });
+        continue;
+      }
+      if (ra === null) {
+        sinDiametro.push({ entityId: a.entityId, reason: `${a.line} no tiene diámetro: no se puede medir contra ${b.line}` });
+        continue;
+      }
+      if (rb === null) {
+        sinDiametro.push({ entityId: b.entityId, reason: `${b.line} no tiene diámetro: no se puede medir contra ${a.line}` });
+        continue;
+      }
+      // D4: no exentar el par entero cuando las rutas se tocan en un punto.
+      // En vez de `if (seEmpalman(a, b)) continue;`, se encuentran los puntos
+      // de empalme y se comprueba por segmento: sólo se salta si el punto más
+      // cercano está cerca de un empalme.
+      const joinPoints = empalmePoints(a, b);
       let peor: { gap: number; at: CadPoint3 } | null = null;
       for (let m = 1; m < a.points.length; m += 1)
         for (let n = 1; n < b.points.length; n += 1) {
@@ -718,6 +751,12 @@ export function cadPipeClashReport(
             b.points[n],
           );
           const gap = distance - ra - rb;
+          // D4: descartar por PUNTO, no por par. Si el candidato está
+          // en un empalme, se salta; si no, compite por ser el peor.
+          const enEmpalme = joinPoints.some((jp) =>
+            Math.hypot(at.x - jp.x, at.y - jp.y, (at.z ?? 0) - (jp.z ?? 0)) <= CAD_PL_JOIN_TOLERANCE + ra + rb
+          );
+          if (enEmpalme) continue;
           if (!peor || gap < peor.gap) peor = { gap, at };
         }
       if (!peor) continue;
@@ -755,23 +794,4 @@ export function cadPipeClashReport(
   };
 }
 
-/** Cómo se nombra una severidad en la línea de órdenes. */
-export const CAD_PL_CLASH_WORD: Record<CadPipeClashKind, string> = {
-  "choque-duro": "CHOQUE",
-  "holgura-insuficiente": "HOLGURA INSUFICIENTE",
-  "paso-por-hueco": "PASO POR HUECO",
-};
-
-/** El informe en una línea, para el renglón de una orden. */
-export function cadPipeClashSummary(report: CadPipeClashReport): string {
-  if (report.obstacles === 0)
-    return "sin estructura contra la que chocar: el dibujo no tiene muros ni sólidos";
-  const duros = report.clashes.filter((choque) => choque.kind === "choque-duro").length;
-  const holguras = report.clashes.filter(
-    (choque) => choque.kind === "holgura-insuficiente",
-  ).length;
-  const pasos = report.clashes.filter((choque) => choque.kind === "paso-por-hueco").length;
-  if (duros === 0 && holguras === 0 && pasos === 0)
-    return `sin choques contra ${report.obstacles} elemento(s) construido(s), con holgura de ${redondo(report.clearance)}`;
-  return `${duros} choque(s), ${holguras} holgura(s) insuficiente(s) y ${pasos} paso(s) por hueco contra ${report.obstacles} elemento(s) construido(s)`;
-}
+export { CAD_PL_CLASH_WORD, cadPipeClashSummary } from "./clash-summary";
