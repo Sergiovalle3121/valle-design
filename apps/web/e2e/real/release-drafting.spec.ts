@@ -140,11 +140,19 @@ test.describe("Entregables sintéticos por teclado y ratón, con persistencia re
     await command(page, "CIRCLE", "20,60", "10");
     await command(page, "COPY", "U", "", "20,60", "100,60", "");
     await layer(page, "Cotas");
+    // A 1:1, 125 × 0.02 da texto/flecha de 2.5 mm y reduce también los
+    // huecos del estilo arquitectónico de fábrica a la escala de esta pieza.
+    await command(page, "DIMSTYLE", "B_1_1", "Standard", "125", "125", "closed-filled", "0", "mm", "0.02", "", "2");
+    await command(page, "SETVAR", "DIMSTYLE", "B_1_1");
     await command(page, "DIMLINEAR", "0,0", "120,0", "60,-15");
     await command(page, "ZOOM", "E");
     await save(page);
     const original = await readDocument(context, id);
     expect(original.cadDocument.meta.unit).toBe("mm");
+    expect(original.cadDocument.entities.find((entity) => entity.type === "dimension")).toMatchObject({
+      style: "B_1_1", textHeight: 2.5, arrowSize: 2.5,
+      extensionGap: 0.8, extensionOvershoot: 2.4, textGap: 1.8,
+    });
     const circles = original.cadDocument.entities.filter(
       (entity) => entity.type === "circle",
     );
