@@ -33,6 +33,7 @@ async function command(page: Page, ...values: string[]) {
 async function layer(page: Page, name: string) {
   await command(page, "-LAYER", "N", name);
   await command(page, "-LAYER", "D", name);
+  await expect(page.getByTestId("cad-current-layer")).toHaveText(`Capa ${name}`);
 }
 
 async function readDocument(context: BrowserContext, id: string) {

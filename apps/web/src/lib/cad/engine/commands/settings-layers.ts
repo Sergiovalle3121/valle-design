@@ -188,9 +188,15 @@ const layerCliCommand: CadCommandDescriptor<LayerCliState> = {
 
     if (state.action === "new") {
       if (findLayer(context, typed)) return message(state, `La capa "${typed}" ya existe.`);
+      // RENAME conserva el ID: el nombre anterior puede estar libre aunque
+      // su ID derivado siga perteneciendo a otra capa.
+      const occupied = new Set(layersOf(context).map((layer) => layer.id));
+      const baseId = typed.toLowerCase();
+      let id = baseId;
+      for (let suffix = 2; occupied.has(id); suffix += 1) id = `${baseId}-${suffix}`;
       return layerPatch(
         state,
-        { id: typed.toLowerCase(), name: typed, color: "#ffffff", visible: true, locked: false },
+        { id, name: typed, color: "#ffffff", visible: true, locked: false },
         `-LAYER: capa "${typed}" creada`,
       );
     }
