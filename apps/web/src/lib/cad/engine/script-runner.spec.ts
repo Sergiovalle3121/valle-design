@@ -155,7 +155,7 @@ RECTANG
     near(line.end.x, 1000, 1e-9, "y llega a 1000");
     // La capa se llama así porque el PROPIO guión la renombró y luego la puso
     // actual. Es la prueba de que las variantes sin cuadro no son decorativas.
-    equal(line.layer, "A-MURO", "y está en la capa que el guión renombró y puso actual");
+    equal(line.layer, "muro", "conserva el ID persistido al renombrar la capa");
   }
 
   const circle = run.document.entities.find((entity) => entity.type === "circle");
@@ -164,7 +164,7 @@ RECTANG
     near(circle.center.x, 500, 1e-9, "centrado donde dice el guión");
     near(circle.center.y, 300, 1e-9, "en las dos coordenadas");
     near(circle.radius, 120, 1e-9, "con el radio pedido");
-    equal(circle.layer, "A-MURO", "también en A-MURO");
+    equal(circle.layer, "muro", "también conserva el ID de A-MURO");
   }
 
   const rectangle = run.document.entities.find((entity) => entity.type === "polyline");
@@ -176,7 +176,7 @@ RECTANG
 
   // --- lo que el guión CONFIGURÓ ------------------------------------------
   equal(run.variables.get("LTSCALE"), 50, "LTSCALE quedó en 50, puesta por el guión");
-  equal(run.variables.get("CLAYER"), "A-MURO", "y la capa actual, en la renombrada");
+  equal(run.variables.get("CLAYER"), "muro", "la capa actual usa el ID de la renombrada");
   equal(run.variables.get("ORTHOMODE"), 0, "-DSETTINGS apagó el orto sin abrir el cuadro");
 
   // --- lo que el guión RENOMBRÓ -------------------------------------------
@@ -232,7 +232,7 @@ class ScriptHost {
       layers: () => this.document.layers,
       document: () => this.document,
       selection: [],
-      activeLayer: this.document.layers.some((layer) => layer.name === clayer) ? clayer : "0",
+      activeLayer: this.document.layers.find((layer) => layer.id === clayer || layer.name === clayer)?.id ?? "0",
       variables: this.variables,
       view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
       newEntityId: () => `e${(this.ids += 1)}`,

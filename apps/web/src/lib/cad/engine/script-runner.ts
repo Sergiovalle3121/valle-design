@@ -51,6 +51,7 @@
  * escrito un byte— ni se tratan como fallo, porque pedirlos es legítimo.
  */
 import type { CadDocument } from "../cad-document";
+import { resolveCadLayerId } from "../resolve-layer-id";
 import { cadExpandSelectionByGroup } from "../blocks/cad-groups";
 import { executeCadEntityCommandBatch } from "../entity-commands";
 import {
@@ -193,11 +194,7 @@ export function executeCadScript(
       // Misma regla que el editor: `CLAYER` manda si nombra una capa que
       // existe. Es lo que hace que `-LAYER definir MUROS` dentro del guión
       // decida dónde van las entidades de los renglones siguientes.
-      activeLayer: document.layers.some(
-        (layer) => layer.name.toUpperCase() === clayer.toUpperCase(),
-      )
-        ? clayer
-        : "0",
+      activeLayer: resolveCadLayerId(document.layers, clayer) ?? "0",
       variables,
       paperSpaces: () => document.paperSpaces ?? [],
       ...(document.meta?.unit ? { unit: document.meta.unit } : {}),

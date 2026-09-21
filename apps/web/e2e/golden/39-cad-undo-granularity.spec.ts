@@ -1,3 +1,4 @@
+import { abrirPanelDerecho } from "../fixtures/docks";
 /**
  * Ediciones que ensuciaban el dibujo sin dejar un punto de deshacer.
  *
@@ -47,8 +48,20 @@ function canonicalDocument(together = false): CadDocument {
     meta: { version: 1, schema: 3, ...FOOTPRINT },
     layers: [
       { id: "0", name: "0", color: "#ffffff", visible: true, locked: false },
-      { id: "PROCESO", name: "PROCESO", color: "#60a5fa", visible: true, locked: false },
-      { id: "MONTAJE", name: "MONTAJE", color: "#f59e0b", visible: true, locked: false },
+      {
+        id: "PROCESO",
+        name: "PROCESO",
+        color: "#60a5fa",
+        visible: true,
+        locked: false,
+      },
+      {
+        id: "MONTAJE",
+        name: "MONTAJE",
+        color: "#f59e0b",
+        visible: true,
+        locked: false,
+      },
     ],
     entities: [
       {
@@ -107,9 +120,10 @@ async function selectLayerObjects(page: Page, layerId: string) {
   await expect(row).toBeVisible();
   await row.getByRole("button", { name: "Sel", exact: true }).click();
   await viewButton.click();
+  await abrirPanelDerecho(page);
 }
 
-const undoButton = (page: Page) => page.getByTitle('Deshacer (Ctrl+Z)');
+const undoButton = (page: Page) => page.getByTitle("Deshacer (Ctrl+Z)");
 const layerSelect = (page: Page) => page.getByTestId("cad-object-layer");
 const labelField = (page: Page) => page.getByTestId("cad-object-label");
 
@@ -315,7 +329,10 @@ test("agrupar y desagrupar se pueden deshacer", async ({ context, page }) => {
   await selectLayerObjects(page, "PROCESO");
   await expect(undoButton(page)).toBeDisabled();
 
-  await page.getByRole("button", { name: "Agrupar", exact: true }).click();
+  await page
+    .getByTestId("cad-right-dock")
+    .getByRole("button", { name: "Agrupar", exact: true })
+    .click();
   await expect(
     undoButton(page),
     "agrupar es una acción deliberada: tiene que dejar su punto de deshacer",
@@ -323,12 +340,13 @@ test("agrupar y desagrupar se pueden deshacer", async ({ context, page }) => {
 
   await page.getByRole("button", { name: "Guardar", exact: true }).click();
   await expect
-    .poll(() =>
-      backend
-        .snapshot()
-        .document.entities.filter(
-          (entity) => entity.type === "box" && entity.group,
-        ).length,
+    .poll(
+      () =>
+        backend
+          .snapshot()
+          .document.entities.filter(
+            (entity) => entity.type === "box" && entity.group,
+          ).length,
     )
     .toBe(2);
 

@@ -206,7 +206,7 @@ export function PricingCatalog() {
     <PublicPageShell
       eyebrow="Planes"
       title="Precios"
-      intro="Los importes de esta página los publica el propio producto: salen del catálogo comercial vigente, no de una tabla escrita a mano. Si el servicio no responde, esta página lo dice en vez de enseñarte una cifra que quizá ya no exista."
+      intro="Empieza a dibujar y elige el plan que se ajuste a tu trabajo. Consulta aquí las condiciones y los precios vigentes."
     >
       {state.status === "loading" && (
         <p role="status" data-testid="pricing-loading">
@@ -254,10 +254,10 @@ export function PricingCatalog() {
               data-testid="checkout-external-note"
               className="rounded-card border border-warning/40 bg-warning/10 px-5 py-4 type-small text-warning-ink"
             >
-              La compra en línea todavía no está habilitada: no hay pasarela
-              de pago configurada. Los precios de abajo son los reales y
-              vigentes; la contratación se cierra con el equipo comercial, que
-              te confirmará alta y facturación.
+              La compra en línea todavía no está habilitada: no hay pasarela de
+              pago configurada. Los precios de abajo son los reales y vigentes;
+              la contratación se cierra con el equipo comercial, que te
+              confirmará alta y facturación.
             </p>
           )}
 

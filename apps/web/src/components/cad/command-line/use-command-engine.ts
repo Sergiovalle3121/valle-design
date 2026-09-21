@@ -30,7 +30,6 @@ import { cadActionScript } from "@/lib/cad/automation/action-recorder";
 import type { CadDocument } from "@/lib/cad/cad-document";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
 import { parseCadScript, runCadScript } from "@/lib/cad/script-runner";
-import type { CadVariableAccess } from "@/lib/cad/system-variables";
 import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
 import type { CadView } from "@/lib/cad/view/cad-view";
 import type { CadVisualStyleId } from "@/lib/cad/view/visual-styles";
@@ -65,6 +64,7 @@ import { handleCadUcsPlanRequest } from "./ucs-plan-host";
 import { handleCadHistoryHostRequest } from "./history-host";
 import { handleCadXrefHostRequest, type CadXrefHostBridge } from "./xref-host";
 import { cadStudioCommandContext } from "./studio-context";
+import { createCadStudioVariableAccess } from "./studio-variables";
 
 /**
  * El registro entra por parámetro con el del producto por defecto.
@@ -126,6 +126,7 @@ export interface CadStudioCommandEngineOptions {
    */
   view: { current: (CadViewControllerLike & { view: CadView }) | null };
   activeLayer: string;
+  setActiveLayer?(id: string): void;
   /**
    * `LTSCALE` ES `document.meta.linetypeScale` (Ola F, 2026-09-02).
    *
@@ -434,54 +435,11 @@ export function useCadStudioCommandEngine(
   });
   const live = useRef(options);
   live.current = options;
-  // `CLAYER` sin tocar ES la capa del editor.
-  //
-  // La tabla de variables nace con `CLAYER = "0"`, y el contexto del estudio da
-  // preferencia a `CLAYER` cuando nombra una capa que existe. La capa «0»
-  // existe SIEMPRE, así que ese valor de fábrica tapaba la capa que el usuario
-  // acababa de elegir en el panel: con el puntero enrutado al motor, dibujar
-  // tras cambiar de capa escribía en «0» (golden 33).
-  //
-  // Aquí `CLAYER` se lee como la capa activa del editor mientras nadie la haya
-  // escrito — que es exactamente lo que ya hacía `(getvar "CLAYER")` en el
-  // intérprete LISP, `host.activeLayer()`—, y en cuanto un comando o un `.scr`
-  // la fija, manda el valor fijado. Así `-LAYER definir` sigue mandando sobre
-  // el dibujo de un guion, y el panel de capas sigue mandando sobre el ratón.
-  //
-  // LÍMITE, dicho en voz alta: una vez escrita, `CLAYER` gana aunque después se
-  // cambie de capa en el panel. Cerrar ese círculo es la ligadura inversa
-  // —el editor observando la variable— y pertenece a quien traiga el panel de
-  // capas al motor, no a este PR.
-  const clayerWritten = useRef(false);
-  // LTSCALE vive en el documento (ver `linetypeScale` en las opciones): la
-  // tabla de sesión valida el valor (mínimo 1e-6) y, si lo admite, el editor
-  // lo aplica al documento, que es lo que leen el visor, la lámina y el DXF.
-  const applyLinetypeScale = (name: string, value: unknown) => {
-    if (name.toUpperCase() !== "LTSCALE" || typeof value !== "number") return;
-    live.current.linetypeScale?.set(value);
-  };
-  const variables = useMemo<CadVariableAccess>(
-    () => ({
-      get: (name) => {
-        if (name.toUpperCase() === "CLAYER" && !clayerWritten.current) return live.current.activeLayer;
-        if (name.toUpperCase() === "LTSCALE" && live.current.linetypeScale) return live.current.linetypeScale.get();
-        return session.variables.get(name);
-      },
-      set: (name, value) => {
-        if (name.toUpperCase() === "CLAYER") clayerWritten.current = true;
-        const outcome = session.variables.set(name, value);
-        if (outcome.ok) applyLinetypeScale(name, value);
-        return outcome;
-      },
-      publish: (name, value) => {
-        if (name.toUpperCase() === "CLAYER") clayerWritten.current = true;
-        const outcome = session.variables.publish(name, value);
-        if (outcome.ok) applyLinetypeScale(name, value);
-        return outcome;
-      },
-    }),
+  const variables = useMemo(
+    () => createCadStudioVariableAccess(session.variables),
     [session],
   );
+  variables.bind(options);
   const engine = useCadCommandEngineHost({
     context: () =>
       cadStudioCommandContext({
@@ -547,8 +505,7 @@ export function useCadStudioCommandEngine(
     variables: (patch, system) => {
       const lines: string[] = [];
       for (const [name, value] of Object.entries(patch)) {
-        // Por la fachada, no por la tabla: es lo que apunta que `CLAYER` ya
-        // tiene dueño y deja de ser un espejo de la capa del editor.
+        // La fachada sincroniza CLAYER con el panel y valida la capa canónica.
         const outcome = system
           ? variables.publish(name, value)
           : variables.set(name, value);

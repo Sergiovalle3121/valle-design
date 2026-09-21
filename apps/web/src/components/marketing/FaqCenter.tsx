@@ -12,7 +12,7 @@ import {
   type FaqCategoryId,
 } from "@/lib/marketing/faq";
 import { fetchPublicCatalog } from "@/lib/commercial/public-catalog";
-import { buttonClass, cx } from "@/components/ui";
+import { Button, Input, buttonClass, cx } from "@/components/ui";
 
 /**
  * EL CENTRO DE PREGUNTAS.
@@ -124,14 +124,16 @@ export function FaqCenter() {
           aria-hidden="true"
           className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
         />
-        <input
+        <Input
+          label="Buscar en las preguntas frecuentes"
+          hideLabel
           type="search"
           value={consulta}
           onChange={(event) => setConsulta(event.target.value)}
           placeholder="Busca una duda: DXF, escala, Argon2, factura…"
           aria-label="Buscar en las preguntas frecuentes"
           data-testid="faq-search"
-          className="focus-glow motion-fast w-full rounded-control border border-input bg-card py-3 pl-11 pr-4 type-body text-foreground transition-[border-color,box-shadow] placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none"
+          className="py-3 pl-11 pr-4 type-body"
         />
       </div>
 
@@ -173,8 +175,7 @@ export function FaqCenter() {
         <div className="mt-8 rounded-card border border-border bg-card p-8 text-center shadow-resting">
           <p className="type-heading">Esa pregunta todavía no está aquí</p>
           <p className="type-body mx-auto mt-3 max-w-xl text-muted-foreground">
-            Escríbenos y te respondemos. Además nos dice qué falta en esta
-            página, que es información que no tenemos de ninguna otra forma.
+            Prueba otra palabra o consulta con soporte.
           </p>
           <Link
             href={FAQ_FALLBACK_HREF}
@@ -196,11 +197,11 @@ export function FaqCenter() {
                 </h3>
               </header>
 
-              <dl className="mt-6 grid gap-5 lg:grid-cols-2">
+              <dl className="mt-2 grid gap-x-12 lg:grid-cols-2">
                 {entradas.map((entrada) => (
                   <div
                     key={entrada.pregunta}
-                    className="rounded-card border border-border bg-card p-6 shadow-resting"
+                    className="border-b border-border py-6"
                   >
                     <dt className="type-body font-semibold text-foreground">
                       {entrada.pregunta}
@@ -248,17 +249,12 @@ function FiltroChip({
   label: string;
 }) {
   return (
-    <button
+    <Button
       type="button"
       onClick={onClick}
       aria-pressed={activo}
-      className={cx(
-        "motion-fast inline-flex items-center gap-2 rounded-control border px-3.5 py-2 type-small transition-[background-color,border-color,color]",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-        activo
-          ? "border-brand-strong bg-brand-strong text-primary-foreground shadow-control"
-          : "border-border bg-card text-muted-foreground hover:border-muted-foreground/40 hover:text-foreground",
-      )}
+      variant={activo ? "primary" : "ghost"}
+      className={cx("gap-2")}
     >
       {/*
         SIN atenuación, a diferencia del resto de numeraciones de lámina. Esta
@@ -270,6 +266,6 @@ function FiltroChip({
       */}
       <span className="type-sheet-number">{numero}</span>
       {label}
-    </button>
+    </Button>
   );
 }

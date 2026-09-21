@@ -10,6 +10,7 @@
  * editor: entra un documento, sale un contexto.
  */
 import type { CadDocument, CadEntity } from "@/lib/cad/cad-document";
+import { resolveCadLayerId } from "@/lib/cad/resolve-layer-id";
 import { cadObjectVolume } from "@/components/cad/viewport/asset-catalog";
 import { cadExpandSelectionByGroup } from "@/lib/cad/blocks/cad-groups";
 import type {
@@ -68,10 +69,7 @@ const FALLBACK_PIXELS_PER_UNIT = 1;
 function resolveActiveLayer(inputs: CadStudioCommandInputs): string {
   const clayer = String(inputs.variables?.get("CLAYER") ?? "").trim();
   if (!clayer) return inputs.activeLayer;
-  const exists = inputs.document?.layers.some(
-    (layer) => layer.name.toUpperCase() === clayer.toUpperCase(),
-  );
-  return exists ? clayer : inputs.activeLayer;
+  return resolveCadLayerId(inputs.document?.layers ?? [], clayer) ?? inputs.activeLayer;
 }
 
 export function cadStudioCommandContext(

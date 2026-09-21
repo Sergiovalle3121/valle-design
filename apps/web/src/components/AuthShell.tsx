@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/brand/Logo";
-import { PlanDrawing } from "@/components/brand/PlanDrawing";
+import { ProductFrame } from "@/components/marketing/ProductFrame";
 import { TrustSeals } from "@/components/marketing/TrustSeals";
 import { COMMERCIAL_LINKS } from "@/config/commercial";
 
@@ -18,7 +18,7 @@ import { COMMERCIAL_LINKS } from "@/config/commercial";
  *
  * ── LA COMPOSICIÓN ──────────────────────────────────────────────────────────
  * Pantalla partida en escritorio: el formulario a la izquierda y el PRODUCTO a
- * la derecha —el plano dibujándose solo, con los sellos de confianza debajo—.
+ * la derecha —una captura real del editor, con información de acceso debajo—.
  * La mitad derecha no es decoración: responde a las dos preguntas que se hace
  * quien está a punto de registrarse («¿qué es esto exactamente?» y «¿puedo
  * fiarme?») justo mientras las está pensando, en vez de obligarle a volver a la
@@ -75,24 +75,6 @@ export function AuthShell({
       id="contenido"
       className="relative grid min-h-screen place-items-center px-5 py-10"
     >
-      {/*
-        El fondo del embudo: retícula de plano sobre el sustrato del tema, con
-        la veladura de ambiente encima. Todo decorativo, todo detrás, y nada
-        captura el puntero — un fondo que intercepta un clic en la pantalla de
-        alta es un alta perdida.
-      */}
-      <div aria-hidden="true" className="aurora-bg fixed inset-0 -z-10" />
-      <div
-        aria-hidden="true"
-        className="blueprint-grid pointer-events-none fixed inset-0 -z-10 opacity-50 dark:opacity-40"
-        style={{
-          maskImage:
-            "radial-gradient(120% 90% at 50% 0%, black 20%, transparent 78%)",
-          WebkitMaskImage:
-            "radial-gradient(120% 90% at 50% 0%, black 20%, transparent 78%)",
-        }}
-      />
-
       <div
         className={
           showcase
@@ -102,7 +84,7 @@ export function AuthShell({
       >
         <section
           aria-labelledby={titleId}
-          className="corner-marks w-full rounded-surface border border-border bg-card p-6 shadow-floating sm:p-9"
+          className="w-full rounded-surface border border-border bg-card p-6 sm:p-9"
         >
           <Link href="/" className="inline-flex">
             <Logo />
@@ -118,9 +100,7 @@ export function AuthShell({
             </p>
           ) : null}
           {hint ? (
-            <p className="type-small mt-2 text-muted-foreground">
-              {hint}
-            </p>
+            <p className="type-small mt-2 text-muted-foreground">{hint}</p>
           ) : null}
           {message ? (
             <div role="status" className="type-small mt-4 text-success-ink">
@@ -145,13 +125,18 @@ export function AuthShell({
           // pantalla, porque su contenido está también en la portada y repetirlo
           // aquí alargaría el recorrido hasta el campo de correo.
           <aside className="hidden lg:block">
-            <p className="type-eyebrow flex items-center gap-3 text-primary-ink">
-              <span className="type-sheet-number opacity-85">00</span>
-              Lo que vas a abrir
+            <p className="type-eyebrow text-primary-ink">
+              Tu espacio de dibujo
             </p>
-            <div className="mt-5 overflow-hidden rounded-surface border border-border bg-background p-6">
-              <PlanDrawing className="h-auto w-full" title={null} />
-            </div>
+            <ProductFrame
+              src="/product/estudio-dark.png"
+              alt="Planta de ejemplo abierta en el editor de ValleCAD"
+              caption="Dibuja, guarda y prepara tus entregables en un mismo espacio."
+              float={false}
+              halo={false}
+              sizes="(min-width: 1024px) 35rem, 100vw"
+              className="mt-5"
+            />
             <TrustSeals className="mt-8" />
           </aside>
         ) : null}

@@ -468,7 +468,6 @@ import { cadFacePickerFor, cadEdgePickerFor, cadHonorSnapOverride, CAD_FACE_PICK
 import { cadLocalPoint, cadPointerWorldTolerance } from "@/components/cad/viewport/pointer-geometry";
 import {
   CadOverlayLegends,
-  CadViewportHint,
   CadViewportPrompt,
 } from "@/components/cad/studio/viewport-hints";
 import { CadDraftToolbar } from "@/components/cad/studio/draft-toolbar";
@@ -1532,7 +1531,6 @@ export default function Layout3DEditor({
   // Grupos CAD (Ctrl+G, ADR §223): assetId → groupId. Clic en un miembro
   // selecciona el grupo completo (Alt+clic entra al objeto individual).
   const [objectGroups, setObjectGroups] = useState<Record<string, string>>({});
-  // Biblioteca de bloques reutilizables del tenant (ADR §224).
   const [cadBlocks, setCadBlocks] = useState<CadBlockRow[]>([]);
   const loadCadBlocks = useCallback(async () => {
     try {
@@ -4751,6 +4749,7 @@ export default function Layout3DEditor({
     selection: nativeSelectionIdsRef,
     view: viewControllerRef,
     activeLayer: activeCadLayer,
+    setActiveLayer: setActiveCadLayer,
     newEntityId: () => newId("cad"),
     // Aplicar el lote, designación, hoja activa, espacio, historial, captura,
     // estilo visual, banda elástica y cursor: en su módulo (el monolito baja).
@@ -13454,7 +13453,7 @@ export default function Layout3DEditor({
         </button>
         <div className="w-px h-5 bg-border" />
         <BoxIcon className="w-4 h-4 text-primary" />
-        <span className="type-small font-semibold">{cadTitle}</span>
+        <span className="min-w-0 truncate type-small font-semibold" title={`${cadTitle} — ${cadSubtitle}`}>{cadTitle}</span>
         {drawingReadOnly && (
           <span
             data-testid={
@@ -13465,9 +13464,6 @@ export default function Layout3DEditor({
             {cadReviewReadOnly ? "REVIEW" : "VIEWER"} · SOLO LECTURA
           </span>
         )}
-        <span className="hidden xl:inline type-micro text-muted-foreground dark:text-muted-foreground max-w-[520px] truncate">
-          {cadSubtitle}
-        </span>
         {/*
           EL CONTADOR HEREDADO, fuera de la vista del cliente pero NO del DOM.
 
@@ -14652,19 +14648,6 @@ export default function Layout3DEditor({
                 }}
               />
             )}
-            <CadViewportHint
-              kind={
-                walk
-                  ? "walk"
-                  : tool === "measure"
-                    ? "measure"
-                    : tool === "wall"
-                      ? "wall"
-                      : isCadDrawTool(tool)
-                        ? "draw"
-                        : "select"
-              }
-            />
             {/* F9 P-06 · La paleta Ctrl+K vive en su propio archivo: el rol de
                 diálogo, su nombre y el atrapador de foco no cabían en un
                 monolito que sólo puede bajar. El estado se queda aquí. */}

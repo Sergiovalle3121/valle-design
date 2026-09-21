@@ -36,14 +36,36 @@ for (const width of [1272, 1358]) {
   for (const tab of CAD_RIBBON_DATA) {
     const plan = planCadRibbonLayout(tab, width);
     const total = cadRibbonTabWidth(tab, plan);
-    ok(total <= width, `${tab.id} a ${width} px mide ${total} px y no cabe: se desplazaría`);
+    ok(
+      total <= width,
+      `${tab.id} a ${width} px mide ${total} px y no cabe: se desplazaría`,
+    );
   }
-  const visibles = cadRibbonVisibleNames(inicio, planCadRibbonLayout(inicio, width));
-  for (const name of ["LINE", "PLINE", "CIRCLE", "ARC", "MOVE", "COPY", "ROTATE", "TRIM", "ERASE", "LAYER"]) {
-    ok(visibles.has(name), `${name} no está a la vista en Inicio a ${width} px (los goldens 61/86 lo pulsan sin abrir nada)`);
+  const visibles = cadRibbonVisibleNames(
+    inicio,
+    planCadRibbonLayout(inicio, width),
+  );
+  for (const name of [
+    "LINE",
+    "PLINE",
+    "CIRCLE",
+    "ARC",
+    "MOVE",
+    "COPY",
+    "ROTATE",
+    "TRIM",
+    "ERASE",
+    "LAYER",
+  ]) {
+    ok(
+      visibles.has(name),
+      `${name} no está a la vista en Inicio a ${width} px (los goldens 61/86 lo pulsan sin abrir nada)`,
+    );
   }
   ok(
-    cadRibbonVisibleNames(anotar, planCadRibbonLayout(anotar, width)).has("DIMLINEAR"),
+    cadRibbonVisibleNames(anotar, planCadRibbonLayout(anotar, width)).has(
+      "DIMLINEAR",
+    ),
     `DIMLINEAR no está a la vista en Anotar a ${width} px`,
   );
 }
@@ -54,14 +76,19 @@ for (const width of [1272, 1358]) {
   const plan = planCadRibbonLayout(inicio, 100_000);
   for (const panel of inicio.panels) {
     const layout = plan.get(panel.label)!;
-    ok(layout.state === "expanded", `${panel.label} debería estar desplegado con ancho infinito`);
+    ok(
+      layout.state === "expanded",
+      `${panel.label} debería estar desplegado con ancho infinito`,
+    );
     const split = cadRibbonPanelSplit(panel, layout);
     ok(
-      split.large.length + split.small.length + split.flyout.length === panel.commands.length,
+      split.large.length + split.small.length + split.flyout.length ===
+        panel.commands.length,
       `${panel.label}: el reparto pierde o duplica comandos`,
     );
     ok(
-      split.small.length <= CAD_RIBBON_METRICS.maxColumns * CAD_RIBBON_METRICS.rows,
+      split.small.length <=
+        CAD_RIBBON_METRICS.maxColumns * CAD_RIBBON_METRICS.rows,
       `${panel.label}: más botones pequeños a la vista que columnas × filas`,
     );
   }
@@ -70,9 +97,16 @@ for (const width of [1272, 1358]) {
 // Plegado a mano: el panel arranca plegado y todo su contenido va al desplegable.
 {
   const plan = planCadRibbonLayout(inicio, 100_000, new Set(["Dibujo"]));
-  ok(plan.get("Dibujo")!.state === "collapsed", "un panel plegado a mano queda plegado aunque sobre sitio");
+  ok(
+    plan.get("Dibujo")!.state === "collapsed",
+    "un panel plegado a mano queda plegado aunque sobre sitio",
+  );
   const split = cadRibbonPanelSplit(inicio.panels[0], plan.get("Dibujo")!);
-  ok(split.flyout.length === inicio.panels[0].commands.length && split.large.length === 0, "plegado: todo al desplegable");
+  ok(
+    split.flyout.length === inicio.panels[0].commands.length &&
+      split.large.length === 0,
+    "plegado: todo al desplegable",
+  );
 }
 
 // A una pantalla de escritorio ancha (por encima del corte denso) los
@@ -81,19 +115,37 @@ for (const width of [1272, 1358]) {
 // rótulo (escalón disperso, `CAD_RIBBON_METRICS.small` de 112 px).
 {
   const width = 2200;
-  assert.ok(width >= CAD_RIBBON_DENSE_BREAKPOINT, "esta prueba necesita el escalón disperso");
+  assert.ok(
+    width >= CAD_RIBBON_DENSE_BREAKPOINT,
+    "esta prueba necesita el escalón disperso",
+  );
   const plan = planCadRibbonLayout(inicio, width);
-  ok(plan.get("Dibujo")!.dense === false, `a ${width} px el botón pequeño lleva rótulo (escalón disperso)`);
-  ok(plan.get("Dibujo")!.columns === CAD_RIBBON_METRICS.maxColumns, `a ${width} px Dibujo conserva sus dos columnas`);
-  ok(plan.get("Anotación")!.state !== "collapsed", `a ${width} px Anotación no llega a plegarse a un botón`);
+  ok(
+    plan.get("Dibujo")!.dense === false,
+    `a ${width} px el botón pequeño lleva rótulo (escalón disperso)`,
+  );
+  ok(
+    plan.get("Dibujo")!.columns === CAD_RIBBON_METRICS.maxColumns,
+    `a ${width} px Dibujo conserva sus dos columnas`,
+  );
+  ok(
+    plan.get("Anotación")!.state !== "collapsed",
+    `a ${width} px Anotación no llega a plegarse a un botón`,
+  );
 }
 
 // Muy estrecho (tableta): el plan es el mínimo y la tira se desplaza — no
 // se esconde nada detrás de un borde sin que se pueda llegar a ello.
 {
   const plan = planCadRibbonLayout(inicio, 600);
-  ok(plan.get("Dibujo")!.state === "reduced", "a 600 px Dibujo queda con sus botones grandes");
-  ok(cadRibbonTabWidth(inicio, plan) > 600, "a 600 px la tira mide más que la ventana: se desplaza, no se amputa");
+  ok(
+    plan.get("Dibujo")!.state === "reduced",
+    "a 600 px Dibujo queda con sus botones grandes",
+  );
+  ok(
+    cadRibbonTabWidth(inicio, plan) > 600,
+    "a 600 px la tira mide más que la ventana: se desplaza, no se amputa",
+  );
 }
 
 // ── EL ESCALÓN DENSO CON RÓTULO (Ola 6 «cinta legible», 2026-09-20) ─────────
@@ -116,7 +168,10 @@ for (const width of [1272, 1358]) {
     }, 0);
   };
 
-  ok(1346 < CAD_RIBBON_DENSE_BREAKPOINT, "1366 px de ventana (portátil, con o sin barra) cae siempre en el escalón denso");
+  ok(
+    1346 < CAD_RIBBON_DENSE_BREAKPOINT,
+    "1366 px de ventana (portátil, con o sin barra) cae siempre en el escalón denso",
+  );
   // Corrección del golden 214 (2026-09-20): estos ≥20/≥24 de la Ola 6 salían de un
   // `cadRibbonPanelWidth` que NUNCA contaba el PIE del panel (el rótulo bajo los botones) — sólo
   // la fila de botones. Un panel "reduced" sin botón grande (Grupos, Utilidades, Portapapeles) no
@@ -136,11 +191,14 @@ for (const width of [1272, 1358]) {
   // rótulo a 1272 px, 17→19 a 1346 y 38→40 a 1908 — el objetivo original de la Ola 6 en la ventana
   // ancha, ahora sí con un modelo que no miente.
   const visibles1272 = totalVisible(1272);
-  ok(visibles1272 >= 16, `Inicio a 1272 px (ventana de 1280) enseña ${visibles1272} comandos CON rótulo; el objetivo tras la corrección del golden 214 es ≥16`);
+  ok(
+    visibles1272 >= 16,
+    `Inicio a 1272 px (ventana de 1280) enseña ${visibles1272} comandos CON rótulo; el objetivo tras la corrección del golden 214 es ≥16`,
+  );
   const visibles1346 = totalVisible(1346);
   ok(
-    visibles1346 >= 19,
-    `Inicio a 1346 px enseña ${visibles1346} comandos CON rótulo; el objetivo tras la corrección del golden 214 es ≥19 (con la Ola 1 eran 71 sin nombre)`,
+    visibles1346 >= 24,
+    `Inicio a 1346 px enseña ${visibles1346} comandos CON rótulo; recuperar el espacio tras plegar debe satisfacer el mismo mínimo ≥24 que golden 223`,
   );
   ok(
     cadRibbonTabWidth(inicio, planCadRibbonLayout(inicio, 1346)) <= 1346,
@@ -152,25 +210,48 @@ for (const width of [1272, 1358]) {
   // del corte (ver `CAD_RIBBON_DENSE_BREAKPOINT`, más arriba, para la
   // desviación medida frente al corte de 1500 px del encargo original) y el
   // escalón denso tiene de sobra para enseñar todavía más, siempre con rótulo.
-  ok(1908 < CAD_RIBBON_DENSE_BREAKPOINT, "1908 px (una ventana de escritorio ancha) también cae en el escalón denso");
+  ok(
+    1908 < CAD_RIBBON_DENSE_BREAKPOINT,
+    "1908 px (una ventana de escritorio ancha) también cae en el escalón denso",
+  );
   const visibles1908 = totalVisible(1908);
-  ok(visibles1908 >= 40, `Inicio a 1908 px enseña ${visibles1908} comandos CON rótulo; el objetivo tras la corrección del golden 214 es ≥40`);
+  ok(
+    visibles1908 >= 40,
+    `Inicio a 1908 px enseña ${visibles1908} comandos CON rótulo; el objetivo tras la corrección del golden 214 es ≥40`,
+  );
 
   // El botón pequeño denso mide `CAD_RIBBON_DENSE_METRICS.small` (80 px, con
   // presupuesto para ~8 caracteres de rótulo recortado), no los 26 px de
   // sólo-icono de la Ola 1 ni los 112 px sin recorte del escalón disperso —
   // y por debajo del corte `maxColumns` es 4, no 8: con el botón cuatro
   // veces más ancho, ocho columnas ya no cabían en ningún panel real.
-  const denseMetricsChanged = CAD_RIBBON_DENSE_METRICS.small === 80 && CAD_RIBBON_DENSE_METRICS.maxColumns === 4;
-  ok(denseMetricsChanged, "CAD_RIBBON_DENSE_METRICS: botón pequeño de 80 px (con rótulo recortado), hasta cuatro columnas");
-  ok(CAD_RIBBON_DENSE_METRICS.rows === CAD_RIBBON_METRICS.rows, "las filas NO cambian: el cuerpo del panel sigue midiendo lo mismo de alto");
-  ok(CAD_RIBBON_DENSE_METRICS.large === CAD_RIBBON_METRICS.large, "el botón grande no cambia de tamaño con el escalón denso");
+  const denseMetricsChanged =
+    CAD_RIBBON_DENSE_METRICS.small === 80 &&
+    CAD_RIBBON_DENSE_METRICS.maxColumns === 4;
+  ok(
+    denseMetricsChanged,
+    "CAD_RIBBON_DENSE_METRICS: botón pequeño de 80 px (con rótulo recortado), hasta cuatro columnas",
+  );
+  ok(
+    CAD_RIBBON_DENSE_METRICS.rows === CAD_RIBBON_METRICS.rows,
+    "las filas NO cambian: el cuerpo del panel sigue midiendo lo mismo de alto",
+  );
+  ok(
+    CAD_RIBBON_DENSE_METRICS.large === CAD_RIBBON_METRICS.large,
+    "el botón grande no cambia de tamaño con el escalón denso",
+  );
 
   // Por debajo del corte, todo plan trae `dense: true`; por encima, `false`.
   const densePlan = planCadRibbonLayout(inicio, 1346);
-  ok([...densePlan.values()].every((layout) => layout.dense === true), "a 1346 px todo el plan es denso");
+  ok(
+    [...densePlan.values()].every((layout) => layout.dense === true),
+    "a 1346 px todo el plan es denso",
+  );
   const sparsePlan = planCadRibbonLayout(inicio, 2200);
-  ok([...sparsePlan.values()].every((layout) => layout.dense === false), "a 2200 px todo el plan es disperso");
+  ok(
+    [...sparsePlan.values()].every((layout) => layout.dense === false),
+    "a 2200 px todo el plan es disperso",
+  );
 }
 
 console.log(`ribbon-layout: ${checks}/${checks} comprobaciones verdes`);

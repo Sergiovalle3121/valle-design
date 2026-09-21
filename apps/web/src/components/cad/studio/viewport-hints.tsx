@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Los dos renglones de ayuda que flotan sobre el lienzo.
+ * Avisos contextuales del comando y de holguras sobre el lienzo.
  *
  * Son presentacionales enteros: entran tres banderas y sale texto. Estaban
  * escritos en línea dentro del JSX de 6.300 líneas del monolito, mezclados con
@@ -13,7 +13,7 @@
  * precisamente lo que hará que ese día sea un cambio de un archivo.
  */
 import React from "react";
-import { Move3d, Ruler, ShieldAlert, Spline } from "lucide-react";
+import { Ruler, ShieldAlert, Spline } from "lucide-react";
 
 export interface CadViewportPromptProps {
   /** Herramienta activa, ya reducida a las tres familias que dan aviso. */
@@ -59,20 +59,6 @@ export function CadViewportPrompt({
   );
 }
 
-export interface CadViewportHintProps {
-  kind: "walk" | "measure" | "wall" | "draw" | "select";
-}
-
-const HINTS: Record<CadViewportHintProps["kind"], string> = {
-  walk: "Arrastra para mirar · W A S D para caminar · Esc para salir del recorrido",
-  measure:
-    "Clic en dos puntos para medir · arrastra el fondo para orbitar · Esc cancela",
-  wall: "Clic en cada esquina para trazar muros · Shift = 45° · ORTO = ejes · teclea x,y / @dx,dy / @d<áng · Esc termina",
-  draw: "LINE/PLINE/RECT: clic o coordenada · @relativo y @dist<ángulo · Enter termina · Esc cancela",
-  select:
-    "Arrastra para mover · Shift+clic multiselecciona · Shift+arrastre = ventana · fondo = orbitar · rueda = zoom · R rota · Ctrl+C/V copia/pega · Supr borra",
-};
-
 export interface CadOverlayLegendsProps {
   /** Resaltado de holguras y traslapes. */
   gaps: boolean;
@@ -104,20 +90,5 @@ export function CadOverlayLegends({ gaps }: CadOverlayLegendsProps) {
         </div>
       )}
     </>
-  );
-}
-
-/** Aviso inferior: qué se puede hacer con el ratón en este modo. */
-export function CadViewportHint({ kind }: CadViewportHintProps) {
-  return (
-    <div
-      data-testid="cad-viewport-hint"
-      className="@container absolute bottom-3 right-3 max-w-[calc(100%-32rem)] px-3 py-1.5 rounded-card bg-surface/90 backdrop-blur border border-border type-micro text-foreground pointer-events-none @max-[50rem]:hidden"
-    >
-      <span className="inline-flex items-start gap-2">
-        <Move3d className="w-3.5 h-3.5 shrink-0 mt-px" />
-        <span>{HINTS[kind]}</span>
-      </span>
-    </div>
   );
 }

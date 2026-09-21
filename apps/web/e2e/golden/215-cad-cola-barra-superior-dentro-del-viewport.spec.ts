@@ -10,6 +10,7 @@ import { installMockBackend } from "../fixtures/mock-backend";
 import { installCadStudioBackend } from "../fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import type { CadDocument } from "../../src/lib/cad/cad-document";
+import { CAD_RIBBON_DATA } from "../../src/lib/cad/ribbon";
 
 const VIEWPORTS = [
   { width: 1280, height: 720 },
@@ -87,12 +88,17 @@ for (const vp of VIEWPORTS) {
       // El mensaje lleva la medida: un «-0.5 no es >= 0» sin contexto no dice
       // QUÉ control ni contra qué barra, y este golden se ha diagnosticado ya
       // tres veces a ciegas.
-      const donde =
-        `caja ${JSON.stringify(box)} · barra ${JSON.stringify(barra)} · ventana ${vp.width}x${vp.height}`;
+      const donde = `caja ${JSON.stringify(box)} · barra ${JSON.stringify(barra)} · ventana ${vp.width}x${vp.height}`;
       expect(box!.x, `x negativo — ${donde}`).toBeGreaterThanOrEqual(0);
       expect(box!.y, `y negativo — ${donde}`).toBeGreaterThanOrEqual(0);
-      expect(box!.x + box!.width, `se sale por la derecha — ${donde}`).toBeLessThanOrEqual(vp.width);
-      expect(box!.y + box!.height, `se sale por abajo — ${donde}`).toBeLessThanOrEqual(vp.height);
+      expect(
+        box!.x + box!.width,
+        `se sale por la derecha — ${donde}`,
+      ).toBeLessThanOrEqual(vp.width);
+      expect(
+        box!.y + box!.height,
+        `se sale por abajo — ${donde}`,
+      ).toBeLessThanOrEqual(vp.height);
     }
   });
 }
@@ -115,7 +121,10 @@ for (const vp of VIEWPORTS) {
  * que la de antes: la barra no se sale de su ventana, y ningún control queda
  * escondido detrás de un borde sin manera de alcanzarlo.
  */
-test("la barra superior cabe en la ventana y no esconde ningún control", async ({ context, page }) => {
+test("la barra superior cabe en la ventana y no esconde ningún control", async ({
+  context,
+  page,
+}) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await openStudio(context, page);
 
@@ -141,7 +150,11 @@ test("la barra superior cabe en la ventana y no esconde ningún control", async 
       if (r.width === 0 || r.height === 0) continue;
       if (r.left >= -1 && r.right <= window.innerWidth + 1) continue;
       let desplazable = false;
-      for (let p = control.parentElement; p && p !== barra.parentElement; p = p.parentElement) {
+      for (
+        let p = control.parentElement;
+        p && p !== barra.parentElement;
+        p = p.parentElement
+      ) {
         if (p.scrollWidth > p.clientWidth + 1) {
           desplazable = true;
           break;
@@ -161,4 +174,46 @@ test("la barra superior cabe en la ventana y no esconde ningún control", async 
     medida.escondidos,
     `controles fuera de la ventana y sin banda que se desplace hasta ellos:\n  · ${medida.escondidos.join("\n  · ")}`,
   ).toEqual([]);
+});
+
+test("las pestañas se leen completas sin desplazar a 1280, 1366 y 1908 en 2D y 3D", async ({
+  context,
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await openStudio(context, page);
+  for (const width of [1280, 1366, 1908]) {
+    await page.setViewportSize({ width, height: width === 1280 ? 720 : 1080 });
+    for (const mode of ["2D", "3D"]) {
+      await page.getByRole("button", { name: mode, exact: true }).click();
+      const tabs = page.getByRole("tablist", { name: "Pestañas de la cinta" });
+      const measure = await tabs.evaluate((list) => {
+        const bounds = list.getBoundingClientRect();
+        return {
+          width: list.clientWidth,
+          scroll: list.scrollWidth,
+          clipped: [...list.querySelectorAll<HTMLElement>('[role="tab"]')]
+            .filter((tab) => {
+              const rect = tab.getBoundingClientRect();
+              return (
+                rect.width <= 0 ||
+                rect.left < bounds.left ||
+                rect.right > bounds.right ||
+                tab.scrollWidth > tab.clientWidth
+              );
+            })
+            .map((tab) => tab.textContent?.trim()),
+        };
+      });
+      await expect(tabs.getByRole("tab")).toHaveCount(CAD_RIBBON_DATA.length);
+      expect(
+        measure.scroll,
+        `${mode} a ${width}: pestañas ${JSON.stringify(measure)}`,
+      ).toBe(measure.width);
+      expect(
+        measure.clipped,
+        `${mode} a ${width}: ninguna pestaña recortada`,
+      ).toEqual([]);
+    }
+  }
 });

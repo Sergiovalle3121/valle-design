@@ -18,7 +18,11 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { CAD_RIBBON_PANELS_KEY, CAD_RIBBON_PANELS_LEGACY_KEY, CadRibbon } from "./CadRibbon";
+import {
+  CAD_RIBBON_PANELS_KEY,
+  CAD_RIBBON_PANELS_LEGACY_KEY,
+  CadRibbon,
+} from "./CadRibbon";
 
 let checks = 0;
 const ok = (condition: boolean, message: string) => {
@@ -83,11 +87,11 @@ function disabledAttr(html: string, testId: string): boolean {
 {
   const fuente = readFileSync(path.join(__dirname, "CadRibbon.tsx"), "utf8");
   ok(
-    fuente.includes('useState<CadRibbonTabId>(() => leerPestanaGuardada()'),
+    /useState<CadRibbonTabId>\(\s*\(\) => leerPestanaGuardada\(\)/.test(fuente),
     "la pestaña activa se restaura en el inicializador perezoso de useState",
   );
   ok(
-    fuente.includes("useState<boolean>(() => leerColapsoGuardado()"),
+    /useState<boolean>\(\s*\(\) => leerColapsoGuardado\(\)/.test(fuente),
     "el colapso se restaura en el inicializador perezoso de useState",
   );
   ok(
@@ -106,17 +110,50 @@ function disabledAttr(html: string, testId: string): boolean {
 // quedan reducidos a su rótulo, y Bloque/Propiedades, con un primario, se
 // pliegan a su botón-icono; nada de insignias de conteo en las pestañas.
 {
-  const html = renderToStaticMarkup(createElement(CadRibbon, { dispatch: () => undefined }));
-  ok(html.includes('data-strip-width="1280"'), "sin ventana la tira asume 1280 px, el viewport de los goldens");
-  ok(!/rounded-full px-1\.5 py-px/.test(html), "las pestañas ya no llevan la insignia con el conteo de botones");
-  for (const name of ["LINE", "CIRCLE", "ARC", "MOVE", "COPY", "ROTATE", "TRIM", "ERASE", "LAYER"]) {
-    ok(html.includes(`data-testid="cad-ribbon-command-${name}"`), `${name} está montado sin abrir nada a 1280 px`);
-  }
-  ok(!html.includes('data-testid="cad-ribbon-command-LIST"'), "LIST (Utilidades, sin botón grande) no está en el DOM hasta abrir el desplegable");
-  ok(html.includes('data-testid="cad-ribbon-panel-toggle-Utilidades"'), "Utilidades trae un disparador que abre su desplegable");
-  ok(!html.includes("cad-ribbon-panel-flyout-"), "ningún desplegable está abierto en reposo");
+  const html = renderToStaticMarkup(
+    createElement(CadRibbon, { dispatch: () => undefined }),
+  );
   ok(
-    html.includes('data-testid="cad-ribbon-panel-Capas"') && /data-testid="cad-ribbon-panel-Capas"[^>]*data-layout="expanded"/.test(html),
+    html.includes('data-strip-width="1280"'),
+    "sin ventana la tira asume 1280 px, el viewport de los goldens",
+  );
+  ok(
+    !/rounded-full px-1\.5 py-px/.test(html),
+    "las pestañas ya no llevan la insignia con el conteo de botones",
+  );
+  for (const name of [
+    "LINE",
+    "CIRCLE",
+    "ARC",
+    "MOVE",
+    "COPY",
+    "ROTATE",
+    "TRIM",
+    "ERASE",
+    "LAYER",
+  ]) {
+    ok(
+      html.includes(`data-testid="cad-ribbon-command-${name}"`),
+      `${name} está montado sin abrir nada a 1280 px`,
+    );
+  }
+  ok(
+    !html.includes('data-testid="cad-ribbon-command-LIST"'),
+    "LIST (Utilidades, sin botón grande) no está en el DOM hasta abrir el desplegable",
+  );
+  ok(
+    html.includes('data-testid="cad-ribbon-panel-toggle-Utilidades"'),
+    "Utilidades trae un disparador que abre su desplegable",
+  );
+  ok(
+    !html.includes("cad-ribbon-panel-flyout-"),
+    "ningún desplegable está abierto en reposo",
+  );
+  ok(
+    html.includes('data-testid="cad-ribbon-panel-Capas"') &&
+      /data-testid="cad-ribbon-panel-Capas"[^>]*data-layout="expanded"/.test(
+        html,
+      ),
     "Capas queda desplegado (con columnas de pequeños) a 1280 px con el escalón denso",
   );
 }
@@ -127,8 +164,13 @@ function disabledAttr(html: string, testId: string): boolean {
 // clave nueva, sí se respeta. Y el plegado por ancho sigue igual.
 {
   // La clave vieja, literal: es lo que hay guardado en los navegadores de hoy.
-  const store = new Map<string, string>([["valle_cad_ribbon_panels_collapsed", JSON.stringify(["inicio/Dibujo"])]]);
-  ok(CAD_RIBBON_PANELS_LEGACY_KEY === "valle_cad_ribbon_panels_collapsed", "la clave vieja es la que escribía la cinta anterior");
+  const store = new Map<string, string>([
+    ["valle_cad_ribbon_panels_collapsed", JSON.stringify(["inicio/Dibujo"])],
+  ]);
+  ok(
+    CAD_RIBBON_PANELS_LEGACY_KEY === "valle_cad_ribbon_panels_collapsed",
+    "la clave vieja es la que escribía la cinta anterior",
+  );
   const globals = globalThis as { window?: unknown };
   globals.window = {
     innerWidth: 1280,
@@ -140,22 +182,41 @@ function disabledAttr(html: string, testId: string): boolean {
   };
   try {
     const layoutOf = (html: string, label: string) =>
-      new RegExp(`data-testid="cad-ribbon-panel-${label}"[^>]*data-layout="([a-z]+)"`).exec(html)?.[1];
-    const legado = renderToStaticMarkup(createElement(CadRibbon, { dispatch: () => undefined }));
-    ok(layoutOf(legado, "Dibujo") === "expanded", "un plegado guardado con la clave vieja (el rótulo plegaba sin querer) no se hereda");
-    store.set(CAD_RIBBON_PANELS_KEY, JSON.stringify(["inicio/Dibujo"]));
-    const actual = renderToStaticMarkup(createElement(CadRibbon, { dispatch: () => undefined }));
-    ok(layoutOf(actual, "Dibujo") === "collapsed", "lo plegado a propósito (clave nueva) se respeta");
-    // Utilidades SÍ se pliega ahora, y es lo barato: sin botón grande, el panel
-    // «reducido» es sólo su pie —el rótulo con la flecha— y medido cuesta 92 px
-    // contra 85 plegado, enseñando los mismos CERO comandos. Y el botón plegado
-    // no está vacío: lleva el icono del panel (`ribbon-icons.ts`: Utilidades →
-    // Ruler) y su nombre, como en AutoCAD. Lo que sí se comprueba es eso.
-    ok(
-      layoutOf(actual, "Utilidades") === "collapsed",
-      "Utilidades se pliega a su botón-icono, que es más barato que dejar el pie suelto",
+      new RegExp(
+        `data-testid="cad-ribbon-panel-${label}"[^>]*data-layout="([a-z]+)"`,
+      ).exec(html)?.[1];
+    const legado = renderToStaticMarkup(
+      createElement(CadRibbon, { dispatch: () => undefined }),
     );
-    ok(layoutOf(actual, "Capas") !== "collapsed", "Capas, protegido, nunca se pliega a un botón aunque Dibujo esté plegado a mano");
+    ok(
+      layoutOf(legado, "Dibujo") === "expanded",
+      "un plegado guardado con la clave vieja (el rótulo plegaba sin querer) no se hereda",
+    );
+    store.set(CAD_RIBBON_PANELS_KEY, JSON.stringify(["inicio/Dibujo"]));
+    const actual = renderToStaticMarkup(
+      createElement(CadRibbon, { dispatch: () => undefined }),
+    );
+    ok(
+      layoutOf(actual, "Dibujo") === "collapsed",
+      "lo plegado a propósito (clave nueva) se respeta",
+    );
+    // La recuperación de huecos puede expandir Utilidades automáticamente;
+    // el plegado explícito sigue mandando sobre esa recuperación.
+    store.set(
+      CAD_RIBBON_PANELS_KEY,
+      JSON.stringify(["inicio/Dibujo", "inicio/Utilidades"]),
+    );
+    const manualUtilities = renderToStaticMarkup(
+      createElement(CadRibbon, { dispatch: () => undefined }),
+    );
+    ok(
+      layoutOf(manualUtilities, "Utilidades") === "collapsed",
+      "Utilidades conserva su plegado explícito aunque sobre espacio tras plegar Dibujo",
+    );
+    ok(
+      layoutOf(actual, "Capas") !== "collapsed",
+      "Capas, protegido, nunca se pliega a un botón aunque Dibujo esté plegado a mano",
+    );
   } finally {
     delete globals.window;
   }

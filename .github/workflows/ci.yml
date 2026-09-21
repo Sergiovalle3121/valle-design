@@ -959,6 +959,11 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: http://localhost:4000
           NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA: "true"
+          # Los recorridos DWG reales cubren las cinco versiones habilitadas
+          # en el producto; el perfil wireframe 3D sigue fuera de esta build.
+          NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA: "true"
+          NEXT_PUBLIC_DWG_MODERN_IMPORT_BETA: "true"
+          NEXT_PUBLIC_DWG_3D_WIREFRAME_IMPORT_BETA: "false"
           # Se incrusta al compilar y viaja en cada reporte de «algo salió mal».
           # En CI vale el SHA: si un reporte llegara desde una ejecución, diría
           # exactamente contra qué código se produjo.
@@ -1035,6 +1040,9 @@ jobs:
           # TAMBIÉN, además de en el paso de build, los 9 tests se saltan en
           # silencio pase lo que pase arriba.
           NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA: "true"
+          NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA: "true"
+          NEXT_PUBLIC_DWG_MODERN_IMPORT_BETA: "true"
+          NEXT_PUBLIC_DWG_3D_WIREFRAME_IMPORT_BETA: "false"
           E2E_IDENTITY_HARNESS_KEY: valle-design-e2e-harness-key-32-characters-minimum
           # La suite de rendimiento vive en su PROPIO job (`e2e-perf`, abajo):
           # aquí SIEMPRE apagada. La historia que obligó a separarla:
@@ -1266,4 +1274,3 @@ jobs:
           tar -xzf /tmp/gitleaks.tgz -C /tmp gitleaks
           /tmp/gitleaks version
           /tmp/gitleaks detect --source . --config .gitleaks.toml --redact --no-banner
-

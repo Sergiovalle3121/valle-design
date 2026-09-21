@@ -345,7 +345,7 @@ const cierra = (clave) => `<!-- /generado:${clave} -->`;
  * `--write` decía «ya estaba al día» sobre un documento sin una sola cifra.
  */
 const nuevoReBloque = () =>
-  /<!-- generado:([a-z0-9-]+)[^>]*-->\n([\s\S]*?)<!-- \/generado:\1 -->/g;
+  /<!-- generado:([a-z0-9-]+)[^>]*-->\r?\n([\s\S]*?)<!-- \/generado:\1 -->/g;
 
 /** Todos los bloques presentes, en orden, con su cuerpo exacto. */
 export function bloquesDelDocumento(texto) {
@@ -353,7 +353,7 @@ export function bloquesDelDocumento(texto) {
   for (const m of texto.matchAll(nuevoReBloque())) {
     encontrados.push({
       clave: m[1],
-      cuerpo: m[2].replace(/\n$/, ""),
+      cuerpo: m[2].replace(/\r?\n$/, ""),
       entero: m[0],
       indice: m.index,
     });
@@ -366,7 +366,10 @@ export function reescribirBloques(texto, generadores = GENERADORES) {
   return texto.replace(nuevoReBloque(), (entero, clave) => {
     const gen = generadores[clave];
     if (!gen) return entero;
-    return `${abre(clave)}\n${gen()}\n${cierra(clave)}`;
+    // Git puede materializar el mismo documento como CRLF en Windows. Su
+    // formato local se conserva; ningún dato o cifra se modifica por ello.
+    const salto = entero.match(/\r?\n/)[0];
+    return `${abre(clave)}${salto}${gen().replace(/\r?\n/g, salto)}${salto}${cierra(clave)}`;
   });
 }
 
@@ -475,7 +478,7 @@ export function revisarDocumento(texto) {
       problemas.push(`bloque generado \`${bloque.clave}\` sin generador: nadie puede verificarlo`);
       continue;
     }
-    if (bloque.cuerpo !== GENERADORES[bloque.clave]()) {
+    if (bloque.cuerpo.replace(/\r\n/g, "\n") !== GENERADORES[bloque.clave]()) {
       problemas.push(
         `el bloque \`${bloque.clave}\` no coincide con lo que su evidencia dice HOY (corre --write)`,
       );

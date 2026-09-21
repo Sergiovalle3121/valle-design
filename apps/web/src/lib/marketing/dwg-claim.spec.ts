@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
 import {
   isDwgAc1018ImportBetaEnabled,
+  isDwgModernImportBetaEnabled,
   isDwgNativeImportBetaEnabled,
 } from "@/lib/cad/document-import-client";
 import { dwgClaim, dwgClaimFor } from "./dwg-claim";
@@ -8,8 +9,8 @@ import { dwgClaim, dwgClaimFor } from "./dwg-claim";
 /**
  * EL TEXTO SOBRE DWG DICE LO QUE HACE ESTA BUILD, y sólo eso.
  *
- * Cuatro estados de banderas, cuatro textos; y tres reglas que valen en los
- * cuatro: la versión del formato se nombra, el límite («sólo importación»,
+ * Ocho estados de banderas; y tres reglas que valen en todos:
+ * la versión del formato se nombra, el límite («sólo importación»,
  * «beta» o «no abre») va en la misma frase que «DWG», y nunca se afirma que
  * se escriba DWG ni se nombra a un fabricante — `check:surface` lo prohíbe
  * en la superficie pública y esta cadena viaja a ella.
@@ -26,10 +27,14 @@ const FABRICANTE = new RegExp(
   "iu",
 );
 
-const off = dwgClaimFor({ nativeBeta: false, ac1018Beta: false });
-const base = dwgClaimFor({ nativeBeta: true, ac1018Beta: false });
-const both = dwgClaimFor({ nativeBeta: true, ac1018Beta: true });
-const onlySecond = dwgClaimFor({ nativeBeta: false, ac1018Beta: true });
+const off = dwgClaimFor({ nativeBeta: false, ac1018Beta: false, modernBeta: false });
+const base = dwgClaimFor({ nativeBeta: true, ac1018Beta: false, modernBeta: false });
+const both = dwgClaimFor({ nativeBeta: true, ac1018Beta: true, modernBeta: false });
+const onlySecond = dwgClaimFor({ nativeBeta: false, ac1018Beta: true, modernBeta: false });
+const modern = dwgClaimFor({ nativeBeta: true, ac1018Beta: false, modernBeta: true });
+const all = dwgClaimFor({ nativeBeta: true, ac1018Beta: true, modernBeta: true });
+const onlyModern = dwgClaimFor({ nativeBeta: false, ac1018Beta: false, modernBeta: true });
+const extensionsOnly = dwgClaimFor({ nativeBeta: false, ac1018Beta: true, modernBeta: true });
 
 assert.equal(off.importEnabled, false);
 assert.deepEqual(off.versions, []);
@@ -48,8 +53,20 @@ assert.match(both.short, /AC1015 \(R2000\) y AC1018 \(R2004\)/u);
 // AC1018 amplía la beta base, nunca la sustituye: es la conjunción del
 // importador (`dwgAc1018BetaImportIsEnabled`) y aquí se vuelve texto.
 assert.deepEqual(onlySecond, off, "la segunda bandera sola no abre nada");
-
+assert.deepEqual(onlyModern, off, "la familia moderna sola no abre nada");
+assert.deepEqual(extensionsOnly, off, "ninguna ampliación puede sustituir la beta base");
+assert.deepEqual(modern.versions, [
+  "AC1015 (R2000)", "AC1024 (R2010)", "AC1027 (R2013)", "AC1032 (R2018)",
+]);
+assert.doesNotMatch(modern.short, /AC1018/u, "la bandera moderna no habilita AC1018");
+assert.deepEqual(all.versions, [
+  "AC1015 (R2000)", "AC1018 (R2004)", "AC1024 (R2010)", "AC1027 (R2013)", "AC1032 (R2018)",
+]);
 for (const claim of [off, base, both]) {
+  assert.doesNotMatch(claim.short, /AC1024|AC1027|AC1032/u, "no anuncia versiones modernas con su bandera apagada");
+}
+
+for (const claim of [off, base, both, onlySecond, modern, all, onlyModern, extensionsOnly]) {
   for (const text of [claim.short, claim.long]) {
     assert.match(
       text,
@@ -84,9 +101,10 @@ assert.deepEqual(
   dwgClaimFor({
     nativeBeta: isDwgNativeImportBetaEnabled(),
     ac1018Beta: isDwgAc1018ImportBetaEnabled(),
+    modernBeta: isDwgModernImportBetaEnabled(),
   }),
 );
 
 console.log(
-  `dwg-claim: 4 estados de bandera, texto derivado (esta build: ${dwgClaim().importEnabled ? dwgClaim().versions.join(" + ") : "sin DWG"})`,
+  `dwg-claim: 8 estados de bandera, texto derivado (esta build: ${dwgClaim().importEnabled ? dwgClaim().versions.join(" + ") : "sin DWG"})`,
 );

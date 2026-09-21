@@ -31,6 +31,7 @@ import {
   runCadScript,
 } from "./script-runner";
 import { CadSystemVariableStore } from "./system-variables";
+import { resolveCadLayerId } from "./resolve-layer-id";
 
 // Las implementaciones de los comandos llegan a demanda en el navegador
 // (`engine/lazy-commands.ts`). Un `.spec.ts` se carga como CommonJS y no puede
@@ -107,7 +108,7 @@ class ScriptHost {
       entity: (entityId) => byId.get(entityId),
       layers: () => this.document.layers,
       selection: [],
-      activeLayer: this.document.layers.some((layer) => layer.name === clayer) ? clayer : "0",
+      activeLayer: resolveCadLayerId(this.document.layers, clayer) ?? "0",
       variables: this.variables,
       view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
       newEntityId: () => `s${(this.ids += 1)}`,
@@ -210,7 +211,7 @@ RECTANG
     // La capa la fijó `-LAYER definir MUROS` DENTRO del script. Es la prueba de
     // que las variantes con guion no son decorativas: sin ellas el script
     // habría abierto un cuadro y se habría quedado ahí.
-    equal(line.layer, "MUROS", "y está en la capa que el propio script puso actual");
+    equal(line.layer, "muros", "y persiste el ID de la capa que el script puso actual");
   }
 
   const circle = entities.find((entity) => entity.type === "circle");
@@ -219,7 +220,7 @@ RECTANG
     near(circle.center.x, 500, 1e-9, "centrado donde dice el script");
     near(circle.center.y, 300, 1e-9, "en las dos coordenadas");
     near(circle.radius, 120, 1e-9, "con el radio pedido");
-    equal(circle.layer, "MUROS", "también en MUROS");
+    equal(circle.layer, "muros", "también conserva el ID persistente de MUROS");
   }
 
   const rectangle = entities.find((entity) => entity.type === "polyline");
@@ -231,7 +232,7 @@ RECTANG
 
   // El script también configuró el dibujo, no sólo lo dibujó.
   equal(host.variables.get("LTSCALE"), 2, "LTSCALE quedó en 2, puesto por el script");
-  equal(host.variables.get("CLAYER"), "MUROS", "y la capa actual, en MUROS");
+  equal(host.variables.get("CLAYER"), "muros", "y CLAYER conserva el ID persistente de MUROS");
 
   // Y todo ello con UNA transacción por comando, no una por entidad.
   const labels = host.document.history.map((change) => change.label);

@@ -87,10 +87,26 @@ function documentoSemilla() {
         layer: "0",
         closed: true,
         vertices: [
-          { x: RECAMBIO.cx - RECAMBIO.half, y: RECAMBIO.cy - RECAMBIO.half, z: 0 },
-          { x: RECAMBIO.cx + RECAMBIO.half, y: RECAMBIO.cy - RECAMBIO.half, z: 0 },
-          { x: RECAMBIO.cx + RECAMBIO.half, y: RECAMBIO.cy + RECAMBIO.half, z: 0 },
-          { x: RECAMBIO.cx - RECAMBIO.half, y: RECAMBIO.cy + RECAMBIO.half, z: 0 },
+          {
+            x: RECAMBIO.cx - RECAMBIO.half,
+            y: RECAMBIO.cy - RECAMBIO.half,
+            z: 0,
+          },
+          {
+            x: RECAMBIO.cx + RECAMBIO.half,
+            y: RECAMBIO.cy - RECAMBIO.half,
+            z: 0,
+          },
+          {
+            x: RECAMBIO.cx + RECAMBIO.half,
+            y: RECAMBIO.cy + RECAMBIO.half,
+            z: 0,
+          },
+          {
+            x: RECAMBIO.cx - RECAMBIO.half,
+            y: RECAMBIO.cy + RECAMBIO.half,
+            z: 0,
+          },
         ],
       },
     ],
@@ -194,6 +210,17 @@ test("con el panel de bloques ABIERTO se designa en el lienzo y se redefine sin 
       "con un bloque elegido y un objeto designado, Redefinir tiene que estar vivo",
     ).toBeEnabled();
     await redefinir.click();
+    // Redefinir inicia BLOCK y pide el punto base del recambio; no confirma
+    // la sustitución por el mero hecho de abrir la orden.
+    const prompt = page.getByTestId("cad-command-prompt");
+    await expect(prompt).toContainText("punto base de la nueva definición");
+    const input = page.getByTestId("cad-command-input");
+    await input.fill(`${RECAMBIO.cx},${RECAMBIO.cy}`);
+    await input.press("Enter");
+    await expect(prompt).toContainText("Designe objetos");
+    await input.fill("");
+    await input.press("Enter");
+    await expect(prompt).toBeHidden();
     await expect(page.getByTestId("cad-library-dock")).toBeVisible();
   });
 

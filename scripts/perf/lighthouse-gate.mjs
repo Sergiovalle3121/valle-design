@@ -53,6 +53,9 @@
  *   node scripts/perf/lighthouse-gate.mjs --collect  # sólo mide, no asevera
  */
 import { spawn, spawnSync } from "node:child_process";
+import { once } from "node:events";
+import { createRequire } from "node:module";
+import { createServer } from "node:net";
 import {
   appendFileSync,
   cpSync,
@@ -67,16 +70,25 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 
-/**
- * Mata el árbol entero del servidor, no sólo su raíz. `spawn` con
- * `detached: true` le da su propio grupo de procesos; un `kill` sobre `-pid`
- * llega a todos los descendientes. Sin esto, el `next-server` nieto sobrevive
- * al script y se queda escuchando en su puerto.
- */
-function matarGrupo(proceso) {
-  if (!proceso || proceso.killed) return;
+/** Cierra únicamente el árbol del hijo que este gate acaba de arrancar. */
+export async function matarGrupo(proceso) {
+  // Deja procesar un exit ya encolado antes de considerar vigente su PID.
+  await new Promise((resolver) => setImmediate(resolver));
+  if (!proceso || !Number.isSafeInteger(proceso.pid) || proceso.pid <= 0) return;
+  // Un PID de un hijo ya terminado puede pertenecer después a otro proceso.
+  if (proceso.exitCode !== null || proceso.signalCode !== null) return;
   try {
-    process.kill(-proceso.pid, "SIGKILL");
+    if (process.platform === "win32") {
+      const taskkill = join(process.env.SystemRoot ?? "C:\\Windows", "System32", "taskkill.exe");
+      const resultado = spawnSync(taskkill, ["/PID", String(proceso.pid), "/T", "/F"], {
+        windowsHide: true,
+        stdio: "ignore",
+      });
+      if (resultado.error || resultado.status !== 0) proceso.kill("SIGKILL");
+    } else {
+      // El hijo tiene su propio grupo por detached: true.
+      process.kill(-proceso.pid, "SIGKILL");
+    }
   } catch {
     // El grupo ya murió, o el sistema no lo permite: el fallback es el hijo.
     try {
@@ -87,9 +99,47 @@ function matarGrupo(proceso) {
   }
 }
 
+/** Los CLI instalados se ejecutan con Node, sin npx, shell ni descargas implícitas. */
+export async function iniciarProcesoNode(cli, argumentos, opciones = {}) {
+  const hijo = spawn(process.execPath, [cli, ...argumentos], {
+    ...opciones,
+    detached: true,
+    windowsHide: true,
+    shell: false,
+  });
+  await once(hijo, "spawn");
+  return hijo;
+}
+
+export function ejecutarCliNode(cli, argumentos, opciones = {}) {
+  // collect puede durar minutos: no bloquear los eventos exit del servidor.
+  return new Promise((resolver) => {
+    const hijo = spawn(process.execPath, [cli, ...argumentos], {
+      ...opciones,
+      windowsHide: true,
+      shell: false,
+    });
+    let stdout = "";
+    let stderr = "";
+    hijo.stdout?.on("data", (datos) => { stdout += datos.toString(); });
+    hijo.stderr?.on("data", (datos) => { stderr += datos.toString(); });
+    hijo.once("error", (error) => resolver({ status: null, error, stdout, stderr }));
+    hijo.once("close", (status, signal) => resolver({ status, signal, stdout, stderr }));
+  });
+}
+
+/** Un servidor ajeno en el puerto fijo no puede convertirse en la medida del gate. */
+export async function exigirPuertoLibre(puerto) {
+  const sonda = createServer();
+  sonda.listen({ port: puerto, host: "127.0.0.1", exclusive: true });
+  await once(sonda, "listening");
+  await new Promise((resolver, rechazar) => sonda.close((error) => error ? rechazar(error) : resolver()));
+}
+
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const RAIZ = resolve(AQUI, "..", "..");
 const WEB = join(RAIZ, "apps", "web");
+const require = createRequire(import.meta.url);
 /**
  * Dos configuraciones y dos pasadas: escritorio y móvil. No es celo — el
  * emulado móvil de Lighthouse ralentiza la CPU 4× y estrangula la red, y ahí
@@ -147,18 +197,19 @@ function rutaDeChrome() {
   const encontrado = spawnSync(
     process.execPath,
     ["-e", "try{const{chromium}=require('@playwright/test');process.stdout.write(chromium.executablePath())}catch{}"],
-    { cwd: WEB, encoding: "utf8" },
+    { cwd: WEB, encoding: "utf8", windowsHide: true },
   );
   const ruta = (encontrado.stdout ?? "").trim();
   if (ruta && existsSync(ruta)) return ruta;
   return null;
 }
 
-async function esperar(base, intentos = 100) {
+async function esperar(base, servidor, intentos = 100) {
   for (let i = 0; i < intentos; i += 1) {
+    if (servidor.exitCode !== null || servidor.signalCode !== null) return false;
     try {
       const r = await fetch(base, { redirect: "manual" });
-      if (r.status > 0) return true;
+      if (r.status > 0 && servidor.exitCode === null && servidor.signalCode === null) return true;
     } catch {
       /* todavía no */
     }
@@ -370,31 +421,25 @@ async function main() {
     process.exit(1);
   }
 
-  // `detached: true` + matar el GRUPO: `npx` lanza `next start`, que a su vez
-  // lanza `next-server`. Matar sólo el hijo directo deja al nieto escuchando en
-  // su puerto para siempre.
-  const servidor = spawn("npx", ["next", "start", "-p", String(PUERTO)], {
+  const nextCli = require.resolve("next/dist/bin/next", { paths: [WEB] });
+  const lhciCli = require.resolve("@lhci/cli/src/cli.js", { paths: [RAIZ] });
+  await exigirPuertoLibre(PUERTO);
+  const servidor = await iniciarProcesoNode(nextCli, ["start", "-p", String(PUERTO), "-H", "127.0.0.1"], {
     cwd: WEB,
     stdio: "ignore",
     env: process.env,
-    detached: true,
   });
-  const vivo = await esperar(BASE);
-  if (!vivo) {
-    matarGrupo(servidor);
-    console.error(`El servidor no respondió en ${BASE}`);
-    process.exit(1);
-  }
 
   const soloMedir = process.argv.includes("--collect");
   const env = { ...process.env, CHROME_PATH: chrome };
   let codigo = 0;
   const filas = [];
   try {
+    if (!await esperar(BASE, servidor)) throw new Error(`El servidor no respondió en ${BASE}`);
     for (const { nombre, fichero, salida } of CONFIGS) {
       console.log(`\n── Lighthouse · ${nombre} ──`);
       // Sin `--outputDir`: `lhci collect` no la tiene y la ignoraba en silencio.
-      const medir = spawnSync("npx", ["--yes", "@lhci/cli", "collect", `--config=${fichero}`], {
+      const medir = await ejecutarCliNode(lhciCli, ["collect", `--config=${fichero}`], {
         cwd: RAIZ,
         stdio: "inherit",
         env,
@@ -412,7 +457,7 @@ async function main() {
         break;
       }
       if (soloMedir) continue;
-      const aseverar = spawnSync("npx", ["--yes", "@lhci/cli", "assert", `--config=${fichero}`], {
+      const aseverar = await ejecutarCliNode(lhciCli, ["assert", `--config=${fichero}`], {
         cwd: RAIZ,
         stdio: "inherit",
         env,
@@ -423,7 +468,7 @@ async function main() {
       }
     }
   } finally {
-    matarGrupo(servidor);
+    await matarGrupo(servidor);
     publicarResumen(filas);
   }
 

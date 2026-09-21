@@ -2,17 +2,9 @@
 /**
  * CAPTURAS REALES DEL PRODUCTO — reproducibles, no envejecidas.
  *
- * POR QUÉ EXISTE. La portada de un CAD que no enseña un dibujo es la carencia
- * número uno de este producto: hasta hoy, `public/` no tenía un solo archivo de
- * imagen y el hero pintaba una caja con degradado y una lista numerada. Un
- * arquitecto que llega a decidir si cambia de herramienta quiere ver la
- * herramienta.
- *
- * POR QUÉ ES UN SCRIPT Y NO SEIS PNG SUBIDOS A MANO. Una captura pegada en el
- * repositorio envejece en silencio: el producto cambia, la portada sigue
- * enseñando la interfaz del trimestre pasado, y nadie se entera hasta que un
- * cliente lo dice. Aquí las capturas se REGENERAN — el plano se vuelve a
- * dibujar comando a comando con la misma línea de comandos que usa una persona.
+ * Regenera las imágenes de la portada y la documentación con el editor actual.
+ * El plano se dibuja comando a comando con la misma línea de comandos que usa
+ * una persona; el script evita conservar capturas de una interfaz antigua.
  *
  * Reutiliza los fixtures herméticos de los goldens (`e2e/fixtures/`): sin API
  * real, sin base de datos, sin red. Lo que se fotografía es el editor de verdad
@@ -24,7 +16,12 @@
  * En Windows hace falta `PLAYWRIGHT_BROWSERS_PATH` si los navegadores no están
  * en la ruta por defecto (ver docs/design/DESIGN_SYSTEM.md).
  */
-import { chromium, type BrowserContext, type Page } from "@playwright/test";
+import {
+  chromium,
+  expect,
+  type BrowserContext,
+  type Page,
+} from "@playwright/test";
 import { spawn, type ChildProcess } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -32,6 +29,7 @@ import { fileURLToPath } from "node:url";
 import { installMockBackend } from "../e2e/fixtures/mock-backend";
 import { installCadV1Backend } from "../e2e/fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../e2e/fixtures/standalone-identity";
+import { abrirPanelDerecho, esperarLienzoQuieto } from "../e2e/fixtures/docks";
 import { createCadStarterDocument } from "../src/lib/cad/starter-templates";
 import type { CadDocument } from "../src/lib/cad/cad-document";
 import { forbiddenTextFragments } from "../../../scripts/cad/check-no-industrial-domain.mjs";
@@ -56,7 +54,14 @@ const OUT_DIR = path.join(webRoot, "public", "product");
  */
 const SAMPLE_PLAN = path.join(webRoot, "src", "lib", "cad", "sample-plan.json");
 /** Copia de referencia para el informe de la campaña (antes/después). */
-const DOC_DIR = path.resolve(webRoot, "..", "..", "docs", "design", "before-after");
+const DOC_DIR = path.resolve(
+  webRoot,
+  "..",
+  "..",
+  "docs",
+  "design",
+  "before-after",
+);
 
 /**
  * Retina. Las capturas se muestran a la mitad de su tamaño en la portada, así
@@ -86,19 +91,45 @@ async function type(page: Page, text: string) {
  * lienzo porque la lista no necesita saber dónde cayó el encuadre.
  */
 async function selectFirstEntity(page: Page) {
-  const row = page.getByTestId("cad-native-entity-list").locator("button").first();
+  await abrirPanelDerecho(page);
+  await esperarLienzoQuieto(page);
+  const row = page
+    .getByTestId("cad-native-entity-list")
+    .locator("button")
+    .first();
+  await expect(row).toBeVisible();
   await row.click();
-  await page.waitForTimeout(400);
 }
 
-async function shoot(page: Page, name: string, note: string, clip?: {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}) {
+async function shoot(
+  page: Page,
+  name: string,
+  note: string,
+  clip?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  },
+) {
   const file = path.join(OUT_DIR, `${name}.png`);
-  await page.screenshot({ path: file, clip, animations: "disabled" });
+  const viewport = page.viewportSize() ?? VIEWPORT;
+  const visibleClip = clip
+    ? {
+        x: Math.max(0, clip.x),
+        y: Math.max(0, clip.y),
+        width: Math.min(clip.width, viewport.width - Math.max(0, clip.x)),
+        height: Math.min(clip.height, viewport.height - Math.max(0, clip.y)),
+      }
+    : undefined;
+  if (visibleClip && (visibleClip.width <= 0 || visibleClip.height <= 0)) {
+    throw new Error(`La captura ${name} quedó fuera del viewport`);
+  }
+  await page.screenshot({
+    path: file,
+    clip: visibleClip,
+    animations: "disabled",
+  });
   taken.push({ name, note });
   console.log(`  · ${name}.png — ${note}`);
 }
@@ -414,7 +445,9 @@ async function assertNoDeadProductVocabulary(page: Page, shot: string) {
       .filter((line) => stripAccents(line).toLowerCase().includes(needle))
       .filter((line) => !exempt?.test(line));
     if (surviving.length)
-      problems.push(`«${term}» — ${why} · ${JSON.stringify(surviving.slice(0, 4))}`);
+      problems.push(
+        `«${term}» — ${why} · ${JSON.stringify(surviving.slice(0, 4))}`,
+      );
   }
 
   if (!problems.length) return;
@@ -514,11 +547,12 @@ async function maybeStartServer(): Promise<ChildProcess | null> {
     );
   }
   console.log("· arrancando next dev…");
-  const child = spawn("npm", ["run", "dev"], {
+  const child = spawn("npm", ["run", "dev", "--", "--hostname", "127.0.0.1"], {
     cwd: webRoot,
     env: { ...process.env, NEXT_PUBLIC_API_URL: API_ORIGIN, BROWSER: "none" },
     stdio: "ignore",
     shell: true,
+    windowsHide: true,
   });
   const deadline = Date.now() + 180_000;
   while (Date.now() < deadline) {
@@ -597,12 +631,17 @@ async function main() {
         const dock = page.getByTestId("cad-command-line");
         const box = await dock.boundingBox();
         if (box) {
-          await shoot(page, "linea-de-comandos", "un comando a medio ejecutar", {
-            x: Math.max(0, box.x - 12),
-            y: Math.max(0, box.y - 12),
-            width: Math.min(VIEWPORT.width, box.width + 24),
-            height: box.height + 24,
-          });
+          await shoot(
+            page,
+            "linea-de-comandos",
+            "un comando a medio ejecutar",
+            {
+              x: Math.max(0, box.x - 12),
+              y: Math.max(0, box.y - 12),
+              width: Math.min(VIEWPORT.width, box.width + 24),
+              height: box.height + 24,
+            },
+          );
         }
         await page.keyboard.press("Escape");
 
@@ -618,14 +657,15 @@ async function main() {
          * abierto, anotado en la bitácora; lo que NO puede pasar es que la
          * portada lo anuncie.
          */
-        await page.getByTitle(/Vista, capas y plano/).click();
+        const layersButton = page.getByTitle(/Vista, capas y plano/);
+        await layersButton.click();
         await page
           .getByTestId("cad-layer-manager")
           .waitFor({ state: "visible", timeout: 15_000 });
         await page.waitForTimeout(500);
         await shoot(page, "paleta-capas", "el gestor de capas");
-        await page.keyboard.press("Escape");
-        await page.waitForTimeout(300);
+        await layersButton.click();
+        await expect(page.getByTestId("cad-layer-manager")).toBeHidden();
 
         /*
          * La paleta de propiedades, por su ATAJO y con algo designado.

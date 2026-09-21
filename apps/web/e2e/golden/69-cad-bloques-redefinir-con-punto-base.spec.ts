@@ -146,10 +146,34 @@ function documentoSemilla(): CadDocument {
     ],
     entities: [
       // Un comedor de 6 × 5 m: cuatro muros. El mobiliario va dentro.
-      { id: "muro-sur", type: "line", start: { x: 1_000, y: 1_000, z: 0 }, end: { x: 7_000, y: 1_000, z: 0 }, layer: "architecture" },
-      { id: "muro-este", type: "line", start: { x: 7_000, y: 1_000, z: 0 }, end: { x: 7_000, y: 6_000, z: 0 }, layer: "architecture" },
-      { id: "muro-norte", type: "line", start: { x: 7_000, y: 6_000, z: 0 }, end: { x: 1_000, y: 6_000, z: 0 }, layer: "architecture" },
-      { id: "muro-oeste", type: "line", start: { x: 1_000, y: 6_000, z: 0 }, end: { x: 1_000, y: 1_000, z: 0 }, layer: "architecture" },
+      {
+        id: "muro-sur",
+        type: "line",
+        start: { x: 1_000, y: 1_000, z: 0 },
+        end: { x: 7_000, y: 1_000, z: 0 },
+        layer: "architecture",
+      },
+      {
+        id: "muro-este",
+        type: "line",
+        start: { x: 7_000, y: 1_000, z: 0 },
+        end: { x: 7_000, y: 6_000, z: 0 },
+        layer: "architecture",
+      },
+      {
+        id: "muro-norte",
+        type: "line",
+        start: { x: 7_000, y: 6_000, z: 0 },
+        end: { x: 1_000, y: 6_000, z: 0 },
+        layer: "architecture",
+      },
+      {
+        id: "muro-oeste",
+        type: "line",
+        start: { x: 1_000, y: 6_000, z: 0 },
+        end: { x: 1_000, y: 1_000, z: 0 },
+        layer: "architecture",
+      },
       // LA SILLA NUEVA, dibujada al margen del plano, como se dibuja de verdad:
       // en un hueco libre de la lámina y no encima del comedor. Es un cuadrado
       // de 600 × 600 con la esquina en (9.000, 8.000), bien distinto del
@@ -269,12 +293,15 @@ async function cerrarBloques(page: Page) {
 }
 
 async function soltarSeleccion(page: Page) {
-  const soltar = propiedades(page).getByRole("button", { name: "Deseleccionar" });
+  const soltar = propiedades(page).getByRole("button", {
+    name: "Deseleccionar",
+  });
   if (await soltar.count()) await soltar.click();
 }
 
 /** Designa un objeto pinchándolo en la lista del editor, como haría cualquiera. */
 async function designar(page: Page, id: string) {
+  await abrirPanelDerecho(page);
   await soltarSeleccion(page);
   await page.getByTestId(`cad-native-entity-${id}`).click();
   await expect(propiedades(page)).toBeVisible();
@@ -321,7 +348,10 @@ function envolvente(documento: CadDocument, insertId: string) {
       ys.push(entidad.start.y, entidad.end.y);
     }
   }
-  expect(xs.length, "la inserción no resolvió a ninguna geometría").toBeGreaterThan(0);
+  expect(
+    xs.length,
+    "la inserción no resolvió a ninguna geometría",
+  ).toBeGreaterThan(0);
   return {
     minX: Math.round(Math.min(...xs)),
     minY: Math.round(Math.min(...ys)),
@@ -406,7 +436,10 @@ test("la biblioteca de mobiliario: buscar, insertar, mover, copiar y redefinir",
     expect(documento.blocks[0].entities).toHaveLength(2);
 
     // Cada instancia lleva los atributos del catálogo.
-    expect(puestas[0].attributes).toMatchObject({ CLAVE: "SL-01", ANCHO: "0.45" });
+    expect(puestas[0].attributes).toMatchObject({
+      CLAVE: "SL-01",
+      ANCHO: "0.45",
+    });
 
     const ordenadas = [...puestas].sort(
       (a, b) => a.insertion.x - b.insertion.x,
@@ -506,7 +539,9 @@ test("la biblioteca de mobiliario: buscar, insertar, mover, copiar y redefinir",
     await teclear(page, SILLA.name);
     // La pregunta de `-BLOCK` en AutoCAD, con No por defecto: pisar una
     // definición con todas sus inserciones no se acepta por descuido.
-    await expect(page.getByTestId("cad-command-prompt")).toContainText("Redefinirlo");
+    await expect(page.getByTestId("cad-command-prompt")).toContainText(
+      "Redefinirlo",
+    );
     await terminar(page);
     await expect(page.getByTestId("cad-command-prompt")).toContainText(
       "nombre del bloque",
@@ -531,7 +566,9 @@ test("la biblioteca de mobiliario: buscar, insertar, mover, copiar y redefinir",
       `punto base de la nueva definición de ${SILLA.name}`,
     );
     await teclear(page, "9000,8000");
-    await expect(page.getByTestId("cad-command-prompt")).toContainText("Designe objetos");
+    await expect(page.getByTestId("cad-command-prompt")).toContainText(
+      "Designe objetos",
+    );
     await terminar(page);
     await expect(page.getByTestId("cad-command-prompt")).toBeHidden();
 
@@ -539,7 +576,9 @@ test("la biblioteca de mobiliario: buscar, insertar, mover, copiar y redefinir",
     const definicion = documento.blocks.find((b) => b.id === SILLA.id)!;
 
     // (a) la definición cambió, subió de versión y su punto base es el señalado
-    expect(definicion.entities, "la definición no se sustituyó").toHaveLength(1);
+    expect(definicion.entities, "la definición no se sustituyó").toHaveLength(
+      1,
+    );
     expect(definicion.version, "redefinir tiene que subir la versión").toBe(2);
     expect(definicion.basePoint).toMatchObject({ x: 9_000, y: 8_000 });
 
@@ -560,7 +599,12 @@ test("la biblioteca de mobiliario: buscar, insertar, mover, copiar y redefinir",
       const insercion = puestas.find((i) => i.id === id)!.insertion;
       const caja = envolvente(documento, id);
       expect(
-        { x: caja.minX, y: caja.minY, w: caja.maxX - caja.minX, h: caja.maxY - caja.minY },
+        {
+          x: caja.minX,
+          y: caja.minY,
+          w: caja.maxX - caja.minX,
+          h: caja.maxY - caja.minY,
+        },
         `la silla ${id} no se quedó en su punto de inserción`,
       ).toEqual({ x: insercion.x, y: insercion.y, w: 600, h: 600 });
     }
@@ -576,7 +620,9 @@ test("la biblioteca de mobiliario: buscar, insertar, mover, copiar y redefinir",
       "punto base de la nueva definición",
     );
     await teclear(page, "0,0");
-    await expect(page.getByTestId("cad-command-prompt")).toContainText("Designe objetos");
+    await expect(page.getByTestId("cad-command-prompt")).toContainText(
+      "Designe objetos",
+    );
     await terminar(page);
     await expect(page.getByTestId("cad-command-prompt")).toBeHidden();
 

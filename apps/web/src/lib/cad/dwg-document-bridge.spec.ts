@@ -173,12 +173,12 @@ assert.equal(DWG_AC1018_BETA_AUTHORIZATION.legalReviewStatus, "pending_parallel"
 // estudio (T-16)—, no con la lista de formatos: el archivo se reconoce.
 assert.throws(
   () => validateImportFile("plano.dwg", 1000),
-  /DWG requiere un proveedor con licencia/,
+  /DWG no está habilitado en esta vía/,
   "la interfaz de importación rechaza .dwg mientras el gate esté cerrado",
 );
 assert.throws(
   () => validateImportFile("PLANO.DWG", 1000),
-  /DWG requiere un proveedor con licencia/,
+  /DWG no está habilitado en esta vía/,
   "y da igual la caja",
 );
 assert.equal(
@@ -665,7 +665,12 @@ const conAtributos: DwgNeutralDatabase = {
       name: bytesDe("CAJETIN"),
       blockBeginHandle: 0x73,
       blockEndHandle: 0x74,
-      entities: [],
+      // El cajetín tiene geometría: los valores ATTRIB solos no aportan una
+      // posición de texto ni deben convertir un bloque vacío en éxito visible.
+      entities: [registro(0x76, {
+        kind: "line", start: p3(0, 0), end: p3(10, 0),
+        thickness: 0, extrusion: p3(0, 0, 1),
+      })],
     },
   ],
   insunits: 0,

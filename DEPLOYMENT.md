@@ -186,7 +186,10 @@ del job de release, nunca por tag.
 ```bash
 # 1 · BACKUP VERIFICADO (no vale «pg_dump terminó»)
 node scripts/ops/backup.mjs --url "$DATABASE_URL" --out backups/
-node scripts/ops/restore-verify.mjs --dump backups/<archivo>.dump --url "$DATABASE_URL"
+# Destino desechable y AISLADO; verificar host y nombre de la base antes.
+# RESTORE_DATABASE_URL nunca puede identificar la base activa de producción.
+test -n "$RESTORE_DATABASE_URL" && test "$RESTORE_DATABASE_URL" != "$DATABASE_URL" || exit 1
+node scripts/ops/restore-verify.mjs --dump backups/<archivo>.dump --url "$RESTORE_DATABASE_URL"
 # Debe imprimir: «BACKUP VALIDADO». Si no, PARA.
 
 # 2 · Gates locales sobre el commit a desplegar

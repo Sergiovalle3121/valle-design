@@ -78,7 +78,7 @@ assert.throws(
 // Un `.dwg` con las puertas cerradas recibe SU razón (la del contrato de
 // interoperabilidad, la misma que dice el estudio — T-16), no la lista de
 // formatos.
-assert.throws(() => validateImportFile("drawing.dwg", 100), /DWG requiere un proveedor con licencia/);
+assert.throws(() => validateImportFile("drawing.dwg", 100), /DWG no está habilitado en esta vía/);
 assert.throws(
   () => validateImportFile("drawing.dxf", MAX_DXF_IMPORT_BYTES + 1),
   /límite/i,

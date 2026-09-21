@@ -57,6 +57,8 @@ import type { DocumentImportReport } from "./document-import";
 // laboratorio deja dicho en su propio mapeo canónico que "la tabla ACI
 // completa es del adaptador de integración" — este archivo es ese adaptador.
 import { mapLayers } from "./dwg-document-bridge-layers";
+import { dwgNonplanarReason } from "./dwg-document-bridge-plane";
+import { retainDrawableDwgBlocks } from "./dwg-document-bridge-blocks";
 import {
   cadDxfBlocksToCadDocumentParts,
   cadDxfHatchesToNativeEntities,
@@ -120,6 +122,7 @@ export const DWG_BRIDGE_LOSS_CODES = Object.freeze({
   unitAssumed: "dwg_unit_assumed",
   blockBasePointAssumed: "dwg_block_base_point_assumed",
   primitiveProperty: "dwg_primitive_property_dropped",
+  nonplanarEntity: "dwg_nonplanar_entity_excluded",
   // Perfil 3D heredado propuesto (ADR-0009 §9): geometría REAL, con Z
   // verdadera, conservada en `unsupportedEntities` porque el editor 2D/3D
   // todavía no la dibuja — nunca "no decodificada", el laboratorio la lee
@@ -288,6 +291,16 @@ function mapRecords(
   const losses: CadLossManifestEntry[] = [];
 
   for (const record of records) {
+    const nonplanar = dwgNonplanarReason(record.entity);
+    if (nonplanar !== null) {
+      losses.push({
+        code: DWG_BRIDGE_LOSS_CODES.nonplanarEntity,
+        sourceType: record.entity.kind,
+        detail: `El objeto ${record.handle} (${record.entity.kind}) no se importó en el perfil 2D: ${nonplanar}.`,
+        severity: "warning",
+      });
+      continue;
+    }
     const layer = layerNameFor(record, layerNames, losses);
     if (record.entity.kind === "insert") {
       if (record.insertedBlockName === undefined) {
@@ -477,10 +490,13 @@ function mapBlocks(
   const opaques: CadOpaqueEntity[] = [];
   const losses: CadLossManifestEntry[] = [];
   for (const block of blocks) {
+    const name = decodeCodePageBytes(block.name);
+    // Contenedores de los espacios del archivo, no símbolos reutilizables.
+    // Contarlos como bloques importados producía éxito con cero geometría.
+    if (/^\*(?:MODEL_SPACE|PAPER_SPACE\d*)$/iu.test(name)) continue;
     const mapped = mapRecords(block.entities, layerNames, "block");
     opaques.push(...mapped.opaques);
     losses.push(...mapped.losses);
-    const name = decodeCodePageBytes(block.name);
     // El punto base real vive en el registro del bloque, que el laboratorio
     // todavía no decodifica: el origen es la única suposición honesta — pero
     // se declara, no se esconde. Un INSERT de este bloque puede aparecer
@@ -574,14 +590,15 @@ export function dwgNeutralDatabaseToCadDocument(
     })),
   ];
 
-  const blockParts = cadDxfBlocksToCadDocumentParts(
+  const blockParts = retainDrawableDwgBlocks(cadDxfBlocksToCadDocumentParts(
     blockMap.semantic,
     model.inserts,
     {
       idPrefix: prefix,
       provider,
     },
-  );
+  ));
+  lossManifest.push(...blockParts.losses);
   const entities: CadEntity[] = [
     ...cadDxfPrimitivesToCanonicalEntities(model.primitives, {
       idPrefix: prefix,

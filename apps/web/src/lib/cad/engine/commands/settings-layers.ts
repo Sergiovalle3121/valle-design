@@ -205,7 +205,7 @@ const layerCliCommand: CadCommandDescriptor<LayerCliState> = {
         state,
         prompt: { message: "", options: [] },
         accepts: 0,
-        result: { kind: "variables", patch: { CLAYER: layer.name }, text: `Capa actual: "${layer.name}".` },
+        result: { kind: "variables", patch: { CLAYER: layer.id }, text: `Capa actual: "${layer.name}".` },
       };
     if (state.action === "color")
       return layerPatch(
@@ -491,14 +491,9 @@ const layerStateCommand: CadCommandDescriptor<LayerStateState> = {
  * mientras nadie reclame ese literal. Se registra sin guion porque esta orden
  * NO abre ningún cuadro: no hay dos variantes que distinguir.
  *
- * ## Renombrar es crear y absorber, en UN lote
- *
- * La tabla de capas ya sabe borrar reasignando (`op: "delete"` con
- * `reassignTo`). Renombrar es exactamente eso precedido de un alta con las
- * mismas propiedades: las entidades de la capa vieja pasan a la nueva y no hay
- * un instante intermedio en el que apunten a una capa que no existe. Las dos
- * órdenes viajan en el MISMO lote, así que deshacer devuelve el nombre viejo y
- * las entidades a la vez.
+ * Renombrar conserva el ID de la capa y cambia sólo su nombre visible. Así
+ * entidades, bloques y ventanas mantienen sus referencias sin migraciones.
+ * El único upsert viaja por el lote canónico y se deshace en una operación.
  */
 const RENAME_LAYER = { keyword: "Capa", shortcut: "C" } as const;
 const RENAME_BLOCK = { keyword: "Bloque", shortcut: "B" } as const;
@@ -545,8 +540,7 @@ const renameCommand: CadCommandDescriptor<RenameState> = {
       // `mtext.style`), así que renombrarlos es una migración sobre
       // `entities`: hacerla a medias —cambiar el nombre y no las referencias—
       // deja el dibujo apuntando a algo que no existe, y eso es peor que no
-      // ofrecer la orden. Las capas SÍ se pueden porque la tabla de capas ya
-      // sabe reasignar al borrar.
+      // ofrecer la orden. Las capas se referencian por ID y lo conservan.
       if (input.keyword === RENAME_BLOCK.keyword)
         return message(
           state,
@@ -581,7 +575,7 @@ const renameCommand: CadCommandDescriptor<RenameState> = {
       // `CLAYER`. Renombrar la capa actual dejaría esa variable apuntando a un
       // nombre inexistente y los objetos nuevos irían a parar a la capa 0 sin
       // que nadie lo hubiera pedido. Se dice, y se dice qué hacer antes.
-      if (layer.name === context.activeLayer)
+      if (layer.name === context.activeLayer || layer.id === context.activeLayer)
         return message(
           state,
           `"${layer.name}" es la capa actual. Ponga otra actual con -LAYER definir y repita el ` +
@@ -615,8 +609,7 @@ const renameCommand: CadCommandDescriptor<RenameState> = {
       result: {
         kind: "document",
         commands: [
-          { type: "layer", op: "upsert", layer: { ...source, id: typed.toLowerCase(), name: typed } },
-          { type: "layer", op: "delete", name: source.name, reassignTo: typed },
+          { type: "layer", op: "upsert", layer: { ...source, name: typed } },
         ],
         label: `RENAME: capa "${source.name}" → "${typed}"`,
       },

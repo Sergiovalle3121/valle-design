@@ -40,25 +40,25 @@ const SELLOS = [
     icon: Lock,
     titulo: "Cifrado en tránsito",
     texto:
-      "La sesión viaja en una cookie Secure y HttpOnly que el navegador no deja leer a ninguna página. Sobre HTTP plano el servidor se niega a operar en vez de degradarse en silencio.",
+      "La conexión protege tus datos mientras viajan entre el navegador y ValleCAD.",
   },
   {
     icon: KeyRound,
-    titulo: "Contraseña protegida con Argon2id",
+    titulo: "Contraseña protegida",
     texto:
-      "Nunca se guarda tu contraseña, sólo un derivado del que no se puede volver atrás, con el algoritmo que hoy se recomienda para esto y con sus parámetros fijados.",
+      "No almacenamos tu contraseña en texto legible. Puedes cambiarla y revisar tus sesiones desde tu cuenta.",
   },
   {
     icon: MailCheck,
-    titulo: "Verificación obligatoria",
+    titulo: "Acceso con correo verificado",
     texto:
-      "Sin correo verificado no hay acceso. Evita que alguien registre una cuenta con la dirección de otra persona y te asegura la vía de recuperación el día que la necesites.",
+      "Confirma tu correo antes de entrar. También lo usarás para recuperar el acceso si olvidas tu contraseña.",
   },
   {
     icon: PackageOpen,
     titulo: "Tus planos siempre exportables",
     texto:
-      "Al terminar cualquier periodo la cuenta conserva el permiso de ver y exportar a DXF y PDF. Un producto que secuestra el trabajo del cliente para retenerlo no merece al cliente.",
+      "Cuando termine tu periodo de acceso, podrás seguir abriendo tus documentos y exportarlos a DXF y PDF.",
   },
 ] as const;
 

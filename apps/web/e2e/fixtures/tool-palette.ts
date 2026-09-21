@@ -3,10 +3,14 @@ import { type CadToolbarActionId } from "../../src/lib/cad/toolbar";
 import { CAD_RIBBON_DATA } from "../../src/lib/cad/ribbon";
 
 /** En qué pestaña vive un comando de la cinta, por nombre canónico. */
-function ribbonTabIdFor(name: string): string | null {
+function ribbonLocationFor(
+  name: string,
+): { tabId: string; panelLabel: string } | null {
   for (const tab of CAD_RIBBON_DATA) {
     for (const panel of tab.panels) {
-      if (panel.commands.some((command) => command.name === name)) return tab.id;
+      if (panel.commands.some((command) => command.name === name)) {
+        return { tabId: tab.id, panelLabel: panel.label };
+      }
     }
   }
   return null;
@@ -104,20 +108,30 @@ async function startNativeDrawTool(page: Page, key: string): Promise<void> {
 }
 
 /**
- * Arranca un comando desde la cinta por su `data-testid`. `ribbonTabIdFor`
+ * Arranca un comando desde la cinta por su `data-testid`. `ribbonLocationFor`
  * dice en qué pestaña vive (hoy los nueve que usa esta fixture tienen un
  * espejo en «Inicio», la pestaña de fábrica) — se cambia de pestaña sólo si
  * hace falta, así ningún golden que ya esté en otra pestaña se desordena.
  */
 async function clickRibbonCommand(page: Page, name: string): Promise<void> {
-  const tabId = ribbonTabIdFor(name);
-  if (tabId) {
-    const tab = page.getByTestId(`cad-ribbon-tab-${tabId}`);
-    if ((await tab.count()) && (await tab.getAttribute("aria-selected")) !== "true") {
+  const location = ribbonLocationFor(name);
+  if (location) {
+    const tab = page.getByTestId(`cad-ribbon-tab-${location.tabId}`);
+    if (
+      (await tab.count()) &&
+      (await tab.getAttribute("aria-selected")) !== "true"
+    ) {
       await tab.click();
     }
   }
   const button = page.getByTestId(`cad-ribbon-command-${name}`);
+  // La cinta adapta los comandos visibles al ancho. Los restantes se montan
+  // al abrir el desplegable de su panel, el mismo gesto que hace el usuario.
+  if (location && !(await button.isVisible())) {
+    await page
+      .getByTestId(`cad-ribbon-panel-toggle-${location.panelLabel}`)
+      .click();
+  }
   await button.scrollIntoViewIfNeeded();
   await expect(button).toBeVisible();
   await button.click();
@@ -129,7 +143,12 @@ export async function startTool(
 ): Promise<void> {
   if (id === "select" || id === "pan" || id === "fit_view") {
     const toolbar = page.getByTestId("cad-toolbar");
-    const label = id === "select" ? "Seleccionar" : id === "pan" ? "Encuadre" : "Ajustar todo";
+    const label =
+      id === "select"
+        ? "Seleccionar"
+        : id === "pan"
+          ? "Encuadre"
+          : "Ajustar todo";
     await toolbar.getByRole("button", { name: label, exact: true }).click();
     return;
   }

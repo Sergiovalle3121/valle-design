@@ -234,6 +234,18 @@ function toProductProfileRecord(
   diagnostics: DwgNeutralDiagnostic[],
   allow3dWireframe: boolean,
 ): DwgNeutralEntityRecord | null {
+  // El laboratorio enumera entidades de hoja junto a las de modelo, pero
+  // conserva su espacio real. La beta sólo importa modelo: perder este dato
+  // colocaría geometría de papel en el plano a una escala equivocada.
+  if (record.space === "paper") {
+    diagnostics.push({
+      code: "dwg_beta_paper_space_excluded",
+      severity: "warning",
+      offset: record.handle,
+      message: `El objeto ${record.handle} pertenece al espacio papel y no se importa en la beta de espacio modelo.`,
+    });
+    return null;
+  }
   const v3Geometry = toBetaProfileGeometry(record.entity);
   if (v3Geometry !== null) {
     const attributes = record.attributes

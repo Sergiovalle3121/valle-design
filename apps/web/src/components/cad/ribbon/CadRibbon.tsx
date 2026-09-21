@@ -63,7 +63,11 @@ function leerPanelesPlegados(): ReadonlySet<string> {
   try {
     const stored = window.localStorage.getItem(CAD_RIBBON_PANELS_KEY);
     const parsed: unknown = stored ? JSON.parse(stored) : [];
-    return new Set(Array.isArray(parsed) ? parsed.filter((entry): entry is string => typeof entry === "string") : []);
+    return new Set(
+      Array.isArray(parsed)
+        ? parsed.filter((entry): entry is string => typeof entry === "string")
+        : [],
+    );
   } catch {
     return new Set();
   }
@@ -91,7 +95,9 @@ const STRIP_PADDING = 8;
 const CAD_MUTATING_COMMANDS: ReadonlySet<string> = new Set(
   CAD_RIBBON_DATA.flatMap((tab) =>
     tab.panels.flatMap((panel) =>
-      panel.commands.filter((command) => command.mutates).map((command) => command.name),
+      panel.commands
+        .filter((command) => command.mutates)
+        .map((command) => command.name),
     ),
   ),
 );
@@ -168,9 +174,15 @@ export function CadRibbon({
   // efecto habría disparado `react-hooks/set-state-in-effect` (la regla
   // NO distingue «restaurar una vez al montar» de un `setState` reactivo) y
   // habría costado un re-render extra visible al abrir el estudio.
-  const [activeTab, setActiveTab] = useState<CadRibbonTabId>(() => leerPestanaGuardada() ?? "inicio");
-  const [collapsed, setCollapsed] = useState<boolean>(() => leerColapsoGuardado() ?? false);
-  const [manuallyCollapsed, setManuallyCollapsed] = useState<ReadonlySet<string>>(() => leerPanelesPlegados());
+  const [activeTab, setActiveTab] = useState<CadRibbonTabId>(
+    () => leerPestanaGuardada() ?? "inicio",
+  );
+  const [collapsed, setCollapsed] = useState<boolean>(
+    () => leerColapsoGuardado() ?? false,
+  );
+  const [manuallyCollapsed, setManuallyCollapsed] = useState<
+    ReadonlySet<string>
+  >(() => leerPanelesPlegados());
   const [stripWidth, setStripWidth] = useState<number>(anchoInicial);
   const stripRef = useRef<HTMLDivElement>(null);
 
@@ -191,7 +203,10 @@ export function CadRibbon({
   }, [collapsed]);
   useEffect(() => {
     try {
-      window.localStorage.setItem(CAD_RIBBON_PANELS_KEY, JSON.stringify([...manuallyCollapsed]));
+      window.localStorage.setItem(
+        CAD_RIBBON_PANELS_KEY,
+        JSON.stringify([...manuallyCollapsed]),
+      );
       window.localStorage.removeItem(CAD_RIBBON_PANELS_LEGACY_KEY);
     } catch {
       // Igual que arriba.
@@ -221,11 +236,13 @@ export function CadRibbon({
   // para cualquier otro comando deshabilitado.
   const effectiveDisabledCommands = useMemo(() => {
     if (!readOnly) return disabledCommands;
-    if (!disabledCommands || disabledCommands.size === 0) return CAD_MUTATING_COMMANDS;
+    if (!disabledCommands || disabledCommands.size === 0)
+      return CAD_MUTATING_COMMANDS;
     return new Set([...CAD_MUTATING_COMMANDS, ...disabledCommands]);
   }, [disabledCommands, readOnly]);
 
-  const activeTabData = CAD_RIBBON_DATA.find((tab) => tab.id === activeTab) ?? CAD_RIBBON_DATA[0];
+  const activeTabData =
+    CAD_RIBBON_DATA.find((tab) => tab.id === activeTab) ?? CAD_RIBBON_DATA[0];
   const manualForTab = useMemo(
     () =>
       new Set(
@@ -236,7 +253,12 @@ export function CadRibbon({
     [activeTabData.id, manuallyCollapsed],
   );
   const plan = useMemo(
-    () => planCadRibbonLayout(activeTabData, stripWidth - STRIP_PADDING, manualForTab),
+    () =>
+      planCadRibbonLayout(
+        activeTabData,
+        stripWidth - STRIP_PADDING,
+        manualForTab,
+      ),
     [activeTabData, manualForTab, stripWidth],
   );
   const togglePanel = (label: string) => {
@@ -281,29 +303,29 @@ export function CadRibbon({
         CAD_RIBBON_DATA.map((tab) => (
           <TabPanel key={tab.id} id={tab.id} active={tab.id === activeTab}>
             {tab.id === activeTab ? (
-                <div
-                  data-testid={`cad-ribbon-panels-${tab.id}`}
-                  data-strip-width={Math.round(stripWidth)}
-                  className={cx(
-                    "flex items-stretch overflow-x-auto px-1 py-0",
-                    "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-                  )}
-                >
-                  {tab.panels.map((panel) => (
-                    <CadRibbonPanel
-                      key={panel.label}
-                      panel={panel}
-                      onRun={dispatch}
-                      disabledCommands={effectiveDisabledCommands}
-                      layout={plan.get(panel.label)}
-                      manuallyCollapsed={manualForTab.has(panel.label)}
-                      onToggleCollapsed={() => togglePanel(panel.label)}
-                    />
-                  ))}
-                </div>
-              ) : null}
-            </TabPanel>
-          ))}
+              <div
+                data-testid={`cad-ribbon-panels-${tab.id}`}
+                data-strip-width={Math.round(stripWidth)}
+                className={cx(
+                  "flex items-stretch overflow-x-auto px-1 py-0",
+                  "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+                )}
+              >
+                {tab.panels.map((panel) => (
+                  <CadRibbonPanel
+                    key={panel.label}
+                    panel={panel}
+                    onRun={dispatch}
+                    disabledCommands={effectiveDisabledCommands}
+                    layout={plan.get(panel.label)}
+                    manuallyCollapsed={manualForTab.has(panel.label)}
+                    onToggleCollapsed={() => togglePanel(panel.label)}
+                  />
+                ))}
+              </div>
+            ) : null}
+          </TabPanel>
+        ))}
     </div>
   );
 
@@ -324,7 +346,9 @@ export function CadRibbon({
       )}
     >
       {quickAccess ? (
-        <div className="flex shrink-0 items-center gap-1.5">{quickAccess}</div>
+        <div className="flex min-w-0 max-w-40 shrink-0 items-center gap-1.5">
+          {quickAccess}
+        </div>
       ) : null}
       <Tabs
         items={tabs}
@@ -346,14 +370,10 @@ export function CadRibbon({
         // le olvidó. Se desplaza igual, sin gastar alto ni pintar una franja
         // gris encima del dibujo.
         //
-        // Y UN SUELO DE 12 REM. Con `min-w-0` la fila de pestañas era el único
-        // elástico de la barra y absorbía TODO el recorte: medido el
-        // 2026-09-20 a 1280 px, se quedaba en 16 px de ancho pidiendo 730 —
-        // las diez pestañas aplastadas a nada mientras el bloque de la derecha
-        // se quedaba sus 1834 px enteros por ser `shrink-0`. Con suelo, las
-        // pestañas siempre se leen y quien cede es el bloque de iconos, que
-        // sabe desplazarse.
-        className="min-w-[12rem] flex-1 border-b-0 px-2 [&_button]:py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        // Desde 1280 px las diez pestañas conservan su ancho completo; el
+        // título se trunca y los controles secundarios ceden el espacio.
+        // En ventanas menores la cinta conserva el desplazamiento horizontal.
+        className="min-w-[12rem] shrink min-[1280px]:shrink-0 border-b-0 px-2 [&_button]:py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       />
       {trailing ? (
         // `border-l`: separa la cola de la fila de pestañas — antes las dos
@@ -371,7 +391,7 @@ export function CadRibbon({
         // desplazarse para llegar a un icono sigue siendo un problema, pero es
         // el de vaciar esta cola —mudarla a la cinta y al riel—, no el de
         // romper el ancho de la ventana.
-        <div className="flex min-w-0 shrink items-center gap-1.5 overflow-x-auto border-l border-border pl-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex min-w-12 flex-1 items-center gap-1.5 overflow-x-auto border-l border-border pl-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {trailing}
         </div>
       ) : null}

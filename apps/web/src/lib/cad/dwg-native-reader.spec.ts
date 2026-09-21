@@ -500,6 +500,20 @@ assert.equal(
   );
 }
 
+// El laboratorio conserva el espacio declarado. La beta de modelo no puede
+// mover una entidad de hoja al plano aunque su tipo LINE sí esté admitido.
+const separatedSpaces = toBetaProfileDatabase({
+  layers: [], blocks: [], insunits: 4, unsupported: [], diagnostics: [],
+  modelSpaceEntities: [
+    { ...mkRecord(0x700, LINE), space: "model" },
+    { ...mkRecord(0x701, LINE), space: "paper" },
+  ],
+});
+assert.deepEqual(separatedSpaces.modelSpaceEntities.map((record) => record.handle), [0x700]);
+assert.ok(separatedSpaces.diagnostics.some((diagnostic) =>
+  diagnostic.code === "dwg_beta_paper_space_excluded" && diagnostic.offset === 0x701,
+));
+
 console.log(
   "dwg-native-reader: perfil V3 completo (bytes reales + ELLIPSE/SPLINE/MTEXT/DIMENSION/HATCH " +
     "puros), fuera-de-perfil declarado, versión ajena nombrada, AC1018 opcional verificado, " +

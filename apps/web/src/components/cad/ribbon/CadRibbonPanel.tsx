@@ -9,7 +9,10 @@ import {
   type CadRibbonPanelLayout,
 } from "@/lib/cad/ribbon-layout";
 import { CadRibbonButton } from "./CadRibbonButton";
-import { CadRibbonPanelFlyout, type CadRibbonPanelAction } from "./CadRibbonPanelFlyout";
+import {
+  CadRibbonPanelFlyout,
+  type CadRibbonPanelAction,
+} from "./CadRibbonPanelFlyout";
 import { cadRibbonPanelIcon } from "./ribbon-icons";
 
 /**
@@ -73,9 +76,17 @@ export function CadRibbonPanel({
   const collapsed = effectiveLayout.state === "collapsed";
   let panelAction: CadRibbonPanelAction | undefined;
   if (onToggleCollapsed && collapsed && manuallyCollapsed) {
-    panelAction = { label: "Mostrar en la cinta", testId: `cad-ribbon-panel-expand-${panel.label}`, run: onToggleCollapsed };
+    panelAction = {
+      label: "Mostrar en la cinta",
+      testId: `cad-ribbon-panel-expand-${panel.label}`,
+      run: onToggleCollapsed,
+    };
   } else if (onToggleCollapsed && !collapsed) {
-    panelAction = { label: "Plegar a un botón", testId: `cad-ribbon-panel-collapse-${panel.label}`, run: onToggleCollapsed };
+    panelAction = {
+      label: "Plegar a un botón",
+      testId: `cad-ribbon-panel-collapse-${panel.label}`,
+      run: onToggleCollapsed,
+    };
   }
   return (
     <div
@@ -96,11 +107,14 @@ export function CadRibbonPanel({
       // que sin atenuar.
       className={cx(
         "flex shrink-0 flex-col border-r border-border pb-0 pt-0.5 last:border-r-0",
-        collapsed ? "px-0.5" : "px-2",
+        collapsed ? "px-0.5" : "px-1",
         // Sin fila de botones (panel "reduced" sin primario, ver más abajo):
         // el rótulo se centra en el alto del panel en vez de quedar pegado
         // arriba con una caja vacía debajo.
-        !collapsed && split.large.length === 0 && split.small.length === 0 && "justify-center",
+        !collapsed &&
+          split.large.length === 0 &&
+          split.small.length === 0 &&
+          "justify-center",
       )}
     >
       {collapsed ? (
@@ -167,7 +181,8 @@ export function CadRibbonPanel({
               // se suma al alto — la cinta no puede crecer (golden 214: ≤108
               // px con 720 de alto de ventana, donde el lienzo se come cada
               // píxel que sobra).
-              (split.large.length > 0 || split.small.length > 0) && "border-t border-border",
+              (split.large.length > 0 || split.small.length > 0) &&
+                "border-t border-border",
             )}
           >
             {split.flyout.length > 0 ? (
@@ -182,7 +197,10 @@ export function CadRibbonPanel({
                 panelAction={panelAction}
               />
             ) : (
-              <span id={labelId} className="type-micro px-1 text-muted-foreground">
+              <span
+                id={labelId}
+                className="type-micro px-1 text-muted-foreground"
+              >
                 {panel.label}
               </span>
             )}

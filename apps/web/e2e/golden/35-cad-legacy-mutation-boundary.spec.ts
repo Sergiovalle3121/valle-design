@@ -1,3 +1,4 @@
+import { abrirPanelDerecho } from "../fixtures/docks";
 /**
  * Dos mutaciones del estudio que NO cruzaban la frontera transaccional.
  *
@@ -42,9 +43,27 @@ function canonicalDocument(): CadDocument {
     meta: { version: 1, schema: 3, unit: "mm" },
     layers: [
       { id: "0", name: "0", color: "#ffffff", visible: true, locked: false },
-      { id: "layout", name: "layout", color: "#94a3b8", visible: true, locked: false },
-      { id: "PROCESO", name: "PROCESO", color: "#60a5fa", visible: true, locked: false },
-      { id: "MONTAJE", name: "MONTAJE", color: "#f59e0b", visible: true, locked: false },
+      {
+        id: "layout",
+        name: "layout",
+        color: "#94a3b8",
+        visible: true,
+        locked: false,
+      },
+      {
+        id: "PROCESO",
+        name: "PROCESO",
+        color: "#60a5fa",
+        visible: true,
+        locked: false,
+      },
+      {
+        id: "MONTAJE",
+        name: "MONTAJE",
+        color: "#f59e0b",
+        visible: true,
+        locked: false,
+      },
     ],
     entities: [
       {
@@ -105,6 +124,7 @@ async function selectLegacyObjectsOfLayer(page: Page, layerId: string) {
   await expect(row).toBeVisible();
   await row.getByRole("button", { name: "Sel", exact: true }).click();
   await viewButton.click();
+  await abrirPanelDerecho(page);
 }
 
 const saveStatus = (page: Page) => page.getByTestId("cad-save-status");
@@ -150,9 +170,10 @@ test("cambiar de capa un objeto heredado ensucia el dibujo, entra en el historia
     "deshacer tiene que devolver la capa anterior: antes no había checkpoint que deshacer",
   ).toHaveValue("PROCESO");
   await page.keyboard.press("Control+Shift+z");
-  await expect(layerSelect, "y rehacer tiene que volver a aplicarla").toHaveValue(
-    "MONTAJE",
-  );
+  await expect(
+    layerSelect,
+    "y rehacer tiene que volver a aplicarla",
+  ).toHaveValue("MONTAJE");
 
   await page.getByRole("button", { name: "Guardar", exact: true }).click();
   await expect.poll(() => backend.snapshot().version).toBeGreaterThan(0);
@@ -224,7 +245,10 @@ test("renombrar una celda llega al documento canónico y sobrevive a recargar", 
   await page.getByRole("button", { name: "Guardar", exact: true }).click();
   await expect.poll(() => backend.snapshot().version).toBeGreaterThan(0);
   const saved = backend.snapshot().document.cells ?? [];
-  expect(saved, "una celda creada tiene que estar en el documento guardado").toHaveLength(1);
+  expect(
+    saved,
+    "una celda creada tiene que estar en el documento guardado",
+  ).toHaveLength(1);
   expect(
     saved[0]!.name,
     "el nombre NUEVO — el viejo era exactamente el defecto",

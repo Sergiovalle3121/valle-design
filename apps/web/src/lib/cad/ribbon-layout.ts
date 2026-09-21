@@ -1,28 +1,20 @@
 /**
- * CUÁNTO CABE EN LA CINTA — decidido con datos, no con scroll.
+ * Distribuye los paneles según el ancho disponible, manteniendo los comandos
+ * frecuentes a la vista. El resto sigue accesible en desplegables.
  *
- * ## Por qué existe este módulo
+ * Las métricas se comparten con los componentes. Los botones pequeños tienen
+ * un mínimo de 80/112 px y crecen según el rótulo; cada columna ocupa el ancho
+ * de su botón mayor. Tras plegar paneles se recuperan comandos en los huecos
+ * disponibles, respetando siempre los plegados manuales.
  *
- * La tira de paneles de Inicio medía ~10 700 px con la barra de scroll
- * oculta: a 1366 px de ventana se veían ~20 botones de 159 y nadie sabía que
- * había más. AutoCAD no desplaza la cinta: cuando la pestaña no cabe, los
- * paneles de la derecha pierden botones pequeños, luego se quedan sólo con
- * los grandes y al final se pliegan a un único botón con el icono del panel.
- * Aquí se hace lo mismo, y se decide AQUÍ, como función pura sobre los datos
- * de la pestaña y el ancho disponible, para que una spec de Node pueda
- * afirmar sin navegador qué se ve a 1280 y a 1366 px.
- *
- * ## Por qué los anchos son constantes y no medidas del DOM
- *
- * Porque cada botón de la cinta tiene ancho FIJO (`CadRibbonButton.tsx`,
- * `CadRibbonPanel.tsx`): un botón grande mide 4,25 rem, uno pequeño 7 rem,
- * un panel plegado 4,5 rem. Con anchos fijos el plan se calcula del dato y
- * el golden 214 comprueba en el navegador que `scrollWidth <= clientWidth`,
- * es decir, que estas constantes no mienten. Si alguien cambia un `w-*` sin
- * tocar este archivo, el golden lo dice.
+ * Golden 214 comprueba en DOM que no hay desplazamiento ni texto recortado;
+ * golden 223 exige al menos 24 comandos visibles en Inicio a 1366 px.
  */
 import type { CadRibbonCommand, CadRibbonPanel, CadRibbonTab } from "./ribbon";
-import { CAD_RIBBON_PANEL_COLLAPSE_ORDER, CAD_RIBBON_PROTECTED_REDUCE_ORDER } from "./ribbon-order";
+import {
+  CAD_RIBBON_PANEL_COLLAPSE_ORDER,
+  CAD_RIBBON_PROTECTED_REDUCE_ORDER,
+} from "./ribbon-order";
 
 /** La forma de un juego de métricas — el disperso y el denso comparten ésta. */
 export interface CadRibbonMetrics {
@@ -40,13 +32,13 @@ export interface CadRibbonMetrics {
 export const CAD_RIBBON_METRICS: CadRibbonMetrics = {
   /** Botón grande: `w-[4.25rem]`. */
   large: 68,
-  /** Botón pequeño: `w-28`. */
+  /** Ancho mínimo del botón pequeño en el escalón disperso. */
   small: 112,
   /** `gap-0.5` entre botones, columnas y bloques. */
   gap: 2,
-  /** Panel: `px-2` (16) + `border-r` (1). */
-  panelPad: 17,
-  /** Panel plegado a un botón: `px-0.5` (4) + `w-[4.5rem]` (72) + `border-r` (1). */
+  /** Panel: `px-1` (8) + `border-r` (1). */
+  panelPad: 9,
+  /** Panel plegado a un botón: `px-0.5` (4) + `w-[5rem]` (80) + `border-r` (1). */
   collapsed: 85,
   /** Filas de botones pequeños: `grid-rows-3`. */
   rows: 3,
@@ -57,67 +49,20 @@ export const CAD_RIBBON_METRICS: CadRibbonMetrics = {
 } as const;
 
 /**
- * EL ESCALÓN DENSO — por debajo de este ancho de tira el botón pequeño de
- * `CadRibbonButton` encoge de `w-28` (112 px) a `CAD_RIBBON_DENSE_METRICS.small`
- * (80 px) y el panel cabe con hasta cuatro columnas en vez de dos. `rows` NO
- * cambia (sigue en 3): el cuerpo del panel sigue midiendo `h-[3.75rem]` en
- * los dos escalones — sólo cambia CUÁNTO entra a lo ancho, nunca el alto.
+ * Por debajo de 1920 px se usan hasta cuatro columnas con un mínimo de 80 px
+ * por botón pequeño. Desde ese ancho el mínimo es 112 px y el máximo son dos
+ * columnas. Ambos conservan tres filas y el mismo alto de cinta.
  *
- * ## Por qué el corte está en 1920 px y no en los 1500 del encargo original
- *
- * DESVIACIÓN medida y documentada (ver «pendiente» del resumen de la ola 1):
- * el encargo pedía el corte en 1500 px («un portátil de 1366 con la barra
- * del navegador»). Con el escalón disperso de arriba (`small: 112`,
- * `maxColumns: 2`) y sólo 9 botones grandes en Inicio tras el recorte de
- * primarios, el TOTAL de botones a la vista tiene un techo matemático ~35 a
- * 1908 px — el ancho de ventana ancha que el encargo exige con ≥60 comandos
- * visibles. Subir el corte a 1920 —el borde de un monitor de escritorio
- * corriente, no ya "un portátil"— deja 1908 px del lado denso y sigue
- * satisfaciendo la premisa (una ventana de portátil, con o sin barra, se
- * queda siempre en el escalón denso); una pantalla de verdad más ancha que
- * 1920 es la única que ve el escalón disperso.
- *
- * ## Ola 6 «cinta legible» (2026-09-20) — por qué 80 px y no 26
- *
- * La Ola 1 «cinta» encogió el botón denso a SÓLO ICONO (26 px, ocho
- * columnas): a 1346 px Inicio enseñaba 71 botones, pero ninguno con rótulo —
- * el dueño, que viene de AutoCAD, los describió como «iconos anónimos,
- * imposibles de distinguir de un vistazo». El encargo de esta ola lo dice
- * explícito: medir cuántos caben CON rótulo y elegir lo que maximice
- * «comandos RECONOCIBLES», no «comandos visibles» — 71 iconos mudos no es
- * una victoria si nadie sabe qué hacen sin pasar el ratón por los 71.
- *
- * Medido con `planCadRibbonLayout` sobre el registro real de Inicio (ver
- * `ribbon-layout.spec.ts`, bloque «ESCALÓN DENSO CON RÓTULO»), con `rows: 3`
- * fijo (el alto del panel no puede moverse) y variando sólo el ancho del
- * botón pequeño y `maxColumns`:
- *
- *   ancho | maxColumns | visibles a 1346 px | visibles a 1908 px
- *      64 |          6 |                  31 |                  58
- *      72 |          4 |                  28 |                  53
- *      80 |          4 |                  25 |                  45
- *      88 |          3 |                  25 |                  44
- *     112 |          2 |                  19 |                  35  (el disperso de siempre)
- *
- * 64 px da el conteo más alto pero dentro del botón sólo caben ~5 caracteres
- * antes de recortar (`icono 16 + gap 4 + padding 8` de presupuesto fijo, ver
- * `CadRibbonButton.tsx`): «Simetrí…» se reconoce, «Compen…» ya no tanto. A 80
- * px quedan ~8 caracteres — «Compensa…», «Rectáng…» — que es donde un rótulo
- * recortado sigue leyéndose como palabra y no como sílaba suelta. El precio
- * es 25 comandos con rótulo de verdad en vez de 71 mudos: MENOS botones,
- * TODOS reconocibles, que es exactamente el criterio del encargo.
- *
- * `maxColumns` baja de 8 a 4: con el botón cuatro veces más ancho que el de
- * la Ola 1, ocho columnas ya no caben en el presupuesto de ningún panel real
- * de Inicio (el más largo, Dibujo, necesita como mucho 4) y dejarlo en 8 no
- * ganaba ni una columna más — sólo quedaba como techo sin uso.
+ * El mínimo no recorta el texto: cadRibbonSmallWidth reserva espacio para el
+ * rótulo completo, y el plan utiliza ese mismo ancho. El objetivo es mostrar
+ * comandos reconocibles sin esconder el nombre detrás de una elipsis.
  */
 export const CAD_RIBBON_DENSE_BREAKPOINT = 1920;
 
-/** Las mismas métricas, con el botón pequeño encogido pero CON rótulo (recortado si no cabe). */
+/** Mínimos del escalón denso; el ancho crece para conservar el rótulo. */
 export const CAD_RIBBON_DENSE_METRICS = {
   ...CAD_RIBBON_METRICS,
-  /** Botón pequeño denso: icono + rótulo recortado, `w-20` (Ola 6 «cinta legible»). */
+  /** Ancho mínimo del botón pequeño denso: icono y rótulo completo. */
   small: 80,
   /** Con el botón más angosto que el disperso, caben hasta cuatro columnas. */
   maxColumns: 4,
@@ -125,7 +70,9 @@ export const CAD_RIBBON_DENSE_METRICS = {
 
 /** Qué juego de métricas usar para un ancho de tira dado. */
 export function cadRibbonMetricsFor(availableWidth: number): CadRibbonMetrics {
-  return availableWidth < CAD_RIBBON_DENSE_BREAKPOINT ? CAD_RIBBON_DENSE_METRICS : CAD_RIBBON_METRICS;
+  return availableWidth < CAD_RIBBON_DENSE_BREAKPOINT
+    ? CAD_RIBBON_DENSE_METRICS
+    : CAD_RIBBON_METRICS;
 }
 
 export type CadRibbonPanelState = "expanded" | "reduced" | "collapsed";
@@ -154,7 +101,10 @@ export function splitCadRibbonPanel(panel: CadRibbonPanel): {
 }
 
 /** Columnas que necesita el panel para mostrar TODOS sus botones pequeños. */
-export function cadRibbonPanelNaturalColumns(panel: CadRibbonPanel, dense = false): number {
+export function cadRibbonPanelNaturalColumns(
+  panel: CadRibbonPanel,
+  dense = false,
+): number {
   const { smalls } = splitCadRibbonPanel(panel);
   const m = dense ? CAD_RIBBON_DENSE_METRICS : CAD_RIBBON_METRICS;
   return Math.min(m.maxColumns, Math.ceil(smalls.length / m.rows));
@@ -164,12 +114,22 @@ export function cadRibbonPanelNaturalColumns(panel: CadRibbonPanel, dense = fals
 export function cadRibbonPanelSplit(
   panel: CadRibbonPanel,
   layout: CadRibbonPanelLayout,
-): { large: CadRibbonCommand[]; small: CadRibbonCommand[]; flyout: CadRibbonCommand[] } {
+): {
+  large: CadRibbonCommand[];
+  small: CadRibbonCommand[];
+  flyout: CadRibbonCommand[];
+} {
   const { primaries, smalls } = splitCadRibbonPanel(panel);
-  if (layout.state === "collapsed") return { large: [], small: [], flyout: [...panel.commands] };
-  const rows = (layout.dense ? CAD_RIBBON_DENSE_METRICS : CAD_RIBBON_METRICS).rows;
+  if (layout.state === "collapsed")
+    return { large: [], small: [], flyout: [...panel.commands] };
+  const rows = (layout.dense ? CAD_RIBBON_DENSE_METRICS : CAD_RIBBON_METRICS)
+    .rows;
   const visible = layout.state === "reduced" ? 0 : layout.columns * rows;
-  return { large: primaries, small: smalls.slice(0, visible), flyout: smalls.slice(visible) };
+  return {
+    large: primaries,
+    small: smalls.slice(0, visible),
+    flyout: smalls.slice(visible),
+  };
 }
 
 /**
@@ -202,13 +162,30 @@ export const CAD_RIBBON_LABEL_PX_PER_CHAR = 5.6;
 export const CAD_RIBBON_LABEL_MARGIN = 8;
 
 export function cadRibbonLabelWidth(label: string): number {
-  return Math.ceil(label.length * CAD_RIBBON_LABEL_PX_PER_CHAR) + CAD_RIBBON_LABEL_MARGIN;
+  return (
+    Math.ceil(label.length * CAD_RIBBON_LABEL_PX_PER_CHAR) +
+    CAD_RIBBON_LABEL_MARGIN
+  );
+}
+
+/** El rótulo completo manda sobre el mínimo del botón pequeño. */
+export function cadRibbonSmallWidth(
+  command: CadRibbonCommand,
+  dense: boolean,
+): number {
+  const minimum = (dense ? CAD_RIBBON_DENSE_METRICS : CAD_RIBBON_METRICS).small;
+  // Icono 16 + separación 4 + padding de 4/8; margen adicional para el avance
+  // de letras anchas. El DOM se comprueba en golden 214, sin tolerar elipsis.
+  return Math.max(
+    minimum,
+    cadRibbonLabelWidth(command.label) + (dense ? 30 : 34),
+  );
 }
 
 /**
  * CUÁNTO RÓTULO CABE en un panel PLEGADO sin recortarse con puntos suspensivos. El botón plegado
- * mide `w-[4.5rem]` (72 px, `CAD_RIBBON_METRICS.collapsed`) con `px-0.5` (4 px) de relleno
- * horizontal alrededor del rótulo (`CadRibbonPanelFlyout.tsx`, variante "panel"): 68 px libres,
+ * mide `w-[5rem]` (80 px, `CAD_RIBBON_METRICS.collapsed`) con `px-0.5` (4 px) de relleno
+ * horizontal alrededor del rótulo (`CadRibbonPanelFlyout.tsx`, variante "panel"): 76 px libres,
  * medido en un navegador real (`rotulo.clientWidth` de «Bloque» y «Propiedades» plegados). Un
  * panel cuyo rótulo no quepa ahí NO puede plegarse a un botón: `truncate` lo recortaría con «…», y
  * el golden 214 exige `scrollWidth <= clientWidth` en cada rótulo de panel —esconder el nombre del
@@ -240,18 +217,36 @@ export const CAD_RIBBON_FOOTER_PADDING_WITH_FLYOUT = 22; // px-1 (8) + gap-0.5 (
 export const CAD_RIBBON_FOOTER_PADDING_PLAIN = 8; // px-1 (8), sin flecha
 
 /** Ancho del panel en píxeles para un plan, con las constantes de arriba. */
-export function cadRibbonPanelWidth(panel: CadRibbonPanel, layout: CadRibbonPanelLayout): number {
+export function cadRibbonPanelWidth(
+  panel: CadRibbonPanel,
+  layout: CadRibbonPanelLayout,
+): number {
   const m = layout.dense ? CAD_RIBBON_DENSE_METRICS : CAD_RIBBON_METRICS;
-  // Plegado: un único botón de ancho FIJO (`w-[4.5rem]`, con el rótulo recortado por `truncate`
+  // Plegado: un único botón de ancho FIJO (`w-[5rem]`, con el rótulo recortado por `truncate`
   // si hiciera falta — de ahí que este golden mida `scrollWidth` contra `clientWidth` de cada
   // rótulo, para que un panel con un nombre demasiado largo no se cuele mudo). El ancho no
   // depende del rótulo, así que aquí no hace falta estimarlo.
   if (layout.state === "collapsed") return m.collapsed;
   const { primaries, smalls } = splitCadRibbonPanel(panel);
-  const primaryCols = primaries.length > m.maxColumns ? m.maxColumns : primaries.length;
-  const largeBlock = primaryCols * m.large + Math.max(0, primaryCols - 1) * m.gap;
+  const primaryCols =
+    primaries.length > m.maxColumns ? m.maxColumns : primaries.length;
+  const largeBlock =
+    primaryCols * m.large + Math.max(0, primaryCols - 1) * m.gap;
   const columns = layout.state === "reduced" ? 0 : layout.columns;
-  const smallBlock = columns > 0 ? columns * m.small + (columns - 1) * m.gap + m.gap : 0;
+  const columnWidths = Array.from({ length: columns }, (_, column) =>
+    Math.max(
+      m.small,
+      ...smalls
+        .slice(column * m.rows, (column + 1) * m.rows)
+        .map((command) => cadRibbonSmallWidth(command, !!layout.dense)),
+    ),
+  );
+  const smallBlock =
+    columns > 0
+      ? columnWidths.reduce((sum, width) => sum + width, 0) +
+        (columns - 1) * m.gap +
+        m.gap
+      : 0;
   const rowWidth = m.panelPad + largeBlock + smallBlock;
 
   // El pie va DEBAJO de la fila (columna, no lado a lado): el panel mide lo que pida el más ancho
@@ -259,13 +254,24 @@ export function cadRibbonPanelWidth(panel: CadRibbonPanel, layout: CadRibbonPane
   const shownSmalls = columns * m.rows;
   const hasFlyout = smalls.length > shownSmalls;
   const footerWidth =
-    m.panelPad + cadRibbonLabelWidth(panel.label) + (hasFlyout ? CAD_RIBBON_FOOTER_PADDING_WITH_FLYOUT : CAD_RIBBON_FOOTER_PADDING_PLAIN);
+    m.panelPad +
+    cadRibbonLabelWidth(panel.label) +
+    (hasFlyout
+      ? CAD_RIBBON_FOOTER_PADDING_WITH_FLYOUT
+      : CAD_RIBBON_FOOTER_PADDING_PLAIN);
 
   return Math.max(rowWidth, footerWidth);
 }
 
-export function cadRibbonTabWidth(tab: CadRibbonTab, plan: ReadonlyMap<string, CadRibbonPanelLayout>): number {
-  return tab.panels.reduce((total, panel) => total + cadRibbonPanelWidth(panel, plan.get(panel.label)!), 0);
+export function cadRibbonTabWidth(
+  tab: CadRibbonTab,
+  plan: ReadonlyMap<string, CadRibbonPanelLayout>,
+): number {
+  return tab.panels.reduce(
+    (total, panel) =>
+      total + cadRibbonPanelWidth(panel, plan.get(panel.label)!),
+    0,
+  );
 }
 
 /**
@@ -296,6 +302,49 @@ function reduceColumnsEvenly(
     }
   }
   return fits();
+}
+
+/** Recupera comandos que caben en el hueco dejado por el último plegado. */
+function restoreVisibleCommands(
+  tab: CadRibbonTab,
+  plan: Map<string, CadRibbonPanelLayout>,
+  budget: number,
+  manuallyCollapsed: ReadonlySet<string>,
+): Map<string, CadRibbonPanelLayout> {
+  const visible = (panel: CadRibbonPanel, layout: CadRibbonPanelLayout) => {
+    const split = cadRibbonPanelSplit(panel, layout);
+    return split.large.length + split.small.length;
+  };
+  while (true) {
+    const width = cadRibbonTabWidth(tab, plan);
+    let best:
+      | { label: string; layout: CadRibbonPanelLayout; value: number }
+      | undefined;
+    for (const panel of tab.panels) {
+      if (manuallyCollapsed.has(panel.label)) continue;
+      const current = plan.get(panel.label)!;
+      const natural = cadRibbonPanelNaturalColumns(panel, current.dense);
+      const candidates: CadRibbonPanelLayout[] = [];
+      if (current.state === "collapsed")
+        candidates.push({ ...current, state: "reduced", columns: 0 });
+      if (current.state !== "expanded" && natural > 0)
+        candidates.push({ ...current, state: "expanded", columns: 1 });
+      if (current.state === "expanded" && current.columns < natural)
+        candidates.push({ ...current, columns: current.columns + 1 });
+      for (const candidate of candidates) {
+        const gain = visible(panel, candidate) - visible(panel, current);
+        const cost =
+          cadRibbonPanelWidth(panel, candidate) -
+          cadRibbonPanelWidth(panel, current);
+        if (gain <= 0 || width + cost > budget) continue;
+        const value = gain / Math.max(1, cost);
+        if (!best || value > best.value)
+          best = { label: panel.label, layout: candidate, value };
+      }
+    }
+    if (!best) return plan;
+    plan.set(best.label, best.layout);
+  }
 }
 
 /**
@@ -333,12 +382,18 @@ export function planCadRibbonLayout(
       panel.label,
       manuallyCollapsed.has(panel.label)
         ? { state: "collapsed", columns: 0, dense }
-        : { state: "expanded", columns: cadRibbonPanelNaturalColumns(panel, dense), dense },
+        : {
+            state: "expanded",
+            columns: cadRibbonPanelNaturalColumns(panel, dense),
+            dense,
+          },
     );
   }
   const budget = availableWidth - metrics.safety;
   const fits = () => cadRibbonTabWidth(tab, plan) <= budget;
-  if (fits()) return plan;
+  const finish = () =>
+    restoreVisibleCommands(tab, plan, budget, manuallyCollapsed);
+  if (fits()) return finish();
 
   const labels = new Set(tab.panels.map((panel) => panel.label));
   const collapsible = CAD_RIBBON_PANEL_COLLAPSE_ORDER[tab.id].filter(
@@ -351,7 +406,9 @@ export function planCadRibbonLayout(
   const orden = CAD_RIBBON_PROTECTED_REDUCE_ORDER[tab.id];
   const protectedPanels = tab.panels
     .map((panel) => panel.label)
-    .filter((label) => !collapsible.includes(label) && !manuallyCollapsed.has(label))
+    .filter(
+      (label) => !collapsible.includes(label) && !manuallyCollapsed.has(label),
+    )
     .reverse()
     .sort((a, b) => {
       if (!orden) return 0;
@@ -362,47 +419,44 @@ export function planCadRibbonLayout(
       if (ib === -1) return -1;
       return ia - ib;
     });
-  // Ola 6 «cinta legible»: ANTES este comentario decía que un panel SIN botón grande (Grupos,
-  // Utilidades, Portapapeles) ya costaba lo mínimo en "reduced" (17 px, «ni un botón») y que pasar
-  // a "collapsed" (77 px) sólo gastaba presupuesto sin ganar nada. Esa cuenta olvidaba el PIE: un
-  // panel "reduced" sin primario no pinta la fila de botones, así que el pie —el rótulo, siempre
-  // visible, nunca recortado con puntos suspensivos— es lo ÚNICO que queda, y un pie con
-  // desplegable lleva flecha (ver `CAD_RIBBON_FOOTER_PADDING_WITH_FLYOUT`). Medido: «Utilidades»
-  // cuesta 92 px reducido contra 77 plegado; «Grupos» 78 contra 77. Para paneles así "collapsed"
-  // es MÁS BARATO que "reduced" y enseña los mismos CERO comandos (ninguno tiene primario que
-  // perder) — así que aquí SÍ conviene plegarlos, sin la condición `hasPrimary` que tenía esta
-  // pasada antes. La única condición que queda es que el rótulo QUEPA plegado
-  // (`cadRibbonLabelFitsCollapsed`, más arriba): «Portapapeles» (69,7 px de rótulo real) no cabe
-  // en los 68 px del botón plegado, así que se queda en "reduced" —más caro, pero con el nombre
-  // completo a la vista— en vez de recortarse con puntos suspensivos.
-  if (reduceColumnsEvenly(collapsible, plan, fits)) return plan;
+  // El coste incluye el pie. Sólo se pliegan paneles cuyo rótulo cabe en
+  // los 76 px útiles del botón; la recuperación posterior aprovecha huecos
+  // sin contradecir los plegados solicitados por el usuario.
+  if (reduceColumnsEvenly(collapsible, plan, fits)) return finish();
   for (const label of collapsible) {
     const layout = plan.get(label)!;
-    if (layout.state === "expanded") plan.set(label, { ...layout, state: "reduced", columns: 0 });
-    if (fits()) return plan;
+    if (layout.state === "expanded")
+      plan.set(label, { ...layout, state: "reduced", columns: 0 });
+    if (fits()) return finish();
   }
   for (const label of collapsible) {
     if (!cadRibbonLabelFitsCollapsed(label)) continue;
     const layout = plan.get(label)!;
-    if (layout.state !== "collapsed") plan.set(label, { ...layout, state: "collapsed", columns: 0 });
-    if (fits()) return plan;
+    if (layout.state !== "collapsed")
+      plan.set(label, { ...layout, state: "collapsed", columns: 0 });
+    if (fits()) return finish();
   }
 
-  if (reduceColumnsEvenly(protectedPanels, plan, fits)) return plan;
+  if (reduceColumnsEvenly(protectedPanels, plan, fits)) return finish();
   for (const label of protectedPanels) {
     const layout = plan.get(label)!;
-    if (layout.state === "expanded") plan.set(label, { ...layout, state: "reduced", columns: 0 });
-    if (fits()) return plan;
+    if (layout.state === "expanded")
+      plan.set(label, { ...layout, state: "reduced", columns: 0 });
+    if (fits()) return finish();
   }
   return plan;
 }
 
 /** Los nombres de comando con botón A LA VISTA (sin abrir ningún desplegable). */
-export function cadRibbonVisibleNames(tab: CadRibbonTab, plan: ReadonlyMap<string, CadRibbonPanelLayout>): Set<string> {
+export function cadRibbonVisibleNames(
+  tab: CadRibbonTab,
+  plan: ReadonlyMap<string, CadRibbonPanelLayout>,
+): Set<string> {
   const visible = new Set<string>();
   for (const panel of tab.panels) {
     const split = cadRibbonPanelSplit(panel, plan.get(panel.label)!);
-    for (const command of [...split.large, ...split.small]) visible.add(command.name);
+    for (const command of [...split.large, ...split.small])
+      visible.add(command.name);
   }
   return visible;
 }

@@ -17,18 +17,98 @@
  *   node --test scripts/perf/lighthouse-gate.spec.mjs
  */
 import { strict as assert } from "node:assert";
+import { once } from "node:events";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, sep } from "node:path";
 import { after, describe, it } from "node:test";
 
 import {
   archivarPasada,
+  ejecutarCliNode,
+  exigirPuertoLibre,
   imprimirTabla,
+  iniciarProcesoNode,
+  matarGrupo,
   mediana,
   publicarResumen,
   resumirPasada,
 } from "./lighthouse-gate.mjs";
+
+describe("procesos del gate", () => {
+  it("ejecuta un CLI instalado con espacios y conserva argumentos y código de salida sin npx", async () => {
+    const cli = join(directorioTemporal(), "cli con espacios.cjs");
+    writeFileSync(cli, "process.stdout.write(JSON.stringify(process.argv.slice(2))); process.exitCode = 7;");
+    const resultado = await ejecutarCliNode(cli, ["collect", "--config=ruta con espacios.json"], {
+      encoding: "utf8",
+      env: { ...process.env, PATH: "" },
+    });
+    assert.equal(resultado.error, undefined);
+    assert.equal(resultado.status, 7);
+    assert.deepEqual(JSON.parse(resultado.stdout), ["collect", "--config=ruta con espacios.json"]);
+  });
+
+  it("observa la salida del servidor mientras otro CLI sigue trabajando", async () => {
+    const breveCli = join(directorioTemporal(), "servidor breve.cjs");
+    const lentoCli = join(directorioTemporal(), "medicion.cjs");
+    writeFileSync(breveCli, "process.exitCode = 0;");
+    writeFileSync(lentoCli, "setTimeout(() => {}, 300);");
+    const breve = await iniciarProcesoNode(breveCli, [], { stdio: "ignore" });
+    const medicion = await ejecutarCliNode(lentoCli, [], { stdio: "ignore" });
+    assert.equal(medicion.status, 0);
+    assert.equal(breve.exitCode, 0, "un CLI largo no debe retener el evento exit del servidor");
+    await matarGrupo(breve);
+  });
+
+  it("rechaza un puerto ocupado sin cerrar el servidor ajeno", async () => {
+    const ajeno = createServer();
+    ajeno.listen(0, "127.0.0.1");
+    await once(ajeno, "listening");
+    try {
+      await assert.rejects(exigirPuertoLibre(ajeno.address().port), { code: "EADDRINUSE" });
+      assert.equal(ajeno.listening, true);
+    } finally {
+      await new Promise((resolver) => ajeno.close(resolver));
+    }
+  });
+
+  it("cierra su hijo y su nieto, conservando otro proceso independiente", { timeout: 15_000 }, async () => {
+    const servidor = "const s = require('node:http').createServer((q,r) => r.end('vivo'));" +
+      "s.listen(0, '127.0.0.1', () => process.send({ port: s.address().port }));";
+    const propioCli = join(directorioTemporal(), "arbol propio.cjs");
+    const ajenoCli = join(directorioTemporal(), "servidor ajeno.cjs");
+    writeFileSync(ajenoCli, servidor);
+    writeFileSync(propioCli,
+      "const { spawn } = require('node:child_process');" +
+      `const nieto = spawn(process.execPath, ['-e', ${JSON.stringify(servidor)}], ` +
+      "{ stdio: ['ignore', 'ignore', 'ignore', 'ipc'], windowsHide: true });" +
+      "nieto.on('message', (mensaje) => process.send(mensaje));",
+    );
+    const opciones = { stdio: ["ignore", "ignore", "ignore", "ipc"] };
+    const propio = await iniciarProcesoNode(propioCli, [], opciones);
+    const puertoPropio = once(propio, "message");
+    const ajeno = await iniciarProcesoNode(ajenoCli, [], opciones);
+    try {
+      const [{ port: propioPort }] = await puertoPropio;
+      const [{ port: ajenoPort }] = await once(ajeno, "message");
+      assert.equal(await (await fetch(`http://127.0.0.1:${propioPort}`)).text(), "vivo");
+      const terminado = once(propio, "exit");
+      await matarGrupo(propio);
+      await terminado;
+      await assert.rejects(fetch(`http://127.0.0.1:${propioPort}`, { signal: AbortSignal.timeout(1000) }));
+      assert.equal(await (await fetch(`http://127.0.0.1:${ajenoPort}`)).text(), "vivo");
+      // Llamar de nuevo sobre un hijo terminado no intenta reutilizar su PID.
+      await matarGrupo(propio);
+      assert.equal(await (await fetch(`http://127.0.0.1:${ajenoPort}`)).text(), "vivo");
+    } finally {
+      await matarGrupo(propio);
+      const terminado = once(ajeno, "exit");
+      await matarGrupo(ajeno);
+      await terminado;
+    }
+  });
+});
 
 const temporales = [];
 function directorioTemporal() {

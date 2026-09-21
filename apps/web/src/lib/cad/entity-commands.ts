@@ -44,6 +44,7 @@ import { regenerateAssociativeCenterMarks } from "./associative-center-mark";
 import {
   applyDocumentTables,
   isCadTableCommand,
+  remapDeletedCadLayerReferences,
   type CadDocumentTableCommand,
 } from "./entity-command-tables";
 import { orphanedOpeningIds } from "./wall-openings";
@@ -583,7 +584,6 @@ export function executeCadEntityCommandBatch(
   // empieza a tapar la pieza que rellena.
   const tables = applyDocumentTables(document, tableCommands, [...createdBackIds, ...ordered], entities);
   for (const entityId of tables.touchedEntityIds) touchedIds.push(entityId);
-  const stagedLayerStates = tables.layerStates;
   const staged: CadDocument = {
     ...document,
     entities: tables.entities,
@@ -614,9 +614,9 @@ export function executeCadEntityCommandBatch(
   if (sections.parameters === undefined) delete staged.parameters;
   else staged.parameters = sections.parameters;
   // Mismo criterio para los estados de capa del esquema 9.
-  if (stagedLayerStates === undefined) delete staged.layerStates;
-  else staged.layerStates = stagedLayerStates;
-  const nextDocument = commitChange(staged, label);
+  if (tables.layerStates === undefined) delete staged.layerStates;
+  else staged.layerStates = tables.layerStates;
+  const nextDocument = commitChange(remapDeletedCadLayerReferences(staged, tables.layerReassignments), label);
   return {
     document: nextDocument,
     affectedEntityIds: [...new Set([

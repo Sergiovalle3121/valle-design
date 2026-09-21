@@ -3999,6 +3999,48 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "VALLECAD-CANDIDATE-20260921",
+      "date": "2026-09-21",
+      "initiative": "Candidato ValleCAD: integración de estudio, recorrido público, guardado por ID de capa, fidelidad DWG y aceptación real con PostgreSQL.",
+      "branch": "claude/vallecad-candidato",
+      "assistants": [
+        "OpenAI Codex: implementación, revisión adversaria y ejecución de pruebas; tres subagentes con archivos asignados para editor, interoperabilidad y operaciones."
+      ],
+      "authority": "Encargo expreso de Sergio Valle: modificar y verificar el producto existente, revisar ramas y PR, integrar el trabajo válido y reflejarlo en vallecad.com. Autorización posterior explícita para ejecución autónoma, merge y publicación, con prioridad DWG; sin habilitar exportación DWG ni fabricar firmas o resultados humanos.",
+      "firstPartyInputs": [
+        "main 4232e1d2d6b9fea243ade637bc9e58f6ea3f0b51 y PR224 08fb9f45988b45389ef345ba1a4051192b482b78; políticas AGENTS/IDENTITY/REPOSITORY_SCOPE/PRODUCT/ARCHITECTURE/SECURITY/DEPLOYMENT y contribución.",
+        "Corpus propietario separado valle-design-dwg-conformance; consumidor fijado a 0688fb9c395b9cac4169d1ee9c23a7370cc28cf3. No se modificaron admisiones, hashes, oráculos ni firmas.",
+        "Pruebas de navegador del editor, auditorías excluidas, contratos canónicos y respuesta HTTP400 de la API al dibujar en una capa cuyo nombre difiere de su ID.",
+        "Interfaz y JavaScript públicos de vallecad.com: importación DWG base/AC1018/moderna habilitada y wireframe3D deshabilitado; réplica local de esa configuración para verificar, sin cambiar la configuración de producción.",
+        "Diff working preexistente del usuario en D:/dev/valle-design: alias-table.ts y alias-table.spec.ts, hashes verificados antes/después de la copia. Se preservan checkout dueño y stash; se conserva la autoría original. Adaptación del integrador: nueve alias ya declarados que detectó la spec original y normalización LF."
+      ],
+      "externalSources": [
+        "Autodesk DXF Reference: group code 999 is a comment, https://help.autodesk.com/cloudhelp/2018/ENU/AutoCAD-DXF/files/GUID-3F0380A5-1C15-464D-BC66-2C5F094BCFB9.htm",
+        "Dependencia ya instalada dxf-parser 1.1.2: inspección del lector HEADER para diagnosticar cómo un comentario 999 sobrescribe la última variable. No se copió implementación externa."
+      ],
+      "externalImplementationConsulted": true,
+      "derivedAreas": [
+        "Landing, acceso, precios, FAQ y declaración de versiones DWG según flags efectivos.",
+        "Cinta, indicaciones del lienzo y fixtures que abren paneles plegados mediante controles visibles; graduación de auditorías tras ejecución verde.",
+        "Puente DWG: exclusiones espaciales y de papel visibles, rechazo de importaciones sin contenido representable y bloques sin geometría alcanzable.",
+        "Resolución CLAYER a ID persistido en contexto del estudio y scripts; no se cambia el contrato del servidor para aceptar referencias inválidas.",
+        "Aceptación full-stack de dibujos sintéticos, documentación de restauración aislada y portabilidad CRLF del verificador de firma DWG.",
+        "DXF: comentario de procedencia fuera de HEADER para conservar INSUNITS en lectores independientes; prueba con dxf-parser existente.",
+        "Seed: UUID válido, identidad técnica sin credenciales ni concesión de acceso, fixture validada antes de escribir y reanudación limitada al documento demo vacío propio en CAS0.",
+        "Adopción del trabajo local de alias del usuario, preservando su origen; los alias se contrastan con registro, pipeline y motor existentes."
+      ],
+      "fixtures": "Muestras sintéticas generadas mediante órdenes visibles para aceptación; corpus DWG admitido con origen y oráculo independientes. Ningún dibujo representa un proyecto aprobado para construcción.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Trabajo solicitado por el titular; las ejecuciones se registran separando PASS/FAIL/BLOCKED/NOT RUN. La autorización para merge no se presenta como aceptación visual humana, sesión con profesionales externos ni revisión jurídica externa. El candidato se integra únicamente con los gates requeridos sobre su SHA; resultados y límites en el informe de la campaña y artefactos de CI."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }

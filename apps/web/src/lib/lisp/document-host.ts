@@ -38,6 +38,7 @@ import {
   type CadVariableAccess,
 } from "../cad/system-variables";
 import type { LispHostServices } from "./host";
+import { resolveCadLayerId } from "../cad/resolve-layer-id";
 
 export interface CadLispHostOptions {
   /** Capa de las entidades que no declaran la suya. */
@@ -133,7 +134,9 @@ export class CadDocumentLispHost implements LispHostServices {
    */
   activeLayer(): string {
     const clayer = this.systemVariables.get("CLAYER");
-    if (typeof clayer === "string" && clayer !== "") return clayer;
+    if (typeof clayer === "string" && clayer !== "") {
+      return resolveCadLayerId(this.working.layers, clayer) ?? this.options.activeLayer ?? "0";
+    }
     return this.options.activeLayer ?? "0";
   }
 

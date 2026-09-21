@@ -495,7 +495,7 @@ export function CadStatusBar({
           Recuperación local en riesgo
         </span>
       )}
-      <span>
+      <span data-testid="cad-current-layer">
         Capa{" "}
         {layersInfo.cadLayers.find((layer) => layer.id === layersInfo.activeCadLayer)
           ?.label ?? layersInfo.activeCadLayer}

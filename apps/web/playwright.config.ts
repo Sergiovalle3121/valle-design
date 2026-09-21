@@ -123,7 +123,11 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: process.env.E2E_PROD === "1" ? "npm run start" : "npm run dev",
+    // El servidor de pruebas sólo es accesible desde esta máquina. El origen
+    // sigue siendo localhost para compartir cookies/CORS con la API del arnés.
+    command: process.env.E2E_PROD === "1"
+      ? "npm run start -- --hostname 127.0.0.1"
+      : "npm run dev -- --hostname 127.0.0.1",
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

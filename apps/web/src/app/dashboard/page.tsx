@@ -22,10 +22,9 @@ import { trialStatus } from "@/lib/commercial/trial-phase";
 import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
 import {
   documentImportAcceptAttribute,
-  isDwgNativeImportBetaEnabled,
   splitDocumentSelection,
 } from "@/lib/cad/document-import-client";
-import { dwgAcceptedVersionCodes, describeDwgAcceptedVersions } from "@/lib/cad/dwg-interop-flag";
+import { dwgClaim } from "@/lib/marketing/dwg-claim";
 import { ArchiveDocumentDialog, useArchiveDocument } from "./archive-document";
 import { EMPTY_CAD_STARTER_CHOICE } from "./starter-choice";
 import { Status } from "./Status";
@@ -55,6 +54,7 @@ type OrganizationItem = OrganizationList["items"][number];
 
 export default function DashboardPage() {
   const auth = useDesignAuth();
+  const dwg = dwgClaim();
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -543,9 +543,10 @@ export default function DashboardPage() {
                     }}
                   />
                 </label>
-                {isDwgNativeImportBetaEnabled() ? (
+                {dwg.importEnabled ? (
                   <p data-testid="dashboard-dwg-beta-nota" className="type-caption mt-1 text-muted-foreground">
-                    {`.dwg en beta: ${describeDwgAcceptedVersions(dwgAcceptedVersionCodes({ allowAc1018: isDwgNativeImportBetaEnabled(), allowModern: false /* DWG_MODERN_BETA_AUTHORIZATION.ownerSigned es false */ }))}. Si tu CAD es más nuevo, Guarda como con esa versión, o exporta a DXF.`}
+                    {dwg.short} Espacio modelo 2D. Para otra versión, guarda el
+                    archivo en una de las admitidas o expórtalo a DXF.
                   </p>
                 ) : null}
                 <ImportStatus

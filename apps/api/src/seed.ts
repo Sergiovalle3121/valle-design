@@ -1,10 +1,13 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
+import { DataSource } from 'typeorm';
 import { AppModule } from './app.module';
 import { TenantContextService } from './common/tenant/tenant-context.service';
 import type { TenantContext } from './common/tenant/tenant-context.service';
 import { CadDocumentsRepository } from './modules/cad/cad-documents.repository';
 import { validateCadDocumentPayload } from './modules/cad-documents/cad-document-validation';
+import { User } from './modules/identity/entities/identity.entity';
+import { Organization } from './modules/organizations/entities/organization.entity';
 
 /**
  * Seed mínimo REAL de Valle Design: tenant demo + proyecto + documento CAD de
@@ -15,10 +18,49 @@ import { validateCadDocumentPayload } from './modules/cad-documents/cad-document
  * Uso:
  *   DATABASE_URL=postgres://... npm run seed        (o sin BD → dev.sqlite)
  */
-export const SEED_TENANT_ID = 'demo-tenant';
+// UUID estable del fixture: los eventos y el consumo usan columnas UUID.
+export const SEED_TENANT_ID = 'c66b4598-96be-4c1b-a200-1f144fd0cc97';
+export const SEED_OWNER_ID = '1a56374a-1fe3-45dd-b444-97e2fb40ef59';
+const SEED_OWNER_EMAIL = 'seed-demo@valle-design.invalid';
+const SEED_ORGANIZATION_SLUG = 'valle-demo-seed';
 export const SEED_ACTOR = 'demo@valle.design';
 export const SEED_PROJECT_NAME = 'Proyecto demo Valle';
 export const SEED_DOCUMENT_NAME = 'Plano demo';
+
+async function ensureSeedOrganization(dataSource: DataSource): Promise<void> {
+  await dataSource.transaction(async (manager) => {
+    const owner = await manager.findOneBy(User, { id: SEED_OWNER_ID });
+    if (owner && owner.email !== SEED_OWNER_EMAIL) {
+      throw new Error('El UUID del propietario demo pertenece a otro usuario.');
+    }
+    if (!owner) {
+      // Propietario técnico del fixture; no crea credenciales ni acceso web.
+      await manager.insert(User, {
+        id: SEED_OWNER_ID,
+        email: SEED_OWNER_EMAIL,
+        displayName: 'Propietario del seed demo',
+      });
+    }
+    const organization = await manager.findOneBy(Organization, {
+      id: SEED_TENANT_ID,
+    });
+    if (
+      organization &&
+      (organization.ownerUserId !== SEED_OWNER_ID ||
+        organization.slug !== SEED_ORGANIZATION_SLUG)
+    ) {
+      throw new Error('El UUID de la organización demo ya tiene otro destino.');
+    }
+    if (!organization) {
+      await manager.insert(Organization, {
+        id: SEED_TENANT_ID,
+        name: 'Organización demo Valle',
+        slug: SEED_ORGANIZATION_SLUG,
+        ownerUserId: SEED_OWNER_ID,
+      });
+    }
+  });
+}
 
 /** Documento canónico de ejemplo (formato meta.schema v3, entidades reales). */
 /**
@@ -68,6 +110,7 @@ export function demoCadDocument(): Record<string, unknown> {
         h: 2000,
         kind: 'zone',
         label: 'Recamara principal',
+        layer: 'A-WALL',
       },
       {
         id: 'label-1',
@@ -95,17 +138,20 @@ export function demoCadDocument(): Record<string, unknown> {
   });
 }
 
-async function seed(): Promise<void> {
+export async function seed(): Promise<void> {
+  // Un fixture inválido no debe dejar un proyecto o documento a medio crear.
+  const content = demoCadDocument();
   const app = await NestFactory.createApplicationContext(AppModule, {
     logger: ['error', 'warn'],
   });
   try {
     const tenantCtx = app.get(TenantContextService);
     const repository = app.get(CadDocumentsRepository);
+    await ensureSeedOrganization(app.get(DataSource));
 
     const context: TenantContext = {
       tenant_id: SEED_TENANT_ID,
-      organization_id: null,
+      organization_id: SEED_TENANT_ID,
       plant_id: null,
       user_email: SEED_ACTOR,
       role: 'Admin',
@@ -146,18 +192,34 @@ async function seed(): Promise<void> {
           model: 'AXOS-CAD-STUDIO',
           revision: 'UNIVERSAL',
         });
-        const saved = await repository.saveContent(document.id, {
-          document: demoCadDocument(),
-          expectedVersion: 0,
-        });
-        console.log(
-          `[seed] Documento: ${document.id} guardado (versión CAS ${saved.cadDocumentVersion}, ${saved.entityCount} entidades).`,
-        );
       } else {
-        console.log(
-          `[seed] Documento: ${document.id} ya existía (versión CAS ${document.cadDocumentVersion}); nada que hacer.`,
-        );
+        const existing = await repository.getDocument(document.id);
+        // Sólo reanudar la fila vacía creada por este seed tras un fallo.
+        // Un documento guardado, importado o creado por otra persona se conserva.
+        const provisional =
+          existing.name === SEED_DOCUMENT_NAME &&
+          existing.projectId === project.id &&
+          existing.created_by === SEED_ACTOR &&
+          existing.model === 'AXOS-CAD-STUDIO' &&
+          existing.revision === 'UNIVERSAL' &&
+          existing.cadDocumentVersion === 0 &&
+          existing.cadDocument === null &&
+          existing.dxfData === null &&
+          existing.layers === null;
+        if (!provisional) {
+          console.log(
+            `[seed] Documento: ${document.id} ya existía (versión CAS ${existing.cadDocumentVersion}); nada que hacer.`,
+          );
+          return;
+        }
       }
+      const saved = await repository.saveContent(document.id, {
+        document: content,
+        expectedVersion: 0,
+      });
+      console.log(
+        `[seed] Documento: ${document.id} guardado (versión CAS ${saved.cadDocumentVersion}, ${saved.entityCount} entidades).`,
+      );
     });
     console.log('✅ Seed demo completo.');
   } finally {
@@ -165,7 +227,9 @@ async function seed(): Promise<void> {
   }
 }
 
-seed().catch((err) => {
-  console.error('❌ Seed falló:', err);
-  process.exit(1);
-});
+if (require.main === module) {
+  void seed().catch((err) => {
+    console.error('❌ Seed falló:', err);
+    process.exit(1);
+  });
+}

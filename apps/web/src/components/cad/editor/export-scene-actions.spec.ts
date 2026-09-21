@@ -21,19 +21,50 @@ const ok = (condition: boolean, message: string) => {
 const orto = { type: "OrthographicCamera" } as unknown as THREE.Camera;
 const persp = { type: "PerspectiveCamera" } as unknown as THREE.Camera;
 
-ok(pickCadExportCamera(orto, persp) === orto, "con controlador montado manda su cámara (ortográfica en planta)");
-ok(pickCadExportCamera(persp, persp) === persp, "en volumen la activa ES la de perspectiva: no cambia nada");
-ok(pickCadExportCamera(undefined, persp) === persp, "sin controlador se cae a la cámara del editor");
-ok(pickCadExportCamera(null, null) === null, "sin ninguna cámara no se pinta nada (el llamador sale)");
-
-const acciones = readFileSync(new URL("./export-scene-actions.ts", import.meta.url), "utf8");
-const monolito = readFileSync(new URL("./Layout3DEditor.tsx", import.meta.url), "utf8");
 ok(
-  acciones.includes("pickCadExportCamera(viewControllerRef.current?.camera, cameraRef.current)"),
+  pickCadExportCamera(orto, persp) === orto,
+  "con controlador montado manda su cámara (ortográfica en planta)",
+);
+ok(
+  pickCadExportCamera(persp, persp) === persp,
+  "en volumen la activa ES la de perspectiva: no cambia nada",
+);
+ok(
+  pickCadExportCamera(undefined, persp) === persp,
+  "sin controlador se cae a la cámara del editor",
+);
+ok(
+  pickCadExportCamera(null, null) === null,
+  "sin ninguna cámara no se pinta nada (el llamador sale)",
+);
+
+const acciones = readFileSync(
+  new URL("./export-scene-actions.ts", import.meta.url),
+  "utf8",
+);
+const monolito = readFileSync(
+  new URL("./Layout3DEditor.tsx", import.meta.url),
+  "utf8",
+);
+ok(
+  acciones.includes(
+    "pickCadExportCamera(viewControllerRef.current?.camera, cameraRef.current)",
+  ),
   "exportPng pide la cámara al controlador de vista y sólo cae a la de perspectiva",
 );
-ok(!/cam = cameraRef\.current;/.test(acciones), "ya no hay un `cam = cameraRef.current` a secas en la exportación");
-ok(monolito.includes("      viewControllerRef,\n      ctxRef,"), "el monolito le pasa el controlador de vista al anfitrión de exportación");
-ok(monolito.includes("renderer.render(scene, activeCamera());"), "y el bucle de render usa la misma cámara activa: pantalla y PNG coinciden");
+ok(
+  !/cam = cameraRef\.current;/.test(acciones),
+  "ya no hay un `cam = cameraRef.current` a secas en la exportación",
+);
+ok(
+  /useCadExportActions\(\s*exportHost,\s*\{[^}]*\bviewControllerRef,\s*ctxRef,/.test(
+    monolito,
+  ),
+  "el monolito le pasa el controlador de vista al anfitrión de exportación",
+);
+ok(
+  monolito.includes("renderer.render(scene, activeCamera());"),
+  "y el bucle de render usa la misma cámara activa: pantalla y PNG coinciden",
+);
 
 console.log(`ok export-scene-actions: ${checks} comprobaciones`);

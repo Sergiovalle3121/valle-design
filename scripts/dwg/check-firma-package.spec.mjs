@@ -151,6 +151,22 @@ eq(
 );
 eq(reescribirBloques(original), original, "y el documento committeado ya está al día");
 
+// El checkout puede usar LF o CRLF sin alterar el contenido de la evidencia.
+// Ambos formatos deben validar, preservar bytes al regenerar y seguir
+// detectando una cifra modificada: normalizar saltos no relaja el gate.
+for (const salto of ["\n", "\r\n"]) {
+  const variante = original.replace(/\r?\n/g, salto);
+  eq(bloquesDelDocumento(variante).length, Object.keys(GENERADORES).length, "lee todos los bloques con LF/CRLF");
+  eq(revisarDocumento(variante), [], "la evidencia idéntica valida con LF/CRLF");
+  eq(reescribirBloques(variante), variante, "regenerar conserva exactamente los bytes LF/CRLF");
+  const adulterada = variante.replace("| `arc` |", "| `arco` |");
+  ok(revisarDocumento(adulterada).some((p) => p.includes("no coincide")), "LF/CRLF no oculta contenido adulterado");
+  const vacioLocal = vacio.replace(/\n/g, salto);
+  eq(bloquesDelDocumento(vacioLocal)[0].cuerpo, "", "el bloque vacío se reconoce también en CRLF");
+  const rellenado = reescribirBloques(vacioLocal);
+  ok(rellenado.includes(`-->${salto}|`), "rellenar conserva el salto local del bloque");
+}
+
 // Un bloque cuya clave nadie genera se deja intacto pero se DENUNCIA: si se
 // reescribiera en silencio, un bloque huérfano parecería verificado.
 const huerfano = "<!-- generado:inventado -->\ncosas\n<!-- /generado:inventado -->\n";
@@ -265,7 +281,7 @@ muerde(filaCambiada, "no coincide con lo que su evidencia dice HOY", "un bloque 
 
 // (d) un bloque entero que desaparece
 const sinBloque = original.replace(
-  /<!-- generado:matriz-por-clase[\s\S]*?<!-- \/generado:matriz-por-clase -->\n/,
+  /<!-- generado:matriz-por-clase[\s\S]*?<!-- \/generado:matriz-por-clase -->\r?\n/,
   "",
 );
 ok(sinBloque !== original, "el bloque de la matriz existía");
