@@ -1,4 +1,10 @@
-# Encargo para Codex — VALLECAD: de «saturado» a CAD
+# Encargo para Codex — VALLECAD: de «saturado» a CAD (diagnóstico histórico)
+
+> Este encargo documenta el análisis anterior a la integración de la PR #224.
+> Las cifras, rutas de checkout, referencias de línea y propuestas que siguen
+> corresponden a los candidatos de aquella sesión. Se conserva como antecedente
+> de decisiones; no certifica el estado vigente de `main` ni sustituye los
+> cambios y pruebas posteriores registrados en las PR de integración.
 
 ## El problema de fondo
 
@@ -15,7 +21,7 @@ No rehagas, no re-propongas y no «mejores» nada de esto; parte de que ya está
 - La línea de comandos acoplada abajo de lado a lado, fila de 26 px (`CAD_SHELL_METRICS.commandRow`).
 - La barra de estado en UNA fila de 26 px (`CAD_SHELL_METRICS.statusRow = 26`, `shell/cad-shell-layout.ts:38`, fijado en `cad-shell-layout.spec.ts:20`).
 - La cinta enseña 16 comandos con rótulo a 1280, 19 a 1366 y 40 a 1908, y `planCadRibbonLayout` pliega paneles de derecha a izquierda.
-- La tarjeta del recorrido guiado y el auto-despliegue del panel de propiedades al designar.
+- La tarjeta del recorrido guiado y la eliminación del auto-despliegue del panel de propiedades al designar, descrita en el relevo de la misma sesión.
 
 Todas las líneas que se citan abajo son de ESTA rama (`D:\dev\vc-ola3`), no de `main`. `grep -c "" apps/web/src/components/cad/editor/Layout3DEditor.tsx` = **16.858** hoy.
 
