@@ -75,6 +75,10 @@ const DXF_TYPE: Record<CadNativeEntity["type"], string> = {
   // alojado. Aquí vale lo mismo que para el muro: la exportación plana lo
   // degrada a trazos, pero AutoLISP tiene que nombrar lo que la entidad ES.
   opening: "AEC_WALL_OPENING",
+  // No abre esquema. `SECTIONOBJECT` es el nombre DXF real del objeto
+  // SECTIONPLANE de AutoCAD (`AcDbSection`); el exportador todavía no lo
+  // escribe, pero AutoLISP tiene que nombrar lo que la entidad ES.
+  sectionplane: "SECTIONOBJECT",
 };
 
 export function dxfTypeOf(entity: CadNativeEntity): string {

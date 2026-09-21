@@ -13,7 +13,7 @@
  * Inspirados en `mechanical-symbols.ts` y `mechanical-annotate.ts`, que ya
  * resolvieron el patrón de «geometría suelta con marca».
  */
-import type { CadEntity } from "../../cad-document";
+import type { CadEntity, CadPoint2 } from "../../cad-document";
 import type { CadEntityCommand } from "../../entity-commands";
 import {
   CAD_ACCEPT_ENTITY_PICK,
@@ -25,6 +25,26 @@ import {
 } from "../command-types";
 
 const CENTER_LAYER = "CENTER";
+
+/**
+ * Punto de anclaje que CENTERLINE usa de un extremo: el centro de un círculo o
+ * arco, o el punto medio de una recta. Exportado porque
+ * `associative-center-mark.ts` necesita el MISMO cálculo para RECOMPONER el
+ * eje cuando el objetivo se mueve — dos fórmulas que decidieran el punto medio
+ * de formas distintas serían dos verdades sobre dónde está el eje.
+ */
+export function cadCenterlineAnchor(entity: CadEntity): CadPoint2 | null {
+  if (entity.type === "circle" || entity.type === "arc") return { x: entity.center.x, y: entity.center.y };
+  if (entity.type === "line")
+    return { x: (entity.start.x + entity.end.x) / 2, y: (entity.start.y + entity.end.y) / 2 };
+  return null;
+}
+
+/** Metadatos propios de CENTERMARK/CENTERLINE, además de `mechanical` y `centerTarget`. */
+export const CAD_CENTER_OVERSHOOT_METADATA = "centerOvershoot";
+export const CAD_CENTER_TARGET_2_METADATA = "centerTarget2";
+/** CENTERLINE fija su sobresaliente; ver `cadCenterlineEntities`. Regeneración y creación comparten el número. */
+export const CAD_CENTERLINE_OVERSHOOT = 3;
 
 interface MarkState {
   pick: string | null;
@@ -94,7 +114,11 @@ function cadCenterMarkEntities(
     return [];
   }
   const ext = radius + overshoot;
-  const metadata = { mechanical: "centermark" as const, centerTarget: entity.id };
+  const metadata = {
+    mechanical: "centermark" as const,
+    centerTarget: entity.id,
+    [CAD_CENTER_OVERSHOOT_METADATA]: overshoot,
+  };
   return [
     // Línea horizontal
     {
@@ -206,23 +230,11 @@ function cadCenterlineEntities(
   layer: string,
   newId: () => string,
 ): CadEntityCommand[] {
-  let ax: number, ay: number, bx: number, by: number;
-  if (a.type === "circle" || a.type === "arc") {
-    ax = a.center.x; ay = a.center.y;
-  } else if (a.type === "line") {
-    ax = (a.start.x + a.end.x) / 2; ay = (a.start.y + a.end.y) / 2;
-  } else {
-    return [];
-  }
-  if (b.type === "circle" || b.type === "arc") {
-    bx = b.center.x; by = b.center.y;
-  } else if (b.type === "line") {
-    bx = (b.start.x + b.end.x) / 2; by = (b.start.y + b.end.y) / 2;
-  } else {
-    return [];
-  }
-  const dx = bx - ax;
-  const dy = by - ay;
+  const anchorA = cadCenterlineAnchor(a);
+  const anchorB = cadCenterlineAnchor(b);
+  if (!anchorA || !anchorB) return [];
+  const dx = anchorB.x - anchorA.x;
+  const dy = anchorB.y - anchorA.y;
   const len = Math.hypot(dx, dy);
   if (!(len > 1e-9)) return [];
   const ux = dx / len;
@@ -233,10 +245,17 @@ function cadCenterlineEntities(
       entity: {
         id: newId(),
         type: "line",
-        start: { x: ax - ux * overshoot, y: ay - uy * overshoot, z: 0 },
-        end: { x: bx + ux * overshoot, y: by + uy * overshoot, z: 0 },
+        start: { x: anchorA.x - ux * overshoot, y: anchorA.y - uy * overshoot, z: 0 },
+        end: { x: anchorB.x + ux * overshoot, y: anchorB.y + uy * overshoot, z: 0 },
         layer,
-        context: { metadata: { mechanical: "centerline" as const, centerTarget: a.id } },
+        context: {
+          metadata: {
+            mechanical: "centerline" as const,
+            centerTarget: a.id,
+            [CAD_CENTER_TARGET_2_METADATA]: b.id,
+            [CAD_CENTER_OVERSHOOT_METADATA]: overshoot,
+          },
+        },
       } as never,
     },
   ];
@@ -262,7 +281,7 @@ const centerLineCommand: CadCommandDescriptor<LineState> = {
       const b = context.entity?.(picks[1]);
       if (!a || !b)
         return { state: EMPTY_LINE, prompt: { message: "", options: [] }, accepts: 0, result: { kind: "message" as const, text: "CENTERLINE: una de las entidades ya no existe." } };
-      const commands = cadCenterlineEntities(a, b, 3, CENTER_LAYER, context.newEntityId);
+      const commands = cadCenterlineEntities(a, b, CAD_CENTERLINE_OVERSHOOT, CENTER_LAYER, context.newEntityId);
       return {
         state: EMPTY_LINE,
         prompt: { message: "", options: [] },

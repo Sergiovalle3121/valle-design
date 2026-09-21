@@ -83,6 +83,11 @@ const laytransCommand: CadCommandDescriptor<LaytransState> = {
           parts.push(`origen inexistente: ${plan.missingSourceLayers.join(", ")}`);
         if (plan.invalidDestinations.length)
           parts.push(`destino inválido: ${plan.invalidDestinations.map((entry) => entry.to).join(", ")}`);
+        // Lo que el mapa NUNCA nombró es otra causa de «no se tradujo», y
+        // distinta de las dos de arriba: sin esto, una capa que el usuario
+        // olvidó incluir quedaba muda en el informe.
+        if (plan.untouchedLayers.length)
+          parts.push(`sin mapear: ${plan.untouchedLayers.join(", ")}`);
         if (plan.commands.length === 0)
           return message(state, `${parts.join("; ")}. No se movió ninguna entidad.`);
         return {
@@ -92,7 +97,7 @@ const laytransCommand: CadCommandDescriptor<LaytransState> = {
           result: {
             kind: "document",
             commands: plan.commands,
-            label: `LAYTRANS (${serializeCadLayerTranslationMap({ entries: state.entries })})`,
+            label: `LAYTRANS (${serializeCadLayerTranslationMap({ entries: state.entries })}) — ${parts.slice(1).join("; ") || "todas las capas quedaron mapeadas"}`,
           },
         };
       }

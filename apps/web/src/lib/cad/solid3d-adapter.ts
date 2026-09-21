@@ -30,6 +30,7 @@
  */
 import type { CadPoint2, CadPoint3 } from "./cad-document";
 import type { CadSolidPlacement } from "./cad-entities-v5";
+import { newellNormal } from "../brep";
 import { cloneContext } from "./entity-context";
 import {
   boundsContained,
@@ -376,25 +377,41 @@ function regionPaths(entity: RegionEntity): CadRenderPath[] {
 const regionBounds = (entity: RegionEntity): CadBounds =>
   pointsBounds(regionRings(entity).flatMap(flat));
 
+/**
+ * Área de un anillo en SU PROPIO plano, sea cual sea su orientación.
+ *
+ * `entity.outer`/`inners` son `CadPoint3[]`: una región puede venir de un corte
+ * vertical (SECTIONPLANE por YZ/ZX o por dos puntos), no sólo de un contorno
+ * dibujado en XY. Proyectar a (x, y) descartando z —lo que hacía esta función
+ * antes— da el área real sólo cuando el anillo YA es paralelo a XY; para un
+ * anillo vertical los tres son (casi) colineales en XY y el resultado sale
+ * cerca de CERO aunque el anillo tenga área real. La fórmula de Newell
+ * (`newellNormal`) mide el área de un polígono plano en 3D sin necesitar su
+ * normal de antemano: su magnitud es el doble del área sea cual sea el plano,
+ * y para un anillo YA paralelo a XY se reduce exactamente al shoelace 2D de
+ * siempre (la componente x/y de Newell se cancela y sólo queda z) — así que
+ * ningún caso existente cambia de resultado.
+ */
+function ringArea3(points: readonly CadPoint3[]): number {
+  const normal = newellNormal(points);
+  return Math.hypot(normal.x, normal.y, normal.z) / 2;
+}
+
 /** Área NETA: exterior menos agujeros, en valor absoluto. */
 export function regionArea(entity: RegionEntity): number {
-  const outer = Math.abs(ringSignedArea(flat(entity.outer)));
-  const holes = (entity.inners ?? []).reduce(
-    (total, ring) => total + Math.abs(ringSignedArea(flat(ring))),
-    0,
-  );
+  const outer = ringArea3(entity.outer);
+  const holes = (entity.inners ?? []).reduce((total, ring) => total + ringArea3(ring), 0);
   return Math.max(0, outer - holes);
 }
 
-/** Perímetro de TODOS los contornos: el exterior y los agujeros. */
+/** Perímetro de TODOS los contornos: el exterior y los agujeros, en 3D. */
 export function regionPerimeter(entity: RegionEntity): number {
   let total = 0;
-  for (const ring of regionRings(entity)) {
-    const points = flat(ring);
+  for (const points of regionRings(entity)) {
     for (let index = 0; index < points.length; index += 1) {
       const a = points[index];
       const b = points[(index + 1) % points.length];
-      total += Math.hypot(b.x - a.x, b.y - a.y);
+      total += Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
     }
   }
   return total;

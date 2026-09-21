@@ -15,6 +15,7 @@
  */
 import { strict as assert } from "node:assert";
 import { eulerCounts, validateBody } from "../../../brep";
+import { loopSignedArea } from "../../../brep/topology";
 import {
   migrateCadDocument,
   parseCadDocument,
@@ -418,6 +419,34 @@ function rectangle(id: string, x: number, y: number, w: number, h: number, z = 0
   const region = regions[0];
   if (region.type !== "region") throw new Error("tipo");
   assert.equal(region.outer.length, 4, "la sección de un prisma recto es un rectángulo");
+
+  // LA MEDIDA, no sólo el recuento de vértices: el plano x=50 corta la pieza
+  // de 100×100×40 en un rectángulo de 100 (el fondo, en Y) por 40 (la altura,
+  // en Z) — 4.000 mm². «Salió una región de 4 vértices» pasaría igual con un
+  // rectángulo de cualquier otro tamaño; el área no.
+  const normal = { x: 1, y: 0, z: 0 };
+  const areaCorte = Math.abs(loopSignedArea(region.outer, normal));
+  near(areaCorte, 4_000, "el área de la sección x=50 del prisma es 100×40", 1e-6);
+
+  // Y el caso literal de la regla de aceptación: un cubo de 100 cortado por su
+  // PLANO MEDIO (z=50) da una sección de 100×100 = 10.000 mm². Se corta un
+  // cubo aparte —el prisma de arriba mide 40 de alto, no 100— con el plano
+  // coordenado XY, que es la otra forma de definir el plano que ya acepta
+  // SECTION.
+  let cuboDoc = documentWith([rectangle("cubo", 0, 0, 100, 100)]);
+  cuboDoc = apply("EXTRUDE", [select("cubo"), distance(100)], cuboDoc, ["cubo"]);
+  const cuboId = soleSolid(cuboDoc).id;
+  const cuboSectioned = apply(
+    "SECTION",
+    [select(cuboId), keyword("XY"), distance(50), ENTER],
+    cuboDoc,
+    [cuboId],
+  );
+  const cuboRegion = cuboSectioned.entities.find((entity) => entity.type === "region");
+  assert.ok(cuboRegion && cuboRegion.type === "region", "SECTION también corta por el plano coordenado XY");
+  if (!cuboRegion || cuboRegion.type !== "region") throw new Error("tipo");
+  const areaCubo = Math.abs(loopSignedArea(cuboRegion.outer, { x: 0, y: 0, z: 1 }));
+  near(areaCubo, 10_000, "la sección de un cubo de 100 por su plano medio es 100×100", 1e-6);
 
   // Un plano que no toca la pieza no inventa ninguna sección.
   assert.match(

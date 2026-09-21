@@ -473,6 +473,9 @@ export function expectedDxfType(entity: CadNativeEntity): string {
     // Esquema 7. Véase `from-entity.ts`: el nombre es el que la entidad tiene,
     // no el del trazo en que se degrada al exportar.
     opening: "AEC_WALL_OPENING",
+    // No abre esquema. Véase `from-entity.ts`: `SECTIONOBJECT` es el nombre
+    // DXF real del objeto SECTIONPLANE de AutoCAD.
+    sectionplane: "SECTIONOBJECT",
   };
   return names[entity.type];
 }

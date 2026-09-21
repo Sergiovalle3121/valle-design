@@ -192,6 +192,26 @@ export type CadSolidNode = { id: string } & (
        * Newell al reabrirlo. Ver `lib/cad/interop/README.md`.
        */
       source?: { format: "step" | "iges" | "obj" | "stl" | "gltf" | "collada"; name?: string };
+      /**
+       * Receta de SUAVIZADO de malla (MESHSMOOTH/MESHSMOOTHMORE/MESHSMOOTHLESS),
+       * ver `lib/cad/mesh/subdivision.ts`.
+       *
+       * `points`/`faces` de arriba son SIEMPRE la malla ya evaluada al nivel
+       * indicado — lo que ve el usuario. Esto es la receta que la reproduce:
+       * `base` es la malla de nivel 0 (antes de triangular ni suavizar nada) y
+       * `creases` sus pliegues, ambos en los índices de `base.points`. Subir o
+       * bajar el nivel no transforma `points`/`faces`: vuelve a llamar a
+       * `subdivideLoop(base, creases, nivel)` desde cero, así que dos visitas al
+       * mismo nivel dan bit a bit la misma malla. Sin este campo (mallas que no
+       * han pasado por la familia de suavizado: MESH, CONVTOMESH, MESHCAP…) el
+       * nivel es 0 e implícito: no hay nada que reproducir porque no hay receta,
+       * sólo la malla explícita de siempre.
+       */
+      meshSubdivision?: {
+        level: number;
+        base: { points: CadPoint3[]; faces: { outer: number[] }[] };
+        creases: { a: number; b: number }[];
+      };
     }
   | { op: "union"; operands: string[] }
   /** `operands[0]` menos todos los demás, en orden. */

@@ -27,7 +27,7 @@ export const CAD_RIBBON_PANEL_ORDER: Readonly<Record<CadRibbonTabId, readonly st
     "Grupos", "Utilidades", "Portapapeles",
   ],
   insertar: ["Referencias", "Importar y extraer", "Ubicación", "Normalizados", "Paletas"],
-  anotar: ["Texto y tablas", "Cotas", "Directrices", "Tolerancias", "Mecánica", "Estilos"],
+  anotar: ["Texto y tablas", "Cotas", "Directrices", "Escala de anotación", "Tolerancias", "Mecánica", "Estilos"],
   parametrico: ["Geométricas", "Dimensionales", "Gestionar"],
   vista: ["Encuadre y zoom", "Vistas 3D", "Estilos visuales", "SCU", "Ventanas", "Paletas", "Vistas"],
   solidos3d: ["Primitivas", "Sólido", "Booleanas", "Edición de sólidos", "Consulta 3D"],
@@ -85,7 +85,7 @@ export const CAD_RIBBON_COMMAND_ORDER: Readonly<Record<string, readonly string[]
   Primitivas: ["BOX", "CYLINDER", "SPHERE", "CONE", "WEDGE", "TORUS", "PYRAMID", "POLYSOLID"],
   Sólido: ["EXTRUDE", "PRESSPULL", "REVOLVE", "SWEEP", "LOFT"],
   Booleanas: ["UNION", "SUBTRACT", "INTERSECT", "INTERFERE"],
-  "Edición de sólidos": ["SLICE", "FILLETEDGE", "CHAMFEREDGE", "SOLIDEDIT", "SECTION", "3DALIGN", "MIRROR3D", "3DSCALE", "3DARRAY"],
+  "Edición de sólidos": ["SLICE", "FILLETEDGE", "CHAMFEREDGE", "SOLIDEDIT", "SECTION", "SECTIONPLANE", "3DALIGN", "MIRROR3D", "3DSCALE", "3DARRAY"],
   // Fase 2: superficies. SURFSCULPT, SURFUNTRIM y MESHCOLLAPSE no están: aún no
   // disponibles y sin botón (`engine/command-availability.ts`).
   Superficies: [
@@ -155,6 +155,7 @@ export const CAD_RIBBON_PRIMARY: Readonly<Record<string, readonly string[]>> = {
   Paletas: ["ADCENTER", "TOOLPALETTES"],
   // Anotar.
   "Texto y tablas": ["MTEXT", "TABLE"],
+  "Escala de anotación": ["ANNOSCALE"],
   Cotas: ["DIMLINEAR"],
   Directrices: ["MLEADER"],
   Tolerancias: ["TOLERANCE"],

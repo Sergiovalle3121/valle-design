@@ -263,8 +263,9 @@ async function recortarPinchando(
 ): Promise<number> {
   const prompt = page.getByTestId("cad-command-prompt");
   await teclear(page, "TRIM");
-  await expect(prompt).toContainText("bordes de corte");
-  await terminar(page);
+  // Modo rápido (AutoCAD 2021+): TRIM entra YA en la fase de designar el
+  // objeto, con todo lo visible como borde. La fase previa de bordes vive
+  // ahora tras la opción «Bordes», y este golden mide el clic, no esa fase.
   await expect(prompt).toContainText("recortar");
   await page.mouse.click(pixel.x, pixel.y);
   await terminar(page);
@@ -355,8 +356,9 @@ test("E — ¿qué se come el clic? Arrastrar en ese píxel DURANTE el TRIM", as
 
   const prompt = page.getByTestId("cad-command-prompt");
   await teclear(page, "TRIM");
-  await expect(prompt).toContainText("bordes de corte");
-  await terminar(page);
+  // Modo rápido (AutoCAD 2021+): TRIM entra YA en la fase de designar el
+  // objeto, con todo lo visible como borde. La fase previa de bordes vive
+  // ahora tras la opción «Bordes», y este golden mide el clic, no esa fase.
   await expect(prompt).toContainText("recortar");
 
   // En vez de un clic, un ARRASTRE de 60 px hacia abajo desde el mismo píxel.

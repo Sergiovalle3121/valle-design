@@ -158,8 +158,8 @@ assert.ok(
 );
 assert.equal(
   solidos3d?.commandCount,
-  23,
-  "los 23 comandos de sólidos están en su pestaña y en ninguna otra",
+  24,
+  "los 24 comandos de sólidos están en su pestaña y en ninguna otra",
 );
 
 // ── Botones grandes: uno o dos por panel, todos reales, sin claves muertas.

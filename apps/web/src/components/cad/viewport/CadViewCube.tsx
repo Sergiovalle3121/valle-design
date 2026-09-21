@@ -139,6 +139,17 @@ export function CadViewCube({
             aria-pressed={active === preset}
             onClick={() => onSelect(preset)}
             className={cx(
+              // 26×34 EXPLÍCITOS, no lo que dé el texto. Con `px-1.5 py-1`
+              // sobre `type-micro` el alto salía de la caja de la fuente, y
+              // eso lo decide el navegador: Chromium redondeaba a 20 px justos
+              // y Firefox se quedaba por debajo. El golden 215 —que busca un
+              // cuadrado de 20×20 donde TODO pertenezca a la cara— cantó la
+              // diferencia el 2026-09-20 midiendo «Iso». No era una manía del
+              // golden: 24×24 es el mínimo de zona pulsable de WCAG 2.2, y
+              // estos tres botones estaban por debajo para cualquiera que use
+              // el ratón con prisa. Se fija el tamaño y deja de depender de
+              // cómo mida la fuente cada motor.
+              "inline-flex min-h-[26px] min-w-[34px] items-center justify-center",
               "rounded-control border border-border/70 bg-surface/95 px-1.5 py-1 type-micro font-medium text-muted-foreground",
               "transition-colors duration-150 hover:bg-brand-strong hover:text-primary-foreground",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",

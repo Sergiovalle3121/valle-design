@@ -18,6 +18,7 @@ export function cadDocumentStats(doc: CadDocument): Record<CadEntity["type"], nu
     solid3d: 0, region: 0,
     wall: 0,
     opening: 0,
+    sectionplane: 0,
   } satisfies Record<CadEntity["type"], number>;
   for (const e of doc.entities) stats[e.type]++;
   return stats;

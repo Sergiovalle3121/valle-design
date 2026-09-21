@@ -77,6 +77,7 @@ export const CAD_ENTITY_TYPE_NAMES: Record<CadNativeEntityType, string> = {
   region: "Región",
   wall: "Muro",
   opening: "Vano",
+  sectionplane: "Plano de corte",
 };
 
 /** El nombre del tipo, o el propio tipo si algún día aparece uno sin traducir. */

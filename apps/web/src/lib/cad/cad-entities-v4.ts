@@ -207,6 +207,16 @@ export interface CadTableCell {
   row: number;
   column: number;
   text: string;
+  /**
+   * Fórmula de la celda (`=SUMA(A1:A5)`, `=PROMEDIO(B2:B9)`, `=A1+B2`…), si la
+   * tiene. `text` guarda entonces el VALOR ya calculado —lo que se imprime—,
+   * igual que `context.metadata.campo` en un MTEXT con `FIELD` (ver
+   * `fields/drawing-fields.ts`): dos lugares, uno para leer y otro para saber
+   * de dónde salió, sin duplicar la cifra. La resuelve y la recalcula
+   * `tables/table-formulas.ts`; `TABLEDIT` la guarda y dispara el recálculo de
+   * toda la tabla cuando cambia una celda de la que otras dependen.
+   */
+  formula?: string;
   /** Celdas fusionadas. Ausente = 1. */
   rowSpan?: number;
   columnSpan?: number;

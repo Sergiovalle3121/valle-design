@@ -222,6 +222,66 @@ const enter: CadCommandInput = { kind: "enter" };
   checks += 3;
 }
 
+// --- 6b. Atributo PREDEFINIDO: INSERT no pregunta, ATTEDIT sí puede cambiarlo
+//
+// El modo P de ATTDEF («predefinido»): toma su valor por defecto SIN
+// preguntarlo al insertar, pero no es CONSTANTE — ATTEDIT lo sigue ofreciendo.
+// Confundirlo con `constant` dejaría el atributo congelado para siempre;
+// confundir su ausencia con «se pregunta igual que uno normal» le pondría a
+// cada instalador la misma pregunta que un cajetín ya resuelve con su norma.
+{
+  const presetBlock: CadBlockDefinition = {
+    id: "block:puerta-ei",
+    name: "PUERTA-EI",
+    basePoint: { x: 0, y: 0, z: 0 },
+    entities: door,
+    attributes: {
+      ANCHO: { defaultValue: "800", prompt: "Ancho de paso" },
+      NORMA: { defaultValue: "EI2 30-C5", prompt: "Norma de resistencia al fuego", preset: true },
+    },
+  };
+  const context = makeContext({ blocks: [presetBlock] });
+  const result = run(
+    command("INSERT"),
+    [text("PUERTA-EI"), point(0, 0), enter, enter, enter, text("900")],
+    context,
+  ).result;
+  assert.ok(result && result.kind === "document", "INSERT termina tras UN solo atributo preguntado");
+  const [entry] = result.commands;
+  assert.ok(entry.type === "insert" && entry.entity.type === "insert");
+  ok(entry.entity.attributes?.ANCHO === "900", "ANCHO sí se preguntó, y ganó lo tecleado");
+  ok(
+    entry.entity.attributes?.NORMA === "EI2 30-C5",
+    "NORMA (predefinido) tomó su valor por defecto SIN que nadie lo tecleara",
+  );
+
+  // La misma inserción, por ATTEDIT: NORMA sigue en la lista y se puede cambiar
+  // — la prueba de que «predefinido» no es «constante».
+  const insert: CadEntity = {
+    id: "insert-ei",
+    type: "insert",
+    block: "block:puerta-ei",
+    insertion: { x: 0, y: 0, z: 0 },
+    scale: { x: 1, y: 1, z: 1 },
+    rotation: 0,
+    layer: "0",
+    attributes: { ANCHO: "900", NORMA: "EI2 30-C5" },
+  };
+  const editContext = makeContext({ entities: [insert], blocks: [presetBlock], selection: ["insert-ei"] });
+  const editDescriptor = command("ATTEDIT");
+  const firstPrompt = editDescriptor.begin(editContext);
+  ok(firstPrompt.prompt.defaultValue === "900", "ATTEDIT empieza por el primer atributo, ANCHO, con su valor actual");
+  const afterAncho = editDescriptor.step(firstPrompt.state as never, enter, editContext);
+  ok(afterAncho.prompt.message === "Norma de resistencia al fuego", "y SIGUE con NORMA: preset no la saca de ATTEDIT");
+  const edited = editDescriptor.step(afterAncho.state as never, text("EI2 60-C5"), editContext).result;
+  assert.ok(edited && edited.kind === "document");
+  ok(
+    edited.commands[0].type === "replace" && (edited.commands[0] as { entity: { attributes?: Record<string, string> } }).entity.attributes?.NORMA === "EI2 60-C5",
+    "y el valor predefinido SÍ cambia cuando alguien lo edita a propósito",
+  );
+  checks += 3;
+}
+
 // --- 7. ATTEDIT sobre la selección previa ------------------------------------
 {
   const insert: CadEntity = {

@@ -28,6 +28,7 @@ import {
   Scale,
   Scissors,
   Settings2,
+  Scaling,
   Shapes,
   ShieldCheck,
   SlidersHorizontal,
@@ -77,6 +78,7 @@ export const CAD_RIBBON_PANEL_ICONS: Readonly<Record<string, LucideIcon>> = {
   "Texto y tablas": Type,
   Cotas: Ruler,
   Directrices: CornerUpRight,
+  "Escala de anotación": Scaling,
   Tolerancias: Target,
   Estilos: Palette,
   // Paramétrico.

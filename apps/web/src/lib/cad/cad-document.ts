@@ -29,6 +29,8 @@ import type { CadSchema5Entity } from "./cad-entities-v5";
 import type { CadSchema6Entity } from "./cad-entities-v6";
 import type { CadSchema7Entity } from "./cad-entities-v7";
 import type { CadSchema10DimensionFields } from "./cad-entities-v10";
+import type { CadSectionPlaneEntity } from "./cad-entities-section-plane";
+import type { CadDimensionDayToDayFields } from "./cad-dimension-day-to-day-fields";
 import type { CadHatchImportedPattern } from "./cad-hatch-imported-pattern";
 
 // ---------------------------------------------------------------------------
@@ -102,6 +104,14 @@ export interface CadEntityPresentation {
   color?: { source: CadPropertySource; value?: string };
   linetype?: { source: CadPropertySource; value?: string; scale?: number };
   lineweight?: { source: CadPropertySource; value?: number };
+  /**
+   * Transparencia (CETRANSPARENCY): 0 opaco, 100 invisible. Igual que color y
+   * grosor, `byLayer`/`byBlock` no llevan `value` —lo heredan— y `explicit` sí.
+   * Se añade aquí, y no como número suelto en la entidad, porque MATCHPROP ya
+   * copia color/tipo de línea/grosor por esta misma puerta y una transparencia
+   * que viviera en otro sitio necesitaría su propio camino de copiado.
+   */
+  transparency?: { source: CadPropertySource; value?: number };
 }
 
 export interface CadEntityMetadata {
@@ -203,7 +213,7 @@ export type CadEntity =
       }>;
       associationStatus?: "associated" | "broken" | "detached";
       context?: CadEntityContext;
-    } & CadSchema10DimensionFields)
+    } & CadSchema10DimensionFields & CadDimensionDayToDayFields)
   | {
       id: string;
       type: "connector";
@@ -392,7 +402,14 @@ export type CadEntity =
    * persiste coordenadas de mundo: guarda su anfitrión y su distancia sobre el
    * eje. Vive en `cad-entities-v7.ts`.
    */
-  | CadSchema7Entity;
+  | CadSchema7Entity
+  /**
+   * SECTIONPLANE: el plano de corte persistido como objeto, no como un gesto
+   * efímero de una orden. No abre esquema —ningún documento viejo necesita
+   * ponerse al día para que exista uno con cero—. Vive en
+   * `cad-entities-section-plane.ts`.
+   */
+  | CadSectionPlaneEntity;
 
 export interface CadLayerDef {
   id: string;
@@ -457,6 +474,13 @@ export interface CadBlockDefinition {
     style?: string;
     invisible?: boolean;
     constant?: boolean;
+    /**
+     * PREDEFINIDO (el modo `preset` de ATTDEF): toma su valor por defecto SIN
+     * preguntarlo al insertar, pero —a diferencia de `constant`— sigue siendo
+     * editable después con ATTEDIT/EATTEDIT. `cadBlockAttributePrompts` es
+     * quien decide, según quién pregunte, si este atributo entra en la lista.
+     */
+    preset?: boolean;
   }>;
   description?: string;
   keywords?: string[];
@@ -664,6 +688,9 @@ export { CAD_SCHEMA_6_ENTITY_TYPES } from "./cad-entities-v6";
 /** Y el del esquema 7: el hueco alojado en un muro. */
 export type { CadOpeningEntity, CadOpeningKind, CadSchema7Entity } from "./cad-entities-v7";
 export { CAD_SCHEMA_7_ENTITY_TYPES } from "./cad-entities-v7";
+
+/** Y el plano de corte persistido: no abre esquema (ver el módulo). */
+export type { CadSectionPlaneEntity } from "./cad-entities-section-plane";
 
 // ---------------------------------------------------------------------------
 // Versionado + serialización determinista

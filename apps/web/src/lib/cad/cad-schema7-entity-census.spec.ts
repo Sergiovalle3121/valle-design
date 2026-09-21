@@ -24,7 +24,7 @@
  *
  * ## Qué se afirma, exactamente
  *
- * 1. El censo cubre los 27 tipos y ninguna muestra miente sobre su `type`.
+ * 1. El censo cubre los 28 tipos y ninguna muestra miente sobre su `type`.
  * 2. Serializar y volver a abrir devuelve el MISMO recuento por tipo. No «el
  *    mismo total»: el mismo recuento POR TIPO, porque un total que cuadra
  *    puede esconder un tipo perdido y otro duplicado.
@@ -80,13 +80,17 @@ const MUESTRAS = {
   wall: { id: "e-wall", type: "wall", start: P(0, 0), end: P(4000, 0), thickness: 150, height: 2600, layer: "0" },
   // Esquema 7: el alojado. Se declara DESPUÉS del muro porque sin él no existe.
   opening: { id: "e-opening", type: "opening", kind: "door", hostId: "e-wall", position: 2000, width: 900, height: 2100, sill: 0, swing: "left", hinge: "start", layer: "0" },
+  // No abre esquema (ola 5, «del modelo a los planos»): el plano de corte
+  // persistido. Cuatro esquinas, no {origen, normal} — ver
+  // `cad-entities-section-plane.ts`.
+  sectionplane: { id: "e-sectionplane", type: "sectionplane", corners: [P(0, 0), P(10, 0), P(10, 10), P(0, 10)], layer: "0" },
 } satisfies Record<CadEntity["type"], CadEntity>;
 
 const TIPOS = Object.keys(MUESTRAS) as CadEntity["type"][];
 
 // --- 1. el censo cubre lo que dice cubrir -----------------------------------
 {
-  assert.equal(TIPOS.length, 27, "el censo debe cubrir los 27 tipos del esquema 7");
+  assert.equal(TIPOS.length, 28, "el censo debe cubrir los 28 tipos vigentes");
   for (const tipo of TIPOS) {
     assert.equal(MUESTRAS[tipo].type, tipo, `la muestra de ${tipo} declara otro type`);
   }
@@ -131,7 +135,7 @@ function documento(entities: CadEntity[], schema = CAD_DOCUMENT_SCHEMA): CadDocu
     assert.equal(antes[tipo], 1, `el documento de partida debía tener 1 ${tipo}`);
     assert.equal(despues[tipo], 1, `se perdió el tipo ${tipo} al abrir`);
   }
-  assert.equal(abierto.entities.length, 27, "el total también debe cuadrar");
+  assert.equal(abierto.entities.length, 28, "el total también debe cuadrar");
 
   // Identidad y capa: sobrevivir no es sólo «queda una entidad de ese tipo».
   assert.deepEqual(
@@ -147,9 +151,10 @@ function documento(entities: CadEntity[], schema = CAD_DOCUMENT_SCHEMA): CadDocu
 
 // --- 4. un documento del esquema 6 sigue abriendo ----------------------------
 {
-  // Un v6 real NO puede tener huecos: en el 6 el tipo no existía. Se guarda
-  // exactamente lo que un usuario tendría guardado antes de esta ola.
-  const tiposV6 = TIPOS.filter((t) => t !== "opening");
+  // Un v6 real NO puede tener huecos NI planos de corte: ninguno de los dos
+  // existía antes de sus olas respectivas. Se guarda exactamente lo que un
+  // usuario tendría guardado entonces.
+  const tiposV6 = TIPOS.filter((t) => t !== "opening" && t !== "sectionplane");
   const v6EnDisco = crudo(
     tiposV6.map((t) => MUESTRAS[t] as CadEntity),
     6,
@@ -165,6 +170,11 @@ function documento(entities: CadEntity[], schema = CAD_DOCUMENT_SCHEMA): CadDocu
     stats.opening,
     0,
     "la migración NO puede inventar huecos: un v6 no tenía ninguno",
+  );
+  assert.equal(
+    stats.sectionplane,
+    0,
+    "ni planos de corte: tampoco existían",
   );
   assert.equal(migrado.entities.length, 26, "el v6 tenía 26 entidades y debe seguir teniéndolas");
 
@@ -194,4 +204,4 @@ function documento(entities: CadEntity[], schema = CAD_DOCUMENT_SCHEMA): CadDocu
   assert.equal(hueco.hinge, "start");
 }
 
-console.log(`OK censo de entidades: ${TIPOS.length}/27 tipos sobreviven a guardar→abrir; migración 6→7 conserva 26/26`);
+console.log(`OK censo de entidades: ${TIPOS.length}/28 tipos sobreviven a guardar→abrir; migración 6→7 conserva 26/26`);

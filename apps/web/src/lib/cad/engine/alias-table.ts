@@ -286,6 +286,12 @@ export const CAD_COMMAND_ALIASES: Readonly<Record<string, string>> = {
   "3DP": "3DPAN",
   "3DZ": "3DZOOM",
   VP: "VPOINT",
+
+  // --- ayudas al dibujo (T-Ola3, F1) -----------------------------------------
+  // `SN` es el alias de acad.pgp de SNAP. El descriptor ya lo declaraba —igual
+  // que `3DZ` o `DX` antes— y el pipeline de entrada resuelve por ESTA tabla:
+  // sin la entrada de aquí, tecleado no llegaba a ninguna parte.
+  SN: "SNAP",
 };
 
 /**

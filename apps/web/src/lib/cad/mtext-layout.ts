@@ -1,6 +1,6 @@
 import type { CadEntity, CadPoint2 } from './cad-document';
 import { cadHersheyTextWidth } from './fonts/hershey-fonts';
-import { cadMTextPlainText } from './mtext-codes';
+import { cadMTextHasCodes, cadMTextPlainText, parseCadMText, type CadMTextParagraphIndent } from './mtext-codes';
 import {
   CAD_MTEXT_SCREEN_FONT_OPTIONS,
   resolveCadMTextFont,
@@ -100,9 +100,15 @@ export function measureCadMText(
   return value;
 }
 
+/**
+ * `widthFor(lineIndex)` en vez de un ancho fijo: una sangría francesa (viñeta,
+ * lista numerada) da a la primera línea del párrafo un ancho distinto del de
+ * las siguientes, y esta función no sabe de párrafos, sólo de líneas — quien
+ * llama decide qué ancho le toca a cada una.
+ */
 function wrapParagraph(
   paragraph: string,
-  width: number,
+  widthFor: (lineIndex: number) => number,
   fontSize: number,
   entity: CadMTextEntity,
 ): string[] {
@@ -116,17 +122,20 @@ function wrapParagraph(
   const lines: string[] = [];
   let current = '';
   for (const word of words) {
+    const width = widthFor(lines.length);
     const candidate = current + word;
     if (!current || measureCadMText(candidate, fontSize, entity) <= width) {
       current = candidate;
       continue;
     }
     lines.push(current.trimEnd());
-    if (measureCadMText(word, fontSize, entity) <= width) current = word.trimStart();
+    const nextWidth = widthFor(lines.length);
+    if (measureCadMText(word, fontSize, entity) <= nextWidth) current = word.trimStart();
     else {
       let chunk = '';
       for (const character of word) {
-        if (chunk && measureCadMText(chunk + character, fontSize, entity) > width) {
+        const chunkWidth = widthFor(lines.length);
+        if (chunk && measureCadMText(chunk + character, fontSize, entity) > chunkWidth) {
           lines.push(chunk);
           chunk = character;
         } else chunk += character;
@@ -143,6 +152,22 @@ function rotate(point: CadPoint2, degrees: number): CadPoint2 {
   const cos = Math.cos(radians);
   const sin = Math.sin(radians);
   return { x: point.x * cos - point.y * sin, y: point.x * sin + point.y * cos };
+}
+
+/**
+ * La sangría (`\pxi…,l…;`) de cada párrafo del texto, un elemento por
+ * párrafo, en el mismo orden que `cadMTextPlainText(source).split('\n')`.
+ *
+ * Ausente (`{first:0,left:0}`) es el caso normal —un párrafo sin sangría— y es
+ * el camino rápido: sin códigos no hay nada que analizar, igual que
+ * `cadMTextPlainText`.
+ */
+function paragraphIndents(source: string): CadMTextParagraphIndent[] {
+  if (!cadMTextHasCodes(source)) return [];
+  return parseCadMText(source).map((paragraph) => {
+    const conSangria = paragraph.find((run) => run.paragraphIndent);
+    return conSangria?.paragraphIndent ?? { first: 0, left: 0 };
+  });
 }
 
 function attachmentOffset(alignment: NonNullable<CadMTextEntity['alignment']>, width: number, height: number): CadPoint2 {
@@ -173,13 +198,35 @@ export function layoutCadMText(entity: CadMTextEntity): CadMTextLayout {
   // La estructura por tramos ya está en `parseCadMText` —con sus factores
   // resueltos— y consumirla exige que el render sepa dibujar tramos, que es
   // trabajo del pipeline de render y no de esta maqueta de líneas.
+  //
+  // La SANGRÍA (`paragraphIndent`, más abajo) es la excepción: es geometría de
+  // LÍNEA —dónde empieza cada una—, no de tramo, así que esta maqueta sí la
+  // consume: es exactamente lo que hace falta para que una viñeta o una lista
+  // numerada (`mtext-codes.ts`) sangren de verdad y no sólo dejen de verse el
+  // código, ver `mtext-lists.spec.ts`.
   // `mtext-rich-format.spec.ts` fija exactamente esta frontera para que la
   // diferencia entre «se lee» y «se dibuja» no se pueda confundir.
   const rawText = cadMTextPlainText(entity.text);
-  const wrapped = rawText.split('\n').flatMap((paragraph) => {
-    const paragraphLines = wrapParagraph(paragraph, columnWidth, fontSize, entity);
+  // Sangría de cada párrafo (`\pxi…,l…;`), alineada uno a uno con
+  // `rawText.split('\n')`: son la MISMA fuente —`parseCadMText`— así que el
+  // párrafo N de un lado es el párrafo N del otro.
+  const indents = paragraphIndents(entity.text);
+  const wrapped = rawText.split('\n').flatMap((paragraph, paragraphIndex) => {
+    const indent = indents[paragraphIndex] ?? { first: 0, left: 0 };
+    // Sin `clamp` una sangría mayor que la caja dejaría un ancho negativo o
+    // nulo y `wrapParagraph` entraría en un bucle de líneas de un carácter.
+    const clamp = (value: number) => Math.max(0, Math.min(value, Math.max(0, columnWidth - fontSize)));
+    const firstOffset = clamp(indent.left + indent.first);
+    const hangingOffset = clamp(indent.left);
+    const paragraphLines = wrapParagraph(
+      paragraph,
+      (lineIndex) => columnWidth - (lineIndex === 0 ? firstOffset : hangingOffset),
+      fontSize,
+      entity,
+    );
     return paragraphLines.map((text, index) => ({
       text,
+      offsetX: index === 0 ? firstOffset : hangingOffset,
       justify: (entity.paragraphAlignment ?? 'left') === 'justify' && index < paragraphLines.length - 1,
     }));
   });
@@ -192,20 +239,25 @@ export function layoutCadMText(entity: CadMTextEntity): CadMTextLayout {
   const offset = attachmentOffset(alignment, width, height);
   const paragraphAlignment = entity.paragraphAlignment ?? 'left';
   const lines = wrapped.map((wrappedLine, index): CadMTextLine => {
-    const { text, justify } = wrappedLine;
+    const { text, justify, offsetX } = wrappedLine;
     const column = Math.min(columns - 1, Math.floor(index / rowsPerColumn));
     const row = index % rowsPerColumn;
     const measured = measureCadMText(text, fontSize, entity);
+    // El centro/derecha de una línea sangrada se reparte sobre el ancho que le
+    // QUEDA tras la sangría, no sobre `columnWidth` entero — si no, un párrafo
+    // centrado con viñeta se centraría respecto de una anchura que la viñeta
+    // ya no tiene disponible.
+    const available = Math.max(fontSize, columnWidth - offsetX);
     const alignOffset = paragraphAlignment === 'center'
-      ? (columnWidth - measured) / 2
+      ? (available - measured) / 2
       : paragraphAlignment === 'right'
-        ? columnWidth - measured
+        ? available - measured
         : 0;
     return {
       text,
-      x: offset.x + column * (columnWidth + gap) + Math.max(0, alignOffset),
+      x: offset.x + column * (columnWidth + gap) + offsetX + Math.max(0, alignOffset),
       y: offset.y - fontSize - row * lineHeight,
-      width: justify ? columnWidth : measured,
+      width: justify ? available : measured,
       column,
       justify,
     };

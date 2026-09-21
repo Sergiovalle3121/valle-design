@@ -102,6 +102,7 @@ const pick = (entityId: string, x: number, y: number): CadCommandInput => ({
 });
 const keyword = (value: string): CadCommandInput => ({ kind: "keyword", keyword: value });
 const text = (value: string): CadCommandInput => ({ kind: "text", value });
+const angle = (degrees: number): CadCommandInput => ({ kind: "angle", degrees });
 const enter: CadCommandInput = { kind: "enter" };
 
 /** Una cota lineal ya puesta sobre el tramo 0 → 1.000, a 400 de altura. */
@@ -302,17 +303,36 @@ const scene = (): CadDocument =>
   const nothing = run("DIMEDIT", [keyword("Inicio"), pick("d1", 500, 400), enter], doc);
   eq(nothing?.kind, "message", "no se ensucia la historia con un paso de deshacer vacío");
 
-  // Y lo que NO se puede hacer, se dice.
-  const rotate = run("DIMEDIT", [keyword("Girar")], doc);
-  eq(rotate?.kind, "message", "«Girar» se rechaza");
-  ok(
-    rotate?.kind === "message" && rotate.text.includes("esquema canónico"),
-    "explicando que el esquema no guarda ese ángulo, en vez de fingir que se aplicó",
-  );
+  // «Girar»: rota el RÓTULO un ángulo absoluto — se comprueba en la geometría
+  // de verdad, no sólo en el patch que emite el comando.
+  const rotated = commandsOf(run("DIMEDIT", [keyword("Girar"), angle(30), pick("d1", 500, 400), enter], doc));
+  eq(rotated.length, 1, "un comando");
+  eq(rotated[0].type, "replace", "el ángulo de texto no está en el whitelist de `properties.write`");
+  const rotatedDoc = executeCadEntityCommandBatch(doc, rotated, "DIMEDIT").document;
+  const rotatedDim = rotatedDoc.entities.find((entity) => entity.id === "d1") as CadDimensionEntity;
+  close(buildCadDimensionGeometry(rotatedDim)!.textAngle, 30, "el ángulo LEÍDO por el render es el que se pidió");
+
+  // «Oblicuo»: inclina las líneas de EXTENSIÓN a un ángulo absoluto — se mide
+  // el ángulo real del segmento de extensión resultante, no un campo suelto.
+  const obliqued = commandsOf(run("DIMEDIT", [keyword("Oblicuo"), angle(60), pick("d1", 500, 400), enter], doc));
+  const obliquedDoc = executeCadEntityCommandBatch(doc, obliqued, "DIMEDIT").document;
+  const obliquedDim = obliquedDoc.entities.find((entity) => entity.id === "d1") as CadDimensionEntity;
+  const extension = buildCadDimensionGeometry(obliquedDim)!.paths.find((path) => path.role === "extension")!;
+  const [extA, extB] = extension.points;
+  const lineAngle = (((Math.atan2(extB.y - extA.y, extB.x - extA.x) * 180) / Math.PI) % 180 + 180) % 180;
+  close(lineAngle, 60, "la línea de extensión queda EXACTAMENTE a 60° del eje X, no a la perpendicular por defecto");
+
+  // Sin ángulo oblicuo, la extensión sigue siendo la perpendicular de siempre
+  // (90° del tramo horizontal medido) — el campo es opcional-ausente de verdad.
+  const defaultExtension = buildCadDimensionGeometry(doc.entities.find((e) => e.id === "d1") as CadDimensionEntity)!
+    .paths.find((path) => path.role === "extension")!;
+  const [defA, defB] = defaultExtension.points;
+  const defaultAngle = (((Math.atan2(defB.y - defA.y, defB.x - defA.x) * 180) / Math.PI) % 180 + 180) % 180;
+  close(defaultAngle, 90, "por defecto sigue perpendicular");
 }
 
 console.log(
   `annotate-dimension-chains: ${checks} comprobaciones · DIMCONTINUE conserva el desfase y ` +
     "DIMBASELINE lo escalona 360 por eslabón, ambas leen `context.session` y piden la base cuando no " +
-    "la hay; DIM elige el tipo por lo designado y DIMEDIT dice lo que no puede hacer",
+    "la hay; DIM elige el tipo por lo designado y DIMEDIT «Girar»/«Oblicuo» ya escriben ángulos reales",
 );

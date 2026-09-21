@@ -20,6 +20,7 @@ import type { CadSystemVariableValue } from "../system-variables";
 import type { CadPlotRequest } from "../plot/page-setup";
 import type { CadVisualStyleId } from "../view/visual-styles";
 import type { CadUcsPlanView } from "../ucs-view";
+import type { CadModelViewportLayoutId } from "../model-viewports";
 
 export type CadHostRequest =
   /** Abre el cuadro de configuración de página de una presentación. */
@@ -212,7 +213,19 @@ export type CadHostRequest =
       filename: string;
       mime: string;
       content: string;
-    };
+    }
+  /**
+   * `VPORTS` en espacio MODELO: divide el visor en varias ventanas, cada una
+   * con su propia cámara (`model-viewports.ts`).
+   *
+   * Va por aquí y no por el documento por lo mismo que `space`: es estado de
+   * SESIÓN —dos personas con el mismo plano abierto reparten su pantalla cada
+   * una a su manera—, y crear la geometría de las cámaras exige el visor 3D
+   * real, que el motor no tiene. El comando decide el REPARTO; el anfitrión
+   * construye cada ventana a partir de la cámara que tenga puesta ahora mismo
+   * (`createCadModelViewportSplit`) y las dibuja.
+   */
+  | { kind: "viewport-split"; layout: CadModelViewportLayoutId };
 // Aquí vivían diez clases de render, luces y materiales (`render-capture`,
 // `light-create`, `material-attach`…) que ningún anfitrión atendía. Se
 // retiraron con sus emisores: esos comandos dicen ahora que aún no están
