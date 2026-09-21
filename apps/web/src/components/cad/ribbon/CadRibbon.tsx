@@ -126,6 +126,7 @@ export function CadRibbon({
   className,
   quickAccess,
   trailing,
+  trailingFixed,
 }: {
   dispatch: (commandName: string) => void;
   readOnly?: boolean;
@@ -143,6 +144,12 @@ export function CadRibbon({
    */
   quickAccess?: ReactNode;
   trailing?: ReactNode;
+  /**
+   * La COLA FIJA: lo que no puede exigir un desplazamiento para llegar — el
+   * estado de aprobación, «Guardar» y «Cerrar el CAD». Se pinta al final, en
+   * un bloque que NO cede, detrás de la banda de iconos que sí lo hace.
+   */
+  trailingFixed?: ReactNode;
 }) {
   // DÓNDE VA EL CUERPO — ver `shell/ribbon-body-slot.ts`. Sin ranura montada
   // (una spec que renderiza `CadRibbon` aislado, por ejemplo) el cuerpo se
@@ -328,15 +335,51 @@ export function CadRibbon({
         // `[&_button]:py-1`: la fila de pestañas medía 34 px con el py-2 de
         // `size="sm"`; a 720 px de alto cada píxel de cinta se lo come el
         // lienzo (golden 19: lienzo 511 px con 520 de mínimo, medido).
-        className="min-w-0 flex-1 border-b-0 px-2 [&_button]:py-1"
+        //
+        // Y LA BARRA DE DESPLAZAMIENTO, OCULTA. `Tabs` lleva `overflow-x-auto`
+        // y con diez pestañas su contenido no cabe, así que Windows le pintaba
+        // una barra horizontal que suma 14,3 px de ALTO: medido el 2026-09-20
+        // en la vista previa, el botón mide 27,4 px y la fila 41,7 — dentro de
+        // un `appBar` de 32. Sobresalía 5,2 px por arriba y empujaba «Guardar»
+        // y «Cerrar el CAD» a `y = -0,3`, fuera del viewport (golden 215). La
+        // fila de fuera ya se oculta la suya con estas tres reglas; a ésta se
+        // le olvidó. Se desplaza igual, sin gastar alto ni pintar una franja
+        // gris encima del dibujo.
+        //
+        // Y UN SUELO DE 12 REM. Con `min-w-0` la fila de pestañas era el único
+        // elástico de la barra y absorbía TODO el recorte: medido el
+        // 2026-09-20 a 1280 px, se quedaba en 16 px de ancho pidiendo 730 —
+        // las diez pestañas aplastadas a nada mientras el bloque de la derecha
+        // se quedaba sus 1834 px enteros por ser `shrink-0`. Con suelo, las
+        // pestañas siempre se leen y quien cede es el bloque de iconos, que
+        // sabe desplazarse.
+        className="min-w-[12rem] flex-1 border-b-0 px-2 [&_button]:py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       />
       {trailing ? (
         // `border-l`: separa la cola de la fila de pestañas — antes las dos
         // sólo compartían un `gap-1.5`, sin ancla visual entre "pestañas" y
         // "el resto de controles" (sistema-visual, regla 1: barra ordenada
         // en grupos, no una masa).
-        <div className="flex shrink-0 items-center gap-1.5 border-l border-border pl-2">
+        //
+        // ESTE BLOQUE CEDE Y SE DESPLAZA, ya no es `shrink-0`. Medido el
+        // 2026-09-20 a 1280 px: pedía 1834 px —más ancho que la ventana
+        // entera— y al no ceder empujaba la barra a 2292 px de contenido en
+        // 1280 de hueco. Trece de sus cuarenta y cinco botones quedaban fuera
+        // de la pantalla, sin barra que avisara. Ahora cede lo que haga falta
+        // y desplaza dentro de sí (con su barra oculta, como la de fuera): la
+        // barra superior deja de desbordar la ventana. Que haya que
+        // desplazarse para llegar a un icono sigue siendo un problema, pero es
+        // el de vaciar esta cola —mudarla a la cinta y al riel—, no el de
+        // romper el ancho de la ventana.
+        <div className="flex min-w-0 shrink items-center gap-1.5 overflow-x-auto border-l border-border pl-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {trailing}
+        </div>
+      ) : null}
+      {trailingFixed ? (
+        // NO CEDE. Todo lo demás de esta fila se encoge o se desplaza cuando la
+        // ventana aprieta; esto no, porque es «Guardar» y «Cerrar el CAD».
+        <div className="flex shrink-0 items-center gap-1.5 border-l border-border pl-2">
+          {trailingFixed}
         </div>
       ) : null}
       <button

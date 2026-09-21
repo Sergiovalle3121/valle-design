@@ -14057,6 +14057,16 @@ export default function Layout3DEditor({
         >
           <HelpCircle className="w-4 h-4" />
         </T3Btn>
+    </>
+  );
+
+  // LA COLA FIJA: lo único que NO puede exigir un desplazamiento para llegar.
+  // Lo de arriba cede y se desplaza cuando la ventana aprieta; esto NO. Medido
+  // el 20-sep-2026 a 1280 px con todo en el mismo bloque: «Guardar» acababa en
+  // x = 2008 de una ventana de 1280 — el botón más importante del programa,
+  // fuera de la pantalla.
+  const trailingFixedContent = (
+    <>
         {approval && (
           <div
             className="inline-flex items-center gap-1.5 mr-1.5"
@@ -14098,7 +14108,12 @@ export default function Layout3DEditor({
           // persistida no emite escritura ni versión CAS nueva, y la cola de un
           // solo escritor serializa el clic con cualquier autosave en vuelo.
           disabled={drawingReadOnly}
-          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-sm font-medium bg-brand-strong text-primary-foreground disabled:opacity-50"
+          // `py-1` y no `py-1.5`: con 1.5 el botón medía EXACTAMENTE 32 px y la
+          // fila de 32 px lleva `border-b`, así que su interior son 31 — el
+          // botón se centraba en y = -0,5, medio píxel fuera de la ventana
+          // (golden 215). Con 28 px respira dentro de la barra en vez de tocar
+          // sus dos bordes.
+          className="inline-flex items-center gap-2 px-3.5 py-1 rounded-xl text-sm font-medium bg-brand-strong text-primary-foreground disabled:opacity-50"
         >
           {saving ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -14114,7 +14129,10 @@ export default function Layout3DEditor({
           aria-label="Cerrar editor"
           title="Cerrar editor"
         >
-          <X className="w-5 h-5" />
+          {/* 4 y no 5: con el icono a 20 px el botón medía 32 justos y se
+              salía medio píxel de la fila (mismo motivo que «Guardar»). A 16
+              queda del tamaño del resto de iconos de esta barra. */}
+          <X className="w-4 h-4" />
         </button>
         {demoBanner}
     </>
@@ -14136,6 +14154,7 @@ export default function Layout3DEditor({
       readOnly={drawingReadOnly}
       quickAccess={quickAccessContent}
       trailing={trailingContent}
+      trailingFixed={trailingFixedContent}
     />
   );
 
