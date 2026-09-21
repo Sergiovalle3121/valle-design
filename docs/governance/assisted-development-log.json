@@ -3999,6 +3999,46 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "RELEVO-HISTORICO-PR230-20260921",
+      "date": "2026-09-21",
+      "initiative": "Revisión administrativa de PR230 durante la integración autorizada de ramas: delimitar el relevo y encargo originales como diagnóstico histórico, corregir el límite local de pruebas y la contradicción sobre el panel de propiedades. Este registro corresponde sólo a esta revisión; no atribuye al asistente la redacción original de los documentos.",
+      "branch": "claude/relevo-sesion-web",
+      "assistants": [
+        "OpenAI Codex: lectura del diff, verificación de checks GitHub, anotación documental y preparación del registro administrativo"
+      ],
+      "authority": "El titular solicitó revisar e integrar las ramas y PR y reflejar el resultado en vallecad.com. Se mantienen las protecciones y se requiere CI elegible sobre el SHA candidato antes del merge.",
+      "firstPartyInputs": [
+        "PR230 head c5b7192838ea0b04fdf5a550bd9bf97f9451889d y sus dos documentos",
+        "AGENTS.md y docs/governance/repository-protection-baseline.json",
+        ".github/workflows/ci.yml y filtros de eventos push/pull_request",
+        "API GitHub: protección clásica, rulesets, check-runs y estado del PR",
+        "Verificación local previa de API, migraciones y suites PostgreSQL en entorno sintético aislado"
+      ],
+      "externalSources": [
+        {
+          "location": "https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks#checks-from-some-workflow-jobs-are-not-evaluated",
+          "terms": "Consulta documental pública; sin copiar código de implementación.",
+          "fact": "Los checks de workflow_dispatch no se evalúan para la protección del PR; un evento elegible como push o pull_request debe producir los checks requeridos."
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada ni portada.",
+      "derivedAreas": [
+        "docs/execution/RELEVO-20260921.md",
+        "docs/execution/ENCARGO-INTERFAZ-20260921.md",
+        "docs/governance/assisted-development-log.json"
+      ],
+      "fixtures": "Ninguna añadida por esta revisión documental.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Revisión solicitada por el titular en la sesión de integración. La adopción queda propuesta hasta integrar la PR con los checks requeridos del SHA exacto. El run manual 35561811418 fue evidencia técnica del head previo, pero no satisface la protección del PR. Los seis gates locales y el CI elegible del nuevo commit se registrarán con sus resultados efectivos, sin presentar pruebas pendientes como superadas."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }
