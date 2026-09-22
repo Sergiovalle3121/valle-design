@@ -349,9 +349,9 @@ export function CadRibbon({
         // CEDE, con un mínimo que conserva cerrar + logotipo (3,25 rem):
         // el título ya venía con `truncate`, pero este envoltorio era
         // `shrink-0`, así que nunca cedía de verdad. Medido en la CI (Linux)
-        // de la #224 el 2026-09-22 a 1280 px: la fila pedía 1292 px —doce de
-        // más que en Windows, por el trazado de la fuente— y el golden 215 la
-        // daba por desbordada. Con el título cediendo, «el título se trunca y
+        // de la #224 el 2026-09-22 a 1280 px: la fila pedía 1292 px —doce por
+        // encima de la ventana; en Windows la misma fila mide 1243, por el
+        // trazado de la fuente— y el golden 215 la daba por desbordada. Con el título cediendo, «el título se trunca y
         // los controles secundarios ceden el espacio» pasa de comentario a
         // comportamiento.
         <div className="flex min-w-[3.25rem] max-w-40 shrink items-center gap-1.5">

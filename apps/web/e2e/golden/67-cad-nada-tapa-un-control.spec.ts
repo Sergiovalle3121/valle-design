@@ -410,8 +410,9 @@ async function medirRecorrido(page: Page): Promise<MedidaRecorrido> {
  *
  * DESPLEGADA también se mide, no se estima. El 2026-09-22, a 1280×720 y con
  * la tarjeta flotante desplegada (320×230 px anclada abajo a la izquierda),
- * tapaba 66 122 px², el 10,0 % del lienzo; a 1366×768 el lienzo es mayor y la
- * tarjeta la misma, así que el porcentaje baja. El techo se pone en el 11 %:
+ * tapaba 66 122 px², el 10,0 % del lienzo; a 1366×768 la tarjeta crece como
+ * mucho hasta su `max-h-[32vh]` (246 px) y el lienzo crece más, así que el
+ * porcentaje baja (medido: pasa con el 11 %). El techo se pone en el 11 %:
  * un renglón más de texto cabe, la franja de ancho completo (13,4 %) no. Antes
  * de esta medición el techo desplegado estaba en el 20 % sin ninguna cifra
  * detrás (lo delató la revisión adversaria del candidato); un techo sólo baja.
