@@ -165,22 +165,41 @@ assert.equal(
 // ── Botones grandes: uno o dos por panel, todos reales, sin claves muertas.
 const allLabels = new Set(CAD_RIBBON_DATA.flatMap((tab) => tab.panels.map((panel) => panel.label)));
 for (const [label, names] of Object.entries(CAD_RIBBON_PRIMARY)) {
-  assert.ok(allLabels.has(label), `CAD_RIBBON_PRIMARY nombra el panel «${label}», que no existe en la cinta`);
+  // Una clave puede ir calificada por pestaña («administrar/Utilidades») cuando
+  // dos paneles comparten rótulo; entonces la pestaña y el panel deben existir.
+  const barra = label.indexOf("/");
+  if (barra > 0) {
+    const tab = CAD_RIBBON_DATA.find((entry) => entry.id === label.slice(0, barra));
+    assert.ok(
+      tab !== undefined && tab.panels.some((panel) => panel.label === label.slice(barra + 1)),
+      `CAD_RIBBON_PRIMARY nombra «${label}» y esa pestaña o ese panel no existen en la cinta`,
+    );
+  } else {
+    assert.ok(allLabels.has(label), `CAD_RIBBON_PRIMARY nombra el panel «${label}», que no existe en la cinta`);
+  }
   for (const name of names) {
     assert.ok(kindOf.has(name), `primario «${name}» (panel ${label}) no existe en el registro`);
     assert.ok(cadRibbonExposedNames().has(name), `primario «${name}» no tiene botón en la cinta`);
   }
 }
+// Ola 1 «cinta»: SÓLO estos tres paneles de Inicio se quedan sin botón grande,
+// a propósito y por escrito (ver el bloque de Inicio más abajo). Cualquier
+// otro panel conserva la cota inferior de siempre: uno o dos botones grandes.
+// Sin la lista explícita, un panel que perdiera su botón grande por error
+// pasaba en verde (revisión adversaria del candidato, 2026-09-21).
+const SIN_BOTON_GRANDE_EN_INICIO = new Set(["Grupos", "Utilidades", "Portapapeles"]);
 for (const tab of CAD_RIBBON_DATA) {
   for (const panel of tab.panels) {
     const primaries = panel.commands.filter((command) => command.primary);
-    // Ola 1 «cinta»: un panel puede quedarse SIN botón grande (Grupos,
-    // Utilidades, Portapapeles en Inicio) — sus comandos siguen expuestos,
-    // sólo bajan a botón pequeño. Lo que no puede pasar es que un panel
-    // declare TRES o más: eso era el problema de origen (14 en Inicio).
+    const sinBotonGrande = tab.id === "inicio" && SIN_BOTON_GRANDE_EN_INICIO.has(panel.label);
+    // Lo que no puede pasar es que un panel declare TRES o más: eso era el
+    // problema de origen (14 en Inicio). Ni que uno que debe tener botón
+    // grande se quede sin él.
     assert.ok(
-      primaries.length <= 2,
-      `${tab.id}/${panel.label} tiene ${primaries.length} botones grandes; como mucho dos`,
+      sinBotonGrande ? primaries.length === 0 : primaries.length >= 1 && primaries.length <= 2,
+      `${tab.id}/${panel.label} tiene ${primaries.length} botones grandes; ${
+        sinBotonGrande ? "es uno de los tres paneles de Inicio sin botón grande" : "deben ser uno o dos"
+      }`,
     );
   }
   for (const label of CAD_RIBBON_PANEL_COLLAPSE_ORDER[tab.id]) {

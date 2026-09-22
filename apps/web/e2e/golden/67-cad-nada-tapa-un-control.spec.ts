@@ -408,11 +408,19 @@ async function medirRecorrido(page: Page): Promise<MedidaRecorrido> {
  * esquina son 21 722 px², el 3,3 %. El techo se pone en el 4 %: deja margen
  * para una línea de texto más larga y no para volver a la franja.
  *
+ * DESPLEGADA también se mide, no se estima. El 2026-09-22, a 1280×720 y con
+ * la tarjeta flotante desplegada (320×230 px anclada abajo a la izquierda),
+ * tapaba 66 122 px², el 10,0 % del lienzo; a 1366×768 el lienzo es mayor y la
+ * tarjeta la misma, así que el porcentaje baja. El techo se pone en el 11 %:
+ * un renglón más de texto cabe, la franja de ancho completo (13,4 %) no. Antes
+ * de esta medición el techo desplegado estaba en el 20 % sin ninguna cifra
+ * detrás (lo delató la revisión adversaria del candidato); un techo sólo baja.
+ *
  * Lo demás sigue siendo CERO y no se toca: ni un píxel de la paleta, ni un
  * clic que atraviese la tarjeta, ni un control tapado. Eso es lo que protege a
  * quien usa el programa; el porcentaje sólo acota el estorbo visual.
  */
-const MAX_LIENZO_TAPADO = { plegado: 0.04, desplegado: 0.2 } as const;
+const MAX_LIENZO_TAPADO = { plegado: 0.04, desplegado: 0.11 } as const;
 
 async function afirmarQueNoTapa(
   page: Page,

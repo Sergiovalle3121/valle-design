@@ -4006,7 +4006,9 @@
       "initiative": "Candidato ValleCAD: integración de estudio, recorrido público, guardado por ID de capa, fidelidad DWG y aceptación real con PostgreSQL.",
       "branch": "claude/vallecad-candidato",
       "assistants": [
-        "OpenAI Codex: implementación, revisión adversaria y ejecución de pruebas; tres subagentes con archivos asignados para editor, interoperabilidad y operaciones."
+        "OpenAI Codex: implementación, revisión adversaria y ejecución de pruebas; tres subagentes con archivos asignados para editor, interoperabilidad y operaciones.",
+        "Claude Opus 5 y Claude Sonnet 5 (Anthropic, Claude Code), en los 46 commits heredados de la PR #224 (rama claude/ola1-estudio, 51160a52..08fb9f45: cinta, línea de comandos acoplada, armazón, barra de estado y goldens), todos con trailer Co-Authored-By.",
+        "Claude Fable 5.1 (Anthropic, Claude Code), integración final 2026-09-21/22 a partir del relevo de Codex: merge normal de origin/main d74703b9 (#210 y #230) sobre el candidato 11862a38 con resolución del único conflicto (este registro, unión por id sin descartar entradas); nueve gates locales sobre el SHA integrado; revisión adversaria del diff contra main (8 lentes, 2 refutadores por hallazgo, 78 agentes: 4 hallazgos confirmados, 31 refutados) y sus cuatro correcciones: este registro (que declaraba aiCoAuthorTrailers=false y sólo a Codex), el techo «desplegado» del golden 67 fijado al valor medido, la cota inferior de ribbon.spec.ts con lista explícita y el desplegable «Más» de la barra de estado portado fuera de la fila con overflow (golden 226 nuevo). Con trailer Co-Authored-By."
       ],
       "authority": "Encargo expreso de Sergio Valle: modificar y verificar el producto existente, revisar ramas y PR, integrar el trabajo válido y reflejarlo en vallecad.com. Autorización posterior explícita para ejecución autónoma, merge y publicación, con prioridad DWG; sin habilitar exportación DWG ni fabricar firmas o resultados humanos.",
       "firstPartyInputs": [
@@ -4014,7 +4016,8 @@
         "Corpus propietario separado valle-design-dwg-conformance; consumidor fijado a 0688fb9c395b9cac4169d1ee9c23a7370cc28cf3. No se modificaron admisiones, hashes, oráculos ni firmas.",
         "Pruebas de navegador del editor, auditorías excluidas, contratos canónicos y respuesta HTTP400 de la API al dibujar en una capa cuyo nombre difiere de su ID.",
         "Interfaz y JavaScript públicos de vallecad.com: importación DWG base/AC1018/moderna habilitada y wireframe3D deshabilitado; réplica local de esa configuración para verificar, sin cambiar la configuración de producción.",
-        "Diff working preexistente del usuario en D:/dev/valle-design: alias-table.ts y alias-table.spec.ts, hashes verificados antes/después de la copia. Se preservan checkout dueño y stash; se conserva la autoría original. Adaptación del integrador: nueve alias ya declarados que detectó la spec original y normalización LF."
+        "Diff working preexistente del usuario en D:/dev/valle-design: alias-table.ts y alias-table.spec.ts, hashes verificados antes/después de la copia. Se preservan checkout dueño y stash; se conserva la autoría original. Adaptación del integrador: nueve alias ya declarados que detectó la spec original y normalización LF.",
+        "origin/main d74703b9ee4b3d4f96a54f6deb0a7e7f0dbd4982 (#210 dependencias Dependabot con better-sqlite3 fijado en 12.11.1; #230 relevo documental) integrado por merge normal; la cabeza remota de PR224 08fb9f45 y main quedan como ancestros del SHA final. Las medidas del golden 67 y del golden 226 se tomaron en Chromium local sobre el candidato integrado."
       ],
       "externalSources": [
         "Autodesk DXF Reference: group code 999 is a comment, https://help.autodesk.com/cloudhelp/2018/ENU/AutoCAD-DXF/files/GUID-3F0380A5-1C15-464D-BC66-2C5F094BCFB9.htm",
@@ -4029,7 +4032,8 @@
         "Aceptación full-stack de dibujos sintéticos, documentación de restauración aislada y portabilidad CRLF del verificador de firma DWG.",
         "DXF: comentario de procedencia fuera de HEADER para conservar INSUNITS en lectores independientes; prueba con dxf-parser existente.",
         "Seed: UUID válido, identidad técnica sin credenciales ni concesión de acceso, fixture validada antes de escribir y reanudación limitada al documento demo vacío propio en CAS0.",
-        "Adopción del trabajo local de alias del usuario, preservando su origen; los alias se contrastan con registro, pipeline y motor existentes."
+        "Adopción del trabajo local de alias del usuario, preservando su origen; los alias se contrastan con registro, pipeline y motor existentes.",
+        "Correcciones de la revisión adversaria: apps/web/src/components/cad/studio/CadStatusBar.tsx (portal del desplegable «Más», sin cambiar testids ni ids), apps/web/e2e/golden/226-cad-status-mas-alcanzable.spec.ts (nuevo), apps/web/e2e/golden/67-cad-nada-tapa-un-control.spec.ts (techo desplegado medido, sólo baja), apps/web/src/lib/cad/ribbon.spec.ts (cota inferior explícita)."
       ],
       "fixtures": "Muestras sintéticas generadas mediante órdenes visibles para aceptación; corpus DWG admitido con origen y oráculo independientes. Ningún dibujo representa un proyecto aprobado para construcción.",
       "dependenciesAdded": [],
@@ -4037,9 +4041,9 @@
         "required": true,
         "status": "proposed",
         "adopter": "Sergio Valle Zárate",
-        "evidence": "Trabajo solicitado por el titular; las ejecuciones se registran separando PASS/FAIL/BLOCKED/NOT RUN. La autorización para merge no se presenta como aceptación visual humana, sesión con profesionales externos ni revisión jurídica externa. El candidato se integra únicamente con los gates requeridos sobre su SHA; resultados y límites en el informe de la campaña y artefactos de CI."
+        "evidence": "Trabajo solicitado por el titular; las ejecuciones se registran separando PASS/FAIL/BLOCKED/NOT RUN. La autorización para merge no se presenta como aceptación visual humana, sesión con profesionales externos ni revisión jurídica externa. El candidato se integra únicamente con los gates requeridos sobre su SHA; resultados y límites en el informe de la campaña y artefactos de CI. INTEGRACIÓN (Claude Fable 5.1): gates locales sobre 0de151a5 (merge con main, antes de las correcciones) en Windows/Node 22.18.0 con PostgreSQL 16 real en 127.0.0.1:55432: build, typecheck, lint, check:cad, check:dwg, API (jest --runInBand), web/SDK/laboratorio, test:pg y deploy/governance/contraste/superficie/SBOM/licencias, registrados por etapa con su log en work/candidate-final-gates.json; los nueve se repiten sobre el SHA final que incluye estas correcciones antes de publicarlo en la PR, y el veredicto lo dan los checks requeridos de la CI sobre ese SHA exacto. El squash a main se solicita con auto-merge protegido ligado al SHA; no se usó admin ni bypass."
       },
-      "aiCoAuthorTrailers": false,
+      "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
     },
     {

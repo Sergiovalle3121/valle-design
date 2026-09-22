@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type ReactNode, type RefObject } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
+import { createPortal } from "react-dom";
 import { Ellipsis, Pin, PinOff } from "lucide-react";
 import { cadHistoryDepthHint } from "./history-depth-hint";
 import { CadSpaceTabs, type CadSpaceTabsProps } from "./CadSpaceTabs";
@@ -188,6 +189,29 @@ function CadStatusDivider() {
   );
 }
 
+/**
+ * Dónde flota el desplegable «Más»: pegado por arriba al botón que lo abre y
+ * alineado a su borde derecho, en coordenadas de ventana.
+ *
+ * Flota en un portal a `<body>` y no dentro de la fila porque la fila lleva
+ * `overflow-x: auto` (una sola línea sin barra de desplazamiento) y en CSS eso
+ * arrastra `overflow-y: auto`: un panel que crece HACIA ARRIBA desde dentro de
+ * esa caja queda recortado por su borde superior — se veía una rendija y
+ * ningún «Fijar» recibía el clic (revisión adversaria del candidato,
+ * 2026-09-21; lo mide el golden 226). Mismo mecanismo que las listas
+ * flotantes de `CadCommandLine.tsx`: la raíz de esta ranura no declara
+ * `fixed` (regla de oro del armazón); lo declara el portal por `style`.
+ */
+function measureOverflowAnchor(trigger: HTMLButtonElement | null): CSSProperties | null {
+  if (!trigger || typeof window === "undefined") return null;
+  const rect = trigger.getBoundingClientRect();
+  return {
+    position: "fixed",
+    right: Math.max(0, window.innerWidth - rect.right),
+    bottom: window.innerHeight - rect.top + 4,
+  };
+}
+
 export function CadStatusBar({
   diagnostics,
   unit,
@@ -208,6 +232,14 @@ export function CadStatusBar({
   // profundidad, el indicador lo dice en vez de quedarse mudo en U1/R0.
   const historyHint = cadHistoryDepthHint(diagnostics.historyUndo, diagnostics.nativeEntityCount);
   const [overflowOpen, setOverflowOpen] = useState(false);
+  const overflowTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const [overflowAnchor, setOverflowAnchor] = useState<CSSProperties | null>(null);
+  useEffect(() => {
+    if (!overflowOpen) return;
+    const update = () => setOverflowAnchor(measureOverflowAnchor(overflowTriggerRef.current));
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, [overflowOpen]);
   // Punto 3 del comentario de cabecera: qué avisos de segundo orden fijó
   // esta persona fuera de «Más». `useState` perezoso: lee `localStorage` una
   // sola vez al montar. El guard de `window` es lo que permite construir este
@@ -588,19 +620,25 @@ export function CadStatusBar({
           // `CadCommandLine.tsx` para su lista de sugerencias: el ref sólo se
           // declara cuando el destino está montado.
           aria-controls={overflowOpen ? "cad-status-overflow" : undefined}
-          onClick={() => setOverflowOpen((open) => !open)}
+          ref={overflowTriggerRef}
+          onClick={() => {
+            setOverflowAnchor(measureOverflowAnchor(overflowTriggerRef.current));
+            setOverflowOpen((open) => !open);
+          }}
           className="inline-flex h-full items-center gap-0.5 rounded-sm px-1 text-muted-foreground hover:bg-muted hover:text-foreground"
         >
           <Ellipsis aria-hidden="true" className="h-3.5 w-3.5" />
           Más
         </button>
-        {overflowOpen && (
+        {overflowOpen && overflowAnchor && typeof document !== "undefined"
+          ? createPortal(
           <div
             id="cad-status-overflow"
             data-testid="cad-status-overflow"
             role="group"
             aria-label="Más información de estado"
-            className="absolute bottom-full right-0 z-10 mb-1 flex w-max max-w-xs flex-col gap-1 rounded-card border border-border bg-popover p-2 text-popover-foreground shadow-elevated"
+            style={overflowAnchor}
+            className="z-[80] flex w-max max-w-xs flex-col gap-1 rounded-card border border-border bg-popover p-2 type-micro text-popover-foreground shadow-elevated"
           >
             {unpinnedEntries.length === 0 ? (
               <span className="text-muted-foreground">
@@ -623,8 +661,10 @@ export function CadStatusBar({
                 </span>
               ))
             )}
-          </div>
-        )}
+          </div>,
+          document.body,
+        )
+          : null}
       </span>
       {/* La BANDEJA: el chrome del estudio que no es del dibujo (videollamada
           hoy) se posa aquí, en el extremo derecho, como la bandeja de la barra

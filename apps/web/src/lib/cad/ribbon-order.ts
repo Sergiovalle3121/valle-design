@@ -146,6 +146,13 @@ export const CAD_RIBBON_PRIMARY: Readonly<Record<string, readonly string[]>> = {
   Propiedades: ["PROPERTIES"],
   // Grupos, Utilidades y Portapapeles: sin botón grande — ver nota de la Ola 1
   // «cinta» arriba. Sus comandos siguen expuestos, como botones pequeños.
+  //
+  // Administrar > Utilidades comparte RÓTULO con Inicio > Utilidades, pero no
+  // su recorte: «Acerca» sigue siendo su botón grande, como antes de la Ola 1
+  // (quitar la clave «Utilidades» lo había dejado sin botón grande sin que
+  // nadie lo pidiera: lo delató la cota inferior de ribbon.spec.ts). La clave
+  // «pestaña/rótulo» gana a la clave por rótulo (`ribbonPrimariesFor`).
+  "administrar/Utilidades": ["ABOUT"],
 
   // Insertar.
   Referencias: ["XATTACH"],
