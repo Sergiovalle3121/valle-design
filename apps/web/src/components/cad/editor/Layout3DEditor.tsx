@@ -14063,7 +14063,7 @@ export default function Layout3DEditor({
   // fuera de la pantalla.
   const trailingFixedContent = (
     <>
-        {approval && (
+        {approval && !demoBanner && (
           <div
             className="inline-flex items-center gap-1.5 mr-1.5"
             title="Estado de aprobación del layout"

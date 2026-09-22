@@ -187,15 +187,29 @@ test("beta DWG_NATIVE_IMPORT: sube un .dwg real, el worker lo lee y el documento
       mimeType: "application/octet-stream",
       buffer: Buffer.from(SYNTHETIC_AC1015_LINE_CIRCLE_TEXT_BASE64, "base64"),
     });
-    // 3 entidades del perfil V1 (LINE, CIRCLE, TEXT) y los DOS bloques
-    // estructurales que `writeDwg` siempre emite (*Model_Space,
-    // *Paper_Space) aunque el fixture no declare ningún bloque de usuario:
-    // exactamente lo que el archivo trae, ni una entidad perdida en
-    // silencio ni una inventada.
+    // 3 entidades del perfil V1 (LINE, CIRCLE, TEXT) y CERO bloques: los dos
+    // contenedores que `writeDwg` siempre emite (*Model_Space, *Paper_Space)
+    // no son símbolos reutilizables sino los espacios del archivo, y desde el
+    // corte 2026-09-21 el puente no los cuenta como bloques importados
+    // (`mapBlocks` en dwg-document-bridge.ts: contarlos daba «éxito» con cero
+    // geometría). Exactamente lo que el archivo trae: ni una entidad perdida
+    // en silencio ni una inventada — y, como los contenedores no son una
+    // pérdida, tampoco puede aparecer ninguna advertencia de interoperabilidad.
     await expect(page.getByRole("status")).toHaveText(
-      "Importado: 3 entidades y 2 bloques.",
+      "Importado: 3 entidades y 0 bloques.",
       { timeout: 30_000 },
     );
+    // La ÚNICA advertencia es la unidad asumida (el fixture lleva INSUNITS=0):
+    // se declara siempre que se asume. Los contenedores del archivo no cuentan
+    // como bloques excluidos ni como pérdida: ni una advertencia habla de bloques.
+    const advertencias = page.locator("details", { hasText: "advertencias de interoperabilidad" });
+    await expect(advertencias.locator("summary")).toHaveText("1 advertencias de interoperabilidad");
+    await advertencias.locator("summary").click();
+    const filas = advertencias.locator("li");
+    await expect(filas).toHaveCount(1);
+    await expect(filas.first()).toContainText("INSUNITS=0");
+    await expect(filas.first()).toContainText("se asume en milímetros");
+    await expect(advertencias.locator("li", { hasText: /bloque/i })).toHaveCount(0);
   });
 
   await test.step("Abre el documento importado en el estudio", async () => {
