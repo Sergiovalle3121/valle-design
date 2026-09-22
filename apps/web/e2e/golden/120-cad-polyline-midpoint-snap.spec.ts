@@ -19,6 +19,7 @@ import { enter3DView } from "../fixtures/view-mode";
 import { worldPoint } from "../fixtures/world-point";
 import { fitFootprint, topView } from "../fixtures/camera-preset";
 import { startTool } from "../fixtures/tool-palette";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 const cadDocument = {
   meta: { version: 1, schema: 3, unit: "mm" },
@@ -64,6 +65,7 @@ test("MED, y sólo MED, sobre un tramo de POLYLINE anuncia «medio» en el HUD",
   await loginAsStandaloneOwner(context);
   await installCadBackend(context);
   await page.goto("/legacy/studio");
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId("cad-native-entity-list")).toBeVisible();
   await enter3DView(page);
   await topView(page);

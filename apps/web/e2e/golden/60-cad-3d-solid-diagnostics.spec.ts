@@ -3,6 +3,7 @@ import { installMockBackend } from "../fixtures/mock-backend";
 import { installCadStudioBackend } from "../fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import { worldPoint } from "../fixtures/world-point";
+import { abrirPanelDerecho } from "../fixtures/docks";
 import type { CadDocument } from "../../src/lib/cad/cad-document";
 import { fitFootprint } from "../fixtures/camera-preset";
 
@@ -59,6 +60,20 @@ async function settlePlanView(page: Page) {
   await fitFootprint(page);
 }
 
+/**
+ * Descarta el recorrido guiado si está flotando sobre el lienzo.
+ *
+ * El muelle IZQUIERDO (donde vive el recorrido) arranca plegado igual que el
+ * derecho — abrir el derecho (línea siguiente) no lo saca de su respaldo
+ * flotante. El eje del muro entra en (2000,2000), Y baja, justo la esquina
+ * donde cae esa tarjeta (mismo síntoma que el golden 58 documentó). `worldPoint`
+ * ya se defiende solo antes de cada muestreo; esto es la primera línea.
+ */
+async function skipGuidedTour(page: Page) {
+  const skip = page.getByTestId("cad-guided-tour-skip");
+  if (await skip.isVisible().catch(() => false)) await skip.click();
+}
+
 test("3D real: la malla del muro se cuenta, y el botón deja de mentir cuando la capa está congelada", async ({
   context,
   page,
@@ -69,6 +84,12 @@ test("3D real: la malla del muro se cuenta, y el botón deja de mentir cuando la
   await installCadBackend(context);
   await page.goto("/legacy/studio");
   await expect(page.getByTestId("cad-command-line")).toBeVisible();
+  await skipGuidedTour(page);
+  // Ola «armazón»: el muelle derecho arranca plegado a un riel de iconos; se
+  // abre ANTES de encuadrar para que `worldPoint` calibre contra el ancho de
+  // lienzo definitivo, ya que el botón heredado de la lista de entidades
+  // (línea 100) vive dentro de este muelle.
+  await abrirPanelDerecho(page);
   await settlePlanView(page);
 
   await type(page, "WA");

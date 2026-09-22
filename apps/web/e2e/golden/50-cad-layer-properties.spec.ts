@@ -14,6 +14,7 @@ import { installMockBackend } from "../fixtures/mock-backend";
 import { installCadStudioBackend } from "../fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import { saveAndSettle } from "../fixtures/cad-save";
+import { abrirPanelDerecho } from "../fixtures/docks";
 import type { CadDocument } from "../../src/lib/cad/cad-document";
 
 function canonicalDocument(): CadDocument {
@@ -120,6 +121,9 @@ test("el gestor de capas escribe tipo de línea, grosor y plot, filtra, y guarda
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto("/legacy/studio");
+  // Ola «armazón»: el muelle derecho arranca plegado a un riel de iconos; sin
+  // abrirlo la lista de entidades no existe en el DOM.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId("cad-native-entity-layer-base")).toBeVisible();
 
   const viewButton = page.getByTitle(/Vista, capas/);
@@ -200,6 +204,9 @@ test("el gestor de capas escribe tipo de línea, grosor y plot, filtra, y guarda
   expect(stored.layerStates?.map((state) => state.name)).toEqual(["Impresion"]);
 
   await page.reload();
+  // Idempotente: si la preferencia ya quedó abierta antes del reload no hace
+  // falta pulsar nada, pero si el storage no la conservó, la vuelve a abrir.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId("cad-native-entity-layer-base")).toBeVisible();
   await viewButton.click();
   await expect(page.getByTestId("cad-layer-linetype-STRUCTURE")).toHaveValue(
@@ -234,6 +241,9 @@ test("congelar una capa en un viewport no la apaga en el resto del dibujo", asyn
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto("/legacy/studio");
+  // Ola «armazón»: el muelle derecho arranca plegado a un riel de iconos; sin
+  // abrirlo la lista de entidades no existe en el DOM.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId("cad-native-entity-layer-base")).toBeVisible();
 
   // Hace falta una presentación con viewport activo: VP freeze es, por

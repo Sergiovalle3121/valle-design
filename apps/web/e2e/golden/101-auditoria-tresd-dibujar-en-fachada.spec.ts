@@ -128,6 +128,26 @@ function documentoCon(entities: CadEntity[]): CadDocument {
   } as unknown as CadDocument;
 }
 
+/**
+ * Descarta el recorrido guiado si está FLOTANDO sobre el lienzo.
+ *
+ * Ola «armazón»: el muelle izquierdo (donde vive el recorrido, item 5 del
+ * contrato) arranca PLEGADO, así que `cadTourSlot` no publica hueco y la
+ * tarjeta —«Primeros cinco minutos», nace `pending` en cada contexto nuevo de
+ * Playwright— cae a su respaldo flotante, anclado sobre el borde inferior del
+ * lienzo (`CadCommandLineDock.tsx`). El golden 58 ya lo documentó con el
+ * mismo síntoma: sin saltarlo, un clic cerca de ese borde —que es justo donde
+ * caen los puntos de este recorrido, todos con Y baja en el mundo— cae sobre
+ * la tarjeta y nunca sobre el lienzo. `worldPoint` (fixtures/world-point.ts)
+ * ya se defiende solo antes de cada muestreo, pero `centroDelLienzo` no
+ * pasaba por ahí: se llama aquí explícitamente, como lo haría cualquiera que
+ * cierra el aviso de bienvenida antes de tocar el plano.
+ */
+async function descartarRecorridoGuiado(page: Page) {
+  const saltar = page.getByTestId("cad-guided-tour-skip");
+  if (await saltar.isVisible().catch(() => false)) await saltar.click();
+}
+
 /** Camino de apertura confirmado (idéntico a los goldens 32, 61 y 66). */
 async function abrirEstudio(context: BrowserContext, page: Page, documento: CadDocument) {
   await installMockBackend(context);
@@ -140,8 +160,7 @@ async function abrirEstudio(context: BrowserContext, page: Page, documento: CadD
   });
   await page.goto("/legacy/studio");
   await expect(page.getByTestId("cad-canvas")).toBeVisible();
-  const saltar = page.getByTestId("cad-guided-tour-skip");
-  if (await saltar.count()) await saltar.click();
+  await descartarRecorridoGuiado(page);
   return backend;
 }
 
@@ -154,6 +173,11 @@ async function teclear(page: Page, texto: string) {
 
 /** El centro del lienzo: donde pincha cualquiera para tocar lo que está en medio. */
 async function centroDelLienzo(page: Page) {
+  // Red de seguridad idempotente: si el recorrido guiado apareció DESPUÉS de
+  // `abrirEstudio` (nace `pending`, no es instantáneo en todos los goldens que
+  // encadenan varios `test.step` antes del primer clic), sigue estando encima
+  // del lienzo cuando el muelle está plegado. Ver `descartarRecorridoGuiado`.
+  await descartarRecorridoGuiado(page);
   const caja = await page.getByTestId("cad-canvas").boundingBox();
   expect(caja, "el lienzo tiene caja").toBeTruthy();
   return { x: caja!.x + caja!.width / 2, y: caja!.y + caja!.height / 2 };

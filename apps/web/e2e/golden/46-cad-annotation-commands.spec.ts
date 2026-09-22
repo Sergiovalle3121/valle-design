@@ -5,6 +5,7 @@ import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import { buildCadDimensionGeometry } from '../../src/lib/cad/associative-dimension';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
+import { abrirPanelDerecho } from '../fixtures/docks';
 
 /**
  * OLA 4 — la anotación se puede TECLEAR, y la cota no miente.
@@ -103,6 +104,9 @@ test('DIMLINEAR, MTEXT y HATCH se teclean; la cota nace asociativa y cambia de v
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto('/legacy/studio');
+  // Ola «armazón»: el panel derecho arranca plegado a un riel de iconos; la
+  // lista de entidades sólo se MONTA con el panel abierto.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
 
   const prompt = page.getByTestId('cad-command-prompt');
@@ -187,6 +191,7 @@ test('DIMLINEAR, MTEXT y HATCH se teclean; la cota nace asociativa y cambia de v
   // Reabrir es la mitad de la prueba. Una asociatividad que sólo funciona
   // mientras la pestaña sigue abierta no es asociatividad: es una variable viva.
   await page.goto('/legacy/studio');
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
   await expect(page.getByTestId('cad-native-document-count')).toHaveText('Native 5');
 

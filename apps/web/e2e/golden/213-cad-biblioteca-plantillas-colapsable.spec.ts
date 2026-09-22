@@ -11,10 +11,14 @@ import type { CadDocument } from "../../src/lib/cad/cad-document";
  * «Mis bloques») medía 240 px fijos (`w-60`) y la única forma de recuperar
  * ese espacio era la casilla «Biblioteca / capas» de «Workspace profesional»
  * — enterrada en un panel de ajustes, y que además lo OCULTA entero en vez de
- * angostarlo. Este golden prueba el control que faltaba: un botón en la
- * propia cabecera del muelle que lo colapsa a un riel de 36 px (`w-9`) y lo
- * vuelve a abrir, con el ancho REAL medido en cada estado — y que la
- * preferencia sobrevive a un `reload`, como ya hacen las demás del workspace.
+ * angostarlo.
+ *
+ * Ola «armazón»: el control que faltaba ahora es EL RIEL (`cad-left-rail`,
+ * `CadDockRail`, 44 px) — y el DEFAULT se invirtió: el muelle arranca
+ * PLEGADO (`leftDockCollapsed: true`), como AutoCAD, no abierto. Este golden
+ * prueba lo mismo que antes al revés: abrir el riel recupera el panel de
+ * 280 px REAL, volver a pulsar el mismo icono lo pliega, y la preferencia
+ * sobrevive a un `reload`.
  */
 
 function seedDocument(): CadDocument {
@@ -59,43 +63,47 @@ test("el muelle de la biblioteca se colapsa a un riel y libera espacio real", as
   await openStudio(context, page);
 
   const muelle = page.getByTestId("cad-left-dock");
-  await expect(muelle).toBeVisible();
-  await expect(muelle).toHaveAttribute("data-collapsed", "false");
-  await expect(muelle.getByText("Plantillas CAD")).toBeVisible();
-
-  const anchoAbierto = (await muelle.boundingBox())!.width;
-  // w-60 = 15rem = 240px a 16px/rem; se admite el redondeo del navegador.
-  expect(anchoAbierto).toBeGreaterThan(200);
-
-  const toggle = page.getByTestId("cad-left-dock-toggle");
+  const riel = page.getByTestId("cad-left-rail");
+  const toggle = page.getByTestId("cad-rail-biblioteca");
+  await expect(riel).toBeVisible();
   await expect(toggle).toBeVisible();
-  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+
+  // Arranca PLEGADO de fábrica (ola «armazón»): el riel mide <50 px y la
+  // tarjeta no está en el DOM que se ve.
+  await expect(muelle).toHaveAttribute("data-collapsed", "true");
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  const anchoRiel = (await riel.boundingBox())!.width;
+  expect(anchoRiel).toBeLessThan(50);
+  const anchoColapsado = (await muelle.boundingBox())!.width;
+  expect(anchoColapsado).toBeLessThan(50);
+  await expect(muelle.getByText("Plantillas CAD")).toBeHidden();
 
   await toggle.click();
 
-  await expect(muelle).toHaveAttribute("data-collapsed", "true");
-  const anchoColapsado = (await muelle.boundingBox())!.width;
-  // w-9 = 2.25rem = 36px. El riel debe ser mucho más angosto que el panel
-  // abierto — y debe liberar de verdad el ancho, no sólo cambiar una clase.
-  expect(anchoColapsado).toBeLessThan(50);
+  await expect(muelle).toHaveAttribute("data-collapsed", "false");
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(muelle.getByText("Plantillas CAD")).toBeVisible();
+  const anchoAbierto = (await muelle.boundingBox())!.width;
+  // 280 px (`CAD_SHELL_METRICS.panel`); se admite el redondeo del navegador.
+  expect(anchoAbierto).toBeGreaterThan(200);
   expect(anchoAbierto - anchoColapsado).toBeGreaterThan(150);
-  await expect(muelle.getByText("Plantillas CAD")).toBeHidden();
-
-  const toggleColapsado = page.getByTestId("cad-left-dock-toggle");
-  await expect(toggleColapsado).toHaveAttribute("aria-expanded", "false");
+  // El riel SIGUE ahí, a su ancho propio — el panel se abre A SU LADO, no en
+  // su lugar (máximo un panel abierto por lado, pero el riel es permanente).
+  expect((await riel.boundingBox())!.width).toBeLessThan(50);
 
   /* ── La preferencia persiste: sobrevive a un reload, como `leftDock` ──── */
   await page.reload();
   await expect(page.getByTestId("cad-canvas")).toBeVisible({ timeout: 90_000 });
   const muelleTrasRecargar = page.getByTestId("cad-left-dock");
-  await expect(muelleTrasRecargar).toHaveAttribute("data-collapsed", "true");
-  const anchoTrasRecargar = (await muelleTrasRecargar.boundingBox())!.width;
-  expect(anchoTrasRecargar).toBeLessThan(50);
-
-  /* ── Y se puede volver a abrir ────────────────────────────────────────── */
-  await page.getByTestId("cad-left-dock-toggle").click();
+  const toggleTrasRecargar = page.getByTestId("cad-rail-biblioteca");
   await expect(muelleTrasRecargar).toHaveAttribute("data-collapsed", "false");
-  await expect(muelleTrasRecargar.getByText("Plantillas CAD")).toBeVisible();
-  const anchoReabierto = (await muelleTrasRecargar.boundingBox())!.width;
-  expect(anchoReabierto).toBeGreaterThan(200);
+  const anchoTrasRecargar = (await muelleTrasRecargar.boundingBox())!.width;
+  expect(anchoTrasRecargar).toBeGreaterThan(200);
+
+  /* ── Y se puede volver a plegar ───────────────────────────────────────── */
+  await toggleTrasRecargar.click();
+  await expect(muelleTrasRecargar).toHaveAttribute("data-collapsed", "true");
+  await expect(muelleTrasRecargar.getByText("Plantillas CAD")).toBeHidden();
+  const anchoRecolapsado = (await muelleTrasRecargar.boundingBox())!.width;
+  expect(anchoRecolapsado).toBeLessThan(50);
 });

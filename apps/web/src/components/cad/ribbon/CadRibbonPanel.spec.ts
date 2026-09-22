@@ -71,7 +71,17 @@ ok(html.includes(panel.label), "el nombre del panel sigue pintándose (sin cambi
   ok(order(collapsed).length === 0, "plegado: ningún botón de comando en el DOM");
   ok(collapsed.includes('data-testid="cad-ribbon-panel-toggle-Dibujo"') && collapsed.includes('aria-expanded="false"'), "plegado: un botón con aria-expanded que abre el panel entero");
   ok(collapsed.includes(`id="${labelId}"`) && collapsed.includes('aria-labelledby="cad-ribbon-panel-label-Dibujo"'), "plegado: el grupo sigue nombrado por su rótulo");
-  ok(collapsed.includes("w-[4.5rem]"), "plegado: el botón mide 4,5 rem (CAD_RIBBON_METRICS.collapsed)");
+  // 5 rem, no 4,5: con 4,5 el rótulo «Portapapeles» (69,7 px) no cabía POR 1,7 PÍXELES y ese panel
+  // se quedaba suelto en su pie, 109 px de tira para cero botones. Ocho píxeles aquí devuelven
+  // columnas allá (ver `ribbon-layout.spec.ts`). Este número y `CAD_RIBBON_METRICS.collapsed` (85 =
+  // 4 + 80 + 1) tienen que moverse JUNTOS: el golden 214 mide en un navegador que no mientan.
+  ok(collapsed.includes("w-[5rem]"), "plegado: el botón mide 5 rem (CAD_RIBBON_METRICS.collapsed)");
+  // Ola 6 «cinta legible»: `break-words` partía una palabra suelta sin
+  // espacios («Propiedade s», «Portapapele s», queja literal del dueño) —
+  // `truncate` recorta con puntos suspensivos en una sola línea y nunca
+  // corta a mitad de palabra.
+  ok(collapsed.includes("truncate"), "plegado: el rótulo se recorta con puntos suspensivos, no envuelve");
+  ok(!collapsed.includes("break-words"), "plegado: ya no parte palabras sueltas a mitad (antes: «Propiedade s»)");
 }
 
 // ── El rótulo ABRE el panel, no lo pliega. Antes, pulsar «Dibujo» plegaba
@@ -110,6 +120,34 @@ ok(html.includes(panel.label), "el nombre del panel sigue pintándose (sin cambi
     !htmlEntero.includes("cad-ribbon-panel-toggle-") && !htmlEntero.includes("cad-ribbon-panel-collapse-") &&
       new RegExp(`<span id="cad-ribbon-panel-label-${entero.label}"`).test(htmlEntero),
     `«${entero.label}» cabe entero: su rótulo es texto, ni abre ni pliega`,
+  );
+}
+
+// ── Ola 6 «cinta legible»: separadores de panel y rótulo anclado ───────────
+//
+// La queja literal del dueño: «no hay separadores entre paneles: Dibujo,
+// Modificar, Anotación… se leen como una sola masa gris. El nombre del panel
+// va debajo, pequeño y centrado, y no ancla nada.»
+{
+  const dibujo = CAD_RIBBON_DATA.find((tab) => tab.id === "inicio")!.panels[0];
+  const expanded = renderToStaticMarkup(
+    createElement(CadRibbonPanel, { panel: dibujo, onRun: () => undefined, layout: { state: "expanded", columns: 2 } }),
+  );
+  ok(expanded.includes("border-r border-border"), "línea vertical entre paneles, a plena opacidad (antes /60, casi invisible contra bg-surface)");
+  ok(!expanded.includes("border-border/60"), "el separador ya no va atenuado al 60%");
+  ok(expanded.includes("border-t border-border"), "el rótulo lleva una línea encima que lo ancla, separándolo de la fila de botones");
+
+  // Un panel "reduced" SIN primario (Portapapeles, Grupos, Utilidades: ver
+  // `ribbon-order.ts`) no pinta fila de botones — su rótulo es lo único que
+  // hay, así que no necesita ancla propia contra una fila que no existe.
+  const portapapeles = CAD_RIBBON_DATA.find((tab) => tab.id === "inicio")!.panels.find((p) => p.label === "Portapapeles")!;
+  assert.ok(portapapeles, "hace falta el panel «Portapapeles» real para probar el caso sin fila de botones");
+  const reducido = renderToStaticMarkup(
+    createElement(CadRibbonPanel, { panel: portapapeles, onRun: () => undefined, layout: { state: "reduced", columns: 0 } }),
+  );
+  ok(
+    !reducido.includes("border-t border-border"),
+    "«Portapapeles» reducido sin fila de botones: el rótulo no lleva ancla contra nada",
   );
 }
 

@@ -110,6 +110,15 @@ test("¿el panel de la línea de comandos impide pinchar el dibujo?", async ({ c
     `PANEL desplegado: x=${panel.x}..${panel.x + panel.width} y=${panel.y}..${panel.y + panel.height}`,
   );
 
+  // OLA «comando»: la aserción FUERTE. La versión de hoy («¿tapa el clic?»)
+  // podía pasar por casualidad si el panel flotaba pero el clic caía en un
+  // hueco suyo; ésta no admite esa suerte — el panel entero vive por debajo
+  // del lienzo, así que NINGÚN píxel suyo puede solaparlo.
+  expect(
+    panel.y,
+    "el panel acoplado empieza donde termina el lienzo: no hay solape posible, no sólo suerte con el clic",
+  ).toBeGreaterThanOrEqual(lienzo.y + lienzo.height - 1);
+
   const solapa =
     objetivo.x >= panel.x &&
     objetivo.x <= panel.x + panel.width &&

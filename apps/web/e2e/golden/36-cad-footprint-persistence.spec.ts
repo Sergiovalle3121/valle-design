@@ -22,6 +22,7 @@ import { installMockBackend } from "../fixtures/mock-backend";
 import { installCadStudioBackend } from "../fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import type { CadDocument } from "../../src/lib/cad/cad-document";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 function canonicalDocument(): CadDocument {
   return {
@@ -78,6 +79,9 @@ test("redimensionar la planta llega al documento canónico, entra en el historia
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto("/legacy/studio");
+  // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+  // como una persona, antes de leer nada de lo que vive dentro.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId("cad-native-entity-planta-line")).toBeVisible();
   await expect(page.getByTestId("cad-save-status")).toHaveText("Guardado");
 
@@ -122,6 +126,9 @@ test("deshacer devuelve la huella anterior, y rehacer la vuelve a aplicar", asyn
   await loginAsStandaloneOwner(context);
   await installCadBackend(context);
   await page.goto("/legacy/studio");
+  // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+  // como una persona, antes de leer nada de lo que vive dentro.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId("cad-native-entity-planta-line")).toBeVisible();
 
   await viewPanel(page).click();

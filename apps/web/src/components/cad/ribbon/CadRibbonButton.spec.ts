@@ -14,6 +14,12 @@ import { strict as assert } from "node:assert";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { findCadRibbonCommand } from "@/lib/cad/ribbon";
+import {
+  CAD_RIBBON_DENSE_METRICS,
+  CAD_RIBBON_METRICS,
+  cadRibbonLabelWidth,
+  cadRibbonSmallWidth,
+} from "@/lib/cad/ribbon-layout";
 import { CadRibbonButton, cadRibbonButtonTitle, cadRibbonButtonTooltip } from "./CadRibbonButton";
 import { CadRibbonTooltipCard } from "./CadRibbonTooltip";
 
@@ -58,7 +64,64 @@ const small = renderToStaticMarkup(createElement(CadRibbonButton, { command: xli
 ok(small.includes('data-size="small"'), "un no primario se pinta pequeño por defecto");
 ok(!small.includes("data-primary"), "un no primario no lleva data-primary");
 ok(small.includes("h-4 w-4"), "el icono pequeño mide 16 px");
-ok(small.includes("h-5 w-28"), "el botón pequeño mide 7 rem × 20 px (CAD_RIBBON_METRICS.small)");
+// El ancho del botón pequeño ya no es una clase fija (`w-28`): lo calcula
+// `cadRibbonSmallWidth` —el MISMO número que usa el plan de columnas— y se
+// declara por `style`, para que el rótulo completo mande sobre el mínimo y
+// nunca haya elipsis (golden 214 lo mide en un navegador real).
+const smallWidth = cadRibbonSmallWidth(xline, false);
+ok(small.includes("h-5"), "el botón pequeño mide 20 px de alto");
+ok(
+  small.includes(`style="width:${smallWidth}px"`),
+  `el botón pequeño declara por style el ancho que calcula el plan de columnas (${smallWidth} px)`,
+);
+ok(smallWidth >= CAD_RIBBON_METRICS.small, `ese ancho nunca baja del mínimo disperso (${CAD_RIBBON_METRICS.small} px)`);
+ok(
+  smallWidth >= cadRibbonLabelWidth(xline.label) + 34,
+  "y nunca baja de lo que mide el rótulo completo más icono y relleno: sin elipsis en disperso",
+);
+ok(!/w-(20|28)/.test(small), "sin ancho fijo w-20/w-28: el ancho lo decide el rótulo, no una clase");
+ok(small.includes("px-1"), "disperso: relleno horizontal de 4 px");
+ok(small.includes('aria-label="XLINE"'.replace("XLINE", xline.label)), "el nombre accesible es el rótulo en español, con o sin escalón denso");
+
+// ── Ola 6 «cinta legible»: el botón pequeño DENSO recupera el rótulo —
+// más angosto (5 rem) que el disperso (7 rem), con el texto recortado por
+// `truncate` si no cabe, pero SIEMPRE pintado junto al icono. El nombre
+// accesible y el title no cambian con `dense`: `getByRole('button', { name:
+// 'Línea' })` sigue resolviendo igual, con o sin recorte visual.
+{
+  const line2 = findCadRibbonCommand("LINE")!; // grande: dense no debe afectarle.
+  const denseLarge = renderToStaticMarkup(createElement(CadRibbonButton, { command: line2, onRun: () => undefined, dense: true }));
+  ok(denseLarge.includes(">Línea<"), "dense no afecta a un botón grande: conserva su rótulo visible");
+
+  const denseSmall = renderToStaticMarkup(
+    createElement(CadRibbonButton, { command: xline, onRun: () => undefined, dense: true }),
+  );
+  ok(denseSmall.includes('data-dense="true"'), "el botón pequeño denso se marca en el DOM");
+  ok(
+    denseSmall.includes(`>${xline.label}<`),
+    "denso: el rótulo SIGUE pintado a la vista (Ola 6 «cinta legible»: antes, Ola 1, desaparecía)",
+  );
+  ok(denseSmall.includes("truncate"), "denso: el rótulo se recorta con puntos suspensivos si no cabe, no envuelve ni desborda");
+  ok(denseSmall.includes(`aria-label="${xline.label}"`), "denso: el nombre accesible sigue siendo el rótulo en español");
+  ok(
+    denseSmall.includes(`title="${cadRibbonButtonTitle(xline)}"`),
+    "denso: el title nativo sigue trayendo rótulo · NOMBRE (alias) — descripción, con el nombre COMPLETO aunque el rótulo se recorte",
+  );
+  const denseWidth = cadRibbonSmallWidth(xline, true);
+  ok(
+    denseSmall.includes(`style="width:${denseWidth}px"`),
+    `denso: declara por style el ancho denso que calcula el plan de columnas (${denseWidth} px)`,
+  );
+  ok(denseWidth >= CAD_RIBBON_DENSE_METRICS.small, `denso: nunca baja de ${CAD_RIBBON_DENSE_METRICS.small} px`);
+  ok(denseWidth <= smallWidth, "denso: nunca es más ancho que el disperso");
+  ok(denseSmall.includes("px-0.5"), "denso: relleno horizontal de 2 px, frente a los 4 px del disperso");
+  ok(!/w-(20|28)/.test(denseSmall), "denso: sin ancho fijo; ya no mide 5 rem ni 7 rem por clase");
+
+  const notDense = renderToStaticMarkup(
+    createElement(CadRibbonButton, { command: xline, onRun: () => undefined, dense: false }),
+  );
+  ok(notDense.includes(`>${xline.label}<`), "sin denso (por defecto): el rótulo pequeño sigue a la vista, como siempre");
+}
 
 const menu = renderToStaticMarkup(
   createElement(CadRibbonButton, { command: xline, onRun: () => undefined, size: "menu" }),

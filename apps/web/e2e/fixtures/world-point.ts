@@ -20,73 +20,148 @@ export async function worldPoint(page: Page, target: { x: number; y: number }) {
   const box = await page.getByTestId("cad-canvas").boundingBox();
   if (!box) throw new Error("CAD canvas has no bounding box");
   const coordinate = page.getByTestId("cad-cursor-coordinate");
-  const read = async () =>
-    `${await coordinate.getAttribute("data-x")}|${await coordinate.getAttribute("data-y")}`;
-  // FRESCURA garantizada por cambio, no por espera: el HUD se actualiza
-  // asíncrono y un poll de «no vacío» acepta el valor de la posición ANTERIOR.
-  // Moverse primero a un vecino diagonal (±4 px ≈ decenas de unidades de
-  // mundo, muy por encima del redondeo del HUD) fuerza que la lectura del
-  // destino DIFIERA de la del vecino: si difiere, es del destino.
+  // Leer el par en una sola instantánea evita mezclar dos cuadros del HUD y
+  // reduce viajes al navegador durante la calibración, sin ampliar plazos.
+  const read = () =>
+    coordinate.evaluate(
+      (node) =>
+        `${node.getAttribute("data-x") ?? ""}|${node.getAttribute("data-y") ?? ""}`,
+    );
+  // onMove publica la posición visible de la cruceta y el par del HUD en el
+  // mismo evento síncrono. Después del mousemove se comprueba esa posición y
+  // el par estable entre dos frames. No hay un vecino cuya lectura retrasada
+  // se pueda confundir con el destino, ni polls anidados por cada muestra.
+  let previousReading = "|";
   const sample = async (x: number, y: number) => {
-    await page.mouse.move(x - 4, y - 4);
-    await expect.poll(read).not.toBe("|");
-    const neighbor = await read();
     await page.mouse.move(x, y);
-    try {
-      await expect.poll(read).not.toBe(neighbor);
-    } catch (causa) {
-      // EL HUD NO CAMBIÓ, y sin esto el fallo no dice por qué.
-      //
-      // Tal cual, `expect.poll` agota su espera y lanza «Timeout exceeded while
-      // waiting on the predicate» con el valor anterior: ni menciona el ratón,
-      // ni el lienzo, ni el punto. El golden 53 lleva días fallando así, y
-      // averiguar qué significaba costó horas.
-      //
-      // El HUD se alimenta del `pointermove` que recibe el LIENZO. Si en ese
-      // píxel responde otra cosa —una capa flotante montada encima—, el lienzo
-      // no se entera de nada y la lectura se queda congelada en la del vecino.
-      // Así que se pregunta quién responde ahí y se dice, que es la diferencia
-      // entre un fallo mudo y uno que se explica solo.
+    const measured = await coordinate.evaluate(
+      async (node, point) => {
+        const doc = node.ownerDocument;
+        const view = doc.defaultView!;
+        const frame = () =>
+          new Promise<void>((resolve) =>
+            view.requestAnimationFrame(() => resolve()),
+          );
+        const pair = () =>
+          `${node.getAttribute("data-x") ?? ""}|${node.getAttribute("data-y") ?? ""}`;
+        await frame();
+        const first = pair();
+        await frame();
+        const value = pair();
+        const crosshair = doc.querySelector<HTMLElement>(
+          '[data-testid="cad-crosshair"]',
+        );
+        const bounds = crosshair?.getBoundingClientRect();
+        const at = doc.elementFromPoint(point.x, point.y);
+        const canvas = doc.querySelector('[data-testid="cad-canvas"]');
+        const fresh = Boolean(
+          bounds &&
+          crosshair &&
+          view.getComputedStyle(crosshair).display !== "none" &&
+          Math.round(bounds.x) === point.x &&
+          Math.round(bounds.y) === point.y &&
+          at?.tagName === "CANVAS" &&
+          canvas?.contains(at) &&
+          first === value,
+        );
+        return {
+          value,
+          fresh,
+          first,
+          cursor: bounds ? { x: bounds.x, y: bounds.y } : null,
+          hit: at?.tagName ?? null,
+        };
+      },
+      { x, y },
+    );
+    const [rawX, rawY] = measured.value.split("|");
+    if (
+      !measured.fresh ||
+      rawX === "" ||
+      rawY === "" ||
+      !Number.isFinite(Number(rawX)) ||
+      !Number.isFinite(Number(rawY))
+    ) {
       throw new Error(
-        `${await porQueNoSeMueveElHud(page, x, y, neighbor, await read())}` +
-          `\n\nCausa original: ${String(causa)}`,
+        `${await porQueNoSeMueveElHud(page, x, y, previousReading, await read())}` +
+          `\nMuestra tras dos frames: ${JSON.stringify(measured)}`,
       );
     }
-    const [rawX, rawY] = (await read()).split("|");
+    previousReading = measured.value;
     return { x: Number(rawX), y: Number(rawY) };
   };
-  const screen = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  const screen = {
+    x: Math.round(box.x + box.width / 2),
+    y: Math.round(box.y + box.height / 2),
+  };
   // «Vista superior» ANIMA la cámara. Muestrear durante la transición invierte
   // una afín que ya no existe al hacer clic: la designación cae al vacío y el
   // fallo ni siquiera menciona la cámara. En planta ortográfica los términos
   // cruzados (b, c) son ~0 respecto de la diagonal; se espera a que la
   // transformación lo cumpla y a que sea ESTABLE entre dos muestreos.
   let affine = { origin: { x: 0, y: 0 }, a: 1, b: 0, c: 0, d: 1 };
-  await expect
-    .poll(
-      async () => {
-        const origin = await sample(screen.x, screen.y);
-        const horizontal = await sample(screen.x + 80, screen.y);
-        const vertical = await sample(screen.x, screen.y + 80);
-        const a = (horizontal.x - origin.x) / 80;
-        const b = (vertical.x - origin.x) / 80;
-        const c = (horizontal.y - origin.y) / 80;
-        const d = (vertical.y - origin.y) / 80;
-        const diagonal = Math.max(Math.abs(a), Math.abs(d));
-        const cross = Math.max(Math.abs(b), Math.abs(c));
-        const settled =
-          diagonal > 1e-9 &&
-          cross < diagonal * 0.02 &&
-          Math.abs(a - affine.a) < Math.abs(a) * 0.01 + 1e-9;
-        affine = { origin, a, b, c, d };
-        return settled;
-      },
-      { message: "la vista no se asentó en planta ortográfica", timeout: 15_000 },
-    )
-    .toBe(true);
+  const started = Date.now();
+  const samples: Array<{
+    elapsedMs: number;
+    a: number;
+    b: number;
+    c: number;
+    d: number;
+    diagonal: number;
+    cross: number;
+    settled: boolean;
+  }> = [];
+  let iterations = 0;
+  try {
+    await expect
+      .poll(
+        async () => {
+          const origin = await sample(screen.x, screen.y);
+          const horizontal = await sample(screen.x + 80, screen.y);
+          const vertical = await sample(screen.x, screen.y + 80);
+          const a = (horizontal.x - origin.x) / 80;
+          const b = (vertical.x - origin.x) / 80;
+          const c = (horizontal.y - origin.y) / 80;
+          const d = (vertical.y - origin.y) / 80;
+          const diagonal = Math.max(Math.abs(a), Math.abs(d));
+          const cross = Math.max(Math.abs(b), Math.abs(c));
+          const settled =
+            iterations > 0 &&
+            diagonal > 1e-9 &&
+            cross < diagonal * 0.02 &&
+            Math.abs(a - affine.a) < Math.abs(a) * 0.01 + 1e-9;
+          affine = { origin, a, b, c, d };
+          iterations += 1;
+          samples.push({
+            elapsedMs: Date.now() - started,
+            a,
+            b,
+            c,
+            d,
+            diagonal,
+            cross,
+            settled,
+          });
+          if (samples.length > 4) samples.shift();
+          return settled;
+        },
+        {
+          message: "la vista no se asentó en planta ortográfica",
+          timeout: 15_000,
+        },
+      )
+      .toBe(true);
+  } catch (cause) {
+    throw new Error(
+      `worldPoint: la vista no se asentó en planta ortográfica; ${JSON.stringify({ target, screen, iterations, elapsedMs: Date.now() - started, samples, affine })}\n${String(cause)}`,
+    );
+  }
   const { origin, a, b, c, d } = affine;
   const determinant = a * d - b * c;
-  if (Math.abs(determinant) < 1e-9) throw new Error("CAD world/screen transform is singular");
+  if (Math.abs(determinant) < 1e-9)
+    throw new Error(
+      `CAD world/screen transform is singular: ${JSON.stringify(affine)}`,
+    );
   const wx = target.x - origin.x;
   const wy = target.y - origin.y;
   // LAZO CERRADO, no extrapolación ciega: la posición calculada se comprueba
@@ -120,75 +195,34 @@ export async function worldPoint(page: Page, target: { x: number; y: number }) {
     };
   }
   throw new Error(
-    `worldPoint no convergió: error ${bestError.toFixed(2)} unidades con ${pixel.toFixed(2)} unidades/px`,
+    `worldPoint no convergió: error ${bestError.toFixed(2)} unidades con ${pixel.toFixed(2)} unidades/px; ${JSON.stringify({ target, position, affine, determinant, iterations })}`,
   );
 }
 
-/**
- * ¿Por qué no se mueve el HUD en este píxel?
- *
- * El HUD del cursor se alimenta del `pointermove` que recibe el LIENZO. Si en
- * ese punto responde otra cosa —una capa flotante montada encima—, el lienzo no
- * ve el movimiento y la lectura se queda congelada.
- *
- * En este producto ya ha pasado CUATRO veces: la barra de videollamada sobre
- * «Guardar», el dock de mensajería sobre «Algo salió mal», la cinta sobre la
- * banda alta del lienzo, y el golden 53. Las cuatro se diagnosticaron a mano y
- * las cuatro costaron horas, porque el síntoma aparece lejos de la causa.
- *
- * `document.elementFromPoint` devuelve lo que el navegador le daría al usuario
- * en ese píxel. Con eso, el mensaje pasa de «el predicado agotó su espera» a
- * «en (x, y) responde tal capa», que es lo que hacía falta desde el principio.
- */
+/** Diagnóstico del píxel visible; no consulta cámara ni estado de la aplicación. */
 async function porQueNoSeMueveElHud(
   page: Page,
   x: number,
   y: number,
-  /** Lectura del vecino a −4 px, y la del destino: iguales, por eso falla. */
-  vecino: string,
-  destino: string,
+  previous: string,
+  current: string,
 ): Promise<string> {
-  const quien = await page.evaluate(
+  const hit = await page.evaluate(
     ([px, py]) => {
-      const arriba = document.elementFromPoint(px, py);
-      if (!arriba) return "nada — el punto cae fuera de la ventana";
-      const lienzo = document.querySelector('[data-testid="cad-canvas"]');
-      if (lienzo && (arriba === lienzo || lienzo.contains(arriba)))
-        return "el propio lienzo";
-      const conId = arriba.closest("[data-testid]") as HTMLElement | null;
-      if (conId) return `[data-testid="${conId.dataset.testid}"]`;
-      const titulado = arriba.closest("[title]") as HTMLElement | null;
-      if (titulado)
-        return `${arriba.tagName.toLowerCase()}[title="${titulado.title}"]`;
-      return arriba.tagName.toLowerCase();
+      const element = document.elementFromPoint(px, py);
+      if (!element) return "nada: el punto cae fuera de la ventana";
+      const canvas = document.querySelector('[data-testid="cad-canvas"]');
+      if (element.tagName === "CANVAS" && canvas?.contains(element))
+        return "el canvas de dibujo";
+      const testId = element
+        .closest("[data-testid]")
+        ?.getAttribute("data-testid");
+      return `${element.tagName.toLowerCase()}${testId ? `[data-testid="${testId}"]` : ""}`;
     },
     [x, y],
   );
-  if (quien === "el propio lienzo") {
-    return (
-      `El HUD del cursor no cambió al mover el ratón a (${x}, ${y}), y ahí SÍ ` +
-      `responde el lienzo: NO es una capa tapando. Leyó «${vecino}» en el ` +
-      `vecino a −4 px y «${destino}» en el destino.\n\n` +
-      "SI LOS DOS VALORES SON IGUALES, el HUD no distingue un punto de su " +
-      "vecino a 4 px, y eso admite dos lecturas MUY distintas que conviene no " +
-      "confundir.\n" +
-      "  · El HUD está VIVO pero su resolución no llega: a suficiente zoom de " +
-      "salida, 4 px caen dentro de lo que redondea, y la premisa de esta " +
-      "fixture —«4 px son decenas de unidades de mundo, muy por encima del " +
-      "redondeo»— deja de valer. Se separan más los dos puntos de muestreo.\n" +
-      "  · El HUD está CONGELADO: tiene un valor de antes y no reacciona a " +
-      "`pointermove`. Entonces el problema es del producto, no del muestreo, y " +
-      "separar los puntos sólo taparía el fallo.\n" +
-      "Se distinguen mirando si el valor cambia al mover MUCHO el ratón — si " +
-      "sigue igual cruzando medio lienzo, está congelado.\n\n" +
-      "Si son DISTINTOS, el HUD sí se movió y el fallo es de carrera: la vista " +
-      "seguía animándose."
-    );
-  }
   return (
-    `El HUD del cursor no cambió al mover el ratón a (${x}, ${y}) porque ahí NO ` +
-    `responde el lienzo: responde ${quien}. Esa capa se come el pointermove, ` +
-    "así que el lienzo nunca se entera y la lectura se queda congelada. " +
-    "Mueva la capa que tapa, o elija un punto del dibujo que no quede debajo."
+    `No se pudo confirmar una lectura fresca del HUD en (${x}, ${y}). ` +
+    `Antes: «${previous}»; después: «${current}». En ese píxel responde ${hit}.`
   );
 }

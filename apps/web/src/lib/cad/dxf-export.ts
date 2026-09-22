@@ -7,9 +7,6 @@ import { DEFAULT_MLEADER_STYLE } from "./mleader";
 import type { CadLinetypeTextElement } from "./linetype-complex";
 import { clampedKnots } from "./dxf-nurbs-knots";
 import { DXF_XDATA_APP_BLOCK, DXF_XDATA_APP_MLEADER } from "@valle-design/contracts";
-// Los pares código/valor, el saneado de nombres y el formato numérico viven en
-// su propio módulo hoja: los escritores del esquema 4 usan EXACTAMENTE los
-// mismos, y duplicarlos era la manera segura de que divergiesen.
 import {
   DEFAULT_LAYER,
   MEASUREMENT_LAYER,
@@ -304,10 +301,12 @@ function pushHeader(
     pushPair(lines, 9, "$PDSIZE");
     pushPair(lines, 40, fmt(pointVariables.pdsize));
   }
+  pushPair(lines, 0, "ENDSEC");
+  // Fuera de HEADER: lectores como dxf-parser 1.1.2 confunden el comentario
+  // 999 con el valor de la última variable y pierden INSUNITS o PDSIZE.
   if (options.fileComment) {
     pushPair(lines, 999, safeText(options.fileComment));
   }
-  pushPair(lines, 0, "ENDSEC");
 }
 
 function pushLine(

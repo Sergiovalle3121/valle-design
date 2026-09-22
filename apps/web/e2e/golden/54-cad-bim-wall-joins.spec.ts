@@ -68,6 +68,18 @@ async function settlePlanView(page: Page) {
   await fitFootprint(page);
 }
 
+/**
+ * Descarta el recorrido guiado si está flotando sobre el lienzo (mismo
+ * motivo que en el golden 53: el muelle izquierdo arranca PLEGADO y el
+ * primer tramo de este golden entra en (2000,2000), Y baja, justo la esquina
+ * donde cae la tarjeta flotante de respaldo). Ver el comentario completo en
+ * 53-cad-bim-wall.spec.ts.
+ */
+async function skipGuidedTour(page: Page) {
+  const skip = page.getByTestId("cad-guided-tour-skip");
+  if (await skip.isVisible().catch(() => false)) await skip.click();
+}
+
 function wallsOf(document: CadDocument): CadWallEntity[] {
   return document.entities.filter(
     (entity): entity is CadWallEntity => entity.type === "wall",
@@ -85,6 +97,7 @@ test("dos muros encadenados en L persisten dos ejes que comparten vértice, sin 
   await page.goto("/legacy/studio");
 
   await expect(page.getByTestId("cad-command-line")).toBeVisible();
+  await skipGuidedTour(page);
   await settlePlanView(page);
 
   // --- 1. WA con grosor 250 y TRES clics: dos tramos encadenados en L --------

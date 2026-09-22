@@ -317,8 +317,8 @@ for (const bad of ["verde", "0", "256", "#GG0000"]) {
 
   const set = run("-LAYER", [keyword("definir"), text("MUROS")], context(store));
   ok(
-    set.result?.kind === "variables" && set.result.patch.CLAYER === "MUROS",
-    "definir la capa actual escribe CLAYER, que es lo que un .scr necesita",
+    set.result?.kind === "variables" && set.result.patch.CLAYER === "muros",
+    "definir la capa actual escribe su ID en CLAYER para guardar referencias válidas",
   );
 
   const coloured = run("-LAYER", [keyword("Color"), text("#00ff00"), text("MUROS")], context(store));

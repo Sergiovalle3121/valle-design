@@ -319,6 +319,16 @@ export const CAD_RIBBON_UNEXPOSED: Readonly<Record<string, string>> = Object.fro
   ]),
 );
 
+/**
+ * Botones grandes de un panel. Dos paneles de pestañas distintas pueden
+ * compartir rótulo («Utilidades» en Inicio y en Administrar) y no el mismo
+ * recorte, así que la clave «pestaña/rótulo» de `CAD_RIBBON_PRIMARY` gana a
+ * la clave por rótulo a secas.
+ */
+function ribbonPrimariesFor(tabId: CadRibbonTabId, panelLabel: string): readonly string[] {
+  return CAD_RIBBON_PRIMARY[`${tabId}/${panelLabel}`] ?? CAD_RIBBON_PRIMARY[panelLabel] ?? [];
+}
+
 function buildRibbonTabs(): CadRibbonTab[] {
   const byTab = new Map<CadRibbonTabId, Map<string, CadRibbonCommand[]>>();
   for (const meta of CAD_RIBBON_TABS) byTab.set(meta.id, new Map());
@@ -337,7 +347,7 @@ function buildRibbonTabs(): CadRibbonTab[] {
       summary: cadCommandSummary(descriptor.name),
       panel: panelLabel,
       mutates: descriptor.mutates,
-      primary: (CAD_RIBBON_PRIMARY[panelLabel] ?? []).includes(descriptor.name),
+      primary: ribbonPrimariesFor(tabId, panelLabel).includes(descriptor.name),
     };
     commands.push(command);
     byName.set(command.name, command);
@@ -356,7 +366,7 @@ function buildRibbonTabs(): CadRibbonTab[] {
       commands.push({
         ...original,
         panel: panelLabel,
-        primary: (CAD_RIBBON_PRIMARY[panelLabel] ?? []).includes(name),
+        primary: ribbonPrimariesFor("inicio", panelLabel).includes(name),
       });
     }
     inicio.set(panelLabel, commands);

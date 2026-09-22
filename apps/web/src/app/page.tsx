@@ -34,7 +34,8 @@ import {
  * dueño la puso al lado de la página de un CAD de escritorio y la diferencia
  * no era de texto: era de AIRE.
  *
- * Esta portada tiene siete secciones y una sola columna en el hero:
+ * Esta portada tiene siete secciones. El hero reparte título y activación
+ * en dos columnas de escritorio y conserva su orden de lectura en móvil:
  *
  *   1 · HERO oscuro: un titular, un párrafo de dos líneas, dos botones y la
  *       captura REAL del estudio a lo ancho. La captura sale de
@@ -117,7 +118,7 @@ function Band({
       aria-labelledby={`${id}-title`}
       className={tinted ? "border-y border-border bg-muted/30" : undefined}
     >
-      <div className="mx-auto max-w-6xl px-5 py-24 sm:px-8 sm:py-32">
+      <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-24">
         {children}
       </div>
     </section>
@@ -168,7 +169,10 @@ export default function LandingPage() {
       eyebrow: "01 · Dibujo",
       title: "2D de precisión",
       text: "Referencias a objetos, línea de comandos con los alias de siempre, capas, bloques con atributos y cotas asociativas que se recalculan al mover la geometría. Espacio papel con varias ventanas y la lámina a PDF con su tamaño de página exacto.",
-      guide: { slug: "acotacion-asociativa", label: "Por qué la cota se mueve con el dibujo" },
+      guide: {
+        slug: "acotacion-asociativa",
+        label: "Por qué la cota se mueve con el dibujo",
+      },
     },
     {
       eyebrow: "02 · Modelado",
@@ -207,7 +211,9 @@ export default function LandingPage() {
       <PublicNav />
 
       <main id="contenido" className="text-foreground">
-        <JsonLd data={softwareApplicationJsonLd({ description, featureList })} />
+        <JsonLd
+          data={softwareApplicationJsonLd({ description, featureList })}
+        />
         <JsonLd data={productJsonLd({ description })} />
         <JsonLd data={faqPageJsonLd(FAQ_FOR_STRUCTURED_DATA)} />
 
@@ -226,59 +232,66 @@ export default function LandingPage() {
           data-landing="vallecad-2026-09"
           className="dark bg-background text-foreground"
         >
-          <div className="mx-auto max-w-6xl px-5 pb-20 pt-16 sm:px-8 sm:pt-24 lg:pb-28">
-            <div className="flex flex-col gap-14 sm:gap-20">
-            <div className="max-w-3xl order-2 sm:order-none">
-              <p className="type-eyebrow text-primary-ink">
-                {PRODUCT_LABEL.design} · CAD en el navegador
-              </p>
-              <h1 id="hero-title" className="type-display mt-5">
-                Dibuja en 2D. Modela en 3D. En tu navegador.
-              </h1>
-              <p className="type-lead mt-6 max-w-2xl text-muted-foreground">
-                {PRODUCT_LABEL.design} es un CAD profesional que corre donde ya
-                trabajas: precisión de dibujo, sólidos 3D e intercambio DXF, con
-                los proyectos guardados en la nube y no en una computadora
-                concreta.
-              </p>
-              <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-                <Link
-                  href="/register"
-                  className={buttonClass({ variant: "primary", size: "lg" })}
-                >
-                  Crear cuenta gratis
-                  <ArrowRight aria-hidden="true" className="h-4 w-4" />
-                </Link>
-                {/* La segunda acción del hero es TOCAR el producto: la
+          <div className="mx-auto max-w-6xl px-5 pb-16 pt-12 sm:px-8 sm:pt-16 lg:pb-20">
+            <div className="flex flex-col gap-10 sm:gap-12">
+              <div className="grid items-end gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,23rem)] lg:gap-14">
+                <div>
+                  <p className="type-eyebrow text-primary-ink">
+                    {PRODUCT_LABEL.design} · CAD en el navegador
+                  </p>
+                  <h1 id="hero-title" className="type-display mt-5">
+                    Dibuja con precisión. Entrega con confianza.
+                  </h1>
+                </div>
+                <div>
+                  <p className="type-lead mt-6 max-w-2xl text-muted-foreground">
+                    CAD 2D y modelado 3D en tu navegador. Traza, acota y prepara
+                    planos a escala, con tus documentos guardados en la nube.
+                  </p>
+                  <div className="mt-9 flex flex-col gap-3 sm:flex-row lg:flex-col">
+                    <Link
+                      href="/register"
+                      className={buttonClass({
+                        variant: "primary",
+                        size: "lg",
+                      })}
+                    >
+                      Crear cuenta gratis
+                      <ArrowRight aria-hidden="true" className="h-4 w-4" />
+                    </Link>
+                    {/* La segunda acción del hero es TOCAR el producto: la
                     demostración abre el editor real sin cuenta. */}
-                <Link
-                  href="/demo"
-                  data-testid="hero-demo-cta"
-                  className={buttonClass({ variant: "secondary", size: "lg" })}
-                >
-                  Probar sin cuenta
-                </Link>
-              </div>
-              {/* El número lo publica el backend: la portada no promete una
+                    <Link
+                      href="/demo"
+                      data-testid="hero-demo-cta"
+                      className={buttonClass({
+                        variant: "secondary",
+                        size: "lg",
+                      })}
+                    >
+                      Probar sin cuenta
+                    </Link>
+                  </div>
+                  {/* El número lo publica el backend: la portada no promete una
                   duración que el alta luego no conceda. */}
-              <FreeLaunchNote className="mt-6 max-w-xl type-small text-muted-foreground" />
-            </div>
+                  <FreeLaunchNote className="mt-6 max-w-xl type-small text-muted-foreground" />
+                </div>
+              </div>
 
-            {/*
+              {/*
               EL PRODUCTO, A LO ANCHO. Una página de CAD que no enseña el CAD
               a lo ancho es lo contrario de lo que quiere ver quien compra
               CAD. Sin halo ni flotación: el estudio tiene peso propio.
             */}
-            <ProductFrame
-              src="/product/estudio-dark.png"
-              alt={`El estudio de ${PRODUCT_LABEL.design} con una planta arquitectónica acotada`}
-              priority
-              float={false}
-              halo={false}
-              sizes="(min-width: 1280px) 72rem, 100vw"
-              className="order-1 sm:order-none"
-              data-testid="hero-figure"
-            />
+              <ProductFrame
+                src="/product/estudio-dark.png"
+                alt={`El estudio de ${PRODUCT_LABEL.design} con una planta arquitectónica acotada`}
+                priority
+                float={false}
+                halo={false}
+                sizes="(min-width: 1280px) 72rem, 100vw"
+                data-testid="hero-figure"
+              />
             </div>
           </div>
         </section>
@@ -288,7 +301,7 @@ export default function LandingPage() {
           <SectionHead
             id="producto"
             eyebrow="El producto"
-            title="Lo que hace, con su límite al lado"
+            title="Del primer trazo al plano entregado"
           />
           <div className="mt-14 grid gap-12 md:grid-cols-3 md:gap-10">
             {pillars.map(({ eyebrow, title, text, guide }) => (
@@ -314,9 +327,9 @@ export default function LandingPage() {
         <Band id="estudio" tinted>
           <SectionHead
             id="estudio"
-            eyebrow="Esto es el editor"
-            title="No es una maqueta: es el estudio dibujando"
-            lead="Las capturas se generan conduciendo el programa de verdad, comando a comando, cada vez que se publica. Si el editor cambiara, cambian ellas."
+            eyebrow="Prepara la entrega"
+            title="Tu plano, con su hoja y su escala"
+            lead="Organiza las vistas en espacio papel, añade el cajetín y publica una lámina PDF. Esta captura muestra el editor real."
           />
           <ProductFrame
             src="/product/espacio-papel.png"
@@ -335,7 +348,7 @@ export default function LandingPage() {
             id="comparativa"
             eyebrow="Comparar"
             title="Frente a un CAD de escritorio tradicional"
-            lead="Fila por fila y sin adornos: lo que cambia al pasar al navegador, lo que es igual y lo que todavía no hacemos."
+            lead="Comprueba qué encaja con tu forma de trabajar y revisa los límites de intercambio antes de importar un proyecto."
           />
           <Comparison />
         </Band>
@@ -345,8 +358,8 @@ export default function LandingPage() {
           <SectionHead
             id="precios"
             eyebrow="Precios"
-            title="Una suscripción, no una licencia por computadora"
-            lead="Los importes los publica el producto desde su catálogo vigente, en la página de precios. Aquí, el modelo."
+            title="Elige cómo seguir trabajando"
+            lead="Consulta los planes disponibles y sus condiciones en el catálogo de precios."
           />
           <dl className="mt-14 grid gap-10 md:grid-cols-3">
             {pricingFacts.map(([title, text]) => (
@@ -373,16 +386,17 @@ export default function LandingPage() {
           pide que la portada las enlace.
         */}
         <section id="faq-centro" aria-labelledby="faq">
-          <div className="mx-auto max-w-6xl px-5 py-24 sm:px-8 sm:py-32">
+          <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-24">
             <header className="max-w-3xl">
-              <p className="type-eyebrow text-primary-ink">Centro de preguntas</p>
+              <p className="type-eyebrow text-primary-ink">
+                Centro de preguntas
+              </p>
               <h2 id="faq" className="type-title mt-3">
-                La duda concreta que te está frenando
+                Resuelve tus dudas antes de empezar
               </h2>
               <p className="type-lead mt-4 text-muted-foreground">
-                {FAQ_COUNT} respuestas con buscador. Las incómodas también: lo
-                que no hacemos está aquí con el mismo tamaño de letra que lo
-                que sí.
+                {FAQ_COUNT} respuestas sobre dibujo, archivos, cuenta y planes.
+                Busca tu pregunta o elige un tema.
               </p>
             </header>
             <FaqCenter />

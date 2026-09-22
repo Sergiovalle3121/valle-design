@@ -1,5 +1,6 @@
 /** Pure CAD DXF export smoke tests. */
 import { strict as assert } from "node:assert";
+import DxfParser from "dxf-parser";
 import { exportCadDxf } from "./dxf-export";
 
 const result = exportCadDxf(
@@ -57,6 +58,10 @@ assert.ok(
 );
 assert.equal(result.entityCount, 5, "counts exported entities");
 assert.ok(result.content.endsWith("0\nEOF\n"), "terminates DXF");
+const independent = new DxfParser().parseSync(result.content);
+assert.equal(independent?.header.$INSUNITS, 4, "un lector externo conserva milímetros cuando el archivo lleva comentario");
+assert.equal(independent?.header.$ACADVER, "AC1015");
+assert.ok(result.content.includes("999\nVALLECAD CAD export\n"), "el comentario se conserva sin ocupar una variable HEADER");
 
 // Geometría curva real (VD-CAD-DEPTH-A1): círculo y arco nativos.
 const curved = exportCadDxf({

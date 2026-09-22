@@ -2,6 +2,7 @@ import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadV1Backend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 function layoutResponse() {
   const cadDocument = {
@@ -133,6 +134,9 @@ test('CAD recovery uses compressed IndexedDB journal and restores the newest che
   await installCadBackend(context);
   await holdRemoteSaveInFlight(page);
   await page.goto('/legacy/studio');
+  // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+  // como una persona, antes de leer nada de lo que vive dentro.
+  await abrirPanelDerecho(page);
   await page.getByTestId('cad-native-entity-recovery-arc').click();
   const radius = page.getByTestId('cad-native-property-radius');
   await radius.fill('141');
@@ -190,6 +194,9 @@ test('CAD recovery surfaces exhausted browser quota', async ({ context, page }) 
   });
   await holdRemoteSaveInFlight(page);
   await page.goto('/legacy/studio');
+  // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+  // como una persona, antes de leer nada de lo que vive dentro.
+  await abrirPanelDerecho(page);
   await page.getByTestId('cad-native-entity-recovery-arc').click();
   const radius = page.getByTestId('cad-native-property-radius');
   await radius.fill('155');

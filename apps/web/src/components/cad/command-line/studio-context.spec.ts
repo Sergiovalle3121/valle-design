@@ -11,6 +11,7 @@ import { strict as assert } from "node:assert";
 import type { CadDocument } from "@/lib/cad/cad-document";
 import { cadStudioCommandContext } from "./studio-context";
 import { PLAN_AXIS_Y_SCREEN_SIGN } from "@/lib/cad/view/plan-axis";
+import { CadSystemVariableStore } from "@/lib/cad/system-variables";
 
 function documentWith(ids: readonly string[]): CadDocument {
   return {
@@ -184,6 +185,23 @@ const base = {
     currentVisualStyle: () => "wireframe",
   });
   assert.equal(conVisor.currentVisualStyle?.(), "wireframe", "y con visor, el estilo vigente viaja tal cual");
+}
+
+// Aceptación real: -LAYER Nueva Placa genera id "placa", nombre "Placa".
+// Guardar entidades con el nombre causaba HTTP400 de la API canónica.
+{
+  const document = {
+    ...documentWith([]),
+    layers: [{ id: "capa-persistida", name: "Placa", color: "#ffffff", visible: true, locked: false }],
+  } as CadDocument;
+  const variables = new CadSystemVariableStore();
+  for (const value of ["Placa", "PLACA", "placa", "capa-persistida"]) {
+    variables.set("CLAYER", value);
+    const context = cadStudioCommandContext({ ...base, document, variables });
+    assert.equal(context.activeLayer, "capa-persistida", "CLAYER resuelve el ID sin renombrar datos");
+  }
+  variables.set("CLAYER", "desconocida");
+  assert.equal(cadStudioCommandContext({ ...base, document, variables }).activeLayer, base.activeLayer);
 }
 
 console.log("cad studio command context specs passed");

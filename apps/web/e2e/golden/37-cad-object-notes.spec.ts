@@ -1,3 +1,4 @@
+import { abrirPanelDerecho } from "../fixtures/docks";
 /**
  * La nota de un objeto no se guardaba en ningún sitio.
  *
@@ -31,7 +32,13 @@ function canonicalDocument(): CadDocument {
     },
     layers: [
       { id: "0", name: "0", color: "#ffffff", visible: true, locked: false },
-      { id: "PROCESO", name: "PROCESO", color: "#60a5fa", visible: true, locked: false },
+      {
+        id: "PROCESO",
+        name: "PROCESO",
+        color: "#60a5fa",
+        visible: true,
+        locked: false,
+      },
     ],
     entities: [
       {
@@ -81,6 +88,7 @@ async function selectObjectsOfLayer(page: Page, layerId: string) {
   await expect(row).toBeVisible();
   await row.getByRole("button", { name: "Sel", exact: true }).click();
   await viewButton.click();
+  await abrirPanelDerecho(page);
 }
 
 function boxOf(document: CadDocument, id: string) {
@@ -117,8 +125,12 @@ test("la nota de un objeto llega al documento canónico y sobrevive a recargar",
     "la nota tiene que estar en lo que el servidor guardó: antes no había campo donde ponerla",
   ).toBe(NOTA);
   // Y no se llevó por delante nada de lo que el objeto ya tenía.
-  expect(boxOf(backend.snapshot().document, "muro-norte").label).toBe("Muro norte");
-  expect(boxOf(backend.snapshot().document, "muro-norte").layer).toBe("PROCESO");
+  expect(boxOf(backend.snapshot().document, "muro-norte").label).toBe(
+    "Muro norte",
+  );
+  expect(boxOf(backend.snapshot().document, "muro-norte").layer).toBe(
+    "PROCESO",
+  );
 
   await page.reload();
   await expect(page.getByTestId("cad-save-status")).toBeVisible();

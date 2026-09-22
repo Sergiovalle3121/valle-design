@@ -6,6 +6,7 @@ import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 type CadDimension = Extract<CadEntity, { type: 'dimension' }>;
 
@@ -46,6 +47,9 @@ test('associated DIMENSION follows source edits, survives undo/reload/DXF and re
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto('/legacy/studio');
+  // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+  // como una persona, antes de leer nada de lo que vive dentro.
+  await abrirPanelDerecho(page);
 
   await page.getByTestId('cad-native-entity-dimension-source-line').click();
   await page.getByTitle(/^Dimensiones asociativas:/).click();

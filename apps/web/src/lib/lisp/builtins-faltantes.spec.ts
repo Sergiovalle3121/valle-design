@@ -167,7 +167,7 @@ function designa(...ids: string[]): LispResponse {
   const documento = corrida.host.document();
   const capa = documento.layers.find((layer) => layer.name === "TABIQUE");
   ok(capa, "el (command \"-LAYER\" \"N\" …) creó la capa de verdad");
-  const dibujado = documento.entities.filter((entity) => entity.layer === "TABIQUE");
+  const dibujado = documento.entities.filter((entity) => entity.layer === capa?.id);
   eq(dibujado.length, 1, "y el RECTANG dejó UNA entidad");
   eq(dibujado[0]?.type, "polyline", "que es la polilínea cerrada del rectángulo");
   // El epílogo devolvió las variables a su sitio: 39 = 1|2|4|32, y la rutina

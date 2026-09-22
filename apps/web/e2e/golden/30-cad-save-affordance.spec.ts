@@ -3,6 +3,7 @@ import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 type CadLine = Extract<CadEntity, { type: 'line' }>;
 
@@ -47,6 +48,9 @@ test('explicit save stays available after autosave and never writes a redundant 
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto('/legacy/studio');
+  // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+  // como una persona, antes de leer nada de lo que vive dentro.
+  await abrirPanelDerecho(page);
 
   await page.getByTestId('cad-native-entity-save-line').click();
   const startX = page.getByTestId('cad-native-property-startX');
@@ -85,6 +89,9 @@ test('a transient toast never intercepts a click aimed at the CAD toolbar', asyn
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto('/legacy/studio');
+  // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+  // como una persona, antes de leer nada de lo que vive dentro.
+  await abrirPanelDerecho(page);
 
   await page.getByTestId('cad-native-entity-save-line').click();
   const startX = page.getByTestId('cad-native-property-startX');

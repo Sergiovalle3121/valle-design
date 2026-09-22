@@ -1633,14 +1633,6 @@
     height: auto;
   }
 
-  /* La paleta flotante son 18 herramientas. En una columna de 44 px mediría
-     872 px de alto y el lienzo de una tableta de 10" apaisada tiene 707: la
-     mitad de las herramientas caería fuera de la pantalla. En dos columnas mide
-     442 px y conserva la forma de tira vertical en la esquina. */
-  .cad-shell [data-testid="cad-toolbar"] > div {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   /* La barra de estado envuelve hoy en tres renglones de ~16 px. Con renglones
      de 44 px se comería 160 px del borde inferior del dibujo, justo la franja
      donde cae el muro que se acota. Deja de envolver y se desplaza con el dedo,
@@ -1667,30 +1659,28 @@
   }
 }
 
-/* La paleta de herramientas del estudio (`CadToolPalette`): una columna de
-   16 botones de 41 px mide ~700 px y, con la barra de estado ocupando su propia
-   franja bajo el lienzo, a 720 px de alto los dos últimos quedaban fuera del
-   área de dibujo (medido por el golden 67: «Área» y «Símbolos» tapados). En
-   una ventana baja la rejilla pasa a dos columnas y todos siguen a la vista. */
-@media (max-height: 820px) {
-  .cad-tool-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 /* ===========================================================================
-   BARRA DE ESTADO DEL CAD: cada elemento mide lo mismo (1,25 rem).
-   Va en la capa `components`, y no como utilidad `[&>*]:h-5` en el padre,
-   porque una utilidad del padre le ganaba a `hidden` en el hijo y los
-   elementos de segundo orden no se ocultaban bajo 40 rem (medido el
+   BARRA DE ESTADO DEL CAD — el contrato de altura de la ola «armazón».
+   UNA fila de 1,625rem (26 px, `CAD_SHELL_METRICS.statusRow`), `flex-nowrap`:
+   antes eran dos renglones de texto plano («OSNAP on· F3», «POLAR 45°· F10»…)
+   que a veces envolvían a tres. Cada elemento mide lo mismo (1,625rem) para
+   que reenvolver no cambie el alto de la barra y la cámara del lienzo no se
+   mueva (golden 72) — subido de 1,25rem porque el contrato del armazón fija
+   26 px, no 20. Va en la capa `components`, y no como utilidad `[&>*]:h-5` en
+   el padre, porque una utilidad del padre le ganaba a `hidden` en el hijo y
+   los elementos de segundo orden no se ocultaban bajo 40 rem (medido el
    2026-09-02: barra de 69 px en tres renglones con el panel de bloques
-   abierto). Con altura uniforme, reenvolver no cambia el alto de la barra y
-   la cámara del lienzo no se mueve (golden 72).
+   abierto).
    =========================================================================== */
 @layer components {
+  .cad-status-bar {
+    height: 1.625rem;
+    flex-wrap: nowrap;
+  }
+
   .cad-status-bar > * {
     display: inline-flex;
     align-items: center;
-    height: 1.25rem;
+    height: 1.625rem;
   }
 }

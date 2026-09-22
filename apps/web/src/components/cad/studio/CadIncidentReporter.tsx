@@ -106,10 +106,25 @@ export function CadIncidentReporter({
         data-testid="cad-incident-open"
         onClick={() => setEstado("abierto")}
         title="Algo salió mal — cuéntanoslo sin salir del plano"
+        // El rótulo dice lo que el botón HACE, no lo que pudo pasar. «Algo
+        // salió mal» fijo en la bandeja de la barra de estado se lee como un
+        // aviso de avería —parece que la aplicación está informando de un
+        // fallo suyo— cuando en realidad es la puerta para contarnos uno. La
+        // frase entera sigue en el tooltip, que es donde no alarma.
+        //
+        // Y un solo nombre accesible: antes convivían el rótulo ancho y el
+        // corto (`sr-only`), así que un lector de pantalla anunciaba «Algo
+        // salió mal Reportar». Ahora el nombre lo fija `aria-label` y los dos
+        // rótulos son decorativos.
+        aria-label="Reportar un fallo"
         className={className ?? trayButtonStyle}
       >
-        <span className="@max-[40rem]:hidden">Algo salió mal</span>
-        <span className="sr-only @max-[40rem]:not-sr-only">Reportar</span>
+        <span aria-hidden="true" className="@max-[40rem]:hidden">
+          Reportar un fallo
+        </span>
+        <span aria-hidden="true" className="sr-only @max-[40rem]:not-sr-only">
+          Reportar
+        </span>
       </button>
       <button
         type="button"
@@ -133,7 +148,8 @@ export function CadIncidentReporter({
           "rounded-lg border border-border bg-surface/80 px-2.5 py-1 type-micro text-muted-foreground shadow hover:text-foreground"
         }
       >
-        Algo salió mal
+        {/* Mismo criterio que la variante de bandeja de arriba. */}
+        Reportar un fallo
       </button>
       <button
         type="button"

@@ -2,17 +2,9 @@
 /**
  * CAPTURAS REALES DEL PRODUCTO — reproducibles, no envejecidas.
  *
- * POR QUÉ EXISTE. La portada de un CAD que no enseña un dibujo es la carencia
- * número uno de este producto: hasta hoy, `public/` no tenía un solo archivo de
- * imagen y el hero pintaba una caja con degradado y una lista numerada. Un
- * arquitecto que llega a decidir si cambia de herramienta quiere ver la
- * herramienta.
- *
- * POR QUÉ ES UN SCRIPT Y NO SEIS PNG SUBIDOS A MANO. Una captura pegada en el
- * repositorio envejece en silencio: el producto cambia, la portada sigue
- * enseñando la interfaz del trimestre pasado, y nadie se entera hasta que un
- * cliente lo dice. Aquí las capturas se REGENERAN — el plano se vuelve a
- * dibujar comando a comando con la misma línea de comandos que usa una persona.
+ * Regenera las imágenes de la portada y la documentación con el editor actual.
+ * El plano se dibuja comando a comando con la misma línea de comandos que usa
+ * una persona; el script evita conservar capturas de una interfaz antigua.
  *
  * Reutiliza los fixtures herméticos de los goldens (`e2e/fixtures/`): sin API
  * real, sin base de datos, sin red. Lo que se fotografía es el editor de verdad
@@ -24,7 +16,12 @@
  * En Windows hace falta `PLAYWRIGHT_BROWSERS_PATH` si los navegadores no están
  * en la ruta por defecto (ver docs/design/DESIGN_SYSTEM.md).
  */
-import { chromium, type BrowserContext, type Page } from "@playwright/test";
+import {
+  chromium,
+  expect,
+  type BrowserContext,
+  type Page,
+} from "@playwright/test";
 import { spawn, type ChildProcess } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -32,14 +29,20 @@ import { fileURLToPath } from "node:url";
 import { installMockBackend } from "../e2e/fixtures/mock-backend";
 import { installCadV1Backend } from "../e2e/fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../e2e/fixtures/standalone-identity";
+import { abrirPanelDerecho, esperarLienzoQuieto } from "../e2e/fixtures/docks";
 import { createCadStarterDocument } from "../src/lib/cad/starter-templates";
 import type { CadDocument } from "../src/lib/cad/cad-document";
 import { forbiddenTextFragments } from "../../../scripts/cad/check-no-industrial-domain.mjs";
+import { createProductCaptureDiagnostics } from "./product-capture-diagnostics";
+import { removeUnusedExampleLayer } from "./product-capture-example";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const webRoot = path.resolve(here, "..");
 const BASE_URL = process.env.E2E_BASE_URL || "http://localhost:3000";
 const API_ORIGIN = process.env.E2E_API_ORIGIN || "http://localhost:4010";
+const diagnostics = createProductCaptureDiagnostics(
+  process.env.PRODUCT_CAPTURE_DIAGNOSTICS_DIR,
+);
 
 /** Dónde caen las capturas. `public/product/` las sirve la portada. */
 const OUT_DIR = path.join(webRoot, "public", "product");
@@ -56,7 +59,14 @@ const OUT_DIR = path.join(webRoot, "public", "product");
  */
 const SAMPLE_PLAN = path.join(webRoot, "src", "lib", "cad", "sample-plan.json");
 /** Copia de referencia para el informe de la campaña (antes/después). */
-const DOC_DIR = path.resolve(webRoot, "..", "..", "docs", "design", "before-after");
+const DOC_DIR = path.resolve(
+  webRoot,
+  "..",
+  "..",
+  "docs",
+  "design",
+  "before-after",
+);
 
 /**
  * Retina. Las capturas se muestran a la mitad de su tamaño en la portada, así
@@ -72,6 +82,7 @@ const taken: Shot[] = [];
 /* ── Utilidades de conducción del editor ─────────────────────────────────── */
 
 async function type(page: Page, text: string) {
+  diagnostics.mark(`Entrada: ${text || "Enter"}`);
   const line = page.getByTestId("cad-command-input");
   await line.click();
   await line.fill(text);
@@ -86,19 +97,46 @@ async function type(page: Page, text: string) {
  * lienzo porque la lista no necesita saber dónde cayó el encuadre.
  */
 async function selectFirstEntity(page: Page) {
-  const row = page.getByTestId("cad-native-entity-list").locator("button").first();
+  await abrirPanelDerecho(page);
+  await esperarLienzoQuieto(page);
+  const row = page
+    .getByTestId("cad-native-entity-list")
+    .locator("button")
+    .first();
+  await expect(row).toBeVisible();
   await row.click();
-  await page.waitForTimeout(400);
 }
 
-async function shoot(page: Page, name: string, note: string, clip?: {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}) {
+async function shoot(
+  page: Page,
+  name: string,
+  note: string,
+  clip?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  },
+) {
+  diagnostics.mark(`Imagen: ${name}`);
   const file = path.join(OUT_DIR, `${name}.png`);
-  await page.screenshot({ path: file, clip, animations: "disabled" });
+  const viewport = page.viewportSize() ?? VIEWPORT;
+  const visibleClip = clip
+    ? {
+        x: Math.max(0, clip.x),
+        y: Math.max(0, clip.y),
+        width: Math.min(clip.width, viewport.width - Math.max(0, clip.x)),
+        height: Math.min(clip.height, viewport.height - Math.max(0, clip.y)),
+      }
+    : undefined;
+  if (visibleClip && (visibleClip.width <= 0 || visibleClip.height <= 0)) {
+    throw new Error(`La captura ${name} quedó fuera del viewport`);
+  }
+  await page.screenshot({
+    path: file,
+    clip: visibleClip,
+    animations: "disabled",
+  });
   taken.push({ name, note });
   console.log(`  · ${name}.png — ${note}`);
 }
@@ -119,6 +157,7 @@ async function shoot(page: Page, name: string, note: string, clip?: {
  * rótulos, una cadena de cotas—. Un CAD se juzga por lo que dibuja.
  */
 async function drawSamplePlan(page: Page) {
+  diagnostics.mark("Dibujar muros");
   /* ── 1. El perímetro: 10 × 7 m que cierran solos en las esquinas ───────── */
   const walls: Array<[string, string]> = [
     ["2000,2000", "12000,2000"],
@@ -157,6 +196,7 @@ async function drawSamplePlan(page: Page) {
  * que si el encuadre se destempla el guion falla en vez de clicar al vacío.
  */
 async function planToScreen(page: Page) {
+  diagnostics.mark("Calibrar coordenadas del lienzo");
   const box = await page.getByTestId("cad-canvas").boundingBox();
   if (!box) throw new Error("el lienzo del CAD no tiene caja");
   const coordinate = page.getByTestId("cad-cursor-coordinate");
@@ -247,10 +287,18 @@ async function placeOpenings(page: Page) {
     const toScreen = await planToScreen(page);
     const point = toScreen(opening.at);
     await type(page, opening.command);
+    await expect(page.getByTestId("cad-command-prompt")).toContainText(
+      opening.command === "DOOR"
+        ? "Designe el muro donde alojar la puerta"
+        : "Designe el muro donde alojar la ventana",
+      { timeout: 30_000 },
+    );
     await page.mouse.move(point.x, point.y);
     await page.waitForTimeout(150);
     await page.mouse.click(point.x, point.y);
-    await page.waitForTimeout(300);
+    await expect(page.getByTestId("cad-command-prompt")).toBeHidden({
+      timeout: 30_000,
+    });
     await page.keyboard.press("Escape");
   }
 }
@@ -263,6 +311,7 @@ async function placeOpenings(page: Page) {
  * entidad viva que se exporta a DXF, no un relleno pintado encima.
  */
 async function annotateSamplePlan(page: Page) {
+  diagnostics.mark("Sombreado, rótulos y cotas");
   /*
    * El sombreado del piso del baño, sobre su propio contorno.
    *
@@ -328,35 +377,10 @@ async function annotateSamplePlan(page: Page) {
 /* ── El guardián de identidad de la captura ──────────────────────────────── */
 
 /**
- * UNA FOTO NO PUEDE VOLVER A ENVEJECER EN SILENCIO.
- *
- * Las capturas del 22 de agosto se tomaron a las 02:42, HORAS antes de que la
- * campaña de identidad purgara el vocabulario del planificador de plantas. El
- * producto quedó limpio; la portada siguió enseñando «AXOS-CAD-STUDIO» en letras
- * grandes, herramientas «Aisle», «Zone» y «Equipment», y un panel que hablaba de
- * estaciones. Nadie se enteró porque un PNG no falla en CI.
- *
- * Ahora sí: antes de disparar, se lee el TEXTO RENDERIZADO de la página y se
- * rechaza si contiene vocabulario del producto muerto. El script se cae, la
- * captura no se escribe, y la portada se queda con la anterior —que es lo
- * correcto: mejor una foto vieja y sabida que una foto nueva y mentirosa.
- *
- * La lista tiene dos mitades y las dos importan:
- *
- *  · `forbiddenTextFragments` viene del MISMO gate que audita el código
- *    (`scripts/cad/check-no-industrial-domain.mjs`). Importarla en vez de
- *    copiarla es lo que impide que la foto y el código midan cosas distintas:
- *    lo que se prohíba mañana en el gate queda prohibido aquí sin tocar nada.
- *
- *  · `SURFACE_ONLY` es lo que el gate del código NO puede prohibir y una
- *    captura sí. `AXOS-CAD-STUDIO` está CONGELADO —vive en la columna `model`
- *    de los documentos de clientes, ver `IDENTITY.md`— así que el gate del
- *    código tiene que dejarlo pasar. Lo que no puede pasar es que se PINTE en
- *    la portada como si fuera el nombre del programa. Y `Aisle`, `Zone` y
- *    `Equipment` son palabras inglesas corrientes que el gate del código no
- *    puede prohibir sin ahogarse en falsos positivos; en la superficie visible
- *    de un CAD universal, en cambio, son la herramienta del planificador de
- *    plantas que ya no existe.
+ * Antes de escribir una imagen se verifica el texto renderizado. La lista
+ * compartida con check-no-industrial-domain mantiene el mismo contrato que
+ * el código; SURFACE_ONLY añade nombres históricos que siguen permitidos en
+ * datos persistidos, pero no deben reaparecer en la interfaz fotografiada.
  */
 
 /**
@@ -414,7 +438,9 @@ async function assertNoDeadProductVocabulary(page: Page, shot: string) {
       .filter((line) => stripAccents(line).toLowerCase().includes(needle))
       .filter((line) => !exempt?.test(line));
     if (surviving.length)
-      problems.push(`«${term}» — ${why} · ${JSON.stringify(surviving.slice(0, 4))}`);
+      problems.push(
+        `«${term}» — ${why} · ${JSON.stringify(surviving.slice(0, 4))}`,
+      );
   }
 
   if (!problems.length) return;
@@ -440,6 +466,7 @@ async function assertNoDeadProductVocabulary(page: Page, shot: string) {
  * encuadra con ZOOM EXtensión, que es el comando de siempre.
  */
 async function frameThePlan(page: Page) {
+  diagnostics.mark("Encuadrar plano");
   const flat = page.getByTitle(/Vista de plano 2D/);
   if (await flat.isVisible().catch(() => false)) {
     await flat.click();
@@ -514,11 +541,12 @@ async function maybeStartServer(): Promise<ChildProcess | null> {
     );
   }
   console.log("· arrancando next dev…");
-  const child = spawn("npm", ["run", "dev"], {
+  const child = spawn("npm", ["run", "dev", "--", "--hostname", "127.0.0.1"], {
     cwd: webRoot,
     env: { ...process.env, NEXT_PUBLIC_API_URL: API_ORIGIN, BROWSER: "none" },
     stdio: "ignore",
     shell: true,
+    windowsHide: true,
   });
   const deadline = Date.now() + 180_000;
   while (Date.now() < deadline) {
@@ -536,9 +564,12 @@ async function main() {
   await mkdir(DOC_DIR, { recursive: true });
   const server = await maybeStartServer();
 
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({
+    ...(process.env.CAD_PERF_REAL_GPU === "1" ? { channel: "chromium" } : {}),
+  });
   try {
     for (const theme of ["dark", "light"] as const) {
+      diagnostics.mark(`Preparar estudio: tema ${theme}`);
       const context = await browser.newContext({
         viewport: VIEWPORT,
         deviceScaleFactor: SCALE,
@@ -552,11 +583,13 @@ async function main() {
       );
       const { snapshot } = await installBackends(context);
       const page = await context.newPage();
+      diagnostics.watchPage(page);
 
       await page.goto(`${BASE_URL}/legacy/studio`);
       await page
         .getByTestId("cad-command-line")
         .waitFor({ state: "visible", timeout: 120_000 });
+      await diagnostics.reportRenderer(page);
 
       // El acompañante se cierra: en una captura de venta estorba, y su propia
       // pantalla se fotografía aparte.
@@ -570,6 +603,8 @@ async function main() {
       await frameThePlan(page);
       await placeOpenings(page);
       await annotateSamplePlan(page);
+      diagnostics.mark("Eliminar capa vacía del ejemplo y guardar");
+      await removeUnusedExampleLayer(page, snapshot);
       // Y otra vez después: el plano creció con los rótulos y las cotas, y un
       // encuadre hecho sobre el contorno pelado los deja fuera de cuadro.
       await frameThePlan(page);
@@ -597,35 +632,31 @@ async function main() {
         const dock = page.getByTestId("cad-command-line");
         const box = await dock.boundingBox();
         if (box) {
-          await shoot(page, "linea-de-comandos", "un comando a medio ejecutar", {
-            x: Math.max(0, box.x - 12),
-            y: Math.max(0, box.y - 12),
-            width: Math.min(VIEWPORT.width, box.width + 24),
-            height: box.height + 24,
-          });
+          await shoot(
+            page,
+            "linea-de-comandos",
+            "un comando a medio ejecutar",
+            {
+              x: Math.max(0, box.x - 12),
+              y: Math.max(0, box.y - 12),
+              width: Math.min(VIEWPORT.width, box.width + 24),
+              height: box.height + 24,
+            },
+          );
         }
         await page.keyboard.press("Escape");
 
-        /*
-         * El gestor de capas, por su BOTÓN.
-         *
-         * Teclear `LAYER` contesta «El gestor de capas no está montado en este
-         * espacio de trabajo. Use -LAYER…» —el gestor vive anclado y su
-         * visibilidad la decide el editor, no el puente de comandos
-         * (`palettes/use-palettes.ts` lo explica y lo asume)—, así que la
-         * captura salía enseñando ese renglón en rojo. Que dos comandos tan
-         * usados de AutoCAD no abran su paleta desde la línea es un defecto
-         * abierto, anotado en la bitácora; lo que NO puede pasar es que la
-         * portada lo anuncie.
-         */
-        await page.getByTitle(/Vista, capas y plano/).click();
+        /* Abrir el gestor con su control visible en la barra del estudio. */
+        const layersButton = page.getByTitle(/Vista, capas y plano/);
+        diagnostics.mark("Paleta de capas");
+        await layersButton.click();
         await page
           .getByTestId("cad-layer-manager")
           .waitFor({ state: "visible", timeout: 15_000 });
         await page.waitForTimeout(500);
         await shoot(page, "paleta-capas", "el gestor de capas");
-        await page.keyboard.press("Escape");
-        await page.waitForTimeout(300);
+        await layersButton.click();
+        await expect(page.getByTestId("cad-layer-manager")).toBeHidden();
 
         /*
          * La paleta de propiedades, por su ATAJO y con algo designado.
@@ -637,6 +668,7 @@ async function main() {
          * con una entidad designada la paleta enseña lo que tiene que enseñar
          * —una fila por propiedad— en vez de un panel vacío.
          */
+        diagnostics.mark("Paleta de propiedades");
         await selectFirstEntity(page);
         await page.keyboard.press("Control+1");
         await page
@@ -657,6 +689,7 @@ async function main() {
          * pestaña, que es por donde va una persona.
          */
         const tabs = page.getByTestId("cad-space-tabs").locator("button");
+        diagnostics.mark("Presentación y vista previa de papel");
         await tabs.nth(1).click();
         await page.waitForTimeout(1_000);
         /*
@@ -741,6 +774,9 @@ async function main() {
     );
 
     console.log(`\n${taken.length} capturas en apps/web/public/product/`);
+  } catch (error) {
+    await diagnostics.failure(error);
+    throw error;
   } finally {
     await browser.close();
     server?.kill();

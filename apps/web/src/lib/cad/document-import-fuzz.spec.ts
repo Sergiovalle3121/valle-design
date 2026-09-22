@@ -33,12 +33,16 @@ import {
   validCanonicalDocument,
 } from "./document-import-fuzz";
 import { importDocumentText } from "./document-import";
+import { DWG_UNAVAILABLE_REASON } from "./dwg-unavailable-reason";
 
 let checks = 0;
 const ok = (condition: boolean, message: string) => {
   assert.ok(condition, message);
   checks += 1;
 };
+
+ok(classifyCadImportError(DWG_UNAVAILABLE_REASON) === "dwg-sin-proveedor", "el rechazo DWG canónico tiene clasificación exacta");
+ok(classifyCadImportError(`${DWG_UNAVAILABLE_REASON} fallo inesperado`) === "desconocido", "un error distinto no se acepta por compartir el prefijo DWG");
 
 // El control positivo: el documento base TIENE que importar bien. Sin esto, un
 // corpus que rechaza absolutamente todo pasaría los cinco puntos de arriba

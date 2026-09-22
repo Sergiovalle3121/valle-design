@@ -4,6 +4,7 @@ import { installCadV1Backend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { enter3DView } from '../fixtures/view-mode';
 import { topView, fitFootprint } from "../fixtures/camera-preset";
+import { abrirPanelDerecho, esperarLienzoQuieto } from "../fixtures/docks";
 
 const cadDocument = {
   meta: { version: 1, schema: 3, unit: 'mm' },
@@ -61,6 +62,23 @@ async function worldPoint(page: Page, target: { x: number; y: number }) {
     };
   };
   const originScreen = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  // LA CÁMARA TODAVÍA SE MUEVE. `fitFootprint` no coloca la vista de golpe, y
+  // muestrear la transformación mundo↔pantalla a mitad del encuadre devuelve
+  // una que ya no vale cuando se suelta el ratón: el 2026-09-20 el arrastre
+  // acababa en X = 12 617 mm —fuera del contorno de 12 000— y designaba cero.
+  // Dos lecturas iguales seguidas en el MISMO punto bastan para saber que la
+  // vista se quedó quieta; a partir de ahí los tres muestreos de abajo
+  // describen una transformación que sigue siendo cierta al arrastrar.
+  await expect
+    .poll(
+      async () => {
+        const antes = await sample(originScreen.x, originScreen.y);
+        const despues = await sample(originScreen.x, originScreen.y);
+        return antes.x === despues.x && antes.y === despues.y;
+      },
+      { timeout: 20_000, intervals: [100, 150, 200, 300, 500] },
+    )
+    .toBe(true);
   const origin = await sample(originScreen.x, originScreen.y);
   const horizontal = await sample(originScreen.x + 80, originScreen.y);
   const vertical = await sample(originScreen.x, originScreen.y + 80);
@@ -92,6 +110,7 @@ test('professional selection composes quick, add, previous, last, all and invert
   await loginAsStandaloneOwner(context);
   await installCadBackend(context);
   await page.goto('/legacy/studio');
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
 
   await page.getByTitle(/Selección profesional/).click();
@@ -130,6 +149,7 @@ test('professional selection executes window, crossing, lasso and overlap cyclin
   await loginAsStandaloneOwner(context);
   await installCadBackend(context, spatialCadDocument);
   await page.goto('/legacy/studio');
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
 
   const selectionTool = page.getByTitle(/Selecci.n profesional/);
@@ -143,6 +163,10 @@ test('professional selection executes window, crossing, lasso and overlap cyclin
     await selectionTool.click();
     await expect(palette).toBeHidden();
     await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+    // El muelle se pliega con una transición: sin esperar a que el lienzo
+    // deje de crecer, la transformación que se mide abajo ya no vale cuando se
+    // suelta el ratón y el arrastre designa cero.
+    await esperarLienzoQuieto(page);
     await enter3DView(page);
     await topView(page);
     await fitFootprint(page);
@@ -167,11 +191,23 @@ test('professional selection executes window, crossing, lasso and overlap cyclin
   await expect(statusCount).toHaveText('1 sel');
 
   await setCanvasMode('pick');
-  const overlap = await worldPoint(page, { x: 9_150, y: 2_150 });
+  let overlap = await worldPoint(page, { x: 9_150, y: 2_150 });
   await page.mouse.click(overlap.x, overlap.y);
   await expect(statusCount).toHaveText('1 sel');
+  // El panel de propiedades se abre A MANO, por el riel. Designar ya NO lo
+  // despliega solo (ola «legible»): hacerlo encogía el lienzo de 1190 a 911 px
+  // y lo devolvía en cada clic, con el dibujo reescalándose bajo el cursor —
+  // por eso el segundo clic de este mismo ciclo aterrizaba donde ya no había
+  // nada y limpiaba la designación («0 sel» en vez de ciclar). Ahora el plano
+  // se queda quieto al designar, y quien quiere ver propiedades las pide.
+  await abrirPanelDerecho(page);
   const properties = page.getByTestId('cad-native-properties');
   await expect(properties).toBeVisible();
+  // Abrir el muelle SÍ mueve el lienzo, así que la transformación
+  // mundo↔pantalla se vuelve a muestrear antes de repetir el clic: la
+  // geometría no se movió, sólo la pantalla.
+  await esperarLienzoQuieto(page);
+  overlap = await worldPoint(page, { x: 9_150, y: 2_150 });
   // El panel dejó de enseñar `cad_mt60y4ol_uzfo` donde el usuario mira para
   // saber qué designó: ahora dice «Línea 1» y el identificador técnico viaja
   // en el detalle de la celda. Se lee de ahí, que además es una aserción MÁS

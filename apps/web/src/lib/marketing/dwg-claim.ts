@@ -1,22 +1,25 @@
 import {
   isDwgAc1018ImportBetaEnabled,
+  isDwgModernImportBetaEnabled,
   isDwgNativeImportBetaEnabled,
 } from "@/lib/cad/document-import-client";
 import {
   dwgAc1018BetaImportIsEnabled,
   dwgBetaImportIsEnabled,
+  dwgModernBetaImportIsEnabled,
 } from "@/lib/cad/dwg-interop-flag";
 
 /**
  * LO QUE LA PORTADA DICE SOBRE DWG, derivado de las banderas del despliegue.
  *
  * La verdad sobre DWG no es una frase: depende de cómo se construyó ESTE
- * despliegue. `lib/cad/dwg-interop-flag.ts` tiene firmadas por el titular dos
+ * despliegue. `lib/cad/dwg-interop-flag.ts` tiene firmadas por el titular tres
  * betas de sólo importación —`AC1015_MODELSPACE_2D_V3` (ADR-0009 §6-bis) y
- * `AC1018_MODELSPACE_2D_V1` (§7)— que se encienden con
- * `NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA` y `NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA`,
+ * `AC1018_MODELSPACE_2D_V1` (§7) y la familia AC1024/AC1027/AC1032— que
+ * se encienden con `NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA`,
+ * `NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA` y `NEXT_PUBLIC_DWG_MODERN_IMPORT_BETA`,
  * inlineadas en tiempo de build. Un despliegue sin esas variables no abre
- * ningún DWG; uno con la primera abre AC1015; con las dos, AC1015 y AC1018.
+ * ningún DWG; la primera habilita AC1015 y las otras amplían esa beta base.
  * La exportación DWG sigue apagada en todos (`dwg-export-flag.ts`).
  *
  * La portada, el FAQ, los pilares, la comparativa y la lista de precios
@@ -27,7 +30,7 @@ import {
  * una variable en Railway, la portada cambia sola y en la misma build.
  *
  * Reglas del texto, vigiladas por `dwg-claim.spec.ts`:
- *  · nombra la VERSIÓN del formato (AC1015, AC1018), nunca a su fabricante;
+ *  · nombra la VERSIÓN del formato, nunca a su fabricante;
  *  · «sólo importación» y «beta» van en la misma frase que «DWG»;
  *  · nunca afirma que se escriba DWG.
  */
@@ -37,6 +40,8 @@ export interface DwgClaimInput {
   readonly nativeBeta: boolean;
   /** `NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA === "true"` en esta build. */
   readonly ac1018Beta: boolean;
+  /** `NEXT_PUBLIC_DWG_MODERN_IMPORT_BETA === "true"` en esta build. */
+  readonly modernBeta: boolean;
 }
 
 export interface DwgClaim {
@@ -52,16 +57,18 @@ export interface DwgClaim {
 
 const AC1015 = "AC1015 (R2000)";
 const AC1018 = "AC1018 (R2004)";
+const MODERN = ["AC1024 (R2010)", "AC1027 (R2013)", "AC1032 (R2018)"];
 
 const NEVER_WRITES =
   "Nunca escribe DWG: la salida es DXF con manifiesto de pérdidas.";
 
 /** Puro: mismas banderas ⇒ mismo texto. Es lo que prueba el spec. */
-export function dwgClaimFor({ nativeBeta, ac1018Beta }: DwgClaimInput): DwgClaim {
+export function dwgClaimFor({ nativeBeta, ac1018Beta, modernBeta }: DwgClaimInput): DwgClaim {
   // La conjunción es la del importador: AC1018 amplía la beta base, nunca la
   // sustituye. Encender sólo la segunda variable no abre nada.
   const base = dwgBetaImportIsEnabled(nativeBeta);
   const ac1018 = dwgAc1018BetaImportIsEnabled(ac1018Beta, nativeBeta);
+  const modern = dwgModernBetaImportIsEnabled(modernBeta, nativeBeta);
 
   if (!base) {
     return {
@@ -70,15 +77,16 @@ export function dwgClaimFor({ nativeBeta, ac1018Beta }: DwgClaimInput): DwgClaim
       short:
         "Este despliegue no abre ni escribe DWG: el editor detecta el formato y lo rechaza con un mensaje claro.",
       long:
-        "No en este despliegue. Existe una lectura en beta, sólo de importación y acotada a las versiones " +
-        `${AC1015} y ${AC1018} del formato, que se enciende por configuración; aquí está apagada, y apagada ` +
-        "el editor DETECTA ese formato y lo rechaza con un mensaje claro en vez de fingir que lo entiende y " +
-        `devolverte un dibujo roto. ${NEVER_WRITES}`,
+        "No en este despliegue. La lectura DWG en beta, sólo de importación, está apagada. " +
+        "Exporta tu dibujo a DXF desde tu CAD para importarlo aquí y consulta el informe de pérdidas. " +
+        NEVER_WRITES,
     };
   }
 
-  const versions = ac1018 ? [AC1015, AC1018] : [AC1015];
-  const lista = versions.join(" y ");
+  const versions = [AC1015, ...(ac1018 ? [AC1018] : []), ...(modern ? MODERN : [])];
+  const lista = versions.length === 1
+    ? versions[0]
+    : `${versions.slice(0, -1).join(", ")} y ${versions[versions.length - 1]}`;
   return {
     importEnabled: true,
     versions,
@@ -95,5 +103,6 @@ export function dwgClaim(): DwgClaim {
   return dwgClaimFor({
     nativeBeta: isDwgNativeImportBetaEnabled(),
     ac1018Beta: isDwgAc1018ImportBetaEnabled(),
+    modernBeta: isDwgModernImportBetaEnabled(),
   });
 }

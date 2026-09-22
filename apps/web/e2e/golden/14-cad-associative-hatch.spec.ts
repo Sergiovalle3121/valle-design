@@ -5,6 +5,7 @@ import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 import { applyNativeProperty } from '../fixtures/dynamic-input';
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 type CadHatch = Extract<CadEntity, { type: 'hatch' }>;
 
@@ -47,6 +48,9 @@ test('HATCH remains associated, regenerates with its source and reports a broken
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto('/legacy/studio');
+  // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+  // como una persona, antes de leer nada de lo que vive dentro.
+  await abrirPanelDerecho(page);
 
   await page.getByTestId('cad-native-entity-hatch-source-ellipse').click();
   await page.getByTitle(/^HATCH:/).click();
@@ -93,6 +97,9 @@ test('HATCH resolves an exact interior point through the production boundary pic
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto('/legacy/studio');
+  // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+  // como una persona, antes de leer nada de lo que vive dentro.
+  await abrirPanelDerecho(page);
 
   await page.getByTitle(/^HATCH:/).click();
   const palette = page.getByTestId('cad-hatch-palette');

@@ -22,6 +22,7 @@ import {
   canonicalDocument,
   largeCanonicalDocument,
 } from "../fixtures/real-canonical-documents";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 test.describe.configure({ mode: "serial" });
 test.skip(
@@ -348,6 +349,9 @@ test.describe("recorrido comercial CAD first-party contra PostgreSQL", () => {
 
     await page.getByRole("button", { name: "Abrir documento importado" }).click();
     await expect(page).toHaveURL(new RegExp(`/studio/${importedDocumentId}$`, "u"));
+    // Ola «armazón»: el panel derecho (lista de entidades) arranca plegado a
+    // un riel de iconos — antes se veía abierto de fábrica.
+    await abrirPanelDerecho(page);
     await expect(page.getByTestId("cad-native-entity-real-arc")).toBeVisible({
       timeout: 120_000,
     });
@@ -460,6 +464,8 @@ test.describe("recorrido comercial CAD first-party contra PostgreSQL", () => {
     await loginThroughUi(page, email, E2E_PASSWORD);
     await activateOrganization(context, organizationId);
     await page.goto(`/studio/${importedDocumentId}`);
+    // Página NUEVA: el panel derecho nace plegado a un riel de iconos.
+    await abrirPanelDerecho(page);
     await expect(page.getByTestId("cad-native-entity-real-arc")).toBeVisible({
       timeout: 120_000,
     });
@@ -702,6 +708,8 @@ test.describe("recorrido comercial CAD first-party contra PostgreSQL", () => {
   test("20: exporta DXF desde el estudio real y completa el round-trip mediante la importacion productiva", async () => {
     test.setTimeout(300_000);
     await page.goto(`/studio/${importedDocumentId}`);
+    // Página NUEVA: el panel derecho nace plegado a un riel de iconos.
+    await abrirPanelDerecho(page);
     await expect(page.getByTestId("cad-native-entity-real-arc")).toBeVisible({
       timeout: 120_000,
     });

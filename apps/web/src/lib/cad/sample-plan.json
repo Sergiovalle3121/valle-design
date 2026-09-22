@@ -1,6 +1,6 @@
 {
   "meta": {
-    "version": 37,
+    "version": 26,
     "schema": 10,
     "unit": "mm",
     "footprintW": 40550,
@@ -117,14 +117,6 @@
       "visible": true
     },
     {
-      "color": "#a78bfa",
-      "id": "equipment",
-      "locked": false,
-      "name": "Equipment",
-      "plot": true,
-      "visible": true
-    },
-    {
       "color": "#34d399",
       "id": "flow",
       "locked": false,
@@ -181,7 +173,7 @@
         "z": 0
       },
       "height": 2400,
-      "id": "cad_mtest1b2_phjb",
+      "id": "cad_muaw5ukq_jpjt",
       "layer": "layout",
       "start": {
         "x": 2000,
@@ -198,7 +190,7 @@
         "z": 0
       },
       "height": 2400,
-      "id": "cad_mtest7ay_35m1",
+      "id": "cad_muaw5uyx_gx7c",
       "layer": "layout",
       "start": {
         "x": 12000,
@@ -215,7 +207,7 @@
         "z": 0
       },
       "height": 2400,
-      "id": "cad_mtestdo6_6cw7",
+      "id": "cad_muaw5v8t_735o",
       "layer": "layout",
       "start": {
         "x": 12000,
@@ -232,7 +224,7 @@
         "z": 0
       },
       "height": 2400,
-      "id": "cad_mtestjz4_247d",
+      "id": "cad_muaw5vhr_lt9e",
       "layer": "layout",
       "start": {
         "x": 2000,
@@ -249,7 +241,7 @@
         "z": 0
       },
       "height": 2400,
-      "id": "cad_mtestqq5_qe5q",
+      "id": "cad_muaw5vq6_wh8o",
       "layer": "layout",
       "start": {
         "x": 6500,
@@ -266,7 +258,7 @@
         "z": 0
       },
       "height": 2400,
-      "id": "cad_mtestx9o_3zw2",
+      "id": "cad_muaw5vyo_23me",
       "layer": "layout",
       "start": {
         "x": 6500,
@@ -279,11 +271,11 @@
     {
       "height": 2100,
       "hinge": "start",
-      "hostId": "cad_mtest1b2_phjb",
-      "id": "cad_mtesvsti_fbnl",
+      "hostId": "cad_muaw5ukq_jpjt",
+      "id": "cad_muaw614d_uu7w",
       "kind": "door",
       "layer": "layout",
-      "position": 2003.3898305084745,
+      "position": 2006.1546811397557,
       "sill": 0,
       "swing": "left",
       "type": "opening",
@@ -292,11 +284,11 @@
     {
       "height": 1200,
       "hinge": "start",
-      "hostId": "cad_mtest1b2_phjb",
-      "id": "cad_mtesx1km_axlk",
+      "hostId": "cad_muaw5ukq_jpjt",
+      "id": "cad_muaw63s0_ltsk",
       "kind": "window",
       "layer": "layout",
-      "position": 7502.169491525423,
+      "position": 7506.160108548169,
       "sill": 900,
       "swing": "left",
       "type": "opening",
@@ -305,11 +297,11 @@
     {
       "height": 1200,
       "hinge": "start",
-      "hostId": "cad_mtestjz4_247d",
-      "id": "cad_mtesyaku_3okk",
+      "hostId": "cad_muaw5vhr_lt9e",
+      "id": "cad_muaw66hf_zbri",
       "kind": "window",
       "layer": "layout",
-      "position": 3500,
+      "position": 3506.138398914518,
       "sill": 900,
       "swing": "left",
       "type": "opening",
@@ -318,11 +310,11 @@
     {
       "height": 1200,
       "hinge": "start",
-      "hostId": "cad_mtestdo6_6cw7",
-      "id": "cad_mteszjv4_8jpl",
+      "hostId": "cad_muaw5v8t_735o",
+      "id": "cad_muaw695p_6nwr",
       "kind": "window",
       "layer": "layout",
-      "position": 2497.830508474577,
+      "position": 2493.839891451831,
       "sill": 900,
       "swing": "left",
       "type": "opening",
@@ -330,7 +322,7 @@
     },
     {
       "closed": true,
-      "id": "cad_mtet0k28_cbiy",
+      "id": "cad_muaw69ph_ax5t",
       "layer": "layout",
       "type": "polyline",
       "vertices": [
@@ -385,9 +377,9 @@
         ]
       ],
       "boundaryRefs": [
-        "cad_mtet0k28_cbiy"
+        "cad_muaw69ph_ax5t"
       ],
-      "id": "cad_mtet0us6_qrqi",
+      "id": "cad_muaw6a6l_tr0z",
       "islandStyle": "normal",
       "layer": "layout",
       "pattern": "ANSI31",
@@ -398,7 +390,7 @@
     {
       "alignment": "top-left",
       "height": 320,
-      "id": "cad_mtet1sz1_msy9",
+      "id": "cad_muaw6b2j_kqgh",
       "insertion": {
         "x": 2600,
         "y": 4200,
@@ -412,7 +404,7 @@
     {
       "alignment": "top-left",
       "height": 320,
-      "id": "cad_mtet2sfs_qc46",
+      "id": "cad_muaw6btu_mbdj",
       "insertion": {
         "x": 7000,
         "y": 3600,
@@ -426,7 +418,7 @@
     {
       "alignment": "top-left",
       "height": 320,
-      "id": "cad_mtet3su1_gr7c",
+      "id": "cad_muaw6cke_do4k",
       "insertion": {
         "x": 7000,
         "y": 7900,
@@ -442,15 +434,27 @@
         "x": 2000,
         "y": 2000
       },
+      "associationStatus": "associated",
+      "associative": true,
       "axis": "x",
       "b": {
         "x": 12000,
         "y": 2000
       },
       "dimensionKind": "linear",
-      "id": "cad_mtet4f86_bll5",
+      "id": "cad_muaw6d3m_l43z",
       "layer": "layout",
       "offset": -1400,
+      "references": [
+        {
+          "anchor": "start",
+          "entityId": "cad_muaw5ukq_jpjt"
+        },
+        {
+          "anchor": "end",
+          "entityId": "cad_muaw5ukq_jpjt"
+        }
+      ],
       "type": "dimension"
     },
     {
@@ -458,15 +462,27 @@
         "x": 2000,
         "y": 2000
       },
+      "associationStatus": "associated",
+      "associative": true,
       "axis": "x",
       "b": {
         "x": 6500,
         "y": 2000
       },
       "dimensionKind": "linear",
-      "id": "cad_mtet50rn_6nor",
+      "id": "cad_muaw6dhm_zndy",
       "layer": "layout",
       "offset": -700,
+      "references": [
+        {
+          "anchor": "start",
+          "entityId": "cad_muaw5ukq_jpjt"
+        },
+        {
+          "anchor": "start",
+          "entityId": "cad_muaw5vq6_wh8o"
+        }
+      ],
       "type": "dimension"
     },
     {
@@ -474,15 +490,27 @@
         "x": 2000,
         "y": 2000
       },
+      "associationStatus": "associated",
+      "associative": true,
       "axis": "y",
       "b": {
         "x": 2000,
         "y": 9000
       },
       "dimensionKind": "linear",
-      "id": "cad_mtet5m5k_twp5",
+      "id": "cad_muaw6dxy_it82",
       "layer": "layout",
       "offset": -1100,
+      "references": [
+        {
+          "anchor": "start",
+          "entityId": "cad_muaw5ukq_jpjt"
+        },
+        {
+          "anchor": "end",
+          "entityId": "cad_muaw5v8t_735o"
+        }
+      ],
       "type": "dimension"
     }
   ],
@@ -497,7 +525,7 @@
     },
     {
       "version": 3,
-      "label": "save"
+      "label": "insert:wall"
     },
     {
       "version": 4,
@@ -505,7 +533,7 @@
     },
     {
       "version": 5,
-      "label": "save"
+      "label": "insert:wall"
     },
     {
       "version": 6,
@@ -513,149 +541,105 @@
     },
     {
       "version": 7,
-      "label": "save"
+      "label": "insert:wall"
     },
     {
       "version": 8,
-      "label": "insert:wall"
+      "label": "save"
     },
     {
       "version": 9,
-      "label": "save"
+      "label": "insert:opening"
     },
     {
       "version": 10,
-      "label": "insert:wall"
+      "label": "save"
     },
     {
       "version": 11,
-      "label": "save"
+      "label": "insert:opening"
     },
     {
       "version": 12,
-      "label": "insert:wall"
+      "label": "save"
     },
     {
       "version": 13,
-      "label": "save"
+      "label": "insert:opening"
     },
     {
       "version": 14,
-      "label": "insert:opening"
+      "label": "save"
     },
     {
       "version": 15,
-      "label": "save"
+      "label": "insert:opening"
     },
     {
       "version": 16,
-      "label": "insert:opening"
-    },
-    {
-      "version": 17,
-      "label": "save"
-    },
-    {
-      "version": 18,
-      "label": "insert:opening"
-    },
-    {
-      "version": 19,
-      "label": "save"
-    },
-    {
-      "version": 20,
-      "label": "insert:opening"
-    },
-    {
-      "version": 21,
-      "label": "save"
-    },
-    {
-      "version": 22,
       "label": "insert:polyline"
     },
     {
-      "version": 23,
-      "label": "save"
-    },
-    {
-      "version": 24,
+      "version": 17,
       "label": "insert:hatch"
     },
     {
-      "version": 25,
+      "version": 18,
+      "label": "insert:mtext"
+    },
+    {
+      "version": 19,
+      "label": "insert:mtext"
+    },
+    {
+      "version": 20,
+      "label": "insert:mtext"
+    },
+    {
+      "version": 21,
+      "label": "insert:dimension"
+    },
+    {
+      "version": 22,
+      "label": "insert:dimension"
+    },
+    {
+      "version": 23,
+      "label": "insert:dimension"
+    },
+    {
+      "version": 24,
       "label": "save"
+    },
+    {
+      "version": 25,
+      "label": "layer:delete:equipment:reassign:layout"
     },
     {
       "version": 26,
-      "label": "insert:mtext"
-    },
-    {
-      "version": 27,
-      "label": "save"
-    },
-    {
-      "version": 28,
-      "label": "insert:mtext"
-    },
-    {
-      "version": 29,
-      "label": "save"
-    },
-    {
-      "version": 30,
-      "label": "insert:mtext"
-    },
-    {
-      "version": 31,
-      "label": "save"
-    },
-    {
-      "version": 32,
-      "label": "insert:dimension"
-    },
-    {
-      "version": 33,
-      "label": "save"
-    },
-    {
-      "version": 34,
-      "label": "insert:dimension"
-    },
-    {
-      "version": 35,
-      "label": "save"
-    },
-    {
-      "version": 36,
-      "label": "insert:dimension"
-    },
-    {
-      "version": 37,
       "label": "save"
     }
   ],
   "modelSpace": {
     "entityIds": [
-      "cad_mtet0us6_qrqi",
-      "cad_mtest1b2_phjb",
-      "cad_mtest7ay_35m1",
-      "cad_mtestdo6_6cw7",
-      "cad_mtestjz4_247d",
-      "cad_mtestqq5_qe5q",
-      "cad_mtestx9o_3zw2",
-      "cad_mtesvsti_fbnl",
-      "cad_mtesx1km_axlk",
-      "cad_mtesyaku_3okk",
-      "cad_mteszjv4_8jpl",
-      "cad_mtet0k28_cbiy",
-      "cad_mtet1sz1_msy9",
-      "cad_mtet2sfs_qc46",
-      "cad_mtet3su1_gr7c",
-      "cad_mtet4f86_bll5",
-      "cad_mtet50rn_6nor",
-      "cad_mtet5m5k_twp5"
+      "cad_muaw6a6l_tr0z",
+      "cad_muaw5ukq_jpjt",
+      "cad_muaw5uyx_gx7c",
+      "cad_muaw5v8t_735o",
+      "cad_muaw5vhr_lt9e",
+      "cad_muaw5vq6_wh8o",
+      "cad_muaw5vyo_23me",
+      "cad_muaw614d_uu7w",
+      "cad_muaw63s0_ltsk",
+      "cad_muaw66hf_zbri",
+      "cad_muaw695p_6nwr",
+      "cad_muaw69ph_ax5t",
+      "cad_muaw6b2j_kqgh",
+      "cad_muaw6btu_mbdj",
+      "cad_muaw6cke_do4k",
+      "cad_muaw6d3m_l43z",
+      "cad_muaw6dhm_zndy",
+      "cad_muaw6dxy_it82"
     ]
   },
   "paperSpaces": [
@@ -752,6 +736,7 @@
         "arrowhead": "architectural-tick",
         "arrowSize": 250,
         "precision": 2,
+        "textHeight": 250,
         "textStyle": "ROTULO",
         "units": "m"
       },
@@ -759,6 +744,7 @@
         "arrowhead": "architectural-tick",
         "arrowSize": 500,
         "precision": 2,
+        "textHeight": 500,
         "textStyle": "ROTULO",
         "units": "m"
       },
@@ -766,6 +752,7 @@
         "arrowhead": "architectural-tick",
         "arrowSize": 125,
         "precision": 2,
+        "textHeight": 125,
         "textStyle": "ROTULO",
         "units": "m"
       },
@@ -773,6 +760,7 @@
         "arrowhead": "architectural-tick",
         "arrowSize": 187.5,
         "precision": 2,
+        "textHeight": 187.5,
         "textStyle": "ROTULO",
         "units": "m"
       },
@@ -780,6 +768,7 @@
         "arrowhead": "architectural-tick",
         "arrowSize": 25,
         "precision": 0,
+        "textHeight": 25,
         "textStyle": "ROTULO",
         "units": "cm"
       },
@@ -787,6 +776,7 @@
         "arrowhead": "architectural-tick",
         "arrowSize": 50,
         "precision": 0,
+        "textHeight": 50,
         "textStyle": "ROTULO",
         "units": "cm"
       },
@@ -794,6 +784,7 @@
         "arrowhead": "architectural-tick",
         "arrowSize": 62.5,
         "precision": 0,
+        "textHeight": 62.5,
         "textStyle": "ROTULO",
         "units": "cm"
       },
@@ -801,6 +792,7 @@
         "arrowhead": "architectural-tick",
         "arrowSize": 12.5,
         "precision": 0,
+        "textHeight": 12.5,
         "textStyle": "ROTULO",
         "units": "cm"
       }

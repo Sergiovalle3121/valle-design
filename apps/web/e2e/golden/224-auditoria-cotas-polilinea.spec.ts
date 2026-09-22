@@ -7,6 +7,7 @@ import { applyNativeProperty } from "../fixtures/dynamic-input";
 import type { CadDocument, CadEntity } from "../../src/lib/cad/cad-document";
 import { CAD_DOCUMENT_SCHEMA } from "../../src/lib/cad/cad-document-shared";
 import { fitFootprint } from "../fixtures/camera-preset";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 /**
  * AUDITORÍA — ACOTAR UN PLANO PARA OBRA.
@@ -60,7 +61,13 @@ function documentoSemilla(): CadDocument {
     meta: { version: 1, schema: CAD_DOCUMENT_SCHEMA, unit: "mm" },
     layers: [
       { id: "0", name: "0", color: "#ffffff", visible: true, locked: false },
-      { id: "cotas", name: "Cotas", color: "#34d399", visible: true, locked: false },
+      {
+        id: "cotas",
+        name: "Cotas",
+        color: "#34d399",
+        visible: true,
+        locked: false,
+      },
     ],
     entities: [
       {
@@ -111,12 +118,16 @@ function documentoSemilla(): CadDocument {
 async function abrirEstudio(context: BrowserContext, page: Page) {
   await installMockBackend(context);
   await loginAsStandaloneOwner(context);
-  const backend = await installCadStudioBackend<CadDocument>(context, documentoSemilla(), {
-    footprintW: 12_000,
-    footprintH: 12_000,
-    unit: "mm",
-    gridSize: 100,
-  });
+  const backend = await installCadStudioBackend<CadDocument>(
+    context,
+    documentoSemilla(),
+    {
+      footprintW: 12_000,
+      footprintH: 12_000,
+      unit: "mm",
+      gridSize: 100,
+    },
+  );
   await page.goto("/legacy/studio");
   await expect(page.getByTestId("cad-canvas")).toBeVisible();
   const saltar = page.getByTestId("cad-guided-tour-skip");
@@ -133,7 +144,9 @@ async function teclear(page: Page, valor: string) {
 }
 
 async function esperarEntidades(page: Page, total: number) {
-  await expect(page.getByTestId("cad-native-document-count")).toHaveText(`Native ${total}`);
+  await expect(page.getByTestId("cad-native-document-count")).toHaveText(
+    `Native ${total}`,
+  );
 }
 
 const propiedades = (page: Page) => page.getByTestId("cad-native-properties");
@@ -148,19 +161,28 @@ const propiedades = (page: Page) => page.getByTestId("cad-native-properties");
  * es la que no estaba antes.
  */
 async function entidadesDelPlano(page: Page): Promise<string[]> {
+  await abrirPanelDerecho(page);
   return page
     .getByTestId("cad-native-entity-list")
     .locator('button[data-testid^="cad-native-entity-"]')
     .evaluateAll((nodos) =>
-      nodos.map((n) => (n as HTMLElement).dataset.testid!.slice("cad-native-entity-".length)),
+      nodos.map((n) =>
+        (n as HTMLElement).dataset.testid!.slice("cad-native-entity-".length),
+      ),
     );
 }
 
 /** La entidad recién nacida: la que no estaba antes. */
-async function cotaNueva(page: Page, previas: readonly string[]): Promise<string> {
+async function cotaNueva(
+  page: Page,
+  previas: readonly string[],
+): Promise<string> {
   const ahora = await entidadesDelPlano(page);
   const nuevas = ahora.filter((id) => !previas.includes(id));
-  expect(nuevas, `antes: [${previas.join(", ")}] · ahora: [${ahora.join(", ")}]`).toHaveLength(1);
+  expect(
+    nuevas,
+    `antes: [${previas.join(", ")}] · ahora: [${ahora.join(", ")}]`,
+  ).toHaveLength(1);
   return nuevas[0];
 }
 
@@ -171,7 +193,9 @@ async function designar(page: Page, id: string) {
 }
 
 async function deseleccionar(page: Page) {
-  await propiedades(page).getByRole("button", { name: "Deseleccionar" }).click();
+  await propiedades(page)
+    .getByRole("button", { name: "Deseleccionar" })
+    .click();
 }
 
 /**
@@ -184,16 +208,28 @@ async function deseleccionar(page: Page) {
  * mirar la lista. No es un fallo: es que el panel es uno solo.
  */
 async function soltarSeleccion(page: Page) {
-  const boton = propiedades(page).getByRole("button", { name: "Deseleccionar" });
+  const boton = propiedades(page).getByRole("button", {
+    name: "Deseleccionar",
+  });
   if (await boton.count()) await boton.click();
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId("cad-native-entity-list")).toBeVisible();
 }
 
 /** Lo que el arquitecto LEE de una cota: su medida y el rótulo del plano. */
-async function leerCota(page: Page, id: string, medida: string, rotulo: string) {
+async function leerCota(
+  page: Page,
+  id: string,
+  medida: string,
+  rotulo: string,
+) {
   await designar(page, id);
-  await expect(page.getByTestId("cad-native-property-measurement")).toHaveValue(medida);
-  await expect(page.getByTestId("cad-native-property-label")).toHaveValue(rotulo);
+  await expect(page.getByTestId("cad-native-property-measurement")).toHaveValue(
+    medida,
+  );
+  await expect(page.getByTestId("cad-native-property-label")).toHaveValue(
+    rotulo,
+  );
   await deseleccionar(page);
 }
 
@@ -226,7 +262,12 @@ async function muestrear(
   await page.mouse.move(x, y);
   const limite = Date.now() + 3_000;
   let lectura = await leerVisor(page);
-  while (previo && lectura.x === previo.x && lectura.y === previo.y && Date.now() < limite) {
+  while (
+    previo &&
+    lectura.x === previo.x &&
+    lectura.y === previo.y &&
+    Date.now() < limite
+  ) {
     await page.waitForTimeout(50);
     lectura = await leerVisor(page);
   }
@@ -247,7 +288,8 @@ async function pixelDe(page: Page, destino: { x: number; y: number }) {
   const c = (horizontal.y - origen.y) / 80;
   const d = (vertical.y - origen.y) / 80;
   const det = a * d - b * c;
-  if (Math.abs(det) < 1e-9) throw new Error("La afín mundo↔pantalla es singular");
+  if (Math.abs(det) < 1e-9)
+    throw new Error("La afín mundo↔pantalla es singular");
   // Planta ortográfica: los términos cruzados son ~0 frente a la diagonal. Si no
   // lo fueran, la vista no sería cenital y apuntar a una coordenada no tendría
   // sentido; se dice en vez de devolver un píxel cualquiera.
@@ -255,8 +297,14 @@ async function pixelDe(page: Page, destino: { x: number; y: number }) {
   if (Math.max(Math.abs(b), Math.abs(c)) > diagonal * 0.02)
     throw new Error("La vista no está en planta ortográfica");
   let posicion = {
-    x: Math.round(centro.x + (d * (destino.x - origen.x) - b * (destino.y - origen.y)) / det),
-    y: Math.round(centro.y + (-c * (destino.x - origen.x) + a * (destino.y - origen.y)) / det),
+    x: Math.round(
+      centro.x +
+        (d * (destino.x - origen.x) - b * (destino.y - origen.y)) / det,
+    ),
+    y: Math.round(
+      centro.y +
+        (-c * (destino.x - origen.x) + a * (destino.y - origen.y)) / det,
+    ),
   };
   let previo = vertical;
   for (let intento = 0; intento < 6; intento += 1) {
@@ -265,7 +313,8 @@ async function pixelDe(page: Page, destino: { x: number; y: number }) {
     const errorX = destino.x - medido.x;
     const errorY = destino.y - medido.y;
     // El mejor píxel ENTERO queda a ≤0,5 px del ideal fraccionario.
-    if (Math.max(Math.abs(errorX), Math.abs(errorY)) <= diagonal * 0.6) return posicion;
+    if (Math.max(Math.abs(errorX), Math.abs(errorY)) <= diagonal * 0.6)
+      return posicion;
     posicion = {
       x: Math.round(posicion.x + (d * errorX - b * errorY) / det),
       y: Math.round(posicion.y + (-c * errorX + a * errorY) / det),
@@ -334,7 +383,9 @@ test("acotar para obra: la cota dice la medida real y sigue al objeto cuando se 
     await saveAndSettle(page, backend);
     const guardado = backend.snapshot().document;
     const cota = (id: string) =>
-      guardado.entities.find((e): e is Cota => e.id === id && e.type === "dimension");
+      guardado.entities.find(
+        (e): e is Cota => e.id === id && e.type === "dimension",
+      );
 
     const lineal = cota(cotaMuro);
     expect(lineal?.dimensionKind).toBe("linear");
@@ -357,7 +408,10 @@ test("acotar para obra: la cota dice la medida real y sigue al objeto cuando se 
     expect(radial?.dimensionKind).toBe("radius");
     expect(radial?.radius).toBe(PILAR.radio);
     expect(radial?.associationStatus).toBe("associated");
-    expect(radial?.references?.[0]).toEqual({ entityId: "pilar", anchor: "center" });
+    expect(radial?.references?.[0]).toEqual({
+      entityId: "pilar",
+      anchor: "center",
+    });
   });
 
   await test.step("5. MOVE el muro 1.000 mm al norte: la cota lo sigue", async () => {
@@ -374,7 +428,8 @@ test("acotar para obra: la cota dice la medida real y sigue al objeto cuando se 
     await saveAndSettle(page, backend);
     const guardado = backend.snapshot().document;
     const muro = guardado.entities.find(
-      (e): e is Extract<CadEntity, { type: "line" }> => e.id === "muro-sur" && e.type === "line",
+      (e): e is Extract<CadEntity, { type: "line" }> =>
+        e.id === "muro-sur" && e.type === "line",
     );
     expect(muro?.start).toMatchObject({ x: 2_000, y: 3_000 });
     expect(muro?.end).toMatchObject({ x: 6_000, y: 3_000 });
@@ -401,7 +456,9 @@ test("acotar para obra: la cota dice la medida real y sigue al objeto cuando se 
   await test.step("8. Lo acotado es lo que se guarda", async () => {
     await saveAndSettle(page, backend);
     const guardado = backend.snapshot().document;
-    const cotas = guardado.entities.filter((e): e is Cota => e.type === "dimension");
+    const cotas = guardado.entities.filter(
+      (e): e is Cota => e.type === "dimension",
+    );
     expect(cotas).toHaveLength(3);
     expect(cotas.every((c) => c.associationStatus === "associated")).toBe(true);
     const lineal = cotas.find((c) => c.id === cotaMuro);
@@ -423,7 +480,6 @@ test("acotar para obra: la cota dice la medida real y sigue al objeto cuando se 
     await leerCota(page, proyeccion, "3000", "3000.00");
   });
 });
-
 
 /**
  * EL GESTO NATURAL: acotar SEÑALANDO el objeto.
@@ -479,7 +535,9 @@ test("acotar señalando el muro con el ratón: la opción Objeto y un clic", asy
   await saveAndSettle(page, backend);
   const guardada = backend
     .snapshot()
-    .document.entities.find((e): e is Cota => e.id === cota && e.type === "dimension");
+    .document.entities.find(
+      (e): e is Cota => e.id === cota && e.type === "dimension",
+    );
   expect(guardada?.dimensionKind).toBe("linear");
   expect(guardada?.axis).toBe("x");
   // Señalar el objeto es lo que la hace asociativa sin pedir nada más.
@@ -502,27 +560,13 @@ test("acotar señalando el muro con el ratón: la opción Objeto y un clic", asy
  * tabique, se lee lo que dice, se MUEVE el tabique 1.000 mm y se vuelve a leer
  * el estado de la cota y sus coordenadas. Lo que salga es lo que hay.
  */
-test("acotar un tabique dibujado como polilínea, y moverlo", async ({ context, page }) => {
+test("acotar un tabique dibujado como polilínea, y moverlo", async ({
+  context,
+  page,
+}) => {
   test.setTimeout(240_000);
-  /**
-   * MEDIDO HOY, Y ES UN DEFECTO: la cota se queda atrás.
-   *
-   *   Y de los puntos de definición de la cota tras mover el tabique a Y=9000
-   *   Expected: { a: 9000, b: 9000 }
-   *   Received: { a: 8000, b: 8000 }
-   *
-   * El tabique se va a Y=9000 y la cota se queda en Y=8000, acotando el aire, y
-   * SIGUE diciendo «4000.00» con el mismo aspecto que las cotas buenas. Lo
-   * que se afirma abajo es lo que el producto DEBE hacer —la misma asociación
-   * que sí funciona sobre una línea, comprobada en el primer test de este
-   * archivo—, así que la prueba se declara fallida a sabiendas: el día que se
-   * arregle, Playwright avisará de que ya no falla y esta anotación se quita.
-   *
-   * Por qué importa más de lo que parece: RECT escribe una POLILÍNEA cerrada
-   * (golden 32), así que CUALQUIER lado de un rectángulo acotado así nace
-   * suelto. Y el producto no lo dice en ningún momento — ver el paso B.
-   */
-  test.fail();
+  // El motor ya ofrece anclajes start/end de polilínea. Se exige el resultado
+  // correcto completo: una marca de fallo esperado ocultaría regresiones del arnés.
   const backend = await abrirEstudio(context, page);
   await esperarEntidades(page, SEMILLA);
   const prompt = page.getByTestId("cad-command-prompt");
@@ -542,21 +586,17 @@ test("acotar un tabique dibujado como polilínea, y moverlo", async ({ context, 
 
   await test.step("B. ¿qué dice el producto sobre su asociación?", async () => {
     await designar(page, cota);
-    const estado = await page.getByTestId("cad-native-property-associationStatus").inputValue();
-    const refs = await page.getByTestId("cad-native-property-referenceCount").inputValue();
+    const estado = await page
+      .getByTestId("cad-native-property-associationStatus")
+      .inputValue();
+    const refs = await page
+      .getByTestId("cad-native-property-referenceCount")
+      .inputValue();
     await deseleccionar(page);
-    // Y AQUÍ ESTÁ LO CARO: en el diálogo de la línea de comandos no hay ni una
-    // palabra sobre que esta cota no queda enganchada. La orden termina igual
-    // que sobre un muro de una línea. Quien acota no tiene forma de enterarse
-    // salvo designar la cota y leer un campo de sólo lectura llamado
-    // «associationStatus» que dice «detached», en inglés, en un panel lateral.
-    await expect(page.getByTestId("cad-command-line-log")).not.toContainText(/asociat/i);
-    // Se DECLARA lo medido en el propio informe del fallo, para que quien lo lea
-    // no tenga que abrir la traza.
     expect(
       { estado, refs },
       "estado de asociación de una cota puesta sobre una POLILÍNEA",
-    ).toEqual({ estado: "detached", refs: "0" });
+    ).toEqual({ estado: "associated", refs: "2" });
   });
 
   await test.step("C. se mueve el tabique 1.000 mm al norte", async () => {
@@ -573,9 +613,17 @@ test("acotar un tabique dibujado como polilínea, y moverlo", async ({ context, 
       (e): e is Extract<CadEntity, { type: "polyline" }> =>
         e.id === "tabique" && e.type === "polyline",
     );
-    expect(tabique?.vertices[0]).toMatchObject({ x: TABIQUE.a.x, y: TABIQUE.a.y + 1_000 });
+    expect(tabique?.vertices[0]).toMatchObject({
+      x: TABIQUE.a.x,
+      y: TABIQUE.a.y + 1_000,
+    });
 
     const acotacion = guardado.entities.find((e): e is Cota => e.id === cota);
+    expect(acotacion?.associationStatus).toBe("associated");
+    expect(acotacion?.references).toEqual([
+      { entityId: "tabique", anchor: "start" },
+      { entityId: "tabique", anchor: "end" },
+    ]);
     // AQUÍ SE VE SI LA COTA MIENTE: si sus puntos de definición siguen en la
     // Y vieja, la cota se quedó donde estaba el tabique y ahora acota el aire.
     expect(

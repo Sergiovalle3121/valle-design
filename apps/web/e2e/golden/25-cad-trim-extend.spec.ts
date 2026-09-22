@@ -5,6 +5,7 @@ import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import { applySelectGroup } from '../fixtures/dynamic-input';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 type CadLine = Extract<CadEntity, { type: 'line' }>;
 
@@ -51,6 +52,9 @@ test('native TRIM and EXTEND edit LINE endpoints atomically and persist', async 
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto('/legacy/studio');
+  // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+  // como una persona, antes de leer nada de lo que vive dentro.
+  await abrirPanelDerecho(page);
 
   await test.step('15. TRIM', async () => {
     await selectPair(page, 'trim-target', 'trim-cutter');

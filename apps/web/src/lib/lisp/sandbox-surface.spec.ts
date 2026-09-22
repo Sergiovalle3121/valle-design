@@ -107,6 +107,9 @@ checks += 1;
     ["lib/cad/cad-document", "el documento canónico"],
     ["lib/cad/entity-commands", "el vocabulario de mutación canónico"],
     ["lib/cad/entity-runtime", "el registro de adaptadores por entidad"],
+    // Resolver puro: CLAYER admite nombre, pero entity.layer persiste el ID.
+    // Sólo consulta la tabla recibida; no añade acceso a DOM, red o sesión.
+    ["lib/cad/resolve-layer-id", "normalización de nombre/ID de la capa activa"],
     // Las consultas BIM (`vd-areas`, `vd-carpinteria`, `vd-muros`) devuelven los
     // MISMOS números que enseña el producto. Es una lectura pura del documento
     // que la rutina ya alcanza con `entget`; la escritura sigue saliendo por

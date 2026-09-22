@@ -7,6 +7,7 @@ import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
 import { applyNativeProperty } from '../fixtures/dynamic-input';
+import { abrirPanelDerecho } from '../fixtures/docks';
 
 type CadMleader = Extract<CadEntity, { type: 'mleader' }>;
 
@@ -39,6 +40,9 @@ test('MLEADER is unitary, associative, editable, persistent and DXF semantic', a
   const backend = await installCadBackend(context);
   await page.goto('/legacy/studio');
 
+  // Ola «armazón»: el panel derecho arranca plegado a un riel de iconos; la
+  // lista de entidades y las propiedades sólo se MONTAN con el panel abierto.
+  await abrirPanelDerecho(page);
   await page.getByTestId('cad-native-entity-mleader-source-line').click();
   await page.getByTitle(/^MLEADER:/).click();
   const palette = page.getByTestId('cad-mleader-palette');
@@ -76,6 +80,7 @@ test('MLEADER is unitary, associative, editable, persistent and DXF semantic', a
   expect(stored?.arrowhead).toBe('open');
 
   await page.reload();
+  await abrirPanelDerecho(page);
   await page.getByTestId(/^cad-native-entity-mleader_/).click();
   await expect(page.getByTestId('cad-native-property-text')).toHaveValue('Inspect connection\nTorque verified');
   await page.getByTitle(/Exportar a DXF/).click();

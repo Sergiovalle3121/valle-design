@@ -4,6 +4,7 @@ import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadV1Backend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
+import { abrirPanelDerecho } from '../fixtures/docks';
 
 const MODEL = 'AXOS-CAD-STUDIO';
 const REVISION = 'UNIVERSAL';
@@ -108,6 +109,10 @@ test.describe('Golden path · CAD native entities', () => {
     const browserErrors = collectBrowserErrors(page);
     await page.goto('/legacy/studio');
 
+    // Ola «armazón»: el panel derecho arranca plegado a un riel de iconos
+    // (`cad-workspace.ts`, `rightDockCollapsed: true`); la lista de entidades
+    // y las propiedades sólo se MONTAN con el panel abierto.
+    await abrirPanelDerecho(page);
     await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
     await expect(page.getByTestId('cad-native-entity-list')).toContainText('3');
     await page.getByTestId('cad-native-entity-arc-e2e').click();
@@ -134,6 +139,7 @@ test.describe('Golden path · CAD native entities', () => {
     }
 
     await page.reload();
+    await abrirPanelDerecho(page);
     await page.getByTestId('cad-native-entity-arc-e2e').click();
     await expect(page.getByTestId('cad-native-property-radius')).toHaveValue('140');
 
@@ -157,6 +163,7 @@ test.describe('Golden path · CAD native entities', () => {
     const backend = await installCadBackend(context);
     const second = await context.newPage();
     await Promise.all([page.goto('/legacy/studio'), second.goto('/legacy/studio')]);
+    await Promise.all([abrirPanelDerecho(page), abrirPanelDerecho(second)]);
     await Promise.all([
       page.getByTestId('cad-native-entity-arc-e2e').click(),
       second.getByTestId('cad-native-entity-arc-e2e').click(),

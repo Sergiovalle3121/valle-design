@@ -4001,6 +4001,52 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "VALLECAD-CANDIDATE-20260921",
+      "date": "2026-09-21",
+      "initiative": "Candidato ValleCAD: integración de estudio, recorrido público, guardado por ID de capa, fidelidad DWG y aceptación real con PostgreSQL.",
+      "branch": "claude/ola1-estudio (PR #224). Integración preparada en claude/vallecad-candidato y validada en el worktree claude/vallecad-candidato-final.",
+      "assistants": [
+        "OpenAI Codex: implementación, revisión adversaria y ejecución de pruebas; tres subagentes con archivos asignados para editor, interoperabilidad y operaciones.",
+        "Claude Opus 5 y Claude Sonnet 5 (Anthropic, Claude Code), en los 48 commits heredados de la PR #224 (4232e1d2..08fb9f45: cinta, línea de comandos acoplada, armazón, barra de estado y goldens); 46 de ellos con trailer Co-Authored-By (30 Opus 5, 16 Sonnet 5) y 2 sin trailer.",
+        "Claude Fable 5.1 (Anthropic, Claude Code), integración final 2026-09-21/22 a partir del relevo de Codex, en cuatro commits con trailer Co-Authored-By: (1) merge normal de origin/main d74703b9 (#210 y #230) sobre el candidato 11862a38 con resolución del único conflicto (este registro, unión por id sin descartar entradas); (2) las cuatro correcciones de la revisión adversaria del diff contra main (8 lentes, 2 refutadores por hallazgo, 78 agentes: 4 confirmados, 31 refutados) —este registro, techo «desplegado» del golden 67 fijado al valor medido, cota inferior de ribbon.spec.ts con lista explícita (que delató y corrigió la pérdida del botón grande de Administrar › Utilidades) y desplegable «Más» de la barra de estado portado fuera de la fila con overflow (golden 226 nuevo)— más CadRibbonButton.spec.ts adaptada al ancho calculado; (3) los tres fallos E2E de la CI de 11624d6b: spec DWG beta adaptada al conteo de bloques sin contenedores y endurecida con la lista exacta de advertencias, pastilla de la demo reducida al botón y sin selector de aprobación, y el envoltorio del título de la barra superior cediendo en Linux; (4) esta corrección del registro tras una segunda revisión adversaria (4 lentes, 38 agentes: 2 confirmados, 15 refutados). Los 7 commits de Codex (08fb9f45..11862a38) no llevan trailer."
+      ],
+      "authority": "Encargo expreso de Sergio Valle: modificar y verificar el producto existente, revisar ramas y PR, integrar el trabajo válido y reflejarlo en vallecad.com. Autorización posterior explícita para ejecución autónoma, merge y publicación, con prioridad DWG; sin habilitar exportación DWG ni fabricar firmas o resultados humanos.",
+      "firstPartyInputs": [
+        "main 4232e1d2d6b9fea243ade637bc9e58f6ea3f0b51 y PR224 08fb9f45988b45389ef345ba1a4051192b482b78; políticas AGENTS/IDENTITY/REPOSITORY_SCOPE/PRODUCT/ARCHITECTURE/SECURITY/DEPLOYMENT y contribución.",
+        "Corpus propietario separado valle-design-dwg-conformance; consumidor fijado a 0688fb9c395b9cac4169d1ee9c23a7370cc28cf3. No se modificaron admisiones, hashes, oráculos ni firmas.",
+        "Pruebas de navegador del editor, auditorías excluidas, contratos canónicos y respuesta HTTP400 de la API al dibujar en una capa cuyo nombre difiere de su ID.",
+        "Interfaz y JavaScript públicos de vallecad.com: importación DWG base/AC1018/moderna habilitada y wireframe3D deshabilitado; réplica local de esa configuración para verificar, sin cambiar la configuración de producción.",
+        "Diff working preexistente del usuario en D:/dev/valle-design: alias-table.ts y alias-table.spec.ts, hashes verificados antes/después de la copia. Se preservan checkout dueño y stash; se conserva la autoría original. Adaptación del integrador: nueve alias ya declarados que detectó la spec original y normalización LF.",
+        "origin/main d74703b9ee4b3d4f96a54f6deb0a7e7f0dbd4982 (#210 dependencias Dependabot con better-sqlite3 fijado en 12.11.1; #230 relevo documental) integrado por merge normal; la cabeza remota anterior de PR224 08fb9f45 y main quedan como ancestros del SHA final. Las medidas del golden 67, del golden 226, de la fila superior de la demo (1243 px a 1280 sin aviso; pastilla de 387 px) y de la emulación de Linux (tira 40 px más ancha: fila 1280/1280, envoltorio del título 160→141) se tomaron en Chromium local sobre el candidato integrado; la CI de 11624d6b (runs 35700985068 y 35700988423) midió 1292 px en la fila superior a 1280."
+      ],
+      "externalSources": [
+        "Autodesk DXF Reference: group code 999 is a comment, https://help.autodesk.com/cloudhelp/2018/ENU/AutoCAD-DXF/files/GUID-3F0380A5-1C15-464D-BC66-2C5F094BCFB9.htm",
+        "Dependencia ya instalada dxf-parser 1.1.2: inspección del lector HEADER para diagnosticar cómo un comentario 999 sobrescribe la última variable. No se copió implementación externa."
+      ],
+      "externalImplementationConsulted": true,
+      "derivedAreas": [
+        "Landing, acceso, precios, FAQ y declaración de versiones DWG según flags efectivos.",
+        "Cinta, indicaciones del lienzo y fixtures que abren paneles plegados mediante controles visibles; graduación de auditorías tras ejecución verde.",
+        "Puente DWG: exclusiones espaciales y de papel visibles, rechazo de importaciones sin contenido representable y bloques sin geometría alcanzable.",
+        "Resolución CLAYER a ID persistido en contexto del estudio y scripts; no se cambia el contrato del servidor para aceptar referencias inválidas.",
+        "Aceptación full-stack de dibujos sintéticos, documentación de restauración aislada y portabilidad CRLF del verificador de firma DWG.",
+        "DXF: comentario de procedencia fuera de HEADER para conservar INSUNITS en lectores independientes; prueba con dxf-parser existente.",
+        "Seed: UUID válido, identidad técnica sin credenciales ni concesión de acceso, fixture validada antes de escribir y reanudación limitada al documento demo vacío propio en CAS0.",
+        "Adopción del trabajo local de alias del usuario, preservando su origen; los alias se contrastan con registro, pipeline y motor existentes.",
+        "Correcciones de la revisión adversaria y de la CI: apps/web/src/components/cad/studio/CadStatusBar.tsx (portal del desplegable «Más», sin cambiar testids ni ids), apps/web/e2e/golden/226-cad-status-mas-alcanzable.spec.ts (nuevo), apps/web/e2e/golden/67-cad-nada-tapa-un-control.spec.ts (techo desplegado medido, sólo baja), apps/web/src/lib/cad/ribbon.spec.ts y ribbon-order.ts/ribbon.ts (cota inferior explícita; clave «administrar/Utilidades»), apps/web/src/components/cad/ribbon/CadRibbonButton.spec.ts (ancho calculado), apps/web/e2e/dashboard-dwg-import-beta.spec.ts (0 bloques, advertencia exacta), apps/web/src/app/demo/DemoStudio.tsx (pastilla = botón), apps/web/src/components/cad/editor/Layout3DEditor.tsx (una condición: sin selector de aprobación en la demo; el archivo no crece), apps/web/src/components/cad/ribbon/CadRibbon.tsx (el envoltorio de accesos rápidos cede con mínimo de 3,25 rem)."
+      ],
+      "fixtures": "Muestras sintéticas generadas mediante órdenes visibles para aceptación; corpus DWG admitido con origen y oráculo independientes. Ningún dibujo representa un proyecto aprobado para construcción.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Trabajo solicitado por el titular; las ejecuciones se registran separando PASS/FAIL/BLOCKED/NOT RUN. La autorización para merge no se presenta como aceptación visual humana, sesión con profesionales externos ni revisión jurídica externa. El candidato se integra únicamente con los gates requeridos sobre su SHA; resultados y límites en el informe de la campaña y artefactos de CI. INTEGRACIÓN (Claude Fable 5.1), gates locales en Windows/Node 22.18.0 con PostgreSQL 16 real en 127.0.0.1:55432, por SHA y con su resultado real (registro por etapa y log en la carpeta de trabajo de la campaña, fuera del repositorio; los nombres de log se citan en el cuerpo de la PR): 0de151a5 (merge con main, antes de las correcciones): build, typecheck, lint, check:cad (tras un primer intento fallido por entorno: el worktree fresco no tenía compilado dwg-codec), check:dwg y API PASS; web/SDK/laboratorio FAIL (765/766: CadRibbonButton.spec.ts afirmaba w-28 y el candidato ya calcula el ancho por style); test:pg y deploy/gobernanza/contraste/superficie/SBOM/licencias NOT RUN porque la cadena se detiene en el primer fallo. 11624d6b: los nueve PASS (06:54–07:41 UTC del 22-09; web 766/766, API 865 pruebas, PostgreSQL 254 pruebas); CI sobre ese SHA: Contrato·Build·Test·Lint·Smoke, Gitleaks, Despliegue reproducible y Lighthouse PASS, E2E 4/4 PASS y tres fallos E2E (fragmentos 1/4, 2/4 y 3/4) corregidos en 911a5df2 y sucesores. Los nueve gates se repiten sobre el SHA final que incluye estas correcciones antes de publicarlo, y el veredicto lo dan los checks requeridos de la CI sobre ese SHA exacto. El squash a main se solicita con auto-merge protegido ligado al SHA; no se usó admin ni bypass."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "RELEVO-HISTORICO-PR230-20260921",
       "date": "2026-09-21",
       "initiative": "Revisión administrativa de PR230 durante la integración autorizada de ramas: delimitar el relevo y encargo originales como diagnóstico histórico, corregir el límite local de pruebas y la contradicción sobre el panel de propiedades. Este registro corresponde sólo a esta revisión; no atribuye al asistente la redacción original de los documentos.",

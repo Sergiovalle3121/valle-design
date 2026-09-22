@@ -5,6 +5,7 @@ import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 /**
  * FASE 1 — el informe de pérdidas se ve ANTES de descargar.
@@ -63,6 +64,7 @@ async function openStudio(context: BrowserContext, page: Page, entities: CadEnti
     footprintW: 12_000, footprintH: 10_000, unit: 'mm', gridSize: 100,
   });
   await page.goto('/legacy/studio');
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
   return backend;
 }

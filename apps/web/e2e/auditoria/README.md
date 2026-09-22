@@ -1,7 +1,8 @@
 # Las pruebas de la auditoría de cliente final
 
-**Estas pruebas están rojas a propósito.** No corren en la suite. Cada una reproduce en el
-navegador un defecto confirmado y seguirá roja hasta que ese defecto se arregle.
+**Quedan tres arneses de control en esta carpeta.** Los casos que reproducían defectos
+confirmados se graduaron a `e2e/golden/` al verificarse su corrección. La carpeta de
+auditoría sigue fuera de la suite ordinaria y se ejecuta explícitamente.
 
 ## De dónde salieron
 
@@ -13,15 +14,16 @@ pasó después por un refutador adversario cuyo único encargo era tumbarla. **2
 encontrados, 22 sobrevivieron.** El informe entero está en
 `docs/competitive/auditoria-cliente-final-20260901.md`.
 
-Estos archivos son la parte ejecutable de ese informe: no describen el defecto, lo
-**reproducen**.
+Estos archivos y sus sucesores en `e2e/golden/` son la parte ejecutable del informe.
+El 21 de septiembre se graduaron los últimos dos casos: cotas de polilíneas y designación
+con el panel de bloques abierto. Sus pasos estaban obsoletos; las aserciones actualizadas
+comprueban la asociación geométrica exacta y la redefinición con sus instancias conservadas.
 
 ## Por qué no corren en la suite
 
-Meterlas dejaría el veredicto de E2E en rojo permanente. Y un veredicto que siempre está
-rojo deja de mirarse — es literalmente la enfermedad que costó semanas de regresiones
-escondidas cuando el job de E2E se cancelaba y nadie lo notaba. Así que se excluyen
-explícitamente en `playwright.config.ts` (`testIgnore: ["auditoria/**"]`).
+Originalmente se excluyeron los defectos confirmados para no convertir el veredicto de E2E
+en rojo permanente. Esa exclusión continúa en `playwright.config.ts`
+(`testIgnore: ["auditoria/**"]`) para los tres arneses; las pruebas graduadas sí corren en CI.
 
 Pero **una carpeta de pruebas excluida se pudre en silencio**, que es la misma enfermedad con
 otro disfraz. Por eso la exclusión no viaja sola:

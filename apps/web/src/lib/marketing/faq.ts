@@ -167,7 +167,8 @@ export const FAQ_ENTRIES: readonly FaqEntry[] = [
     categoria: "empezar",
     pregunta: "¿Puedo probarlo sin registrarme?",
     respuesta:
-      "El editor exige cuenta, porque cada documento vive aislado en la organización a la que pertenece y eso no se puede resolver sin saber quién eres. Lo que sí puedes hacer sin dar una tarjeta es crear la cuenta y entrar: el alta pide correo y contraseña, nada más.",
+      "Sí. La demostración abre el editor real con un plano de ejemplo y guarda el trabajo en este navegador. No tiene guardado en la nube: borrar los datos del navegador puede eliminarlo. Para guardar en tu organización y continuar desde otra computadora, crea una cuenta y verifica tu correo. No necesitas tarjeta para probar.",
+    enlace: { texto: "Probar sin cuenta", href: "/demo" },
   },
   {
     categoria: "empezar",
@@ -225,8 +226,7 @@ export const FAQ_ENTRIES: readonly FaqEntry[] = [
   {
     categoria: "dibujo",
     pregunta: "¿Hay 3D?",
-    respuesta:
-      `Sí: modelado directo de sólidos sobre el mismo documento que tu plano. ${PRODUCT_LABEL.design} lleva un kernel B-rep propio de medias aristas —extrusión, PRESSPULL sobre una cara, booleanas, redondeo y vaciado— y cada gesto entra al historial del documento, así que se corrige por número en propiedades en vez de deshacer. El límite, dicho entero: es facetado, no exacto —un cilindro es un prisma de N lados y no hay caras NURBS analíticas— y no es BIM: sin IFC ni detección de interferencias. Todo documento abre en 2D salvo que tú hayas dejado otra vista activa.`,
+    respuesta: `Sí: modelado directo de sólidos sobre el mismo documento que tu plano. ${PRODUCT_LABEL.design} lleva un kernel B-rep propio de medias aristas —extrusión, PRESSPULL sobre una cara, booleanas, redondeo y vaciado— y cada gesto entra al historial del documento, así que se corrige por número en propiedades en vez de deshacer. El límite, dicho entero: es facetado, no exacto —un cilindro es un prisma de N lados y no hay caras NURBS analíticas— y no es BIM: sin IFC ni detección de interferencias. Todo documento abre en 2D salvo que tú hayas dejado otra vista activa.`,
   },
   {
     categoria: "dibujo",
@@ -245,8 +245,7 @@ export const FAQ_ENTRIES: readonly FaqEntry[] = [
   {
     categoria: "archivos",
     pregunta: "¿Cómo intercambio planos con quien usa otro programa?",
-    respuesta:
-      `En DXF de texto, que es el formato estándar de intercambio que cualquier programa de dibujo sabe abrir y escribir. ${PRODUCT_LABEL.design} lo importa y lo exporta con comprobación previa y un manifiesto de pérdidas que dice, entidad por entidad, qué no viajó igual. Pide a tus colaboradores una copia en DXF y entrégales DXF: es el terreno común.`,
+    respuesta: `En DXF de texto, que es el formato estándar de intercambio que cualquier programa de dibujo sabe abrir y escribir. ${PRODUCT_LABEL.design} lo importa y lo exporta con comprobación previa y un manifiesto de pérdidas que dice, entidad por entidad, qué no viajó igual. Pide a tus colaboradores una copia en DXF y entrégales DXF: es el terreno común.`,
     enlace: guia("dxf-vs-dwg", "Qué significa cada formato para tu despacho"),
   },
   {

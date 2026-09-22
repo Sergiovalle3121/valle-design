@@ -29,8 +29,11 @@ assert.equal(garbage.primitives.length, 0, "sin primitivas fantasma");
 
 // --- DWG: honestidad radical -------------------------------------------------
 const dwgAvail = unlicensedDwgProvider.availability();
-assert.equal(dwgAvail.available, false, "DWG no disponible sin licencia");
-assert.ok(dwgAvail.reason?.includes("licencia"), "la razón menciona la licencia");
+assert.equal(dwgAvail.available, false, "el proveedor heredado no habilita DWG");
+assert.match(dwgAvail.reason!, /DWG no está habilitado en esta vía/u);
+assert.match(dwgAvail.reason!, /DXF/u, "la razón ofrece el formato de intercambio disponible");
+assert.match(dwgAvail.reason!, /beta limitada.*configuración/u, "explica el alcance de la lectura propia");
+assert.doesNotMatch(dwgAvail.reason!, /requiere un proveedor con licencia|no hace ingeniería inversa/u);
 const dwgImport = unlicensedDwgProvider.importDrawing("cualquier cosa");
 assert.equal(dwgImport.ok, false, "importar DWG falla explícitamente");
 assert.equal(dwgImport.error, DWG_UNAVAILABLE_REASON, "con la razón exacta");
@@ -47,7 +50,7 @@ assert.deepEqual(
   "el resumen de soporte dice la verdad por formato",
 );
 assert.ok(
-  support.find((s) => s.format === "dwg")?.reason?.includes("licencia"),
+  support.find((s) => s.format === "dwg")?.reason?.includes("DXF"),
   "el resumen DWG incluye la razón accionable",
 );
 

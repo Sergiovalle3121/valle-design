@@ -50,6 +50,7 @@ import {
   type DocumentImportReport,
 } from "./document-import";
 import { serializeCadDocument } from "./cad-document";
+import { DWG_UNAVAILABLE_REASON } from "./dwg-unavailable-reason";
 
 /** Semilla literal. Cambiarla invalida los digests ya publicados. */
 export const CAD_IMPORT_FUZZ_SEED = "valle-json-import-fuzz-2026-08-19-v1";
@@ -66,7 +67,7 @@ export const CAD_IMPORT_OUTCOMES = {
   "formato-no-soportado": /Formato no soportado/i,
   // El `.dwg` se reconoce y se rechaza con su motivo (T-16): la misma frase en
   // el tablero y en el estudio, no la lista de formatos.
-  "dwg-sin-proveedor": /DWG requiere un proveedor con licencia/i,
+  "dwg-sin-proveedor": new RegExp(`^${DWG_UNAVAILABLE_REASON.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "u"),
   "tamano-invalido": /está vacío o su tamaño no es válido/i,
   "supera-limite": /supera el límite de/i,
   "json-no-analizable": /El JSON no se puede analizar/i,

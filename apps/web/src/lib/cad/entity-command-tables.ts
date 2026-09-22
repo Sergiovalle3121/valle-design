@@ -25,6 +25,47 @@ export type CadDocumentTableCommand = Extract<
   { type: "layer" | "draw-order" | "layer-state" }
 >;
 
+type LayerReassignment = { sourceId: string; targetId: string };
+
+/** Reasigna las otras secciones sobre el documento ya compuesto, sin commit. */
+export function remapDeletedCadLayerReferences(
+  document: CadDocument,
+  reassignments: readonly LayerReassignment[],
+): CadDocument {
+  return reassignments.reduce((current, { sourceId, targetId }) => {
+    // PURGE/XREF pueden retirar la última capa vacía. Se comprueba DESPUÉS
+    // de componer el lote: éste puede haber borrado su INSERT y sus bloques.
+    if (sourceId === targetId && [
+      ...current.entities,
+      ...current.blocks.flatMap((block) => block.entities),
+      ...current.unsupportedEntities,
+    ].some((entity) => entity.layer === sourceId))
+      throw new Error("La capa de destino debe ser distinta de la que se borra mientras tenga entidades.");
+    const remap = <T extends { layer?: string }>(entity: T): T =>
+      entity.layer === sourceId ? { ...entity, layer: targetId } : entity;
+    const remapKeys = <T>(values: Record<string, T> | undefined): Record<string, T> | undefined => {
+      if (!values || !Object.hasOwn(values, sourceId)) return values;
+      const next = { ...values };
+      if (!Object.hasOwn(next, targetId)) next[targetId] = next[sourceId];
+      delete next[sourceId];
+      return next;
+    };
+    return {
+      ...current,
+      blocks: current.blocks.map((block) => ({ ...block, entities: block.entities.map(remap) })),
+      unsupportedEntities: current.unsupportedEntities.map(remap),
+      paperSpaces: current.paperSpaces.map((space) => ({
+        ...space,
+        ...(space.viewports ? { viewports: space.viewports.map((viewport) => ({
+          ...viewport,
+          ...(viewport.layerVisibility ? { layerVisibility: remapKeys(viewport.layerVisibility) } : {}),
+          ...(viewport.layerOverrides ? { layerOverrides: remapKeys(viewport.layerOverrides) } : {}),
+        })) } : {}),
+      })),
+    };
+  }, document);
+}
+
 export const isCadTableCommand = (
   command: CadEntityCommand,
 ): command is CadDocumentTableCommand =>
@@ -82,6 +123,7 @@ export function applyDocumentTables(
   touchedEntityIds: string[];
   /** Sección de estados de capa DESPUÉS del lote; `undefined` = ausente. */
   layerStates: CadNamedLayerState[] | undefined;
+  layerReassignments: LayerReassignment[];
 } {
   if (commands.length === 0)
     return {
@@ -90,6 +132,7 @@ export function applyDocumentTables(
       entities: [...entities],
       touchedEntityIds: [],
       layerStates: document.layerStates,
+      layerReassignments: [],
     };
 
   let layers = [...document.layers];
@@ -98,6 +141,7 @@ export function applyDocumentTables(
   // Opcional-ausente: sólo se materializa si un `upsert` de este lote la crea.
   let layerStates = document.layerStates ? [...document.layerStates] : undefined;
   const touchedEntityIds: string[] = [];
+  const layerReassignments: LayerReassignment[] = [];
 
   for (const command of commands) {
     if (command.type === "draw-order") {
@@ -128,25 +172,31 @@ export function applyDocumentTables(
     }
     if (command.op === "delete") {
       const key = command.name.trim().toUpperCase();
-      if (key === "0") throw new Error("La capa 0 no se puede borrar.");
-      if (!layers.some((layer) => layer.name.toUpperCase() === key))
-        throw new Error(`No existe la capa "${command.name}".`);
-      if (!layers.some((layer) => layer.name.toUpperCase() === command.reassignTo.toUpperCase()))
+      const source = layers.find((layer) => layer.name.toUpperCase() === key);
+      if (!source) throw new Error(`No existe la capa "${command.name}".`);
+      if (source.id === "0" || key === "0") throw new Error("La capa 0 no se puede borrar.");
+      const target = layers.find((layer) => layer.name.toUpperCase() === command.reassignTo.trim().toUpperCase());
+      if (!target)
         throw new Error(`No existe la capa de destino "${command.reassignTo}".`);
-      layers = layers.filter((layer) => layer.name.toUpperCase() !== key);
+      layers = layers.filter((layer) => layer.id !== source.id);
+      layerReassignments.push({ sourceId: source.id, targetId: target.id });
       current = current.map((entity) => {
-        if (!("layer" in entity) || entity.layer.toUpperCase() !== key) return entity;
+        if (entity.layer !== source.id) return entity;
         touchedEntityIds.push(entity.id);
-        return { ...entity, layer: command.reassignTo };
+        return { ...entity, layer: target.id };
       });
       continue;
     }
     const key = command.layer.name.trim().toUpperCase();
     if (!key) throw new Error("Una capa necesita un nombre.");
-    const at = layers.findIndex((layer) => layer.name.toUpperCase() === key);
-    if (at >= 0) layers = layers.map((layer, index) => (index === at ? { ...command.layer } : layer));
+    const byId = layers.findIndex((layer) => layer.id === command.layer.id);
+    const byName = layers.findIndex((layer) => layer.name.toUpperCase() === key);
+    if (byId >= 0 && byName >= 0 && byId !== byName)
+      throw new Error(`Ya existe otra capa llamada "${command.layer.name}".`);
+    const at = byId >= 0 ? byId : byName;
+    if (at >= 0) layers = layers.map((layer, index) => (index === at ? { ...command.layer, id: layer.id } : layer));
     else layers = [...layers, { ...command.layer }];
   }
 
-  return { layers, entityOrder: order, entities: current, touchedEntityIds, layerStates };
+  return { layers, entityOrder: order, entities: current, touchedEntityIds, layerStates, layerReassignments };
 }

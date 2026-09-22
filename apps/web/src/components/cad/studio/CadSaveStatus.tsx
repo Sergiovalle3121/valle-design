@@ -35,6 +35,27 @@ import { cx } from "@/components/ui";
  * mirar. Aquí se lee entero de una vez.
  *
  * `data-testid="cad-save-status"` NO cambia: es el contrato con las pruebas.
+ *
+ * ## Ola «estado»: punto de color + texto corto
+ *
+ * La fila de estado mide una línea de 26 px, y «Modificado · autosave
+ * pendiente» era la frase más larga de las cuatro. El PUNTO va primero,
+ * `aria-hidden`: no añade texto (varios goldens fijan el texto exacto con
+ * `toHaveText`, y un carácter decorativo dentro del mismo nodo lo habría
+ * roto). Sólo la frase «pendiente» se acorta a «Modificado» — es la única
+ * que ningún golden fija con el resto de la frase (`toHaveText(/Modificado/)`
+ * en los goldens 35/36/37, que sólo piden la palabra). «Guardando…»,
+ * «Guardado» y los dos mensajes de incidente (`offline`/`server`) se quedan
+ * literales: el golden 30 y las pruebas reales de guardado (`e2e/real/
+ * cad-offline-multitab.spec.ts`, `errores-en-espanol.spec.ts`) fijan esas
+ * cadenas completas, incluida la coletilla «· cambios pendientes».
+ *
+ * El color del punto reutiliza los pares YA verificados por
+ * `check:contrast` para exactamente este uso («el punto verde/rojo de un
+ * estado», «la herramienta activa marcada con el acento»): `bg-primary`
+ * mientras guarda, `bg-danger` en problema, `bg-warning` pendiente,
+ * `bg-success` guardado. Nunca las variantes `-ink`: esas son para la TINTA
+ * de una letra, y este punto no lleva letra dentro (es `aria-hidden`).
  */
 
 /**
@@ -78,7 +99,7 @@ export function CadSaveStatus({
           : issue
             ? "Error de guardado · cambios pendientes"
             : estado === "pendiente"
-              ? "Modificado · autosave pendiente"
+              ? "Modificado"
               : "Guardado";
 
   return (
@@ -92,12 +113,23 @@ export function CadSaveStatus({
       data-state={estado}
       title={issue?.message}
       className={cx(
+        "inline-flex items-center gap-1.5",
         estado === "guardando" && "pulse-working text-primary-ink",
         estado === "problema" && "text-danger-ink",
         estado === "pendiente" && "text-warning-ink",
         estado === "guardado" && "pulse-confirm text-success-ink",
       )}
     >
+      <span
+        aria-hidden="true"
+        className={cx(
+          "h-1.5 w-1.5 shrink-0 rounded-full",
+          estado === "guardando" && "bg-primary",
+          estado === "problema" && "bg-danger",
+          estado === "pendiente" && "bg-warning",
+          estado === "guardado" && "bg-success",
+        )}
+      />
       {texto}
     </span>
   );

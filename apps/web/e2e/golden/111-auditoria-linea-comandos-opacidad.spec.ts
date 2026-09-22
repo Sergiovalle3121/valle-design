@@ -56,6 +56,17 @@ test("mapa de opacidad al ratón del panel de la línea de comandos", async ({ c
   console.log(`PANEL    y=${panel.y.toFixed(1)}..${(panel.y + panel.height).toFixed(1)}  x=${panel.x.toFixed(0)}..${(panel.x + panel.width).toFixed(0)}`);
   console.log(`ENTRADA  y=${entrada.y.toFixed(1)}..${(entrada.y + entrada.height).toFixed(1)}  x=${entrada.x.toFixed(0)}..${(entrada.x + entrada.width).toFixed(0)}`);
 
+  // OLA «comando»: la aserción de VERDAD, más fuerte que un mapa de opacidad.
+  // Antes el panel flotaba DENTRO de `cad-canvas` y lo más que se podía decir
+  // era «no tapa el ratón»; ahora vive acoplado en su propia ranura
+  // (`commandDock`), FUERA del lienzo del todo. Si algún día alguien lo
+  // vuelve a montar como capa flotante sobre el dibujo, esta línea se cae
+  // antes de que haga falta contar píxeles opacos.
+  expect(
+    panel.y,
+    "el panel de la línea de comandos empieza donde termina el lienzo, no encima de él",
+  ).toBeGreaterThanOrEqual(lienzo.y + lienzo.height - 1);
+
   const quien = async (x: number, y: number) =>
     page.evaluate(([px, py]) => {
       const a = document.elementFromPoint(px as number, py as number);

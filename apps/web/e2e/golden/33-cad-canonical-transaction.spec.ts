@@ -10,6 +10,7 @@ import { applyDynamicInput, applyDynamicPoint } from '../fixtures/dynamic-input'
 import { worldPoint } from '../fixtures/world-point';
 import { enter3DView } from '../fixtures/view-mode';
 import { topView, fitFootprint } from "../fixtures/camera-preset";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 /**
  * FASE 0 — la autoría canónica es TRANSACCIONAL y respeta el orden de dibujo.
@@ -103,10 +104,6 @@ async function point(page: Page, x: string, y: string) {
   await applyDynamicPoint(page, x, y);
 }
 
-/** La barra CAD, acotada: hay otros botones con estos nombres en el editor. */
-const toolbar = (page: Page) => page.getByTestId('cad-toolbar');
-
-
 async function expectNativeCount(page: Page, total: number) {
   await expect(page.getByTestId('cad-native-document-count')).toHaveText(`Native ${total}`);
 }
@@ -143,6 +140,7 @@ async function deselect(page: Page) {
     .getByTestId('cad-native-properties')
     .getByRole('button', { name: 'Deseleccionar' });
   if (await release.count()) await release.click();
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
 }
 
@@ -270,6 +268,7 @@ test('editing, copying and deleting preserve adversarial draw order through save
   // `zeta, medio, alfa` es exactamente el inverso del orden alfabético: un
   // `.sort()` sobre el z-order es imposible de confundir con "no pasó nada".
   const backend = await openStudio(context, page, DRAW_ORDER);
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
   expect(backend.snapshot().document.modelSpace.entityIds).toEqual(DRAW_ORDER);
 
@@ -311,6 +310,7 @@ test('editing, copying and deleting preserve adversarial draw order through save
   await test.step('reabrir devuelve el mismo orden, sin fantasmas ni omisiones', async () => {
     const saved = backend.snapshot().document;
     await page.reload();
+    await abrirPanelDerecho(page);
     await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
     await saveAndSettle(page, backend);
     const reloaded = backend.snapshot().document;
@@ -342,7 +342,7 @@ test('switching the active layer changes where the MOUSE draws, and it survives 
     await expect(page.getByTestId('cad-layer-active-muros')).toHaveText('Muros');
   });
 
-  await toolbar(page).getByRole('button', { name: 'Línea', exact: true }).click();
+  await startTool(page, 'line');
   const from = await worldPoint(page, { x: 2_000, y: 2_000 });
   await page.mouse.click(from.x, from.y);
   const to = await worldPoint(page, { x: 6_000, y: 5_000 });
@@ -362,6 +362,7 @@ test('switching the active layer changes where the MOUSE draws, and it survives 
   expect(drawn.entities[0].layer).toBe('muros');
 
   await page.reload();
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
   await saveAndSettle(page, backend);
   expect(backend.snapshot().document.entities[0].layer).toBe('muros');
@@ -374,6 +375,7 @@ test('switching the active layer changes where the MOUSE draws, and it survives 
 test('a locked layer refuses drawing and OFFSET, and rejection leaves zero history', async ({ context, page }) => {
   test.setTimeout(180_000);
   const backend = await openStudio(context, page, ['zeta']);
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
   // Modo 2D: la vista superior queda BLOQUEADA y el mapa mundo↔pantalla es
   // afín por construcción. El preset 3D «Vista superior» se destemplaba al
@@ -386,7 +388,7 @@ test('a locked layer refuses drawing and OFFSET, and rejection leaves zero histo
     await expectHistory(page, 0, 0);
     // La secuencia del MOTOR (command-first, como AutoCAD): distancia →
     // designar el objeto con el pickbox → Enter emite el lote.
-    await toolbar(page).getByRole('button', { name: 'Desfase', exact: true }).click();
+    await startTool(page, 'offset');
     await applyDynamicInput(page, { offset: '250' });
     const on = await worldPoint(page, { x: 1_250, y: 1_500 });
     await page.mouse.click(on.x, on.y);
@@ -416,7 +418,7 @@ test('a locked layer refuses drawing and OFFSET, and rejection leaves zero histo
     const depthBefore = await historyDepth(page);
 
     await deselect(page);
-    await toolbar(page).getByRole('button', { name: 'Desfase', exact: true }).click();
+    await startTool(page, 'offset');
     await applyDynamicInput(page, { offset: '250' });
     const on = await worldPoint(page, { x: 1_250, y: 1_500 });
     await page.mouse.click(on.x, on.y);
@@ -455,12 +457,13 @@ test('a locked layer refuses drawing and OFFSET, and rejection leaves zero histo
 test('MOVE and COPY run from the ordinary command on the canonical selection', async ({ context, page }) => {
   test.setTimeout(180_000);
   const backend = await openStudio(context, page, ['zeta']);
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
   const original = backend.snapshot().document.entities[0] as Extract<CadEntity, { type: 'line' }>;
 
   await test.step('MOVE desplaza la geometría canónica de verdad', async () => {
     await page.getByTestId('cad-native-entity-zeta').click();
-    await toolbar(page).getByRole('button', { name: 'Mover', exact: true }).click();
+    await startTool(page, 'move');
     await point(page, '0', '0');
     await point(page, '1000', '500');
     await expectNativeCount(page, 1);
@@ -478,7 +481,7 @@ test('MOVE and COPY run from the ordinary command on the canonical selection', a
   await test.step('COPY duplica y deja el original intacto', async () => {
     await deselect(page);
     await page.getByTestId('cad-native-entity-zeta').click();
-    await toolbar(page).getByRole('button', { name: 'Copiar', exact: true }).click();
+    await startTool(page, 'copy');
     await point(page, '0', '0');
     await point(page, '0', '2000');
     // COPY del motor es MÚLTIPLE, como en AutoCAD: sigue pidiendo destinos

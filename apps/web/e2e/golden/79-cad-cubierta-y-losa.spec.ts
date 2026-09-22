@@ -7,6 +7,7 @@ import { planarBodyVolume } from "../../src/lib/brep";
 import { solid3dBody } from "../../src/lib/cad/solid3d-build";
 import type { CadDocument, CadEntity } from "../../src/lib/cad/cad-document";
 import type { CadSolid3dEntity } from "../../src/lib/cad/cad-entities-v5";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 /**
  * OLA E — ROOF y SLAB sobre el perímetro de una planta, tecleados y guardados.
@@ -84,6 +85,9 @@ test("ROOF a dos aguas y SLAB sobre el perímetro: planta de cubiertas, dos sól
     gridSize: 100,
   });
   await page.goto("/legacy/studio");
+  // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+  // como una persona, antes de leer nada de lo que vive dentro.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId("cad-command-line")).toBeVisible();
   await expect(count(page)).toHaveText("Native 1");
 

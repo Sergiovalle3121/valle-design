@@ -8,6 +8,7 @@ import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
 import { applyDynamicInput } from '../fixtures/dynamic-input';
 import { startTool } from '../fixtures/tool-palette';
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 type CadLine = Extract<CadEntity, { type: 'line' }>;
 
@@ -76,6 +77,7 @@ test('the 2D editor stays fully operable when the browser denies WebGL', async (
   await expect(page.getByTestId('cad-webgl-unavailable')).toBeVisible();
 
   // …y la LISTA DE ENTIDADES sigue siendo la vía de trabajo real.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
   await page.getByTestId('cad-native-entity-nogl-line').click();
 

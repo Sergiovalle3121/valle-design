@@ -165,18 +165,41 @@ assert.equal(
 // ── Botones grandes: uno o dos por panel, todos reales, sin claves muertas.
 const allLabels = new Set(CAD_RIBBON_DATA.flatMap((tab) => tab.panels.map((panel) => panel.label)));
 for (const [label, names] of Object.entries(CAD_RIBBON_PRIMARY)) {
-  assert.ok(allLabels.has(label), `CAD_RIBBON_PRIMARY nombra el panel «${label}», que no existe en la cinta`);
+  // Una clave puede ir calificada por pestaña («administrar/Utilidades») cuando
+  // dos paneles comparten rótulo; entonces la pestaña y el panel deben existir.
+  const barra = label.indexOf("/");
+  if (barra > 0) {
+    const tab = CAD_RIBBON_DATA.find((entry) => entry.id === label.slice(0, barra));
+    assert.ok(
+      tab !== undefined && tab.panels.some((panel) => panel.label === label.slice(barra + 1)),
+      `CAD_RIBBON_PRIMARY nombra «${label}» y esa pestaña o ese panel no existen en la cinta`,
+    );
+  } else {
+    assert.ok(allLabels.has(label), `CAD_RIBBON_PRIMARY nombra el panel «${label}», que no existe en la cinta`);
+  }
   for (const name of names) {
     assert.ok(kindOf.has(name), `primario «${name}» (panel ${label}) no existe en el registro`);
     assert.ok(cadRibbonExposedNames().has(name), `primario «${name}» no tiene botón en la cinta`);
   }
 }
+// Ola 1 «cinta»: SÓLO estos tres paneles de Inicio se quedan sin botón grande,
+// a propósito y por escrito (ver el bloque de Inicio más abajo). Cualquier
+// otro panel conserva la cota inferior de siempre: uno o dos botones grandes.
+// Sin la lista explícita, un panel que perdiera su botón grande por error
+// pasaba en verde (revisión adversaria del candidato, 2026-09-21).
+const SIN_BOTON_GRANDE_EN_INICIO = new Set(["Grupos", "Utilidades", "Portapapeles"]);
 for (const tab of CAD_RIBBON_DATA) {
   for (const panel of tab.panels) {
     const primaries = panel.commands.filter((command) => command.primary);
+    const sinBotonGrande = tab.id === "inicio" && SIN_BOTON_GRANDE_EN_INICIO.has(panel.label);
+    // Lo que no puede pasar es que un panel declare TRES o más: eso era el
+    // problema de origen (14 en Inicio). Ni que uno que debe tener botón
+    // grande se quede sin él.
     assert.ok(
-      primaries.length >= 1 && primaries.length <= 2,
-      `${tab.id}/${panel.label} tiene ${primaries.length} botones grandes; deben ser uno o dos`,
+      sinBotonGrande ? primaries.length === 0 : primaries.length >= 1 && primaries.length <= 2,
+      `${tab.id}/${panel.label} tiene ${primaries.length} botones grandes; ${
+        sinBotonGrande ? "es uno de los tres paneles de Inicio sin botón grande" : "deben ser uno o dos"
+      }`,
     );
   }
   for (const label of CAD_RIBBON_PANEL_COLLAPSE_ORDER[tab.id]) {
@@ -186,6 +209,29 @@ for (const tab of CAD_RIBBON_DATA) {
     );
   }
 }
+// ── Ola 1 «cinta»: el recorte concreto de los 14 primarios de Inicio a 9,
+// medido en producción como el motivo de que el lienzo sólo fuera el 49,8 %
+// de la ventana. Dibujo y Modificar conservan sus dos; Anotación, Capas,
+// Bloque y Propiedades bajan a uno; Grupos, Utilidades y Portapapeles se
+// quedan sin botón grande — y sus comandos NO desaparecen del registro.
+{
+  const primariesOf = (label: string) =>
+    inicio.panels.find((panel) => panel.label === label)?.commands.filter((command) => command.primary).length ?? -1;
+  assert.deepEqual(
+    { Dibujo: primariesOf("Dibujo"), Modificar: primariesOf("Modificar") },
+    { Dibujo: 2, Modificar: 2 },
+    "Dibujo y Modificar conservan sus dos botones grandes: el par que abre cada oficio",
+  );
+  for (const label of ["Anotación", "Capas", "Bloque", "Propiedades"]) {
+    assert.equal(primariesOf(label), 1, `Inicio > ${label} baja a un solo botón grande`);
+  }
+  for (const label of ["Grupos", "Utilidades", "Portapapeles"]) {
+    assert.equal(primariesOf(label), 0, `Inicio > ${label} se queda sin botón grande: sus comandos entran como pequeños`);
+    const panel = inicio.panels.find((entry) => entry.label === label)!;
+    assert.ok(panel.commands.length > 0, `Inicio > ${label} sigue teniendo sus comandos, sólo que pequeños`);
+  }
+}
+
 // Lo que los goldens 61 y 86 pulsan sin abrir nada vive en paneles que nunca
 // se pliegan a un botón (no están en el orden de plegado de su pestaña).
 for (const [tabId, name] of [

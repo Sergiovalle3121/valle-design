@@ -1,10 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
+import { createPortal } from "react-dom";
 import { ChevronUp, ChevronDown } from "lucide-react";
 import { cx, Tabs, TabPanel } from "@/components/ui";
 import { CAD_RIBBON_DATA, type CadRibbonTabId } from "@/lib/cad/ribbon";
 import { planCadRibbonLayout } from "@/lib/cad/ribbon-layout";
+import { cadRibbonBodySlot } from "@/components/cad/shell/ribbon-body-slot";
 import { CadRibbonPanel } from "./CadRibbonPanel";
 
 /**
@@ -54,7 +63,11 @@ function leerPanelesPlegados(): ReadonlySet<string> {
   try {
     const stored = window.localStorage.getItem(CAD_RIBBON_PANELS_KEY);
     const parsed: unknown = stored ? JSON.parse(stored) : [];
-    return new Set(Array.isArray(parsed) ? parsed.filter((entry): entry is string => typeof entry === "string") : []);
+    return new Set(
+      Array.isArray(parsed)
+        ? parsed.filter((entry): entry is string => typeof entry === "string")
+        : [],
+    );
   } catch {
     return new Set();
   }
@@ -82,7 +95,9 @@ const STRIP_PADDING = 8;
 const CAD_MUTATING_COMMANDS: ReadonlySet<string> = new Set(
   CAD_RIBBON_DATA.flatMap((tab) =>
     tab.panels.flatMap((panel) =>
-      panel.commands.filter((command) => command.mutates).map((command) => command.name),
+      panel.commands
+        .filter((command) => command.mutates)
+        .map((command) => command.name),
     ),
   ),
 );
@@ -115,12 +130,41 @@ export function CadRibbon({
   readOnly,
   disabledCommands,
   className,
+  quickAccess,
+  trailing,
+  trailingFixed,
 }: {
   dispatch: (commandName: string) => void;
   readOnly?: boolean;
   disabledCommands?: ReadonlySet<string>;
   className?: string;
+  /**
+   * Ola «armazón» — el `appBar` de `CadShellFrame` es UNA fila de 32 px que
+   * junta cerrar, título, pestañas de la cinta y accesos 2D/3D: ya no hay una
+   * barra de 48/56 px propia encima. `quickAccess` es lo que va ANTES de las
+   * pestañas (cerrar, título, insignias de sólo-lectura); `trailing`, lo que
+   * va DESPUÉS (2D/3D, Modelo/Presentación, Guardar, Cerrar editor). Ninguno
+   * de los dos es un comando de dibujo: ver `docs/execution/DEUDA-
+   * MONOLITO.md`, sección «armazón», para por qué el resto de la barra vieja
+   * no vino con ellos (ya vive en la cinta o en el nuevo riel derecho).
+   */
+  quickAccess?: ReactNode;
+  trailing?: ReactNode;
+  /**
+   * La COLA FIJA: lo que no puede exigir un desplazamiento para llegar — el
+   * estado de aprobación, «Guardar» y «Cerrar el CAD». Se pinta al final, en
+   * un bloque que NO cede, detrás de la banda de iconos que sí lo hace.
+   */
+  trailingFixed?: ReactNode;
 }) {
+  // DÓNDE VA EL CUERPO — ver `shell/ribbon-body-slot.ts`. Sin ranura montada
+  // (una spec que renderiza `CadRibbon` aislado, por ejemplo) el cuerpo se
+  // pinta inline, debajo de las pestañas, como antes de la ola «armazón».
+  const bodyContainer = useSyncExternalStore(
+    cadRibbonBodySlot.subscribe,
+    cadRibbonBodySlot.getSnapshot,
+    cadRibbonBodySlot.getServerSnapshot,
+  );
   // T-74(j): la lectura de `localStorage` va en el INICIALIZADOR perezoso
   // de `useState`, no en un efecto — `CadStudioHost` monta `Layout3DEditor`
   // (y por tanto esta cinta) con `ssr: false` en las dos rutas que existen
@@ -130,9 +174,15 @@ export function CadRibbon({
   // efecto habría disparado `react-hooks/set-state-in-effect` (la regla
   // NO distingue «restaurar una vez al montar» de un `setState` reactivo) y
   // habría costado un re-render extra visible al abrir el estudio.
-  const [activeTab, setActiveTab] = useState<CadRibbonTabId>(() => leerPestanaGuardada() ?? "inicio");
-  const [collapsed, setCollapsed] = useState<boolean>(() => leerColapsoGuardado() ?? false);
-  const [manuallyCollapsed, setManuallyCollapsed] = useState<ReadonlySet<string>>(() => leerPanelesPlegados());
+  const [activeTab, setActiveTab] = useState<CadRibbonTabId>(
+    () => leerPestanaGuardada() ?? "inicio",
+  );
+  const [collapsed, setCollapsed] = useState<boolean>(
+    () => leerColapsoGuardado() ?? false,
+  );
+  const [manuallyCollapsed, setManuallyCollapsed] = useState<
+    ReadonlySet<string>
+  >(() => leerPanelesPlegados());
   const [stripWidth, setStripWidth] = useState<number>(anchoInicial);
   const stripRef = useRef<HTMLDivElement>(null);
 
@@ -153,7 +203,10 @@ export function CadRibbon({
   }, [collapsed]);
   useEffect(() => {
     try {
-      window.localStorage.setItem(CAD_RIBBON_PANELS_KEY, JSON.stringify([...manuallyCollapsed]));
+      window.localStorage.setItem(
+        CAD_RIBBON_PANELS_KEY,
+        JSON.stringify([...manuallyCollapsed]),
+      );
       window.localStorage.removeItem(CAD_RIBBON_PANELS_LEGACY_KEY);
     } catch {
       // Igual que arriba.
@@ -183,11 +236,13 @@ export function CadRibbon({
   // para cualquier otro comando deshabilitado.
   const effectiveDisabledCommands = useMemo(() => {
     if (!readOnly) return disabledCommands;
-    if (!disabledCommands || disabledCommands.size === 0) return CAD_MUTATING_COMMANDS;
+    if (!disabledCommands || disabledCommands.size === 0)
+      return CAD_MUTATING_COMMANDS;
     return new Set([...CAD_MUTATING_COMMANDS, ...disabledCommands]);
   }, [disabledCommands, readOnly]);
 
-  const activeTabData = CAD_RIBBON_DATA.find((tab) => tab.id === activeTab) ?? CAD_RIBBON_DATA[0];
+  const activeTabData =
+    CAD_RIBBON_DATA.find((tab) => tab.id === activeTab) ?? CAD_RIBBON_DATA[0];
   const manualForTab = useMemo(
     () =>
       new Set(
@@ -198,7 +253,12 @@ export function CadRibbon({
     [activeTabData.id, manuallyCollapsed],
   );
   const plan = useMemo(
-    () => planCadRibbonLayout(activeTabData, stripWidth - STRIP_PADDING, manualForTab),
+    () =>
+      planCadRibbonLayout(
+        activeTabData,
+        stripWidth - STRIP_PADDING,
+        manualForTab,
+      ),
     [activeTabData, manualForTab, stripWidth],
   );
   const togglePanel = (label: string) => {
@@ -219,77 +279,158 @@ export function CadRibbon({
     "data-testid": `cad-ribbon-tab-${tab.id}`,
   }));
 
-  return (
+  // EL CUERPO — los grupos de botones. Se manda por portal a `bodyContainer`
+  // (la ranura `ribbon` de `CadShellFrame`, 0/72 px); sin contenedor (una
+  // spec que renderiza `CadRibbon` aislado, por ejemplo) se pinta inline,
+  // debajo de las pestañas, como ANTES de la ola «armazón». `data-testid=
+  // "cad-ribbon"` y `data-collapsed` viven AQUÍ, no en la fila de pestañas:
+  // es el alto de ESTA caja el que le importa al lienzo (golden 214), y es
+  // este booleano el que golden 163 comprueba que sobrevive a un reload.
+  const body = (
     <div
+      ref={stripRef}
       data-testid="cad-ribbon"
       data-collapsed={collapsed ? "true" : "false"}
-      // `z-[25]`: por encima de las capas del lienzo (la paleta de
-      // herramientas es `z-20`) y por debajo de la barra superior (`z-30`),
-      // cuyos menús caen sobre la cinta. Los desplegables de panel y las
-      // etiquetas de ayuda NO cuelgan de aquí: van en un portal a <body>
-      // (`ribbon-floating.ts`), porque la tira `overflow-x-auto` los recortaba
-      // y el `backdrop-blur` atrapa cualquier `position: fixed` de dentro.
       className={cx(
-        "relative z-[25] flex shrink-0 flex-col border-b border-border bg-surface/90 backdrop-blur",
+        "w-full",
+        // Sin `bodyContainer` no hay rejilla que reparta el alto: el borde y
+        // el fondo propios evitan que el cuerpo se confunda con el lienzo.
+        !bodyContainer && "border-b border-border bg-surface/90 backdrop-blur",
         className,
       )}
     >
-      <div className="flex items-center pr-1">
-        <Tabs
-          items={tabs}
-          value={activeTab}
-          onChange={(id) => setActiveTab(id as CadRibbonTabId)}
-          label="Pestañas de la cinta"
-          size="sm"
-          // `[&_button]:py-1`: la fila de pestañas medía 34 px con el py-2 de
-          // `size="sm"`; a 720 px de alto cada píxel de cinta se lo come el
-          // lienzo (golden 19: lienzo 511 px con 520 de mínimo, medido).
-          className="flex-1 border-b-0 px-2 [&_button]:py-1"
-        />
-        <button
-          type="button"
-          data-testid="cad-ribbon-collapse"
-          onClick={() => setCollapsed((value) => !value)}
-          title={collapsed ? "Mostrar la cinta" : "Minimizar la cinta"}
-          aria-label={collapsed ? "Mostrar la cinta" : "Minimizar la cinta"}
-          className="rounded-control p-1 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          {collapsed ? (
-            <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
-          ) : (
-            <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" />
-          )}
-        </button>
-      </div>
-      <div ref={stripRef} className="w-full">
-        {!collapsed &&
-          CAD_RIBBON_DATA.map((tab) => (
-            <TabPanel key={tab.id} id={tab.id} active={tab.id === activeTab}>
-              {tab.id === activeTab ? (
-                <div
-                  data-testid={`cad-ribbon-panels-${tab.id}`}
-                  data-strip-width={Math.round(stripWidth)}
-                  className={cx(
-                    "flex items-stretch overflow-x-auto px-1 py-0",
-                    "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-                  )}
-                >
-                  {tab.panels.map((panel) => (
-                    <CadRibbonPanel
-                      key={panel.label}
-                      panel={panel}
-                      onRun={dispatch}
-                      disabledCommands={effectiveDisabledCommands}
-                      layout={plan.get(panel.label)}
-                      manuallyCollapsed={manualForTab.has(panel.label)}
-                      onToggleCollapsed={() => togglePanel(panel.label)}
-                    />
-                  ))}
-                </div>
-              ) : null}
-            </TabPanel>
-          ))}
-      </div>
+      {!collapsed &&
+        CAD_RIBBON_DATA.map((tab) => (
+          <TabPanel key={tab.id} id={tab.id} active={tab.id === activeTab}>
+            {tab.id === activeTab ? (
+              <div
+                data-testid={`cad-ribbon-panels-${tab.id}`}
+                data-strip-width={Math.round(stripWidth)}
+                className={cx(
+                  "flex items-stretch overflow-x-auto px-1 py-0",
+                  "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+                )}
+              >
+                {tab.panels.map((panel) => (
+                  <CadRibbonPanel
+                    key={panel.label}
+                    panel={panel}
+                    onRun={dispatch}
+                    disabledCommands={effectiveDisabledCommands}
+                    layout={plan.get(panel.label)}
+                    manuallyCollapsed={manualForTab.has(panel.label)}
+                    onToggleCollapsed={() => togglePanel(panel.label)}
+                  />
+                ))}
+              </div>
+            ) : null}
+          </TabPanel>
+        ))}
     </div>
+  );
+
+  // LA FILA DE PESTAÑAS — el `appBar` del armazón. Antes de la ola «armazón»
+  // esta fila era sólo las pestañas; la barra de cerrar/título/2D-3D vivía en
+  // un `div[data-testid="cad-top-toolbar"]` propio de 48/56 px ENCIMA de
+  // ella. Las dos se fusionaron en ÉSTA — de ahí que el testid y el `h-8`
+  // (32 px, el presupuesto de `CAD_SHELL_METRICS.appBar`) se hayan mudado
+  // aquí. `data-cad-appbar="true"` es el gancho nuevo para quien necesite
+  // distinguir "la fila que hace de appBar" sin depender del testid heredado.
+  const header = (
+    <div
+      data-testid="cad-top-toolbar"
+      data-cad-appbar="true"
+      className={cx(
+        "flex h-8 items-center gap-1.5 overflow-x-auto border-b border-border bg-surface/90 pr-1 backdrop-blur",
+        "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+      )}
+    >
+      {quickAccess ? (
+        // CEDE, con un mínimo que conserva cerrar + logotipo (3,25 rem):
+        // el título ya venía con `truncate`, pero este envoltorio era
+        // `shrink-0`, así que nunca cedía de verdad. Medido en la CI (Linux)
+        // de la #224 el 2026-09-22 a 1280 px: la fila pedía 1292 px —doce por
+        // encima de la ventana; en Windows la misma fila mide 1243, por el
+        // trazado de la fuente— y el golden 215 la daba por desbordada. Con el título cediendo, «el título se trunca y
+        // los controles secundarios ceden el espacio» pasa de comentario a
+        // comportamiento.
+        <div className="flex min-w-[3.25rem] max-w-40 shrink items-center gap-1.5">
+          {quickAccess}
+        </div>
+      ) : null}
+      <Tabs
+        items={tabs}
+        value={activeTab}
+        onChange={(id) => setActiveTab(id as CadRibbonTabId)}
+        label="Pestañas de la cinta"
+        size="sm"
+        // `[&_button]:py-1`: la fila de pestañas medía 34 px con el py-2 de
+        // `size="sm"`; a 720 px de alto cada píxel de cinta se lo come el
+        // lienzo (golden 19: lienzo 511 px con 520 de mínimo, medido).
+        //
+        // Y LA BARRA DE DESPLAZAMIENTO, OCULTA. `Tabs` lleva `overflow-x-auto`
+        // y con diez pestañas su contenido no cabe, así que Windows le pintaba
+        // una barra horizontal que suma 14,3 px de ALTO: medido el 2026-09-20
+        // en la vista previa, el botón mide 27,4 px y la fila 41,7 — dentro de
+        // un `appBar` de 32. Sobresalía 5,2 px por arriba y empujaba «Guardar»
+        // y «Cerrar el CAD» a `y = -0,3`, fuera del viewport (golden 215). La
+        // fila de fuera ya se oculta la suya con estas tres reglas; a ésta se
+        // le olvidó. Se desplaza igual, sin gastar alto ni pintar una franja
+        // gris encima del dibujo.
+        //
+        // Desde 1280 px las diez pestañas conservan su ancho completo; el
+        // título se trunca y los controles secundarios ceden el espacio.
+        // En ventanas menores la cinta conserva el desplazamiento horizontal.
+        className="min-w-[12rem] shrink min-[1280px]:shrink-0 border-b-0 px-2 [&_button]:py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      />
+      {trailing ? (
+        // `border-l`: separa la cola de la fila de pestañas — antes las dos
+        // sólo compartían un `gap-1.5`, sin ancla visual entre "pestañas" y
+        // "el resto de controles" (sistema-visual, regla 1: barra ordenada
+        // en grupos, no una masa).
+        //
+        // ESTE BLOQUE CEDE Y SE DESPLAZA, ya no es `shrink-0`. Medido el
+        // 2026-09-20 a 1280 px: pedía 1834 px —más ancho que la ventana
+        // entera— y al no ceder empujaba la barra a 2292 px de contenido en
+        // 1280 de hueco. Trece de sus cuarenta y cinco botones quedaban fuera
+        // de la pantalla, sin barra que avisara. Ahora cede lo que haga falta
+        // y desplaza dentro de sí (con su barra oculta, como la de fuera): la
+        // barra superior deja de desbordar la ventana. Que haya que
+        // desplazarse para llegar a un icono sigue siendo un problema, pero es
+        // el de vaciar esta cola —mudarla a la cinta y al riel—, no el de
+        // romper el ancho de la ventana.
+        <div className="flex min-w-12 flex-1 items-center gap-1.5 overflow-x-auto border-l border-border pl-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {trailing}
+        </div>
+      ) : null}
+      {trailingFixed ? (
+        // NO CEDE. Todo lo demás de esta fila se encoge o se desplaza cuando la
+        // ventana aprieta; esto no, porque es «Guardar» y «Cerrar el CAD».
+        <div className="flex shrink-0 items-center gap-1.5 border-l border-border pl-2">
+          {trailingFixed}
+        </div>
+      ) : null}
+      <button
+        type="button"
+        data-testid="cad-ribbon-collapse"
+        onClick={() => setCollapsed((value) => !value)}
+        title={collapsed ? "Mostrar la cinta" : "Minimizar la cinta"}
+        aria-label={collapsed ? "Mostrar la cinta" : "Minimizar la cinta"}
+        className="shrink-0 rounded-control p-1 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {collapsed ? (
+          <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
+        ) : (
+          <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" />
+        )}
+      </button>
+    </div>
+  );
+
+  return (
+    <>
+      {header}
+      {bodyContainer ? createPortal(body, bodyContainer) : body}
+    </>
   );
 }

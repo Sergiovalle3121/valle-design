@@ -5,6 +5,7 @@ import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
+import { abrirPanelDerecho } from '../fixtures/docks';
 
 /**
  * Los ocho tipos del esquema 4 llegan al fichero DXF que descarga el usuario.
@@ -122,6 +123,9 @@ async function openStudio(context: BrowserContext, page: Page) {
     footprintW: 12_000, footprintH: 10_000, unit: 'mm', gridSize: 100,
   });
   await page.goto('/legacy/studio');
+  // Ola «armazón»: el panel derecho arranca plegado a un riel de iconos; la
+  // lista de entidades sólo se MONTA con el panel abierto.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
 }
 

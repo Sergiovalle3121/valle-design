@@ -2,6 +2,7 @@ import { expect, test, type BrowserContext, type Page, type TestInfo } from '@pl
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadV1Backend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
+import { abrirPanelDerecho } from '../fixtures/docks';
 
 const cadDocument = {
   meta: { version: 1, schema: 3, unit: 'mm' },
@@ -31,7 +32,33 @@ async function assertDockedGeometry(page: Page) {
   expect(canvas!.width).toBeGreaterThan(420);
   expect(canvas!.height).toBeGreaterThan(520);
   expect(canvas!.x + canvas!.width).toBeLessThanOrEqual(right!.x + 1);
-  expect(toolbar!.height).toBeLessThanOrEqual(52);
+  // Ola «armazón»: el appBar (cerrar + título + pestañas de la cinta) es UNA
+  // fila de 32 px (`CAD_SHELL_METRICS.appBar`), no la barra de 48/56 más la
+  // fila de pestañas aparte de antes. 40 px deja margen para bordes/redondeo
+  // sin admitir que vuelva a crecer una segunda fila.
+  expect(toolbar!.height).toBeLessThanOrEqual(40);
+}
+
+/**
+ * EL LIENZO EN REPOSO — el número que de verdad importa. `assertDockedGeometry`
+ * mide con una paleta profesional abierta (360 px de panel): un piso de
+ * `>420 x >520` era todo lo que decía porque a esa anchura el lienzo nunca se
+ * acerca al 74 %. En REPOSO (nada abierto, rieles plegados, cinta desplegada
+ * — el estado con el que abre cualquiera) sí hay un contrato real que
+ * defender: `cadShellCanvasBox` (`cad-shell-layout.spec.ts`) fija el 74 % a
+ * 1440×825; este golden confirma que el DOM real lo cumple, no sólo la
+ * función pura.
+ */
+async function assertLienzoEnReposo(page: Page, viewport: { width: number; height: number }) {
+  const canvas = (await page.getByTestId('cad-canvas').boundingBox())!;
+  const area = canvas.width * canvas.height;
+  const piso = 0.74 * viewport.width * viewport.height;
+  expect(
+    area,
+    `lienzo ${canvas.width}×${canvas.height} = ${Math.round(area)} px² en una ventana de ` +
+      `${viewport.width}×${viewport.height} (${Math.round((area / (viewport.width * viewport.height)) * 100)} %); ` +
+      `el contrato del armazón exige ≥74 %`,
+  ).toBeGreaterThanOrEqual(piso);
 }
 
 async function capture(page: Page, testInfo: TestInfo, label: string) {
@@ -40,6 +67,17 @@ async function capture(page: Page, testInfo: TestInfo, label: string) {
 
 test.use({ deviceScaleFactor: 2 });
 
+// Auditoría ola1-g2-estudio (2026-09-20), carril «estudio y paletas»: sin
+// poder correr Playwright (regla de los 8 GB), se comprobó por lectura de
+// código, testid por testid, que este golden sigue casando con el armazón
+// nuevo — `cad-top-toolbar` (32 px, `cad-shell-rail-items.tsx`), el riel y
+// panel del muelle derecho (`abrirPanelDerecho`), `cad-block-palette` dentro
+// de `cad-right-dock` y el 74 %/78 % de `assertLienzoEnReposo` contra
+// `cadShellCanvasBox` (`cad-shell-layout.spec.ts`: 1352×669/904488 px² a
+// 1440×825 = 76,1 %; con la cinta plegada, 1352×741/1001832 px² = 84,3 %,
+// ambos por encima de los pisos que el golden exige). Es EL contrato del
+// layout por defecto: no se relajó ni un número, se verificó contra
+// `CAD_SHELL_METRICS`.
 test('professional workbench persists, scales and keeps every palette outside the drawing', async ({ context, page }, testInfo) => {
   // 5 viewports hasta 3840×2160 con deviceScaleFactor 2 son framebuffers de
   // hasta 7680×4320 en SwiftShader: el runner de CI (2 núcleos, GL por
@@ -49,6 +87,12 @@ test('professional workbench persists, scales and keeps every palette outside th
   await loginAsStandaloneOwner(context);
   await installCadBackend(context);
   await page.goto('/legacy/studio');
+  // Ola «armazón»: el panel derecho arranca plegado a un riel de iconos; la
+  // lista de entidades sólo se MONTA con el panel abierto. Esta prueba no
+  // afirma nada sobre el estado por defecto (eso lo hace la de abajo, «el
+  // lienzo en reposo…»), así que abrirlo aquí es sólo la señal de que el
+  // documento cargó.
+  await abrirPanelDerecho(page);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
 
   await page.getByTitle(/Workspace profesional/).click();
@@ -129,9 +173,45 @@ test('professional workbench persists, scales and keeps every palette outside th
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.getByTitle(/Workspace profesional/).click();
   await page.getByTestId('cad-workspace-profile-presentation').click();
-  await page.getByLabel('Cerrar panel profesional').click();
+  // El perfil «presentación» apaga los dos muelles él solo
+  // (`cad-workspace.ts`: `presentation: { leftDock: false, rightDock: false, … }`),
+  // y con la columna derecha apagada el botón «Cerrar panel profesional» deja
+  // de estar a la vista en el mismo instante: pulsarlo aquí esperaba los 180 s
+  // enteros a un botón que el propio perfil acababa de retirar. Se comprueba lo
+  // que de verdad importa —que ELEGIR el perfil basta— en vez de un clic que ya
+  // no existe; es una afirmación más fuerte, no más débil.
   await expect(page.getByTestId('cad-left-dock')).toBeHidden();
   await expect(page.getByTestId('cad-right-dock')).toBeHidden();
+  await expect(page.getByLabel('Cerrar panel profesional')).toBeHidden();
   const presentationCanvas = await canvas.boundingBox();
   expect(presentationCanvas!.width).toBeGreaterThan(1_850);
+});
+
+test('el lienzo en reposo se lleva el 74 % de la ventana a 1440×825', async ({ context, page }) => {
+  test.setTimeout(120_000);
+  await installMockBackend(context);
+  await loginAsStandaloneOwner(context);
+  await installCadBackend(context);
+  const viewport = { width: 1440, height: 825 };
+  await page.setViewportSize(viewport);
+  await page.goto('/legacy/studio');
+  // Señal de que el documento cargó. NO es `cad-native-entity-list`: esa
+  // lista vive DENTRO del panel derecho y con los rieles plegados de fábrica
+  // ni siquiera se monta — pedirla aquí contradecía la aserción de abajo
+  // (`cad-right-dock` plegado) en el mismo reposo que esta prueba mide.
+  await expect(page.getByTestId('cad-canvas')).toBeVisible();
+  // Reposo real: nada abierto. Los rieles arrancan plegados de fábrica
+  // (`leftDockCollapsed`/`rightDockCollapsed`) y la cinta, desplegada — el
+  // estado en el que abre cualquiera, sin tocar nada.
+  await expect(page.getByTestId('cad-left-dock')).toHaveAttribute('data-collapsed', 'true');
+  await expect(page.getByTestId('cad-right-dock')).toHaveAttribute('data-collapsed', 'true');
+  await expect(page.getByTestId('cad-ribbon')).toHaveAttribute('data-collapsed', 'false');
+  await assertLienzoEnReposo(page, viewport);
+
+  // Con la cinta minimizada el contrato sube a 78 % (`cad-shell-layout.spec.ts`).
+  await page.getByTestId('cad-ribbon-collapse').click();
+  await expect(page.getByTestId('cad-ribbon')).toHaveAttribute('data-collapsed', 'true');
+  const canvasMinimizado = (await page.getByTestId('cad-canvas').boundingBox())!;
+  const areaMinimizada = canvasMinimizado.width * canvasMinimizado.height;
+  expect(areaMinimizada).toBeGreaterThanOrEqual(0.78 * viewport.width * viewport.height);
 });

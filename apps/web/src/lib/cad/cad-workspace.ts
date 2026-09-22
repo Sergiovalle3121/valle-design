@@ -51,6 +51,13 @@ export interface CadWorkspacePreferences {
    */
   leftDockCollapsed: boolean;
   rightDock: boolean;
+  /**
+   * Igual que `leftDockCollapsed` pero del muelle derecho (propiedades +
+   * paletas profesionales). Añadida en la ola «armazón»: el muelle derecho
+   * ganó su propio riel de iconos (`CadDockRail`) y necesita el mismo
+   * recuerdo de qué tan angosto lo dejó quien dibuja.
+   */
+  rightDockCollapsed: boolean;
   commandDock: boolean;
   minimap: boolean;
   toolbarDensity: CadToolbarDensity;
@@ -69,8 +76,14 @@ export const CAD_WORKSPACE_DEFAULTS: CadWorkspacePreferences = {
   schema: 1,
   profile: 'drafting',
   leftDock: true,
-  leftDockCollapsed: false,
+  // Ola «armazón»: los dos muelles arrancan PLEGADOS a su riel de iconos, como
+  // AutoCAD. Antes `leftDockCollapsed: false` abría la Biblioteca a 240 px de
+  // fábrica — un cuarto de pantalla que nadie pidió antes de dibujar la
+  // primera línea. Quien lo use una vez lo deja abierto (se guarda, como
+  // siempre) y no vuelve a tocar esta preferencia.
+  leftDockCollapsed: true,
   rightDock: true,
+  rightDockCollapsed: true,
   commandDock: true,
   // Apagado de fábrica desde 2026-09-02. El minimapa es una capa que vive
   // SOBRE el área de dibujo y se queda con el ratón donde está: abajo a la
@@ -121,6 +134,7 @@ export function normalizeCadWorkspacePreferences(value: unknown): CadWorkspacePr
     leftDock: typeof raw.leftDock === 'boolean' ? raw.leftDock : CAD_WORKSPACE_DEFAULTS.leftDock,
     leftDockCollapsed: typeof raw.leftDockCollapsed === 'boolean' ? raw.leftDockCollapsed : CAD_WORKSPACE_DEFAULTS.leftDockCollapsed,
     rightDock: typeof raw.rightDock === 'boolean' ? raw.rightDock : CAD_WORKSPACE_DEFAULTS.rightDock,
+    rightDockCollapsed: typeof raw.rightDockCollapsed === 'boolean' ? raw.rightDockCollapsed : CAD_WORKSPACE_DEFAULTS.rightDockCollapsed,
     commandDock: typeof raw.commandDock === 'boolean' ? raw.commandDock : CAD_WORKSPACE_DEFAULTS.commandDock,
     minimap: typeof raw.minimap === 'boolean' ? raw.minimap : CAD_WORKSPACE_DEFAULTS.minimap,
     toolbarDensity: raw.toolbarDensity === 'comfortable' ? 'comfortable' : 'compact',

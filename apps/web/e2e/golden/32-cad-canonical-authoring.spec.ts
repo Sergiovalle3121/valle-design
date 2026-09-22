@@ -1,14 +1,19 @@
-import { startTool } from '../fixtures/tool-palette';
-import { finishDraft } from '../fixtures/draft-toolbar';
-import { expect, test, type BrowserContext, type Page } from '@playwright/test';
-import { readFile } from 'node:fs/promises';
-import { installMockBackend } from '../fixtures/mock-backend';
-import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
-import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
-import { saveAndSettle } from '../fixtures/cad-save';
-import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
-import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
-import { applyDynamicInput, applyDynamicPoint, applyNativeProperty } from '../fixtures/dynamic-input';
+import { startTool } from "../fixtures/tool-palette";
+import { finishDraft } from "../fixtures/draft-toolbar";
+import { expect, test, type BrowserContext, type Page } from "@playwright/test";
+import { readFile } from "node:fs/promises";
+import { installMockBackend } from "../fixtures/mock-backend";
+import { installCadStudioBackend } from "../fixtures/cad-v1-backend";
+import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
+import { saveAndSettle } from "../fixtures/cad-save";
+import type { CadDocument, CadEntity } from "../../src/lib/cad/cad-document";
+import { importDxfPrimitives } from "../../src/lib/cad/dxf-import";
+import {
+  applyDynamicInput,
+  applyDynamicPoint,
+  applyNativeProperty,
+} from "../fixtures/dynamic-input";
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 /**
  * PRIORIDAD 2 — corte VERTICAL de la autoría 2D canónica.
@@ -27,18 +32,30 @@ import { applyDynamicInput, applyDynamicPoint, applyNativeProperty } from '../fi
  */
 function seedDocument(): CadDocument {
   return {
-    meta: { version: 1, schema: 3, unit: 'mm' },
-    layers: [{ id: '0', name: '0', color: '#ffffff', visible: true, locked: false }],
+    meta: { version: 1, schema: 3, unit: "mm" },
+    layers: [
+      { id: "0", name: "0", color: "#ffffff", visible: true, locked: false },
+    ],
     entities: [],
-    history: [], modelSpace: { entityIds: [] }, paperSpaces: [],
+    history: [],
+    modelSpace: { entityIds: [] },
+    paperSpaces: [],
     styles: { text: {}, dimension: {}, mleader: {}, table: {}, plot: {} },
-    blocks: [], constraints: [], externalReferences: [], unsupportedEntities: [], lossManifest: [], publications: [],
+    blocks: [],
+    constraints: [],
+    externalReferences: [],
+    unsupportedEntities: [],
+    lossManifest: [],
+    publications: [],
   };
 }
 
 async function installCadBackend(context: BrowserContext) {
   return installCadStudioBackend<CadDocument>(context, seedDocument(), {
-    footprintW: 12_000, footprintH: 10_000, unit: 'mm', gridSize: 100,
+    footprintW: 12_000,
+    footprintH: 10_000,
+    unit: "mm",
+    gridSize: 100,
   });
 }
 
@@ -58,7 +75,7 @@ async function point(page: Page, x: string, y: string) {
   await applyDynamicPoint(page, x, y);
 }
 
-const properties = (page: Page) => page.getByTestId('cad-native-properties');
+const properties = (page: Page) => page.getByTestId("cad-native-properties");
 
 /**
  * Arranca una herramienta y espera a que su entrada dinámica esté lista.
@@ -68,53 +85,59 @@ const properties = (page: Page) => page.getByTestId('cad-native-properties');
 
 /** Espera a que el EDITOR reconozca las entidades creadas hasta ahora. */
 async function expectNativeCount(page: Page, total: number) {
-  await expect(page.getByTestId('cad-native-document-count')).toHaveText(
+  await expect(page.getByTestId("cad-native-document-count")).toHaveText(
     `Native ${total}`,
   );
 }
 
-test('LINE, PLINE, RECT and CIRCLE author canonical geometry end to end', async ({ context, page }) => {
+test("LINE, PLINE, RECT and CIRCLE author canonical geometry end to end", async ({
+  context,
+  page,
+}) => {
   test.setTimeout(180_000);
   const pageErrors: string[] = [];
-  page.on('pageerror', (error) => pageErrors.push(String(error)));
+  page.on("pageerror", (error) => pageErrors.push(String(error)));
 
   await installMockBackend(context);
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
-  await page.goto('/legacy/studio');
-  await expect(page.getByTestId('cad-canvas')).toBeVisible();
+  await page.goto("/legacy/studio");
+  // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+  // como una persona, antes de leer nada de lo que vive dentro.
+  await abrirPanelDerecho(page);
+  await expect(page.getByTestId("cad-canvas")).toBeVisible();
 
-  await test.step('1. LINE crea UNA entidad `line`', async () => {
-    await startTool(page, 'line');
-    await point(page, '1000', '1000');
-    await point(page, '5000', '1000');
+  await test.step("1. LINE crea UNA entidad `line`", async () => {
+    await startTool(page, "line");
+    await point(page, "1000", "1000");
+    await point(page, "5000", "1000");
     await finishDraft(page);
     await expectNativeCount(page, 1);
   });
 
-  await test.step('2. PLINE crea UNA `polyline`, no un muro por tramo', async () => {
-    await startTool(page, 'polyline');
-    await point(page, '1000', '3000');
-    await point(page, '4000', '3000');
-    await point(page, '4000', '5000');
+  await test.step("2. PLINE crea UNA `polyline`, no un muro por tramo", async () => {
+    await startTool(page, "polyline");
+    await point(page, "1000", "3000");
+    await point(page, "4000", "3000");
+    await point(page, "4000", "5000");
     await finishDraft(page);
     await expectNativeCount(page, 2);
   });
 
-  await test.step('3. RECT crea una `polyline` CERRADA de cuatro vértices', async () => {
-    await startTool(page, 'rect');
-    await point(page, '6000', '1000');
-    await point(page, '9000', '3000');
+  await test.step("3. RECT crea una `polyline` CERRADA de cuatro vértices", async () => {
+    await startTool(page, "rect");
+    await point(page, "6000", "1000");
+    await point(page, "9000", "3000");
     await expectNativeCount(page, 3);
   });
 
-  await test.step('4. CIRCLE crea una entidad `circle`', async () => {
-    await startTool(page, 'circle');
-    await point(page, '8000', '6000');
+  await test.step("4. CIRCLE crea una entidad `circle`", async () => {
+    await startTool(page, "circle");
+    await point(page, "8000", "6000");
     // El paso que señalaba el rojo de `main`: «Native 3» en vez de «Native 4»,
     // o sea el círculo que no llega a crearse. El punto del centro ya iba
     // protegido; el radio no.
-    await applyDynamicInput(page, { radius: '400' });
+    await applyDynamicInput(page, { radius: "400" });
     await expectNativeCount(page, 4);
   });
 
@@ -126,24 +149,28 @@ test('LINE, PLINE, RECT and CIRCLE author canonical geometry end to end', async 
   // parecía del producto cuando era del propio spec.
   await saveAndSettle(page, backend);
   const drawn = backend.snapshot().document;
-  const typeCount = (type: CadEntity['type']) =>
+  const typeCount = (type: CadEntity["type"]) =>
     drawn.entities.filter((entity) => entity.type === type).length;
 
-  expect(typeCount('line')).toBe(1);
-  expect(typeCount('circle')).toBe(1);
-  expect(typeCount('polyline')).toBe(2);
+  expect(typeCount("line")).toBe(1);
+  expect(typeCount("circle")).toBe(1);
+  expect(typeCount("polyline")).toBe(2);
   // Ni muros, ni zonas, ni cajas: dibujar geometría neutra no crea assets.
-  expect(typeCount('box')).toBe(0);
-  expect(drawn.entities.every((entity) => !('legacy' in entity && entity.legacy))).toBe(true);
+  expect(typeCount("box")).toBe(0);
+  expect(
+    drawn.entities.every((entity) => !("legacy" in entity && entity.legacy)),
+  ).toBe(true);
   expect(drawn.entities).toHaveLength(4);
 
-  const line = drawn.entities.find((e): e is Extract<CadEntity, { type: 'line' }> => e.type === 'line')!;
+  const line = drawn.entities.find(
+    (e): e is Extract<CadEntity, { type: "line" }> => e.type === "line",
+  )!;
   expect(line.start).toMatchObject({ x: 1_000, y: 1_000, z: 0 });
   expect(line.end).toMatchObject({ x: 5_000, y: 1_000, z: 0 });
-  expect(line.layer).toBe('0');
+  expect(line.layer).toBe("0");
 
   const polylines = drawn.entities.filter(
-    (e): e is Extract<CadEntity, { type: 'polyline' }> => e.type === 'polyline',
+    (e): e is Extract<CadEntity, { type: "polyline" }> => e.type === "polyline",
   );
   const open = polylines.find((p) => !p.closed)!;
   const rect = polylines.find((p) => p.closed)!;
@@ -156,72 +183,100 @@ test('LINE, PLINE, RECT and CIRCLE author canonical geometry end to end', async 
     [6_000, 3_000],
   ]);
 
-  const circle = drawn.entities.find((e): e is Extract<CadEntity, { type: 'circle' }> => e.type === 'circle')!;
+  const circle = drawn.entities.find(
+    (e): e is Extract<CadEntity, { type: "circle" }> => e.type === "circle",
+  )!;
   expect(circle.radius).toBeCloseTo(400, 3);
 
   // Ids estables y únicos, y orden de dibujo sin fantasmas ni omisiones.
   expect(new Set(drawn.entities.map((e) => e.id)).size).toBe(4);
-  expect([...drawn.modelSpace.entityIds].sort()).toEqual(drawn.entities.map((e) => e.id).sort());
+  expect([...drawn.modelSpace.entityIds].sort()).toEqual(
+    drawn.entities.map((e) => e.id).sort(),
+  );
   // Lo último dibujado se dibuja encima.
-  expect(drawn.modelSpace.entityIds[drawn.modelSpace.entityIds.length - 1]).toBe(circle.id);
+  expect(
+    drawn.modelSpace.entityIds[drawn.modelSpace.entityIds.length - 1],
+  ).toBe(circle.id);
 
   // ── 6. Editar por propiedades ──
-  await test.step('6. Propiedades editan la entidad canónica', async () => {
+  await test.step("6. Propiedades editan la entidad canónica", async () => {
     // Mientras haya selección, el panel de propiedades ocupa el sitio de la
     // lista de entidades: hay que soltar el círculo recién dibujado para poder
     // elegir la línea.
-    await properties(page).getByRole('button', { name: 'Deseleccionar' }).click();
+    await properties(page)
+      .getByRole("button", { name: "Deseleccionar" })
+      .click();
     await page.getByTestId(`cad-native-entity-${line.id}`).click();
-    await expect(page.getByTestId('cad-native-property-startX')).toHaveValue('1000');
-    await applyNativeProperty(page, 'startX', '1500');
-    await expect(page.getByTestId('cad-native-property-startX')).toHaveValue('1500');
+    await expect(page.getByTestId("cad-native-property-startX")).toHaveValue(
+      "1000",
+    );
+    await applyNativeProperty(page, "startX", "1500");
+    await expect(page.getByTestId("cad-native-property-startX")).toHaveValue(
+      "1500",
+    );
   });
 
   // ── 7. Mover, copiar, borrar y deshacer ──
-  await test.step('7. Move / copy / delete y undo/redo', async () => {
-    await page.getByTestId('cad-native-move-x').click();
-    await expect(page.getByTestId('cad-native-property-startX')).toHaveValue('1600');
+  await test.step("7. Move / copy / delete y undo/redo", async () => {
+    await page.getByTestId("cad-native-move-x").click();
+    await expect(page.getByTestId("cad-native-property-startX")).toHaveValue(
+      "1600",
+    );
 
-    await properties(page).getByRole('button', { name: 'Copiar' }).click();
+    await properties(page).getByRole("button", { name: "Copiar" }).click();
     await saveAndSettle(page, backend);
-    expect(backend.snapshot().document.entities.filter((e) => e.type === 'line')).toHaveLength(2);
+    expect(
+      backend.snapshot().document.entities.filter((e) => e.type === "line"),
+    ).toHaveLength(2);
 
-    await page.getByTestId('cad-native-delete').click();
+    await page.getByTestId("cad-native-delete").click();
     await saveAndSettle(page, backend);
-    expect(backend.snapshot().document.entities.filter((e) => e.type === 'line')).toHaveLength(1);
+    expect(
+      backend.snapshot().document.entities.filter((e) => e.type === "line"),
+    ).toHaveLength(1);
 
     // Deshacer devuelve la copia borrada; rehacer la vuelve a quitar.
-    await page.getByRole('button', { name: 'Deshacer', exact: true }).click();
+    await startTool(page, "undo");
     await saveAndSettle(page, backend);
-    expect(backend.snapshot().document.entities.filter((e) => e.type === 'line')).toHaveLength(2);
-    await page.getByRole('button', { name: 'Rehacer', exact: true }).click();
+    expect(
+      backend.snapshot().document.entities.filter((e) => e.type === "line"),
+    ).toHaveLength(2);
+    await startTool(page, "redo");
     await saveAndSettle(page, backend);
-    expect(backend.snapshot().document.entities.filter((e) => e.type === 'line')).toHaveLength(1);
+    expect(
+      backend.snapshot().document.entities.filter((e) => e.type === "line"),
+    ).toHaveLength(1);
   });
 
   // ── 8. Reabrir conserva exactamente lo guardado ──
   const beforeReload = backend.snapshot().document;
   await page.reload();
-  await expect(page.getByTestId('cad-canvas')).toBeVisible();
+  await expect(page.getByTestId("cad-canvas")).toBeVisible();
   await page.getByTestId(`cad-native-entity-${rect.id}`).click();
-  await expect(properties(page)).toContainText('POLYLINE');
+  await expect(properties(page)).toContainText("POLYLINE");
   const afterReload = backend.snapshot().document;
   expect(afterReload.entities.map((e) => e.id).sort()).toEqual(
     beforeReload.entities.map((e) => e.id).sort(),
   );
-  expect(afterReload.modelSpace.entityIds).toEqual(beforeReload.modelSpace.entityIds);
+  expect(afterReload.modelSpace.entityIds).toEqual(
+    beforeReload.modelSpace.entityIds,
+  );
 
   // ── 9. DXF: la geometría sale y vuelve a entrar ──
-  await test.step('9. Round-trip DXF', async () => {
+  await test.step("9. Round-trip DXF", async () => {
     await page.getByTitle(/Exportar a DXF/).click();
-    const downloadPromise = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'Descargar DXF' }).click();
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Descargar DXF" }).click();
     const download = await downloadPromise;
     const path = await download.path();
     expect(path).not.toBeNull();
-    const reimported = importDxfPrimitives(await readFile(path!, 'utf8'));
-    expect(reimported.primitives.some((primitive) => primitive.kind === 'circle')).toBe(true);
-    expect(reimported.primitives.some((primitive) => primitive.kind === 'line')).toBe(true);
+    const reimported = importDxfPrimitives(await readFile(path!, "utf8"));
+    expect(
+      reimported.primitives.some((primitive) => primitive.kind === "circle"),
+    ).toBe(true);
+    expect(
+      reimported.primitives.some((primitive) => primitive.kind === "line"),
+    ).toBe(true);
   });
 
   expect(pageErrors).toEqual([]);

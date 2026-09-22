@@ -9,13 +9,11 @@
  * Importar la razón desde el proveedor habría metido 539 KB de fuente en el
  * tablero para poder decir una frase.
  *
- * Es la misma frase de siempre — la de `interop-provider.ts` desde D5 —, que
- * ahora se dice IGUAL en la puerta del tablero y en la del estudio (T-16).
+ * Describe esta vía cerrada sin negar el lector propio: la beta limitada
+ * entra por `document-import-client` sólo con sus banderas de build.
  */
-import { PRODUCT_LABEL } from "@/config/brand";
-
 export const DWG_UNAVAILABLE_REASON =
-  "DWG requiere un proveedor con licencia (ODA Drawings SDK / Autodesk RealDWG). " +
-  `${PRODUCT_LABEL.design} no hace ingeniería inversa del formato: conecta un proveedor ` +
-  "licenciado que implemente CadInteroperabilityProvider o convierte el archivo " +
-  "a DXF para importarlo hoy.";
+  "DWG no está habilitado en esta vía. Exporta tu dibujo a DXF desde tu CAD " +
+  "para importarlo aquí y revisa el informe de pérdidas. La lectura DWG propia " +
+  "es una beta limitada que depende de la configuración del despliegue; " +
+  "la exportación DWG no está disponible.";

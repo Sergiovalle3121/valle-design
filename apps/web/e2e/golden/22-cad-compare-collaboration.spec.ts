@@ -4,6 +4,7 @@ import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
+import { abrirPanelDerecho } from "../fixtures/docks";
 
 function canonicalDocument(): CadDocument {
   return {
@@ -84,6 +85,9 @@ test('canonical Base/Mine/Theirs compare, collision review, comments, links and 
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto('/legacy/studio');
+  // El muelle derecho arranca plegado (ola «armazón»): se abre por el riel,
+  // como una persona, antes de leer nada de lo que vive dentro.
+  await abrirPanelDerecho(page);
   // La fila de la lista se señala por su `data-testid`, que lleva el id: el
   // nombre visible pasó a ser «Arco 1» cuando el estudio dejó de hablar en
   // identificadores, y el id es lo que identifica al objeto de verdad.
