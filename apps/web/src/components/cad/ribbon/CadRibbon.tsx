@@ -14,6 +14,10 @@ import { cx, Tabs, TabPanel } from "@/components/ui";
 import { CAD_RIBBON_DATA, type CadRibbonTabId } from "@/lib/cad/ribbon";
 import { planCadRibbonLayout } from "@/lib/cad/ribbon-layout";
 import { cadRibbonBodySlot } from "@/components/cad/shell/ribbon-body-slot";
+import { attachCadDraftToolbarSlot } from "@/components/cad/shell/draft-toolbar-slot";
+import { cadUiModeHost, useCadUiMode } from "@/components/cad/shell/ui-mode-host";
+import { CadUiModeSwitch } from "@/components/cad/shell/CadUiModeSwitch";
+import { CadEssentialBar } from "@/components/cad/essential/CadEssentialBar";
 import { CadRibbonPanel } from "./CadRibbonPanel";
 
 /**
@@ -133,6 +137,8 @@ export function CadRibbon({
   quickAccess,
   trailing,
   trailingFixed,
+  onSelectTool,
+  onOpenPalette,
 }: {
   dispatch: (commandName: string) => void;
   readOnly?: boolean;
@@ -156,7 +162,18 @@ export function CadRibbon({
    * un bloque que NO cede, detrás de la banda de iconos que sí lo hace.
    */
   trailingFixed?: ReactNode;
+  /** Modo Esencial: «Seleccionar» vuelve al puntero (no es un comando del motor). */
+  onSelectTool?: () => void;
+  /** Modo Esencial: «Buscar · Ctrl K» abre la paleta de comandos. */
+  onOpenPalette?: () => void;
 }) {
+  // MODO ESENCIAL (Tanda 1, 22-sep-2026): la cinta se ESCONDE, no se borra. En
+  // Esencial la fila superior conserva accesos rápidos, interruptor y cola
+  // fija (Guardar / Cerrar), y el cuerpo que va a la ranura `ribbon` es la
+  // barra de doce herramientas. Los tres estados de la cinta (pestaña,
+  // plegado, paneles) no se tocan: al volver a Pro reaparece como estaba.
+  const mode = useCadUiMode();
+  const esencial = mode === "esencial";
   // DÓNDE VA EL CUERPO — ver `shell/ribbon-body-slot.ts`. Sin ranura montada
   // (una spec que renderiza `CadRibbon` aislado, por ejemplo) el cuerpo se
   // pinta inline, debajo de las pestañas, como antes de la ola «armazón».
@@ -218,6 +235,9 @@ export function CadRibbon({
   // sobrevive al cambio de pestaña y al minimizado, así que se observa una
   // sola vez al montar.
   useEffect(() => {
+    // En Esencial no hay tira que medir; al volver a Pro el efecto se rehace
+    // (dependencia `mode`) y vuelve a observar la tira recién montada.
+    if (mode === "esencial") return;
     const element = stripRef.current;
     if (!element || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver((entries) => {
@@ -226,7 +246,7 @@ export function CadRibbon({
     });
     observer.observe(element);
     return () => observer.disconnect();
-  }, []);
+  }, [mode]);
 
   // T-74(i): sólo lectura apagaba la cinta ENTERA (`pointer-events-none`
   // sobre la tira completa) — incluidos comandos como LIST o DIST, que no
@@ -286,7 +306,16 @@ export function CadRibbon({
   // "cad-ribbon"` y `data-collapsed` viven AQUÍ, no en la fila de pestañas:
   // es el alto de ESTA caja el que le importa al lienzo (golden 214), y es
   // este booleano el que golden 163 comprueba que sobrevive a un reload.
-  const body = (
+  const body = esencial ? (
+    <CadEssentialBar
+      dispatch={dispatch}
+      onSelectTool={onSelectTool ?? (() => undefined)}
+      onOpenPalette={onOpenPalette ?? (() => undefined)}
+      onMore={() => cadUiModeHost.set("pro")}
+      readOnly={readOnly}
+      attachToolsSlot={attachCadDraftToolbarSlot}
+    />
+  ) : (
     <div
       ref={stripRef}
       data-testid="cad-ribbon"
@@ -358,6 +387,7 @@ export function CadRibbon({
           {quickAccess}
         </div>
       ) : null}
+      {esencial ? null : (
       <Tabs
         items={tabs}
         value={activeTab}
@@ -383,7 +413,8 @@ export function CadRibbon({
         // En ventanas menores la cinta conserva el desplazamiento horizontal.
         className="min-w-[12rem] shrink min-[1280px]:shrink-0 border-b-0 px-2 [&_button]:py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       />
-      {trailing ? (
+      )}
+      {trailing && !esencial ? (
         // `border-l`: separa la cola de la fila de pestañas — antes las dos
         // sólo compartían un `gap-1.5`, sin ancla visual entre "pestañas" y
         // "el resto de controles" (sistema-visual, regla 1: barra ordenada
@@ -403,13 +434,18 @@ export function CadRibbon({
           {trailing}
         </div>
       ) : null}
+      {/* El interruptor Esencial/Pro va en la cola FIJA, junto a Guardar: siempre a la vista en los dos modos. */}
       {trailingFixed ? (
         // NO CEDE. Todo lo demás de esta fila se encoge o se desplaza cuando la
         // ventana aprieta; esto no, porque es «Guardar» y «Cerrar el CAD».
         <div className="flex shrink-0 items-center gap-1.5 border-l border-border pl-2">
+          <CadUiModeSwitch />
           {trailingFixed}
         </div>
-      ) : null}
+      ) : (
+        <CadUiModeSwitch />
+      )}
+      {esencial ? null : (
       <button
         type="button"
         data-testid="cad-ribbon-collapse"
@@ -424,6 +460,7 @@ export function CadRibbon({
           <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" />
         )}
       </button>
+      )}
     </div>
   );
 

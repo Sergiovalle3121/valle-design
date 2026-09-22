@@ -15,8 +15,11 @@
  * encadenan es del editor y llega ya resuelta, para que esta barra no tenga que
  * conocer la lista de comandos.
  */
-import React from "react";
+import React, { useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { CadDynamicInput } from "@/components/cad/palettes/CadDynamicInput";
+import { cadDraftToolbarSlot } from "@/components/cad/shell/draft-toolbar-slot";
+import { useCadUiMode } from "@/components/cad/shell/ui-mode-host";
 
 type DynamicInputProps = React.ComponentProps<typeof CadDynamicInput>;
 
@@ -67,7 +70,18 @@ export function CadDraftToolbar({
   onFinish,
   onClose,
 }: CadDraftToolbarProps) {
-  return (
+  // MODO ESENCIAL: la píldora no flota sobre el lienzo (`absolute top-12`,
+  // que se comía el primer clic del dibujante); se PINTA por portal en la
+  // ranura `cad-essential-bar-tools` de la barra esencial, en el flujo y sin
+  // `absolute`. Quien la monta (Layout3DEditor) no cambia; cambia dónde vive.
+  const mode = useCadUiMode();
+  const ranura = useSyncExternalStore(
+    cadDraftToolbarSlot.subscribe,
+    cadDraftToolbarSlot.getSnapshot,
+    cadDraftToolbarSlot.getServerSnapshot,
+  );
+  const acoplada = mode === "esencial" && ranura !== null;
+  const pildora = (
     // `pointer-events-none` en el contenedor, `pointer-events-auto` sólo en
     // los controles: la píldora flota SOBRE el lienzo y su fondo/padding se
     // tragaba el pick que cayera debajo — un segundo punto de LINE bajo la
@@ -93,7 +107,13 @@ export function CadDraftToolbar({
     // «Cerrar» también «REL»): el clic en ABS no llegaba nunca (goldens 32 y
     // 33). Debajo queda ahora la primera fila de la paleta mientras dura el
     // comando (Esc vuelve a Seleccionar). Sigue bajo la cinta (`z-[25]`).
-    <div className="pointer-events-none absolute top-12 left-1/2 z-[21] flex w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-1.5 whitespace-nowrap rounded-card border border-border bg-surface/90 px-2 py-1.5 backdrop-blur">
+    <div
+      className={
+        acoplada
+          ? "flex h-full items-center gap-1.5 whitespace-nowrap px-1"
+          : "pointer-events-none absolute top-12 left-1/2 z-[21] flex w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-1.5 whitespace-nowrap rounded-card border border-border bg-surface/90 px-2 py-1.5 backdrop-blur"
+      }
+    >
       <button
         onClick={onToggleOrtho}
         title="Orto: restringe los muros a 0/90/180/270 (como F8 de AutoCAD)"
@@ -133,4 +153,5 @@ export function CadDraftToolbar({
       )}
     </div>
   );
+  return acoplada && ranura ? createPortal(pildora, ranura) : pildora;
 }

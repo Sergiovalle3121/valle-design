@@ -45,6 +45,7 @@
  * pestaña» de un navegador), así que las flechas no lo visitan.
  */
 import React, { useRef } from "react";
+import { useCadUiMode } from "@/components/cad/shell/ui-mode-host";
 import type { CadPaperSpace } from "@/lib/cad/cad-paper-viewport";
 
 const TAB_BASE =
@@ -81,6 +82,10 @@ export const CadSpaceTabs = React.memo(function CadSpaceTabs({
   onManage,
 }: CadSpaceTabsProps) {
   const listRef = useRef<HTMLDivElement>(null);
+  // En Esencial las pestañas Modelo/Presentación no se pintan: el espacio
+  // papel sigue a un paso (LAYOUT, Ctrl+K) y vuelve entero en Pro.
+  const mode = useCadUiMode();
+  if (mode === "esencial") return null;
   const items: CadSpaceRovingItem[] = [
     { kind: "model" },
     ...spaces.map((space): CadSpaceRovingItem => ({ kind: "space", space })),

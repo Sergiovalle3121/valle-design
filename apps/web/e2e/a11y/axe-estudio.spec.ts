@@ -99,7 +99,7 @@ for (const tema of TEMAS) {
     page,
   }) => {
     await fijarTema(page, tema);
-    await page.goto('/demo');
+    await page.goto('/demo?cadUi=pro');
     // Ola «armazón»: el panel derecho arranca PLEGADO a un riel de iconos
     // (`leftDockCollapsed`/`rightDockCollapsed`, `cad-workspace.ts`) — antes
     // se veía abierto de fábrica. `cad-native-entity-list` sólo se monta con
@@ -133,5 +133,17 @@ for (const tema of TEMAS) {
     }
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+}
+
+// MODO ESENCIAL (Tanda 1): la barra de doce herramientas, el interruptor y el
+// control «Ayudas de dibujo» también tienen que pasar axe: icono aria-hidden,
+// nombre accesible por botón, role=switch con aria-checked.
+for (const tema of TEMAS) {
+  test(`el estudio en modo Esencial (${tema}) no tiene violaciones serias`, async ({ page }) => {
+    await fijarTema(page, tema);
+    await page.goto('/demo');
+    await expect(page.getByTestId('cad-essential-bar')).toBeVisible({ timeout: 60_000 });
+    await auditar(page, `editor Esencial (${tema})`);
   });
 }

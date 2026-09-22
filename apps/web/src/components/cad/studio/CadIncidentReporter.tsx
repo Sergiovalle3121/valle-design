@@ -36,6 +36,7 @@ import { APP_VERSION } from "@/config/launch";
 import { designClient } from "@/lib/cad/repositories/client";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import { useStudioTraySlot } from "@/components/cad/studio/use-studio-tray";
+import { useCadUiMode } from "@/components/cad/shell/ui-mode-host";
 
 export interface CadIncidentReporterProps {
   /** Versión del estudio. Por defecto la del build, que es la que hace falta. */
@@ -57,6 +58,10 @@ export function CadIncidentReporter({
   activeCommand,
   className,
 }: CadIncidentReporterProps) {
+  // En Esencial la bandeja deja sólo «Reportar un fallo»: quien abre por
+  // primera vez no necesita dos buzones, y el de fallos es el que nos importa.
+  // «Comentarios» sigue en Pro y el diálogo no cambia.
+  const modo = useCadUiMode();
   const [estado, setEstado] = useState<Estado>("cerrado");
   /** El centro de comentarios, que es el OTRO canal. Ver la nota de abajo. */
   const [comentarios, setComentarios] = useState(false);
@@ -128,6 +133,7 @@ export function CadIncidentReporter({
       </button>
       <button
         type="button"
+        hidden={modo === "esencial"}
         data-testid="cad-feedback-open"
         onClick={() => setComentarios(true)}
         title="Una idea, una duda o algo que podríamos hacer mejor"

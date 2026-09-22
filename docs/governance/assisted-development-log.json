@@ -4085,6 +4085,43 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "TANDA1-MODO-ESENCIAL-20260922",
+      "date": "2026-09-22",
+      "initiative": "Modo Esencial: el estudio que un estudiante entiende en su primer minuto. /demo y las cuentas nuevas arrancan con UNA barra de doce herramientas con icono y rótulo en español, sin cinta, sin paleta flotante, con los paneles plegados y las ayudas de dibujo detrás de un solo control; las referencias a objetos se reducen a extremo y punto medio y el rastreo se apaga, la píldora de dibujo deja de flotar sobre el lienzo y los avisos se enuncian en lenguaje llano. Un interruptor siempre a la vista devuelve el modo Pro completo, que no pierde nada: ni un comando, ni una preferencia, ni un botón.",
+      "branch": "claude/tanda1-esencial (PR sobre main tras la #224)",
+      "assistants": [
+        "Claude Fable 5.1 y Claude Opus 5 (Anthropic, Claude Code), como orquestadores y constructores: mapa del código en diez lentes de sólo lectura con reproducción del defecto de ratón contra la vista previa de Railway (Workflow de 12 agentes), seis constructores en paralelo con archivos disjuntos para los módulos base y un verificador cruzado (Workflow de 7 agentes), cableado e integración, cinco goldens escritos ANTES del código y corregidos contra sus propios fallos, y esta entrada. Con trailer Co-Authored-By."
+      ],
+      "authority": "Encargo expreso de Sergio Valle Zárate del 2026-09-22: «necesito que mejores en su totalidad la experiencia de usuario; ahorita no puedo crear absolutamente nada… la experiencia de usuario es horrible». Tanda 1 del plan de campaña que él mismo fijó (Modo Esencial, con métricas de aceptación medidas en producción). Autorizó explícitamente arrancarla en paralelo a la PR #224 y que todo termine fusionado en main y verificado en vallecad.com.",
+      "firstPartyInputs": [
+        "El candidato ya integrado 2e93660bb215125c116c08edeab040cc6c8fc351 (PR #224) como base de la rama.",
+        "Medición de producción del 2026-09-22 con el protocolo del propio encargo (contexto limpio, es-MX, /demo, 1440×769 y 1366×768, tres segundos de reposo): 124 controles visibles, 37.6 % de pantalla libre para dibujar y 22.5 % del lienzo tapado por interfaz a 1440×769; 119 / 35.7 % / 24.3 % a 1366×768.",
+        "Los doce hallazgos del primer minuto que Sergio levantó en producción, con capturas: entre ellos el rastreo que movía los clics, los modos de captura «extensión» y «cercano» imantando a geometría invisible, la píldora ORTO/DYN encima del lienzo, la saturación de la cinta y la jerga de AutoCAD en los avisos.",
+        "Código existente del estudio: cad-workspace.ts (perfiles de distribución y sus claves congeladas), render-pipeline-preference.ts y tour-host.ts como patrones de preferencia y de anfitrión fuera de React, ribbon-body-slot.ts como patrón de ranura, el registro de comandos y la cinta (ribbon.ts, command-labels.ts, command-icons.ts), draft-settings-host.ts y el motor de comandos con sus prompts."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "Nuevo, fuera del monolito: lib/cad/ui-mode-preference.ts (+ spec), components/cad/shell/ui-mode-host.ts (+ spec y hook useCadUiMode), shell/CadUiModeSwitch.tsx, shell/draft-toolbar-slot.ts, essential/essential-tools.ts, essential/CadEssentialBar.tsx (+ spec), palettes/CadDraftAidsDisclosure.tsx, lib/cad/engine/prompt-plain.ts (+ spec).",
+        "Consumo del modo por hook en cada componente: CadRibbon (cinta oculta y barra esencial por la misma ranura), CadDockRail y cad-shell-rail-items (rieles reducidos), CadToolPalette (no se monta), CadSpaceTabs (no se monta), CadStatusBar (ayudas tras un control), use-palettes (preajuste de ayudas), draft-toolbar (píldora acoplada por portal), CadCommandLine y su dock (redacción llana y sin controles de experto), CadIncidentReporter (un solo buzón), CadStudioHost (atado del anfitrión) y DemoStudio (/demo arranca en Esencial).",
+        "Layout3DEditor.tsx: tres sustituciones 1:1 (dos props a la cinta, la redacción del prompt y la lectura del modo). El archivo BAJA de 16 860 a 16 859 líneas y conserva sus 118 useState; scripts/cad/monolith-budget.json baja el techo con él.",
+        "Geometría del armazón: cad-shell-layout.ts declara la fila de la barra esencial (56 px) y su spec fija los ratios de lienzo a 1440×769 y 1366×768.",
+        "Búsqueda: lib/cad/command-palette.ts indexa el rótulo en español, así que «Deshacer», «Muro» o «Borrar» encuentran U, WALL y ERASE en Ctrl+K.",
+        "Pruebas y evidencia: goldens 227 (barra), 228 (métricas), 229 (ratón y preajuste), 230 (avisos) y 231 (Ctrl+K alcanza todo); siembra del modo Pro en e2e/fixtures/standalone-identity.ts para los goldens del estudio y ?cadUi=pro en los cinco specs de /demo, sin tocar una sola aserción; segunda pasada de axe en Esencial; scripts/cad/essential-mode-evidence.mjs con su --check dentro de check:cad y docs/cad/evidence/essential-mode.json.",
+        "Documentación: adenda al ADR-0010 con la clave nueva y el parámetro de URL, fila en DEUDA-MONOLITO.md y apps/web/e2e/README.md explicando cómo arranca cada golden."
+      ],
+      "fixtures": "Ninguno nuevo. Los goldens del modo abren /demo con contexto limpio, que es exactamente lo que ve una visita nueva a vallecad.com; los del estudio siguen con las fixturas de siempre.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "MEDIDO EN DOM, no estimado. Goldens 227–231 en Chromium sobre la compilación de producción, 9/9 verdes: a 1440×769 el modo Esencial deja 29 controles visibles (meta ≤30; antes 124), ≥75 % de la pantalla libre para dibujar (antes 37.6 %) y ≤3 % del lienzo tapado (antes 22.5 %); a 1366×768, ≥70 % libre y ≤30 controles. La barra monta las doce herramientas con su rótulo y despacha comandos del motor (Muro es WALL, no el muro heredado que Puerta y Ventana no reconocen). El cuadro de ayudas declara 2 modos de 14 —extremo y punto medio—, con «extensión» y «cercano» apagados y el rastreo desactivado, SIN escribir valle_draft_settings: al volver a Pro los catorce modos y el rastreo de esa persona siguen intactos. Durante un comando no se pinta ninguna entrada dinámica sobre el lienzo, el centro del lienzo responde el propio canvas y «Terminar» vive dentro de la barra; lo recién dibujado queda designado (el panel de propiedades lo muestra sin volver a seleccionarlo) y el conteo de entidades sube. El aviso de Rectángulo se lee «Haz clic en la primera esquina del rectángulo», conserva el texto del motor en su title y sus opciones siguen siendo botones que avanzan el comando. docs/cad/evidence/essential-mode.json, verificado byte a byte por check:cad, deja escrito que los 393 comandos del registro se alcanzan por Ctrl+K (antes el rótulo en español no estaba indexado) y que la cinta de Pro conserva sus 369 sin cambios. El veredicto final lo dan los checks requeridos de la CI sobre el SHA exacto y la medición en producción con el mismo protocolo después del despliegue; esta entrada no la sustituye."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

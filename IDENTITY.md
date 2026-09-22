@@ -115,6 +115,7 @@ escribieron en datos de clientes.
 | `axos_theme`                                  | `localStorage` de cada usuario                                | renombrarlo pierde la preferencia de tema de todo el mundo                                                       |
 | `axos_locale`                                 | cookie de idioma                                              | igual                                                                                                            |
 | claves de `command-session` y `cad-workspace` | historial de comandos y preferencias de workspace persistidas | igual                                                                                                            |
+| `valle:cad:ui-mode:v1[:userId]`               | `localStorage`: modo Esencial/Pro del estudio, por usuario    | igual: renombrarla devuelve a todo el mundo a la «primera vez» (Esencial) y pierde el modo que eligieron         |
 | marcadores de viewport                        | documentos y preferencias guardadas                           | igual                                                                                                            |
 | tipo `"station"` del esquema de documento     | documentos de clientes ya guardados                           | quitarlo exige subir versión de esquema y migrar; hasta entonces se **lee** pero no se **ofrece**                |
 

@@ -52,6 +52,7 @@ import { createPortal } from "react-dom";
 import { ChevronDown, ChevronUp, History as HistoryIcon } from "lucide-react";
 import type { CadPrompt } from "@/lib/cad/engine/command-types";
 import { formatCadKeyword, formatCadPrompt } from "@/lib/cad/engine/prompt";
+import { formatCadPromptFor, type CadPromptWording } from "@/lib/cad/engine/prompt-plain";
 import { buildCadPaletteEntries } from "@/lib/cad/command-palette";
 import { CAD_COMMAND_ALIASES } from "@/lib/cad/engine/alias-table";
 // Lectura DIRECTA del catálogo, no `cadCommandIcon()`: una llamada a función
@@ -157,6 +158,7 @@ export interface CadCommandLineProps {
    * comandos de AutoCAD.
    */
   activeCommand?: string | null;
+  wording?: CadPromptWording; // modo de interfaz: "pro" (gramática del motor, controles de experto) o "esencial" (llana, sin ellos)
   disabled?: boolean;
   onSubmit(value: string): void;
   /** Pulsar una opción equivale a teclear su atajo. */
@@ -204,6 +206,7 @@ export function CadCommandLine({
   history,
   lastCommand,
   activeCommand,
+  wording = "pro",
   disabled,
   onSubmit,
   onKeyword,
@@ -439,13 +442,9 @@ export function CadCommandLine({
     ],
   );
 
-  const line = prompt ? formatCadPrompt(prompt) : "";
-  const suggestionListId = "cad-command-line-suggestions";
-  const historyListId = "cad-command-history";
-  const logId = "cad-command-line-log";
-  const idlePlaceholder = lastCommand
-    ? `Comando: Espacio repite ${lastCommand}`
-    : "Comando: escribe una orden (L, C, TR, MI…)";
+  const line = prompt ? formatCadPromptFor(prompt, wording, activeCommand ?? null) : "";
+  const suggestionListId = "cad-command-line-suggestions", historyListId = "cad-command-history", logId = "cad-command-line-log";
+  const idlePlaceholder = lastCommand ? `Comando: Espacio repite ${lastCommand}` : "Comando: escribe una orden (L, C, TR, MI…)";
   // T-«comandos vivos»: qué orden está activa, SIN tener que leer el prompt
   // entero para adivinarlo — «Precise el punto siguiente» no dice si es
   // LINE o PLINE; este rótulo sí.
@@ -497,6 +496,7 @@ export function CadCommandLine({
         {prompt && (
           <span
             data-testid="cad-command-prompt"
+            title={formatCadPrompt(prompt)}
             className="min-w-0 shrink truncate font-mono text-foreground"
           >
             {line}
@@ -543,7 +543,7 @@ export function CadCommandLine({
           className="min-w-[9rem] flex-1 bg-transparent font-mono text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring placeholder:text-muted-foreground"
         />
         <button
-          type="button"
+          type="button" hidden={wording === "esencial"}
           data-testid="cad-command-history-toggle"
           onClick={() => setHistoryOpen((open) => !open)}
           disabled={typed.length === 0}
@@ -556,7 +556,7 @@ export function CadCommandLine({
           <HistoryIcon aria-hidden="true" className="h-3.5 w-3.5" />
         </button>
         <button
-          type="button"
+          type="button" hidden={wording === "esencial"}
           data-testid="cad-command-log-toggle"
           onClick={() => setLogExpanded(toggleCommandLogExpanded(logExpanded))}
           aria-label={logExpanded ? "Ocultar el registro de comandos (F2)" : "Mostrar el registro de comandos (F2)"}

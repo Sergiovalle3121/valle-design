@@ -461,7 +461,8 @@ import { publishCadViewport } from "@/lib/cad/collab/viewport-registry";
 import { CadCommandLineDock } from "@/components/cad/command-line/CadCommandLineDock";
 import { useCadCommandEngine } from "@/components/cad/command-line/use-command-engine";
 import { CAD_SHARED_CLIPBOARD } from "@/lib/cad/clipboard";
-import { formatCadPrompt } from "@/lib/cad/engine/prompt";
+import { formatCadPromptFor } from "@/lib/cad/engine/prompt-plain";
+import { useCadUiMode } from "@/components/cad/shell/ui-mode-host";
 import { useCadStudioCommandEngine } from "@/components/cad/command-line/use-command-engine";
 import { cadStudioEngineBridges } from "@/components/cad/command-line/studio-engine-bridges";
 import { cadFacePickerFor, cadEdgePickerFor, cadHonorSnapOverride, CAD_FACE_PICK_BIT } from "@/lib/cad/pick3d/scene-ray";
@@ -1393,6 +1394,7 @@ export default function Layout3DEditor({
   const [cloneBusy, setCloneBusy] = useState(false);
   const [showCommand, setShowCommand] = useState(true); // always-accessible deterministic command dock
   const [showPalette, setShowPalette] = useState(false); // Cmd-K CAD palette (local registry/search)
+  const uiMode = useCadUiMode(); // Esencial | Pro: aquí sólo cambia la redacción del prompt; el resto lo leen los hijos
   const [paletteQuery, setPaletteQuery] = useState("");
   const [recentPaletteActions, setRecentPaletteActions] = useState<string[]>(
     [],
@@ -12709,9 +12711,7 @@ export default function Layout3DEditor({
   const engineAnchor = engineCommand
     ? (enginePointerRouterRef.current?.anchor ?? null)
     : null;
-  const enginePromptText = commandEngineSnapshot.prompt
-    ? formatCadPrompt(commandEngineSnapshot.prompt)
-    : null;
+  const enginePromptText = commandEngineSnapshot.prompt ? formatCadPromptFor(commandEngineSnapshot.prompt, uiMode, engineCommand) : null;
   const engineCanClose = !!commandEngineSnapshot.prompt?.options.some(
     (option) =>
       /^close$/i.test(option.keyword) || /^cerrar$/i.test(option.keyword),
@@ -14135,9 +14135,6 @@ export default function Layout3DEditor({
   );
 
   // LA CINTA. `dispatch` es el MISMO despacho que la línea de comandos.
-  // `ribbonElement` va en la ranura `appBar` (es la fila de pestañas, la raíz
-  // que `CadRibbon` devuelve); su CUERPO sale por portal hacia el
-  // `<div ref={attachCadRibbonBodySlot}>` de la ranura `ribbon`, más abajo.
   const ribbonElement = (
     <CadRibbon
       dispatch={(name) => {
@@ -14148,6 +14145,8 @@ export default function Layout3DEditor({
         }
       }}
       readOnly={drawingReadOnly}
+      onSelectTool={() => runToolbarAction("select")}
+      onOpenPalette={() => setShowPalette(true)}
       quickAccess={quickAccessContent}
       trailing={trailingContent}
       trailingFixed={trailingFixedContent}

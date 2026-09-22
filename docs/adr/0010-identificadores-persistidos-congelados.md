@@ -107,3 +107,17 @@ condición de retiro por familia:
   motivo y la condición de retiro antes de tocar nada.
 - El coste de mantener los alias es una capa `legacy/` pequeña y bien probada.
   El coste de quitarlos sin plan sería romper documentos y archivos de clientes.
+
+## Adenda 2026-09-22 — modo Esencial/Pro
+
+- **Clave nueva y congelada:** `valle:cad:ui-mode:v1[:userId]` (`localStorage`),
+  valor `{"mode":"esencial"|"pro","v":1}`. Guarda el modo de interfaz del
+  estudio por usuario (`apps/web/src/lib/cad/ui-mode-preference.ts`). No se
+  añadió campo alguno a `valle_cad_workspace:*` porque esa clave ya está en
+  esta lista y `normalizeCadWorkspacePreferences` descarta lo que no conoce.
+- **Parámetro de URL:** `?cadUi=pro|esencial` gana a la preferencia y NO se
+  persiste (misma familia que `?cadRenderPipeline`). Es como los goldens de
+  Pro siguen midiendo `/demo` y como una cuenta antigua fuerza un modo sin
+  tocar su preferencia.
+- **Condición de retiro:** ninguna prevista; si algún día el modo se decide en
+  el servidor, esta clave se lee una vez y se migra, como el punto 3.

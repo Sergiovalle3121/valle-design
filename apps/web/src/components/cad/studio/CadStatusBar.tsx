@@ -25,7 +25,7 @@ import type { CadRenderPipelineChoice } from "@/lib/cad/render-pipeline-preferen
 import { CadSaveStatus } from "./CadSaveStatus";
 import { cadConflictIncidentLabel } from "@/lib/cad/cad-conflict-incident";
 import type { AutosaveStatus } from "@/components/cad/document-lifecycle/autosave";
-import { CadDraftStatusBar } from "@/components/cad/palettes/CadDraftStatusBar";
+import { CadDraftAidsDisclosure } from "@/components/cad/palettes/CadDraftAidsDisclosure";
 import { CadAnnotationScaleSelect } from "./CadAnnotationScaleSelect";
 import { CAD_POLAR_INCREMENTS } from "@/components/cad/palettes/draft-settings-host";
 import {
@@ -549,7 +549,7 @@ export function CadStatusBar({
           agrupadas y separadas del resto — punto 2 del comentario de
           cabecera: antes se leían pegadas a la capa y a la escala, como una
           sola masa de iconos sin relación entre sí. */}
-      <CadDraftStatusBar
+      <CadDraftAidsDisclosure
         settings={draftSettings}
         polarIncrements={CAD_POLAR_INCREMENTS}
         onToggleOsnap={draftSettingsHost.toggleOsnap}

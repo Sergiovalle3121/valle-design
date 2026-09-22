@@ -26,6 +26,7 @@ import {
   SESSION_COOKIE_VALUE,
 } from "./constants";
 import { LEGAL_PAGE_VERSIONS } from "../../src/lib/legal/legal-versions";
+import { cadUiModeStorageKey } from "../../src/lib/cad/ui-mode-preference";
 
 const EXPIRES_AT = "2099-12-31T23:59:59.000Z";
 const TRIAL_ENDS_AT = "2099-01-31T23:59:59.000Z";
@@ -347,6 +348,24 @@ export async function loginAsStandaloneOwner(
     backend = new StandaloneIdentityBackend(context);
     installed.set(context, backend);
     await backend.install();
+    // MODO PRO PARA TODOS LOS GOLDENS DEL ESTUDIO (Tanda 1 «Modo Esencial»).
+    // Un contexto limpio con una cuenta que nunca abrió el estudio arranca en
+    // Esencial (una sola barra, sin cinta, paneles plegados). Los 160+ goldens
+    // que pasan por aquí miden la interfaz completa —cinta, paleta, muelles—
+    // y siguen midiéndola: se siembra la preferencia del propietario en Pro
+    // ANTES de la primera navegación, con la misma clave que persiste el
+    // interruptor del producto. Ninguna aserción cambia. Los goldens del
+    // propio modo Esencial abren /demo sin sesión y no pasan por aquí.
+    await context.addInitScript(
+      ([key, value]) => {
+        try {
+          window.localStorage.setItem(key, value); // valle:cad:ui-mode:v1[:userId]
+        } catch {
+          /* sin storage no hay nada que sembrar */
+        }
+      },
+      [cadUiModeStorageKey(OWNER_USER_ID), JSON.stringify({ mode: 'pro', v: 1 })],
+    );
   }
   backend.setAccess("owner", CAD_PERMISSIONS);
   await backend.login();

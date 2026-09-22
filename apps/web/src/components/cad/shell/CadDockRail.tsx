@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { cx } from "@/components/ui";
 import { CAD_SHELL_METRICS } from "./cad-shell-layout";
+import { useCadUiMode } from "./ui-mode-host";
 
 /**
  * Un botón del riel. `ariaLabel` es el NOMBRE ACCESIBLE — `check:e2e-
@@ -19,6 +20,12 @@ export interface CadRailItem {
   icon: ReactNode;
   ariaLabel: string;
   title?: string;
+  /**
+   * Se pinta también en el modo Esencial. Lo demás del riel se esconde ahí
+   * (no se borra): sigue en Pro y por Ctrl+K. Tanda 1 del encargo del
+   * 22-sep-2026: paneles laterales plegados y biblioteca a petición.
+   */
+  essential?: true;
 }
 
 export interface CadDockRailProps {
@@ -57,6 +64,8 @@ export function CadDockRail({
   badgeId,
   className,
 }: CadDockRailProps) {
+  const mode = useCadUiMode();
+  const visibles = mode === "esencial" ? items.filter((item) => item.essential) : items;
   return (
     <div
       data-testid={side === "left" ? "cad-left-rail" : "cad-right-rail"}
@@ -67,7 +76,7 @@ export function CadDockRail({
       )}
       style={{ width: CAD_SHELL_METRICS.rail }}
     >
-      {items.map((item) => {
+      {visibles.map((item) => {
         const active = item.id === activeId;
         const marcado = !active && item.id === badgeId;
         return (

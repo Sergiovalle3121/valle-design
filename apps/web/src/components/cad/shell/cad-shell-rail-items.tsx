@@ -34,6 +34,7 @@ import type { CadRailItem } from "./CadDockRail";
 export const CAD_LEFT_RAIL_ITEMS: readonly CadRailItem[] = [
   {
     id: "biblioteca",
+    essential: true,
     icon: <Boxes aria-hidden="true" className="h-4 w-4" />,
     ariaLabel: "Abrir biblioteca",
     title: "Biblioteca: plantillas, mis bloques, arquitectura y símbolos CAD",
@@ -47,6 +48,7 @@ export const CAD_LEFT_RAIL_ITEMS: readonly CadRailItem[] = [
 export const CAD_RIGHT_RAIL_ITEMS: readonly CadRailItem[] = [
   {
     id: "properties",
+    essential: true,
     icon: <PanelRight aria-hidden="true" className="h-4 w-4" />,
     ariaLabel: "Abrir propiedades",
     title: "Propiedades de la selección",
@@ -89,6 +91,7 @@ export const CAD_RIGHT_RAIL_ITEMS: readonly CadRailItem[] = [
   },
   {
     id: "workspace",
+    essential: true,
     icon: <Settings2 aria-hidden="true" className="h-4 w-4" />,
     ariaLabel: "Abrir workspace profesional",
     title: "Workspace profesional: docks, tema, idioma, puntero, clic derecho y atajos",

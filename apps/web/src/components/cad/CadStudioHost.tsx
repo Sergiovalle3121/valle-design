@@ -36,6 +36,8 @@ import { CallBar } from "@/components/cad/calls/CallBar";
 import { BRAND, PRODUCT_LABEL } from "@/config/brand";
 import { ErrorBoundary } from "@/components/ui";
 import { cadTourHost } from "@/components/cad/onboarding/tour-host";
+import { cadUiModeHost } from "@/components/cad/shell/ui-mode-host";
+import type { CadUiMode } from "@/lib/cad/ui-mode-preference";
 import { createDesignDocumentPort } from "@/components/cad/document-lifecycle/design-port";
 import {
   wrapDocumentPortForCrashRecovery,
@@ -61,6 +63,13 @@ export type CadStudioHostProps = Omit<
   /** La capa de colaboración pide presencia y comentarios por red; en el modo
    *  demostración no hay documento en la nube contra el que colaborar. */
   withCollaboration?: boolean;
+  /**
+   * Modo de interfaz con el que arranca el estudio si esta persona nunca eligió
+   * uno: la demostración pide «esencial»; sin valor, lo decide el anfitrión
+   * (Esencial para quien nunca abrió el estudio en este navegador, Pro para
+   * quien ya lo abrió). `?cadUi=pro|esencial` gana siempre y no se persiste.
+   */
+  uiModeDefault?: CadUiMode;
 };
 
 const noopFullscreenChange: NonNullable<
@@ -73,6 +82,7 @@ export default function CadStudioHost({
   readOnly,
   documentPort,
   withCollaboration = true,
+  uiModeDefault,
   ...props
 }: CadStudioHostProps) {
   const toast = useToast();
@@ -94,6 +104,20 @@ export default function CadStudioHost({
   useEffect(() => {
     cadTourHost.attach(user?.id ?? null);
   }, [user?.id]);
+
+  // EL MODO SE ATA DURANTE EL RENDER (useMemo), no en un efecto: `CadRibbon`
+  // lee el modo en su primer render y un efecto correría DESPUÉS de los hijos
+  // (parpadeo Pro→Esencial y goldens intermitentes). Idempotente por clave.
+  useMemo(
+    () =>
+      cadUiModeHost.attach({
+        userId: user?.id ?? null,
+        tenantId: tenantId ?? null,
+        defaultMode: uiModeDefault,
+        search: typeof window === "undefined" ? "" : window.location.search,
+      }),
+    [user?.id, tenantId, uiModeDefault],
+  );
 
   // En Design el alcance es el proyecto CAD (sin buildingId enterprise).
   const scope = useMemo<NonNullable<Layout3DEditorPlatformProps["scope"]>>(

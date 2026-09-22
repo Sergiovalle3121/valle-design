@@ -7,6 +7,7 @@ import {
   type CadToolbarActionId,
 } from "@/lib/cad/toolbar";
 import { cx } from "@/components/ui";
+import { useCadUiMode } from "@/components/cad/shell/ui-mode-host";
 
 /**
  * LA PALETA DE HERRAMIENTAS — podada a lo que NO es una orden (ola1-paleta,
@@ -56,6 +57,10 @@ export function CadToolPalette({
   // deshabilitarlos. Por eso el componente ya no recibe `readOnly` ni
   // `canUndo`/`canRedo` — Deshacer/Rehacer vivían aquí y se mudaron a la
   // cinta con su propio estado habilitado/deshabilitado.
+  // En Esencial la paleta no se monta: Seleccionar ya está en la barra y
+  // Encuadre / Ajustar todo siguen en Ctrl+K y con la rueda del ratón.
+  const mode = useCadUiMode();
+  if (mode === "esencial") return null;
   return (
     <div
       data-testid="cad-toolbar"

@@ -95,6 +95,7 @@ export function DemoStudio() {
         title="Demostración"
         subtitle="Casa habitación · se guarda en tu navegador"
         demoBanner={demoBanner}
+        uiModeDefault="esencial"
       />
     </div>
   );

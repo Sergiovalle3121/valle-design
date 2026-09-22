@@ -63,8 +63,15 @@ assert.doesNotMatch(
  *   prueba del demo verifica ese autosave. Es dato del usuario visible para él
  *   mismo — lo contrario de una credencial escondida. Una clave de sesión
  *   cualquiera sigue fallando igual que antes.
+ * - `valle:cad:ui-mode:v1`: el MODO de interfaz del estudio (Esencial o Pro),
+ *   misma clase que el tema — preferencia de presentación que el producto
+ *   guarda ahí y que el interruptor de la barra superior escribe. Los goldens
+ *   del estudio la siembran en «pro» antes de la primera navegación para
+ *   seguir midiendo la interfaz completa; sin eso una cuenta que nunca abrió
+ *   el estudio arrancaría en Esencial y ciento sesenta specs medirían otra
+ *   pantalla. No es una credencial y no viaja al servidor.
  */
-const CLAVES_PERMITIDAS = ["valle_theme", "valle_demo_document"];
+const CLAVES_PERMITIDAS = ["valle_theme", "valle_demo_document", "valle:cad:ui-mode:v1"];
 
 const usosDeStorage = e2eFiles.flatMap((file) => {
   const texto = readFileSync(`${webRoot}/${file}`, "utf8");
