@@ -8,7 +8,7 @@
       "giro": "tecnico",
       "escala": 50,
       "entidades": 47,
-      "trazos": 47,
+      "trazos": 37,
       "docHash": "4a188a0b14afeb00",
       "svgOscuro": "1009ba94f414da30",
       "svgClaro": "4dddbeeb457170c4"
@@ -18,7 +18,7 @@
       "giro": "tecnico",
       "escala": 75,
       "entidades": 20,
-      "trazos": 20,
+      "trazos": 14,
       "docHash": "f9c3e033fc5e5849",
       "svgOscuro": "c5168c47943028f8",
       "svgClaro": "2db7e984133ffcf4"
@@ -28,7 +28,7 @@
       "giro": "tecnico",
       "escala": 50,
       "entidades": 68,
-      "trazos": 68,
+      "trazos": 65,
       "docHash": "42c267bbc00de8a8",
       "svgOscuro": "bea973962372bb76",
       "svgClaro": "b0198bdcfba9ecfb"
@@ -38,7 +38,7 @@
       "giro": "tecnico",
       "escala": 50,
       "entidades": 20,
-      "trazos": 20,
+      "trazos": 14,
       "docHash": "24fd13bc0bdce7c2",
       "svgOscuro": "cdf0d6f2195b96a0",
       "svgClaro": "02703cb2b162d38b"
@@ -48,7 +48,7 @@
       "giro": "vivienda",
       "escala": 20,
       "entidades": 22,
-      "trazos": 22,
+      "trazos": 15,
       "docHash": "3362fa4d2b19fc5f",
       "svgOscuro": "a351ae267d572d67",
       "svgClaro": "1344340aa2896a12"
@@ -58,7 +58,7 @@
       "giro": "comercio",
       "escala": 20,
       "entidades": 16,
-      "trazos": 16,
+      "trazos": 12,
       "docHash": "7fa09a1288950d12",
       "svgOscuro": "51979833d95b5f4b",
       "svgClaro": "a50ed9dbcd2f6e63"
@@ -68,7 +68,7 @@
       "giro": "salud",
       "escala": 20,
       "entidades": 15,
-      "trazos": 15,
+      "trazos": 11,
       "docHash": "1aafa9e92bf58d90",
       "svgOscuro": "e3eaf082914b777b",
       "svgClaro": "1b51b14b3c1fb15b"
@@ -78,7 +78,7 @@
       "giro": "alimentos",
       "escala": 20,
       "entidades": 22,
-      "trazos": 22,
+      "trazos": 18,
       "docHash": "90a230751b665b7a",
       "svgOscuro": "d6779a7b76f91e6b",
       "svgClaro": "61ff35b72b4200e3"
@@ -88,7 +88,7 @@
       "giro": "educacion",
       "escala": 20,
       "entidades": 20,
-      "trazos": 20,
+      "trazos": 19,
       "docHash": "33dd779a8955961b",
       "svgOscuro": "d71b6f58ac8d16a5",
       "svgClaro": "4ad61457c13c355f"
@@ -98,7 +98,7 @@
       "giro": "deporte-cultura",
       "escala": 20,
       "entidades": 17,
-      "trazos": 17,
+      "trazos": 15,
       "docHash": "02d054326b482a7e",
       "svgOscuro": "5ca041ad667e94bc",
       "svgClaro": "06bd2efc09f2034f"
@@ -108,7 +108,7 @@
       "giro": "servicios",
       "escala": 20,
       "entidades": 20,
-      "trazos": 20,
+      "trazos": 17,
       "docHash": "3c94a9af019e7612",
       "svgOscuro": "fdda4f1a9958f7ea",
       "svgClaro": "9967f29d8e5f4a69"
@@ -118,7 +118,7 @@
       "giro": "industria-taller",
       "escala": 20,
       "entidades": 22,
-      "trazos": 22,
+      "trazos": 18,
       "docHash": "3c60925e3c6a6fca",
       "svgOscuro": "a6fbfa8b7db72fdd",
       "svgClaro": "2bc2ca2e265cfecc"
@@ -128,7 +128,7 @@
       "giro": "industria-taller",
       "escala": 20,
       "entidades": 25,
-      "trazos": 25,
+      "trazos": 21,
       "docHash": "2ca0c3f6fcf23ced",
       "svgOscuro": "55df33fc2da3ff5e",
       "svgClaro": "732fa2edfc7f0698"
@@ -138,7 +138,7 @@
       "giro": "alimentos",
       "escala": 20,
       "entidades": 23,
-      "trazos": 23,
+      "trazos": 19,
       "docHash": "e95d8f128b7d0d9a",
       "svgOscuro": "ec923c6b90444bab",
       "svgClaro": "c74d86e33a0b5882"
@@ -148,7 +148,7 @@
       "giro": "servicios",
       "escala": 20,
       "entidades": 20,
-      "trazos": 20,
+      "trazos": 18,
       "docHash": "24cd3456b34b55d0",
       "svgOscuro": "67d76f1511ce33c1",
       "svgClaro": "394faa989beb1755"
@@ -158,7 +158,7 @@
       "giro": "salud",
       "escala": 20,
       "entidades": 14,
-      "trazos": 14,
+      "trazos": 12,
       "docHash": "d312de492c4e46b4",
       "svgOscuro": "2d1a9969e9981ce6",
       "svgClaro": "d9ddea30924c3415"
@@ -168,7 +168,7 @@
       "giro": "deporte-cultura",
       "escala": 50,
       "entidades": 25,
-      "trazos": 25,
+      "trazos": 21,
       "docHash": "32aed3618cb80c7e",
       "svgOscuro": "893c492db7bd7e3a",
       "svgClaro": "f520e2468a6256bd"
@@ -178,7 +178,7 @@
       "giro": "alimentos",
       "escala": 20,
       "entidades": 18,
-      "trazos": 18,
+      "trazos": 15,
       "docHash": "e467dcf360d7a4fb",
       "svgOscuro": "9c520f603ee61a9c",
       "svgClaro": "467fcdbfbfcda0af"
@@ -188,7 +188,7 @@
       "giro": "salud",
       "escala": 20,
       "entidades": 20,
-      "trazos": 20,
+      "trazos": 16,
       "docHash": "f5e00029d02dd692",
       "svgOscuro": "b91d3507546fa997",
       "svgClaro": "7f441b0dc2028671"
@@ -198,7 +198,7 @@
       "giro": "industria-taller",
       "escala": 20,
       "entidades": 17,
-      "trazos": 17,
+      "trazos": 16,
       "docHash": "51c764b1058cec38",
       "svgOscuro": "1187cffdb6fe356e",
       "svgClaro": "1b9da2afaca6cc93"
@@ -208,7 +208,7 @@
       "giro": "educacion",
       "escala": 20,
       "entidades": 17,
-      "trazos": 17,
+      "trazos": 14,
       "docHash": "2c394ad70e0adfce",
       "svgOscuro": "5ddf15fc7289d125",
       "svgClaro": "cfda6022ce1cff6b"
@@ -218,7 +218,7 @@
       "giro": "comercio",
       "escala": 20,
       "entidades": 16,
-      "trazos": 16,
+      "trazos": 14,
       "docHash": "a69454ce137f7cd0",
       "svgOscuro": "5791e5562c9aeae5",
       "svgClaro": "27a86b75cbc69f0c"
@@ -228,7 +228,7 @@
       "giro": "vivienda",
       "escala": 20,
       "entidades": 17,
-      "trazos": 17,
+      "trazos": 15,
       "docHash": "327e7a95c07cbfda",
       "svgOscuro": "679bea94ff402248",
       "svgClaro": "6b9708701ac8998e"
@@ -238,7 +238,7 @@
       "giro": "salud",
       "escala": 20,
       "entidades": 16,
-      "trazos": 16,
+      "trazos": 13,
       "docHash": "3d6c012659e51f50",
       "svgOscuro": "4f05e4b8b140346e",
       "svgClaro": "e8b56ed8581de66f"
@@ -248,7 +248,7 @@
       "giro": "servicios",
       "escala": 50,
       "entidades": 19,
-      "trazos": 19,
+      "trazos": 16,
       "docHash": "91111a357edf10e0",
       "svgOscuro": "fe48a06c458f91c2",
       "svgClaro": "a7da1dce7eacee14"
@@ -258,7 +258,7 @@
       "giro": "deporte-cultura",
       "escala": 50,
       "entidades": 16,
-      "trazos": 16,
+      "trazos": 12,
       "docHash": "f1e4b77390a705d3",
       "svgOscuro": "f97da2a3b18bd154",
       "svgClaro": "6fc62ee96e0e14be"
@@ -268,7 +268,7 @@
       "giro": "deporte-cultura",
       "escala": 25,
       "entidades": 21,
-      "trazos": 21,
+      "trazos": 17,
       "docHash": "14a4a14a54546ee9",
       "svgOscuro": "f47007f14c0859e7",
       "svgClaro": "175a8bebc019c459"
@@ -278,7 +278,7 @@
       "giro": "deporte-cultura",
       "escala": 25,
       "entidades": 28,
-      "trazos": 28,
+      "trazos": 22,
       "docHash": "5b29e5f5029c41c5",
       "svgOscuro": "977b11b93a232ef7",
       "svgClaro": "d848060f8c417b38"
@@ -288,7 +288,7 @@
       "giro": "alimentos",
       "escala": 20,
       "entidades": 21,
-      "trazos": 21,
+      "trazos": 17,
       "docHash": "e86e5a71ca2c42a5",
       "svgOscuro": "c04c660a7c4f2db9",
       "svgClaro": "518339fe4b59a802"
@@ -298,7 +298,7 @@
       "giro": "alimentos",
       "escala": 20,
       "entidades": 22,
-      "trazos": 22,
+      "trazos": 18,
       "docHash": "e99b111fb2b401fd",
       "svgOscuro": "864793fb5ab011b5",
       "svgClaro": "7db30eaf1d745927"
@@ -308,7 +308,7 @@
       "giro": "alimentos",
       "escala": 20,
       "entidades": 17,
-      "trazos": 17,
+      "trazos": 14,
       "docHash": "5f29d9fedb1dceaa",
       "svgOscuro": "70dae28e6ea1f068",
       "svgClaro": "f793e1f35be1c1bf"
@@ -318,7 +318,7 @@
       "giro": "alimentos",
       "escala": 20,
       "entidades": 20,
-      "trazos": 20,
+      "trazos": 17,
       "docHash": "450e0549c8236c31",
       "svgOscuro": "03bec4b24babf15f",
       "svgClaro": "707af67623de9fa8"
@@ -328,7 +328,7 @@
       "giro": "servicios",
       "escala": 20,
       "entidades": 19,
-      "trazos": 19,
+      "trazos": 16,
       "docHash": "fdf23c354107ed78",
       "svgOscuro": "ce0186881dfdb279",
       "svgClaro": "199eb5706760ec69"
@@ -338,7 +338,7 @@
       "giro": "alimentos",
       "escala": 20,
       "entidades": 16,
-      "trazos": 16,
+      "trazos": 13,
       "docHash": "40a65bdaac457dea",
       "svgOscuro": "262a6fce048ab98a",
       "svgClaro": "8964bfe69d8529fd"
@@ -348,7 +348,7 @@
       "giro": "comercio",
       "escala": 20,
       "entidades": 14,
-      "trazos": 14,
+      "trazos": 12,
       "docHash": "c6c5d6e285772c81",
       "svgOscuro": "845f1455c1645bfa",
       "svgClaro": "e46f18af3e4e3e05"
@@ -358,7 +358,7 @@
       "giro": "alimentos",
       "escala": 20,
       "entidades": 22,
-      "trazos": 22,
+      "trazos": 18,
       "docHash": "d5bc709b367c06e6",
       "svgOscuro": "44b0778f1277c61a",
       "svgClaro": "caacd68785de5237"
@@ -368,7 +368,7 @@
       "giro": "servicios",
       "escala": 20,
       "entidades": 20,
-      "trazos": 20,
+      "trazos": 16,
       "docHash": "7d9b2374d6fc2f2f",
       "svgOscuro": "e129185e19e23b8d",
       "svgClaro": "d7d57afb42b5e0ca"
@@ -378,7 +378,7 @@
       "giro": "salud",
       "escala": 20,
       "entidades": 20,
-      "trazos": 20,
+      "trazos": 16,
       "docHash": "ac26dc1c87190cbc",
       "svgOscuro": "c530b985fc2fcde8",
       "svgClaro": "8ce1193aa63fed6e"
@@ -388,7 +388,7 @@
       "giro": "servicios",
       "escala": 20,
       "entidades": 22,
-      "trazos": 22,
+      "trazos": 16,
       "docHash": "6fa9142f9a83e0f1",
       "svgOscuro": "82a51404336536c5",
       "svgClaro": "2a740b995c611520"
@@ -398,7 +398,7 @@
       "giro": "servicios",
       "escala": 20,
       "entidades": 23,
-      "trazos": 23,
+      "trazos": 20,
       "docHash": "421491c45f3da69e",
       "svgOscuro": "144d2ade25d6b639",
       "svgClaro": "c274e9bb168ae46c"
@@ -408,7 +408,7 @@
       "giro": "deporte-cultura",
       "escala": 20,
       "entidades": 22,
-      "trazos": 22,
+      "trazos": 17,
       "docHash": "cc91744711b86c7d",
       "svgOscuro": "1bf4b103311df482",
       "svgClaro": "5ab290548656ed52"
@@ -418,7 +418,7 @@
       "giro": "alimentos",
       "escala": 20,
       "entidades": 16,
-      "trazos": 16,
+      "trazos": 13,
       "docHash": "ddf9e78e6979f685",
       "svgOscuro": "af5501bc5ecfda0a",
       "svgClaro": "7038289256a288f6"
@@ -428,7 +428,7 @@
       "giro": "comercio",
       "escala": 20,
       "entidades": 16,
-      "trazos": 16,
+      "trazos": 13,
       "docHash": "e21573a4d80b5cdf",
       "svgOscuro": "717addd1505971e5",
       "svgClaro": "26a008fd5854e298"
@@ -438,7 +438,7 @@
       "giro": "alimentos",
       "escala": 20,
       "entidades": 16,
-      "trazos": 16,
+      "trazos": 13,
       "docHash": "6d356332f4e343d0",
       "svgOscuro": "0572e659ffeea228",
       "svgClaro": "34fc14fc4e7b351a"
@@ -448,7 +448,7 @@
       "giro": "alimentos",
       "escala": 20,
       "entidades": 15,
-      "trazos": 15,
+      "trazos": 13,
       "docHash": "17c6a673461d0279",
       "svgOscuro": "63035884a939f7ca",
       "svgClaro": "586cf3395b0e505b"
@@ -458,7 +458,7 @@
       "giro": "alimentos",
       "escala": 20,
       "entidades": 16,
-      "trazos": 16,
+      "trazos": 14,
       "docHash": "38a1ce932eea9990",
       "svgOscuro": "c376d0480efeef6f",
       "svgClaro": "b2dee98c43914b2c"
@@ -468,7 +468,7 @@
       "giro": "alimentos",
       "escala": 20,
       "entidades": 16,
-      "trazos": 16,
+      "trazos": 13,
       "docHash": "97cea8773aa31b8b",
       "svgOscuro": "a8ed9bbba9571dd8",
       "svgClaro": "f40ac1f891b32ed9"
@@ -478,7 +478,7 @@
       "giro": "comercio",
       "escala": 20,
       "entidades": 18,
-      "trazos": 18,
+      "trazos": 14,
       "docHash": "ecac9f98b2504176",
       "svgOscuro": "749c914dac3f337b",
       "svgClaro": "853bec7891cdc24d"
@@ -488,7 +488,7 @@
       "giro": "hospitalidad",
       "escala": 20,
       "entidades": 22,
-      "trazos": 22,
+      "trazos": 17,
       "docHash": "95a5dacee5b481ba",
       "svgOscuro": "267ea7379584a4b9",
       "svgClaro": "c96dc8002fac3014"
@@ -498,7 +498,7 @@
       "giro": "industria-taller",
       "escala": 20,
       "entidades": 19,
-      "trazos": 19,
+      "trazos": 14,
       "docHash": "0f5781a143a9b91e",
       "svgOscuro": "e683b54dca949b47",
       "svgClaro": "1261b54eb7238397"
@@ -508,7 +508,7 @@
       "giro": "industria-taller",
       "escala": 20,
       "entidades": 19,
-      "trazos": 19,
+      "trazos": 15,
       "docHash": "9186a29947780968",
       "svgOscuro": "6d9b68d457ac78b3",
       "svgClaro": "c5a1d9eed88e9262"
@@ -518,7 +518,7 @@
       "giro": "industria-taller",
       "escala": 20,
       "entidades": 17,
-      "trazos": 17,
+      "trazos": 13,
       "docHash": "1586396db3327926",
       "svgOscuro": "f3ee130fa66fae85",
       "svgClaro": "7b52daf75e86e5d8"
@@ -528,7 +528,7 @@
       "giro": "salud",
       "escala": 20,
       "entidades": 18,
-      "trazos": 18,
+      "trazos": 14,
       "docHash": "94cdfeceb5d49fd0",
       "svgOscuro": "e11e9f7a328a9a5d",
       "svgClaro": "ad73cf03e4f3a660"
@@ -538,7 +538,7 @@
       "giro": "vivienda",
       "escala": 20,
       "entidades": 25,
-      "trazos": 25,
+      "trazos": 18,
       "docHash": "927f83bfa0b2f406",
       "svgOscuro": "0c9d82932ca2feca",
       "svgClaro": "612d64138dc9cf62"
@@ -548,7 +548,7 @@
       "giro": "alimentos",
       "escala": 20,
       "entidades": 16,
-      "trazos": 16,
+      "trazos": 13,
       "docHash": "bedad3b290493d02",
       "svgOscuro": "4434ef6b03ad84b2",
       "svgClaro": "5cf2cf97c9430596"
@@ -558,7 +558,7 @@
       "giro": "hospitalidad",
       "escala": 20,
       "entidades": 17,
-      "trazos": 17,
+      "trazos": 15,
       "docHash": "33e3edaed60e077b",
       "svgOscuro": "bdab1707e8ebe6e8",
       "svgClaro": "2bb61b66248368a6"
@@ -568,7 +568,7 @@
       "giro": "alimentos",
       "escala": 20,
       "entidades": 16,
-      "trazos": 16,
+      "trazos": 13,
       "docHash": "f8f073ba5fd2b465",
       "svgOscuro": "30f96e506aab0ddc",
       "svgClaro": "72ee65e8a9d1feb5"
@@ -578,7 +578,7 @@
       "giro": "alimentos",
       "escala": 20,
       "entidades": 17,
-      "trazos": 17,
+      "trazos": 14,
       "docHash": "1f485bc0ab40a359",
       "svgOscuro": "e72fb1397b65eed2",
       "svgClaro": "3c0ce6f77d6b03d3"
@@ -588,7 +588,7 @@
       "giro": "educacion",
       "escala": 20,
       "entidades": 17,
-      "trazos": 17,
+      "trazos": 14,
       "docHash": "5c8d0760b5ddc414",
       "svgOscuro": "b14d77cbc9a469c9",
       "svgClaro": "9a71546d5985f566"
@@ -598,7 +598,7 @@
       "giro": "comercio",
       "escala": 20,
       "entidades": 16,
-      "trazos": 16,
+      "trazos": 13,
       "docHash": "df0b9474d208c8da",
       "svgOscuro": "eb065f7f710dfc0c",
       "svgClaro": "55561d9d1fa8b1e2"
@@ -608,7 +608,7 @@
       "giro": "industria-taller",
       "escala": 20,
       "entidades": 17,
-      "trazos": 17,
+      "trazos": 14,
       "docHash": "98da6fc416886457",
       "svgOscuro": "eead0e692c57e167",
       "svgClaro": "6583900b9cc7abbc"
@@ -618,7 +618,7 @@
       "giro": "servicios",
       "escala": 20,
       "entidades": 19,
-      "trazos": 19,
+      "trazos": 16,
       "docHash": "b67e6e7dcb4f8379",
       "svgOscuro": "bd067f05758bd85c",
       "svgClaro": "2461f1d5b7563624"
@@ -628,7 +628,7 @@
       "giro": "industria-taller",
       "escala": 20,
       "entidades": 16,
-      "trazos": 16,
+      "trazos": 13,
       "docHash": "1569245fb6b32757",
       "svgOscuro": "e8001a564ab0d70e",
       "svgClaro": "879bf6cf44f33ad5"
@@ -638,7 +638,7 @@
       "giro": "alimentos",
       "escala": 20,
       "entidades": 23,
-      "trazos": 23,
+      "trazos": 15,
       "docHash": "cab228fd4cec3c3c",
       "svgOscuro": "108930d1ae6f9f57",
       "svgClaro": "3d40d025bcb1a701"
@@ -648,7 +648,7 @@
       "giro": "deporte-cultura",
       "escala": 20,
       "entidades": 19,
-      "trazos": 19,
+      "trazos": 15,
       "docHash": "9a34ea04e5f6c39a",
       "svgOscuro": "3368475f8de8e524",
       "svgClaro": "003f0cf2a4ec2cb4"
@@ -658,7 +658,7 @@
       "giro": "salud",
       "escala": 20,
       "entidades": 28,
-      "trazos": 28,
+      "trazos": 21,
       "docHash": "f6f47d7c331d3c00",
       "svgOscuro": "f3b14ab85945681b",
       "svgClaro": "7166db34a8f412d4"
@@ -668,7 +668,7 @@
       "giro": "deporte-cultura",
       "escala": 20,
       "entidades": 22,
-      "trazos": 22,
+      "trazos": 19,
       "docHash": "b411e3a459cc1b5a",
       "svgOscuro": "2710a2483834d5a4",
       "svgClaro": "72dc0e98bb3e54af"
@@ -678,7 +678,7 @@
       "giro": "alimentos",
       "escala": 20,
       "entidades": 25,
-      "trazos": 25,
+      "trazos": 21,
       "docHash": "283cb5c03c84f711",
       "svgOscuro": "e1b89c2133c3c7d8",
       "svgClaro": "fd63b4378919bb1a"
@@ -688,7 +688,7 @@
       "giro": "alimentos",
       "escala": 20,
       "entidades": 25,
-      "trazos": 25,
+      "trazos": 22,
       "docHash": "e64dff61ff7318db",
       "svgOscuro": "f1a49968efa50b4b",
       "svgClaro": "ad8eb3be7738d218"
@@ -698,7 +698,7 @@
       "giro": "salud",
       "escala": 20,
       "entidades": 23,
-      "trazos": 23,
+      "trazos": 18,
       "docHash": "61cb60afb576c742",
       "svgOscuro": "a361fc046332011c",
       "svgClaro": "1f69f557c18694b0"
@@ -708,7 +708,7 @@
       "giro": "servicios",
       "escala": 20,
       "entidades": 25,
-      "trazos": 25,
+      "trazos": 17,
       "docHash": "856973d74d372efe",
       "svgOscuro": "fdbb9d285607805d",
       "svgClaro": "9a4d6fa8a6058657"
@@ -718,7 +718,7 @@
       "giro": "servicios",
       "escala": 20,
       "entidades": 24,
-      "trazos": 24,
+      "trazos": 18,
       "docHash": "60988220b13eb934",
       "svgOscuro": "567a74d0a5e772d1",
       "svgClaro": "fa02a53f2a7c80d1"
@@ -728,7 +728,7 @@
       "giro": "servicios",
       "escala": 20,
       "entidades": 25,
-      "trazos": 25,
+      "trazos": 18,
       "docHash": "e5f810acb5932fcd",
       "svgOscuro": "4b8930083467c8d2",
       "svgClaro": "bc2d490bec11ba89"
@@ -738,7 +738,7 @@
       "giro": "servicios",
       "escala": 20,
       "entidades": 24,
-      "trazos": 24,
+      "trazos": 18,
       "docHash": "ae1e74480ba0a32c",
       "svgOscuro": "f40313c8a57daffd",
       "svgClaro": "cbe648e54aed9f45"
@@ -748,7 +748,7 @@
       "giro": "comercio",
       "escala": 20,
       "entidades": 26,
-      "trazos": 26,
+      "trazos": 18,
       "docHash": "6fd7affde2f2af13",
       "svgOscuro": "f61ba6317474971d",
       "svgClaro": "dcc7575f0cd8197c"
@@ -758,7 +758,7 @@
       "giro": "vivienda",
       "escala": 20,
       "entidades": 22,
-      "trazos": 22,
+      "trazos": 17,
       "docHash": "12053c44f1bfa16f",
       "svgOscuro": "b1773292ee04c6fe",
       "svgClaro": "5b9e47cf7683c10a"
@@ -768,7 +768,7 @@
       "giro": "educacion",
       "escala": 20,
       "entidades": 23,
-      "trazos": 23,
+      "trazos": 18,
       "docHash": "91b75a01c6ae5cae",
       "svgOscuro": "5fe564efd8d2625d",
       "svgClaro": "950f5dd53e9d17c4"
@@ -778,7 +778,7 @@
       "giro": "deporte-cultura",
       "escala": 20,
       "entidades": 21,
-      "trazos": 21,
+      "trazos": 17,
       "docHash": "6358dc3855f9daf0",
       "svgOscuro": "cabf4c3bd2a268bf",
       "svgClaro": "a5f481d8dfefc0b5"
@@ -788,7 +788,7 @@
       "giro": "deporte-cultura",
       "escala": 20,
       "entidades": 25,
-      "trazos": 25,
+      "trazos": 17,
       "docHash": "dbc8a58baa0ba956",
       "svgOscuro": "798f4c43b95297a2",
       "svgClaro": "79bb161354d4f230"
@@ -798,7 +798,7 @@
       "giro": "servicios",
       "escala": 20,
       "entidades": 24,
-      "trazos": 24,
+      "trazos": 18,
       "docHash": "8d2a160084199394",
       "svgOscuro": "cc1243c4e9711cc9",
       "svgClaro": "1b6606aa2f0b3eaa"
@@ -808,7 +808,7 @@
       "giro": "industria-taller",
       "escala": 20,
       "entidades": 25,
-      "trazos": 25,
+      "trazos": 17,
       "docHash": "bf4774a162adb723",
       "svgOscuro": "e668e9e003efcf7f",
       "svgClaro": "7c677ea3bbbc6abf"
@@ -818,7 +818,7 @@
       "giro": "comercio",
       "escala": 20,
       "entidades": 22,
-      "trazos": 22,
+      "trazos": 18,
       "docHash": "f1945d1c2bf3d193",
       "svgOscuro": "f0bc236035718b73",
       "svgClaro": "1ebd26b3f89c65dd"
@@ -828,7 +828,7 @@
       "giro": "comercio",
       "escala": 20,
       "entidades": 21,
-      "trazos": 21,
+      "trazos": 17,
       "docHash": "c758c55c0ee279d4",
       "svgOscuro": "9cf4e82d1115c1b7",
       "svgClaro": "5d91ca28cea4bb77"
@@ -838,7 +838,7 @@
       "giro": "comercio",
       "escala": 20,
       "entidades": 24,
-      "trazos": 24,
+      "trazos": 18,
       "docHash": "8ea212c33a663d7d",
       "svgOscuro": "b7a4d3eef73996d8",
       "svgClaro": "46f1e741f2452eca"
@@ -848,7 +848,7 @@
       "giro": "comercio",
       "escala": 20,
       "entidades": 22,
-      "trazos": 22,
+      "trazos": 17,
       "docHash": "e904adec0e9e458e",
       "svgOscuro": "545eacbac1984a24",
       "svgClaro": "383275db9e4e5dc8"
@@ -858,7 +858,7 @@
       "giro": "alimentos",
       "escala": 20,
       "entidades": 23,
-      "trazos": 23,
+      "trazos": 17,
       "docHash": "c905a26607726891",
       "svgOscuro": "506e2421f16509e1",
       "svgClaro": "3b69bb8377976755"
@@ -868,7 +868,7 @@
       "giro": "deporte-cultura",
       "escala": 20,
       "entidades": 23,
-      "trazos": 23,
+      "trazos": 18,
       "docHash": "018b9cce7ad5ef2c",
       "svgOscuro": "85348be8a520e73a",
       "svgClaro": "7259fd79f3cb94b7"
@@ -878,7 +878,7 @@
       "giro": "industria-taller",
       "escala": 20,
       "entidades": 23,
-      "trazos": 23,
+      "trazos": 18,
       "docHash": "d78b0e6feb2d1cce",
       "svgOscuro": "23e4f6984508aa10",
       "svgClaro": "9b9256fcf57307dc"
@@ -888,7 +888,7 @@
       "giro": "salud",
       "escala": 20,
       "entidades": 24,
-      "trazos": 24,
+      "trazos": 18,
       "docHash": "7995ed7277052ea5",
       "svgOscuro": "76f80f27f3f7df27",
       "svgClaro": "3d610e8202a12192"
@@ -898,7 +898,7 @@
       "giro": "comercio",
       "escala": 20,
       "entidades": 23,
-      "trazos": 23,
+      "trazos": 17,
       "docHash": "d8f71881fd642a31",
       "svgOscuro": "56af82f5756bbd0a",
       "svgClaro": "a8253d7b12fb320d"
@@ -908,7 +908,7 @@
       "giro": "tecnico",
       "escala": 20,
       "entidades": 21,
-      "trazos": 21,
+      "trazos": 17,
       "docHash": "06c9fd621df00faf",
       "svgOscuro": "5c8654a774029fba",
       "svgClaro": "609990be8b5d51e0"
@@ -918,7 +918,7 @@
       "giro": "tecnico",
       "escala": 20,
       "entidades": 23,
-      "trazos": 23,
+      "trazos": 18,
       "docHash": "fcc9ff0a87fbd4d6",
       "svgOscuro": "ce63261492ec4286",
       "svgClaro": "975407206dbfb74d"
@@ -928,7 +928,7 @@
       "giro": "alimentos",
       "escala": 20,
       "entidades": 22,
-      "trazos": 22,
+      "trazos": 18,
       "docHash": "0991bec0c425eb36",
       "svgOscuro": "882c9e1feaf0f8a2",
       "svgClaro": "0ecf025aa0ea3a13"
@@ -938,7 +938,7 @@
       "giro": "tecnico",
       "escala": 20,
       "entidades": 25,
-      "trazos": 25,
+      "trazos": 19,
       "docHash": "4afc41e47583e588",
       "svgOscuro": "9a510cf7f66deab2",
       "svgClaro": "efd0c24c6d56ce18"
@@ -948,7 +948,7 @@
       "giro": "servicios",
       "escala": 20,
       "entidades": 25,
-      "trazos": 25,
+      "trazos": 19,
       "docHash": "2b4968ff67ec1d56",
       "svgOscuro": "1cbbeffe927dd8b9",
       "svgClaro": "c511822f847083c7"
@@ -958,7 +958,7 @@
       "giro": "educacion",
       "escala": 25,
       "entidades": 28,
-      "trazos": 28,
+      "trazos": 18,
       "docHash": "1aae09adbdfad4bd",
       "svgOscuro": "0b851b6185cf8d45",
       "svgClaro": "87007386cb902ce0"
@@ -968,7 +968,7 @@
       "giro": "deporte-cultura",
       "escala": 20,
       "entidades": 28,
-      "trazos": 28,
+      "trazos": 20,
       "docHash": "17be2f53959b13fd",
       "svgOscuro": "275b14a79f4cae60",
       "svgClaro": "c0cf3209e783efb7"
@@ -978,7 +978,7 @@
       "giro": "tecnico",
       "escala": 20,
       "entidades": 26,
-      "trazos": 26,
+      "trazos": 18,
       "docHash": "60c010c01ecd3727",
       "svgOscuro": "1b09d7c7ea22a700",
       "svgClaro": "963b0d891941f765"
@@ -988,7 +988,7 @@
       "giro": "tecnico",
       "escala": 25,
       "entidades": 24,
-      "trazos": 24,
+      "trazos": 18,
       "docHash": "20ce5244b29ed817",
       "svgOscuro": "594e134156b37aa3",
       "svgClaro": "a4ded0253163f923"
@@ -998,7 +998,7 @@
       "giro": "deporte-cultura",
       "escala": 25,
       "entidades": 24,
-      "trazos": 24,
+      "trazos": 16,
       "docHash": "412088feecfcc742",
       "svgOscuro": "fe4bdcc2cad6f3b0",
       "svgClaro": "4d119a046ecc9e47"
@@ -1008,7 +1008,7 @@
       "giro": "salud",
       "escala": 20,
       "entidades": 27,
-      "trazos": 27,
+      "trazos": 19,
       "docHash": "75b9509d78667736",
       "svgOscuro": "1fbbca4e51f81515",
       "svgClaro": "c1ae7d51edf11c42"
@@ -1018,7 +1018,7 @@
       "giro": "salud",
       "escala": 20,
       "entidades": 29,
-      "trazos": 29,
+      "trazos": 20,
       "docHash": "9efb1b0416c232e1",
       "svgOscuro": "3df9ec13b1fadf0a",
       "svgClaro": "f030b4b511cb77fd"
@@ -1028,7 +1028,7 @@
       "giro": "educacion",
       "escala": 20,
       "entidades": 27,
-      "trazos": 27,
+      "trazos": 18,
       "docHash": "bdbb36753cd0b6e4",
       "svgOscuro": "0c50c99e6ba510ee",
       "svgClaro": "efc3fbb9b50487cd"
@@ -1038,7 +1038,7 @@
       "giro": "industria-taller",
       "escala": 25,
       "entidades": 26,
-      "trazos": 26,
+      "trazos": 19,
       "docHash": "96c61a8e5550d8d5",
       "svgOscuro": "41511dae60dc708c",
       "svgClaro": "f9b63f1753346517"
@@ -1048,7 +1048,7 @@
       "giro": "tecnico",
       "escala": 20,
       "entidades": 26,
-      "trazos": 26,
+      "trazos": 19,
       "docHash": "8adc76913787c826",
       "svgOscuro": "48d1abacae09f105",
       "svgClaro": "42b9f2f3f7a55721"
@@ -1058,7 +1058,7 @@
       "giro": "alimentos",
       "escala": 20,
       "entidades": 27,
-      "trazos": 27,
+      "trazos": 21,
       "docHash": "520ab6a1de93c74a",
       "svgOscuro": "48516deea4e86e3a",
       "svgClaro": "802769dd5f44096d"
@@ -1068,7 +1068,7 @@
       "giro": "alimentos",
       "escala": 20,
       "entidades": 30,
-      "trazos": 30,
+      "trazos": 20,
       "docHash": "a8f08f7d86d241b5",
       "svgOscuro": "087a29cf4fef8e2e",
       "svgClaro": "96c66804a946a1eb"
@@ -1078,7 +1078,7 @@
       "giro": "tecnico",
       "escala": 25,
       "entidades": 26,
-      "trazos": 26,
+      "trazos": 17,
       "docHash": "96c4ad8108a38c04",
       "svgOscuro": "aa78b5efc5688605",
       "svgClaro": "a42ec00c882bbeb7"
@@ -1088,7 +1088,7 @@
       "giro": "tecnico",
       "escala": 25,
       "entidades": 29,
-      "trazos": 29,
+      "trazos": 19,
       "docHash": "7fc8b7f22c8af27c",
       "svgOscuro": "bd8b3758b7cca5d5",
       "svgClaro": "c048336df26cf12f"
@@ -1098,7 +1098,7 @@
       "giro": "tecnico",
       "escala": 20,
       "entidades": 28,
-      "trazos": 28,
+      "trazos": 19,
       "docHash": "2bd9f4771e7bbcf4",
       "svgOscuro": "fd8d79bbb117643e",
       "svgClaro": "baf1cc3f51636045"
@@ -1108,7 +1108,7 @@
       "giro": "tecnico",
       "escala": 25,
       "entidades": 24,
-      "trazos": 24,
+      "trazos": 17,
       "docHash": "e9b00898a42d2bec",
       "svgOscuro": "9e2f049fbd7ebf84",
       "svgClaro": "1c1519553b050931"
@@ -1118,7 +1118,7 @@
       "giro": "industria-taller",
       "escala": 20,
       "entidades": 26,
-      "trazos": 26,
+      "trazos": 19,
       "docHash": "40012bdf5fd55d51",
       "svgOscuro": "c85c4dc061aec550",
       "svgClaro": "89cc1f24d9699d86"
@@ -1128,7 +1128,7 @@
       "giro": "hospitalidad",
       "escala": 20,
       "entidades": 28,
-      "trazos": 28,
+      "trazos": 20,
       "docHash": "3d771857a203eca8",
       "svgOscuro": "96779dc75beb3d4d",
       "svgClaro": "57eaa59db5da79eb"
@@ -1138,7 +1138,7 @@
       "giro": "alimentos",
       "escala": 25,
       "entidades": 28,
-      "trazos": 28,
+      "trazos": 20,
       "docHash": "7e4b5a117730cb22",
       "svgOscuro": "39636356a117be24",
       "svgClaro": "7fda007096e72269"
@@ -1148,7 +1148,7 @@
       "giro": "tecnico",
       "escala": 25,
       "entidades": 26,
-      "trazos": 26,
+      "trazos": 19,
       "docHash": "511cb84771f89bbb",
       "svgOscuro": "c5073a001476e6cf",
       "svgClaro": "4be81542f16cd44e"
@@ -1158,7 +1158,7 @@
       "giro": "comercio",
       "escala": 25,
       "entidades": 27,
-      "trazos": 27,
+      "trazos": 20,
       "docHash": "746bfedf2e7e3869",
       "svgOscuro": "9bbf9d66079a7aae",
       "svgClaro": "265900ea634f9987"
@@ -1168,7 +1168,7 @@
       "giro": "educacion",
       "escala": 25,
       "entidades": 30,
-      "trazos": 30,
+      "trazos": 19,
       "docHash": "b03de1d6afe15442",
       "svgOscuro": "0f293c7c1cecfe4b",
       "svgClaro": "22e8fcc0576583e7"
@@ -1178,7 +1178,7 @@
       "giro": "salud",
       "escala": 20,
       "entidades": 31,
-      "trazos": 31,
+      "trazos": 21,
       "docHash": "413735bbc93e81da",
       "svgOscuro": "015833bb4956315d",
       "svgClaro": "72daaac1a722ad30"
@@ -1188,7 +1188,7 @@
       "giro": "salud",
       "escala": 20,
       "entidades": 28,
-      "trazos": 28,
+      "trazos": 20,
       "docHash": "d072cad67bd13599",
       "svgOscuro": "1e50ef7854b636f3",
       "svgClaro": "6bbf99bc5ccba1a3"
@@ -1198,7 +1198,7 @@
       "giro": "industria-taller",
       "escala": 20,
       "entidades": 27,
-      "trazos": 27,
+      "trazos": 19,
       "docHash": "34c717cd34656113",
       "svgOscuro": "9dc537fa73a6e291",
       "svgClaro": "2994b4a5615c4afe"
@@ -1208,7 +1208,7 @@
       "giro": "servicios",
       "escala": 25,
       "entidades": 28,
-      "trazos": 28,
+      "trazos": 20,
       "docHash": "e8cdf6577ff664b4",
       "svgOscuro": "292267e9c4dbe543",
       "svgClaro": "d213e962f482ab4b"
@@ -1218,7 +1218,7 @@
       "giro": "tecnico",
       "escala": 25,
       "entidades": 29,
-      "trazos": 29,
+      "trazos": 20,
       "docHash": "31054b149368f5fe",
       "svgOscuro": "901b861595a3f2ec",
       "svgClaro": "f0895c1d6790c827"
@@ -1228,7 +1228,7 @@
       "giro": "salud",
       "escala": 20,
       "entidades": 29,
-      "trazos": 29,
+      "trazos": 20,
       "docHash": "3d30af1e54f7da75",
       "svgOscuro": "4e2fd4f03800f7eb",
       "svgClaro": "b358e56ca3d4a933"
@@ -1238,7 +1238,7 @@
       "giro": "tecnico",
       "escala": 20,
       "entidades": 29,
-      "trazos": 29,
+      "trazos": 21,
       "docHash": "9203ceda98bcac71",
       "svgOscuro": "81d046bc0c13c1fb",
       "svgClaro": "d8b2a5ab2ae75240"
@@ -1248,7 +1248,7 @@
       "giro": "tecnico",
       "escala": 25,
       "entidades": 28,
-      "trazos": 28,
+      "trazos": 19,
       "docHash": "8b435bc60f4b3712",
       "svgOscuro": "75a565f720bb676a",
       "svgClaro": "9fc4c16e5cf2704d"
@@ -1258,7 +1258,7 @@
       "giro": "tecnico",
       "escala": 25,
       "entidades": 31,
-      "trazos": 31,
+      "trazos": 21,
       "docHash": "3e89f517a19ba3f6",
       "svgOscuro": "8d7c916f44fc3071",
       "svgClaro": "807126b04ec4cfae"
@@ -1268,7 +1268,7 @@
       "giro": "tecnico",
       "escala": 25,
       "entidades": 28,
-      "trazos": 28,
+      "trazos": 19,
       "docHash": "21d9b2dcf5e67fd3",
       "svgOscuro": "8c3599936248711c",
       "svgClaro": "0542ee9fd56bd65c"
@@ -1278,7 +1278,7 @@
       "giro": "tecnico",
       "escala": 20,
       "entidades": 29,
-      "trazos": 29,
+      "trazos": 20,
       "docHash": "9c5ca53aa93c3526",
       "svgOscuro": "1ab567c086dc7fc9",
       "svgClaro": "73e13c101a0299b1"
@@ -1288,7 +1288,7 @@
       "giro": "comercio",
       "escala": 20,
       "entidades": 27,
-      "trazos": 27,
+      "trazos": 21,
       "docHash": "5c721091ac4a254b",
       "svgOscuro": "80b8123a38d795df",
       "svgClaro": "a70f9b8c87aff9d5"
@@ -1298,7 +1298,7 @@
       "giro": "deporte-cultura",
       "escala": 25,
       "entidades": 31,
-      "trazos": 31,
+      "trazos": 21,
       "docHash": "68cb6128b237ae21",
       "svgOscuro": "605c07f2e8d2a2f6",
       "svgClaro": "ede041003eb70d97"
@@ -1308,7 +1308,7 @@
       "giro": "educacion",
       "escala": 20,
       "entidades": 26,
-      "trazos": 26,
+      "trazos": 19,
       "docHash": "93f8fef4420976f2",
       "svgOscuro": "5e9641ea35fc262f",
       "svgClaro": "a59988157c50dc21"
@@ -1318,7 +1318,7 @@
       "giro": "tecnico",
       "escala": 25,
       "entidades": 27,
-      "trazos": 27,
+      "trazos": 19,
       "docHash": "b92ea03ad82271bd",
       "svgOscuro": "3f4ec399a7f5c778",
       "svgClaro": "5e2c1038d3643807"
@@ -1328,7 +1328,7 @@
       "giro": "tecnico",
       "escala": 25,
       "entidades": 28,
-      "trazos": 28,
+      "trazos": 20,
       "docHash": "c295562f37c0e57e",
       "svgOscuro": "b9cdf4f3195eb6fd",
       "svgClaro": "437254e22aa42ecb"
@@ -1338,7 +1338,7 @@
       "giro": "tecnico",
       "escala": 25,
       "entidades": 30,
-      "trazos": 30,
+      "trazos": 21,
       "docHash": "56e50d4b3a1768a4",
       "svgOscuro": "91d1a9f51edfe437",
       "svgClaro": "9793b2f4006dcb39"
@@ -1348,7 +1348,7 @@
       "giro": "tecnico",
       "escala": 25,
       "entidades": 29,
-      "trazos": 29,
+      "trazos": 20,
       "docHash": "d22295b30092a044",
       "svgOscuro": "4d85193178acf762",
       "svgClaro": "ea28cc343797f35c"
@@ -1358,7 +1358,7 @@
       "giro": "tecnico",
       "escala": 20,
       "entidades": 28,
-      "trazos": 28,
+      "trazos": 21,
       "docHash": "dbd4529620f19511",
       "svgOscuro": "46009d093f8590fe",
       "svgClaro": "2dffd1815539f1a9"
@@ -1368,7 +1368,7 @@
       "giro": "tecnico",
       "escala": 20,
       "entidades": 31,
-      "trazos": 31,
+      "trazos": 22,
       "docHash": "8e8af5149e49a7fd",
       "svgOscuro": "dbac748e0ec0c595",
       "svgClaro": "03c5fb97e94afad0"
@@ -1378,7 +1378,7 @@
       "giro": "tecnico",
       "escala": 25,
       "entidades": 27,
-      "trazos": 27,
+      "trazos": 19,
       "docHash": "abd3e5d2b68cc4dc",
       "svgOscuro": "ef68dff7708470dc",
       "svgClaro": "d2c35aa44978e355"
@@ -1388,7 +1388,7 @@
       "giro": "tecnico",
       "escala": 25,
       "entidades": 28,
-      "trazos": 28,
+      "trazos": 19,
       "docHash": "1de69b0494a5a55d",
       "svgOscuro": "4bb9815ab9dbe432",
       "svgClaro": "be2a7b7da45b7ce4"
@@ -1398,7 +1398,7 @@
       "giro": "servicios",
       "escala": 20,
       "entidades": 29,
-      "trazos": 29,
+      "trazos": 20,
       "docHash": "45a8fed598c1045d",
       "svgOscuro": "045395553fb318ee",
       "svgClaro": "734a3522b81b19c2"
@@ -1408,7 +1408,7 @@
       "giro": "salud",
       "escala": 20,
       "entidades": 30,
-      "trazos": 30,
+      "trazos": 21,
       "docHash": "a58a457f76b89dc5",
       "svgOscuro": "2726a2c5d6e1d177",
       "svgClaro": "216f8302d4ff270f"
@@ -1418,7 +1418,7 @@
       "giro": "servicios",
       "escala": 25,
       "entidades": 27,
-      "trazos": 27,
+      "trazos": 19,
       "docHash": "2f190401398bbf8b",
       "svgOscuro": "4ca0de02fa08b994",
       "svgClaro": "3b61938ffef34d36"
@@ -1428,7 +1428,7 @@
       "giro": "deporte-cultura",
       "escala": 20,
       "entidades": 28,
-      "trazos": 28,
+      "trazos": 19,
       "docHash": "8484abb778434ce2",
       "svgOscuro": "86e665a78f450b63",
       "svgClaro": "4ab6f0f04a4203f4"
@@ -1438,7 +1438,7 @@
       "giro": "salud",
       "escala": 20,
       "entidades": 23,
-      "trazos": 23,
+      "trazos": 18,
       "docHash": "dc16c7d9f5d04e77",
       "svgOscuro": "3e13b8bbdcced8a2",
       "svgClaro": "39aa8df74f30c31d"
@@ -1448,7 +1448,7 @@
       "giro": "educacion",
       "escala": 20,
       "entidades": 30,
-      "trazos": 30,
+      "trazos": 20,
       "docHash": "f7a832000f9b0a34",
       "svgOscuro": "f7b9fa2f9b264fb7",
       "svgClaro": "94ba4a04120f5c6c"
@@ -1458,7 +1458,7 @@
       "giro": "industria-taller",
       "escala": 5,
       "entidades": 16,
-      "trazos": 16,
+      "trazos": 9,
       "docHash": "4422d7474c2c9b70",
       "svgOscuro": "5d637f5486a62276",
       "svgClaro": "71d9fb6f77470e59"
@@ -1468,7 +1468,7 @@
       "giro": "tecnico",
       "escala": 10,
       "entidades": 16,
-      "trazos": 16,
+      "trazos": 12,
       "docHash": "90cc23afa27d2f9e",
       "svgOscuro": "c76dc534f75955ad",
       "svgClaro": "234de060b27a6cca"
@@ -1478,7 +1478,7 @@
       "giro": "tecnico",
       "escala": 75,
       "entidades": 24,
-      "trazos": 24,
+      "trazos": 18,
       "docHash": "a1073712288a227d",
       "svgOscuro": "4b5029a0f605e497",
       "svgClaro": "d60653666e8702d5"
@@ -1488,7 +1488,7 @@
       "giro": "industria-taller",
       "escala": 10,
       "entidades": 21,
-      "trazos": 21,
+      "trazos": 9,
       "docHash": "74a809ccd200cadd",
       "svgOscuro": "5cf873c43040adaa",
       "svgClaro": "bd06c337ce63254a"

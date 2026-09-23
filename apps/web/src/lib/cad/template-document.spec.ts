@@ -73,6 +73,20 @@ for (const template of CAD_LAYOUT_TEMPLATES) {
   built += 1;
 }
 
+// La proyección compartida ya no entrega la caja de MTEXT como trazo: la
+// galería debe conservar el contenido de una anotación real al renderizar.
+const withMText = buildCadTemplateDocument(CAD_LAYOUT_TEMPLATES[0].id);
+withMText.document.entities.push({
+  id: "area-declarada",
+  type: "mtext",
+  insertion: { x: 1_000, y: 1_000, z: 0 },
+  text: "18 m²",
+  height: 150,
+  layer: withMText.document.layers.find((layer) => layer.visible)?.id ?? "0",
+});
+withMText.document.modelSpace.entityIds.push("area-declarada");
+assert.match(renderCadTemplateSvg(withMText, { theme: "dark" }).svg, /18 m²/);
+
 // La instanciación a tamaño base no debe reescalar ni avisar: si avisa, la
 // plantilla del catálogo está mal medida y hay que arreglarla ALLÍ.
 assert.deepEqual(

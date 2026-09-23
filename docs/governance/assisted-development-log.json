@@ -4193,6 +4193,49 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "LANZAMIENTO-VARIABLES-BUILD-20260923",
+      "date": "2026-09-23",
+      "initiative": "Documentar las variables y cuentas del lanzamiento y asegurar que el modo comercial y la versión pública lleguen al build de Next.js mediante el Dockerfile de Railway, manteniendo el modo gratuito por defecto.",
+      "branch": "codex/launch-variables",
+      "assistants": [
+        "OpenAI Codex: auditoría de configuración, documentación, gate de despliegue y prueba de regresión"
+      ],
+      "authority": "Sergio Valle Zárate pidió preparar VALLECAD para lanzamiento y continuar el trabajo hasta integrarlo en main; esta corrección acota una variable pública de build que el Dockerfile no propagaba.",
+      "firstPartyInputs": [
+        "apps/web/src/config/launch.ts y sus consumidores cliente PricingCatalog, CadIncidentReporter y FeedbackDialog",
+        "apps/web/Dockerfile, scripts/deploy/validate-dockerfiles.mjs y la configuración existente de Railway",
+        "Controladores de correo y facturación, scripts de operaciones y guías de onboarding del repositorio"
+      ],
+      "externalSources": [
+        {
+          "location": "https://nextjs.org/docs/pages/guides/environment-variables",
+          "terms": "Documentación pública; consultada para el comportamiento de NEXT_PUBLIC en build, sin copiar implementación",
+          "fact": "Los valores NEXT_PUBLIC quedan fijados en el bundle del navegador durante next build"
+        },
+        {
+          "location": "https://docs.railway.com/builds/dockerfiles",
+          "terms": "Documentación pública; consultada para la configuración de build, sin copiar implementación",
+          "fact": "El Dockerfile debe declarar ARG para recibir variables de Railway durante el build"
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada; sólo documentación pública oficial sobre la interfaz de configuración.",
+      "derivedAreas": [
+        "apps/web/Dockerfile: ARG y ENV públicos para NEXT_PUBLIC_LAUNCH_MODE y NEXT_PUBLIC_APP_VERSION antes del build de web",
+        "scripts/deploy/validate-dockerfiles.mjs y .spec.mjs: gate y prueba roja/verde para cableado en el mismo stage, antes del build",
+        "docs/onboarding/VARIABLES-LANZAMIENTO.md y DESPLIEGUE-RAILWAY.md: requisitos y límites reales de Railway, Resend y Stripe"
+      ],
+      "fixtures": "Dockerfiles sintéticos en la spec; no se usaron credenciales, pagos ni infraestructura productiva.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "La spec falló antes del cambio al detectar ambas variables ausentes y pasó después; npm run check:deploy verificó 32 invariantes. La activación comercial sigue pendiente de credenciales, dominios, webhooks y pagos de prueba externos, así como de la revisión humana y los checks de CI sobre el SHA exacto del PR."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "AREA-CUARTO-MUROS-20260923",
       "date": "2026-09-23",
       "initiative": "Mostrar dentro de la planta el nombre y el área entre ejes de cada cuarto cerrado por muros canónicos, actualizados con el documento y retirados cuando el contorno se abre.",
