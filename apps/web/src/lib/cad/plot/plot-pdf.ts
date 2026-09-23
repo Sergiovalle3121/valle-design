@@ -37,6 +37,7 @@ import {
   type CadPlotFontUsage,
 } from "./plot-fonts";
 import { layoutCadTitleBlock, type CadTitleBlockLayout } from "./title-block";
+import { encodeQr } from "../../qr/qr-encode";
 
 /** Márgenes ISO 5457 con los que se compone un cajetín sin configuración. */
 const DEFAULT_PLOT_MARGINS = { top: 10, right: 10, bottom: 10, left: 20 } as const;
@@ -101,6 +102,10 @@ export interface CadPlotPdfOptions {
    * — incluida la que no lleva cajetín (`drawPlainFrame`).
    */
   stamp?: string;
+  /** QR de revisión viva en la portada; coordenadas y tamaño en mm de papel. */
+  reviewQr?: { sheetId: string; url: string; x: number; y: number; sizeMm: number };
+  /** Marca visible sólo para planes gratuitos/de prueba. */
+  educationalWatermark?: boolean;
 }
 
 export interface CadPlotPdfFontReport extends CadPlotFontResolution {
@@ -378,6 +383,8 @@ export async function renderCadPlotPdf(
     // PLOTSTAMP: en TODA hoja del trabajo, con o sin cajetín — la portada sin
     // cajetín (`framedOnly`) es la que más se fotocopia suelta.
     if (options.stamp) drawPlotStamp(pdf, sheet, options.stamp, bodyFont, styleFor);
+    if (options.reviewQr?.sheetId === sheet.id) drawReviewQr(pdf, options.reviewQr);
+    if (options.educationalWatermark) drawEducationalWatermark(pdf, sheet, bodyFont, styleFor);
   });
 
   const bytes = new Uint8Array(pdf.output("arraybuffer") as ArrayBuffer);
@@ -420,6 +427,39 @@ type PdfLike = InstanceType<typeof import("jspdf").jsPDF>;
 
 /** Estilo de una fuente que existe de verdad; `normal` cuando el pedido no. */
 type StyleResolver = (name: string, wanted: string) => string;
+
+function drawReviewQr(
+  pdf: PdfLike,
+  input: NonNullable<CadPlotPdfOptions["reviewQr"]>,
+): void {
+  const matrix = encodeQr(input.url);
+  const quiet = 4;
+  const moduleMm = input.sizeMm / (matrix.size + quiet * 2);
+  pdf.setFillColor(255, 255, 255);
+  pdf.rect(input.x, input.y, input.sizeMm, input.sizeMm, "F");
+  pdf.setFillColor(0, 0, 0);
+  for (let row = 0; row < matrix.size; row += 1) {
+    for (let col = 0; col < matrix.size; col += 1) {
+      if (matrix.modules[row][col]) {
+        pdf.rect(input.x + (col + quiet) * moduleMm, input.y + (row + quiet) * moduleMm, moduleMm, moduleMm, "F");
+      }
+    }
+  }
+}
+
+function drawEducationalWatermark(
+  pdf: PdfLike,
+  sheet: CadPublishSheet,
+  bodyFont: string,
+  styleFor: StyleResolver,
+): void {
+  pdf.setFont(bodyFont, styleFor(bodyFont, "bold"));
+  pdf.setFontSize(12 * MM_TO_POINTS);
+  pdf.setTextColor(180, 180, 180);
+  pdf.text("Uso educativo", sheet.width / 2, sheet.height / 2, {
+    align: "center", angle: 25,
+  });
+}
 
 function drawCommand(
   pdf: PdfLike,

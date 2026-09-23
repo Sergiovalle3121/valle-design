@@ -54,6 +54,8 @@ interface RedeemedReview {
   documentId: string;
   documentName: string;
   allowComments: boolean;
+  deliveredVersion: number | null;
+  deliveredAt: string | null;
   plan: CadDocument;
 }
 
@@ -119,6 +121,8 @@ export default function ReviewLinkClient() {
             documentId: String(context.document?.id ?? ""),
             documentName: String(context.document?.name ?? "Plano en revisión"),
             allowComments: context.session?.allowComments !== false,
+            deliveredVersion: context.session?.deliveredVersion ?? null,
+            deliveredAt: context.session?.deliveredAt ?? null,
             plan,
           },
         });
@@ -139,7 +143,7 @@ export default function ReviewLinkClient() {
   const review = phase.kind === "ready" ? phase.review : null;
 
   const source = useMemo<CadCommentSource | null>(() => {
-    if (!review) return null;
+    if (!review || review.deliveredVersion !== null) return null;
     const surface = reviewLinkRepository(review.token).comments;
     return {
       list: () => surface.list(),
@@ -150,7 +154,7 @@ export default function ReviewLinkClient() {
   const comments = useCadComments(source);
 
   const presence = useCadPresence({
-    documentId: review?.documentId ?? null,
+    documentId: review?.deliveredVersion ? null : review?.documentId ?? null,
     name: "Invitado",
     guest: true,
   });
@@ -233,7 +237,7 @@ export default function ReviewLinkClient() {
             data-testid="cad-review-banner"
             className="rounded-full border border-warning/30 bg-warning/15 px-2.5 py-0.5 type-micro font-semibold text-warning-ink"
           >
-            REVISIÓN · SOLO LECTURA
+            {phase.review.deliveredVersion ? "ENTREGA · SOLO LECTURA" : "REVISIÓN · SOLO LECTURA"}
           </span>
           <h1
             data-testid="cad-review-document-name"
@@ -241,6 +245,11 @@ export default function ReviewLinkClient() {
           >
             {phase.review.documentName}
           </h1>
+          {phase.review.deliveredAt ? (
+            <span data-testid="cad-review-delivery-date" className="type-micro text-muted-foreground">
+              {formatDeliveredAt(phase.review.deliveredAt)} · versión {phase.review.deliveredVersion}
+            </span>
+          ) : null}
         </header>
         {projection ? (
           <ReviewPlanView
@@ -255,7 +264,7 @@ export default function ReviewLinkClient() {
         ) : null}
       </div>
 
-      <aside className="flex min-h-0 w-full shrink-0 flex-col border-t border-border bg-surface text-foreground p-3 lg:h-full lg:w-[22rem] lg:border-l lg:border-t-0">
+      {phase.review.deliveredVersion === null ? <aside className="flex min-h-0 w-full shrink-0 flex-col border-t border-border bg-surface text-foreground p-3 lg:h-full lg:w-[22rem] lg:border-l lg:border-t-0">
         <CollabThreadPanel
           threads={comments.threads}
           error={comments.error}
@@ -280,7 +289,7 @@ export default function ReviewLinkClient() {
         <p className="mt-2 shrink-0 type-micro text-muted-foreground">
           {PRODUCT_LABEL.design} · Este enlace da acceso únicamente a este plano.
         </p>
-      </aside>
+      </aside> : null}
     </main>
   );
 }
@@ -288,6 +297,18 @@ export default function ReviewLinkClient() {
 function readTokenOnce(): string | null {
   const environment = browserReviewTokenEnvironment();
   return environment ? peekReviewToken(environment) : null;
+}
+
+function formatDeliveredAt(value: string): string {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "Fecha de entrega no disponible";
+  return `Entregado el ${new Intl.DateTimeFormat("es-MX", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date)}`;
 }
 
 function Shell({ children }: { children: React.ReactNode }) {

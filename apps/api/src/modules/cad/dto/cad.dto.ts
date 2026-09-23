@@ -252,6 +252,11 @@ export class CreateReviewSessionDto {
   @IsBoolean()
   shareLink?: boolean;
 
+  /** Congela la última versión CAD guardada y fecha la entrega. */
+  @IsOptional()
+  @IsBoolean()
+  delivery?: boolean;
+
   /** ¿El contexto de review puede crear/resolver comentarios? Default true. */
   @IsOptional()
   @IsBoolean()

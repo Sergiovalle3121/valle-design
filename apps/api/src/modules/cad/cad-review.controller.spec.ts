@@ -205,6 +205,94 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
     expect(JSON.stringify(entries)).not.toContain(shareToken);
   });
 
+  it('entrega una versión CAS congelada con fecha sin fijar los enlaces de Compartir', async () => {
+    const unsavedDocumentId = await createDocument('Aún sin guardar');
+    await request(app.getHttpServer())
+      .post(`/v1/cad/documents/${unsavedDocumentId}/review-sessions`)
+      .set(author.headers)
+      .send({ shareLink: true, allowComments: false, delivery: true })
+      .expect(400);
+    const documentId = await createDocument('Plano entregado');
+    await saveContent(documentId);
+    const server = app.getHttpServer();
+
+    await request(server)
+      .post(`/v1/cad/documents/${documentId}/review-sessions`)
+      .set(author.headers)
+      .send({ shareLink: true, allowComments: true, delivery: true })
+      .expect(400);
+
+    const delivered = await request(server)
+      .post(`/v1/cad/documents/${documentId}/review-sessions`)
+      .set(author.headers)
+      .send({ shareLink: true, allowComments: false, delivery: true })
+      .expect(201);
+    expect(delivered.body.session).toMatchObject({
+      deliveredVersion: 1,
+      allowComments: false,
+    });
+    expect(Date.parse(delivered.body.session.deliveredAt)).toBeGreaterThan(0);
+
+    const shared = await request(server)
+      .post(`/v1/cad/documents/${documentId}/review-sessions`)
+      .set(author.headers)
+      .send({ shareLink: true, allowComments: true })
+      .expect(201);
+    expect(shared.body.session.deliveredVersion).toBeNull();
+
+    await request(server)
+      .put(`/v1/cad/documents/${documentId}/content`)
+      .set(author.headers)
+      .send({
+        cadDocument: {
+          meta: { schema: 3, version: 1, unit: 'mm' },
+          entities: [
+            {
+              id: 'line-2',
+              type: 'line',
+              start: { x: 0, y: 0 },
+              end: { x: 900, y: 0 },
+              layer: '0',
+            },
+          ],
+        },
+        expectedCadDocumentVersion: 1,
+      })
+      .expect(200);
+
+    const deliveryContext = await request(server)
+      .get('/v1/cad/review/context')
+      .set('x-review-token', delivered.body.shareToken)
+      .expect(200);
+    expect(deliveryContext.body.document.cadDocumentVersion).toBe(1);
+    expect(deliveryContext.body.document.cadDocument.entities[0].id).toBe(
+      'line-1',
+    );
+    expect(deliveryContext.body.session.deliveredAt).toBe(
+      delivered.body.session.deliveredAt,
+    );
+    expect(deliveryContext.body.document.dxf).toBeNull();
+
+    const shareContext = await request(server)
+      .get('/v1/cad/review/context')
+      .set('x-review-token', shared.body.shareToken)
+      .expect(200);
+    expect(shareContext.body.document.cadDocumentVersion).toBe(2);
+    expect(shareContext.body.document.cadDocument.entities[0].id).toBe(
+      'line-2',
+    );
+
+    await request(server)
+      .post('/v1/cad/review/comments')
+      .set('x-review-token', delivered.body.shareToken)
+      .send({ body: 'No se puede comentar en una entrega.' })
+      .expect(403);
+    await request(server)
+      .get(`/v1/cad/documents/${documentId}`)
+      .set('x-review-token', delivered.body.shareToken)
+      .expect(403);
+  });
+
   it('comentarios del autor: directos y por sesión, filtros, resolve idempotente y sesión cerrada = 400', async () => {
     const documentId = await createDocument();
     const auth = author.headers;

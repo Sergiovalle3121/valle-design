@@ -14,6 +14,7 @@ import {
 } from '../../common/tenant/tenant-scoped.repository';
 import { TenantContextService } from '../../common/tenant/tenant-context.service';
 import { CadDocument } from '../cad-documents/entities/cad-document.entity';
+import { CadDocumentVersion } from '../cad-documents/entities/cad-document-version.entity';
 import { CadReviewSession } from '../cad-documents/entities/cad-review-session.entity';
 import { CadComment } from '../cad-documents/entities/cad-comment.entity';
 import {
@@ -32,6 +33,7 @@ export const MAX_COMMENTS_PER_DOCUMENT = 500;
 
 export interface CreateReviewSessionInput {
   shareLink?: boolean;
+  delivery?: boolean;
   allowComments?: boolean;
   shareLinkTtlMinutes?: number;
 }
@@ -69,6 +71,8 @@ export class CadReviewRepository {
   constructor(
     @Inject(getTenantRepositoryToken(CadDocument))
     private readonly documents: TenantScopedRepository<CadDocument>,
+    @Inject(getTenantRepositoryToken(CadDocumentVersion))
+    private readonly versions: TenantScopedRepository<CadDocumentVersion>,
     @Inject(getTenantRepositoryToken(CadReviewSession))
     private readonly sessions: TenantScopedRepository<CadReviewSession>,
     @Inject(getTenantRepositoryToken(CadComment))
@@ -101,6 +105,12 @@ export class CadReviewRepository {
     input: CreateReviewSessionInput,
   ): Promise<CreatedReviewSession> {
     const wantsLink = input.shareLink === true;
+    if (input.delivery && (!wantsLink || input.allowComments !== false)) {
+      throw new BadRequestException({
+        code: 'delivery_requires_read_only_link',
+        message: 'La entrega exige enlace de solo lectura sin comentarios.',
+      });
+    }
     const generated = wantsLink ? generateReviewLinkToken() : null;
     const expiresAt = wantsLink
       ? new Date(
@@ -114,6 +124,26 @@ export class CadReviewRepository {
       async (manager) => {
         const document = await this.getDocument(documentId, manager);
         const sessions = this.sessions.withManager(manager);
+        let deliveredVersion: number | null = null;
+        let deliveredAt: Date | null = null;
+        if (input.delivery) {
+          const currentVersion = document.cadDocumentVersion ?? 0;
+          const recorded =
+            currentVersion > 0
+              ? await this.versions.withManager(manager).findOne({
+                  where: { documentId, version: currentVersion },
+                })
+              : null;
+          if (!recorded || !document.cadDocument) {
+            throw new BadRequestException({
+              code: 'delivery_save_required',
+              message:
+                'Guarda el plano antes de entregarlo: falta una versión CAD registrada.',
+            });
+          }
+          deliveredVersion = currentVersion;
+          deliveredAt = new Date();
+        }
         const openCount = await sessions.count({
           where: { documentId, status: 'open' },
         });
@@ -131,6 +161,8 @@ export class CadReviewRepository {
           expiresAt,
           revokedAt: null,
           allowComments: input.allowComments !== false,
+          deliveredVersion,
+          deliveredAt,
           created_by: this.actor(),
         });
         row.plant_id = document.plant_id;
@@ -149,6 +181,8 @@ export class CadReviewRepository {
         documentId,
         hasShareLink: wantsLink,
         allowComments: saved.allowComments,
+        deliveredVersion: saved.deliveredVersion,
+        deliveredAt: saved.deliveredAt?.toISOString() ?? null,
         expiresAt: expiresAt?.toISOString() ?? null,
       },
     );

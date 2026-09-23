@@ -23,6 +23,7 @@ export const reviewsRepository = {
     documentId: string,
     input?: {
       shareLink?: boolean;
+      delivery?: boolean;
       allowComments?: boolean;
       shareLinkTtlMinutes?: number;
     },
