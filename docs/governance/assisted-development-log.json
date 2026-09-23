@@ -4359,7 +4359,7 @@
         "required": true,
         "status": "proposed",
         "adopter": "Sergio Valle Zárate",
-        "evidence": "Golden 228 actualizado con línea base roja pública (31 controles y 74.5 %); build webpack 208 rutas, typecheck, lint 0 errores (8 avisos previos del monolito), presupuesto 16814 líneas, golden Chromium 2/2 y Firefox 2/2 PASS. Medición local de build productivo: 29 controles, 75.6 % libre y 1.2 % tapado a 1440×769; 29, 75.0 % y 1.6 % a 1366×768. Robot local 0/4 por funciones aún abiertas de otras PRs. CI exacta, merge y medición pública posteriores pendientes."
+        "evidence": "Golden 228 actualizado con línea base roja pública (31 controles y 74.5 %); build webpack 208 rutas, typecheck, lint 0 errores (8 avisos previos del monolito), presupuesto 16814 líneas, golden Chromium 2/2 y Firefox 2/2 PASS. Medición local de build productivo: 29 controles, 75.6 % libre y 1.2 % tapado a 1440×769; 29, 75.0 % y 1.6 % a 1366×768. Robot local 0/4 por funciones aún abiertas de otras PRs. check:cad completo PASS con VALLE_DWG_CORPUS_MIRROR (log work/first-minute-cad.log); el primer intento sin esa variable falló en check:dwg-evidence por falta del corpus local. CI exacta, merge y medición pública posteriores pendientes."
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
