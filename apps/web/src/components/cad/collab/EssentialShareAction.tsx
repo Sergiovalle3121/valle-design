@@ -42,7 +42,7 @@ export function EssentialShareAction({ documentId }: { documentId: string }) {
     try {
       const result = await reviewsRepository.create(documentId, {
         shareLink: true,
-        allowComments: true,
+        allowComments: false,
       });
       if (!result.shareToken) {
         setState({ kind: "error" });
@@ -118,7 +118,7 @@ export function EssentialShareAction({ documentId }: { documentId: string }) {
               {state.kind === "ready" ? (
                 <>
                   <p className="mt-2 type-small text-muted-foreground">
-                    Quien tenga este enlace puede ver la versión más reciente del plano y comentar, pero no editarlo. Cópialo ahora; por seguridad no se volverá a mostrar.
+                    Quien tenga este enlace puede ver la versión más reciente del plano. No permite editar ni comentar. Cópialo ahora; por seguridad no se volverá a mostrar.
                   </p>
                   <code data-testid="cad-essential-share-url" className="mt-2 block break-all rounded-control bg-muted p-2 type-micro">
                     {state.url}
