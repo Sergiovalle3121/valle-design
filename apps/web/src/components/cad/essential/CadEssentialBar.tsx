@@ -2,6 +2,7 @@
 
 import { Ellipsis, Search } from "lucide-react";
 import { cx } from "@/components/ui";
+import { useCadActiveCommand } from "@/components/cad/ribbon/active-command";
 import { CAD_ESSENTIAL_TOOLS, type CadEssentialTool } from "./essential-tools";
 
 /**
@@ -116,14 +117,33 @@ function EssentialToolButton({
   // `react-hooks/static-components` no lo tome por un componente creado
   // durante el render.
   const Icon = tool.icon;
+  // ENCENDIDO: la herramienta cuyo comando tiene abierto el motor, y
+  // «Seleccionar» cuando no hay ninguno —que es el reposo, igual que en
+  // AutoCAD. Sin esto, pulsar «Muro» no cambiaba nada en pantalla y sólo se
+  // sabía qué herramienta había en la mano leyendo el aviso del borde
+  // inferior (`ribbon/active-command.ts` guarda la medición).
+  const activo = useCadActiveCommand();
+  const esComando = "command" in tool.run;
+  const encendido = esComando ? tool.run.command === activo : activo === null;
   return (
     <button
       type="button"
       data-testid={`cad-essential-tool-${tool.id}`}
+      data-active={encendido ? "true" : undefined}
+      aria-pressed={encendido ? true : undefined}
       disabled={disabled}
       onClick={() => onRun(tool)}
       title={tool.title}
-      className={BOTON}
+      className={cx(
+        BOTON,
+        // Dos encendidos, no uno. El comando EN CURSO lleva el relleno de marca
+        // con su tinta emparejada: es una herramienta armada y tiene que verse
+        // desde el otro lado de la pantalla. El reposo —«Seleccionar»— se marca
+        // en gris: dice dónde estás sin gritar, y deja la barra en calma, que
+        // es lo que se midió como bueno en la Tanda 1.
+        encendido && esComando && "bg-brand-strong text-primary-foreground hover:bg-brand-strong",
+        encendido && !esComando && "bg-muted text-foreground",
+      )}
     >
       <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
       <span className="type-micro leading-none">{tool.label}</span>

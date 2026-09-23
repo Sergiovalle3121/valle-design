@@ -176,6 +176,13 @@ test('dibujar una línea con la cinta la PINTA en el lienzo, no sólo en el cont
 
   await page.getByTestId('cad-ribbon-command-LINE').click();
   await expect(page.getByTestId('cad-command-prompt')).toBeVisible();
+  // Y la cinta DICE qué herramienta tienes en la mano. Antes el único realce
+  // era `:hover`, que se apaga en cuanto el ratón se va al lienzo — o sea,
+  // siempre que estás dibujando.
+  await expect(
+    page.getByTestId('cad-ribbon-command-LINE'),
+    'el botón del comando en curso se queda encendido',
+  ).toHaveAttribute('data-active', 'true');
 
   const caja = (await page.getByTestId('cad-canvas').boundingBox())!;
   const x0 = caja.x + caja.width * 0.3;

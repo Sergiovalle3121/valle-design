@@ -17,6 +17,7 @@ import { cadRibbonButtonTitle } from "../ribbon/CadRibbonButton";
 import { cadCommandIcon } from "../ribbon/command-icons";
 import { CadEssentialBar } from "./CadEssentialBar";
 import { CAD_ESSENTIAL_TOOLS } from "./essential-tools";
+import { CadActiveCommandContext } from "@/components/cad/ribbon/active-command";
 
 let checks = 0;
 const ok = (condition: boolean, message: string) => {
@@ -232,7 +233,7 @@ const props = {
   );
   ok(
     !/bg-primary|bg-brand/.test(html),
-    "sin relleno --primary/brand en los botones: relleno y tinta son tokens distintos",
+    "EN REPOSO, sin relleno --primary/brand en los botones: relleno y tinta son tokens distintos, y una barra en calma es lo que se midió como bueno. El comando EN CURSO sí se rellena, y eso se comprueba abajo, con su tinta emparejada",
   );
   ok(
     html.includes("focus-visible:ring-ring") && html.includes("hover:bg-muted"),
@@ -242,6 +243,28 @@ const props = {
     !/#[0-9a-fA-F]{3,8}\b/.test(html) && !/text-\[[0-9.]+(px|rem)\]/.test(html),
     "sin hex ni tamaños de letra fuera de la escala",
   );
+}
+
+// ── La herramienta que tienes en la mano se VE ───────────────────────────────
+{
+  const conMuro = renderToStaticMarkup(
+    createElement(CadActiveCommandContext, { value: "LINE" }, createElement(CadEssentialBar, props)),
+  );
+  ok(conMuro.includes('data-active="true"'), "la herramienta del comando en curso se marca");
+  ok(conMuro.includes('aria-pressed="true"'), "y se anuncia como presionada");
+  ok(
+    (conMuro.match(/data-active="true"/g) ?? []).length === 1,
+    "y sólo UNA a la vez: dos herramientas encendidas mentirían sobre lo que hace el ratón",
+  );
+  ok(
+    /bg-brand-strong[^"]*text-primary-foreground|text-primary-foreground[^"]*bg-brand-strong/.test(conMuro),
+    "la herramienta armada lleva el relleno de marca CON su tinta emparejada, nunca el relleno solo",
+  );
+
+  // En reposo manda «Seleccionar», que es el estado de AutoCAD sin comando.
+  const reposo = renderToStaticMarkup(createElement(CadEssentialBar, props));
+  const marcado = reposo.match(/data-testid="cad-essential-tool-([a-z]+)"[^>]*data-active="true"/);
+  ok(marcado?.[1] === "select", "sin comando abierto, la herramienta encendida es «Seleccionar»");
 }
 
 console.log(`CadEssentialBar: ${checks}/${checks} comprobaciones verdes`);

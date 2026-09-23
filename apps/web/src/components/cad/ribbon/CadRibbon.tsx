@@ -18,6 +18,7 @@ import { attachCadDraftToolbarSlot } from "@/components/cad/shell/draft-toolbar-
 import { cadUiModeHost, useCadUiMode } from "@/components/cad/shell/ui-mode-host";
 import { CadUiModeSwitch } from "@/components/cad/shell/CadUiModeSwitch";
 import { CadEssentialBar } from "@/components/cad/essential/CadEssentialBar";
+import { CadActiveCommandContext } from "./active-command";
 import { CadRibbonPanel } from "./CadRibbonPanel";
 
 /**
@@ -139,6 +140,7 @@ export function CadRibbon({
   trailingFixed,
   onSelectTool,
   onOpenPalette,
+  activeCommand,
 }: {
   dispatch: (commandName: string) => void;
   readOnly?: boolean;
@@ -166,6 +168,13 @@ export function CadRibbon({
   onSelectTool?: () => void;
   /** Modo Esencial: «Buscar · Ctrl K» abre la paleta de comandos. */
   onOpenPalette?: () => void;
+  /**
+   * El comando que el motor tiene ABIERTO, o `null` en reposo. Enciende su
+   * botón —en la cinta y en la barra de Esencial— para que la pantalla diga
+   * qué herramienta hay en la mano: `ribbon/active-command.ts` guarda la
+   * medición del defecto que esto cierra.
+   */
+  activeCommand?: string | null;
 }) {
   // MODO ESENCIAL (Tanda 1, 22-sep-2026): la cinta se ESCONDE, no se borra. En
   // Esencial la fila superior conserva accesos rápidos, interruptor y cola
@@ -465,9 +474,12 @@ export function CadRibbon({
   );
 
   return (
-    <>
+    // El proveedor envuelve cabecera Y cuerpo: los desplegables de panel se
+    // pintan en un portal, y un portal sigue dentro del árbol de React, así
+    // que sus botones también saben cuál está encendido.
+    <CadActiveCommandContext value={activeCommand ?? null}>
       {header}
       {bodyContainer ? createPortal(body, bodyContainer) : body}
-    </>
+    </CadActiveCommandContext>
   );
 }

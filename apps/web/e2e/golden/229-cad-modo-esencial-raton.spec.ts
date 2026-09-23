@@ -77,6 +77,14 @@ test('en Esencial se dibuja con el ratón: snaps útiles, sin rastreo, sin píld
 
   await page.getByTestId('cad-essential-tool-line').click();
   await expect(page.getByTestId('cad-command-prompt')).toBeVisible();
+  // La barra dice qué herramienta está armada, y sólo una. En reposo lo dice
+  // «Seleccionar»; con Línea abierta, Línea. Sin esto, pulsar una herramienta
+  // no cambiaba nada en pantalla y había que leer el aviso del borde inferior.
+  await expect(
+    page.getByTestId('cad-essential-tool-line'),
+    'la herramienta armada se ve encendida',
+  ).toHaveAttribute('data-active', 'true');
+  await expect(page.getByTestId('cad-essential-tool-select')).not.toHaveAttribute('data-active', 'true');
   // 2. Nada flota sobre el lienzo: ni entrada dinámica ni píldora; el centro responde el canvas.
   await expect(page.getByTestId('cad-dynamic-input')).toHaveCount(0);
   const quienEnElCentro = await page.evaluate(() => {

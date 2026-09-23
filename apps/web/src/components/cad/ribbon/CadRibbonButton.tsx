@@ -9,6 +9,7 @@ import {
 } from "./CadRibbonTooltip";
 import { CAD_COMMAND_ICONS } from "./command-icons";
 import { CAD_RIBBON_PANEL_ICONS } from "./ribbon-icons";
+import { useCadActiveCommand } from "./active-command";
 
 /**
  * Botón de un comando canónico: un clic y la línea de comandos comparten el
@@ -72,6 +73,10 @@ export function CadRibbonButton({
   // el acceso directo a una tabla estática — que es justo lo que esto es.
   const Icon =
     CAD_COMMAND_ICONS[command.name] ?? CAD_RIBBON_PANEL_ICONS[command.panel];
+  // ENCENDIDO mientras el motor lo tiene abierto. Sin esto el único realce era
+  // `:hover`, y el ratón se va al lienzo en cuanto empiezas a dibujar: la cinta
+  // no decía qué herramienta tenías en la mano (`ribbon/active-command.ts`).
+  const active = useCadActiveCommand() === command.name;
   const large = size === "large";
   const denseSmall = size === "small" && dense;
   return (
@@ -83,6 +88,12 @@ export function CadRibbonButton({
         type="button"
         data-testid={`cad-ribbon-command-${command.name}`}
         data-primary={command.primary ? "true" : undefined}
+        data-active={active ? "true" : undefined}
+        // Sólo cuando está encendido: un comando no es un conmutador, y poner
+        // `aria-pressed="false"` en los 264 botones los anunciaría todos como
+        // si lo fueran. Cuando SÍ está corriendo, «presionado» es exactamente
+        // lo que un lector de pantalla tiene que decir.
+        aria-pressed={active ? true : undefined}
         data-size={size}
         data-dense={denseSmall ? "true" : undefined}
         style={
@@ -107,6 +118,10 @@ export function CadRibbonButton({
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           "disabled:pointer-events-none disabled:opacity-40",
           command.primary && "text-foreground",
+          // El mismo encendido que el riel de paletas (`CadDockRail`): relleno
+          // de marca y tinta sobre marca, no `--primary` como relleno de botón.
+          active &&
+            "bg-brand-strong text-primary-foreground hover:bg-brand-strong hover:text-primary-foreground",
           large
             ? "h-full w-[4.25rem] flex-col justify-start gap-0.5 px-0.5 py-0.5"
             : size === "small"

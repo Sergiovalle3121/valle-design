@@ -544,6 +544,7 @@ import {
   unlockPolarAngleForCommand,
 } from "@/components/cad/viewport/camera-policy";
 import { applyCadSceneFog, setCadSceneFogColor } from "@/components/cad/viewport/plan-fog";
+import { CadCrosshairOverlay } from "@/components/cad/viewport/CadCrosshairOverlay";
 import {
   resolveCadRenderPipeline,
   type CadRenderPipelineChoice,
@@ -14144,6 +14145,7 @@ export default function Layout3DEditor({
         }
       }}
       readOnly={drawingReadOnly}
+      activeCommand={commandEngineSnapshot.activeCommand}
       onSelectTool={() => runToolbarAction("select")}
       onOpenPalette={() => setShowPalette(true)}
       quickAccess={quickAccessContent}
@@ -14282,37 +14284,12 @@ export default function Layout3DEditor({
                 </div>
               </div>
             )}
-            <div
+            <CadCrosshairOverlay
               ref={crosshairOverlayRef}
-              data-testid="cad-crosshair"
-              aria-hidden="true"
-              className="pointer-events-none absolute left-0 top-0 z-20 hidden size-0"
-            >
-              <span
-                className="absolute left-1/2 top-1/2 h-px -translate-x-1/2 -translate-y-1/2 bg-indigo-100/90 mix-blend-difference"
-                style={{ width: `${workspacePreferences.crosshairPercent}vw` }}
-              />
-              <span
-                className="absolute left-1/2 top-1/2 w-px -translate-x-1/2 -translate-y-1/2 bg-indigo-100/90 mix-blend-difference"
-                style={{ height: `${workspacePreferences.crosshairPercent}vh` }}
-              />
-              <span
-                data-testid="cad-pick-box"
-                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 border border-indigo-100/90 mix-blend-difference"
-                style={{
-                  width: workspacePreferences.pickBoxPx,
-                  height: workspacePreferences.pickBoxPx,
-                }}
-              />
-              <span
-                data-testid="cad-snap-aperture"
-                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-amber-300/60"
-                style={{
-                  width: workspacePreferences.aperturePx * 2,
-                  height: workspacePreferences.aperturePx * 2,
-                }}
-              />
-            </div>
+              crosshairPercent={workspacePreferences.crosshairPercent}
+              pickBoxPx={workspacePreferences.pickBoxPx}
+              aperturePx={workspacePreferences.aperturePx}
+            />
             {cadContextMenu && (
               <div
                 data-testid="cad-context-menu"

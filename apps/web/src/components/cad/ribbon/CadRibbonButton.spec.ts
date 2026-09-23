@@ -20,6 +20,7 @@ import {
   cadRibbonLabelWidth,
   cadRibbonSmallWidth,
 } from "@/lib/cad/ribbon-layout";
+import { CadActiveCommandContext } from "./active-command";
 import { CadRibbonButton, cadRibbonButtonTitle, cadRibbonButtonTooltip } from "./CadRibbonButton";
 import { CadRibbonTooltipCard } from "./CadRibbonTooltip";
 
@@ -132,5 +133,46 @@ const disabled = renderToStaticMarkup(
   createElement(CadRibbonButton, { command: line, onRun: () => undefined, disabled: true }),
 );
 ok(/<button[^>]*\sdisabled/.test(disabled) && disabled.includes("disabled:opacity-40"), "deshabilitado: atributo y señal visual");
+
+// ── ENCENDIDO mientras el comando corre ──────────────────────────────────────
+//
+// El defecto: el único realce del botón era `:hover`, y el ratón se va al
+// lienzo en cuanto empiezas a dibujar. La cinta abría el comando y no lo
+// decía en ninguna parte — de ahí «el ribbon sólo está de adorno».
+{
+  const encendido = renderToStaticMarkup(
+    createElement(
+      CadActiveCommandContext,
+      { value: line.name },
+      createElement(CadRibbonButton, { command: line, onRun: () => undefined }),
+    ),
+  );
+  ok(encendido.includes('data-active="true"'), "el comando en curso se marca en el DOM");
+  ok(encendido.includes('aria-pressed="true"'), "y se ANUNCIA como presionado");
+  ok(
+    encendido.includes("bg-brand-strong"),
+    "y se VE encendido, con el mismo relleno de marca que el riel de paletas",
+  );
+
+  // Otro comando abierto no enciende a éste.
+  const ajeno = renderToStaticMarkup(
+    createElement(
+      CadActiveCommandContext,
+      { value: "CIRCLE" },
+      createElement(CadRibbonButton, { command: line, onRun: () => undefined }),
+    ),
+  );
+  ok(!ajeno.includes("data-active"), "con otro comando abierto, LINE no se enciende");
+  ok(
+    !ajeno.includes("aria-pressed"),
+    "y sin encender NO lleva aria-pressed: un comando no es un conmutador, y anunciarlos todos como si lo fueran sería peor que callar",
+  );
+
+  // En reposo tampoco.
+  const reposo = renderToStaticMarkup(
+    createElement(CadRibbonButton, { command: line, onRun: () => undefined }),
+  );
+  ok(!reposo.includes("data-active"), "en reposo ningún botón está encendido");
+}
 
 console.log(`CadRibbonButton: ${checks}/${checks} comprobaciones verdes`);
