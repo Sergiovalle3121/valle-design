@@ -16,6 +16,7 @@ import {
   legacyCadWorkspaceStorageKey,
   loadCadWorkspacePreferences,
 } from "./cad-workspace";
+import { cadUiModeStorageKey } from "./ui-mode-preference";
 
 assert.equal(LEGACY_CAD_STUDIO_MODEL, "AXOS-CAD-STUDIO");
 assert.equal(LEGACY_CAD_STUDIO_REVISION, "UNIVERSAL");
@@ -68,6 +69,11 @@ assert.equal(
   legacyCadWorkspaceStorageKey({ tenantId: "t-1", userId: "u-1" }),
   "axos_cad_workspace:t-1:u-1",
 );
+// Modo de interfaz (Esencial/Pro): clave NUEVA, congelada desde su primer día
+// —vive en el localStorage de cada usuario, así que renombrarla devolvería a
+// todo el mundo a la «primera vez». Con y sin usuario, literalmente.
+assert.equal(cadUiModeStorageKey(), "valle:cad:ui-mode:v1");
+assert.equal(cadUiModeStorageKey("u-1"), "valle:cad:ui-mode:v1:u-1");
 
 {
   const store = new Map<string, string>();

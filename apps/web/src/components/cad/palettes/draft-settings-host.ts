@@ -30,6 +30,16 @@
  * identidad. Devolver un objeto nuevo en cada lectura es un bucle infinito de
  * renders, no una ineficiencia. Por eso `snapshot` sólo se reconstruye dentro
  * de `publish()`, cuando algo cambió de verdad.
+ *
+ * ## El preajuste es una capa de sesión, no un ajuste
+ *
+ * El modo Esencial necesita otro reparto (sólo extremo y medio, OTRACK y
+ * entrada dinámica apagados) y `valle_draft_settings` es UNA clave compartida
+ * con Pro: escribir ahí el recorte haría que Pro heredara dos modos de catorce.
+ * Por eso el preajuste vive en un overlay que los getters y la instantánea leen
+ * primero y que `save()` nunca ve. Los conmutadores (F11, F12, las casillas de
+ * DSETTINGS) mutan el overlay mientras hay preajuste, y `setPreset(null)`
+ * devuelve la base tal cual estaba.
  */
 import { SNAP_PRIORITY, type SnapType } from "@/lib/cad/snap-engine";
 
@@ -105,6 +115,40 @@ export const CAD_OSNAP_HUD_LABELS: Record<SnapType, string> = {
 /** Todos los modos, en el orden de desempate del motor. Para pintar la lista. */
 export const CAD_OSNAP_MODES: readonly SnapType[] = SNAP_PRIORITY;
 
+/**
+ * Lo que un preajuste fija. Lo demás (osnap maestro, ortho, polar y su
+ * incremento) sigue en la base y se guarda como siempre.
+ */
+export interface CadDraftPreset {
+  /** Modos encendidos. Los que falten cuentan como apagados. */
+  modes: Readonly<Partial<Record<SnapType, boolean>>>;
+  tracking: boolean;
+  dynamicInput: boolean;
+}
+
+/** Los catorce modos, encendidos sólo los que `on` marque. */
+function presetOsnapModes(
+  on: Readonly<Partial<Record<SnapType, boolean>>>,
+): Record<SnapType, boolean> {
+  const modes = {} as Record<SnapType, boolean>;
+  for (const mode of SNAP_PRIORITY) modes[mode] = on[mode] === true;
+  return modes;
+}
+
+/**
+ * Preajuste del modo Esencial: extremo y medio, nada más.
+ *
+ * `extension` imanta a la prolongación infinita de cualquier segmento cercano,
+ * `nearest` pega el cursor al segmento y OTRACK adquiría en cada movimiento:
+ * los tres «tiraban» del clic. Se apagan aquí, sin tocar el motor. POLAR queda
+ * en 45° a propósito: es predecible y no forma parte del preajuste.
+ */
+export const CAD_DRAFT_PRESET_ESENCIAL: CadDraftPreset = Object.freeze({
+  modes: Object.freeze(presetOsnapModes({ endpoint: true, midpoint: true })),
+  tracking: false,
+  dynamicInput: false,
+});
+
 const STORAGE_KEY = "valle_draft_settings";
 
 interface PersistedState {
@@ -128,6 +172,14 @@ export class CadDraftSettingsHost {
   // F12 existiera, así que el comportamiento de partida no cambia ni un píxel.
   private dynamicInputOn = true;
   private tracked: CadTrackingPoint[] = [];
+  /** Lo pedido con `setPreset`; el «Por defecto» de DSETTINGS vuelve a esto. */
+  private preset: CadDraftPreset | null = null;
+  /** Estado de sesión mientras hay preajuste. `save()` nunca lo mira. */
+  private overlay: {
+    modes: Record<SnapType, boolean>;
+    tracking: boolean;
+    dynamicInput: boolean;
+  } | null = null;
   private readonly listeners = new Set<() => void>();
   private snapshot: CadDraftSettingsSnapshot = this.build();
 
@@ -177,23 +229,38 @@ export class CadDraftSettingsHost {
     }
   }
 
+  /** Modos vigentes: el overlay si hay preajuste, la base si no. */
+  private get activeModes(): Record<SnapType, boolean> {
+    return this.overlay ? this.overlay.modes : this.modes;
+  }
+
   private build(): CadDraftSettingsSnapshot {
     return {
       osnap: this.osnapOn,
-      osnapModes: { ...this.modes },
+      osnapModes: { ...this.activeModes },
       ortho: this.orthoOn,
       polar: this.polarOn,
       polarIncrement: this.polarStep,
-      objectSnapTracking: this.trackingOn,
-      dynamicInput: this.dynamicInputOn,
+      objectSnapTracking: this.objectSnapTracking,
+      dynamicInput: this.dynamicInput,
       acquiredTrackingPoints: this.tracked.length,
     };
   }
 
+  /**
+   * Reconstruye la instantánea y avisa. NO guarda: el overlay y los puntos de
+   * OTRACK son de sesión, y escribirlos crearía `valle_draft_settings` en un
+   * navegador que nunca tocó un ajuste.
+   */
   private publish(): void {
     this.snapshot = this.build();
-    this.save();
     for (const listener of this.listeners) listener();
+  }
+
+  /** Cambio en la base: se guarda y se publica. */
+  private commit(): void {
+    this.save();
+    this.publish();
   }
 
   subscribe = (listener: () => void): (() => void) => {
@@ -222,15 +289,20 @@ export class CadDraftSettingsHost {
   }
 
   get objectSnapTracking(): boolean {
-    return this.trackingOn;
+    return this.overlay ? this.overlay.tracking : this.trackingOn;
   }
 
   get dynamicInput(): boolean {
-    return this.dynamicInputOn;
+    return this.overlay ? this.overlay.dynamicInput : this.dynamicInputOn;
   }
 
   get trackingPoints(): readonly CadTrackingPoint[] {
     return this.tracked;
+  }
+
+  /** Hay un preajuste puesto: lo que se lee y se conmuta es el overlay. */
+  get presetActive(): boolean {
+    return this.overlay !== null;
   }
 
   /**
@@ -249,7 +321,7 @@ export class CadDraftSettingsHost {
       for (const mode of SNAP_PRIORITY) forced[mode] = override.includes(mode);
       return forced;
     }
-    return { ...this.modes };
+    return { ...this.activeModes };
   }
 
   // --- mutaciones -----------------------------------------------------------
@@ -257,17 +329,27 @@ export class CadDraftSettingsHost {
   setOsnap = (value: boolean): void => {
     if (this.osnapOn === value) return;
     this.osnapOn = value;
-    this.publish();
+    this.commit();
   };
 
   toggleOsnap = (): void => {
     this.setOsnap(!this.osnapOn);
   };
 
+  /** Con preajuste cambia el overlay (sesión); sin él, la base (guardada). */
+  private replaceModes(next: Record<SnapType, boolean>): void {
+    if (this.overlay) {
+      this.overlay = { ...this.overlay, modes: next };
+      this.publish();
+      return;
+    }
+    this.modes = next;
+    this.commit();
+  }
+
   setOsnapMode = (mode: SnapType, value: boolean): void => {
-    if (this.modes[mode] === value) return;
-    this.modes = { ...this.modes, [mode]: value };
-    this.publish();
+    if (this.activeModes[mode] === value) return;
+    this.replaceModes({ ...this.activeModes, [mode]: value });
   };
 
   /**
@@ -278,20 +360,23 @@ export class CadDraftSettingsHost {
   setAllOsnapModes = (value: boolean): void => {
     const next = {} as Record<SnapType, boolean>;
     for (const mode of SNAP_PRIORITY) next[mode] = value;
-    this.modes = next;
-    this.publish();
+    this.replaceModes(next);
   };
 
-  /** Vuelve al reparto de fábrica: todo encendido salvo `grid`. */
+  /**
+   * «Por defecto»: el reparto de fábrica (todo salvo `grid`) o, con preajuste,
+   * el del preajuste. Quien está en Esencial pide volver a Esencial, no a Pro.
+   */
   resetOsnapModes = (): void => {
-    this.modes = defaultCadOsnapModes();
-    this.publish();
+    this.replaceModes(
+      this.preset ? presetOsnapModes(this.preset.modes) : defaultCadOsnapModes(),
+    );
   };
 
   setOrtho = (value: boolean): void => {
     if (this.orthoOn === value) return;
     this.orthoOn = value;
-    this.publish();
+    this.commit();
   };
 
   toggleOrtho = (): void => {
@@ -301,7 +386,7 @@ export class CadDraftSettingsHost {
   setPolar = (value: boolean): void => {
     if (this.polarOn === value) return;
     this.polarOn = value;
-    this.publish();
+    this.commit();
   };
 
   togglePolar = (): void => {
@@ -314,27 +399,61 @@ export class CadDraftSettingsHost {
     if (!Number.isFinite(degrees) || degrees <= 0) return;
     if (this.polarStep === degrees) return;
     this.polarStep = degrees;
-    this.publish();
+    this.commit();
   };
 
   setObjectSnapTracking = (value: boolean): void => {
-    if (this.trackingOn === value) return;
+    if (this.objectSnapTracking === value) return;
+    if (this.overlay) {
+      this.overlay = { ...this.overlay, tracking: value };
+      this.publish();
+      return;
+    }
     this.trackingOn = value;
-    this.publish();
+    this.commit();
   };
 
   toggleObjectSnapTracking = (): void => {
-    this.setObjectSnapTracking(!this.trackingOn);
+    this.setObjectSnapTracking(!this.objectSnapTracking);
   };
 
   setDynamicInput = (value: boolean): void => {
-    if (this.dynamicInputOn === value) return;
+    if (this.dynamicInput === value) return;
+    if (this.overlay) {
+      this.overlay = { ...this.overlay, dynamicInput: value };
+      this.publish();
+      return;
+    }
     this.dynamicInputOn = value;
-    this.publish();
+    this.commit();
   };
 
   toggleDynamicInput = (): void => {
-    this.setDynamicInput(!this.dynamicInputOn);
+    this.setDynamicInput(!this.dynamicInput);
+  };
+
+  /**
+   * Pone o quita el preajuste.
+   *
+   * Entrar copia el preajuste al overlay (nunca se muta el objeto recibido) y
+   * suelta los puntos adquiridos por OTRACK: guiar en Esencial con puntos que
+   * Pro adquirió sería un imán invisible. Salir descarta el overlay entero,
+   * conmutaciones de sesión incluidas, y la base aparece tal cual quedó. Volver
+   * a entrar da el preajuste limpio. Repetir el mismo objeto no publica nada:
+   * el efecto de React que lo aplica vuelve a correr sin que cambie el modo.
+   */
+  setPreset = (preset: CadDraftPreset | null): void => {
+    if (preset === this.preset) return;
+    if (preset) this.clearTrackingPoints();
+    this.preset = preset;
+    this.overlay = preset
+      ? {
+          modes: presetOsnapModes(preset.modes),
+          tracking: preset.tracking,
+          dynamicInput: preset.dynamicInput,
+        }
+      : null;
+    this.publish();
   };
 
   /**

@@ -22,7 +22,7 @@ const ALIASES: [string, RegExp][] = [
 
 for (const [alias, patron] of ALIASES) {
   test(`${alias} + Enter arranca ${patron.source}`, async ({ page }) => {
-    await page.goto("/demo");
+    await page.goto("/demo?cadUi=pro");
     await abrirPanelDerecho(page);
     await expect(page.getByTestId("cad-native-entity-list")).toBeVisible({
       timeout: 60_000,

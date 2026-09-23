@@ -71,4 +71,29 @@ assert.equal(
   "search ranks exact symbol match",
 );
 
+// --- Ctrl+K alcanza TODO el registro: el nombre canónico va primero -------------
+// Tanda 1 (modo Esencial): sin cinta, la paleta es el único camino a los 393
+// comandos. Cada nombre debe salir en primera posición (la coincidencia exacta
+// puntúa arriba y sobrevive al slice(0, 9) de CadCommandPalette.tsx).
+{
+  for (const command of CAD_COMMAND_REGISTRY_V2.all()) {
+    assert.equal(
+      searchCadPalette(command.name, entries)[0]?.id,
+      command.name,
+      `${command.name} no es el primer resultado al buscar su propio nombre`,
+    );
+  }
+}
+
+// --- el rótulo en español del botón también encuentra el comando ---------------
+// La barra Esencial dice «Deshacer», «Muro», «Borrar»: quien lo lee ahí y lo
+// teclea en Ctrl+K debe llegar a U/WALL/ERASE, no a DOOR («…en un muro») ni a
+// MREDO («Rehacer varios») por orden alfabético.
+{
+  assert.equal(searchCadPalette("Deshacer", entries)[0]?.id, "U", "Deshacer → U");
+  assert.equal(searchCadPalette("Rehacer", entries)[0]?.id, "REDO", "Rehacer → REDO");
+  assert.equal(searchCadPalette("Muro", entries)[0]?.id, "WALL", "Muro → WALL");
+  assert.equal(searchCadPalette("Borrar", entries)[0]?.id, "ERASE", "Borrar → ERASE");
+}
+
 console.log("cad command palette specs passed");

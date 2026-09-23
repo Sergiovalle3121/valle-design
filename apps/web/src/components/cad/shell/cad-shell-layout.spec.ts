@@ -145,4 +145,112 @@ for (const { leftOpen, rightOpen, ribbonCollapsed, umbral } of UMBRALES_1366) {
   assert.ok(box.width >= 0 && box.height >= 0 && box.ratio >= 0);
 }
 
+// ═══ MODO ESENCIAL: la barra única en la fila `ribbon` ══════════════════════
+//
+// El contrato de la Tanda 1 es ≥ 75 % de lienzo a 1440×769 y ≥ 70 % a
+// 1366×768 con los muelles plegados. Aquí se fija con números, antes de que
+// exista el DOM de la barra, cuánto puede medir esa fila para cumplirlo.
+let checks = 0;
+const ok = (condition: boolean, message: string) => {
+  assert.ok(condition, message);
+  checks += 1;
+};
+
+/**
+ * Misma cuenta que `cadShellCanvasBox`, pero con el alto de la fila `ribbon`
+ * como parámetro: sirve para preguntar «¿y si la barra midiera X?» SIN abrir
+ * la API pública a un número arbitrario. Se ata a la función real más abajo
+ * para que no pueda desviarse de ella en silencio.
+ */
+const lienzoConBarra = (barra: number, width: number, height: number) => {
+  const chrome =
+    CAD_SHELL_METRICS.appBar + barra + CAD_SHELL_METRICS.commandRow + CAD_SHELL_METRICS.statusRow;
+  const ancho = width - 2 * CAD_SHELL_METRICS.rail;
+  return (ancho * (height - chrome)) / (width * height);
+};
+
+// ── La constante es el contrato ─────────────────────────────────────────────
+ok(CAD_SHELL_METRICS.essentialBar === 56, `essentialBar debe valer 56, no ${CAD_SHELL_METRICS.essentialBar}`);
+
+// ── 1440×769, muelles plegados, barra Esencial: ≥ 75 % ──────────────────────
+{
+  const box = cadShellCanvasBox({
+    width: 1440,
+    height: 769,
+    leftOpen: false,
+    rightOpen: false,
+    ribbonCollapsed: false,
+    essentialBar: true,
+  });
+  ok(box.ratio >= 0.75, `muelles plegados + barra Esencial a 1440×769: ${box.ratio} < 0.75`);
+  // La función auxiliar reproduce la cuenta real: si alguien cambia la fórmula
+  // de `cadShellCanvasBox`, el caso del techo de abajo deja de ser fiable y
+  // esta línea lo dice.
+  ok(
+    lienzoConBarra(CAD_SHELL_METRICS.essentialBar, 1440, 769) === box.ratio,
+    "la función auxiliar del spec calca a cadShellCanvasBox con la barra Esencial",
+  );
+  // En Esencial la cinta está OCULTA, no minimizada: `ribbonCollapsed` no
+  // cambia el resultado.
+  const plegada = cadShellCanvasBox({
+    width: 1440,
+    height: 769,
+    leftOpen: false,
+    rightOpen: false,
+    ribbonCollapsed: true,
+    essentialBar: true,
+  });
+  ok(plegada.ratio === box.ratio, "con la barra Esencial, ribbonCollapsed no entra en la cuenta");
+}
+
+// ── 1366×768, muelles plegados, barra Esencial: ≥ 70 % ──────────────────────
+{
+  const box = cadShellCanvasBox({
+    width: 1366,
+    height: 768,
+    leftOpen: false,
+    rightOpen: false,
+    ribbonCollapsed: false,
+    essentialBar: true,
+  });
+  ok(box.ratio >= 0.7, `muelles plegados + barra Esencial a 1366×768: ${box.ratio} < 0.70`);
+}
+
+// ── El techo: por qué son 56 y no «lo que pida el diseño» ───────────────────
+// A 1440×769, con 71 px en la fila `ribbon` el lienzo cae por debajo del 75 %.
+// Queda escrito con números para que nadie suba la barra «un poco» sin ver
+// qué contrato rompe: el techo teórico es 70 px, y 56 deja margen.
+{
+  const conSetentaYUno = lienzoConBarra(71, 1440, 769);
+  ok(conSetentaYUno < 0.75, `con 71 px la barra ya rompe el 75 % a 1440×769: ${conSetentaYUno}`);
+  const conSetenta = lienzoConBarra(70, 1440, 769);
+  ok(conSetenta >= 0.75, `70 px es el último alto que cumple a 1440×769: ${conSetenta}`);
+}
+
+// ── Sin `essentialBar` la cuenta es la de siempre, byte a byte ──────────────
+{
+  const sinCampo = cadShellCanvasBox({
+    width: 1440,
+    height: 825,
+    leftOpen: false,
+    rightOpen: false,
+    ribbonCollapsed: false,
+  });
+  const explicitoFalso = cadShellCanvasBox({
+    width: 1440,
+    height: 825,
+    leftOpen: false,
+    rightOpen: false,
+    ribbonCollapsed: false,
+    essentialBar: false,
+  });
+  ok(
+    sinCampo.width === explicitoFalso.width &&
+      sinCampo.height === explicitoFalso.height &&
+      sinCampo.ratio === explicitoFalso.ratio,
+    "omitir essentialBar equivale a essentialBar=false: los casos de Pro no cambian",
+  );
+}
+
+console.log(`cad-shell-layout (barra Esencial): ${checks}/${checks} comprobaciones verdes`);
 console.log("cad-shell-layout.spec.ts OK");

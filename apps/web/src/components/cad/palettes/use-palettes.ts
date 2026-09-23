@@ -12,9 +12,11 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { registerCadUiHandler } from "./palette-command-bus";
 import {
+  CAD_DRAFT_PRESET_ESENCIAL,
   CadDraftSettingsHost,
   type CadDraftSettingsSnapshot,
 } from "./draft-settings-host";
+import { useCadUiMode } from "@/components/cad/shell/ui-mode-host";
 import { CadPaletteHost, type CadPaletteSnapshot } from "./palette-host";
 import {
   CadLayerManagerHost,
@@ -26,7 +28,16 @@ import {
 } from "./style-manager-host";
 
 export function useCadDraftSettingsHost(): CadDraftSettingsHost {
-  return useMemo(() => new CadDraftSettingsHost(), []);
+  const host = useMemo(() => new CadDraftSettingsHost(), []);
+  // PRESET DEL MODO ESENCIAL, SIN ESCRIBIR `valle_draft_settings`: extremo y
+  // punto medio encendidos, rastreo (OTRACK) y entrada dinámica apagados. Es
+  // un recubrimiento en memoria sobre la base guardada: al volver a Pro se
+  // retira y la persona recupera sus ajustes de siempre, intactos.
+  const mode = useCadUiMode();
+  useEffect(() => {
+    host.setPreset(mode === "esencial" ? CAD_DRAFT_PRESET_ESENCIAL : null);
+  }, [host, mode]);
+  return host;
 }
 
 /**

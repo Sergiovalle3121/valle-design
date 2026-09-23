@@ -52,8 +52,7 @@ import { createPortal } from "react-dom";
 import { ChevronDown, ChevronUp, History as HistoryIcon } from "lucide-react";
 import type { CadPrompt } from "@/lib/cad/engine/command-types";
 import { formatCadKeyword, formatCadPrompt } from "@/lib/cad/engine/prompt";
-import { buildCadPaletteEntries } from "@/lib/cad/command-palette";
-import { CAD_COMMAND_ALIASES } from "@/lib/cad/engine/alias-table";
+import { formatCadPromptFor, type CadPromptWording } from "@/lib/cad/engine/prompt-plain";
 // Lectura DIRECTA del catálogo, no `cadCommandIcon()`: una llamada a función
 // que DEVUELVE un componente dispara `react-hooks/static-components` («se
 // crea un componente durante el render») aunque el catálogo sea estático —
@@ -70,61 +69,7 @@ import {
 // comentario junto a `{menu && ...}` más abajo — para mantener este archivo
 // bajo el presupuesto de 800 líneas (`check:monolith-budget`).
 import { CadCommandContextMenu } from "./CadCommandContextMenu";
-
-/**
- * T-74(c): «la línea de comandos no sugiere nada mientras escribo, y el
- * buscador ya existe» — el buscador es Ctrl+K (`command-palette.ts`,
- * indexado ahí mismo por el monolito), así que esto reutiliza el MISMO
- * registro estático en vez de inventar uno nuevo que pudiera divergir del
- * de la paleta. Es una excepción puntual, documentada, a «no conoce el
- * motor»: lo que se lee es el CATÁLOGO estático de nombres (mismo dato que
- * ya usa Ctrl+K), nunca el documento ni una instancia del motor en marcha.
- * Ya vive en el bundle del estudio de todos modos —el propio Ctrl+K lo
- * importa de forma estática—, así que no hay nada nuevo que pagar en cada
- * visita.
- */
-const COMANDOS_SUGERIBLES = buildCadPaletteEntries()
-  .filter((entry) => entry.kind === "engine")
-  .map((entry) => ({
-    nombre: entry.label,
-    descripcion: entry.description,
-    // El PRIMER alias del manifiesto («L» para LINE, «REC» antes que
-    // «RECTANGLE») — la misma memoria muscular que ya resuelve la tabla de
-    // alias, mostrada aquí para que la sugerencia enseñe el atajo, no sólo
-    // el nombre largo. AutoCAD hace exactamente esto en su autocompletado.
-    alias: entry.shortcut,
-  }));
-
-function sugerirComandos(
-  valorCrudo: string,
-): readonly { nombre: string; descripcion: string; alias?: string }[] {
-  const valor = valorCrudo.trim().toUpperCase();
-  if (!valor) return [];
-  // La coincidencia EXACTA de alias va primero: teclear «L» debe mostrar
-  // «LINE» como primera sugerencia, no como la séptima (cortada por slice).
-  const aliasResuelto = CAD_COMMAND_ALIASES[valor];
-  const coincidencias = COMANDOS_SUGERIBLES.filter((c) => c.nombre.startsWith(valor));
-  if (aliasResuelto && coincidencias.every((c) => c.nombre !== aliasResuelto)) {
-    const destino = COMANDOS_SUGERIBLES.find((c) => c.nombre === aliasResuelto);
-    if (destino) return [destino, ...coincidencias].slice(0, 6);
-  }
-  // El alias resuelto ya está en la lista: muévelo al frente.
-  if (aliasResuelto) {
-    coincidencias.sort((a, b) => {
-      if (a.nombre === aliasResuelto) return -1;
-      if (b.nombre === aliasResuelto) return 1;
-      return 0;
-    });
-  }
-  // Deduplicar por nombre: el manifiesto y la paleta pueden producir
-  // entradas con el mismo label.
-  const vistos = new Set<string>();
-  return coincidencias.filter((c) => {
-    if (vistos.has(c.nombre)) return false;
-    vistos.add(c.nombre);
-    return true;
-  }).slice(0, 6);
-}
+import { sugerirComandos } from "./command-suggestions";
 
 export interface CadCommandLineEntry {
   /**
@@ -157,6 +102,7 @@ export interface CadCommandLineProps {
    * comandos de AutoCAD.
    */
   activeCommand?: string | null;
+  wording?: CadPromptWording; // modo de interfaz: "pro" (gramática del motor, controles de experto) o "esencial" (llana, sin ellos)
   disabled?: boolean;
   onSubmit(value: string): void;
   /** Pulsar una opción equivale a teclear su atajo. */
@@ -204,6 +150,7 @@ export function CadCommandLine({
   history,
   lastCommand,
   activeCommand,
+  wording = "pro",
   disabled,
   onSubmit,
   onKeyword,
@@ -234,6 +181,21 @@ export function CadCommandLine({
   const localInputRef = useRef<HTMLInputElement | null>(null);
   const inputRef = externalInputRef ?? localInputRef;
   const logRef = useRef<HTMLDivElement | null>(null);
+  /**
+   * LA ÚLTIMA RESPUESTA, a la vista.
+   *
+   * El diálogo nace plegado a 0 px (ver la cabecera), así que todo lo que el
+   * programa contesta —«Rectángulo · 23.60 m²», el resultado de DIST, el motivo
+   * de un rechazo— caía dentro de un registro invisible. Para quien dibuja eso
+   * es indistinguible de que no pasara nada, y es la mitad de «el ribbon no
+   * sirve». AutoCAD, con su ventana de una línea, enseña siempre el último
+   * renglón; aquí se enseña al final del MISMO renglón que ya existe, sin robar
+   * un píxel de alto al lienzo y sin desplegar nada.
+   */
+  const dichoPorElPrograma = history.filter(
+    (entry) => entry.level !== "input" && entry.text.trim().length > 0,
+  );
+  const ultimaRespuesta = dichoPorElPrograma.at(-1)?.text.trim() ?? "";
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const setLogExpanded = useCallback((next: boolean) => {
@@ -439,13 +401,9 @@ export function CadCommandLine({
     ],
   );
 
-  const line = prompt ? formatCadPrompt(prompt) : "";
-  const suggestionListId = "cad-command-line-suggestions";
-  const historyListId = "cad-command-history";
-  const logId = "cad-command-line-log";
-  const idlePlaceholder = lastCommand
-    ? `Comando: Espacio repite ${lastCommand}`
-    : "Comando: escribe una orden (L, C, TR, MI…)";
+  const line = prompt ? formatCadPromptFor(prompt, wording, activeCommand ?? null) : "";
+  const suggestionListId = "cad-command-line-suggestions", historyListId = "cad-command-history", logId = "cad-command-line-log";
+  const idlePlaceholder = lastCommand ? `Comando: Espacio repite ${lastCommand}` : "Comando: escribe una orden (L, C, TR, MI…)";
   // T-«comandos vivos»: qué orden está activa, SIN tener que leer el prompt
   // entero para adivinarlo — «Precise el punto siguiente» no dice si es
   // LINE o PLINE; este rótulo sí.
@@ -497,6 +455,7 @@ export function CadCommandLine({
         {prompt && (
           <span
             data-testid="cad-command-prompt"
+            title={formatCadPrompt(prompt)}
             className="min-w-0 shrink truncate font-mono text-foreground"
           >
             {line}
@@ -542,8 +501,19 @@ export function CadCommandLine({
           placeholder={prompt ? "coordenada, distancia u opción" : idlePlaceholder}
           className="min-w-[9rem] flex-1 bg-transparent font-mono text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring placeholder:text-muted-foreground"
         />
+        {!logExpanded && ultimaRespuesta ? (
+          <span
+            data-testid="cad-command-last-answer"
+            // `title` completo: el renglón recorta, y una medida recortada sin
+            // forma de leerla entera sería peor que no enseñarla.
+            title={ultimaRespuesta}
+            className="hidden min-w-0 max-w-[28rem] shrink truncate text-right font-mono type-micro text-muted-foreground md:block"
+          >
+            {ultimaRespuesta}
+          </span>
+        ) : null}
         <button
-          type="button"
+          type="button" hidden={wording === "esencial"}
           data-testid="cad-command-history-toggle"
           onClick={() => setHistoryOpen((open) => !open)}
           disabled={typed.length === 0}
@@ -556,7 +526,7 @@ export function CadCommandLine({
           <HistoryIcon aria-hidden="true" className="h-3.5 w-3.5" />
         </button>
         <button
-          type="button"
+          type="button" hidden={wording === "esencial"}
           data-testid="cad-command-log-toggle"
           onClick={() => setLogExpanded(toggleCommandLogExpanded(logExpanded))}
           aria-label={logExpanded ? "Ocultar el registro de comandos (F2)" : "Mostrar el registro de comandos (F2)"}

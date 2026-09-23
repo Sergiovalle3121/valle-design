@@ -39,7 +39,7 @@ test.describe('Demostración sin cuenta', () => {
     page,
   }) => {
     const documentRequests = collectDocumentRequests(page);
-    await page.goto('/demo');
+    await page.goto('/demo?cadUi=pro');
 
     // El editor real, con las entidades nativas de la plantilla en su panel.
     // El TOTAL se lee del encabezado del panel: la lista se trunca («y 2 más»)

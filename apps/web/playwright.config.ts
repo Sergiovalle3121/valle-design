@@ -60,6 +60,27 @@ export default defineConfig({
 
   use: {
     baseURL: BASE_URL,
+    // MODO PRO PARA TODA LA SUITE (Tanda 1 «Modo Esencial»). Desde el modo
+    // Esencial, un navegador nuevo abre el estudio con UNA barra de doce
+    // herramientas; la cinta, la paleta flotante y los paneles viven detrás
+    // del interruptor. Los ~200 specs que miden la interfaz COMPLETA —los
+    // herméticos y los que registran cuentas reales contra la API— siguen
+    // midiéndola porque el contexto arranca con la preferencia del navegador
+    // en «pro», la misma clave y el mismo valor que escribe el interruptor
+    // del producto. No es una puerta trasera: es el estado de quien ya eligió.
+    // Los cinco goldens del propio modo Esencial (227-231) la retiran en su
+    // primera navegación para medir el arranque de verdad.
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: new URL(BASE_URL).origin,
+          localStorage: [
+            { name: "valle:cad:ui-mode:v1", value: JSON.stringify({ mode: "pro", v: 1 }) },
+          ],
+        },
+      ],
+    },
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "off",

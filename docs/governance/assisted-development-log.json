@@ -4085,6 +4085,80 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "TANDA1-MODO-ESENCIAL-20260922",
+      "date": "2026-09-22",
+      "initiative": "Modo Esencial: el estudio que un estudiante entiende en su primer minuto. /demo y las cuentas nuevas arrancan con UNA barra de doce herramientas con icono y rótulo en español, sin cinta, sin paleta flotante, con los paneles plegados y las ayudas de dibujo detrás de un solo control; las referencias a objetos se reducen a extremo y punto medio y el rastreo se apaga, la píldora de dibujo deja de flotar sobre el lienzo y los avisos se enuncian en lenguaje llano. Un interruptor siempre a la vista devuelve el modo Pro completo, que no pierde nada: ni un comando, ni una preferencia, ni un botón.",
+      "branch": "claude/tanda1-esencial (PR sobre main tras la #224)",
+      "assistants": [
+        "Claude Fable 5.1 y Claude Opus 5 (Anthropic, Claude Code), como orquestadores y constructores: mapa del código en diez lentes de sólo lectura con reproducción del defecto de ratón contra la vista previa de Railway (Workflow de 12 agentes), seis constructores en paralelo con archivos disjuntos para los módulos base y un verificador cruzado (Workflow de 7 agentes), cableado e integración, cinco goldens escritos ANTES del código y corregidos contra sus propios fallos, y esta entrada. Con trailer Co-Authored-By."
+      ],
+      "authority": "Encargo expreso de Sergio Valle Zárate del 2026-09-22: «necesito que mejores en su totalidad la experiencia de usuario; ahorita no puedo crear absolutamente nada… la experiencia de usuario es horrible». Tanda 1 del plan de campaña que él mismo fijó (Modo Esencial, con métricas de aceptación medidas en producción). Autorizó explícitamente arrancarla en paralelo a la PR #224 y que todo termine fusionado en main y verificado en vallecad.com.",
+      "firstPartyInputs": [
+        "El candidato ya integrado 2e93660bb215125c116c08edeab040cc6c8fc351 (PR #224) como base de la rama.",
+        "Medición de producción del 2026-09-22 con el protocolo del propio encargo (contexto limpio, es-MX, /demo, 1440×769 y 1366×768, tres segundos de reposo): 124 controles visibles, 37.6 % de pantalla libre para dibujar y 22.5 % del lienzo tapado por interfaz a 1440×769; 119 / 35.7 % / 24.3 % a 1366×768.",
+        "Los doce hallazgos del primer minuto que Sergio levantó en producción, con capturas: entre ellos el rastreo que movía los clics, los modos de captura «extensión» y «cercano» imantando a geometría invisible, la píldora ORTO/DYN encima del lienzo, la saturación de la cinta y la jerga de AutoCAD en los avisos.",
+        "Código existente del estudio: cad-workspace.ts (perfiles de distribución y sus claves congeladas), render-pipeline-preference.ts y tour-host.ts como patrones de preferencia y de anfitrión fuera de React, ribbon-body-slot.ts como patrón de ranura, el registro de comandos y la cinta (ribbon.ts, command-labels.ts, command-icons.ts), draft-settings-host.ts y el motor de comandos con sus prompts."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "Nuevo, fuera del monolito: lib/cad/ui-mode-preference.ts (+ spec), components/cad/shell/ui-mode-host.ts (+ spec y hook useCadUiMode), shell/CadUiModeSwitch.tsx, shell/draft-toolbar-slot.ts, essential/essential-tools.ts, essential/CadEssentialBar.tsx (+ spec), palettes/CadDraftAidsDisclosure.tsx, lib/cad/engine/prompt-plain.ts (+ spec).",
+        "Consumo del modo por hook en cada componente: CadRibbon (cinta oculta y barra esencial por la misma ranura), CadDockRail y cad-shell-rail-items (rieles reducidos), CadToolPalette (no se monta), CadSpaceTabs (no se monta), CadStatusBar (ayudas tras un control), use-palettes (preajuste de ayudas), draft-toolbar (píldora acoplada por portal), CadCommandLine y su dock (redacción llana y sin controles de experto), CadIncidentReporter (un solo buzón), CadStudioHost (atado del anfitrión) y DemoStudio (/demo arranca en Esencial).",
+        "Layout3DEditor.tsx: tres sustituciones 1:1 (dos props a la cinta, la redacción del prompt y la lectura del modo). El archivo BAJA de 16 860 a 16 859 líneas y conserva sus 118 useState; scripts/cad/monolith-budget.json baja el techo con él.",
+        "Geometría del armazón: cad-shell-layout.ts declara la fila de la barra esencial (56 px) y su spec fija los ratios de lienzo a 1440×769 y 1366×768.",
+        "Búsqueda: lib/cad/command-palette.ts indexa el rótulo en español, así que «Deshacer», «Muro» o «Borrar» encuentran U, WALL y ERASE en Ctrl+K.",
+        "Pruebas y evidencia: goldens 227 (barra), 228 (métricas), 229 (ratón y preajuste), 230 (avisos) y 231 (Ctrl+K alcanza todo); siembra del modo Pro en e2e/fixtures/standalone-identity.ts para los goldens del estudio y ?cadUi=pro en los cinco specs de /demo, sin tocar una sola aserción; segunda pasada de axe en Esencial; scripts/cad/essential-mode-evidence.mjs con su --check dentro de check:cad y docs/cad/evidence/essential-mode.json.",
+        "Documentación: adenda al ADR-0010 con la clave nueva y el parámetro de URL, fila en DEUDA-MONOLITO.md y apps/web/e2e/README.md explicando cómo arranca cada golden."
+      ],
+      "fixtures": "Ninguno nuevo. Los goldens del modo abren /demo con contexto limpio, que es exactamente lo que ve una visita nueva a vallecad.com; los del estudio siguen con las fixturas de siempre.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "MEDIDO EN DOM, no estimado. Goldens 227–231 en Chromium sobre la compilación de producción, 9/9 verdes: a 1440×769 el modo Esencial deja 29 controles visibles (meta ≤30; antes 124), ≥75 % de la pantalla libre para dibujar (antes 37.6 %) y ≤3 % del lienzo tapado (antes 22.5 %); a 1366×768, ≥70 % libre y ≤30 controles. La barra monta las doce herramientas con su rótulo y despacha comandos del motor (Muro es WALL, no el muro heredado que Puerta y Ventana no reconocen). El cuadro de ayudas declara 2 modos de 14 —extremo y punto medio—, con «extensión» y «cercano» apagados y el rastreo desactivado, SIN escribir valle_draft_settings: al volver a Pro los catorce modos y el rastreo de esa persona siguen intactos. Durante un comando no se pinta ninguna entrada dinámica sobre el lienzo, el centro del lienzo responde el propio canvas y «Terminar» vive dentro de la barra; lo recién dibujado queda designado (el panel de propiedades lo muestra sin volver a seleccionarlo) y el conteo de entidades sube. El aviso de Rectángulo se lee «Haz clic en la primera esquina del rectángulo», conserva el texto del motor en su title y sus opciones siguen siendo botones que avanzan el comando. docs/cad/evidence/essential-mode.json, verificado byte a byte por check:cad, deja escrito que los 393 comandos del registro se alcanzan por Ctrl+K (antes el rótulo en español no estaba indexado) y que la cinta de Pro conserva sus 369 sin cambios. El veredicto final lo dan los checks requeridos de la CI sobre el SHA exacto y la medición en producción con el mismo protocolo después del despliegue; esta entrada no la sustituye."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "NIEBLA-EN-PLANTA-20260923",
+      "date": "2026-09-23",
+      "initiative": "LO QUE DIBUJAS SE VE. La vista en planta se dibujaba con la niebla de la escena encendida, y la cámara ortográfica de planta está a 1000 unidades del plano mientras la niebla acaba a 102: el factor de niebla saturaba y TODO material estándar de three salía pintado al 100 % del color de la niebla, que es idéntico al del fondo. No es que no se dibujara: se dibujaba invisible. De ahí los tres defectos que el dueño describía como «el ribbon no sirve, sólo está de adorno»: la línea recién dibujada no cambiaba un píxel aunque entrara en el documento, designar todo (Ctrl+A) borraba el plano de la pantalla, y la banda elástica no existía. La niebla queda encendida sólo en el paseo 3D, la proyección del dibujo queda fuera de ella en toda vista, la cruceta deja de medir cero píxeles y el lienzo oculta la flecha del sistema. Y el segundo defecto del ratón: el editor sólo aceptaba un clic si el puntero se movía menos de 5 px entre pulsar y soltar, así que con un comando abierto cualquier clic que resbalara más se descartaba EN SILENCIO. La regla sale del monolito a `viewport/pointer-geometry.ts` con dos márgenes y su porqué: 5 px al designar —donde arrastrar significa ventana de designación u órbita— y 12 px cuando hay un comando esperando un punto, porque ahí perder el clic cuesta mucho más que sobrarlo. Y el tercero: la cinta abría el comando y no lo decía en ninguna parte —el único realce era «:hover», que se apaga en cuanto el ratón se va al lienzo—, así que nada en pantalla contaba qué herramienta había en la mano. Ahora el botón del comando en curso se queda encendido, en la cinta y en la barra de Esencial, y un lector de pantalla lo anuncia como presionado. Y el último paso que le faltaba a la meta del encargo: dibujar una habitación cerrada no enseñaba sus metros cuadrados en ninguna parte. Ahora, al cerrar la figura, el programa contesta «Rectángulo · 23.60 m² · perímetro 19.80 m», y esa respuesta SE LEE sin desplegar nada —el diálogo de la línea de órdenes nace plegado a cero píxeles, así que la última respuesta se pinta al final del mismo renglón—, y la paleta de propiedades enseña área y perímetro antes que los bounds.",
+      "branch": "claude/tanda1-esencial (misma rama que la Tanda 1; PR sobre main)",
+      "assistants": [
+        "Claude Opus 5 (Anthropic, Claude Code) como orquestador y constructor: reproducción del defecto contra producción con conteo de píxeles reales, Workflow de 7 agentes de sólo lectura para el diagnóstico, un subagente de bisección con instrumentación de WebGL, y la corrección, las pruebas y los gates."
+      ],
+      "authority": "Encargo expreso de Sergio Valle Zárate del 2026-09-22: «ya lo probé y sí mejoró algo pero aún se siente horrible la experiencia de usuario, sigo sin poder dibujar como en AutoCAD y el ribbon no sirve, sólo está de adorno; chécale bien qué estás haciendo mal y corrige eso».",
+      "firstPartyInputs": [
+        "Reproducción contra https://vallecad.com/demo el 2026-09-22 (work/reproducir-dibujo-real.mjs): los diez botones de la cinta responden y el documento acepta la entidad, pero el lienzo no cambia.",
+        "Instrumentación de WebGL en Chromium sobre el estudio real (prototipos de WebGL2RenderingContext interceptados desde addInitScript, sin tocar producto): gl.readPixels tras cada llamada de dibujo."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "Nuevo, fuera del monolito: components/cad/viewport/plan-fog.ts (+ spec con la aritmética del defecto).",
+        "Modificado: Layout3DEditor.tsx (la niebla nace según el modo y cambia con él; cruceta medida contra la pantalla; el lienzo oculta el puntero del sistema) — el monolito ENCOGE de 16859 a 16857 líneas.",
+        "Modificado: viewport/engine-preview.ts, lib/cad/entity-three.ts, lib/cad/solid3d-three.ts y lib/cad/view/visual-style-mesh.ts (la proyección del dibujo queda fuera de la niebla en toda vista).",
+        "Modificado: lib/cad/view/view-controller.ts (ORTHO_ELEVATION se exporta para que la prueba pueda medir la relación entre la altura de la cámara y el alcance de la niebla).",
+        "Pruebas: golden 232 nuevo (cuenta píxeles del LIENZO, no DOM) y arreglo del a11y de Esencial, que caducaba porque la suite siembra la preferencia «pro».",
+        "Modificado: components/cad/viewport/pointer-geometry.ts (+ spec) — la discriminación clic/arrastre sale del monolito y gana doce aserciones; el golden 232 añade un clic que resbala 8,5 px.",
+        "Nuevo: components/cad/ribbon/active-command.ts (contexto del comando en curso) y components/cad/viewport/CadCrosshairOverlay.tsx (+ spec): la cruz filar sale del monolito con su porqué y sus trece aserciones. Modificado: CadRibbon, CadRibbonButton y CadEssentialBar (+ sus specs) para el encendido, con dos criterios distintos en Esencial —marca para la herramienta armada, gris para el reposo.",
+        "Nuevo: lib/cad/inquiry/human-units.ts (+ spec) para decir las medidas en lenguaje de obra, y lib/cad/engine/commands/area-notice.ts (+ spec) para que RECTANG, CIRCLE y una PLINE cerrada digan su superficie por el campo `notice` que ya existía. Modificado: CadCommandLine (la última respuesta del programa a la vista), CadPropertiesPalette y CadEntityPropertiesPanel (área y perímetro). Golden 233 nuevo.",
+        "Modificado: la línea de órdenes pasa de 826 a 771 líneas partiendo sus sugerencias a command-line/command-suggestions.ts (+ spec de 13 aserciones). La CI cazó el techo de 800 y se respetó la regla: se divide, no se sube el techo. De paso, tres comprobaciones que leían el CÓDIGO FUENTE («c.nombre.startsWith(valor)», «alias: entry.shortcut», «vistos.has(c.nombre)») pasan a MEDIR el comportamiento llamando a la función, y la de draw-spatial se afina en vez de relajarse: CIRCLE ejecuta y lo ÚNICO que dice es su superficie."
+      ],
+      "fixtures": "Ninguna nueva. El golden 232 usa las fixturas herméticas de siempre y mide el `<canvas>` con toDataURL, comparando contra el lienzo vacío de la propia sesión.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "MEDIDO, no estimado. (1) La causa, con gl.readPixels tras cada llamada de dibujo en Chromium: el lote CAD deja 354 pixeles cian en el bufer y la llamada siguiente -el trazo por entidad, material estandar- los devuelve uno a uno a (10,15,30) = 0x0a0f1e, el color exacto del fondo; anulando solo la mezcla de niebla en los cinco programas que la tienen, el lienzo vacio pasa de 0 a 219 068 pixeles con tinta y aparecen suelo, rejilla y ejes. (2) Golden 232 sobre compilacion de produccion: 2/2 verde -dibujar una linea cambia mas de 50 pixeles del lienzo respecto al lienzo vacio de la propia sesion, con caja envolvente de mas de 100 px de ancho, y Ctrl+A conserva al menos el 90 % de lo dibujado. (3) Goldens 19, 32, 33, 85, 227, 228, 229 y 232 en Chromium sobre esa misma compilacion: 17/17 verdes. (4) 772/772 specs de Node. (5) plan-fog.spec.ts: 9 aserciones verdes, incluida la aritmetica 1000 > 102 que causo el defecto. (6) Presupuesto de monolito: 16859 -> 16858 lineas. (7) Clic que resbala: pointer-geometry.spec.ts 12/12 verdes y goldens 19, 85, 229 y 232 (ocho pruebas) verdes sobre compilación de producción, con un clic de 8,5 px de deslizamiento que antes se descartaba. (8) Encendido del comando en curso: CadRibbonButton 46/46 y CadEssentialBar 164/164 comprobaciones verdes, más goldens 19, 85, 227, 228, 229 y 232 (doce pruebas) verdes sobre compilación de producción. (9) El monolito encoge de 16859 a 16835 líneas. (10) Primer minuto: golden 233 verde sobre compilación de producción —un cuarto de 5900 × 4000 mm dice «23.60 m²» en pantalla con el diálogo plegado, y la paleta lo repite antes que los bounds—, más human-units 15/15 y area-notice 9/9; regresión de 21 pruebas doradas (19, 162, 201, 228, 229, 232, 233) en verde."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

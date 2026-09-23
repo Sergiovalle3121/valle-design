@@ -246,7 +246,12 @@ async function huellaDelLienzo(page: Page): Promise<string> {
  * esta función, sobre la página ya cargada.
  */
 async function abrirEstudio(page: Page, documentId: string): Promise<void> {
-  const destino = `/studio/${documentId}`;
+  // `?cadUi=pro` NO es un atajo: este barrido audita la superficie PROFESIONAL
+  // completa —su inventario de pulsables se levantó contra ella— y una cuenta
+  // recién creada arranca en Modo Esencial desde la Tanda 1. Sin pedir Pro, el
+  // barrido recorrería doce herramientas en vez de la cinta entera y daría por
+  // buena una superficie que no ha mirado.
+  const destino = `/studio/${documentId}?cadUi=pro`;
   await page.waitForLoadState("domcontentloaded").catch(() => undefined);
   try {
     await page.goto(destino);

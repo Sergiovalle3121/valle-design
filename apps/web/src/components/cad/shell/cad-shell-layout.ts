@@ -30,6 +30,14 @@ export const CAD_SHELL_METRICS = {
    * (pestañas + cuerpo = 104 px con la cinta desplegada).
    */
   ribbonTabs: 32,
+  /**
+   * Barra única del modo Esencial: ocupa la fila `ribbon` del armazón EN VEZ
+   * del cuerpo de la cinta (72 px). Son 56 y no menos porque un botón con
+   * icono y rótulo en una sola fila necesita 44 px táctiles más aire; y no
+   * más porque a 1440×769 el lienzo baja del 75 % en cuanto la barra pasa de
+   * 70 px (`cad-shell-layout.spec.ts` documenta ese techo con números).
+   */
+  essentialBar: 56,
   /** Línea de comandos acoplada, en reposo (una sola línea). */
   commandRow: 26,
   /** Línea de comandos con el historial desplegado. */
@@ -55,6 +63,12 @@ export interface CadShellCanvasBoxInput {
   rightOpen: boolean;
   /** La cinta está minimizada (0 px) en vez de desplegada (72 px de cuerpo). */
   ribbonCollapsed: boolean;
+  /**
+   * Modo Esencial: la fila `ribbon` la ocupa la barra única (56 px) y
+   * `ribbonCollapsed` deja de contar — la cinta está oculta, no minimizada.
+   * Opcional para que quien ya llamaba con cuatro campos no cambie ni un byte.
+   */
+  essentialBar?: boolean;
 }
 
 export interface CadShellCanvasBox {
@@ -83,10 +97,18 @@ export function cadShellCanvasBox({
   leftOpen,
   rightOpen,
   ribbonCollapsed,
+  essentialBar = false,
 }: CadShellCanvasBoxInput): CadShellCanvasBox {
+  // En Esencial la fila `ribbon` mide siempre lo de la barra única: no hay
+  // cinta que minimizar, así que `ribbonCollapsed` no entra en la cuenta.
+  const ribbonRowHeight = essentialBar
+    ? CAD_SHELL_METRICS.essentialBar
+    : ribbonCollapsed
+      ? 0
+      : CAD_SHELL_METRICS.ribbonBody;
   const chromeHeight =
     CAD_SHELL_METRICS.appBar +
-    (ribbonCollapsed ? 0 : CAD_SHELL_METRICS.ribbonBody) +
+    ribbonRowHeight +
     CAD_SHELL_METRICS.commandRow +
     CAD_SHELL_METRICS.statusRow;
   const leftWidth = CAD_SHELL_METRICS.rail + (leftOpen ? CAD_SHELL_METRICS.panel : 0);

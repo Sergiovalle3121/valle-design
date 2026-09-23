@@ -1,0 +1,72 @@
+{
+  "$schema": "urn:valle-design:schema:essential-mode:v1",
+  "schemaVersion": 1,
+  "generatedBy": "scripts/cad/essential-mode-evidence.mjs --write",
+  "barraEsencial": [
+    {
+      "id": "select",
+      "rotulo": "Seleccionar",
+      "comando": null
+    },
+    {
+      "id": "wall",
+      "rotulo": "Muro",
+      "comando": "WALL"
+    },
+    {
+      "id": "door",
+      "rotulo": "Puerta",
+      "comando": "DOOR"
+    },
+    {
+      "id": "window",
+      "rotulo": "Ventana",
+      "comando": "WINDOW"
+    },
+    {
+      "id": "line",
+      "rotulo": "Línea",
+      "comando": "LINE"
+    },
+    {
+      "id": "rect",
+      "rotulo": "Rectángulo",
+      "comando": "RECTANG"
+    },
+    {
+      "id": "circle",
+      "rotulo": "Círculo",
+      "comando": "CIRCLE"
+    },
+    {
+      "id": "text",
+      "rotulo": "Texto",
+      "comando": "TEXT"
+    },
+    {
+      "id": "dim",
+      "rotulo": "Cota",
+      "comando": "DIMLINEAR"
+    },
+    {
+      "id": "erase",
+      "rotulo": "Borrar",
+      "comando": "ERASE"
+    },
+    {
+      "id": "undo",
+      "rotulo": "Deshacer",
+      "comando": "U"
+    },
+    {
+      "id": "redo",
+      "rotulo": "Rehacer",
+      "comando": "REDO"
+    }
+  ],
+  "registroTotal": 393,
+  "alcanzablesPorCtrlK": 393,
+  "alcanzablesEnCintaPro": 369,
+  "fuenteCintaPro": "docs/cad/evidence/ui-command-reach.json (leído, no recalculado)",
+  "regla": "Esencial esconde, no borra: la cinta de Pro conserva su alcance íntegro y cada comando del registro aparece primero al buscarlo por su nombre en Ctrl+K, con la cinta montada o sin ella."
+}

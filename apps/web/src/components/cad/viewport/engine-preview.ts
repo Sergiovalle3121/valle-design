@@ -49,6 +49,10 @@ export class CadEnginePreview {
         transparent: true,
         opacity: 0.95,
         depthTest: false,
+        // Lo que se está dibujando AHORA no es atmósfera: no se desvanece con
+        // la distancia. Sin esto, en planta la niebla lo pintaba del color del
+        // fondo y la banda elástica no existía para el usuario.
+        fog: false,
       }),
     );
     this.object.name = "cad-engine:preview";

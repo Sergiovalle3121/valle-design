@@ -28,6 +28,7 @@
  * entrada muda.
  */
 import { CAD_COMMAND_REGISTRY_V2 } from "./engine";
+import { cadCommandLabel } from "./engine/command-labels";
 import { cadCommandSummary } from "./engine/command-summaries";
 import { CAD_SYMBOL_LIBRARY } from "./symbols";
 import { CAD_TOOLBAR_ACTIONS } from "./toolbar";
@@ -51,7 +52,9 @@ export function buildCadPaletteEntries(): CadPaletteEntry[] {
       description: cadCommandSummary(command.name),
       // Los alias entran como palabras clave: quien busca «TR» debe encontrar
       // TRIM, porque ésa es la memoria muscular que la tabla de alias promete.
-      keywords: [...command.aliases, command.kind],
+      // El rótulo en español del botón también: en Esencial no hay cinta y
+      // «Deshacer», «Muro» o «Borrar» sólo llegan a U/WALL/ERASE por aquí.
+      keywords: [...command.aliases, command.kind, cadCommandLabel(command.name)],
       ...(command.aliases.length > 0 ? { shortcut: command.aliases[0] } : {}),
     };
   });
@@ -90,13 +93,18 @@ export function searchCadPalette(
       ]
         .join(" ")
         .toLowerCase();
+      // Una palabra clave EXACTA (alias o rótulo español) va por encima del
+      // substring del id: «Rehacer» es REDO, no MREDO («Rehacer varios»), y
+      // «Muro» es WALL, no DOOR («…en un muro») por orden alfabético.
       const score = entry.label.toLowerCase().startsWith(q)
-        ? 3
-        : entry.id.toLowerCase().includes(q)
-          ? 2
-          : haystack.includes(q)
-            ? 1
-            : 0;
+        ? 4
+        : entry.keywords.some((keyword) => keyword.toLowerCase() === q)
+          ? 3
+          : entry.id.toLowerCase().includes(q)
+            ? 2
+            : haystack.includes(q)
+              ? 1
+              : 0;
       return { entry, score };
     })
     .filter((item) => item.score > 0)

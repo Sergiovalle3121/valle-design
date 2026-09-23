@@ -1,5 +1,11 @@
 import { strict as assert } from "node:assert";
-import { cadLocalPoint, cadPointerWorldTolerance } from "./pointer-geometry";
+import {
+  CAD_CLICK_SLACK_DRAWING_PX,
+  CAD_CLICK_SLACK_PX,
+  cadLocalPoint,
+  cadPointerIsClick,
+  cadPointerWorldTolerance,
+} from "./pointer-geometry";
 
 // --- el punto local resta el origen del lienzo, no el de la ventana ---------
 {
@@ -26,4 +32,30 @@ import { cadLocalPoint, cadPointerWorldTolerance } from "./pointer-geometry";
   assert.equal(normal, 24, "la conversión la hace el controlador de vista");
 }
 
-console.log("✔ geometría de puntero: 4 aserciones verdes");
+// ── Clic contra arrastre ─────────────────────────────────────────────────────
+//
+// El defecto que esto cierra, medido el 2026-09-22 contra producción: con un
+// comando abierto, un clic que deslizaba 5 px o más se descartaba EN SILENCIO
+// y el punto no llegaba nunca al motor. Quien dibuja con un ratón de mesa
+// desliza esos píxeles sin darse cuenta.
+{
+  // Designando, el margen corto: arrastrar tiene significado propio.
+  assert.equal(cadPointerIsClick(0, 0, false), true, "sin mover, es clic");
+  assert.equal(cadPointerIsClick(3, 3, false), true, "4,2 px designando sigue siendo clic");
+  assert.equal(cadPointerIsClick(6, 0, false), false, "6 px designando ya es arrastre");
+
+  // Esperando punto, el margen ancho: perder el punto es peor que sobrarlo.
+  assert.equal(cadPointerIsClick(6, 0, true), true, "6 px con comando abierto SÍ pone el punto");
+  assert.equal(cadPointerIsClick(8, 8, true), true, "11,3 px con comando abierto todavía pone el punto");
+  assert.equal(cadPointerIsClick(9, 9, true), false, "12,7 px ya es un desplazamiento querido");
+  assert.equal(cadPointerIsClick(0, 12, true), false, "12 px exactos ya es arrastre");
+
+  // Y el margen ancho es ESTRICTAMENTE mayor que el corto: si alguien los
+  // iguala, esta prueba lo dice antes de que el usuario pierda un punto.
+  assert.ok(
+    CAD_CLICK_SLACK_DRAWING_PX > CAD_CLICK_SLACK_PX,
+    "el margen con comando abierto tiene que ser más ancho que el de designar",
+  );
+}
+
+console.log("✔ geometría de puntero: 12 aserciones verdes");

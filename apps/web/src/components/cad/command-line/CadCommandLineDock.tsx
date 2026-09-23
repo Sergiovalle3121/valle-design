@@ -32,6 +32,7 @@
  */
 import React from "react";
 import { createPortal } from "react-dom";
+import { useCadUiMode } from "@/components/cad/shell/ui-mode-host";
 import { CadGuidedTourDock } from "../onboarding/CadGuidedTourDock";
 import { CadLispDock } from "../lisp/CadLispDock";
 import { submitCadLisp } from "../lisp/use-lisp";
@@ -64,6 +65,7 @@ export function CadCommandLineDock({ host, disabled, inputRef }: CadCommandLineD
     <div data-testid="cad-command-dock" className="w-full">
       <CadCommandLine
         prompt={snapshot.prompt}
+        wording={useCadUiMode()}
         history={snapshot.history}
         lastCommand={snapshot.lastCommand}
         activeCommand={snapshot.activeCommand}

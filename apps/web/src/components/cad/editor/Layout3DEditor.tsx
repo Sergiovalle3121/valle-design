@@ -461,11 +461,12 @@ import { publishCadViewport } from "@/lib/cad/collab/viewport-registry";
 import { CadCommandLineDock } from "@/components/cad/command-line/CadCommandLineDock";
 import { useCadCommandEngine } from "@/components/cad/command-line/use-command-engine";
 import { CAD_SHARED_CLIPBOARD } from "@/lib/cad/clipboard";
-import { formatCadPrompt } from "@/lib/cad/engine/prompt";
+import { formatCadPromptFor } from "@/lib/cad/engine/prompt-plain";
+import { useCadUiMode } from "@/components/cad/shell/ui-mode-host";
 import { useCadStudioCommandEngine } from "@/components/cad/command-line/use-command-engine";
 import { cadStudioEngineBridges } from "@/components/cad/command-line/studio-engine-bridges";
 import { cadFacePickerFor, cadEdgePickerFor, cadHonorSnapOverride, CAD_FACE_PICK_BIT } from "@/lib/cad/pick3d/scene-ray";
-import { cadLocalPoint, cadPointerWorldTolerance } from "@/components/cad/viewport/pointer-geometry";
+import { cadLocalPoint, cadPointerIsClick, cadPointerWorldTolerance } from "@/components/cad/viewport/pointer-geometry";
 import {
   CadOverlayLegends,
   CadViewportPrompt,
@@ -542,6 +543,8 @@ import {
   applyInitialCameraFraming,
   unlockPolarAngleForCommand,
 } from "@/components/cad/viewport/camera-policy";
+import { applyCadSceneFog, setCadSceneFogColor } from "@/components/cad/viewport/plan-fog";
+import { CadCrosshairOverlay } from "@/components/cad/viewport/CadCrosshairOverlay";
 import {
   resolveCadRenderPipeline,
   type CadRenderPipelineChoice,
@@ -1393,6 +1396,7 @@ export default function Layout3DEditor({
   const [cloneBusy, setCloneBusy] = useState(false);
   const [showCommand, setShowCommand] = useState(true); // always-accessible deterministic command dock
   const [showPalette, setShowPalette] = useState(false); // Cmd-K CAD palette (local registry/search)
+  const uiMode = useCadUiMode(); // Esencial | Pro: aquí sólo cambia la redacción del prompt; el resto lo leen los hijos
   const [paletteQuery, setPaletteQuery] = useState("");
   const [recentPaletteActions, setRecentPaletteActions] = useState<string[]>(
     [],
@@ -2201,7 +2205,7 @@ export default function Layout3DEditor({
     const th = THEMES[themeRef.current];
     sc.background = new THREE.Color(th.bg);
     renderPipelineHostRef.current?.setBackground(th.bg); // T-13 / F9 P-01: la tinta por defecto sabe contra qué fondo se dibuja
-    if (sc.fog instanceof THREE.Fog) sc.fog.color.setHex(th.fog);
+    setCadSceneFogColor(sc, th.fog);
     const ground = groundRef.current;
     if (ground)
       (ground.material as THREE.MeshStandardMaterial).color.setHex(th.ground);
@@ -5840,11 +5844,7 @@ export default function Layout3DEditor({
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0a0f1e);
-    scene.fog = new THREE.Fog(
-      0x0a0f1e,
-      Math.max(W, H) * s * 1.4,
-      Math.max(W, H) * s * 3.4,
-    );
+    applyCadSceneFog(scene, viewModeRef.current, { W, H, s });
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 4000);
@@ -7249,11 +7249,11 @@ export default function Layout3DEditor({
           );
         return;
       }
-      // Con RATÓN, clic es «no se movió» (5 px). Con DEDO manda el reconocedor
-      // táctil: deslizar es APUNTAR, y esos 5 px anulaban el punto señalado.
+      // Con RATÓN, clic es «no se movió»; con DEDO manda el reconocedor táctil
+      // (deslizar es APUNTAR). Los dos márgenes y su porqué, en `pointer-geometry.ts`.
       const isClick = touchRelease
         ? touchRelease.commits
-        : Math.hypot(e.clientX - downX, e.clientY - downY) < 5;
+        : cadPointerIsClick(e.clientX - downX, e.clientY - downY, enginePointerRouter.active);
       // Sólo el CLIC (arrastrar sigue orbitando), y no el que suelta un arrastre abierto ANTES del comando: ese lo cierra `if (drag)`.
       if (isClick && !drag && enginePointerRouter.click(e)) {
         try {
@@ -8301,6 +8301,7 @@ export default function Layout3DEditor({
   }, [objectTags]);
   const configureOrbitControlsForMode = (mode: "3d" | "2d") => {
     viewControllerRef.current?.setMode(mode);
+    applyCadSceneFog(sceneRef.current, mode, ctxRef.current);
     if (controlsRef.current) applyCadCameraPolicy(controlsRef.current, mode, picking());
   };
   /** ¿Hay un paso esperando que se designe una cara? Decide quién manda el clic. */
@@ -11653,6 +11654,7 @@ export default function Layout3DEditor({
     const ctrl = controlsRef.current;
     const ctx = ctxRef.current;
     viewControllerRef.current?.setMode(mode);
+    applyCadSceneFog(sceneRef.current, mode, ctx);
     if (!cam || !ctrl || !ctx) return;
     const d = Math.max(ctx.W, ctx.H) * ctx.s;
     if (mode === "2d") {
@@ -12709,9 +12711,7 @@ export default function Layout3DEditor({
   const engineAnchor = engineCommand
     ? (enginePointerRouterRef.current?.anchor ?? null)
     : null;
-  const enginePromptText = commandEngineSnapshot.prompt
-    ? formatCadPrompt(commandEngineSnapshot.prompt)
-    : null;
+  const enginePromptText = commandEngineSnapshot.prompt ? formatCadPromptFor(commandEngineSnapshot.prompt, uiMode, engineCommand) : null;
   const engineCanClose = !!commandEngineSnapshot.prompt?.options.some(
     (option) =>
       /^close$/i.test(option.keyword) || /^cerrar$/i.test(option.keyword),
@@ -14135,9 +14135,6 @@ export default function Layout3DEditor({
   );
 
   // LA CINTA. `dispatch` es el MISMO despacho que la línea de comandos.
-  // `ribbonElement` va en la ranura `appBar` (es la fila de pestañas, la raíz
-  // que `CadRibbon` devuelve); su CUERPO sale por portal hacia el
-  // `<div ref={attachCadRibbonBodySlot}>` de la ranura `ribbon`, más abajo.
   const ribbonElement = (
     <CadRibbon
       dispatch={(name) => {
@@ -14148,6 +14145,9 @@ export default function Layout3DEditor({
         }
       }}
       readOnly={drawingReadOnly}
+      activeCommand={commandEngineSnapshot.activeCommand}
+      onSelectTool={() => runToolbarAction("select")}
+      onOpenPalette={() => setShowPalette(true)}
       quickAccess={quickAccessContent}
       trailing={trailingContent}
       trailingFixed={trailingFixedContent}
@@ -14223,7 +14223,7 @@ export default function Layout3DEditor({
               if (!drawingReadOnlyRef.current && !dxfBusy) void onDxfFile(f);
             }}
           >
-            <div ref={mountRef} className="absolute inset-0" />
+            <div ref={mountRef} className="absolute inset-0 cursor-none" />
             {/* ViewCube (`camera-view-presets.ts`), sólo en 3D — no tiene
                 sentido de orientación en planta. `CadNavigationBar` (encuadrar
                 todo/selección) SÍ se muestra en 2D también (ola1-paleta): es
@@ -14284,37 +14284,12 @@ export default function Layout3DEditor({
                 </div>
               </div>
             )}
-            <div
+            <CadCrosshairOverlay
               ref={crosshairOverlayRef}
-              data-testid="cad-crosshair"
-              aria-hidden="true"
-              className="pointer-events-none absolute left-0 top-0 z-20 hidden size-0"
-            >
-              <span
-                className="absolute left-1/2 top-1/2 h-px -translate-x-1/2 -translate-y-1/2 bg-indigo-100/90 mix-blend-difference"
-                style={{ width: `${workspacePreferences.crosshairPercent}%` }}
-              />
-              <span
-                className="absolute left-1/2 top-1/2 w-px -translate-x-1/2 -translate-y-1/2 bg-indigo-100/90 mix-blend-difference"
-                style={{ height: `${workspacePreferences.crosshairPercent}%` }}
-              />
-              <span
-                data-testid="cad-pick-box"
-                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 border border-indigo-100/90 mix-blend-difference"
-                style={{
-                  width: workspacePreferences.pickBoxPx,
-                  height: workspacePreferences.pickBoxPx,
-                }}
-              />
-              <span
-                data-testid="cad-snap-aperture"
-                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-amber-300/60"
-                style={{
-                  width: workspacePreferences.aperturePx * 2,
-                  height: workspacePreferences.aperturePx * 2,
-                }}
-              />
-            </div>
+              crosshairPercent={workspacePreferences.crosshairPercent}
+              pickBoxPx={workspacePreferences.pickBoxPx}
+              aperturePx={workspacePreferences.aperturePx}
+            />
             {cadContextMenu && (
               <div
                 data-testid="cad-context-menu"

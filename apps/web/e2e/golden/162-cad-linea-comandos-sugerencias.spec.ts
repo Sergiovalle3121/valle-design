@@ -13,7 +13,7 @@ import { abrirPanelDerecho } from "../fixtures/docks";
 test("la línea de comandos sugiere por prefijo, Tab completa y las flechas navegan la lista", async ({
   page,
 }) => {
-  await page.goto("/demo");
+  await page.goto("/demo?cadUi=pro");
   // El panel derecho (lista de entidades) arranca plegado desde la ola
   // «armazón» — hay que abrirlo antes de leer su contenido.
   await abrirPanelDerecho(page);
@@ -54,7 +54,7 @@ test("la línea de comandos sugiere por prefijo, Tab completa y las flechas nave
 test("con un prompt activo o argumentos ya escritos, las flechas vuelven a recuperar historial", async ({
   page,
 }) => {
-  await page.goto("/demo");
+  await page.goto("/demo?cadUi=pro");
   // El panel derecho (lista de entidades) arranca plegado desde la ola
   // «armazón» — hay que abrirlo antes de leer su contenido.
   await abrirPanelDerecho(page);
