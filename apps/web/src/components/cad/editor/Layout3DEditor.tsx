@@ -6521,10 +6521,10 @@ export default function Layout3DEditor({
     });
     enginePreviewRef.current = enginePreview;
     const engineLiveCursor = new CadLiveCursorOverlay(mount, {
-      commit: (values) =>
-        enginePointerRouterRef.current?.commitMeasurements(values),
+      commit: (values) => enginePointerRouterRef.current?.commitMeasurements(values),
       keyword: (shortcut) => enginePointerRouterRef.current?.keyword(shortcut),
       cancel: () => enginePointerRouterRef.current?.cancel(),
+      accept: () => enginePointerRouterRef.current?.accept(),
     });
     engineLiveCursor.setMirror(() => engineSnapLabelRef.current);
     engineLiveCursorRef.current = engineLiveCursor;
