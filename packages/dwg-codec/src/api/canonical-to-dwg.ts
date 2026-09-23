@@ -274,9 +274,24 @@ export function canonicalDocumentToDwgEntities(
         break;
       case "polyline": {
         const vertices =
-          (raw["vertices"] as { x: number; y: number; bulge?: number }[]) ?? [];
+          (raw["vertices"] as {
+            x: number;
+            y: number;
+            bulge?: number;
+            startWidth?: number;
+            endWidth?: number;
+          }[]) ?? [];
         const bulges = vertices.map((v) => v.bulge ?? 0);
         const anyBulge = bulges.some((b) => b !== 0);
+        if (vertices.some((v) => (v.startWidth ?? 0) !== 0 || (v.endWidth ?? 0) !== 0)) {
+          losses.push({
+            code: "polyline-width-not-emitted",
+            entityId: id,
+            sourceType: "polyline",
+            detail: `La polilínea ${id} conserva anchos por vértice en el documento, pero el writer de esta tanda no los emite: el DWG resultante contiene su eje y sus arcos, sin grosor.`,
+            severity: "warning",
+          });
+        }
         entities.push({
           canonicalId: id,
           layerName,
