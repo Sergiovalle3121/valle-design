@@ -136,10 +136,12 @@ async function visiblePhrases(pattern, region = null) {
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     while (walker.nextNode()) {
       const node = walker.currentNode;
-      const phrase = node.textContent?.replace(/\s+/g, ' ').trim() ?? '';
-      if (!phrase || !test.test(phrase)) continue;
       const parent = node.parentElement;
       if (!parent) continue;
+      // React puede separar «12.00» y « m²» en nodos de texto hermanos.
+      // innerText lee la frase pintada completa, como la ve una persona.
+      const phrase = parent.innerText?.replace(/\s+/g, ' ').trim() ?? '';
+      if (!phrase || !test.test(phrase)) continue;
       const rect = parent.getBoundingClientRect();
       const style = getComputedStyle(parent);
       if (rect.width <= 0 || rect.height <= 0 || rect.right <= 0 || rect.bottom <= 0 ||
