@@ -28,6 +28,7 @@
 import type { SnapType } from "@/lib/cad/snap-engine";
 import type { CadKeyword } from "@/lib/cad/engine/command-types";
 import { CAD_OSNAP_HUD_LABELS } from "@/components/cad/palettes/draft-settings-host";
+import { cadPointerMenuEntries, cadPointerMenuPosition } from "./pointer-menu";
 
 export type CadLiveCursorField = "distance" | "angle";
 
@@ -38,6 +39,15 @@ export interface CadLiveCursorCallbacks {
   keyword(shortcut: string): void;
   /** Esc dentro del cursor vivo. */
   cancel(): void;
+  /**
+   * «Aceptar» elegido en el menú contextual: vale por Intro.
+   *
+   * Sin esto, el botón derecho a mitad de comando sólo ofrecía las palabras
+   * clave del paso —con LINE y dos puntos puestos, un menú de un solo renglón
+   * que decía «desHacer»—, y cerrar el dibujo obligaba a soltar el ratón e ir
+   * al teclado. Ver `viewport/pointer-menu.ts`.
+   */
+  accept(): void;
 }
 
 /** Un nodo con estilo, creado de una vez para no repetir seis líneas. */
@@ -232,26 +242,43 @@ export class CadLiveCursorOverlay {
   }
 
   openMenu(x: number, y: number, keywords: readonly CadKeyword[]): boolean {
-    if (this.disposed || keywords.length === 0) return false;
+    const entradas = cadPointerMenuEntries(keywords);
+    if (this.disposed || entradas.length === 0) return false;
     this.menu.replaceChildren();
-    for (const option of keywords) {
-      const item = element(
-        "button",
-        MENU_ITEM_CLASS,
-        `cad-pointer-keyword-${option.keyword}`,
-      );
+    for (const entrada of entradas) {
+      // El testid sale del id de la entrada, que para una palabra clave es
+      // `keyword-<Cerrar>`: así `cad-pointer-keyword-Cerrar` sigue siendo
+      // exactamente el que ya usan los goldens 46 y 56, y aceptar y cancelar
+      // estrenan `cad-pointer-accept` y `cad-pointer-cancel`.
+      const item = element("button", MENU_ITEM_CLASS, `cad-pointer-${entrada.id}`);
       item.type = "button";
-      item.textContent = option.label ?? option.keyword;
-      item.title = `Atajo: ${option.shortcut.toUpperCase()}`;
+      item.textContent = entrada.label;
+      item.title = `Atajo: ${entrada.hint}`;
+      const accion = entrada.action;
       item.addEventListener("click", () => {
         this.closeMenu();
-        this.callbacks.keyword(option.shortcut);
+        if (accion.kind === "accept") this.callbacks.accept();
+        else if (accion.kind === "cancel") this.callbacks.cancel();
+        else this.callbacks.keyword(accion.shortcut);
       });
       this.menu.append(item);
     }
     this.menu.hidden = false;
-    this.menu.style.left = `${Math.round(x)}px`;
-    this.menu.style.top = `${Math.round(y)}px`;
+    // The menu grows with the command's keywords. Measure it only when opened
+    // and keep even the last action reachable near the lower/right canvas edge.
+    const canvasWidth = this.container.clientWidth;
+    const canvasHeight = this.container.clientHeight;
+    this.menu.style.maxWidth = `${Math.max(0, canvasWidth - 16)}px`;
+    this.menu.style.maxHeight = `${Math.max(0, canvasHeight - 16)}px`;
+    this.menu.style.minWidth = `${Math.min(128, Math.max(0, canvasWidth - 16))}px`;
+    this.menu.style.overflowY = "auto";
+    const position = cadPointerMenuPosition(
+      { x, y },
+      { width: canvasWidth, height: canvasHeight },
+      { width: this.menu.offsetWidth, height: this.menu.offsetHeight },
+    );
+    this.menu.style.left = `${position.x}px`;
+    this.menu.style.top = `${position.y}px`;
     return true;
   }
 

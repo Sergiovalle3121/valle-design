@@ -30,12 +30,27 @@ export class CadEnginePreview {
   private readonly geometry = new THREE.BufferGeometry();
   private readonly object: THREE.LineSegments;
   private positions = new Float32Array(INITIAL_VERTICES * 3);
-  private viewport: CadThreeViewport;
+  private leerViewport: () => CadThreeViewport;
   private elevation: number;
   private disposed = false;
 
-  constructor(parent: THREE.Object3D, viewport: CadThreeViewport, elevation = 0.12) {
-    this.viewport = viewport;
+  /**
+   * `viewport` puede ser un valor o una FUNCIÓN que lo devuelve, y lo segundo
+   * es lo que usa el estudio. El motivo es un defecto latente: el resto de la
+   * escena resta el ORIGEN FLOTANTE (`render/render-origin.ts`) antes de
+   * escalar, y ese origen cambia cuando el dibujo se aleja del cero —a partir
+   * de 50 m de su centroide—. La previsualización recibía el viewport UNA vez,
+   * al construirse, y nadie llamaba nunca a `setViewport`: en un plano
+   * georreferenciado la banda elástica se habría dibujado a kilómetros de la
+   * geometría, sin que ninguna prueba lo notara. Pidiéndolo en cada trazo, la
+   * banda y el dibujo no pueden divergir.
+   */
+  constructor(
+    parent: THREE.Object3D,
+    viewport: CadThreeViewport | (() => CadThreeViewport),
+    elevation = 0.12,
+  ) {
+    this.leerViewport = typeof viewport === "function" ? viewport : () => viewport;
     this.elevation = elevation;
     this.geometry.setAttribute(
       "position",
@@ -72,8 +87,9 @@ export class CadEnginePreview {
     return this.geometry.drawRange.count / 2;
   }
 
+  /** Fija un viewport nuevo. Con la forma de función no hace falta llamarla. */
   setViewport(viewport: CadThreeViewport): void {
-    this.viewport = viewport;
+    this.leerViewport = () => viewport;
   }
 
   /**
@@ -94,7 +110,11 @@ export class CadEnginePreview {
       return;
     }
     this.ensureCapacity(vertices);
-    const { scale, width, height } = this.viewport;
+    const { scale, width, height, origin } = this.leerViewport();
+    // El origen flotante se resta PRIMERO, en dobles de JS, igual que en
+    // `entity-three.ts`: es lo que mantiene la banda pegada a la geometría.
+    const originX = origin?.x ?? 0;
+    const originY = origin?.y ?? 0;
     let cursor = 0;
     for (const path of paths) {
       if (path.points.length < 2) continue;
@@ -102,12 +122,12 @@ export class CadEnginePreview {
       for (let index = 0; index < segments; index += 1) {
         const from = path.points[index];
         const to = path.points[(index + 1) % path.points.length];
-        this.positions[cursor] = (from.x - width / 2) * scale;
+        this.positions[cursor] = (from.x - originX - width / 2) * scale;
         this.positions[cursor + 1] = this.elevation;
-        this.positions[cursor + 2] = (from.y - height / 2) * scale;
-        this.positions[cursor + 3] = (to.x - width / 2) * scale;
+        this.positions[cursor + 2] = (from.y - originY - height / 2) * scale;
+        this.positions[cursor + 3] = (to.x - originX - width / 2) * scale;
         this.positions[cursor + 4] = this.elevation;
-        this.positions[cursor + 5] = (to.y - height / 2) * scale;
+        this.positions[cursor + 5] = (to.y - originY - height / 2) * scale;
         cursor += 6;
       }
     }
