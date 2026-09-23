@@ -126,4 +126,48 @@ test.describe('Demostración sin cuenta', () => {
       `el demo no puede hablar con la API de documentos:\n${documentRequests.join('\n')}`,
     ).toEqual([]);
   });
+
+  test('una visita con almacenamiento heredado abre limpia y deja recuperar el dibujo a voluntad', async ({ page }) => {
+    test.setTimeout(150_000);
+    await page.goto('/demo?cadUi=pro');
+    await abrirPanelDerecho(page);
+    const entityList = page.getByTestId('cad-native-entity-list');
+    await expect(entityList).toBeVisible({ timeout: 60_000 });
+    const count = async () => Number((await entityList.innerText()).match(/\d+/)?.[0] ?? 0);
+    const houseCount = await count();
+    expect(houseCount).toBeGreaterThan(5);
+
+    // Una visita previa dejó trabajo propio. El sobre se vuelve a poner en el
+    // formato anterior, que no tenía la marca `edited`, para cubrir el caso de
+    // las personas que ya habían usado /demo antes de este cambio.
+    const input = page.getByTestId('cad-command-input');
+    for (const token of ['LINE', '0,0', '3000,0']) {
+      await input.click();
+      await input.fill(token);
+      await input.press('Enter');
+    }
+    await input.press('Enter');
+    await expect.poll(count, { timeout: 15_000 }).toBeGreaterThan(houseCount);
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('valle_demo_document')?.length ?? 0),
+      { timeout: 30_000 }).toBeGreaterThan(100);
+    await page.evaluate(() => {
+      const key = 'valle_demo_document';
+      const old = JSON.parse(localStorage.getItem(key)!);
+      delete old.edited;
+      localStorage.setItem(key, JSON.stringify(old));
+    });
+
+    await page.goto('/demo?cadUi=pro');
+    await abrirPanelDerecho(page);
+    await expect(entityList).toBeVisible({ timeout: 60_000 });
+    await expect.poll(count, { timeout: 15_000 }).toBe(houseCount);
+    const recover = page.getByRole('button', { name: 'Recuperar mi dibujo anterior' });
+    await expect(recover).toBeVisible();
+    await recover.click();
+    await abrirPanelDerecho(page);
+    await expect.poll(count, { timeout: 15_000 }).toBeGreaterThan(houseCount);
+    await expect(recover).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('valle_demo_document')?.length ?? 0),
+      { timeout: 15_000 }).toBeGreaterThan(100);
+  });
 });
