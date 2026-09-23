@@ -4161,6 +4161,38 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "BACKUP-CONTRASENA-ARGV-20260923",
+      "date": "2026-09-23",
+      "initiative": "Impedir que la contraseña de PostgreSQL aparezca en los argumentos de backup y restauración: los clientes reciben una URI sin clave y PGPASSWORD por entorno; backup.mjs y restore-verify.mjs rechazan --url para que tampoco quede expuesta en el proceso Node.",
+      "branch": "codex/backup-safety",
+      "assistants": [
+        "OpenAI Codex: auditoría, implementación y pruebas del manejo de credenciales en scripts de operación"
+      ],
+      "authority": "Sergio pidió preparar ValleCAD para salir al mercado, verificar respaldos y continuar el trabajo en el repositorio con integración en main; este cambio acota un defecto de seguridad observado en scripts ya existentes.",
+      "firstPartyInputs": [
+        "scripts/ops/backup.mjs, restore-verify.mjs, pg-tools.mjs y backup-cron.sh del repositorio",
+        "docs/guides/backup-restore.md y la configuración de CI del repositorio",
+        "Medición pública de /demo del 2026-09-23: robot estudiante 0/4, 31 controles y 74.5 % de pantalla libre a 1440 × 769; estos indicadores de producto no cambian con la presente corrección de operaciones"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada.",
+      "derivedAreas": [
+        "scripts/ops/pg-tools.mjs y pg-tools.spec.mjs: URI sin contraseña para pg_dump, psql y pg_restore, pruebas de argv del proceso hijo y redacción de errores",
+        "scripts/ops/backup.mjs, restore-verify.mjs y backup-cron.sh: URL por entorno, rechazo de --url y cron sin secreto en argumentos",
+        "docs/guides/backup-restore.md: uso actualizado y advertencia sobre argumentos de procesos"
+      ],
+      "fixtures": "URL sintética en pg-tools.spec.mjs; ningún secreto real ni base productiva.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pruebas de proceso hijo 4/4, check:governance y git diff --check verdes en local. El simulacro de restauración con PostgreSQL real sigue pendiente: el postgres.exe local fue bloqueado por Device Guard de Windows el 2026-09-23. La integración requiere checks elegibles de GitHub sobre el SHA exacto; no se declara validada la restauración de producción ni el lanzamiento comercial."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "ROBOT-ESTUDIANTE-20260923",
       "date": "2026-09-23",
       "initiative": "Versionar un protocolo reproducible de cuatro tareas de estudiante en /demo, con acciones exclusivamente visibles, evidencia de píxeles, textos y enlace móvil, más una guía para las cinco sesiones humanas de primer uso.",

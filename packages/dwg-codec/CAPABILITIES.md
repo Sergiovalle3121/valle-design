@@ -1596,3 +1596,25 @@ y una verificación suplementaria del grupo 71 contra el DXF crudo. El titular
 corre ahora **dieciocho** casos, no dieciséis — y ese número dejó de estar
 escrito a mano en los mensajes del gate, que era la misma clase de constante
 desactualizada que el gate existe para impedir.
+
+## Corte 2026-09-21 (grafo de INSERT anidado en `writeCanonicalDwg`)
+
+El adaptador público ya no elimina un INSERT que vive dentro de otro bloque.
+`api/write.ts` recorre de forma determinista el grafo de bloques alcanzable
+desde model space, crea un `BLOCK_RECORD` por cada definición ASCII alcanzable
+y resuelve `insertBlockIndex` también dentro del contenido de los bloques. Esto
+incluye referencias hacia adelante y varios niveles de anidamiento; no expande
+la geometría ni copia entidades, por lo que el archivo conserva la estructura
+reutilizable que el writer de bajo nivel ya podía emitir.
+
+La prueba `tests/unit/write-canonical-dwg.spec.ts` construye `MARCO →
+TORNILLO`, verifica que ambos BLOCK_RECORDs llegan al archivo y que el INSERT
+anidado y la geometría del bloque destino vuelven por `readDwg`. El manifiesto
+queda vacío cuando las definiciones existen. Un bloque referenciado sin
+definición conserva un BLOCK_RECORD vacío y deja la pérdida informativa
+`insert-block-not-declared`; un nombre no ASCII sigue omitiendo sólo el INSERT
+con `insert-block-name-not-ascii`.
+
+Esto amplía la consistencia interna del perfil AC1015, pero no cambia su estado
+de laboratorio ni sustituye la validación con un lector independiente. La
+bandera de exportación de producto y `externalOracleVerified` siguen cerradas.

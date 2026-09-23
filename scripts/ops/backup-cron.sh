@@ -34,7 +34,9 @@
 # Línea de cron exacta (diaria a las 03:15 UTC, con aviso por correo al fallar):
 #
 #   MAILTO=tu-correo@dominio.mx
-#   15 3 * * * DATABASE_URL=postgres://... RCLONE_REMOTE=r2:valle-backups /srv/valle/repo/scripts/ops/backup-cron.sh >> /var/log/valle-backup.log 2>&1
+#   # Variable del crontab, no argumento del comando:
+#   DATABASE_URL=postgres://...
+#   15 3 * * * RCLONE_REMOTE=r2:valle-backups /srv/valle/repo/scripts/ops/backup-cron.sh >> /var/log/valle-backup.log 2>&1
 #
 # La retención del plan (SLA.md §2) manda sobre el default: Profesional exige
 # backups cada 6 h y 30 días — cuatro líneas de cron y BACKUP_RETENTION_DAYS=30.
@@ -58,7 +60,6 @@ echo "== backup-cron ${STAMP} =="
 
 # 1 · Crear el backup con su inventario verificable (4 artefactos).
 node "${SCRIPT_DIR}/backup.mjs" \
-  --url "${DATABASE_URL}" \
   --out "${BACKUP_DIR}" \
   --name "${NAME}"
 
@@ -66,8 +67,7 @@ node "${SCRIPT_DIR}/backup.mjs" \
 #     Si esto no imprime «BACKUP VALIDADO», el script muere aquí y el cron
 #     avisa. Sin este paso, el paso 1 sólo produjo un archivo.
 node "${SCRIPT_DIR}/restore-verify.mjs" \
-  --dump "${BACKUP_DIR}/${NAME}.dump" \
-  --url "${DATABASE_URL}"
+  --dump "${BACKUP_DIR}/${NAME}.dump"
 
 # 3 · Subida opcional fuera de la máquina (R2/S3 vía rclone), por año/mes.
 if [ -n "${RCLONE_REMOTE:-}" ]; then
