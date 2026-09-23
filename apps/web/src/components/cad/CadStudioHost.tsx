@@ -31,6 +31,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
 import StudioCollaborationLayer from "@/components/cad/collab/StudioCollaborationLayer";
+import { EssentialShareAction } from "@/components/cad/collab/EssentialShareAction";
 import TeamMessagingHost from "@/components/cad/messaging/TeamMessagingHost";
 import { CallBar } from "@/components/cad/calls/CallBar";
 import { BRAND, PRODUCT_LABEL } from "@/config/brand";
@@ -245,6 +246,9 @@ export default function CadStudioHost({
             canReview={permissions.includes("cad:review")}
           />
         </ErrorBoundary>
+      ) : null}
+      {documentId && withCollaboration && permissions.includes("cad:review") ? (
+        <EssentialShareAction documentId={documentId} />
       ) : null}
       {/*
         La mensajería de equipo es de PROYECTO/ORGANIZACIÓN, no de documento:

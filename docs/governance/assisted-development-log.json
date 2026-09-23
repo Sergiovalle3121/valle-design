@@ -4234,6 +4234,38 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "COMPARTIR-ESENCIAL-20260923",
+      "date": "2026-09-23",
+      "initiative": "Hacer visible Compartir en el estudio Esencial y emitir en dos gestos un enlace de revisión server-owned para abrir el plano de solo lectura en un celular.",
+      "branch": "codex/share-essential-link",
+      "assistants": [
+        "OpenAI Codex: investigación del flujo de revisión existente, interfaz Esencial y golden de navegador móvil"
+      ],
+      "authority": "Sergio Valle Zárate pidió explícitamente que el plano se entregue por enlace desde Esencial y que el trabajo se integre en main con evidencia real.",
+      "firstPartyInputs": [
+        "ReviewLinkIssuer, reviewsRepository, ReviewLinkService y ReviewLinkClient existentes",
+        "CadStudioHost, ranura cad-essential-bar-tools y modo Esencial existentes",
+        "Prompt maestro del 23-09 y medición robot: tarea de compartir ausente en /demo"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada.",
+      "derivedAreas": [
+        "EssentialShareAction: acción Esencial con el mismo servidor de sesiones y token de revisión que Pro, sin añadir líneas al editor monolítico",
+        "CadStudioHost: montaje limitado a documento en nube y permiso cad:review",
+        "Golden 253: emisión, copia, canje sin sesión, planta y área útil derivada a 390 × 844"
+      ],
+      "fixtures": "Cuatro muros sintéticos de 5 × 4 m con grosor 250 mm; sin área textual pregrabada ni credenciales reales.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Golden #253 confirmó emisión y copia server-owned y apertura invitada en móvil; el área derivada permanece roja en este checkout hasta integrar la PR dependiente de review móvil y #242. Typecheck web y lint de archivos tocados sin errores. El enlace en /demo sin cuenta requiere una publicación anónima acotada separada; no se presenta como resuelto."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }
