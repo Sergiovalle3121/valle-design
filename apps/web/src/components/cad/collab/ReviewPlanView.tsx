@@ -44,6 +44,10 @@ import {
   type CadPlanProjection,
 } from "@/lib/cad/collab/plan-projection";
 import type { CadReviewRoomArea } from "@/lib/cad/collab/review-room-areas";
+import {
+  cadReviewPinchUpdate,
+  type ReviewPinch,
+} from "@/lib/cad/collab/review-pinch";
 
 export interface ReviewPlanViewProps {
   projection: CadPlanProjection;
@@ -70,6 +74,9 @@ export default function ReviewPlanView({
   const drag = useRef<{ pointerId: number; x: number; y: number; moved: boolean } | null>(
     null,
   );
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<ReviewPinch | null>(null);
+  const usedTwoFingers = useRef(false);
   // El encuadre inicial se hace UNA vez. Rehacerlo en cada medida devolvería
   // al cliente al plano completo cada vez que gira el móvil o aparece el
   // teclado, justo cuando estaba mirando un detalle.
@@ -126,55 +133,101 @@ export default function ReviewPlanView({
   const onWheel = useCallback(
     (event: React.WheelEvent<HTMLDivElement>) => {
       const host = hostRef.current;
-      if (!host || !view) return;
+      if (!host) return;
       const rect = host.getBoundingClientRect();
-      setView(
-        cadViewZoomAtCursor(
-          view,
+      setView((current) => current ? cadViewZoomAtCursor(
+          current,
           event.clientX - rect.left,
           event.clientY - rect.top,
           event.deltaY < 0 ? 1.15 : 1 / 1.15,
-        ),
-      );
+        ) : current);
     },
-    [view],
+    [],
   );
 
   const onPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    drag.current = {
-      pointerId: event.pointerId,
-      x: event.clientX,
-      y: event.clientY,
-      moved: false,
-    };
-    event.currentTarget.setPointerCapture(event.pointerId);
+    if (pointers.current.size === 0) usedTwoFingers.current = false;
+    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    // El navegador ya captura un contacto sobre una chincheta. Dejarlo allí
+    // conserva su toque simple y permite que un segundo dedo llegue al plano.
+    const onPin = event.target instanceof Element &&
+      Boolean(event.target.closest('[data-testid^="cad-review-pin-"]'));
+    if (!onPin) event.currentTarget.setPointerCapture(event.pointerId);
+    if (pointers.current.size >= 2) {
+      usedTwoFingers.current = true;
+      drag.current = null;
+      pinch.current = pinchFromPointers(pointers.current);
+    } else {
+      drag.current = {
+        pointerId: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+        moved: false,
+      };
+    }
   }, []);
 
   const onPointerMove = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!pointers.current.has(event.pointerId)) return;
+      pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (pointers.current.size >= 2) {
+        const next = pinchFromPointers(pointers.current);
+        const previous = pinch.current;
+        pinch.current = next;
+        const host = hostRef.current;
+        if (previous && next && host) {
+          const rect = host.getBoundingClientRect();
+          setView((current) => current ? cadReviewPinchUpdate(
+            current,
+            { ...previous, x: previous.x - rect.left, y: previous.y - rect.top },
+            { ...next, x: next.x - rect.left, y: next.y - rect.top },
+          ) : current);
+        }
+        return;
+      }
       const state = drag.current;
-      if (!state || state.pointerId !== event.pointerId || !view) return;
+      if (!state || state.pointerId !== event.pointerId) return;
       const dx = event.clientX - state.x;
       const dy = event.clientY - state.y;
       if (!state.moved && Math.hypot(dx, dy) < 4) return;
       state.moved = true;
       state.x = event.clientX;
       state.y = event.clientY;
-      setView(cadViewPanByPixels(view, dx, dy));
+      setView((current) => current ? cadViewPanByPixels(current, dx, dy) : current);
     },
-    [view],
+    [],
   );
+
+  const forgetPointer = useCallback((pointerId: number) => {
+    if (!pointers.current.delete(pointerId)) return;
+    pinch.current = pinchFromPointers(pointers.current);
+    if (usedTwoFingers.current) {
+      const remaining = pointers.current.entries().next().value;
+      drag.current = remaining ? {
+        pointerId: remaining[0], x: remaining[1].x,
+        y: remaining[1].y, moved: true,
+      } : null;
+      if (!remaining) usedTwoFingers.current = false;
+    } else if (drag.current?.pointerId === pointerId) {
+      drag.current = null;
+    }
+  }, []);
 
   const onPointerUp = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       const state = drag.current;
-      drag.current = null;
+      const wasPinching = usedTwoFingers.current;
+      forgetPointer(event.pointerId);
       if (event.currentTarget.hasPointerCapture(event.pointerId))
         event.currentTarget.releasePointerCapture(event.pointerId);
+      if (wasPinching) return;
       // Un arrastre NO es un clic: sin esto, panear el plano colocaría una
       // nota al soltar, que es la forma más rápida de llenar el dibujo de
       // comentarios que nadie quiso poner.
-      if (!state || state.moved) return;
+      if (!state || state.pointerId !== event.pointerId || state.moved) return;
+      if (event.target instanceof Element &&
+          event.target.closest('[data-testid^="cad-review-pin-"]')) return;
       if (!placing) {
         onSelect(null);
         return;
@@ -182,7 +235,7 @@ export default function ReviewPlanView({
       const world = toWorld(event);
       if (world) onPlace(world);
     },
-    [onPlace, onSelect, placing, toWorld],
+    [forgetPointer, onPlace, onSelect, placing, toWorld],
   );
 
   const placements = useMemo(() => {
@@ -227,9 +280,8 @@ export default function ReviewPlanView({
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerCancel={() => {
-        drag.current = null;
-      }}
+      onPointerCancel={(event) => forgetPointer(event.pointerId)}
+      onLostPointerCapture={(event) => forgetPointer(event.pointerId)}
       className={`relative h-full w-full touch-none overflow-hidden bg-[#0b1020] ${
         placing ? "cursor-crosshair" : "cursor-grab"
       }`}
@@ -319,8 +371,12 @@ export default function ReviewPlanView({
           type="button"
           data-testid={`cad-review-pin-${placement.id}`}
           data-offscreen={placement.offscreen ? "true" : "false"}
-          onPointerDown={(event) => event.stopPropagation()}
-          onPointerUp={(event) => event.stopPropagation()}
+          onPointerDown={(event) => {
+            if (event.pointerType !== "touch") event.stopPropagation();
+          }}
+          onPointerUp={(event) => {
+            if (event.pointerType !== "touch") event.stopPropagation();
+          }}
           onClick={(event) => {
             event.stopPropagation();
             onSelect(activeId === placement.id ? null : placement.id);
@@ -351,4 +407,16 @@ export default function ReviewPlanView({
       ) : null}
     </div>
   );
+}
+
+function pinchFromPointers(
+  points: Map<number, { x: number; y: number }>,
+): ReviewPinch | null {
+  const pair = [...points.values()].slice(0, 2);
+  if (pair.length !== 2) return null;
+  return {
+    x: (pair[0].x + pair[1].x) / 2,
+    y: (pair[0].y + pair[1].y) / 2,
+    distance: Math.hypot(pair[0].x - pair[1].x, pair[0].y - pair[1].y),
+  };
 }

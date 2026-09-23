@@ -11,6 +11,7 @@ import {
   loginAsStandaloneOwner,
 } from "../fixtures/standalone-identity";
 import type { CadDocument } from "../../src/lib/cad/cad-document";
+import { touchPinch, touchSession, touchTwoFingerPan } from "../fixtures/touch";
 
 const DOCUMENT_ID = "00000000-0000-4000-8000-000000000001";
 const FOOTPRINT = {
@@ -56,6 +57,7 @@ function room(): CadDocument {
 
 test("Compartir en Esencial abre en móvil un plano de solo lectura con m² derivados", async ({
   browser,
+  browserName,
   context,
   page,
 }) => {
@@ -86,7 +88,7 @@ test("Compartir en Esencial abre en móvil un plano de solo lectura con m² deri
   expect(backend.reviewSessions).toHaveLength(1);
   expect(backend.reviewSessions[0].allowComments).toBe(false);
 
-  const guestContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const guestContext = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
   await installMockBackend(guestContext);
   await installStandaloneIdentity(guestContext);
   await backend.install(guestContext);
@@ -102,5 +104,21 @@ test("Compartir en Esencial abre en móvil un plano de solo lectura con m² deri
   expect(await guest.evaluate(() => document.documentElement.scrollWidth)).toBe(
     await guest.evaluate(() => document.documentElement.clientWidth),
   );
+  // CDP expone contactos múltiples en Chromium. El resto de motores sigue
+  // probando la apertura móvil; aquí medimos el gesto sobre el SVG real.
+  if (browserName === "chromium") {
+    const plan = guest.getByTestId("cad-review-plan");
+    const before = (await plan.locator("svg").getAttribute("viewBox"))!.split(" ").map(Number);
+    const box = (await plan.boundingBox())!;
+    const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    const cdp = await touchSession(guest);
+    await touchPinch(cdp, center, 70, 190);
+    const zoomed = (await plan.locator("svg").getAttribute("viewBox"))!.split(" ").map(Number);
+    expect(zoomed[2], "separar dos dedos acerca el plano compartido").toBeLessThan(before[2] * 0.7);
+    await touchTwoFingerPan(cdp, center, { x: 65, y: 0 });
+    const moved = (await plan.locator("svg").getAttribute("viewBox"))!.split(" ").map(Number);
+    expect(Math.abs(moved[0] - zoomed[0]), "dos dedos desplazan el plano compartido")
+      .toBeGreaterThan(20);
+  }
   await guestContext.close();
 });
