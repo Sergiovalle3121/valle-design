@@ -253,7 +253,7 @@ test("el contenido de un bloque viaja: geometría y capa exactas dentro del BLOC
   assert.equal(circleRecord!.layerHandle, bisagras.handle);
 });
 
-test("un bloque que inserta OTRO bloque declara la pérdida y omite sólo ese INSERT", () => {
+test("un bloque que inserta OTRO bloque conserva el grafo de bloques completo", () => {
   const document = emptyDocument({
     blocks: [
       {
@@ -273,6 +273,20 @@ test("un bloque que inserta OTRO bloque declara la pérdida y omite sólo ese IN
           },
         ],
       },
+      {
+        id: "bTORNILLO",
+        name: "TORNILLO",
+        basePoint: { x: 0, y: 0, z: 0 },
+        entities: [
+          {
+            id: "bt1",
+            type: "circle",
+            center: { x: 0, y: 0, z: 0 },
+            radius: 0.15,
+            layer: "0",
+          },
+        ],
+      },
     ],
     entities: [
       {
@@ -288,18 +302,27 @@ test("un bloque que inserta OTRO bloque declara la pérdida y omite sólo ese IN
   });
 
   const { bytes, lossManifest } = writeCanonicalDwg(document);
-  assert.equal(lossManifest.length, 1);
-  assert.equal(lossManifest[0]!.code, "insert-block-nested-insert-not-written");
-  assert.equal(lossManifest[0]!.entityId, "bm2");
+  assert.equal(lossManifest.length, 0);
 
   const database = readDwg(bytes);
   const marco = database.blocks.find(
     (block) => String.fromCharCode(...block.name) === "MARCO",
   );
   assert.ok(marco);
-  // La línea del bloque SÍ viaja; el INSERT anidado se omite, declarado.
-  assert.equal(marco.entities.length, 1);
+  // La línea y el INSERT anidado viajan en la cadena de MARCO.
+  assert.equal(marco.entities.length, 2);
   assert.equal(marco.entities[0]!.entity.kind, "line");
+  assert.equal(marco.entities[1]!.entity.kind, "insert");
+  assert.equal(
+    String.fromCharCode(...(marco.entities[1]!.insertedBlockName ?? [])),
+    "TORNILLO",
+  );
+  const tornillo = database.blocks.find(
+    (block) => String.fromCharCode(...block.name) === "TORNILLO",
+  );
+  assert.ok(tornillo);
+  assert.equal(tornillo.entities.length, 1);
+  assert.equal(tornillo.entities[0]!.entity.kind, "circle");
 });
 
 test('una capa con nombre no-ASCII cae a la capa "0" con una pérdida declarada, nunca un throw', () => {
