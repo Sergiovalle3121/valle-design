@@ -51,6 +51,19 @@ function fmtDist(d: number, unit: string, region: RegionProfile = DEFAULT_REGION
   return `${formatRegionNumber(Math.round(d), region)} ${unit}`;
 }
 
+/**
+ * NI LOS RÓTULOS NI LAS COTAS SON ATMÓSFERA: la niebla no puede tocarlos.
+ *
+ * Lo aprendimos caro el 2026-09-22. `scene.fog` se calibró para la cámara del
+ * paseo 3D y la vista en planta la dibuja una ortográfica a 1000 unidades, diez
+ * veces más allá del final de la niebla: todo material estándar salía pintado
+ * del color del fondo. La planta ya no lleva niebla (`viewport/plan-fog.ts`),
+ * pero el 3D sí, y ahí una cota que se desvanece al alejarse es un DATO
+ * PERDIDO, no una atmósfera. El cuerpo de los activos sí se desvanece: eso es
+ * escenografía y desvanecerse es lo que tiene que hacer.
+ */
+const SIN_NIEBLA = false;
+
 export function makeLabel(text: string, scale = 1.5): THREE.Sprite {
   const canvas = document.createElement("canvas");
   const fontSize = 46;
@@ -78,7 +91,7 @@ export function makeLabel(text: string, scale = 1.5): THREE.Sprite {
   const tex = new THREE.CanvasTexture(canvas);
   tex.minFilter = THREE.LinearFilter;
   const sprite = new THREE.Sprite(
-    new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }),
+    new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, fog: SIN_NIEBLA }),
   );
   const aspect = canvas.width / canvas.height;
   sprite.scale.set(scale * aspect, scale, 1);
@@ -130,7 +143,7 @@ export function makeNoteLabel(text: string): THREE.Sprite {
   const tex = new THREE.CanvasTexture(canvas);
   tex.minFilter = THREE.LinearFilter;
   const sprite = new THREE.Sprite(
-    new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }),
+    new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, fog: SIN_NIEBLA }),
   );
   const scale = 1.3;
   sprite.scale.set(scale * (canvas.width / canvas.height), scale, 1);
@@ -186,6 +199,7 @@ export function buildAssetGroup(
       ),
       new THREE.LineBasicMaterial({
         color: alert ? 0xf87171 : CAD_SCENE_SELECT,
+        fog: SIN_NIEBLA,
       }),
     );
     outline.position.y = oh / 2;
@@ -220,7 +234,7 @@ export function buildDim(
     bz = (a.y2 - H / 2) * s;
   const color = a.color || "#22d3ee";
   const out: THREE.Object3D[] = [];
-  const lineMat = () => new THREE.LineBasicMaterial({ color });
+  const lineMat = () => new THREE.LineBasicMaterial({ color, fog: SIN_NIEBLA });
   out.push(
     new THREE.Line(
       new THREE.BufferGeometry().setFromPoints([

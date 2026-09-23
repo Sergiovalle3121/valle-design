@@ -82,7 +82,10 @@ function buildArrowMesh(points: readonly CadUcsIconPoint[], color: number, name:
   geometry.setIndex([0, 1, 2]);
   const mesh = new THREE.Mesh(
     geometry,
-    new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, depthTest: false }),
+    // El icono del SCU dice dónde está el origen y hacia dónde miran los ejes:
+    // es información, no paisaje, y la niebla no puede apagarlo (el porqué
+    // completo, con su medición, en `viewport/plan-fog.ts`).
+    new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, depthTest: false, fog: false }),
   );
   mesh.name = name;
   mesh.renderOrder = 2;
@@ -93,7 +96,7 @@ function buildAxisLine(points: readonly CadUcsIconPoint[], color: number, name: 
   const geometry = new THREE.BufferGeometry().setFromPoints(points.map(toVec3));
   const line = new THREE.Line(
     geometry,
-    new THREE.LineBasicMaterial({ color, depthTest: false }),
+    new THREE.LineBasicMaterial({ color, depthTest: false, fog: false }),
   );
   line.name = name;
   line.renderOrder = 2;
