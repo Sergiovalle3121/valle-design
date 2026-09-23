@@ -9,6 +9,12 @@ lanzamiento gratuito: tres meses de prueba, sin tarjeta, en
 timeouts y por qué esos números). Este archivo es la bajada concreta a Railway
 y **no repite** lo que allí está: lo enlaza.
 
+Para el inventario verificado de variables y límites actuales, lee también
+[`VARIABLES-LANZAMIENTO.md`](VARIABLES-LANZAMIENTO.md). Railway ya no permite
+activar `railway.json` en servicios nuevos: configura sus Dockerfiles, comandos
+y healthchecks en la plataforma o usa Infrastructure as Code. Tampoco se ha
+verificado desde el repositorio qué valores están puestos en la cuenta.
+
 > **Lo que sólo Sergio puede hacer** está marcado con 🔑. Son los pasos que
 > exigen una cuenta, un dominio o un secreto, y ninguna automatización los
 > puede tomar por él.
@@ -66,12 +72,14 @@ arranca mal es peor que uno que no arranca, porque nadie recibe una alerta.
 | Variable | Valor en Railway | Origen |
 | --- | --- | --- |
 | `NODE_ENV` | `production` | fijo |
-| `PORT` | `${{PORT}}` | Railway lo inyecta |
+| `PORT` | No fijarlo manualmente | Railway lo inyecta en el servicio |
 | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` | referencia al plugin |
 | `SYNCHRONIZE` | `false` | fijo, EXACTO |
-| `MIGRATIONS_RUN` | `true` | ver §4 |
+| `MIGRATIONS_RUN` | `false` tras predespliegue comprobado; `true` sin él y con una sola réplica | ver §4 |
 | `ALLOWED_ORIGIN` | `https://vallecad.com` | sin barra final, sin path |
+| `CSRF_COOKIE_DOMAIN` | `.vallecad.com` | la web en el ápice debe leer `valle_csrf` que emite `api.` |
 | `IDENTITY_RATE_LIMIT_KEY_SECRET` | 🔑 ≥32 caracteres | `openssl rand -base64 48` |
+| `IDENTITY_MFA_ENCRYPTION_KEY` | 🔑 ≥32 caracteres, distinto del anterior | cifra secretos de MFA; sin él la API productiva no arranca |
 | `OUTBOX_DISPATCHER_ENABLED` | `true` | fijo |
 | `OUTBOX_EMAIL_WEBHOOK_URL` | `https://api.vallecad.com/v1/outbox/email` | la propia API |
 | `OUTBOX_DOMAIN_WEBHOOK_URL` | `https://api.vallecad.com/v1/outbox/domain` | la propia API |
@@ -150,14 +158,15 @@ por quien esté en la ruta.
 | `NEXT_PUBLIC_BRAND_PRIVACY_EMAIL` | `privacidad@vallecad.com` | ídem |
 | `NEXT_PUBLIC_BRAND_PRODUCT_NAME_DESIGN` | `VALLECAD` | Nombre visible del producto en toda la superficie web (mismo valor que `BRAND_PRODUCT_NAME_DESIGN` en la api, o el correo y la pantalla se llamarán distinto). Se incrusta al compilar. |
 | `NEXT_PUBLIC_BRAND_NAME` | `VALLECAD` | Marca matriz visible. Se incrusta al compilar. |
-| `NEXT_PUBLIC_LAUNCH_MODE` | `free` | es el **default**; ponerlo explícito documenta la intención |
-| `NEXT_PUBLIC_APP_VERSION` | la fecha o el SHA del despliegue | Viaja en cada reporte de «algo salió mal». Sin ella los reportes dicen «desarrollo» y no se puede saber contra qué despliegue pasó el problema, que es la mitad de poder reproducirlo. **Se incrusta al compilar**, así que cada despliegue debe pasar la suya. |
-| `PORT` | `${{PORT}}` | Railway lo inyecta |
+| `NEXT_PUBLIC_LAUNCH_MODE` | `free` | Es el **default**. El Dockerfile actual no declara este `ARG`: poner `commercial` sólo en Railway todavía no habilita la compra en el bundle. |
+| `NEXT_PUBLIC_APP_VERSION` | la fecha o el SHA del despliegue | El Dockerfile actual no declara este `ARG`; hasta corregirlo, los reportes pueden seguir diciendo «desarrollo» aunque la variable esté en Railway. |
+| `PORT` | No fijarlo manualmente | Railway lo inyecta en el servicio |
 
-`NEXT_PUBLIC_LAUNCH_MODE=free` es lo que mantiene el checkout fuera de la
-superficie durante el lanzamiento. El código de Stripe sigue intacto y probado;
-lo que se apaga es la **visibilidad**. Para volver a cobrar: `commercial` y
-**reconstruir**.
+El modo `free` por defecto mantiene el checkout fuera de la superficie. El
+código de Stripe tiene pruebas locales, pero para cobrar hay que corregir los
+`ARG` del Dockerfile, reconstruir, conectar las credenciales y webhooks reales,
+y verificar un pago de prueba de extremo a extremo. Cambiar sólo la variable
+en Railway no completa esos pasos.
 
 ---
 
@@ -166,8 +175,12 @@ lo que se apaga es la **visibilidad**. Para volver a cobrar: `commercial` y
 El orden importa y no es negociable:
 
 1. **PostgreSQL primero.** Espera a que el plugin esté sano.
-2. **api después.** Con `MIGRATIONS_RUN=true`, el arranque aplica la cadena de
-   migraciones antes de aceptar tráfico.
+2. **api después.** Configura y comprueba el predespliegue
+   `node apps/api/dist/scripts/run-migrations.js` que el `railway.json` del repo
+   declara para servicios existentes. Para un servicio nuevo hay que ponerlo en
+   Railway: no se aplica solo desde ese archivo. Con ese paso verificado puedes
+   usar `MIGRATIONS_RUN=false`; sin predespliegue, `true` aplica la cadena al
+   arranque con una sola réplica.
 3. **web al final.** Su build necesita `NEXT_PUBLIC_API_URL` apuntando a un
    dominio que ya exista, aunque el API todavía no responda.
 
@@ -199,8 +212,8 @@ En Railway, *Settings → Networking → Custom Domain* de cada servicio:
 
 | Servicio | Dominio | Registro DNS |
 | --- | --- | --- |
-| web | `vallecad.com` | el que indique Railway (normalmente `CNAME` o `A` en el ápex) |
-| api | `api.vallecad.com` | `CNAME` → el host que indique Railway |
+| web | `vallecad.com` | CNAME flattening/ALIAS/ANAME según el DNS, más TXT de verificación indicados por Railway; no una IP A fija |
+| api | `api.vallecad.com` | CNAME al host indicado por Railway, más TXT de verificación |
 
 Después, y **antes** de anunciar nada:
 
@@ -227,14 +240,14 @@ npm run smoke:railway -- \
   --api https://api.vallecad.com
 ```
 
-Comprueba, en dos minutos: salud y readiness del API, que el catálogo público
-publica la oferta con su `trialDays`, que la portada y `/precios` cargan y NO
-piden tarjeta, que el registro con un correo real llega hasta el correo de
-verificación, y que un documento se puede abrir y exportar.
+Comprueba salud y readiness del API, que el catálogo público publica la oferta
+con su `trialDays`, que la portada y `/precios` cargan y no piden tarjeta, y que
+la ruta del estudio responde. **No** abre un documento ni exporta un plano.
 
-Con `--email tu-correo@dominio.mx` hace el registro de verdad y espera el
-correo. Sin él, se salta ese bloque y **lo dice** en vez de dar por buena una
-comprobación que no hizo.
+Con `--email tu-correo@dominio.mx` hace el registro de verdad y comprueba HTTP
+202 (o 409 si esa cuenta ya existe); **no espera ni verifica la entrega del
+correo**. Comprueba manualmente la bandeja y abre el enlace de verificación.
+Sin `--email`, el script omite ese bloque y lo indica.
 
 ---
 
@@ -347,9 +360,9 @@ en que esto se cae de verdad. Manda las alertas al mismo correo que
 
 1. 🔑 Crear el proyecto en Railway y añadir el plugin **PostgreSQL 16**.
 2. 🔑 Crear los servicios **api** y **web** desde este repositorio.
-3. 🔑 Generar los tres secretos:
-   `IDENTITY_RATE_LIMIT_KEY_SECRET`, `OUTBOX_WEBHOOK_SECRET`, `METRICS_TOKEN`
-   (`openssl rand -base64 48` cada uno).
+3. 🔑 Generar secretos distintos para `IDENTITY_RATE_LIMIT_KEY_SECRET`,
+   `IDENTITY_MFA_ENCRYPTION_KEY` y `OUTBOX_WEBHOOK_SECRET` (≥32 caracteres
+   cada uno). `METRICS_TOKEN` es recomendado si se van a consultar métricas.
 4. 🔑 Verificar el dominio en **Resend** y obtener la clave `re_…`.
 5. Poner las variables de §2 y §3. **`TRIAL_DAYS=90`.**
 6. 🔑 Apuntar el DNS de `vallecad.com` y `api.vallecad.com` (§5).
