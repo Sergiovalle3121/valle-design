@@ -4395,6 +4395,40 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "ESPACIO-CUARTO-NOMBRE-20260923",
+      "date": "2026-09-23",
+      "initiative": "Vincular el cuarto cerrado a un espacio persistido y permitir editar su nombre en planta sin inventar un rectángulo ni una superficie.",
+      "branch": "codex/room-space-naming",
+      "assistants": [
+        "OpenAI Codex: análisis de entidades de plantilla, conexión del nombre, pruebas de invariancia y golden de interacción"
+      ],
+      "authority": "Sergio encargó continuar ValleCAD desde el estado actual y llevar al mercado una edición de cuartos comprensible; el PROMPT MAESTRO del 2026-09-23 pide nombre editable en un espacio canónico existente y evidencia visible.",
+      "firstPartyInputs": [
+        "Las plantillas SALA/COMEDOR/COCINA persisten como box kind:room con el nombre en label; el cuadro BIM deriva las caras únicamente de muros canónicos.",
+        "La rama de área visible codex/room-area-overlay, golden 234 y las rutas existentes de comando, historial, guardado, DXF y DWG del repositorio.",
+        "El apilado sobre 47abf8ce incorpora la primera pantalla y la lectura visible de cuartos, conteos de vanos y cotas."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada ni consultada.",
+      "derivedAreas": [
+        "room-space.ts enlaza por punto interior una cara cerrada con el label del box de plantilla; para cuartos sin box crea una identidad box kind:room de huella cero con metadato explícito, conservada por la proyección del editor.",
+        "entity-commands.ts actualiza el mismo label mediante un lote canónico y sincroniza TEXT/MTEXT visible cuando el usuario lo renombra; Deshacer/Rehacer y guardar/reabrir mantienen la identidad. El aplicador puro de pestañas pasó intacto a entity-command-paper-space.ts para respetar el presupuesto de 800 líneas.",
+        "bim-schedule.ts y room-area-labels.ts muestran el nombre persistido junto al área entre ejes derivada de los muros; al abrir el contorno desaparece el área y al cerrarlo reaparece el nombre.",
+        "Las rutas de geometría, validación, papel, DXF y DWG omiten exclusivamente el ancla sin huella; no se exporta ni se suma a cantidades BIM.",
+        "Golden 255 caracteriza renombrar, Deshacer/Rehacer, guardar y reabrir sobre el build de producción en Chromium; pasó en la base anterior al apilado."
+      ],
+      "fixtures": "Documentos herméticos de muros rectangulares y cóncavos, box de plantilla, TEXT y LINE; el golden usa un backend simulado sin credenciales ni datos de clientes.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "En el apilado sobre 47abf8ce: ocho specs focales PASS (incluidas room-space, lectura visible, BIM, lote, DXF/DWG y reglas); typecheck web, eslint focalizado, presupuesto de monolito y check:governance PASS. El build web de producción con Webpack (208 páginas) y golden 255 Chromium PASS corresponden a la base anterior #242; la revalidación visual del SHA apilado sigue pendiente por memoria libre insuficiente. Se verificaron identidad persistida, área cóncava sólo desde muros, cantidades BIM invariantes, apertura/cierre, DXF/DWG con bytes iguales entre geometría original y documento con ancla, manifiestos sin ancla y validación sin marcador. Renombrar un TEXT/MTEXT modifica intencionalmente su contenido exportado; la invariancia byte a byte se exige para documentos existentes sin renombrar o para añadir sólo un ancla nominal. El área visible es entre ejes, no una afirmación de área útil neta; la huella cero no representa geometría de un cuarto. Turbopack local rechazó junctions de node_modules antes de compilar; se usó Webpack sin alterar los enlaces. CI exact-SHA y adopción humana pendientes."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }

@@ -586,7 +586,7 @@ import {
 } from "@/lib/cad/world-scale";
 import CadOverviewMinimap from "@/components/cad/viewport/CadOverviewMinimap";
 import { renderCadSheetSetPdf } from "./sheet-set-pdf";
-import { CadViewportMeasurements } from "./CadViewportMeasurements";
+import { CadViewportMeasurements, renameCadRoomSpace } from "./CadViewportMeasurements";
 import { mergeAnnotationLayers, syncLegacyTextShadow } from "./legacy-text-shadow-sync";
 import { useHatchPalette } from "./use-hatch-palette";
 import {
@@ -14406,8 +14406,8 @@ export default function Layout3DEditor({
               ctxRef={ctxRef} cameraRef={cameraRef}
               controlsRef={controlsRef}
               mountRef={mountRef}
-              unit={(data?.footprint.unit ?? "mm") as WorldUnit}
-              document={loadedCadDocumentRef.current} viewControllerRef={viewControllerRef} essential={uiMode === "esencial"}
+              unit={(data?.footprint.unit ?? "mm") as WorldUnit} document={loadedCadDocumentRef.current}
+              viewControllerRef={viewControllerRef} essential={uiMode === "esencial"} onRenameRoom={(room, name) => renameCadRoomSpace(room, name, snapshotDocument, commitNativeCommands, newId, assetsRef.current, rebuildAssets, refreshSnap)}
             />
             {(dxfWarnings.length > 0 || dxfImportPreview) && (
               <div className="absolute right-3 top-16 z-20 w-80 rounded-2xl border border-amber-400/20 bg-surface/80 p-3 shadow-2xl backdrop-blur">
