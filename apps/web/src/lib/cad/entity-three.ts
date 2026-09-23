@@ -37,6 +37,34 @@ interface CadNativeOverviewState {
 const CAD_NATIVE_OVERVIEW_COLOR = 0x475569;
 const cadNativeOverviewStates = new WeakMap<THREE.LineSegments, CadNativeOverviewState>();
 
+/**
+ * EL DIBUJO NO ES ATMÓSFERA: la niebla de la escena no puede tocarlo.
+ *
+ * `scene.fog` se calibró para la cámara EN PERSPECTIVA del paseo 3D: su alcance
+ * es `max(W,H)*s*3.4` y, como `s = 30/max(W,H)`, son 102 unidades SIEMPRE. La
+ * planta no la dibuja esa cámara sino la ORTOGRÁFICA que `view-controller.ts`
+ * coloca a `ORTHO_ELEVATION = 1000`: diez veces más lejos que el final de la
+ * niebla. Allí `fogFactor` satura a 1 y un material estándar se pinta al 100 %
+ * del color de niebla, que es EXACTAMENTE el color de fondo del lienzo.
+ *
+ * Medido el 2026-09-22 en el estudio (golden 232, Chromium, leyendo el búfer
+ * tras cada llamada de dibujo): el lote de líneas —`ShaderMaterial` propio, sin
+ * código de niebla— dejaba 354 píxeles cian, y la llamada siguiente, el trazo
+ * por entidad de ESTA proyección, los devolvía uno a uno a (10,15,30). De ahí
+ * los dos defectos: dibujar una línea no cambiaba un píxel —queda designada, se
+ * proyecta y se repinta a sí misma en color de fondo encima del lote— y Ctrl+A
+ * borraba el plano entero, porque designar todo proyecta todo. Saltándose esa
+ * única llamada el lienzo pasaba de 0 a 326 píxeles con tinta; con este arreglo,
+ * de 0 a 893.
+ *
+ * Se excluye la proyección ENTERA —trazos, rellenos, rótulos, grips y el
+ * resumen—, no sólo el trazo que se cazó: es la misma proyección del mismo
+ * documento y toda ella se dibuja por encima del lote. En el paseo 3D deja de
+ * desvanecerse con la distancia, que es lo correcto: una cota que se borra al
+ * alejarse es un dato perdido, no una atmósfera.
+ */
+const SIN_NIEBLA = false;
+
 const DEFAULT_COLOR = 0x60a5fa;
 const SELECTED_COLOR = 0x22d3ee;
 
@@ -186,7 +214,7 @@ function buildCadMTextSprite(
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.needsUpdate = true;
-  const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+  const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false, fog: SIN_NIEBLA });
   material.rotation = ((entity.rotation ?? 0) * Math.PI) / 180;
   const sprite = new THREE.Sprite(material);
   const center = layout.corners.reduce((sum, point) => ({ x: sum.x + point.x / 4, y: sum.y + point.y / 4 }), { x: 0, y: 0 });
@@ -292,6 +320,7 @@ export function buildCadNativeOverviewObject(
       transparent: true,
       opacity: 0.48,
       depthTest: false,
+      fog: SIN_NIEBLA,
     }),
   );
   object.name = "cad-native:overview";
@@ -660,6 +689,7 @@ export function buildCadNativeObject(
         opacity: selected ? 0.34 : 0.2,
         depthTest: false,
         side: THREE.DoubleSide,
+        fog: SIN_NIEBLA,
       }),
     );
     fill.rotation.x = Math.PI / 2;
@@ -684,6 +714,7 @@ export function buildCadNativeObject(
         transparent: true,
         opacity: selected ? 1 : 0.9,
         depthTest: false,
+        fog: SIN_NIEBLA,
       }),
     );
     line.renderOrder = 30;
@@ -700,6 +731,7 @@ export function buildCadNativeObject(
       new THREE.MeshBasicMaterial({
         color: grip.kind === "center" ? 0xfbbf24 : SELECTED_COLOR,
         depthTest: false,
+        fog: SIN_NIEBLA,
       }),
     );
     marker.position.copy(scenePoint(grip.point, viewport, elevation + 0.03));

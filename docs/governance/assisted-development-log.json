@@ -4122,6 +4122,39 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "NIEBLA-EN-PLANTA-20260923",
+      "date": "2026-09-23",
+      "initiative": "LO QUE DIBUJAS SE VE. La vista en planta se dibujaba con la niebla de la escena encendida, y la cámara ortográfica de planta está a 1000 unidades del plano mientras la niebla acaba a 102: el factor de niebla saturaba y TODO material estándar de three salía pintado al 100 % del color de la niebla, que es idéntico al del fondo. No es que no se dibujara: se dibujaba invisible. De ahí los tres defectos que el dueño describía como «el ribbon no sirve, sólo está de adorno»: la línea recién dibujada no cambiaba un píxel aunque entrara en el documento, designar todo (Ctrl+A) borraba el plano de la pantalla, y la banda elástica no existía. La niebla queda encendida sólo en el paseo 3D, la proyección del dibujo queda fuera de ella en toda vista, la cruceta deja de medir cero píxeles y el lienzo oculta la flecha del sistema.",
+      "branch": "claude/tanda1-esencial (misma rama que la Tanda 1; PR sobre main)",
+      "assistants": [
+        "Claude Opus 5 (Anthropic, Claude Code) como orquestador y constructor: reproducción del defecto contra producción con conteo de píxeles reales, Workflow de 7 agentes de sólo lectura para el diagnóstico, un subagente de bisección con instrumentación de WebGL, y la corrección, las pruebas y los gates."
+      ],
+      "authority": "Encargo expreso de Sergio Valle Zárate del 2026-09-22: «ya lo probé y sí mejoró algo pero aún se siente horrible la experiencia de usuario, sigo sin poder dibujar como en AutoCAD y el ribbon no sirve, sólo está de adorno; chécale bien qué estás haciendo mal y corrige eso».",
+      "firstPartyInputs": [
+        "Reproducción contra https://vallecad.com/demo el 2026-09-22 (work/reproducir-dibujo-real.mjs): los diez botones de la cinta responden y el documento acepta la entidad, pero el lienzo no cambia.",
+        "Instrumentación de WebGL en Chromium sobre el estudio real (prototipos de WebGL2RenderingContext interceptados desde addInitScript, sin tocar producto): gl.readPixels tras cada llamada de dibujo."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "Nuevo, fuera del monolito: components/cad/viewport/plan-fog.ts (+ spec con la aritmética del defecto).",
+        "Modificado: Layout3DEditor.tsx (la niebla nace según el modo y cambia con él; cruceta medida contra la pantalla; el lienzo oculta el puntero del sistema) — el monolito ENCOGE de 16859 a 16857 líneas.",
+        "Modificado: viewport/engine-preview.ts, lib/cad/entity-three.ts, lib/cad/solid3d-three.ts y lib/cad/view/visual-style-mesh.ts (la proyección del dibujo queda fuera de la niebla en toda vista).",
+        "Modificado: lib/cad/view/view-controller.ts (ORTHO_ELEVATION se exporta para que la prueba pueda medir la relación entre la altura de la cámara y el alcance de la niebla).",
+        "Pruebas: golden 232 nuevo (cuenta píxeles del LIENZO, no DOM) y arreglo del a11y de Esencial, que caducaba porque la suite siembra la preferencia «pro»."
+      ],
+      "fixtures": "Ninguna nueva. El golden 232 usa las fixturas herméticas de siempre y mide el `<canvas>` con toDataURL, comparando contra el lienzo vacío de la propia sesión.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "MEDIDO, no estimado. (1) La causa, con gl.readPixels tras cada llamada de dibujo en Chromium: el lote CAD deja 354 pixeles cian en el bufer y la llamada siguiente -el trazo por entidad, material estandar- los devuelve uno a uno a (10,15,30) = 0x0a0f1e, el color exacto del fondo; anulando solo la mezcla de niebla en los cinco programas que la tienen, el lienzo vacio pasa de 0 a 219 068 pixeles con tinta y aparecen suelo, rejilla y ejes. (2) Golden 232 sobre compilacion de produccion: 2/2 verde -dibujar una linea cambia mas de 50 pixeles del lienzo respecto al lienzo vacio de la propia sesion, con caja envolvente de mas de 100 px de ancho, y Ctrl+A conserva al menos el 90 % de lo dibujado. (3) Goldens 19, 32, 33, 85, 227, 228, 229 y 232 en Chromium sobre esa misma compilacion: 17/17 verdes. (4) 772/772 specs de Node. (5) plan-fog.spec.ts: 9 aserciones verdes, incluida la aritmetica 1000 > 102 que causo el defecto. (6) Presupuesto de monolito: 16859 -> 16858 lineas."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

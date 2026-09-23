@@ -543,6 +543,7 @@ import {
   applyInitialCameraFraming,
   unlockPolarAngleForCommand,
 } from "@/components/cad/viewport/camera-policy";
+import { applyCadSceneFog, setCadSceneFogColor } from "@/components/cad/viewport/plan-fog";
 import {
   resolveCadRenderPipeline,
   type CadRenderPipelineChoice,
@@ -2203,7 +2204,7 @@ export default function Layout3DEditor({
     const th = THEMES[themeRef.current];
     sc.background = new THREE.Color(th.bg);
     renderPipelineHostRef.current?.setBackground(th.bg); // T-13 / F9 P-01: la tinta por defecto sabe contra qué fondo se dibuja
-    if (sc.fog instanceof THREE.Fog) sc.fog.color.setHex(th.fog);
+    setCadSceneFogColor(sc, th.fog);
     const ground = groundRef.current;
     if (ground)
       (ground.material as THREE.MeshStandardMaterial).color.setHex(th.ground);
@@ -5842,11 +5843,7 @@ export default function Layout3DEditor({
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0a0f1e);
-    scene.fog = new THREE.Fog(
-      0x0a0f1e,
-      Math.max(W, H) * s * 1.4,
-      Math.max(W, H) * s * 3.4,
-    );
+    applyCadSceneFog(scene, viewModeRef.current, { W, H, s });
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 4000);
@@ -8303,6 +8300,7 @@ export default function Layout3DEditor({
   }, [objectTags]);
   const configureOrbitControlsForMode = (mode: "3d" | "2d") => {
     viewControllerRef.current?.setMode(mode);
+    applyCadSceneFog(sceneRef.current, mode, ctxRef.current);
     if (controlsRef.current) applyCadCameraPolicy(controlsRef.current, mode, picking());
   };
   /** ¿Hay un paso esperando que se designe una cara? Decide quién manda el clic. */
@@ -11655,6 +11653,7 @@ export default function Layout3DEditor({
     const ctrl = controlsRef.current;
     const ctx = ctxRef.current;
     viewControllerRef.current?.setMode(mode);
+    applyCadSceneFog(sceneRef.current, mode, ctx);
     if (!cam || !ctrl || !ctx) return;
     const d = Math.max(ctx.W, ctx.H) * ctx.s;
     if (mode === "2d") {
@@ -14222,7 +14221,7 @@ export default function Layout3DEditor({
               if (!drawingReadOnlyRef.current && !dxfBusy) void onDxfFile(f);
             }}
           >
-            <div ref={mountRef} className="absolute inset-0" />
+            <div ref={mountRef} className="absolute inset-0 cursor-none" />
             {/* ViewCube (`camera-view-presets.ts`), sólo en 3D — no tiene
                 sentido de orientación en planta. `CadNavigationBar` (encuadrar
                 todo/selección) SÍ se muestra en 2D también (ola1-paleta): es
@@ -14291,11 +14290,11 @@ export default function Layout3DEditor({
             >
               <span
                 className="absolute left-1/2 top-1/2 h-px -translate-x-1/2 -translate-y-1/2 bg-indigo-100/90 mix-blend-difference"
-                style={{ width: `${workspacePreferences.crosshairPercent}%` }}
+                style={{ width: `${workspacePreferences.crosshairPercent}vw` }}
               />
               <span
                 className="absolute left-1/2 top-1/2 w-px -translate-x-1/2 -translate-y-1/2 bg-indigo-100/90 mix-blend-difference"
-                style={{ height: `${workspacePreferences.crosshairPercent}%` }}
+                style={{ height: `${workspacePreferences.crosshairPercent}vh` }}
               />
               <span
                 data-testid="cad-pick-box"

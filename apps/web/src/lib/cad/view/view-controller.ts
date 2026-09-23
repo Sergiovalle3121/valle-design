@@ -89,7 +89,7 @@ export interface CadDrawingTransform {
 }
 
 /** Altura a la que se sitúa la cámara ortográfica sobre el plano del dibujo. */
-const ORTHO_ELEVATION = 1000;
+export const ORTHO_ELEVATION = 1000;
 
 export class CadViewController {
   readonly perspective: THREE.PerspectiveCamera;

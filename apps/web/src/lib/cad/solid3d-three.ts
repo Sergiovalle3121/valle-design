@@ -229,6 +229,12 @@ export function buildCadSolidObject(
       polygonOffsetFactor: 1,
       polygonOffsetUnits: 1,
       side: THREE.FrontSide,
+      // Fuera de la niebla, por lo mismo que la proyección por entidad: en la
+      // vista 2D la cámara está a 1000 unidades y el alcance de `scene.fog` son
+      // 102, así que un material estándar se pinta entero del color de fondo y,
+      // dibujado encima del lote, lo BORRA. El porqué completo y su medición
+      // viven en `entity-three.ts` (constante `SIN_NIEBLA`).
+      fog: false,
     });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.name = `cad-solid-faces:${entity.id}`;
@@ -252,7 +258,8 @@ export function buildCadSolidObject(
     group.userData.hiddenLineRemoval = culled !== null;
     const line = new THREE.LineSegments(
       edges,
-      new THREE.LineBasicMaterial({ color: options.selected ? SELECTED_COLOR : SOLID_EDGE_COLOR }),
+      // `fog: false`: ver la nota de las caras, arriba.
+      new THREE.LineBasicMaterial({ color: options.selected ? SELECTED_COLOR : SOLID_EDGE_COLOR, fog: false }),
     );
     line.name = `cad-solid-edges:${entity.id}`;
     line.userData.nativeEntityId = entity.id;

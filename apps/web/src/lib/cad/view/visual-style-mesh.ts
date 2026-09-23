@@ -67,6 +67,10 @@ export function applyCadVisualStyleToGroup(
       polygonOffsetFactor: 1,
       polygonOffsetUnits: 1,
       side: THREE.FrontSide,
+      // La niebla no toca el dibujo: en 2D la cámara está diez veces más lejos
+      // que su alcance y estas caras se pintarían del color de fondo, borrando
+      // el lote que tienen debajo. Medición en `entity-three.ts`.
+      fog: false,
     });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.name = `${group.name}-faces`;
@@ -79,7 +83,8 @@ export function applyCadVisualStyleToGroup(
     const edgesGeometry = new THREE.EdgesGeometry(geometry, options.edgeThresholdAngle ?? 20);
     const line = new THREE.LineSegments(
       edgesGeometry,
-      new THREE.LineBasicMaterial({ color: options.edgesColor ?? CAD_STYLED_MESH_EDGE_COLOR }),
+      // `fog: false`: ver la nota de las caras, arriba.
+      new THREE.LineBasicMaterial({ color: options.edgesColor ?? CAD_STYLED_MESH_EDGE_COLOR, fog: false }),
     );
     line.name = `${group.name}-edges`;
     if (options.nativeEntityId) line.userData.nativeEntityId = options.nativeEntityId;
