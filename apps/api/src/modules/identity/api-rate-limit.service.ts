@@ -36,8 +36,18 @@ export class ApiRateLimitService {
     identifiers: readonly string[],
     maxPerMinute: number,
   ): Promise<void> {
+    return this.enforceWindow(scope, identifiers, maxPerMinute, 60_000);
+  }
+
+  /** La publicación anónima además necesita un presupuesto diario persistente. */
+  async enforceWindow(
+    scope: string,
+    identifiers: readonly string[],
+    limit: number,
+    windowMs: number,
+  ): Promise<void> {
     const key = createOpaqueRateLimitKey(scope, identifiers);
-    const decision = await this.store.consume(key, maxPerMinute, 60_000);
+    const decision = await this.store.consume(key, limit, windowMs);
     if (!decision.allowed) {
       throw new HttpException(
         {
@@ -67,6 +77,10 @@ export const API_RATE_LIMITS = {
   checkoutSessionsPerOrganization: 10,
   /** Comentarios por sesión de review: la superficie anónima-con-token. */
   reviewCommentsPerSession: 30,
+  /** Capturas demo sin cuenta: dos por minuto, diez por día e IP, 500 diarias globales. */
+  demoSharesPerIpPerMinute: 2,
+  demoSharesPerIpPerDay: 10,
+  demoSharesGlobalPerDay: 500,
   /**
    * Reportes de «algo salió mal» por cuenta. Diez por minuto es holgadísimo
    * para una persona y estrecho para un bucle: el botón manda correo, y un

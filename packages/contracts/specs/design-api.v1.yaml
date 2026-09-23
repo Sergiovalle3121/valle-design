@@ -2382,6 +2382,54 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/EntitlementRequired" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /v1/cad/demo-shares:
+    post:
+      operationId: createCadDemoShare
+      tags: [reviews]
+      summary: Publica una copia temporal de solo lectura desde /demo.
+      description: >-
+        Endpoint público y sin cuenta. Recibe únicamente un documento CAD de
+        hasta 256 KiB serializados; no acepta un id de destino. Crea un documento
+        aislado y una sesión de revisión con token aleatorio, hash persistido,
+        comentarios desactivados y vencimiento fijo de 24 horas. Es una copia
+        inmutable: las ediciones posteriores en /demo no se reflejan. Límite
+        por IP de dos publicaciones/minuto y diez/día, más 500/día globales.
+        El servidor purga las copias vencidas.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [document]
+              additionalProperties: false
+              properties:
+                document:
+                  $ref: "#/components/schemas/CadDocumentInline"
+      responses:
+        "201":
+          description: Token mostrado una sola vez; solo su hash se almacena.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [shareToken, expiresAt]
+                properties:
+                  shareToken:
+                    type: string
+                    minLength: 16
+                    maxLength: 256
+                  expiresAt:
+                    $ref: "#/components/schemas/Timestamp"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "413":
+          description: La captura supera 256 KiB.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "429": { $ref: "#/components/responses/TooManyRequests" }
   /v1/cad/review/context:
     get:
       operationId: redeemReviewLinkContext
