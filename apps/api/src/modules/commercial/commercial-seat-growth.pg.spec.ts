@@ -12,6 +12,7 @@ import {
   STRIPE_TEST_WEBHOOK_SECRET as WEBHOOK_SECRET,
   authenticatedCommercialRequest as authenticated,
   memoryRateLimits,
+  paidCheckoutSessionFromForm,
 } from '../../common/testing/stripe-billing-fixture';
 import { User } from '../identity/entities/identity.entity';
 import {
@@ -121,20 +122,19 @@ describePostgres(
         },
         authenticated(organizationId, owner.id, 'owner'),
       );
-      await process('evt_' + checkoutId, 'checkout.session.completed', {
-        id: checkoutId,
-        client_reference_id: checkout.intentId,
-        customer: 'cus_despacho',
-        subscription: {
-          id: 'sub_despacho',
-          current_period_end: Math.floor(Date.now() / 1000) + 30 * 86_400,
-        },
-        metadata: {
-          organizationId,
-          intentId: checkout.intentId,
-          planCode: 'despacho',
-        },
-      });
+      await process(
+        'evt_' + checkoutId,
+        'checkout.session.completed',
+        paidCheckoutSessionFromForm(stripeCalls[stripeCalls.length - 1].form, {
+          id: checkoutId,
+          client_reference_id: checkout.intentId,
+          customer: 'cus_despacho',
+          subscription: {
+            id: 'sub_despacho',
+            current_period_end: Math.floor(Date.now() / 1000) + 30 * 86_400,
+          },
+        }),
+      );
     }
 
     function organizationsController(authenticatedAs: {
