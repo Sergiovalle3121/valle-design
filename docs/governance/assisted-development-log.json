@@ -4333,6 +4333,39 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "DEMO-VISITA-LIMPIA-RECUPERACION-20260923",
+      "date": "2026-09-23",
+      "initiative": "Cada nueva visita a /demo abre la casa de ejemplo limpia. Antes de reemplazar el autosave local anterior, conserva sus bytes en una clave de recuperación; si ese dibujo se puede leer, el visitante decide si lo restaura. La clave histórica valle_demo_document permanece activa para el registro y el guardado.",
+      "branch": "codex/demo-clean-recover",
+      "assistants": [
+        "OpenAI Codex: auditoría del ciclo de vida local de /demo, implementación y pruebas de regresión"
+      ],
+      "authority": "Sergio pidió corregir el arranque heredado de /demo sin borrar la clave ni el dibujo previo, como parte de la campaña para que la demostración sea utilizable y el avance llegue a main y vallecad.com.",
+      "firstPartyInputs": [
+        "Puerto de documentos de demostración y flujo de montaje de DemoStudio en origin/main",
+        "Contrato existente del autosave y adopción del dibujo en el registro",
+        "Prueba del protocolo estudiantil de 2026-09-23: /demo reutilizaba el dibujo local de una visita anterior"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "apps/web/src/components/cad/document-lifecycle/demo-port.ts y su spec: apertura limpia, copia de sobres anteriores incluso ilegibles, y restauración elegida conservando también lo dibujado en la visita actual",
+        "apps/web/src/app/demo/DemoStudio.tsx: botón de recuperación voluntaria y remontaje del editor con el dibujo elegido",
+        "apps/web/src/lib/cad/demo/demo-constants.ts: clave adicional de recuperación sin cambiar valle_demo_document",
+        "apps/web/e2e/public/demo-studio.spec.ts: recorrido en navegador que simula el sobre heredado sin la marca edited"
+      ],
+      "fixtures": "Almacenamiento en memoria con sobre heredado y entidad de línea propia; el E2E siembra el sobre mediante un dibujo real en /demo y elimina sólo el campo nuevo edited.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Spec del puerto, typecheck web, ESLint focalizado, check:governance y build de producción Next/Webpack verdes en local. E2E Chromium de recuperación heredada y golden 228 verdes contra ese build. Medición a los 3 s en /demo: a 1440×769, visita nueva 29 controles/76.56 % de pantalla libre/0 % de lienzo tapado y visita heredada 30/76.00 %/0.73 %; a 1366×768, nueva 29/76.26 %/0 % y heredada 30/75.70 %/0.74 %. La CI y la comprobación posterior en vallecad.com deben ejecutarse sobre el SHA fusionado; no se afirma todavía que el comportamiento esté desplegado."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "STRIPE-PEDIDO-PAGADO-INMUTABLE-20260923",
       "date": "2026-09-23",
       "initiative": "Impedir que una sesión de Stripe vieja conceda más asientos que los cobrados tras reutilizar un intent pendiente; atar la idempotencia al formulario exacto y comprobar el total pagado antes de activar.",

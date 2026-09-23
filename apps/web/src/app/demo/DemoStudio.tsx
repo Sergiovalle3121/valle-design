@@ -29,13 +29,14 @@
  */
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { createPortal } from "react-dom";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { CadStudioSkeleton } from "@/components/cad/studio/CadStudioSkeleton";
-import { buttonClass } from "@/components/ui";
+import { Button, buttonClass } from "@/components/ui";
 import { DEMO_DOCUMENT_ID } from "@/lib/cad/demo/demo-constants";
-import type { DocumentLifecyclePort } from "@/components/cad/document-lifecycle/controller";
+import type { DemoDocumentPort } from "@/components/cad/document-lifecycle/demo-port";
 
 const CadStudioHost = dynamic(() => import("@/components/cad/CadStudioHost"), {
   ssr: false,
@@ -51,7 +52,9 @@ export function DemoStudio() {
    * pinta el esqueleto al instante y todo lo pesado llega junto, un latido
    * después, sobre los mismos huecos.
    */
-  const [documentPort, setDocumentPort] = useState<DocumentLifecyclePort | null>(null);
+  const [documentPort, setDocumentPort] = useState<DemoDocumentPort | null>(null);
+  const [restored, setRestored] = useState(false);
+  const [editorKey, setEditorKey] = useState(0);
   useEffect(() => {
     let alive = true;
     void import("@/components/cad/document-lifecycle/demo-port").then(({ createDemoDocumentPort }) => {
@@ -64,6 +67,13 @@ export function DemoStudio() {
   if (!documentPort) {
     return <CadStudioSkeleton etapa="Preparando la demostración…" />;
   }
+  const recoverPrevious = () => {
+    if (!documentPort.restorePrevious()) return;
+    setRestored(true);
+    // El editor abre su documento al montar. La misma instancia de puerto
+    // entrega ahora el dibujo elegido, sin añadir una ruta de carga al monolito.
+    setEditorKey((value) => value + 1);
+  };
   const demoBanner = (
     <aside
       data-testid="demo-banner"
@@ -84,6 +94,7 @@ export function DemoStudio() {
   return (
     <div className="relative h-dvh">
       <CadStudioHost
+        key={editorKey}
         documentId={DEMO_DOCUMENT_ID}
         model={DEMO_DOCUMENT_ID}
         revision="demo"
@@ -97,6 +108,20 @@ export function DemoStudio() {
         demoBanner={demoBanner}
         uiModeDefault="esencial"
       />
+      {documentPort.hasRecoverableDocument && !restored
+        ? createPortal(
+            <aside
+              data-testid="demo-recovery-notice"
+              role="status"
+              className="fixed bottom-16 right-14 z-[80]"
+            >
+              <Button size="sm" onClick={recoverPrevious} title="Tu dibujo anterior sigue guardado en este navegador">
+                Recuperar mi dibujo anterior
+              </Button>
+            </aside>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
