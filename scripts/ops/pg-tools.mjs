@@ -44,42 +44,90 @@ export function resolveBinary(name) {
 }
 
 /**
- * Ejecuta un binario de PostgreSQL heredando `PGPASSWORD` desde la URL, para
- * no dejar la contraseña en la línea de comandos (visible en `ps`).
+ * La URI de libpq mantiene host, base y opciones (por ejemplo sslmode), pero
+ * nunca lleva la contraseña en argv. PostgreSQL la recibe por PGPASSWORD.
+ * Opciones de contraseña distintas de `password` fallan cerradas: dejarlas en
+ * la query de la URI volvería a exponerlas en la lista de procesos.
  */
+export function pgConnectionWithoutPassword(url) {
+  const parsed = parseDatabaseUrl(url);
+  let password = decodeURIComponent(parsed.password);
+  for (const [key, value] of parsed.searchParams) {
+    if (!/password/i.test(key)) continue;
+    if (key !== 'password') {
+      throw new Error(
+        'DATABASE_URL contiene una opción de contraseña no compatible con una invocación segura de PostgreSQL.',
+      );
+    }
+    password = value;
+  }
+  parsed.password = '';
+  parsed.searchParams.delete('password');
+  return { connection: parsed.toString(), password };
+}
+
+function parseDatabaseUrl(url) {
+  try {
+    const parsed = new URL(url);
+    if (!['postgres:', 'postgresql:'].includes(parsed.protocol)) throw new Error();
+    return parsed;
+  } catch {
+    // `ERR_INVALID_URL` puede llevar la URI original en `.input`: jamás se
+    // propaga a un log o a la consola cuando contiene una credencial.
+    throw new Error('DATABASE_URL debe ser una URL PostgreSQL válida.');
+  }
+}
+
+function redactPassword(text, password, url) {
+  const variants = [url, password, encodeURIComponent(password)];
+  return variants.reduce(
+    (safe, variant) => (variant ? safe.replaceAll(variant, '[REDACTED]') : safe),
+    text,
+  );
+}
+
+/** Ejecuta PostgreSQL sin una contraseña en argumentos ni en errores. */
 export function runPg(binary, args, { url, input, allowFailure = false } = {}) {
   const env = { ...process.env };
+  let safeArgs = args;
+  let password = '';
   if (url) {
-    const parsed = parseUrl(url);
-    if (parsed.password) env.PGPASSWORD = parsed.password;
+    const safe = pgConnectionWithoutPassword(url);
+    password = safe.password;
+    if (password) env.PGPASSWORD = password;
+    // Cubre el argumento posicional de psql/pg_dump y la forma
+    // `--dbname=<URI>` de pg_restore en un solo lugar.
+    safeArgs = args.map((arg) => arg.replaceAll(url, () => safe.connection));
   }
   // Salida en inglés y sin colores: los mensajes se parsean y se pegan en
   // informes de incidente.
   env.LC_ALL = 'C';
   env.PGCLIENTENCODING = 'UTF8';
-  const result = spawnSync(binary, args, {
+  const result = spawnSync(binary, safeArgs, {
     encoding: 'utf8',
     env,
     input,
     maxBuffer: 64 * 1024 * 1024,
   });
-  if (result.error) throw result.error;
+  if (result.error) {
+    throw new Error(redactPassword(result.error.message, password, url));
+  }
   if (result.status !== 0 && !allowFailure) {
     throw new Error(
-      `${binary} salió con código ${result.status}:\n${(result.stderr || '').trim()}`,
+      `${binary} salió con código ${result.status}:\n${redactPassword((result.stderr || '').trim(), password, url)}`,
     );
   }
   return result;
 }
 
 export function parseUrl(url) {
-  const parsed = new URL(url);
+  const parsed = parseDatabaseUrl(url);
   return {
     protocol: parsed.protocol,
     host: parsed.hostname,
     port: parsed.port || '5432',
     username: decodeURIComponent(parsed.username || ''),
-    password: decodeURIComponent(parsed.password || ''),
+    password: parsed.searchParams.get('password') ?? decodeURIComponent(parsed.password || ''),
     database: decodeURIComponent(parsed.pathname.replace(/^\//, '')),
     search: parsed.search,
   };
@@ -87,7 +135,7 @@ export function parseUrl(url) {
 
 /** Misma conexión, otra base (para crear/borrar la temporal). */
 export function withDatabase(url, database) {
-  const parsed = new URL(url);
+  const parsed = parseDatabaseUrl(url);
   parsed.pathname = `/${database}`;
   return parsed.toString();
 }
@@ -117,7 +165,7 @@ export function requireDatabaseUrl(explicit) {
     process.env.TEST_DATABASE_URL;
   if (!url) {
     throw new Error(
-      'Falta la URL de la base: pasa --url o define DATABASE_URL. ' +
+      'Falta la URL de la base: define DATABASE_URL en el entorno. ' +
         'Un backup no puede adivinar contra qué base debe correr.',
     );
   }

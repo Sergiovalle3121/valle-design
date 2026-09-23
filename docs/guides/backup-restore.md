@@ -10,13 +10,17 @@ export PG_BIN=/usr/lib/postgresql/16/bin      # o D:/dev/pg16/pgsql/bin
 export DATABASE_URL=postgres://usuario:clave@host:5432/valle_design
 
 # 1 · Crear el backup + su inventario verificable
-node scripts/ops/backup.mjs --url "$DATABASE_URL" --out backups/
+node scripts/ops/backup.mjs --out backups/
 
 # 2 · Restaurar en una base TEMPORAL, verificar y borrarla
 node scripts/ops/restore-verify.mjs \
-  --dump backups/valle-design-<sello>.dump \
-  --url "$DATABASE_URL"
+  --dump backups/valle-design-<sello>.dump
 ```
+
+La URL sólo se entrega por la variable de entorno. Pasarla por `--url` (o
+como argumento directo a `pg_dump`) deja la contraseña visible en la línea de
+procesos. Los scripts entregan a PostgreSQL una URI sin contraseña y la clave
+por `PGPASSWORD`.
 
 `backup.mjs` emite cuatro artefactos, y el tercero y el cuarto son los que
 hacen la diferencia:
@@ -92,7 +96,9 @@ ruidoso en cualquier paso. La línea exacta:
 
 ```cron
 MAILTO=tu-correo@dominio.mx
-15 3 * * * DATABASE_URL=postgres://... RCLONE_REMOTE=r2:valle-backups /srv/valle/repo/scripts/ops/backup-cron.sh >> /var/log/valle-backup.log 2>&1
+# Variable del crontab, no argumento del comando:
+DATABASE_URL=postgres://...
+15 3 * * * RCLONE_REMOTE=r2:valle-backups /srv/valle/repo/scripts/ops/backup-cron.sh >> /var/log/valle-backup.log 2>&1
 ```
 
 Requisitos del host: Node 20+, cliente PostgreSQL 16 (`PG_BIN` si no está en
@@ -167,15 +173,7 @@ retención y responsable. Ejecuta `pg_dump` con un usuario de backup de mínimo
 privilegio y guarda el archivo fuera del host de base.
 
 ```bash
-pg_dump \
-  --format=custom \
-  --no-owner \
-  --no-acl \
-  --file=valle-design.dump \
-  "$DATABASE_URL"
-
-pg_restore --list valle-design.dump >valle-design.contents
-sha256sum valle-design.dump >valle-design.dump.sha256
+node scripts/ops/backup.mjs --out backups/ --name valle-design
 ```
 
 `pg_dump` usa un snapshot MVCC consistente. No ejecutes dumps separados por
