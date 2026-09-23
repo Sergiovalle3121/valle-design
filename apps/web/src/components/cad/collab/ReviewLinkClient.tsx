@@ -232,7 +232,11 @@ export default function ReviewLinkClient() {
             data-testid="cad-review-banner"
             className="rounded-full border border-warning/30 bg-warning/15 px-2.5 py-0.5 type-micro font-semibold text-warning-ink"
           >
-            {phase.review.deliveredVersion ? "ENTREGA · SOLO LECTURA" : "REVISIÓN · SOLO LECTURA"}
+            {phase.review.deliveredVersion
+              ? "ENTREGA · SOLO LECTURA"
+              : phase.review.allowComments
+                ? "REVISIÓN · COMENTARIOS"
+                : "REVISIÓN · SOLO VISTA"}
           </span>
           <h1
             data-testid="cad-review-document-name"
