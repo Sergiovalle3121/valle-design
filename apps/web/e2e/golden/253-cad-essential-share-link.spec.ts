@@ -84,6 +84,7 @@ test("Compartir en Esencial abre en móvil un plano de solo lectura con m² deri
   const enlace = await page.evaluate(() => navigator.clipboard.readText());
   expect(enlace).toContain("/revision#cadReview=");
   expect(backend.reviewSessions).toHaveLength(1);
+  expect(backend.reviewSessions[0].allowComments).toBe(false);
 
   const guestContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
   await installMockBackend(guestContext);
