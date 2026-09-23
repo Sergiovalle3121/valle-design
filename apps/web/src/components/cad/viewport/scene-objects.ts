@@ -12,6 +12,7 @@
  * vocabulario de lo que dibujan— y el monolito los reimporta.
  */
 import * as THREE from "three";
+import { cadFitLabelText } from "./label-fit";
 import { assetMeta } from "./asset-catalog";
 import { buildCadAssetArchetype } from "./asset-archetypes";
 import { DEFAULT_REGION_PROFILE, formatRegionNumber, type RegionProfile } from "@/lib/cad/region";
@@ -116,16 +117,26 @@ export function disposeObject(o: THREE.Object3D) {
   });
 }
 
+/** Anchura máxima del cartel amarillo, en píxeles de su lienzo. */
+const NOTE_MAX_WIDTH = 520;
+
 export function makeNoteLabel(text: string): THREE.Sprite {
   const canvas = document.createElement("canvas");
   const fontSize = 40;
   const m = canvas.getContext("2d")!;
-  m.font = `600 ${fontSize}px sans-serif`;
-  const tw = Math.min(520, m.measureText(text).width);
+  // EL TEXTO SE AJUSTA AL CARTEL, no al revés. Antes se topaba la anchura en
+  // 520 px y luego se dibujaba el texto ENTERO centrado encima: lo que sobraba
+  // se salía por los dos lados y lo recortaba el borde. En /demo se leía
+  // «bitación — plantilla universal». Ver `viewport/label-fit.ts`.
+  const ajuste = cadFitLabelText(text, fontSize, NOTE_MAX_WIDTH, (texto, tamano) => {
+    m.font = `600 ${tamano}px sans-serif`;
+    return m.measureText(texto).width;
+  });
+  const tw = Math.min(NOTE_MAX_WIDTH, m.measureText(ajuste.text).width);
   canvas.width = Math.ceil(tw + 34);
   canvas.height = fontSize + 22;
   const ctx = canvas.getContext("2d")!;
-  ctx.font = `600 ${fontSize}px sans-serif`;
+  ctx.font = `600 ${ajuste.fontSize}px sans-serif`;
   ctx.fillStyle = "rgba(251,191,36,0.94)";
   const r = 9;
   ctx.beginPath();
@@ -139,7 +150,7 @@ export function makeNoteLabel(text: string): THREE.Sprite {
   ctx.fillStyle = "#422006";
   ctx.textBaseline = "middle";
   ctx.textAlign = "center";
-  ctx.fillText(text, canvas.width / 2, canvas.height / 2 + 1);
+  ctx.fillText(ajuste.text, canvas.width / 2, canvas.height / 2 + 1);
   const tex = new THREE.CanvasTexture(canvas);
   tex.minFilter = THREE.LinearFilter;
   const sprite = new THREE.Sprite(
