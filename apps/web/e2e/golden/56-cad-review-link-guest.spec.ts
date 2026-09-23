@@ -28,6 +28,7 @@ import {
   loginAsStandaloneOwner,
 } from "../fixtures/standalone-identity";
 import type { CadDocument } from "../../src/lib/cad/cad-document";
+import { buildDemoDocument } from "../../src/components/cad/document-lifecycle/demo-port";
 
 const DOCUMENT_ID = "00000000-0000-4000-8000-000000000001";
 const FOOTPRINT = {
@@ -150,18 +151,74 @@ test("cuarto de cuatro muros muestra superficies derivadas en móvil sin duplica
   await openReview(guest, enlace);
   const area = guest.getByTestId("cad-review-room-area");
   await expect(area).toHaveCount(1);
-  await expect(area).toContainText("A ejes · 20.00 m²");
-  await expect(area).toContainText("Útil · 17.81 m²");
+  await expect(area).toContainText("20.00 m²");
+  await expect(area).toHaveAttribute("aria-label", /20\.00 m².*17\.81 m²/);
+  await expect(area).toContainText("SALA");
   await expect(guest.locator('[data-testid="cad-review-text"][data-entity-id="nombre-espacio"] text'))
-    .toHaveText("SALA");
+    .toHaveCount(0);
   await expect(guest.getByTestId("cad-review-plan").getByText("SALA")).toHaveCount(1);
-  await expect(area).not.toContainText("SALA");
   expect(await guest.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     "el visor móvil no desborda horizontalmente").toBe(true);
   await testInfo.attach("review-room-mobile.png", {
     body: await guest.screenshot(),
     contentType: "image/png",
   });
+  await guestContext.close();
+});
+
+test("seis cuartos de la casa no montan sus superficies en el celular", async ({
+  browser,
+  context,
+  page,
+}) => {
+  test.setTimeout(180_000);
+  const backend = sharedBackend(buildDemoDocument());
+  await installMockBackend(context);
+  await loginAsStandaloneOwner(context);
+  await backend.install(context);
+  await page.goto(`/studio/${DOCUMENT_ID}`);
+  await openCollabDock(page);
+  await page.getByTestId("cad-review-link-new").click();
+  const enlace = (await page.getByTestId("cad-review-link-url").textContent())?.trim() ?? "";
+
+  const guestContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await installGuest(guestContext, backend);
+  const guest = await guestContext.newPage();
+  await openReview(guest, enlace);
+  const labels = guest.getByTestId("cad-review-room-area");
+  await expect(labels).toHaveCount(6);
+  const overlap = await labels.evaluateAll((nodes) => {
+    const boxes = nodes.map((node) => node.getBoundingClientRect());
+    for (let first = 0; first < boxes.length; first += 1) {
+      for (let second = first + 1; second < boxes.length; second += 1) {
+        const a = boxes[first];
+        const b = boxes[second];
+        if (Math.min(a.right, b.right) > Math.max(a.left, b.left) &&
+            Math.min(a.bottom, b.bottom) > Math.max(a.top, b.top)) {
+          return `${first + 1} con ${second + 1}`;
+        }
+      }
+    }
+    return null;
+  });
+  expect(overlap, "ningún área tapa el área de otro cuarto").toBeNull();
+  const obscuredName = await guest.getByTestId("cad-review-plan").evaluate((plan) => {
+    const badges = [...plan.querySelectorAll('[data-testid="cad-review-room-area"]')];
+    const names = [...plan.querySelectorAll('[data-testid="cad-review-text"] text')];
+    for (const badge of badges) {
+      const a = badge.getBoundingClientRect();
+      for (const name of names) {
+        const b = name.getBoundingClientRect();
+        if (Math.min(a.right, b.right) > Math.max(a.left, b.left) &&
+            Math.min(a.bottom, b.bottom) > Math.max(a.top, b.top)) {
+          return `${badge.getAttribute("data-room-id")} tapa ${name.textContent}`;
+        }
+      }
+    }
+    return null;
+  });
+  expect(obscuredName, "el área no tapa el nombre de ningún cuarto").toBeNull();
+  expect(await guest.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
   await guestContext.close();
 });
 

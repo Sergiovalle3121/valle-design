@@ -11,6 +11,8 @@ export interface CadReviewRoomArea {
   at: CadPoint2;
   /** A source TEXT/MTEXT already names this room; do not repeat the name. */
   nameFromDocument: boolean;
+  name?: string;
+  labelId?: string;
   axisArea: string;
   clearArea?: string;
 }
@@ -52,6 +54,7 @@ export function cadReviewRoomAreas(
       id: room.id,
       at,
       nameFromDocument: Boolean(room.labelId),
+      ...(room.labelId && room.name ? { name: room.name, labelId: room.labelId } : {}),
       axisArea: squareMetres(room.axisArea),
       ...(room.clearArea === undefined
         ? {}
