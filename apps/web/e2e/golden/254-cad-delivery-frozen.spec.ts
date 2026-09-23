@@ -84,10 +84,14 @@ test("Entregar fija la versión y fecha; Compartir enseña la edición posterior
   expect(await guest.evaluate(() => document.documentElement.scrollWidth)).toBe(
     await guest.evaluate(() => document.documentElement.clientWidth),
   );
-  await guest.goto(shareUrl);
-  await expect(guest.getByTestId("cad-review-text")).toContainText("COCINA");
-  await expect(guest.getByTestId("cad-review-delivery-date")).toHaveCount(0);
-  await guest.goto(qrLiveUrl);
-  await expect(guest.getByTestId("cad-review-text")).toContainText("COCINA");
+  // Cada enlace abre una pestaña nueva: variar sólo el hash en la misma
+  // pestaña no reinicia el canje, como exige la custodia efímera del token.
+  const liveGuest = await guestContext.newPage();
+  await liveGuest.goto(shareUrl);
+  await expect(liveGuest.getByTestId("cad-review-text")).toContainText("COCINA");
+  await expect(liveGuest.getByTestId("cad-review-delivery-date")).toHaveCount(0);
+  const qrGuest = await guestContext.newPage();
+  await qrGuest.goto(qrLiveUrl);
+  await expect(qrGuest.getByTestId("cad-review-text")).toContainText("COCINA");
   await guestContext.close();
 });
