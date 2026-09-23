@@ -43,8 +43,8 @@ for (const required of [
   "Revisión ",             // revisión (D30, era "Release")
   "Recuperación local activa",
   "Recuperación local en riesgo",
-  "API en línea",
-  "API sin conexión",
+  "Conectado",
+  "Sin conexión",
 ]) {
   ok(src.includes(required), `el texto visible contiene "${required}"`);
 }

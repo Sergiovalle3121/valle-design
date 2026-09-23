@@ -102,8 +102,8 @@ const sinComentarios = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm,
     ok(entries.includes(`id: "${id}"`), `overflowEntries declara el aviso «${id}»`);
   }
   for (const texto of [
-    "API en línea",
-    "API sin conexión",
+    "Conectado",
+    "Sin conexión",
     "Rejilla ",
     "Forzcursor",
     "Modelo, revisión funcional y versión CAS",

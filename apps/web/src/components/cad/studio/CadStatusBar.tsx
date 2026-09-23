@@ -290,10 +290,10 @@ export function CadStatusBar({
           }
         >
           {saveState.connectionState === "online"
-            ? "API en línea"
+            ? "Conectado"
             : saveState.connectionState === "offline"
-              ? "API sin conexión"
-              : "API…"}
+              ? "Sin conexión"
+              : "Conectando…"}
         </span>
       ),
     },

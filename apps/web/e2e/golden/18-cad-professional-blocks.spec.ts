@@ -77,7 +77,7 @@ test('BLOCK/INSERT stays native through tenant library, attributes, persistence,
   await palette.getByLabel('Default').fill('D-01');
   await palette.getByLabel('Business type').fill('assetType');
   await palette.getByLabel('Business id').fill('door-standard');
-  await palette.getByLabel('Publicar en biblioteca tenant').check();
+  await palette.getByLabel('Publicar en la biblioteca del equipo').check();
   await page.getByTestId('cad-block-define').click();
 
   await expect(page.getByTestId('cad-block-row-DOOR')).toBeVisible();

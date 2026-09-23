@@ -164,7 +164,7 @@ test('CAD recovery uses compressed IndexedDB journal and restores the newest che
   await page.reload();
   await expect(page.getByText('Borrador local recuperable')).toBeVisible({ timeout: 30_000 });
   // beforeunload may append one final checkpoint immediately before reload.
-  await expect(page.getByText(/Journal #[45]/)).toBeVisible();
+  await expect(page.getByText(/Copia local #[45]/)).toBeVisible();
   await page.getByRole('button', { name: 'Restaurar', exact: true }).click();
   await page.getByTestId('cad-native-entity-recovery-arc').click();
   await expect(page.getByTestId('cad-native-property-radius')).toHaveValue('144');

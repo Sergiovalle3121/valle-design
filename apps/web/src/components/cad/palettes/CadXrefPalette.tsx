@@ -85,7 +85,7 @@ export function CadXrefPalette(props: CadXrefPaletteProps) {
         <span className="text-muted-foreground">{props.references.length} linked</span>
       </div>
       <p className="mt-1 type-micro leading-relaxed text-muted-foreground">
-        Referencias a layouts del mismo tenant. Nunca se persisten rutas locales
+        Referencias a presentaciones de tu equipo. Nunca se persisten rutas locales
         del navegador.
       </p>
       <div className="mt-3 grid grid-cols-2 gap-2 rounded-card border border-border bg-muted/40 p-2.5">
@@ -187,7 +187,7 @@ export function CadXrefPalette(props: CadXrefPaletteProps) {
           }
           className="col-span-2 rounded-control bg-indigo-500 px-3 py-1.5 font-semibold text-gray-950 disabled:opacity-40"
         >
-          {busy === "attach" ? "Resolving tenant asset…" : "Attach tenant Xref"}
+          {busy === "attach" ? "Buscando dibujo del equipo…" : "Vincular referencia del equipo"}
         </button>
       </div>
       {message && (
@@ -284,7 +284,7 @@ export function CadXrefPalette(props: CadXrefPaletteProps) {
         })}
         {!props.references.length && (
           <div className="rounded-card border border-dashed border-border p-4 text-center text-muted-foreground">
-            No tenant Xrefs attached.
+            Aún no hay referencias vinculadas.
           </div>
         )}
       </div>

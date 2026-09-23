@@ -289,7 +289,7 @@ export function CadCollaborationPalette({
         <div>
           <strong className="text-primary-ink">COMPARE / MERGE / REVIEW</strong>
           <p className="mt-0.5 type-micro text-muted-foreground">
-            Canonical entities · tenant CAS · immutable server audit on save
+            Objetos del plano · cambios protegidos · historial de guardado
           </p>
         </div>
         {reviewReadOnly && (

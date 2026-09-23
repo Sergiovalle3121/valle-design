@@ -14253,7 +14253,7 @@ export default function Layout3DEditor({
                   <p className="text-sm font-medium text-foreground">
                     {webglUnavailable === "contexto-perdido"
                       ? "Se perdió la aceleración gráfica"
-                      : "Este navegador no puede mostrar el viewport 3D"}
+                      : "Este navegador no puede mostrar la vista 3D"}
                   </p>
                   <p className="type-caption leading-relaxed text-foreground/70">
                     {webglUnavailable === "contexto-perdido"
@@ -14353,13 +14353,13 @@ export default function Layout3DEditor({
                   <div className="min-w-0 flex-1">
                     <div className="type-caption font-semibold text-warning-ink">
                       {recoveryDivergent
-                        ? "Rama local divergente"
+                        ? "Hay cambios guardados en otro lugar"
                         : "Borrador local recuperable"}
                     </div>
                     <div className="mt-1 type-micro leading-snug text-muted-foreground">
                       Guardado automáticamente{" "}
                       {new Date(recoveryCandidate.savedAt).toLocaleString()} en
-                      este tenant, usuario y workspace.
+                      para tu cuenta en este dispositivo.
                     </div>
                     {recoveryDivergent && (
                       // Antes este borrador se BORRABA sin preguntar en cuanto
@@ -14375,10 +14375,9 @@ export default function Layout3DEditor({
                     )}
                     {recoveryCandidate.format !== "legacy-object" && (
                       <div className="mt-1 type-micro text-primary-ink">
-                        Journal #{recoveryCandidate.journalSequence} ·{" "}
+                        Copia local #{recoveryCandidate.journalSequence} ·{" "}
                         {(recoveryCandidate.storedBytes / 1_000_000).toFixed(2)}{" "}
-                        MB local · {recoveryCandidate.format} ·{" "}
-                        {recoveryCandidate.encoder ?? "legacy"}
+                        MB guardados en este dispositivo
                       </div>
                     )}
                     <div className="mt-2 flex gap-2">

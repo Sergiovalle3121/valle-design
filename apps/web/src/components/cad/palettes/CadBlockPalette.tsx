@@ -234,7 +234,7 @@ export function CadBlockPalette({
             onChange={(event) => setTenantLibrary(event.target.checked)}
             className="accent-indigo-500"
           />{" "}
-          Publicar en biblioteca tenant
+          Publicar en la biblioteca del equipo
         </label>
         <button
           data-testid="cad-block-define"
