@@ -12,6 +12,7 @@ import {
   authenticatedCommercialRequest as authenticated,
   epochSeconds as epoch,
   memoryRateLimits,
+  paidCheckoutSessionFromForm,
 } from '../../common/testing/stripe-billing-fixture';
 import { User } from '../identity/entities/identity.entity';
 import { Organization } from '../organizations/entities/organization.entity';
@@ -274,16 +275,19 @@ describePostgres('Ciclo de vida cobrado con Stripe (PostgreSQL)', () => {
     // ── 2. checkout.session.completed: el cobro entró ───────────────────────
     const primerPeriodo = '2026-09-15T00:00:00.000Z';
     await expect(
-      process('evt_checkout', 'checkout.session.completed', {
-        id: 'cs_ciclo',
-        client_reference_id: intentId,
-        customer: 'cus_ciclo',
-        subscription: {
-          id: 'sub_ciclo',
-          current_period_end: epoch(primerPeriodo),
-        },
-        metadata: { organizationId, intentId, planCode: 'standalone-full' },
-      }),
+      process(
+        'evt_checkout',
+        'checkout.session.completed',
+        paidCheckoutSessionFromForm(stripeCalls[0].form, {
+          id: 'cs_ciclo',
+          client_reference_id: intentId,
+          customer: 'cus_ciclo',
+          subscription: {
+            id: 'sub_ciclo',
+            current_period_end: epoch(primerPeriodo),
+          },
+        }),
+      ),
     ).resolves.toEqual({
       status: 'processed',
       outcome: 'subscription_activated',
@@ -405,12 +409,12 @@ describePostgres('Ciclo de vida cobrado con Stripe (PostgreSQL)', () => {
       { planCode: 'standalone-full', currency: 'USD', period: 'monthly' },
       authenticated(organizationId, ownerId, 'owner'),
     );
-    const session = {
+    const session = paidCheckoutSessionFromForm(stripeCalls[0].form, {
       id: 'cs_idem',
       client_reference_id: intentId,
       customer: 'cus_idem',
       subscription: 'sub_idem',
-    };
+    });
     await expect(
       process('evt_repetido', 'checkout.session.completed', session),
     ).resolves.toMatchObject({ status: 'processed' });
@@ -461,12 +465,12 @@ describePostgres('Ciclo de vida cobrado con Stripe (PostgreSQL)', () => {
       { planCode: 'standalone-full', currency: 'USD', period: 'monthly' },
       authenticated(organizationId, ownerId, 'owner'),
     );
-    const session = {
+    const session = paidCheckoutSessionFromForm(stripeCalls[0].form, {
       id: 'cs_race',
       client_reference_id: intentId,
       customer: 'cus_race',
       subscription: 'sub_race',
-    };
+    });
     const [a, b] = await Promise.all([
       process('evt_carrera', 'checkout.session.completed', session),
       process('evt_carrera', 'checkout.session.completed', session),
@@ -522,12 +526,16 @@ describePostgres('Ciclo de vida cobrado con Stripe (PostgreSQL)', () => {
       { planCode: 'standalone-full', currency: 'USD', period: 'monthly' },
       authenticated(organizationId, ownerId, 'owner'),
     );
-    await process('evt_a', 'checkout.session.completed', {
-      id: 'cs_a',
-      client_reference_id: intentId,
-      customer: 'cus_a',
-      subscription: 'sub_a',
-    });
+    await process(
+      'evt_a',
+      'checkout.session.completed',
+      paidCheckoutSessionFromForm(stripeCalls[0].form, {
+        id: 'cs_a',
+        client_reference_id: intentId,
+        customer: 'cus_a',
+        subscription: 'sub_a',
+      }),
+    );
     await process('evt_a_factura', 'invoice.paid', {
       id: 'in_a',
       customer: 'cus_a',
@@ -567,12 +575,16 @@ describePostgres('Ciclo de vida cobrado con Stripe (PostgreSQL)', () => {
       { planCode: 'standalone-full', currency: 'USD', period: 'monthly' },
       authenticated(organizationId, ownerId, 'owner'),
     );
-    await process('evt_baja_alta', 'checkout.session.completed', {
-      id: 'cs_baja',
-      client_reference_id: intentId,
-      customer: 'cus_baja',
-      subscription: 'sub_baja',
-    });
+    await process(
+      'evt_baja_alta',
+      'checkout.session.completed',
+      paidCheckoutSessionFromForm(stripeCalls[0].form, {
+        id: 'cs_baja',
+        client_reference_id: intentId,
+        customer: 'cus_baja',
+        subscription: 'sub_baja',
+      }),
+    );
 
     const fin = '2026-11-15T00:00:00.000Z';
     stripeResponses.push(
