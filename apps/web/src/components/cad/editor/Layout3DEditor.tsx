@@ -14407,7 +14407,7 @@ export default function Layout3DEditor({
               controlsRef={controlsRef}
               mountRef={mountRef}
               unit={(data?.footprint.unit ?? "mm") as WorldUnit}
-              document={loadedCadDocumentRef.current} viewControllerRef={viewControllerRef}
+              document={loadedCadDocumentRef.current} viewControllerRef={viewControllerRef} essential={uiMode === "esencial"}
             />
             {(dxfWarnings.length > 0 || dxfImportPreview) && (
               <div className="absolute right-3 top-16 z-20 w-80 rounded-2xl border border-amber-400/20 bg-surface/80 p-3 shadow-2xl backdrop-blur">
