@@ -4331,6 +4331,38 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "VALLE-FIRST-MINUTE-GATE-20260923",
+      "date": "2026-09-23",
+      "initiative": "Medir el primer minuto como se ve en producción y recuperar espacio para dibujar sin quitar la salida segura.",
+      "branch": "codex/first-minute-gate",
+      "assistants": [
+        "OpenAI Codex: auditoría de producción, golden, interfaz y verificación local"
+      ],
+      "authority": "Sergio autorizó ejecutar el prompt maestro del 23-09, fusionar el trabajo y medir vallecad.com; sección 2 exige hasta 30 controles y al menos 75 % libre a 1440×769.",
+      "firstPartyInputs": [
+        "Prompt maestro del titular del 23-09, secciones 2, 3, 4 y 5",
+        "Medición pública prod-24ad: 31 controles, 74.5 % libre a 1440×769, 74.0 % a 1366×768, robot 0/4",
+        "Código y golden existentes del editor en main 24ad085b"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "Golden 228 mide el canvas real sin saltar el recorrido, con tres segundos de reposo",
+        "Recorrido plegado flotante ocupa una fila; salida duplicada sin comprobación de guardado retirada",
+        "Encuadrar selección no se pinta en Esencial hasta existir selección; Pro conserva el control"
+      ],
+      "fixtures": "Sin cambios de corpus ni bytes DXF/DWG.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Golden 228 actualizado con línea base roja pública (31 controles y 74.5 %); build webpack 208 rutas, typecheck, lint 0 errores (8 avisos previos del monolito), presupuesto 16814 líneas, golden Chromium 2/2 y Firefox 2/2 PASS. Medición local de build productivo: 29 controles, 75.6 % libre y 1.2 % tapado a 1440×769; 29, 75.0 % y 1.6 % a 1366×768. Robot local 0/4 por funciones aún abiertas de otras PRs. CI exacta, merge y medición pública posteriores pendientes."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }
