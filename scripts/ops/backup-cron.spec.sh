@@ -44,6 +44,7 @@ cat > "$TEST_ROOT/bin/rclone" <<'MOCK_RCLONE'
 #!/usr/bin/env bash
 set -euo pipefail
 command="$1"; source="$2"; dest="$3"
+[ -z "${DATABASE_URL:-}" ] && [ -z "${BACKUP_ENCRYPTION_PASSPHRASE:-}" ] || exit 45
 case "$dest" in test:*) dest="$MOCK_REMOTE_ROOT/${dest#test:}" ;; *) exit 44 ;; esac
 case "$command" in
   copy)
@@ -74,7 +75,6 @@ export PATH="$TEST_ROOT/bin:$PATH" REAL_NODE
 export DATABASE_URL='postgres://fixture:secret@localhost:5432/fixture'
 export BACKUP_ENCRYPTION_PASSPHRASE='frase-sintetica-para-prueba-cron-123456'
 export RCLONE_REMOTE='test:bucket' MOCK_REMOTE_ROOT="$TEST_ROOT/remote"
-export BACKUP_RETENTION_DAYS=14
 
 fail() {
   echo "FAIL: $*" >&2
@@ -152,10 +152,11 @@ if grep -Fq 'frase-sintetica-para-prueba-cron-123456' "$TEST_ROOT/cron.log"; the
   fail 'La frase secreta apareció en el log.'
 fi
 
-# Rotación: sólo un paquete con marca y edad suficiente puede desaparecer.
+# El paso siguiente no elimina ninguna copia anterior, aun si está marcada
+# como subida y supera una edad que otro proceso pudiera considerar vieja.
 touch -d '40 days ago' "$new_archive" "$new_archive.sha256" "$new_archive.uploaded"
 run_cron || { cat "$TEST_ROOT/cron.log" >&2; fail 'Falló la segunda pasada correcta.'; }
 assert_preserved
-[ ! -e "$new_archive" ] && [ ! -e "$new_archive.sha256" ] && [ ! -e "$new_archive.uploaded" ] || fail 'No rotó el paquete ya confirmado.'
-[ "$(find "$BACKUP_DIR" -maxdepth 1 -name '*.vbk' | wc -l | tr -d ' ')" = 2 ] || fail 'Rotó un respaldo viejo sin marca.'
-echo 'backup-cron.spec.sh: 9 escenarios PASS (preflight, restore/auth/copy/check fallidos, éxito cifrado y rotación con marca).'
+[ -f "$new_archive" ] && [ -f "$new_archive.sha256" ] && [ -f "$new_archive.uploaded" ] || fail 'Eliminó una copia anterior marcada.'
+[ "$(find "$BACKUP_DIR" -maxdepth 1 -name '*.vbk' | wc -l | tr -d ' ')" = 3 ] || fail 'Se perdió un respaldo anterior.'
+echo 'backup-cron.spec.sh: 9 escenarios PASS (preflight, restore/auth/copy/check fallidos, éxito cifrado y conservación de respaldos).'

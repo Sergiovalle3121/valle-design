@@ -47,3 +47,8 @@ quedan preparados para el ejercicio; no son evidencia de recuperación.
 No conectar el ejercicio a servicios externos ni habilitar el dispatcher de
 outbox. No presentar esta plantilla como un restore exitoso antes de llenar
 los resultados observados.
+
+El inventario actual se toma antes del dump pero no en su mismo snapshot MVCC.
+Una restauración exitosa con conteos iguales tampoco verifica cada fila ni mide
+el tiempo de recuperación del servicio completo. Registrar estas limitaciones
+al cerrar el ejercicio; no anunciar RPO/RTO productivos a partir del script.

@@ -279,11 +279,11 @@ de lanzamiento, y esto es lo que dieron:
 RTO medido: 1.15 s (crear + restaurar + verificar)
 ```
 
-El paso [5] es el que de verdad importa: compara **fila a fila** contra el
-manifiesto que el respaldo grabó en su momento. Es la única comprobación que
-detecta una restauración parcial silenciosa —`pg_restore` puede terminar en 0
-habiendo omitido objetos— y la única que responde la pregunta del día del
-incidente: *¿lo que restauré es lo que había?*
+El paso [5] compara **conteos por tabla** contra el manifiesto consultado antes
+del dump. No compara filas individuales ni comparte el snapshot MVCC del dump;
+las escrituras concurrentes pueden hacer fallar una copia íntegra y conteos
+iguales no prueban igualdad de contenido. Los tiempos históricos de arriba son
+del ejercicio aislado, no el RTO/RPO observado del servicio en producción.
 
 > ⚠️ Si tu base comparte servidor con suites de prueba que crean esquemas
 > efímeros, el respaldo avisa de los esquemas que NO incluyó. El runtime
@@ -304,8 +304,9 @@ en cuatro pasos:
    necesita Node 20+, clientes PostgreSQL 16, rclone y un volumen privado para
    `BACKUP_DIR`. Sin esos prerrequisitos el cron falla antes de crear el dump.
 3. **Comando de arranque**: `bash scripts/ops/backup-cron.sh`. Crea, verifica,
-   cifra, sube sólo `.vbk` y su checksum y comprueba los bytes remotos antes de
-   rotar. **Falla ruidoso**: si la restauración de prueba
+   cifra, sube sólo `.vbk` y su checksum y comprueba los bytes remotos. Conserva
+   las copias cifradas locales; la retención requiere un procedimiento separado.
+   **Falla ruidoso**: si la restauración de prueba
    no cuadra, el servicio termina en error y Railway lo marca en rojo. Un cron
    que falla en silencio es peor que no tenerlo, porque mantiene la sensación
    de tener copia.

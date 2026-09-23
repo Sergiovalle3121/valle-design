@@ -50,7 +50,7 @@ en un backup**, porque un archivo que nunca se restauró no lo es.
 
 ```bash
 export PG_BIN=/usr/lib/postgresql/16/bin      # o D:/dev/pg16/pgsql/bin
-export DATABASE_URL=postgres://usuario:clave@host:5432/valle_design
+# DATABASE_URL se inyecta desde un gestor de secretos; no se pega en el historial.
 
 # 1 · Crear el backup + su inventario verificable
 node scripts/ops/backup.mjs --out backups/
@@ -75,9 +75,13 @@ hacen la diferencia:
 | `<nombre>.contents` | `pg_restore --list`: el índice de objetos |
 | `<nombre>.manifest.json` | **recuentos por tabla**, migración más reciente, versión del servidor e instante UTC |
 
-Sin el manifiesto no se puede responder la única pregunta que importa el día
-del incidente: *¿lo que restauré es lo que había?* `pg_restore` puede terminar
-en 0 habiendo omitido objetos, y una restauración parcial **parece exitosa**.
+Sin el manifiesto no se pueden comparar los recuentos previos con la base
+restaurada. Este inventario se consulta antes de `pg_dump` en transacciones
+separadas: **no comparte el snapshot MVCC del dump**. Escrituras concurrentes
+pueden producir diferencias aunque el dump sea íntegro, y conteos iguales no
+prueban identidad de cada fila. El ejercicio con una base quieta sí puede
+detectar ausencias, pero aún falta una prueba con snapshot compartido antes de
+usar los conteos como garantía de recuperación en producción.
 
 `restore-verify.mjs` comprueba, en este orden, y **borra siempre la base
 temporal**, también si falla:
@@ -90,8 +94,8 @@ temporal**, también si falla:
 4. **cadena de migraciones** — mismo recuento y misma última migración que el
    origen: un esquema restaurado en otro punto no es compatible con el binario
    que se va a desplegar;
-5. **recuentos fila a fila** contra el manifiesto — es la única comprobación
-   que detecta una restauración parcial silenciosa.
+5. **conteos por tabla** contra el manifiesto — detectan diferencias numéricas;
+   no comparan filas individuales ni prueban igualdad de contenido.
 
 ### Salida real de un ejercicio (2026-08-15, PostgreSQL 16.9)
 
@@ -140,10 +144,11 @@ la línea de cron ni en argumentos o logs. La pasada crea el dump en un
 directorio privado `.pending-*`, restaura en una base temporal, cifra los cuatro
 artefactos en `.vbk`, autentica y compara la extracción local, y sube sólo el
 `.vbk` y su `.vbk.sha256`. `rclone check --download --one-way` compara los bytes
-remotos antes de borrar el claro y de rotar archivos cifrados locales antiguos.
-La rotación sólo considera paquetes locales con una marca `.vbk.uploaded`
-creada por este cron después de comprobar el remoto; los archivos anteriores
-sin marca se conservan aunque superen la edad configurada.
+remotos antes de borrar el claro temporal. No borra paquetes cifrados locales
+antiguos: la marca `.vbk.uploaded` registra una comprobación de subida pasada,
+pero no demuestra que el remoto todavía conserve el objeto. La política de
+retención y cualquier borrado requieren un procedimiento operativo separado,
+con verificación actual del remoto y una restauración ensayada.
 Un fallo antes de confirmar la subida deja los respaldos previos y el
 `.pending-*` de la pasada para diagnóstico; **el pendiente contiene datos
 claros y requiere almacenamiento
@@ -161,12 +166,11 @@ PATH), el repo (o `scripts/ops/`) en `/srv/valle/repo`, `rclone` configurado
 con un remoto nombrado como `r2:valle-backups` y acceso exclusivo al directorio
 local. Sin destino externo o clave, el cron falla cerrado. Requiere espacio
 temporal para el dump, el paquete cifrado y una extracción de verificación.
-`BACKUP_DIR` usa `/srv/valle/backups` por defecto;
-`BACKUP_RETENTION_DAYS` usa 14 días. La
-retención del plan en `SLA.md` §2 manda: Profesional exige cada 6 h y 30 días.
-Verifica por separado el RPO/RTO sobre un volumen real y la retención del
-bucket; este script sólo rota copias cifradas **locales** marcadas tras
-confirmar su subida.
+`BACKUP_DIR` usa `/srv/valle/backups` por defecto. La retención del plan en
+`SLA.md` §2 manda: Profesional exige cada 6 h y 30 días. Configura y verifica
+por separado esa frecuencia, el espacio disponible, el RPO/RTO sobre un volumen
+real y la retención del bucket. Este script conserva las copias cifradas
+**locales**; no implementa la eliminación por antigüedad.
 
 ### RPO y RTO
 
@@ -185,7 +189,9 @@ volumen real.
    esquema efímero de otra suite ya se había destruido
    (`ERROR: schema "organization_creation_..." does not exist`). El runtime
    materializa TODO su esquema en `public`; el script avisa de los esquemas
-   que encuentra y no incluye, y admite `--schema=public,otro`.
+   que encuentra y no incluye. El inventario y verificador sólo admiten
+   `public`; un despliegue que use otros esquemas requiere ampliar ambos
+   antes de confiar en su respaldo.
    Corolario operativo: **un backup se toma de una base que no está sufriendo
    DDL concurrente.**
 2. **Un `.dump` de cero bytes es peor que ningún archivo.** `pg_dump` crea el

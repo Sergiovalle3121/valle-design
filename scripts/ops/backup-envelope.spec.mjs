@@ -12,9 +12,11 @@ test('el paquete portable cifra los cuatro artefactos, autentica y no deja claro
   const plain = join(base, 'plain');
   const restored = join(base, 'restored');
   const wrong = join(base, 'wrong');
+  const collision = join(base, 'collision');
   mkdirSync(plain);
   mkdirSync(restored);
   mkdirSync(wrong);
+  mkdirSync(collision);
   const values = ['PGDMP\u0000contenido sintético', 'sha256 simulado', 'TABLE public.cad_documents', '{"recuentos":{"cad_documents":1}}'];
   const suffixes = ['.dump', '.dump.sha256', '.contents', '.manifest.json'];
   const archive = join(base, `${name}.vbk`);
@@ -30,6 +32,13 @@ test('el paquete portable cifra los cuatro artefactos, autentica y no deja claro
     const result = unpack(archive, restored);
     assert.equal(result.name, name);
     suffixes.forEach((suffix, index) => assert.equal(readFileSync(join(restored, `${name}${suffix}`), 'utf8'), values[index]));
+    const existing = join(collision, `${name}.dump.sha256`);
+    writeFileSync(existing, 'archivo preexistente que no pertenece al respaldo');
+    writeFileSync(join(collision, '.valle-backup-decrypted.part'), 'archivo preexistente');
+    assert.throws(() => unpack(archive, collision), /EEXIST/u);
+    assert.equal(readFileSync(existing, 'utf8'), 'archivo preexistente que no pertenece al respaldo');
+    assert.equal(readFileSync(join(collision, '.valle-backup-decrypted.part'), 'utf8'), 'archivo preexistente');
+    assert.deepEqual(readdirSync(collision).sort(), ['.valle-backup-decrypted.part', `${name}.dump.sha256`].sort());
     process.env.BACKUP_ENCRYPTION_PASSPHRASE = 'clave-incorrecta-sin-secreto-real-123';
     assert.throws(() => unpack(archive, wrong), /No se pudo autenticar/u);
     assert.deepEqual(readdirSync(wrong), []);

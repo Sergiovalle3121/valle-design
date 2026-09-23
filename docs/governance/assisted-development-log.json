@@ -4306,7 +4306,7 @@
     {
       "id": "BACKUP-CRON-CIFRADO-20260923",
       "date": "2026-09-23",
-      "initiative": "Cerrar la subida sin cifrar del cron Linux: producir el paquete portable .vbk, verificarlo localmente y comprobar los bytes remotos antes de eliminar el claro o rotar copias locales.",
+      "initiative": "Cerrar la subida sin cifrar del cron Linux: producir el paquete portable .vbk, verificarlo localmente y comprobar los bytes remotos antes de eliminar el claro temporal, sin rotar copias históricas automáticamente.",
       "branch": "codex/backup-cron-encrypted",
       "assistants": [
         "OpenAI Codex: auditoría del cron, prueba roja, implementación fail-closed, dobles de proceso y documentación operativa"
@@ -4331,7 +4331,7 @@
       ],
       "externalImplementationConsulted": "Ninguna implementación ajena; sólo la documentación oficial de las opciones de rclone.",
       "derivedAreas": [
-        "scripts/ops/backup-cron.sh: preflight de clave y remoto, dump privado, verificación de restore y paquete, subida sólo cifrada, comprobación remota y rotación de paquetes locales marcados",
+        "scripts/ops/backup-cron.sh: preflight de clave y remoto, dump privado, verificación de restore y paquete, subida sólo cifrada, comprobación remota y conservación de paquetes locales previos",
         "scripts/ops/backup-cron.spec.sh: dobles sintéticos y fallos forzados de clave, remoto, restore, autenticación, copia y comprobación",
         "docs/guides/backup-restore.md y docs/onboarding/DESPLIEGUE-RAILWAY.md: procedimiento cifrado y límites de validación productiva"
       ],
@@ -4341,7 +4341,7 @@
         "required": true,
         "status": "proposed",
         "adopter": "Sergio Valle Zárate",
-        "evidence": "La prueba sintética inicial falló en el cron previo porque creaba ficheros sin clave; después, bash -n y nueve escenarios sintéticos pasan, incluidos rechazo de remoto con credenciales embebidas, fallo de restore, corrupción de .vbk, rclone copy/check y rotación que conserva el respaldo previo sin marca. No se ha ejecutado PostgreSQL 16 ni rclone reales; el bloqueo Device Guard local sigue sin resolver y la restauración operativa está pendiente. CI del SHA exacto e integración de la dependencia 0357a456 pendientes."
+        "evidence": "La prueba sintética inicial falló en el cron previo porque creaba ficheros sin clave; después, bash -n y nueve escenarios sintéticos pasan, incluidos rechazo de remoto con credenciales embebidas, fallo de restore, corrupción de .vbk, rclone copy/check y conservación de una copia anterior marcada aun con 40 días de edad. Node 11/11 y gobernanza 11/11 pasan. No se ha ejecutado PostgreSQL 16 ni rclone reales; el bloqueo Device Guard local sigue sin resolver y la restauración operativa está pendiente. CI del SHA exacto pendiente."
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false

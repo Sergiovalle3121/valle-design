@@ -169,7 +169,7 @@ export function redactUrl(url) {
 
 /** `psql -At` devuelve filas separadas por salto y columnas por `|`. */
 export function query(psql, url, sql) {
-  const result = runPg(psql, ['--no-psqlrc', '-At', '-F', '|', '-c', sql, url], {
+  const result = runPg(psql, ['--no-psqlrc', '--set=ON_ERROR_STOP=1', '-At', '-F', '|', '-c', sql, url], {
     url,
   });
   return result.stdout

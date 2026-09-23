@@ -20,8 +20,8 @@
  *   4. Cadena de migraciones — mismo recuento y misma última migración. Una
  *      base restaurada en otro punto del esquema no es compatible con el
  *      binario que se va a desplegar.
- *   5. Recuentos por tabla — fila a fila contra el manifiesto. Es la única
- *      comprobación que detecta una restauración parcial silenciosa.
+ *   5. Conteos por tabla — comparación numérica con el manifiesto previo.
+ *      No compara filas individuales ni comparte snapshot con pg_dump.
  *
  * Y BORRA la base temporal SIEMPRE, incluso si falla: dejar bases
  * `..._verify_*` colgando llena el disco del servidor de producción, que es
@@ -100,8 +100,8 @@ const maintenanceUrl = withDatabase(url, args.maintenance || 'postgres');
 const base = basename(dumpPath).replace(/\.dump$/, '');
 const manifestPath = join(dirname(dumpPath), `${base}.manifest.json`);
 const checksumPath = `${dumpPath}.sha256`;
-if (localChecks && (!existsSync(checksumPath) || !existsSync(manifestPath))) {
-  console.error('El ejercicio local exige .dump.sha256 y .manifest.json junto al dump.');
+if (!existsSync(checksumPath) || !existsSync(manifestPath)) {
+  console.error('La verificación exige .dump.sha256 y .manifest.json junto al dump.');
   process.exit(2);
 }
 
@@ -161,6 +161,7 @@ function dropTemporary() {
       psql.path,
       [
         '--no-psqlrc',
+        '--set=ON_ERROR_STOP=1',
         '-At',
         '-c',
         `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${temporary}' AND pid <> pg_backend_pid()`,
@@ -170,7 +171,7 @@ function dropTemporary() {
     );
     runPg(
       psql.path,
-      ['--no-psqlrc', '-c', `DROP DATABASE IF EXISTS "${temporary}"`, maintenanceUrl],
+      ['--no-psqlrc', '--set=ON_ERROR_STOP=1', '-c', `DROP DATABASE IF EXISTS "${temporary}"`, maintenanceUrl],
       { url: maintenanceUrl },
     );
     console.log(`  limpieza: base temporal ${temporary} eliminada`);
@@ -199,7 +200,7 @@ try {
   }
   runPg(
     psql.path,
-    ['--no-psqlrc', '-c', `CREATE DATABASE "${temporary}"`, maintenanceUrl],
+    ['--no-psqlrc', '--set=ON_ERROR_STOP=1', '-c', `CREATE DATABASE "${temporary}"`, maintenanceUrl],
     { url: maintenanceUrl },
   );
   created = true;
@@ -211,7 +212,7 @@ try {
   // restaurar sobre una base VACÍA, nunca sobre una con objetos previos.
   runPg(
     psql.path,
-    ['--no-psqlrc', '-c', 'DROP SCHEMA IF EXISTS public CASCADE', temporaryUrl],
+    ['--no-psqlrc', '--set=ON_ERROR_STOP=1', '-c', 'DROP SCHEMA IF EXISTS public CASCADE', temporaryUrl],
     { url: temporaryUrl },
   );
   console.log(`  [2/5] base temporal creada y vaciada: ${temporary}`);
@@ -299,14 +300,15 @@ try {
     fail('No existe la tabla de migraciones tras restaurar.');
   }
 
-  // ── 5 · recuentos fila a fila ────────────────────────────────────────────
+  // ── 5 · conteos por tabla ────────────────────────────────────────────────
   if (manifest) {
     const differences = [];
     let totalRows = 0;
     for (const [table, expected] of Object.entries(manifest.recuentos)) {
       if (!restoredSet.has(table)) continue;
+      const identifier = `"${table.replaceAll('"', '""')}"`;
       const actual = Number(
-        query(psql.path, temporaryUrl, `SELECT count(*) FROM "${table}"`)[0][0],
+        query(psql.path, temporaryUrl, `SELECT count(*) FROM "public".${identifier}`)[0][0],
       );
       totalRows += actual;
       if (actual !== expected) {
@@ -335,9 +337,9 @@ try {
   const elapsed = (Date.now() - startedAt) / 1000;
   console.log('');
   console.log(`  tamaño del dump : ${humanBytes(dumpBytes)}`);
-  console.log(`  RTO medido      : ${elapsed.toFixed(2)} s (crear + restaurar + verificar)`);
+  console.log(`  tiempo de prueba: ${elapsed.toFixed(2)} s (crear + restaurar + verificar)`);
   if (manifest) {
-    console.log(`  RPO del artefacto: instantánea de ${manifest.creadoEn}`);
+    console.log(`  manifiesto creado: ${manifest.creadoEn} (no equivale al RPO de producción)`);
   }
 } catch (error) {
   // Un fallo de `pg_restore` es EL resultado de esta herramienta, no una

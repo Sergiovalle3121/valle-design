@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Respaldo programado: dump → restore aislado → cifrar → verificar → subir → comprobar remoto → rotar.
+# Respaldo programado: dump → restore aislado → cifrar → verificar → subir → comprobar remoto.
 # El único material que se entrega a rclone es el paquete .vbk y su SHA-256.
 # Antes de confirmar la subida, un fallo conserva lo anterior y el área .pending-*.
 set -euo pipefail
@@ -7,7 +7,6 @@ umask 077
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_DIR="${BACKUP_DIR:-/srv/valle/backups}"
-RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-14}"
 PENDING_DIR=''
 trap 'echo "BACKUP-CRON FALLÓ (línea $LINENO). Área pendiente: ${PENDING_DIR:-no creada}." >&2' ERR
 
@@ -21,11 +20,7 @@ if ! [[ "$RCLONE_REMOTE" =~ ^[A-Za-z][A-Za-z0-9_-]*:[A-Za-z0-9][A-Za-z0-9._/-]*$
   echo 'RCLONE_REMOTE debe nombrar un remoto rclone configurado y una ruta, sin credenciales embebidas.' >&2
   exit 1
 fi
-if ! [[ "$RETENTION_DAYS" =~ ^[1-9][0-9]*$ ]]; then
-  echo 'BACKUP_RETENTION_DAYS debe ser un entero positivo.' >&2
-  exit 1
-fi
-for binary in node rclone sha256sum cmp mktemp find; do
+for binary in node rclone sha256sum cmp mktemp; do
   if ! command -v "$binary" >/dev/null 2>&1; then
     echo "Falta herramienta requerida: $binary." >&2
     exit 1
@@ -67,15 +62,20 @@ done
 # lee los bytes remotos aun si el backend no ofrece hashes. --one-way permite
 # otros respaldos históricos en el destino.
 DEST="${RCLONE_REMOTE}/$(date -u +%Y/%m)"
-rclone copy "$ENCRYPTED_DIR" "$DEST" --immutable
-rclone check "$ENCRYPTED_DIR" "$DEST" --download --one-way
+(
+  # La herramienta de transporte sólo necesita su propia configuración y el
+  # paquete cifrado; no recibe la conexión PostgreSQL ni la frase de cifrado.
+  unset DATABASE_URL BACKUP_ENCRYPTION_PASSPHRASE PGPASSWORD
+  rclone copy "$ENCRYPTED_DIR" "$DEST" --immutable
+  rclone check "$ENCRYPTED_DIR" "$DEST" --download --one-way
+)
 
 # Conservar copia cifrada local sin sobrescribir. En este punto la subida ya
 # pasó la comparación remota. El claro se elimina sólo después de ambos links.
 ln -- "$ARCHIVE" "$BACKUP_DIR/$NAME.vbk"
 ln -- "$ENCRYPTED_DIR/$NAME.vbk.sha256" "$BACKUP_DIR/$NAME.vbk.sha256"
 # La marca se crea sólo tras verificar ambos bytes remotos y conservar ambos
-# archivos locales. Un .vbk anterior sin marca jamás entra en la rotación.
+# archivos locales. Es una constancia histórica, no una orden de borrado.
 printf 'remote-byte-check OK %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$BACKUP_DIR/$NAME.vbk.uploaded"
 rm -- "$PENDING_DIR/$NAME.dump" "$PENDING_DIR/$NAME.dump.sha256" \
   "$PENDING_DIR/$NAME.contents" "$PENDING_DIR/$NAME.manifest.json"
@@ -85,19 +85,5 @@ rmdir -- "$VERIFY_DIR"
 rm -- "$ARCHIVE" "$ENCRYPTED_DIR/$NAME.vbk.sha256"
 rmdir -- "$ENCRYPTED_DIR" "$PENDING_DIR"
 PENDING_DIR=''
-
-# Sólo rotar paquetes creados por este cron cuyo remoto fue comprobado. Un
-# respaldo antiguo sin marca, o con par incompleto, requiere decisión manual.
-# Nunca se borran dumps antiguos en claro automáticamente.
-ROTATE_LIST="$(mktemp "$BACKUP_DIR/.rotate-XXXXXXXX")"
-find "$BACKUP_DIR" -maxdepth 1 -type f \
-  -name 'valle-design-*.vbk.uploaded' -mtime "+$RETENTION_DAYS" -print0 > "$ROTATE_LIST"
-while IFS= read -r -d '' marker; do
-  old_archive="${marker%.uploaded}"
-  if [ -f "$old_archive" ] && [ -f "$old_archive.sha256" ]; then
-    rm -- "$old_archive" "$old_archive.sha256" "$marker"
-  fi
-done < "$ROTATE_LIST"
-rm -- "$ROTATE_LIST"
 
 echo "== backup-cron OK: $NAME.vbk verificado y subido =="

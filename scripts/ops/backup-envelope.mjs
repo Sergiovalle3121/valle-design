@@ -97,8 +97,9 @@ function pack(directory, name, output) {
 
 function unpack(input, directory) {
   const source = openSync(input, 'r');
-  const temporary = join(directory, '.valle-backup-decrypted.part');
+  const temporary = join(directory, `.valle-backup-decrypted-${randomBytes(12).toString('hex')}.part`);
   let target;
+  let temporaryCreated = false;
   let header;
   try {
     const size = fstatSync(source).size;
@@ -114,6 +115,7 @@ function unpack(input, directory) {
     const decipher = createDecipheriv('aes-256-gcm', scryptSync(passphrase(), salt, 32), iv);
     decipher.setAuthTag(tag);
     target = openSync(temporary, 'wx', 0o600);
+    temporaryCreated = true;
     const buffer = Buffer.allocUnsafe(CHUNK_BYTES);
     let offset = PREFIX_BYTES;
     while (offset < size - TAG_BYTES) {
@@ -131,7 +133,7 @@ function unpack(input, directory) {
       closeSync(target);
       target = undefined;
     }
-    rmSync(temporary, { force: true });
+    if (temporaryCreated) rmSync(temporary, { force: true });
     throw new Error('No se pudo autenticar o leer el respaldo cifrado. Comprueba archivo y clave.');
   } finally {
     if (target !== undefined) closeSync(target);
@@ -139,8 +141,9 @@ function unpack(input, directory) {
   }
 
   const extracted = [];
-  const bundle = openSync(temporary, 'r');
+  let bundle;
   try {
+    bundle = openSync(temporary, 'r');
     const size = fstatSync(bundle).size;
     const length = Buffer.alloc(4);
     if (readSync(bundle, length, 0, 4, 0) !== 4 || length.readUInt32BE() > 4096) throw new Error('Cabecera autenticada inválida.');
@@ -177,7 +180,7 @@ function unpack(input, directory) {
     for (const file of extracted) rmSync(file, { force: true });
     throw error;
   } finally {
-    closeSync(bundle);
+    if (bundle !== undefined) closeSync(bundle);
     rmSync(temporary, { force: true });
   }
 }
