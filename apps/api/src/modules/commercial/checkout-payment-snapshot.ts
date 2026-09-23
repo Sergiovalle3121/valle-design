@@ -32,10 +32,11 @@ export function readPaidCheckoutSnapshot(
   session: unknown,
   intent: Pick<
     SubscriptionUpgradeIntent,
-    'organizationId' | 'requestedPlanCode' | 'requestedSeats'
+    'id' | 'organizationId' | 'requestedPlanCode' | 'requestedSeats'
   >,
 ): PaidCheckoutSnapshot | null {
   if (readShortString(session, 'payment_status', 40) !== 'paid') return null;
+  const metadataIntentId = readMetadata(session, 'intentId');
   const planCode = readMetadata(session, 'planCode');
   const organizationId = readMetadata(session, 'organizationId');
   const seats = positiveInteger(readMetadata(session, 'seats'), 1_000);
@@ -51,6 +52,7 @@ export function readPaidCheckoutSnapshot(
   const mode = readShortString(session, 'mode', 20);
 
   if (
+    metadataIntentId !== intent.id ||
     planCode !== intent.requestedPlanCode ||
     organizationId !== intent.organizationId ||
     seats === null ||

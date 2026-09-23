@@ -1,6 +1,7 @@
 import { readPaidCheckoutSnapshot } from './checkout-payment-snapshot';
 
 const INTENT = {
+  id: '11111111-1111-4111-8111-111111111111',
   organizationId: '22222222-2222-4222-8222-222222222222',
   requestedPlanCode: 'despacho',
   requestedSeats: 5,
@@ -14,6 +15,7 @@ function paidSession(overrides: Record<string, unknown> = {}) {
     amount_total: 50_700,
     currency: 'mxn',
     metadata: {
+      intentId: INTENT.id,
       organizationId: INTENT.organizationId,
       planCode: 'despacho',
       seats: '3',
@@ -48,6 +50,17 @@ describe('snapshot del checkout pagado', () => {
     ).toBeNull();
     expect(
       readPaidCheckoutSnapshot(paidSession({ currency: 'usd' }), INTENT),
+    ).toBeNull();
+    expect(
+      readPaidCheckoutSnapshot(
+        paidSession({
+          metadata: {
+            ...paidSession().metadata,
+            intentId: '33333333-3333-4333-8333-333333333333',
+          },
+        }),
+        INTENT,
+      ),
     ).toBeNull();
   });
 
