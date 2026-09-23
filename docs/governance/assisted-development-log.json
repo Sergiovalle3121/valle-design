@@ -4430,6 +4430,7 @@
       "derivedAreas": [
         "scripts/ops/backup-cron.sh: preflight de clave y remoto, dump privado, verificación de restore y paquete, subida sólo cifrada, comprobación remota y conservación de paquetes locales previos",
         "scripts/ops/backup-cron.spec.sh: dobles sintéticos y fallos forzados de clave, remoto, restore, autenticación, copia y comprobación",
+        "package.json y .github/workflows/ci.yml: gate bloqueante que ejecuta las specs Node de respaldo y los escenarios sintéticos del cron en Linux",
         "docs/guides/backup-restore.md y docs/onboarding/DESPLIEGUE-RAILWAY.md: procedimiento cifrado y límites de validación productiva"
       ],
       "fixtures": "Cuatro artefactos sintéticos, clave de prueba no real y remoto local simulado; no se leyó ni escribió ninguna base ni bucket real.",
