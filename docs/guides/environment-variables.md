@@ -14,7 +14,7 @@ credenciales ni claves reales en Git.
 | `DATABASE_URL`   | Una conexión PG      | URL PostgreSQL. Tiene prioridad sobre el grupo `DB_*`.                                                                                                             |
 | `DB_HOST`        | Una conexión PG      | Alternativa a `DATABASE_URL`; se completa con `DB_PORT` (default `5432`), `DB_USERNAME`, `DB_PASSWORD` y `DB_DATABASE`.                                            |
 | `SYNCHRONIZE`    | Sí en producción     | Debe ser exactamente `false`. `true` está prohibido en producción. También conviene fijarlo en `false` en staging/dev PostgreSQL cuando se prueban migraciones.    |
-| `MIGRATIONS_RUN` | Según entorno        | Con `true`, aplica migraciones al arranque cuando synchronize está apagado fuera de producción. Producción las ejecuta con synchronize apagado.                    |
+| `MIGRATIONS_RUN` | Según despliegue      | Con `DATABASE_URL` y synchronize apagado, ejecuta migraciones al arranque por default salvo que sea `false`. Si se comprobó el `preDeployCommand` de migración, `false` evita repetirlas al arrancar; sin predeploy, una sola réplica puede usar `true`. |
 | `DB_SSL_STRICT`  | Según proveedor      | **En producción la validación del certificado es el DEFAULT**; `DB_SSL_STRICT=false` es la válvula de escape explícita para hosts sin CA verificable. Fuera de producción el estricto es opt-in con `true`. SSL se activa en producción o si la URL contiene `sslmode=require`. |
 | `DB_POOL_SIZE`   | No                   | Tamaño del pool de conexiones PostgreSQL; default `20`. Entero positivo — un valor ilegible impide el arranque en vez de aplicar el default en silencio.           |
 | `DB_STATEMENT_TIMEOUT_MS` | No         | `statement_timeout` por sesión; default `30000`. Una query degenerada devuelve error acotado en vez de retener su conexión para siempre.                           |
@@ -22,6 +22,7 @@ credenciales ni claves reales en Git.
 | `DB_LOCK_TIMEOUT_MS` | No               | `lock_timeout` por sesión; default `10000`.                                                                                                                        |
 | `SQLITE_PATH`    | Sólo dev             | Archivo del fallback SQLite cuando no existe configuración PostgreSQL; default `dev.sqlite` relativo a `apps/api`.                                                 |
 | `ALLOWED_ORIGIN` | Sí para web separado | Orígenes CORS exactos, separados por coma, `;`, salto de línea o arreglo JSON. Se normaliza el slash final. Sin valor fuera de desarrollo se rechaza cross-origin. |
+| `CSRF_COOKIE_DOMAIN` | Web/API en subdominios | Para web en `vallecad.com` y API en `api.vallecad.com`, usar `.vallecad.com`: el JavaScript del web debe leer `valle_csrf` para devolver `X-CSRF-Token`. Sin ella la cookie es host-only. Se valida contra `ALLOWED_ORIGIN` al arrancar. |
 
 SQLite no es productivo y no valida migraciones, rate limiting compartido ni el
 worker multi-réplica. Para cualquier gate de release usa PostgreSQL 16.
@@ -31,7 +32,7 @@ worker multi-réplica. Para cualquier gate de release usa PostgreSQL 16.
 | Variable                         | Requerida        | Comportamiento                                                                                                                                                           |
 | -------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `IDENTITY_RATE_LIMIT_KEY_SECRET` | Sí en producción | Secreto compartido entre réplicas, mínimo 32 caracteres. Deriva claves HMAC opacas para los contadores PostgreSQL. Un valor diferente por réplica rompe la coordinación. |
-| `TRIAL_DAYS`                     | No               | Duración del trial creado con cada organización; entero de 1 a 90, default `14`. Valores inválidos usan 14.                                                              |
+| `TRIAL_DAYS`                     | No               | Duración del trial creado con cada organización; entero de 1 a 90, default `14` sólo si falta. Un valor inválido **impide el arranque**.                              |
 | `REVIEW_LINK_TTL_MINUTES`        | No               | TTL predeterminado de review links; default 10,080 minutos (7 días), acotado entre 5 minutos y 90 días.                                                                  |
 | `IDENTITY_MFA_ENCRYPTION_KEY`    | Sí en producción | Cifra en reposo el secreto del segundo factor (AES-256-GCM), mínimo 32 caracteres. **El arranque muere sin ella**: la alternativa sería cifrar con la clave de desarrollo, que vive en el repositorio, y entonces un volcado de la base descifra todos los segundos factores. |
 | `PRODUCT_OPERATOR_EMAILS`        | No               | Correos separados por comas que pueden leer los comentarios de todas las organizaciones en `/comentarios/admin`. Falla **cerrado**: sin la variable no hay operadores y el panel responde 403 a todo el mundo. Cambiarla exige reiniciar el proceso, que es el listón correcto para conceder ese acceso. |
@@ -84,9 +85,10 @@ transacción que el envío.
 
 El proveedor de correo se elige POR CONFIGURACIÓN y jamás a medias:
 
-- Sin ninguna de estas variables, el adaptador es el **nulo**: el receptor de
-  email responde 503 y el worker conserva cada correo en su outbox con
-  reintentos. Nada se pierde; nada finge enviarse.
+- Sin ninguna de estas variables y **fuera de producción**, el adaptador es el
+  **nulo**: el receptor de email responde 503 y el worker conserva cada correo
+  en su outbox con reintentos. En `NODE_ENV=production`, faltar las cuatro
+  **impide el arranque**: sin verificación por correo no se puede usar la cuenta.
 - Con las **cuatro**, se inyecta el adaptador de Resend (fetch directo, sin
   SDK) y los correos salen con `Idempotency-Key` nativa del proveedor.
 - Con **algunas pero no todas**, el arranque FALLA: un despliegue que envía
@@ -100,12 +102,12 @@ El proveedor de correo se elige POR CONFIGURACIÓN y jamás a medias:
 | `EMAIL_SENDER_FROM`          | Con correo | Remitente: `correo@dominio` o `Nombre <correo@dominio>` (p. ej. `VALLECAD <no-reply@vallecad.com>`: el nombre es lo que el cliente ve como remitente). El dominio debe estar verificado en el proveedor. |
 | `OUTBOX_EMAIL_LINK_BASE_URL` | Con correo | Origen web público que ancla los enlaces absolutos de los correos. HTTPS obligatorio (loopback HTTP sólo en local); sin credenciales, query ni fragmento. |
 
-Las plantillas existentes son `identity.verify-email`,
-`identity.reset-password`, `organization.invitation` y
-`commercial.renewal-reminder` (aviso de vencimiento para pagos únicos
-OXXO/SPEI, encolado por el worker con compuerta horaria e idempotente por
-`renewal-reminder:${subscriptionId}:${periodEnd}`); una plantilla desconocida
-se registra en el recibo y responde 200 (reintentar un render imposible no lo
+Las plantillas actuales de `email-templates.ts` son `identity.verify-email`,
+`identity.reset-password`, `identity.new-sign-in`, `organization.invitation`,
+`commercial.renewal-reminder`, `commercial.trial-expiry`, `product.feedback`
+y `support.incident`. El recordatorio de pagos únicos OXXO/SPEI se encola con
+compuerta horaria e idempotencia por período. Una plantilla desconocida se
+registra en el recibo y responde 200 (reintentar un render imposible no lo
 vuelve posible). La cola `domain` es hoy aceptación durable sin consumo.
 
 ## Pasarela de pagos (Stripe)
@@ -148,6 +150,11 @@ nunca se activa. Los dos de cargos mueven reembolsos (factura espejo a
 `refunded`) y contracargos (suscripción a `suspended`); el procedimiento humano
 está en `RUNBOOK.md` § «Disputas y reembolsos». Cualquier otro tipo responde
 200 y queda registrado sin efecto.
+
+Los importes salen de `plan_prices` y el adaptador manda `price_data` inline al
+crear la sesión: no hay una variable `STRIPE_PRICE_ID` ni un catálogo de precios
+Stripe que sincronizar. La guía de configuración de lanzamiento está en
+[`docs/onboarding/VARIABLES-LANZAMIENTO.md`](../onboarding/VARIABLES-LANZAMIENTO.md).
 
 OXXO y SPEI hay que ACTIVARLOS además en el panel del proveedor (métodos de
 pago de la cuenta de México); el producto los ofrece sólo en MXN y rechaza una

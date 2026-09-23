@@ -6,21 +6,17 @@
 > despliegue) ni a `RUNBOOK.md` (operación día a día); esto es el mapa de esos
 > mismos artefactos sobre la plataforma Railway.
 
-## Aviso de vigencia (verificado 2026-08-26 contra la documentación oficial)
+## Aviso de vigencia (revisado 2026-09-23 contra la documentación oficial)
 
 Railway declara **deprecado** el config-as-code (`railway.json`/`railway.toml`):
-los archivos existentes siguen funcionando para servicios ya creados **hasta el
-2026-12-01**, y la vía recomendada pasa a ser *Infrastructure as Code*
-(`.railway/railway.ts`, TypeScript, evaluado por la CLI de Railway, hoy
-experimental). Decisión de esta campaña:
-
-- Se autoran los `railway.json` por servicio (esquema publicado en
-  `https://railway.com/railway.schema.json`), que es la vía **estable** hoy y
-  documentada, y funcionan al crear los servicios antes de la fecha límite.
-- La migración a `.railway/railway.ts` exige añadir el SDK de TypeScript de
-  Railway como dependencia (revisión de licencia + SBOM) y una CLI autenticada
-  con la cuenta del titular: se registra como trabajo futuro explícito, no se
-  hace a medias aquí.
+los archivos existentes siguen funcionando para servicios que **ya los usaban**
+hasta el 2026-12-01, pero **un servicio nuevo ya no puede optar por Config as
+Code**. Railway recomienda *Infrastructure as Code* (`.railway/railway.ts`).
+Este repositorio aún conserva los dos `railway.json`; para un servicio nuevo,
+reproduce su configuración en el panel de Railway o prepara una migración
+revisada a la vía actual. No supongas que Railway leyó esos archivos ni que
+ejecutó las migraciones: compruébalo en el detalle del despliegue. Fuente:
+[Railway Config as Code](https://docs.railway.com/config-as-code).
 
 ## Topología de servicios
 
@@ -32,10 +28,11 @@ experimental). Decisión de esta campaña:
 
 En Railway ambos servicios apuntan al MISMO repositorio; el «Root Directory»
 queda en `/` (las imágenes se construyen desde la raíz del monorepo — los
-Dockerfiles ya esperan ese contexto) y el «Config File Path» de cada servicio
-apunta a su `railway.json` con ruta absoluta del repo
-(`/apps/api/railway.json`, `/apps/web/railway.json`), porque Railway NO
-resuelve el config relativo al root directory.
+Dockerfiles ya esperan ese contexto). **Sólo si el servicio existente sigue
+usando Config as Code**, su «Config File Path» apunta a
+`/apps/api/railway.json` o `/apps/web/railway.json`; Railway no resuelve esa
+ruta relativa al root directory. En servicios nuevos, configura en Railway los
+mismos Dockerfile, comandos y healthchecks o usa Infrastructure as Code.
 
 ### Worker / outbox
 
@@ -52,7 +49,9 @@ despliegue a medias no envía correo en silencio: no arranca.
 ## Migraciones: pre-deploy, fail-closed
 
 `apps/api/railway.json` declara
-`preDeployCommand: ["node apps/api/dist/scripts/run-migrations.js"]`. El
+`preDeployCommand: ["node apps/api/dist/scripts/run-migrations.js"]` para
+servicios existentes que aún lo aplican. En un servicio nuevo, establece ese
+comando en la configuración de Railway. El
 script (`apps/api/src/scripts/run-migrations.ts`) reusa `ormOptions()` — misma
 URL, mismo SSL, misma lista de migraciones que el arranque — y:
 
@@ -81,11 +80,17 @@ compilado). Mínimo para `valle-api`:
 - `OUTBOX_DISPATCHER_ENABLED=true` + `OUTBOX_*_WEBHOOK_URL`/`SECRET`
   (transporte firmado del correo transaccional)
 - `ALLOWED_ORIGIN=https://<dominio-web>`
+- `CSRF_COOKIE_DOMAIN=.<dominio-base>` cuando web y API usan subdominios
+  distintos (ejemplo: `.vallecad.com` para `vallecad.com` y
+  `api.vallecad.com`); sin ella el navegador no deja al web leer
+  `valle_csrf` y las mutaciones responden `csrf_invalid`.
 - Stripe (si se activa cobro): `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,
-  precios — sin ellas el checkout degrada declarado (`checkout_unavailable`).
-- Correo transaccional (si se activa): `EMAIL_SENDER_PROVIDER`,
+  `STRIPE_CHECKOUT_SUCCESS_URL` y `STRIPE_CHECKOUT_CANCEL_URL`. Los precios
+  viven en `plan_prices`, no en variables de Stripe.
+- Correo transaccional (**obligatorio en producción**): `EMAIL_SENDER_PROVIDER`,
   `EMAIL_SENDER_API_KEY`, `EMAIL_SENDER_FROM`, `OUTBOX_EMAIL_LINK_BASE_URL` —
-  sin ellas el receptor responde 503 y el correo espera en el outbox
+  sin ellas la API no arranca; fuera de producción el receptor responde 503 y
+  el correo espera en el outbox
   (`apps/api/src/modules/outbox-receiver/email-sender.config.ts`).
 - Sentry/observabilidad: `SENTRY_DSN` (si el titular la contrata).
 
@@ -98,11 +103,14 @@ gitleaks del CI vigila el historial completo.
 
 ## Staging y producción
 
-Dos *environments* de Railway sobre el mismo proyecto (`staging`,
-`production`) con variables separadas y bases separadas. `staging` despliega
-de la rama `main` en automático; `production` con aprobación manual del
-titular. Dominios: `app.<dominio>` (web) y `api.<dominio>` (API) — TLS lo
-emite Railway al verificar el CNAME (`OWNER ACTION: DNS`).
+La topología **prevista**, pendiente de comprobar en la cuenta del titular, es
+dos *environments* de Railway (`staging` y `production`) con variables y bases
+separadas. No se ha verificado desde el repositorio qué rama despliega ni si
+hay aprobación manual. Para VALLECAD, los dominios objetivo son
+`vallecad.com` (web) y `api.vallecad.com` (API). Railway indica registros de
+ruta **y un TXT de verificación** para cada dominio; el ápice requiere CNAME
+flattening/ALIAS/ANAME según el proveedor DNS, no una IP A fija. Ver
+[dominios Railway](https://docs.railway.com/networking/domains/working-with-domains).
 
 ## Seguridad HTTP del frontend
 
@@ -132,13 +140,18 @@ que exigen cero errores de consola. La API sirve las suyas en
 ## OWNER ACTIONS (Railway)
 
 1. `OWNER ACTION: RAILWAY` — crear proyecto, conectar el repo, crear los dos
-   servicios con sus Config File Paths, añadir el plugin PostgreSQL 16 y las
-   variables de arriba. Sin esto no existe URL que probar.
-2. `OWNER ACTION: DNS` — CNAMEs de `app.` y `api.` al dominio del titular.
+   servicios con Dockerfiles y comandos adecuados para servicios nuevos,
+   añadir PostgreSQL 16 y las variables de arriba. Sin esto no existe URL que
+   probar.
+2. `OWNER ACTION: DNS` — apuntar el ápice y `api.` con los registros de ruta y
+   TXT que Railway muestre; confirmar HTTPS en ambos.
 3. `OWNER ACTION: RESEND` — dominio verificado y `EMAIL_SENDER_API_KEY`; el
    receptor es `/v1/outbox/*` de la propia API (ADR-0008).
 4. `OWNER ACTION: SENTRY` — DSN si se contrata observabilidad externa.
 5. `OWNER ACTION: STRIPE LIVE` — claves live y autorización de cobro real.
+
+Lista de nombres, lectores, ejemplos y pruebas sin secretos:
+[`docs/onboarding/VARIABLES-LANZAMIENTO.md`](../onboarding/VARIABLES-LANZAMIENTO.md).
 
 ## Inventario de variables de marca (2026-09-16)
 
