@@ -41,7 +41,9 @@ const areas = cadReviewRoomAreas(document, projection);
 assert.equal(areas.length, 1, "four visible canonical walls enclose one room");
 assert.equal(areas[0].axisArea, "20.00 m²", "axis area is calculated from wall geometry");
 assert.equal(areas[0].clearArea, "17.81 m²", "clear area accounts for wall thickness");
-assert.equal(areas[0].nameFromDocument, true, "the authored name will not be repeated");
+assert.equal(areas[0].nameFromDocument, true, "the authored room name is preserved");
+assert.equal(areas[0].name, "SALA", "the mobile badge can show the same authored name");
+assert.equal(areas[0].labelId, "nombre", "the mobile view replaces only the matching SVG label");
 assert.ok(cadPointInBoundary(areas[0].at, [
   { x: 0, y: 0 }, { x: 5_000, y: 0 }, { x: 5_000, y: 4_000 }, { x: 0, y: 4_000 },
 ]), "the area label belongs inside its room");

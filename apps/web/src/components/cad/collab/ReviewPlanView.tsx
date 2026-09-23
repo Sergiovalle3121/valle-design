@@ -196,14 +196,19 @@ export default function ReviewPlanView({
 
   const areaPlacements = useMemo(() => {
     if (!view) return [];
+    const compact = view.widthPx < 600;
     return roomAreas.flatMap((area) => {
       const position = cadViewWorldToScreen(view, area.at);
       if (!Number.isFinite(position.x) || !Number.isFinite(position.y) ||
           position.x <= 0 || position.y <= 0 ||
           position.x >= view.widthPx || position.y >= view.heightPx) return [];
-      return [{ area, x: position.x, y: position.y + (area.nameFromDocument ? 28 : 0) }];
+      return [{ area, compact, x: position.x,
+        y: position.y + (!compact && area.nameFromDocument ? 28 : 0) }];
     });
   }, [roomAreas, view]);
+  const compactRoomLabelIds = useMemo(() =>
+    new Set(roomAreas.flatMap((area) => area.labelId ? [area.labelId] : [])),
+    [roomAreas]);
 
   const viewBox = view
     ? `${view.centerX - view.widthPx / 2 / view.pixelsPerUnit} ${
@@ -250,6 +255,11 @@ export default function ReviewPlanView({
               );
             }
             const label = element.text;
+            // On a narrow screen the authored label is too small to read and
+            // collides with the area badge. Its exact name moves into the
+            // same badge; other authored text remains in the SVG.
+            if (size.widthPx < 600 && compactRoomLabelIds.has(label.entityId))
+              return null;
             return (
               <g
                 key={`${label.entityId}-${index}`}
@@ -284,19 +294,22 @@ export default function ReviewPlanView({
         </g>
       </svg>
 
-      {areaPlacements.map(({ area, x, y }) => (
+      {areaPlacements.map(({ area, compact, x, y }) => (
         <div
           key={area.id}
           data-testid="cad-review-room-area"
           data-room-id={area.id}
+          data-compact={compact ? "true" : "false"}
           role="note"
-          className="pointer-events-none absolute z-10 max-w-48 -translate-x-1/2 -translate-y-1/2 rounded-control border border-border bg-surface/90 px-2 py-1 text-center text-foreground shadow-resting"
+          className={`pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-1/2 rounded-control border border-border bg-surface/90 text-center text-foreground shadow-resting ${
+            compact ? "max-w-20 px-1 py-0.5" : "max-w-48 px-2 py-1"
+          }`}
           style={{ left: x, top: y }}
-          aria-label={`Local ${area.id}: área entre ejes de muros ${area.axisArea}${area.clearArea ? `; área útil ${area.clearArea}` : ""}`}
+          aria-label={`${area.name ?? `Local ${area.id}`}: área entre ejes de muros ${area.axisArea}${area.clearArea ? `; área útil ${area.clearArea}` : ""}`}
         >
-          {!area.nameFromDocument ? <div className="type-micro font-semibold">Local {area.id}</div> : null}
-          <div className="type-micro">A ejes · {area.axisArea}</div>
-          {area.clearArea ? <div className="type-micro">Útil · {area.clearArea}</div> : null}
+          {compact || !area.nameFromDocument ? <div className="type-micro font-semibold break-words">{area.name ?? `Local ${area.id}`}</div> : null}
+          <div className="type-micro">{compact ? area.axisArea : `A ejes · ${area.axisArea}`}</div>
+          {!compact && area.clearArea ? <div className="type-micro">Útil · {area.clearArea}</div> : null}
         </div>
       ))}
 
