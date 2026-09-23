@@ -4,10 +4,10 @@
  * El spike de la campaña de sitio (bitácora CAMPANA_SITIO_20260829, OLA 2)
  * encontró que el editor entero toca la red en exactamente tres puntos, los
  * tres dentro del `DocumentLifecyclePort` que recibe su controlador de ciclo
- * de vida. Este puerto los sustituye: `open` entrega el documento de arranque
- * (o lo que el visitante dejó a medias), `saveContent` guarda en memoria y en
- * localStorage con versión monotónica. El autosave, la recuperación y el
- * historial del editor funcionan tal cual — creen estar hablando con la nube.
+ * de vida. Este puerto los sustituye: cada visita abre la casa limpia y guarda
+ * en memoria y localStorage con versión monotónica. Si hay un dibujo anterior,
+ * se copia antes de reemplazar el autosave y se recupera sólo por elección.
+ * El autosave y el historial del editor creen estar hablando con la nube.
  *
  * Qué NO hace, a propósito (y el banner del demo lo dice): nube, colaboración,
  * historial de versiones del servidor. El CAS jamás da 409 porque solo hay un
@@ -29,21 +29,23 @@ import type {
   DocumentLifecyclePort,
   DocumentLifecycleResource,
 } from "./controller";
-import type { CadDocument } from "@/lib/cad/cad-document";
+import { serializeCadDocument, type CadDocument } from "@/lib/cad/cad-document";
 import { buildCadTemplateDocument } from "@/lib/cad/template-document";
 import { buildDemoVolumeDocument } from "@/lib/cad/demo/demo-volume";
 
 export { DEMO_DOCUMENT_ID, DEMO_STORAGE_KEY } from "@/lib/cad/demo/demo-constants";
-import { DEMO_STORAGE_KEY } from "@/lib/cad/demo/demo-constants";
+import { DEMO_RECOVERY_STORAGE_KEY, DEMO_STORAGE_KEY } from "@/lib/cad/demo/demo-constants";
 
 interface StoredDemo {
   version: number;
   document: CadDocument;
+  /** Ausente en sobres antiguos: se tratan como trabajo recuperable. */
+  edited?: boolean;
 }
 
-function readStored(storage: Pick<Storage, "getItem">): StoredDemo | null {
+function readStored(storage: Pick<Storage, "getItem">, key = DEMO_STORAGE_KEY): StoredDemo | null {
   try {
-    const raw = storage.getItem(DEMO_STORAGE_KEY);
+    const raw = storage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as StoredDemo;
     if (!parsed || typeof parsed.version !== "number" || !parsed.document)
@@ -53,6 +55,34 @@ function readStored(storage: Pick<Storage, "getItem">): StoredDemo | null {
     // Un dibujo demo ilegible no puede tumbar la demostración: se arranca de cero.
     return null;
   }
+}
+
+/**
+ * El último trabajo propio manda; una casa de arranque sin ediciones no tapa
+ * una recuperación anterior. Los sobres previos a `edited` son recuperables:
+ * no hay forma segura de afirmar que sus objetos no los dibujó una persona.
+ */
+function recoverableStored(storage: Pick<Storage, "getItem">): StoredDemo | null {
+  const current = readStored(storage);
+  if (current && current.edited !== false) return current;
+  const archived = readStored(storage, DEMO_RECOVERY_STORAGE_KEY);
+  return archived && archived.edited !== false ? archived : null;
+}
+
+/**
+ * Copia byte por byte antes de reemplazar un autosave. Si ya había una copia,
+ * la desplaza a una clave histórica única; ninguna visita limpia debe borrar
+ * lo que alguien dibujó sólo por abrir la página. Ante cuota llena se aborta
+ * la sustitución del autosave viejo y el editor sigue en memoria.
+ */
+function preserveRaw(storage: Pick<Storage, "getItem" | "setItem">, raw: string): void {
+  const previous = storage.getItem(DEMO_RECOVERY_STORAGE_KEY);
+  if (previous === raw) return;
+  if (previous) {
+    const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    storage.setItem(`${DEMO_RECOVERY_STORAGE_KEY}:${suffix}`, previous);
+  }
+  storage.setItem(DEMO_RECOVERY_STORAGE_KEY, raw);
 }
 
 /** El documento con el que arranca la demostración. */
@@ -99,29 +129,72 @@ export function clearDemoDocument(
   }
 }
 
+/** El editor ve el puerto normal; /demo dispone además de recuperación elegida. */
+export interface DemoDocumentPort extends DocumentLifecyclePort {
+  readonly hasRecoverableDocument: boolean;
+  restorePrevious(): boolean;
+}
+
 export function createDemoDocumentPort(
   storage:
     Pick<Storage, "getItem" | "setItem"> | undefined = globalThis.localStorage,
-): DocumentLifecyclePort {
+): DemoDocumentPort {
+  const previous = storage ? recoverableStored(storage) : null;
   let state: StoredDemo | null = null;
+  let initialSignature: string | null = null;
+  let recovered = false;
+  let restoreQueued = false;
+  let priorProtected = false;
+
+  const protectPrior = (): boolean => {
+    if (!storage) return false;
+    try {
+      const current = readStored(storage);
+      const raw = storage.getItem(DEMO_STORAGE_KEY);
+      // Incluso un sobre antiguo ilegible merece conservarse intacto; aunque
+      // no podamos ofrecer restaurarlo, abrir /demo no debe destruir sus bytes.
+      if (raw && (!current || current.edited !== false)) preserveRaw(storage, raw);
+      return true;
+    } catch {
+      return false;
+    }
+  };
 
   const persist = () => {
-    if (!state) return;
+    if (!state || !storage) return;
+    // Si no cupo la copia, no se pisa el único ejemplar viejo. Se reintenta
+    // en el siguiente guardado; el dibujo actual permanece en memoria.
+    if (!priorProtected) priorProtected = protectPrior();
+    if (!priorProtected) return;
     try {
-      storage?.setItem(DEMO_STORAGE_KEY, JSON.stringify(state));
+      storage.setItem(DEMO_STORAGE_KEY, JSON.stringify(state));
     } catch {
-      // localStorage lleno o bloqueado: la demo sigue en memoria. El banner ya
-      // avisa de que aquí no hay nube; perder el respaldo local no es un error
-      // que deba interrumpir el dibujo.
+      // localStorage lleno o bloqueado: el editor conserva el dibujo en memoria.
     }
   };
 
   return {
+    hasRecoverableDocument: previous !== null,
+    restorePrevious() {
+      if (!previous) return false;
+      // Si la persona ya dibujó algo en esta visita, conservar también ese
+      // trabajo antes de volver al anterior.
+      priorProtected = protectPrior();
+      state = { ...previous, edited: true };
+      recovered = true;
+      restoreQueued = true;
+      if (priorProtected) persist();
+      return true;
+    },
     async open(): Promise<DocumentLifecycleResource> {
-      state = (storage && readStored(storage)) ?? {
-        version: 1,
-        document: buildDemoDocument(),
-      };
+      if (restoreQueued) restoreQueued = false;
+      else if (!state) {
+        const document = buildDemoDocument();
+        initialSignature = serializeCadDocument(document);
+        state = { version: 1, document, edited: false };
+        persist();
+      }
+      if (!state) throw new Error("No se pudo abrir la demostración.");
       return {
         cadDocument: state.document,
         cadDocumentVersion: state.version,
@@ -129,7 +202,12 @@ export function createDemoDocumentPort(
     },
     async saveContent(_id, document, expectedVersion) {
       const version = expectedVersion + 1;
-      state = { version, document };
+      state = {
+        version,
+        document,
+        edited: recovered || initialSignature === null ||
+          serializeCadDocument(document) !== initialSignature,
+      };
       persist();
       return { cadDocumentVersion: version };
     },
@@ -143,7 +221,13 @@ export function createDemoDocumentPort(
           .stream()
           .pipeThrough(new DecompressionStream("gzip"));
         const json = await new Response(stream).text();
-        state = { version, document: JSON.parse(json) as CadDocument };
+        const document = JSON.parse(json) as CadDocument;
+        state = {
+          version,
+          document,
+          edited: recovered || initialSignature === null ||
+            serializeCadDocument(document) !== initialSignature,
+        };
       } catch {
         // Sin DecompressionStream o con un blob ilegible, al menos la versión
         // avanza y el documento en memoria del editor sigue siendo la verdad.
