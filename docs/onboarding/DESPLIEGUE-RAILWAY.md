@@ -158,15 +158,15 @@ por quien esté en la ruta.
 | `NEXT_PUBLIC_BRAND_PRIVACY_EMAIL` | `privacidad@vallecad.com` | ídem |
 | `NEXT_PUBLIC_BRAND_PRODUCT_NAME_DESIGN` | `VALLECAD` | Nombre visible del producto en toda la superficie web (mismo valor que `BRAND_PRODUCT_NAME_DESIGN` en la api, o el correo y la pantalla se llamarán distinto). Se incrusta al compilar. |
 | `NEXT_PUBLIC_BRAND_NAME` | `VALLECAD` | Marca matriz visible. Se incrusta al compilar. |
-| `NEXT_PUBLIC_LAUNCH_MODE` | `free` | Es el **default**. El Dockerfile actual no declara este `ARG`: poner `commercial` sólo en Railway todavía no habilita la compra en el bundle. |
-| `NEXT_PUBLIC_APP_VERSION` | la fecha o el SHA del despliegue | El Dockerfile actual no declara este `ARG`; hasta corregirlo, los reportes pueden seguir diciendo «desarrollo» aunque la variable esté en Railway. |
+| `NEXT_PUBLIC_LAUNCH_MODE` | `free` | Es el **default**. El Dockerfile la pasa al build; `commercial` hace visible Checkout sólo después de un build nuevo. Mantén `free` hasta validar pagos de prueba y operación real. |
+| `NEXT_PUBLIC_APP_VERSION` | la fecha o el SHA del despliegue | El Dockerfile la pasa al build; si falta, los reportes dicen «desarrollo». Cambiarla exige un build nuevo. |
 | `PORT` | No fijarlo manualmente | Railway lo inyecta en el servicio |
 
 El modo `free` por defecto mantiene el checkout fuera de la superficie. El
-código de Stripe tiene pruebas locales, pero para cobrar hay que corregir los
-`ARG` del Dockerfile, reconstruir, conectar las credenciales y webhooks reales,
-y verificar un pago de prueba de extremo a extremo. Cambiar sólo la variable
-en Railway no completa esos pasos.
+código de Stripe tiene pruebas locales, pero para cobrar hay que reconstruir el
+web con `commercial`, conectar las credenciales y webhooks reales, y verificar
+un pago de prueba de extremo a extremo. Cambiar sólo la variable en Railway sin
+un build nuevo ni esas comprobaciones no completa el lanzamiento comercial.
 
 ---
 

@@ -1,6 +1,6 @@
 # Variables y cuentas para lanzar VALLECAD
 
-Auditoría del código en `origin/main` (`db866040`, 2026-09-23). Esta página
+Auditoría del código y del Dockerfile al 2026-09-23. Esta página
 describe lo que el repositorio **lee o exige**; no confirma qué valores hay en
 Railway, Resend, Stripe o DNS. No copies claves a Git, a un ticket ni a un
 comando que quede en el historial. Mantén `staging` y `production` con bases y
@@ -20,12 +20,12 @@ Comprueba la configuración aplicada en el detalle del despliegue. Fuentes:
 
 `NEXT_PUBLIC_*` se incorpora al JavaScript durante el **build**; cambiarlo
 requiere otro despliegue con build. Railway entrega variables al build, pero un
-Dockerfile necesita declarar los `ARG` pertinentes. El Dockerfile actual **no**
-declara `NEXT_PUBLIC_LAUNCH_MODE` ni `NEXT_PUBLIC_APP_VERSION`: ponerlas sólo en
-Railway no garantiza que lleguen al bundle. El modo por defecto sigue siendo
-`free`; no habilites cobro público sólo cambiando `NEXT_PUBLIC_LAUNCH_MODE`
-hasta corregir y probar esa ruta de build. `NEXT_PUBLIC_APP_VERSION` seguirá
-mostrando `desarrollo` si no llega al bundle. Lectores:
+Dockerfile necesita declarar los `ARG` pertinentes. El Dockerfile declara y
+reenvía `NEXT_PUBLIC_LAUNCH_MODE` y `NEXT_PUBLIC_APP_VERSION` al build; el gate
+`check:deploy` detecta si se pierde esa ruta. Sin configurar la primera, el modo
+sigue siendo `free`; sin la segunda, los reportes muestran `desarrollo`.
+Antes de mostrar Checkout al público, hace falta además probar las credenciales,
+webhooks y flujos de Stripe de extremo a extremo. Lectores:
 `apps/web/Dockerfile`, `apps/web/src/config/launch.ts`.
 
 ## API: base, sesión y correo
