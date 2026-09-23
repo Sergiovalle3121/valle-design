@@ -241,3 +241,39 @@ test('designar todo resalta el dibujo, no lo hace desaparecer', async ({ context
       'designar todo borró el dibujo de la pantalla. Quien lo ve cree que perdió su trabajo.',
   ).toBeGreaterThanOrEqual(Math.round(conDibujo.pixeles * 0.9));
 });
+
+test('un clic que resbala 8 px sigue poniendo el punto: así clica una mano real', async ({ context, page }) => {
+  test.setTimeout(150_000);
+  await abrirEstudio(context, page);
+  await instalarLectorDeLienzo(page, ANCHO_MUESTRA);
+  await recordarLienzoVacio(page);
+  const antes = await entidades(page);
+
+  await page.getByTestId('cad-ribbon-command-LINE').click();
+  await expect(page.getByTestId('cad-command-prompt')).toBeVisible();
+
+  // Cada clic se desplaza 8,5 px entre pulsar y soltar: el temblor normal de
+  // una mano apoyada en un ratón de mesa. Con el margen viejo de 5 px estos
+  // dos clics se descartaban EN SILENCIO y no se dibujaba nada.
+  const caja = (await page.getByTestId('cad-canvas').boundingBox())!;
+  const y0 = caja.y + caja.height * 0.5;
+  for (const x of [caja.x + caja.width * 0.3, caja.x + caja.width * 0.7]) {
+    await page.mouse.move(x, y0);
+    await page.mouse.down();
+    await page.mouse.move(x + 6, y0 + 6, { steps: 3 });
+    await page.mouse.up();
+    await page.waitForTimeout(250);
+  }
+  await page.keyboard.press('Enter');
+  await page.mouse.move(caja.x + 4, caja.y + 4);
+  await page.waitForTimeout(1_500);
+
+  await expect
+    .poll(() => entidades(page), { message: 'el clic que resbala también dibuja', timeout: 15_000 })
+    .toBe(antes + 1);
+  const dibujado = await cambioRespectoAlVacio(page, ANCHO_MUESTRA);
+  expect(
+    dibujado.pixeles,
+    `el lienzo cambió ${dibujado.pixeles} píxeles: la línea de los clics que resbalan tiene que verse igual`,
+  ).toBeGreaterThan(50);
+});

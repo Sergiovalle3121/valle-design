@@ -466,7 +466,7 @@ import { useCadUiMode } from "@/components/cad/shell/ui-mode-host";
 import { useCadStudioCommandEngine } from "@/components/cad/command-line/use-command-engine";
 import { cadStudioEngineBridges } from "@/components/cad/command-line/studio-engine-bridges";
 import { cadFacePickerFor, cadEdgePickerFor, cadHonorSnapOverride, CAD_FACE_PICK_BIT } from "@/lib/cad/pick3d/scene-ray";
-import { cadLocalPoint, cadPointerWorldTolerance } from "@/components/cad/viewport/pointer-geometry";
+import { cadLocalPoint, cadPointerIsClick, cadPointerWorldTolerance } from "@/components/cad/viewport/pointer-geometry";
 import {
   CadOverlayLegends,
   CadViewportPrompt,
@@ -7248,11 +7248,11 @@ export default function Layout3DEditor({
           );
         return;
       }
-      // Con RATÓN, clic es «no se movió» (5 px). Con DEDO manda el reconocedor
-      // táctil: deslizar es APUNTAR, y esos 5 px anulaban el punto señalado.
+      // Con RATÓN, clic es «no se movió»; con DEDO manda el reconocedor táctil
+      // (deslizar es APUNTAR). Los dos márgenes y su porqué, en `pointer-geometry.ts`.
       const isClick = touchRelease
         ? touchRelease.commits
-        : Math.hypot(e.clientX - downX, e.clientY - downY) < 5;
+        : cadPointerIsClick(e.clientX - downX, e.clientY - downY, enginePointerRouter.active);
       // Sólo el CLIC (arrastrar sigue orbitando), y no el que suelta un arrastre abierto ANTES del comando: ese lo cierra `if (drag)`.
       if (isClick && !drag && enginePointerRouter.click(e)) {
         try {
