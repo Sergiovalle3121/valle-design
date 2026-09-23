@@ -1,5 +1,47 @@
 # Backup y restore
 
+## Windows: paquete cifrado portable y ejercicio local (preparado, no validado con PostgreSQL)
+
+`work/respaldo.ps1` usa los clientes de PostgreSQL 16 indicados por `PG_BIN`, crea
+un dump y un inventario en un directorio temporal y cifra los cuatro artefactos
+en un único `.vbk` con AES-256-GCM y clave derivada con scrypt. Escribe al lado
+un `.vbk.sha256`. La clave debe ser una frase aleatoria fuerte de al menos 20
+caracteres, guardada fuera del repositorio y de la máquina que almacena el
+backup; el formato se puede descifrar en otro equipo con esa misma frase. No
+usa DPAPI. Ni `DATABASE_URL` ni `BACKUP_ENCRYPTION_PASSPHRASE` van en argumentos
+de procesos. Inyéctalas en el entorno mediante un gestor de secretos; no las
+pegues en la consola, en scripts versionados ni en el historial de PowerShell.
+El cálculo SHA-256 del dump se hace por bloques para no cargar la base completa
+en memoria.
+
+```powershell
+$env:PG_BIN = 'C:\ruta\postgresql-16\bin'
+.\work\respaldo.ps1 -OutDir 'C:\ruta\segura\backups'
+.\work\restaurar.ps1 -Archivo 'C:\ruta\segura\backups\valle-design-<sello>.vbk'
+```
+
+El segundo comando exige `DATABASE_URL` de **PostgreSQL 16 local, puerto 55432**,
+sin parámetros de conexión en la URL. Comprueba el SHA-256 del archivo cifrado,
+lo autentica, restaura en una base `valle_restore_verify_*` recién creada,
+compara integridad, tablas, migraciones y conteos, ejecuta las migraciones y un
+smoke de arranque de la API con el dispatcher deshabilitado, y borra la base
+temporal. Las migraciones sólo pueden escribir en esa base temporal; el script
+no restaura sobre la base indicada en `DATABASE_URL`. La API se compila antes
+de iniciar el ejercicio. El `.vbk` y su SHA deben moverse juntos; el archivo
+cifrado nunca debe ir al mismo único disco que la base. Durante el ejercicio
+existen archivos descifrados en el directorio temporal del sistema; usa un
+volumen local protegido y elimina esos temporales al terminar.
+
+La prueba criptográfica sintética y la sintaxis PowerShell pasan en el entorno
+de desarrollo, pero **todavía no hay ejercicio real de PostgreSQL 16 con este
+wrapper**. El registro de [restauración del 2026-09-23](../operacion/RESTAURACION-2026-09-23.md)
+mantiene la fila en rojo hasta medir SHA, tamaño, tiempo y comprobaciones sobre
+un backup real. En esta laptop el arranque de `postgres.exe` fue bloqueado por
+Device Guard; no se debe inferir éxito de restauración de las pruebas sintéticas.
+El cron Linux descrito más abajo aún mueve cuatro artefactos sin cifrar: su
+protección en reposo y su ubicación fuera del host siguen pendientes para uso
+productivo.
+
 ## Procedimiento PROBADO (empieza por aquí)
 
 Dos scripts. El primero produce un backup; **el segundo es el que lo convierte

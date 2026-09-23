@@ -45,10 +45,8 @@
  *
  * Variables: PG_BIN (directorio de binarios de PostgreSQL 16).
  */
-import { createHash } from 'node:crypto';
 import {
   mkdirSync,
-  readFileSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -62,6 +60,7 @@ import {
   requireDatabaseUrl,
   resolveBinary,
   runPg,
+  sha256File,
 } from './pg-tools.mjs';
 
 const args = parseArgs(process.argv.slice(2));
@@ -181,8 +180,7 @@ try {
 const dumpSeconds = (Date.now() - startedAt) / 1000;
 
 // ── 3 · integridad e índice de objetos ──────────────────────────────────────
-const bytes = readFileSync(dumpPath);
-const sha256 = createHash('sha256').update(bytes).digest('hex');
+const sha256 = sha256File(dumpPath);
 writeFileSync(checksumPath, `${sha256}  ${name}.dump\n`, 'utf8');
 
 const contents = runPg(pgRestore.path, ['--list', dumpPath]);

@@ -35,8 +35,7 @@
  * La URL sólo se usa para CONECTAR al servidor y crear la base temporal; la
  * base de producción no se toca en ningún momento.
  */
-import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { dirname, join, basename, resolve } from 'node:path';
 import {
@@ -47,8 +46,10 @@ import {
   requireDatabaseUrl,
   resolveBinary,
   runPg,
+  sha256File,
   withDatabase,
 } from './pg-tools.mjs';
+import { assertLocalRestoreTarget, runLocalPostChecks } from './restore-local-checks.mjs';
 
 /**
  * Núcleo crítico: sin estas tablas el servicio no arranca ni sirve a nadie.
@@ -90,6 +91,8 @@ if (!args.dump || !existsSync(dumpPath)) {
 }
 
 const url = requireDatabaseUrl(null);
+const localChecks = args['local-checks'] === true;
+if (localChecks) assertLocalRestoreTarget(url);
 const psql = resolveBinary('psql');
 const pgRestore = resolveBinary('pg_restore');
 const maintenanceUrl = withDatabase(url, args.maintenance || 'postgres');
@@ -97,6 +100,10 @@ const maintenanceUrl = withDatabase(url, args.maintenance || 'postgres');
 const base = basename(dumpPath).replace(/\.dump$/, '');
 const manifestPath = join(dirname(dumpPath), `${base}.manifest.json`);
 const checksumPath = `${dumpPath}.sha256`;
+if (localChecks && (!existsSync(checksumPath) || !existsSync(manifestPath))) {
+  console.error('El ejercicio local exige .dump.sha256 y .manifest.json junto al dump.');
+  process.exit(2);
+}
 
 const failures = [];
 const notes = [];
@@ -109,8 +116,8 @@ console.log(`  ${pgRestore.version}`);
 console.log('');
 
 // ── 1 · integridad del archivo ──────────────────────────────────────────────
-const bytes = readFileSync(dumpPath);
-const sha256 = createHash('sha256').update(bytes).digest('hex');
+const dumpBytes = statSync(dumpPath).size;
+const sha256 = sha256File(dumpPath);
 if (existsSync(checksumPath)) {
   const expected = readFileSync(checksumPath, 'utf8').trim().split(/\s+/)[0];
   if (expected !== sha256) {
@@ -133,6 +140,10 @@ if (!manifest) {
   notes.push(
     `Sin ${basename(manifestPath)}: se verifica la restaurabilidad, pero NO que el contenido coincida con el origen.`,
   );
+}
+if (failures.length) {
+  console.error('BACKUP NO VALIDADO: el SHA-256 no coincide; se detiene antes de abrir PostgreSQL.');
+  process.exit(1);
 }
 
 // ── 2 · restauración en base temporal ───────────────────────────────────────
@@ -164,6 +175,7 @@ function dropTemporary() {
     );
     console.log(`  limpieza: base temporal ${temporary} eliminada`);
   } catch (error) {
+    fail(`No se pudo borrar la base temporal ${temporary}: ${error.message}`);
     console.error(
       `  AVISO: no se pudo borrar la base temporal ${temporary}: ${error.message}`,
     );
@@ -172,6 +184,19 @@ function dropTemporary() {
 }
 
 try {
+  if (localChecks) {
+    const [[version]] = query(
+      psql.path,
+      maintenanceUrl,
+      'SHOW server_version_num',
+    );
+    if (
+      !Number.isInteger(Number(version)) ||
+      Math.floor(Number(version) / 10000) !== 16
+    ) {
+      throw new Error('El ejercicio local exige servidor PostgreSQL 16.');
+    }
+  }
   runPg(
     psql.path,
     ['--no-psqlrc', '-c', `CREATE DATABASE "${temporary}"`, maintenanceUrl],
@@ -301,10 +326,15 @@ try {
     notes.push('Sin manifiesto no se pudieron comparar recuentos.');
   }
 
+  if (localChecks && failures.length === 0) {
+    runLocalPostChecks(temporaryUrl);
+    console.log('  [extra] migraciones compatibles y smoke de API en la base temporal: OK');
+  }
+
   // ── informe ──────────────────────────────────────────────────────────────
   const elapsed = (Date.now() - startedAt) / 1000;
   console.log('');
-  console.log(`  tamaño del dump : ${humanBytes(bytes.length)}`);
+  console.log(`  tamaño del dump : ${humanBytes(dumpBytes)}`);
   console.log(`  RTO medido      : ${elapsed.toFixed(2)} s (crear + restaurar + verificar)`);
   if (manifest) {
     console.log(`  RPO del artefacto: instantánea de ${manifest.creadoEn}`);

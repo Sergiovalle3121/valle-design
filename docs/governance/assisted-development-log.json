@@ -4267,6 +4267,41 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "BACKUP-PS51-CIFRADO-20260923",
+      "date": "2026-09-23",
+      "initiative": "Preparar respaldo cifrado portable y ejercicio de restauración aislada en PostgreSQL 16 local desde PowerShell 5.1, sin registrar credenciales ni declarar recuperación antes de medirla.",
+      "branch": "codex/backup-ps51",
+      "assistants": [
+        "OpenAI Codex: auditoría de scripts existentes, implementación del paquete cifrado y wrappers, pruebas sintéticas y documentación del bloqueo operativo"
+      ],
+      "authority": "Sergio pidió el respaldo/restauración para salida al mercado, con luz verde al trabajo en el repositorio; el encargo especifica work/respaldo.ps1, work/restaurar.ps1, PostgreSQL 16 local en 55432 y evidencia del ejercicio.",
+      "firstPartyInputs": [
+        "scripts/ops/backup.mjs, restore-verify.mjs, pg-tools.mjs y backup-cron.sh del repositorio",
+        "apps/api/scripts/bootstrap-smoke.js, comando de migraciones del API y docs/guides/backup-restore.md",
+        "Registro BACKUP-CONTRASENA-ARGV-20260923: bloqueo previo de postgres.exe por Device Guard"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna; se usaron primitivas criptográficas de node:crypto y APIs estándar de PowerShell.",
+      "derivedAreas": [
+        "scripts/ops/backup-envelope.mjs y .spec.mjs: paquete portable AES-256-GCM de cuatro artefactos, clave fuera de argv y pruebas de autenticación",
+        "scripts/ops/restore-local-checks.mjs y .spec.mjs: guard localhost:55432, migraciones y smoke en base temporal, sin salida que registre secretos",
+        "scripts/ops/restore-verify.mjs: opción --local-checks y fallo si no se elimina la base temporal",
+        "scripts/ops/pg-tools.mjs, pg-tools.spec.mjs y backup.mjs: SHA-256 del dump por bloques para evitar lectura completa en memoria",
+        "work/respaldo.ps1 y work/restaurar.ps1: wrappers PowerShell 5.1 de backup cifrado y ejercicio local",
+        "docs/guides/backup-restore.md y docs/operacion/RESTAURACION-2026-09-23.md: procedimiento y estado pendiente verificable"
+      ],
+      "fixtures": "Cuatro artefactos sintéticos y URLs de prueba sin secretos reales; no se accedió a Railway ni a una base productiva.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pruebas Node sintéticas y regresión de credenciales 9/9 PASS; análisis de sintaxis PowerShell 5.1 de ambos wrappers 0 errores; check:governance 11/11 PASS; git diff --check PASS; URL remota sintética rechazada por el wrapper antes de abrir PostgreSQL. PostgreSQL 16 real no estuvo disponible y el bloqueo Device Guard previo persiste como impedimento del ejercicio; no se afirma RTO, RPO ni restauración validada. CI sobre el SHA final pendiente."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }

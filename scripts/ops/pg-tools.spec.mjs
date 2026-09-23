@@ -1,16 +1,38 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve, sep } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
   pgConnectionWithoutPassword,
   redactUrl,
   runPg,
+  sha256File,
   withDatabase,
 } from './pg-tools.mjs';
 
 const password = 'mock:password+only';
 const url = `postgresql://backup:${encodeURIComponent(password)}@127.0.0.1:55432/valle_test?sslmode=require`;
+
+test('el SHA-256 del dump se calcula por bloques sin cargarlo entero', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'valle-pg-hash-test-'));
+  const path = join(directory, 'synthetic.dump');
+  try {
+    const bytes = Buffer.alloc(200_000);
+    for (let index = 0; index < bytes.length; index += 1) bytes[index] = index % 251;
+    writeFileSync(path, bytes);
+    assert.equal(
+      sha256File(path),
+      createHash('sha256').update(bytes).digest('hex'),
+    );
+  } finally {
+    assert.ok(resolve(directory).startsWith(resolve(tmpdir()) + sep));
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
 
 test('pg_dump y pg_restore reciben URI sin contraseña; PGPASSWORD conserva la conexión', () => {
   const capture =
@@ -40,6 +62,19 @@ test('pg_dump y pg_restore reciben URI sin contraseña; PGPASSWORD conserva la c
   assert.ok(
     !JSON.stringify(restored.argv).includes(encodeURIComponent(password)),
   );
+});
+
+test('los clientes PostgreSQL no heredan la clave del paquete cifrado', () => {
+  const before = process.env.BACKUP_ENCRYPTION_PASSPHRASE;
+  try {
+    process.env.BACKUP_ENCRYPTION_PASSPHRASE = 'frase-sintetica-para-prueba-123';
+    const capture = 'process.stdout.write(String(process.env.BACKUP_ENCRYPTION_PASSPHRASE || ""))';
+    const result = runPg(process.execPath, ['-e', capture], { url });
+    assert.equal(result.stdout, '');
+  } finally {
+    if (before === undefined) delete process.env.BACKUP_ENCRYPTION_PASSPHRASE;
+    else process.env.BACKUP_ENCRYPTION_PASSPHRASE = before;
+  }
 });
 
 test('la contraseña en query tampoco llega a argv ni al origen del manifiesto', () => {
