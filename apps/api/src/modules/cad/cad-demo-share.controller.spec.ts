@@ -93,7 +93,10 @@ describe('Compartir /demo sin cuenta: capacidad acotada', () => {
   it('emite token server-owned, sólo hash en DB y abre el plano sin login', async () => {
     const created = await publish('198.51.100.11').expect(201);
     expect(created.headers['cache-control']).toBe('private, no-store');
-    const createdBody = created.body as { shareToken: string; expiresAt: string };
+    const createdBody = created.body as {
+      shareToken: string;
+      expiresAt: string;
+    };
     const token = createdBody.shareToken;
     expect(token).toMatch(/^vdrl_[A-Za-z0-9_-]{43}$/);
     expect(createdBody.expiresAt).toBeTruthy();
@@ -141,6 +144,38 @@ describe('Compartir /demo sin cuenta: capacidad acotada', () => {
     expect(otherSession.documentId).not.toBe(session.documentId);
     await request(app.getHttpServer())
       .get(`/v1/cad/documents/${otherSession.documentId}`)
+      .set('X-Review-Token', token)
+      .expect(403);
+
+    const foreign = await database.getRepository(CadDocument).save({
+      tenant_id: 'ea5c7f67-0632-47bd-b941-e89c72e0f094',
+      organization_id: null,
+      plant_id: null,
+      created_by: 'otro-tenant',
+      projectId: null,
+      name: 'Secreto de otra organización',
+      model: 'foreign-test',
+      revision: 'v1',
+      cadDocument: {
+        ...CAD,
+        entities: [{ ...CAD.entities[0], id: 'secreto-otro-tenant' }],
+      },
+      cadDocumentVersion: 1,
+      layers: null,
+    });
+    const attemptedForeignContext = await request(app.getHttpServer())
+      .get(`/v1/cad/review/context?documentId=${foreign.id}`)
+      .set('X-Review-Token', token)
+      .expect(200);
+    expect(JSON.stringify(attemptedForeignContext.body)).not.toContain(
+      'secreto-otro-tenant',
+    );
+    const attemptedForeignBody = attemptedForeignContext.body as {
+      document: { id: string };
+    };
+    expect(attemptedForeignBody.document.id).toBe(session.documentId);
+    await request(app.getHttpServer())
+      .get(`/v1/cad/documents/${foreign.id}`)
       .set('X-Review-Token', token)
       .expect(403);
 
