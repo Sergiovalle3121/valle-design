@@ -1618,3 +1618,23 @@ con `insert-block-name-not-ascii`.
 Esto amplía la consistencia interna del perfil AC1015, pero no cambia su estado
 de laboratorio ni sustituye la validación con un lector independiente. La
 bandera de exportación de producto y `externalOracleVerified` siguen cerradas.
+
+## Corte 2026-09-23 — ancho de POLYLINE 2D en la proyección de lectura
+
+El fixture admitido `foundational-entities-ac1015/13-polyline2d.dwg`, del
+commit fijado del corpus, trae una POLYLINE 2D con cuatro VERTEX de ancho
+inicial y final 2; el segundo vértice tiene `bulge=0.5`. El DXF oráculo del
+mismo bundle declara grupos 40/41=2 en la cabecera y 42=0.5 en ese vértice.
+El lector neutral ya recuperaba los cinco datos. La proyección
+`dwgDatabaseToCanonicalDocument` conservaba el arco y perdía los cuatro
+anchos en silencio; ahora copia los anchos por vértice al campo que el
+documento canónico ya admite. El gate `polyline-width.spec.mjs` lee ambos
+artefactos mediante el consumidor del corpus, que comprueba commit y SHA.
+
+La vuelta canónico→DWG continúa escribiendo el mismo eje y arco **sin ancho**:
+para no alterar los bytes exportados en esta tanda, `canonicalDocumentToDwgEntities`
+declara `polyline-width-not-emitted` cuando el origen lleva ancho. El gate
+compara byte a byte la salida con y sin ese campo. Esto corrige fidelidad y
+transparencia de la **lectura de laboratorio**; no autoriza POLYLINE 2D en el
+perfil beta del producto, no enciende flags, no amplía el oráculo externo de
+escritura y no promueve ninguna capacidad.

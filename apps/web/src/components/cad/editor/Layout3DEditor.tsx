@@ -587,7 +587,7 @@ import {
 } from "@/lib/cad/world-scale";
 import CadOverviewMinimap from "@/components/cad/viewport/CadOverviewMinimap";
 import { renderCadSheetSetPdf } from "./sheet-set-pdf";
-import ScaleBar from "./ScaleBar";
+import { CadViewportMeasurements } from "./CadViewportMeasurements";
 import { mergeAnnotationLayers, syncLegacyTextShadow } from "./legacy-text-shadow-sync";
 import { useHatchPalette } from "./use-hatch-palette";
 import {
@@ -14423,14 +14423,13 @@ export default function Layout3DEditor({
               </div>
             )}
             <CadOverlayLegends gaps={showGaps} />
-            <ScaleBar
-              ctxRef={ctxRef}
-              cameraRef={cameraRef}
+            <CadViewportMeasurements
+              ctxRef={ctxRef} cameraRef={cameraRef}
               controlsRef={controlsRef}
               mountRef={mountRef}
               unit={(data?.footprint.unit ?? "mm") as WorldUnit}
+              document={loadedCadDocumentRef.current} viewControllerRef={viewControllerRef}
             />
-
             {(dxfWarnings.length > 0 || dxfImportPreview) && (
               <div className="absolute right-3 top-16 z-20 w-80 rounded-2xl border border-amber-400/20 bg-surface/80 p-3 shadow-2xl backdrop-blur">
                 <div className="mb-2 flex items-center justify-between gap-2">

@@ -1,7 +1,7 @@
 {
   "$schema": "./source-register.schema.json",
   "schemaVersion": "1.0.0",
-  "updatedAt": "2026-09-04",
+  "updatedAt": "2026-09-23",
   "entries": [
     {
       "id": "VALLE-OWNER-DWG0-2026-08-09",
@@ -1209,6 +1209,40 @@
       "reviewer": "Medicion automatizada reproducible (scripts/dwg/corpus-rewrite.mjs re-escribe y coteja campo a campo los dos VIEWPORT del corpus admitido) mas lectura directa del flujo de handles de los dos VIEWPORT y de los tres VPORT ENTITY HEADER del commit fijado; revision humana del propietario pendiente",
       "reviewedAt": "2026-09-04",
       "notes": "Abre la escritura del espacio papel con UNA ventana rectangular por hoja. NO enciende ningun flag ni promueve ninguna version."
+    },
+    {
+      "id": "VALLE-CORPUS-POLYLINE2D-WIDTH-20260923",
+      "owner": "Sergio Valle Zárate",
+      "origin": {
+        "type": "original-measurement",
+        "location": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance/tree/0688fb9c395b9cac4169d1ee9c23a7370cc28cf3/bundles/foundational-entities-ac1015/fixtures/13-polyline2d.dwg",
+        "accessedAt": "2026-09-23"
+      },
+      "title": "Anchuras de POLYLINE 2D ya decodificadas que se perdían al proyectar al documento canónico",
+      "versionOrDate": "2026-09-23",
+      "terms": {
+        "license": "Valle first-party corpus measurement (admitted tool-converted-original bundles)",
+        "access": "DWG y DXF del commit fijado del repositorio hermano; sin código de codec ajeno",
+        "redistribution": "Sólo se anotan valores geométricos observados; los bytes del corpus permanecen en el repositorio hermano",
+        "notes": "La forma binaria de POLYLINE/VERTEX y su decodificador ya existen; este hecho sólo gobierna la proyección de datos decodificados y el manifiesto de pérdidas."
+      },
+      "status": "allowed",
+      "factsConsulted": [
+        "En 13-polyline2d.dwg AC1015, el objeto POLYLINE 0x101 contiene cuatro VERTEX 2D: cada uno decodifica startWidth=2 y endWidth=2; el segundo trae bulge=0.5. El DXF oráculo del mismo bundle declara 40=2.0 y 41=2.0 en la cabecera POLYLINE y 42=0.5 en el segundo vértice.",
+        "Antes del arreglo, dwgDatabaseToCanonicalDocument conservaba el bulge=0.5 pero ninguno de los cuatro anchos en los vértices canónicos; canonicalDocumentToDwgEntities emitía LWPOLYLINE con widths=undefined sin una entrada de pérdida.",
+        "El documento canónico de Valle ya admite startWidth y endWidth opcionales por vértice de polilínea; conservar esos números en la lectura no exige interpretar bits nuevos. El writer no se amplía en este encargo para respetar la regla de que los bytes exportados permanezcan iguales."
+      ],
+      "derivedFiles": [
+        "package.json",
+        "packages/dwg-codec/CAPABILITIES.md",
+        "packages/dwg-codec/src/api/canonical-from-dwg.ts",
+        "packages/dwg-codec/src/api/canonical-to-dwg.ts",
+        "packages/dwg-codec/tests/unit/canonical.spec.ts",
+        "scripts/dwg/polyline-width.spec.mjs"
+      ],
+      "reviewer": "Medición propia con readDwg sobre el fixture admitido y lectura del DXF oráculo del mismo commit; revisión humana de Sergio pendiente",
+      "reviewedAt": "2026-09-23",
+      "notes": "Sin fixture nuevo, sin dependencia, sin promoción de capacidad ni cambio en flags o en bytes del writer."
     }
   ]
 }

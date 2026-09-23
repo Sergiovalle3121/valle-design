@@ -4236,6 +4236,103 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "AREA-CUARTO-MUROS-20260923",
+      "date": "2026-09-23",
+      "initiative": "Mostrar dentro de la planta el nombre y el área entre ejes de cada cuarto cerrado por muros canónicos, actualizados con el documento y retirados cuando el contorno se abre.",
+      "branch": "codex/room-area-overlay",
+      "assistants": [
+        "OpenAI Codex: inspección del grafo de muros, implementación del rótulo, prueba de unidad y golden de interacción real"
+      ],
+      "authority": "Sergio encargó la puerta de salida al mercado de ValleCAD y el cuarto cerrado con metros cuadrados a la vista en el PROMPT MAESTRO del 2026-09-23.",
+      "firstPartyInputs": [
+        "El motor buildCadBimSchedule y cadMillimetresPerUnit existentes; nombres TEXT de las habitaciones de ejemplo y muros canónicos del mismo documento.",
+        "Línea base pública del 2026-09-23: robot estudiante 0/4, cuarto sin área visible, 31 controles y 74.5 % de pantalla libre a 1440 × 769; las cifras finales esperan despliegue."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada.",
+      "derivedAreas": [
+        "room-area-labels.ts y su spec derivan espacios cerrados del mismo cuadro BIM, convierten el área a m² y calculan un punto interior.",
+        "CadViewportMeasurements.tsx sitúa rótulos HTML no interactivos sobre la vista 2D y anuncia los valores a lectores de pantalla; los nombres TEXT existentes no se duplican.",
+        "Golden 234 dibuja cuatro muros en el editor real, mide un área entre 11.5 y 12.5 m² dentro del cuarto y verifica que Deshacer retira el rótulo; el monolito pasa de 16835 a 16834 líneas."
+      ],
+      "fixtures": "Documento geométrico de 3 × 4 m creado en la prueba de unidad; el golden usa el demo y la barra de escala visibles.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "En local: room-area-labels.spec, eslint focalizado, build web de 208 páginas, presupuesto del monolito y golden 234 Chromium sobre build de producción PASS. El golden se escribió antes del componente y estuvo rojo; tras corregir una medición errónea de la regla dio un cuarto de 12.40 m², dentro del rango del encargo, y Deshacer lo quitó. CI, producción y cinco estudiantes reales aún pendientes; no se declara el producto listo para cobrar."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-POLYLINE2D-WIDTH-20260923",
+      "date": "2026-09-23",
+      "initiative": "Conservar en el documento canónico los anchos de POLYLINE 2D que el lector DWG neutral ya recuperaba, y declarar su pérdida al reescribir mientras el writer siga sin emitirlos. El DWG admitido 13-polyline2d.dwg tiene cuatro vértices de ancho 2 y un arco de bulge 0.5; antes la proyección guardaba el arco y borraba los cuatro anchos sin aviso.",
+      "branch": "codex/dwg-polyline2d-width-read",
+      "assistants": [
+        "OpenAI Codex: medición del fixture admitido, implementación de la proyección de lectura, prueba de regresión y gate de corpus"
+      ],
+      "authority": "Sergio pidió continuar la implementación DWG propia sin SDK de pago, con evidencia y todo el avance fusionado; el encargo del 23-09 conserva los flags y los bytes de exportación.",
+      "firstPartyInputs": [
+        "Corpus DWG admitido: bundles/foundational-entities-ac1015/fixtures/13-polyline2d.dwg y oracles/dxf/13-polyline2d.dxf del commit fijado 0688fb9c, verificados por el consumidor de corpus",
+        "SOURCE_REGISTER.json: VALLE-CORPUS-POLYLINE2D-WIDTH-20260923 (medición original y procedencia permitida)",
+        "Línea base de producción 23-09: robot estudiante 0/4, 31 controles y 74.5 % de pantalla libre a 1440×769; este cambio de laboratorio no modifica esas medidas ni habilita DWG en vallecad.com"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación de codec ajeno; el DWG fue producido por un conversor independiente desde DXF propio y sólo se compararon resultados de lectura.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/api/canonical-from-dwg.ts: copia startWidth/endWidth de VERTEX 2D cuando no son cero",
+        "packages/dwg-codec/src/api/canonical-to-dwg.ts: manifiesto polyline-width-not-emitted sin cambiar los bytes escritos",
+        "packages/dwg-codec/tests/unit/canonical.spec.ts y scripts/dwg/polyline-width.spec.mjs: regresión hermética y verificación del DWG/DXF admitidos",
+        "packages/dwg-codec/CAPABILITIES.md y SOURCE_REGISTER.json: límite y procedencia; package.json añade el gate al check:dwg"
+      ],
+      "fixtures": "Ninguno añadido o modificado; se reutiliza 13-polyline2d.dwg y su DXF oráculo del corpus hermano admitido.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "La prueba de regresión falló primero: cuatro anchos undefined frente a 2. Tras el cambio, canonical.spec.ts 7/7 PASS; npm run check --workspace=@valle-design/dwg-codec PASS (provenance 23/23, fixtures 21/21, typecheck, unit, adversarial 349/349, fuzz 20000 ejecuciones); npm run check:dwg PASS con corpus admitido 7/7 y script polyline-width.spec.mjs PASS, comparación byte a byte del writer PASS (log work/dwg-polyline-check.log). Check:governance PASS. El perfil beta del producto, DWG_IMPORT_FLAG y DWG_EXPORT_FLAG siguen cerrados; oráculo externo de escritura 4/24, externalOracleVerified=false. Verificación de CI exacta pendiente."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "REVISION-MOVIL-TEXT-MTEXT-PR239-20260923",
+      "date": "2026-09-23",
+      "initiative": "Registro retrospectivo del PR #239: hacer visibles TEXT y MTEXT auténticos del documento en el plano de revisión del invitado, también a 390 × 844, sin presentar áreas calculadas que el cambio no implementó.",
+      "branch": "codex/mobile-review-text",
+      "assistants": [
+        "OpenAI Codex: proyección de texto CAD, render SVG, pruebas y evidencia de galería; alcance reconstruido del diff fusionado"
+      ],
+      "authority": "Sergio Valle Zárate autorizó mejorar VALLECAD para el lanzamiento y pidió revisar y fusionar todo el trabajo; su cuenta Sergiovalle3121 fusionó explícitamente el PR #239 el 2026-09-23.",
+      "firstPartyInputs": [
+        "Diff del PR #239 y commit de merge 31a2e943e686339b45ff559282f50805b8810fb4",
+        "Proyección plan-projection.ts, maqueta mtext-layout.ts, adaptación text-entity-adapter.ts y visor ReviewPlanView.tsx existentes",
+        "Golden 56 de revisión invitada y generador de la galería de plantillas del propio repositorio"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "El PR no declara fuentes ni implementaciones externas consultadas; el diff visible reutiliza módulos de texto y render first-party. Esta entrada retrospectiva no certifica una búsqueda de fuentes que no quedó registrada.",
+      "derivedAreas": [
+        "plan-projection.ts intercala trazos y rótulos en el orden de modelSpace; TEXT/MTEXT usan la maqueta existente, respetan capa y rotación, y sus caracteres consumen el límite móvil",
+        "ReviewPlanView.tsx emite texto SVG escapado por React en lugar de cajas de hit-test; la spec fija escapado, giro y ausencia de path falso",
+        "Golden 56 comprueba SALA y la anotación autoral 18 m² en escritorio y móvil 390 × 844, y que el texto de capa oculta no aparece; no hay derivación de superficie",
+        "template-render.ts conserva la galería al separar texto y trazos; template-gallery.json se regeneró sin cambiar los hashes de documento y SVG según la descripción del PR"
+      ],
+      "fixtures": "Texto sintético SALA, MTEXT 18 m² y texto oculto en golden 56; la cifra 18 m² está escrita en el documento, no calculada a partir de muros.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "adopted",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "PR #239 https://github.com/Sergiovalle3121/valle-design/pull/239: head 65dd670d7f853cc0e9d2a7808de80c4673207c3b; CI https://github.com/Sergiovalle3121/valle-design/actions/runs/35895994564 concluyó success sobre ese SHA a las 18:23:56 UTC, antes del merge por Sergiovalle3121 a las 18:24:53 UTC (31a2e943). La descripción del PR consigna Node 20 typecheck, check:cad, build web, pruebas/lint focales y golden 56 Chromium 3/3; el run CI registra sus jobs requeridos verdes. La entrada de procedencia faltó en el diff original y se añade después, sin reescribirlo."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "PUNTERO-SELECCION-MUROS-20260923",
       "date": "2026-09-23",
       "initiative": "Fase B: comprobar clic directo, toque, Escape y estabilidad de la vista al dibujar muros; sincronizar la selección profesional con los muros nativos recién creados.",
