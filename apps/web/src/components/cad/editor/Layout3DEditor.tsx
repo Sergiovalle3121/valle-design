@@ -6514,11 +6514,11 @@ export default function Layout3DEditor({
     // ---- FASE 2: el puntero entra en el motor de comandos ------------------
     // La banda elástica y el cursor vivo son la condición que hacía deliberado
     // el «sólo por teclado» de la ola 3. Aquí están, y con ellas el enrutado.
-    const enginePreview = new CadEnginePreview(scene, {
-      scale: s,
-      width: W,
-      height: H,
-    });
+    // El viewport se PIDE en cada trazo: así la banda elástica no puede divergir
+    // del origen flotante que usa la geometría por lotes (`engine-preview.ts`).
+    const enginePreview = new CadEnginePreview(scene, () => ({
+      scale: s, width: W, height: H, origin: renderPipelineHostRef.current?.renderOrigin,
+    }));
     enginePreviewRef.current = enginePreview;
     const engineLiveCursor = new CadLiveCursorOverlay(mount, {
       commit: (values) => enginePointerRouterRef.current?.commitMeasurements(values),
