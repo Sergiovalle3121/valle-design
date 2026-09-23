@@ -1,5 +1,6 @@
 import {
   IsBoolean,
+  IsIn,
   IsOptional,
   IsString,
   IsUUID,
@@ -30,6 +31,11 @@ export class ReportSupportIncidentDto {
   @IsString()
   @Length(1, 400)
   userAgent!: string;
+
+  /** Esencial o Pro, para reproducir el mismo conjunto de controles. */
+  @IsOptional()
+  @IsIn(['esencial', 'pro'])
+  uiMode?: 'esencial' | 'pro';
 
   /** El comando en curso cuando falló, si había uno. */
   @IsOptional()

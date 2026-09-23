@@ -3412,6 +3412,10 @@ components:
           description: Lo que la persona escribe. Es el unico campo que redacta.
         appVersion: { type: string, minLength: 1, maxLength: 120 }
         userAgent: { type: string, minLength: 1, maxLength: 400 }
+        uiMode:
+          type: string
+          enum: [esencial, pro]
+          description: Modo de interfaz activo. Opcional para clientes anteriores.
         activeCommand:
           type: [string, "null"]
           maxLength: 64

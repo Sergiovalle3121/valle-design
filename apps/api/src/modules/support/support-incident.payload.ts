@@ -26,6 +26,7 @@ export interface SupportIncidentInput {
   summary: string;
   appVersion: string;
   userAgent: string;
+  uiMode?: 'esencial' | 'pro';
   activeCommand?: string | null;
   documentId?: string | null;
   documentAuthorized: boolean;
@@ -36,6 +37,7 @@ export interface SupportIncidentPayload {
   summary: string;
   appVersion: string;
   userAgent: string;
+  uiMode: 'esencial' | 'pro' | 'desconocido';
   activeCommand: string | null;
   /** `null` salvo autorización explícita. Nunca el contenido. */
   documentId: string | null;
@@ -48,7 +50,7 @@ export interface SupportIncidentPayload {
 }
 
 const ALCANCE_SIN_DOCUMENTO =
-  'Reporte sin acceso al plano: la persona no autorizó mirarlo. Solo viajan version, navegador y comando en curso.';
+  'Reporte sin acceso al plano: la persona no autorizó mirarlo. Viajan versión, navegador, modo y comando en curso.';
 const ALCANCE_CON_DOCUMENTO =
   'La persona autorizo EXPRESAMENTE revisar su documento. Viaja su identificador, nunca su contenido.';
 
@@ -72,6 +74,7 @@ export function buildSupportIncidentPayload(
     summary: trim(input.summary, 2000),
     appVersion: trim(input.appVersion, 120),
     userAgent: trim(input.userAgent, 400),
+    uiMode: input.uiMode ?? 'desconocido',
     activeCommand: input.activeCommand ? trim(input.activeCommand, 64) : null,
     documentId,
     documentAuthorized: authorized,
@@ -93,14 +96,14 @@ export function buildSupportIncidentPayload(
  * volver la red— no puede convertirse en dos correos: el outbox descarta el
  * segundo por clave, igual que hace con el resto del correo del producto.
  *
- * Lleva el minuto y un hash del texto: la MISMA persona reportando lo MISMO
- * dentro del mismo minuto es un doble envío; a los dos minutos, o cambiando el
- * texto, es un reporte nuevo y tiene que llegar.
+ * Lleva el minuto y un hash del modo y del texto: la MISMA persona reportando
+ * lo MISMO en el mismo modo dentro del mismo minuto es un doble envío; a los
+ * dos minutos, cambiando de modo o cambiando el texto, es un reporte nuevo.
  */
 export function supportIncidentIdempotencyKey(
   payload: SupportIncidentPayload,
   hash: (value: string) => string,
 ): string {
   const minute = payload.reportedAt.slice(0, 16);
-  return `support.incident:${payload.reportedBy}:${minute}:${hash(payload.summary)}`;
+  return `support.incident:${payload.reportedBy}:${minute}:${hash(`${payload.uiMode}\0${payload.summary}`)}`;
 }

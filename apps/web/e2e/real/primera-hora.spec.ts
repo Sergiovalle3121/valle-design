@@ -211,6 +211,9 @@ test.describe("La primera hora de un desconocido", () => {
       /Versi.n del estudio/iu,
     );
     await expect(page.getByTestId("cad-incident-payload")).toContainText(
+      /Modo de interfaz: (Esencial|Pro)/u,
+    );
+    await expect(page.getByTestId("cad-incident-payload")).toContainText(
       /Tu plano: no se env.a/iu,
     );
     // Y la casilla nace APAGADA: autorizar es un acto, no un descuido.
@@ -235,6 +238,7 @@ test.describe("La primera hora de un desconocido", () => {
     expect(String(payload.summary)).toContain(runId);
     expect(payload.appVersion).toEqual(expect.any(String));
     expect(payload.userAgent).toEqual(expect.stringContaining("Mozilla"));
+    expect(payload.uiMode).toMatch(/^(esencial|pro)$/u);
     expect(
       payload.documentId,
       "sin marcar la casilla, el plano no viaja ni como identificador",

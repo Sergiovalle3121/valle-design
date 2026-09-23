@@ -4267,6 +4267,50 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "SOPORTE-MODO-RUTEO-20260923",
+      "date": "2026-09-23",
+      "initiative": "Completar el contexto del reporte de fallos con modo Esencial/Pro, impedir que errores internos se muestren al usuario y documentar la recepción verificable de soporte sin fingir que el buzón ya existe.",
+      "branch": "codex/support-route",
+      "assistants": [
+        "OpenAI Codex: auditoría del flujo de soporte, implementación de modo y mensajes seguros, pruebas focales y guía de activación"
+      ],
+      "authority": "Sergio pidió preparar VALLECAD para lanzamiento y que Reportar un fallo y el pie apunten a soporte real, con versión, navegador y modo; la activación de Cloudflare Email Routing y su Gmail queda a su cargo.",
+      "firstPartyInputs": [
+        "CadIncidentReporter, SiteFooter, SupportService, plantilla support.incident, contrato OpenAPI y pruebas existentes de primera hora",
+        "docs/onboarding/VARIABLES-LANZAMIENTO.md y DESPLIEGUE-RAILWAY.md: SUPPORT_EMAIL y variables de marca configurables",
+        "scripts/ops/backup-cron.sh: auditado por separado; no se cambia en esta rama"
+      ],
+      "externalSources": [
+        {
+          "location": "https://developers.cloudflare.com/email-service/get-started/route-emails/",
+          "terms": "Documentación pública oficial; consultada para pasos de Email Routing, sin copiar implementación",
+          "fact": "El dominio debe usar Cloudflare DNS, verificar el destino, crear la regla y probar el reenvío desde otra cuenta"
+        },
+        {
+          "location": "https://developers.cloudflare.com/email-service/configuration/email-routing-addresses/",
+          "terms": "Documentación pública oficial; consultada para condición del destino, sin copiar implementación",
+          "fact": "Una regla hacia un destino no verificado permanece deshabilitada"
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada; sólo se consultó documentación de operación de Cloudflare.",
+      "derivedAreas": [
+        "apps/web/src/components/cad/studio/CadIncidentReporter.tsx y support-incident-error.ts: modo visible/enviado y errores públicos por código, sin mensaje interno",
+        "apps/api/src/modules/support y outbox-receiver/email-templates.ts: modo opcional compatible con clientes anteriores, correo con modo y 503 honesto sin buzón",
+        "packages/contracts/specs/design-api.v1.yaml y packages/design-sdk/src/generated/design-api.ts: contrato de uiMode opcional",
+        "apps/web/e2e/real/primera-hora.spec.ts, specs focales web/API y docs/onboarding/SOPORTE-RECEPCION.md: evidencia y activación pendiente"
+      ],
+      "fixtures": "Errores sintéticos con texto interno simulado y payloads Esencial/Pro; no se usó correo real ni credencial personal.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pruebas rojas antes del cambio: uiMode ausente y colisión de idempotencia Esencial/Pro; pruebas focales de payload 12/12, plantilla de correo 15/15, 503 sin buzón 1/1 y sanitización web 3/3 verdes después. Contrato OpenAPI y consola API 110 operaciones, typecheck completo del SDK, web y API, y check:governance 11/11 verdes. Recepción real, configuración Cloudflare/Railway, prueba de extremo a extremo y CI sobre SHA final pendientes; no se declara buzón operativo."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }
