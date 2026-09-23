@@ -113,12 +113,12 @@
   "devDependencies": {
     "@lhci/cli": "^0.15.1",
     "@redocly/cli": "2.53.3",
-    "@types/node": "^22.20.3",
+    "@types/node": "^22.20.4",
     "eslint": "^9.18.0",
     "openapi-typescript": "7.13.0",
     "prettier": "^3.9.8",
-    "tsx": "4.23.13",
-    "turbo": "^2.10.13",
+    "tsx": "4.23.15",
+    "turbo": "^2.11.2",
     "typescript": "5.9.3"
   },
   "workspaces": [
