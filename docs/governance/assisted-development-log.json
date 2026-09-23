@@ -4159,6 +4159,36 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "RECORRIDO-PUERTA-ALOJADA-20260923",
+      "date": "2026-09-23",
+      "initiative": "El recorrido guiado reconoce la puerta que realmente crea el botón Puerta de Esencial: una entidad opening alojada en un muro. La instrucción señala ese botón y un clic en el muro, sin enviar al estudiante a una paleta de bloques.",
+      "branch": "codex/guided-tour-door",
+      "assistants": [
+        "OpenAI Codex: diagnóstico, implementación y pruebas del recorrido guiado"
+      ],
+      "authority": "Sergio pidió corregir el primer uso de ValleCAD y ejecutar el plan de salida; la medición del 2026-09-23 observó que colocar una puerta no cerraba el paso guiado.",
+      "firstPartyInputs": [
+        "guided-tour.ts y sus pruebas, el botón Puerta de Esencial y el modelo de entidades opening",
+        "Línea base pública del 2026-09-23: robot 0/4; 31 controles y 74.5 % de pantalla libre a 1440 × 769, 31 controles y 74 % a 1366 × 768"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/onboarding/guided-tour.ts: reconocimiento de opening kind door con muro anfitrión y copia en lenguaje llano",
+        "guided-tour.spec.ts y tour-accuracy.spec.ts: regresión de puerta alojada y comprobación del comando del botón visible"
+      ],
+      "fixtures": "Entidades sintéticas de muro, puerta y ventana; se conserva el caso INSERT existente.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pruebas guided-tour (39 verificaciones nombradas y aserciones directas), tour-accuracy (22), CadEssentialBar (164), typecheck web y git diff --check verdes en local. La CI del SHA exacto y la medición en producción quedan pendientes; esta corrección no declara resueltas las cuatro tareas del robot."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }
