@@ -14,6 +14,7 @@ import {
 } from "@/lib/identity-actions";
 import { AuthShell } from "@/components/AuthShell";
 import { FreeLaunchNote } from "@/components/marketing/FreeLaunchNote";
+import { LegalDraftLinks } from "@/components/marketing/LegalDraftLinks";
 import { ResendTimerButton } from "@/components/ResendTimerButton";
 import { Button, Checkbox, Input, PasswordField } from "@/components/ui";
 
@@ -295,6 +296,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
             }
           />
         )}
+        {register && <LegalDraftLinks />}
         <Button
           type="submit"
           variant="primary"

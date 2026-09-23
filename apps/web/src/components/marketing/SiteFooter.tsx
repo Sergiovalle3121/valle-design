@@ -48,8 +48,10 @@ const COLUMNS: ReadonlyArray<{
     title: "Confianza",
     links: [
       ["Seguridad", "/seguridad"],
-      ["Privacidad", COMMERCIAL_LINKS.privacy],
-      ["Términos", COMMERCIAL_LINKS.terms],
+      ["Aviso vigente", COMMERCIAL_LINKS.privacy],
+      ["Términos vigentes", COMMERCIAL_LINKS.terms],
+      ["Privacidad (borrador)", "/privacidad"],
+      ["Términos (borrador)", "/terminos"],
       ["Licencias", COMMERCIAL_LINKS.licenses],
     ],
   },
