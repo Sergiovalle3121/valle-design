@@ -187,26 +187,44 @@ export const DWG_BUILD_FLAG_NAMES = [
   'NEXT_PUBLIC_DWG_MODERN_IMPORT_BETA',
 ];
 
+/** Valores públicos que la superficie de lanzamiento lee en el navegador. */
+export const LAUNCH_BUILD_FLAG_NAMES = [
+  'NEXT_PUBLIC_LAUNCH_MODE',
+  'NEXT_PUBLIC_APP_VERSION',
+];
+
 /**
- * De `DWG_BUILD_FLAG_NAMES`, cuáles NO están declarados como `ARG` Y
- * propagados como `ENV nombre=${nombre}` ANTES del build de `web` (si se
- * conoce esa línea). Un ARG sin su ENV nunca llega al proceso de Next.js: los
- * build-args de Docker sólo son visibles al `RUN` como variable de entorno si
- * alguna instrucción `ENV` los reenvía explícitamente.
+ * Variables públicas que el Dockerfile no declara como ARG y reenvía como ENV
+ * en el mismo stage, antes de construir web. Esta política hace explícito qué
+ * valores pasan de Railway al build de Next.js y evita que un ARG declarado en
+ * otro stage (o después del build) satisfaga el gate por accidente.
  */
-export function missingDwgBuildFlags(allEntries, envEntries, webBuildRun) {
-  const flagWired = (name) => {
-    const argDeclared = allEntries.some((entry) =>
+function missingBuildFlags(names, allEntries, envEntries, webBuildRun) {
+  const buildLine = webBuildRun?.line ?? Infinity;
+  const stageStart = allEntries
+    .filter((entry) => /^FROM\b/i.test(entry.text) && entry.line < buildLine)
+    .at(-1)?.line ?? 0;
+  return names.filter((name) => {
+    const arg = allEntries.find((entry) =>
+      entry.line > stageStart &&
+      entry.line < buildLine &&
       new RegExp(`^ARG\\s+${name}\\b`).test(entry.text),
     );
-    const envLine = envEntries.find((entry) =>
+    const env = envEntries.find((entry) =>
+      entry.line > (arg?.line ?? buildLine) &&
+      entry.line < buildLine &&
       new RegExp(`^ENV\\s+${name}=\\$\\{${name}\\}`).test(entry.text),
     );
-    return (
-      argDeclared && envLine !== undefined && (!webBuildRun || envLine.line < webBuildRun.line)
-    );
-  };
-  return DWG_BUILD_FLAG_NAMES.filter((name) => !flagWired(name));
+    return !arg || !env;
+  });
+}
+
+export function missingDwgBuildFlags(allEntries, envEntries, webBuildRun) {
+  return missingBuildFlags(DWG_BUILD_FLAG_NAMES, allEntries, envEntries, webBuildRun);
+}
+
+export function missingLaunchBuildFlags(allEntries, envEntries, webBuildRun) {
+  return missingBuildFlags(LAUNCH_BUILD_FLAG_NAMES, allEntries, envEntries, webBuildRun);
 }
 
 /**
@@ -485,7 +503,14 @@ export function validate(target, nodeMajor) {
     check(
       'dwg-flags-cableados',
       missingFlags.length === 0,
-      `falta declarar (ARG) y propagar (ENV) antes del build de web: ${missingFlags.join(', ')} — sin las dos cosas, Next.js nunca ve la variable en tiempo de build y la beta queda inalcanzable aunque el códec ya esté compilado`,
+      `falta declarar (ARG) y propagar (ENV) antes del build de web: ${missingFlags.join(', ')} — el gate exige el cableado explícito de los flags públicos antes de empaquetar el worker`,
+    );
+
+    const missingLaunchFlags = missingLaunchBuildFlags(instr, envs, webBuildRun);
+    check(
+      'launch-flags-cableados',
+      missingLaunchFlags.length === 0,
+      `falta declarar (ARG) y propagar (ENV) antes del build de web: ${missingLaunchFlags.join(', ')} — el modo de lanzamiento y la versión quedarían fijados en sus defaults`,
     );
   }
 

@@ -221,15 +221,52 @@ export default function ReviewPlanView({
         preserveAspectRatio="none"
         aria-label="Plano en revisión"
       >
-        <g fill="none" strokeLinecap="round" strokeLinejoin="round">
-          {projection.strokes.map((stroke, index) => (
-            <path
-              key={`${stroke.entityId}-${index}`}
-              d={cadPlanStrokePath(stroke)}
-              stroke={stroke.color}
-              strokeWidth={strokeWidth}
-            />
-          ))}
+        <g strokeLinecap="round" strokeLinejoin="round">
+          {projection.elements.map((element, index) => {
+            if (element.kind === "stroke") {
+              const stroke = element.stroke;
+              return (
+                <path
+                  key={`${stroke.entityId}-${index}`}
+                  d={cadPlanStrokePath(stroke)}
+                  fill="none"
+                  stroke={stroke.color}
+                  strokeWidth={strokeWidth}
+                />
+              );
+            }
+            const label = element.text;
+            return (
+              <g
+                key={`${label.entityId}-${index}`}
+                data-testid="cad-review-text"
+                data-entity-id={label.entityId}
+                transform={`translate(${label.origin.x} ${label.origin.y}) rotate(${label.rotation})`}
+                fill={label.color}
+                stroke="none"
+                fontFamily={label.fontFamily}
+                fontSize={label.fontSize}
+                fontWeight={label.bold ? "bold" : undefined}
+                fontStyle={label.italic ? "italic" : undefined}
+                textDecoration={label.underline ? "underline" : undefined}
+              >
+                {label.lines.map((line, lineIndex) => (
+                  <text
+                    key={lineIndex}
+                    x={line.x}
+                    // La maqueta expresa la línea desde la caja superior; SVG
+                    // coloca el glifo por su línea base, dentro de esa caja.
+                    y={line.y + label.fontSize}
+                    xmlSpace="preserve"
+                    textLength={line.justify ? line.width : undefined}
+                    lengthAdjust={line.justify ? "spacing" : undefined}
+                  >
+                    {line.text}
+                  </text>
+                ))}
+              </g>
+            );
+          })}
         </g>
       </svg>
 
