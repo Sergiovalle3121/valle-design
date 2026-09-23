@@ -38,9 +38,10 @@ wrapper**. El registro de [restauración del 2026-09-23](../operacion/RESTAURACI
 mantiene la fila en rojo hasta medir SHA, tamaño, tiempo y comprobaciones sobre
 un backup real. En esta laptop el arranque de `postgres.exe` fue bloqueado por
 Device Guard; no se debe inferir éxito de restauración de las pruebas sintéticas.
-El cron Linux descrito más abajo aún mueve cuatro artefactos sin cifrar: su
-protección en reposo y su ubicación fuera del host siguen pendientes para uso
-productivo.
+El cron Linux descrito más abajo usa el mismo formato `.vbk`. El script y sus
+dobles sintéticos están probados; **no existe aún una corrida documentada con
+PostgreSQL 16 y un remoto rclone reales**. El ejercicio operativo sigue
+pendiente antes de prometer RPO/RTO o recuperación en producción.
 
 ## Procedimiento PROBADO (empieza por aquí)
 
@@ -131,26 +132,41 @@ deja bases huérfanas llenando el disco del servidor.
 ### Programarlo: el cron del VPS
 
 Los dos scripts sólo cuentan si alguien los ejecuta cada noche.
-`scripts/ops/backup-cron.sh` encadena la pasada completa — backup →
-`restore-verify` (si no imprime «BACKUP VALIDADO», el script muere y el cron
-avisa) → subida opcional a R2/S3 vía `rclone` → rotación local — y falla
-ruidoso en cualquier paso. La línea exacta:
+`scripts/ops/backup-cron.sh` exige `DATABASE_URL`, una frase
+`BACKUP_ENCRYPTION_PASSPHRASE` de al menos 20 caracteres y un remoto rclone
+nombrado en `RCLONE_REMOTE` **antes de crear el dump**. Estas variables se
+inyectan desde un gestor de secretos al entorno del servicio; no se colocan en
+la línea de cron ni en argumentos o logs. La pasada crea el dump en un
+directorio privado `.pending-*`, restaura en una base temporal, cifra los cuatro
+artefactos en `.vbk`, autentica y compara la extracción local, y sube sólo el
+`.vbk` y su `.vbk.sha256`. `rclone check --download --one-way` compara los bytes
+remotos antes de borrar el claro y de rotar archivos cifrados locales antiguos.
+La rotación sólo considera paquetes locales con una marca `.vbk.uploaded`
+creada por este cron después de comprobar el remoto; los archivos anteriores
+sin marca se conservan aunque superen la edad configurada.
+Un fallo antes de confirmar la subida deja los respaldos previos y el
+`.pending-*` de la pasada para diagnóstico; **el pendiente contiene datos
+claros y requiere almacenamiento
+protegido, control de acceso y resolución manual**. El cron nunca borra dumps
+antiguos en claro automáticamente. Un ejemplo de horario, con las variables
+secretas suministradas al servicio por separado:
 
 ```cron
 MAILTO=tu-correo@dominio.mx
-# Variable del crontab, no argumento del comando:
-DATABASE_URL=postgres://...
-15 3 * * * RCLONE_REMOTE=r2:valle-backups /srv/valle/repo/scripts/ops/backup-cron.sh >> /var/log/valle-backup.log 2>&1
+15 3 * * * /srv/valle/repo/scripts/ops/backup-cron.sh >> /var/log/valle-backup.log 2>&1
 ```
 
 Requisitos del host: Node 20+, cliente PostgreSQL 16 (`PG_BIN` si no está en
-PATH), el repo (o `scripts/ops/`) en `/srv/valle/repo`, y `rclone config`
-hecho si se define `RCLONE_REMOTE`. Sin `RCLONE_REMOTE` el script avisa: un
-backup en el mismo disco que la base muere con ella. Variables:
-`BACKUP_DIR` (default `/srv/valle/backups`) y `BACKUP_RETENTION_DAYS`
-(default 14; la retención del plan en `SLA.md` §2 manda — Profesional son
-backups cada 6 h y 30 días: cuatro líneas de cron y
-`BACKUP_RETENTION_DAYS=30`).
+PATH), el repo (o `scripts/ops/`) en `/srv/valle/repo`, `rclone` configurado
+con un remoto nombrado como `r2:valle-backups` y acceso exclusivo al directorio
+local. Sin destino externo o clave, el cron falla cerrado. Requiere espacio
+temporal para el dump, el paquete cifrado y una extracción de verificación.
+`BACKUP_DIR` usa `/srv/valle/backups` por defecto;
+`BACKUP_RETENTION_DAYS` usa 14 días. La
+retención del plan en `SLA.md` §2 manda: Profesional exige cada 6 h y 30 días.
+Verifica por separado el RPO/RTO sobre un volumen real y la retención del
+bucket; este script sólo rota copias cifradas **locales** marcadas tras
+confirmar su subida.
 
 ### RPO y RTO
 

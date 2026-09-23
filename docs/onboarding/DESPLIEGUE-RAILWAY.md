@@ -299,17 +299,21 @@ en cuatro pasos:
    Comparte red privada con el plugin de PostgreSQL, así que no hace falta
    exponer la base a internet.
 2. **Variables**: `DATABASE_URL = ${{Postgres.DATABASE_URL}}` (referencia al
-   plugin, igual que la api) y, si quieres que la copia salga de Railway,
-   `RCLONE_REMOTE` apuntando a un bucket. Un respaldo que vive en el mismo
-   disco que la base comparte destino con ella.
+   plugin, igual que la api), `BACKUP_ENCRYPTION_PASSPHRASE` desde un gestor de
+   secretos y `RCLONE_REMOTE` con un remoto nombrado y configurado. El servicio
+   necesita Node 20+, clientes PostgreSQL 16, rclone y un volumen privado para
+   `BACKUP_DIR`. Sin esos prerrequisitos el cron falla antes de crear el dump.
 3. **Comando de arranque**: `bash scripts/ops/backup-cron.sh`. Crea, verifica,
-   sube y rota —en ese orden—, y **falla ruidoso**: si la restauración de prueba
+   cifra, sube sólo `.vbk` y su checksum y comprueba los bytes remotos antes de
+   rotar. **Falla ruidoso**: si la restauración de prueba
    no cuadra, el servicio termina en error y Railway lo marca en rojo. Un cron
    que falla en silencio es peor que no tenerlo, porque mantiene la sensación
    de tener copia.
 4. **Horario**: en la pestaña *Settings → Cron Schedule*, `0 8 * * *` (03:00 en
    Ciudad de México; Railway programa en UTC). Un servicio con horario arranca,
-   hace su trabajo y se apaga: no consume mientras duerme.
+   hace su trabajo y se apaga: no consume mientras duerme. Esta receta no
+   acredita una ejecución real en Railway: exige probar el contenedor, el
+   destino externo y una restauración antes de activar el horario.
 
 Desde una máquina propia, con la URL pública del plugin (*Connect → Public
 Network*), el mismo par de comandos sirve para una restauración manual de
