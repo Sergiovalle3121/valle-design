@@ -143,6 +143,16 @@ test('dibujar una polilínea CON EL RATÓN captura un extremo existente y cierra
   await page.mouse.click(third.x, third.y, { button: 'right' });
   const menu = page.getByTestId('cad-pointer-menu');
   await expect(menu).toBeVisible();
+  // Y ACEPTAR y CANCELAR, que faltaban: con dos puntos puestos el menú ofrecía
+  // sólo «desHacer», así que cerrar lo que estabas dibujando obligaba a soltar
+  // el ratón e ir al teclado. Aceptar va PRIMERO —queda bajo el cursor— y
+  // cancelar al final, lejos, porque tirar el trabajo en curso no puede quedar
+  // a un píxel de cerrarlo (`viewport/pointer-menu.ts`).
+  const opciones = menu.getByRole('button');
+  await expect(opciones.first(), 'aceptar encabeza el menú').toHaveText('Aceptar');
+  await expect(opciones.last(), 'cancelar lo cierra').toHaveText('Cancelar');
+  await expect(menu.getByTestId('cad-pointer-accept')).toBeVisible();
+  await expect(menu.getByTestId('cad-pointer-cancel')).toBeVisible();
   const close = menu.getByTestId(/^cad-pointer-keyword-(Cerrar|Close)$/);
   await expect(close).toBeVisible();
   await close.click();
