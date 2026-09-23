@@ -1,5 +1,5 @@
 /**
- * Proyección del documento canónico a TRAZOS PLANOS, para la vista de revisión
+ * Proyección del documento canónico a trazos y rótulos SVG, para la vista de revisión
  * del invitado.
  *
  * ## Por qué el invitado no abre el estudio
@@ -18,7 +18,7 @@
  *
  * ## El tope de segmentos
  *
- * Un plano grande puede pasar del millón de puntos y el DOM de un móvil no lo
+ * Un plano grande puede pasar del millón de puntos o caracteres y el DOM de un móvil no lo
  * aguanta. Cuando se llega al tope, la proyección PARA y lo DECLARA
  * (`truncated`), y quien la usa tiene que decírselo a la persona. Dibujar
  * medio plano callando es la clase de resultado a medias que aquí no vale: el
@@ -27,8 +27,10 @@
 import type { CadDocument, CadEntity, CadPoint2 } from "../cad-document";
 import type { CadBounds } from "../entity-runtime";
 import { CAD_ENTITY_REGISTRY } from "../entity-runtime";
+import { layoutCadMText } from "../mtext-layout";
+import { asMText } from "../text-entity-adapter";
 
-/** Tope de puntos de la vista de revisión. Ver cabecera. */
+/** Tope de puntos de trazo y caracteres de la vista de revisión. Ver cabecera. */
 export const CAD_REVIEW_MAX_POINTS = 240_000;
 /** Teselado de curvas: suficiente para que un arco no se vea poligonal. */
 const SEGMENTS = 64;
@@ -41,10 +43,31 @@ export interface CadPlanStroke {
   entityId: string;
 }
 
+/** Rótulo del documento, con líneas y métricas de la misma maqueta del editor. */
+export interface CadPlanText {
+  entityId: string;
+  origin: CadPoint2;
+  rotation: number;
+  color: string;
+  fontSize: number;
+  fontFamily: string;
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  lines: Array<{ text: string; x: number; y: number; width: number; justify: boolean }>;
+}
+
+/** Conserva el orden de dibujo al intercalar trazos y rótulos. */
+export type CadPlanElement =
+  | { kind: "stroke"; stroke: CadPlanStroke }
+  | { kind: "text"; text: CadPlanText };
+
 export interface CadPlanProjection {
   strokes: CadPlanStroke[];
+  texts: CadPlanText[];
+  elements: CadPlanElement[];
   bounds: CadBounds | null;
-  /** Puntos realmente proyectados. */
+  /** Presupuesto consumido: puntos de trazo y caracteres de rótulos. */
   points: number;
   /** true ⇒ se alcanzó el tope y FALTA dibujo. Hay que decírselo a la persona. */
   truncated: boolean;
@@ -73,6 +96,8 @@ export function projectCadPlan(
   }
 
   const strokes: CadPlanStroke[] = [];
+  const texts: CadPlanText[] = [];
+  const elements: CadPlanElement[] = [];
   let points = 0;
   let truncated = false;
   let unsupported = 0;
@@ -80,6 +105,13 @@ export function projectCadPlan(
   let minY = Number.POSITIVE_INFINITY;
   let maxX = Number.NEGATIVE_INFINITY;
   let maxY = Number.NEGATIVE_INFINITY;
+  const includePoint = (point: CadPoint2) => {
+    if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) return;
+    if (point.x < minX) minX = point.x;
+    if (point.y < minY) minY = point.y;
+    if (point.x > maxX) maxX = point.x;
+    if (point.y > maxY) maxY = point.y;
+  };
 
   for (const entityId of document.modelSpace.entityIds) {
     if (truncated) break;
@@ -91,6 +123,50 @@ export function projectCadPlan(
       continue;
     }
     const color = layerColor.get(entityLayer(entity)) ?? DEFAULT_COLOR;
+    // El registro entrega cajas para hit-test: no son glifos. La maqueta de
+    // texto del editor sí contiene las líneas, anclajes y esquinas reales.
+    if (entity.type === "text" || entity.type === "mtext") {
+      try {
+        const source = entity.type === "text" ? asMText(entity) : entity;
+        const layout = layoutCadMText(source);
+        if (!layout.lines.some((line) => line.text.length > 0)) continue;
+        if (
+          !Number.isFinite(source.insertion.x) || !Number.isFinite(source.insertion.y) ||
+          !Number.isFinite(source.rotation ?? 0) || !Number.isFinite(layout.fontSize) ||
+          layout.corners.some((point) => !Number.isFinite(point.x) || !Number.isFinite(point.y)) ||
+          layout.lines.some((line) =>
+            !Number.isFinite(line.x) || !Number.isFinite(line.y) || !Number.isFinite(line.width))
+        ) {
+          unsupported += 1;
+          continue;
+        }
+        // Un plano con miles de párrafos tampoco puede desbordar el DOM móvil.
+        const cost = layout.lines.reduce((total, line) => total + Math.max(1, line.text.length), 0);
+        if (points + cost > maxPoints) {
+          truncated = true;
+          break;
+        }
+        points += cost;
+        layout.corners.forEach(includePoint);
+        const text: CadPlanText = {
+          entityId: entity.id,
+          origin: { x: source.insertion.x, y: source.insertion.y },
+          rotation: source.rotation ?? 0,
+          color,
+          fontSize: layout.fontSize,
+          fontFamily: layout.fontStack,
+          bold: source.bold ?? false,
+          italic: source.italic ?? false,
+          underline: source.underline ?? false,
+          lines: layout.lines,
+        };
+        texts.push(text);
+        elements.push({ kind: "text", text });
+      } catch {
+        unsupported += 1;
+      }
+      continue;
+    }
     let paths;
     try {
       paths = CAD_ENTITY_REGISTRY.adapter(entity).renderer.paths(
@@ -111,25 +187,21 @@ export function projectCadPlan(
         break;
       }
       points += path.points.length;
-      for (const point of path.points) {
-        if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) continue;
-        if (point.x < minX) minX = point.x;
-        if (point.y < minY) minY = point.y;
-        if (point.x > maxX) maxX = point.x;
-        if (point.y > maxY) maxY = point.y;
-      }
-      strokes.push({
+      path.points.forEach(includePoint);
+      const stroke: CadPlanStroke = {
         points: path.points,
         closed: path.closed,
         color,
         entityId: entity.id,
-      });
+      };
+      strokes.push(stroke);
+      elements.push({ kind: "stroke", stroke });
     }
   }
 
   const bounds =
     minX <= maxX && minY <= maxY ? { minX, minY, maxX, maxY } : null;
-  return { strokes, bounds, points, truncated, unsupported };
+  return { strokes, texts, elements, bounds, points, truncated, unsupported };
 }
 
 /** `d` de un `<path>` SVG. Coordenadas de DIBUJO: la Y ya crece hacia abajo. */

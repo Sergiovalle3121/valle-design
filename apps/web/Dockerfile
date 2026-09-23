@@ -88,6 +88,14 @@ COPY docs/cad/evidence/cad-math-cases.json \
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
+# Estado público del lanzamiento y versión visible en reportes de incidencia.
+# Sin valor, `launch.ts` conserva `free` y `desarrollo`; declararlas aquí no
+# activa Checkout por sí solo ni introduce secretos en la imagen.
+ARG NEXT_PUBLIC_LAUNCH_MODE
+ARG NEXT_PUBLIC_APP_VERSION
+ENV NEXT_PUBLIC_LAUNCH_MODE=${NEXT_PUBLIC_LAUNCH_MODE}
+ENV NEXT_PUBLIC_APP_VERSION=${NEXT_PUBLIC_APP_VERSION}
+
 # Enlaces comerciales de la superficie pública (`apps/web/src/config/commercial.ts`).
 # Todos opcionales: cada uno cae a una página interna real si no se configura.
 ARG NEXT_PUBLIC_SALES_URL
