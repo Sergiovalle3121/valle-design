@@ -4331,6 +4331,37 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "REVISION-MOVIL-AREAS-MUROS-20260923",
+      "date": "2026-09-23",
+      "initiative": "Mostrar al invitado de un enlace de revisión móvil las superficies calculadas de un cuarto cerrado por muros canónicos visibles, distinguiendo área entre ejes y área útil. No duplicar una cifra TEXT/MTEXT existente ni suponer metros cuadrados si la unidad del documento falta o es desconocida.",
+      "branch": "codex/review-derived-areas",
+      "assistants": [
+        "OpenAI Codex: inspección del enlace invitado, implementación del rótulo derivado, pruebas de unidades y golden móvil"
+      ],
+      "authority": "Sergio encargó lanzar ValleCAD y mostrar los m² del cuarto en el enlace de revisión real; pidió continuar desde main y fusionar los avances verificados.",
+      "firstPartyInputs": [
+        "buildCadBimSchedule, CAD_MM_PER_UNIT, projectCadPlan y el punto interior del rótulo de área del editor presentes en el repositorio",
+        "Golden 56 del enlace invitado y geometría sintética de cuatro muros canónicos en 5 × 4 m"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada.",
+      "derivedAreas": [
+        "review-room-areas.ts deriva áreas del subconjunto de muros realmente proyectados al SVG, omite planos truncados y unidades desconocidas, y distingue área entre ejes de área útil.",
+        "ReviewPlanView.tsx presenta los valores sin cubrir las chinchetas de comentarios ni repetir una superficie TEXT/MTEXT autoral.",
+        "review-room-areas.spec.ts comprueba muros, anotaciones, recorte, unidades desconocidas y conversión de pies a m²; golden 56 comprueba 390 × 844 sin scroll horizontal."
+      ],
+      "fixtures": "Sólo documento sintético de cuatro muros en pruebas locales; no se incorporan DWG ajenos.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "En la rama inicial: specs web 782/782, check:cad, check:dwg, typecheck, lint y build web verdes; golden 56 Chromium sobre compilación de producción verde y sin scroll horizontal. Se repetirán gates sobre el SHA final tras integrar main; CI, despliegue y prueba con estudiante real siguen pendientes."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }
