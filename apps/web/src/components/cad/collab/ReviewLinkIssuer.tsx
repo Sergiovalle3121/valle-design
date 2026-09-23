@@ -27,9 +27,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { CadReviewSession } from "@valle/design-sdk";
 import { reviewsRepository } from "@/lib/cad/repositories/reviews";
-
-const BUTTON =
-  "rounded-control border border-border px-2 py-1 type-micro font-medium text-foreground transition-colors hover:border-primary/30 hover:text-primary-ink disabled:cursor-not-allowed disabled:opacity-40";
+import { Button, Checkbox } from "@/components/ui";
 
 export default function ReviewLinkIssuer({ documentId }: { documentId: string }) {
   const [sessions, setSessions] = useState<CadReviewSession[]>([]);
@@ -37,6 +35,7 @@ export default function ReviewLinkIssuer({ documentId }: { documentId: string })
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [allowGuestComments, setAllowGuestComments] = useState(false);
 
   /**
    * Trae las sesiones SIN tocar estado: quien escribe es `apply`. Separarlo
@@ -87,7 +86,7 @@ export default function ReviewLinkIssuer({ documentId }: { documentId: string })
     try {
       const created = await reviewsRepository.create(documentId, {
         shareLink: true,
-        allowComments: true,
+        allowComments: allowGuestComments,
       });
       // Fallo cerrado: si el servidor no devolvió token, NO se enseña un
       // enlace a medias que no abriría nada. Se dice que no hay enlace.
@@ -105,7 +104,7 @@ export default function ReviewLinkIssuer({ documentId }: { documentId: string })
     } finally {
       setBusy(false);
     }
-  }, [documentId, load]);
+  }, [allowGuestComments, documentId, load]);
 
   const close = useCallback(
     async (sessionId: string) => {
@@ -133,20 +132,29 @@ export default function ReviewLinkIssuer({ documentId }: { documentId: string })
     >
       <div className="flex items-center justify-between gap-2">
         <strong className="text-foreground">Enlace para el cliente</strong>
-        <button
+        <Button
           type="button"
           data-testid="cad-review-link-new"
           disabled={busy}
           onClick={() => void create()}
-          className={`${BUTTON} border-primary/30 text-primary-ink`}
+          size="sm"
+          variant="secondary"
         >
           {busy ? "…" : "Crear enlace"}
-        </button>
+        </Button>
       </div>
       <p className="mt-1 type-micro text-muted-foreground">
-        Quien lo reciba ve el plano y comenta sobre él sin instalar nada ni
-        crear cuenta. Solo lectura, solo este documento.
+        Quien reciba el enlace podrá ver este plano sin cuenta. El enlace no permite editarlo.
       </p>
+      <Checkbox
+        data-testid="cad-review-allow-comments"
+        wrapperClassName="mt-2"
+        label="Permitir comentarios desde este enlace"
+        hint="Sólo si lo autorizas, el cliente podrá dejar observaciones sobre el plano sin crear cuenta."
+        checked={allowGuestComments}
+        disabled={busy}
+        onChange={(event) => setAllowGuestComments(event.target.checked)}
+      />
 
       {url ? (
         <div
@@ -163,22 +171,26 @@ export default function ReviewLinkIssuer({ documentId }: { documentId: string })
             {url}
           </code>
           <div className="mt-1 flex gap-1">
-            <button
+            <Button
               type="button"
               data-testid="cad-review-link-copy"
               onClick={() => void copy(url).then(setCopied)}
-              className={`${BUTTON} flex-1`}
+              className="flex-1"
+              size="sm"
+              variant="secondary"
             >
               {copied ? "Copiado" : "Copiar"}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               data-testid="cad-review-link-hide"
               onClick={() => setIssued(null)}
-              className={`${BUTTON} flex-1`}
+              className="flex-1"
+              size="sm"
+              variant="secondary"
             >
               Ya lo copié
-            </button>
+            </Button>
           </div>
         </div>
       ) : null}
@@ -206,17 +218,19 @@ export default function ReviewLinkIssuer({ documentId }: { documentId: string })
             <span className="min-w-0 flex-1 truncate type-micro text-muted-foreground">
               {session.hasShareLink ? "Enlace activo" : "Sin enlace"}
               {session.expiresAt ? ` · caduca ${session.expiresAt.slice(0, 10)}` : ""}
-              {session.allowComments ? "" : " · sin comentarios"}
+              {session.allowComments ? " · comentarios habilitados" : " · sin comentarios"}
             </span>
-            <button
+            <Button
               type="button"
               data-testid={`cad-review-session-close-${session.id}`}
               disabled={busy}
               onClick={() => void close(session.id)}
-              className={`${BUTTON} shrink-0 text-danger-ink`}
+              className="shrink-0"
+              size="sm"
+              variant="danger"
             >
               Revocar
-            </button>
+            </Button>
           </li>
         ))}
       </ul>

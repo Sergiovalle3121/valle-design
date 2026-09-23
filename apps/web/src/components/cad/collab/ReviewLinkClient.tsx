@@ -119,7 +119,7 @@ export default function ReviewLinkClient() {
             token,
             documentId: String(context.document?.id ?? ""),
             documentName: String(context.document?.name ?? "Plano en revisión"),
-            allowComments: context.session?.allowComments !== false,
+            allowComments: context.session?.allowComments === true,
             deliveredVersion: context.session?.deliveredVersion ?? null,
             deliveredAt: context.session?.deliveredAt ?? null,
             plan,
