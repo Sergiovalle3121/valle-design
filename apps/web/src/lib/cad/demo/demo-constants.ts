@@ -7,5 +7,7 @@
  * identificadores; el puerto llega por `import()` con el editor.
  */
 export const DEMO_DOCUMENT_ID = "demo-local";
-/** Clave del dibujo del visitante. Sobrevive a recargas y viaja al registro. */
+/** Clave histórica del autosave actual; sobrevive a recargas y viaja al registro. */
 export const DEMO_STORAGE_KEY = "valle_demo_document";
+/** Copia del dibujo anterior: nunca sustituye la clave histórica de autosave. */
+export const DEMO_RECOVERY_STORAGE_KEY = "valle:cad:demo-recovery:v1";
