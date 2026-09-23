@@ -113,6 +113,8 @@ export function reviewSessionResource(row: CadReviewSession) {
     status: row.status,
     hasShareLink: !!row.tokenHash,
     allowComments: row.allowComments,
+    deliveredVersion: row.deliveredVersion,
+    deliveredAt: row.deliveredAt,
     expiresAt: row.expiresAt,
     revokedAt: row.revokedAt,
     closedAt: row.closedAt,

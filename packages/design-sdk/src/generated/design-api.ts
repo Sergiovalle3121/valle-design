@@ -1361,6 +1361,9 @@ export interface paths {
          *     pedido (`shareLinkTtlMinutes`, acotado 5 min–90 días) o el default
          *     del despliegue (7 días), y se comprueba server-side en cada canje.
          *     Máximo 20 sesiones abiertas por documento.
+         *     Con `delivery: true`, el servidor exige enlace sin comentarios y fija
+         *     una versión CAS ya guardada y `deliveredAt` en la sesión. Sin delivery,
+         *     el enlace sigue mostrando la versión más reciente.
          */
         post: operations["createCadReviewSession"];
         delete?: never;
@@ -2924,6 +2927,10 @@ export interface components {
             hasShareLink: boolean;
             /** @description ¿El contexto de review link puede crear/resolver comentarios? (El dibujo es de solo lectura en cualquier caso.) */
             allowComments: boolean;
+            /** @description Versión CAS congelada; null = enlace a lo más reciente. */
+            deliveredVersion?: number | null;
+            /** @description Fecha y hora fijadas por el servidor; null = revisión viva. */
+            deliveredAt?: components["schemas"]["Timestamp"] | null;
             /** @description Expiración del review link, FIJADA POR EL SERVIDOR al crear y comprobada server-side en cada canje. Null = sesión sin link. */
             expiresAt?: components["schemas"]["Timestamp"] | null;
             /** @description Revocación del link (cerrar la sesión la estampa): desde ese instante el token muere — el canje re-valida en cada request. */
@@ -5635,6 +5642,11 @@ export interface operations {
                      * @default false
                      */
                     shareLink?: boolean;
+                    /**
+                     * @description Congela la última versión CAD guardada y estampa fecha de entrega. Exige shareLink=true y allowComments=false.
+                     * @default false
+                     */
+                    delivery?: boolean;
                     /**
                      * @description ¿El contexto de review puede crear/resolver comentarios? El dibujo es de solo lectura en cualquier caso.
                      * @default true

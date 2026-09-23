@@ -381,17 +381,21 @@ export class CadV1Backend {
       {
         sessions: this.reviewSessions,
         now: NOW0,
-        documentPayload: (documentId) => {
+        documentPayload: (documentId, deliveredVersion) => {
           const target = this.rows.find((candidate) => candidate.id === documentId);
           if (!target) return null;
+          const frozen = deliveredVersion === null
+            ? null
+            : this.versions.of(documentId).find((version) => version.version === deliveredVersion);
+          if (deliveredVersion !== null && !frozen) return null;
           return {
             id: target.id,
             name: target.name,
             model: target.model,
             revision: target.revision,
-            cadDocumentVersion: target.version,
+            cadDocumentVersion: deliveredVersion ?? target.version,
             layers: null,
-            cadDocument: structuredClone(target.document),
+            cadDocument: structuredClone(frozen?.document ?? target.document),
             dxf: target.dxf ? { ...target.dxf.placement } : null,
           };
         },
@@ -502,6 +506,12 @@ export class CadV1Backend {
       // ── Review link SERVER-OWNED: el token se emite AQUÍ y sólo aquí ──
       if (rest === "review-sessions" && method === "POST") {
         const dto = body();
+        if (dto.delivery && (dto.shareLink !== true || dto.allowComments !== false)) {
+          return json({ code: "delivery_requires_read_only_link", message: "La entrega exige enlace sin comentarios." }, 400);
+        }
+        if (dto.delivery && (row.version < 1 || !this.versions.of(row.id).some((version) => version.version === row.version))) {
+          return json({ code: "delivery_save_required", message: "Guarda el plano antes de entregarlo." }, 400);
+        }
         const session: CadReviewSessionRow = {
           id: `00000000-0000-4000-9000-${String(this.reviewSessions.length + 1).padStart(12, "0")}`,
           documentId: row.id,
@@ -510,6 +520,8 @@ export class CadV1Backend {
           token: `vdrl_e2e_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`,
           status: "open",
           allowComments: dto.allowComments !== false,
+          deliveredVersion: dto.delivery ? row.version : null,
+          deliveredAt: dto.delivery ? "2026-09-30T23:58:00.000Z" : null,
           expiresAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
           revokedAt: null,
           closedAt: null,

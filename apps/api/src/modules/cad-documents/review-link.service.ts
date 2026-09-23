@@ -93,7 +93,7 @@ export class ReviewLinkService {
       sessionId: session.id,
       documentId: session.documentId,
       tenantId: session.tenant_id,
-      allowComments: session.allowComments,
+      allowComments: session.allowComments && session.deliveredVersion === null,
       expiresAt: session.expiresAt,
     };
   }

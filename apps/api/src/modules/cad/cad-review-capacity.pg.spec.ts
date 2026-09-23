@@ -14,13 +14,14 @@ import { createTenantScopedRepository } from '../../common/tenant/tenant-scoped.
 import { CadComment } from '../cad-documents/entities/cad-comment.entity';
 import { CadDocument } from '../cad-documents/entities/cad-document.entity';
 import { CadReviewSession } from '../cad-documents/entities/cad-review-session.entity';
+import { CadDocumentVersion } from '../cad-documents/entities/cad-document-version.entity';
 import {
   CadReviewRepository,
   MAX_COMMENTS_PER_DOCUMENT,
   MAX_OPEN_SESSIONS_PER_DOCUMENT,
 } from './cad-review.repository';
 
-const ENTITIES = [CadDocument, CadReviewSession, CadComment];
+const ENTITIES = [CadDocument, CadDocumentVersion, CadReviewSession, CadComment];
 
 describePostgres('CAD review capacity is atomic (PostgreSQL)', () => {
   jest.setTimeout(120_000);
@@ -51,6 +52,7 @@ describePostgres('CAD review capacity is atomic (PostgreSQL)', () => {
       });
     repository = new CadReviewRepository(
       scoped(CadDocument),
+      scoped(CadDocumentVersion),
       scoped(CadReviewSession),
       scoped(CadComment),
       tenant,

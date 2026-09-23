@@ -16,6 +16,8 @@ export interface CadReviewSessionRow {
   token: string;
   status: "open" | "closed";
   allowComments: boolean;
+  deliveredVersion: number | null;
+  deliveredAt: string | null;
   expiresAt: string;
   revokedAt: string | null;
   closedAt: string | null;
@@ -37,6 +39,8 @@ export function cadReviewSessionResource(
     status: session.status,
     hasShareLink: true,
     allowComments: session.allowComments,
+    deliveredVersion: session.deliveredVersion,
+    deliveredAt: session.deliveredAt,
     expiresAt: session.expiresAt,
     revokedAt: session.revokedAt,
     closedAt: session.closedAt,
@@ -48,7 +52,7 @@ export function cadReviewSessionResource(
 export interface CadReviewLinkDeps {
   sessions: CadReviewSessionRow[];
   /** El documento que ve el invitado, ya en la forma que espera el cliente. */
-  documentPayload(documentId: string): Record<string, unknown> | null;
+  documentPayload(documentId: string, deliveredVersion: number | null): Record<string, unknown> | null;
   now: string;
 }
 
@@ -69,7 +73,7 @@ export function cadReviewLinkRoutes(
       return { body: { code: "review_token_revoked", message: "El review link fue revocado." }, status: 401 };
     if (Date.parse(session.expiresAt) <= Date.now())
       return { body: { code: "review_token_expired", message: "El review link expiró." }, status: 401 };
-    const document = deps.documentPayload(session.documentId);
+    const document = deps.documentPayload(session.documentId, session.deliveredVersion);
     if (!document)
       return { body: { message: "Documento CAD no encontrado.", requestId: "e2e" }, status: 404 };
     return {

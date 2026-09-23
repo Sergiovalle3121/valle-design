@@ -57,6 +57,14 @@ export class CadReviewSession extends TenantBaseEntity {
   @Column({ type: 'boolean', default: true, name: 'allow_comments' })
   allowComments: boolean;
 
+  /** NULL = revisión viva; entero = versión CAS congelada al entregar. */
+  @Column({ type: 'integer', nullable: true, name: 'delivered_version' })
+  deliveredVersion: number | null;
+
+  /** Hora server-owned de la entrega; NULL en enlaces vivos. */
+  @Column({ type: DATE_COLUMN_TYPE, nullable: true, name: 'delivered_at' })
+  deliveredAt: Date | null;
+
   /** Id anterior a la normalización UUID. NULL en sesiones nativas. */
   @Column({
     type: 'varchar',

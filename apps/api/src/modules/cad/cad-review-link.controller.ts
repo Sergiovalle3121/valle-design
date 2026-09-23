@@ -64,6 +64,14 @@ export class CadReviewLinkController {
     const access = requireReviewAccess(request);
     const session = await this.reviews.getSessionForAccess(access);
     const row = await this.documents.getDocument(access.documentId);
+    const deliveredVersion = session.deliveredVersion;
+    const delivered =
+      deliveredVersion === null
+        ? null
+        : await this.documents.getVersion(access.documentId, deliveredVersion);
+    const storedCadDocument = delivered
+      ? delivered.cadDocument
+      : row.cadDocument;
     await this.reviews.auditRedemption(access);
     return {
       session: reviewSessionResource(session),
@@ -73,12 +81,14 @@ export class CadReviewLinkController {
         name: row.name,
         model: row.model,
         revision: row.revision,
-        cadDocumentVersion: row.cadDocumentVersion ?? 0,
-        layers: row.layers,
-        cadDocument: row.cadDocument
-          ? await this.cadDocuments.hydrateCadDocument(row.cadDocument)
+        cadDocumentVersion: deliveredVersion ?? row.cadDocumentVersion ?? 0,
+        layers: delivered ? null : row.layers,
+        cadDocument: storedCadDocument
+          ? await this.cadDocuments.hydrateCadDocument(storedCadDocument)
           : null,
-        dxf: this.cadDocuments.toDxfPlacement(row),
+        // El DXF de fondo vive en la fila actual, fuera del historial CAS.
+        // No filtrarlo a una entrega congelada: podría revelar cambios nuevos.
+        dxf: delivered ? null : this.cadDocuments.toDxfPlacement(row),
       },
     };
   }

@@ -4266,6 +4266,38 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "ENTREGA-CONGELADA-PDF-20260923",
+      "date": "2026-09-23",
+      "initiative": "Entregar un enlace de revisión con versión CAD y fecha congeladas, más PDF vectorial con cajetín y QR a la revisión viva caducable.",
+      "branch": "codex/delivery-frozen-link",
+      "assistants": [
+        "OpenAI Codex: auditoría de sesiones y versiones CAS, implementación de entrega, PDF y pruebas focales"
+      ],
+      "authority": "Sergio Valle Zárate pidió la Fase F2 del prompt maestro y autorizó seguir construyendo VALLECAD hasta integrarlo tras sus dependencias.",
+      "firstPartyInputs": [
+        "CadReviewRepository, ReviewLinkService, CadDocumentVersion y CadReviewLinkController existentes",
+        "buildCadPublishPlan, renderCadPlotPdf, layoutCadTitleBlock y encodeQr del repositorio",
+        "Prompt maestro del 2026-09-23: Entregar versión congelada, fecha, PDF con cajetín y QR vivo y marca Uso educativo en plan gratuito"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada.",
+      "derivedAreas": [
+        "API: columnas y migración aditiva para versión y fecha de entrega, canje histórico por versión CAS y comentarios deshabilitados por servidor",
+        "Web: acción Entregar en Esencial, etiqueta fechada del invitado y descarga PDF con portada QR a un segundo enlace de revisión vivo y revocable",
+        "Emisor PDF vectorial existente: QR y marca Uso educativo condicional; golden móvil y pruebas API/PDF"
+      ],
+      "fixtures": "Plano sintético de cuatro muros y dos versiones SALA/COCINA; enlace y fechas sintéticas; sin credenciales ni datos de clientes.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "API focal y PDF focal verdes en local. Golden móvil y CI sobre SHA exacto pendientes antes de adopción. El QR apunta a un segundo enlace vivo con caducidad/revocación explícitas; no promete permanencia. No se cambian bytes DXF/DWG."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }

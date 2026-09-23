@@ -1,19 +1,36 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
-import { Share2 } from "lucide-react";
+import { FileCheck2, Share2 } from "lucide-react";
 import { Button, Modal } from "@/components/ui";
 import { cadDraftToolbarSlot } from "@/components/cad/shell/draft-toolbar-slot";
 import { useCadUiMode } from "@/components/cad/shell/ui-mode-host";
 import { reviewsRepository } from "@/lib/cad/repositories/reviews";
+import { DesignApiError } from "@/lib/cad/repositories/client";
+import { designClient } from "@/lib/cad/repositories/client";
+import { versionsRepository } from "@/lib/cad/repositories/versions";
+import { migrateCadDocument } from "@/lib/cad/cad-document-migrate";
+import type { CadDocument } from "@/lib/cad/cad-document";
+import {
+  isEducationalDeliveryPlan,
+  renderCadDeliveryPdf,
+} from "@/lib/cad/plot/delivery-pdf";
 import { reviewLinkUrl } from "./ReviewLinkIssuer";
 
+type Purpose = "share" | "delivery";
 type ShareState =
   | { kind: "idle" }
-  | { kind: "creating" }
-  | { kind: "ready"; url: string }
-  | { kind: "error" };
+  | { kind: "creating"; purpose: Purpose }
+  | {
+      kind: "ready";
+      purpose: Purpose;
+      url: string;
+      deliveredAt: string | null;
+      deliveredVersion: number | null;
+      expiresAt: string | null;
+    }
+  | { kind: "error"; purpose: Purpose; message: string };
 
 /** The Essential action uses the same server-owned review sessions as Pro. */
 export function EssentialShareAction({ documentId }: { documentId: string }) {
@@ -26,26 +43,55 @@ export function EssentialShareAction({ documentId }: { documentId: string }) {
   const [state, setState] = useState<ShareState>({ kind: "idle" });
   const [copied, setCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfError, setPdfError] = useState(false);
+  const liveQrRef = useRef<{
+    deliveryUrl: string;
+    url: string;
+    expiresAt: string;
+  } | null>(null);
 
   if (mode !== "esencial" || !slot) return null;
 
-  const create = async () => {
+  const create = async (purpose: Purpose) => {
     if (state.kind === "creating") return;
     setCopied(false);
     setCopyFailed(false);
-    setState({ kind: "creating" });
+    setPdfError(false);
+    liveQrRef.current = null;
+    setState({ kind: "creating", purpose });
     try {
       const result = await reviewsRepository.create(documentId, {
         shareLink: true,
         allowComments: false,
+        ...(purpose === "delivery" ? { delivery: true } : {}),
       });
       if (!result.shareToken) {
-        setState({ kind: "error" });
+        setState({
+          kind: "error",
+          purpose,
+          message: "El servidor no emitió un enlace válido.",
+        });
         return;
       }
-      setState({ kind: "ready", url: reviewLinkUrl(result.shareToken) });
-    } catch {
-      setState({ kind: "error" });
+      setState({
+        kind: "ready",
+        purpose,
+        url: reviewLinkUrl(result.shareToken),
+        deliveredAt: result.session.deliveredAt ?? null,
+        deliveredVersion: result.session.deliveredVersion ?? null,
+        expiresAt: result.session.expiresAt ?? null,
+      });
+    } catch (cause) {
+      setState({
+        kind: "error",
+        purpose,
+        message:
+          cause instanceof DesignApiError &&
+          cause.code === "delivery_save_required"
+            ? "Guarda el plano antes de entregarlo."
+            : "No pudimos crear el enlace. Inténtalo de nuevo.",
+      });
     }
   };
 
@@ -64,6 +110,82 @@ export function EssentialShareAction({ documentId }: { documentId: string }) {
     setState({ kind: "idle" });
   };
 
+  const downloadPdf = async () => {
+    if (
+      state.kind !== "ready" ||
+      state.purpose !== "delivery" ||
+      !state.deliveredVersion ||
+      !state.deliveredAt ||
+      pdfBusy
+    )
+      return;
+    setPdfBusy(true);
+    setPdfError(false);
+    let newlyCreatedSession: string | null = null;
+    try {
+      const historical = await versionsRepository.get(
+        documentId,
+        state.deliveredVersion,
+      );
+      const plan = migrateCadDocument(
+        historical.cadDocument as unknown as CadDocument,
+      );
+      const envelope = await designClient.documents.open(documentId);
+      const subscription = await designClient.commercial
+        .subscription()
+        .catch(() => null);
+      let latest =
+        liveQrRef.current?.deliveryUrl === state.url ? liveQrRef.current : null;
+      if (!latest) {
+        const link = await reviewsRepository.create(documentId, {
+          shareLink: true,
+          allowComments: false,
+        });
+        newlyCreatedSession = link.session.id;
+        if (!link.shareToken || !link.session.expiresAt)
+          throw new Error("Falta el enlace vivo del QR.");
+        latest = {
+          deliveryUrl: state.url,
+          url: reviewLinkUrl(link.shareToken),
+          expiresAt: link.session.expiresAt,
+        };
+        liveQrRef.current = latest;
+      }
+      const pdf = await renderCadDeliveryPdf({
+        document: plan,
+        documentName: envelope.name ?? "Plano",
+        version: state.deliveredVersion,
+        deliveredAt: state.deliveredAt,
+        latestReviewUrl: latest.url,
+        latestReviewExpiresAt: latest.expiresAt,
+        educational: isEducationalDeliveryPlan(subscription?.subscription),
+      });
+      if (!pdf.bytes.length) throw new Error("No se generó la lámina.");
+      const blob = new Blob([pdf.bytes as BlobPart], {
+        type: "application/pdf",
+      });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `entrega-v${state.deliveredVersion}.pdf`;
+      anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch {
+      if (newlyCreatedSession) {
+        liveQrRef.current = null;
+        await reviewsRepository
+          .close(newlyCreatedSession)
+          .catch(() => undefined);
+      }
+      setPdfError(true);
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
+  const purpose = state.kind === "idle" ? "share" : state.purpose;
+  const delivery = purpose === "delivery";
+
   return createPortal(
     <>
       <Button
@@ -71,18 +193,33 @@ export function EssentialShareAction({ documentId }: { documentId: string }) {
         size="sm"
         iconLeft={<Share2 aria-hidden="true" className="h-4 w-4" />}
         data-testid="cad-essential-share"
-        onClick={() => void create()}
+        onClick={() => void create("share")}
         disabled={state.kind === "creating"}
         className="h-9 shrink-0 px-2 type-micro text-foreground"
       >
         Compartir
       </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        iconLeft={<FileCheck2 aria-hidden="true" className="h-4 w-4" />}
+        data-testid="cad-essential-deliver"
+        onClick={() => void create("delivery")}
+        disabled={state.kind === "creating"}
+        className="h-9 shrink-0 px-2 type-micro text-foreground"
+      >
+        Entregar
+      </Button>
       <Modal
         open={state.kind !== "idle"}
         onClose={close}
-        title="Compartir plano"
+        title={delivery ? "Entregar plano" : "Compartir plano"}
         size="sm"
-        data-testid="cad-essential-share-panel"
+        data-testid={
+          delivery
+            ? "cad-essential-delivery-panel"
+            : "cad-essential-share-panel"
+        }
       >
         {state.kind === "creating" ? (
           <p role="status" className="mt-2 type-small">
@@ -91,18 +228,44 @@ export function EssentialShareAction({ documentId }: { documentId: string }) {
         ) : null}
         {state.kind === "error" ? (
           <p role="alert" className="mt-2 type-small text-danger-ink">
-            No pudimos crear el enlace. Inténtalo de nuevo.
+            {state.message}
           </p>
         ) : null}
         {state.kind === "ready" ? (
           <>
             <p className="mt-2 type-small text-muted-foreground">
-              Quien tenga este enlace puede ver la versión más reciente del
-              plano. No permite editar ni comentar. Cópialo ahora; por seguridad
-              no se volverá a mostrar.
+              {delivery
+                ? `Versión ${state.deliveredVersion ?? "guardada"} congelada. Quien tenga este enlace verá esta entrega aunque sigas dibujando, hasta que venza o lo revoques. No permite comentarios. Cópialo ahora; por seguridad no se volverá a mostrar.`
+                : "Quien tenga este enlace puede ver la versión más reciente del plano. No permite editar ni comentar. Cópialo ahora; por seguridad no se volverá a mostrar."}
             </p>
+            {delivery && state.deliveredAt ? (
+              <p
+                data-testid="cad-essential-delivered-at"
+                className="mt-2 type-small font-medium"
+              >
+                Entregado el{" "}
+                {new Intl.DateTimeFormat("es-MX", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                }).format(new Date(state.deliveredAt))}
+              </p>
+            ) : null}
+            {delivery && state.expiresAt ? (
+              <p className="mt-1 type-micro text-muted-foreground">
+                Enlace válido hasta el{" "}
+                {new Intl.DateTimeFormat("es-MX", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                }).format(new Date(state.expiresAt))}
+                .
+              </p>
+            ) : null}
             <code
-              data-testid="cad-essential-share-url"
+              data-testid={
+                delivery
+                  ? "cad-essential-delivery-url"
+                  : "cad-essential-share-url"
+              }
               className="mt-2 block break-all rounded-control bg-muted p-2 type-micro"
             >
               {state.url}
@@ -113,11 +276,27 @@ export function EssentialShareAction({ documentId }: { documentId: string }) {
               onClick={() => void copy()}
               className="mt-3"
             >
-              Copiar enlace
+              {delivery ? "Copiar enlace de entrega" : "Copiar enlace"}
             </Button>
+            {delivery ? (
+              <Button
+                variant="secondary"
+                fullWidth
+                onClick={() => void downloadPdf()}
+                loading={pdfBusy}
+                className="mt-2"
+              >
+                {pdfBusy ? "Preparando PDF…" : "Descargar PDF con cajetín y QR"}
+              </Button>
+            ) : null}
             {copied ? (
               <p role="status" className="mt-2 type-small">
                 Enlace copiado
+              </p>
+            ) : null}
+            {pdfError ? (
+              <p role="alert" className="mt-2 type-small text-danger-ink">
+                No se pudo generar el PDF. Inténtalo de nuevo.
               </p>
             ) : null}
             {copyFailed ? (

@@ -614,6 +614,7 @@ export function createDesignClient(options: DesignClientOptions) {
         documentId: string,
         input?: {
           shareLink?: boolean;
+          delivery?: boolean;
           allowComments?: boolean;
           shareLinkTtlMinutes?: number;
         },
