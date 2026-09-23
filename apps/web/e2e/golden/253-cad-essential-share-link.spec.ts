@@ -94,7 +94,10 @@ test("Compartir en Esencial abre en móvil un plano de solo lectura con m² deri
   await guest.goto(enlace);
   await expect(guest.getByTestId("cad-review-banner")).toBeVisible({ timeout: 60_000 });
   await expect.poll(() => guest.getByTestId("cad-review-plan").locator("svg path").count()).toBeGreaterThan(0);
-  await expect(guest.getByTestId("cad-review-room-area")).toContainText("Útil · 17.81 m²");
+  await expect(guest.getByTestId("cad-review-room-area")).toContainText("SALA");
+  await expect(guest.getByTestId("cad-review-room-area")).toContainText("20.00 m²");
+  await expect(guest.getByTestId("cad-review-room-area"))
+    .toHaveAttribute("aria-label", /20\.00 m².*17\.81 m²/);
   await expect(guest.getByTestId("cad-review-plan")).toBeVisible();
   expect(await guest.evaluate(() => document.documentElement.scrollWidth)).toBe(
     await guest.evaluate(() => document.documentElement.clientWidth),
