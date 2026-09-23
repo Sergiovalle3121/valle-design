@@ -73,6 +73,10 @@ test('Muro acepta cinco clics directos sin mover el ratón entre ellos y cierra 
     .toBeCloseTo(coordinates[0].x, 0);
   expect(coordinates[4].y, 'el mismo píxel de pantalla sigue dando la misma Y tras cuatro tramos')
     .toBeCloseTo(coordinates[0].y, 0);
+  expect(coordinates[1].y, 'un clic horizontal no desplaza el origen Y').toBeCloseTo(coordinates[0].y, 0);
+  expect(coordinates[2].x, 'un clic vertical no desplaza el origen X').toBeCloseTo(coordinates[1].x, 0);
+  expect(coordinates[3].y, 'la segunda esquina horizontal conserva la escala Y').toBeCloseTo(coordinates[2].y, 0);
+  expect(coordinates[4].x, 'la última esquina vertical conserva la escala X').toBeCloseTo(coordinates[3].x, 0);
   expect(await changedPixels(pixels[0], pixels[1]), 'el primer tramo se dibuja tras el segundo clic')
     .toBeGreaterThan(100);
   await page.keyboard.press('Enter');
