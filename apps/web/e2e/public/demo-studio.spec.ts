@@ -34,6 +34,40 @@ function collectDocumentRequests(page: Page): string[] {
   return requests;
 }
 
+// La misma cuadrícula de 8 px y el mismo conteo de elementos visibles que el
+// golden 228: se mide la superficie que recibe clics, no sólo el DOM presente.
+async function measureOpening(page: Page) {
+  return page.evaluate(() => {
+    const visible = (el: Element) => {
+      const rect = el.getBoundingClientRect();
+      const style = getComputedStyle(el);
+      return rect.width >= 4 && rect.height >= 4 && rect.bottom >= 0 && rect.right >= 0 &&
+        rect.top <= innerHeight && rect.left <= innerWidth && style.display !== 'none' &&
+        style.visibility !== 'hidden' && Number(style.opacity) > 0.05;
+    };
+    const controls = [...document.querySelectorAll(
+      'button, a[href], input, select, textarea, [role=button], [role=tab], [role=menuitem], [role=option]',
+    )].filter(visible).length;
+    const canvas = document.querySelector('[data-testid="cad-canvas"]');
+    if (!canvas) return { controls, screenFree: 0, canvasCovered: 100 };
+    const rect = canvas.getBoundingClientRect();
+    let total = 0;
+    let free = 0;
+    for (let x = rect.left + 2; x < rect.right - 2; x += 8) {
+      for (let y = rect.top + 2; y < rect.bottom - 2; y += 8) {
+        total++;
+        const hit = document.elementFromPoint(x, y);
+        if (hit && (hit.tagName === 'CANVAS' || hit === canvas || canvas.contains(hit))) free++;
+      }
+    }
+    return {
+      controls,
+      screenFree: 100 * (free / total) * rect.width * rect.height / (innerWidth * innerHeight),
+      canvasCovered: 100 * (1 - free / total),
+    };
+  });
+}
+
 test.describe('Demostración sin cuenta', () => {
   test('abre el editor real, dibuja por comando y no toca la red de documentos', async ({
     page,
@@ -170,4 +204,47 @@ test.describe('Demostración sin cuenta', () => {
     await expect.poll(() => page.evaluate(() => localStorage.getItem('valle_demo_document')?.length ?? 0),
       { timeout: 15_000 }).toBeGreaterThan(100);
   });
+
+  for (const viewport of [{ width: 1440, height: 769 }, { width: 1366, height: 768 }]) {
+    test(`la puerta de salida sigue despejada para visita nueva y heredada a ${viewport.width}×${viewport.height}`, async ({ page }) => {
+      test.setTimeout(120_000);
+      await page.setViewportSize(viewport);
+      await page.goto('/');
+      await page.evaluate(() => localStorage.removeItem('valle:cad:ui-mode:v1'));
+      await page.goto('/demo');
+      const canvas = page.getByTestId('cad-canvas');
+      await expect(canvas).toBeVisible({ timeout: 60_000 });
+      const skip = page.getByTestId('cad-guided-tour-skip');
+      if (await skip.count()) await skip.click();
+      await expect(page.getByTestId('cad-essential-bar')).toBeVisible();
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(3000);
+      const newVisit = await measureOpening(page);
+      expect(newVisit.controls, `visita nueva: ${JSON.stringify(newVisit)}`).toBeLessThanOrEqual(30);
+      expect(newVisit.screenFree, `visita nueva: ${JSON.stringify(newVisit)}`).toBeGreaterThanOrEqual(
+        viewport.width === 1440 ? 75 : 70,
+      );
+      expect(newVisit.canvasCovered, `visita nueva: ${JSON.stringify(newVisit)}`).toBeLessThanOrEqual(3);
+
+      // Simula un sobre de antes de este cambio sin usar ninguna API interna.
+      await page.evaluate(() => {
+        const key = 'valle_demo_document';
+        const old = JSON.parse(localStorage.getItem(key)!);
+        delete old.edited;
+        localStorage.setItem(key, JSON.stringify(old));
+      });
+      await page.goto('/demo');
+      await expect(canvas).toBeVisible({ timeout: 60_000 });
+      await expect(page.getByRole('button', { name: 'Recuperar mi dibujo anterior' })).toBeVisible();
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(3000);
+      const returningVisit = await measureOpening(page);
+      console.log(`demo opening ${viewport.width}×${viewport.height}: ${JSON.stringify({ newVisit, returningVisit })}`);
+      expect(returningVisit.controls, `visita heredada: ${JSON.stringify(returningVisit)}`).toBeLessThanOrEqual(30);
+      expect(returningVisit.screenFree, `visita heredada: ${JSON.stringify(returningVisit)}`).toBeGreaterThanOrEqual(
+        viewport.width === 1440 ? 75 : 70,
+      );
+      expect(returningVisit.canvasCovered, `visita heredada: ${JSON.stringify(returningVisit)}`).toBeLessThanOrEqual(3);
+    });
+  }
 });
