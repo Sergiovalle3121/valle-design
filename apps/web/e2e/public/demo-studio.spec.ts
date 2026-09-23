@@ -185,10 +185,9 @@ test.describe('Demostración sin cuenta', () => {
     await expect.poll(() => page.evaluate(() => localStorage.getItem('valle_demo_document')?.length ?? 0),
       { timeout: 30_000 }).toBeGreaterThan(100);
     await page.evaluate(() => {
-      const key = 'valle_demo_document';
-      const old = JSON.parse(localStorage.getItem(key)!);
+      const old = JSON.parse(localStorage.getItem('valle_demo_document')!);
       delete old.edited;
-      localStorage.setItem(key, JSON.stringify(old));
+      localStorage.setItem('valle_demo_document', JSON.stringify(old));
     });
 
     await page.goto('/demo?cadUi=pro');
@@ -228,10 +227,9 @@ test.describe('Demostración sin cuenta', () => {
 
       // Simula un sobre de antes de este cambio sin usar ninguna API interna.
       await page.evaluate(() => {
-        const key = 'valle_demo_document';
-        const old = JSON.parse(localStorage.getItem(key)!);
+        const old = JSON.parse(localStorage.getItem('valle_demo_document')!);
         delete old.edited;
-        localStorage.setItem(key, JSON.stringify(old));
+        localStorage.setItem('valle_demo_document', JSON.stringify(old));
       });
       await page.goto('/demo');
       await expect(canvas).toBeVisible({ timeout: 60_000 });
