@@ -64,6 +64,8 @@ export type CadStudioHostProps = Omit<
   /** La capa de colaboración pide presencia y comentarios por red; en el modo
    *  demostración no hay documento en la nube contra el que colaborar. */
   withCollaboration?: boolean;
+  /** Public demo can issue a read-only snapshot without joining collaboration. */
+  demoShareLink?: () => Promise<string>;
   /**
    * Modo de interfaz con el que arranca el estudio si esta persona nunca eligió
    * uno: la demostración pide «esencial»; sin valor, lo decide el anfitrión
@@ -83,6 +85,7 @@ export default function CadStudioHost({
   readOnly,
   documentPort,
   withCollaboration = true,
+  demoShareLink,
   uiModeDefault,
   ...props
 }: CadStudioHostProps) {
@@ -249,6 +252,9 @@ export default function CadStudioHost({
       ) : null}
       {documentId && withCollaboration && permissions.includes("cad:review") ? (
         <EssentialShareAction documentId={documentId} />
+      ) : null}
+      {documentId && demoShareLink ? (
+        <EssentialShareAction documentId={documentId} createShareLink={demoShareLink} snapshot />
       ) : null}
       {/*
         La mensajería de equipo es de PROYECTO/ORGANIZACIÓN, no de documento:

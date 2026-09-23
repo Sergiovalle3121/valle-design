@@ -7,6 +7,7 @@ import { Button, Modal } from "@/components/ui";
 import { cadDraftToolbarSlot } from "@/components/cad/shell/draft-toolbar-slot";
 import { useCadUiMode } from "@/components/cad/shell/ui-mode-host";
 import { reviewsRepository } from "@/lib/cad/repositories/reviews";
+import { DesignApiError } from "@/lib/cad/repositories/client";
 import { reviewLinkUrl } from "./ReviewLinkIssuer";
 
 type ShareState =
@@ -16,7 +17,15 @@ type ShareState =
   | { kind: "error" };
 
 /** The Essential action uses the same server-owned review sessions as Pro. */
-export function EssentialShareAction({ documentId }: { documentId: string }) {
+export function EssentialShareAction({
+  documentId,
+  createShareLink,
+  snapshot = false,
+}: {
+  documentId: string;
+  createShareLink?: () => Promise<string>;
+  snapshot?: boolean;
+}) {
   const mode = useCadUiMode();
   const slot = useSyncExternalStore(
     cadDraftToolbarSlot.subscribe,
@@ -35,16 +44,28 @@ export function EssentialShareAction({ documentId }: { documentId: string }) {
     setCopyFailed(false);
     setState({ kind: "creating" });
     try {
-      const result = await reviewsRepository.create(documentId, {
-        shareLink: true,
-        allowComments: false,
-      });
-      if (!result.shareToken) {
-        setState({ kind: "error" });
-        return;
+      if (createShareLink) {
+        const url = await createShareLink();
+        if (!url) throw new Error("missing_review_link");
+        setState({ kind: "ready", url });
+      } else {
+        const result = await reviewsRepository.create(documentId, {
+          shareLink: true,
+          allowComments: false,
+        });
+        if (!result.shareToken) {
+          setState({ kind: "error" });
+          return;
+        }
+        setState({ kind: "ready", url: reviewLinkUrl(result.shareToken) });
       }
-      setState({ kind: "ready", url: reviewLinkUrl(result.shareToken) });
-    } catch {
+    } catch (error) {
+      console.error(
+        "No se pudo crear el enlace de revisión",
+        error instanceof DesignApiError
+          ? { status: error.status, code: error.code }
+          : { kind: "unavailable" },
+      );
       setState({ kind: "error" });
     }
   };
@@ -97,9 +118,9 @@ export function EssentialShareAction({ documentId }: { documentId: string }) {
         {state.kind === "ready" ? (
           <>
             <p className="mt-2 type-small text-muted-foreground">
-              Quien tenga este enlace puede ver la versión más reciente del
-              plano. No permite editar ni comentar. Cópialo ahora; por seguridad
-              no se volverá a mostrar.
+              {snapshot
+                ? "Quien tenga este enlace puede ver una copia de este momento del plano durante 24 horas. No puede editarla ni comentar. Los cambios posteriores no se reflejan."
+                : "Quien tenga este enlace puede ver la versión más reciente del plano. No permite editar ni comentar. Cópialo ahora; por seguridad no se volverá a mostrar."}
             </p>
             <code
               data-testid="cad-essential-share-url"

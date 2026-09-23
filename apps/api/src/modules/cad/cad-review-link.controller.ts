@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Param,
   ParseUUIDPipe,
   Post,
@@ -60,6 +61,7 @@ export class CadReviewLinkController {
    */
   @Get('context')
   @ReviewLinkSurface()
+  @Header('Cache-Control', 'private, no-store')
   async context(@Req() request: Request) {
     const access = requireReviewAccess(request);
     const session = await this.reviews.getSessionForAccess(access);
@@ -86,6 +88,7 @@ export class CadReviewLinkController {
   /** Hilo de comentarios de LA SESIÓN (no expone otros hilos del documento). */
   @Get('comments')
   @ReviewLinkSurface()
+  @Header('Cache-Control', 'private, no-store')
   async listComments(@Req() request: Request) {
     const access = requireReviewAccess(request);
     const rows = await this.reviews.listSessionComments(access);

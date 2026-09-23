@@ -1427,6 +1427,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/cad/demo-shares": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publica una copia temporal de solo lectura desde /demo.
+         * @description Endpoint público y sin cuenta. Recibe únicamente un documento CAD de hasta 256 KiB serializados; no acepta un id de destino. Crea un documento aislado y una sesión de revisión con token aleatorio, hash persistido, comentarios desactivados y vencimiento fijo de 24 horas. Es una copia inmutable: las ediciones posteriores en /demo no se reflejan. Límite por IP de dos publicaciones/minuto y diez/día, más 500/día globales. El servidor purga las copias vencidas.
+         */
+        post: operations["createCadDemoShare"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/cad/review/context": {
         parameters: {
             query?: never;
@@ -5779,6 +5799,46 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["EntitlementRequired"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    createCadDemoShare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    document: components["schemas"]["CadDocumentInline"];
+                };
+            };
+        };
+        responses: {
+            /** @description Token mostrado una sola vez; solo su hash se almacena. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        shareToken: string;
+                        expiresAt: components["schemas"]["Timestamp"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description La captura supera 256 KiB. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     redeemReviewLinkContext: {
