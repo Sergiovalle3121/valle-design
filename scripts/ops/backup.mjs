@@ -39,8 +39,9 @@
  * - la contraseña viaja por `PGPASSWORD`, nunca en argv (`ps` la vería).
  *
  * Uso:
- *   node scripts/ops/backup.mjs --url postgres://... [--out dir] [--name x]
- *   DATABASE_URL=postgres://... node scripts/ops/backup.mjs
+ *   DATABASE_URL=postgres://... node scripts/ops/backup.mjs [--out dir] [--name x]
+ * No pases la URL con `--url`: la línea de comandos del propio Node sería
+ * visible en la lista de procesos antes de que este script pudiera sanearla.
  *
  * Variables: PG_BIN (directorio de binarios de PostgreSQL 16).
  */
@@ -64,7 +65,13 @@ import {
 } from './pg-tools.mjs';
 
 const args = parseArgs(process.argv.slice(2));
-const url = requireDatabaseUrl(typeof args.url === 'string' ? args.url : null);
+if (Object.hasOwn(args, 'url')) {
+  console.error(
+    'No pases --url: define DATABASE_URL en el entorno para no exponer la contraseña en argv.',
+  );
+  process.exit(2);
+}
+const url = requireDatabaseUrl(null);
 const outDir = resolve(
   typeof args.out === 'string' ? args.out : process.env.BACKUP_DIR || 'backups',
 );
