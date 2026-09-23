@@ -72,6 +72,7 @@ test("el autor habilita comentarios; el cliente comenta desde 390×844 y el auto
   await expect.poll(() => backend.reviewSessions.length).toBe(2);
   const commentUrl = (await page.getByTestId("cad-review-link-url").textContent())!.trim();
   expect(backend.reviewSessions[1]?.allowComments).toBe(true);
+  await expect(allowComments).not.toBeChecked();
 
   const commenter = await guestContext.newPage();
   await commenter.goto(commentUrl);
