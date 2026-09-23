@@ -4267,6 +4267,39 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-LWPOLYLINE-WIDTH-WRITE-20260923",
+      "date": "2026-09-23",
+      "initiative": "Entregar al escritor DWG AC1015 los anchos por vértice que el documento canónico ya conserva, para no perderlos al reescribir una POLYLINE 2D del corpus admitido.",
+      "branch": "codex/dwg-polyline-width-write",
+      "assistants": [
+        "OpenAI Codex: proyección de escritura, prueba roja/verde, medición de corpus y documentación de límites"
+      ],
+      "authority": "Sergio Valle Zárate pidió construir el DWG propio, sin SDK de pago, a partir de los avances ya existentes y fusionar los cambios seguros.",
+      "firstPartyInputs": [
+        "El lector y writer LWPOLYLINE AC1015 del laboratorio; canonical-to-dwg.ts y el PR de lectura #245 ya fusionado",
+        "DWG/DXF admitidos 13-polyline2d del corpus hermano en commit 0688fb9c, sin copiar sus bytes al repositorio",
+        "SOURCE_REGISTER.json: VALLE-CORPUS-POLYLINE2D-WIDTH-20260923 (misma medición admitida del PR #245)"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación de codec ajeno; salida contrastada sólo con el lector propio, sin oráculo externo nuevo.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/api/canonical-to-dwg.ts: proyección de startWidth/endWidth a widths LWPOLYLINE con ceros explícitos cuando otro vértice tiene ancho",
+        "packages/dwg-codec/tests/unit/canonical.spec.ts: ancho y bulge sobreviven hasta DWG y regreso",
+        "scripts/dwg/polyline-width.spec.mjs: fixture admitido y DXF original, con bytes de salida distintos y anchos reabiertos",
+        "packages/dwg-codec/CAPABILITIES.md: evidencia y falta de lector externo de salida; SOURCE_REGISTER.json histórico sin nuevas fuentes"
+      ],
+      "fixtures": "Ninguno nuevo o modificado; se reutiliza el corpus admitido de autoría propia.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "canonical.spec.ts mostró fallo rojo por widths=undefined antes del cambio y 7/7 PASS después; npm run check --workspace=@valle-design/dwg-codec PASS (513 unit, 349 adversarial, fuzz 20000); npm run check:dwg PASS con corpus 7/7 y polyline-width.spec.mjs sobre DWG/DXF admitidos: cuatro pares 2/2 y bulge 0.5 reabiertos, bytes emitidos diferentes. check:governance 11/11 PASS. NO INTEGRAR EN ESTA CAMPAÑA: el encargo exige que los bytes DWG/DXF exportados permanezcan iguales. Este prototipo se conserva sólo en rama local sin PR; CI y oráculo externo de escritura pendientes: 4/24, externalOracleVerified=false, flags beta apagadas."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }

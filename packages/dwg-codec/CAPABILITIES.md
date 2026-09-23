@@ -1638,3 +1638,22 @@ compara byte a byte la salida con y sin ese campo. Esto corrige fidelidad y
 transparencia de la **lectura de laboratorio**; no autoriza POLYLINE 2D en el
 perfil beta del producto, no enciende flags, no amplía el oráculo externo de
 escritura y no promueve ninguna capacidad.
+
+## Corte posterior 2026-09-23 — ancho por vértice al reescribir en LWPOLYLINE
+
+El adaptador canónico→DWG ahora entrega los anchos inicial/final de cada
+vértice al escritor LWPOLYLINE AC1015 ya existente, que sabe codificarlos.
+Cuando todos valen cero se omite el campo para conservar la salida anterior;
+cuando alguno es distinto de cero se envía la lista completa, incluidos los
+ceros de los demás vértices. Ya no se declara la pérdida
+`polyline-width-not-emitted` para esa conversión. El caso admitido
+`13-polyline2d.dwg` conserva los cuatro pares 2/2 y el arco `bulge=0.5`
+al pasar por documento canónico y volver a un archivo DWG escrito por el
+laboratorio. La prueba comprueba que los bytes cambian al emitir los anchos.
+
+Esta es una prueba de lectura independiente de entrada y de round-trip con
+nuestro propio escritor/lector de salida; no hubo conversor externo disponible
+para acreditar el DWG emitido. El oráculo externo de escritura sigue en 4/24,
+`externalOracleVerified=false`, y las flags de importación/exportación del
+producto permanecen apagadas. El corte anterior describe el estado histórico
+del PR de lectura, no el estado de este corte posterior.

@@ -283,15 +283,11 @@ export function canonicalDocumentToDwgEntities(
           }[]) ?? [];
         const bulges = vertices.map((v) => v.bulge ?? 0);
         const anyBulge = bulges.some((b) => b !== 0);
-        if (vertices.some((v) => (v.startWidth ?? 0) !== 0 || (v.endWidth ?? 0) !== 0)) {
-          losses.push({
-            code: "polyline-width-not-emitted",
-            entityId: id,
-            sourceType: "polyline",
-            detail: `La polilínea ${id} conserva anchos por vértice en el documento, pero el writer de esta tanda no los emite: el DWG resultante contiene su eje y sus arcos, sin grosor.`,
-            severity: "warning",
-          });
-        }
+        const widths = vertices.map((v) => Object.freeze({
+          start: v.startWidth ?? 0,
+          end: v.endWidth ?? 0,
+        }));
+        const anyWidth = widths.some((v) => v.start !== 0 || v.end !== 0);
         entities.push({
           canonicalId: id,
           layerName,
@@ -302,7 +298,7 @@ export function canonicalDocumentToDwgEntities(
               vertices.map((v) => Object.freeze({ x: v.x, y: v.y })),
             ),
             bulges: anyBulge ? Object.freeze(bulges) : undefined,
-            widths: undefined,
+            widths: anyWidth ? Object.freeze(widths) : undefined,
             constantWidth: undefined,
             elevation: undefined,
             thickness: undefined,

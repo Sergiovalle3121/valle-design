@@ -64,7 +64,7 @@ assert.deepEqual(mapped.vertices.map((vertex) => [
 assert.equal(mapped.vertices[1].bulge, 0.5);
 
 const withWidths = writeCanonicalDwg(document);
-assert.ok(withWidths.lossManifest.some((loss) =>
+assert.ok(!withWidths.lossManifest.some((loss) =>
   loss.code === "polyline-width-not-emitted" && loss.entityId === mapped.id));
 const withoutWidths = writeCanonicalDwg({
   ...document,
@@ -74,6 +74,12 @@ const withoutWidths = writeCanonicalDwg({
       vertices: entity.vertices.map(({ startWidth, endWidth, ...rest }) => rest),
     }),
 });
-assert.deepEqual(withWidths.bytes, withoutWidths.bytes,
-  "este cambio sólo corrige lectura y manifiesto; no altera bytes de exportación");
-process.stdout.write("POLYLINE 2D: DWG/DXF admitidos verificados; cuatro anchos y bulge exactos; bytes de writer sin cambio.\n");
+assert.notDeepEqual(withWidths.bytes, withoutWidths.bytes,
+  "el writer debe codificar los anchos y cambiar los bytes del DWG emitido");
+const emitted = readDwg(withWidths.bytes).modelSpaceEntities.find((record) =>
+  record.entity.kind === "lwpolyline" && record.entity.widths?.length === 4);
+assert.ok(emitted, "el DWG emitido debe tener una LWPOLYLINE con anchos");
+assert.deepEqual(emitted.entity.widths.map((width) => [width.start, width.end]),
+  [[2, 2], [2, 2], [2, 2], [2, 2]]);
+assert.equal(emitted.entity.bulges[1], 0.5);
+process.stdout.write("POLYLINE 2D: DWG/DXF admitidos verificados; cuatro anchos y bulge reescritos; bytes DWG cambian.\n");

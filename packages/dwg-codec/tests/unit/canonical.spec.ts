@@ -5,6 +5,7 @@ import {
   dwgDatabaseToCanonicalDocument,
 } from "../../src/api/canonical.js";
 import { readAc1015Database } from "../../src/reader/ac1015-database-reader.js";
+import { writeCanonicalDwg } from "../../src/api/write.js";
 import type { Ac1015DatabaseEntityRecord } from "../../src/reader/database-model.js";
 import { writeAc1015Container } from "../../src/writer/ac1015-container-writer.js";
 import type { DwgGeometryEntity } from "../../src/model/entity-geometry.js";
@@ -78,7 +79,7 @@ test("la base neutral se proyecta al documento canónico con ids y capas", () =>
   assert.ok(Array.isArray(lossManifest));
 });
 
-test("POLYLINE 2D conserva el ancho medido y declara su pérdida al reescribir", () => {
+test("POLYLINE 2D conserva cuatro anchos y el bulge al reescribir", () => {
   // 13-polyline2d.dwg del corpus admitido: POLYLINE 0x101 tiene cuatro
   // VERTEX con ancho 2/2; el segundo tiene bulge 0.5. La base neutral ya
   // decodifica estos campos. Aquí se prueba la proyección sin copiar el DWG.
@@ -140,9 +141,23 @@ test("POLYLINE 2D conserva el ancho medido y declara su pérdida al reescribir",
 
   const rewritten = canonicalDocumentToDwgEntities(document);
   assert.equal(rewritten.entities[0]?.entity.kind, "lwpolyline");
-  assert.ok(rewritten.lossManifest.some((loss) =>
-    loss.code === "polyline-width-not-emitted" && loss.entityId === "h101"),
+  assert.deepEqual(rewritten.entities[0]?.entity.kind === "lwpolyline"
+    ? rewritten.entities[0].entity.widths : undefined, [
+    { start: 2, end: 2 }, { start: 2, end: 2 },
+    { start: 2, end: 2 }, { start: 2, end: 2 },
+  ]);
+  assert.ok(!rewritten.lossManifest.some((loss) =>
+    loss.code === "polyline-width-not-emitted"),
   );
+  const output = readAc1015Database(writeCanonicalDwg(document).bytes);
+  const emitted = output.modelSpaceEntities.find((record) => record.entity.kind === "lwpolyline");
+  assert.ok(emitted);
+  assert.equal(emitted.entity.kind, "lwpolyline");
+  assert.deepEqual(emitted.entity.widths, [
+    { start: 2, end: 2 }, { start: 2, end: 2 },
+    { start: 2, end: 2 }, { start: 2, end: 2 },
+  ]);
+  assert.equal(emitted.entity.bulges?.[1], 0.5);
 });
 
 test("canónico → modelo escribible → DWG → base neutral conserva la geometría", () => {
