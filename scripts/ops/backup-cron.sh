@@ -65,7 +65,7 @@ DEST="${RCLONE_REMOTE}/$(date -u +%Y/%m)"
 (
   # La herramienta de transporte sólo necesita su propia configuración y el
   # paquete cifrado; no recibe la conexión PostgreSQL ni la frase de cifrado.
-  unset DATABASE_URL BACKUP_ENCRYPTION_PASSPHRASE PGPASSWORD
+  unset DATABASE_URL BACKUP_DATABASE_URL TEST_DATABASE_URL BACKUP_ENCRYPTION_PASSPHRASE PGPASSWORD
   rclone copy "$ENCRYPTED_DIR" "$DEST" --immutable
   rclone check "$ENCRYPTED_DIR" "$DEST" --download --one-way
 )

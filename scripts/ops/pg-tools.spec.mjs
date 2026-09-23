@@ -66,14 +66,24 @@ test('pg_dump y pg_restore reciben URI sin contraseña; PGPASSWORD conserva la c
 
 test('los clientes PostgreSQL no heredan la clave del paquete cifrado', () => {
   const before = process.env.BACKUP_ENCRYPTION_PASSPHRASE;
+  const beforeDatabase = process.env.DATABASE_URL;
+  const beforePgPassword = process.env.PGPASSWORD;
   try {
     process.env.BACKUP_ENCRYPTION_PASSPHRASE = 'frase-sintetica-para-prueba-123';
-    const capture = 'process.stdout.write(String(process.env.BACKUP_ENCRYPTION_PASSPHRASE || ""))';
+    process.env.DATABASE_URL = 'postgresql://synthetic:secret@remote.invalid:5432/db';
+    process.env.PGPASSWORD = 'contraseña-ajena';
+    const capture = 'process.stdout.write(JSON.stringify({key:process.env.BACKUP_ENCRYPTION_PASSPHRASE,url:process.env.DATABASE_URL,password:process.env.PGPASSWORD}))';
     const result = runPg(process.execPath, ['-e', capture], { url });
-    assert.equal(result.stdout, '');
+    assert.deepEqual(JSON.parse(result.stdout), { password });
+    const offline = runPg(process.execPath, ['-e', capture]);
+    assert.deepEqual(JSON.parse(offline.stdout), {});
   } finally {
     if (before === undefined) delete process.env.BACKUP_ENCRYPTION_PASSPHRASE;
     else process.env.BACKUP_ENCRYPTION_PASSPHRASE = before;
+    if (beforeDatabase === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = beforeDatabase;
+    if (beforePgPassword === undefined) delete process.env.PGPASSWORD;
+    else process.env.PGPASSWORD = beforePgPassword;
   }
 });
 

@@ -50,7 +50,7 @@ function binaryCandidates(name) {
 
 export function resolveBinary(name) {
   const env = { ...process.env };
-  delete env.BACKUP_ENCRYPTION_PASSPHRASE;
+  for (const key of ['BACKUP_ENCRYPTION_PASSPHRASE', 'DATABASE_URL', 'BACKUP_DATABASE_URL', 'TEST_DATABASE_URL', 'PGPASSWORD']) delete env[key];
   for (const candidate of binaryCandidates(name)) {
     const probe = spawnSync(candidate, ['--version'], { encoding: 'utf8', env });
     if (probe.status === 0) {
@@ -109,7 +109,7 @@ function redactPassword(text, password, url) {
 /** Ejecuta PostgreSQL sin una contraseña en argumentos ni en errores. */
 export function runPg(binary, args, { url, input, allowFailure = false } = {}) {
   const env = { ...process.env };
-  delete env.BACKUP_ENCRYPTION_PASSPHRASE;
+  for (const key of ['BACKUP_ENCRYPTION_PASSPHRASE', 'DATABASE_URL', 'BACKUP_DATABASE_URL', 'TEST_DATABASE_URL', 'PGPASSWORD']) delete env[key];
   let safeArgs = args;
   let password = '';
   if (url) {

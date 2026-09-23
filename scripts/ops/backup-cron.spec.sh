@@ -44,7 +44,8 @@ cat > "$TEST_ROOT/bin/rclone" <<'MOCK_RCLONE'
 #!/usr/bin/env bash
 set -euo pipefail
 command="$1"; source="$2"; dest="$3"
-[ -z "${DATABASE_URL:-}" ] && [ -z "${BACKUP_ENCRYPTION_PASSPHRASE:-}" ] || exit 45
+[ -z "${DATABASE_URL:-}" ] && [ -z "${BACKUP_DATABASE_URL:-}" ] &&
+  [ -z "${TEST_DATABASE_URL:-}" ] && [ -z "${BACKUP_ENCRYPTION_PASSPHRASE:-}" ] || exit 45
 case "$dest" in test:*) dest="$MOCK_REMOTE_ROOT/${dest#test:}" ;; *) exit 44 ;; esac
 case "$command" in
   copy)
@@ -73,6 +74,8 @@ chmod +x "$TEST_ROOT/bin/node" "$TEST_ROOT/bin/rclone"
 
 export PATH="$TEST_ROOT/bin:$PATH" REAL_NODE
 export DATABASE_URL='postgres://fixture:secret@localhost:5432/fixture'
+export BACKUP_DATABASE_URL='postgres://fixture:wrong@remote.invalid:5432/fixture'
+export TEST_DATABASE_URL='postgres://fixture:wrong@remote.invalid:5432/fixture'
 export BACKUP_ENCRYPTION_PASSPHRASE='frase-sintetica-para-prueba-cron-123456'
 export RCLONE_REMOTE='test:bucket' MOCK_REMOTE_ROOT="$TEST_ROOT/remote"
 
