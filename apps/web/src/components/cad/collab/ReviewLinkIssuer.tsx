@@ -96,6 +96,8 @@ export default function ReviewLinkIssuer({ documentId }: { documentId: string })
         );
       } else {
         setIssued(created.shareToken);
+        // Cada enlace nuevo exige una decisión nueva del autor.
+        setAllowGuestComments(false);
         setError(null);
       }
       await load();
