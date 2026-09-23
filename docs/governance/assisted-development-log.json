@@ -4401,7 +4401,7 @@
       "id": "CONTEOS-COTA-LIENZO-20260923",
       "date": "2026-09-23",
       "initiative": "Mostrar conteos reales de puertas y ventanas y la longitud legible de cotas lineales en el plano Esencial para completar las tareas 2 y 3 del estudiante.",
-      "branch": "codex/drawing-measurements",
+      "branch": "codex/drawing-measurements-integrate",
       "assistants": [
         "OpenAI Codex: implementación y verificación del cuadro BIM, las cotas y el visor Esencial"
       ],
@@ -4409,7 +4409,7 @@
       "firstPartyInputs": [
         "buildCadBimSchedule, buildCadDimensionGeometry y formatCadHumanLength existentes; componente CadViewportMeasurements del PR #242",
         "Robot de estudiante de la PR #237 y medición local area-overlay-local-v2: tarea 1 aprobada, tareas 2 y 3 sin texto visible",
-        "Línea base pública del 2026-09-23: robot 0/4, 31 controles, 74.5 % de pantalla libre a 1440 × 769; esta rama todavía no está desplegada"
+        "Producción #250 acreditada el 2026-09-23 con SHA 83e4b69d: robot 1/4, 29 controles y 75.6 % de pantalla libre a 1440 × 769; esta rama todavía no está desplegada"
       ],
       "externalSources": [],
       "externalImplementationConsulted": "Ninguna implementación externa copiada.",
@@ -4424,7 +4424,7 @@
         "required": true,
         "status": "proposed",
         "adopter": "Sergio Valle Zárate",
-        "evidence": "Golden 250 primero rojo por ausencia de rótulos y luego 2/2 verde en build productivo local; golden 234 1/1, spec nueva, typecheck y build web de 208 páginas PASS. check:cad completo con espejo DWG, design-system, ESLint focalizado y check:governance PASS. Robot local 3/4: cuarto 7/8, huecos 4/4, cota 4/4; compartir 0/3 pendiente. CI y producción aún no verificadas; no se declara lanzamiento comercial."
+        "evidence": "Golden 250 primero rojo por ausencia de rótulos y luego 2/2 verde en build productivo local; golden 234 1/1, spec nueva, typecheck y build web de 208 páginas PASS. check:cad completo con espejo DWG, design-system, ESLint focalizado y check:governance PASS. Sobre build combinado con #243 y #250, golden 228+250 4/4 y robot local 3/4: cuarto 7/8, huecos 4/4, cota 4/4; compartir 0/3 pendiente. #250 12/12 en producción y robot 1/4; CI y producción de esta PR aún no verificadas. No se declara lanzamiento comercial."
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
