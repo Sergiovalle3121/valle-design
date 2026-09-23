@@ -4318,7 +4318,7 @@
       "derivedAreas": [
         "human-property-model.ts: geometría real y unidad declarada para muro, puerta, ventana, rectángulo, polilínea, línea, círculo, texto y cota; figura con arco no se llama rectángulo, figura abierta no recibe área supuesta y muro huérfano no expone UUID",
         "CadHumanProperties, CadEntityPropertiesPanel, CadNativeSelectionHeading y CadNativeEntityList: vista humana en Esencial, rectángulos con nombre propio, detalles técnicos plegados y vista Pro preservada",
-        "golden 254 y human-property-model.spec.ts: comprobaciones visibles y de medidas; el golden se revalidará cuando el arnés local abra el documento"
+        "golden 254 y human-property-model.spec.ts: comprobaciones visibles y de medidas; el golden se ejecutó en Chromium sobre build de producción"
       ],
       "fixtures": "Entidades canónicas sintéticas de muro, puerta, rectángulo, polilínea, línea y círculo; ningún dato de cliente ni proveedor externo.",
       "dependenciesAdded": [],
@@ -4326,7 +4326,7 @@
         "required": true,
         "status": "proposed",
         "adopter": "Sergio Valle Zárate",
-        "evidence": "La prueba focal del modelo y ESLint focal pasaron en local. El golden 254 aún no acredita la pantalla: el loader de /legacy/studio quedó esperando antes de montar el editor en el entorno de prueba. La entidad de cuarto de plantillas sigue siendo `box` legado, fuera de CadNativeEntity; su ficha necesitará integrarse cuando la selección del espacio derivado exista. No se declara terminada la Fase D ni el lanzamiento."
+        "evidence": "La prueba focal del modelo, ESLint focal, typecheck y build web de producción con Webpack (208 páginas) pasaron en local. Golden 254 Chromium 3/3 PASS sobre el mismo bundle: muro en metros con detalles crudos plegados, edición exacta conservada en Pro y rectángulo de 6.00 m²; se inspeccionó la captura visible del panel. La entidad de cuarto de plantillas sigue siendo `box` legado, fuera de CadNativeEntity; su ficha necesita integrarse cuando la selección del espacio derivado exista. CI exact-SHA, adopción humana y salida al mercado pendientes."
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false

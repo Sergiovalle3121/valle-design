@@ -51,6 +51,8 @@ assert.deepEqual([...cadHumanEntityLabels([rectangle, bulged, { ...rectangle, id
   ["Rectángulo 1", "Polilínea 1", "Rectángulo 2"]);
 const open = { ...rectangle, id: "open-poly", closed: false };
 assert.equal(fields(open, doc([open])).area, undefined, "no anunciar área cerrando una figura abierta");
+const twisted = { ...rectangle, id: "twisted", vertices: rectangle.vertices.map((vertex, index) => ({ ...vertex, z: index === 2 ? 100 : 0 })) };
+assert.equal(fields(twisted, doc([twisted])).area, undefined, "no anunciar área de la proyección XY de un contorno torcido en Z");
 
 const second = wall("w2", 5_000);
 const multiple = buildCadHumanPropertyModel([first, second], doc([first, second]));

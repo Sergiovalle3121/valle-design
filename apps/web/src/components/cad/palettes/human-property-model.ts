@@ -131,7 +131,10 @@ function one(
 
   if (entity.type === "polyline") {
     const rectangle = cadRectangleSides(entity);
-    const measured = entity.closed ? cadEntityArea(entity, CAD_ENTITY_REGISTRY, document ?? undefined) : null;
+    // El cálculo AREA es de planta (XY). Una polilínea torcida en Z no tiene
+    // esa superficie: no enseñar un m² que sería sólo su proyección.
+    const planar = entity.vertices.every((vertex) => Math.abs(vertex.z - entity.vertices[0].z) <= 1e-9);
+    const measured = entity.closed && planar ? cadEntityArea(entity, CAD_ENTITY_REGISTRY, document ?? undefined) : null;
     const metrics = measured && !measured.assumedClosed ? [
       field("area", "Área", area(measured.area), measured.area),
       field("perimeter", "Perímetro", length(measured.perimeter), measured.perimeter),
