@@ -4396,6 +4396,48 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "STRIPE-PEDIDO-PAGADO-INMUTABLE-20260923",
+      "date": "2026-09-23",
+      "initiative": "Impedir que una sesión de Stripe vieja conceda más asientos que los cobrados tras reutilizar un intent pendiente; atar la idempotencia al formulario exacto y comprobar el total pagado antes de activar.",
+      "branch": "codex/checkout-idempotency-amount",
+      "assistants": [
+        "OpenAI Codex: auditoría de cobro, implementación API y pruebas de regresión"
+      ],
+      "authority": "Sergio Valle Zárate autorizó continuar VALLECAD hasta su lanzamiento y corregir el flujo de cobro; adopción condicionada a revisar y fusionar el diff y sus checks exactos.",
+      "firstPartyInputs": [
+        "Adaptador Stripe, BillingController, BillingWebhookService, catálogo de precios y suites comerciales del repositorio",
+        "Evidencia pública de api.vallecad.com: checkout external, CFDI manual e Individual 19900 céntimos MXN mensuales al 2026-09-23"
+      ],
+      "externalSources": [
+        {
+          "location": "https://docs.stripe.com/api/idempotent_requests",
+          "terms": "Documentación pública de Stripe; se usó como referencia factual y no se copió código.",
+          "fact": "Una misma clave idempotente con parámetros distintos produce error; reintentos idénticos comparten resultado y la clave admite hasta 255 caracteres."
+        },
+        {
+          "location": "https://docs.stripe.com/api/checkout/sessions/object",
+          "terms": "Documentación pública de Stripe; se usó como referencia factual y no se copió código.",
+          "fact": "La Checkout Session expone payment_status, amount_total, currency, mode y metadata para contrastar el pedido confirmado."
+        }
+      ],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "La clave de idempotencia de Checkout incorpora SHA-256 del formulario completo, estable para un reintento idéntico y distinta al cambiar asientos, periodo o importe.",
+        "El adaptador añade precio unitario y moneda a la metadata; el webhook exige estado paid y verifica el total y la moneda de la sesión firmada antes de otorgar acceso.",
+        "La cantidad otorgada y confirmada sale del pedido pagado, no del requestedSeats mutable; una segunda sesión pagada del mismo intent requiere revisión y no modifica la suscripción."
+      ],
+      "fixtures": "Pedidos sintéticos de 3 y 5 asientos, precio unitario anterior y nuevo, moneda/total inválidos; suite PostgreSQL de compra vieja pagada después de actualizar el intent.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pruebas locales, CI del SHA exacto, revisión y merge pendientes al crear esta entrada."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }
