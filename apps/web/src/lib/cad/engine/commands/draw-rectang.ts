@@ -48,6 +48,7 @@ import {
   type CadCommandDescriptor,
   type CadCommandStep,
 } from "../command-types";
+import { cadClosedShapeNotice } from "./area-notice";
 
 const CHAMFER = { keyword: "Chaflán", shortcut: "C" } as const;
 const ELEVATION = { keyword: "Elevación", shortcut: "E" } as const;
@@ -285,7 +286,14 @@ function finish(
     result: built.error
       ? { kind: "message", text: built.error }
       : built.entity
-        ? { kind: "document", commands: [{ type: "insert", entity: built.entity }], label: "RECTANG" }
+        ? {
+            kind: "document",
+            commands: [{ type: "insert", entity: built.entity }],
+            label: "RECTANG",
+            // Y DICE cuánto mide: es el número por el que se dibuja un cuarto
+            // (`commands/area-notice.ts`).
+            notice: cadClosedShapeNotice("Rectángulo", built.entity, context),
+          }
         : { kind: "none" },
   };
 }

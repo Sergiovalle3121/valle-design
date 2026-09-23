@@ -53,6 +53,15 @@ export interface CadPropertiesPaletteProps {
     label: string;
     layer: string;
     bounds: string;
+    /**
+     * El área EN LENGUAJE DE OBRA («23.60 m²»), o ausente si la figura no
+     * encierra nada medible. Es el número por el que se dibuja una habitación
+     * y el que el encargo pide ver en el primer minuto.
+     */
+    area?: string;
+    /** La figura estaba ABIERTA y hubo que cerrarla para medir: se avisa. */
+    areaAssumed?: boolean;
+    perimeter?: string;
     gripCount: number;
     gripLabels: string[];
   };
@@ -285,6 +294,21 @@ export const CadPropertiesPalette = React.memo(function CadPropertiesPalette({
               title={`Identificador técnico: ${summary.id}`}
             />
             <ReadOnlyCell label="Capa" value={summary.layer} />
+            {/*
+              El área va ANTES que los bounds y los grips a propósito: es lo que
+              se viene a mirar. «Bounds» es la caja que la contiene —útil, pero
+              no es la superficie— y hasta hoy era lo único que se decía.
+            */}
+            {summary.area ? (
+              <ReadOnlyCell
+                label={summary.areaAssumed ? "Área (cerrando la figura)" : "Área"}
+                value={summary.area}
+                testId="cad-properties-area"
+              />
+            ) : null}
+            {summary.perimeter ? (
+              <ReadOnlyCell label="Perímetro" value={summary.perimeter} />
+            ) : null}
             <ReadOnlyCell label="Bounds" value={summary.bounds} />
             <ReadOnlyCell label="Grips" value={`${summary.gripCount}`} />
           </>
@@ -355,14 +379,17 @@ function ReadOnlyCell({
   label,
   value,
   title,
+  testId,
 }: {
   label: string;
   value: string;
   /** Detalle técnico bajo el puntero. Sin él, la celda se comporta igual. */
   title?: string;
+  /** Sólo donde una prueba tiene que leer el valor, como el área. */
+  testId?: string;
 }) {
   return (
-    <div>
+    <div data-testid={testId}>
       <span className="mb-0.5 block type-micro uppercase tracking-wide text-muted-foreground">
         {label}
       </span>

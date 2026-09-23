@@ -33,6 +33,8 @@ import {
   type CadPropertyRow,
   type CadPropertyValue,
 } from "./property-model";
+import { cadEntityArea } from "@/lib/cad/inquiry/contours";
+import { formatCadHumanArea, formatCadHumanLength } from "@/lib/cad/inquiry/human-units";
 
 export interface CadEntityPropertiesPanelProps {
   /** Designación nativa, en orden de designación. */
@@ -96,6 +98,13 @@ export const CadEntityPropertiesPanel = React.memo(
       const adapter = CAD_ENTITY_REGISTRY.adapter(only);
       const bounds = adapter.bounds.bounds(only, document ?? undefined);
       const grips = adapter.grips.grips(only);
+      // EL NÚMERO QUE LA GENTE VIENE A BUSCAR. Se dibuja una habitación para
+      // saber cuánto mide, y hasta hoy la paleta contestaba «BOUNDS 5900 ×
+      // 4000» y se callaba los 23,6 m². El área sale del mismo cálculo que el
+      // comando AREA (`inquiry/contours.ts`) y se dice en lenguaje de obra
+      // (`inquiry/human-units.ts`), no en unidades de dibujo.
+      const medida = cadEntityArea(only, CAD_ENTITY_REGISTRY, document ?? undefined);
+      const unidad = document?.meta.unit;
       summary = {
         id: only.id,
         // El nombre se calcula sobre TODAS las entidades del documento, no
@@ -105,6 +114,12 @@ export const CadEntityPropertiesPanel = React.memo(
         label: cadEntityLabel(only, document?.entities ?? [only]),
         layer: only.layer,
         bounds: `${Math.round(bounds.maxX - bounds.minX)} × ${Math.round(bounds.maxY - bounds.minY)}`,
+        // `assumedClosed` es la figura ABIERTA que hubo que cerrar para poder
+        // medirla: el número es correcto para una figura que el usuario no
+        // dibujó, así que se dice con todas las letras en vez de callarlo.
+        area: medida ? formatCadHumanArea(medida.area, unidad) : undefined,
+        areaAssumed: medida?.assumedClosed ?? false,
+        perimeter: medida ? formatCadHumanLength(medida.perimeter, unidad) : undefined,
         gripCount: grips.length,
         gripLabels: grips.map((grip) => grip.label),
       };

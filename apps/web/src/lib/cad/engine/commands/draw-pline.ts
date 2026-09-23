@@ -50,6 +50,7 @@ import {
   type CadCommandDescriptor,
   type CadCommandStep,
 } from "../command-types";
+import { cadClosedShapeNotice } from "./area-notice";
 
 const CLOSE = { keyword: "Cerrar", shortcut: "C" } as const;
 const UNDO = { keyword: "desHacer", shortcut: "H" } as const;
@@ -222,6 +223,7 @@ function finish(
         }
       : state;
   const enough = closed ? prepared.vertices.length >= 3 : prepared.vertices.length >= 2;
+  const polilinea = polylineEntity(prepared, closed, context);
   return {
     state: prepared,
     prompt: { message: "", options: [] },
@@ -229,8 +231,11 @@ function finish(
     result: enough
       ? {
           kind: "document",
-          commands: [{ type: "insert", entity: polylineEntity(prepared, closed, context) }],
+          commands: [{ type: "insert", entity: polilinea }],
           label: "PLINE",
+          // Sólo cuando se cerró: `cadClosedShapeNotice` calla ante una figura
+          // abierta, y una polilínea abierta es la mitad de las que se dibujan.
+          notice: cadClosedShapeNotice("Polilínea cerrada", polilinea, context),
         }
       : { kind: "none" },
   };

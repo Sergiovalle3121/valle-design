@@ -30,6 +30,7 @@ import {
   type CadPreviewPath,
 } from "../command-types";
 import { cadLiftPoint } from "../spatial-point";
+import { cadClosedShapeNotice } from "./area-notice";
 
 const UNDO = { keyword: "desHacer", shortcut: "H" } as const;
 const CLOSE = { keyword: "Cerrar", shortcut: "C" } as const;
@@ -251,6 +252,15 @@ function circleResult(
   radius: number,
   context: CadCommandContext,
 ): CadCommandStep<CircleState> {
+  // El centro calculado (2P, 3P) no trae cota: toma la del primer punto
+  // designado, que es el plano del círculo. Se construye ANTES del resultado
+  // para poder medirlo y decir cuánto encierra.
+  const circulo = circleEntity(
+    context.newEntityId(),
+    cadLiftPoint(center, state.points[0]),
+    radius,
+    context.activeLayer,
+  );
   return {
     state,
     prompt: { message: "", options: [] },
@@ -259,20 +269,9 @@ function circleResult(
       radius > 1e-9
         ? {
             kind: "document",
-            commands: [
-              {
-                type: "insert",
-                // El centro calculado (2P, 3P) no trae cota: toma la del
-                // primer punto designado, que es el plano del círculo.
-                entity: circleEntity(
-                  context.newEntityId(),
-                  cadLiftPoint(center, state.points[0]),
-                  radius,
-                  context.activeLayer,
-                ),
-              },
-            ],
+            commands: [{ type: "insert", entity: circulo }],
             label: "CIRCLE",
+            notice: cadClosedShapeNotice("Círculo", circulo, context),
           }
         : { kind: "none" },
   };

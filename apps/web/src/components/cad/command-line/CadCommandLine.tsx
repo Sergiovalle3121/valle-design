@@ -237,6 +237,21 @@ export function CadCommandLine({
   const localInputRef = useRef<HTMLInputElement | null>(null);
   const inputRef = externalInputRef ?? localInputRef;
   const logRef = useRef<HTMLDivElement | null>(null);
+  /**
+   * LA ÚLTIMA RESPUESTA, a la vista.
+   *
+   * El diálogo nace plegado a 0 px (ver la cabecera), así que todo lo que el
+   * programa contesta —«Rectángulo · 23.60 m²», el resultado de DIST, el motivo
+   * de un rechazo— caía dentro de un registro invisible. Para quien dibuja eso
+   * es indistinguible de que no pasara nada, y es la mitad de «el ribbon no
+   * sirve». AutoCAD, con su ventana de una línea, enseña siempre el último
+   * renglón; aquí se enseña al final del MISMO renglón que ya existe, sin robar
+   * un píxel de alto al lienzo y sin desplegar nada.
+   */
+  const dichoPorElPrograma = history.filter(
+    (entry) => entry.level !== "input" && entry.text.trim().length > 0,
+  );
+  const ultimaRespuesta = dichoPorElPrograma.at(-1)?.text.trim() ?? "";
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const setLogExpanded = useCallback((next: boolean) => {
@@ -542,6 +557,17 @@ export function CadCommandLine({
           placeholder={prompt ? "coordenada, distancia u opción" : idlePlaceholder}
           className="min-w-[9rem] flex-1 bg-transparent font-mono text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring placeholder:text-muted-foreground"
         />
+        {!logExpanded && ultimaRespuesta ? (
+          <span
+            data-testid="cad-command-last-answer"
+            // `title` completo: el renglón recorta, y una medida recortada sin
+            // forma de leerla entera sería peor que no enseñarla.
+            title={ultimaRespuesta}
+            className="hidden min-w-0 max-w-[28rem] shrink truncate text-right font-mono type-micro text-muted-foreground md:block"
+          >
+            {ultimaRespuesta}
+          </span>
+        ) : null}
         <button
           type="button" hidden={wording === "esencial"}
           data-testid="cad-command-history-toggle"
