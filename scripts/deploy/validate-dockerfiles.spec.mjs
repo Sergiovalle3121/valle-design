@@ -25,6 +25,7 @@ import {
   hasDwgCodecSourceCopy,
   instructions,
   missingDwgBuildFlags,
+  missingLaunchBuildFlags,
   missingRequiredCopies,
   parseCopyInstruction,
   REQUIRED_COPIES,
@@ -244,7 +245,7 @@ FROM node:20-bookworm-slim AS runtime
 }
 
 // ─── VERDE: el Dockerfile actual del repositorio ya copia+construye el
-//            códec y cablea los dos flags en el orden correcto ─────────────
+//            códec y cablea los flags en el orden correcto ─────────────
 
 {
   const webSource = readFileSync(join(ROOT, 'apps/web/Dockerfile'), 'utf8');
@@ -271,8 +272,69 @@ FROM node:20-bookworm-slim AS runtime
   eq(
     missingDwgBuildFlags(instr, envEntries, order.webBuildRun),
     [],
-    'el Dockerfile actual declara y propaga los tres flags NEXT_PUBLIC_DWG_* antes del build de web',
+    'el Dockerfile actual declara y propaga los cuatro flags NEXT_PUBLIC_DWG_* antes del build de web',
   );
+  eq(
+    missingLaunchBuildFlags(instr, envEntries, order.webBuildRun),
+    [],
+    'el Dockerfile actual pasa el modo de lanzamiento y la versión al build de Next.js',
+  );
+}
+
+// ─── Los valores de lanzamiento deben llegar al build, en el mismo stage ──
+
+{
+  const cases = [
+    {
+      name: 'ARG sin ENV',
+      source: `FROM node:20 AS build
+ARG NEXT_PUBLIC_LAUNCH_MODE
+ARG NEXT_PUBLIC_APP_VERSION
+RUN npm run build --workspace=web`,
+      missing: ['NEXT_PUBLIC_LAUNCH_MODE', 'NEXT_PUBLIC_APP_VERSION'],
+    },
+    {
+      name: 'ENV después del build',
+      source: `FROM node:20 AS build
+ARG NEXT_PUBLIC_LAUNCH_MODE
+ENV NEXT_PUBLIC_LAUNCH_MODE=\${NEXT_PUBLIC_LAUNCH_MODE}
+ARG NEXT_PUBLIC_APP_VERSION
+RUN npm run build --workspace=web
+ENV NEXT_PUBLIC_APP_VERSION=\${NEXT_PUBLIC_APP_VERSION}`,
+      missing: ['NEXT_PUBLIC_APP_VERSION'],
+    },
+    {
+      name: 'ARG en otro stage',
+      source: `FROM node:20 AS deps
+ARG NEXT_PUBLIC_LAUNCH_MODE
+FROM node:20 AS build
+ENV NEXT_PUBLIC_LAUNCH_MODE=\${NEXT_PUBLIC_LAUNCH_MODE}
+ARG NEXT_PUBLIC_APP_VERSION
+ENV NEXT_PUBLIC_APP_VERSION=\${NEXT_PUBLIC_APP_VERSION}
+RUN npm run build --workspace=web`,
+      missing: ['NEXT_PUBLIC_LAUNCH_MODE'],
+    },
+    {
+      name: 'ambas variables antes del build',
+      source: `FROM node:20 AS build
+ARG NEXT_PUBLIC_LAUNCH_MODE
+ENV NEXT_PUBLIC_LAUNCH_MODE=\${NEXT_PUBLIC_LAUNCH_MODE}
+ARG NEXT_PUBLIC_APP_VERSION
+ENV NEXT_PUBLIC_APP_VERSION=\${NEXT_PUBLIC_APP_VERSION}
+RUN npm run build --workspace=web`,
+      missing: [],
+    },
+  ];
+  for (const { name, source, missing } of cases) {
+    const instr = instructions(source);
+    const runs = instr.filter((entry) => /^RUN\b/i.test(entry.text));
+    const envs = instr.filter((entry) => /^ENV\b/i.test(entry.text));
+    eq(
+      missingLaunchBuildFlags(instr, envs, dwgCodecBuildOrder(runs).webBuildRun),
+      missing,
+      `la configuración ${name} se clasifica correctamente`,
+    );
+  }
 }
 
 // ─── Adversarial: build del códec presente pero DESPUÉS del build de web ───
@@ -317,7 +379,7 @@ FROM node:20-bookworm-slim AS runtime
       'NEXT_PUBLIC_DWG_3D_WIREFRAME_IMPORT_BETA',
       'NEXT_PUBLIC_DWG_MODERN_IMPORT_BETA',
     ],
-    'un ARG sin su ENV correspondiente no cuenta como cableado: Docker no lo expone como variable de entorno a `RUN`',
+    'un ARG sin su ENV correspondiente no cumple la política de cableado explícito para el build',
   );
 }
 

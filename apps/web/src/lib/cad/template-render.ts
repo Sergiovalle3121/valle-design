@@ -104,17 +104,10 @@ export function renderCadTemplateSvg(
   const ink = (color: string) =>
     options.theme === "light" ? inkForLightPaper(color) : color;
 
-  /**
-   * El adaptador de texto proyecta su CAJA (4 puntos), no sus glifos: esos
-   * trazos se filtran y el rótulo se compone como <text> real con la
-   * tipografía del sistema — mismo contenido, mejor letra.
-   */
-  const textIds = new Set(
-    document.entities.flatMap((entity) => (entity.type === "text" ? [entity.id] : [])),
-  );
+  // La proyección ya separa los rótulos de los trazos: ninguna caja de
+  // selección de TEXT/MTEXT llega al SVG de la plantilla.
   const paths: string[] = [];
   for (const stroke of projection.strokes) {
-    if (textIds.has(stroke.entityId)) continue;
     const d = cadPlanStrokePath({
       ...stroke,
       points: stroke.points.map((point) => ({ x: toX(point.x), y: toY(point.y) })),
@@ -134,6 +127,22 @@ export function renderCadTemplateSvg(
     labels.push(
       `<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-size="${fontPx.toFixed(1)}" fill="${surface.foreground}" fill-opacity="0.82">${escapeXml(entity.text)}</text>`,
     );
+  }
+  const mtextIds = new Set(document.entities.flatMap((entity) => entity.type === "mtext" ? [entity.id] : []));
+  for (const label of projection.texts) {
+    if (!mtextIds.has(label.entityId)) continue;
+    const radians = (label.rotation * Math.PI) / 180;
+    const cos = Math.cos(radians);
+    const sin = Math.sin(radians);
+    const fontPx = Math.max(8.5, Math.min(15, label.fontSize * scale * 0.85));
+    for (const line of label.lines) {
+      if (!line.text) continue;
+      const x = toX(label.origin.x + line.x * cos - line.y * sin);
+      const y = toY(label.origin.y + line.x * sin + line.y * cos);
+      labels.push(
+        `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" transform="rotate(${-label.rotation} ${x.toFixed(1)} ${y.toFixed(1)})" font-size="${fontPx.toFixed(1)}" fill="${surface.foreground}" fill-opacity="0.82">${escapeXml(line.text)}</text>`,
+      );
+    }
   }
 
   /** Retícula de papel milimetrado, como la del producto (blueprint-grid). */
