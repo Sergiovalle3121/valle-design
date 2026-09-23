@@ -4298,6 +4298,39 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "REVISION-MOVIL-TEXT-MTEXT-PR239-20260923",
+      "date": "2026-09-23",
+      "initiative": "Registro retrospectivo del PR #239: hacer visibles TEXT y MTEXT auténticos del documento en el plano de revisión del invitado, también a 390 × 844, sin presentar áreas calculadas que el cambio no implementó.",
+      "branch": "codex/mobile-review-text",
+      "assistants": [
+        "OpenAI Codex: proyección de texto CAD, render SVG, pruebas y evidencia de galería; alcance reconstruido del diff fusionado"
+      ],
+      "authority": "Sergio Valle Zárate autorizó mejorar VALLECAD para el lanzamiento y pidió revisar y fusionar todo el trabajo; su cuenta Sergiovalle3121 fusionó explícitamente el PR #239 el 2026-09-23.",
+      "firstPartyInputs": [
+        "Diff del PR #239 y commit de merge 31a2e943e686339b45ff559282f50805b8810fb4",
+        "Proyección plan-projection.ts, maqueta mtext-layout.ts, adaptación text-entity-adapter.ts y visor ReviewPlanView.tsx existentes",
+        "Golden 56 de revisión invitada y generador de la galería de plantillas del propio repositorio"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "El PR no declara fuentes ni implementaciones externas consultadas; el diff visible reutiliza módulos de texto y render first-party. Esta entrada retrospectiva no certifica una búsqueda de fuentes que no quedó registrada.",
+      "derivedAreas": [
+        "plan-projection.ts intercala trazos y rótulos en el orden de modelSpace; TEXT/MTEXT usan la maqueta existente, respetan capa y rotación, y sus caracteres consumen el límite móvil",
+        "ReviewPlanView.tsx emite texto SVG escapado por React en lugar de cajas de hit-test; la spec fija escapado, giro y ausencia de path falso",
+        "Golden 56 comprueba SALA y la anotación autoral 18 m² en escritorio y móvil 390 × 844, y que el texto de capa oculta no aparece; no hay derivación de superficie",
+        "template-render.ts conserva la galería al separar texto y trazos; template-gallery.json se regeneró sin cambiar los hashes de documento y SVG según la descripción del PR"
+      ],
+      "fixtures": "Texto sintético SALA, MTEXT 18 m² y texto oculto en golden 56; la cifra 18 m² está escrita en el documento, no calculada a partir de muros.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "adopted",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "PR #239 https://github.com/Sergiovalle3121/valle-design/pull/239: head 65dd670d7f853cc0e9d2a7808de80c4673207c3b; CI https://github.com/Sergiovalle3121/valle-design/actions/runs/35895994564 concluyó success sobre ese SHA a las 18:23:56 UTC, antes del merge por Sergiovalle3121 a las 18:24:53 UTC (31a2e943). La descripción del PR consigna Node 20 typecheck, check:cad, build web, pruebas/lint focales y golden 56 Chromium 3/3; el run CI registra sus jobs requeridos verdes. La entrada de procedencia faltó en el diff original y se añade después, sin reescribirlo."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }
