@@ -45,13 +45,13 @@ export function CadViewportMeasurements({ document, viewControllerRef, ...scaleB
         {placed.map(({ room, x, y }) => (
           <div
             key={room.id}
-            className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-md border border-sky-300/40 bg-slate-950/85 px-2 py-1 text-center text-white shadow-sm"
+            className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-md border border-indigo-300/40 bg-slate-950/85 px-2 py-1 text-center text-white shadow-sm"
             style={{ left: x, top: y + (room.nameFromDocument ? 20 : 0) }}
             title={`Área entre ejes de muros: ${room.axisAreaText} m²${room.clearAreaText ? `. Área útil: ${room.clearAreaText} m².` : "."}`}
           >
-            {!room.nameFromDocument && <div className="max-w-32 truncate text-[11px] font-semibold leading-tight">{room.name}</div>}
+            {!room.nameFromDocument && <div className="max-w-32 truncate type-micro font-semibold leading-tight">{room.name}</div>}
             <div className="text-xs font-bold leading-tight">{room.axisAreaText} m²</div>
-            {!room.nameFromDocument && <div className="text-[9px] leading-tight text-slate-200">entre ejes</div>}
+            {!room.nameFromDocument && <div className="type-micro leading-tight text-slate-200">entre ejes</div>}
           </div>
         ))}
       </div>
