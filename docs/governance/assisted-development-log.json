@@ -4265,6 +4265,39 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-POLYLINE2D-WIDTH-20260923",
+      "date": "2026-09-23",
+      "initiative": "Conservar en el documento canónico los anchos de POLYLINE 2D que el lector DWG neutral ya recuperaba, y declarar su pérdida al reescribir mientras el writer siga sin emitirlos. El DWG admitido 13-polyline2d.dwg tiene cuatro vértices de ancho 2 y un arco de bulge 0.5; antes la proyección guardaba el arco y borraba los cuatro anchos sin aviso.",
+      "branch": "codex/dwg-polyline2d-width-read",
+      "assistants": [
+        "OpenAI Codex: medición del fixture admitido, implementación de la proyección de lectura, prueba de regresión y gate de corpus"
+      ],
+      "authority": "Sergio pidió continuar la implementación DWG propia sin SDK de pago, con evidencia y todo el avance fusionado; el encargo del 23-09 conserva los flags y los bytes de exportación.",
+      "firstPartyInputs": [
+        "Corpus DWG admitido: bundles/foundational-entities-ac1015/fixtures/13-polyline2d.dwg y oracles/dxf/13-polyline2d.dxf del commit fijado 0688fb9c, verificados por el consumidor de corpus",
+        "SOURCE_REGISTER.json: VALLE-CORPUS-POLYLINE2D-WIDTH-20260923 (medición original y procedencia permitida)",
+        "Línea base de producción 23-09: robot estudiante 0/4, 31 controles y 74.5 % de pantalla libre a 1440×769; este cambio de laboratorio no modifica esas medidas ni habilita DWG en vallecad.com"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación de codec ajeno; el DWG fue producido por un conversor independiente desde DXF propio y sólo se compararon resultados de lectura.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/api/canonical-from-dwg.ts: copia startWidth/endWidth de VERTEX 2D cuando no son cero",
+        "packages/dwg-codec/src/api/canonical-to-dwg.ts: manifiesto polyline-width-not-emitted sin cambiar los bytes escritos",
+        "packages/dwg-codec/tests/unit/canonical.spec.ts y scripts/dwg/polyline-width.spec.mjs: regresión hermética y verificación del DWG/DXF admitidos",
+        "packages/dwg-codec/CAPABILITIES.md y SOURCE_REGISTER.json: límite y procedencia; package.json añade el gate al check:dwg"
+      ],
+      "fixtures": "Ninguno añadido o modificado; se reutiliza 13-polyline2d.dwg y su DXF oráculo del corpus hermano admitido.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "La prueba de regresión falló primero: cuatro anchos undefined frente a 2. Tras el cambio, canonical.spec.ts 7/7 PASS; npm run check --workspace=@valle-design/dwg-codec PASS (provenance 23/23, fixtures 21/21, typecheck, unit, adversarial 349/349, fuzz 20000 ejecuciones); npm run check:dwg PASS con corpus admitido 7/7 y script polyline-width.spec.mjs PASS, comparación byte a byte del writer PASS (log work/dwg-polyline-check.log). Check:governance PASS. El perfil beta del producto, DWG_IMPORT_FLAG y DWG_EXPORT_FLAG siguen cerrados; oráculo externo de escritura 4/24, externalOracleVerified=false. Verificación de CI exacta pendiente."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }

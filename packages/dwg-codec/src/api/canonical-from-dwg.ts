@@ -121,6 +121,12 @@ export function mapEntity(
             y: vertex.position.y,
             z: 0,
             ...(vertex.bulge !== 0 ? { bulge: vertex.bulge } : {}),
+            ...(vertex.startWidth !== 0 || vertex.endWidth !== 0
+              ? {
+                  startWidth: vertex.startWidth,
+                  endWidth: vertex.endWidth,
+                }
+              : {}),
           };
         });
       return {
