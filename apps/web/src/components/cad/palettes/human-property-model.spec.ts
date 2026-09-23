@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import type { CadDocument, CadEntity } from "@/lib/cad/cad-document";
 import type { CadNativeEntity } from "@/lib/cad/entity-runtime";
-import { buildCadHumanPropertyModel, cadRectangleSides } from "./human-property-model";
+import { buildCadHumanPropertyModel, cadHumanEntityLabels, cadRectangleSides } from "./human-property-model";
 
 const point = (x: number, y: number) => ({ x, y, z: 0 });
 const wall = (id: string, endX: number): Extract<CadNativeEntity, { type: "wall" }> => ({
@@ -47,6 +47,8 @@ assert.deepEqual(fields(rectangle, doc([rectangle])), {
 const bulged = { ...rectangle, id: "arc-poly", vertices: rectangle.vertices.map((vertex, index) => ({ ...vertex, bulge: index === 0 ? 0.5 : 0 })) };
 assert.equal(cadRectangleSides(bulged), null, "un arco no se anuncia como rectángulo");
 assert.equal(buildCadHumanPropertyModel([bulged], doc([bulged])).heading, "Polilínea 1");
+assert.deepEqual([...cadHumanEntityLabels([rectangle, bulged, { ...rectangle, id: "rect2" }]).values()],
+  ["Rectángulo 1", "Polilínea 1", "Rectángulo 2"]);
 const open = { ...rectangle, id: "open-poly", closed: false };
 assert.equal(fields(open, doc([open])).area, undefined, "no anunciar área cerrando una figura abierta");
 

@@ -1,7 +1,7 @@
 /** Lectura breve de la selección para quien está dibujando, sin claves DXF. */
 import type { CadDocument, CadPoint3 } from "@/lib/cad/cad-document";
 import { buildCadDimensionGeometry } from "@/lib/cad/associative-dimension";
-import { cadEntityLabel, cadEntityLabels } from "@/lib/cad/entity-labels";
+import { cadEntityLabel, cadEntityLabels, cadTypeName } from "@/lib/cad/entity-labels";
 import { CAD_ENTITY_REGISTRY, type CadNativeEntity } from "@/lib/cad/entity-runtime";
 import { cadEntityArea } from "@/lib/cad/inquiry/contours";
 import { formatCadHumanArea, formatCadHumanLength } from "@/lib/cad/inquiry/human-units";
@@ -74,6 +74,22 @@ function nameOf(entity: CadNativeEntity, document: CadDocument | null): string {
     return `Rectángulo ${Math.max(1, same.findIndex((candidate) => candidate.id === entity.id) + 1)}`;
   }
   return cadEntityLabel(entity, all);
+}
+
+/** La lista de Esencial usa la misma distinción puerta/ventana/rectángulo. */
+export function cadHumanEntityLabels(entities: readonly CadNativeEntity[]): Map<string, string> {
+  const counts = new Map<string, number>();
+  const labels = new Map<string, string>();
+  for (const entity of entities) {
+    const type = entity.type === "opening"
+      ? entity.kind === "door" ? "Puerta" : "Ventana"
+      : entity.type === "polyline" && cadRectangleSides(entity) ? "Rectángulo" : null;
+    const key = type ?? entity.type;
+    const ordinal = (counts.get(key) ?? 0) + 1;
+    counts.set(key, ordinal);
+    labels.set(entity.id, `${type ?? cadTypeName(entity.type)} ${ordinal}`);
+  }
+  return labels;
 }
 
 function one(

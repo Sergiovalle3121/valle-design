@@ -4317,7 +4317,7 @@
       "externalImplementationConsulted": "Ninguna implementación externa copiada; sólo código y documentación de Next.js instalados en este repositorio.",
       "derivedAreas": [
         "human-property-model.ts: geometría real y unidad declarada para muro, puerta, ventana, rectángulo, polilínea, línea, círculo, texto y cota; figura con arco no se llama rectángulo, figura abierta no recibe área supuesta y muro huérfano no expone UUID",
-        "CadHumanProperties, CadEntityPropertiesPanel y CadNativeSelectionHeading: vista humana en Esencial, detalles técnicos plegados y vista Pro preservada",
+        "CadHumanProperties, CadEntityPropertiesPanel, CadNativeSelectionHeading y CadNativeEntityList: vista humana en Esencial, rectángulos con nombre propio, detalles técnicos plegados y vista Pro preservada",
         "golden 254 y human-property-model.spec.ts: comprobaciones visibles y de medidas; el golden se revalidará cuando el arnés local abra el documento"
       ],
       "fixtures": "Entidades canónicas sintéticas de muro, puerta, rectángulo, polilínea, línea y círculo; ningún dato de cliente ni proveedor externo.",

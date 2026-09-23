@@ -38,6 +38,10 @@ const wall: CadEntity = {
   id: 'wall-a', type: 'wall', start: point(0, 0), end: point(4_000, 0),
   thickness: 200, height: 2_400, layer: '0',
 };
+const rectangle: CadEntity = {
+  id: 'rect-a', type: 'polyline', closed: true, layer: '0',
+  vertices: [point(0, 0), point(3_000, 0), point(3_000, 2_000), point(0, 2_000)],
+};
 
 test('Esencial enseña el muro en metros y guarda los campos crudos detrás de Detalles técnicos', async ({ context, page }, testInfo) => {
   test.setTimeout(150_000);
@@ -65,4 +69,17 @@ test('Pro conserva la edición exacta de las coordenadas del muro', async ({ con
   await expect(page.getByTestId('cad-native-property-startX')).toBeVisible();
   await expect(page.getByTestId('cad-native-property-startX')).toHaveValue('0');
   await expect(page.getByTestId('cad-human-properties')).toHaveCount(0);
+});
+
+test('Esencial llama Rectángulo al rectángulo de planta y muestra su área real', async ({ context, page }) => {
+  test.setTimeout(150_000);
+  await openWith(context, page, [rectangle], 'esencial');
+  const row = page.getByTestId('cad-native-entity-rect-a');
+  await expect(row).toContainText('Rectángulo 1');
+  await row.click();
+  const human = page.getByTestId('cad-human-properties');
+  await expect(human).toContainText('Rectángulo 1');
+  await expect(human.getByTestId('cad-human-property-width')).toContainText('3.00 m');
+  await expect(human.getByTestId('cad-human-property-height')).toContainText('2.00 m');
+  await expect(human.getByTestId('cad-human-property-area')).toContainText('6.00 m²');
 });

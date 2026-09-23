@@ -2,6 +2,8 @@
 
 import type { CadNativeEntity } from "@/lib/cad/entity-runtime";
 import { cadEntityLabels } from "@/lib/cad/entity-labels";
+import { useCadUiMode } from "@/components/cad/shell/ui-mode-host";
+import { cadHumanEntityLabels } from "./human-property-model";
 
 /**
  * LA LISTA DE ENTIDADES DEL PLANO — con nombres que se pueden leer.
@@ -47,11 +49,12 @@ export function CadNativeEntityList({
   limit?: number;
   onSelect: (id: string) => void;
 }) {
+  const mode = useCadUiMode();
   if (entities.length === 0) return null;
 
   // Los nombres se calculan sobre TODAS las entidades, no sobre las visibles:
   // el ordinal de «Muro 3» sólo significa algo dentro del plano completo.
-  const nombres = cadEntityLabels(entities);
+  const nombres = mode === "esencial" ? cadHumanEntityLabels(entities) : cadEntityLabels(entities);
   const visibles = entities.slice(0, limit);
   const ocultas = entities.length - visibles.length;
   const tituloId = "cad-native-entity-list-titulo";
@@ -63,7 +66,7 @@ export function CadNativeEntityList({
     >
       <div className="mb-2 flex items-center justify-between gap-2">
         <span id={tituloId} className="type-micro uppercase tracking-wide text-primary-ink">
-          Entidades nativas
+          {mode === "esencial" ? "Objetos del dibujo" : "Entidades nativas"}
         </span>
         <span className="type-numeric rounded-full bg-muted/60 px-1.5 py-0.5 type-micro text-foreground">
           {entities.length}
@@ -82,7 +85,7 @@ export function CadNativeEntityList({
             <div key={entity.id} role="listitem">
               <button
                 data-testid={`cad-native-entity-${entity.id}`}
-                title={`Identificador técnico: ${entity.id}`}
+                title={mode === "pro" ? `Identificador técnico: ${entity.id}` : undefined}
                 aria-label={`${nombre} — capa ${entity.layer}`}
                 onClick={() => onSelect(entity.id)}
                 className="motion-fast flex w-full items-center justify-between gap-2 rounded-lg bg-surface/80 px-2 py-1.5 text-left type-micro text-foreground transition-[background-color] hover:bg-muted/60"
