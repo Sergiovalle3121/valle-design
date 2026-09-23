@@ -4294,7 +4294,7 @@
         "required": true,
         "status": "proposed",
         "adopter": "Sergio Valle Zárate",
-        "evidence": "Prueba de integración API 3/3, golden /demo 1/1, typecheck API/web y check:cad-contract verdes en rama local. Pendiente integración de #242 y área derivada del visor; no se afirma despliegue productivo."
+        "evidence": "Prueba de integración API 3/3: token sin login, límite de tamaño/rate, vencimiento, aislamiento de otra organización y denegación de comentarios/escritura. Error público genérico con diagnóstico reducido fuera de pantalla; controles basados en primitivas compartidas. Golden /demo 1/1, typecheck API/web y check:cad-contract verdes en rama local antes de esta corrección; repetir sobre SHA final y tras integrar área derivada del visor. No se afirma despliegue productivo."
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
