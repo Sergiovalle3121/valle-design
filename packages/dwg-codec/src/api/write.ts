@@ -25,20 +25,15 @@
  * "0" en vez del bloque correcto dibujaría algo distinto de lo pedido, así
  * que aquí NO hay equivalente al *fallback* de capa).
  *
- * CONTENIDO DE BLOQUE (corte 2026-08-31): el contenido de un bloque de
+ * CONTENIDO DE BLOQUE (corte 2026-09-21): el contenido de un bloque de
  * usuario SÍ viaja ahora, reutilizando `canonicalDocumentToDwgEntities` — sin
  * tocar `api/canonical.ts` (fuera de la frontera de esta sesión) — sobre un
  * documento SINTÉTICO cuyas `entities` son `document.blocks[].entities`; es
  * la misma función pública que ya resuelve el nivel de model space, así que
- * el bloque queda sujeto exactamente a las mismas siete clases escribibles y
- * al mismo límite ASCII, sin un segundo camino de mapeo. Lo que sigue
- * declarado como pérdida, explícito y no silencioso:
- * - un INSERT dentro de un bloque (bloque que inserta OTRO bloque) no se
- *   escribe todavía — el writer de bajo nivel (`ac1015-minimal-file-writer.ts`)
- *   ya sabe resolverlo (mismo `Ac1015MinimalFileEntitySpec` que model space),
- *   pero encontrar y registrar el grafo completo de bloques referenciados
- *   transitivamente es trabajo de una fase posterior; la entidad se omite del
- *   bloque con pérdida declarada;
+ * el bloque queda sujeto exactamente a las mismas clases escribibles y al
+ * mismo límite ASCII, sin un segundo camino de mapeo. Los INSERT anidados
+ * se recorren transitivamente y conservan el grafo de BLOCK_RECORDs; lo que
+ * sigue declarado como pérdida, explícito y no silencioso:
  * - un INSERT que referencia un nombre de bloque ausente de `document.blocks`
  *   sigue obteniendo un BLOCK_RECORD real y vacío (para que la referencia
  *   resuelva y el archivo sea válido), con su propia pérdida declarada.
@@ -106,12 +101,13 @@ export function writeCanonicalDwg(
     canonicalDocumentToDwgEntities(document);
   const losses: CanonicalLossEntry[] = [...lossManifest];
 
-  // ---- contenido de bloque: sólo para los nombres que un INSERT escribible
-  // realmente referencia (no todo `document.blocks`), resuelto ANTES de fijar
-  // las capas — sus propias entidades pueden nombrar capas que el nivel de
-  // model space nunca menciona. Reusa `canonicalDocumentToDwgEntities` sobre
-  // un documento sintético (mismas capas, `entities` = las del bloque): la
-  // MISMA función pública, sin segundo camino de mapeo ni tocar canonical.ts.
+  // ---- contenido de bloque: para todos los nombres que un INSERT escribible
+  // alcanza, incluidos los INSERT anidados transitivamente (no todo
+  // `document.blocks`). Se resuelve ANTES de fijar las capas — sus propias
+  // entidades pueden nombrar capas que el nivel de model space nunca
+  // menciona. Reusa `canonicalDocumentToDwgEntities` sobre un documento
+  // sintético (mismas capas, `entities` = las del bloque): la MISMA función
+  // pública, sin segundo camino de mapeo ni tocar canonical.ts.
   const blockDefByName = new Map(document.blocks.map((b) => [b.name, b] as const));
   const referencedBlockNames = new Set<string>();
   for (const item of entities) {
@@ -120,7 +116,12 @@ export function writeCanonicalDwg(
     }
   }
   const blockContentByName = new Map<string, CanonicalToDwgEntity[]>();
-  for (const name of referencedBlockNames) {
+  // BFS determinista del grafo de bloques. No expandimos geometría ni
+  // recursión: cada BLOCK_RECORD se escribe una sola vez y un ciclo sólo
+  // conserva sus referencias explícitas, como hace el writer de bajo nivel.
+  const pendingBlockNames = [...referencedBlockNames];
+  for (let pendingIndex = 0; pendingIndex < pendingBlockNames.length; pendingIndex += 1) {
+    const name = pendingBlockNames[pendingIndex]!;
     const blockDef = blockDefByName.get(name);
     if (blockDef === undefined) continue; // sin definición: bloque vacío, declarado más abajo.
     // `paperSpaces: []` NO es una omisión: el documento sintético existe para
@@ -133,21 +134,15 @@ export function writeCanonicalDwg(
       paperSpaces: [],
     });
     for (const loss of sub.lossManifest) losses.push(loss);
-    const kept: CanonicalToDwgEntity[] = [];
+    blockContentByName.set(name, [...sub.entities]);
     for (const item of sub.entities) {
-      if (item.entity.kind === "insert") {
-        losses.push({
-          code: "insert-block-nested-insert-not-written",
-          entityId: item.canonicalId,
-          sourceType: "BLOCK",
-          detail: `El bloque "${name}" contiene un INSERT ("${item.canonicalId}" → "${item.blockName ?? ""}"); un bloque que inserta OTRO bloque no se escribe todavía en esta fase (el writer de bajo nivel ya lo resolvería, pero recorrer el grafo completo de bloques referenciados es trabajo pendiente). La entidad se omite del bloque.`,
-          severity: "warning",
-        });
-        continue;
+      if (item.entity.kind === "insert" && item.blockName !== undefined) {
+        if (!referencedBlockNames.has(item.blockName)) {
+          referencedBlockNames.add(item.blockName);
+          pendingBlockNames.push(item.blockName);
+        }
       }
-      kept.push(item);
     }
-    blockContentByName.set(name, kept);
   }
 
   // ---- capas: unión de las declaradas por el documento, las referenciadas
@@ -261,13 +256,16 @@ export function writeCanonicalDwg(
   // realmente referencia, con su contenido YA resuelto arriba.
   const blocks: Ac1015MinimalFileBlockSpec[] = [];
   const blockIndexByName = new Map<string, number>();
-  const unwritableBlockNames = new Set<string>();
+  const writableBlockNames: { readonly name: string; readonly bytes: readonly number[] }[] = [];
   for (const name of referencedBlockNames) {
     const bytes = asciiNameBytes(name);
     if (bytes === undefined) {
-      unwritableBlockNames.add(name);
       continue;
     }
+    blockIndexByName.set(name, writableBlockNames.length);
+    writableBlockNames.push({ name, bytes });
+  }
+  for (const { name, bytes } of writableBlockNames) {
     const content = blockContentByName.get(name);
     if (content === undefined) {
       losses.push({
@@ -277,13 +275,36 @@ export function writeCanonicalDwg(
         severity: "info",
       });
     }
-    blockIndexByName.set(name, blocks.length);
     blocks.push({
       name: bytes,
-      entities: (content ?? []).map((item) => ({
-        entity: item.entity,
-        layerIndex: layerIndexFor(item.layerName),
-      })),
+      entities: (content ?? []).reduce<Ac1015MinimalFileEntitySpec[]>((specs, item) => {
+        const layerIndex = layerIndexFor(item.layerName);
+        if (item.entity.kind !== "insert") {
+          specs.push({ entity: item.entity, layerIndex });
+          return specs;
+        }
+        const nestedName = item.blockName ?? "";
+        const nestedIndex = blockIndexByName.get(nestedName);
+        if (nestedIndex === undefined) {
+          losses.push({
+            code: "insert-block-name-not-ascii",
+            entityId: item.canonicalId,
+            sourceType: "insert",
+            detail: `El INSERT "${item.canonicalId}" dentro del bloque "${name}" referencia el bloque "${nestedName}", que no cumple el límite ASCII (1 a 255 bytes, ninguno por encima de 127) que esta fase del writer exige para nombres; la entidad se omite en vez de insertar en un bloque distinto del pedido.`,
+            severity: "warning",
+          });
+          return specs;
+        }
+        specs.push({
+          entity: item.entity,
+          layerIndex,
+          insertBlockIndex: nestedIndex,
+          ...(item.attributes === undefined
+            ? {}
+            : { attributes: item.attributes.map((entity) => ({ entity })) }),
+        });
+        return specs;
+      }, []),
     });
   }
 

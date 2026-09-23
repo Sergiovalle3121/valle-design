@@ -28,7 +28,9 @@
  * un incidente nuevo creado por la herramienta que debía prevenirlos.
  *
  * Uso:
- *   node scripts/ops/restore-verify.mjs --dump backups/x.dump [--url postgres://...]
+ *   DATABASE_URL=postgres://... node scripts/ops/restore-verify.mjs --dump backups/x.dump
+ * No pases la URL con `--url`: la línea de comandos del propio Node sería
+ * visible en la lista de procesos antes de que este script pudiera sanearla.
  *
  * La URL sólo se usa para CONECTAR al servidor y crear la base temporal; la
  * base de producción no se toca en ningún momento.
@@ -71,6 +73,12 @@ const CRITICAL_TABLES = [
 ];
 
 const args = parseArgs(process.argv.slice(2));
+if (Object.hasOwn(args, 'url')) {
+  console.error(
+    'No pases --url: define DATABASE_URL en el entorno para no exponer la contraseña en argv.',
+  );
+  process.exit(2);
+}
 const dumpPath = resolve(
   typeof args.dump === 'string' ? args.dump : args._ || '',
 );
@@ -81,7 +89,7 @@ if (!args.dump || !existsSync(dumpPath)) {
   process.exit(2);
 }
 
-const url = requireDatabaseUrl(typeof args.url === 'string' ? args.url : null);
+const url = requireDatabaseUrl(null);
 const psql = resolveBinary('psql');
 const pgRestore = resolveBinary('pg_restore');
 const maintenanceUrl = withDatabase(url, args.maintenance || 'postgres');
