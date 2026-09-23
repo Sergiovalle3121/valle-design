@@ -4583,7 +4583,7 @@
         "required": true,
         "status": "proposed",
         "adopter": "Sergio Valle Zárate",
-        "evidence": "Golden #255 rojo inicialmente por ausencia de autorización visible; implementación, pruebas finales y CI pendientes. La capacidad de comentar permanece acotada a una sesión emitida por el autor con allowComments verdadero; Esencial/demo/entrega/QR mantienen allowComments falso."
+        "evidence": "Golden #255 rojo inicialmente por ausencia de autorización visible y verde después en Chromium móvil 390 × 844; los cuatro casos focales de #255 y #56 pasaron. API 8/8, typecheck web, lint focal, design-system y gobernanza verdes. Falta CI de rama integrada y producción. La capacidad de comentar permanece acotada a una sesión emitida por el autor con allowComments verdadero; Esencial/demo/entrega/QR mantienen allowComments falso."
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false

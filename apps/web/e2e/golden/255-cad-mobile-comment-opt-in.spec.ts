@@ -63,6 +63,7 @@ test("el autor habilita comentarios; el cliente comenta desde 390×844 y el auto
   const viewer = await guestContext.newPage();
   await viewer.goto(viewOnlyUrl);
   await expect(viewer.getByTestId("cad-review-plan")).toBeVisible();
+  await expect(viewer.getByTestId("cad-review-banner")).toContainText("SOLO VISTA");
   await expect(viewer.getByTestId("cad-collab-disabled")).toBeVisible();
   await expect(viewer.getByTestId("cad-collab-submit")).toHaveCount(0);
 
@@ -75,6 +76,7 @@ test("el autor habilita comentarios; el cliente comenta desde 390×844 y el auto
   const commenter = await guestContext.newPage();
   await commenter.goto(commentUrl);
   await expect(commenter.getByTestId("cad-review-plan")).toBeVisible();
+  await expect(commenter.getByTestId("cad-review-banner")).toContainText("COMENTARIOS");
   await commenter.getByTestId("cad-collab-place").click();
   await commenter.getByTestId("cad-review-plan").click({ position: { x: 200, y: 180 } });
   await expect(commenter.getByTestId("cad-collab-pending-anchor")).toBeVisible();
