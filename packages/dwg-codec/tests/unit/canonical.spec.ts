@@ -5,6 +5,7 @@ import {
   dwgDatabaseToCanonicalDocument,
 } from "../../src/api/canonical.js";
 import { readAc1015Database } from "../../src/reader/ac1015-database-reader.js";
+import type { Ac1015DatabaseEntityRecord } from "../../src/reader/database-model.js";
 import { writeAc1015Container } from "../../src/writer/ac1015-container-writer.js";
 import type { DwgGeometryEntity } from "../../src/model/entity-geometry.js";
 
@@ -75,6 +76,73 @@ test("la base neutral se proyecta al documento canónico con ids y capas", () =>
   assert.equal(document.entities[0]!["layer"], "0");
   assert.equal(document.unsupportedEntities.length, 0);
   assert.ok(Array.isArray(lossManifest));
+});
+
+test("POLYLINE 2D conserva el ancho medido y declara su pérdida al reescribir", () => {
+  // 13-polyline2d.dwg del corpus admitido: POLYLINE 0x101 tiene cuatro
+  // VERTEX con ancho 2/2; el segundo tiene bulge 0.5. La base neutral ya
+  // decodifica estos campos. Aquí se prueba la proyección sin copiar el DWG.
+  const base = readAc1015Database(buildSourceFile());
+  const vertex = (handle: number, x: number, y: number, bulge: number): Ac1015DatabaseEntityRecord => ({
+    handle,
+    entity: {
+      kind: "vertex2d",
+      flags: 0,
+      position: { x, y, z: 0 },
+      startWidth: 2,
+      endWidth: 2,
+      bulge,
+      tangentDirection: 0,
+    },
+    layerHandle: undefined,
+    insertedBlockName: undefined,
+    attributes: undefined,
+    vertices: undefined,
+    sequenceEndHandle: undefined,
+    space: undefined,
+  });
+  const wide: Ac1015DatabaseEntityRecord = {
+    handle: 0x101,
+    entity: {
+      kind: "polyline2d",
+      flags: 0,
+      curveType: 0,
+      startWidth: 2,
+      endWidth: 2,
+      thickness: 0,
+      elevation: 0,
+      extrusion: { x: 0, y: 0, z: 1 },
+    },
+    layerHandle: undefined,
+    insertedBlockName: undefined,
+    attributes: undefined,
+    vertices: [
+      vertex(0x102, 0, 0, 0),
+      vertex(0x103, 40, 0, 0.5),
+      vertex(0x104, 80, 0, 0),
+      vertex(0x105, 80, 40, 0),
+    ],
+    sequenceEndHandle: 0x106,
+    space: "model",
+  };
+  const { document } = dwgDatabaseToCanonicalDocument({
+    ...base,
+    modelSpaceEntities: [wide],
+  });
+  const polyline = document.entities[0];
+  assert.equal(polyline?.["type"], "polyline");
+  const vertices = polyline?.["vertices"] as Array<{ bulge?: number; startWidth?: number; endWidth?: number }>;
+  assert.equal(vertices.length, 4);
+  assert.deepEqual(vertices.map((v) => [v.startWidth, v.endWidth]), [
+    [2, 2], [2, 2], [2, 2], [2, 2],
+  ]);
+  assert.equal(vertices[1]?.bulge, 0.5);
+
+  const rewritten = canonicalDocumentToDwgEntities(document);
+  assert.equal(rewritten.entities[0]?.entity.kind, "lwpolyline");
+  assert.ok(rewritten.lossManifest.some((loss) =>
+    loss.code === "polyline-width-not-emitted" && loss.entityId === "h101"),
+  );
 });
 
 test("canónico → modelo escribible → DWG → base neutral conserva la geometría", () => {
