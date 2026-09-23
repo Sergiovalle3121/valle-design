@@ -4300,6 +4300,170 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "REVISION-MOVIL-TEXT-MTEXT-PR239-20260923",
+      "date": "2026-09-23",
+      "initiative": "Registro retrospectivo del PR #239: hacer visibles TEXT y MTEXT auténticos del documento en el plano de revisión del invitado, también a 390 × 844, sin presentar áreas calculadas que el cambio no implementó.",
+      "branch": "codex/mobile-review-text",
+      "assistants": [
+        "OpenAI Codex: proyección de texto CAD, render SVG, pruebas y evidencia de galería; alcance reconstruido del diff fusionado"
+      ],
+      "authority": "Sergio Valle Zárate autorizó mejorar VALLECAD para el lanzamiento y pidió revisar y fusionar todo el trabajo; su cuenta Sergiovalle3121 fusionó explícitamente el PR #239 el 2026-09-23.",
+      "firstPartyInputs": [
+        "Diff del PR #239 y commit de merge 31a2e943e686339b45ff559282f50805b8810fb4",
+        "Proyección plan-projection.ts, maqueta mtext-layout.ts, adaptación text-entity-adapter.ts y visor ReviewPlanView.tsx existentes",
+        "Golden 56 de revisión invitada y generador de la galería de plantillas del propio repositorio"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "El PR no declara fuentes ni implementaciones externas consultadas; el diff visible reutiliza módulos de texto y render first-party. Esta entrada retrospectiva no certifica una búsqueda de fuentes que no quedó registrada.",
+      "derivedAreas": [
+        "plan-projection.ts intercala trazos y rótulos en el orden de modelSpace; TEXT/MTEXT usan la maqueta existente, respetan capa y rotación, y sus caracteres consumen el límite móvil",
+        "ReviewPlanView.tsx emite texto SVG escapado por React en lugar de cajas de hit-test; la spec fija escapado, giro y ausencia de path falso",
+        "Golden 56 comprueba SALA y la anotación autoral 18 m² en escritorio y móvil 390 × 844, y que el texto de capa oculta no aparece; no hay derivación de superficie",
+        "template-render.ts conserva la galería al separar texto y trazos; template-gallery.json se regeneró sin cambiar los hashes de documento y SVG según la descripción del PR"
+      ],
+      "fixtures": "Texto sintético SALA, MTEXT 18 m² y texto oculto en golden 56; la cifra 18 m² está escrita en el documento, no calculada a partir de muros.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "adopted",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "PR #239 https://github.com/Sergiovalle3121/valle-design/pull/239: head 65dd670d7f853cc0e9d2a7808de80c4673207c3b; CI https://github.com/Sergiovalle3121/valle-design/actions/runs/35895994564 concluyó success sobre ese SHA a las 18:23:56 UTC, antes del merge por Sergiovalle3121 a las 18:24:53 UTC (31a2e943). La descripción del PR consigna Node 20 typecheck, check:cad, build web, pruebas/lint focales y golden 56 Chromium 3/3; el run CI registra sus jobs requeridos verdes. La entrada de procedencia faltó en el diff original y se añade después, sin reescribirlo."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DEMO-VISITA-LIMPIA-RECUPERACION-20260923",
+      "date": "2026-09-23",
+      "initiative": "Cada nueva visita a /demo abre la casa de ejemplo limpia. Antes de reemplazar el autosave local anterior, conserva sus bytes en una clave de recuperación; si ese dibujo se puede leer, el visitante decide si lo restaura. La clave histórica valle_demo_document permanece activa para el registro y el guardado.",
+      "branch": "codex/demo-clean-recover",
+      "assistants": [
+        "OpenAI Codex: auditoría del ciclo de vida local de /demo, implementación y pruebas de regresión"
+      ],
+      "authority": "Sergio pidió corregir el arranque heredado de /demo sin borrar la clave ni el dibujo previo, como parte de la campaña para que la demostración sea utilizable y el avance llegue a main y vallecad.com.",
+      "firstPartyInputs": [
+        "Puerto de documentos de demostración y flujo de montaje de DemoStudio en origin/main",
+        "Contrato existente del autosave y adopción del dibujo en el registro",
+        "Prueba del protocolo estudiantil de 2026-09-23: /demo reutilizaba el dibujo local de una visita anterior"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "apps/web/src/components/cad/document-lifecycle/demo-port.ts y su spec: apertura limpia, copia de sobres anteriores incluso ilegibles, y restauración elegida conservando también lo dibujado en la visita actual",
+        "apps/web/src/app/demo/DemoStudio.tsx: botón de recuperación voluntaria y remontaje del editor con el dibujo elegido",
+        "apps/web/src/lib/cad/demo/demo-constants.ts: clave adicional de recuperación sin cambiar valle_demo_document",
+        "apps/web/e2e/public/demo-studio.spec.ts: recorrido en navegador que simula el sobre heredado sin la marca edited"
+      ],
+      "fixtures": "Almacenamiento en memoria con sobre heredado y entidad de línea propia; el E2E siembra el sobre mediante un dibujo real en /demo y elimina sólo el campo nuevo edited.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Spec del puerto, typecheck web, ESLint focalizado, check:governance y build de producción Next/Webpack verdes en local. E2E Chromium de recuperación heredada y golden 228 verdes contra ese build. Medición a los 3 s en /demo: a 1440×769, visita nueva 29 controles/76.56 % de pantalla libre/0 % de lienzo tapado y visita heredada 30/76.00 %/0.73 %; a 1366×768, nueva 29/76.26 %/0 % y heredada 30/75.70 %/0.74 %. La CI y la comprobación posterior en vallecad.com deben ejecutarse sobre el SHA fusionado; no se afirma todavía que el comportamiento esté desplegado."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "VALLE-FIRST-MINUTE-GATE-20260923",
+      "date": "2026-09-23",
+      "initiative": "Medir el primer minuto como se ve en producción y recuperar espacio para dibujar sin quitar la salida segura.",
+      "branch": "codex/first-minute-gate",
+      "assistants": [
+        "OpenAI Codex: auditoría de producción, golden, interfaz y verificación local"
+      ],
+      "authority": "Sergio autorizó ejecutar el prompt maestro del 23-09, fusionar el trabajo y medir vallecad.com; sección 2 exige hasta 30 controles y al menos 75 % libre a 1440×769.",
+      "firstPartyInputs": [
+        "Prompt maestro del titular del 23-09, secciones 2, 3, 4 y 5",
+        "Medición pública prod-24ad: 31 controles, 74.5 % libre a 1440×769, 74.0 % a 1366×768, robot 0/4",
+        "Código y golden existentes del editor en main 24ad085b"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "Golden 228 mide el canvas real sin saltar el recorrido, con tres segundos de reposo",
+        "Recorrido plegado flotante ocupa una fila; salida duplicada sin comprobación de guardado retirada",
+        "Encuadrar selección no se pinta en Esencial hasta existir selección; Pro conserva el control"
+      ],
+      "fixtures": "Sin cambios de corpus ni bytes DXF/DWG.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Golden 228 actualizado con línea base roja pública (31 controles y 74.5 %); build webpack 208 rutas, typecheck, lint 0 errores (8 avisos previos del monolito), presupuesto 16814 líneas, golden Chromium 2/2 y Firefox 2/2 PASS. Medición local de build productivo: 29 controles, 75.6 % libre y 1.2 % tapado a 1440×769; 29, 75.0 % y 1.6 % a 1366×768. Robot local 0/4 por funciones aún abiertas de otras PRs. check:cad completo PASS con VALLE_DWG_CORPUS_MIRROR (log work/first-minute-cad.log); el primer intento sin esa variable falló en check:dwg-evidence por falta del corpus local. CI exacta, merge y medición pública posteriores pendientes."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "CONTEOS-COTA-LIENZO-20260923",
+      "date": "2026-09-23",
+      "initiative": "Mostrar conteos reales de puertas y ventanas y la longitud legible de cotas lineales en el plano Esencial para completar las tareas 2 y 3 del estudiante.",
+      "branch": "codex/drawing-measurements",
+      "assistants": [
+        "OpenAI Codex: implementación y verificación del cuadro BIM, las cotas y el visor Esencial"
+      ],
+      "authority": "Sergio pidió ejecutar el PROMPT MAESTRO del 2026-09-23 y mejorar el primer dibujo verificable antes de lanzar ValleCAD.",
+      "firstPartyInputs": [
+        "buildCadBimSchedule, buildCadDimensionGeometry y formatCadHumanLength existentes; componente CadViewportMeasurements del PR #242",
+        "Robot de estudiante de la PR #237 y medición local area-overlay-local-v2: tarea 1 aprobada, tareas 2 y 3 sin texto visible",
+        "Línea base pública del 2026-09-23: robot 0/4, 31 controles, 74.5 % de pantalla libre a 1440 × 769; esta rama todavía no está desplegada"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada.",
+      "derivedAreas": [
+        "drawing-visible-metrics.ts y su spec reutilizan el cuadro BIM para excluir huecos inválidos y la geometría asociativa de cotas para convertir a metros sin alterar entidades ni exportaciones",
+        "CadViewportMeasurements.tsx añade dos rótulos HTML no interactivos solo a Esencial; el monolito mantiene el mismo número de líneas",
+        "Golden 250 dibuja un cuarto, incrementa puerta y ventana reales y sitúa una cota de cuatro metros visible"
+      ],
+      "fixtures": "Documento geométrico local con cuatro muros, dos huecos válidos y uno huérfano; navegador Chromium sobre el demo local, sin servicios externos.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Golden 250 primero rojo por ausencia de rótulos y luego 2/2 verde en build productivo local; golden 234 1/1, spec nueva, typecheck y build web de 208 páginas PASS. check:cad completo con espejo DWG, design-system, ESLint focalizado y check:governance PASS. Robot local 3/4: cuarto 7/8, huecos 4/4, cota 4/4; compartir 0/3 pendiente. CI y producción aún no verificadas; no se declara lanzamiento comercial."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "ESPACIO-CUARTO-NOMBRE-20260923",
+      "date": "2026-09-23",
+      "initiative": "Vincular el cuarto cerrado a un espacio persistido y permitir editar su nombre en planta sin inventar un rectángulo ni una superficie.",
+      "branch": "codex/room-space-naming",
+      "assistants": [
+        "OpenAI Codex: análisis de entidades de plantilla, conexión del nombre, pruebas de invariancia y golden de interacción"
+      ],
+      "authority": "Sergio encargó continuar ValleCAD desde el estado actual y llevar al mercado una edición de cuartos comprensible; el PROMPT MAESTRO del 2026-09-23 pide nombre editable en un espacio canónico existente y evidencia visible.",
+      "firstPartyInputs": [
+        "Las plantillas SALA/COMEDOR/COCINA persisten como box kind:room con el nombre en label; el cuadro BIM deriva las caras únicamente de muros canónicos.",
+        "La rama de área visible codex/room-area-overlay, golden 234 y las rutas existentes de comando, historial, guardado, DXF y DWG del repositorio.",
+        "El apilado sobre 47abf8ce incorpora la primera pantalla y la lectura visible de cuartos, conteos de vanos y cotas."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada ni consultada.",
+      "derivedAreas": [
+        "room-space.ts enlaza por punto interior una cara cerrada con el label del box de plantilla; para cuartos sin box crea una identidad box kind:room de huella cero con metadato explícito, conservada por la proyección del editor.",
+        "entity-commands.ts actualiza el mismo label mediante un lote canónico y sincroniza TEXT/MTEXT visible cuando el usuario lo renombra; Deshacer/Rehacer y guardar/reabrir mantienen la identidad. El aplicador puro de pestañas pasó intacto a entity-command-paper-space.ts para respetar el presupuesto de 800 líneas.",
+        "bim-schedule.ts y room-area-labels.ts muestran el nombre persistido junto al área entre ejes derivada de los muros; al abrir el contorno desaparece el área y al cerrarlo reaparece el nombre.",
+        "Las rutas de geometría, validación, papel, DXF y DWG omiten exclusivamente el ancla sin huella; no se exporta ni se suma a cantidades BIM.",
+        "Golden 255 caracteriza renombrar, Deshacer/Rehacer, guardar y reabrir sobre el build de producción en Chromium; pasó en la base anterior al apilado."
+      ],
+      "fixtures": "Documentos herméticos de muros rectangulares y cóncavos, box de plantilla, TEXT y LINE; el golden usa un backend simulado sin credenciales ni datos de clientes.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "En el apilado sobre 47abf8ce: ocho specs focales PASS (incluidas room-space, lectura visible, BIM, lote, DXF/DWG y reglas); typecheck web, eslint focalizado, presupuesto de monolito y check:governance PASS. El build web de producción con Webpack (208 páginas) y golden 255 Chromium PASS corresponden a la base anterior #242; la revalidación visual del SHA apilado sigue pendiente por memoria libre insuficiente. Se verificaron identidad persistida, área cóncava sólo desde muros, cantidades BIM invariantes, apertura/cierre, DXF/DWG con bytes iguales entre geometría original y documento con ancla, manifiestos sin ancla y validación sin marcador. Renombrar un TEXT/MTEXT modifica intencionalmente su contenido exportado; la invariancia byte a byte se exige para documentos existentes sin renombrar o para añadir sólo un ancla nominal. El área visible es entre ejes, no una afirmación de área útil neta; la huella cero no representa geometría de un cuarto. Turbopack local rechazó junctions de node_modules antes de compilar; se usó Webpack sin alterar los enlaces. CI exact-SHA y adopción humana pendientes."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "ESENCIAL-PROPIEDADES-HUMANAS-20260923",
       "date": "2026-09-23",
       "initiative": "Mostrar medidas y nombres comprensibles en las propiedades de Esencial, dejando la edición exacta en Detalles técnicos y conservando la tabla de Pro.",

@@ -50,13 +50,14 @@
  * puertas sin decirlo es exactamente el documento con el que se compra material
  * de menos.
  */
-import type { CadDocument, CadPoint2 } from "./cad-document";
+import type { CadDocument, CadEntity, CadPoint2 } from "./cad-document";
 import type { CadOpeningEntity, CadOpeningKind } from "./cad-entities-v7";
 import type { CadWallEntity } from "./cad-entities-v6";
 import { wallLength } from "./wall-geometry";
 import { cadWallJunctionOverlaps } from "./wall-junction-overlap";
 import { wallOpeningFit } from "./wall-openings";
 import { cadPointInBoundary } from "./hatch-associativity";
+import { cadRoomSpaceInside } from "./room-space";
 import { cadToMillimetres } from "./engine/commands/architecture-support";
 import { roomDepartmentFromTags, roomUseTypeFromTags } from "./architecture";
 import {
@@ -120,6 +121,10 @@ export interface CadRoomAreaRow {
   use?: string;
   /** La entidad de texto de la que salió el nombre. */
   labelId?: string;
+  /** Espacio de plantilla o ancla nominal del mismo `box kind:room` persistido. */
+  spaceId?: string;
+  /** Un TEXT visible sólo sustituye al rótulo derivado si dice el mismo nombre. */
+  textLabelMatchesName?: boolean;
   /** Área encerrada por los EJES de los muros. */
   axisArea: number;
   /** Área útil, con los lados metidos medio grosor. Ausente si no se puede. */
@@ -195,9 +200,11 @@ export function buildCadBimSchedule(document: Pick<CadDocument, "entities">, uni
   const walls: WallLike[] = [];
   const openings: OpeningLike[] = [];
   const labels: RoomLabel[] = [];
+  const spaces: CadEntity[] = [];
   for (const entity of document.entities) {
     if (entity.type === "wall") walls.push(entity);
     else if (entity.type === "opening") openings.push(entity);
+    else if (entity.type === "box" && entity.kind === "room") spaces.push(entity);
     else if (entity.type === "text" && entity.text.trim())
       labels.push({ id: entity.id, text: entity.text, height: entity.height ?? 0, at: { x: entity.x, y: entity.y } });
     else if (entity.type === "mtext" && entity.text.trim())
@@ -308,7 +315,7 @@ export function buildCadBimSchedule(document: Pick<CadDocument, "entities">, uni
   }
 
   const rooms = detectCadRooms(walls);
-  for (const room of rooms.rooms) nameCadRoom(room, labels);
+  for (const room of rooms.rooms) nameCadRoom(room, labels, spaces);
   return {
     walls: [...wallRows.values()].sort(
       (a, b) => a.layer.localeCompare(b.layer) || a.thickness - b.thickness,
@@ -349,18 +356,23 @@ interface RoomLabel {
  * altura, el más cercano al centro del local: el rótulo del local es el
  * grande; una nota pequeña en la esquina no lo rebautiza.
  */
-export function nameCadRoom(room: CadRoomAreaRow, labels: readonly RoomLabel[]): void {
+export function nameCadRoom(room: CadRoomAreaRow, labels: readonly RoomLabel[], spaces: readonly CadEntity[] = []): void {
   const inside = labels.filter((label) => cadPointInBoundary(label.at, room.ring));
-  if (inside.length === 0) return;
   const centroid = room.ring.reduce(
     (total, point) => ({ x: total.x + point.x / room.ring.length, y: total.y + point.y / room.ring.length }),
     { x: 0, y: 0 },
   );
   const distance = (label: RoomLabel) => Math.hypot(label.at.x - centroid.x, label.at.y - centroid.y);
   const [best] = [...inside].sort((a, b) => b.height - a.height || distance(a) - distance(b));
-  const name = best.text.replace(/\s+/g, " ").trim();
+  const space = cadRoomSpaceInside(room.ring, spaces);
+  if (!best && !space) return;
+  const name = (space?.label ?? best?.text ?? "").replace(/\s+/g, " ").trim();
   room.name = name;
-  room.labelId = best.id;
+  if (space) room.spaceId = space.id;
+  if (best) {
+    room.labelId = best.id;
+    room.textLabelMatchesName = best.text.replace(/\s+/g, " ").trim() === name;
+  }
   if (roomUseTypeFromTags(undefined, name) !== "unclassified") room.use = roomDepartmentFromTags(undefined, name);
 }
 

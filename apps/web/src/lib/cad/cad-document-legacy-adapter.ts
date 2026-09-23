@@ -31,6 +31,7 @@ import {
   point3,
   STATIONS_LAYER,
 } from "./cad-document-shared";
+import { isCadRoomSpaceAnchor } from "./room-space";
 
 // ---------------------------------------------------------------------------
 // Modelo histórico (estructural: coincide con LayoutAsset/Annotation/… del API)
@@ -268,7 +269,7 @@ export function cadDocumentToLayout(doc: CadDocument): Required<LayoutInput> {
   const stations: LayoutStationPlacementInput[] = [];
 
   for (const e of doc.entities) {
-    if (e.type === "box") {
+    if (e.type === "box" && !isCadRoomSpaceAnchor(e)) {
       const a: LayoutAssetInput = {
         id: e.id,
         kind: e.kind,

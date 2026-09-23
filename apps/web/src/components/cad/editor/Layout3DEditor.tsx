@@ -586,7 +586,7 @@ import {
 } from "@/lib/cad/world-scale";
 import CadOverviewMinimap from "@/components/cad/viewport/CadOverviewMinimap";
 import { renderCadSheetSetPdf } from "./sheet-set-pdf";
-import { CadViewportMeasurements } from "./CadViewportMeasurements";
+import { CadViewportMeasurements, renameCadRoomSpace } from "./CadViewportMeasurements";
 import { mergeAnnotationLayers, syncLegacyTextShadow } from "./legacy-text-shadow-sync";
 import { useHatchPalette } from "./use-hatch-palette";
 import {
@@ -13427,31 +13427,9 @@ export default function Layout3DEditor({
       />
     ) : null;
 
-  // EL `quickAccess` DEL ARMAZÓN: cerrar + título, prop de `CadRibbon`.
+  // EL `quickAccess` DEL ARMAZÓN: título, prop de `CadRibbon`.
   const quickAccessContent = (
     <>
-      {/* Cierre persistente y SIEMPRE alcanzable, anclado al inicio de la
-          barra. Regla que no cambia: ninguna pantalla a foco total puede
-          atrapar al usuario.
-
-          LO QUE SÍ CAMBIA: era un botón ROJO con sombra máxima, es decir, el
-          elemento visualmente más fuerte de todo el estudio. En una
-          herramienta profesional, SALIR nunca es lo más llamativo — el rojo
-          es el color con el que se avisa de que algo se va a destruir, y
-          gastarlo en «volver al tablero» lo deja sin significado para cuando
-          de verdad haga falta. Ahora es un control discreto, del mismo peso
-          que el resto del chrome, y el peso visual vuelve a donde importa: el
-          nombre del documento. */}
-      <button
-          data-cad-readonly-allowed
-          onClick={onClose}
-          title="Cerrar el CAD — volver al dashboard (Esc)"
-          aria-label="Cerrar el CAD"
-          className="sticky left-0 z-20 inline-flex flex-shrink-0 items-center justify-center rounded-control p-1.5 text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <X className="w-4 h-4" />
-        </button>
-        <div className="w-px h-5 bg-border" />
         <BoxIcon className="w-4 h-4 text-primary" />
         <span className="min-w-0 truncate type-small font-semibold" title={`${cadTitle} — ${cadSubtitle}`}>{cadTitle}</span>
         {drawingReadOnly && (
@@ -14120,6 +14098,7 @@ export default function Layout3DEditor({
         </button>
         <button
           onClick={() => void closeEditor()}
+          data-cad-readonly-allowed
           className="p-1.5 rounded-lg hover:bg-muted ml-1"
           data-testid="cad-close-editor"
           aria-label="Cerrar editor"
@@ -14427,8 +14406,8 @@ export default function Layout3DEditor({
               ctxRef={ctxRef} cameraRef={cameraRef}
               controlsRef={controlsRef}
               mountRef={mountRef}
-              unit={(data?.footprint.unit ?? "mm") as WorldUnit}
-              document={loadedCadDocumentRef.current} viewControllerRef={viewControllerRef}
+              unit={(data?.footprint.unit ?? "mm") as WorldUnit} document={loadedCadDocumentRef.current}
+              viewControllerRef={viewControllerRef} essential={uiMode === "esencial"} onRenameRoom={(room, name) => renameCadRoomSpace(room, name, snapshotDocument, commitNativeCommands, newId, assetsRef.current, rebuildAssets, refreshSnap)}
             />
             {(dxfWarnings.length > 0 || dxfImportPreview) && (
               <div className="absolute right-3 top-16 z-20 w-80 rounded-2xl border border-amber-400/20 bg-surface/80 p-3 shadow-2xl backdrop-blur">

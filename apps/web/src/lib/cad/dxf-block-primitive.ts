@@ -1,6 +1,7 @@
 import type { CadEntity } from "./cad-document";
 import type { CadDxfPrimitive } from "./dxf-import";
 import { cadEntityToDxfPrimitive } from "./dxf-entity-primitives";
+import { isCadRoomSpaceAnchor } from "./room-space";
 
 /**
  * Traduce una entidad que vive DENTRO de un bloque a su primitiva DXF.
@@ -16,6 +17,7 @@ import { cadEntityToDxfPrimitive } from "./dxf-entity-primitives";
 export function blockEntityToDxfPrimitive(
   entity: CadEntity,
 ): CadDxfPrimitive | null {
+  if (isCadRoomSpaceAnchor(entity)) return null;
   const native = cadEntityToDxfPrimitive(entity);
   if (native) return native;
   if (entity.type === "text")
