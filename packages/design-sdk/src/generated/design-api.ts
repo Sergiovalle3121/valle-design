@@ -1896,6 +1896,11 @@ export interface components {
             summary: string;
             appVersion: string;
             userAgent: string;
+            /**
+             * @description Modo de interfaz activo. Opcional para clientes anteriores.
+             * @enum {string}
+             */
+            uiMode?: "esencial" | "pro";
             /** @description El comando en curso cuando fallo, si habia uno. */
             activeCommand?: string | null;
             /**

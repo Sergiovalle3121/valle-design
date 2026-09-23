@@ -46,7 +46,7 @@ export class SupportService {
         statusCode: 503,
         code: 'support_channel_unavailable',
         message:
-          'El canal de reportes no está configurado todavía. Escríbenos desde la página de soporte y llegará igual.',
+          'El canal de reportes no está disponible todavía. Conserva tu texto e inténtalo más tarde.',
       });
 
     const payload = buildSupportIncidentPayload(input, {

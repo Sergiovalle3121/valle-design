@@ -17,9 +17,9 @@ import { createPortal } from "react-dom";
  * ── La decisión que ordena el diseño: se ve TODO lo que se manda ───────────
  *
  * El cuadro enseña, campo por campo, exactamente lo que va a salir de este
- * navegador. Nada se recoge en segundo plano. La versión, el navegador y el
- * comando en curso viajan siempre porque sin ellos «no me funciona» no se
- * puede reproducir; el plano NO viaja nunca —ni su contenido ni su
+ * navegador. Nada se recoge en segundo plano. La versión, el navegador, el
+ * modo y el comando en curso viajan siempre: sin ellos «no me funciona» no
+ * se puede reproducir. El plano NO viaja nunca —ni su contenido ni su
  * identificador— salvo que la persona marque la casilla, que nace apagada.
  *
  * Y lo que se autoriza es MIRAR el documento, no mandarlo: viaja su
@@ -37,6 +37,7 @@ import { designClient } from "@/lib/cad/repositories/client";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import { useStudioTraySlot } from "@/components/cad/studio/use-studio-tray";
 import { useCadUiMode } from "@/components/cad/shell/ui-mode-host";
+import { supportIncidentErrorMessage } from "./support-incident-error";
 
 export interface CadIncidentReporterProps {
   /** Versión del estudio. Por defecto la del build, que es la que hace falta. */
@@ -80,6 +81,7 @@ export function CadIncidentReporter({
         summary: texto,
         appVersion,
         userAgent,
+        uiMode: modo,
         activeCommand: activeCommand ?? null,
         // El identificador sólo se ADJUNTA si está autorizado. El servidor lo
         // vuelve a comprobar; esto evita mandarlo siquiera.
@@ -91,12 +93,7 @@ export function CadIncidentReporter({
       setAutorizado(false);
     } catch (error) {
       setEstado("error");
-      setProblema(
-        error && typeof error === "object" && "body" in error
-          ? ((error as { body?: { message?: string } }).body?.message ??
-              "No se pudo enviar el reporte.")
-          : "No se pudo enviar el reporte.",
-      );
+      setProblema(supportIncidentErrorMessage(error));
     }
   };
 
@@ -272,6 +269,7 @@ export function CadIncidentReporter({
               <div className="mb-1.5 uppercase tracking-wide">Se enviará</div>
               <div>Versión del estudio: {appVersion}</div>
               <div className="truncate">Navegador: {userAgent}</div>
+              <div>Modo de interfaz: {modo === "esencial" ? "Esencial" : "Pro"}</div>
               <div>Comando en curso: {activeCommand || "ninguno"}</div>
               <div>
                 Tu plano:{" "}

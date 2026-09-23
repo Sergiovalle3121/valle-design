@@ -241,6 +241,7 @@ describe('renderEmailTemplate', () => {
         summary: 'El editor se congeló al abrir un DXF grande',
         appVersion: '2026.09.1',
         userAgent: 'Mozilla/5.0',
+        uiMode: 'esencial',
         activeCommand: 'DXFIN',
         documentId: 'doc_123',
         documentAuthorized: true,
@@ -253,6 +254,7 @@ describe('renderEmailTemplate', () => {
     );
     expect(autorizado.text).toContain('doc_123');
     expect(autorizado.text).toContain('DXFIN');
+    expect(autorizado.text).toContain('Modo de interfaz: esencial');
 
     const sinAutorizar = renderEmailTemplate(
       'support.incident',
@@ -271,6 +273,7 @@ describe('renderEmailTemplate', () => {
       base,
     );
     expect(sinAutorizar.text).toContain('no autorizado o no aplica');
+    expect(sinAutorizar.text).toContain('Modo de interfaz: desconocido');
     expect(sinAutorizar.text).not.toContain('doc_123');
   });
 

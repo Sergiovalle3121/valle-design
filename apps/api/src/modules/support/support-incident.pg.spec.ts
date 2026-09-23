@@ -55,6 +55,7 @@ describePostgres('Reportes de soporte — el camino de vuelta', () => {
     summary: 'Acoté un muro de 4 m y la cota salió midiendo 40.',
     appVersion: '2026.08.27',
     userAgent: 'Mozilla/5.0 (X11; Linux x86_64)',
+    uiMode: 'esencial' as const,
     activeCommand: 'DIM',
     documentAuthorized: false,
     ...extra,
@@ -81,6 +82,7 @@ describePostgres('Reportes de soporte — el camino de vuelta', () => {
 
     const payload = fila.payload as Record<string, unknown>;
     expect(payload.appVersion).toBe('2026.08.27');
+    expect(payload.uiMode).toBe('esencial');
     expect(payload.activeCommand).toBe('DIM');
     expect(payload.reportedBy).toBe('arquitecta@despacho.test');
   });

@@ -86,6 +86,9 @@ contactos de plantilla `*.invalid`. Los enlaces comerciales opcionales
 internas como respaldo (`apps/web/src/config/commercial.ts`). Resend sólo envía
 correo saliente: configurar `SUPPORT_EMAIL` y mostrarlo en la web **no crea una
 bandeja de entrada**.
+La activación y prueba del reenvío `soporte@vallecad.com` hacia el Gmail que
+Sergio gestione está en [SOPORTE-RECEPCION.md](SOPORTE-RECEPCION.md); sigue
+pendiente hasta que él verifique la recepción real.
 
 ## Stripe: sólo cuando se decida cobrar
 

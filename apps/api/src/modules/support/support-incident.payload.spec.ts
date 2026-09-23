@@ -22,6 +22,7 @@ const BASE = {
   summary: '  Al acotar   un muro largo   la cota sale del revés  ',
   appVersion: '2026.08.27',
   userAgent: 'Mozilla/5.0 (X11; Linux x86_64)',
+  uiMode: 'esencial' as const,
   activeCommand: 'DIM',
   documentId: '3f0f1b6e-8e3a-4d1f-9b2a-1c2d3e4f5a6b',
 };
@@ -60,17 +61,31 @@ describe('el reporte de «algo salió mal»', () => {
     expect(serialized).not.toMatch(/"entities"|"modelSpace"|"layers"/u);
   });
 
-  it('lleva lo que hace falta para reproducir: versión, navegador y comando', () => {
+  it('lleva lo que hace falta para reproducir: versión, navegador, modo y comando', () => {
     const payload = buildSupportIncidentPayload(
       { ...BASE, documentAuthorized: false },
       CONTEXTO,
     );
     expect(payload.appVersion).toBe('2026.08.27');
     expect(payload.userAgent).toContain('Linux');
+    expect(payload.uiMode).toBe('esencial');
     expect(payload.activeCommand).toBe('DIM');
     expect(payload.reportedBy).toBe('arquitecta@despacho.mx');
     // Al minuto: ver la razón en `support-incident.payload.ts`.
     expect(payload.reportedAt).toBe('2026-08-27T18:45:00.000Z');
+  });
+
+  it('acepta Pro y conserva clientes anteriores sin modo', () => {
+    const pro = buildSupportIncidentPayload(
+      { ...BASE, uiMode: 'pro', documentAuthorized: false },
+      CONTEXTO,
+    );
+    expect(pro.uiMode).toBe('pro');
+    const legacy = buildSupportIncidentPayload(
+      { ...BASE, uiMode: undefined, documentAuthorized: false },
+      CONTEXTO,
+    );
+    expect(legacy.uiMode).toBe('desconocido');
   });
 
   it('normaliza el texto sin comerse lo que la persona quiso decir', () => {
@@ -134,6 +149,20 @@ describe('la clave de idempotencia del reporte', () => {
     );
     expect(supportIncidentIdempotencyKey(primero, hash)).not.toBe(
       supportIncidentIdempotencyKey(tarde, hash),
+    );
+  });
+
+  it('el mismo texto en Esencial y Pro produce dos reportes distinguibles', () => {
+    const esencial = buildSupportIncidentPayload(
+      { ...BASE, uiMode: 'esencial', documentAuthorized: false },
+      CONTEXTO,
+    );
+    const pro = buildSupportIncidentPayload(
+      { ...BASE, uiMode: 'pro', documentAuthorized: false },
+      CONTEXTO,
+    );
+    expect(supportIncidentIdempotencyKey(esencial, hash)).not.toBe(
+      supportIncidentIdempotencyKey(pro, hash),
     );
   });
 

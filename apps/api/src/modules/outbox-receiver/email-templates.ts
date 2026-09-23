@@ -415,6 +415,7 @@ function renderSupportIncidentEmail(payload: unknown): RenderedEmail {
   const summary = readString(payload, 'summary');
   const appVersion = readString(payload, 'appVersion');
   const userAgent = readString(payload, 'userAgent');
+  const uiMode = readOptionalString(payload, 'uiMode');
   const activeCommand = readOptionalString(payload, 'activeCommand');
   const documentId = readOptionalString(payload, 'documentId');
   const documentAuthorized = readBoolean(payload, 'documentAuthorized');
@@ -433,6 +434,7 @@ function renderSupportIncidentEmail(payload: unknown): RenderedEmail {
     `Cuándo: ${when}`,
     `Versión: ${appVersion}`,
     `Navegador: ${userAgent}`,
+    `Modo de interfaz: ${uiMode ?? 'desconocido'}`,
     `Comando activo: ${activeCommand ?? 'ninguno'}`,
     `Documento: ${
       documentAuthorized && documentId
