@@ -26,6 +26,7 @@ import {
   type PaymentMethod,
 } from "@/lib/commercial/checkout";
 import { TaxProfileForm } from "../../cuenta/facturacion/TaxProfileForm";
+import { LegalDraftLinks } from "@/components/marketing/LegalDraftLinks";
 
 type StarterState =
   /** Comprobando `GET /v1/legal/documents` + `/acceptances` (una vez). */
@@ -428,7 +429,10 @@ function Shell({
       title="Contratar"
       intro="Esta pantalla sólo abre el pago; el importe lo fija el catálogo del producto y lo cobra el proveedor en su propia página."
     >
-      <PublicSection title={title}>{children}</PublicSection>
+      <PublicSection title={title}>
+        {children}
+        <LegalDraftLinks />
+      </PublicSection>
     </PublicPageShell>
   );
 }
