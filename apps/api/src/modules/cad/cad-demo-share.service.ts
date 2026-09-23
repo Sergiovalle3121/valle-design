@@ -28,14 +28,12 @@ export class CadDemoShareService implements OnModuleInit, OnModuleDestroy {
 
   onModuleInit(): void {
     // Retention is enforced by redeem() even if this best-effort purge is late.
-    void this.purgeExpired().catch((error: unknown) =>
-      this.logger.warn(`No se pudieron purgar capturas demo: ${String(error)}`),
+    void this.purgeExpired().catch(() =>
+      this.logger.warn('No se pudieron purgar capturas demo.'),
     );
     this.purgeTimer = setInterval(() => {
-      void this.purgeExpired().catch((error: unknown) =>
-        this.logger.warn(
-          `No se pudieron purgar capturas demo: ${String(error)}`,
-        ),
+      void this.purgeExpired().catch(() =>
+        this.logger.warn('No se pudieron purgar capturas demo.'),
       );
     }, PURGE_INTERVAL_MS);
     this.purgeTimer.unref();
