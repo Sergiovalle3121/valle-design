@@ -11,7 +11,7 @@
  */
 import { strict as assert } from "node:assert";
 import type { CadKeyword } from "@/lib/cad/engine/command-types";
-import { cadPointerMenuEntries } from "./pointer-menu";
+import { cadPointerMenuEntries, cadPointerMenuPosition } from "./pointer-menu";
 
 let verdes = 0;
 const eq = (actual: unknown, esperado: unknown, mensaje: string) => {
@@ -81,6 +81,20 @@ eq(
 {
   const ids = cadPointerMenuEntries(lineaConDosPuntos).map((e) => e.id);
   ok(new Set(ids).size === ids.length, `todos los ids son distintos (${ids.join(", ")})`);
+}
+
+// Un menú de varias opciones abierto junto al borde conserva su última acción.
+{
+  const canvas = { width: 800, height: 500 };
+  const menu = { width: 160, height: 140 };
+  const corner = cadPointerMenuPosition({ x: 790, y: 490 }, canvas, menu);
+  eq(corner.x, 632, "el menú se desplaza a la izquierda antes de salirse");
+  eq(corner.y, 352, "el menú se desplaza hacia arriba antes de salirse");
+  ok(corner.x + menu.width <= canvas.width - 8, "la última columna cabe");
+  ok(corner.y + menu.height <= canvas.height - 8, "la última opción cabe");
+  const center = cadPointerMenuPosition({ x: 200, y: 150 }, canvas, menu);
+  eq(center.x, 200, "lejos del borde, el menú permanece bajo el cursor");
+  eq(center.y, 150, "lejos del borde, conserva su altura");
 }
 
 console.log(`✔ menú del botón derecho: ${verdes} aserciones verdes`);

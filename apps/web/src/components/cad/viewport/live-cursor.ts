@@ -28,7 +28,7 @@
 import type { SnapType } from "@/lib/cad/snap-engine";
 import type { CadKeyword } from "@/lib/cad/engine/command-types";
 import { CAD_OSNAP_HUD_LABELS } from "@/components/cad/palettes/draft-settings-host";
-import { cadPointerMenuEntries } from "./pointer-menu";
+import { cadPointerMenuEntries, cadPointerMenuPosition } from "./pointer-menu";
 
 export type CadLiveCursorField = "distance" | "angle";
 
@@ -264,8 +264,21 @@ export class CadLiveCursorOverlay {
       this.menu.append(item);
     }
     this.menu.hidden = false;
-    this.menu.style.left = `${Math.round(x)}px`;
-    this.menu.style.top = `${Math.round(y)}px`;
+    // The menu grows with the command's keywords. Measure it only when opened
+    // and keep even the last action reachable near the lower/right canvas edge.
+    const canvasWidth = this.container.clientWidth;
+    const canvasHeight = this.container.clientHeight;
+    this.menu.style.maxWidth = `${Math.max(0, canvasWidth - 16)}px`;
+    this.menu.style.maxHeight = `${Math.max(0, canvasHeight - 16)}px`;
+    this.menu.style.minWidth = `${Math.min(128, Math.max(0, canvasWidth - 16))}px`;
+    this.menu.style.overflowY = "auto";
+    const position = cadPointerMenuPosition(
+      { x, y },
+      { width: canvasWidth, height: canvasHeight },
+      { width: this.menu.offsetWidth, height: this.menu.offsetHeight },
+    );
+    this.menu.style.left = `${position.x}px`;
+    this.menu.style.top = `${position.y}px`;
     return true;
   }
 

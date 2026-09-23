@@ -62,3 +62,21 @@ export function cadPointerMenuEntries(
     { id: "cancel", label: "Cancelar", hint: "Esc", action: { kind: "cancel" } },
   ];
 }
+
+/** Keep the entire menu inside the canvas, including its last action. */
+export function cadPointerMenuPosition(
+  pointer: { readonly x: number; readonly y: number },
+  canvas: { readonly width: number; readonly height: number },
+  menu: { readonly width: number; readonly height: number },
+  inset = 8,
+): { x: number; y: number } {
+  const axis = (coordinate: number, canvasSize: number, menuSize: number) => {
+    const remaining = Math.max(0, canvasSize - menuSize);
+    const margin = Math.min(inset, remaining / 2);
+    return Math.round(Math.min(Math.max(coordinate, margin), remaining - margin));
+  };
+  return {
+    x: axis(pointer.x, canvas.width, menu.width),
+    y: axis(pointer.y, canvas.height, menu.height),
+  };
+}

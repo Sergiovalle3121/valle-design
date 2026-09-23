@@ -140,8 +140,27 @@ test('dibujar una polilínea CON EL RATÓN captura un extremo existente y cierra
   await page.mouse.click(third.x, third.y);
 
   // --- MENÚ CONTEXTUAL: las palabras clave del paso, bajo el botón derecho --
-  await page.mouse.click(third.x, third.y, { button: 'right' });
+  const canvas = page.getByTestId('cad-canvas');
+  const canvasBox = await canvas.boundingBox();
+  if (!canvasBox) throw new Error('El lienzo CAD no tiene caja para medir el menú');
+  await page.mouse.click(
+    canvasBox.x + canvasBox.width - 12,
+    canvasBox.y + canvasBox.height - 12,
+    { button: 'right' },
+  );
   const menu = page.getByTestId('cad-pointer-menu');
+  await expect(menu).toBeVisible();
+  const edgeMenuBox = await menu.boundingBox();
+  if (!edgeMenuBox) throw new Error('El menú contextual no tiene caja');
+  expect(edgeMenuBox.x, 'el menú no se recorta por la izquierda').toBeGreaterThanOrEqual(canvasBox.x);
+  expect(edgeMenuBox.y, 'el menú no se recorta por arriba').toBeGreaterThanOrEqual(canvasBox.y);
+  expect(edgeMenuBox.x + edgeMenuBox.width, 'todas las opciones caben por la derecha')
+    .toBeLessThanOrEqual(canvasBox.x + canvasBox.width);
+  expect(edgeMenuBox.y + edgeMenuBox.height, 'Cancelar cabe por abajo')
+    .toBeLessThanOrEqual(canvasBox.y + canvasBox.height);
+  await expect(menu.getByTestId('cad-pointer-cancel')).toBeInViewport();
+
+  await page.mouse.click(third.x, third.y, { button: 'right' });
   await expect(menu).toBeVisible();
   // Y ACEPTAR y CANCELAR, que faltaban: con dos puntos puestos el menú ofrecía
   // sólo «desHacer», así que cerrar lo que estabas dibujando obligaba a soltar
