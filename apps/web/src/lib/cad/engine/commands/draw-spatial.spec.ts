@@ -196,7 +196,16 @@ const ARC = CAD_DRAW_CURVE_COMMANDS.find((descriptor) => descriptor.name === "AR
     return { messages, executed };
   };
   const elevated = run("CIRCLE", [point(10, 20, 3000), distance(5)], planta);
-  ok(elevated.executed === 1 && elevated.messages.length === 0, "CIRCLE (`spatial: \"elevation\"`) dibuja sobre la planta elevada sin protestar");
+  // «Sin protestar» se comprobaba como «sin ningún mensaje». Desde que una
+  // figura cerrada DICE su superficie al terminar (`commands/area-notice.ts`,
+  // la meta del encargo: ver los m² en el primer minuto), CIRCLE sí habla — y
+  // lo que dice es una medida, no una queja. La comprobación se afina en vez
+  // de relajarse: ejecuta, y lo ÚNICO que dice es su superficie.
+  ok(
+    elevated.executed === 1 &&
+      elevated.messages.every((text) => /m²|cm²|ft²|in²/.test(text)),
+    `CIRCLE (\`spatial: "elevation"\`) dibuja sobre la planta elevada sin protestar (dijo: ${elevated.messages.join(" | ")})`,
+  );
   const inclined = run("CIRCLE", [point(0, 0, 0), distance(5)], faldon);
   ok(inclined.executed === 0 && inclined.messages.some((text) => /plano inclinado/.test(text) && /CIRCLE/.test(text)), "y sobre el faldón se niega nombrando el plano inclinado");
   const plain = run("ELLIPSE", [point(0, 0, 3000), point(40, 0, 3000), distance(10)], planta);

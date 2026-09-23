@@ -16,6 +16,7 @@
  */
 import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
+import { sugerirComandos } from "./command-suggestions";
 import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -80,7 +81,15 @@ const ok = (condition: boolean, message: string) => {
 // — comprobado por fuente porque exige teclear de verdad para ejercitarlo.
 {
   const fuente = readFileSync(path.join(__dirname, "CadCommandLine.tsx"), "utf8");
-  ok(fuente.includes("c.nombre.startsWith(valor)"), "las sugerencias filtran por prefijo del nombre");
+  // El filtro por prefijo ya no se lee en la fuente: vive en
+  // `command-suggestions.ts` y se comprueba LLAMÁNDOLO, que es más fuerte.
+  // Lo demás de este bloque sigue siendo guarda de fuente porque describe el
+  // cableado del teclado dentro del componente, y eso exige teclear de verdad.
+  ok(
+    sugerirComandos("LIN").every((s) => s.nombre.startsWith("LIN")),
+    "las sugerencias filtran por prefijo del nombre",
+  );
+  ok(sugerirComandos("L")[0]?.nombre === "LINE", "y el alias exacto encabeza la lista");
   ok(
     fuente.includes('prompt || value.includes(" ")'),
     "no hay sugerencias con un prompt activo o ya escribiendo argumentos (con espacio)",
@@ -267,8 +276,10 @@ const ok = (condition: boolean, message: string) => {
 // «LINE», el PRIMER alias del manifiesto).
 {
   const fuente = readFileSync(path.join(__dirname, "CadCommandLine.tsx"), "utf8");
+  // Medido, no leído: la sugerencia trae el alias corto («L» para LINE), que es
+  // lo que hace que el autocompletado enseñe el atajo y no sólo el nombre largo.
   ok(
-    fuente.includes("alias: entry.shortcut"),
+    sugerirComandos("LINE").some((s) => s.alias === "L"),
     "cada sugerencia lleva su alias más corto, tomado del mismo registro que ya resuelve Ctrl+K",
   );
   ok(
