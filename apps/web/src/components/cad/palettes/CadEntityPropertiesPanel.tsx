@@ -35,6 +35,9 @@ import {
 } from "./property-model";
 import { cadEntityArea } from "@/lib/cad/inquiry/contours";
 import { formatCadHumanArea, formatCadHumanLength } from "@/lib/cad/inquiry/human-units";
+import { useCadUiMode } from "@/components/cad/shell/ui-mode-host";
+import { CadHumanProperties } from "./CadHumanProperties";
+import { buildCadHumanPropertyModel } from "./human-property-model";
 
 export interface CadEntityPropertiesPanelProps {
   /** Designación nativa, en orden de designación. */
@@ -82,6 +85,7 @@ export const CadEntityPropertiesPanel = React.memo(
     readOnly = false,
     onEdit,
   }: CadEntityPropertiesPanelProps) {
+    const mode = useCadUiMode();
     const model = buildCadPropertyModel(
       entities.map((entity) => ({
         id: entity.id,
@@ -125,14 +129,19 @@ export const CadEntityPropertiesPanel = React.memo(
       };
     }
 
+    const technical = (
+      <CadPropertiesPalette model={model} revision={revision} readOnly={readOnly}
+        summary={summary} onEdit={onEdit} />
+    );
+    if (mode === "pro") return technical;
     return (
-      <CadPropertiesPalette
-        model={model}
-        revision={revision}
-        readOnly={readOnly}
-        summary={summary}
-        onEdit={onEdit}
-      />
+      <>
+        <CadHumanProperties model={buildCadHumanPropertyModel(entities, document)} />
+        <details className="mb-3 rounded-card border border-border bg-muted/40 p-2.5">
+          <summary className="cursor-pointer type-small text-muted-foreground">Detalles técnicos</summary>
+          <div className="mt-3">{technical}</div>
+        </details>
+      </>
     );
   },
   propsEqual,

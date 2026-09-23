@@ -4298,6 +4298,38 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "ESENCIAL-PROPIEDADES-HUMANAS-20260923",
+      "date": "2026-09-23",
+      "initiative": "Mostrar medidas y nombres comprensibles en las propiedades de Esencial, dejando la edición exacta en Detalles técnicos y conservando la tabla de Pro.",
+      "branch": "codex/essential-human-properties",
+      "assistants": [
+        "OpenAI Codex: lectura del modelo canónico, implementación de presentación y pruebas focales"
+      ],
+      "authority": "Sergio Valle Zárate pidió ejecutar la Fase D del encargo de lanzamiento, sin perder capacidades profesionales ni hacer afirmaciones no verificadas.",
+      "firstPartyInputs": [
+        "PROMPT MAESTRO del 2026-09-23 y medición inicial de propiedades crudas en Esencial",
+        "CadEntityPropertiesPanel, CadPropertiesPalette, CadNativeSelectionHeading y adaptadores de entidades del repositorio",
+        "inquiry/contours.ts, inquiry/human-units.ts y pruebas doradas de selección y medición existentes"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada; sólo código y documentación de Next.js instalados en este repositorio.",
+      "derivedAreas": [
+        "human-property-model.ts: geometría real y unidad declarada para muro, puerta, ventana, rectángulo, polilínea, línea, círculo, texto y cota; figura con arco no se llama rectángulo, figura abierta no recibe área supuesta y muro huérfano no expone UUID",
+        "CadHumanProperties, CadEntityPropertiesPanel y CadNativeSelectionHeading: vista humana en Esencial, detalles técnicos plegados y vista Pro preservada",
+        "golden 254 y human-property-model.spec.ts: comprobaciones visibles y de medidas; el golden se revalidará cuando el arnés local abra el documento"
+      ],
+      "fixtures": "Entidades canónicas sintéticas de muro, puerta, rectángulo, polilínea, línea y círculo; ningún dato de cliente ni proveedor externo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "La prueba focal del modelo y ESLint focal pasaron en local. El golden 254 aún no acredita la pantalla: el loader de /legacy/studio quedó esperando antes de montar el editor en el entorno de prueba. La entidad de cuarto de plantillas sigue siendo `box` legado, fuera de CadNativeEntity; su ficha necesitará integrarse cuando la selección del espacio derivado exista. No se declara terminada la Fase D ni el lanzamiento."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }

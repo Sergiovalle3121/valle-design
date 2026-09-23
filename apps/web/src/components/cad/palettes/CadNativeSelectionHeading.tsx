@@ -2,6 +2,7 @@
 
 import { Spline } from "lucide-react";
 import { cadTypeName } from "@/lib/cad/entity-labels";
+import { useCadUiMode } from "@/components/cad/shell/ui-mode-host";
 
 /**
  * LA CABECERA DEL PANEL DE PROPIEDADES NATIVAS.
@@ -33,6 +34,10 @@ export function CadNativeSelectionHeading({
   type: string | null;
   count: number;
 }) {
+  // En Esencial la ficha humana de abajo ya dice «Muro 1» o «3 muros».
+  // Este encabezado explica el tipo DXF y los grips, y sólo ayuda en Pro.
+  const mode = useCadUiMode();
+  if (mode === "esencial") return null;
   return (
     <>
       <div className="mb-1 flex items-center gap-2">
