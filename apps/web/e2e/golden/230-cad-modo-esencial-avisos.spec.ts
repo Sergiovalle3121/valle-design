@@ -11,8 +11,26 @@ import { expect, test, type Page } from '@playwright/test';
  * botones y en Pro. La fila de comandos y el cursor vivo dicen lo mismo.
  */
 
+/**
+ * Un navegador nuevo DE VERDAD: se retira la preferencia «pro» que
+ * `playwright.config.ts` siembra para el resto de la suite (allí está el
+ * porqué). Se hace una sola vez, antes de abrir el estudio, para medir el
+ * arranque que ve una visita real a vallecad.com/demo.
+ */
+async function navegadorNuevo(page: Page) {
+  await page.goto('/');
+  await page.evaluate(() => {
+    try {
+      window.localStorage.removeItem('valle:cad:ui-mode:v1'); // preferencia de interfaz
+    } catch {
+      /* sin almacenamiento no hay nada que retirar */
+    }
+  });
+}
+
 async function abrirDemo(page: Page, query = '') {
   await page.setViewportSize({ width: 1440, height: 769 });
+  await navegadorNuevo(page);
   await page.goto(`/demo${query}`);
   await expect(page.getByTestId('cad-canvas')).toBeVisible({ timeout: 60_000 });
   const saltar = page.getByTestId('cad-guided-tour-skip');

@@ -93,6 +93,7 @@ class CadUiModeHost {
     if (next === null) {
       next = decideInitialCadUiMode({
         storage,
+        globalKey: cadUiModeStorageKey(),
         workspaceKey: cadWorkspaceStorageKey({
           tenantId: options.tenantId,
           userId: options.userId,

@@ -120,6 +120,13 @@ export function resolveCadUiMode(source: CadUiModeSource): CadUiMode {
 }
 
 export interface CadUiModeInitialDecision {
+  /**
+   * Clave SIN usuario (`valle:cad:ui-mode:v1`): lo que esta persona eligió en
+   * este navegador antes de tener sesión —en `/demo`, por ejemplo—. Si su
+   * cuenta todavía no tiene modo propio, hereda aquella elección en vez de
+   * volver a decidir por heurística; el interruptor la cambia con un clic.
+   */
+  globalKey?: string | null;
   storage?: CadUiModeStorage | null;
   /**
    * `cadWorkspaceStorageKey({tenantId, userId})`. El monolito escribe esa
@@ -143,6 +150,12 @@ export function decideInitialCadUiMode(
   decision: CadUiModeInitialDecision,
 ): CadUiMode {
   if (decision.forceEsencial) return "esencial";
+  // Lo elegido en este navegador sin sesión manda sobre la heurística: crear
+  // cuenta no devuelve a nadie a la «primera vez» que ya dejó atrás.
+  if (decision.globalKey) {
+    const heredado = readStoredCadUiMode(decision.storage, decision.globalKey);
+    if (heredado !== null) return heredado;
+  }
   if (!decision.workspaceKey) return "esencial";
   try {
     return decision.storage?.getItem(decision.workspaceKey) === null ||

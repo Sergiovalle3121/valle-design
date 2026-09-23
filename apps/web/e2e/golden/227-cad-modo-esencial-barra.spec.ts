@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 /**
  * Golden 227 — MODO ESENCIAL: una sola barra, cinta fuera de la vista.
@@ -23,6 +23,23 @@ import { expect, test } from '@playwright/test';
  *  4. `?cadUi=pro` gana a la preferencia y NO se persiste.
  */
 
+/**
+ * Un navegador nuevo DE VERDAD: se retira la preferencia «pro» que
+ * `playwright.config.ts` siembra para el resto de la suite (allí está el
+ * porqué). Se hace una sola vez, antes de abrir el estudio, para medir el
+ * arranque que ve una visita real a vallecad.com/demo.
+ */
+async function navegadorNuevo(page: Page) {
+  await page.goto('/');
+  await page.evaluate(() => {
+    try {
+      window.localStorage.removeItem('valle:cad:ui-mode:v1'); // preferencia de interfaz
+    } catch {
+      /* sin almacenamiento no hay nada que retirar */
+    }
+  });
+}
+
 const HERRAMIENTAS: Array<[string, string]> = [
   ['select', 'Seleccionar'],
   ['wall', 'Muro'],
@@ -41,6 +58,7 @@ const HERRAMIENTAS: Array<[string, string]> = [
 test('en /demo el estudio arranca en Esencial: una barra de doce herramientas y ninguna cinta', async ({ page }) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 1440, height: 769 });
+  await navegadorNuevo(page);
   await page.goto('/demo');
   await expect(page.getByTestId('cad-canvas')).toBeVisible({ timeout: 60_000 });
   const saltar = page.getByTestId('cad-guided-tour-skip');
@@ -99,6 +117,7 @@ test('en /demo el estudio arranca en Esencial: una barra de doce herramientas y 
 
 test('?cadUi=pro fuerza la cinta en /demo sin persistir la preferencia', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 769 });
+  await navegadorNuevo(page);
   await page.goto('/demo?cadUi=pro');
   await expect(page.getByTestId('cad-canvas')).toBeVisible({ timeout: 60_000 });
   await expect(page.getByTestId('cad-ribbon')).toBeVisible();

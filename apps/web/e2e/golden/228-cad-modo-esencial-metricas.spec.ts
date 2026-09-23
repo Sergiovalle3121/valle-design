@@ -20,6 +20,23 @@ import { expect, test, type Page } from '@playwright/test';
  * golden y las de producción sean comparables.
  */
 
+/**
+ * Un navegador nuevo DE VERDAD: se retira la preferencia «pro» que
+ * `playwright.config.ts` siembra para el resto de la suite (allí está el
+ * porqué). Se hace una sola vez, antes de abrir el estudio, para medir el
+ * arranque que ve una visita real a vallecad.com/demo.
+ */
+async function navegadorNuevo(page: Page) {
+  await page.goto('/');
+  await page.evaluate(() => {
+    try {
+      window.localStorage.removeItem('valle:cad:ui-mode:v1'); // preferencia de interfaz
+    } catch {
+      /* sin almacenamiento no hay nada que retirar */
+    }
+  });
+}
+
 async function medir(page: Page) {
   return page.evaluate(() => {
     const vis = (el: Element) => {
@@ -66,6 +83,7 @@ async function medir(page: Page) {
 
 async function abrirDemoEsencial(page: Page, viewport: { width: number; height: number }) {
   await page.setViewportSize(viewport);
+  await navegadorNuevo(page);
   await page.goto('/demo');
   await expect(page.getByTestId('cad-canvas')).toBeVisible({ timeout: 60_000 });
   const saltar = page.getByTestId('cad-guided-tour-skip');

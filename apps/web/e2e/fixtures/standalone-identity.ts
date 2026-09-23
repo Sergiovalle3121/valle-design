@@ -348,14 +348,17 @@ export async function loginAsStandaloneOwner(
     backend = new StandaloneIdentityBackend(context);
     installed.set(context, backend);
     await backend.install();
-    // MODO PRO PARA TODOS LOS GOLDENS DEL ESTUDIO (Tanda 1 «Modo Esencial»).
+    // MODO PRO PARA TODOS LOS SPECS DEL ESTUDIO (Tanda 1 «Modo Esencial»).
     // Un contexto limpio con una cuenta que nunca abrió el estudio arranca en
     // Esencial (una sola barra, sin cinta, paneles plegados). Los 160+ goldens
     // que pasan por aquí miden la interfaz completa —cinta, paleta, muelles—
     // y siguen midiéndola: se siembra la preferencia del propietario en Pro
     // ANTES de la primera navegación, con la misma clave que persiste el
-    // interruptor del producto. Ninguna aserción cambia. Los goldens del
-    // propio modo Esencial abren /demo sin sesión y no pasan por aquí.
+    // interruptor del producto: la clave SIN usuario, que cualquier cuenta
+    // hereda mientras no elija la suya —incluidas las cuentas reales que
+    // registran los specs de `e2e/real`—. Ninguna aserción cambia. Los specs
+    // del propio modo Esencial abren /demo con contexto limpio y no pasan por
+    // aquí.
     await context.addInitScript(
       ([key, value]) => {
         try {
@@ -364,7 +367,7 @@ export async function loginAsStandaloneOwner(
           /* sin storage no hay nada que sembrar */
         }
       },
-      [cadUiModeStorageKey(OWNER_USER_ID), JSON.stringify({ mode: 'pro', v: 1 })],
+      [cadUiModeStorageKey(), JSON.stringify({ mode: 'pro', v: 1 })],
     );
   }
   backend.setAccess("owner", CAD_PERMISSIONS);

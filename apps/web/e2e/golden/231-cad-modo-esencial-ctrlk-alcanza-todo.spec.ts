@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 /**
  * Golden 231 — MODO ESENCIAL ESCONDE, NO BORRA: todo sigue a un paso.
@@ -16,9 +16,27 @@ const MUESTRA = [
   'BLOCK', 'INSERT', 'DIST', 'LIST', 'UCS', 'FLATSHOT', 'DSETTINGS', 'LAYOUT', 'MTEXT', 'TABLE',
 ];
 
+/**
+ * Un navegador nuevo DE VERDAD: se retira la preferencia «pro» que
+ * `playwright.config.ts` siembra para el resto de la suite (allí está el
+ * porqué). Se hace una sola vez, antes de abrir el estudio, para medir el
+ * arranque que ve una visita real a vallecad.com/demo.
+ */
+async function navegadorNuevo(page: Page) {
+  await page.goto('/');
+  await page.evaluate(() => {
+    try {
+      window.localStorage.removeItem('valle:cad:ui-mode:v1'); // preferencia de interfaz
+    } catch {
+      /* sin almacenamiento no hay nada que retirar */
+    }
+  });
+}
+
 test('en Esencial Ctrl+K alcanza los comandos que la barra no enseña, y el rótulo en español encuentra los de la barra', async ({ page }) => {
   test.setTimeout(150_000);
   await page.setViewportSize({ width: 1440, height: 769 });
+  await navegadorNuevo(page);
   await page.goto('/demo');
   await expect(page.getByTestId('cad-canvas')).toBeVisible({ timeout: 60_000 });
   const saltar = page.getByTestId('cad-guided-tour-skip');
