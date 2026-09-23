@@ -4,6 +4,8 @@ import { CadDocumentsModule } from '../cad-documents/cad-documents.module';
 import { CadController } from './cad.controller';
 import { CadReviewController } from './cad-review.controller';
 import { CadReviewLinkController } from './cad-review-link.controller';
+import { CadDemoShareController } from './cad-demo-share.controller';
+import { CadDemoShareService } from './cad-demo-share.service';
 import { CadSheetSetController } from './cad-sheet-set.controller';
 import { CadPresenceController } from './cad-presence.controller';
 import { CadDocumentsRepository } from './cad-documents.repository';
@@ -34,6 +36,7 @@ import { CadPresenceBeat } from './entities/cad-presence-beat.entity';
     CadController,
     CadReviewController,
     CadReviewLinkController,
+    CadDemoShareController,
     CadSheetSetController,
     CadPresenceController,
   ],
@@ -46,6 +49,7 @@ import { CadPresenceBeat } from './entities/cad-presence-beat.entity';
     CadPresenceBus,
     CadPresenceCleanupService,
     CadPresenceDocumentGuard,
+    CadDemoShareService,
   ],
   exports: [
     CadDocumentsRepository,

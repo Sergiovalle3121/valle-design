@@ -29,13 +29,14 @@
  */
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { CadStudioSkeleton } from "@/components/cad/studio/CadStudioSkeleton";
 import { buttonClass } from "@/components/ui";
 import { DEMO_DOCUMENT_ID } from "@/lib/cad/demo/demo-constants";
 import type { DocumentLifecyclePort } from "@/components/cad/document-lifecycle/controller";
+import { publishDemoSnapshot } from "./publish-demo-snapshot";
 
 const CadStudioHost = dynamic(() => import("@/components/cad/CadStudioHost"), {
   ssr: false,
@@ -61,6 +62,10 @@ export function DemoStudio() {
       alive = false;
     };
   }, []);
+  const demoShareLink = useCallback(async () => {
+    if (!documentPort) throw new Error("El plano todavía no está listo.");
+    return publishDemoSnapshot(documentPort);
+  }, [documentPort]);
   if (!documentPort) {
     return <CadStudioSkeleton etapa="Preparando la demostración…" />;
   }
@@ -92,6 +97,7 @@ export function DemoStudio() {
         readOnly={false}
         documentPort={documentPort}
         withCollaboration={false}
+        demoShareLink={demoShareLink}
         title="Demostración"
         subtitle="Casa habitación · se guarda en tu navegador"
         demoBanner={demoBanner}

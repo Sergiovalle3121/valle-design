@@ -118,7 +118,7 @@ export function createDemoDocumentPort(
 
   return {
     async open(): Promise<DocumentLifecycleResource> {
-      state = (storage && readStored(storage)) ?? {
+      state = state ?? (storage && readStored(storage)) ?? {
         version: 1,
         document: buildDemoDocument(),
       };

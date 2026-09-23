@@ -4266,6 +4266,38 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "COMPARTIR-DEMO-CAPTURA-20260923",
+      "date": "2026-09-23",
+      "initiative": "Publicar desde /demo sin cuenta una copia temporal y de solo lectura del dibujo mediante el modelo de revisión existente.",
+      "branch": "codex/demo-share-snapshot",
+      "assistants": [
+        "OpenAI Codex: endpoint acotado, integración con el estudio demo, pruebas de abuso y contrato API"
+      ],
+      "authority": "Sergio Valle Zárate autorizó el trabajo para sacar VALLECAD al mercado; la prueba pública del prompt maestro exige compartir el plano desde /demo sin cuenta.",
+      "firstPartyInputs": [
+        "createDemoDocumentPort, CadStudioHost y EssentialShareAction de la rama de compartir Esencial",
+        "CadReviewSession, ReviewLinkService, validador del documento CAD y límites de identidad existentes",
+        "Contrato OpenAPI design-api.v1 y superficie de revisión de solo lectura"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada.",
+      "derivedAreas": [
+        "Endpoint público /v1/cad/demo-shares con captura de hasta 256 KiB, token aleatorio con solo hash persistido, tenant reservado, expiración de 24 horas, presupuestos por IP/global y purga acotada",
+        "El botón Compartir de /demo espera el autosave y publica una copia del momento; la interfaz indica que no refleja cambios futuros ni permite comentarios",
+        "Contrato API, integración Nest con abusos y golden del navegador desde /demo sin cuenta"
+      ],
+      "fixtures": "Planos CAD sintéticos y direcciones IP reservadas para documentación; sin cuentas ni credenciales reales.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Prueba de integración API 3/3, golden /demo 1/1, typecheck API/web y check:cad-contract verdes en rama local. Pendiente integración de #242 y área derivada del visor; no se afirma despliegue productivo."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }
