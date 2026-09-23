@@ -35,6 +35,8 @@ assert.equal(cadRoomAreaLabels(document(shell().map((part) => ({
   thickness: part.thickness / 1000,
   height: part.height / 1000,
 })), "m"))[0].axisAreaText, "12.00", "la unidad del documento cambia sin falsear m²");
+assert.deepEqual(cadRoomAreaLabels(document(shell(), "u")), [], "una unidad desconocida no se anuncia falsamente en m²");
+assert.deepEqual(cadRoomAreaLabels(document(shell(), "constructor")), [], "tampoco se aceptan claves heredadas del prototipo");
 
 const label = { id: "nombre", type: "text" as const, x: 2000, y: 1500,
   text: "RECÁMARA", height: 250, layer: "TEXTO" };

@@ -1,6 +1,6 @@
 import type { CadDocument, CadPoint2 } from "../cad-document";
 import { buildCadBimSchedule } from "../bim-schedule";
-import { cadMillimetresPerUnit } from "../engine/commands/architecture-support";
+import { CAD_MM_PER_UNIT } from "../engine/commands/architecture-support";
 import { cadPointInBoundary } from "../hatch-associativity";
 
 export interface CadRoomAreaLabel {
@@ -12,7 +12,7 @@ export interface CadRoomAreaLabel {
   at: CadPoint2;
 }
 
-function interiorPoint(ring: readonly CadPoint2[]): CadPoint2 {
+export function interiorPoint(ring: readonly CadPoint2[]): CadPoint2 {
   let twiceArea = 0;
   let x = 0;
   let y = 0;
@@ -46,7 +46,11 @@ function interiorPoint(ring: readonly CadPoint2[]): CadPoint2 {
 /** Rótulos derivados del mismo grafo de muros que alimenta el cuadro de áreas. */
 export function cadRoomAreaLabels(document: Pick<CadDocument, "entities" | "meta"> | null): CadRoomAreaLabel[] {
   if (!document?.entities.some((entity) => entity.type === "wall")) return [];
-  const mm = cadMillimetresPerUnit(document.meta.unit);
+  // La orden de arquitectura trata una unidad desconocida como mm para sus
+  // defaults; una superficie mostrada al usuario no puede hacer esa suposición.
+  const unit = document.meta.unit?.trim().toLowerCase() ?? "";
+  if (!Object.hasOwn(CAD_MM_PER_UNIT, unit)) return [];
+  const mm = CAD_MM_PER_UNIT[unit];
   const areaText = (area: number) => new Intl.NumberFormat("es-MX", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
