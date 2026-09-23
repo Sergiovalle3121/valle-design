@@ -4234,6 +4234,38 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "CHECKOUT-PRECIO-VISIBLE-20260923",
+      "date": "2026-09-23",
+      "initiative": "Mostrar el precio vigente del catálogo y el total por asientos antes de abrir el proveedor de pago; impedir la compra cuando el catálogo no confirma plan, moneda, periodo o pasarela, y respetar el modo de lanzamiento gratuito.",
+      "branch": "codex/checkout-visible-price",
+      "assistants": [
+        "OpenAI Codex: auditoría de la pantalla de compra, cálculo de precio de lista, interfaz y pruebas"
+      ],
+      "authority": "Sergio Valle Zárate autorizó preparar e integrar ValleCAD para salida al mercado; el precio visible antes del pago resuelve una omisión comprobada en el checkout existente.",
+      "firstPartyInputs": [
+        "apps/web/src/app/precios/checkout/CheckoutStarter.tsx y catálogo público del repositorio",
+        "apps/web/src/lib/commercial/pricing.ts, checkout.ts y public-catalog.ts",
+        "Robot de primer minuto en producción sobre main 800a81e2: cuatro tareas fallidas, sin acreditar todavía lanzamiento"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada.",
+      "derivedAreas": [
+        "apps/web/src/lib/commercial/checkout-quote.ts: precio de lista y asientos derivados del catálogo público, con fallo cerrado",
+        "apps/web/src/app/precios/checkout/CheckoutStarter.tsx: precio, impuesto y desglose visibles antes de elegir medio de pago; ninguna apertura cuando el catálogo falla o el modo gratuito está activo",
+        "apps/web/src/lib/commercial/checkout-quote.spec.ts: casos de plan individual, mínimo y aumento de asientos, moneda, pasarela y selección inválida"
+      ],
+      "fixtures": "Catálogo sintético en spec; sin credenciales ni cobros reales.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Prueba local del cálculo de precio, commercial-surface, typecheck web, ESLint sin errores y check:governance 11/11 PASS. Falta CI sobre el SHA exacto; no se afirma haber realizado un cobro Stripe ni abierto el lanzamiento."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }
