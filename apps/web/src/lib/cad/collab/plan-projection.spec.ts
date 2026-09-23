@@ -40,6 +40,17 @@ function document(): CadDocument {
         radius: 150,
         layer: "0",
       },
+      { id: "rotulo", type: "text", x: 100, y: 400, text: "SALA", height: 140, layer: "0" },
+      {
+        id: "area",
+        type: "mtext",
+        insertion: { x: 1_000, y: 1_000, z: 0 },
+        text: "18 m²\\Psegún plano",
+        width: 2_000,
+        height: 140,
+        rotation: 30,
+        layer: "0",
+      },
       {
         id: "eje",
         type: "line",
@@ -47,9 +58,10 @@ function document(): CadDocument {
         end: { x: 4_000, y: -9_000, z: 0 },
         layer: "REPLANTEO",
       },
+      { id: "oculto", type: "text", x: 0, y: -20_000, text: "OCULTO", layer: "REPLANTEO" },
     ],
     history: [],
-    modelSpace: { entityIds: ["muro", "pilar", "eje"] },
+    modelSpace: { entityIds: ["muro", "rotulo", "pilar", "area", "eje", "oculto"] },
     paperSpaces: [],
     styles: { text: {}, dimension: {}, mleader: {}, table: {}, plot: {} },
     blocks: [],
@@ -88,6 +100,40 @@ ok(
   projection.strokes[0].entityId === "muro",
   "se proyecta en el orden de modelSpace, no en el de `entities`",
 );
+ok(projection.texts.length === 2, "TEXT y MTEXT visibles llegan como rótulos, sin la capa apagada");
+ok(
+  projection.strokes.every((stroke) => stroke.entityId !== "rotulo" && stroke.entityId !== "area"),
+  "las cajas de hit-test de texto no aparecen como geometría",
+);
+ok(
+  projection.elements[0].kind === "stroke" &&
+    projection.elements[1].kind === "text" &&
+    projection.elements[1].text.entityId === "rotulo",
+  "los rótulos conservan el orden de dibujo entre los trazos",
+);
+ok(
+  projection.texts[0].lines[0].text === "SALA" &&
+    projection.texts[1].lines.map((line) => line.text).join("|") === "18 m²|según plano",
+  "el texto visible y el m² declarado vienen del documento, incluida la segunda línea MTEXT",
+);
+ok(
+  projection.texts[1].rotation === 30 && projection.texts[1].fontSize === 140,
+  "el rótulo conserva giro y altura de la maqueta canónica",
+);
+ok(
+  projection.texts.every((label) => label.entityId !== "oculto"),
+  "ni el texto de una capa apagada se revela al invitado",
+);
+
+const textOnly = document();
+textOnly.modelSpace.entityIds = ["rotulo"];
+const textOnlyProjection = projectCadPlan(textOnly);
+ok(textOnlyProjection.strokes.length === 0 && textOnlyProjection.bounds !== null,
+  "un plano que solo tiene texto se encuadra sin dibujar cajas");
+ok(projectCadPlan(textOnly, 3).truncated,
+  "los caracteres también consumen el presupuesto del visor móvil");
+ok(!textOnlyProjection.texts.some((label) => label.lines.some((line) => line.text.includes("m²"))),
+  "sin m² en el documento, la proyección no inventa un área");
 
 // ── El tope se DECLARA ──────────────────────────────────────────────────────
 const clipped = projectCadPlan(document(), 4);

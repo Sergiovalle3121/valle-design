@@ -64,9 +64,20 @@ function canonicalDocument(): CadDocument {
         end: { x: 10_000, y: 20_000, z: 0 },
         layer: "OCULTA",
       },
+      { id: "nombre-espacio", type: "text", x: 2_000, y: 3_000, text: "SALA", height: 220, layer: "0" },
+      {
+        id: "superficie-declarada",
+        type: "mtext",
+        insertion: { x: 2_000, y: 3_400, z: 0 },
+        // Es una anotación del documento; el visor no calcula ni inventa áreas.
+        text: "18 m²",
+        height: 160,
+        layer: "0",
+      },
+      { id: "texto-oculto", type: "text", x: 0, y: 22_000, text: "NO MOSTRAR", layer: "OCULTA" },
     ],
     history: [],
-    modelSpace: { entityIds: ["fachada", "replanteo"] },
+    modelSpace: { entityIds: ["fachada", "nombre-espacio", "superficie-declarada", "replanteo", "texto-oculto"] },
     paperSpaces: [],
     styles: { text: {}, dimension: {}, mleader: {}, table: {}, plot: {} },
     blocks: [],
@@ -162,6 +173,29 @@ test("un tercero sin cuenta abre el enlace, ve el plano y comenta sobre un punto
   await expect
     .poll(() => cliente.locator('[data-testid="cad-review-plan"] svg path').count())
     .toBeGreaterThan(0);
+  await expect(cliente.locator('[data-testid="cad-review-text"][data-entity-id="nombre-espacio"] text'))
+    .toHaveText("SALA");
+  await expect(cliente.locator('[data-testid="cad-review-text"][data-entity-id="superficie-declarada"] text'))
+    .toHaveText("18 m²");
+  await expect(cliente.locator('[data-testid="cad-review-text"][data-entity-id="texto-oculto"]'))
+    .toHaveCount(0);
+  const movilContexto = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 2,
+    isMobile: true,
+    hasTouch: true,
+  });
+  await installGuest(movilContexto, backend);
+  const movil = await movilContexto.newPage();
+  await openReview(movil, enlace);
+  await expect(movil.locator('[data-testid="cad-review-text"][data-entity-id="nombre-espacio"] text'))
+    .toHaveText("SALA");
+  await expect(movil.locator('[data-testid="cad-review-text"][data-entity-id="superficie-declarada"] text'))
+    .toHaveText("18 m²");
+  const mobilePlan = await movil.getByTestId("cad-review-plan").boundingBox();
+  expect(mobilePlan?.width).toBeGreaterThan(300);
+  expect(mobilePlan?.height).toBeGreaterThan(100);
+  await movilContexto.close();
   // Y respeta lo que el autor apagó: la capa oculta no se le enseña al cliente.
   expect(
     await cliente
