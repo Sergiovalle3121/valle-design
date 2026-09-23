@@ -4555,6 +4555,38 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "REVISION-COMENTARIOS-MOVIL-20260923",
+      "date": "2026-09-23",
+      "initiative": "Permitir observaciones desde un celular sólo tras autorización expresa del autor en el enlace Pro, conservando los enlaces Esencial y de entrega como solo vista.",
+      "branch": "codex/mobile-comments-opt-in",
+      "assistants": [
+        "OpenAI Codex: auditoría de permisos de revisión, interfaz de autorización y golden táctil"
+      ],
+      "authority": "Sergio Valle Zárate solicitó completar la revisión móvil de VALLECAD y autorizó continuar construyendo el producto.",
+      "firstPartyInputs": [
+        "ReviewLinkIssuer, ReviewLinkClient, CadReviewLinkController y CadReviewRepository existentes",
+        "Goldens de revisión invitada y entrega congelada existentes",
+        "Prompt maestro del 2026-09-23: comentarios desde el celular y visibles al autor"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada.",
+      "derivedAreas": [
+        "Emisor Pro: casilla explícita inicialmente desmarcada para autorizar comentarios por enlace; usa Checkbox y Button del sistema de diseño",
+        "Cliente invitado: permiso de comentario falla cerrado si la respuesta omite allowComments",
+        "Golden #255: token de solo vista, permiso expreso, comentario táctil a 390 × 844 y observación visible en el estudio; prueba API de 403 al comentar o resolver sin permiso"
+      ],
+      "fixtures": "Cuarto sintético de cuatro muros, tokens de revisión y comentarios de prueba; sin datos de clientes ni credenciales reales.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Golden #255 rojo inicialmente por ausencia de autorización visible; implementación, pruebas finales y CI pendientes. La capacidad de comentar permanece acotada a una sesión emitida por el autor con allowComments verdadero; Esencial/demo/entrega/QR mantienen allowComments falso."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }

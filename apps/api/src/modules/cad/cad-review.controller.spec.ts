@@ -727,5 +727,10 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
       .send({ body: 'no debería' })
       .expect(403);
     expect(denied.body.code).toBe('review_comments_disabled');
+    const deniedResolve = await request(app.getHttpServer())
+      .post('/v1/cad/review/comments/00000000-0000-4000-8000-000000000001/resolve')
+      .set('X-Review-Token', shareToken)
+      .expect(403);
+    expect(deniedResolve.body.code).toBe('review_comments_disabled');
   });
 });

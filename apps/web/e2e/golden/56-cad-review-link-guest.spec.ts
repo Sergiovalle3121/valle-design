@@ -255,6 +255,7 @@ test("un tercero sin cuenta abre el enlace, ve el plano y comenta sobre un punto
   await backend.install(context);
   await page.goto(`/studio/${DOCUMENT_ID}`);
   await openCollabDock(page);
+  await page.getByTestId("cad-review-allow-comments").check();
   await page.getByTestId("cad-review-link-new").click();
   await expect(page.getByTestId("cad-review-link-issued")).toBeVisible();
 
@@ -407,14 +408,14 @@ test("un enlace con comentarios apagados deja mirar pero no escribir", async ({
   await installMockBackend(context);
   await loginAsStandaloneOwner(context);
   await backend.install(context);
-  // La sesión se crea por la API, como haría el estudio, pero sin comentarios.
+  // El estudio deja los comentarios desactivados si el autor no los autoriza.
   const page = await context.newPage();
   await page.goto(`/studio/${DOCUMENT_ID}`);
   await openCollabDock(page);
   await page.getByTestId("cad-review-link-new").click();
   await expect(page.getByTestId("cad-review-link-issued")).toBeVisible();
   const enlace = (await page.getByTestId("cad-review-link-url").textContent())?.trim() ?? "";
-  backend.reviewSessions[0].allowComments = false;
+  expect(backend.reviewSessions[0].allowComments).toBe(false);
 
   const contexto = await browser.newContext();
   await installGuest(contexto, backend);
