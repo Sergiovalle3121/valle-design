@@ -150,11 +150,14 @@ describe('StripePaymentProvider · OXXO', () => {
     await provider.createCheckout(INTENT, PRICE);
     await provider.createCheckout({ ...INTENT, paymentMethod: 'card' }, PRICE);
 
-    expect(calls[0].headers['idempotency-key']).toBe(
-      `checkout-intent:${INTENT.intentId}:oxxo`,
+    expect(calls[0].headers['idempotency-key']).toMatch(
+      new RegExp(`^checkout-intent:${INTENT.intentId}:[a-f0-9]{64}$`),
     );
-    expect(calls[1].headers['idempotency-key']).toBe(
-      `checkout-intent:${INTENT.intentId}:card`,
+    expect(calls[1].headers['idempotency-key']).toMatch(
+      new RegExp(`^checkout-intent:${INTENT.intentId}:[a-f0-9]{64}$`),
+    );
+    expect(calls[1].headers['idempotency-key']).not.toBe(
+      calls[0].headers['idempotency-key'],
     );
   });
 });

@@ -148,9 +148,9 @@ export function CadRibbon({
   className?: string;
   /**
    * Ola «armazón» — el `appBar` de `CadShellFrame` es UNA fila de 32 px que
-   * junta cerrar, título, pestañas de la cinta y accesos 2D/3D: ya no hay una
+   * junta título, pestañas de la cinta, cierre y accesos 2D/3D: ya no hay una
    * barra de 48/56 px propia encima. `quickAccess` es lo que va ANTES de las
-   * pestañas (cerrar, título, insignias de sólo-lectura); `trailing`, lo que
+   * pestañas (título, insignias de sólo-lectura); `trailing`, lo que
    * va DESPUÉS (2D/3D, Modelo/Presentación, Guardar, Cerrar editor). Ninguno
    * de los dos es un comando de dibujo: ver `docs/execution/DEUDA-
    * MONOLITO.md`, sección «armazón», para por qué el resto de la barra vieja
@@ -160,7 +160,7 @@ export function CadRibbon({
   trailing?: ReactNode;
   /**
    * La COLA FIJA: lo que no puede exigir un desplazamiento para llegar — el
-   * estado de aprobación, «Guardar» y «Cerrar el CAD». Se pinta al final, en
+   * estado de aprobación, «Guardar» y «Cerrar editor». Se pinta al final, en
    * un bloque que NO cede, detrás de la banda de iconos que sí lo hace.
    */
   trailingFixed?: ReactNode;
@@ -412,7 +412,7 @@ export function CadRibbon({
         // una barra horizontal que suma 14,3 px de ALTO: medido el 2026-09-20
         // en la vista previa, el botón mide 27,4 px y la fila 41,7 — dentro de
         // un `appBar` de 32. Sobresalía 5,2 px por arriba y empujaba «Guardar»
-        // y «Cerrar el CAD» a `y = -0,3`, fuera del viewport (golden 215). La
+        // y «Cerrar editor» a `y = -0,3`, fuera del viewport (golden 215). La
         // fila de fuera ya se oculta la suya con estas tres reglas; a ésta se
         // le olvidó. Se desplaza igual, sin gastar alto ni pintar una franja
         // gris encima del dibujo.
@@ -446,7 +446,7 @@ export function CadRibbon({
       {/* El interruptor Esencial/Pro va en la cola FIJA, junto a Guardar: siempre a la vista en los dos modos. */}
       {trailingFixed ? (
         // NO CEDE. Todo lo demás de esta fila se encoge o se desplaza cuando la
-        // ventana aprieta; esto no, porque es «Guardar» y «Cerrar el CAD».
+        // ventana aprieta; esto no, porque es «Guardar» y «Cerrar editor».
         <div className="flex shrink-0 items-center gap-1.5 border-l border-border pl-2">
           <CadUiModeSwitch />
           {trailingFixed}
