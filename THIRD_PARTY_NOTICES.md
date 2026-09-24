@@ -2,7 +2,12 @@
 
 Valle Design es software propietario (`UNLICENSED` en `package.json`; términos
 en `LICENSE`) y distribuye dependencias de terceros bajo sus propias licencias.
-El inventario autoritativo de una compilación se genera desde el lockfile:
+El inventario de una compilación se genera desde el árbol npm instalado. El
+SBOM de producción selecciona el grafo de `npm ls --omit=dev --all` del SBOM
+completo y comprueba las entradas runtime instaladas del lockfile. Por eso
+describe la plataforma donde se generó; la imagen final del web usa la salida
+`standalone` de Next.js y requiere además inspección de la imagen para confirmar
+el conjunto exacto que se distribuye:
 
 ```bash
 npm ci
@@ -12,7 +17,8 @@ npm run check:licenses
 
 El SBOM CycloneDX resultante (`sbom.cdx.json`) enumera componentes y licencias;
 CI lo conserva como artefacto y rechaza licencias de producción fuera de la
-allowlist de `scripts/check-dependency-licenses.mjs`. No se versiona aquí una
+allowlist de `scripts/check-dependency-licenses.mjs`; una licencia LGPL queda
+señalada para revisión humana y no equivale a conformidad aprobada. No se versiona aquí una
 lista copiada porque divergiría del lockfile. Conservar en cada distribución
 el SBOM de esa build, los textos de licencia exigidos por cada componente y
 este aviso. DXF es un formato interoperado por código propio y `dxf-parser`;

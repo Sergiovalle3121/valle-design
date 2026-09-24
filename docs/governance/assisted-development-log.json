@@ -4501,6 +4501,37 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "SBOM-PROD-COVERAGE-20260923",
+      "date": "2026-09-23",
+      "initiative": "Hacer que el SBOM de producción cubra el árbol npm realmente instalado y que la puerta de licencias falle ante paquetes omitidos.",
+      "branch": "codex/sbom-license-coverage",
+      "assistants": [
+        "OpenAI Codex: diagnóstico, implementación y verificación local de cobertura del SBOM"
+      ],
+      "authority": "Sergio pidió ejecutar la campaña de lanzamiento y analizar los faltantes para salir al mercado; el inventario y las licencias de las dependencias distribuidas son parte de esa revisión.",
+      "firstPartyInputs": [
+        "package-lock.json, scripts/check-dependency-licenses.mjs y workflows de CI y release del repositorio",
+        "Comparación local de npm sbom --omit dev con npm ls --omit=dev --all: 100 componentes frente a un árbol instalado que contiene Express 5.2.1 y qs 6.15.3"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada; metadatos de licencias de los paquetes npm instalados examinados localmente.",
+      "derivedAreas": [
+        "scripts/sbom/ genera y normaliza el SBOM completo de npm y selecciona los componentes del grafo de producción instalado, verificando además las entradas runtime presentes del lockfile",
+        "check:licenses comprueba cobertura antes de clasificar licencias; los alias npm con mismo bom-ref se consolidan sin perder sus rutas instaladas",
+        "Busboy 1.6.0 y streamsearch 1.1.0 se reconocen como MIT sólo con versión y hash SHA-256 de su archivo LICENSE; LGPL permanece en revisión legal"
+      ],
+      "fixtures": "Árbol npm instalado mediante npm ci desde el lockfile, SBOM CycloneDX generado localmente y pruebas sintéticas de omisión, alias y paquete nativo opcional.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Línea base: npm run sbom produjo 100 componentes y check:licenses verde aunque omitía qs/Express; la nueva comprobación sobre ese artefacto salió roja. Tras el cambio: 344 componentes lógicos de producción, 337 rutas runtime instaladas del lockfile cubiertas, qs y Express presentes, referencias válidas y check:licenses verde con LGPL de sharp-win32-x64 expresamente pendiente de revisión. El SBOM completo se normaliza porque npm repite bom-ref para alias; sin CI ni despliegue de esta rama todavía."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }
