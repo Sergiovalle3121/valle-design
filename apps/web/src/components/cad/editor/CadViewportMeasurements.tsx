@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ComponentProps, type MutableRefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentProps, type MutableRefObject } from "react";
 import { Pencil } from "lucide-react";
 import { Button, Input } from "@/components/ui";
 import type { CadDocument } from "@/lib/cad/cad-document";
@@ -26,10 +26,18 @@ export function CadViewportMeasurements({ document, viewControllerRef, essential
   const [placed, setPlaced] = useState<{ rooms: PlacedLabel[]; dimensions: PlacedDimension[] }>({ rooms: [], dimensions: [] });
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState("");
+  const skipRenameBlurRef = useRef(false);
   const beginRename = (room: CadRoomAreaLabel) => {
     if (!onRenameRoom) return;
+    skipRenameBlurRef.current = false;
     setDraftName(room.name);
     setEditingRoomId(room.id);
+  };
+  const saveRename = (room: CadRoomAreaLabel) => {
+    const name = draftName.trim();
+    if (name && name !== room.name && onRenameRoom?.(room, name) === false) return;
+    skipRenameBlurRef.current = true;
+    setEditingRoomId(null);
   };
 
   useEffect(() => {
@@ -87,18 +95,17 @@ export function CadViewportMeasurements({ document, viewControllerRef, essential
                 maxLength={80}
                 onChange={(event) => setDraftName(event.target.value)}
                 onMouseDown={(event) => event.stopPropagation()}
-                onBlur={() => setEditingRoomId(null)}
+                onBlur={() => { if (!skipRenameBlurRef.current) saveRename(room); }}
                 onKeyDown={(event) => {
                   if (event.key === "Escape") {
                     event.stopPropagation();
+                    skipRenameBlurRef.current = true;
                     setEditingRoomId(null);
                   }
                   if (event.key === "Enter") {
                     event.preventDefault();
                     event.stopPropagation();
-                    const name = event.currentTarget.value.trim();
-                    setEditingRoomId(null);
-                    if (name && name !== room.name) onRenameRoom?.(room, name);
+                    saveRename(room);
                   }
                 }}
               />
