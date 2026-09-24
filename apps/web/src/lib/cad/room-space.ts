@@ -10,11 +10,16 @@ export function isCadRoomSpaceAnchor(entity: CadEntity): boolean {
     entity.context?.metadata?.roomSpaceAnchor === true;
 }
 
-export function cadRoomSpaceAnchor(id: string, label: string, at: CadPoint2, layer = "0"): RoomBox {
+export function cadRoomSpaceAnchor(
+  id: string, label: string, at: CadPoint2, layer = "0", sourceText?: { id: string; text: string },
+): RoomBox {
   return {
     id, type: "box", kind: "room", x: at.x, y: at.y, w: 0, h: 0,
     rotation: 0, layer, shape: "rect", label,
-    context: { metadata: { roomSpaceAnchor: true } },
+    context: { metadata: {
+      roomSpaceAnchor: true,
+      ...(sourceText ? { roomNameSourceTextId: sourceText.id, roomNameSourceText: sourceText.text } : {}),
+    } },
   };
 }
 
@@ -33,6 +38,7 @@ export function cadRoomSpaceInside(ring: readonly CadPoint2[], entities: readonl
 
 export interface CadRoomNameTarget {
   at: CadPoint2;
+  name: string;
   spaceId?: string;
   textLabelId?: string;
 }
@@ -48,8 +54,13 @@ export function cadRoomNameCommands(
   if (!label || label.length > 80) throw new Error("El nombre del cuarto debe tener entre 1 y 80 caracteres.");
   const current = document.entities.find((entity) => entity.id === room.spaceId);
   const anchor = current && isCadRoomSpaceAnchor(current) ? current : null;
+  const text = document.entities.find((entity) => entity.id === room.textLabelId);
+  const sourceText = text?.type === "text" || text?.type === "mtext" ? text.text.replace(/\s+/g, " ").trim() : null;
+  const matchingSource = text && sourceText && sourceText === room.name.replace(/\s+/g, " ").trim()
+    ? { id: text.id, text: sourceText } : null;
   return [{
     type: "room-space-name", entityId: anchor?.id ?? createId, label,
     ...(anchor ? {} : { at: room.at }),
+    ...(matchingSource ? { sourceText: matchingSource } : {}),
   }];
 }

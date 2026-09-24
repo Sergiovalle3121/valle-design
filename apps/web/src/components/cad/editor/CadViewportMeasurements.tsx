@@ -114,10 +114,17 @@ export function CadViewportMeasurements({ document, viewControllerRef, essential
               <div className={`pointer-events-none max-w-32 type-micro font-semibold leading-tight ${essential ? "break-words" : "truncate"}`}>
                 <span
                   data-testid="cad-room-name-hitbox"
-                  className={canRenameRoom ? "pointer-events-auto cursor-text" : "pointer-events-none"}
-                  title={canRenameRoom ? "Doble clic para renombrar el cuarto" : undefined}
+                  className={canRenameRoom ? "pointer-events-auto cursor-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary" : "pointer-events-none"}
+                  tabIndex={canRenameRoom && onRenameRoom ? 0 : -1}
+                  title={canRenameRoom ? "Doble clic o Intro para renombrar el cuarto" : undefined}
                   onMouseDown={(event) => event.stopPropagation()}
                   onDoubleClick={(event) => { event.stopPropagation(); beginRename(room); }}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter" && event.key !== " ") return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    beginRename(room);
+                  }}
                 >{room.name}</span>
               </div>
             ) : null}

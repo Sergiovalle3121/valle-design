@@ -48,7 +48,7 @@ import {
   type CadDocumentTableCommand,
 } from "./entity-command-tables";
 import { orphanedOpeningIds } from "./wall-openings";
-import { cadRoomSpaceAnchor } from "./room-space";
+import { cadRoomSpaceAnchor, isCadRoomSpaceAnchor } from "./room-space";
 import { applyPaperSpaceCommand } from "./entity-command-paper-space";
 import {
   CAD_ENTITY_REGISTRY,
@@ -62,7 +62,7 @@ import {
 
 export type CadEntityCommand =
   /** Nombre del espacio `box kind:room`; un ancla nueva no declara geometría. */
-  | { type: "room-space-name"; entityId: string; label: string; at?: CadPoint2 }
+  | { type: "room-space-name"; entityId: string; label: string; at?: CadPoint2; sourceText?: { id: string; text: string } }
   | { type: "transform"; entityId: string; transform: CadEntityTransform }
   | { type: "transform3d"; entityId: string; transform3d: import("./cad-entities-v5").CadSolidPlacement }
   | { type: "properties"; entityId: string; patch: Partial<CadPropertyBag> }
@@ -402,14 +402,19 @@ export function executeCadEntityCommandBatch(
       if (existing) {
         if (existing.type !== "box" || existing.kind !== "room")
           throw new Error(`El espacio ${command.entityId} no es un cuarto.`);
-        present.set(existing.id, { ...existing, label });
+        present.set(existing.id, { ...existing, label, ...(isCadRoomSpaceAnchor(existing) && command.sourceText &&
+          !existing.context?.metadata?.roomNameSourceTextId ? { context: { ...existing.context, metadata: {
+            ...existing.context?.metadata,
+            roomNameSourceTextId: command.sourceText.id,
+            roomNameSourceText: command.sourceText.text,
+          } } } : {}) });
       } else {
         if (!command.at || !Number.isFinite(command.at.x) || !Number.isFinite(command.at.y))
           throw new Error("El nuevo espacio necesita un punto interior válido.");
         const layer = document.layers.find((candidate) => candidate.id === "0" && !candidate.locked)
           ?? document.layers.find((candidate) => !candidate.locked);
         if (!layer) throw new Error("Desbloquea una capa antes de nombrar el cuarto.");
-        present.set(command.entityId, cadRoomSpaceAnchor(command.entityId, label, command.at, layer.id));
+        present.set(command.entityId, cadRoomSpaceAnchor(command.entityId, label, command.at, layer.id, command.sourceText));
         createdFrontIds.push(command.entityId);
       }
       touchedIds.push(command.entityId);

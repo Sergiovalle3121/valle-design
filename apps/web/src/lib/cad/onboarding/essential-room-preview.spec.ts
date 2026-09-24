@@ -42,5 +42,26 @@ assert.ok(cadEssentialRoomAssetLabelIds(renamed).has(sala.spaceId),
   "la etiqueta original de la plantilla sigue oculta tras renombrar sin mutar su box");
 assert.ok(cadEssentialRoomLabelIds(renamed).has(sala.textLabelId),
   "el TEXT original sigue oculto en Esencial aun si el nombre visible cambia");
+const withInteriorNote = {
+  ...withTemplate,
+  entities: withTemplate.entities.map((entity) => entity.id === sala.textLabelId &&
+    (entity.type === "text" || entity.type === "mtext") ? { ...entity, text: "SALIDA DE EMERGENCIA" } : entity),
+};
+const notedRoom = cadRoomAreaLabels(withInteriorNote).find((room) => room.spaceId === sala.spaceId);
+assert.ok(notedRoom?.textLabelId, "la nota sigue dentro de la sala de plantilla");
+assert.equal(notedRoom.textLabelMatchesName, false, "la nota no es el nombre SALA del cuarto");
+assert.ok(!cadEssentialRoomLabelIds(withInteriorNote).has(notedRoom.textLabelId),
+  "Esencial deja visible un TEXT interior distinto del nombre del cuarto");
+const renamedWithNote = executeCadEntityCommandBatch(withInteriorNote,
+  cadRoomNameCommands(withInteriorNote, notedRoom, "Biblioteca", "space-sala-note"), "rename with note").document;
+assert.ok(!cadEssentialRoomLabelIds(renamedWithNote).has(notedRoom.textLabelId),
+  "renombrar el cuarto no convierte una nota distinta en rótulo oculto");
+const changedOriginal = {
+  ...renamed,
+  entities: renamed.entities.map((entity) => entity.id === sala.textLabelId &&
+    (entity.type === "text" || entity.type === "mtext") ? { ...entity, text: "SALIDA DE EMERGENCIA" } : entity),
+};
+assert.ok(!cadEssentialRoomLabelIds(changedOriginal).has(sala.textLabelId),
+  "si el usuario cambia el TEXT original por una nota, vuelve a mostrarse");
 assert.equal(JSON.stringify(document), original, "renombrar no muta ni sobrescribe la plantilla original");
-console.log("essential-room-preview.spec: TEXT y sprite de plantilla excluidos sólo en Esencial, aun tras renombrar");
+console.log("essential-room-preview.spec: los nombres fuente se ocultan y las notas interiores permanecen visibles");

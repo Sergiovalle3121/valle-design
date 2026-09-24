@@ -48,6 +48,12 @@ test("Esencial renombra un cuarto de plantilla, guarda y reabre nombre+m² sin r
   await expect(overlay.getByRole("button", { name: "Renombrar este cuarto" })).toBeVisible();
   await page.getByTestId("cad-ui-mode-switch").click();
   await expect(overlay.getByText("SALA", { exact: true })).toBeVisible();
+  const roomName = overlay.getByTestId("cad-room-name-hitbox");
+  await roomName.focus();
+  await roomName.press("Enter");
+  await expect(page.getByTestId("cad-room-name-input")).toBeVisible();
+  await page.getByTestId("cad-room-name-input").press("Escape");
+  await expect(page.getByTestId("cad-room-name-input")).toHaveCount(0);
   await overlay.getByText("SALA", { exact: true }).dblclick();
   await page.getByTestId("cad-room-name-input").fill("Recámara");
   await page.getByTestId("cad-room-name-input").press("Enter");
