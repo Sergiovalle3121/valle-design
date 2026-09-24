@@ -45,6 +45,11 @@ rutas siguen mostrando el resumen mínimo y sin promesas que ya existe hoy
 (`apps/web/src/app/terms/page.tsx`, `apps/web/src/app/privacy/page.tsx`) hasta
 que el contenido definitivo esté listo para publicarse.
 
+Los borradores redactados el 23-09-2026 (aviso de privacidad y términos, ya con
+el enlace temporal de la demostración) están en
+[`BORRADORES-LANZAMIENTO-2026-09-23.md`](BORRADORES-LANZAMIENTO-2026-09-23.md)
+y sus dos documentos hermanos. Son para el abogado, no páginas públicas.
+
 ## Registro de aceptación (mecanismo ya construido, falta conectarlo)
 
 | Pieza | Estado | Dónde |

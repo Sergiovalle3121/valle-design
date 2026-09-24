@@ -4914,6 +4914,48 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "BORRADORES-LEGALES-DOCS-20260924",
+      "date": "2026-09-24",
+      "initiative": "Los borradores de aviso de privacidad y términos del PR #244 se conservan como documentos para el abogado en docs/legal, no como páginas públicas: con «pendiente de Sergio» a la vista del alta y del pago restaban confianza en el lanzamiento. El aviso gana la sección del enlace temporal de la demostración (finalidad, qué se guarda y qué no, siete días, borrado, reclamo). El PR #244 se cierra sin fusionar.",
+      "branch": "claude/keen-cannon-nvm7x7-compartir",
+      "assistants": [
+        "OpenAI Codex: redacción original de los borradores y del resumen de fuentes (PR #244, rama codex/legal-es-drafts)",
+        "Claude Code (Anthropic): traslado a docs/legal, sección del enlace de la demostración y ajuste de la lista de pendientes"
+      ],
+      "authority": "Sergio pidió el 24-09-2026 cerrar todos los PR —fusionar lo que sirve, borrar lo que no— y dejar VALLECAD listo para salir al mercado.",
+      "firstPartyInputs": [
+        "PR #244 (codex/legal-es-drafts): apps/web/src/app/privacidad/page.tsx, terminos/page.tsx y docs/legal/BORRADORES-LANZAMIENTO-2026-09-23.md",
+        "apps/api/src/modules/cad/cad-demo-share.service.ts: hechos del enlace temporal"
+      ],
+      "externalSources": [
+        {
+          "location": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPDPPP.pdf",
+          "terms": "Ley federal pública de consulta",
+          "fact": "Arts. 14–16 y 27–31: elementos del aviso y ejercicio de derechos ARCO"
+        },
+        {
+          "location": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPC.pdf",
+          "terms": "Ley federal pública de consulta",
+          "fact": "Art. 76 BIS: información previa a transacciones electrónicas, cobros recurrentes y cancelación"
+        }
+      ],
+      "externalImplementationConsulted": "Ningún código ni redacción externos copiados; las leyes se consultaron (en #244) para identificar campos y límites.",
+      "derivedAreas": [
+        "docs/legal/BORRADOR-AVISO-PRIVACIDAD-2026-09-23.md y BORRADOR-TERMINOS-2026-09-23.md",
+        "docs/legal/BORRADORES-LANZAMIENTO-2026-09-23.md y CHECKLIST_PENDIENTES_LEGALES.md"
+      ],
+      "fixtures": "Sin fixtures.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Documentos sin efecto en el producto; check:legal y check:governance verdes. La fila legal de lanzamiento sigue pendiente de revisión jurídica."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
