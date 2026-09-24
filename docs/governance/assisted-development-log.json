@@ -4472,6 +4472,40 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "ESPACIO-CUARTO-NOMBRE-20260923",
+      "date": "2026-09-23",
+      "initiative": "Vincular el cuarto cerrado a un espacio persistido y permitir editar su nombre en planta sin inventar un rectángulo ni una superficie.",
+      "branch": "codex/room-space-naming-main253",
+      "assistants": [
+        "OpenAI Codex: análisis de entidades de plantilla, conexión del nombre, pruebas de invariancia y golden de interacción"
+      ],
+      "authority": "Sergio encargó continuar ValleCAD desde el estado actual y llevar al mercado una edición de cuartos comprensible; el PROMPT MAESTRO del 2026-09-23 pide nombre editable en un espacio canónico existente y evidencia visible.",
+      "firstPartyInputs": [
+        "Las plantillas SALA/COMEDOR/COCINA persisten como box kind:room con el nombre en label; el cuadro BIM deriva las caras únicamente de muros canónicos.",
+        "La rama de área visible codex/room-area-overlay, golden 234 y las rutas existentes de comando, historial, guardado, DXF y DWG del repositorio.",
+        "El trasplante limpio de 77f6f66e sobre origin/main #253 conserva la primera pantalla y la lectura visible de cuartos, conteos de vanos y cotas."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada ni consultada.",
+      "derivedAreas": [
+        "room-space.ts enlaza por punto interior una cara cerrada con el label de box kind:room; al renombrar crea o reutiliza una identidad nominal de huella cero con metadato explícito y prioridad BIM, conservada por la proyección del editor. El box de plantilla original y cualquier TEXT/MTEXT permanecen intactos para paridad de archivo.",
+        "entity-commands.ts actualiza el label del ancla mediante un lote canónico y preserva el orden previo de entidades en esta operación para no alterar bytes DXF/DWG; Deshacer/Rehacer y guardar/reabrir mantienen la identidad. El aplicador puro de pestañas pasó intacto a entity-command-paper-space.ts para respetar el presupuesto de 800 líneas.",
+        "bim-schedule.ts y room-area-labels.ts muestran el nombre persistido junto al área entre ejes derivada de los muros; al abrir el contorno desaparece el área y al cerrarlo reaparece el nombre.",
+        "Las rutas de geometría, validación, papel, DXF y DWG omiten exclusivamente el ancla sin huella; no se exporta ni se suma a cantidades BIM.",
+        "Golden 255 caracteriza renombrar, Deshacer/Rehacer, guardar y reabrir; falta repetirlo sobre este SHA y verificar que Esencial oculte los rótulos fuente de TEXT y asset de plantilla sin cambiar Pro."
+      ],
+      "fixtures": "Documentos herméticos de muros rectangulares y cóncavos, box de plantilla, TEXT y LINE; el golden usa un backend simulado sin credenciales ni datos de clientes.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Trasplante limpio sobre #253: room-space.spec, bim-schedule.spec (66 aserciones), dwg-native-writer.spec, typecheck web, ESLint focal (0 errores, 8 avisos previos del monolito), presupuesto de monolito y check:governance (11/11) PASS. Room-space cubre Deshacer/Rehacer, mover y borrar muro mediante comandos reales, abrir/cerrar/guardar/reabrir, plantilla, TEXT, área y cantidades BIM invariantes. Hashes SHA-256 DXF y DWG de documento anterior coinciden con origin/main antes de este cambio; agregar ancla y renombrar un cuarto con TEXT conservan bytes completos y manifiestos, y la plantilla conserva los bytes de la ruta DXF del editor. DWG público sigue cerrado: los tests del escritor usan gates explícitos sólo en laboratorio; no se declara compatibilidad general. El box original de plantilla y TEXT permanecen en Pro y exportaciones con su nombre anterior; Esencial debe mostrar sólo el nombre derivado del ancla, pendiente de verificación integrada con la rama de legibilidad. Build web, golden 255 exact-SHA, CI y producción pendientes."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "ROBOT-ESTUDIANTE-20260923",
       "date": "2026-09-23",
       "initiative": "Versionar un protocolo reproducible de cuatro tareas de estudiante en /demo, con acciones exclusivamente visibles, evidencia de píxeles, textos y enlace móvil, más una guía para las cinco sesiones humanas de primer uso.",
