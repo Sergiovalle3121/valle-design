@@ -4530,7 +4530,7 @@
       "initiative": "Entregar un enlace de revisión con versión CAD y fecha congeladas, más PDF vectorial con cajetín y QR a la revisión viva caducable.",
       "branch": "codex/delivery-frozen-link",
       "assistants": [
-        "OpenAI Codex: auditoría de sesiones y versiones CAS, implementación de entrega, PDF y pruebas focales"
+        "OpenAI Codex: auditoría de sesiones y versiones CAS, implementación de entrega, PDF y pruebas focales; comprobación posterior del QR escrito y del snapshot con PostgreSQL real"
       ],
       "authority": "Sergio Valle Zárate pidió la Fase F2 del prompt maestro y autorizó seguir construyendo VALLECAD hasta integrarlo tras sus dependencias.",
       "firstPartyInputs": [
@@ -4543,7 +4543,7 @@
       "derivedAreas": [
         "API: columnas y migración aditiva para versión y fecha de entrega, canje histórico por versión CAS y comentarios deshabilitados por servidor",
         "Web: acción Entregar en Esencial, etiqueta fechada del invitado y descarga PDF con portada QR a un segundo enlace de revisión vivo y revocable",
-        "Emisor PDF vectorial existente: QR y marca Uso educativo condicional; golden móvil y pruebas API/PDF"
+        "Emisor PDF vectorial existente: QR y marca Uso educativo condicional; oráculo de prueba que descomprime el PDF y reconstruye su QR, golden móvil y pruebas API/PDF/PostgreSQL"
       ],
       "fixtures": "Plano sintético de cuatro muros y dos versiones SALA/COCINA; enlace y fechas sintéticas; sin credenciales ni datos de clientes.",
       "dependenciesAdded": [],
@@ -4551,7 +4551,7 @@
         "required": true,
         "status": "proposed",
         "adopter": "Sergio Valle Zárate",
-        "evidence": "API focal y PDF focal verdes en local. Golden móvil y CI sobre SHA exacto pendientes antes de adopción. El QR apunta a un segundo enlace vivo con caducidad/revocación explícitas; no promete permanencia. No se cambian bytes DXF/DWG."
+        "evidence": "API focal 8/8 y PDF focal verdes en local. El oráculo lee los rectángulos del PDF sin comprimir y comprimido, reconstruye la retícula y decodifica la URL viva; el golden #254 coteja esa URL desde el PDF descargado contra la segunda sesión, distinta del enlace congelado. PostgreSQL 16 real en base exclusiva valle_f2_verify: 3/3 pruebas del repositorio, incluida la persistencia de versión 1 tras avanzar el documento a versión 2. Golden #254 se compiló con Playwright --list pero su recorrido y la CI sobre SHA exacto siguen pendientes antes de adopción. El QR vivo tiene caducidad/revocación explícitas; no promete permanencia. No se cambian bytes DXF/DWG."
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false

@@ -4,6 +4,7 @@ import { installMockBackend } from "../fixtures/mock-backend";
 import { CadV1Backend, seedFootprint } from "../fixtures/cad-v1-backend";
 import { installStandaloneIdentity, loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import type { CadDocument } from "../../src/lib/cad/cad-document";
+import { readPrintedQr } from "../../src/lib/cad/plot/delivery-pdf-qr-oracle";
 import { readFile } from "node:fs/promises";
 
 const DOCUMENT_ID = "00000000-0000-4000-8000-000000000001";
@@ -58,9 +59,13 @@ test("Entregar fija la versión y fecha; Compartir enseña la edición posterior
   await page.getByRole("button", { name: "Descargar PDF con cajetín y QR" }).click();
   const pdf = await pdfDownload;
   expect(pdf.suggestedFilename()).toBe("entrega-v1.pdf");
-  expect((await readFile(await pdf.path())).subarray(0, 5).toString()).toBe("%PDF-");
+  const downloadedPdf = await readFile(await pdf.path());
+  expect(downloadedPdf.subarray(0, 5).toString()).toBe("%PDF-");
   expect(backend.reviewSessions[1]).toMatchObject({ deliveredVersion: null, allowComments: false });
   const qrLiveUrl = new URL(`/revision#cadReview=${backend.reviewSessions[1].token}`, page.url()).toString();
+  const printedUrl = readPrintedQr(downloadedPdf);
+  expect(printedUrl).toBe(qrLiveUrl);
+  expect(printedUrl).not.toBe(deliveryUrl);
 
   // El autor sigue trabajando: el enlace de entrega no cambia, Compartir sí.
   backend.replaceDocument("AXOS-CAD-STUDIO", "UNIVERSAL", seedFootprint(
