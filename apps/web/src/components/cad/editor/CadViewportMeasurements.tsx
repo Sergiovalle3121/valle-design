@@ -111,13 +111,15 @@ export function CadViewportMeasurements({ document, viewControllerRef, essential
                 }}
               />
             ) : essential || !room.textLabelMatchesName ? (
-              <div
-                data-testid="cad-room-name-hitbox"
-                className={`${canRenameRoom ? "pointer-events-auto cursor-text" : "pointer-events-none"} max-w-32 type-micro font-semibold leading-tight ${essential ? "break-words" : "truncate"}`}
-                title={canRenameRoom ? "Doble clic para renombrar el cuarto" : undefined}
-                onMouseDown={(event) => event.stopPropagation()}
-                onDoubleClick={(event) => { event.stopPropagation(); beginRename(room); }}
-              >{room.name}</div>
+              <div className={`pointer-events-none max-w-32 type-micro font-semibold leading-tight ${essential ? "break-words" : "truncate"}`}>
+                <span
+                  data-testid="cad-room-name-hitbox"
+                  className={canRenameRoom ? "pointer-events-auto cursor-text" : "pointer-events-none"}
+                  title={canRenameRoom ? "Doble clic para renombrar el cuarto" : undefined}
+                  onMouseDown={(event) => event.stopPropagation()}
+                  onDoubleClick={(event) => { event.stopPropagation(); beginRename(room); }}
+                >{room.name}</span>
+              </div>
             ) : null}
             <div className="type-caption font-bold leading-tight">{room.axisAreaText} m²</div>
             {!essential && !room.textLabelMatchesName && <div className="type-micro leading-tight text-muted-foreground">entre ejes</div>}
