@@ -107,6 +107,8 @@ test.describe("La primera hora de un desconocido", () => {
     await expect(page.getByTestId("dashboard-empty")).toBeVisible({
       timeout: 60_000,
     });
+    await expect(page.getByTestId("first-drawing-house")).toBeVisible();
+    await page.getByTestId("first-drawing-more").locator("summary").click();
     await expect(page.getByTestId("first-minute-sample")).toBeVisible();
   });
 

@@ -4501,6 +4501,38 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "PRIMER-DIBUJO-CUENTA-20260923",
+      "date": "2026-09-23",
+      "initiative": "Dar a una cuenta nueva cuatro arranques legibles que crean y guardan su primer plano sin exigir un proyecto manual.",
+      "branch": "codex/dashboard-first-choice",
+      "assistants": [
+        "OpenAI Codex: implementación y verificación local del primer dibujo de cuenta"
+      ],
+      "authority": "Sergio pidió ejecutar el prompt de lanzamiento del 2026-09-23, que exige la elección Casa habitación, Departamento, Local comercial o En blanco en la primera visita.",
+      "firstPartyInputs": [
+        "dashboard/page.tsx, FirstMinute.tsx, gallery-start.tsx y sample-plan.ts del producto",
+        "buildCadTemplateDocument y las plantillas casa-habitacion, departamento y local-comercial ya existentes",
+        "CadDocument CAS version 0 y los fixtures Playwright de identidad first-party"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada.",
+      "derivedAreas": [
+        "FirstDrawingChoice presenta cuatro tarjetas táctiles con nombres humanos en el tablero vacío",
+        "createFirstDrawing crea Mis planos cuando falta proyecto, genera el documento y guarda la plantilla antes de entrar al estudio",
+        "Las llegadas desde demo y galería conservan su precedencia; ejemplo e importación siguen accesibles desde el tablero"
+      ],
+      "fixtures": "Cuatro elecciones de cuenta nueva, plantilla manual y llegada de galería con API hermética y verificación del documento que recibió el servidor; goldens 55 y 150 conservan la plantilla profesional, el importador y la salida PDF.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Rama local aislada: typecheck web PASS, build Webpack productivo de 208 rutas PASS, Chromium focal 10/10 (goldens 258 6/6, 55 2/2, 150 2/2), ESLint focal sin errores (dos avisos preexistentes), check:surface 9/9, check:e2e-localizadores, presupuesto y gobernanza PASS. Las plantillas llegaron a saveContent con versión esperada 0 antes de abrir el estudio. CI remota, PR y producción pendientes; esta rama no se publicó."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }

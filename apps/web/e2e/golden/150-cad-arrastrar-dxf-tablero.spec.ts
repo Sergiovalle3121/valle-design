@@ -181,6 +181,7 @@ test("la zona de suelta del estado vacío existe y no rompe la página", async (
   // soltar un archivo no lanza ningún error ni navega a ninguna parte.
   await page.goto("/dashboard");
   await expect(page.getByTestId("dashboard-empty")).toBeVisible();
+  await page.getByTestId("first-drawing-more").locator("summary").click();
   await expect(page.getByTestId("first-minute-import-dropzone")).toBeVisible();
 
   await dropFileOn(page, "first-minute-import-dropzone", {

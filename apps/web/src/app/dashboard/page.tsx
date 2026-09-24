@@ -27,6 +27,7 @@ import {
 import { dwgClaim } from "@/lib/marketing/dwg-claim";
 import { ArchiveDocumentDialog, useArchiveDocument } from "./archive-document";
 import { EMPTY_CAD_STARTER_CHOICE } from "./starter-choice";
+import { createFirstDrawing, FIRST_PROJECT_NAME, type FirstDrawingId } from "./first-drawing";
 import { Status } from "./Status";
 import { abrirPlanoDeEjemplo } from "./sample-plan";
 import { prefetchCadStudio } from "@/components/cad/prefetch-studio";
@@ -76,6 +77,12 @@ export default function DashboardPage() {
   const [starter, setStarter] = useState(EMPTY_CAD_STARTER_CHOICE);
   const [galleryStart, clearGalleryStart] = useGalleryStart();
   const [demoAdoption, clearDemoAdoption] = useDemoAdoption();
+  // La resolución de una plantilla de galería es asíncrona. Mientras llega,
+  // no se ofrece un arranque nuevo que podría ganar por una carrera de clics.
+  const specialArrival = typeof window !== "undefined" && (() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("demo") === "1" || params.has("plantilla");
+  })();
 
   /**
    * Quien llega al tablero va a abrir un plano: es lo único que se hace aquí.
@@ -243,14 +250,24 @@ export default function DashboardPage() {
   };
 
   const createDocument = async (name: string) => {
-    if (!canEdit || !name.trim() || !selectedProject || busy) return;
+    if (!canEdit || !name.trim() || busy) return;
     setBusy(true);
     setActionError(null);
     try {
+      let projectId = selectedProject;
+      let projectCreated: Project | null = null;
+      if (!projectId) {
+        const newProject = await designClient.projects.create({ name: FIRST_PROJECT_NAME });
+        projectCreated = newProject;
+        projectId = newProject.id;
+        setProjects((items) => [...items, newProject]);
+        setSelectedProject(projectId);
+        setState("ready");
+      }
       // model/revision se omiten deliberadamente: son alias exclusivos de migración.
       const document = await designClient.documents.create({
         name: name.trim(),
-        projectId: selectedProject,
+        projectId,
       });
       // La plantilla se escribe ANTES de abrir el estudio. Al revés —abrir y
       // que el editor la aplique— habría dos escritores del mismo documento en
@@ -265,7 +282,7 @@ export default function DashboardPage() {
           0,
         );
       } else if (starter.templateId) {
-        const project = projects.find((item) => item.id === selectedProject);
+        const project = projectCreated ?? projects.find((item) => item.id === projectId);
         // El generador viaja con el catálogo de plantillas: se trae aquí, con
         // el usuario ya comprometido a crear el documento, y no al abrir la
         // página. `import()` cachea el módulo, así que el segundo documento no
@@ -338,6 +355,26 @@ export default function DashboardPage() {
           ? error.message
           : "No se pudo abrir el plano de ejemplo.",
       );
+      setBusy(false);
+    }
+  };
+
+  const openFirstChoice = async (choice: FirstDrawingId) => {
+    if (!canEdit || busy) return;
+    setBusy(true);
+    setActionError(null);
+    try {
+      const { documentId, projectCreated } = await createFirstDrawing(
+        choice,
+        selectedProject || projects[0]?.id,
+      );
+      if (projectCreated) {
+        setProjects((items) => [...items, projectCreated]);
+        setSelectedProject(projectCreated.id);
+      }
+      router.push(`/studio/${documentId}`);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "No se pudo abrir el primer plano.");
       setBusy(false);
     }
   };
@@ -469,7 +506,7 @@ export default function DashboardPage() {
                 className="flex flex-col"
               >
                 <h2 className="type-heading">Nuevo documento</h2>
-                <select
+                {projects.length ? <select
                   aria-label="Proyecto"
                   value={selectedProject}
                   onChange={(e) => setSelectedProject(e.target.value)}
@@ -481,7 +518,9 @@ export default function DashboardPage() {
                       {project.name}
                     </option>
                   ))}
-                </select>
+                </select> : <p className="type-small mt-4 text-muted-foreground">
+                  Tu primer proyecto «Mis planos» se creará al abrir el documento.
+                </p>}
                 <div className="mt-2 flex gap-2">
                   <input
                     ref={documentNameRef}
@@ -494,7 +533,7 @@ export default function DashboardPage() {
                   <Button
                     type="submit"
                     variant="primary"
-                    disabled={busy || !selectedProject}
+                    disabled={busy}
                     aria-label="Crear documento"
                     className="px-4"
                   >
@@ -581,6 +620,8 @@ export default function DashboardPage() {
               canEdit={canEdit}
               busy={busy}
               onOpenSample={() => void openSamplePlan()}
+              onChooseFirst={(choice) => void openFirstChoice(choice)}
+              specialStart={Boolean(specialArrival || demoAdoption || galleryStart)}
               onCreateBlank={() => documentNameRef.current?.focus()}
               onImport={(files) => {
                 const chosen = splitDocumentSelection([...(files ?? [])]);

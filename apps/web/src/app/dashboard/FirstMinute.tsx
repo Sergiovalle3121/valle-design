@@ -5,6 +5,8 @@ import { useRef, useState } from "react";
 import { FilePlus2, PlayCircle, Upload } from "lucide-react";
 import { Button, Surface, cx } from "@/components/ui";
 import { EmptyCanvasArt } from "@/components/brand/Illustration";
+import { FirstDrawingChoice } from "./FirstDrawingChoice";
+import type { FirstDrawingId } from "./first-drawing";
 
 /**
  * EL PRIMER MINUTO.
@@ -15,7 +17,13 @@ import { EmptyCanvasArt } from "@/components/brand/Illustration";
  * Es decir: quien acaba de recorrer siete pasos para llegar aquí se encuentra
  * con deberes, no con un producto.
  *
- * Tres caminos, y el primero es el que decide la venta:
+ * La primera decisión de una cuenta nueva son cuatro arranques legibles: casa,
+ * departamento, local o plano vacío. Cada tarjeta abre un documento real; el
+ * proyecto se crea solo si todavía no existe.
+ *
+ * El plano de ejemplo y la importación siguen accesibles como otras formas de
+ * empezar. Al llegar desde la demo o la galería se conserva el flujo anterior,
+ * porque su contenido tiene prioridad sobre un arranque nuevo:
  *
  *   1. ABRIR UN PLANO DE EJEMPLO. En cinco segundos el usuario está mirando un
  *      dibujo terminado —muros que resuelven su esquina, cotas amarradas,
@@ -35,6 +43,8 @@ export function FirstMinute({
   onOpenSample,
   onCreateBlank,
   onImport,
+  onChooseFirst,
+  specialStart = false,
   accept,
   className,
 }: {
@@ -43,6 +53,8 @@ export function FirstMinute({
   onOpenSample: () => void;
   onCreateBlank: () => void;
   onImport: (files: FileList | null) => void;
+  onChooseFirst: (id: FirstDrawingId) => void;
+  specialStart?: boolean;
   accept: string;
   className?: string;
 }) {
@@ -65,12 +77,8 @@ export function FirstMinute({
     );
   }
 
-  return (
-    <section
-      aria-labelledby="primer-minuto"
-      className={cx("mt-10", className)}
-      data-testid="dashboard-empty"
-    >
+  const otherWays = (
+    <>
       <h2 id="primer-minuto" className="type-title">
         Empecemos por ver un plano
       </h2>
@@ -169,6 +177,26 @@ export function FirstMinute({
           />
         </div>
       </div>
+    </>
+  );
+
+  return (
+    <section
+      aria-labelledby={specialStart ? "primer-minuto" : "primer-dibujo"}
+      className={cx("mt-10", className)}
+      data-testid="dashboard-empty"
+    >
+      {specialStart ? otherWays : (
+        <>
+          <FirstDrawingChoice busy={busy} onChoose={onChooseFirst} />
+          <details className="mt-7 rounded-card border border-border bg-card px-5 py-4" data-testid="first-drawing-more">
+            <summary className="type-small cursor-pointer font-medium text-primary-ink">
+              Abrir el plano de ejemplo o importar un archivo
+            </summary>
+            {otherWays}
+          </details>
+        </>
+      )}
     </section>
   );
 }
