@@ -9,11 +9,13 @@
  */
 import { expect, test } from "@playwright/test";
 import { abrirPanelDerecho } from "../fixtures/docks";
+import { chooseDemoStart } from "../fixtures/demo-start";
 
 test("la línea de comandos sugiere por prefijo, Tab completa y las flechas navegan la lista", async ({
   page,
 }) => {
   await page.goto("/demo?cadUi=pro");
+  await chooseDemoStart(page);
   // El panel derecho (lista de entidades) arranca plegado desde la ola
   // «armazón» — hay que abrirlo antes de leer su contenido.
   await abrirPanelDerecho(page);
@@ -55,6 +57,7 @@ test("con un prompt activo o argumentos ya escritos, las flechas vuelven a recup
   page,
 }) => {
   await page.goto("/demo?cadUi=pro");
+  await chooseDemoStart(page);
   // El panel derecho (lista de entidades) arranca plegado desde la ola
   // «armazón» — hay que abrirlo antes de leer su contenido.
   await abrirPanelDerecho(page);

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { chooseDemoStart } from "../fixtures/demo-start";
 
 /**
  * Golden 229 — MODO ESENCIAL: dibujar con el ratón sin pelearse con la herramienta.
@@ -42,6 +43,7 @@ async function abrirDemo(page: Page, query = '') {
   await page.setViewportSize({ width: 1440, height: 769 });
   await navegadorNuevo(page);
   await page.goto(`/demo${query}`);
+  await chooseDemoStart(page);
   await expect(page.getByTestId('cad-canvas')).toBeVisible({ timeout: 60_000 });
   const saltar = page.getByTestId('cad-guided-tour-skip');
   if (await saltar.count()) await saltar.click();

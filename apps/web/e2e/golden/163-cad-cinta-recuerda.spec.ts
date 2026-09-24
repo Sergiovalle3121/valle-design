@@ -7,11 +7,13 @@
  */
 import { expect, test } from "@playwright/test";
 import { abrirPanelDerecho } from "../fixtures/docks";
+import { chooseDemoStart } from "../fixtures/demo-start";
 
 test("la pestaña activa y el minimizado de la cinta sobreviven a una recarga", async ({
   page,
 }) => {
   await page.goto("/demo?cadUi=pro");
+  await chooseDemoStart(page);
   // El panel derecho arranca plegado desde la ola «armazón»; abrirlo antes de
   // usar `cad-native-entity-list` como señal de «ya cargó».
   await abrirPanelDerecho(page);

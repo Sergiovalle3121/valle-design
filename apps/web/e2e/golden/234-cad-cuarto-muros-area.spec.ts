@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { chooseDemoStart } from "../fixtures/demo-start";
 
 test("cuatro muros cerrados muestran aproximadamente 12 m² dentro del cuarto y al abrirlo el rótulo desaparece", async ({ page }) => {
   test.setTimeout(150_000);
@@ -6,6 +7,7 @@ test("cuatro muros cerrados muestran aproximadamente 12 m² dentro del cuarto y 
   await page.goto("/");
   await page.evaluate(() => localStorage.removeItem("valle:cad:ui-mode:v1"));
   await page.goto("/demo");
+  await chooseDemoStart(page);
   const canvas = page.getByTestId("cad-canvas");
   await expect(canvas).toBeVisible({ timeout: 60_000 });
   await expect(page.getByTestId("cad-scale-bar")).toBeVisible();

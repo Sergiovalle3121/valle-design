@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { chooseDemoStart } from "../fixtures/demo-start";
 
 /**
  * Golden 227 — MODO ESENCIAL: una sola barra, cinta fuera de la vista.
@@ -60,6 +61,7 @@ test('en /demo el estudio arranca en Esencial: una barra de doce herramientas y 
   await page.setViewportSize({ width: 1440, height: 769 });
   await navegadorNuevo(page);
   await page.goto('/demo');
+  await chooseDemoStart(page);
   await expect(page.getByTestId('cad-canvas')).toBeVisible({ timeout: 60_000 });
   const saltar = page.getByTestId('cad-guided-tour-skip');
   if (await saltar.count()) await saltar.click();
@@ -119,6 +121,7 @@ test('?cadUi=pro fuerza la cinta en /demo sin persistir la preferencia', async (
   await page.setViewportSize({ width: 1440, height: 769 });
   await navegadorNuevo(page);
   await page.goto('/demo?cadUi=pro');
+  await chooseDemoStart(page);
   await expect(page.getByTestId('cad-canvas')).toBeVisible({ timeout: 60_000 });
   await expect(page.getByTestId('cad-ribbon')).toBeVisible();
   await expect(page.getByTestId('cad-essential-bar')).toHaveCount(0);

@@ -4470,6 +4470,38 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DEMO-PRIMER-PLANO-20260923",
+      "date": "2026-09-23",
+      "initiative": "Permitir que una primera visita al demo elija casa, departamento, local comercial o un plano vacío, con entrada automática en blanco a los cinco segundos y recuperación voluntaria del dibujo anterior.",
+      "branch": "codex/demo-first-choice",
+      "assistants": [
+        "OpenAI Codex: diseño del selector, puerto documental y pruebas"
+      ],
+      "authority": "Sergio pidió ejecutar el PROMPT MAESTRO del 2026-09-23 para llevar VALLECAD al mercado y mejorar el primer contacto del visitante.",
+      "firstPartyInputs": [
+        "DemoStudio y demo-port existentes, plantillas de casa, departamento y local del catálogo propio",
+        "Autosave valle_demo_document y copia de recuperación que sólo se restaura por elección",
+        "Goldens 162, 163, 201, 227-231, 234 y 250, y medición del primer minuto del producto"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "Clave nueva de preferencia sólo para el primer plano; el documento y sus copias conservan las claves y bytes anteriores",
+        "Casa conserva el volumen 3D específico; departamento y local usan sólo su plantilla; En blanco parte de una hoja real con cero entidades",
+        "Golden 257 cubre las cuatro tarjetas, entrada automática en blanco, plantas sin muros ajenos, reentrada y metas del lienzo"
+      ],
+      "fixtures": "Documentos de plantilla propios, almacenamiento en memoria y navegador Playwright local; ninguna fuente DWG/DXF modificada.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Specs de preferencia y puerto rojo→verde; Webpack 208 páginas PASS, typecheck de producción fresco PASS, check:e2e-localizadores y gobernanza 11/11. Chromium build productivo 30/30 para goldens afectados y demo público: auto En blanco 4837 ms, 27 controles, 76.56 % de pantalla libre y 0 % del lienzo tapado a 1440×769; recuperación elegida PASS. CI SHA exacto, merge y producción posteriores."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }

@@ -8,6 +8,7 @@
  */
 import { expect, test } from "@playwright/test";
 import { abrirPanelDerecho } from "../fixtures/docks";
+import { chooseDemoStart } from "../fixtures/demo-start";
 
 const ALIASES: [string, RegExp][] = [
   ["L", /LINE/],
@@ -23,6 +24,7 @@ const ALIASES: [string, RegExp][] = [
 for (const [alias, patron] of ALIASES) {
   test(`${alias} + Enter arranca ${patron.source}`, async ({ page }) => {
     await page.goto("/demo?cadUi=pro");
+    await chooseDemoStart(page);
     await abrirPanelDerecho(page);
     await expect(page.getByTestId("cad-native-entity-list")).toBeVisible({
       timeout: 60_000,

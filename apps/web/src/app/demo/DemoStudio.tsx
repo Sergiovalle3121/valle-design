@@ -30,18 +30,39 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { createPortal } from "react-dom";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Building2, House, PenLine, Store } from "lucide-react";
 import { CadStudioSkeleton } from "@/components/cad/studio/CadStudioSkeleton";
-import { Button, buttonClass } from "@/components/ui";
+import { Button, Card, buttonClass } from "@/components/ui";
 import { DEMO_DOCUMENT_ID } from "@/lib/cad/demo/demo-constants";
+import {
+  DEMO_STARTING_CHOICES,
+  readDemoFirstChoice,
+  rememberDemoFirstChoice,
+  type DemoStartingChoice,
+} from "@/lib/cad/demo/demo-first-choice";
 import type { DemoDocumentPort } from "@/components/cad/document-lifecycle/demo-port";
 
 const CadStudioHost = dynamic(() => import("@/components/cad/CadStudioHost"), {
   ssr: false,
   loading: () => <CadStudioSkeleton etapa="Preparando la demostración…" />,
 });
+
+const CHOICE_ICONS = {
+  "casa-habitacion": House,
+  departamento: Building2,
+  "local-comercial": Store,
+  "en-blanco": PenLine,
+} as const;
+
+function demoStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
 
 export function DemoStudio() {
   const router = useRouter();
@@ -53,18 +74,74 @@ export function DemoStudio() {
    * después, sobre los mismos huecos.
    */
   const [documentPort, setDocumentPort] = useState<DemoDocumentPort | null>(null);
+  const [opening, setOpening] = useState<DemoStartingChoice | "choose" | null>(null);
+  const portModule = useRef<Promise<typeof import("@/components/cad/document-lifecycle/demo-port")> | null>(null);
   const [restored, setRestored] = useState(false);
   const [editorKey, setEditorKey] = useState(0);
   useEffect(() => {
     let alive = true;
-    void import("@/components/cad/document-lifecycle/demo-port").then(({ createDemoDocumentPort }) => {
-      if (alive) setDocumentPort(createDemoDocumentPort());
+    portModule.current = import("@/components/cad/document-lifecycle/demo-port");
+    const storage = demoStorage();
+    const previousChoice = readDemoFirstChoice(storage);
+    // Un autosave de antes de este selector ya es una visita previa. Recordar
+    // su arranque conserva ese hecho incluso si luego adopta o limpia el plano.
+    if (previousChoice) rememberDemoFirstChoice(storage, previousChoice);
+    queueMicrotask(() => {
+      if (alive) setOpening(previousChoice ?? "choose");
     });
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, []);
-  if (!documentPort) {
+  const chooseDemo = useCallback((choice: DemoStartingChoice) => {
+    rememberDemoFirstChoice(demoStorage(), choice);
+    setOpening(choice);
+  }, []);
+  useEffect(() => {
+    if (opening !== "choose") return;
+    const timer = window.setTimeout(() => chooseDemo("en-blanco"), 4800);
+    return () => window.clearTimeout(timer);
+  }, [chooseDemo, opening]);
+  useEffect(() => {
+    if (!opening || opening === "choose") return;
+    let alive = true;
+    void (portModule.current ?? import("@/components/cad/document-lifecycle/demo-port"))
+      .then(({ createDemoDocumentPort }) => {
+        if (alive) setDocumentPort(createDemoDocumentPort(demoStorage(), opening));
+      });
+    return () => { alive = false; };
+  }, [opening]);
+
+  if (opening === "choose") {
+    return (
+      <main data-testid="demo-first-choice" className="flex min-h-dvh items-center bg-background px-4 py-8 text-foreground sm:px-8">
+        <div className="mx-auto w-full max-w-5xl">
+          <p className="type-eyebrow mb-3 text-primary-ink">VALLECAD · DEMOSTRACIÓN</p>
+          <h1 className="type-display">¿Qué vas a dibujar?</h1>
+          <p className="type-lead mt-3 max-w-2xl text-muted-foreground">
+            Elige un punto de partida. Puedes editarlo de inmediato y tu dibujo se guarda en este navegador.
+          </p>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {DEMO_STARTING_CHOICES.map(({ id, label, description }) => {
+              const Icon = CHOICE_ICONS[id];
+              return (
+                <Card key={id} as="article" data-testid={`demo-choice-${id}`} className="flex flex-col">
+                  <Icon aria-hidden="true" className="mb-5 h-7 w-7 text-primary-ink" />
+                  <h2 className="type-heading">{label}</h2>
+                  <p className="type-small mt-2 flex-1 text-muted-foreground">{description}</p>
+                  <Button className="mt-6" fullWidth onClick={() => chooseDemo(id)}>
+                    Abrir {label.toLowerCase()}
+                  </Button>
+                </Card>
+              );
+            })}
+          </div>
+          <p className="type-small mt-6 text-muted-foreground" role="status">
+            Si no eliges, abriremos un plano en blanco en cinco segundos.
+          </p>
+        </div>
+      </main>
+    );
+  }
+  if (!documentPort || !opening) {
     return <CadStudioSkeleton etapa="Preparando la demostración…" />;
   }
   const recoverPrevious = () => {
@@ -104,7 +181,7 @@ export function DemoStudio() {
         documentPort={documentPort}
         withCollaboration={false}
         title="Demostración"
-        subtitle="Casa habitación · se guarda en tu navegador"
+        subtitle={`${DEMO_STARTING_CHOICES.find(({ id }) => id === opening)?.label ?? "Dibujo"} · se guarda en tu navegador`}
         demoBanner={demoBanner}
         uiModeDefault="esencial"
       />

@@ -70,8 +70,10 @@ assert.doesNotMatch(
  *   seguir midiendo la interfaz completa; sin eso una cuenta que nunca abrió
  *   el estudio arrancaría en Esencial y ciento sesenta specs medirían otra
  *   pantalla. No es una credencial y no viaja al servidor.
+ * - `valle:cad:demo-first-choice:v1`: sólo recuerda cuál de las cuatro plantas
+ *   eligió el visitante; el dibujo y su recuperación siguen en otras claves.
  */
-const CLAVES_PERMITIDAS = ["valle_theme", "valle_demo_document", "valle:cad:ui-mode:v1"];
+const CLAVES_PERMITIDAS = ["valle_theme", "valle_demo_document", "valle:cad:ui-mode:v1", "valle:cad:demo-first-choice:v1"];
 
 const usosDeStorage = e2eFiles.flatMap((file) => {
   const texto = readFileSync(`${webRoot}/${file}`, "utf8");

@@ -85,6 +85,20 @@ const untouched = await firstTimer.open("demo-local");
 assert.ok((untouched.cadDocument as CadDocument).entities.length > 0,
   "la visita nueva conserva la casa habitación de arranque");
 
+for (const choice of ["departamento", "local-comercial"] as const) {
+  const selected = buildDemoDocument(choice);
+  assert.ok(selected.entities.length > 0, `${choice} tiene geometría propia`);
+  assert.equal(selected.entities.some(entity => entity.id.startsWith("dv-wall-") ||
+    entity.id.startsWith("dv-open-")), false,
+  `${choice} no hereda los muros y vanos 3D hardcodeados de la casa`);
+  assert.ok(selected.history[0]?.label.toLowerCase().includes(choice === "departamento" ? "departamento" : "local comercial"));
+}
+const empty = buildDemoDocument("en-blanco");
+assert.equal(empty.entities.length, 0, "En blanco no finge que la casa es un lienzo vacío");
+assert.ok(empty.paperSpaces.length > 0, "En blanco puede trazarse con la plantilla de papel real");
+assert.equal(((await createDemoDocumentPort(memoryStorage(), "en-blanco").open("demo-local"))
+  .cadDocument as CadDocument).entities.length, 0, "el puerto abre la elección exacta");
+
 const damagedStorage = memoryStorage();
 damagedStorage.setItem(DEMO_STORAGE_KEY, "{sobre antiguo roto");
 await createDemoDocumentPort(damagedStorage).open("demo-local");

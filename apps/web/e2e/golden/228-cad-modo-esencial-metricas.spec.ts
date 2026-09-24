@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { chooseDemoStart } from "../fixtures/demo-start";
 
 /**
  * Golden 228 — MODO ESENCIAL: las cifras que mandan, medidas en DOM.
@@ -85,6 +86,7 @@ async function abrirDemoEsencial(page: Page, viewport: { width: number; height: 
   await page.setViewportSize(viewport);
   await navegadorNuevo(page);
   await page.goto('/demo');
+  await chooseDemoStart(page);
   await expect(page.getByTestId('cad-canvas')).toBeVisible({ timeout: 60_000 });
   await expect(page.getByTestId('cad-guided-tour')).toBeVisible();
   await expect(page.getByTestId('cad-essential-bar')).toBeVisible();

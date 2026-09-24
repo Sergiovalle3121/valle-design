@@ -1,8 +1,8 @@
 /**
  * MODO DEMOSTRACIÓN (/demo) — el humo que protege la promesa.
  *
- * La promesa pública es triple: (1) el editor REAL abre sin cuenta con la
- * casa habitación puesta; (2) se puede DIBUJAR de verdad (un comando por la
+ * La promesa pública es triple: (1) se elige la casa y el editor REAL abre sin
+ * cuenta; (2) se puede DIBUJAR de verdad (un comando por la
  * línea de comandos muta el documento); (3) nada viaja a la nube — cero
  * peticiones de documentos, el guardado vive en localStorage (valle_demo_document,
  * clave autorizada con su porqué en session-storage.spec).
@@ -14,6 +14,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { DEMO_STORAGE_KEY } from '@/lib/cad/demo/demo-constants';
 import { abrirPanelDerecho } from "../fixtures/docks";
+import { chooseDemoStart } from "../fixtures/demo-start";
 
 function collectDocumentRequests(page: Page): string[] {
   const requests: string[] = [];
@@ -74,6 +75,7 @@ test.describe('Demostración sin cuenta', () => {
   }) => {
     const documentRequests = collectDocumentRequests(page);
     await page.goto('/demo?cadUi=pro');
+    await chooseDemoStart(page);
 
     // El editor real, con las entidades nativas de la plantilla en su panel.
     // El TOTAL se lee del encabezado del panel: la lista se trunca («y 2 más»)
@@ -164,6 +166,7 @@ test.describe('Demostración sin cuenta', () => {
   test('una visita con almacenamiento heredado abre limpia y deja recuperar el dibujo a voluntad', async ({ page }) => {
     test.setTimeout(150_000);
     await page.goto('/demo?cadUi=pro');
+    await chooseDemoStart(page);
     await abrirPanelDerecho(page);
     const entityList = page.getByTestId('cad-native-entity-list');
     await expect(entityList).toBeVisible({ timeout: 60_000 });
@@ -188,6 +191,7 @@ test.describe('Demostración sin cuenta', () => {
       const old = JSON.parse(localStorage.getItem('valle_demo_document')!);
       delete old.edited;
       localStorage.setItem('valle_demo_document', JSON.stringify(old));
+      localStorage.removeItem('valle:cad:demo-first-choice:v1');
     });
 
     await page.goto('/demo?cadUi=pro');
@@ -211,6 +215,7 @@ test.describe('Demostración sin cuenta', () => {
       await page.goto('/');
       await page.evaluate(() => localStorage.removeItem('valle:cad:ui-mode:v1'));
       await page.goto('/demo');
+      await chooseDemoStart(page);
       const canvas = page.getByTestId('cad-canvas');
       await expect(canvas).toBeVisible({ timeout: 60_000 });
       const skip = page.getByTestId('cad-guided-tour-skip');

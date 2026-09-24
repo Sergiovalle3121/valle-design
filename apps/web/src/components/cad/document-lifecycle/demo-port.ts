@@ -4,7 +4,7 @@
  * El spike de la campaña de sitio (bitácora CAMPANA_SITIO_20260829, OLA 2)
  * encontró que el editor entero toca la red en exactamente tres puntos, los
  * tres dentro del `DocumentLifecyclePort` que recibe su controlador de ciclo
- * de vida. Este puerto los sustituye: cada visita abre la casa limpia y guarda
+ * de vida. Este puerto los sustituye: cada visita abre la elección limpia y guarda
  * en memoria y localStorage con versión monotónica. Si hay un dibujo anterior,
  * se copia antes de reemplazar el autosave y se recupera sólo por elección.
  * El autosave y el historial del editor creen estar hablando con la nube.
@@ -13,10 +13,9 @@
  * historial de versiones del servidor. El CAS jamás da 409 porque solo hay un
  * escritor: esta pestaña.
  *
- * El dibujo de arranque es la plantilla de casa habitación construida por el
- * MISMO conversor de la galería, con el cajetín marcando «Demostración» — el
- * PDF que el visitante exporte lo dirá en su propio cajetín, trazado por el
- * pipeline real.
+ * Las tres plantas vienen del MISMO conversor de la galería; En blanco usa la
+ * plantilla de papel real sin entidades. Sólo la casa recibe su volumen 3D
+ * específico. El cajetín dice «Demostración» en cualquier elección.
  *
  * VIVE AQUÍ y no en `lib/cad/demo/` porque implementa el contrato del
  * controlador de ciclo de vida, que es de `components/` — igual que su hermano
@@ -31,7 +30,9 @@ import type {
 } from "./controller";
 import { serializeCadDocument, type CadDocument } from "@/lib/cad/cad-document";
 import { buildCadTemplateDocument } from "@/lib/cad/template-document";
+import { createCadStarterDocument } from "@/lib/cad/starter-templates";
 import { buildDemoVolumeDocument } from "@/lib/cad/demo/demo-volume";
+import type { DemoStartingChoice } from "@/lib/cad/demo/demo-first-choice";
 
 export { DEMO_DOCUMENT_ID, DEMO_STORAGE_KEY } from "@/lib/cad/demo/demo-constants";
 import { DEMO_RECOVERY_STORAGE_KEY, DEMO_STORAGE_KEY } from "@/lib/cad/demo/demo-constants";
@@ -85,13 +86,15 @@ function preserveRaw(storage: Pick<Storage, "getItem" | "setItem">, raw: string)
   storage.setItem(DEMO_RECOVERY_STORAGE_KEY, raw);
 }
 
-/** El documento con el que arranca la demostración. */
-export function buildDemoDocument(): CadDocument {
-  const built = buildCadTemplateDocument("casa-habitacion");
-  const volumed = buildDemoVolumeDocument(built.document);
+/** El documento elegido. El valor por defecto conserva contratos históricos. */
+export function buildDemoDocument(choice: DemoStartingChoice = "casa-habitacion"): CadDocument {
+  const base = choice === "en-blanco"
+    ? createCadStarterDocument({ templateId: "planta-arquitectonica", project: "Demostración · VALLECAD", title: "Plano en blanco" })
+    : buildCadTemplateDocument(choice).document;
+  const selected = choice === "casa-habitacion" ? buildDemoVolumeDocument(base) : base;
   return {
-    ...volumed,
-    paperSpaces: volumed.paperSpaces.map((space, index) =>
+    ...selected,
+    paperSpaces: selected.paperSpaces.map((space, index) =>
       index === 0
         ? {
             ...space,
@@ -137,7 +140,8 @@ export interface DemoDocumentPort extends DocumentLifecyclePort {
 
 export function createDemoDocumentPort(
   storage:
-    Pick<Storage, "getItem" | "setItem"> | undefined = globalThis.localStorage,
+    Pick<Storage, "getItem" | "setItem"> | null | undefined = globalThis.localStorage,
+  startingChoice: DemoStartingChoice = "casa-habitacion",
 ): DemoDocumentPort {
   const previous = storage ? recoverableStored(storage) : null;
   let state: StoredDemo | null = null;
@@ -189,7 +193,7 @@ export function createDemoDocumentPort(
     async open(): Promise<DocumentLifecycleResource> {
       if (restoreQueued) restoreQueued = false;
       else if (!state) {
-        const document = buildDemoDocument();
+        const document = buildDemoDocument(startingChoice);
         initialSignature = serializeCadDocument(document);
         state = { version: 1, document, edited: false };
         persist();
