@@ -139,6 +139,20 @@ describePostgres('Reportes de soporte — el camino de vuelta', () => {
     expect(await filas()).toHaveLength(2);
   });
 
+  it('el mismo texto con autorización nueva del plano genera otro reporte sin colisión', async () => {
+    await service.report(reporte(), contexto);
+    const documentId = randomUUID();
+    await service.report(
+      reporte({ documentAuthorized: true, documentId }),
+      contexto,
+    );
+    const rows = await filas();
+    expect(rows).toHaveLength(2);
+    expect(
+      rows.map((row) => (row.payload as Record<string, unknown>).documentId),
+    ).toEqual(expect.arrayContaining([null, documentId]));
+  });
+
   it('sin buzón configurado lo DICE, en vez de tragarse el reporte', async () => {
     delete process.env.SUPPORT_EMAIL;
     await expect(service.report(reporte(), contexto)).rejects.toBeInstanceOf(

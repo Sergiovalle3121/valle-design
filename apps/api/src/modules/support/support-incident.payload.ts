@@ -96,14 +96,16 @@ export function buildSupportIncidentPayload(
  * volver la red— no puede convertirse en dos correos: el outbox descarta el
  * segundo por clave, igual que hace con el resto del correo del producto.
  *
- * Lleva el minuto y un hash del modo y del texto: la MISMA persona reportando
- * lo MISMO en el mismo modo dentro del mismo minuto es un doble envío; a los
- * dos minutos, cambiando de modo o cambiando el texto, es un reporte nuevo.
+ * Lleva el minuto y un hash de la carga completa que se encola. Una misma
+ * carga dentro del minuto es un doble envío; si cambia el permiso del plano,
+ * el comando, el navegador o cualquier otro contexto, es un reporte nuevo.
+ * La clave no muestra correo, texto ni identificador de documento en claro.
+ * Una clave igual con cargas distintas causaría un conflicto en el outbox.
  */
 export function supportIncidentIdempotencyKey(
   payload: SupportIncidentPayload,
   hash: (value: string) => string,
 ): string {
   const minute = payload.reportedAt.slice(0, 16);
-  return `support.incident:${payload.reportedBy}:${minute}:${hash(`${payload.uiMode}\0${payload.summary}`)}`;
+  return `support.incident:${minute}:${hash(JSON.stringify(payload))}`;
 }

@@ -26,7 +26,7 @@
  */
 
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
-import { API_ORIGIN, BASE_URL } from "../fixtures/constants";
+import { BASE_URL } from "../fixtures/constants";
 import {
   E2E_PASSWORD,
   capturedToken,
@@ -209,6 +209,9 @@ test.describe("La primera hora de un desconocido", () => {
     // El cuadro enseña lo que va a mandar: nada se recoge en segundo plano.
     await expect(page.getByTestId("cad-incident-payload")).toContainText(
       /Versi.n del estudio/iu,
+    );
+    await expect(page.getByTestId("cad-incident-payload")).toContainText(
+      /Navegador: Mozilla/u,
     );
     await expect(page.getByTestId("cad-incident-payload")).toContainText(
       /Modo de interfaz: (Esencial|Pro)/u,

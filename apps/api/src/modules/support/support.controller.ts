@@ -1,5 +1,13 @@
-import { Body, Controller, HttpCode, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  Post,
+  Req,
+  UnauthorizedException,
+} from '@nestjs/common';
 import type { Request } from 'express';
+import type { AuthenticatedUser } from '../../common/types/authenticated-user.types';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import {
   API_RATE_LIMITS,
@@ -34,20 +42,20 @@ export class SupportController {
   @HttpCode(202)
   @RequirePermissions('cad:view')
   async report(@Body() dto: ReportSupportIncidentDto, @Req() request: Request) {
-    const user = (
-      request as Request & {
-        user?: { id?: string; email?: string; organization_id?: string | null };
-      }
-    ).user;
-    const reportedBy = user?.email ?? user?.id ?? 'desconocido';
+    const user = (request as Request & { user?: AuthenticatedUser }).user;
+    // El guard entrega `userId`, no `id`. Si faltase, compartir la clave
+    // «desconocido» entre cuentas dejaría el límite por cuenta sin sentido.
+    if (!user?.userId)
+      throw new UnauthorizedException('Falta una sesión válida.');
+    const reportedBy = user.email || user.userId;
     await this.rateLimits.enforce(
       'support-incidents',
-      [reportedBy],
+      [user.userId],
       API_RATE_LIMITS.supportIncidentsPerAccount,
     );
     await this.support.report(dto, {
       reportedBy,
-      organizationId: user?.organization_id ?? null,
+      organizationId: user.organization_id,
     });
     return { accepted: true as const };
   }
