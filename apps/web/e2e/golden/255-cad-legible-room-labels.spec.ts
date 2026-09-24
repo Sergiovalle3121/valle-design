@@ -4,7 +4,7 @@ const ROOM_NAMES = [
   "SALA", "COMEDOR", "COCINA", "RECÁMARA PRINCIPAL", "RECÁMARA 2", "BAÑO",
 ] as const;
 
-test("Esencial muestra seis nombres y m² sin etiquetas montadas en el plano demo", async ({ page }) => {
+test("Esencial muestra seis nombres y m² sin etiquetas montadas en el plano demo", async ({ page }, testInfo) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 1440, height: 769 });
   await page.goto("/demo?cadUi=esencial");
@@ -29,6 +29,7 @@ test("Esencial muestra seis nombres y m² sin etiquetas montadas en el plano dem
     return null;
   });
   expect(overlap, "ningún nombre o área tapa el de otro cuarto").toBeNull();
+  await testInfo.attach("esencial-room-labels-1440.png", { body: await page.screenshot(), contentType: "image/png" });
 });
 
 test("Pro conserva los rótulos del dibujo y sus badges de área", async ({ page }) => {
