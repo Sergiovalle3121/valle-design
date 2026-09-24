@@ -119,7 +119,7 @@ export function CadViewportMeasurements({ document, viewControllerRef, essential
             ) : null}
             <div className="type-caption font-bold leading-tight">{room.axisAreaText} m²</div>
             {!essential && !room.textLabelMatchesName && <div className="type-micro leading-tight text-muted-foreground">entre ejes</div>}
-            {room.textLabelMatchesName && onRenameRoom && (
+            {!essential && room.textLabelMatchesName && onRenameRoom && (
               <Button
                 variant="secondary"
                 size="sm"
