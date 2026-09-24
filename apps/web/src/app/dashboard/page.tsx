@@ -381,7 +381,15 @@ export default function DashboardPage() {
 
   const { importState, importDocument, cancelImport } = useImportDocument({
     canEdit,
-    selectedProject,
+    ensureProjectId: async () => {
+      const existingId = selectedProject || projects[0]?.id;
+      if (existingId) return existingId;
+      const project = await designClient.projects.create({ name: FIRST_PROJECT_NAME });
+      setProjects((items) => [...items, project]);
+      setSelectedProject(project.id);
+      setState("ready");
+      return project.id;
+    },
     busy,
     setBusy,
     onImported: (document) => {
@@ -570,7 +578,7 @@ export default function DashboardPage() {
                     accept={documentImportAcceptAttribute()}
                     data-testid="dashboard-import-input"
                     multiple
-                    disabled={!selectedProject || busy}
+                    disabled={busy}
                     onChange={(e) => {
                       // Un shapefile son varios archivos que hay que elegir juntos.
                       const chosen = splitDocumentSelection([

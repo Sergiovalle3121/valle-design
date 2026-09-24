@@ -14,16 +14,9 @@ import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
  * Este golden prueba las DOS superficies que sí son mías en este frente (el
  * lienzo del estudio es del monolito y va a petición aparte):
  *
- *   1. El estado vacío (`FirstMinute.tsx`, tarjeta "Importa un DXF") — la
- *      zona de suelta EXISTE y no rompe nada, pero no puede completar una
- *      importación: en `state === "empty"` no hay proyecto seleccionado
- *      (dashboard/page.tsx:168-172), así que ni el botón "Elegir archivo"
- *      que ya existía ni este `onDrop` nuevo tienen dónde guardar. Resolver
- *      eso es el proyecto implícito del primer minuto (T-63 a-c), fuera de
- *      este frente.
- *   2. El tablero con documentos ya creados (`dashboard/page.tsx`, sección
- *      "Documentos") — CON proyecto seleccionado, así que aquí sí se
- *      prueba la importación completa de punta a punta.
+ *   1. El estado vacío crea «Mis planos» después de analizar el DXF, y guarda
+ *      el documento y su contenido tanto al soltar como al elegir archivo.
+ *   2. El tablero con documentos ya creados reutiliza el proyecto seleccionado.
  *
  * Playwright no puede arrastrar un archivo real del sistema operativo: la
  * técnica estándar es construir un `DataTransfer` con un `File` DENTRO del
@@ -161,24 +154,14 @@ async function installCadDashboardBackend(context: BrowserContext) {
   return { projects, documents };
 }
 
-test("la zona de suelta del estado vacío existe y no rompe la página", async ({
+test("soltar un DXF en la cuenta vacía crea proyecto y guarda el documento", async ({
   context,
   page,
 }) => {
   await installMockBackend(context);
   await loginAsStandaloneOwner(context);
-  await installCadDashboardBackend(context);
+  const { projects, documents } = await installCadDashboardBackend(context);
 
-  // `state === "empty"` (FirstMinute, data-testid="dashboard-empty") sólo
-  // ocurre con CERO proyectos y CERO documentos en toda la cuenta —
-  // dashboard/page.tsx:168-172 — y en ese instante no hay
-  // `selectedProject`. Igual que el botón "Elegir archivo" que ya existía
-  // (mismo `onImport`), soltar un archivo aquí no puede completar una
-  // importación sin resolver antes el proyecto implícito del primer minuto
-  // (T-63 a-c, fuera de este frente — ver F8-peticiones.md §2 por la mitad
-  // que sí es mía, el lienzo). Lo que este golden verifica es lo que SÍ es
-  // responsabilidad de T-63f: la zona de suelta existe, cubre la tarjeta, y
-  // soltar un archivo no lanza ningún error ni navega a ninguna parte.
   await page.goto("/dashboard");
   await expect(page.getByTestId("dashboard-empty")).toBeVisible();
   await page.getByTestId("first-drawing-more").locator("summary").click();
@@ -190,12 +173,33 @@ test("la zona de suelta del estado vacío existe y no rompe la página", async (
     content: MINIMAL_DXF,
   });
 
-  // Sin proyecto seleccionado, `importDocument` se niega en silencio (mismo
-  // comportamiento que el botón de siempre): la página sigue en pie y sin
-  // haber navegado fuera del tablero.
-  await page.waitForTimeout(500);
-  await expect(page.getByTestId("dashboard-empty")).toBeVisible();
+  await expect(page.getByText(/Importado: \d+ entidades/)).toBeVisible({ timeout: 30_000 });
+  expect(projects.map((project) => project.name)).toEqual(["Mis planos"]);
+  expect(documents).toHaveLength(1);
+  expect(documents[0].projectId).toBe(projects[0].id);
+  expect(documents[0].cadDocumentVersion).toBe(1);
+  expect(documents[0].cadDocument).toBeTruthy();
+  await expect(page.getByTestId("dashboard-board-dropzone")).toBeVisible();
   await expect(page).toHaveURL(/\/dashboard/);
+});
+
+test("elegir un DXF en la cuenta vacía también crea proyecto y documento", async ({ context, page }) => {
+  await installMockBackend(context);
+  await loginAsStandaloneOwner(context);
+  const { projects, documents } = await installCadDashboardBackend(context);
+  await page.goto("/dashboard");
+  await page.getByTestId("first-drawing-more").locator("summary").click();
+  await page.getByTestId("first-minute-import-input").setInputFiles({
+    name: "planta.dxf",
+    mimeType: "application/dxf",
+    buffer: Buffer.from(MINIMAL_DXF),
+  });
+  await expect(page.getByText(/Importado: \d+ entidades/)).toBeVisible({ timeout: 30_000 });
+  expect(projects.map((project) => project.name)).toEqual(["Mis planos"]);
+  expect(documents).toHaveLength(1);
+  expect(documents[0].projectId).toBe(projects[0].id);
+  expect(documents[0].cadDocumentVersion).toBe(1);
+  expect(documents[0].cadDocument).toBeTruthy();
 });
 
 test("arrastrar un DXF sobre el tablero con documentos lo importa", async ({

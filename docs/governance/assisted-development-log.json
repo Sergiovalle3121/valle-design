@@ -4521,15 +4521,16 @@
       "derivedAreas": [
         "FirstDrawingChoice presenta cuatro tarjetas táctiles con nombres humanos en el tablero vacío",
         "createFirstDrawing crea Mis planos cuando falta proyecto, genera el documento y guarda la plantilla antes de entrar al estudio",
-        "Las llegadas desde demo y galería conservan su precedencia; ejemplo e importación siguen accesibles desde el tablero"
+        "Las llegadas desde demo y galería conservan su precedencia; ejemplo e importación siguen accesibles desde el tablero",
+        "La importación desde cuenta vacía crea Mis planos tras analizar un DXF válido; soltar y elegir archivo guardan el documento en la misma ruta de importación y ya no terminan en silencio"
       ],
-      "fixtures": "Cuatro elecciones de cuenta nueva, plantilla manual y llegada de galería con API hermética y verificación del documento que recibió el servidor; goldens 55 y 150 conservan la plantilla profesional, el importador y la salida PDF.",
+      "fixtures": "Cuatro elecciones de cuenta nueva, plantilla manual y llegada de galería con API hermética y verificación del documento que recibió el servidor; golden 150 comprueba soltar y elegir DXF desde cuenta vacía con proyecto implícito, contenido persistido y CAS 0; golden 55 conserva la plantilla profesional y la salida PDF.",
       "dependenciesAdded": [],
       "adoption": {
         "required": true,
         "status": "proposed",
         "adopter": "Sergio Valle Zárate",
-        "evidence": "Rama local aislada: typecheck web PASS, build Webpack productivo de 208 rutas PASS, Chromium focal 10/10 (goldens 258 6/6, 55 2/2, 150 2/2), ESLint focal sin errores (dos avisos preexistentes), check:surface 9/9, check:e2e-localizadores, presupuesto y gobernanza PASS. Las plantillas llegaron a saveContent con versión esperada 0 antes de abrir el estudio. CI remota, PR y producción pendientes; esta rama no se publicó."
+        "evidence": "Rama local aislada: primer bloque typecheck web PASS, build Webpack productivo de 208 rutas PASS, Chromium 10/10 (goldens 258 6/6, 55 2/2, 150 2/2). Seguimiento de importación: golden 150 rojo conductual al soltar DXF sin proyecto (faltaba «Importado»); segundo typecheck PASS, segundo build Webpack 208 rutas PASS y Chromium 4/4 (golden 150 3/3, 222 1/1). El proyecto implícito se crea después del análisis y el contenido DXF se guarda con CAS 0 hasta versión 1. ESLint focal sin errores (avisos preexistentes), check:surface 9/9, check:e2e-localizadores, presupuesto y gobernanza PASS. Las plantillas llegaron a saveContent con versión esperada 0 antes de abrir el estudio. CI remota, PR y producción pendientes; esta rama no se publicó."
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false

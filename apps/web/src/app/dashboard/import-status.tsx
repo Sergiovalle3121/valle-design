@@ -191,13 +191,13 @@ export function abortError(): DOMException {
  */
 export function useImportDocument({
   canEdit,
-  selectedProject,
+  ensureProjectId,
   busy,
   setBusy,
   onImported,
 }: {
   canEdit: boolean;
-  selectedProject: string;
+  ensureProjectId: () => Promise<string>;
   busy: boolean;
   setBusy: (busy: boolean) => void;
   onImported: (document: CadDocumentSummary) => void;
@@ -209,7 +209,7 @@ export function useImportDocument({
     file: File,
     sidecars: { shx?: File; dbf?: File; prj?: File; cpg?: File } = {},
   ) => {
-    if (!canEdit || !selectedProject || busy) return;
+    if (!canEdit || busy) return;
     const controller = new AbortController();
     importAbort.current?.abort();
     importAbort.current = controller;
@@ -256,6 +256,16 @@ export function useImportDocument({
       if (controller.signal.aborted) throw abortError();
       setImportState({
         status: "running",
+        progress: 0.68,
+        stage: "Preparando proyecto",
+        canCancel: false,
+      });
+      // El proyecto implícito sólo se crea cuando el archivo ya pasó el
+      // análisis. Un DXF inválido no debe dejar un proyecto vacío atrás.
+      const projectId = await ensureProjectId();
+      if (controller.signal.aborted) throw abortError();
+      setImportState({
+        status: "running",
         progress: 0.7,
         stage: "Creando documento",
         canCancel: false,
@@ -265,7 +275,7 @@ export function useImportDocument({
           .replace(/\.[^.]+$/, "")
           .trim()
           .slice(0, 160),
-        projectId: selectedProject,
+        projectId,
       });
 
       const { serializeCadDocument } = await import("@/lib/cad/cad-document");
