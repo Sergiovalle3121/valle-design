@@ -4504,6 +4504,100 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "CONTEOS-COTA-LIENZO-20260923",
+      "date": "2026-09-23",
+      "initiative": "Mostrar conteos reales de puertas y ventanas y la longitud legible de cotas lineales en el plano Esencial para completar las tareas 2 y 3 del estudiante.",
+      "branch": "codex/drawing-measurements-integrate",
+      "assistants": [
+        "OpenAI Codex: implementación y verificación del cuadro BIM, las cotas y el visor Esencial"
+      ],
+      "authority": "Sergio pidió ejecutar el PROMPT MAESTRO del 2026-09-23 y mejorar el primer dibujo verificable antes de lanzar ValleCAD.",
+      "firstPartyInputs": [
+        "buildCadBimSchedule, buildCadDimensionGeometry y formatCadHumanLength existentes; componente CadViewportMeasurements del PR #242",
+        "Robot de estudiante de la PR #237 y medición local area-overlay-local-v2: tarea 1 aprobada, tareas 2 y 3 sin texto visible",
+        "Producción #250 acreditada el 2026-09-23 con SHA 83e4b69d: robot 1/4, 29 controles y 75.6 % de pantalla libre a 1440 × 769; esta rama todavía no está desplegada"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada.",
+      "derivedAreas": [
+        "drawing-visible-metrics.ts y su spec reutilizan el cuadro BIM para excluir huecos inválidos y la geometría asociativa de cotas para convertir a metros sin alterar entidades ni exportaciones",
+        "CadViewportMeasurements.tsx añade dos rótulos HTML no interactivos solo a Esencial; el monolito mantiene el mismo número de líneas",
+        "Golden 250 dibuja un cuarto, incrementa puerta y ventana reales y sitúa una cota de cuatro metros visible"
+      ],
+      "fixtures": "Documento geométrico local con cuatro muros, dos huecos válidos y uno huérfano; navegador Chromium sobre el demo local, sin servicios externos.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Golden 250 primero rojo por ausencia de rótulos y luego 2/2 verde en build productivo local; golden 234 1/1, spec nueva, typecheck y build web de 208 páginas PASS. check:cad completo con espejo DWG, design-system, ESLint focalizado y check:governance PASS. Sobre build combinado con #243 y #250, golden 228+250 4/4 y robot local 3/4: cuarto 7/8, huecos 4/4, cota 4/4; compartir 0/3 pendiente. #250 12/12 en producción y robot 1/4; CI y producción de esta PR aún no verificadas. No se declara lanzamiento comercial."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "ROBOT-ESTUDIANTE-20260923",
+      "date": "2026-09-23",
+      "initiative": "Versionar un protocolo reproducible de cuatro tareas de estudiante en /demo, con acciones exclusivamente visibles, evidencia de píxeles, textos y enlace móvil, más una guía para las cinco sesiones humanas de primer uso.",
+      "branch": "codex/qa-student-robot",
+      "assistants": [
+        "OpenAI Codex: diseño del protocolo, automatización, auditoría de su línea base y documentación"
+      ],
+      "authority": "Sergio pidió analizar el encargo de lanzamiento y ejecutarlo; el prompt del 2026-09-23 exige medir cuatro tareas de estudiante y preparar un protocolo humano antes de proclamar listo el producto.",
+      "firstPartyInputs": [
+        "Código actual de /demo y su modo Esencial, la regla visual de escala y los botones visibles",
+        "Medición pública del 2026-09-23: 0/4 tareas, 31 controles y 74.5 % de pantalla libre a 1440 × 769; 31 y 74 % a 1366 × 768",
+        "Capturas y JSON locales de la corrida en apps/web/e2e/.artifacts/medicion-versionado-base-23-09/"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada.",
+      "derivedAreas": [
+        "scripts/qa/medir-tareas.mjs y README.md: robot de cuatro tareas con veredicto rojo honesto fuera de CI hasta que el producto lo resuelva",
+        "docs/pruebas/PROTOCOLO-ESTUDIANTES.md: instrucciones, criterios y tabla vacía para cinco estudiantes"
+      ],
+      "fixtures": "Contexto de navegador limpio contra /demo público; no se añadieron secretos, cuentas ni datos de estudiantes.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "node --check y ejecución real con Playwright sobre https://vallecad.com/demo. El script salió 1 como corresponde a una línea base 0/4: cuatro muros sin m², puerta y ventana sin conteos visibles, cota sin texto acreditable y botón Compartir ausente. No se declara verde ni se relaja la CI. Las cinco pruebas humanas quedan pendientes de Sergio."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "PUNTERO-SELECCION-MUROS-20260923",
+      "date": "2026-09-23",
+      "initiative": "Fase B: comprobar clic directo, toque, Escape y estabilidad de la vista al dibujar muros; sincronizar la selección profesional con los muros nativos recién creados.",
+      "branch": "codex/pointer-click-reliability",
+      "assistants": [
+        "OpenAI Codex: reproducción con Playwright, corrección de selección y verificación de regresiones"
+      ],
+      "authority": "Sergio Valle Zárate pidió completar la puerta de salida al mercado de VALLECAD, con prioridad a un dibujo confiable, y autorizó integrar los avances en main.",
+      "firstPartyInputs": [
+        "Prompt maestro del 2026-09-23, Fase B: clic directo, toque, cámara estable, primer tramo visible y selección al terminar",
+        "Código del motor de puntero y del commit canónico en apps/web/src/components/cad",
+        "Producción medida al inicio de la campaña: robot estudiante 0/4, 31 controles y 74.5 % de pantalla libre a 1440 × 769; después de esta PR aún no se ha medido un despliegue nuevo"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "Golden 251: cinco clics directos y cinco toques crean cuatro muros; Esc y reelección crean el primer tramo; bbox y coordenadas del mismo píxel de pantalla estables; píxeles del primer tramo; cuatro muros designados al terminar",
+        "sync-committed-native-selection.ts y Layout3DEditor.tsx: una sola sincronización del ref nativo, su estado React y la selección profesional tras el commit canónico; el monolito no crece"
+      ],
+      "fixtures": "Demo local con contexto nuevo; capturas y traza de la ejecución roja conservadas en e2e/.test-results; no se añadieron archivos de corpus.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Golden 251 rojo antes: cuatro muros dibujados y resaltados, pero 0 sel en la selección profesional; verde después: 3/3 en Chromium sobre build de producción local. Cinco clics sin mouse.move explícito, cinco touchscreen.tap, Esc/reelección, caja del lienzo y coordenada bajo el píxel inicial/final ya pasaban antes del fix; la hipótesis de salto por foco no se reprodujo en Esencial y no se cambió focus. Primer tramo supera 100 píxeles cambiados; build web, typecheck raíz 8/8, ESLint sin errores nuevos y presupuesto 16835 líneas/118 useState pasan en local. El robot 4/4 y el despliegue público son verificaciones posteriores, no logros de esta PR."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "REVISION-MOVIL-AREAS-MUROS-20260923",
       "date": "2026-09-23",
       "initiative": "Mostrar al invitado de un enlace de revisión móvil las superficies calculadas de un cuarto cerrado por muros canónicos visibles, distinguiendo área entre ejes y área útil. No duplicar una cifra TEXT/MTEXT existente ni suponer metros cuadrados si la unidad del documento falta o es desconocida.",

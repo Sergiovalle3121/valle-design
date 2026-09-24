@@ -101,6 +101,7 @@ import {
 } from "@/components/cad/editor/CadDiagnosticsReadout";
 import dynamic from "next/dynamic";
 import { CadToolPalette } from "@/components/cad/editor/CadToolPalette";
+import { syncCommittedNativeSelection } from "@/components/cad/editor/sync-committed-native-selection";
 import { CadLeftDockPanel } from "@/components/cad/editor/CadLeftDockPanel";
 import { CadShellFrame } from "@/components/cad/shell/CadShellFrame";
 import { CadDockRail } from "@/components/cad/shell/CadDockRail";
@@ -4621,8 +4622,7 @@ export default function Layout3DEditor({
       const selected = options.selection.filter((id) =>
         selectableById.has(id),
       );
-      nativeSelectionIdsRef.current = selected;
-      setNativeSelectionIds(selected);
+      syncCommittedNativeSelection(selected, nativeSelectionIdsRef, setNativeSelectionIds, recordProfessionalSelection);
       setNativeEntities(
         document.entities.filter((entity): entity is CadNativeEntity =>
           CAD_ENTITY_REGISTRY.supports(entity),
@@ -4636,7 +4636,7 @@ export default function Layout3DEditor({
         remove: options.remove ?? [],
       });
     },
-    [markDirty, recordHistoryDocument, syncNativeScene],
+    [markDirty, recordHistoryDocument, recordProfessionalSelection, syncNativeScene],
   );
 
   const commitNativeCommands = useCallback(
@@ -14407,7 +14407,7 @@ export default function Layout3DEditor({
               controlsRef={controlsRef}
               mountRef={mountRef}
               unit={(data?.footprint.unit ?? "mm") as WorldUnit}
-              document={loadedCadDocumentRef.current} viewControllerRef={viewControllerRef}
+              document={loadedCadDocumentRef.current} viewControllerRef={viewControllerRef} essential={uiMode === "esencial"}
             />
             {(dxfWarnings.length > 0 || dxfImportPreview) && (
               <div className="absolute right-3 top-16 z-20 w-80 rounded-2xl border border-amber-400/20 bg-surface/80 p-3 shadow-2xl backdrop-blur">
