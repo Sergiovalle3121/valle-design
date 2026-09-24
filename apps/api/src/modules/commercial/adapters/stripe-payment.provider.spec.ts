@@ -168,11 +168,10 @@ describe('StripePaymentProvider · createCheckout', () => {
     expect(call.headers['content-type']).toBe(
       'application/x-www-form-urlencoded',
     );
-    // La clave idempotente es el intent MÁS el medio de pago: un reintento de
-    // red NO cobra dos veces, y quien abandonó una ficha de OXXO y vuelve con
-    // tarjeta obtiene una sesión nueva en vez de la ficha reservada de antes.
-    expect(call.headers['idempotency-key']).toBe(
-      `checkout-intent:${INTENT.intentId}:card`,
+    // La clave idempotente es el intent MÁS el formulario exacto: un reintento
+    // de red conserva sesión, y cambiar medio o importe abre otra sesión.
+    expect(call.headers['idempotency-key']).toMatch(
+      new RegExp(`^checkout-intent:${INTENT.intentId}:[a-f0-9]{64}$`),
     );
     // Sin STRIPE_API_VERSION no se inventa una: manda la de la cuenta.
     expect(call.headers['stripe-version']).toBeUndefined();
@@ -188,6 +187,8 @@ describe('StripePaymentProvider · createCheckout', () => {
     expect(call.form.get('line_items[0][price_data][unit_amount]')).toBe(
       '2900',
     );
+    expect(call.form.get('metadata[unitAmountCents]')).toBe('2900');
+    expect(call.form.get('metadata[currency]')).toBe('USD');
     expect(
       call.form.get('line_items[0][price_data][recurring][interval]'),
     ).toBe('month');
@@ -196,6 +197,30 @@ describe('StripePaymentProvider · createCheckout', () => {
     expect(call.form.get('subscription_data[metadata][organizationId]')).toBe(
       INTENT.organizationId,
     );
+  });
+
+  it('reintenta el mismo pedido con la misma clave y separa cada cambio de importe', async () => {
+    const { client, calls } = httpDouble([
+      {
+        body: JSON.stringify({
+          id: 'cs_test_1',
+          url: 'https://checkout.stripe.test/1',
+        }),
+      },
+    ]);
+    const provider = new StripePaymentProvider(configuration(), client);
+
+    await provider.createCheckout(INTENT, PRICE);
+    await provider.createCheckout({ ...INTENT }, { ...PRICE });
+    await provider.createCheckout({ ...INTENT, seats: 2 }, PRICE);
+    await provider.createCheckout(INTENT, { ...PRICE, period: 'yearly' });
+    await provider.createCheckout(INTENT, { ...PRICE, amountCents: 3900 });
+
+    const keys = calls.map((call) => call.headers['idempotency-key']);
+    expect(keys).toHaveLength(5);
+    expect(keys[1]).toBe(keys[0]);
+    expect(new Set([keys[0], keys[2], keys[3], keys[4]]).size).toBe(4);
+    expect(keys.every((key) => key.length <= 255)).toBe(true);
   });
 
   it('traduce el período anual al intervalo del proveedor', async () => {
