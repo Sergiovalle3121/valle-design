@@ -150,10 +150,16 @@ pero no demuestra que el remoto todavía conserve el objeto. La política de
 retención y cualquier borrado requieren un procedimiento operativo separado,
 con verificación actual del remoto y una restauración ensayada.
 Un fallo antes de confirmar la subida deja los respaldos previos y el
-`.pending-*` de la pasada para diagnóstico; **el pendiente contiene datos
-claros y requiere almacenamiento
-protegido, control de acceso y resolución manual**. El cron nunca borra dumps
-antiguos en claro automáticamente. Un ejemplo de horario, con las variables
+`.pending-*` de la pasada para diagnóstico, incluido el `.vbk` cifrado si ya
+se creó. La salida normal, los fallos controlados y `SIGTERM` retiran sólo los
+archivos claros de esa pasada, sin borrado recursivo ni pérdida de respaldos
+anteriores. **Durante `pg_dump` y la verificación sí hay datos claros en el
+staging**: `BACKUP_DIR` necesita un volumen cifrado y acceso exclusivo. Un
+`SIGKILL`, corte de energía o fallo de almacenamiento puede impedir la
+limpieza; antes de reanudar, inspecciona manualmente cada `.pending-*` y trata
+cualquier archivo claro como dato sensible. La eliminación normal de archivos
+no equivale a borrado seguro del medio. El cron nunca borra dumps antiguos en
+claro automáticamente. Un ejemplo de horario, con las variables
 secretas suministradas al servicio por separado:
 
 ```cron

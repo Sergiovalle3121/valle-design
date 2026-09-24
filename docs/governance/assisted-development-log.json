@@ -4549,6 +4549,37 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "BACKUP-CRON-LIMPIEZA-CLARO-20260924",
+      "date": "2026-09-24",
+      "initiative": "Retirar los archivos temporales claros de la pasada de respaldo si falla el transporte, la verificación remota o se interrumpe con una señal gestionable, preservando el paquete cifrado y las copias previas.",
+      "branch": "codex/backup-failure-plaintext-guard",
+      "assistants": [
+        "OpenAI Codex: auditoría de staging, prueba roja, protección de limpieza y documentación del límite de cifrado en reposo"
+      ],
+      "authority": "Sergio pidió completar el flujo de respaldo/restauración antes del lanzamiento y autorizó el trabajo de código; esta rama aislada no usa secretos ni bases reales.",
+      "firstPartyInputs": [
+        "scripts/ops/backup-cron.sh, backup-cron.spec.sh y docs/guides/backup-restore.md del candidato local de respaldo #252",
+        "work/respaldo.ps1, work/restaurar.ps1, scripts/ops/backup.mjs y restore-verify.mjs para delimitar el material claro y la validación pendiente"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa.",
+      "derivedAreas": [
+        "scripts/ops/backup-cron.sh: trap EXIT y señales gestionables, con comprobación de ruta física y eliminación enumerada sólo de artefactos claros del staging creado por esta ejecución",
+        "scripts/ops/backup-cron.spec.sh: regresión roja y luego verde ante fallo de rclone copy, rclone check, autenticación y SIGTERM; conserva .vbk y respaldos previos",
+        "docs/guides/backup-restore.md: aclara que el staging transitorio necesita volumen cifrado y que SIGKILL o pérdida de energía requieren inspección manual"
+      ],
+      "fixtures": "Dobles sintéticos de node/rclone y archivos de prueba bajo un directorio temporal; sin PostgreSQL, Railway, rclone remoto ni secretos reales.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "La regresión inicial falló al hallar un dump claro tras rclone copy-fail; después, bash -n, 10 escenarios de cron, check:backup 11/11, check:governance 11/11 y git diff --check pasaron. No se demuestra volumen cifrado, retención remota ni restauración de un backup productivo; CI y producción de esta rama pendientes."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }

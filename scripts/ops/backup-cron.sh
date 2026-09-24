@@ -8,7 +8,60 @@ umask 077
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_DIR="${BACKUP_DIR:-/srv/valle/backups}"
 PENDING_DIR=''
+NAME=''
 trap 'echo "BACKUP-CRON FALLÓ (línea $LINENO). Área pendiente: ${PENDING_DIR:-no creada}." >&2' ERR
+
+# Un fallo de transporte o una señal no puede dejar el dump y el inventario
+# legibles indefinidamente en el área pendiente. Sólo se eliminan los archivos
+# claros de ESTA ejecución; el .vbk cifrado y el directorio quedan para análisis
+# y reintento. No se hace borrado recursivo ni se toca una copia anterior.
+cleanup_pending_plaintext() {
+  [ -n "$PENDING_DIR" ] || return 0
+  case "$PENDING_DIR" in
+    "$BACKUP_DIR"/.pending-valle-design-*) ;;
+    *) echo 'No se limpia staging: ruta fuera del directorio de respaldos.' >&2; return 1 ;;
+  esac
+  local expected_name="${PENDING_DIR##*/}"
+  expected_name="${expected_name#.pending-}"
+  if [ "$NAME" != "$expected_name" ] || [ ! -d "$PENDING_DIR" ] ||
+     [ -L "$PENDING_DIR" ] || [ "$(cd -- "$PENDING_DIR" && pwd -P)" != "$PENDING_DIR" ]; then
+    echo 'No se limpia staging: el directorio ya no es el creado por esta ejecución.' >&2
+    return 1
+  fi
+  local failed=0 file
+  for file in "$PENDING_DIR/$NAME.dump" "$PENDING_DIR/$NAME.dump.sha256" \
+              "$PENDING_DIR/$NAME.contents" "$PENDING_DIR/$NAME.manifest.json" \
+              "$PENDING_DIR/.$NAME"-*.partial; do
+    [ -e "$file" ] || [ -L "$file" ] || continue
+    rm -f -- "$file" || failed=1
+  done
+  if [ -d "$PENDING_DIR/verified" ] && [ ! -L "$PENDING_DIR/verified" ] &&
+     [ "$(cd -- "$PENDING_DIR/verified" && pwd -P)" = "$PENDING_DIR/verified" ]; then
+    for file in "$PENDING_DIR/verified/$NAME.dump" \
+                "$PENDING_DIR/verified/$NAME.dump.sha256" \
+                "$PENDING_DIR/verified/$NAME.contents" \
+                "$PENDING_DIR/verified/$NAME.manifest.json" \
+                "$PENDING_DIR/verified/.valle-backup-decrypted-"*.part; do
+      [ -e "$file" ] || [ -L "$file" ] || continue
+      rm -f -- "$file" || failed=1
+    done
+  elif [ -e "$PENDING_DIR/verified" ] || [ -L "$PENDING_DIR/verified" ]; then
+    echo 'No se limpia verified: la ruta no es el subdirectorio esperado.' >&2
+    failed=1
+  fi
+  return "$failed"
+}
+
+on_exit() {
+  local status=$?
+  trap - EXIT
+  cleanup_pending_plaintext || status=1
+  exit "$status"
+}
+trap on_exit EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 # Comprobar configuración y herramientas antes de abrir un dump o tocar la retención.
 if [ -z "${DATABASE_URL:-}" ] || [ -z "${BACKUP_ENCRYPTION_PASSPHRASE:-}" ] ||
@@ -28,6 +81,7 @@ for binary in node rclone sha256sum cmp mktemp; do
 done
 
 mkdir -p -- "$BACKUP_DIR"
+BACKUP_DIR="$(cd -- "$BACKUP_DIR" && pwd -P)"
 STAMP="$(date -u +%Y-%m-%dT%H-%M-%SZ)"
 PENDING_DIR="$(mktemp -d "$BACKUP_DIR/.pending-valle-design-${STAMP}-XXXXXXXX")"
 NAME="${PENDING_DIR##*/}"

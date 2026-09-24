@@ -56,6 +56,10 @@ case "$command" in
       case "$file" in *.vbk|*.vbk.sha256) ;; *) exit 41 ;; esac
     done
     mkdir -p "$dest"
+    if [ "${MOCK_RCLONE_MODE:-}" = signal-term ]; then
+      kill -TERM "$PPID"
+      exit 143
+    fi
     if [ "${MOCK_RCLONE_MODE:-}" = copy-fail ]; then
       cp "$source"/*.vbk "$dest/"
       exit 42
@@ -92,6 +96,11 @@ assert_preserved() {
   [ "$(cat "$BACKUP_DIR/valle-design-old.vbk.sha256")" = 'previous checksum' ] || fail 'Se alteró el hash anterior.'
   [ "$(cat "$BACKUP_DIR/previous.dump")" = 'previous clear' ] || fail 'Se alteró el respaldo claro anterior.'
 }
+assert_no_pending_plaintext() {
+  if find "$BACKUP_DIR" -mindepth 2 -type f \( -name '*.dump' -o -name '*.dump.sha256' -o -name '*.contents' -o -name '*.manifest.json' -o -name '.valle-backup-decrypted-*.part' \) | grep -q .; then
+    fail 'Quedó material sin cifrar en staging tras el fallo.'
+  fi
+}
 case_root() {
   export BACKUP_DIR="$TEST_ROOT/$1"
   mkdir -p "$BACKUP_DIR"
@@ -125,8 +134,16 @@ for mode in copy-fail check-fail; do
   export MOCK_RCLONE_MODE="$mode"
   if run_cron; then fail "Aceptó el fallo de $mode."; fi
   assert_no_new_root_files; assert_preserved
-  [ -n "$(find "$BACKUP_DIR" -mindepth 2 -name '*.dump' -print -quit)" ] || fail "No conservó el claro en $mode."
+  assert_no_pending_plaintext
+  [ -n "$(find "$BACKUP_DIR" -mindepth 2 -name '*.vbk' -print -quit)" ] || fail "No conservó el paquete cifrado en $mode."
 done
+unset MOCK_RCLONE_MODE
+
+case_root signal-term
+export MOCK_RCLONE_MODE=signal-term
+if run_cron; then fail 'Aceptó SIGTERM durante el transporte.'; fi
+assert_no_new_root_files; assert_preserved; assert_no_pending_plaintext
+[ -n "$(find "$BACKUP_DIR" -mindepth 2 -name '*.vbk' -print -quit)" ] || fail 'SIGTERM eliminó el paquete cifrado.'
 unset MOCK_RCLONE_MODE
 
 for mode in restore-fail tamper; do
@@ -134,7 +151,7 @@ for mode in restore-fail tamper; do
   export MOCK_NODE_MODE="$mode"
   if run_cron; then fail "Aceptó el fallo de $mode."; fi
   assert_no_new_root_files; assert_preserved
-  [ -n "$(find "$BACKUP_DIR" -mindepth 2 -name '*.dump' -print -quit)" ] || fail "No conservó el claro en $mode."
+  assert_no_pending_plaintext
 done
 unset MOCK_NODE_MODE
 
@@ -162,4 +179,4 @@ run_cron || { cat "$TEST_ROOT/cron.log" >&2; fail 'Falló la segunda pasada corr
 assert_preserved
 [ -f "$new_archive" ] && [ -f "$new_archive.sha256" ] && [ -f "$new_archive.uploaded" ] || fail 'Eliminó una copia anterior marcada.'
 [ "$(find "$BACKUP_DIR" -maxdepth 1 -name '*.vbk' | wc -l | tr -d ' ')" = 3 ] || fail 'Se perdió un respaldo anterior.'
-echo 'backup-cron.spec.sh: 9 escenarios PASS (preflight, restore/auth/copy/check fallidos, éxito cifrado y conservación de respaldos).'
+echo 'backup-cron.spec.sh: 10 escenarios PASS (preflight, restore/auth/copy/check/SIGTERM fallidos, éxito cifrado y conservación de respaldos).'
