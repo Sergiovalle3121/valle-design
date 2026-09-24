@@ -125,6 +125,7 @@ async function openReview(page: Page, url: string) {
 
 test("un tercero sin cuenta abre el enlace, ve el plano y comenta sobre un punto", async ({
   browser,
+  browserName,
   context,
   page,
 }) => {
@@ -179,11 +180,15 @@ test("un tercero sin cuenta abre el enlace, ve el plano y comenta sobre un punto
     .toHaveText("18 m²");
   await expect(cliente.locator('[data-testid="cad-review-text"][data-entity-id="texto-oculto"]'))
     .toHaveCount(0);
+  // Firefox rechaza `isMobile` en newContext (Playwright no emula ahí el
+  // meta-viewport): mismo reparto que `e2e/real/movil.spec.ts`. Lo que este
+  // paso defiende —texto y m² legibles en un plano de 390 px— vive en el
+  // ancho del viewport y en el táctil, que Firefox sí emula.
   const movilContexto = await browser.newContext({
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 2,
-    isMobile: true,
     hasTouch: true,
+    ...(browserName === "firefox" ? {} : { isMobile: true }),
   });
   await installGuest(movilContexto, backend);
   const movil = await movilContexto.newPage();
