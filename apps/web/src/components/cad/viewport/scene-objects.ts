@@ -169,6 +169,7 @@ export function buildAssetGroup(
   H: number,
   selected: boolean,
   alert = false,
+  hideRoomLabel = false,
 ): THREE.Group {
   const def = assetMeta(a.kind);
   const wS = Math.max(0.2, a.w * s);
@@ -218,6 +219,10 @@ export function buildAssetGroup(
   }
   if (a.label) {
     const lab = makeLabel(a.label, 1.2);
+    if (a.kind === "room") {
+      lab.userData.cadRoomAssetLabelId = a.id;
+      lab.visible = !hideRoomLabel;
+    }
     lab.position.set(0, (flat ? 0.6 : h3d) + 0.9, 0);
     group.add(lab);
   }
@@ -298,6 +303,7 @@ export function rebuildCadAssetGroup(
   ctx: { s: number; W: number; H: number },
   selectedIds: ReadonlySet<string>,
   highlightedIds: ReadonlySet<string>,
+  hiddenRoomAssetLabelIds: ReadonlySet<string> = new Set(),
 ): void {
   while (group.children.length) {
     const child = group.children[group.children.length - 1];
@@ -313,6 +319,7 @@ export function rebuildCadAssetGroup(
       ctx.H,
       selectedIds.has(asset.id),
       highlightedIds.has(asset.id),
+      hiddenRoomAssetLabelIds.has(asset.id),
     );
     group.add(built);
     groupByAsset.set(asset.id, built);

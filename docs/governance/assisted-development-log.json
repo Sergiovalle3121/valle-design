@@ -4593,6 +4593,46 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "CUARTO-NOMBRE-ROTULO-INTEGRADO-20260924",
+      "date": "2026-09-24",
+      "initiative": "Persistir el nombre del cuarto cerrado y mostrarlo con sus m² en un solo rótulo legible en Esencial, sin cambiar los archivos exportados.",
+      "branch": "codex/room-label-naming-integrated",
+      "assistants": [
+        "OpenAI Codex: análisis de entidades de plantilla, conexión del nombre, pruebas de invariancia y golden de interacción",
+        "OpenAI Codex: integración de ramas, exclusiones de vista por cuarto cerrado y pruebas de invariancia"
+      ],
+      "authority": "Sergio encargó continuar ValleCAD desde el estado actual y llevar al mercado una edición de cuartos comprensible; el PROMPT MAESTRO del 2026-09-23 pide nombre editable en un espacio canónico existente y evidencia visible.",
+      "firstPartyInputs": [
+        "Las plantillas SALA/COMEDOR/COCINA persisten como box kind:room con el nombre en label; el cuadro BIM deriva las caras únicamente de muros canónicos.",
+        "La rama de área visible codex/room-area-overlay, golden 234 y las rutas existentes de comando, historial, guardado, DXF y DWG del repositorio.",
+        "El trasplante limpio de 77f6f66e sobre origin/main #253 conserva la primera pantalla y la lectura visible de cuartos, conteos de vanos y cotas.",
+        "origin/main 3d7d4ab7 con el protocolo de estudiantes, la rama codex/room-space-naming-main253 y la rama codex/legible-room-labels",
+        "El documento CAD, el cuadro BIM, los assets heredados y los golden locales del repositorio"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada ni consultada.",
+      "derivedAreas": [
+        "room-space.ts enlaza por punto interior una cara cerrada con el label de box kind:room; al renombrar crea o reutiliza una identidad nominal de huella cero con metadato explícito y prioridad BIM, conservada por la proyección del editor. El box de plantilla original y cualquier TEXT/MTEXT permanecen intactos para paridad de archivo.",
+        "entity-commands.ts actualiza el label del ancla mediante un lote canónico y preserva el orden previo de entidades en esta operación para no alterar bytes DXF/DWG; Deshacer/Rehacer y guardar/reabrir mantienen la identidad. El aplicador puro de pestañas pasó intacto a entity-command-paper-space.ts para respetar el presupuesto de 800 líneas.",
+        "bim-schedule.ts y room-area-labels.ts muestran el nombre persistido junto al área entre ejes derivada de los muros; al abrir el contorno desaparece el área y al cerrarlo reaparece el nombre.",
+        "Las rutas de geometría, validación, papel, DXF y DWG omiten exclusivamente el ancla sin huella; no se exporta ni se suma a cantidades BIM.",
+        "room-area-labels.ts expone un único ID estable textLabelId para ocultar el TEXT fuente en Esencial y mantener intacto el documento exportable.",
+        "essential-room-preview.ts excluye en Esencial sólo los sprites de box kind:room que caen dentro de una cara cerrada con badge de área; el mismo asset conserva etiqueta si se abre el recinto. Las exclusiones se memorizan por identidad del documento canónico.",
+        "scene-objects.ts crea los sprites de cuarto con identidad explícita y visibilidad correcta incluso cuando una selección reconstruye assets; Layout3DEditor.tsx reaplica la visibilidad al cambiar Esencial/Pro.",
+        "CadViewportMeasurements.tsx muestra nombre persistido y m² juntos en Esencial, conserva edición por doble clic y mantiene la política de área y rótulos de Pro. El box y TEXT originales no se alteran."
+      ],
+      "fixtures": "Documentos herméticos de muros rectangulares y cóncavos, box de plantilla, TEXT y LINE; el golden usa un backend simulado sin credenciales ni datos de clientes. Cuarto de plantilla y TEXT sobre el plano demo, con renombrado canónico; recinto abierto como control negativo. Room-space.spec conserva hashes y bytes DXF/DWG anteriores.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Room-space y BIM cubren renombrado, Deshacer/Rehacer, guardar/reabrir, mover y borrar muros, área derivada y exportación DXF/DWG byte idéntica en los casos probados. Essential-room-preview.spec fue roja antes y verde después; build Webpack 208 rutas y TypeScript PASS; golden 255 integrado Chromium 1/1 PASS con SALA + TEXT, doble clic a Recámara, Deshacer/Rehacer, guardar/reabrir, 12.00 m² y ausencia del rótulo fuente amarillo. Pro y archivos mantienen el texto original a propósito. La CI exacta y producción aún faltan; no se declara compatibilidad DWG general."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }
