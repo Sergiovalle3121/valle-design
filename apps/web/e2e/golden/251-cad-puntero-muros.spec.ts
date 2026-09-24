@@ -111,6 +111,7 @@ test.describe('pantalla táctil', () => {
     const roomName = page.getByTestId('cad-room-name-hitbox').first();
     await expect(roomName).toHaveCSS('pointer-events', 'auto');
     await page.getByRole('button', { name: 'Muro', exact: true }).click();
+    await expect(page.getByTestId('cad-essential-tool-wall')).toHaveAttribute('data-active', 'true');
     await expect(roomName).toHaveCSS('pointer-events', 'none');
     for (const point of corners) {
       await page.touchscreen.tap(point.x, point.y);
