@@ -5,6 +5,8 @@ import {
 } from '../../common/testing/postgres-harness';
 import { EmailOutbox } from '../commercial/entities/commercial.entities';
 import { PostgresEmailService } from '../commercial/adapters/postgres.adapters';
+import { currentLegalDocument } from '../legal/legal-documents';
+import { RegistrationLegalAcceptance } from './entities/registration-legal-acceptance.entity';
 import { Organization } from '../organizations/entities/organization.entity';
 import {
   Credential,
@@ -50,6 +52,7 @@ describePostgres('Ruta de perfil: nombre y correo (PostgreSQL real)', () => {
         IdentityBackupCode,
         Organization,
         EmailOutbox,
+        RegistrationLegalAcceptance,
       ],
       { schemaPrefix: 'identity_profile_update' },
     );
@@ -80,7 +83,12 @@ describePostgres('Ruta de perfil: nombre y correo (PostgreSQL real)', () => {
   });
 
   async function cuentaVerificada(correo = CORREO) {
-    await identity.register(correo, CONTRASENA, 'Dibujante');
+    await identity.register(
+      correo,
+      CONTRASENA,
+      'Dibujante',
+      currentLegalDocument('terms')!.version,
+    );
     const usuario = await harness.dataSource
       .getRepository(User)
       .findOneByOrFail({ email: correo });

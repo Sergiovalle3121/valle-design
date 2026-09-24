@@ -21,6 +21,7 @@ import {
 import { IdentityMfaService } from './identity-mfa.service';
 import { IdentityService } from './identity.service';
 import { PostgresIdentityRateLimitStore } from './postgres-identity-rate-limit.store';
+import { RegistrationLegalAcceptance } from './entities/registration-legal-acceptance.entity';
 
 @Global()
 @Module({
@@ -35,6 +36,7 @@ import { PostgresIdentityRateLimitStore } from './postgres-identity-rate-limit.s
       IdentityRateLimit,
       IdentityMfaFactor,
       IdentityBackupCode,
+      RegistrationLegalAcceptance,
     ]),
   ],
   controllers: [IdentityController],

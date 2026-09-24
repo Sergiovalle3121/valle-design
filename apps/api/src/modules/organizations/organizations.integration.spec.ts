@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { DESIGN_CAD_ENTITLEMENT } from '@valle-design/contracts';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
+import { currentLegalDocument } from '../legal/legal-documents';
 import { CadAuthGuard } from '../auth/guards/cad-auth.guard';
 import {
   DomainOutbox,
@@ -27,6 +28,7 @@ import {
   User,
 } from '../identity/entities/identity.entity';
 import { IdentityModule } from '../identity/identity.module';
+import { RegistrationLegalAcceptance } from '../identity/entities/registration-legal-acceptance.entity';
 import { CSRF_COOKIE } from '../identity/identity-security';
 import {
   Invitation,
@@ -137,6 +139,7 @@ describe('first-party organization and commercial HTTP integration', () => {
             UsageLedger,
             DomainOutbox,
             EmailOutbox,
+            RegistrationLegalAcceptance,
           ],
         }),
         IdentityModule,
@@ -183,7 +186,13 @@ describe('first-party organization and commercial HTTP integration', () => {
     const server = app.getHttpServer();
     const registration = await request(server)
       .post('/v1/auth/register')
-      .send({ email, password: PASSWORD, displayName: email.split('@')[0] })
+      .send({
+        email,
+        password: PASSWORD,
+        displayName: email.split('@')[0],
+        termsVersion: currentLegalDocument('terms')!.version,
+        acceptedTerms: true,
+      })
       .expect(202);
     expect(registration.body).toEqual({ accepted: true });
     expect(JSON.stringify(registration.body)).not.toMatch(/token/iu);

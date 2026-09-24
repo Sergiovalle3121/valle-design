@@ -19,6 +19,7 @@ import {
 } from '@nestjs/common';
 import {
   IsEmail,
+  Equals,
   IsOptional,
   IsString,
   MaxLength,
@@ -79,6 +80,16 @@ export class RegisterDto extends LoginDto {
   @IsString()
   @MaxLength(MAX_DISPLAY_NAME_LENGTH)
   displayName?: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(40)
+  termsVersion!: string;
+
+  // `unknown` impide que enableImplicitConversion convierta el string "false"
+  // en boolean true antes de validar la confirmación explícita.
+  @Equals(true)
+  acceptedTerms!: unknown;
 }
 
 export class EmailDto {
@@ -346,7 +357,12 @@ export class IdentityController {
   @HttpCode(202)
   async register(@Body() body: RegisterDto, @Req() req: Request) {
     await this.limit('register.ip', [req.ip || 'unknown']);
-    return this.identity.register(body.email, body.password, body.displayName);
+    return this.identity.register(
+      body.email,
+      body.password,
+      body.displayName,
+      body.termsVersion,
+    );
   }
 
   @Public()

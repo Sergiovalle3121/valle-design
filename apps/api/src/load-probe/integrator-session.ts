@@ -18,6 +18,7 @@
  * que el camino de `verifyEmail` se ejecute de verdad.
  */
 import type { DataSource } from 'typeorm';
+import { currentLegalDocument } from '../modules/legal/legal-documents';
 import {
   CSRF_COOKIE,
   SESSION_COOKIE,
@@ -158,7 +159,13 @@ export async function createIntegratorSession(options: {
   await expectStatus(
     await apiCall(anonymous, '/v1/auth/register', {
       method: 'POST',
-      body: { email, password, displayName: 'Integrador de carga' },
+      body: {
+        email,
+        password,
+        displayName: 'Integrador de carga',
+        termsVersion: currentLegalDocument('terms')!.version,
+        acceptedTerms: true,
+      },
     }),
     [202],
     'register',

@@ -4470,6 +4470,37 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "ALTA-ACEPTACION-TERMINOS-20260923",
+      "date": "2026-09-23",
+      "initiative": "Exigir y registrar en el alta la aceptación explícita de la versión vigente de los Términos de Servicio, asociada al usuario y fechada por el servidor dentro de la transacción de creación de cuenta.",
+      "branch": "codex/signup-legal-acceptance",
+      "assistants": [
+        "OpenAI Codex: implementación local y pruebas PostgreSQL de aceptación al alta"
+      ],
+      "authority": "Sergio autorizó continuar la preparación de VALLECAD para salir al mercado; los textos legales siguen pendientes de revisión humana profesional.",
+      "firstPartyInputs": [
+        "AuthPage.tsx y RegisterRequest existentes, que mostraban casilla pero no transmitían ni persistían la versión aceptada",
+        "Registro versionado LEGAL_DOCUMENTS y tabla legal_acceptances existente, que requiere organización y por ello no sirve antes del primer tenant"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "Tabla histórica a nivel identidad sin organización ficticia y sin FK de borrado en cascada; sólo usuario, versión de términos y fecha de la base",
+        "POST /v1/auth/register rechaza confirmación ausente, versión obsoleta y campos falsificados; el servicio registra la fila en la misma transacción de usuario, credencial y outbox",
+        "Contrato OpenAPI, SDK generado y formulario envían confirmación literal y versión leída de GET /v1/legal/documents; el aviso de privacidad permanece informativo, no se registra como consentimiento"
+      ],
+      "fixtures": "PostgreSQL 16 local en esquema exclusivo de prueba; fallo sintético del encolador de correo para comprobar rollback; Chromium hermético contra build de producción para golden 197.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Prueba PostgreSQL roja por ausencia de constancia y luego 6/6 verde; cadena de migraciones PostgreSQL 2/2; HTTP focal 10/10, typecheck API/SDK/web, build web de producción (208 rutas), golden 197 Chromium 2/2 y contrato 110 operaciones PASS. CI del SHA exacto pendiente; esta entrada no afirma aprobación jurídica ni despliegue."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }

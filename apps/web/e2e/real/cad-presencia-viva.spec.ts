@@ -31,6 +31,7 @@ import {
   apiPut,
   capturedToken,
   latestCapturedEmail,
+  currentRegistrationTerms,
 } from "../fixtures/first-party";
 import { abrirPanelDerecho } from "../fixtures/docks";
 
@@ -78,7 +79,7 @@ async function registerAndVerify(
   displayName: string,
 ): Promise<void> {
   const registered = await context.request.post(`${API_ORIGIN}/v1/auth/register`, {
-    data: { email, password: E2E_PASSWORD, displayName },
+    data: { email, password: E2E_PASSWORD, displayName, ...(await currentRegistrationTerms(context.request)) },
   });
   expect(registered.status(), await registered.text()).toBe(202);
   const captured = await latestCapturedEmail(context.request, email);

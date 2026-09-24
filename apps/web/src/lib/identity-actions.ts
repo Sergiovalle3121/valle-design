@@ -66,7 +66,9 @@ function validateToken(rawToken: string | undefined): FieldValidation {
   return { ok: true, value: token };
 }
 
-export function validatePassword(password: string | undefined): FieldValidation {
+export function validatePassword(
+  password: string | undefined,
+): FieldValidation {
   const value = password ?? "";
   const length = characterCount(value);
   if (
@@ -101,6 +103,8 @@ export interface AuthFormValues {
   displayName?: string;
   email?: string;
   password?: string;
+  termsVersion?: string;
+  acceptedTerms?: boolean;
 }
 
 /**
@@ -123,20 +127,46 @@ export function loginPayload(
   return { ok: true, body: { email: email.value, password: password.value } };
 }
 
-/** Cuerpo del alta: los tres campos del embudo, validados en español. */
-export function registerPayload(
-  values: AuthFormValues,
-):
+/** El alta confirma la versión que la persona vio, además de sus datos. */
+export function registerPayload(values: AuthFormValues):
   | {
       ok: true;
-      body: { email: string; password: string; displayName: string };
+      body: {
+        email: string;
+        password: string;
+        displayName: string;
+        termsVersion: string;
+        acceptedTerms: true;
+      };
     }
   | { ok: false; message: string } {
   const displayName = validateDisplayName(values.displayName);
   if (!displayName.ok) return { ok: false, message: displayName.message };
   const login = loginPayload(values);
   if (!login.ok) return login;
-  return { ok: true, body: { ...login.body, displayName: displayName.value } };
+  if (values.acceptedTerms !== true) {
+    return {
+      ok: false,
+      message: "Acepta los Términos de Servicio para crear la cuenta.",
+    };
+  }
+  const termsVersion = values.termsVersion ?? "";
+  if (!termsVersion || termsVersion.length > 40) {
+    return {
+      ok: false,
+      message:
+        "No pudimos consultar la versión vigente de los términos. Recarga la página.",
+    };
+  }
+  return {
+    ok: true,
+    body: {
+      ...login.body,
+      displayName: displayName.value,
+      termsVersion,
+      acceptedTerms: true,
+    },
+  };
 }
 
 /**
@@ -166,6 +196,9 @@ export function authFailureMessage(
       : "Demasiados intentos. Espera un momento antes de intentarlo de nuevo.";
   }
   if (status === 400) {
+    if (mode === "register" && body?.code === "legal_document_outdated") {
+      return "Los términos cambiaron mientras creabas tu cuenta. Recarga la página y vuelve a confirmarlos.";
+    }
     const detail = validationDetail(body?.message);
     if (/displayName/u.test(detail)) {
       return `Revisa el nombre: no puede estar vacío ni superar ${IDENTITY_FIELD_LIMITS.displayName} caracteres.`;
@@ -195,11 +228,15 @@ function httpStatusOf(cause: unknown): number | null {
 
 function httpBodyOf(
   cause: unknown,
-): { message?: unknown; retryAfterSeconds?: unknown } | null {
+): { message?: unknown; code?: unknown; retryAfterSeconds?: unknown } | null {
   if (!cause || typeof cause !== "object" || !("body" in cause)) return null;
   const body = cause.body;
   return body && typeof body === "object"
-    ? (body as { message?: unknown; retryAfterSeconds?: unknown })
+    ? (body as {
+        message?: unknown;
+        code?: unknown;
+        retryAfterSeconds?: unknown;
+      })
     : null;
 }
 

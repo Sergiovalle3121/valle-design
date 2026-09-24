@@ -4,6 +4,7 @@ import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import request from 'supertest';
 import { DataSource, IsNull } from 'typeorm';
+import { currentLegalDocument } from '../legal/legal-documents';
 import {
   DomainOutbox,
   EmailOutbox,
@@ -25,6 +26,7 @@ import {
   User,
 } from './entities/identity.entity';
 import { IdentityModule } from './identity.module';
+import { RegistrationLegalAcceptance } from './entities/registration-legal-acceptance.entity';
 import {
   CSRF_COOKIE,
   DEVELOPMENT_SESSION_COOKIE,
@@ -36,6 +38,10 @@ const EMAIL = 'flow.user+identity@example.test';
 const UNKNOWN_EMAIL = 'missing.user+identity@example.test';
 const OLD_PASSWORD = 'Old-password-2026!';
 const NEW_PASSWORD = 'New-password-2026!';
+const LEGAL_CONFIRMATION = {
+  termsVersion: currentLegalDocument('terms')!.version,
+  acceptedTerms: true,
+};
 
 interface EmailHarnessBody {
   template: string;
@@ -98,6 +104,7 @@ describe('first-party identity HTTP integration', () => {
             Session,
             OneTimeToken,
             IdentityAuditEvent,
+            RegistrationLegalAcceptance,
             Organization,
             Membership,
             Invitation,
@@ -149,6 +156,7 @@ describe('first-party identity HTTP integration', () => {
         email: EMAIL,
         password: OLD_PASSWORD,
         displayName: 'Identity Flow',
+        ...LEGAL_CONFIRMATION,
       })
       .expect(202);
     expect(registration.body).toEqual({ accepted: true });
@@ -376,6 +384,82 @@ describe('first-party identity HTTP integration', () => {
     await current.get('/v1/auth/session').expect(401);
   });
 
+  it('requires explicit current terms and never trusts caller identity or timestamp', async () => {
+    const server = app.getHttpServer();
+    const known = 'known.legal+identity@example.test';
+    const fresh = 'fresh.legal+identity@example.test';
+    const credentials = { password: OLD_PASSWORD, displayName: 'Legal Flow' };
+    await request(server)
+      .post('/v1/auth/register')
+      .send({ email: known, ...credentials, ...LEGAL_CONFIRMATION })
+      .expect(202);
+
+    const stale = { ...LEGAL_CONFIRMATION, termsVersion: '1999-01-01' };
+    const existingRejected = await request(server)
+      .post('/v1/auth/register')
+      .send({ email: known, ...credentials, ...stale })
+      .expect(400);
+    const freshRejected = await request(server)
+      .post('/v1/auth/register')
+      .send({ email: fresh, ...credentials, ...stale })
+      .expect(400);
+    expect(existingRejected.body).toEqual(freshRejected.body);
+
+    await request(server)
+      .post('/v1/auth/register')
+      .send({ email: fresh, ...credentials })
+      .expect(400);
+    await request(server)
+      .post('/v1/auth/register')
+      .send({
+        email: fresh,
+        ...credentials,
+        termsVersion: LEGAL_CONFIRMATION.termsVersion,
+        acceptedTerms: 'false',
+      })
+      .expect(400);
+    await request(server)
+      .post('/v1/auth/register')
+      .send({
+        email: fresh,
+        ...credentials,
+        ...LEGAL_CONFIRMATION,
+        userId: 'forged',
+        acceptedAt: '1999-01-01',
+      })
+      .expect(400);
+
+    await expect(
+      dataSource.getRepository(User).countBy({ email: fresh }),
+    ).resolves.toBe(0);
+    const repeated = await request(server)
+      .post('/v1/auth/register')
+      .send({ email: known, ...credentials, ...LEGAL_CONFIRMATION })
+      .expect(202);
+    const newRegistration = await request(server)
+      .post('/v1/auth/register')
+      .send({ email: fresh, ...credentials, ...LEGAL_CONFIRMATION })
+      .expect(202);
+    expect(repeated.body).toEqual(newRegistration.body);
+
+    const user = await dataSource
+      .getRepository(User)
+      .findOneByOrFail({ email: known });
+    await expect(
+      dataSource
+        .getRepository(RegistrationLegalAcceptance)
+        .countBy({ userId: user.id }),
+    ).resolves.toBe(1);
+    const freshUser = await dataSource
+      .getRepository(User)
+      .findOneByOrFail({ email: fresh });
+    await expect(
+      dataSource
+        .getRepository(RegistrationLegalAcceptance)
+        .countBy({ userId: freshUser.id }),
+    ).resolves.toBe(1);
+  });
+
   it('does not enumerate accounts through forgot or verification resend', async () => {
     const server = app.getHttpServer();
     // La propiedad de no-enumeración no requiere escrituras simultáneas.
@@ -414,7 +498,12 @@ describe('first-party identity HTTP integration', () => {
     const email = 'resend.user+identity@example.test';
     await request(server)
       .post('/v1/auth/register')
-      .send({ email, password: OLD_PASSWORD, displayName: 'Resend Flow' })
+      .send({
+        email,
+        password: OLD_PASSWORD,
+        displayName: 'Resend Flow',
+        ...LEGAL_CONFIRMATION,
+      })
       .expect(202);
     await request(server)
       .post('/v1/auth/verify-email/resend')
@@ -583,7 +672,12 @@ describe('CSRF cookie domain integration', () => {
 
     await request(server)
       .post('/v1/auth/register')
-      .send({ email: EMAIL, password: PASSWORD, displayName: 'CSRF Test' })
+      .send({
+        email: EMAIL,
+        password: PASSWORD,
+        displayName: 'CSRF Test',
+        ...LEGAL_CONFIRMATION,
+      })
       .expect(202);
 
     const verificationEmail = await request(server)

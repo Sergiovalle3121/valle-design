@@ -54,12 +54,13 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
   /**
    * T-63d (petición F8-1). Nadie veía ni confirmaba nada al crear la cuenta.
    * Los documentos vigentes se piden a `GET /v1/legal/documents` (pública) para
-   * que la casilla nombre la VERSIÓN que se está aceptando; si la petición
-   * falla, la casilla sigue ahí y enlaza a las páginas, porque el texto vive en
-   * el producto — lo que no se inventa es una versión (D-14). Que el servidor
-   * exija y registre esta aceptación al registrarse es la parte 2 (frente F8).
+   * que la casilla nombre la VERSIÓN que se está aceptando. Si la petición
+   * falla, conservamos los enlaces pero no permitimos crear una cuenta sin
+   * versión: el servidor sólo registra la aceptación del texto vigente.
    */
-  const [legalDocuments, setLegalDocuments] = useState<LegalLink[] | null>(null);
+  const [legalDocuments, setLegalDocuments] = useState<LegalLink[] | null>(
+    null,
+  );
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   useEffect(() => {
     if (!register) return;
@@ -68,18 +69,38 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
       .documents()
       .then(({ documents }) => {
         if (!alive) return;
+        // Una casilla marcada antes de resolver la versión no puede contar
+        // como aceptación del documento que acaba de aparecer.
+        setAcceptedTerms(false);
         setLegalDocuments(
-          documents.map((doc) => ({ documento: doc.documento, version: doc.version, url: doc.url })),
+          documents.map((doc) => ({
+            documento: doc.documento,
+            version: doc.version,
+            url: doc.url,
+          })),
         );
+        if (
+          !documents.some((doc) => doc.documento === "terms" && doc.version)
+        ) {
+          setError(
+            "No pudimos consultar la versión vigente de los términos. Recarga la página para continuar.",
+          );
+        }
       })
       .catch(() => {
-        if (alive) setLegalDocuments([]);
+        if (alive) {
+          setLegalDocuments([]);
+          setError(
+            "No pudimos consultar la versión vigente de los términos. Recarga la página para continuar.",
+          );
+        }
       });
     return () => {
       alive = false;
     };
   }, [register]);
   const legalLinks = legalLinksFor(legalDocuments);
+  const termsReady = !!legalLinks.terms.version;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -94,10 +115,14 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
       displayName: String(form.get("displayName") ?? ""),
       email: String(form.get("email") ?? ""),
       password: String(form.get("password") ?? ""),
+      termsVersion: legalLinks.terms.version,
+      acceptedTerms,
     };
-    const payload = register ? registerPayload(values) : loginPayload(values);
-    if (!payload.ok) {
-      setError(payload.message);
+    const registration = register ? registerPayload(values) : null;
+    const signIn = register ? null : loginPayload(values);
+    const payload = registration ?? signIn;
+    if (!payload || !payload.ok) {
+      setError(payload?.message ?? "Revisa los datos del formulario.");
       return;
     }
     const body = payload.body;
@@ -107,10 +132,10 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
     setError(null);
 
     try {
-      if (register) {
-        await designClient.identity.register(body);
-      } else {
-        const resultado = await designClient.identity.login(body);
+      if (registration?.ok) {
+        await designClient.identity.register(registration.body);
+      } else if (signIn?.ok) {
+        const resultado = await designClient.identity.login(signIn.body);
         // La respuesta del inicio de sesión es una de dos: sesión creada, o
         // desafío de segundo factor. Sin cookie en el segundo caso — la
         // contraseña sola no abre nada en una cuenta protegida.
@@ -180,18 +205,20 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
           : "Accede a tus dibujos, revisiones y entregables."
       }
       error={error}
-      hint={!register && error ? (
-        <>
-          ¿Acabas de crear la cuenta y no has confirmado tu correo?{" "}
-          <Link
-            className="font-semibold text-primary-ink underline-offset-4 hover:underline"
-            href="/resend-verification"
-          >
-            Reenvía el enlace
-          </Link>
-          .
-        </>
-      ) : undefined}
+      hint={
+        !register && error ? (
+          <>
+            ¿Acabas de crear la cuenta y no has confirmado tu correo?{" "}
+            <Link
+              className="font-semibold text-primary-ink underline-offset-4 hover:underline"
+              href="/resend-verification"
+            >
+              Reenvía el enlace
+            </Link>
+            .
+          </>
+        ) : undefined
+      }
       // El panel del producto, sólo en el embudo de alta y sólo en escritorio.
       // Responde las dos preguntas que se hace quien está a punto de teclear su
       // correo —«¿qué es esto?» y «¿puedo fiarme?»— justo mientras las piensa.
@@ -273,24 +300,44 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
             name="acceptedTerms"
             data-testid="register-accept-terms"
             required
+            disabled={!termsReady}
             checked={acceptedTerms}
             onChange={(event) => setAcceptedTerms(event.target.checked)}
             // El botón «Crear cuenta» está deshabilitado hasta marcarla (golden
             // 197). Un botón muerto sin explicación parece un fallo del
             // producto; la pista dice por qué, enlazada por aria-describedby.
-            hint="Necesaria para crear la cuenta."
+            hint={
+              termsReady
+                ? "Necesaria para crear la cuenta."
+                : "Cargando la versión vigente de los términos."
+            }
             label={
               <>
                 Acepto los{" "}
-                <Link href={legalLinks.terms.url} target="_blank" rel="noreferrer" className="underline">
+                <Link
+                  href={legalLinks.terms.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline"
+                >
                   Términos de Servicio
                 </Link>
-                {legalLinks.terms.version ? ` (versión ${legalLinks.terms.version})` : ""} y he leído
-                el{" "}
-                <Link href={legalLinks.privacy.url} target="_blank" rel="noreferrer" className="underline">
+                {legalLinks.terms.version
+                  ? ` (versión ${legalLinks.terms.version})`
+                  : ""}{" "}
+                y he leído el{" "}
+                <Link
+                  href={legalLinks.privacy.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline"
+                >
                   Aviso de Privacidad
                 </Link>
-                {legalLinks.privacy.version ? ` (versión ${legalLinks.privacy.version})` : ""}.
+                {legalLinks.privacy.version
+                  ? ` (versión ${legalLinks.privacy.version})`
+                  : ""}
+                .
               </>
             }
           />
@@ -301,7 +348,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
           size="lg"
           fullWidth
           loading={busy}
-          disabled={register && !acceptedTerms}
+          disabled={register && (!acceptedTerms || !termsReady)}
         >
           {busy ? "Procesando…" : register ? "Crear cuenta" : "Iniciar sesión"}
         </Button>
@@ -321,10 +368,20 @@ interface LegalLink {
  * a las páginas fijas del producto (`/terms`, `/privacy`) SIN versión: un
  * enlace sin número es verdad; un número inventado no.
  */
-function legalLinksFor(documents: LegalLink[] | null): { terms: LegalLink; privacy: LegalLink } {
+function legalLinksFor(documents: LegalLink[] | null): {
+  terms: LegalLink;
+  privacy: LegalLink;
+} {
   const find = (documento: LegalLink["documento"], url: string): LegalLink =>
-    documents?.find((doc) => doc.documento === documento) ?? { documento, version: "", url };
-  return { terms: find("terms", "/terms"), privacy: find("privacy", "/privacy") };
+    documents?.find((doc) => doc.documento === documento) ?? {
+      documento,
+      version: "",
+      url,
+    };
+  return {
+    terms: find("terms", "/terms"),
+    privacy: find("privacy", "/privacy"),
+  };
 }
 
 /**

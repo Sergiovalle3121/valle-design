@@ -16,7 +16,7 @@
 
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { API_ORIGIN, BASE_URL } from "../fixtures/constants";
-import { E2E_PASSWORD, apiGet, apiPost, apiPut } from "../fixtures/first-party";
+import { E2E_PASSWORD, apiGet, apiPost, apiPut, currentRegistrationTerms } from "../fixtures/first-party";
 import { abrirPanelDerecho } from "../fixtures/docks";
 
 test.describe.configure({ mode: "serial" });
@@ -86,7 +86,7 @@ test.describe("el conflicto CAS se enclava por documento, contra PostgreSQL", ()
     context = await browser.newContext({ baseURL: BASE_URL });
 
     const registered = await context.request.post(`${API_ORIGIN}/v1/auth/register`, {
-      data: { email, password: E2E_PASSWORD, displayName: "Valle Conflict" },
+      data: { email, password: E2E_PASSWORD, displayName: "Valle Conflict", ...(await currentRegistrationTerms(context.request)) },
     });
     expect(registered.status()).toBe(202);
     const message = await context.request.get(

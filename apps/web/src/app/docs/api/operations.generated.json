@@ -219,7 +219,7 @@
       "operationId": "registerIdentity",
       "method": "POST",
       "path": "/v1/auth/register",
-      "summary": "Registra una cuenta sin revelar si ya existia.",
+      "summary": "Registra una cuenta con aceptación de términos sin revelar si ya existía.",
       "tags": [
         "identity"
       ],

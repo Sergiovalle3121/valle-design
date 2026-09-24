@@ -1,4 +1,8 @@
-import { expect, type APIRequestContext, type BrowserContext } from "@playwright/test";
+import {
+  expect,
+  type APIRequestContext,
+  type BrowserContext,
+} from "@playwright/test";
 import { API_ORIGIN } from "./constants";
 
 export const E2E_PASSWORD = "Valle-E2E-password-2026!";
@@ -12,6 +16,37 @@ export interface CapturedEmail {
   template: string;
   payload: Record<string, unknown>;
   createdAt: string;
+}
+
+/** Usa la misma versión pública que ve el formulario; nunca fija una fecha en el test. */
+export async function currentRegistrationTerms(
+  request: APIRequestContext,
+): Promise<{ termsVersion: string; acceptedTerms: true }> {
+  const response = await request.get(`${API_ORIGIN}/v1/legal/documents`);
+  expect(response.status(), await response.text()).toBe(200);
+  const payload: unknown = await response.json();
+  const documents =
+    payload && typeof payload === "object" && "documents" in payload
+      ? payload.documents
+      : null;
+  const terms = Array.isArray(documents)
+    ? documents.find(
+        (item: unknown) =>
+          item &&
+          typeof item === "object" &&
+          "documento" in item &&
+          item.documento === "terms" &&
+          "version" in item &&
+          typeof item.version === "string" &&
+          !!item.version,
+      )
+    : null;
+  if (!terms || typeof terms.version !== "string") {
+    throw new Error(
+      "GET /v1/legal/documents no declaró la versión vigente de terms.",
+    );
+  }
+  return { termsVersion: terms.version, acceptedTerms: true };
 }
 
 /**
@@ -43,10 +78,11 @@ export async function registrarCuenta(
   email: string,
   displayName: string,
 ): Promise<void> {
+  const legal = await currentRegistrationTerms(request);
   let ultimo = "";
   for (let intento = 0; intento < 5; intento += 1) {
     const response = await request.post(`${API_ORIGIN}/v1/auth/register`, {
-      data: { email, password: E2E_PASSWORD, displayName },
+      data: { email, password: E2E_PASSWORD, displayName, ...legal },
     });
     if (response.status() !== 429) {
       expect(response.status(), await response.text()).toBe(202);
@@ -95,7 +131,10 @@ export async function csrfHeaders(
 ): Promise<Record<string, string>> {
   const cookies = await context.cookies(API_ORIGIN);
   const csrf = cookies.find((cookie) => cookie.name === "valle_csrf")?.value;
-  expect(csrf, "La sesión first-party debe incluir la cookie CSRF legible").toBeTruthy();
+  expect(
+    csrf,
+    "La sesión first-party debe incluir la cookie CSRF legible",
+  ).toBeTruthy();
   return { "x-csrf-token": csrf! };
 }
 

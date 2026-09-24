@@ -13,7 +13,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Registra una cuenta sin revelar si ya existia. */
+        /** Registra una cuenta con aceptación de términos sin revelar si ya existía. */
         post: operations["registerIdentity"];
         delete?: never;
         options?: never;
@@ -1749,6 +1749,13 @@ export interface components {
             email: components["schemas"]["EmailAddress"];
             password: components["schemas"]["Password"];
             displayName?: string;
+            /** @description Versión vigente de terms recibida de GET /v1/legal/documents. */
+            termsVersion: string;
+            /**
+             * @description Confirmación explícita del usuario; no acepta un valor implícito.
+             * @enum {boolean}
+             */
+            acceptedTerms: true;
         };
         OneTimeTokenRequest: {
             token: components["schemas"]["OpaqueOneTimeToken"];

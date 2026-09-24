@@ -36,6 +36,7 @@ import { ProductFeedback20260828140000 } from './20260828140000-ProductFeedback'
 import { TeamMessaging20260831090000 } from './20260831090000-TeamMessaging';
 import { CadPresenceBeats20260831092000 } from './20260831092000-CadPresenceBeats';
 import { CadPresenceBeatsRls20260831093000 } from './20260831093000-CadPresenceBeatsRls';
+import { RegistrationLegalAcceptance20260923100000 } from './20260923100000-RegistrationLegalAcceptance';
 
 const LEGACY_MIGRATIONS: Array<new () => MigrationInterface> = [
   AddCadBlocks20260706180000,
@@ -76,6 +77,7 @@ const ALL_MIGRATIONS: Array<new () => MigrationInterface> = [
   TeamMessaging20260831090000,
   CadPresenceBeats20260831092000,
   CadPresenceBeatsRls20260831093000,
+  RegistrationLegalAcceptance20260923100000,
 ];
 
 /**
@@ -210,6 +212,35 @@ describePostgres('migration chain (previous main -> latest)', () => {
     // dice nada del cambio que la causó.
     expect(await dataSource.runMigrations()).toHaveLength(
       ALL_MIGRATIONS.length - LEGACY_MIGRATIONS.length,
+    );
+
+    expect(
+      await dataSource.query(
+        `SELECT "data_type", "column_default"
+           FROM information_schema.columns
+          WHERE table_schema = $1
+            AND table_name = 'identity_registration_legal_acceptances'
+            AND column_name = 'accepted_at'`,
+        [schema],
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        data_type: 'timestamp with time zone',
+        column_default: expect.stringContaining('now()'),
+      }),
+    ]);
+    const legalUserId = randomUUID();
+    await dataSource.query(
+      `INSERT INTO "identity_registration_legal_acceptances"
+         ("user_id", "terms_version") VALUES ($1, $2)`,
+      [legalUserId, 'synthetic-test-version'],
+    );
+    await expect(
+      dataSource.undoLastMigration({ transaction: 'each' }),
+    ).rejects.toThrow('existen aceptaciones legales históricas');
+    await dataSource.query(
+      `DELETE FROM "identity_registration_legal_acceptances" WHERE "user_id" = $1`,
+      [legalUserId],
     );
 
     expect(

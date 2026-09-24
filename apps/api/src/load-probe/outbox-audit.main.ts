@@ -52,6 +52,7 @@ import compression from 'compression';
 import helmet from 'helmet';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../app.module';
+import { currentLegalDocument } from '../modules/legal/legal-documents';
 import {
   helmetOptions,
   JSON_BODY_LIMIT,
@@ -258,6 +259,8 @@ async function main(): Promise<void> {
           email: `outbox-extra-${index}-${suffix}@carga.valle.design`,
           password: ['Outbox', 'Valle', '2026', `extra${index}`].join('-'),
           displayName: `Alta extra ${index + 1}`,
+          termsVersion: currentLegalDocument('terms')!.version,
+          acceptedTerms: true,
         },
       });
       if (response.status !== 202) {

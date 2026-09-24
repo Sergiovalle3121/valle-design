@@ -132,8 +132,15 @@ async function main() {
           `trialDays inválido: ${JSON.stringify(trialDays)} — la portada se quedará sin oferta`,
         );
       } else {
-        const months = trialDays % 30 === 0 ? `${trialDays / 30} meses` : `${trialDays} días`;
-        record("ok", "la oferta llega al catálogo", `trialDays=${trialDays} (${months} gratis)`);
+        const months =
+          trialDays % 30 === 0
+            ? `${trialDays / 30} meses`
+            : `${trialDays} días`;
+        record(
+          "ok",
+          "la oferta llega al catálogo",
+          `trialDays=${trialDays} (${months} gratis)`,
+        );
       }
       record(
         Array.isArray(body.items) ? "ok" : "fail",
@@ -184,6 +191,19 @@ async function main() {
     );
   } else {
     try {
+      const legalResponse = await get(`${API}/v1/legal/documents`);
+      if (!legalResponse.ok) {
+        throw new Error(
+          `No se pudo consultar la versión legal vigente: HTTP ${legalResponse.status}`,
+        );
+      }
+      const legal = await legalResponse.json();
+      const termsVersion = legal.documents?.find(
+        (doc) => doc.documento === "terms",
+      )?.version;
+      if (typeof termsVersion !== "string" || !termsVersion) {
+        throw new Error("El API no publicó una versión vigente de términos.");
+      }
       const password = `Smoke-${Math.random().toString(36).slice(2)}-2026!`;
       const registered = await get(`${API}/v1/auth/register`, {
         method: "POST",
@@ -192,22 +212,17 @@ async function main() {
           email: EMAIL,
           password,
           displayName: "Smoke de despliegue",
+          termsVersion,
+          acceptedTerms: true,
         }),
       });
-      // 202 = aceptado y el correo va en camino. 409 = la cuenta ya existe,
-      // que en un smoke repetido es lo NORMAL y no un fallo: lo que se estaba
-      // comprobando —que el endpoint vive y responde el contrato— se cumplió.
+      // El endpoint responde igual exista o no la cuenta; un 202 comprueba
+      // disponibilidad, no entrega real ni creación nueva por sí solo.
       if (registered.status === 202) {
         record(
           "ok",
           "registro con correo real",
           `202 aceptado; revisa ${EMAIL} — el correo de verificación debe llegar en menos de un minuto`,
-        );
-      } else if (registered.status === 409) {
-        record(
-          "ok",
-          "registro con correo real",
-          "409: la cuenta ya existía (smoke repetido). El endpoint responde su contrato",
         );
       } else {
         record(
@@ -217,7 +232,11 @@ async function main() {
         );
       }
     } catch (error) {
-      record("fail", "registro con correo real", String(error.message ?? error));
+      record(
+        "fail",
+        "registro con correo real",
+        String(error.message ?? error),
+      );
     }
   }
 

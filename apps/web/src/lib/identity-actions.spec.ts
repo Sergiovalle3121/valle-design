@@ -72,8 +72,7 @@ async function main() {
         void calls.push(["resendVerification", value]),
       requestPasswordReset: async (value) =>
         void calls.push(["requestPasswordReset", value]),
-      resetPassword: async (value) =>
-        void calls.push(["resetPassword", value]),
+      resetPassword: async (value) => void calls.push(["resetPassword", value]),
     };
     const result = await performIdentityAction(
       testCase.action,
@@ -138,6 +137,8 @@ async function main() {
       displayName: "  Arquitecta fundadora ",
       email: " Arquitecta@Despacho.MX ",
       password,
+      termsVersion: "2026-09-16",
+      acceptedTerms: true,
     }),
     {
       ok: true,
@@ -145,6 +146,8 @@ async function main() {
         email: "arquitecta@despacho.mx",
         password,
         displayName: "Arquitecta fundadora",
+        termsVersion: "2026-09-16",
+        acceptedTerms: true,
       },
     },
   );
@@ -156,6 +159,8 @@ async function main() {
     displayName: "n".repeat(121),
     email: "a@b.mx",
     password,
+    termsVersion: "2026-09-16",
+    acceptedTerms: true,
   });
   assert.equal(nombreLargo.ok, false);
   assert.match(!nombreLargo.ok ? nombreLargo.message : "", /120 caracteres/u);
@@ -163,11 +168,39 @@ async function main() {
     displayName: "Alguien",
     email: "arqui tecta@despacho.mx",
     password,
+    termsVersion: "2026-09-16",
+    acceptedTerms: true,
   });
   assert.deepEqual(correoConEspacios, {
     ok: false,
     message: "Escribe un correo electrónico válido.",
   });
+  assert.deepEqual(
+    registerPayload({
+      displayName: "Alguien",
+      email: "a@b.mx",
+      password,
+      termsVersion: "2026-09-16",
+      acceptedTerms: false,
+    }),
+    {
+      ok: false,
+      message: "Acepta los Términos de Servicio para crear la cuenta.",
+    },
+  );
+  assert.deepEqual(
+    registerPayload({
+      displayName: "Alguien",
+      email: "a@b.mx",
+      password,
+      acceptedTerms: true,
+    }),
+    {
+      ok: false,
+      message:
+        "No pudimos consultar la versión vigente de los términos. Recarga la página.",
+    },
+  );
   const contrasenaCorta = loginPayload({ email: "a@b.mx", password: "corta" });
   assert.equal(contrasenaCorta.ok, false);
   assert.match(
@@ -198,7 +231,10 @@ async function main() {
       error: "Bad Request",
     },
   };
-  const contrasenaRechazada = authFailureMessage(validacionEnIngles, "register");
+  const contrasenaRechazada = authFailureMessage(
+    validacionEnIngles,
+    "register",
+  );
   assert.match(contrasenaRechazada, /contraseña debe tener entre 12 y 128/u);
   assert.doesNotMatch(contrasenaRechazada, /must be/u);
   assert.match(
@@ -208,18 +244,35 @@ async function main() {
     ),
     /correo electrónico válido/u,
   );
+  assert.equal(
+    authFailureMessage(
+      {
+        status: 400,
+        body: { code: "legal_document_outdated", message: "internal text" },
+      },
+      "register",
+    ),
+    "Los términos cambiaron mientras creabas tu cuenta. Recarga la página y vuelve a confirmarlos.",
+  );
   assert.match(
     authFailureMessage(
       {
         status: 400,
-        body: { message: ["displayName must be shorter than or equal to 160 characters"] },
+        body: {
+          message: [
+            "displayName must be shorter than or equal to 160 characters",
+          ],
+        },
       },
       "register",
     ),
     /nombre/u,
   );
   assert.equal(
-    authFailureMessage({ status: 400, body: { message: "Bad Request" } }, "login"),
+    authFailureMessage(
+      { status: 400, body: { message: "Bad Request" } },
+      "login",
+    ),
     "Revisa los datos del formulario e inténtalo de nuevo.",
   );
   assert.equal(
@@ -233,7 +286,10 @@ async function main() {
     authFailureMessage(
       {
         status: 429,
-        body: { message: "Demasiados intentos; inténtalo más tarde.", retryAfterSeconds: 37 },
+        body: {
+          message: "Demasiados intentos; inténtalo más tarde.",
+          retryAfterSeconds: 37,
+        },
       },
       "register",
     ),
@@ -244,7 +300,10 @@ async function main() {
     /^Demasiados intentos\. Espera un momento/u,
   );
   const errorInterno = authFailureMessage(
-    { status: 500, body: { statusCode: 500, message: "Internal server error" } },
+    {
+      status: 500,
+      body: { statusCode: 500, message: "Internal server error" },
+    },
     "register",
   );
   assert.match(errorInterno, /no respondió/u);
@@ -253,7 +312,10 @@ async function main() {
     authFailureMessage(new Error("algo raro"), "register"),
     /no respondió/u,
   );
-  assert.doesNotMatch(authFailureMessage(new Error("algo raro"), "register"), /algo raro/u);
+  assert.doesNotMatch(
+    authFailureMessage(new Error("algo raro"), "register"),
+    /algo raro/u,
+  );
 
   console.log(
     "identity-actions: validación, transporte SDK seguro de secretos y mensajes de fallo en español verificados",
