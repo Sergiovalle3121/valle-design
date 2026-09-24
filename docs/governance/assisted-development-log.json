@@ -4472,6 +4472,37 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "ROBOT-ESTUDIANTE-20260923",
+      "date": "2026-09-23",
+      "initiative": "Versionar un protocolo reproducible de cuatro tareas de estudiante en /demo, con acciones exclusivamente visibles, evidencia de píxeles, textos y enlace móvil, más una guía para las cinco sesiones humanas de primer uso.",
+      "branch": "codex/qa-student-robot",
+      "assistants": [
+        "OpenAI Codex: diseño del protocolo, automatización, auditoría de su línea base y documentación"
+      ],
+      "authority": "Sergio pidió analizar el encargo de lanzamiento y ejecutarlo; el prompt del 2026-09-23 exige medir cuatro tareas de estudiante y preparar un protocolo humano antes de proclamar listo el producto.",
+      "firstPartyInputs": [
+        "Código actual de /demo y su modo Esencial, la regla visual de escala y los botones visibles",
+        "Medición pública del 2026-09-23: 0/4 tareas, 31 controles y 74.5 % de pantalla libre a 1440 × 769; 31 y 74 % a 1366 × 768",
+        "Capturas y JSON locales de la corrida en apps/web/e2e/.artifacts/medicion-versionado-base-23-09/"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada.",
+      "derivedAreas": [
+        "scripts/qa/medir-tareas.mjs y README.md: robot de cuatro tareas con veredicto rojo honesto fuera de CI hasta que el producto lo resuelva",
+        "docs/pruebas/PROTOCOLO-ESTUDIANTES.md: instrucciones, criterios y tabla vacía para cinco estudiantes"
+      ],
+      "fixtures": "Contexto de navegador limpio contra /demo público; no se añadieron secretos, cuentas ni datos de estudiantes.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "node --check y ejecución real con Playwright sobre https://vallecad.com/demo. El script salió 1 como corresponde a una línea base 0/4: cuatro muros sin m², puerta y ventana sin conteos visibles, cota sin texto acreditable y botón Compartir ausente. No se declara verde ni se relaja la CI. Las cinco pruebas humanas quedan pendientes de Sergio."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "PUNTERO-SELECCION-MUROS-20260923",
       "date": "2026-09-23",
       "initiative": "Fase B: comprobar clic directo, toque, Escape y estabilidad de la vista al dibujar muros; sincronizar la selección profesional con los muros nativos recién creados.",
