@@ -148,6 +148,15 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
   const elapsed = record.startedAt > 0 && seen.now > record.startedAt
     ? seen.now - record.startedAt
     : null;
+  const compactFloating = minimized && !docked;
+  const currentStep = CAD_GUIDED_TOUR_STEPS.find(
+    (step) => step.id === progress.currentStepId,
+  );
+  const currentTitle = progress.completed
+    ? "Recorrido terminado"
+    : currentStep
+      ? cadGuidedTourStepCopy(currentStep, evidence).title
+      : "Sigue dibujando";
   const card = (
     <section
       data-testid="cad-guided-tour"
@@ -203,20 +212,21 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
             "pointer-events-auto w-full max-w-[20rem] bg-popover/95 shadow-floating backdrop-blur",
         // Un tercio de la pantalla como mucho, en el muelle también: desplegado
         // entero no debe empujar la biblioteca fuera de la ventana.
-        minimized ? "p-2" : "max-h-[32vh] p-3.5",
+        minimized ? (compactFloating ? "px-2 py-0.5" : "p-2") : "max-h-[32vh] p-3.5",
       )}
     >
-      {/*
-        Dos renglones: arriba el rótulo con los botones, abajo el paso actual a
-        todo el ancho. En el muelle (240 px) título y botones no caben en una
-        fila: el título se partía en tres renglones y la cabecera «plegada»
-        medía casi lo que el cuerpo. Abajo, sólo, el paso cabe en uno.
-      */}
+      {/* En el muelle estrecho se conservan dos renglones; al flotar, el paso
+          y los controles caben en uno y devuelven lienzo al dibujo. */}
       <header className={cx("flex flex-col gap-1", !minimized && "mb-3")}>
         <span className="flex items-center justify-between gap-2">
-          <span className="type-eyebrow min-w-0 text-primary-ink">
+          <span className={cx("type-eyebrow min-w-0 text-primary-ink", compactFloating && "sr-only")}>
             Primeros cinco minutos
           </span>
+          {compactFloating && (
+            <span data-testid="cad-guided-tour-title" className="type-small min-w-0 flex-1 truncate font-semibold text-foreground">
+              {currentTitle}
+            </span>
+          )}
           <span className="flex shrink-0 items-center gap-1">
             {/*
               EL PLIEGUE. Deja sólo la cabecera sin mover ni un dato del
@@ -253,21 +263,11 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
             </Button>
           </span>
         </span>
-        <span
-          data-testid="cad-guided-tour-title"
-          className="type-small block font-semibold text-foreground"
-        >
-          {progress.completed
-            ? "Recorrido terminado"
-            : (() => {
-                const current = CAD_GUIDED_TOUR_STEPS.find(
-                  (step) => step.id === progress.currentStepId,
-                );
-                return current
-                  ? cadGuidedTourStepCopy(current, evidence).title
-                  : "Sigue dibujando";
-              })()}
-        </span>
+        {!compactFloating && (
+          <span data-testid="cad-guided-tour-title" className="type-small block font-semibold text-foreground">
+            {currentTitle}
+          </span>
+        )}
       </header>
       {!minimized && (
       <>

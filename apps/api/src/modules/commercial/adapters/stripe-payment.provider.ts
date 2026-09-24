@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type {
   PaymentCancellationResult,
@@ -169,8 +169,10 @@ export class StripePaymentProvider implements PaymentProvider {
    * Stripe: la verdad del catálogo vive en `plan_prices` (ola 1) y duplicarla
    * en el dashboard crearía dos fuentes que se desincronizan en silencio.
    *
-   * `Idempotency-Key` es el id del intent: un reintento de red no crea dos
-   * sesiones ni cobra dos veces.
+   * La clave idempotente identifica el intent y los parámetros EXACTOS de la
+   * sesión: un reintento de red no crea otra compra, pero cambiar los asientos,
+   * el período o el precio requiere otra clave. Stripe rechaza la reutilización
+   * de una clave con parámetros distintos.
    */
   async createCheckout(
     intent: PaymentCheckoutIntent,
@@ -195,12 +197,16 @@ export class StripePaymentProvider implements PaymentProvider {
     const form = asynchronous
       ? this.cashCheckoutForm(intent, price)
       : this.cardCheckoutForm(intent, price, interval);
+    // El intent pendiente puede reutilizarse con otro importe (p. ej. más
+    // asientos). La huella del formulario completo distingue esos pedidos y
+    // permanece estable cuando se repite exactamente el mismo POST. Referencia:
+    // https://docs.stripe.com/api/idempotent_requests
+    const requestFingerprint = createHash('sha256')
+      .update(form.toString())
+      .digest('hex');
 
     const session = await this.call('/v1/checkout/sessions', form, {
-      // La clave de idempotencia incluye el MEDIO: quien pidió una ficha de
-      // OXXO y vuelve a intentarlo con tarjeta necesita una sesión nueva, no
-      // la ficha de antes reservada bajo la misma clave.
-      idempotencyKey: `checkout-intent:${intent.intentId}:${intent.paymentMethod}`,
+      idempotencyKey: `checkout-intent:${intent.intentId}:${requestFingerprint}`,
     });
     const url = readString(session, 'url');
     const reference = readString(session, 'id');
@@ -337,6 +343,8 @@ export class StripePaymentProvider implements PaymentProvider {
       'metadata[seats]': String(intent.seats),
       'metadata[period]': price.period,
       'metadata[paymentMethod]': intent.paymentMethod,
+      'metadata[unitAmountCents]': String(price.amountCents),
+      'metadata[currency]': price.currency.toUpperCase(),
     };
   }
 
