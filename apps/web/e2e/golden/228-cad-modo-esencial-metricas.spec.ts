@@ -15,9 +15,9 @@ import { expect, test, type Page } from '@playwright/test';
  * solo control «Ayudas de dibujo» que las despliega con sus testids de siempre.
  *
  * Las funciones de conteo y de lienzo tapado son las MISMAS que el script de
- * medición (visibles por caja, visibilidad y opacidad; rejilla de
- * `elementFromPoint` de 8 px sobre el lienzo), para que las cifras de este
- * golden y las de producción sean comparables.
+ * medición pública: toma el canvas más grande, no su contenedor, y sólo un
+ * CANVAS descubierto cuenta como superficie libre. El recorrido permanece
+ * visible como en la primera visita real.
  */
 
 /**
@@ -59,16 +59,16 @@ async function medir(page: Page) {
         (el.textContent ?? '').trim().slice(0, 24) ??
         el.tagName.toLowerCase(),
     );
-    const lienzoEl = document.querySelector('[data-testid="cad-canvas"]');
-    if (!lienzoEl) return { controles: controles.length, nombres, error: 'sin lienzo' };
-    const r = lienzoEl.getBoundingClientRect();
+    const r = [...document.querySelectorAll('canvas')].map(c => c.getBoundingClientRect())
+      .filter(box => box.width > 100).sort((a, b) => b.width * b.height - a.width * a.height)[0];
+    if (!r) return { controles: controles.length, nombres, error: 'sin lienzo' };
     let total = 0;
     let libre = 0;
     for (let x = r.left + 2; x < r.right - 2; x += 8) {
       for (let y = r.top + 2; y < r.bottom - 2; y += 8) {
         total++;
         const el = document.elementFromPoint(x, y);
-        if (el && (el.tagName === 'CANVAS' || el === lienzoEl || lienzoEl.contains(el))) libre++;
+        if (el && el.tagName === 'CANVAS') libre++;
       }
     }
     return {
@@ -86,12 +86,10 @@ async function abrirDemoEsencial(page: Page, viewport: { width: number; height: 
   await navegadorNuevo(page);
   await page.goto('/demo');
   await expect(page.getByTestId('cad-canvas')).toBeVisible({ timeout: 60_000 });
-  const saltar = page.getByTestId('cad-guided-tour-skip');
-  if (await saltar.count()) await saltar.click();
+  await expect(page.getByTestId('cad-guided-tour')).toBeVisible();
   await expect(page.getByTestId('cad-essential-bar')).toBeVisible();
-  // Reposo: sin comando, sin diálogo, y un respiro para que el chrome se asiente.
-  await page.keyboard.press('Escape');
-  await page.waitForTimeout(1500);
+  // Mismo reposo de tres segundos que el protocolo público, sin saltar la guía.
+  await page.waitForTimeout(3000);
 }
 
 test('a 1440×769 Esencial deja ≤30 controles, ≥75 % de pantalla libre y ≤3 % del lienzo tapado', async ({ page }) => {
@@ -115,6 +113,12 @@ test('a 1440×769 Esencial deja ≤30 controles, ≥75 % de pantalla libre y ≤
   for (const id of ['cad-rail-biblioteca', 'cad-rail-properties', 'cad-rail-workspace']) {
     await expect(page.getByTestId(id), `${id} sigue a un clic`).toBeVisible();
   }
+  await expect(page.getByTestId('cad-navigation-fit-selection'),
+    'sin selección, el encuadre deshabilitado no ocupa un control en Esencial').toHaveCount(0);
+  await expect(page.getByTestId('cad-close-editor'),
+    'la salida que comprueba el guardado sigue visible').toBeVisible();
+  await expect(page.getByRole('button', { name: 'Cerrar el CAD' }),
+    'una sola salida visible; el cierre seguro ya está en la cabecera').toHaveCount(0);
   for (const id of ['cad-rail-hatch', 'cad-rail-dimension', 'cad-rail-mleader', 'cad-rail-blocks', 'cad-rail-selection']) {
     await expect(page.getByTestId(id), `${id} no se pinta en Esencial`).toHaveCount(0);
   }

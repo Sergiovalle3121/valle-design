@@ -13,6 +13,7 @@ import type { Request } from 'express';
 import { Public } from '../../auth/decorators/public.decorator';
 import {
   BillingWebhookNotCorrelatedError,
+  BillingWebhookUnsafeCheckoutError,
   BillingWebhookService,
 } from '../billing-webhook.service';
 import {
@@ -36,7 +37,8 @@ import {
  * - 200: procesado, duplicado o tipo desconocido — nada que reintentar.
  * - 400: firma ausente, inválida o vieja, o cuerpo no verificable. Reintentar
  *   no lo arreglaría y aceptar sería fabricar un cobro.
- * - 409: legítimo pero aún no correlacionable; se PIDE el reintento.
+ * - 409: aún no correlacionable o pago que requiere revisión; se PIDE el
+ *   reintento y nunca se concede acceso con datos de cobro insuficientes.
  * - 503: no hay pasarela configurada, así que nadie debería estar llamando.
  *
  * Un tipo de evento desconocido JAMÁS produce un 500: se apunta y se acepta.
@@ -95,6 +97,13 @@ export class BillingWebhookController {
       const result = await this.webhooks.process(event, rawBody);
       return { received: true, status: result.status, outcome: result.outcome };
     } catch (error) {
+      if (error instanceof BillingWebhookUnsafeCheckoutError) {
+        throw new ConflictException({
+          code: 'checkout_review_required',
+          message:
+            'El evento firmado requiere revisión antes de activar la suscripción.',
+        });
+      }
       if (error instanceof BillingWebhookNotCorrelatedError) {
         throw new ConflictException({
           code: 'event_not_correlated',

@@ -1184,7 +1184,10 @@ paths:
         "409":
           description: >-
             Evento legitimo que aun no se puede atribuir a una organizacion
-            (`event_not_correlated`); el proveedor debe reintentar.
+            (`event_not_correlated`), o sesion pagada cuyo importe, moneda o
+            estado no se puede aplicar con seguridad (`checkout_review_required`).
+            El proveedor debe reintentar y el operador debe revisar el segundo
+            caso antes de conceder acceso o devolver dinero.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApiError" }
