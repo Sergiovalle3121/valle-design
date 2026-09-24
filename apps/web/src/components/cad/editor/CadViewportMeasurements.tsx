@@ -60,13 +60,15 @@ export function CadViewportMeasurements({ document, viewControllerRef, essential
         {placed.rooms.map(({ room, x, y }) => (
           <div
             key={room.id}
-            className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-md border border-indigo-300/40 bg-slate-950/85 px-2 py-1 text-center text-white shadow-sm"
-            style={{ left: x, top: y + (room.nameFromDocument ? 20 : 0) }}
+            className={`pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-md border border-indigo-300/40 bg-slate-950/85 text-center text-white shadow-sm ${essential ? "max-w-32 px-1 py-0.5" : "px-2 py-1"}`}
+            style={{ left: x, top: y + (!essential && room.nameFromDocument ? 20 : 0) }}
             title={`Área entre ejes de muros: ${room.axisAreaText} m²${room.clearAreaText ? `. Área útil: ${room.clearAreaText} m².` : "."}`}
           >
-            {!room.nameFromDocument && <div className="max-w-32 truncate type-micro font-semibold leading-tight">{room.name}</div>}
+            {essential
+              ? <div className="break-words type-micro font-semibold leading-tight">{room.name}</div>
+              : !room.nameFromDocument && <div className="max-w-32 truncate type-micro font-semibold leading-tight">{room.name}</div>}
             <div className="text-xs font-bold leading-tight">{room.axisAreaText} m²</div>
-            {!room.nameFromDocument && <div className="type-micro leading-tight text-slate-200">entre ejes</div>}
+            {!essential && !room.nameFromDocument && <div className="type-micro leading-tight text-slate-200">entre ejes</div>}
           </div>
         ))}
       </div>
