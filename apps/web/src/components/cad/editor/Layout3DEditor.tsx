@@ -2963,8 +2963,10 @@ export default function Layout3DEditor({
       disposeObject(o);
     }
     const { s, W, H } = ctx;
+    const hiddenRoomLabels = cadUiModeHost.getSnapshot() === "esencial" && loadedCadDocumentRef.current
+      ? cadEssentialRoomLabelIds(loadedCadDocumentRef.current) : new Set<string>();
     annotationsRef.current.forEach((a) => {
-      if (a.type !== "text" || !a.text) return;
+      if (a.type !== "text" || !a.text || hiddenRoomLabels.has(a.id)) return;
       const lab = makeNoteLabel(a.text);
       lab.position.set((a.x - W / 2) * s, 1.2, (a.y - H / 2) * s);
       lab.userData.noteId = a.id;
@@ -3241,7 +3243,7 @@ export default function Layout3DEditor({
     },
     [refreshNativeSelectionVisuals],
   );
-  useEffect(() => cadUiModeHost.subscribe(() => syncNativeScene()), [syncNativeScene]);
+  useEffect(() => cadUiModeHost.subscribe(() => { rebuildNotes(); syncNativeScene(); }), [rebuildNotes, syncNativeScene]);
 
   // ---- (re)build the read-only DXF floor-plan overlay (lines on the floor) ----
   const rebuildDxf = useCallback(() => {
