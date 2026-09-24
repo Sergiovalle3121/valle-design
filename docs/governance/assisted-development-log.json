@@ -4535,6 +4535,38 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "ROTULOS-CUARTO-INTEGRADOS-20260923",
+      "date": "2026-09-23",
+      "initiative": "Unir el nombre persistente del espacio con los rótulos legibles de nombre y m² en Esencial, sin duplicar el TEXT ni la etiqueta de asset de plantilla.",
+      "branch": "codex/room-label-naming-integrated",
+      "assistants": [
+        "OpenAI Codex: integración de ramas, exclusiones de vista por cuarto cerrado y pruebas de invariancia"
+      ],
+      "authority": "Sergio pidió ejecutar el PROMPT MAESTRO de lanzamiento desde el main actual y verificar que el avance anterior no se pierda ni se duplique.",
+      "firstPartyInputs": [
+        "origin/main 3d7d4ab7 con el protocolo de estudiantes, la rama codex/room-space-naming-main253 y la rama codex/legible-room-labels",
+        "El documento CAD, el cuadro BIM, los assets heredados y los golden locales del repositorio"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada ni consultada.",
+      "derivedAreas": [
+        "room-area-labels.ts expone un único ID estable textLabelId para ocultar el TEXT fuente en Esencial y mantener intacto el documento exportable.",
+        "essential-room-preview.ts excluye en Esencial sólo los sprites de box kind:room que caen dentro de una cara cerrada con badge de área; el mismo asset conserva etiqueta si se abre el recinto. Las exclusiones se memorizan por identidad del documento canónico.",
+        "scene-objects.ts crea los sprites de cuarto con identidad explícita y visibilidad correcta incluso cuando una selección reconstruye assets; Layout3DEditor.tsx reaplica la visibilidad al cambiar Esencial/Pro.",
+        "CadViewportMeasurements.tsx muestra nombre persistido y m² juntos en Esencial, conserva edición por doble clic y mantiene la política de área y rótulos de Pro. El box y TEXT originales no se alteran."
+      ],
+      "fixtures": "Cuarto de plantilla y TEXT sobre el plano demo, con renombrado canónico; recinto abierto como control negativo. Room-space.spec conserva hashes y bytes DXF/DWG anteriores.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Prueba nueva esencial-room-preview.spec roja con sprite de plantilla visible y verde tras exclusión precisa; room-area-labels.spec y room-space.spec verdes, incluidos hashes y bytes DXF/DWG. Build Webpack de producción 208/208 páginas y TypeScript PASS. Golden 255 integrado Chromium 1/1 PASS sobre ese build: SALA de plantilla+TEXT, doble clic a Recámara, Deshacer/Rehacer, guardar/reabrir, nombre+12.00 m² y recorte raster sin rótulo fuente amarillo. No hay push, PR, CI ni despliegue de esta integración todavía; Pro y archivos mantienen deliberadamente el texto de origen y no se declara paridad DWG general."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }

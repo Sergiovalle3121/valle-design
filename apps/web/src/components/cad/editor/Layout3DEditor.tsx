@@ -587,7 +587,7 @@ import {
 import CadOverviewMinimap from "@/components/cad/viewport/CadOverviewMinimap";
 import { renderCadSheetSetPdf } from "./sheet-set-pdf";
 import { CadViewportMeasurements, renameCadRoomSpace } from "./CadViewportMeasurements";
-import { cadEssentialRoomLabelIds } from "@/lib/cad/onboarding/essential-room-preview";
+import { cadEssentialRoomAssetLabelIds, cadEssentialRoomLabelIds } from "@/lib/cad/onboarding/essential-room-preview";
 import { mergeAnnotationLayers, syncLegacyTextShadow } from "./legacy-text-shadow-sync";
 import { useHatchPalette } from "./use-hatch-palette";
 import {
@@ -2148,12 +2148,15 @@ export default function Layout3DEditor({
     if (notesGroupRef.current) notesGroupRef.current.visible = L.notes;
     if (dxfGroupRef.current) dxfGroupRef.current.visible = L.dxf;
     if (gridGroupRef.current) gridGroupRef.current.visible = L.grid;
+    const hiddenRoomAssetLabels = cadUiModeHost.getSnapshot() === "esencial" && loadedCadDocumentRef.current
+      ? cadEssentialRoomAssetLabelIds(loadedCadDocumentRef.current) : null;
     sceneRef.current?.traverse((o) => {
       if (!o.userData?.isLabel) return;
       const labelFor = o.userData?.labelFor as string | undefined;
-      o.visible = labelFor
+      const roomAssetLabelId = o.userData?.cadRoomAssetLabelId as string | undefined;
+      o.visible = !(roomAssetLabelId && hiddenRoomAssetLabels?.has(roomAssetLabelId)) && (labelFor
         ? L.labels && L.stations && cadVisible(labelFor, "layout")
-        : L.labels;
+        : L.labels);
     });
   }, [defaultLayerForAsset]);
   useEffect(() => {
@@ -2904,6 +2907,8 @@ export default function Layout3DEditor({
       ctx,
       selectedAssetIds,
       validationHighlightRef.current,
+      cadUiModeHost.getSnapshot() === "esencial" && loadedCadDocumentRef.current
+        ? cadEssentialRoomAssetLabelIds(loadedCadDocumentRef.current) : new Set<string>(),
     );
   }, []);
 
