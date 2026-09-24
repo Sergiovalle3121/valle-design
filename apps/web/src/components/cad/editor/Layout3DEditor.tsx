@@ -588,7 +588,7 @@ import {
 import CadOverviewMinimap from "@/components/cad/viewport/CadOverviewMinimap";
 import { renderCadSheetSetPdf } from "./sheet-set-pdf";
 import { CadViewportMeasurements } from "./CadViewportMeasurements";
-import { mergeAnnotationLayers, syncLegacyTextShadow } from "./legacy-text-shadow-sync";
+import { legacyNoteDrawnByPipeline, mergeAnnotationLayers, syncLegacyTextShadow } from "./legacy-text-shadow-sync";
 import { useHatchPalette } from "./use-hatch-palette";
 import {
   CadSelectionPalette,
@@ -2964,7 +2964,7 @@ export default function Layout3DEditor({
     }
     const { s, W, H } = ctx;
     annotationsRef.current.forEach((a) => {
-      if (a.type !== "text" || !a.text) return;
+      if (a.type !== "text" || !a.text || legacyNoteDrawnByPipeline(a.id, !!renderPipelineHostRef.current, loadedCadDocumentRef.current)) return;
       const lab = makeNoteLabel(a.text);
       lab.position.set((a.x - W / 2) * s, 1.2, (a.y - H / 2) * s);
       lab.userData.noteId = a.id;

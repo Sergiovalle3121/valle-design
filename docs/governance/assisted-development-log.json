@@ -4593,6 +4593,38 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "TEXTO-LIENZO-VISIBLE-20260924",
+      "date": "2026-09-24",
+      "initiative": "Ningún TEXT, MTEXT, rótulo de cota ni etiqueta del pipeline por lotes se pintaba en el lienzo: el atlas escribe cada casilla con la V hacia abajo (v0 = y / size) y la CanvasTexture subía la imagen volteada (flipY = true), así que cada glifo muestreaba su franja espejo, vacía, y el recorte alfa lo descartaba. Al corregirlo aparecieron dos defectos que el primero escondía: los rótulos de capas apagadas se pintaban (comparten una malla) y cada TEXT salía dos veces, con la etiqueta amarilla de nota del editor legado encima, que además sobrevivía al borrado.",
+      "branch": "claude/keen-cannon-nvm7x7",
+      "assistants": [
+        "Claude Code (Anthropic): golden de píxeles, depuración con instrumentación temporal (no versionada) del atlas y la malla, corrección y verificación"
+      ],
+      "authority": "Sergio pidió el 2026-09-24 mejorar la experiencia de usuario de VALLECAD (la calificó de horrible) y aprobó un plan cuyo primer punto del rediseño es que el texto del plano se vea.",
+      "firstPartyInputs": [
+        "apps/web/public/product/estudio-dark.png: cotas sin número y sin nombres de cuarto en la captura de la portada",
+        "Medición local: con el MTEXT en capa visible o apagada el lienzo cambiaba 0 píxeles; el atlas tenía 5148 píxeles pintados en las filas 1-34 y la textura flipY = true"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/render/text-atlas-three.ts: flipY = false en la textura del atlas",
+        "apps/web/src/lib/cad/render/text-atlas.ts, pipeline.ts y scene.ts: cada petición de rótulo lleva la capa de su entidad y la escena descarta las de capas apagadas al reconstruir la malla de texto",
+        "apps/web/src/components/cad/editor/legacy-text-shadow-sync.ts y Layout3DEditor.tsx: con el pipeline por lotes la sombra legada de un TEXT canónico deja de dibujarse como etiqueta de nota (la sombra se conserva); el monolito no crece",
+        "apps/web/e2e/golden/256-cad-texto-se-ve.spec.ts y render/text-requests.spec.ts: regresión de píxeles y de capa"
+      ],
+      "fixtures": "Documento sintético propio: marco de 12 × 10 m y un MTEXT en capa visible o apagada.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Golden 256 rojo antes (0 píxeles) y verde después, y rojo otra vez al revertir sólo flipY; 22 specs del render, text-requests (43), 19 pruebas de goldens de texto (15, 46, 47, 48, 51, 57, 80, 85, 86, 98, 115-117, 232) y 24 de Esencial y primer uso (227-231, 233, 234, 250, 251, 34, 77-79, 99) en Chromium; typecheck web, check:cad y lint verdes. Firefox lo decide la CI."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

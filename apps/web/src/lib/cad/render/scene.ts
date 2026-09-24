@@ -259,7 +259,12 @@ export class CadRenderScene {
     }
     setCadLineBatchHiddenLayers(this.group, this.hiddenLayers);
 
-    const requests = this.pipeline.visibleTextRequests();
+    // Una capa apagada se lleva también sus rótulos: las líneas se ocultan malla
+    // a malla (`setCadLineBatchHiddenLayers`), pero los rótulos de todas las
+    // capas comparten una malla y hay que dejarlos fuera al reconstruirla.
+    const requests = this.pipeline
+      .visibleTextRequests()
+      .filter((request) => request.layer === undefined || !this.hiddenLayers.has(request.layer));
     let glyphs = 0;
     let droppedGlyphs = 0;
     if (this.textMesh) {

@@ -526,7 +526,9 @@ export class CadRenderPipeline {
         // Rótulo puro: viaja como petición de quads para el atlas y no tesela su caja.
         const textStarted = cadRenderMark();
         resident.cursor += 1;
-        resident.textRequests.push(...cadTextQuadRequestsFor(entity, this.colorOf, depth, this.document));
+        const textLayer = this.styleOf(entity).layer;
+        for (const request of cadTextQuadRequestsFor(entity, this.colorOf, depth, this.document))
+          resident.textRequests.push({ ...request, layer: textLayer });
         resident.entityIds.push(id);
         cadRenderStage("textRequest", textStarted);
         continue;
@@ -550,7 +552,7 @@ export class CadRenderPipeline {
       // avanzar; antes de la guarda cada reencolado duplicaría el rótulo.
       const style = this.styleOf(entity);
       const labels = [...cadTextQuadRequestsFor(entity, this.colorOf, depth, this.document), ...cadLinetypeTextRequestsFor(entity, this.document, this.colorOf, depth)];
-      if (labels.length > 0) resident.textRequests.push(...labels);
+      for (const label of labels) resident.textRequests.push({ ...label, layer: style.layer });
       const tessellationStarted = cadRenderMark();
       const tessellation = this.cache.get(id, tier, () =>
         tessellateCadEntity(entity, cadRenderSegmentBudget(tier), this.document, this.origin),
