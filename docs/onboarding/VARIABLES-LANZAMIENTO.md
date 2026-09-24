@@ -116,6 +116,20 @@ El controlador verifica firma y bytes crudos; la reentrega se deduplica por ID
 de evento (`apps/api/src/modules/commercial/controllers/billing-webhook.controller.ts`).
 Stripe documenta [endpoints y eventos](https://docs.stripe.com/api/webhook_endpoints).
 
+Si un webhook firmado devuelve `409 checkout_review_required`, la API **no**
+activó el plan: el estado pagado, la moneda, el total o la relación con el intent
+no permiten aplicar ese cobro con seguridad. Puede ser una sesión anterior que
+se pagó después de pedir otro número de asientos. El operador debe revisar la
+sesión y el cargo en Stripe y conciliar o devolver el cobro; no debe conceder
+asientos editando la base. Una sesión con prueba de pago ausente o importe cero
+(por ejemplo, trial o descuento configurado fuera de este checkout) también
+queda en revisión, sin activar automáticamente una suscripción no cobrada.
+Una sesión creada antes de este cambio tampoco trae el snapshot de importe y
+moneda; si existiera una sesión así todavía pagable, requiere la misma
+conciliación manual.
+`409 event_not_correlated` puede ser transitorio por
+el orden de llegada de eventos y sigue pidiendo reentrega.
+
 Los importes viven en `plan_prices` y se mandan como `price_data` al crear la
 sesión: **no existe** una variable `STRIPE_PRICE_ID` que haya que copiar del
 dashboard (`apps/api/src/modules/commercial/adapters/stripe-payment.provider.ts`).

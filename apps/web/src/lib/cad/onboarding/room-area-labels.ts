@@ -1,5 +1,5 @@
 import type { CadDocument, CadPoint2 } from "../cad-document";
-import { buildCadBimSchedule } from "../bim-schedule";
+import { buildCadBimSchedule, type CadBimSchedule } from "../bim-schedule";
 import { CAD_MM_PER_UNIT } from "../engine/commands/architecture-support";
 import { cadPointInBoundary } from "../hatch-associativity";
 
@@ -7,6 +7,10 @@ export interface CadRoomAreaLabel {
   id: string;
   name: string;
   nameFromDocument: boolean;
+  textLabelMatchesName: boolean;
+  spaceId?: string;
+  /** ID del TEXT/MTEXT persistido que nombra este cuarto. */
+  textLabelId?: string;
   axisAreaText: string;
   clearAreaText?: string;
   at: CadPoint2;
@@ -44,7 +48,7 @@ export function interiorPoint(ring: readonly CadPoint2[]): CadPoint2 {
 }
 
 /** Rótulos derivados del mismo grafo de muros que alimenta el cuadro de áreas. */
-export function cadRoomAreaLabels(document: Pick<CadDocument, "entities" | "meta"> | null): CadRoomAreaLabel[] {
+export function cadRoomAreaLabels(document: Pick<CadDocument, "entities" | "meta"> | null, schedule?: CadBimSchedule): CadRoomAreaLabel[] {
   if (!document?.entities.some((entity) => entity.type === "wall")) return [];
   // La orden de arquitectura trata una unidad desconocida como mm para sus
   // defaults; una superficie mostrada al usuario no puede hacer esa suposición.
@@ -55,10 +59,13 @@ export function cadRoomAreaLabels(document: Pick<CadDocument, "entities" | "meta
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format((area * mm * mm) / 1_000_000);
-  return buildCadBimSchedule(document, document.meta.unit).rooms.map((room) => ({
+  return (schedule ?? buildCadBimSchedule(document, document.meta.unit)).rooms.map((room) => ({
     id: room.id,
     name: room.name ?? `Cuarto ${Number(room.id.replace(/\D/g, "")) || 1}`,
     nameFromDocument: Boolean(room.name),
+    textLabelMatchesName: room.textLabelMatchesName === true,
+    ...(room.spaceId ? { spaceId: room.spaceId } : {}),
+    ...(room.labelId ? { textLabelId: room.labelId } : {}),
     axisAreaText: areaText(room.axisArea),
     ...(room.clearArea === undefined ? {} : { clearAreaText: areaText(room.clearArea) }),
     at: interiorPoint(room.ring),

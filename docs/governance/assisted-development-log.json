@@ -4333,6 +4333,308 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "DEMO-VISITA-LIMPIA-RECUPERACION-20260923",
+      "date": "2026-09-23",
+      "initiative": "Cada nueva visita a /demo abre la casa de ejemplo limpia. Antes de reemplazar el autosave local anterior, conserva sus bytes en una clave de recuperación; si ese dibujo se puede leer, el visitante decide si lo restaura. La clave histórica valle_demo_document permanece activa para el registro y el guardado.",
+      "branch": "codex/demo-clean-recover",
+      "assistants": [
+        "OpenAI Codex: auditoría del ciclo de vida local de /demo, implementación y pruebas de regresión"
+      ],
+      "authority": "Sergio pidió corregir el arranque heredado de /demo sin borrar la clave ni el dibujo previo, como parte de la campaña para que la demostración sea utilizable y el avance llegue a main y vallecad.com.",
+      "firstPartyInputs": [
+        "Puerto de documentos de demostración y flujo de montaje de DemoStudio en origin/main",
+        "Contrato existente del autosave y adopción del dibujo en el registro",
+        "Prueba del protocolo estudiantil de 2026-09-23: /demo reutilizaba el dibujo local de una visita anterior"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "apps/web/src/components/cad/document-lifecycle/demo-port.ts y su spec: apertura limpia, copia de sobres anteriores incluso ilegibles, y restauración elegida conservando también lo dibujado en la visita actual",
+        "apps/web/src/app/demo/DemoStudio.tsx: botón de recuperación voluntaria y remontaje del editor con el dibujo elegido",
+        "apps/web/src/lib/cad/demo/demo-constants.ts: clave adicional de recuperación sin cambiar valle_demo_document",
+        "apps/web/e2e/public/demo-studio.spec.ts: recorrido en navegador que simula el sobre heredado sin la marca edited"
+      ],
+      "fixtures": "Almacenamiento en memoria con sobre heredado y entidad de línea propia; el E2E siembra el sobre mediante un dibujo real en /demo y elimina sólo el campo nuevo edited.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Spec del puerto, typecheck web, ESLint focalizado, check:governance y build de producción Next/Webpack verdes en local. E2E Chromium de recuperación heredada y golden 228 verdes contra ese build. Medición a los 3 s en /demo: a 1440×769, visita nueva 29 controles/76.56 % de pantalla libre/0 % de lienzo tapado y visita heredada 30/76.00 %/0.73 %; a 1366×768, nueva 29/76.26 %/0 % y heredada 30/75.70 %/0.74 %. La CI y la comprobación posterior en vallecad.com deben ejecutarse sobre el SHA fusionado; no se afirma todavía que el comportamiento esté desplegado."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "VALLE-FIRST-MINUTE-GATE-20260923",
+      "date": "2026-09-23",
+      "initiative": "Medir el primer minuto como se ve en producción y recuperar espacio para dibujar sin quitar la salida segura.",
+      "branch": "codex/first-minute-gate",
+      "assistants": [
+        "OpenAI Codex: auditoría de producción, golden, interfaz y verificación local"
+      ],
+      "authority": "Sergio autorizó ejecutar el prompt maestro del 23-09, fusionar el trabajo y medir vallecad.com; sección 2 exige hasta 30 controles y al menos 75 % libre a 1440×769.",
+      "firstPartyInputs": [
+        "Prompt maestro del titular del 23-09, secciones 2, 3, 4 y 5",
+        "Medición pública prod-24ad: 31 controles, 74.5 % libre a 1440×769, 74.0 % a 1366×768, robot 0/4",
+        "Código y golden existentes del editor en main 24ad085b"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "Golden 228 mide el canvas real sin saltar el recorrido, con tres segundos de reposo",
+        "Recorrido plegado flotante ocupa una fila; salida duplicada sin comprobación de guardado retirada",
+        "Encuadrar selección no se pinta en Esencial hasta existir selección; Pro conserva el control"
+      ],
+      "fixtures": "Sin cambios de corpus ni bytes DXF/DWG.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Golden 228 actualizado con línea base roja pública (31 controles y 74.5 %); build webpack 208 rutas, typecheck, lint 0 errores (8 avisos previos del monolito), presupuesto 16814 líneas, golden Chromium 2/2 y Firefox 2/2 PASS. Medición local de build productivo: 29 controles, 75.6 % libre y 1.2 % tapado a 1440×769; 29, 75.0 % y 1.6 % a 1366×768. Robot local 0/4 por funciones aún abiertas de otras PRs. check:cad completo PASS con VALLE_DWG_CORPUS_MIRROR (log work/first-minute-cad.log); el primer intento sin esa variable falló en check:dwg-evidence por falta del corpus local. CI exacta, merge y medición pública posteriores pendientes."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "STRIPE-PEDIDO-PAGADO-INMUTABLE-20260923",
+      "date": "2026-09-23",
+      "initiative": "Impedir que una sesión de Stripe vieja conceda más asientos que los cobrados tras reutilizar un intent pendiente; atar la idempotencia al formulario exacto y comprobar el total pagado antes de activar.",
+      "branch": "codex/checkout-idempotency-amount",
+      "assistants": [
+        "OpenAI Codex: auditoría de cobro, implementación API y pruebas de regresión"
+      ],
+      "authority": "Sergio Valle Zárate autorizó continuar VALLECAD hasta su lanzamiento y corregir el flujo de cobro; adopción condicionada a revisar y fusionar el diff y sus checks exactos.",
+      "firstPartyInputs": [
+        "Adaptador Stripe, BillingController, BillingWebhookService, catálogo de precios y suites comerciales del repositorio",
+        "Evidencia pública de api.vallecad.com: checkout external, CFDI manual e Individual 19900 céntimos MXN mensuales al 2026-09-23"
+      ],
+      "externalSources": [
+        {
+          "location": "https://docs.stripe.com/api/idempotent_requests",
+          "terms": "Documentación pública de Stripe; se usó como referencia factual y no se copió código.",
+          "fact": "Una misma clave idempotente con parámetros distintos produce error; reintentos idénticos comparten resultado y la clave admite hasta 255 caracteres."
+        },
+        {
+          "location": "https://docs.stripe.com/api/checkout/sessions/object",
+          "terms": "Documentación pública de Stripe; se usó como referencia factual y no se copió código.",
+          "fact": "La Checkout Session expone payment_status, amount_total, currency, mode y metadata para contrastar el pedido confirmado."
+        }
+      ],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "La clave de idempotencia de Checkout incorpora SHA-256 del formulario completo, estable para un reintento idéntico y distinta al cambiar asientos, periodo o importe.",
+        "El adaptador añade precio unitario y moneda a la metadata; el webhook exige estado paid y verifica el total y la moneda de la sesión firmada antes de otorgar acceso.",
+        "La cantidad otorgada y confirmada sale del pedido pagado, no del requestedSeats mutable; una segunda sesión pagada del mismo intent requiere revisión y no modifica la suscripción."
+      ],
+      "fixtures": "Pedidos sintéticos de 3 y 5 asientos, precio unitario anterior y nuevo, moneda/total inválidos; suite PostgreSQL de compra vieja pagada después de actualizar el intent.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pruebas locales, CI del SHA exacto, revisión y merge pendientes al crear esta entrada."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "CONTEOS-COTA-LIENZO-20260923",
+      "date": "2026-09-23",
+      "initiative": "Mostrar conteos reales de puertas y ventanas y la longitud legible de cotas lineales en el plano Esencial para completar las tareas 2 y 3 del estudiante.",
+      "branch": "codex/drawing-measurements-integrate",
+      "assistants": [
+        "OpenAI Codex: implementación y verificación del cuadro BIM, las cotas y el visor Esencial"
+      ],
+      "authority": "Sergio pidió ejecutar el PROMPT MAESTRO del 2026-09-23 y mejorar el primer dibujo verificable antes de lanzar ValleCAD.",
+      "firstPartyInputs": [
+        "buildCadBimSchedule, buildCadDimensionGeometry y formatCadHumanLength existentes; componente CadViewportMeasurements del PR #242",
+        "Robot de estudiante de la PR #237 y medición local area-overlay-local-v2: tarea 1 aprobada, tareas 2 y 3 sin texto visible",
+        "Producción #250 acreditada el 2026-09-23 con SHA 83e4b69d: robot 1/4, 29 controles y 75.6 % de pantalla libre a 1440 × 769; esta rama todavía no está desplegada"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada.",
+      "derivedAreas": [
+        "drawing-visible-metrics.ts y su spec reutilizan el cuadro BIM para excluir huecos inválidos y la geometría asociativa de cotas para convertir a metros sin alterar entidades ni exportaciones",
+        "CadViewportMeasurements.tsx añade dos rótulos HTML no interactivos solo a Esencial; el monolito mantiene el mismo número de líneas",
+        "Golden 250 dibuja un cuarto, incrementa puerta y ventana reales y sitúa una cota de cuatro metros visible"
+      ],
+      "fixtures": "Documento geométrico local con cuatro muros, dos huecos válidos y uno huérfano; navegador Chromium sobre el demo local, sin servicios externos.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Golden 250 primero rojo por ausencia de rótulos y luego 2/2 verde en build productivo local; golden 234 1/1, spec nueva, typecheck y build web de 208 páginas PASS. check:cad completo con espejo DWG, design-system, ESLint focalizado y check:governance PASS. Sobre build combinado con #243 y #250, golden 228+250 4/4 y robot local 3/4: cuarto 7/8, huecos 4/4, cota 4/4; compartir 0/3 pendiente. #250 12/12 en producción y robot 1/4; CI y producción de esta PR aún no verificadas. No se declara lanzamiento comercial."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "ROBOT-ESTUDIANTE-20260923",
+      "date": "2026-09-23",
+      "initiative": "Versionar un protocolo reproducible de cuatro tareas de estudiante en /demo, con acciones exclusivamente visibles, evidencia de píxeles, textos y enlace móvil, más una guía para las cinco sesiones humanas de primer uso.",
+      "branch": "codex/qa-student-robot",
+      "assistants": [
+        "OpenAI Codex: diseño del protocolo, automatización, auditoría de su línea base y documentación"
+      ],
+      "authority": "Sergio pidió analizar el encargo de lanzamiento y ejecutarlo; el prompt del 2026-09-23 exige medir cuatro tareas de estudiante y preparar un protocolo humano antes de proclamar listo el producto.",
+      "firstPartyInputs": [
+        "Código actual de /demo y su modo Esencial, la regla visual de escala y los botones visibles",
+        "Medición pública del 2026-09-23: 0/4 tareas, 31 controles y 74.5 % de pantalla libre a 1440 × 769; 31 y 74 % a 1366 × 768",
+        "Capturas y JSON locales de la corrida en apps/web/e2e/.artifacts/medicion-versionado-base-23-09/"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada.",
+      "derivedAreas": [
+        "scripts/qa/medir-tareas.mjs y README.md: robot de cuatro tareas con veredicto rojo honesto fuera de CI hasta que el producto lo resuelva",
+        "docs/pruebas/PROTOCOLO-ESTUDIANTES.md: instrucciones, criterios y tabla vacía para cinco estudiantes"
+      ],
+      "fixtures": "Contexto de navegador limpio contra /demo público; no se añadieron secretos, cuentas ni datos de estudiantes.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "node --check y ejecución real con Playwright sobre https://vallecad.com/demo. El script salió 1 como corresponde a una línea base 0/4: cuatro muros sin m², puerta y ventana sin conteos visibles, cota sin texto acreditable y botón Compartir ausente. No se declara verde ni se relaja la CI. Las cinco pruebas humanas quedan pendientes de Sergio."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "PUNTERO-SELECCION-MUROS-20260923",
+      "date": "2026-09-23",
+      "initiative": "Fase B: comprobar clic directo, toque, Escape y estabilidad de la vista al dibujar muros; sincronizar la selección profesional con los muros nativos recién creados.",
+      "branch": "codex/pointer-click-reliability",
+      "assistants": [
+        "OpenAI Codex: reproducción con Playwright, corrección de selección y verificación de regresiones"
+      ],
+      "authority": "Sergio Valle Zárate pidió completar la puerta de salida al mercado de VALLECAD, con prioridad a un dibujo confiable, y autorizó integrar los avances en main.",
+      "firstPartyInputs": [
+        "Prompt maestro del 2026-09-23, Fase B: clic directo, toque, cámara estable, primer tramo visible y selección al terminar",
+        "Código del motor de puntero y del commit canónico en apps/web/src/components/cad",
+        "Producción medida al inicio de la campaña: robot estudiante 0/4, 31 controles y 74.5 % de pantalla libre a 1440 × 769; después de esta PR aún no se ha medido un despliegue nuevo"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "Golden 251: cinco clics directos y cinco toques crean cuatro muros; Esc y reelección crean el primer tramo; bbox y coordenadas del mismo píxel de pantalla estables; píxeles del primer tramo; cuatro muros designados al terminar",
+        "sync-committed-native-selection.ts y Layout3DEditor.tsx: una sola sincronización del ref nativo, su estado React y la selección profesional tras el commit canónico; el monolito no crece"
+      ],
+      "fixtures": "Demo local con contexto nuevo; capturas y traza de la ejecución roja conservadas en e2e/.test-results; no se añadieron archivos de corpus.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Golden 251 rojo antes: cuatro muros dibujados y resaltados, pero 0 sel en la selección profesional; verde después: 3/3 en Chromium sobre build de producción local. Cinco clics sin mouse.move explícito, cinco touchscreen.tap, Esc/reelección, caja del lienzo y coordenada bajo el píxel inicial/final ya pasaban antes del fix; la hipótesis de salto por foco no se reprodujo en Esencial y no se cambió focus. Primer tramo supera 100 píxeles cambiados; build web, typecheck raíz 8/8, ESLint sin errores nuevos y presupuesto 16835 líneas/118 useState pasan en local. El robot 4/4 y el despliegue público son verificaciones posteriores, no logros de esta PR."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "RECORRIDO-PUERTA-ALOJADA-20260923",
+      "date": "2026-09-23",
+      "initiative": "El recorrido guiado reconoce la puerta que realmente crea el botón Puerta de Esencial: una entidad opening alojada en un muro. La instrucción señala ese botón y un clic en el muro, sin enviar al estudiante a una paleta de bloques.",
+      "branch": "codex/guided-tour-door",
+      "assistants": [
+        "OpenAI Codex: diagnóstico, implementación y pruebas del recorrido guiado"
+      ],
+      "authority": "Sergio pidió corregir el primer uso de ValleCAD y ejecutar el plan de salida; la medición del 2026-09-23 observó que colocar una puerta no cerraba el paso guiado.",
+      "firstPartyInputs": [
+        "guided-tour.ts y sus pruebas, el botón Puerta de Esencial y el modelo de entidades opening",
+        "Línea base pública del 2026-09-23: robot 0/4; 31 controles y 74.5 % de pantalla libre a 1440 × 769, 31 controles y 74 % a 1366 × 768"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/onboarding/guided-tour.ts: reconocimiento de opening kind door con muro anfitrión y copia en lenguaje llano",
+        "guided-tour.spec.ts y tour-accuracy.spec.ts: regresión de puerta alojada y comprobación del comando del botón visible"
+      ],
+      "fixtures": "Entidades sintéticas de muro, puerta y ventana; se conserva el caso INSERT existente.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pruebas guided-tour (39 verificaciones nombradas y aserciones directas), tour-accuracy (22), CadEssentialBar (164), typecheck web y git diff --check verdes en local. La CI del SHA exacto y la medición en producción quedan pendientes; esta corrección no declara resueltas las cuatro tareas del robot."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "CI-FIREFOX-MAIN-ROJO-20260924",
+      "date": "2026-09-24",
+      "initiative": "main llevaba en rojo desde #224 porque dos goldens sólo fallaban en Firefox, que los PR no ejecutan sin [firefox]: el 56 pedía isMobile en un contexto que Firefox rechaza, y el 212 esperaba un tooltip que la barra de navegación sólo abría con group-hover, una variante que Tailwind v4 envuelve en @media (hover: hover) y que Firefox headless no cumple. La etiqueta pasa a abrirse por eventos de puntero y de foco, como la de la cinta.",
+      "branch": "claude/keen-cannon-nvm7x7",
+      "assistants": [
+        "Claude Code (Anthropic): diagnóstico desde los registros de CI de main, corrección del golden 56, apertura por eventos de la etiqueta de CadToolPalette y verificación local"
+      ],
+      "authority": "Sergio pidió el 2026-09-24 seguir construyendo VALLECAD y sacarlo al mercado, priorizar el primer uso y cerrar los PR de Codex, y autorizó que Claude fusione cada PR con CI verde sobre el SHA exacto.",
+      "firstPartyInputs": [
+        "Registros de CI de main 35955690281 (fragmentos 3/4 y 4/4), 35896668573 y 35769758812: golden 212 en Firefox rojo desde b039a09 (#224); golden 56 en Firefox rojo en 35955690281, con el isMobile que introdujo 31a2e94 (#239)",
+        "e2e/real/movil.spec.ts: reparto ya existente de emulación móvil para Firefox",
+        "components/cad/ribbon/CadRibbonTooltip.tsx: contrato de apertura por puntero y foco de la etiqueta de la cinta"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "apps/web/e2e/golden/56-cad-review-link-guest.spec.ts: isMobile sólo fuera de Firefox; viewport y táctil se conservan en ambos navegadores",
+        "apps/web/src/components/cad/editor/CadToolPalette.tsx: la etiqueta de ayuda se abre con puntero no táctil tras CAD_RIBBON_TOOLTIP_DELAY_MS o con foco visible, y se cierra al salir, al perder el foco y al pulsar"
+      ],
+      "fixtures": "Sin fixtures nuevos.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Goldens 212 y 56 en Chromium 8/8, CadToolPalette.spec (16), CadToolPaletteAncho.spec (15), design-system.spec y typecheck web verdes en local. Firefox no está instalado en el contenedor: el veredicto de Firefox lo da la CI del PR con [firefox]."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "CUARTO-NOMBRE-ROTULO-INTEGRADO-20260924",
+      "date": "2026-09-24",
+      "initiative": "Persistir el nombre del cuarto cerrado y mostrarlo con sus m² en un solo rótulo legible en Esencial, sin cambiar los archivos exportados.",
+      "branch": "codex/room-label-naming-integrated",
+      "assistants": [
+        "OpenAI Codex: análisis de entidades de plantilla, conexión del nombre, pruebas de invariancia y golden de interacción",
+        "OpenAI Codex: integración de ramas, exclusiones de vista por cuarto cerrado y pruebas de invariancia"
+      ],
+      "authority": "Sergio encargó continuar ValleCAD desde el estado actual y llevar al mercado una edición de cuartos comprensible; el PROMPT MAESTRO del 2026-09-23 pide nombre editable en un espacio canónico existente y evidencia visible.",
+      "firstPartyInputs": [
+        "Las plantillas SALA/COMEDOR/COCINA persisten como box kind:room con el nombre en label; el cuadro BIM deriva las caras únicamente de muros canónicos.",
+        "La rama de área visible codex/room-area-overlay, golden 234 y las rutas existentes de comando, historial, guardado, DXF y DWG del repositorio.",
+        "El trasplante limpio de 77f6f66e sobre origin/main #253 conserva la primera pantalla y la lectura visible de cuartos, conteos de vanos y cotas.",
+        "origin/main 3d7d4ab7 con el protocolo de estudiantes, la rama codex/room-space-naming-main253 y la rama codex/legible-room-labels",
+        "El documento CAD, el cuadro BIM, los assets heredados y los golden locales del repositorio"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada ni consultada.",
+      "derivedAreas": [
+        "room-space.ts enlaza por punto interior una cara cerrada con el label de box kind:room; al renombrar crea o reutiliza una identidad nominal de huella cero con metadato explícito y prioridad BIM, conservada por la proyección del editor. El box de plantilla original y cualquier TEXT/MTEXT permanecen intactos para paridad de archivo.",
+        "entity-commands.ts actualiza el label del ancla mediante un lote canónico y preserva el orden previo de entidades en esta operación para no alterar bytes DXF/DWG; Deshacer/Rehacer y guardar/reabrir mantienen la identidad. El aplicador puro de pestañas pasó intacto a entity-command-paper-space.ts para respetar el presupuesto de 800 líneas.",
+        "bim-schedule.ts y room-area-labels.ts muestran el nombre persistido junto al área entre ejes derivada de los muros; al abrir el contorno desaparece el área y al cerrarlo reaparece el nombre.",
+        "Las rutas de geometría, validación, papel, DXF y DWG omiten exclusivamente el ancla sin huella; no se exporta ni se suma a cantidades BIM.",
+        "room-area-labels.ts expone un único ID estable textLabelId para ocultar el TEXT fuente en Esencial y mantener intacto el documento exportable.",
+        "essential-room-preview.ts excluye en Esencial sólo los sprites de box kind:room que caen dentro de una cara cerrada con badge de área; el mismo asset conserva etiqueta si se abre el recinto. Las exclusiones se memorizan por identidad del documento canónico.",
+        "scene-objects.ts crea los sprites de cuarto con identidad explícita y visibilidad correcta incluso cuando una selección reconstruye assets; Layout3DEditor.tsx reaplica la visibilidad al cambiar Esencial/Pro.",
+        "CadViewportMeasurements.tsx muestra nombre persistido y m² juntos en Esencial, conserva edición por doble clic y mantiene la política de área y rótulos de Pro. El box y TEXT originales no se alteran."
+      ],
+      "fixtures": "Documentos herméticos de muros rectangulares y cóncavos, box de plantilla, TEXT y LINE; el golden usa un backend simulado sin credenciales ni datos de clientes. Cuarto de plantilla y TEXT sobre el plano demo, con renombrado canónico; recinto abierto como control negativo. Room-space.spec conserva hashes y bytes DXF/DWG anteriores.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Room-space y BIM cubren renombrado, Deshacer/Rehacer, guardar/reabrir, mover y borrar muros, área derivada y exportación DXF/DWG byte idéntica en los casos probados. Essential-room-preview.spec fue roja antes y verde después; build Webpack 208 rutas y TypeScript PASS; golden 255 integrado Chromium 1/1 PASS con SALA + TEXT, doble clic a Recámara, Deshacer/Rehacer, guardar/reabrir, 12.00 m² y ausencia del rótulo fuente amarillo. Pro y archivos mantienen el texto original a propósito. La CI exacta y producción aún faltan; no se declara compatibilidad DWG general."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "REVISION-MOVIL-AREAS-MUROS-20260923",
       "date": "2026-09-23",
       "initiative": "Mostrar al invitado de un enlace de revisión móvil las superficies calculadas de un cuarto cerrado por muros canónicos visibles, distinguiendo área entre ejes y área útil. No duplicar una cifra TEXT/MTEXT existente ni suponer metros cuadrados si la unidad del documento falta o es desconocida.",

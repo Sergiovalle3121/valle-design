@@ -48,6 +48,8 @@ import {
   type CadDocumentTableCommand,
 } from "./entity-command-tables";
 import { orphanedOpeningIds } from "./wall-openings";
+import { cadRoomSpaceAnchor, isCadRoomSpaceAnchor } from "./room-space";
+import { applyPaperSpaceCommand } from "./entity-command-paper-space";
 import {
   CAD_ENTITY_REGISTRY,
   CadEntityRegistry,
@@ -59,6 +61,8 @@ import {
 } from "./entity-runtime";
 
 export type CadEntityCommand =
+  /** Nombre del espacio `box kind:room`; un ancla nueva no declara geometría. */
+  | { type: "room-space-name"; entityId: string; label: string; at?: CadPoint2; sourceText?: { id: string; text: string } }
   | { type: "transform"; entityId: string; transform: CadEntityTransform }
   | { type: "transform3d"; entityId: string; transform3d: import("./cad-entities-v5").CadSolidPlacement }
   | { type: "properties"; entityId: string; patch: Partial<CadPropertyBag> }
@@ -278,6 +282,7 @@ function cadEntityCommandLabel(
   if (command.type === "layer" || command.type === "layer-state")
     return `${command.type}:${command.op}`;
   if (command.type === "draw-order") return `draw-order:${command.placement}`;
+  if (command.type === "room-space-name") return `room-space-name:${command.entityId}`;
   const source = document.entities.find((entity) => entity.id === command.entityId);
   if (!source || !registry.supports(source))
     throw new Error(`Native CAD entity ${command.entityId} was not found.`);
@@ -387,6 +392,32 @@ export function executeCadEntityCommandBatch(
       imageDefinitions = existing.some((definition) => definition.id === id)
         ? existing.map((definition) => (definition.id === id ? { ...command.definition } : definition))
         : [...existing, { ...command.definition }];
+      continue;
+    }
+
+    if (command.type === "room-space-name") {
+      const label = command.label.replace(/\s+/g, " ").trim();
+      if (!label || label.length > 80) throw new Error("El nombre del cuarto debe tener entre 1 y 80 caracteres.");
+      const existing = present.get(command.entityId);
+      if (existing) {
+        if (existing.type !== "box" || existing.kind !== "room")
+          throw new Error(`El espacio ${command.entityId} no es un cuarto.`);
+        present.set(existing.id, { ...existing, label, ...(isCadRoomSpaceAnchor(existing) && command.sourceText &&
+          !existing.context?.metadata?.roomNameSourceTextId ? { context: { ...existing.context, metadata: {
+            ...existing.context?.metadata,
+            roomNameSourceTextId: command.sourceText.id,
+            roomNameSourceText: command.sourceText.text,
+          } } } : {}) });
+      } else {
+        if (!command.at || !Number.isFinite(command.at.x) || !Number.isFinite(command.at.y))
+          throw new Error("El nuevo espacio necesita un punto interior válido.");
+        const layer = document.layers.find((candidate) => candidate.id === "0" && !candidate.locked)
+          ?? document.layers.find((candidate) => !candidate.locked);
+        if (!layer) throw new Error("Desbloquea una capa antes de nombrar el cuarto.");
+        present.set(command.entityId, cadRoomSpaceAnchor(command.entityId, label, command.at, layer.id, command.sourceText));
+        createdFrontIds.push(command.entityId);
+      }
+      touchedIds.push(command.entityId);
       continue;
     }
 
@@ -554,12 +585,16 @@ export function executeCadEntityCommandBatch(
   const regeneratedMleaders = regenerateAssociativeMleaders(regeneratedDimensions.entities, regenerationSources);
   const regeneratedCenterMarks = regenerateAssociativeCenterMarks(regeneratedMleaders.entities, regenerationSources);
   entities = regeneratedCenterMarks.entities;
-  // `entities` se ordena por id para que el serializado sea determinista y los
-  // hashes reproducibles. El Z-ORDER NO vive aquí: vive en
+  // Un nombre nominal conserva el orden recibido: reordenar entidades antiguas
+  // cambiaría bytes DXF/DWG aunque el ancla no viaje. Las demás órdenes siguen
+  // alfabetizando para hashes reproducibles. El Z-ORDER vive en
   // `modelSpace.entityIds`, y ahí alfabetizar destruía el dibujo — editar,
   // mover o soltar un grip reordenaba el plano entero por id, así que "traer al
   // frente", el apilado de hatches y los wipeouts no sobrevivían a una edición.
-  entities.sort((a, b) => a.id.localeCompare(b.id));
+  if (commands.every((command) => command.type === "room-space-name")) {
+    const originalOrder = new Map(document.entities.map((entity, index) => [entity.id, index]));
+    entities.sort((a, b) => (originalOrder.get(a.id) ?? Infinity) - (originalOrder.get(b.id) ?? Infinity));
+  } else entities.sort((a, b) => a.id.localeCompare(b.id));
   const deleted = new Set(deletedEntityIds);
   const ordered = preserveDrawOrder(
     document.modelSpace.entityIds,
@@ -743,48 +778,6 @@ function applyDocumentSections(
     movedEntityIds,
   };
 }
-
-/**
- * Aplica una orden de presentación sobre la lista de pestañas.
- *
- * `order` se renumera siempre a partir de la posición real: un documento con
- * dos hojas en `order: 0` es un documento con pestañas que se ordenan según el
- * humor del `sort`, y eso se nota en la interfaz. Renumerar aquí lo cierra en
- * el único sitio por el que se puede escribir la sección.
- */
-function applyPaperSpaceCommand(
-  spaces: readonly CadPaperSpace[],
-  command: Extract<CadEntityCommand, { type: "paper-space" }>,
-): CadPaperSpace[] {
-  const renumber = (list: readonly CadPaperSpace[]): CadPaperSpace[] =>
-    [...list]
-      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id))
-      .map((space, order) => (space.order === order ? space : { ...space, order }));
-
-  if (command.op === "delete")
-    return renumber(spaces.filter((space) => space.id !== command.spaceId));
-
-  if (command.op === "reorder") {
-    const position = new Map(command.spaceIds.map((id, index) => [id, index]));
-    // Las que no se nombran conservan su orden relativo DETRÁS de las nombradas,
-    // para que reordenar tres pestañas de veinte no reviente las otras
-    // diecisiete.
-    return renumber(
-      spaces.map((space) => ({
-        ...space,
-        order: position.get(space.id) ?? command.spaceIds.length + (space.order ?? 0),
-      })),
-    );
-  }
-
-  const exists = spaces.some((space) => space.id === command.space.id);
-  return renumber(
-    exists
-      ? spaces.map((space) => (space.id === command.space.id ? command.space : space))
-      : [...spaces, command.space],
-  );
-}
-
 
 export function executeCadEntityCommand(
   document: CadDocument,

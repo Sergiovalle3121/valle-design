@@ -462,6 +462,20 @@ assert.equal(
 );
 ok(true, "editar y borrar entran por la misma llamada, con el contrato documentado");
 
+// El rótulo de habitación se oculta sólo en la presentación Esencial; una
+// edición incremental no puede volver a dibujarlo ni borrar el TEXT persistido.
+const previewHost = new CadViewportRenderHost({ parent: new THREE.Group(), viewport });
+const hiddenName = new Set(["mtext-1"]);
+const nameEntity = document.entities.find((entity) => entity.id === "mtext-1")!;
+previewHost.replace(document, { excludeEntityIds: hiddenName });
+assert.equal(previewHost.diagnostics().total, 7);
+previewHost.invalidate(["mtext-1"], [nameEntity as never], document, hiddenName);
+assert.equal(previewHost.diagnostics().total, 7, "una edición no revive el rótulo excluido");
+previewHost.invalidate(["mtext-1"], [nameEntity as never], document, new Set());
+assert.equal(previewHost.diagnostics().total, 8, "al volver a Pro reaparece el TEXT original");
+assert.equal(document.entities.find((entity) => entity.id === "mtext-1"), nameEntity, "el documento original nunca se altera");
+previewHost.dispose();
+
 // ---------------------------------------------------------------------------
 // 6b. Un ALTA se ve con la cámara QUIETA, y el indicador la cuenta.
 //

@@ -15,6 +15,7 @@ import {
   type CadEventPublisher,
 } from './ports/commercial.ports';
 import type { PaymentWebhookEvent } from './ports/payment-provider.port';
+import { readPaidCheckoutSnapshot } from './checkout-payment-snapshot';
 import {
   eventObject,
   invoicePeriod,
@@ -84,6 +85,16 @@ export class BillingWebhookNotCorrelatedError extends Error {
   }
 }
 
+/** Evento firmado pero inseguro de aplicar: queda en reintento para revisión. */
+export class BillingWebhookUnsafeCheckoutError extends Error {
+  constructor(readonly outcome: string) {
+    super(
+      'La sesión de pago requiere revisión antes de activar la suscripción.',
+    );
+    this.name = 'BillingWebhookUnsafeCheckoutError';
+  }
+}
+
 const PROVIDER = 'stripe';
 /** Estados desde los que un cobro correcto devuelve la suscripción a `active`. */
 const REACTIVABLE: readonly SubscriptionStatus[] = [
@@ -114,6 +125,7 @@ export class BillingWebhookService {
     try {
       return await this.database.transaction(async (manager) => {
         const result = await this.applyEffect(manager, event);
+        if (result.status === 'duplicate') return result;
         // El asiento se escribe AL FINAL y en la misma transacción: si el
         // efecto falla no queda apuntado, y si dos entregas corren a la vez el
         // único decide cuál commitea.
@@ -174,8 +186,9 @@ export class BillingWebhookService {
   }
 
   /**
-   * `checkout.session.completed`: el cobro entró. Confirma el intent que abrió
-   * la compra y deja la suscripción activa en el plan pedido.
+   * `checkout.session.completed`: la sesión cerró. Si Stripe acredita el
+   * importe exacto del pedido, confirma el intent y activa la suscripción;
+   * si aún no entró el dinero, espera el evento asíncrono.
    *
    * `decided_by_user_id` queda NULL a propósito: nadie de la organización
    * decidió este upgrade — lo decidió el pago. Inventar un usuario decisor
@@ -209,8 +222,14 @@ export class BillingWebhookService {
     // una pantalla que no explica nada durante dos días. Así que se registra
     // la ESPERA — con su ficha, si el proveedor la manda — y se activará
     // cuando llegue `async_payment_succeeded`.
-    if (!isPaidSession(session)) {
-      await manager.update(
+    const paymentStatus = readShortString(session, 'payment_status', 40);
+    if (paymentStatus === 'unpaid') {
+      if (event.type === 'checkout.session.async_payment_succeeded') {
+        throw new BillingWebhookUnsafeCheckoutError(
+          'checkout_async_payment_unverified',
+        );
+      }
+      const awaiting = await manager.update(
         SubscriptionUpgradeIntent,
         { id: intent.id, organizationId, status: 'pending' as const },
         {
@@ -220,6 +239,15 @@ export class BillingWebhookService {
             : {}),
         },
       );
+      if (!awaiting.affected) {
+        const recorded = await manager.findOneBy(PaymentEvent, {
+          eventId: event.id,
+        });
+        if (recorded) return { status: 'duplicate', outcome: 'duplicate' };
+        throw new BillingWebhookUnsafeCheckoutError(
+          'checkout_intent_already_decided',
+        );
+      }
       await this.events.publish(
         {
           organizationId,
@@ -237,14 +265,31 @@ export class BillingWebhookService {
       );
       return { status: 'processed', outcome: 'checkout_awaiting_payment' };
     }
-    // Sólo la transición pending→confirmed afecta filas; una redelivery que
-    // llegara por otro camino encuentra 0 y sigue: la activación es una
-    // afirmación de estado, no un incremento.
-    await manager.update(
+    if (paymentStatus !== 'paid') {
+      // Una sesión sin confirmación explícita de dinero no puede activar el
+      // plan. El 409 deja el evento pendiente de revisión en Stripe.
+      throw new BillingWebhookUnsafeCheckoutError(
+        'checkout_payment_unverified',
+      );
+    }
+    const paid = readPaidCheckoutSnapshot(session, intent);
+    if (!paid) {
+      // Metadata de pedido, total y moneda deben coincidir. No se confirma un
+      // intent con una sesión cuyo importe no se pueda demostrar.
+      throw new BillingWebhookUnsafeCheckoutError(
+        'checkout_payment_snapshot_invalid',
+      );
+    }
+    // Sólo la transición pending→confirmed afecta filas. Una redelivery del
+    // mismo evento ya registrado es duplicada; otro evento pagado para un
+    // intent decidido requiere revisión y jamás concede asientos extra.
+    const confirmed = await manager.update(
       SubscriptionUpgradeIntent,
       { id: intent.id, organizationId, status: 'pending' as const },
       {
         status: 'confirmed' as const,
+        requestedSeats: paid.seats,
+        paymentMethod: paid.paymentMethod,
         decidedByUserId: null,
         decidedAt: new Date(),
         // Se deja de esperar: el dinero llegó. La ficha caducada no se
@@ -253,6 +298,15 @@ export class BillingWebhookService {
         voucherUrl: null,
       },
     );
+    if (!confirmed.affected) {
+      const recorded = await manager.findOneBy(PaymentEvent, {
+        eventId: event.id,
+      });
+      if (recorded) return { status: 'duplicate', outcome: 'duplicate' };
+      throw new BillingWebhookUnsafeCheckoutError(
+        'checkout_intent_already_decided',
+      );
+    }
 
     const providerSubscriptionId = readReferenceId(session, 'subscription');
     const providerCustomerId = readReferenceId(session, 'customer');
@@ -264,17 +318,16 @@ export class BillingWebhookService {
       // compró, que viaja en la metadata de la sesión desde que se creó. Sin
       // esto habría que suponer un mes: once meses regalados a quien pagó el
       // año, o un año cobrado a quien pagó un mes.
-      periodEndFromMetadata(session);
+      periodEndFromPurchasedPeriod(paid.period);
 
     const patch = {
-      planCode: intent.requestedPlanCode,
+      planCode: paid.planCode,
       status: 'active' as const,
       trialEndsAt: null,
       cancelAtPeriodEnd: false,
-      // Los asientos PAGADOS pasan a ser el límite que la API impone. Manda el
-      // intent y no la metadata del proveedor: el intent es nuestro registro
-      // de qué se cobró, y la metadata es lo que el proveedor decida devolver.
-      seats: Math.max(1, Number(intent.requestedSeats) || 1),
+      // El intent pudo actualizarse mientras otra sesión seguía abierta. La
+      // cantidad se toma del snapshot cuyo total Stripe confirmó haber cobrado.
+      seats: paid.seats,
       ...(currentPeriodEnd ? { currentPeriodEnd } : {}),
       ...(providerSubscriptionId ? { providerSubscriptionId } : {}),
       ...(providerCustomerId ? { providerCustomerId } : {}),
@@ -678,23 +731,6 @@ export class BillingWebhookService {
   }
 }
 
-/**
- * ¿Entró el dinero de esta sesión?
- *
- * `payment_status` es el campo que distingue una sesión de tarjeta (llega ya
- * `paid`) de una de OXXO/SPEI (llega `unpaid`, con la ficha recién generada).
- * Un valor AUSENTE se trata como pagado a propósito: es lo que hacían las
- * sesiones de suscripción de la ola 2, cuyo `checkout.session.completed` ya
- * significaba cobro hecho. Suponer lo contrario habría dejado de activar a
- * todos los clientes de tarjeta el día del despliegue.
- */
-function isPaidSession(session: unknown): boolean {
-  const status = readShortString(session, 'payment_status', 40);
-  return (
-    status === null || status === 'paid' || status === 'no_payment_required'
-  );
-}
-
 /** Períodos que el checkout puede vender, en milisegundos aproximados. */
 const PERIOD_DURATION_MS: Readonly<Record<string, number>> = {
   monthly: 30 * 86_400_000,
@@ -709,9 +745,8 @@ const PERIOD_DURATION_MS: Readonly<Record<string, number>> = {
  * el único efecto de redondear es que conserve el acceso un día de más. La
  * alternativa —cortarle antes de tiempo a alguien que ya pagó— sí tiene coste.
  */
-function periodEndFromMetadata(session: unknown): Date | null {
-  const period = readMetadata(session, 'period');
-  const duration = period ? PERIOD_DURATION_MS[period] : undefined;
+function periodEndFromPurchasedPeriod(period: string): Date | null {
+  const duration = PERIOD_DURATION_MS[period];
   return duration ? new Date(Date.now() + duration) : null;
 }
 

@@ -42,6 +42,7 @@ const label = { id: "nombre", type: "text" as const, x: 2000, y: 1500,
   text: "RECÁMARA", height: 250, layer: "TEXTO" };
 assert.equal(cadRoomAreaLabels(document([...shell(), label]))[0].name, "RECÁMARA", "el nombre viene del TEXT real");
 assert.equal(cadRoomAreaLabels(document([...shell(), label]))[0].nameFromDocument, true);
+assert.equal(cadRoomAreaLabels(document([...shell(), label]))[0].textLabelId, "nombre", "el preview puede ocultar solo el TEXT original, sin borrarlo del documento");
 assert.deepEqual(cadRoomAreaLabels(document([label])), [], "un texto de plantilla sin muros canónicos no inventa un área");
 
 console.log("room-area-labels.spec: cuarto cerrado, apertura, edición, unidades y nombre OK");
