@@ -4,8 +4,8 @@
   "openapi": "3.1.0",
   "apiTitle": "Valle Design — API standalone (v1)",
   "apiVersion": "1.0.0",
-  "operationCount": 110,
-  "cadOperationCount": 43,
+  "operationCount": 114,
+  "cadOperationCount": 47,
   "groups": [
     {
       "family": "auth",
@@ -167,6 +167,10 @@
         "createCadComment",
         "resolveCadComment",
         "redeemReviewLinkContext",
+        "createDemoShare",
+        "redeemDemoShare",
+        "deleteDemoShare",
+        "claimDemoShare",
         "listReviewLinkComments",
         "createReviewLinkComment",
         "resolveReviewLinkComment"
@@ -2583,6 +2587,99 @@
         "200",
         "401",
         "404"
+      ]
+    },
+    {
+      "operationId": "createDemoShare",
+      "method": "POST",
+      "path": "/v1/cad/demo-shares",
+      "summary": "Crea un enlace temporal de sólo lectura desde la demostración, sin cuenta.",
+      "tags": [
+        "reviews"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "public",
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "schema": "DemoShareCreated"
+      },
+      "responses": [
+        "201",
+        "400",
+        "413",
+        "429",
+        "503"
+      ]
+    },
+    {
+      "operationId": "redeemDemoShare",
+      "method": "GET",
+      "path": "/v1/cad/demo-shares/context",
+      "summary": "Canje de sólo lectura de un enlace temporal de la demostración.",
+      "tags": [
+        "reviews"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "429"
+      ]
+    },
+    {
+      "operationId": "deleteDemoShare",
+      "method": "DELETE",
+      "path": "/v1/cad/demo-shares/context",
+      "summary": "Borra antes de tiempo un enlace temporal de la demostración.",
+      "tags": [
+        "reviews"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        "204",
+        "401",
+        "429"
+      ]
+    },
+    {
+      "operationId": "claimDemoShare",
+      "method": "POST",
+      "path": "/v1/cad/documents/{documentId}/demo-share-claims",
+      "summary": "Convierte un enlace de la demostración en un review link del documento.",
+      "tags": [
+        "reviews"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:review",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "documentId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "DemoShareClaimRequest"
+      },
+      "responses": [
+        "201",
+        "400",
+        "401",
+        "403",
+        "404",
+        "429"
       ]
     },
     {

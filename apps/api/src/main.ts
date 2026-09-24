@@ -179,7 +179,15 @@ async function bootstrap() {
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     // X-Review-Token: header del review link (Fase 5) — el invitado no tiene
     // Authorization; sin listarlo aquí el preflight CORS mataría el canje.
-    allowedHeaders: ['Content-Type', 'X-CSRF-Token', 'X-Review-Token'],
+    // Los dos X-Demo-Share-* son el mismo caso para el enlace temporal de la
+    // demostración: canjearlo y borrarlo.
+    allowedHeaders: [
+      'Content-Type',
+      'X-CSRF-Token',
+      'X-Review-Token',
+      'X-Demo-Share-Token',
+      'X-Demo-Share-Manage-Token',
+    ],
   });
 
   // ── Observabilidad ────────────────────────────────────────────────────────

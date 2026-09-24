@@ -4593,6 +4593,44 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DEMO-ENLACE-TEMPORAL-API-20260924",
+      "date": "2026-09-24",
+      "initiative": "Quien dibuja en /demo sin cuenta no tenía cómo mandar su plano a otra persona: la tarea «compartir a un celular» del robot estudiante fallaba siempre. Se agrega la API del enlace temporal de la demostración: una copia de sólo lectura, saneada y comprimida, que caduca a los 7 días, sin guardar IP, con techos por IP y tope global, pausable por variable, y que al crear cuenta se reclama como enlace de revisión del documento nuevo sin cambiar la URL que ya tiene el destinatario. La interfaz (botón «Compartir») llega en un PR aparte.",
+      "branch": "claude/keen-cannon-nvm7x7",
+      "assistants": [
+        "Claude Code (Anthropic): contrato OpenAPI, migración, servicio, controladores, barrido, SDK, pruebas y documentación operativa"
+      ],
+      "authority": "Sergio aprobó el 2026-09-24 el plan de salida al mercado y eligió «las dos» para compartir desde la demostración: enlace temporal de 7 días sin cuenta e invitación a crear cuenta para hacerlo permanente.",
+      "firstPartyInputs": [
+        "scripts/qa/medir-tareas.mjs: tarea «compartir a un celular» del robot estudiante",
+        "apps/api/src/modules/cad-documents/review-link-token.ts: formato y hash de los tokens de revisión",
+        "apps/api/src/modules/cad/cad-presence-cleanup.service.ts: patrón del barrido",
+        "apps/api/src/modules/identity/api-rate-limit.service.ts: límites con clave HMAC opaca"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "packages/contracts/specs/design-api.v1.yaml: /v1/cad/demo-shares (POST público), /v1/cad/demo-shares/context (GET/DELETE públicos) y /v1/cad/documents/{documentId}/demo-share-claims (cad:review), con sus códigos de error",
+        "migración 20260924120000-CadDemoShares: tabla cad_demo_shares sin tenant_id (sólo hashes, gzip ≤ 1 MiB, expires_at indexado)",
+        "cad-demo-share.service.ts, cad-demo-share.controller.ts, cad-demo-share-claim.controller.ts, cad-demo-share-cleanup.service.ts y la entidad",
+        "cad-review.repository.ts: createSessionForExistingToken reutiliza el hash del enlace temporal al reclamarlo",
+        "api-rate-limit.service.ts: ventana opcional (windowMs) para techos de 10 minutos y diarios",
+        "design-sdk: tipos generados y superficie demoShares en su propio módulo (demo-shares.ts, como presence.ts, para no pasar las 800 líneas de client.ts); consola de la API regenerada",
+        "RUNBOOK.md y .env.example: pausar el enlace y retirar uno por su hash",
+        "main.ts: CORS admite X-Demo-Share-Token y X-Demo-Share-Manage-Token (sin ellos el preflight tumbaría el canje y el borrado)"
+      ],
+      "fixtures": "Sin fixtures nuevos: las pruebas construyen su plano en línea.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "cad-demo-share.pg.spec (7, PostgreSQL real), cad-demo-share.controller.spec (orden de reclamo), migration-chain y tenant-rls-coverage contra PostgreSQL, cad-contract-router.spec, check:cad-contract (114 operaciones), check:api-console, check:authz, typecheck y lint del API verdes, check:monolith-budget."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

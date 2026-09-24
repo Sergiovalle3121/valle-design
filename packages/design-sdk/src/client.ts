@@ -29,6 +29,7 @@ import { createIdentitySurface } from "./identity";
 import { createMessagingSurface } from "./messaging";
 import { createCallsSurface } from "./calls";
 import { createPresenceSurface } from "./presence";
+import { createDemoShareSurface } from "./demo-shares";
 
 export {
   createIdentitySurface,
@@ -121,6 +122,7 @@ export type {
   CadPresenceBeatCreate,
 } from "./presence";
 export type ReviewLinkContext = Schemas["ReviewLinkContext"];
+export type { DemoShareCreated, DemoShareContext } from "./demo-shares";
 export type ApiError = Schemas["ApiError"];
 export type EntitlementRequiredError = Schemas["EntitlementRequiredError"];
 export type CadDocumentVersionConflictError =
@@ -703,6 +705,9 @@ export function createDesignClient(options: DesignClientOptions) {
         },
       };
     },
+
+    /** Enlace TEMPORAL de la demostración (sin cuenta) — ver `./demo-shares.ts`. */
+    demoShares: createDemoShareSurface({ call, resource }),
 
     blocks: {
       list: (query?: PageQuery) =>

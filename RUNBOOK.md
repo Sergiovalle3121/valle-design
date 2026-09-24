@@ -134,6 +134,13 @@ FROM domain_outbox WHERE status IN ('pending', 'failed');
   tenant, SHA-256, bytes comprimidos/expandidos y límites antes de cualquier GC.
 - **Importación falla:** admite sólo `.dxf` de texto y `.json` canónico. Revisa
   límites, timeout, corrupción y warnings; no cambies extensión de DWG.
+- **Enlace de la demostración (abuso o petición de borrado):** pausa las
+  altas nuevas con `CAD_DEMO_SHARES_ENABLED=false` (503 `demo_share_paused`;
+  los enlaces existentes siguen abriendo). Para retirar UNO, pide la URL: el
+  token `vdds_…` va tras la almohadilla; calcula su sha256 en hexadecimal y borra
+  `DELETE FROM cad_demo_shares WHERE token_hash = '<sha256>';`. No hay IP ni
+  cuenta que buscar: la tabla no las guarda. Todo enlace caduca a los 7 días y
+  el barrido lo borra solo.
 - **CORS:** reconstruir el web no corrige el API; ajusta `ALLOWED_ORIGIN` exacto.
   Si el web llama un host viejo, reconstruye con `NEXT_PUBLIC_API_URL` correcto.
 

@@ -15,6 +15,11 @@ import { CadPresenceBus } from './cad-presence.bus';
 import { CadPresenceCleanupService } from './cad-presence-cleanup.service';
 import { CadPresenceDocumentGuard } from './cad-presence-document.guard';
 import { CadPresenceBeat } from './entities/cad-presence-beat.entity';
+import { CadDemoShareController } from './cad-demo-share.controller';
+import { CadDemoShareClaimController } from './cad-demo-share-claim.controller';
+import { CadDemoShareService } from './cad-demo-share.service';
+import { CadDemoShareCleanupService } from './cad-demo-share-cleanup.service';
+import { CadDemoShare } from './entities/cad-demo-share.entity';
 
 /**
  * Superficie HTTP del producto Design (/v1/cad/*): controllers + repositorios
@@ -26,16 +31,23 @@ import { CadPresenceBeat } from './entities/cad-presence-beat.entity';
  * + CadPresenceService/Bus/Cleanup): efímera, sin tocar el documento, con su
  * propia entidad (`cad_presence_beats`) declarada AQUÍ y no en
  * CadDocumentsModule — el kernel del documento no gana una dependencia nueva
- * por esto.
+ * por esto. Lo mismo para el enlace temporal de la demostración
+ * (`cad_demo_shares`, CadDemoShareController/Service/Cleanup): sin tenant,
+ * anónimo y con caducidad; sólo el reclamo cruza a un documento del tenant.
  */
 @Module({
-  imports: [CadDocumentsModule, TypeOrmModule.forFeature([CadPresenceBeat])],
+  imports: [
+    CadDocumentsModule,
+    TypeOrmModule.forFeature([CadPresenceBeat, CadDemoShare]),
+  ],
   controllers: [
     CadController,
     CadReviewController,
     CadReviewLinkController,
     CadSheetSetController,
     CadPresenceController,
+    CadDemoShareController,
+    CadDemoShareClaimController,
   ],
   providers: [
     CadDocumentsRepository,
@@ -46,6 +58,8 @@ import { CadPresenceBeat } from './entities/cad-presence-beat.entity';
     CadPresenceBus,
     CadPresenceCleanupService,
     CadPresenceDocumentGuard,
+    CadDemoShareService,
+    CadDemoShareCleanupService,
   ],
   exports: [
     CadDocumentsRepository,

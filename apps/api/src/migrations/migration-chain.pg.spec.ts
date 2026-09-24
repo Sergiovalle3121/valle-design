@@ -36,6 +36,7 @@ import { ProductFeedback20260828140000 } from './20260828140000-ProductFeedback'
 import { TeamMessaging20260831090000 } from './20260831090000-TeamMessaging';
 import { CadPresenceBeats20260831092000 } from './20260831092000-CadPresenceBeats';
 import { CadPresenceBeatsRls20260831093000 } from './20260831093000-CadPresenceBeatsRls';
+import { CadDemoShares20260924120000 } from './20260924120000-CadDemoShares';
 
 const LEGACY_MIGRATIONS: Array<new () => MigrationInterface> = [
   AddCadBlocks20260706180000,
@@ -76,6 +77,7 @@ const ALL_MIGRATIONS: Array<new () => MigrationInterface> = [
   TeamMessaging20260831090000,
   CadPresenceBeats20260831092000,
   CadPresenceBeatsRls20260831093000,
+  CadDemoShares20260924120000,
 ];
 
 /**
