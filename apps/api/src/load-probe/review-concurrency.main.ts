@@ -44,6 +44,7 @@ import compression from 'compression';
 import helmet from 'helmet';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../app.module';
+import { currentLegalDocument } from '../modules/legal/legal-documents';
 import {
   helmetOptions,
   JSON_BODY_LIMIT,
@@ -177,7 +178,13 @@ export async function createVerifiedSession(options: {
   await expectStatus(
     await apiCall(anonymous, '/v1/auth/register', {
       method: 'POST',
-      body: { email, password, displayName },
+      body: {
+        email,
+        password,
+        displayName,
+        termsVersion: currentLegalDocument('terms')!.version,
+        acceptedTerms: true,
+      },
     }),
     [202],
     `register ${email}`,

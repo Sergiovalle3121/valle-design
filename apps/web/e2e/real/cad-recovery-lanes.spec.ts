@@ -22,7 +22,7 @@
 
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { API_ORIGIN, BASE_URL } from "../fixtures/constants";
-import { E2E_PASSWORD, apiGet, apiPost, apiPut, csrfHeaders } from "../fixtures/first-party";
+import { E2E_PASSWORD, apiGet, apiPost, apiPut, csrfHeaders, currentRegistrationTerms } from "../fixtures/first-party";
 import { abrirPanelDerecho } from "../fixtures/docks";
 
 test.describe.configure({ mode: "serial" });
@@ -211,7 +211,7 @@ test.describe("recuperación local por carril contra PostgreSQL", () => {
 
     // Alta por el harness seguro: mismo camino que el recorrido comercial.
     const registered = await context.request.post(`${API_ORIGIN}/v1/auth/register`, {
-      data: { email, password: E2E_PASSWORD, displayName: "Valle Recovery" },
+      data: { email, password: E2E_PASSWORD, displayName: "Valle Recovery", ...(await currentRegistrationTerms(context.request)) },
     });
     expect(registered.status()).toBe(202);
     const message = await context.request.get(

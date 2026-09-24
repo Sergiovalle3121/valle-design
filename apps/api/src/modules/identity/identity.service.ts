@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Inject,
   Injectable,
   Logger,
@@ -33,6 +34,8 @@ import {
   verifyArgon2idPassword,
 } from './identity-security';
 import { IdentityMfaService } from './identity-mfa.service';
+import { currentLegalDocument } from '../legal/legal-documents';
+import { RegistrationLegalAcceptance } from './entities/registration-legal-acceptance.entity';
 import { exportPersonalData, type PersonalDataExport } from './identity-export';
 import {
   consumeRemainingTokensWithManager,
@@ -104,7 +107,21 @@ export class IdentityService {
     return verifyArgon2idPassword(hash, password);
   }
 
-  async register(email: string, password: string, displayName?: string) {
+  async register(
+    email: string,
+    password: string,
+    displayName: string | undefined,
+    termsVersion: string,
+  ) {
+    // La versión se valida antes de consultar el correo: una petición obsoleta
+    // recibe la misma respuesta para una dirección existente o nueva.
+    if (termsVersion !== currentLegalDocument('terms')?.version) {
+      throw new BadRequestException({
+        code: 'legal_document_outdated',
+        message:
+          'La versión de los términos cambió. Vuelve a cargar el registro.',
+      });
+    }
     const normalized = this.normalizeEmail(email);
     const existing = await this.users.findOneBy({ email: normalized });
 
@@ -125,6 +142,10 @@ export class IdentityService {
             displayName: displayName?.trim() || null,
           }),
         );
+        await manager.insert(RegistrationLegalAcceptance, {
+          userId: user.id,
+          termsVersion,
+        });
         await manager.save(
           Credential,
           manager.create(Credential, {

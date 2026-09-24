@@ -7,6 +7,7 @@ import {
 import { EmailOutbox } from '../commercial/entities/commercial.entities';
 import { PostgresEmailService } from '../commercial/adapters/postgres.adapters';
 import { Organization } from '../organizations/entities/organization.entity';
+import { currentLegalDocument } from '../legal/legal-documents';
 import {
   Credential,
   IdentityAuditEvent,
@@ -18,6 +19,9 @@ import {
 } from './entities/identity.entity';
 import { IdentityMfaService } from './identity-mfa.service';
 import { IdentityService } from './identity.service';
+import { RegistrationLegalAcceptance } from './entities/registration-legal-acceptance.entity';
+
+const TERMS_VERSION = currentLegalDocument('terms')!.version;
 
 describePostgres('Identity registration atomicity', () => {
   jest.setTimeout(60_000);
@@ -37,6 +41,7 @@ describePostgres('Identity registration atomicity', () => {
         IdentityBackupCode,
         Organization,
         EmailOutbox,
+        RegistrationLegalAcceptance,
       ],
       { schemaPrefix: 'identity_registration' },
     );
@@ -65,6 +70,97 @@ describePostgres('Identity registration atomicity', () => {
     await harness.truncateAll();
   });
 
+  it('persists who, current terms and server time in the registration transaction', async () => {
+    const email = 'legal.registration@example.test';
+    const before = Date.now();
+    await identity.register(
+      email,
+      'Correct-password-legal-2026!',
+      'Legal User',
+      TERMS_VERSION,
+    );
+
+    const user = await harness.dataSource
+      .getRepository(User)
+      .findOneByOrFail({ email });
+    const row = await harness.dataSource
+      .getRepository(RegistrationLegalAcceptance)
+      .findOneByOrFail({ userId: user.id });
+    expect(row.termsVersion).toBe(currentLegalDocument('terms')?.version);
+    expect(row.acceptedAt.getTime()).toBeGreaterThanOrEqual(before - 5_000);
+    expect(row.acceptedAt.getTime()).toBeLessThanOrEqual(Date.now() + 5_000);
+    await expect(
+      harness.dataSource.getRepository(RegistrationLegalAcceptance).count(),
+    ).resolves.toBe(1);
+  });
+
+  it('rejects stale terms equally for known and new emails without changing either account', async () => {
+    const known = 'known-legal@example.test';
+    await identity.register(
+      known,
+      'Correct-password-known-2026!',
+      'Known',
+      TERMS_VERSION,
+    );
+    const first = await harness.dataSource
+      .getRepository(User)
+      .findOneByOrFail({ email: known });
+    for (const email of [known, 'new-legal@example.test']) {
+      await expect(
+        identity.register(
+          email,
+          'Correct-password-known-2026!',
+          'Person',
+          '1999-01-01',
+        ),
+      ).rejects.toMatchObject({ status: 400 });
+    }
+    await expect(harness.dataSource.getRepository(User).count()).resolves.toBe(
+      1,
+    );
+    await expect(
+      harness.dataSource
+        .getRepository(RegistrationLegalAcceptance)
+        .countBy({ userId: first.id }),
+    ).resolves.toBe(1);
+  });
+
+  it('rolls back the legal record and account if email enqueue fails', async () => {
+    const failing = new IdentityService(
+      harness.dataSource,
+      harness.dataSource.getRepository(User),
+      harness.dataSource.getRepository(Credential),
+      harness.dataSource.getRepository(Session),
+      harness.dataSource.getRepository(OneTimeToken),
+      harness.dataSource.getRepository(IdentityAuditEvent),
+      new IdentityMfaService(
+        harness.dataSource,
+        harness.dataSource.getRepository(Credential),
+        harness.dataSource.getRepository(IdentityMfaFactor),
+        harness.dataSource.getRepository(IdentityBackupCode),
+      ),
+      {
+        enqueue: async () => {
+          throw new Error('synthetic email outage');
+        },
+      },
+    );
+    await expect(
+      failing.register(
+        'rollback-legal@example.test',
+        'Correct-password-rollback-2026!',
+        'Rollback',
+        TERMS_VERSION,
+      ),
+    ).rejects.toThrow('synthetic email outage');
+    await expect(harness.dataSource.getRepository(User).count()).resolves.toBe(
+      0,
+    );
+    await expect(
+      harness.dataSource.getRepository(RegistrationLegalAcceptance).count(),
+    ).resolves.toBe(0);
+  });
+
   it('returns the generic acceptance response to concurrent duplicate registrations', async () => {
     const email = 'concurrent.registration@example.test';
     const results = await Promise.all(
@@ -73,6 +169,7 @@ describePostgres('Identity registration atomicity', () => {
           index % 2 ? email.toUpperCase() : `  ${email}  `,
           `Correct-password-${index}-2026!`,
           `Attempt ${index}`,
+          TERMS_VERSION,
         ),
       ),
     );
@@ -106,6 +203,11 @@ describePostgres('Identity registration atomicity', () => {
         action: 'identity.registered',
       }),
     ).resolves.toBe(1);
+    await expect(
+      harness.dataSource
+        .getRepository(RegistrationLegalAcceptance)
+        .countBy({ userId: user.id }),
+    ).resolves.toBe(1);
   });
 
   it('serializes concurrent token rotation so only the newest reset token remains active', async () => {
@@ -114,6 +216,7 @@ describePostgres('Identity registration atomicity', () => {
       email,
       'Correct-password-reset-2026!',
       'Reset User',
+      TERMS_VERSION,
     );
     const user = await harness.dataSource
       .getRepository(User)
@@ -148,6 +251,7 @@ describePostgres('Identity registration atomicity', () => {
       email,
       'Correct-password-verify-2026!',
       'Verify User',
+      TERMS_VERSION,
     );
     const user = await harness.dataSource
       .getRepository(User)

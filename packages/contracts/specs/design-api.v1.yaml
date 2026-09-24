@@ -152,7 +152,7 @@ paths:
     post:
       operationId: registerIdentity
       tags: [identity]
-      summary: Registra una cuenta sin revelar si ya existia.
+      summary: Registra una cuenta con aceptación de términos sin revelar si ya existía.
       security: []
       requestBody:
         required: true
@@ -3146,13 +3146,22 @@ components:
     RegisterRequest:
       type: object
       additionalProperties: false
-      required: [email, password]
+      required: [email, password, termsVersion, acceptedTerms]
       properties:
         email: { $ref: "#/components/schemas/EmailAddress" }
         password: { $ref: "#/components/schemas/Password" }
         displayName:
           type: string
           maxLength: 160
+        termsVersion:
+          type: string
+          minLength: 1
+          maxLength: 40
+          description: Versión vigente de terms recibida de GET /v1/legal/documents.
+        acceptedTerms:
+          type: boolean
+          enum: [true]
+          description: Confirmación explícita del usuario; no acepta un valor implícito.
     OneTimeTokenRequest:
       type: object
       additionalProperties: false

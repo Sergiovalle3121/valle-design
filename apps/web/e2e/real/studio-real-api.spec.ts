@@ -17,6 +17,7 @@ import {
   capturedToken,
   csrfHeaders,
   latestCapturedEmail,
+  currentRegistrationTerms,
 } from "../fixtures/first-party";
 import {
   canonicalDocument,
@@ -545,6 +546,7 @@ test.describe("recorrido comercial CAD first-party contra PostgreSQL", () => {
           email: isolatedEmail,
           password: E2E_PASSWORD,
           displayName: "Valle E2E Isolated",
+          ...(await currentRegistrationTerms(isolatedContext.request)),
         },
       },
     );

@@ -34,7 +34,7 @@ import {
   type Page,
 } from "@playwright/test";
 import { API_ORIGIN, BASE_URL } from "../fixtures/constants";
-import { E2E_PASSWORD, apiGet, apiPost, apiPut } from "../fixtures/first-party";
+import { E2E_PASSWORD, apiGet, apiPost, apiPut, currentRegistrationTerms } from "../fixtures/first-party";
 import { abrirPanelDerecho } from "../fixtures/docks";
 
 test.describe.configure({ mode: "serial" });
@@ -290,7 +290,7 @@ test.describe("no se pierde trabajo: offline, dos pestañas y cierre forzado", (
     // Alta por el camino comercial real, igual que el resto de e2e/real.
     const registered = await context.request.post(
       `${API_ORIGIN}/v1/auth/register`,
-      { data: { email, password: E2E_PASSWORD, displayName: "Valle Offline" } },
+      { data: { email, password: E2E_PASSWORD, displayName: "Valle Offline", ...(await currentRegistrationTerms(context.request)) } },
     );
     expect(registered.status()).toBe(202);
     const message = await context.request.get(

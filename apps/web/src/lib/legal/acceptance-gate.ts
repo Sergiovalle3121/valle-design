@@ -3,19 +3,13 @@
  *
  * El API (`apps/api/src/modules/legal/`) ya versiona `terms` y `privacy` y
  * registra la aceptación server-owned (`legal-documents.ts`,
- * `legal.controller.ts`). Lo que falta —documentado explícitamente en el
- * comentario de `legal-documents.ts`— es el lado del web: ninguna pantalla
- * llama todavía a `GET /v1/legal/documents` ni a `POST /v1/legal/acceptances`,
- * así que hoy NADA impide abrir la compra sin haber aceptado nada.
+ * `legal.controller.ts`). El checkout consulta ambos endpoints y bloquea la
+ * compra hasta aceptar la versión vigente. El alta registra su aceptación
+ * inicial a nivel identidad, antes de que exista una organización.
  *
- * Este módulo es la mitad que SÍ se puede construir sin tocar la superficie
- * comercial (`apps/web/src/lib/commercial/`, `apps/web/src/app/precios/`):
- * la regla de qué cuenta como "aceptado". Deliberadamente NO hace fetch, no
- * importa el cliente HTTP y no se engancha en `CheckoutStarter.tsx` — esa
- * integración exige además sumar `/v1/legal/*` al contrato OpenAPI y
- * regenerar el SDK (`packages/contracts/specs/design-api.v1.yaml`,
- * `packages/design-sdk`), que son archivos delicados y ownership de la
- * superficie comercial. Ver el hueco documentado en el informe de campaña.
+ * Este módulo sólo expresa la regla pura de qué cuenta como "aceptado".
+ * `CheckoutStarter.tsx` se encarga de la red y del SDK; mantenerlos separados
+ * permite probar la compuerta sin sustituir el backend.
  */
 
 export type LegalDocumentId = "terms" | "privacy";

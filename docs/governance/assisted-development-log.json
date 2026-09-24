@@ -4193,50 +4193,6 @@
       "aiClaimsAuthorship": false
     },
     {
-      "id": "BORRADORES-LEGALES-ES-20260923",
-      "date": "2026-09-23",
-      "initiative": "Borradores públicos en español de privacidad y términos, enlazados desde alta, pago y pie, sin alterar los documentos versionados que registra y acepta la API.",
-      "branch": "codex/legal-es-drafts",
-      "assistants": [
-        "OpenAI Codex: auditoría de rutas, redacción de borradores, integración y pruebas"
-      ],
-      "authority": "Sergio pidió ejecutar la preparación para lanzar VALLECAD y, en el prompt vigente del 23-09-2026, la Fase G.4 exige borradores legales visibles para su revisión sin inventar datos del responsable.",
-      "firstPartyInputs": [
-        "apps/web/src/app/privacy/page.tsx, terms/page.tsx, AuthPage.tsx y CheckoutStarter.tsx",
-        "apps/api/src/modules/legal/legal-documents.ts y scripts/legal/check-legal-content.mjs",
-        "docs/legal/PLANTILLA_AVISO_PRIVACIDAD.md y PLANTILLA_TERMINOS_SERVICIO.md",
-        "Medición pública de /demo del 2026-09-23: robot estudiante 0/4, 31 controles y 74.5 % de pantalla libre a 1440 × 769; estas cifras de producto no cambian con las páginas legales"
-      ],
-      "externalSources": [
-        {
-          "location": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPDPPP.pdf",
-          "terms": "Ley federal pública de consulta",
-          "fact": "Arts. 14–16 y 27–31: elementos del aviso y ejercicio de derechos ARCO"
-        },
-        {
-          "location": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPC.pdf",
-          "terms": "Ley federal pública de consulta",
-          "fact": "Art. 76 BIS: información previa a transacciones electrónicas, cobros recurrentes y cancelación"
-        }
-      ],
-      "externalImplementationConsulted": "Ningún código ni redacción externos copiados; las leyes se consultaron para identificar campos y límites.",
-      "derivedAreas": [
-        "Nuevas rutas no indexables /privacidad y /terminos con aviso visible de borrador y campos pendientes",
-        "Enlaces en SiteFooter, AuthPage y CheckoutStarter sin cambiar la aceptación del API ni el hash de las rutas anteriores",
-        "Golden de navegación para rutas y enlaces; documentación de fuentes y decisiones pendientes"
-      ],
-      "fixtures": "Backend hermético de Playwright para alta y pago; ningún dato de cliente real.",
-      "dependenciesAdded": [],
-      "adoption": {
-        "required": true,
-        "status": "proposed",
-        "adopter": "Sergio Valle Zárate",
-        "evidence": "Goldens 197 y 235 en Chromium sobre compilación de producción con API simulada en localhost:4010: 3/3 PASS; /privacidad y /terminos accesibles, con marca de borrador y noindex, y enlaces de alta/pago que conservan las URLs versionadas vigentes. Typecheck 8/8, build web, ESLint focalizado, public-pages, sla-surface, check:legal, check:governance y diff check PASS en local. CI exact-SHA y despliegue quedan sujetos a PR. La fila legal de lanzamiento permanece pendiente hasta completar datos del responsable y obtener revisión humana."
-      },
-      "aiCoAuthorTrailers": false,
-      "aiClaimsAuthorship": false
-    },
-    {
       "id": "LANZAMIENTO-VARIABLES-BUILD-20260923",
       "date": "2026-09-23",
       "initiative": "Documentar las variables y cuentas del lanzamiento y asegurar que el modo comercial y la versión pública lleguen al build de Next.js mediante el Dockerfile de Railway, manteniendo el modo gratuito por defecto.",
@@ -4511,6 +4467,81 @@
         "status": "proposed",
         "adopter": "Sergio Valle Zárate",
         "evidence": "Golden 250 primero rojo por ausencia de rótulos y luego 2/2 verde en build productivo local; golden 234 1/1, spec nueva, typecheck y build web de 208 páginas PASS. check:cad completo con espejo DWG, design-system, ESLint focalizado y check:governance PASS. Sobre build combinado con #243 y #250, golden 228+250 4/4 y robot local 3/4: cuarto 7/8, huecos 4/4, cota 4/4; compartir 0/3 pendiente. #250 12/12 en producción y robot 1/4; CI y producción de esta PR aún no verificadas. No se declara lanzamiento comercial."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "ALTA-ACEPTACION-TERMINOS-20260923",
+      "date": "2026-09-23",
+      "initiative": "Exigir y registrar en el alta la aceptación explícita de la versión vigente de los Términos de Servicio, asociada al usuario y fechada por el servidor dentro de la transacción de creación de cuenta.",
+      "branch": "codex/signup-legal-acceptance",
+      "assistants": [
+        "OpenAI Codex: implementación local y pruebas PostgreSQL de aceptación al alta"
+      ],
+      "authority": "Sergio autorizó continuar la preparación de VALLECAD para salir al mercado; los textos legales siguen pendientes de revisión humana profesional.",
+      "firstPartyInputs": [
+        "AuthPage.tsx y RegisterRequest existentes, que mostraban casilla pero no transmitían ni persistían la versión aceptada",
+        "Registro versionado LEGAL_DOCUMENTS y tabla legal_acceptances existente, que requiere organización y por ello no sirve antes del primer tenant"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "Tabla histórica a nivel identidad sin organización ficticia y sin FK de borrado en cascada; sólo usuario, versión de términos y fecha de la base",
+        "POST /v1/auth/register rechaza confirmación ausente, versión obsoleta y campos falsificados; el servicio registra la fila en la misma transacción de usuario, credencial y outbox",
+        "Contrato OpenAPI, SDK generado y formulario envían confirmación literal y versión leída de GET /v1/legal/documents; el aviso de privacidad permanece informativo, no se registra como consentimiento"
+      ],
+      "fixtures": "PostgreSQL 16 local en esquema exclusivo de prueba; fallo sintético del encolador de correo para comprobar rollback; Chromium hermético contra build de producción para golden 197.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Prueba PostgreSQL roja por ausencia de constancia y luego 6/6 verde; cadena de migraciones PostgreSQL 2/2; HTTP focal 10/10, typecheck API/SDK/web, build web de producción (208 rutas), golden 197 Chromium 2/2 y contrato 110 operaciones PASS. CI del SHA exacto pendiente; esta entrada no afirma aprobación jurídica ni despliegue."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "BORRADORES-LEGALES-ES-20260923",
+      "date": "2026-09-23",
+      "initiative": "Borradores públicos en español de privacidad y términos, enlazados desde alta, pago y pie, sin alterar los documentos versionados que registra y acepta la API.",
+      "branch": "codex/legal-es-drafts",
+      "assistants": [
+        "OpenAI Codex: auditoría de rutas, redacción de borradores, integración y pruebas"
+      ],
+      "authority": "Sergio pidió ejecutar la preparación para lanzar VALLECAD y, en el prompt vigente del 23-09-2026, la Fase G.4 exige borradores legales visibles para su revisión sin inventar datos del responsable.",
+      "firstPartyInputs": [
+        "apps/web/src/app/privacy/page.tsx, terms/page.tsx, AuthPage.tsx y CheckoutStarter.tsx",
+        "apps/api/src/modules/legal/legal-documents.ts y scripts/legal/check-legal-content.mjs",
+        "docs/legal/PLANTILLA_AVISO_PRIVACIDAD.md y PLANTILLA_TERMINOS_SERVICIO.md",
+        "Medición pública de /demo del 2026-09-23: robot estudiante 0/4, 31 controles y 74.5 % de pantalla libre a 1440 × 769; estas cifras de producto no cambian con las páginas legales"
+      ],
+      "externalSources": [
+        {
+          "location": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPDPPP.pdf",
+          "terms": "Ley federal pública de consulta",
+          "fact": "Arts. 14–16 y 27–31: elementos del aviso y ejercicio de derechos ARCO"
+        },
+        {
+          "location": "https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPC.pdf",
+          "terms": "Ley federal pública de consulta",
+          "fact": "Art. 76 BIS: información previa a transacciones electrónicas, cobros recurrentes y cancelación"
+        }
+      ],
+      "externalImplementationConsulted": "Ningún código ni redacción externos copiados; las leyes se consultaron para identificar campos y límites.",
+      "derivedAreas": [
+        "Nuevas rutas no indexables /privacidad y /terminos con aviso visible de borrador y campos pendientes",
+        "Enlaces en SiteFooter, AuthPage y CheckoutStarter sin cambiar la aceptación del API ni el hash de las rutas anteriores",
+        "Golden de navegación para rutas y enlaces; documentación de fuentes y decisiones pendientes"
+      ],
+      "fixtures": "Backend hermético de Playwright para alta y pago; ningún dato de cliente real.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Goldens 197 y 235 en Chromium sobre compilación de producción con API simulada en localhost:4010: 3/3 PASS; /privacidad y /terminos accesibles, con marca de borrador y noindex, y enlaces de alta/pago que conservan las URLs versionadas vigentes. Typecheck 8/8, build web, ESLint focalizado, public-pages, sla-surface, check:legal, check:governance y diff check PASS en local. CI exact-SHA y despliegue quedan sujetos a PR. La fila legal de lanzamiento permanece pendiente hasta completar datos del responsable y obtener revisión humana."
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false

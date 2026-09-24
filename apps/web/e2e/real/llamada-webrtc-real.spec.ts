@@ -45,6 +45,7 @@ import {
   apiLogin,
   capturedToken,
   latestCapturedEmail,
+  currentRegistrationTerms,
 } from "../fixtures/first-party";
 
 test.describe.configure({ mode: "serial" });
@@ -90,7 +91,7 @@ async function registerAndVerify(
 ): Promise<void> {
   const register = await context.request.post(
     `${API_ORIGIN}/v1/auth/register`,
-    { data: { email, password: E2E_PASSWORD } },
+    { data: { email, password: E2E_PASSWORD, ...(await currentRegistrationTerms(context.request)) } },
   );
   expect(register.status(), await register.text()).toBe(202);
   const message = await latestCapturedEmail(context.request, email);

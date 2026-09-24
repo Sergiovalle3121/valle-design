@@ -5,6 +5,7 @@ import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
+import { currentLegalDocument } from '../legal/legal-documents';
 import { CadAuthGuard } from '../auth/guards/cad-auth.guard';
 import {
   Credential,
@@ -14,6 +15,7 @@ import {
   User,
 } from '../identity/entities/identity.entity';
 import { IdentityModule } from '../identity/identity.module';
+import { RegistrationLegalAcceptance } from '../identity/entities/registration-legal-acceptance.entity';
 import { CSRF_COOKIE } from '../identity/identity-security';
 import {
   Invitation,
@@ -160,6 +162,7 @@ describe('confirmUpgradeIntent HTTP (P0-A): retirado para cualquier principal de
             UsageLedger,
             DomainOutbox,
             EmailOutbox,
+            RegistrationLegalAcceptance,
             PaymentEvent,
             Invoice,
             TaxProfile,
@@ -223,7 +226,13 @@ describe('confirmUpgradeIntent HTTP (P0-A): retirado para cualquier principal de
     const server = app.getHttpServer();
     await request(server)
       .post('/v1/auth/register')
-      .send({ email, password: PASSWORD, displayName: email.split('@')[0] })
+      .send({
+        email,
+        password: PASSWORD,
+        displayName: email.split('@')[0],
+        termsVersion: currentLegalDocument('terms')!.version,
+        acceptedTerms: true,
+      })
       .expect(202);
     const verificationEmail = await latestEmail(email);
     await request(server)

@@ -7,6 +7,8 @@ import {
 } from '../../common/testing/postgres-harness';
 import { EmailOutbox } from '../commercial/entities/commercial.entities';
 import { PostgresEmailService } from '../commercial/adapters/postgres.adapters';
+import { currentLegalDocument } from '../legal/legal-documents';
+import { RegistrationLegalAcceptance } from './entities/registration-legal-acceptance.entity';
 import {
   Membership,
   Organization,
@@ -58,6 +60,7 @@ describePostgres(
           Organization,
           Membership,
           EmailOutbox,
+          RegistrationLegalAcceptance,
         ],
         { schemaPrefix: 'identity_export' },
       );
@@ -90,7 +93,12 @@ describePostgres(
     });
 
     async function cuentaConSesion() {
-      await identity.register(CORREO, CONTRASENA, 'Dibujante');
+      await identity.register(
+        CORREO,
+        CONTRASENA,
+        'Dibujante',
+        currentLegalDocument('terms')!.version,
+      );
       const usuario = await harness.dataSource
         .getRepository(User)
         .findOneByOrFail({ email: CORREO });

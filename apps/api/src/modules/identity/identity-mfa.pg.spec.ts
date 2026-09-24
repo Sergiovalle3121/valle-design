@@ -5,6 +5,8 @@ import {
 } from '../../common/testing/postgres-harness';
 import { EmailOutbox } from '../commercial/entities/commercial.entities';
 import { PostgresEmailService } from '../commercial/adapters/postgres.adapters';
+import { currentLegalDocument } from '../legal/legal-documents';
+import { RegistrationLegalAcceptance } from './entities/registration-legal-acceptance.entity';
 import { Organization } from '../organizations/entities/organization.entity';
 import {
   Credential,
@@ -57,6 +59,7 @@ describePostgres('segundo factor (PostgreSQL real)', () => {
         IdentityBackupCode,
         Organization,
         EmailOutbox,
+        RegistrationLegalAcceptance,
       ],
       { schemaPrefix: 'identity_mfa' },
     );
@@ -88,7 +91,12 @@ describePostgres('segundo factor (PostgreSQL real)', () => {
 
   /** Una cuenta verificada y lista para entrar. */
   async function cuenta(): Promise<User> {
-    await identity.register(CORREO, CONTRASENA, 'Dibujante');
+    await identity.register(
+      CORREO,
+      CONTRASENA,
+      'Dibujante',
+      currentLegalDocument('terms')!.version,
+    );
     const usuario = await harness.dataSource
       .getRepository(User)
       .findOneByOrFail({ email: CORREO });

@@ -51,7 +51,7 @@ enlazadas desde el pie, el alta y el pago, pero no cambian el texto vigente que
 la API pide aceptar. Campos y fuentes de la revisión:
 [`BORRADORES-LANZAMIENTO-2026-09-23.md`](BORRADORES-LANZAMIENTO-2026-09-23.md).
 
-## Registro de aceptación (mecanismo ya construido, falta conectarlo)
+## Registro de aceptación
 
 | Pieza | Estado | Dónde |
 | --- | --- | --- |
@@ -59,7 +59,7 @@ la API pide aceptar. Campos y fuentes de la revisión:
 | Regla pura "¿aceptó la versión vigente de términos?" (web) | Hecho | `apps/web/src/lib/legal/acceptance-gate.ts` |
 | `GET /v1/legal/documents` y `POST /v1/legal/acceptances` en el contrato OpenAPI + SDK generado | Hecho | `packages/contracts/specs/design-api.v1.yaml` (`/v1/legal/documents`, `/v1/legal/acceptances`) + `packages/design-sdk/src/generated/design-api.ts` |
 | El checkout (`/precios/checkout`) exige aceptación vigente antes de abrir el pago | Hecho | `apps/web/src/app/precios/checkout/CheckoutStarter.tsx`, `apps/web/src/lib/commercial/checkout.ts` |
-| El registro/primer acceso muestra términos con versión y pide aceptación | Hecho en parte (2026-09-06) | el checkout ya lo llama (`CheckoutStarter.tsx`) y el formulario de alta (`apps/web/src/components/AuthPage.tsx`) muestra la versión vigente de `GET /v1/legal/documents` y bloquea «Crear cuenta» hasta marcar la casilla (golden 197, petición F8-1); **falta** que el servidor exija y registre esa aceptación al registrarse (T-63d parte 2, frente F8) |
+| El alta exige y registra la aceptación de los términos vigentes | Hecho en código; despliegue y revisión jurídica pendientes | `AuthPage.tsx` envía la versión vista y confirmación explícita; `POST /v1/auth/register` exige la versión vigente y guarda usuario, versión y fecha del servidor en `identity_registration_legal_acceptances` dentro de la transacción del alta. La tabla es de identidad porque aún no hay organización. El aviso de privacidad se enlaza como información, sin registrarlo como consentimiento. |
 
 La fila del checkout es del frente comercial (Frente A) y de quien mantenga
 el contrato OpenAPI, no de configuración de producción — se documenta aquí

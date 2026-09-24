@@ -5,6 +5,8 @@ import {
 } from '../../common/testing/postgres-harness';
 import { EmailOutbox } from '../commercial/entities/commercial.entities';
 import { PostgresEmailService } from '../commercial/adapters/postgres.adapters';
+import { currentLegalDocument } from '../legal/legal-documents';
+import { RegistrationLegalAcceptance } from './entities/registration-legal-acceptance.entity';
 import { Organization } from '../organizations/entities/organization.entity';
 import {
   Credential,
@@ -51,6 +53,7 @@ describePostgres(
           IdentityBackupCode,
           Organization,
           EmailOutbox,
+          RegistrationLegalAcceptance,
         ],
         { schemaPrefix: 'identity_password_change' },
       );
@@ -82,7 +85,12 @@ describePostgres(
 
     /** Una cuenta verificada, con DOS sesiones abiertas (dos dispositivos). */
     async function cuentaConDosSesiones() {
-      await identity.register(CORREO, CONTRASENA, 'Dibujante');
+      await identity.register(
+        CORREO,
+        CONTRASENA,
+        'Dibujante',
+        currentLegalDocument('terms')!.version,
+      );
       const usuario = await harness.dataSource
         .getRepository(User)
         .findOneByOrFail({ email: CORREO });

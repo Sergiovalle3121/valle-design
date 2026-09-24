@@ -23,8 +23,10 @@
  * INTEGRACIÓN DEL WEB (2026-09-06): las páginas `/terms` y `/privacy` ya
  * muestran versión y fecha (`legalVersionLine`), el checkout de autoservicio
  * (`CheckoutStarter.tsx`) pide `GET /v1/legal/documents` + acceptances y
- * postea la versión exacta, y el alta (`AuthPage.tsx`) cubre la aceptación
- * inicial. El golden `197-auditoria-terminos-al-alta.spec.ts` lo vigila.
+ * postea la versión exacta. El alta (`AuthPage.tsx`) transmite la versión
+ * mostrada a `POST /v1/auth/register`, que la registra en una tabla de
+ * identidad antes de que exista organización; el golden 197 y la suite
+ * PostgreSQL de registro vigilan ambos lados.
  * Quien ya aceptara terms 2026-09-06 quedaría bloqueado en el checkout hasta
  * reaceptar; se publica ahora precisamente porque todavía no hay usuarios.
  * ─────────────────────────────────────────────────────────────────────────────
