@@ -4496,6 +4496,38 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "GATES-TEXTO-CAD-PRO-20260923",
+      "date": "2026-09-23",
+      "initiative": "Reforzar los gates existentes de texto visible y propiedades humanas, y retirar una frase interna del panel Pro sin cambiar datos ni exportaciones.",
+      "branch": "codex/text-gates-review",
+      "assistants": [
+        "OpenAI Codex: auditoría de cobertura, corrección mínima y pruebas de inyección"
+      ],
+      "authority": "Sergio pidió ejecutar el prompt de salida al mercado y vigilar la ausencia de jerga visible y claves crudas en Esencial; esta rama sólo revisa los gates ya creados en la Fase D.",
+      "firstPartyInputs": [
+        "visible-copy-gate.mjs y essential-properties-gate.mjs existentes en la rama de propiedades humanas",
+        "CadNativeSelectionHeading, CadHumanProperties, CadEssentialLegacyProperties y Layout3DEditor del repositorio",
+        "Medición roja de frases internas en el JSX visible del panel Pro"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "El gate de texto revisa plantillas JSX interpoladas y las frases curvas nativas y geometría canónica; CadNativeSelectionHeading retira esas frases de Pro y conserva el dato DXF y los identificadores.",
+        "El gate de propiedades detecta claves crudas como texto JSX, campos literales construidos como objetos y la ruta histórica de Esencial; conserva la excepción exacta color → Color por ser español común.",
+        "UX_COPY_GATES.md declara el alcance estático, la excepción diagnóstica y siete coincidencias adicionales que aún impiden afirmar cero jerga visible en todos los modos."
+      ],
+      "fixtures": "Copias en memoria de los componentes reales con jerga, field.key y tabla técnica inyectados; no contienen datos de cliente ni proveedor externo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "El gate de texto ampliado falló sobre la rama D1 por dos frases reales en CadNativeSelectionHeading y pasó tras retirarlas; la prueba además comprueba la inyección en el componente real. El gate de propiedades pasó con pruebas de inyección en la vista humana nativa y legada. Revisión de navegador, CI exact-SHA y producción pendientes; no se declara cumplida la meta global de cero jerga."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }

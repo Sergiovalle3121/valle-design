@@ -9,15 +9,12 @@ import { useCadUiMode } from "@/components/cad/shell/ui-mode-host";
  *
  * ── LAS DOS PALABRAS, Y POR QUÉ HACEN FALTA LAS DOS ─────────────────────────
  * Antes decía `CIRCLE`: el tipo crudo, en inglés, en un producto en español.
- * La ola de nombres humanos lo cambió por `CÍRCULO` y eso destapó lo que
- * faltaba en el otro extremo — este panel presume, literalmente debajo de esta
- * línea, de «geometría canónica … DXF sin aproximación persistida», y el tipo
- * DXF es el dato que sostiene esa promesa: es lo que el profesional encontrará
- * dentro del fichero, lo que nombra un manual y lo que escribe en una consulta.
+ * La ola de nombres humanos lo cambió por `CÍRCULO`. En Pro, el tipo DXF va
+ * al lado como dato técnico: es lo que el profesional encontrará en el archivo
+ * y lo que nombra un manual. La frase sobre el motor interno no ayuda a leer
+ * ni editar un objeto, así que no aparece en el panel.
  *
- * Así que se enseñan los dos, con jerarquía: el nombre en español manda y el
- * tipo canónico va al lado como etiqueta técnica. Es exactamente lo que hace la
- * paleta de propiedades de cualquier CAD localizado.
+ * El nombre en español manda y el tipo canónico queda como etiqueta técnica.
  *
  * ── POR QUÉ VIVE FUERA DEL MONOLITO ─────────────────────────────────────────
  * Porque `Layout3DEditor.tsx` sólo puede encoger y el gate lo dijo en el
@@ -35,7 +32,7 @@ export function CadNativeSelectionHeading({
   count: number;
 }) {
   // En Esencial la ficha humana de abajo ya dice «Muro 1» o «3 muros».
-  // Este encabezado explica el tipo DXF y los grips, y sólo ayuda en Pro.
+  // Este encabezado conserva el tipo DXF para quien lo necesita en Pro.
   const mode = useCadUiMode();
   if (mode === "esencial") return null;
   return (
@@ -43,7 +40,7 @@ export function CadNativeSelectionHeading({
       <div className="mb-1 flex items-center gap-2">
         <Spline className="h-4 w-4 text-primary-ink" />
         <span className="text-sm font-semibold">
-          {type ? cadTypeName(type).toUpperCase() : `${count} curvas nativas`}
+          {type ? cadTypeName(type).toUpperCase() : `${count} objetos seleccionados`}
         </span>
         {type ? (
           <span
@@ -53,10 +50,6 @@ export function CadNativeSelectionHeading({
             {type.toUpperCase()}
           </span>
         ) : null}
-      </div>
-      <div className="mb-3 type-micro text-muted-foreground dark:text-muted-foreground">
-        Geometría canónica · selección, grips, snaps y DXF sin aproximación
-        persistida.
       </div>
     </>
   );

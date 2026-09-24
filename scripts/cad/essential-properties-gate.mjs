@@ -1,4 +1,6 @@
-import ts from "typescript";
+import { createRequire } from "node:module";
+
+const ts = createRequire(import.meta.url)("typescript");
 
 function parse(source, file) {
   return ts.createSourceFile(
@@ -14,6 +16,21 @@ function parse(source, file) {
 export function rawPropertyLabels(source) {
   const ast = parse(source, "human-property-model.ts");
   const violations = [];
+  function inspect(key, label) {
+    if (!key || !label || !ts.isStringLiteral(key) || !ts.isStringLiteral(label)) return;
+    const human = label.text.trim();
+    // «Color» es la palabra normal para esta propiedad en español; el nombre
+    // interno coincide por accidente. No exime otra clave ni otra grafía.
+    if (key.text === "color" && human === "Color") return;
+    if (
+      human.toLowerCase() === key.text.toLowerCase() ||
+      /[*_]|[a-z][A-Z]/.test(human) ||
+      /^(?:start|end|host|layout|layer|thickness|height|width|vertices|radius|diameter|length|color|area|perimeter|angle)$/i.test(
+        human,
+      )
+    )
+      violations.push(`${key.text} → ${human}`);
+  }
   function visit(node) {
     if (
       ts.isCallExpression(node) &&
@@ -21,18 +38,13 @@ export function rawPropertyLabels(source) {
       node.arguments.length >= 2
     ) {
       const [key, label] = node.arguments;
-      if (ts.isStringLiteral(key) && ts.isStringLiteral(label)) {
-        const human = label.text.trim();
-        if (
-          human.toLowerCase() === key.text.toLowerCase() ||
-          /[*_]|[a-z][A-Z]/.test(human) ||
-          /^(?:start|end|host|layout|layer|thickness|height|width|vertices|radius|diameter|length|color|area|perimeter|angle)$/i.test(
-            human,
-          )
-        ) {
-          violations.push(`${key.text} → ${human}`);
-        }
-      }
+      inspect(key, label);
+    }
+    // La selección histórica crea campos como objetos, sin llamar a field().
+    if (ts.isObjectLiteralExpression(node)) {
+      const named = (name) => node.properties.find((property) =>
+        ts.isPropertyAssignment(property) && property.name.getText(ast) === name);
+      inspect(named("key")?.initializer, named("label")?.initializer);
     }
     ts.forEachChild(node, visit);
   }
@@ -47,12 +59,16 @@ export function essentialPropertyViewViolations(humanView, panel) {
   let foundLabel = false;
   function visit(node) {
     if (
+      ts.isJsxExpression(node) &&
+      node.expression?.getText(ast) === "field.key" &&
+      ts.isJsxElement(node.parent)
+    )
+      violations.push("la ficha pinta la clave cruda");
+    if (
       ts.isJsxElement(node) &&
       node.openingElement.tagName.getText(ast) === "dt"
     ) {
       const content = node.children.map((child) => child.getText(ast)).join("");
-      if (content.includes("field.key"))
-        violations.push("la ficha pinta la clave cruda");
       if (content.includes("field.label")) foundLabel = true;
     }
     ts.forEachChild(node, visit);
@@ -82,5 +98,39 @@ export function essentialPropertyViewViolations(humanView, panel) {
   if (!technical) violations.push("Pro perdió su tabla técnica");
   if (essentialReturn && technical && technical.pos < essentialReturn.end)
     violations.push("la tabla técnica se monta antes de salir de Esencial");
+  return violations;
+}
+
+/** La selección histórica de Esencial también debe usar la ficha humana. */
+export function legacyPropertyViewViolations(legacyView, editor) {
+  const violations = [];
+  const legacyAst = parse(legacyView, "CadEssentialLegacyProperties.tsx");
+  let humanView = false;
+  let technicalView = false;
+  function visitLegacy(node) {
+    if (ts.isJsxSelfClosingElement(node)) {
+      const tag = node.tagName.getText(legacyAst);
+      if (tag === "CadHumanProperties") humanView = true;
+      if (tag === "CadPropertiesPalette") technicalView = true;
+    }
+    ts.forEachChild(node, visitLegacy);
+  }
+  visitLegacy(legacyAst);
+  if (!humanView) violations.push("la selección histórica de Esencial no usa la ficha humana");
+  if (technicalView) violations.push("la selección histórica de Esencial monta la tabla técnica");
+
+  const editorAst = parse(editor, "Layout3DEditor.tsx");
+  let guardedMount = false;
+  function visitEditor(node) {
+    if (
+      ts.isConditionalExpression(node) &&
+      node.condition.getText(editorAst) === 'uiMode === "esencial"' &&
+      node.whenTrue.getText(editorAst).includes("<CadEssentialLegacyProperties")
+    )
+      guardedMount = true;
+    ts.forEachChild(node, visitEditor);
+  }
+  visitEditor(editorAst);
+  if (!guardedMount) violations.push("la ficha histórica no está limitada al modo Esencial");
   return violations;
 }

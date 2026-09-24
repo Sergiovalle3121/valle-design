@@ -1,7 +1,11 @@
-import ts from "typescript";
+import { createRequire } from "node:module";
 
-// Texto de diagnóstico permitido sólo dentro de CadDiagnosticsReadout, que
-// permanece fuera de la vista normal y del árbol de accesibilidad.
+const ts = createRequire(import.meta.url)("typescript");
+
+// Lista finita de fugas de implementación observadas. Este análisis estático
+// impide esas recaídas; no certifica por sí solo cero jerga en el navegador.
+// El diagnóstico permanece fuera de la vista normal y del árbol de
+// accesibilidad dentro de CadDiagnosticsReadout.
 const INTERNAL_COPY = [
   /\bTool:/i,
   /\bAPI en línea\b/i,
@@ -19,6 +23,10 @@ const INTERNAL_COPY = [
   /\bworkspace\b/i,
   /\bjournal\b/i,
   /\bworker\b/i,
+  // Son términos de implementación que la cabecera de selección llegó a
+  // enseñar incluso en Pro. El tipo DXF concreto sí es dato útil allí.
+  /\bgeometría canónica\b/i,
+  /\bcurvas nativas\b/i,
 ];
 
 /** Inspecciona texto JSX y rótulos literales; ignora comentarios e importaciones. */
@@ -53,6 +61,11 @@ export function visibleCopyViolations(source, file = "component.tsx") {
     }
     if (withinJsx && (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)))
       inspect(node.text, node);
+    if (withinJsx && ts.isTemplateExpression(node)) {
+      // `${count} curvas nativas` y `Viewport ${n}` son texto visible aunque
+      // sus números se calculen. No inspeccionar las expresiones interpoladas.
+      inspect([node.head.text, ...node.templateSpans.map((span) => span.literal.text)].join(" "), node);
+    }
     // Los rótulos que se calculan antes del JSX también forman parte de la UI.
     if (!withinJsx && ts.isStringLiteral(node) && /^(?:API en línea|demo-local|Release Sin validar)$/.test(node.text))
       inspect(node.text, node);
