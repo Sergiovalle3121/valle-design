@@ -4440,17 +4440,18 @@
       "aiClaimsAuthorship": false
     },
     {
-      "id": "QS-SECURITY-PATCH-20260924",
+      "id": "SUPPLY-CHAIN-QS-SBOM-20260924",
       "date": "2026-09-24",
-      "initiative": "Fijar qs en una versión corregida para eliminar dos avisos de denegación de servicio de las dependencias de producción.",
-      "branch": "codex/qs-security",
+      "initiative": "Fijar qs en versión corregida y hacer que el SBOM y la puerta de licencias cubran el árbol npm de producción realmente instalado.",
+      "branch": "codex/qs-sbom-coverage",
       "assistants": [
-        "OpenAI Codex: auditoría de dependencias, actualización mínima del lockfile y verificación"
+        "OpenAI Codex: auditoría de dependencias, actualización mínima de qs, cobertura del SBOM y verificación"
       ],
       "authority": "Sergio autorizó analizar y ejecutar lo adicional necesario para sacar VALLECAD al mercado, manteniendo cada cambio en una PR protegida.",
       "firstPartyInputs": [
-        "package.json y package-lock.json del main a7f09dc1",
-        "npm audit --omit=dev del 2026-09-24: un paquete moderado, qs 6.15.3"
+        "package.json y package-lock.json del main de la campaña, integrados sobre el squash #246 980054da",
+        "npm audit --omit=dev del 2026-09-24: un paquete moderado, qs 6.15.3",
+        "npm sbom --omit dev produjo 100 componentes y omitió Express, qs y Nest del árbol npm de producción instalado"
       ],
       "externalSources": [
         {
@@ -4466,15 +4467,17 @@
       ],
       "externalImplementationConsulted": false,
       "derivedAreas": [
-        "Override de qs 6.16.0 y actualización exclusiva de su entrada en package-lock.json"
+        "Override de qs 6.16.0 y actualización exclusiva de su entrada en package-lock.json",
+        "scripts/sbom/ normaliza referencias duplicadas del SBOM completo de npm y deriva el SBOM de producción desde npm ls --omit=dev --all, comparando además versiones y entradas runtime instaladas del lockfile",
+        "check:licenses comprueba cobertura antes de clasificar licencias; busboy y streamsearch se identifican MIT sólo con versión y hash de LICENSE; LGPL permanece en revisión legal"
       ],
-      "fixtures": "Sin corpus CAD, DXF o DWG modificado.",
+      "fixtures": "Árbol npm instalado con npm ci, SBOM CycloneDX, pruebas sintéticas de omisión, alias y paquete nativo opcional; sin corpus CAD, DXF o DWG modificado.",
       "dependenciesAdded": [],
       "adoption": {
         "required": true,
         "status": "proposed",
         "adopter": "Sergio Valle Zárate",
-        "evidence": "npm audit --omit=dev pasó de un paquete moderado a cero; CI, merge y verificación pública pendientes."
+        "evidence": "QS: npm audit --omit=dev pasó de un paquete moderado a cero; sobre la integración con main #246 el audit-level moderate reporta cero. SBOM anterior: 100 componentes y gate de licencias verde pese a Express y qs omitidos; nuevo check de cobertura rojo con ese artefacto. En integración: pruebas de selección del SBOM 6/6, gobierno 11/11 y diff check pasan sin node_modules. npm ci, SBOM/licencias con qs 6.16.0 instalado y tipos focales esperan espacio en C: tras el build paralelo; CI, merge y verificación pública pendientes. LGPL de Sharp exige revisión legal."
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false

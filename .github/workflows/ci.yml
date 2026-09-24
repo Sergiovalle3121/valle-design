@@ -360,7 +360,9 @@ jobs:
         run: npm run check:governance
 
       - name: Dependency licenses gate
-        run: npm run sbom && npm run check:licenses && npm run sbom:full
+        # `sbom` genera ambos artefactos (producción + completo) y normaliza
+        # los bom-ref duplicados que npm emite para alias/copias anidadas.
+        run: npm run sbom && npm run check:licenses
 
       # El SBOM ya está generado por el paso de arriba, que es el que BLOQUEA.
       # Antes existía un job `sbom` aparte que repetía checkout + setup + `npm

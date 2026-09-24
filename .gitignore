@@ -91,6 +91,7 @@ htmlcov/
 # invitaría a revisar un artefacto obsoleto como si fuera la verdad.
 sbom.cdx.json
 sbom.full.cdx.json
+sbom.full.raw.cdx.json
 
 # Sondas temporales de diagnóstico (zz-*): viven bajo e2e/ sólo porque
 # Playwright exige su testDir; no son producto y no deben correr en CI.

@@ -25,6 +25,7 @@
  *      exit 1 si hay licencias bloqueadas o desconocidas.
  */
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -130,6 +131,18 @@ const VERIFIED_LICENSES = {
     license: 'MIT',
     evidence: 'package.json licenses[0].type = MIT + archivo LICENSE',
   },
+  busboy: {
+    license: 'MIT',
+    version: '1.6.0',
+    licenseSha256: 'd06b5d27bbbbe22c36b1fd88406b1208876e2d37d795f5b8eaed951a459a3111',
+    evidence: 'busboy@1.6.0: package.json licenses[0].type = MIT + LICENSE SHA-256 fijado',
+  },
+  streamsearch: {
+    license: 'MIT',
+    version: '1.1.0',
+    licenseSha256: '7c28463b739e2e73a49bf127d0bda427f8c55f0b37365a044c3c3f254716118b',
+    evidence: 'streamsearch@1.1.0: package.json licenses[0].type = MIT + LICENSE SHA-256 fijado',
+  },
 };
 
 /**
@@ -209,7 +222,13 @@ for (const component of components) {
 
   if (expressions.length === 0) {
     const verified = VERIFIED_LICENSES[short];
-    if (verified) {
+    const componentPath = component.properties?.find((property) => property.name === 'cdx:npm:package:path')?.value;
+    const licensePath = componentPath ? join(REPO_ROOT, componentPath, 'LICENSE') : undefined;
+    const matchingFile = !verified?.licenseSha256 || (
+      licensePath && existsSync(licensePath) &&
+      createHash('sha256').update(readFileSync(licensePath)).digest('hex') === verified.licenseSha256
+    );
+    if (verified && (!verified.version || verified.version === component.version) && matchingFile) {
       buckets.allowed.push({
         name,
         license: `${verified.license} (verificado en disco: ${verified.evidence})`,
@@ -265,4 +284,8 @@ if (process.argv.includes('--json')) {
 }
 
 if (buckets.blocked.length || buckets.unknown.length) process.exit(1);
-console.log('\n✅ Todas las dependencias de producción usan licencias permitidas.');
+if (buckets.review.length) {
+  console.log('\nSin licencias bloqueadas o desconocidas; la revisión legal indicada sigue pendiente.');
+} else {
+  console.log('\nTodas las dependencias de producción tienen licencia permisiva identificada.');
+}
