@@ -29,7 +29,8 @@ async function startRoom(page: Page) {
     await page.waitForTimeout(250);
   }
   await page.keyboard.press("Enter");
-  const roomLabel = page.getByTestId("cad-room-area-overlay").getByText(/^Cuarto \d+$/).first().locator("..");
+  const roomLabel = page.getByTestId("cad-room-area-overlay").locator(":scope > div")
+    .filter({ has: page.getByText(/^Cuarto \d+$/) }).first();
   await expect(roomLabel.getByText(/^\d+[.,]\d{2} m²$/)).toBeVisible();
   const area = Number((await roomLabel.getByText(/^\d+[.,]\d{2} m²$/).textContent())!.replace(" m²", "").replace(",", "."));
   expect(area).toBeGreaterThanOrEqual(11.5);
