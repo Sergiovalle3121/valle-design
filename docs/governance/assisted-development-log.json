@@ -4440,6 +4440,46 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "QS-SECURITY-PATCH-20260924",
+      "date": "2026-09-24",
+      "initiative": "Fijar qs en una versión corregida para eliminar dos avisos de denegación de servicio de las dependencias de producción.",
+      "branch": "codex/qs-security",
+      "assistants": [
+        "OpenAI Codex: auditoría de dependencias, actualización mínima del lockfile y verificación"
+      ],
+      "authority": "Sergio autorizó analizar y ejecutar lo adicional necesario para sacar VALLECAD al mercado, manteniendo cada cambio en una PR protegida.",
+      "firstPartyInputs": [
+        "package.json y package-lock.json del main a7f09dc1",
+        "npm audit --omit=dev del 2026-09-24: un paquete moderado, qs 6.15.3"
+      ],
+      "externalSources": [
+        {
+          "location": "https://github.com/advisories/GHSA-x5fp-wj9c-mxmx",
+          "terms": "Aviso público de GitHub; sólo se usaron los rangos afectados y la versión corregida.",
+          "fact": "qs 6.15.3 está afectado por bypass de límite de arrays; 6.16.0 está corregido."
+        },
+        {
+          "location": "https://github.com/advisories/GHSA-4mjr-xmp4-gh2g",
+          "terms": "Aviso público de GitHub; sólo se usaron los rangos afectados y la versión corregida.",
+          "fact": "qs anterior a 6.16.0 está afectado por denegación de servicio."
+        }
+      ],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "Override de qs 6.16.0 y actualización exclusiva de su entrada en package-lock.json"
+      ],
+      "fixtures": "Sin corpus CAD, DXF o DWG modificado.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "npm audit --omit=dev pasó de un paquete moderado a cero; CI, merge y verificación pública pendientes."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "CONTEOS-COTA-LIENZO-20260923",
       "date": "2026-09-23",
       "initiative": "Mostrar conteos reales de puertas y ventanas y la longitud legible de cotas lineales en el plano Esencial para completar las tareas 2 y 3 del estudiante.",
