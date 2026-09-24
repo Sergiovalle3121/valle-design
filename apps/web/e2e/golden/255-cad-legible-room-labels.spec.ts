@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import sharp from "sharp";
 
 const ROOM_NAMES = [
   "SALA", "COMEDOR", "COCINA", "RECÁMARA PRINCIPAL", "RECÁMARA 2", "BAÑO",
@@ -29,7 +30,26 @@ test("Esencial muestra seis nombres y m² sin etiquetas montadas en el plano dem
     return null;
   });
   expect(overlap, "ningún nombre o área tapa el de otro cuarto").toBeNull();
-  await testInfo.attach("esencial-room-labels-1440.png", { body: await page.screenshot(), contentType: "image/png" });
+  // Los TEXT fuente amarillos viven en canvas/WebGL: un test sólo de DOM daría
+  // verde aunque siguieran asomando detrás de los seis badges.
+  const crop = await badges.evaluateAll((nodes) => {
+    const rects = nodes.map((node) => node.getBoundingClientRect());
+    const left = Math.max(0, Math.floor(Math.min(...rects.map((r) => r.left)) - 20));
+    const top = Math.max(0, Math.floor(Math.min(...rects.map((r) => r.top)) - 20));
+    return {
+      left, top,
+      width: Math.ceil(Math.max(...rects.map((r) => r.right)) + 20 - left,
+      height: Math.ceil(Math.max(...rects.map((r) => r.bottom)) + 20 - top,
+    };
+  });
+  const screenshot = await page.screenshot();
+  const { data, info } = await sharp(screenshot).extract(crop).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  let yellowTextPixels = 0;
+  for (let p = 0; p < data.length; p += info.channels) {
+    if (data[p] > 225 && data[p + 1] > 170 && data[p + 2] < 180) yellowTextPixels += 1;
+  }
+  expect(yellowTextPixels, "ningún TEXT amarillo original asoma detrás del badge único").toBeLessThan(40);
+  await testInfo.attach("esencial-room-labels-1440.png", { body: screenshot, contentType: "image/png" });
 });
 
 test("Pro conserva los rótulos del dibujo y sus badges de área", async ({ page }) => {
