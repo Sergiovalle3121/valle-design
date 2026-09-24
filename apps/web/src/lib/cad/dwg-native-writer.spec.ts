@@ -13,8 +13,12 @@
  *      archivo — un DWG vacío que dice ser tu plano es peor que un error.
  */
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readDwg } from "@valle-design/dwg-codec";
 import type { CadDocument } from "./cad-document";
+import { executeCadEntityCommandBatch } from "./entity-commands";
+import { cadRoomAreaLabels } from "./onboarding/room-area-labels";
+import { cadRoomNameCommands, cadRoomSpaceAnchor } from "./room-space";
 import {
   exportCadDocumentToDwg,
   preflightCadDwgExport,
@@ -749,3 +753,47 @@ console.log(
     "hoja, la ventana con sus dos rectángulos y la mirada invertida, y los " +
     "ajustes que no viajan declarados con su código",
 );
+
+// El ancla nominal se prueba aquí mientras el oráculo §8.2 mantiene cerrado el writer.
+{
+  const roomDocument = (entities: CadDocument["entities"]): CadDocument => ({ ...baseDocument(entities), meta: { version: 1, schema: 10, unit: "mm" },
+    layers: [{ id: "0", name: "0", color: "#fff", visible: true, locked: false }, { id: "MURO", name: "Muros", color: "#999", visible: true, locked: false }] });
+  const wall = (id: string, a: [number, number], b: [number, number]): Extract<CadDocument["entities"][number], { type: "wall" }> => ({ id, type: "wall", start: { x: a[0], y: a[1], z: 0 }, end: { x: b[0], y: b[1], z: 0 }, thickness: 200, height: 2400, layer: "MURO" });
+  const shell = (): CadDocument["entities"] => [wall("sur", [0, 0], [4000, 0]), wall("este", [4000, 0], [4000, 3000]), wall("norte", [4000, 3000], [0, 3000]), wall("oeste", [0, 3000], [0, 0])];
+  const drawing = roomDocument([{ id: "trazo", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 1000, y: 0, z: 0 }, layer: "0" }]);
+  const withAnchor = roomDocument([...drawing.entities, cadRoomSpaceAnchor("space-dwg", "Estudio", { x: 500, y: 100 })]);
+  assert.deepEqual(preflightCadDwgExport(withAnchor), preflightCadDwgExport(drawing), "el marcador nominal no figura como geometría ni pérdida DWG");
+  const withTemplate = roomDocument([...shell(), { id: "sala", type: "box", kind: "room", x: 100, y: 100, w: 3800, h: 2800, rotation: 0, layer: "0", shape: "rect", label: "Sala", tags: ["room", "use:living"] }]);
+  const renamedTemplate = executeCadEntityCommandBatch(withTemplate, cadRoomNameCommands(withTemplate, cadRoomAreaLabels(withTemplate)[0], "Biblioteca", "unused"), "room name").document;
+  const renamedTemplateAgain = executeCadEntityCommandBatch(renamedTemplate, cadRoomNameCommands(renamedTemplate, cadRoomAreaLabels(renamedTemplate)[0], "Biblioteca grande", "unused-again"), "room name again").document;
+  const templateDwg = exportCadDocumentToDwg(withTemplate, { betaFlagOn: true, gates: ORACLE_PASSED });
+  const renamedTemplateDwg = exportCadDocumentToDwg(renamedTemplateAgain, { betaFlagOn: true, gates: ORACLE_PASSED });
+  assert.equal(templateDwg.estado, "rechazado");
+  assert.equal(templateDwg.motivo, "sin_entidades_escribibles");
+  assert.deepEqual(renamedTemplateDwg, templateDwg, "una plantilla sin entidades DWG escribibles conserva exactamente su rechazo y preflight");
+  const dwgBefore = exportCadDocumentToDwg(drawing, { betaFlagOn: true, gates: ORACLE_PASSED });
+  const dwgAfter = exportCadDocumentToDwg(withAnchor, { betaFlagOn: true, gates: ORACLE_PASSED });
+  assert.ok(dwgBefore.estado !== "rechazado" && dwgAfter.estado !== "rechazado");
+  assert.deepEqual(dwgAfter.manifiestoDePerdidas, dwgBefore.manifiestoDePerdidas, "el marcador nominal no añade una pérdida DWG");
+  assert.deepEqual(dwgAfter.bytes, dwgBefore.bytes, "el nombre de espacio no cambia los bytes DWG geométricos");
+  const previousDocument: CadDocument = { ...roomDocument([drawing.entities[0], { id: "nota", type: "text", x: 300, y: 400, text: "Oficina", layer: "0" }]),
+    layers: [{ id: "0", name: "0", color: "#fff", visible: true, locked: false }] };
+  const previousWithAnchor: CadDocument = { ...previousDocument, entities: [...previousDocument.entities, cadRoomSpaceAnchor("space-parity", "Oficina", { x: 500, y: 100 })],
+    modelSpace: { entityIds: [...previousDocument.modelSpace.entityIds, "space-parity"] } };
+  const previousDwg = exportCadDocumentToDwg(previousDocument, { betaFlagOn: true, gates: ORACLE_PASSED });
+  const anchoredDwg = exportCadDocumentToDwg(previousWithAnchor, { betaFlagOn: true, gates: ORACLE_PASSED });
+  assert.ok(previousDwg.estado !== "rechazado" && anchoredDwg.estado !== "rechazado");
+  // Huella de origin/main anterior al cambio: protege documentos ya existentes.
+  assert.equal(createHash("sha256").update(previousDwg.bytes).digest("hex"), "146279c349cca8d624a2ad08af1e923a11a6318f17e551152dd479fc564b362a");
+  assert.deepEqual(anchoredDwg.bytes, previousDwg.bytes, "el ancla deja el DWG completo byte a byte idéntico");
+  assert.deepEqual(anchoredDwg.manifiestoDePerdidas, previousDwg.manifiestoDePerdidas);
+  assert.deepEqual(exportCadDocumentToDwg(previousWithAnchor, { betaFlagOn: false, gates: ORACLE_PASSED }),
+    exportCadDocumentToDwg(previousDocument, { betaFlagOn: false, gates: ORACLE_PASSED }), "la bandera de exportación cerrada y el rechazo son idénticos");
+  const withText = roomDocument([...shell(), { id: "text-name", type: "text", x: 2000, y: 1500, text: "Oficina", layer: "0" }]);
+  const renamedText = executeCadEntityCommandBatch(withText,
+    cadRoomNameCommands(withText, cadRoomAreaLabels(withText)[0], "Consultorio", "space-2"), "room name").document;
+  const withTextDwg = exportCadDocumentToDwg(withText, { betaFlagOn: true, gates: ORACLE_PASSED });
+  const renamedTextDwg = exportCadDocumentToDwg(renamedText, { betaFlagOn: true, gates: ORACLE_PASSED });
+  assert.ok(withTextDwg.estado !== "rechazado" && renamedTextDwg.estado !== "rechazado");
+  assert.deepEqual(renamedTextDwg.bytes, withTextDwg.bytes, "renombrar un cuarto con TEXT conserva todos los bytes DWG");
+}

@@ -51,7 +51,7 @@ test.describe("puerta legal del checkout", () => {
     expect(checkoutRequests).toHaveLength(0);
   });
 
-  test("tras aceptar la versión vigente, el checkout se abre normalmente", async ({
+  test("tras aceptar la versión vigente, el lanzamiento gratuito no abre el pago", async ({
     page,
     context,
   }) => {
@@ -78,35 +78,39 @@ test.describe("puerta legal del checkout", () => {
     await page.goto(CHECKOUT_URL);
     await page.getByTestId("accept-legal-terms").click();
 
-    // Ahora sí: la pantalla de medios de pago aparece, con la aceptación ya
-    // registrada contra la versión EXACTA que el registro versionado publica.
-    await expect(page.getByTestId("payment-methods")).toBeVisible();
+    // La aceptación se registra contra la versión exacta, pero el modo de
+    // lanzamiento gratuito no ofrece pasarela ni medios de pago.
+    await expect(page.getByRole("heading", {
+      name: "El pago aún no está disponible",
+    })).toBeVisible();
+    await expect(page.getByTestId("payment-methods")).toHaveCount(0);
+    await expect(page.getByTestId("continue-to-payment")).toHaveCount(0);
     expect(acceptanceRequests).toEqual([
       { document: "terms", version: LEGAL_PAGE_VERSIONS.terms.version },
     ]);
     expect(checkoutRequests).toHaveLength(0);
 
-    await page.getByTestId("continue-to-payment").click();
-    await expect
-      .poll(() => checkoutRequests.length, {
-        message: "el checkout debe abrir la sesión de pago tras aceptar",
-      })
-      .toBeGreaterThan(0);
+    expect(checkoutRequests).toHaveLength(0);
   });
 
-  test("una visita nueva con la aceptación ya registrada salta la puerta directo al pago", async ({
+  test("una visita nueva con aceptación registrada conserva el cierre del pago", async ({
     page,
     context,
   }) => {
     await loginAsStandaloneOwner(context);
     await page.goto(CHECKOUT_URL);
     await page.getByTestId("accept-legal-terms").click();
-    await expect(page.getByTestId("payment-methods")).toBeVisible();
+    await expect(page.getByRole("heading", {
+      name: "El pago aún no está disponible",
+    })).toBeVisible();
 
     // Recarga completa (visita nueva a la misma sesión): la aceptación ya
     // registrada no debe volver a pedirse.
     await page.reload();
-    await expect(page.getByTestId("payment-methods")).toBeVisible();
+    await expect(page.getByRole("heading", {
+      name: "El pago aún no está disponible",
+    })).toBeVisible();
+    await expect(page.getByTestId("payment-methods")).toHaveCount(0);
     await expect(
       page.getByRole("heading", {
         name: "Antes de continuar, acepta los términos",

@@ -9,6 +9,7 @@ import {
   publicActionClass,
 } from "../../docs/PublicPageShell";
 import { COMMERCIAL_LINKS } from "@/config/commercial";
+import { checkoutIsVisible } from "@/config/launch";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
 import { designClient } from "@/lib/cad/repositories/client";
 import { hasAcceptedCurrentTerms } from "@/lib/legal/acceptance-gate";
@@ -26,6 +27,8 @@ import {
   type PaymentMethod,
 } from "@/lib/commercial/checkout";
 import { TaxProfileForm } from "../../cuenta/facturacion/TaxProfileForm";
+import { fetchPublicCatalog } from "@/lib/commercial/public-catalog";
+import { checkoutQuote, type CheckoutQuote } from "@/lib/commercial/checkout-quote";
 
 type StarterState =
   /** Comprobando `GET /v1/legal/documents` + `/acceptances` (una vez). */
@@ -39,6 +42,11 @@ type StarterState =
   /** Faltan datos fiscales: se piden AQUÍ, antes de mandar a nadie a pagar. */
   | { status: "fiscal" }
   | { status: "problem"; problem: CheckoutProblem };
+
+type QuoteState =
+  | { status: "loading" }
+  | { status: "ready"; key: string; quote: CheckoutQuote }
+  | { status: "unavailable"; key: string };
 
 /**
  * Abre la compra del plan que viene en la URL.
@@ -67,9 +75,11 @@ export function CheckoutStarter() {
     };
     return parsePlanSelection((key) => values[key] ?? null);
   }, [plan, periodo, moneda, asientos]);
+  const selectionKey = JSON.stringify([plan, periodo, moneda, asientos]);
   const [state, setState] = useState<StarterState>({
     status: "checking-legal",
   });
+  const [quoteState, setQuoteState] = useState<QuoteState>({ status: "loading" });
   const [method, setMethod] = useState<PaymentMethod>("card");
   const opening = useRef(false);
   const legalChecked = useRef(false);
@@ -82,6 +92,30 @@ export function CheckoutStarter() {
     canOpenCheckout(auth.role);
 
   const methods = selection ? availablePaymentMethods(selection.currency) : [];
+
+  useEffect(() => {
+    if (!selection) return;
+    const controller = new AbortController();
+    const key = selectionKey;
+    void (async () => {
+      try {
+        const catalog = await fetchPublicCatalog({
+          currency: selection.currency,
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
+        const quote = checkoutQuote(catalog, selection);
+        setQuoteState(quote
+          ? { status: "ready", key, quote }
+          : { status: "unavailable", key });
+      } catch {
+        if (!controller.signal.aborted) {
+          setQuoteState({ status: "unavailable", key });
+        }
+      }
+    })();
+    return () => controller.abort();
+  }, [selection, selectionKey]);
 
   /**
    * PUERTA LEGAL: se corre UNA vez, en cuanto `ready` es cierto, y decide si
@@ -139,7 +173,8 @@ export function CheckoutStarter() {
    * un solo periodo, y esa diferencia tiene que elegirla él, no la URL.
    */
   const openCheckout = async () => {
-    if (!ready || !selection || opening.current) return;
+    if (!ready || !selection || !checkoutIsVisible() || opening.current ||
+      quoteState.status !== "ready" || quoteState.key !== selectionKey) return;
     // Defensa en profundidad: la pantalla de pago sólo se pinta tras la
     // puerta legal, pero `openCheckout` no confía en eso — se repite aquí.
     if (state.status === "checking-legal" || state.status === "legal") return;
@@ -364,20 +399,59 @@ export function CheckoutStarter() {
     );
   }
 
+  if (!checkoutIsVisible()) {
+    return (
+      <Shell title="El pago aún no está disponible">
+        <p role="status">
+          Puedes empezar gratis; todavía no cobramos en línea.
+        </p>
+        <Link className={publicActionClass} href={PRICING_PATH}>
+          Ver los planes
+        </Link>
+      </Shell>
+    );
+  }
+
+  if (quoteState.status === "loading" || quoteState.key !== selectionKey) {
+    return (
+      <Shell title="Comprobando el precio">
+        <p role="status">Leyendo el precio vigente del plan…</p>
+      </Shell>
+    );
+  }
+
+  if (quoteState.status === "unavailable") {
+    return (
+      <Shell title="No podemos confirmar el precio">
+        <p role="alert">
+          No encontramos un precio vigente para esta selección o el servicio no
+          respondió. Vuelve a elegir el plan antes de ir al pago.
+        </p>
+        <Link className={publicActionClass} href={PRICING_PATH}>
+          Ver los planes
+        </Link>
+      </Shell>
+    );
+  }
+
   return (
     <Shell title="¿Cómo prefieres pagar?">
       <p>
-        Contratas el plan <strong>{selection.planCode}</strong>
-        {selection.seats !== undefined ? (
-          <>
-            {" "}
-            con <strong>{selection.seats} asientos</strong>
-          </>
-        ) : (
-          ""
-        )}
-        . El importe lo fija el catálogo del producto y lo cobra el proveedor en
-        su propia página.
+        Contratas el plan <strong>{quoteState.quote.planName}</strong>
+        {quoteState.quote.perSeat
+          ? ` con ${quoteState.quote.seats} usuarios`
+          : ""}.
+      </p>
+      <p data-testid="checkout-quote" className="type-lead">
+        Precio de lista: <strong>{quoteState.quote.amount} {selection.currency}</strong> por{" "}
+        {quoteState.quote.periodLabel}.
+        {quoteState.quote.perSeat
+          ? ` ${quoteState.quote.unitAmount} por usuario × ${quoteState.quote.seats}.`
+          : ""}{" "}
+        {quoteState.quote.taxNote}.
+      </p>
+      <p className="type-small text-muted-foreground">
+        El proveedor confirmará el cargo final antes de que pagues.
       </p>
       <fieldset className="space-y-3" data-testid="payment-methods">
         <legend className="sr-only">Medio de pago</legend>
@@ -426,7 +500,7 @@ function Shell({
     <PublicPageShell
       eyebrow="Compra"
       title="Contratar"
-      intro="Esta pantalla sólo abre el pago; el importe lo fija el catálogo del producto y lo cobra el proveedor en su propia página."
+      intro="Revisa el precio de lista antes de ir al pago. El proveedor confirma el cargo final antes de cobrarte."
     >
       <PublicSection title={title}>{children}</PublicSection>
     </PublicPageShell>

@@ -194,6 +194,13 @@ export class CadCanvasTextAtlas {
     if (!this.canvas) return null;
     if (!this.textureValue) {
       this.textureValue = new THREE.CanvasTexture(this.canvas);
+      // El atlas guarda cada casilla en coordenadas del canvas 2D, con la V
+      // creciendo HACIA ABAJO (`text-atlas.ts`: v0 = y / size). Una
+      // CanvasTexture nace con `flipY = true`, que invierte la imagen al
+      // subirla y hace que v = 0 sea la fila de ABAJO: cada rótulo muestreaba
+      // su franja espejo, vacía, y el recorte alfa lo descartaba entero. Sin
+      // voltear, la V del atlas y la de la textura son la misma.
+      this.textureValue.flipY = false;
       this.textureValue.minFilter = THREE.LinearFilter;
       this.textureValue.magFilter = THREE.LinearFilter;
       this.textureValue.generateMipmaps = false;

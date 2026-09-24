@@ -29,6 +29,7 @@ import {
   type LayoutAssetInput,
   type LayoutStationPlacementInput,
 } from "./cad-document";
+import { isCadRoomSpaceAnchor } from "./room-space";
 
 export interface CadEditorPlacement {
   x: number;
@@ -206,7 +207,7 @@ export function cadDocumentToEditorSnapshot<L extends string = string>(
   };
 
   for (const e of doc.entities) {
-    if (e.type === "box") {
+    if (e.type === "box" && !isCadRoomSpaceAnchor(e)) {
       const asset: CadEditorAsset = {
         id: e.id,
         kind: e.kind,

@@ -108,8 +108,15 @@ test.describe('pantalla táctil', () => {
     await openDemo(page);
     const corners = await points(page);
     const before = await wallCount(page);
+    const roomName = page.getByTestId('cad-room-name-hitbox').first();
+    await expect(roomName).toHaveCSS('pointer-events', 'auto');
     await page.getByRole('button', { name: 'Muro', exact: true }).click();
-    for (const point of corners) await page.touchscreen.tap(point.x, point.y);
+    await expect(page.getByTestId('cad-essential-tool-wall')).toHaveAttribute('data-active', 'true');
+    await expect(roomName).toHaveCSS('pointer-events', 'none');
+    for (const point of corners) {
+      await page.touchscreen.tap(point.x, point.y);
+      await expect(page.getByTestId('cad-room-name-input')).toHaveCount(0);
+    }
     await page.keyboard.press('Enter');
     await expect.poll(() => wallCount(page)).toBe(before + 4);
   });

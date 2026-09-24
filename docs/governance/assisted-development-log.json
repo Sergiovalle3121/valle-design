@@ -4595,6 +4595,252 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "CUARTO-NOMBRE-ROTULO-INTEGRADO-20260924",
+      "date": "2026-09-24",
+      "initiative": "Persistir el nombre del cuarto cerrado y mostrarlo con sus m² en un solo rótulo legible en Esencial, sin cambiar los archivos exportados.",
+      "branch": "codex/room-label-naming-integrated",
+      "assistants": [
+        "OpenAI Codex: análisis de entidades de plantilla, conexión del nombre, pruebas de invariancia y golden de interacción",
+        "OpenAI Codex: integración de ramas, exclusiones de vista por cuarto cerrado y pruebas de invariancia"
+      ],
+      "authority": "Sergio encargó continuar ValleCAD desde el estado actual y llevar al mercado una edición de cuartos comprensible; el PROMPT MAESTRO del 2026-09-23 pide nombre editable en un espacio canónico existente y evidencia visible.",
+      "firstPartyInputs": [
+        "Las plantillas SALA/COMEDOR/COCINA persisten como box kind:room con el nombre en label; el cuadro BIM deriva las caras únicamente de muros canónicos.",
+        "La rama de área visible codex/room-area-overlay, golden 234 y las rutas existentes de comando, historial, guardado, DXF y DWG del repositorio.",
+        "El trasplante limpio de 77f6f66e sobre origin/main #253 conserva la primera pantalla y la lectura visible de cuartos, conteos de vanos y cotas.",
+        "origin/main 3d7d4ab7 con el protocolo de estudiantes, la rama codex/room-space-naming-main253 y la rama codex/legible-room-labels",
+        "El documento CAD, el cuadro BIM, los assets heredados y los golden locales del repositorio"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada ni consultada.",
+      "derivedAreas": [
+        "room-space.ts enlaza por punto interior una cara cerrada con el label de box kind:room; al renombrar crea o reutiliza una identidad nominal de huella cero con metadato explícito y prioridad BIM, conservada por la proyección del editor. El box de plantilla original y cualquier TEXT/MTEXT permanecen intactos para paridad de archivo.",
+        "entity-commands.ts actualiza el label del ancla mediante un lote canónico y preserva el orden previo de entidades en esta operación para no alterar bytes DXF/DWG; Deshacer/Rehacer y guardar/reabrir mantienen la identidad. El aplicador puro de pestañas pasó intacto a entity-command-paper-space.ts para respetar el presupuesto de 800 líneas.",
+        "bim-schedule.ts y room-area-labels.ts muestran el nombre persistido junto al área entre ejes derivada de los muros; al abrir el contorno desaparece el área y al cerrarlo reaparece el nombre.",
+        "Las rutas de geometría, validación, papel, DXF y DWG omiten exclusivamente el ancla sin huella; no se exporta ni se suma a cantidades BIM.",
+        "room-area-labels.ts expone un único ID estable textLabelId para ocultar el TEXT fuente en Esencial y mantener intacto el documento exportable.",
+        "essential-room-preview.ts excluye en Esencial sólo los sprites de box kind:room que caen dentro de una cara cerrada con badge de área; el mismo asset conserva etiqueta si se abre el recinto. Las exclusiones se memorizan por identidad del documento canónico.",
+        "scene-objects.ts crea los sprites de cuarto con identidad explícita y visibilidad correcta incluso cuando una selección reconstruye assets; Layout3DEditor.tsx reaplica la visibilidad al cambiar Esencial/Pro.",
+        "CadViewportMeasurements.tsx muestra nombre persistido y m² juntos en Esencial, conserva edición por doble clic y mantiene la política de área y rótulos de Pro. El box y TEXT originales no se alteran."
+      ],
+      "fixtures": "Documentos herméticos de muros rectangulares y cóncavos, box de plantilla, TEXT y LINE; el golden usa un backend simulado sin credenciales ni datos de clientes. Cuarto de plantilla y TEXT sobre el plano demo, con renombrado canónico; recinto abierto como control negativo. Room-space.spec conserva hashes y bytes DXF/DWG anteriores.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Room-space y BIM cubren renombrado, Deshacer/Rehacer, guardar/reabrir, mover y borrar muros, área derivada y exportación DXF/DWG byte idéntica en los casos probados. Essential-room-preview.spec fue roja antes y verde después; build Webpack 208 rutas y TypeScript PASS; golden 255 integrado Chromium 1/1 PASS con SALA + TEXT, doble clic a Recámara, Deshacer/Rehacer, guardar/reabrir, 12.00 m² y ausencia del rótulo fuente amarillo. Pro y archivos mantienen el texto original a propósito. La CI exacta y producción aún faltan; no se declara compatibilidad DWG general."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "REVISION-MOVIL-AREAS-MUROS-20260923",
+      "date": "2026-09-23",
+      "initiative": "Mostrar al invitado de un enlace de revisión móvil las superficies calculadas de un cuarto cerrado por muros canónicos visibles, distinguiendo área entre ejes y área útil. No duplicar una cifra TEXT/MTEXT existente ni suponer metros cuadrados si la unidad del documento falta o es desconocida.",
+      "branch": "codex/review-derived-areas",
+      "assistants": [
+        "OpenAI Codex: inspección del enlace invitado, implementación del rótulo derivado, pruebas de unidades y golden móvil"
+      ],
+      "authority": "Sergio encargó lanzar ValleCAD y mostrar los m² del cuarto en el enlace de revisión real; pidió continuar desde main y fusionar los avances verificados.",
+      "firstPartyInputs": [
+        "buildCadBimSchedule, CAD_MM_PER_UNIT, projectCadPlan y el punto interior del rótulo de área del editor presentes en el repositorio",
+        "Golden 56 del enlace invitado y geometría sintética de cuatro muros canónicos en 5 × 4 m"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada.",
+      "derivedAreas": [
+        "review-room-areas.ts deriva áreas del subconjunto de muros realmente proyectados al SVG, omite planos truncados y unidades desconocidas, y distingue área entre ejes de área útil.",
+        "ReviewPlanView.tsx presenta los valores sin cubrir las chinchetas de comentarios ni repetir una superficie TEXT/MTEXT autoral.",
+        "review-room-areas.spec.ts comprueba muros, anotaciones, recorte, unidades desconocidas y conversión de pies a m²; golden 56 comprueba 390 × 844 sin scroll horizontal."
+      ],
+      "fixtures": "Sólo documento sintético de cuatro muros en pruebas locales; no se incorporan DWG ajenos.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "En la rama inicial: specs web 782/782, check:cad, check:dwg, typecheck, lint y build web verdes; golden 56 Chromium sobre compilación de producción verde y sin scroll horizontal. Se repetirán gates sobre el SHA final tras integrar main; CI, despliegue y prueba con estudiante real siguen pendientes."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "CHECKOUT-PRECIO-VISIBLE-20260923",
+      "date": "2026-09-23",
+      "initiative": "Mostrar el precio vigente del catálogo y el total por asientos antes de abrir el proveedor de pago; impedir la compra cuando el catálogo no confirma plan, moneda, periodo o pasarela, y respetar el modo de lanzamiento gratuito.",
+      "branch": "codex/checkout-visible-price",
+      "assistants": [
+        "OpenAI Codex: auditoría de la pantalla de compra, cálculo de precio de lista, interfaz y pruebas"
+      ],
+      "authority": "Sergio Valle Zárate autorizó preparar e integrar ValleCAD para salida al mercado; el precio visible antes del pago resuelve una omisión comprobada en el checkout existente.",
+      "firstPartyInputs": [
+        "apps/web/src/app/precios/checkout/CheckoutStarter.tsx y catálogo público del repositorio",
+        "apps/web/src/lib/commercial/pricing.ts, checkout.ts y public-catalog.ts",
+        "Robot de primer minuto en producción sobre main 800a81e2: cuatro tareas fallidas, sin acreditar todavía lanzamiento"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada.",
+      "derivedAreas": [
+        "apps/web/src/lib/commercial/checkout-quote.ts: precio de lista y asientos derivados del catálogo público, con fallo cerrado",
+        "apps/web/src/app/precios/checkout/CheckoutStarter.tsx: precio, impuesto y desglose visibles antes de elegir medio de pago; ninguna apertura cuando el catálogo falla o el modo gratuito está activo",
+        "apps/web/src/lib/commercial/checkout-quote.spec.ts: casos de plan individual, mínimo y aumento de asientos, moneda, pasarela y selección inválida",
+        "apps/web/e2e/commercial/legal-acceptance-gate.spec.ts: aceptación legal exacta y cierre de pago en el modo gratuito actual, incluida una visita posterior"
+      ],
+      "fixtures": "Catálogo sintético en spec; sin credenciales ni cobros reales.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Prueba local del cálculo de precio, commercial-surface, typecheck web, ESLint sin errores y check:governance 11/11 PASS; build web 208 páginas y legal-acceptance-gate Chromium 3/3 PASS en modo gratuito. Falta CI sobre el SHA exacto; no se afirma haber realizado un cobro Stripe ni abierto el lanzamiento."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "BACKUP-PS51-CIFRADO-20260923",
+      "date": "2026-09-23",
+      "initiative": "Preparar respaldo cifrado portable y ejercicio de restauración aislada en PostgreSQL 16 local desde PowerShell 5.1, sin registrar credenciales ni declarar recuperación antes de medirla.",
+      "branch": "codex/backup-ps51",
+      "assistants": [
+        "OpenAI Codex: auditoría de scripts existentes, implementación del paquete cifrado y wrappers, pruebas sintéticas y documentación del bloqueo operativo"
+      ],
+      "authority": "Sergio pidió el respaldo/restauración para salida al mercado, con luz verde al trabajo en el repositorio; el encargo especifica work/respaldo.ps1, work/restaurar.ps1, PostgreSQL 16 local en 55432 y evidencia del ejercicio.",
+      "firstPartyInputs": [
+        "scripts/ops/backup.mjs, restore-verify.mjs, pg-tools.mjs y backup-cron.sh del repositorio",
+        "apps/api/scripts/bootstrap-smoke.js, comando de migraciones del API y docs/guides/backup-restore.md",
+        "Registro BACKUP-CONTRASENA-ARGV-20260923: bloqueo previo de postgres.exe por Device Guard"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna; se usaron primitivas criptográficas de node:crypto y APIs estándar de PowerShell.",
+      "derivedAreas": [
+        "scripts/ops/backup-envelope.mjs y .spec.mjs: paquete portable AES-256-GCM de cuatro artefactos, clave fuera de argv y pruebas de autenticación",
+        "scripts/ops/restore-local-checks.mjs y .spec.mjs: guard localhost:55432, migraciones y smoke en base temporal, sin salida que registre secretos",
+        "scripts/ops/restore-verify.mjs: opción --local-checks y fallo si no se elimina la base temporal",
+        "scripts/ops/pg-tools.mjs, pg-tools.spec.mjs y backup.mjs: SHA-256 del dump por bloques para evitar lectura completa en memoria",
+        "work/respaldo.ps1 y work/restaurar.ps1: wrappers PowerShell 5.1 de backup cifrado y ejercicio local",
+        "docs/guides/backup-restore.md y docs/operacion/RESTAURACION-2026-09-23.md: procedimiento y estado pendiente verificable"
+      ],
+      "fixtures": "Cuatro artefactos sintéticos y URLs de prueba sin secretos reales; no se accedió a Railway ni a una base productiva.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pruebas Node sintéticas y regresión de credenciales 9/9 PASS; análisis de sintaxis PowerShell 5.1 de ambos wrappers 0 errores; check:governance 11/11 PASS; git diff --check PASS; URL remota sintética rechazada por el wrapper antes de abrir PostgreSQL. PostgreSQL 16 real no estuvo disponible y el bloqueo Device Guard previo persiste como impedimento del ejercicio; no se afirma RTO, RPO ni restauración validada. CI sobre el SHA final pendiente."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "BACKUP-CRON-CIFRADO-20260923",
+      "date": "2026-09-23",
+      "initiative": "Cerrar la subida sin cifrar del cron Linux: producir el paquete portable .vbk, verificarlo localmente y comprobar los bytes remotos antes de eliminar el claro temporal, sin rotar copias históricas automáticamente.",
+      "branch": "codex/backup-cron-encrypted",
+      "assistants": [
+        "OpenAI Codex: auditoría del cron, prueba roja, implementación fail-closed, dobles de proceso y documentación operativa"
+      ],
+      "authority": "Sergio autorizó construir los respaldos para lanzar ValleCAD y pidió cifrar el cron Linux en una rama aislada, sin secretos en argv/log ni operaciones contra Railway o PostgreSQL productivo.",
+      "firstPartyInputs": [
+        "scripts/ops/backup-cron.sh, backup-envelope.mjs, backup.mjs y restore-verify.mjs del repositorio",
+        "Commit local 0357a456 de la fase BACKUP-PS51-CIFRADO-20260923, aún pendiente de integración",
+        "docs/guides/backup-restore.md y docs/onboarding/DESPLIEGUE-RAILWAY.md: instrucciones operativas anteriores"
+      ],
+      "externalSources": [
+        {
+          "location": "https://rclone.org/commands/rclone_copy/",
+          "terms": "Documentación pública oficial; consulta factual de flags, sin copiar código",
+          "fact": "rclone copy admite --immutable para no modificar objetos existentes"
+        },
+        {
+          "location": "https://rclone.org/commands/rclone_check/",
+          "terms": "Documentación pública oficial; consulta factual de flags, sin copiar código",
+          "fact": "rclone check --download compara bytes descargados; --one-way tolera archivos históricos adicionales"
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna implementación ajena; sólo la documentación oficial de las opciones de rclone.",
+      "derivedAreas": [
+        "scripts/ops/backup-cron.sh: preflight de clave y remoto, dump privado, verificación de restore y paquete, subida sólo cifrada, comprobación remota y conservación de paquetes locales previos",
+        "scripts/ops/backup-cron.spec.sh: dobles sintéticos y fallos forzados de clave, remoto, restore, autenticación, copia y comprobación",
+        "package.json y .github/workflows/ci.yml: gate bloqueante que ejecuta las specs Node de respaldo y los escenarios sintéticos del cron en Linux",
+        "docs/guides/backup-restore.md y docs/onboarding/DESPLIEGUE-RAILWAY.md: procedimiento cifrado y límites de validación productiva"
+      ],
+      "fixtures": "Cuatro artefactos sintéticos, clave de prueba no real y remoto local simulado; no se leyó ni escribió ninguna base ni bucket real.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "La prueba sintética inicial falló en el cron previo porque creaba ficheros sin clave; después, bash -n y nueve escenarios sintéticos pasan, incluidos rechazo de remoto con credenciales embebidas, fallo de restore, corrupción de .vbk, rclone copy/check y conservación de una copia anterior marcada aun con 40 días de edad. Node 11/11 y gobernanza 11/11 pasan. No se ha ejecutado PostgreSQL 16 ni rclone reales; el bloqueo Device Guard local sigue sin resolver y la restauración operativa está pendiente. CI del SHA exacto pendiente."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "TEXTO-LIENZO-VISIBLE-20260924",
+      "date": "2026-09-24",
+      "initiative": "Ningún TEXT, MTEXT, rótulo de cota ni etiqueta del pipeline por lotes se pintaba en el lienzo: el atlas escribe cada casilla con la V hacia abajo (v0 = y / size) y la CanvasTexture subía la imagen volteada (flipY = true), así que cada glifo muestreaba su franja espejo, vacía, y el recorte alfa lo descartaba. Al corregirlo aparecieron dos defectos que el primero escondía: los rótulos de capas apagadas se pintaban (comparten una malla) y cada TEXT salía dos veces, con la etiqueta amarilla de nota del editor legado encima, que además sobrevivía al borrado.",
+      "branch": "claude/keen-cannon-nvm7x7",
+      "assistants": [
+        "Claude Code (Anthropic): golden de píxeles, depuración con instrumentación temporal (no versionada) del atlas y la malla, corrección y verificación"
+      ],
+      "authority": "Sergio pidió el 2026-09-24 mejorar la experiencia de usuario de VALLECAD (la calificó de horrible) y aprobó un plan cuyo primer punto del rediseño es que el texto del plano se vea.",
+      "firstPartyInputs": [
+        "apps/web/public/product/estudio-dark.png: cotas sin número y sin nombres de cuarto en la captura de la portada",
+        "Medición local: con el MTEXT en capa visible o apagada el lienzo cambiaba 0 píxeles; el atlas tenía 5148 píxeles pintados en las filas 1-34 y la textura flipY = true"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/render/text-atlas-three.ts: flipY = false en la textura del atlas",
+        "apps/web/src/lib/cad/render/text-atlas.ts, pipeline.ts y scene.ts: cada petición de rótulo lleva la capa de su entidad y la escena descarta las de capas apagadas al reconstruir la malla de texto",
+        "apps/web/src/components/cad/editor/legacy-text-shadow-sync.ts y Layout3DEditor.tsx: con el pipeline por lotes la sombra legada de un TEXT canónico deja de dibujarse como etiqueta de nota (la sombra se conserva); el monolito no crece",
+        "apps/web/e2e/golden/256-cad-texto-se-ve.spec.ts y render/text-requests.spec.ts: regresión de píxeles y de capa"
+      ],
+      "fixtures": "Documento sintético propio: marco de 12 × 10 m y un MTEXT en capa visible o apagada.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Golden 256 rojo antes (0 píxeles) y verde después, y rojo otra vez al revertir sólo flipY; 22 specs del render, text-requests (43), 19 pruebas de goldens de texto (15, 46, 47, 48, 51, 57, 80, 85, 86, 98, 115-117, 232) y 24 de Esencial y primer uso (227-231, 233, 234, 250, 251, 34, 77-79, 99) en Chromium; typecheck web, check:cad y lint verdes. Firefox lo decide la CI."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "LIENZO-NEUTRO-20260924",
+      "date": "2026-09-24",
+      "initiative": "El estudio arrancaba con el lienzo azul marino (#0a0f1e) a 26° de tono del acento del cromo: lienzo y paneles se fundían en una mancha azul. Arranca ahora con el preset «Estudio» que ya existía (#202329, gris neutro); el azul sigue disponible como preset «Azul». Punto 4.1 del encargo de interfaz del 2026-09-21.",
+      "branch": "claude/keen-cannon-nvm7x7",
+      "assistants": [
+        "Claude Code (Anthropic): cambio del preset por defecto y de los valores de reserva, y verificación"
+      ],
+      "authority": "Sergio pidió el 2026-09-24 mejorar la experiencia de usuario de VALLECAD y aprobó el plan cuyo rediseño empieza por la primera impresión del estudio.",
+      "firstPartyInputs": [
+        "docs/execution/ENCARGO-INTERFAZ-20260921.md, tanda 4.1",
+        "components/cad/studio/editor-presentation.ts: preset «Estudio» existente"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "Layout3DEditor.tsx: tema inicial «studio» y fondo inicial de la escena desde THEMES (sin líneas nuevas)",
+        "render-style.ts (DEFAULT_BACKGROUND_COLOR), plan-fog.ts (reserva de niebla) y render-style.spec.ts: el fondo de fábrica es el del preset «Estudio»",
+        "editor-presentation.ts: el preset azul se rotula «Azul»"
+      ],
+      "fixtures": "Sin fixtures nuevos.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "render-style.spec (17), plan-fog.spec, check:contrast (92 pares, incluida la tinta del dibujo contra los presets), typecheck web y presupuesto del monolito (16 813 líneas, 118 useState) verdes; captura local de /demo en Esencial."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "DEMO-ENLACE-TEMPORAL-API-20260924",
       "date": "2026-09-24",
       "initiative": "Quien dibuja en /demo sin cuenta no tenía cómo mandar su plano a otra persona: la tarea «compartir a un celular» del robot estudiante fallaba siempre. Se agrega la API del enlace temporal de la demostración: una copia de sólo lectura, saneada y comprimida, que caduca a los 7 días, sin guardar IP, con techos por IP y tope global, pausable por variable, y que al crear cuenta se reclama como enlace de revisión del documento nuevo sin cambiar la URL que ya tiene el destinatario. La interfaz (botón «Compartir») llega en un PR aparte.",

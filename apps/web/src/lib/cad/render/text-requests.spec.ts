@@ -145,6 +145,14 @@ pipeline.setView(VIEW);
 pipeline.settle();
 const stats = pipeline.stats();
 ok(pipeline.visibleTextRequests().length === 9, `nueve rótulos visibles (medido antes: 1): ${pipeline.visibleTextRequests().length}`);
+// Cada rótulo lleva la capa de su entidad: los rótulos de todas las capas
+// comparten una malla, y la escena los descarta al apagar su capa con ella
+// (antes una nota de una capa apagada seguía en el plano).
+const capasDeRotulos = new Map(corpus.map((entity) => [entity.id, entity.layer]));
+ok(
+  pipeline.visibleTextRequests().every((request) => request.layer !== undefined && [...capasDeRotulos.values()].includes(request.layer)),
+  `cada petición de rótulo nombra la capa de su entidad: ${pipeline.visibleTextRequests().map((request) => request.layer).join(", ")}`,
+);
 ok(stats.glyphRequests === 11 + 11 + 7 + 11 + 17 + 4, `glifos pedidos = suma de longitudes: ${stats.glyphRequests}`);
 ok(stats.renderedEntities === 6, `las seis entidades cuentan como dibujadas: ${stats.renderedEntities}`);
 

@@ -178,6 +178,14 @@ export interface CadTextQuadRequest {
   color: number;
   /** Profundidad NDC del orden de dibujo, de `cadDrawOrderDepth`. */
   depth: number;
+  /**
+   * Capa de la entidad que emite el rótulo, la MISMA que lleva su lote de
+   * líneas (`style.layer`). Los rótulos comparten UNA malla para todas las
+   * capas, así que apagar una capa no puede ocultarlos malla a malla como a
+   * las líneas: la escena los descarta al reconstruir esa malla. Ausente = se
+   * dibuja siempre (un rótulo sin entidad propia).
+   */
+  layer?: string;
 }
 
 /**

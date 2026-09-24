@@ -34,6 +34,7 @@ import { wallAdapter } from "./wall-entity-adapter";
 import { openingAdapter } from "./opening-entity-adapter";
 import { sectionPlaneAdapter } from "./section-plane-adapter";
 import type { CadBoundaryPath } from "./hatch-associativity";
+import { isCadRoomSpaceAnchor } from "./room-space";
 
 export type CadNativeEntity = Extract<
   CadEntity,
@@ -342,6 +343,7 @@ export function cadEntityBoundaryPaths(
   entity: CadEntity,
   registry = CAD_ENTITY_REGISTRY,
 ): CadBoundaryPath[] {
+  if (isCadRoomSpaceAnchor(entity)) return [];
   if (entity.type === "box" || entity.type === "station")
     return [{ sourceId: entity.id, points: rectangularBoundary(entity), closed: true }];
   if (!registry.supports(entity)) return [];

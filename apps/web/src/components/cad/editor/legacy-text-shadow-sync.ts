@@ -1,4 +1,5 @@
 import type { MutableRefObject } from "react";
+import type { CadDocument } from "@/lib/cad/cad-document";
 import type { CadLayerAssignments } from "@/lib/cad/layers";
 import type { CadNativeEntity } from "@/lib/cad/entity-runtime";
 import type { Ann } from "../viewport/scene-objects";
@@ -69,4 +70,38 @@ export function mergeAnnotationLayers(
     const layer = entityLayers[id];
     if (layer?.trim()) restoredLayers[id] = layer;
   }
+}
+
+const nativeTextIdsByDocument = new WeakMap<CadDocument, ReadonlySet<string>>();
+
+/**
+ * ¿Esta nota del editor legado es un TEXT canónico que ya dibuja el pipeline
+ * por lotes?
+ *
+ * Con el pipeline por lotes encendido, el atlas pinta cada TEXT a su altura y
+ * con su giro, en el plano del dibujo. La sombra legada de ese mismo TEXT
+ * (`annotationsRef`) se pintaba ADEMÁS como una etiqueta de nota
+ * (`makeNoteLabel`): el rótulo salía dos veces, y la etiqueta —que no escala
+ * ni gira— se quedaba en pantalla aunque la entidad se borrase. La sombra se
+ * conserva (la necesitan el guardado y la paleta de capas); sólo se deja de
+ * DIBUJAR. Con el pipeline heredado (`?cadRenderPipeline=legacy`) no hay atlas
+ * y la etiqueta sigue siendo la única representación.
+ *
+ * El documento canónico es inmutable por versión, así que el conjunto de ids se
+ * calcula una vez por documento y no una vez por nota.
+ */
+export function legacyNoteDrawnByPipeline(
+  id: string,
+  pipelineActive: boolean,
+  document: CadDocument | null,
+): boolean {
+  if (!pipelineActive || !document) return false;
+  let ids = nativeTextIdsByDocument.get(document);
+  if (!ids) {
+    ids = new Set(
+      document.entities.filter((entity) => entity.type === "text").map((entity) => entity.id),
+    );
+    nativeTextIdsByDocument.set(document, ids);
+  }
+  return ids.has(id);
 }

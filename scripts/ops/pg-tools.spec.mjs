@@ -1,16 +1,38 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve, sep } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
   pgConnectionWithoutPassword,
   redactUrl,
   runPg,
+  sha256File,
   withDatabase,
 } from './pg-tools.mjs';
 
 const password = 'mock:password+only';
 const url = `postgresql://backup:${encodeURIComponent(password)}@127.0.0.1:55432/valle_test?sslmode=require`;
+
+test('el SHA-256 del dump se calcula por bloques sin cargarlo entero', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'valle-pg-hash-test-'));
+  const path = join(directory, 'synthetic.dump');
+  try {
+    const bytes = Buffer.alloc(200_000);
+    for (let index = 0; index < bytes.length; index += 1) bytes[index] = index % 251;
+    writeFileSync(path, bytes);
+    assert.equal(
+      sha256File(path),
+      createHash('sha256').update(bytes).digest('hex'),
+    );
+  } finally {
+    assert.ok(resolve(directory).startsWith(resolve(tmpdir()) + sep));
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
 
 test('pg_dump y pg_restore reciben URI sin contraseña; PGPASSWORD conserva la conexión', () => {
   const capture =
@@ -40,6 +62,29 @@ test('pg_dump y pg_restore reciben URI sin contraseña; PGPASSWORD conserva la c
   assert.ok(
     !JSON.stringify(restored.argv).includes(encodeURIComponent(password)),
   );
+});
+
+test('los clientes PostgreSQL no heredan la clave del paquete cifrado', () => {
+  const before = process.env.BACKUP_ENCRYPTION_PASSPHRASE;
+  const beforeDatabase = process.env.DATABASE_URL;
+  const beforePgPassword = process.env.PGPASSWORD;
+  try {
+    process.env.BACKUP_ENCRYPTION_PASSPHRASE = 'frase-sintetica-para-prueba-123';
+    process.env.DATABASE_URL = 'postgresql://synthetic:secret@remote.invalid:5432/db';
+    process.env.PGPASSWORD = 'contraseña-ajena';
+    const capture = 'process.stdout.write(JSON.stringify({key:process.env.BACKUP_ENCRYPTION_PASSPHRASE,url:process.env.DATABASE_URL,password:process.env.PGPASSWORD}))';
+    const result = runPg(process.execPath, ['-e', capture], { url });
+    assert.deepEqual(JSON.parse(result.stdout), { password });
+    const offline = runPg(process.execPath, ['-e', capture]);
+    assert.deepEqual(JSON.parse(offline.stdout), {});
+  } finally {
+    if (before === undefined) delete process.env.BACKUP_ENCRYPTION_PASSPHRASE;
+    else process.env.BACKUP_ENCRYPTION_PASSPHRASE = before;
+    if (beforeDatabase === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = beforeDatabase;
+    if (beforePgPassword === undefined) delete process.env.PGPASSWORD;
+    else process.env.PGPASSWORD = beforePgPassword;
+  }
 });
 
 test('la contraseña en query tampoco llega a argv ni al origen del manifiesto', () => {
@@ -83,5 +128,38 @@ test('backup y restore rechazan --url antes de abrir PostgreSQL', () => {
     assert.ok(
       !(result.stdout + result.stderr).includes(encodeURIComponent(password)),
     );
+  }
+});
+
+test('backup rechaza nombres de salida y esquemas que no puede inventariar antes de abrir PostgreSQL', () => {
+  const script = fileURLToPath(new URL('backup.mjs', import.meta.url));
+  const env = { ...process.env, DATABASE_URL: 'postgresql://synthetic:fake@127.0.0.1:55432/test' };
+  for (const [args, message] of [
+    [['--name', '../existing'], /Nombre de respaldo inválido/u],
+    [['--schema', 'public,other'], /sólo admite --schema=public/u],
+  ]) {
+    const result = spawnSync(process.execPath, [script, ...args], { encoding: 'utf8', env });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, message);
+    assert.ok(!result.stderr.includes('synthetic:fake'));
+  }
+});
+
+test('backup no reemplaza un dump existente con el mismo nombre', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'valle-backup-collision-test-'));
+  const script = fileURLToPath(new URL('backup.mjs', import.meta.url));
+  const existing = join(directory, 'valle-design-existing.dump');
+  try {
+    writeFileSync(existing, 'copia anterior que debe permanecer');
+    const result = spawnSync(process.execPath, [script, '--out', directory, '--name', 'valle-design-existing'], {
+      encoding: 'utf8',
+      env: { ...process.env, DATABASE_URL: 'postgresql://synthetic:fake@127.0.0.1:55432/test' },
+    });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /no se sobrescribe/u);
+    assert.equal(readFileSync(existing, 'utf8'), 'copia anterior que debe permanecer');
+  } finally {
+    assert.ok(resolve(directory).startsWith(resolve(tmpdir()) + sep));
+    rmSync(directory, { recursive: true, force: true });
   }
 });

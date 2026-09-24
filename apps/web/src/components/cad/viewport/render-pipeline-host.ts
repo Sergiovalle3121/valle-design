@@ -382,14 +382,26 @@ export class CadViewportRenderHost {
     affectedEntityIds: readonly string[],
     upserts: readonly CadNativeEntity[] = [],
     document?: CadDocument,
+    excluded?: ReadonlySet<string>,
   ): void {
     if (this.disposed) return;
+    if (excluded && !this.exclusionsMatch(excluded)) {
+      const source = document ?? this.document;
+      if (source) this.replace(source, { excludeEntityIds: excluded });
+      return;
+    }
     if (document) this.document = document;
     if (affectedEntityIds.length === 0) return;
-    this.scene.invalidate(affectedEntityIds, upserts, document);
+    this.scene.invalidate(affectedEntityIds, upserts.filter((entity) => !this.lastExcluded?.has(entity.id)), document);
     this.images.invalidate(affectedEntityIds, upserts, document);
     this.dirty = true;
     this.editPublishPending = true;
+  }
+
+  exclusionsMatch(excluded: ReadonlySet<string>): boolean {
+    const current = this.lastExcluded;
+    if ((current?.size ?? 0) !== excluded.size) return false;
+    return [...excluded].every((id) => current?.has(id));
   }
 
   /**

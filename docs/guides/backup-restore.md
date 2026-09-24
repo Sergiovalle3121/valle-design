@@ -1,5 +1,48 @@
 # Backup y restore
 
+## Windows: paquete cifrado portable y ejercicio local (preparado, no validado con PostgreSQL)
+
+`work/respaldo.ps1` usa los clientes de PostgreSQL 16 indicados por `PG_BIN`, crea
+un dump y un inventario en un directorio temporal y cifra los cuatro artefactos
+en un único `.vbk` con AES-256-GCM y clave derivada con scrypt. Escribe al lado
+un `.vbk.sha256`. La clave debe ser una frase aleatoria fuerte de al menos 20
+caracteres, guardada fuera del repositorio y de la máquina que almacena el
+backup; el formato se puede descifrar en otro equipo con esa misma frase. No
+usa DPAPI. Ni `DATABASE_URL` ni `BACKUP_ENCRYPTION_PASSPHRASE` van en argumentos
+de procesos. Inyéctalas en el entorno mediante un gestor de secretos; no las
+pegues en la consola, en scripts versionados ni en el historial de PowerShell.
+El cálculo SHA-256 del dump se hace por bloques para no cargar la base completa
+en memoria.
+
+```powershell
+$env:PG_BIN = 'C:\ruta\postgresql-16\bin'
+.\work\respaldo.ps1 -OutDir 'C:\ruta\segura\backups'
+.\work\restaurar.ps1 -Archivo 'C:\ruta\segura\backups\valle-design-<sello>.vbk'
+```
+
+El segundo comando exige `DATABASE_URL` de **PostgreSQL 16 local, puerto 55432**,
+sin parámetros de conexión en la URL. Comprueba el SHA-256 del archivo cifrado,
+lo autentica, restaura en una base `valle_restore_verify_*` recién creada,
+compara integridad, tablas, migraciones y conteos, ejecuta las migraciones y un
+smoke de arranque de la API con el dispatcher deshabilitado, y borra la base
+temporal. Las migraciones sólo pueden escribir en esa base temporal; el script
+no restaura sobre la base indicada en `DATABASE_URL`. La API se compila antes
+de iniciar el ejercicio. El `.vbk` y su SHA deben moverse juntos; el archivo
+cifrado nunca debe ir al mismo único disco que la base. Durante el ejercicio
+existen archivos descifrados en el directorio temporal del sistema; usa un
+volumen local protegido y elimina esos temporales al terminar.
+
+La prueba criptográfica sintética y la sintaxis PowerShell pasan en el entorno
+de desarrollo, pero **todavía no hay ejercicio real de PostgreSQL 16 con este
+wrapper**. El registro de [restauración del 2026-09-23](../operacion/RESTAURACION-2026-09-23.md)
+mantiene la fila en rojo hasta medir SHA, tamaño, tiempo y comprobaciones sobre
+un backup real. En esta laptop el arranque de `postgres.exe` fue bloqueado por
+Device Guard; no se debe inferir éxito de restauración de las pruebas sintéticas.
+El cron Linux descrito más abajo usa el mismo formato `.vbk`. El script y sus
+dobles sintéticos están probados; **no existe aún una corrida documentada con
+PostgreSQL 16 y un remoto rclone reales**. El ejercicio operativo sigue
+pendiente antes de prometer RPO/RTO o recuperación en producción.
+
 ## Procedimiento PROBADO (empieza por aquí)
 
 Dos scripts. El primero produce un backup; **el segundo es el que lo convierte
@@ -7,7 +50,7 @@ en un backup**, porque un archivo que nunca se restauró no lo es.
 
 ```bash
 export PG_BIN=/usr/lib/postgresql/16/bin      # o D:/dev/pg16/pgsql/bin
-export DATABASE_URL=postgres://usuario:clave@host:5432/valle_design
+# DATABASE_URL se inyecta desde un gestor de secretos; no se pega en el historial.
 
 # 1 · Crear el backup + su inventario verificable
 node scripts/ops/backup.mjs --out backups/
@@ -32,9 +75,13 @@ hacen la diferencia:
 | `<nombre>.contents` | `pg_restore --list`: el índice de objetos |
 | `<nombre>.manifest.json` | **recuentos por tabla**, migración más reciente, versión del servidor e instante UTC |
 
-Sin el manifiesto no se puede responder la única pregunta que importa el día
-del incidente: *¿lo que restauré es lo que había?* `pg_restore` puede terminar
-en 0 habiendo omitido objetos, y una restauración parcial **parece exitosa**.
+Sin el manifiesto no se pueden comparar los recuentos previos con la base
+restaurada. Este inventario se consulta antes de `pg_dump` en transacciones
+separadas: **no comparte el snapshot MVCC del dump**. Escrituras concurrentes
+pueden producir diferencias aunque el dump sea íntegro, y conteos iguales no
+prueban identidad de cada fila. El ejercicio con una base quieta sí puede
+detectar ausencias, pero aún falta una prueba con snapshot compartido antes de
+usar los conteos como garantía de recuperación en producción.
 
 `restore-verify.mjs` comprueba, en este orden, y **borra siempre la base
 temporal**, también si falla:
@@ -47,8 +94,8 @@ temporal**, también si falla:
 4. **cadena de migraciones** — mismo recuento y misma última migración que el
    origen: un esquema restaurado en otro punto no es compatible con el binario
    que se va a desplegar;
-5. **recuentos fila a fila** contra el manifiesto — es la única comprobación
-   que detecta una restauración parcial silenciosa.
+5. **conteos por tabla** contra el manifiesto — detectan diferencias numéricas;
+   no comparan filas individuales ni prueban igualdad de contenido.
 
 ### Salida real de un ejercicio (2026-08-15, PostgreSQL 16.9)
 
@@ -89,26 +136,41 @@ deja bases huérfanas llenando el disco del servidor.
 ### Programarlo: el cron del VPS
 
 Los dos scripts sólo cuentan si alguien los ejecuta cada noche.
-`scripts/ops/backup-cron.sh` encadena la pasada completa — backup →
-`restore-verify` (si no imprime «BACKUP VALIDADO», el script muere y el cron
-avisa) → subida opcional a R2/S3 vía `rclone` → rotación local — y falla
-ruidoso en cualquier paso. La línea exacta:
+`scripts/ops/backup-cron.sh` exige `DATABASE_URL`, una frase
+`BACKUP_ENCRYPTION_PASSPHRASE` de al menos 20 caracteres y un remoto rclone
+nombrado en `RCLONE_REMOTE` **antes de crear el dump**. Estas variables se
+inyectan desde un gestor de secretos al entorno del servicio; no se colocan en
+la línea de cron ni en argumentos o logs. La pasada crea el dump en un
+directorio privado `.pending-*`, restaura en una base temporal, cifra los cuatro
+artefactos en `.vbk`, autentica y compara la extracción local, y sube sólo el
+`.vbk` y su `.vbk.sha256`. `rclone check --download --one-way` compara los bytes
+remotos antes de borrar el claro temporal. No borra paquetes cifrados locales
+antiguos: la marca `.vbk.uploaded` registra una comprobación de subida pasada,
+pero no demuestra que el remoto todavía conserve el objeto. La política de
+retención y cualquier borrado requieren un procedimiento operativo separado,
+con verificación actual del remoto y una restauración ensayada.
+Un fallo antes de confirmar la subida deja los respaldos previos y el
+`.pending-*` de la pasada para diagnóstico; **el pendiente contiene datos
+claros y requiere almacenamiento
+protegido, control de acceso y resolución manual**. El cron nunca borra dumps
+antiguos en claro automáticamente. Un ejemplo de horario, con las variables
+secretas suministradas al servicio por separado:
 
 ```cron
 MAILTO=tu-correo@dominio.mx
-# Variable del crontab, no argumento del comando:
-DATABASE_URL=postgres://...
-15 3 * * * RCLONE_REMOTE=r2:valle-backups /srv/valle/repo/scripts/ops/backup-cron.sh >> /var/log/valle-backup.log 2>&1
+15 3 * * * /srv/valle/repo/scripts/ops/backup-cron.sh >> /var/log/valle-backup.log 2>&1
 ```
 
 Requisitos del host: Node 20+, cliente PostgreSQL 16 (`PG_BIN` si no está en
-PATH), el repo (o `scripts/ops/`) en `/srv/valle/repo`, y `rclone config`
-hecho si se define `RCLONE_REMOTE`. Sin `RCLONE_REMOTE` el script avisa: un
-backup en el mismo disco que la base muere con ella. Variables:
-`BACKUP_DIR` (default `/srv/valle/backups`) y `BACKUP_RETENTION_DAYS`
-(default 14; la retención del plan en `SLA.md` §2 manda — Profesional son
-backups cada 6 h y 30 días: cuatro líneas de cron y
-`BACKUP_RETENTION_DAYS=30`).
+PATH), el repo (o `scripts/ops/`) en `/srv/valle/repo`, `rclone` configurado
+con un remoto nombrado como `r2:valle-backups` y acceso exclusivo al directorio
+local. Sin destino externo o clave, el cron falla cerrado. Requiere espacio
+temporal para el dump, el paquete cifrado y una extracción de verificación.
+`BACKUP_DIR` usa `/srv/valle/backups` por defecto. La retención del plan en
+`SLA.md` §2 manda: Profesional exige cada 6 h y 30 días. Configura y verifica
+por separado esa frecuencia, el espacio disponible, el RPO/RTO sobre un volumen
+real y la retención del bucket. Este script conserva las copias cifradas
+**locales**; no implementa la eliminación por antigüedad.
 
 ### RPO y RTO
 
@@ -127,7 +189,9 @@ volumen real.
    esquema efímero de otra suite ya se había destruido
    (`ERROR: schema "organization_creation_..." does not exist`). El runtime
    materializa TODO su esquema en `public`; el script avisa de los esquemas
-   que encuentra y no incluye, y admite `--schema=public,otro`.
+   que encuentra y no incluye. El inventario y verificador sólo admiten
+   `public`; un despliegue que use otros esquemas requiere ampliar ambos
+   antes de confiar en su respaldo.
    Corolario operativo: **un backup se toma de una base que no está sufriendo
    DDL concurrente.**
 2. **Un `.dump` de cero bytes es peor que ningún archivo.** `pg_dump` crea el

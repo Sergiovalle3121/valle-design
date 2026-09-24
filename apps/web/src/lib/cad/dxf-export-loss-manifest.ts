@@ -31,6 +31,7 @@ import type {
   CadPoint3,
 } from "./cad-document";
 import { cadEntityToDxfPrimitive, cadOpeningToDxfPrimitives } from "./dxf-entity-primitives";
+import { isCadRoomSpaceAnchor } from "./room-space";
 import { wallFootprint } from "./wall-geometry";
 
 /**
@@ -328,7 +329,7 @@ export function cadDocumentDxfExportLosses(
   // selección, capas ocultas): avisar de pérdidas en entidades que no se van a
   // exportar sería ruido y erosionaría la confianza en el aviso.
   const scoped = document.entities.filter((candidate) =>
-    filter ? filter(candidate) : true,
+    !isCadRoomSpaceAnchor(candidate) && (filter ? filter(candidate) : true),
   );
   for (const entity of scoped) {
     // 1. Fidelidad declarada de los tipos del esquema 4. Va ANTES del descarte
