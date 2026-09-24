@@ -78,7 +78,7 @@
     "check:dwg-3d-heredado": "node scripts/dwg/probe-3d-legacy-coverage.mjs --check",
     "probe:dwg-mtext": "node scripts/dwg/probe-mtext-fields.mjs",
     "check:dwg-mtext": "node scripts/dwg/probe-mtext-fields.mjs --check",
-    "check:dwg-oraculo": "node scripts/dwg/check-oracle-evidence.mjs",
+    "check:dwg-oraculo": "node scripts/dwg/check-oracle-evidence.spec.mjs && node scripts/dwg/check-oracle-evidence.mjs",
     "check:dwg-firma": "node scripts/dwg/check-firma-package.spec.mjs && node scripts/dwg/check-firma-package.mjs",
     "probe:dwg-r2010-cabecera": "node scripts/dwg/probe-r2010-header-variables.mjs",
     "check:dwg-r2010-cabecera": "node scripts/dwg/probe-r2010-header-variables.mjs --check",

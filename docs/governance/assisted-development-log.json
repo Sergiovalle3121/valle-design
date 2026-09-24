@@ -4532,6 +4532,38 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-ORACLE-EVIDENCE-GATE-20260923",
+      "date": "2026-09-23",
+      "initiative": "Acreditar derechos, procedencia independiente y comparador antes de contar evidencia de oráculo DWG para exportación",
+      "branch": "codex/dwg-evidence-gate-20260923",
+      "assistants": [
+        "OpenAI Codex: diseño del gate de admisibilidad y pruebas sintéticas de regresión"
+      ],
+      "authority": "Encargo de seguridad DWG de esta sesión; la adopción queda condicionada a la revisión humana del diff y sus checks exactos.",
+      "firstPartyInputs": [
+        "scripts/dwg/check-oracle-evidence.mjs, check-firma-package.mjs y el arnés oda-roundtrip.mjs existentes",
+        "docs/cad/evidence/dwg-oda-roundtrip.json histórico, leído sin editarlo",
+        "AGENTS.md, packages/dwg-codec/CLEAN_ROOM_POLICY.md y docs/governance/ASSISTED_DEVELOPMENT.md"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "El gate distingue conversiones cotejadas históricas de casos admisibles para externalOracleVerified.",
+        "Sólo cuenta casos con permisos comerciales y de redistribución explícitos, procedencia y hash del binario independiente, y versión/hash del comparador y los DWG/DXF vinculados a cada comparación.",
+        "La huella del comparador se deriva de las fuentes first-party actuales; una comparación anterior queda fuera al cambiar esas fuentes."
+      ],
+      "fixtures": "Reportes sintéticos en memoria en scripts/dwg/check-oracle-evidence.spec.mjs; sin cambios de corpus, fixtures ni bytes DWG/DXF.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Prueba sintética roja antes de implementar las exportaciones nuevas y verde después; gate real mantiene externalOracleVerified=false y cero casos acreditados. Revisión jurídica de permisos, corrida de validador autorizado, CI del SHA exacto y merge pendientes."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }

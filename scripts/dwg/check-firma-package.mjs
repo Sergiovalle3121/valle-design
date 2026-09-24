@@ -50,7 +50,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { CASES } from "./oda-roundtrip-cases.mjs";
-import { casosExigidos, coberturaDelOraculo } from "./check-oracle-evidence.mjs";
+import { casosExigidos, coberturaTecnicaDelOraculo } from "./check-oracle-evidence.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(here, "../..");
@@ -239,7 +239,9 @@ function bloqueMatriz() {
 /** Cuánto respalda hoy el oráculo externo, derivado del mismo cálculo del gate. */
 function bloqueCobertura() {
   const reporte = fs.existsSync(EVIDENCIA.oraculo) ? leerJson(EVIDENCIA.oraculo) : { casos: [] };
-  const { esperados, faltan, cubiertos } = coberturaDelOraculo(reporte);
+  // El paquete conserva el recuento histórico de conversiones cotejadas.
+  // La promoción exige además la acreditación de check-oracle-evidence.mjs.
+  const { esperados, faltan, cubiertos } = coberturaTecnicaDelOraculo(reporte);
   const filas = [
     `- artefacto: \`${rel(EVIDENCIA.oraculo)}\` (generado ${reporte.generadoEn ?? "(sin fecha)"})`,
     `- conversor: ${reporte.resumen?.lectoresExternosAutorizados?.map((l) => `${l.herramienta} ${l.version}`).join(", ") ?? "(ninguno)"}`,
