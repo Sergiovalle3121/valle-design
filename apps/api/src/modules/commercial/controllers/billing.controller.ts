@@ -507,7 +507,7 @@ export class BillingController {
         });
         // T-61: un despacho que crece SÍ puede volver a este mismo endpoint
         // para comprar más asientos del plan que ya tiene — `resolveCheckoutSeats`
-        // y el webhook que aplica `intent.requestedSeats` ya sabían hacerlo;
+        // y el webhook que aplica el snapshot pagado ya saben hacerlo;
         // lo único que lo bloqueaba era este rechazo, escrito para el caso
         // distinto de "repetir la MISMA compra". Sólo se deja pasar cuando
         // pide MÁS asientos de los que ya tiene pagados — igualar o pedir
@@ -538,11 +538,9 @@ export class BillingController {
               message: 'Ya existe un intent de upgrade pendiente de decisión.',
             });
           }
-          // El intent reutilizado se ACTUALIZA con lo que se pide ahora: quien
-          // abandonó la ficha de OXXO y vuelve con tarjeta, o cambia de tres a
-          // cinco asientos, tiene que quedar registrado con lo que va a pagar
-          // de verdad. Un intent que conservase la petición vieja activaría
-          // después la suscripción con los asientos equivocados.
+          // El intent reutilizado refleja el pedido más reciente para el nuevo
+          // checkout y la interfaz. Una sesión anterior aún puede pagarse; el
+          // webhook toma los asientos de esa sesión, nunca del intent mutable.
           await manager.update(
             SubscriptionUpgradeIntent,
             { id: pending.id },

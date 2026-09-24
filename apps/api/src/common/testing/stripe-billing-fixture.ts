@@ -46,6 +46,29 @@ export function epochSeconds(iso: string): number {
   return Math.floor(new Date(iso).getTime() / 1000);
 }
 
+/** La sesión de prueba refleja el formulario REAL enviado al proveedor. */
+export function paidCheckoutSessionFromForm(
+  form: URLSearchParams,
+  extra: Record<string, unknown> = {},
+): Record<string, unknown> {
+  const metadata = Object.fromEntries(
+    [...form.entries()]
+      .filter(([key]) => /^metadata\[[^\]]+\]$/.test(key))
+      .map(([key, value]) => [key.slice(9, -1), value]),
+  );
+  const unit = Number(form.get('line_items[0][price_data][unit_amount]'));
+  const quantity = Number(form.get('line_items[0][quantity]'));
+  return {
+    client_reference_id: form.get('client_reference_id'),
+    mode: form.get('mode'),
+    payment_status: 'paid',
+    amount_total: unit * quantity,
+    currency: form.get('line_items[0][price_data][currency]'),
+    metadata,
+    ...extra,
+  };
+}
+
 /** Rate limiting real con store en memoria: la mecánica sin PostgreSQL. */
 export function memoryRateLimits(): ApiRateLimitService {
   return new ApiRateLimitService(new BoundedMemoryIdentityRateLimitStore());
