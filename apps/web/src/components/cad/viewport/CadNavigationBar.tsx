@@ -2,6 +2,7 @@
 
 import { Frame, Maximize } from "lucide-react";
 import { cx, Tooltip } from "@/components/ui";
+import { useCadUiMode } from "@/components/cad/shell/ui-mode-host";
 
 /**
  * LA BARRA DE NAVEGACIÓN. El equivalente AutoCAD vive junto al ViewCube, en
@@ -19,6 +20,7 @@ export function CadNavigationBar({
   hasSelection: boolean;
   className?: string;
 }) {
+  const mode = useCadUiMode();
   return (
     <div
       data-testid="cad-navigation-bar"
@@ -39,7 +41,7 @@ export function CadNavigationBar({
           <Maximize aria-hidden="true" className="h-4 w-4" />
         </button>
       </Tooltip>
-      <Tooltip label="Encuadrar la selección" side="left">
+      {(mode === "pro" || hasSelection) && <Tooltip label="Encuadrar la selección" side="left">
         <button
           type="button"
           data-testid="cad-navigation-fit-selection"
@@ -51,7 +53,7 @@ export function CadNavigationBar({
         >
           <Frame aria-hidden="true" className="h-4 w-4" />
         </button>
-      </Tooltip>
+      </Tooltip>}
     </div>
   );
 }
