@@ -4625,6 +4625,37 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "LIENZO-NEUTRO-20260924",
+      "date": "2026-09-24",
+      "initiative": "El estudio arrancaba con el lienzo azul marino (#0a0f1e) a 26° de tono del acento del cromo: lienzo y paneles se fundían en una mancha azul. Arranca ahora con el preset «Estudio» que ya existía (#202329, gris neutro); el azul sigue disponible como preset «Azul». Punto 4.1 del encargo de interfaz del 2026-09-21.",
+      "branch": "claude/keen-cannon-nvm7x7",
+      "assistants": [
+        "Claude Code (Anthropic): cambio del preset por defecto y de los valores de reserva, y verificación"
+      ],
+      "authority": "Sergio pidió el 2026-09-24 mejorar la experiencia de usuario de VALLECAD y aprobó el plan cuyo rediseño empieza por la primera impresión del estudio.",
+      "firstPartyInputs": [
+        "docs/execution/ENCARGO-INTERFAZ-20260921.md, tanda 4.1",
+        "components/cad/studio/editor-presentation.ts: preset «Estudio» existente"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "Layout3DEditor.tsx: tema inicial «studio» y fondo inicial de la escena desde THEMES (sin líneas nuevas)",
+        "render-style.ts (DEFAULT_BACKGROUND_COLOR), plan-fog.ts (reserva de niebla) y render-style.spec.ts: el fondo de fábrica es el del preset «Estudio»",
+        "editor-presentation.ts: el preset azul se rotula «Azul»"
+      ],
+      "fixtures": "Sin fixtures nuevos.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "render-style.spec (17), plan-fog.spec, check:contrast (92 pares, incluida la tinta del dibujo contra los presets), typecheck web y presupuesto del monolito (16 813 líneas, 118 useState) verdes; captura local de /demo en Esencial."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

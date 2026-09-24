@@ -32,7 +32,7 @@ export const THEMES: Record<
     gridA: 0x2a3a5c,
     gridB: 0x1b2640,
     fog: 0x0a0f1e,
-    label: "Oscuro",
+    label: "Azul",
     axisX: 0xef4444,
     axisY: 0x22c55e,
     selectWindow: 0x3b82f6,

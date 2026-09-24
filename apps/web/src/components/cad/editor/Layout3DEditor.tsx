@@ -1485,7 +1485,7 @@ export default function Layout3DEditor({
   const [measurementRowsView, setMeasurementRowsView] = useState<
     MeasurementRow[]
   >([]);
-  const [theme, setTheme] = useState<Theme3D>("dark");
+  const [theme, setTheme] = useState<Theme3D>("studio");
   const [sun, setSun] = useState({ az: 35, el: 55 }); // sun azimuth/elevation (deg)
   const [showView, setShowView] = useState(false);
   const [viewMenuPosition, setViewMenuPosition] = useState({
@@ -5843,7 +5843,7 @@ export default function Layout3DEditor({
     });
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0a0f1e);
+    scene.background = new THREE.Color(THEMES[themeRef.current].bg);
     applyCadSceneFog(scene, viewModeRef.current, { W, H, s });
     sceneRef.current = scene;
 

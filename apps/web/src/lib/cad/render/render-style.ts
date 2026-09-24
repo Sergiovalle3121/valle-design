@@ -41,13 +41,13 @@ export const CAD_RENDER_DEFAULT_HALF_WIDTH_PX = 0.5;
 const ACI7_WHITE = 0xffffff;
 
 /** El fondo del lienzo por defecto cuando el llamador no pasa uno: el preset
- * «Oscuro» de `THEMES` en `components/cad/studio/editor-presentation.ts`
- * (`0x0a0f1e`). No se importa desde ahí para no invertir la dependencia
+ * «Estudio» de `THEMES` en `components/cad/studio/editor-presentation.ts`
+ * (`0x202329`), el gris neutro con el que arranca el estudio. No se importa desde ahí para no invertir la dependencia
  * lib → components; si ese preset cambia, este valor y el de la prueba
  * `render-style.spec.ts` que lo cruza contra los cuatro presets tienen que
  * moverse juntos. Exportado (F9 P-01) para que el anfitrión del viewport
  * arranque con el MISMO fondo que este módulo asume y no con uno inventado. */
-export const DEFAULT_BACKGROUND_COLOR = 0x0a0f1e;
+export const DEFAULT_BACKGROUND_COLOR = 0x202329;
 
 /** Piso de contraste 3:1 (WCAG 1.4.11): un trazo es gráfico, no texto. */
 const MIN_INK_CONTRAST = 3;

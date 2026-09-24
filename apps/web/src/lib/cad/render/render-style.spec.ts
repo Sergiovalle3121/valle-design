@@ -99,8 +99,9 @@ for (const [name, theme] of Object.entries(THEMES)) {
 }
 
 // F9 P-01: el fondo por defecto que este módulo asume cuando nadie le pasa uno
-// es el preset «Oscuro» — y ahora lo EXPORTA para que el anfitrión del viewport
-// arranque con el mismo valor. Si el preset se mueve, esto avisa.
-ok(DEFAULT_BACKGROUND_COLOR === THEMES.dark.bg, "el fondo por defecto exportado es el del preset «Oscuro» de THEMES");
+// es el preset con el que arranca el estudio, «Estudio» — y lo EXPORTA para
+// que el anfitrión del viewport arranque con el mismo valor. Si el preset se
+// mueve, esto avisa.
+ok(DEFAULT_BACKGROUND_COLOR === THEMES.studio.bg, "el fondo por defecto exportado es el del preset «Estudio» de THEMES");
 
 console.log(`render-style (T-13): ${checks} comprobaciones verdes`);
