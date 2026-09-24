@@ -34,6 +34,7 @@ import {
   type CadCommentAnchorPoint,
 } from "@/lib/cad/collab/comment-anchor";
 import { projectCadPlan } from "@/lib/cad/collab/plan-projection";
+import { cadReviewRoomAreas } from "@/lib/cad/collab/review-room-areas";
 import {
   browserReviewTokenEnvironment,
   forgetReviewToken,
@@ -158,6 +159,10 @@ export default function ReviewLinkClient() {
     () => (review ? projectCadPlan(review.plan) : null),
     [review],
   );
+  const roomAreas = useMemo(
+    () => review && projection ? cadReviewRoomAreas(review.plan, projection) : [],
+    [review, projection],
+  );
 
   const pins = useMemo(
     () =>
@@ -240,6 +245,7 @@ export default function ReviewLinkClient() {
         {projection ? (
           <ReviewPlanView
             projection={projection}
+            roomAreas={roomAreas}
             pins={pins}
             activeId={activeId}
             onSelect={setActiveId}

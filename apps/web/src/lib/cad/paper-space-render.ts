@@ -25,6 +25,7 @@ import { plotEntityFromRegistry } from "./paper-space-registry-fallback";
 import { cadTableCellTextCommands } from "./paper-space-table";
 import { cadLinetypeTextCommands } from "./paper-space-linetype-text";
 import { cadImagePlotCommand } from "./paper-space-image";
+import { isCadRoomSpaceAnchor } from "./room-space";
 import { multiply, point, type Affine } from "./paper-space-affine";
 import { blockPresentation, styleFor, unitToMm } from "./paper-space-style";
 import {
@@ -172,6 +173,7 @@ export function renderEntity(
   entity: CadEntity,
   context: CadRenderEntityContext,
 ): CadVectorCommand[] {
+  if (isCadRoomSpaceAnchor(entity)) return [];
   const layerId = entityLayer(entity, context.inheritedLayer);
   if (!visibleLayer(layerId, context.layers, context.viewport)) return [];
   const matrix = multiply(context.viewportMatrix, context.entityMatrix);

@@ -1,88 +1,89 @@
 #!/usr/bin/env bash
-#
-# BACKUP PROGRAMADO DEL VPS: crear → VERIFICAR → subir (opcional) → rotar.
-#
-# Este script existe porque «hay scripts de backup» y «hay backups» son dos
-# estados distintos del mundo: backup.mjs y restore-verify.mjs llevaban meses
-# en el repo sin que nadie los ejecutara cada noche. La política que impone:
-#
-#   1. NINGÚN backup cuenta sin verificar. Aquí restore-verify.mjs corre
-#      SIEMPRE, en la misma pasada: si la restauración de prueba falla, el
-#      script falla entero y el cron lo grita (ver MAILTO abajo). Un .dump
-#      sin restaurar no es un backup, es un archivo.
-#   2. La copia sale de la máquina si hay a dónde: con RCLONE_REMOTE definido
-#      (p. ej. un bucket R2/S3 configurado en rclone) los cuatro artefactos se
-#      suben; un backup que vive en el mismo disco que la base comparte
-#      destino con ella.
-#   3. FALLA RUIDOSO: set -euo pipefail + trap. Un cron que falla en silencio
-#      es peor que no tener cron — mantiene la sensación de tener copia.
-#   4. La rotación local corre SOLO tras verificar (y subir, si procede):
-#      nunca se borra lo viejo antes de saber que lo nuevo sirve.
-#
-# Requisitos del host (no van en la imagen del API; esto corre EN el VPS):
-#   - Node 20+, binarios cliente de PostgreSQL 16 (PG_BIN si no están en PATH),
-#   - una copia del repo (o al menos de scripts/ops/) junto a este script,
-#   - rclone configurado, sólo si se usa RCLONE_REMOTE.
-#
-# Variables:
-#   DATABASE_URL           obligatoria — la base a copiar
-#   BACKUP_DIR             destino local (default /srv/valle/backups)
-#   RCLONE_REMOTE          remoto rclone tipo "r2:valle-backups" (opcional)
-#   BACKUP_RETENTION_DAYS  días que se conservan los backups locales (default 14)
-#   PG_BIN                 directorio de binarios de PostgreSQL 16 (opcional)
-#
-# Línea de cron exacta (diaria a las 03:15 UTC, con aviso por correo al fallar):
-#
-#   MAILTO=tu-correo@dominio.mx
-#   # Variable del crontab, no argumento del comando:
-#   DATABASE_URL=postgres://...
-#   15 3 * * * RCLONE_REMOTE=r2:valle-backups /srv/valle/repo/scripts/ops/backup-cron.sh >> /var/log/valle-backup.log 2>&1
-#
-# La retención del plan (SLA.md §2) manda sobre el default: Profesional exige
-# backups cada 6 h y 30 días — cuatro líneas de cron y BACKUP_RETENTION_DAYS=30.
+# Respaldo programado: dump → restore aislado → cifrar → verificar → subir → comprobar remoto.
+# El único material que se entrega a rclone es el paquete .vbk y su SHA-256.
+# Antes de confirmar la subida, un fallo conserva lo anterior y el área .pending-*.
 set -euo pipefail
-
-trap 'echo "BACKUP-CRON FALLÓ (línea $LINENO). NO hay backup verificado de esta pasada." >&2' ERR
+umask 077
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_DIR="${BACKUP_DIR:-/srv/valle/backups}"
-RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-14}"
+PENDING_DIR=''
+trap 'echo "BACKUP-CRON FALLÓ (línea $LINENO). Área pendiente: ${PENDING_DIR:-no creada}." >&2' ERR
 
-if [ -z "${DATABASE_URL:-}" ]; then
-  echo "Falta DATABASE_URL: un backup no puede adivinar contra qué base correr." >&2
+# Comprobar configuración y herramientas antes de abrir un dump o tocar la retención.
+if [ -z "${DATABASE_URL:-}" ] || [ -z "${BACKUP_ENCRYPTION_PASSPHRASE:-}" ] ||
+   [ "${#BACKUP_ENCRYPTION_PASSPHRASE}" -lt 20 ] || [ -z "${RCLONE_REMOTE:-}" ]; then
+  echo 'Faltan DATABASE_URL, BACKUP_ENCRYPTION_PASSPHRASE (mínimo 20 caracteres) o RCLONE_REMOTE.' >&2
   exit 1
 fi
+if ! [[ "$RCLONE_REMOTE" =~ ^[A-Za-z][A-Za-z0-9_-]*:[A-Za-z0-9][A-Za-z0-9._/-]*$ ]]; then
+  echo 'RCLONE_REMOTE debe nombrar un remoto rclone configurado y una ruta, sin credenciales embebidas.' >&2
+  exit 1
+fi
+for binary in node rclone sha256sum cmp mktemp; do
+  if ! command -v "$binary" >/dev/null 2>&1; then
+    echo "Falta herramienta requerida: $binary." >&2
+    exit 1
+  fi
+done
 
+mkdir -p -- "$BACKUP_DIR"
 STAMP="$(date -u +%Y-%m-%dT%H-%M-%SZ)"
-NAME="valle-design-${STAMP}"
+PENDING_DIR="$(mktemp -d "$BACKUP_DIR/.pending-valle-design-${STAMP}-XXXXXXXX")"
+NAME="${PENDING_DIR##*/}"
+NAME="${NAME#.pending-}"
+ENCRYPTED_DIR="$PENDING_DIR/encrypted"
+VERIFY_DIR="$PENDING_DIR/verified"
+mkdir -- "$ENCRYPTED_DIR" "$VERIFY_DIR"
 
 echo "== backup-cron ${STAMP} =="
 
-# 1 · Crear el backup con su inventario verificable (4 artefactos).
-node "${SCRIPT_DIR}/backup.mjs" \
-  --out "${BACKUP_DIR}" \
-  --name "${NAME}"
+# El dump y el restore de prueba viven únicamente en el área privada pendiente.
+node "$SCRIPT_DIR/backup.mjs" --out "$PENDING_DIR" --name "$NAME"
+node "$SCRIPT_DIR/restore-verify.mjs" --dump "$PENDING_DIR/$NAME.dump"
 
-# 2 · VERIFICAR: restaurar en una base temporal del mismo servidor y borrarla.
-#     Si esto no imprime «BACKUP VALIDADO», el script muere aquí y el cron
-#     avisa. Sin este paso, el paso 1 sólo produjo un archivo.
-node "${SCRIPT_DIR}/restore-verify.mjs" \
-  --dump "${BACKUP_DIR}/${NAME}.dump"
+# El paquete portable autentica el dump, checksum, índice e inventario juntos.
+ARCHIVE="$ENCRYPTED_DIR/$NAME.vbk"
+node "$SCRIPT_DIR/backup-envelope.mjs" pack "$PENDING_DIR" "$NAME" "$ARCHIVE" >/dev/null
+(
+  cd "$ENCRYPTED_DIR"
+  sha256sum "$NAME.vbk" > "$NAME.vbk.sha256"
+  sha256sum -c "$NAME.vbk.sha256" >/dev/null
+)
 
-# 3 · Subida opcional fuera de la máquina (R2/S3 vía rclone), por año/mes.
-if [ -n "${RCLONE_REMOTE:-}" ]; then
-  DEST="${RCLONE_REMOTE}/$(date -u +%Y/%m)"
-  for EXT in dump dump.sha256 contents manifest.json; do
-    rclone copyto "${BACKUP_DIR}/${NAME}.${EXT}" "${DEST}/${NAME}.${EXT}"
-  done
-  echo "Subido a ${DEST}: ${NAME}.{dump,dump.sha256,contents,manifest.json}"
-else
-  echo "AVISO: RCLONE_REMOTE sin definir — el backup verificado se queda SOLO"
-  echo "en este disco. Si el disco muere, muere con la base que debía proteger."
-fi
+# Ejercicio criptográfico local: autenticar, extraer y comparar los cuatro archivos.
+node "$SCRIPT_DIR/backup-envelope.mjs" unpack "$ARCHIVE" "$VERIFY_DIR" >/dev/null
+for extension in dump dump.sha256 contents manifest.json; do
+  cmp -- "$PENDING_DIR/$NAME.$extension" "$VERIFY_DIR/$NAME.$extension"
+done
 
-# 4 · Rotación local, SOLO llegados aquí (nuevo backup verificado y subido).
-find "${BACKUP_DIR}" -maxdepth 1 -name 'valle-design-*' -type f \
-  -mtime "+${RETENTION_DAYS}" -print -delete | sed 's/^/rotado: /'
+# La carpeta fuente contiene sólo ciphertext y su checksum. --immutable evita
+# sobrescribir un objeto remoto anterior con el mismo nombre; check --download
+# lee los bytes remotos aun si el backend no ofrece hashes. --one-way permite
+# otros respaldos históricos en el destino.
+DEST="${RCLONE_REMOTE}/$(date -u +%Y/%m)"
+(
+  # La herramienta de transporte sólo necesita su propia configuración y el
+  # paquete cifrado; no recibe la conexión PostgreSQL ni la frase de cifrado.
+  unset DATABASE_URL BACKUP_DATABASE_URL TEST_DATABASE_URL BACKUP_ENCRYPTION_PASSPHRASE PGPASSWORD
+  rclone copy "$ENCRYPTED_DIR" "$DEST" --immutable
+  rclone check "$ENCRYPTED_DIR" "$DEST" --download --one-way
+)
 
-echo "== backup-cron OK: ${BACKUP_DIR}/${NAME}.dump verificado =="
+# Conservar copia cifrada local sin sobrescribir. En este punto la subida ya
+# pasó la comparación remota. El claro se elimina sólo después de ambos links.
+ln -- "$ARCHIVE" "$BACKUP_DIR/$NAME.vbk"
+ln -- "$ENCRYPTED_DIR/$NAME.vbk.sha256" "$BACKUP_DIR/$NAME.vbk.sha256"
+# La marca se crea sólo tras verificar ambos bytes remotos y conservar ambos
+# archivos locales. Es una constancia histórica, no una orden de borrado.
+printf 'remote-byte-check OK %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$BACKUP_DIR/$NAME.vbk.uploaded"
+rm -- "$PENDING_DIR/$NAME.dump" "$PENDING_DIR/$NAME.dump.sha256" \
+  "$PENDING_DIR/$NAME.contents" "$PENDING_DIR/$NAME.manifest.json"
+rm -- "$VERIFY_DIR/$NAME.dump" "$VERIFY_DIR/$NAME.dump.sha256" \
+  "$VERIFY_DIR/$NAME.contents" "$VERIFY_DIR/$NAME.manifest.json"
+rmdir -- "$VERIFY_DIR"
+rm -- "$ARCHIVE" "$ENCRYPTED_DIR/$NAME.vbk.sha256"
+rmdir -- "$ENCRYPTED_DIR" "$PENDING_DIR"
+PENDING_DIR=''
+
+echo "== backup-cron OK: $NAME.vbk verificado y subido =="

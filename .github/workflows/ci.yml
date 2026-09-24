@@ -359,6 +359,9 @@ jobs:
       - name: Proprietary governance gate
         run: npm run check:governance
 
+      - name: Backup encryption and retention safety
+        run: npm run check:backup && bash scripts/ops/backup-cron.spec.sh
+
       - name: Dependency licenses gate
         run: npm run sbom && npm run check:licenses && npm run sbom:full
 

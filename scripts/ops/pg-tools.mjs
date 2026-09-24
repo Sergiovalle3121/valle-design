@@ -8,10 +8,28 @@
  * y falla tarde, cuando ya se creía tener copia.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { closeSync, existsSync, openSync, readSync } from 'node:fs';
 import { join } from 'node:path';
 
 const IS_WINDOWS = process.platform === 'win32';
+
+/** Hash a dump in bounded memory, independent of the backup size. */
+export function sha256File(path) {
+  const digest = createHash('sha256');
+  const file = openSync(path, 'r');
+  const chunk = Buffer.allocUnsafe(64 * 1024);
+  try {
+    for (;;) {
+      const count = readSync(file, chunk, 0, chunk.length, null);
+      if (!count) break;
+      digest.update(chunk.subarray(0, count));
+    }
+  } finally {
+    closeSync(file);
+  }
+  return digest.digest('hex');
+}
 
 /** Candidatos por orden de precedencia explícita. */
 function binaryCandidates(name) {
@@ -31,8 +49,10 @@ function binaryCandidates(name) {
 }
 
 export function resolveBinary(name) {
+  const env = { ...process.env };
+  for (const key of ['BACKUP_ENCRYPTION_PASSPHRASE', 'DATABASE_URL', 'BACKUP_DATABASE_URL', 'TEST_DATABASE_URL', 'PGPASSWORD']) delete env[key];
   for (const candidate of binaryCandidates(name)) {
-    const probe = spawnSync(candidate, ['--version'], { encoding: 'utf8' });
+    const probe = spawnSync(candidate, ['--version'], { encoding: 'utf8', env });
     if (probe.status === 0) {
       return { path: candidate, version: probe.stdout.trim() };
     }
@@ -89,6 +109,7 @@ function redactPassword(text, password, url) {
 /** Ejecuta PostgreSQL sin una contraseña en argumentos ni en errores. */
 export function runPg(binary, args, { url, input, allowFailure = false } = {}) {
   const env = { ...process.env };
+  for (const key of ['BACKUP_ENCRYPTION_PASSPHRASE', 'DATABASE_URL', 'BACKUP_DATABASE_URL', 'TEST_DATABASE_URL', 'PGPASSWORD']) delete env[key];
   let safeArgs = args;
   let password = '';
   if (url) {
@@ -148,7 +169,7 @@ export function redactUrl(url) {
 
 /** `psql -At` devuelve filas separadas por salto y columnas por `|`. */
 export function query(psql, url, sql) {
-  const result = runPg(psql, ['--no-psqlrc', '-At', '-F', '|', '-c', sql, url], {
+  const result = runPg(psql, ['--no-psqlrc', '--set=ON_ERROR_STOP=1', '-At', '-F', '|', '-c', sql, url], {
     url,
   });
   return result.stdout

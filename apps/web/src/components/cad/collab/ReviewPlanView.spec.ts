@@ -28,6 +28,7 @@ const projection: CadPlanProjection = {
 
 const html = renderToStaticMarkup(createElement(ReviewPlanView, {
   projection,
+  roomAreas: [],
   pins: [],
   activeId: null,
   onSelect: () => {},

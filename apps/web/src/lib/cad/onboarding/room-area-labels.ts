@@ -7,6 +7,10 @@ export interface CadRoomAreaLabel {
   id: string;
   name: string;
   nameFromDocument: boolean;
+  textLabelMatchesName: boolean;
+  spaceId?: string;
+  /** ID del TEXT/MTEXT persistido que nombra este cuarto. */
+  textLabelId?: string;
   axisAreaText: string;
   clearAreaText?: string;
   at: CadPoint2;
@@ -59,6 +63,9 @@ export function cadRoomAreaLabels(document: Pick<CadDocument, "entities" | "meta
     id: room.id,
     name: room.name ?? `Cuarto ${Number(room.id.replace(/\D/g, "")) || 1}`,
     nameFromDocument: Boolean(room.name),
+    textLabelMatchesName: room.textLabelMatchesName === true,
+    ...(room.spaceId ? { spaceId: room.spaceId } : {}),
+    ...(room.labelId ? { textLabelId: room.labelId } : {}),
     axisAreaText: areaText(room.axisArea),
     ...(room.clearArea === undefined ? {} : { clearAreaText: areaText(room.clearArea) }),
     at: interiorPoint(room.ring),
