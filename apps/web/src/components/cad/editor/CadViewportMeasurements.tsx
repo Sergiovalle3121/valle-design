@@ -71,8 +71,8 @@ export function CadViewportMeasurements({ document, viewControllerRef, essential
         {placed.rooms.map(({ room, x, y }) => (
           <div
             key={room.id}
-            className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-control border border-border bg-surface/90 px-2 py-1 text-center text-foreground shadow-floating"
-            style={{ left: x, top: y + (room.textLabelMatchesName ? 20 : 0) }}
+            className={`pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-control border border-border bg-surface/90 text-center text-foreground shadow-floating ${essential ? "max-w-32 px-1 py-0.5" : "px-2 py-1"}`}
+            style={{ left: x, top: y + (!essential && room.textLabelMatchesName ? 20 : 0) }}
             title={`Área entre ejes de muros: ${room.axisAreaText} m²${room.clearAreaText ? `. Área útil: ${room.clearAreaText} m².` : "."}`}
           >
             {editingRoomId === room.id ? (
@@ -102,16 +102,16 @@ export function CadViewportMeasurements({ document, viewControllerRef, essential
                   }
                 }}
               />
-            ) : !room.textLabelMatchesName ? (
+            ) : essential || !room.textLabelMatchesName ? (
               <div
-                className="pointer-events-auto max-w-32 cursor-text truncate type-micro font-semibold leading-tight"
+                className={`pointer-events-auto max-w-32 cursor-text type-micro font-semibold leading-tight ${essential ? "break-words" : "truncate"}`}
                 title="Doble clic para renombrar el cuarto"
                 onMouseDown={(event) => event.stopPropagation()}
                 onDoubleClick={(event) => { event.stopPropagation(); beginRename(room); }}
               >{room.name}</div>
             ) : null}
             <div className="type-caption font-bold leading-tight">{room.axisAreaText} m²</div>
-            {!room.textLabelMatchesName && <div className="type-micro leading-tight text-muted-foreground">entre ejes</div>}
+            {!essential && !room.textLabelMatchesName && <div className="type-micro leading-tight text-muted-foreground">entre ejes</div>}
             {room.textLabelMatchesName && onRenameRoom && (
               <Button
                 variant="secondary"

@@ -9,6 +9,7 @@ export interface CadRoomAreaLabel {
   nameFromDocument: boolean;
   textLabelMatchesName: boolean;
   spaceId?: string;
+  /** ID del TEXT/MTEXT persistido que nombra este cuarto. */
   textLabelId?: string;
   axisAreaText: string;
   clearAreaText?: string;

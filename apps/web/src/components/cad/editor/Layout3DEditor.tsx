@@ -462,7 +462,7 @@ import { CadCommandLineDock } from "@/components/cad/command-line/CadCommandLine
 import { useCadCommandEngine } from "@/components/cad/command-line/use-command-engine";
 import { CAD_SHARED_CLIPBOARD } from "@/lib/cad/clipboard";
 import { formatCadPromptFor } from "@/lib/cad/engine/prompt-plain";
-import { useCadUiMode } from "@/components/cad/shell/ui-mode-host";
+import { cadUiModeHost, useCadUiMode } from "@/components/cad/shell/ui-mode-host";
 import { useCadStudioCommandEngine } from "@/components/cad/command-line/use-command-engine";
 import { cadStudioEngineBridges } from "@/components/cad/command-line/studio-engine-bridges";
 import { cadFacePickerFor, cadEdgePickerFor, cadHonorSnapOverride, CAD_FACE_PICK_BIT } from "@/lib/cad/pick3d/scene-ray";
@@ -587,6 +587,7 @@ import {
 import CadOverviewMinimap from "@/components/cad/viewport/CadOverviewMinimap";
 import { renderCadSheetSetPdf } from "./sheet-set-pdf";
 import { CadViewportMeasurements, renameCadRoomSpace } from "./CadViewportMeasurements";
+import { cadEssentialRoomLabelIds } from "@/lib/cad/onboarding/essential-room-preview";
 import { mergeAnnotationLayers, syncLegacyTextShadow } from "./legacy-text-shadow-sync";
 import { useHatchPalette } from "./use-hatch-palette";
 import {
@@ -3051,6 +3052,8 @@ export default function Layout3DEditor({
         (insertBatches.userData.nativeBlockBatchInsertIds as
           string[] | undefined) ?? [],
       );
+      const roomLabelIds = cadUiModeHost.getSnapshot() === "esencial"
+        ? cadEssentialRoomLabelIds(document) : new Set<string>();
       const render = (entity: CadNativeEntity) => {
         const object = buildCadNativeObject(
           entity,
@@ -3066,6 +3069,7 @@ export default function Layout3DEditor({
           });
         }
         object.visible =
+          !roomLabelIds.has(entity.id) &&
           document.layers.find((layer) => layer.id === entity.layer)
             ?.visible !== false;
         group.add(object);
@@ -3093,20 +3097,12 @@ export default function Layout3DEditor({
         nativeIndexedDocumentRef.current = document;
       }
       /**
-       * PIPELINE POR LOTES. Cuando está encendido, el espacio modelo lo dibuja
-       * él entero y la proyección por entidad se reduce a la SELECCIÓN — que es
-       * lo único que aporta que el lote no tiene: grips y realce por encima.
-       *
-       * Sin presupuesto, sin muestreo y sin overview: ésa es toda la diferencia.
-       * `planCadNativeRenderBudget` existía para no morir dibujando 100.000
-       * objetos de escena; aquí no hay 100.000 objetos, hay lotes por tile.
-       *
-       * Un cambio de vista NO entra por aquí: el pipeline lo resuelve con
-       * `setView` en el bucle de cuadros. Reemplazar en cada paneo vaciaría la
-       * caché de teselado y convertiría el paneo en la reconstrucción completa
-       * que este camino existe para eliminar.
+       * Los lotes dibujan todo el modelo; los objetos por entidad sólo aportan
+       * grips y realce de selección. No hay presupuesto ni muestreo del dibujo.
+       * El paneo entra por `setView` para conservar la caché de teselado.
        */
       const shadedSolidIds = new Set(cadSolidEntityIds(document));
+      const excludedIds = new Set([...batchedInsertIds, ...shadedSolidIds, ...roomLabelIds]);
       const nativeSelectionSet = new Set(nativeSelectionIdsRef.current);
       nativeMassHostsRef.current?.sync(document, nativeSelectionSet);
       solidShadeHostRef.current?.sync(document, nativeSelectionSet);
@@ -3116,17 +3112,16 @@ export default function Layout3DEditor({
           batchedHost.invalidate(
             [...patch.upsert.map((entity) => entity.id), ...patch.remove],
             patch.upsert.filter(
-              (entity) =>
-                !batchedInsertIds.has(entity.id) &&
-                !shadedSolidIds.has(entity.id),
+              (entity) => !excludedIds.has(entity.id),
             ),
             // El documento de DESPUÉS: sin él, los vecinos de lo editado se
             // rederivan contra la vecindad de antes (uniones de muro).
             document,
+            excludedIds,
           );
-        else if (documentChanged || !batchedHost.loaded)
+        else if (documentChanged || !batchedHost.loaded || !batchedHost.exclusionsMatch(excludedIds))
           batchedHost.replace(document, {
-            excludeEntityIds: new Set([...batchedInsertIds, ...shadedSolidIds]),
+            excludeEntityIds: excludedIds,
           });
         batchedHost.setHiddenLayers(cadHiddenLayerIds(document.layers));
         setNativeRenderStats((current) =>
@@ -3246,6 +3241,7 @@ export default function Layout3DEditor({
     },
     [refreshNativeSelectionVisuals],
   );
+  useEffect(() => cadUiModeHost.subscribe(() => syncNativeScene()), [syncNativeScene]);
 
   // ---- (re)build the read-only DXF floor-plan overlay (lines on the floor) ----
   const rebuildDxf = useCallback(() => {
