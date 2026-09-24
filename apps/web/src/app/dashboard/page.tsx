@@ -35,6 +35,7 @@ import { ImportStatus, useImportDocument } from "./import-status";
 import {
   StartNotes,
   startDocumentContent,
+  claimDemoShareFor,
   useDemoAdoption,
   useGalleryStart,
 } from "./gallery-start";
@@ -75,7 +76,7 @@ export default function DashboardPage() {
    */
   const [starter, setStarter] = useState(EMPTY_CAD_STARTER_CHOICE);
   const [galleryStart, clearGalleryStart] = useGalleryStart();
-  const [demoAdoption, clearDemoAdoption] = useDemoAdoption();
+  const [demoAdoption, clearDemoAdoption] = useDemoAdoption(state === "empty" || (state === "ready" && documents.length === 0));
 
   /**
    * Quien llega al tablero va a abrir un plano: es lo único que se hace aquí.
@@ -264,6 +265,7 @@ export default function DashboardPage() {
           arranque as CadDocumentInline,
           0,
         );
+        if (demoAdoption) await claimDemoShareFor(document.id);
       } else if (starter.templateId) {
         const project = projects.find((item) => item.id === selectedProject);
         // El generador viaja con el catálogo de plantillas: se trae aquí, con

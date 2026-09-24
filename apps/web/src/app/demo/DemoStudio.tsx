@@ -34,6 +34,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { CadStudioSkeleton } from "@/components/cad/studio/CadStudioSkeleton";
+import CadShareButton from "@/components/cad/share/CadShareButton";
 import { Button, buttonClass } from "@/components/ui";
 import { DEMO_DOCUMENT_ID } from "@/lib/cad/demo/demo-constants";
 import type { DemoDocumentPort } from "@/components/cad/document-lifecycle/demo-port";
@@ -74,6 +75,7 @@ export function DemoStudio() {
     // entrega ahora el dibujo elegido, sin añadir una ruta de carga al monolito.
     setEditorKey((value) => value + 1);
   };
+  const registerHref = `/register?returnTo=${encodeURIComponent("/dashboard?demo=1")}`;
   const demoBanner = (
     <aside
       data-testid="demo-banner"
@@ -81,7 +83,7 @@ export function DemoStudio() {
       className="flex h-8 shrink-0 items-center type-micro"
     >
       <Link
-        href={`/register?returnTo=${encodeURIComponent("/dashboard?demo=1")}`}
+        href={registerHref}
         data-testid="demo-register-cta"
         title="Demostración: tu dibujo se guarda en este navegador. Crea tu cuenta para llevártelo."
         className={buttonClass({ variant: "primary", size: "sm" })}
@@ -106,6 +108,18 @@ export function DemoStudio() {
         title="Demostración"
         subtitle="Casa habitación · se guarda en tu navegador"
         demoBanner={demoBanner}
+        // «Compartir» sin cuenta: enlace temporal de siete días con la copia
+        // del dibujo que el puerto de la demostración tiene guardada.
+        shareAction={(flush) => (
+          <CadShareButton
+            source={{
+              kind: "demo",
+              flush,
+              currentDocument: () => documentPort.currentDocument(),
+              registerHref,
+            }}
+          />
+        )}
         uiModeDefault="esencial"
       />
       {documentPort.hasRecoverableDocument && !restored

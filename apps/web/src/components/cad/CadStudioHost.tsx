@@ -31,6 +31,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
 import StudioCollaborationLayer from "@/components/cad/collab/StudioCollaborationLayer";
+import CadShareButton from "@/components/cad/share/CadShareButton";
 import TeamMessagingHost from "@/components/cad/messaging/TeamMessagingHost";
 import { CallBar } from "@/components/cad/calls/CallBar";
 import { BRAND, PRODUCT_LABEL } from "@/config/brand";
@@ -221,6 +222,14 @@ export default function CadStudioHost({
           onFullscreenChange={noopFullscreenChange}
           branding={branding}
           documentPort={effectiveDocumentPort}
+          // «Compartir» con cuenta: una sesión de revisión con enlace. La
+          // demostración trae el suyo (enlace temporal, ver DemoStudio.tsx).
+          shareAction={
+            props.shareAction ??
+            (documentId && withCollaboration && permissions.includes("cad:review")
+              ? (flush) => <CadShareButton source={{ kind: "document", documentId, flush }} />
+              : undefined)
+          }
           // Edición Design pura: sin paneles de análisis industrial (WP6).
         />
       </ErrorBoundary>

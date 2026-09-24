@@ -1042,6 +1042,8 @@ export interface Layout3DEditorProps extends Layout3DEditorPlatformProps {
   readOnly?: boolean;
   /** Pastilla del aviso de demo, dentro de la fila superior (ver DemoStudio.tsx). */
   demoBanner?: React.ReactNode;
+  /** «Compartir» de la fila superior (`cad/share/CadShareButton`); `flush` vacía el autosave antes. */
+  shareAction?: (flush: () => Promise<void>) => React.ReactNode;
 }
 
 /**
@@ -1066,6 +1068,7 @@ export default function Layout3DEditor({
   subtitle,
   readOnly = false,
   demoBanner,
+  shareAction,
   identity,
   scope: platformScope,
   theme: resolvedScheme = "light",
@@ -12097,6 +12100,12 @@ export default function Layout3DEditor({
     });
   }, [documentId, drawingReadOnly, open]);
 
+  const flushBeforeShare = async () => {
+    if (!documentId || !dirtyRef.current || drawingReadOnly) return;
+    scheduleAutosaveRef.current();
+    await autosaveSchedulerRef.current!.flush().catch(() => undefined);
+  };
+
   const closeEditor = async () => {
     if (documentId && dirtyRef.current && !drawingReadOnly) {
       scheduleAutosaveRef.current();
@@ -14071,6 +14080,7 @@ export default function Layout3DEditor({
             </select>
           </div>
         )}
+        {shareAction?.(flushBeforeShare)}
         <button
           data-testid="cad-save"
           onClick={save}
@@ -14087,14 +14097,16 @@ export default function Layout3DEditor({
           // botón se centraba en y = -0,5, medio píxel fuera de la ventana
           // (golden 215). Con 28 px respira dentro de la barra en vez de tocar
           // sus dos bordes.
-          className="inline-flex items-center gap-2 px-3.5 py-1 rounded-xl text-sm font-medium bg-brand-strong text-primary-foreground disabled:opacity-50"
+          // En Pro, por debajo de 1440 px, sólo el icono (ver `data-cad-ui` en CadRibbon).
+          className="inline-flex items-center gap-2 px-3.5 py-1 rounded-xl text-sm font-medium bg-brand-strong text-primary-foreground disabled:opacity-50 [[data-cad-ui=pro]_&]:max-[1439px]:px-2"
+          title="Guardar"
         >
           {saving ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
             <Save className="w-4 h-4" />
           )}{" "}
-          Guardar
+          <span className="[[data-cad-ui=pro]_&]:max-[1439px]:sr-only">Guardar</span>
         </button>
         <button
           onClick={() => void closeEditor()}

@@ -118,6 +118,18 @@ export function storedDemoDocument(
   return readStored(storage)?.document ?? null;
 }
 
+/**
+ * ¿Dejó el visitante un dibujo PROPIO? La casa de arranque sin tocar no
+ * cuenta: ofrecerla a una cuenta nueva sería regalarle un plano que no hizo.
+ */
+export function hasEditedDemoDocument(
+  storage: Pick<Storage, "getItem"> | undefined = globalThis.localStorage,
+): boolean {
+  if (!storage) return false;
+  const stored = readStored(storage);
+  return !!stored && stored.edited !== false;
+}
+
 /** Borra el dibujo demo (tras adoptarlo en una cuenta). */
 export function clearDemoDocument(
   storage: Pick<Storage, "removeItem"> | undefined = globalThis.localStorage,
@@ -133,6 +145,11 @@ export function clearDemoDocument(
 export interface DemoDocumentPort extends DocumentLifecyclePort {
   readonly hasRecoverableDocument: boolean;
   restorePrevious(): boolean;
+  /**
+   * El último dibujo que el editor guardó aquí (lo que «Compartir» manda).
+   * Quien lo pide vacía antes el autosave para que sea el de ahora mismo.
+   */
+  currentDocument(): CadDocument | null;
 }
 
 export function createDemoDocumentPort(
@@ -175,6 +192,9 @@ export function createDemoDocumentPort(
 
   return {
     hasRecoverableDocument: previous !== null,
+    currentDocument() {
+      return state?.document ?? null;
+    },
     restorePrevious() {
       if (!previous) return false;
       // Si la persona ya dibujó algo en esta visita, conservar también ese

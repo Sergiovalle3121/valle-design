@@ -4631,6 +4631,43 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DEMO-COMPARTIR-WEB-20260924",
+      "date": "2026-09-24",
+      "initiative": "El botón «Compartir» no existía en ninguna parte del estudio: la cuarta tarea del robot estudiante (mandar el plano a un celular) fallaba siempre y los enlaces de revisión vivían escondidos en el muelle de colaboración. Se agrega «Compartir» en la cola fija de la fila superior, en Esencial y en Pro: en /demo crea el enlace temporal de siete días con QR, «Copiar enlace», «Borrar enlace» e invitación a crear cuenta; con cuenta abre una sesión de revisión con enlace. /revision canjea los enlaces de la demostración en sólo lectura y, si su dueño los reclamó, cae al enlace de revisión con el mismo token. El tablero adopta el dibujo de la demo aunque se pierda ?demo=1 al verificar el correo, y reclama el enlace al crear el primer documento.",
+      "branch": "claude/keen-cannon-nvm7x7",
+      "assistants": [
+        "Claude Code (Anthropic): componente, enganche en el editor, visor, adopción en el tablero, golden y mediciones de la fila superior"
+      ],
+      "authority": "Sergio aprobó el 2026-09-24 el plan de salida al mercado (Fase 1: «Compartir» y robot 4/4) y eligió «las dos» para compartir desde la demostración.",
+      "firstPartyInputs": [
+        "scripts/qa/medir-tareas.mjs: tarea 4 (botón «Compartir», «Copiar enlace», plano y m² en un celular de 390×844)",
+        "components/cad/collab/ReviewLinkIssuer.tsx y ReviewLinkClient.tsx: enlace de revisión existente",
+        "components/ui/QrCode.tsx: QR propio en SVG"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "components/cad/share/CadShareButton.tsx y lib/cad/share/demo-share-repository.ts (+ spec)",
+        "Layout3DEditor.tsx: prop shareAction con el vaciado del autosave antes de compartir (10 líneas, dentro de su asignación)",
+        "CadStudioHost.tsx y app/demo/DemoStudio.tsx: el origen de cada «Compartir»",
+        "CadRibbon.tsx: la fila marca el modo (data-cad-ui); en Pro, entre 1280 y 1440 px, «Compartir» queda en icono, el título cede primero y las pestañas ceden los píxeles que falten",
+        "document-lifecycle/demo-port.ts (+ spec): currentDocument() y hasEditedDemoDocument()",
+        "components/cad/collab/ReviewLinkClient.tsx: canje de vdds_ y caída al review link reclamado",
+        "app/dashboard: adopción del dibujo de la demo sin ?demo=1 si la cuenta está vacía y el dibujo es propio; reclamo del enlace",
+        "e2e/public/demo-share.spec.ts"
+      ],
+      "fixtures": "Sin fixtures nuevos: el golden simula el servidor del enlace con page.route.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Golden demo-share (POST con el dibujo actual en gzip, QR, copiar, canje en 390×844 sin barra horizontal, borrado), demo-studio, 214, 215, 228, 229, 250 y 56 en Chromium; medición de la fila superior a 1280/1366/1440 en Pro y Esencial; typecheck, lint y specs del web."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

@@ -378,6 +378,11 @@ export function CadRibbon({
     <div
       data-testid="cad-top-toolbar"
       data-cad-appbar="true"
+      // Lo leen «Compartir» y «Guardar», que en Pro por debajo de 1440 px se
+      // quedan en su icono: las diez pestañas no ceden desde 1280 (golden
+      // 215) y la cola fija no cabía con las dos palabras. En Esencial sobra
+      // sitio y se leen siempre.
+      data-cad-ui={esencial ? "esencial" : "pro"}
       className={cx(
         "flex h-8 items-center gap-1.5 overflow-x-auto border-b border-border bg-surface/90 pr-1 backdrop-blur",
         "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
