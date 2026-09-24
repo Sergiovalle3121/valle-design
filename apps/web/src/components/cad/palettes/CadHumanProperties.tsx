@@ -2,7 +2,7 @@
 
 import type { CadHumanPropertyModel } from "./human-property-model";
 
-/** Vista breve y de sólo lectura; la edición exacta sigue en Detalles técnicos. */
+/** Vista breve y de sólo lectura; la edición exacta sigue en Pro. */
 export function CadHumanProperties({ model }: { model: CadHumanPropertyModel }) {
   return (
     <section data-testid="cad-human-properties" className="mb-3 rounded-card border border-border bg-surface p-3">

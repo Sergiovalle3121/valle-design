@@ -4466,7 +4466,7 @@
     {
       "id": "ESENCIAL-PROPIEDADES-HUMANAS-20260923",
       "date": "2026-09-23",
-      "initiative": "Mostrar medidas y nombres comprensibles en las propiedades de Esencial, dejando la edición exacta en Detalles técnicos y conservando la tabla de Pro.",
+      "initiative": "Mostrar medidas y nombres comprensibles en las propiedades de Esencial sin montar campos crudos, conservando la edición exacta en Pro.",
       "branch": "codex/essential-human-properties",
       "assistants": [
         "OpenAI Codex: lectura del modelo canónico, implementación de presentación y pruebas focales"
@@ -4481,16 +4481,18 @@
       "externalImplementationConsulted": "Ninguna implementación externa copiada; sólo código y documentación de Next.js instalados en este repositorio.",
       "derivedAreas": [
         "human-property-model.ts: geometría real y unidad declarada para muro, puerta, ventana, rectángulo, polilínea, línea, círculo, texto y cota; figura con arco no se llama rectángulo, figura abierta no recibe área supuesta y muro huérfano no expone UUID",
-        "CadHumanProperties, CadEntityPropertiesPanel, CadNativeSelectionHeading y CadNativeEntityList: vista humana en Esencial, rectángulos con nombre propio, detalles técnicos plegados y vista Pro preservada",
-        "golden 254 y human-property-model.spec.ts: comprobaciones visibles y de medidas; el golden se ejecutó en Chromium sobre build de producción"
+        "CadHumanProperties, CadEntityPropertiesPanel, CadNativeSelectionHeading y CadNativeEntityList: vista humana en Esencial, rectángulos con nombre propio, tabla técnica ausente del árbol Esencial y vista Pro preservada",
+        "CadEssentialLegacyProperties: ficha humana de la selección box heredada; sólo muestra el nombre persistido y no infiere superficie a partir de su huella rectangular",
+        "human-property-model.ts: si una capa referenciada falta, informa Capa no disponible en lugar de enseñar su ID; el dato canónico no cambia",
+        "golden 254, human-property-model.spec.ts y essential-properties.spec.mjs: comprobaciones visibles de ausencia de jerga, valores de medidas, Pro y panel heredado"
       ],
-      "fixtures": "Entidades canónicas sintéticas de muro, puerta, rectángulo, polilínea, línea y círculo; ningún dato de cliente ni proveedor externo.",
+      "fixtures": "Entidades canónicas sintéticas de muro, puerta, rectángulo, polilínea, línea y círculo; box room legado con nombre SALA y capa huérfana sintética; ningún dato de cliente ni proveedor externo.",
       "dependenciesAdded": [],
       "adoption": {
         "required": true,
         "status": "proposed",
         "adopter": "Sergio Valle Zárate",
-        "evidence": "La prueba focal del modelo, ESLint focal, typecheck y build web de producción con Webpack (208 páginas) pasaron en local. Golden 254 Chromium 3/3 PASS sobre el mismo bundle: muro en metros con detalles crudos plegados, edición exacta conservada en Pro y rectángulo de 6.00 m²; se inspeccionó la captura visible del panel. La entidad de cuarto de plantillas sigue siendo `box` legado, fuera de CadNativeEntity; su ficha necesita integrarse cuando la selección del espacio derivado exista. CI exact-SHA, adopción humana y salida al mercado pendientes."
+        "evidence": "Pruebas focales rojo→verde: la tabla técnica montada en Esencial, el panel box legado con ID/Footprint/Metadata CAD y la capa huérfana con ID crudo fallaron antes de la corrección; después pasaron essential-properties.spec.mjs, human-property-model.spec.ts y golden 254 Chromium 5/5. Typecheck web, ESLint focal (0 errores, avisos preexistentes del editor), presupuesto de monolito 16802 líneas/118 estados y build Webpack de producción (208 páginas) pasaron; captura del panel box humano inspeccionada. La huella box no es área del cuarto entre muros: no se anuncia área o perímetro en esa ficha. La chapa oscura de m² superpuesta al nombre amarillo en seis cuartos es una brecha visual independiente para golden C/F. CI exact-SHA, adopción humana y salida al mercado pendientes."
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false

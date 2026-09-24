@@ -600,6 +600,7 @@ import type { CadBlockDefinitionDraft, CadBlockInsertDraft } from "@/components/
 import type { CadXrefAttachDraft } from "@/components/cad/palettes/CadXrefPalette";
 import { CadWorkspaceDock } from "@/components/cad/palettes/CadWorkspaceDock";
 import { CadEntityPropertiesPanel } from "@/components/cad/palettes/CadEntityPropertiesPanel";
+import { CadEssentialLegacyProperties, type CadLegacySelectionSnapshot } from "@/components/cad/palettes/CadEssentialLegacyProperties";
 import type {
   CadPropertyRow,
   CadPropertyValue,
@@ -895,21 +896,7 @@ interface CadSheetPackageDraft {
   approvedBy: string;
   notes: string;
 }
-/** A render-safe snapshot of the current selection for the properties panel. */
-interface SelSnap {
-  type: "station" | "asset";
-  id: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  rotation: number;
-  title: string;
-  subtitle: string;
-  kind?: string;
-  height?: number;
-  canDuplicate: boolean;
-}
+type SelSnap = CadLegacySelectionSnapshot;
 
 function assetSafetyZoneKind(
   asset: Asset,
@@ -2346,6 +2333,7 @@ export default function Layout3DEditor({
       title: a.label || def.label,
       subtitle: `Equipo · ${a.kind}${a.label ? ` · ${def.label}` : ""}`,
       kind: a.kind,
+      label: a.label,
       height: def.height,
       canDuplicate: true,
     };
@@ -15260,6 +15248,8 @@ export default function Layout3DEditor({
                       )}
                     </div>
                   </div>
+                ) : uiMode === "esencial" ? (
+                  <CadEssentialLegacyProperties count={selList.length} snapshot={selSnap} />
                 ) : selList.length > 1 || !selSnap ? (
                   <div className="p-3.5">
                     <div className="flex items-center gap-2 mb-1">

@@ -28,6 +28,9 @@ const first = wall("w1", 4_000);
 assert.deepEqual(fields(first, doc([first])), {
   length: "4.00 m", thickness: "0.20 m", height: "2.40 m", layer: "Dibujo",
 });
+const orphanLayerWall = { ...first, layer: "layer-interna-8472" };
+assert.equal(fields(orphanLayerWall, doc([orphanLayerWall])).layer, "Capa no disponible",
+  "Esencial nunca muestra el identificador crudo de una capa ausente");
 const door: Extract<CadNativeEntity, { type: "opening" }> = {
   id: "d1", type: "opening", kind: "door", hostId: "w1", position: 1_000,
   width: 900, height: 2_100, sill: 0, swing: "left", hinge: "start", layer: "0",

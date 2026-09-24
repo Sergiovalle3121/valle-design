@@ -104,7 +104,7 @@ function one(
   const layer = document?.layers.find((candidate) => candidate.id === entity.layer);
   const field = (key: string, label: string, value: string, raw?: string | number): CadHumanProperty =>
     ({ key, label, value, ...(raw === undefined ? {} : { raw }) });
-  const capa = field("layer", "Capa", layer?.name?.trim() || entity.layer, entity.layer);
+  const capa = field("layer", "Capa", layer?.name?.trim() || "Capa no disponible", entity.layer);
   const heading = includeHeading ? nameOf(entity, document) : "";
 
   if (entity.type === "wall") return {
