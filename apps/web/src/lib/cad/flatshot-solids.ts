@@ -48,6 +48,7 @@ import { extrudeProfile, tryBoolean, type BrepBody } from "../brep";
 import { wallAxisFrame, wallAxisPoint, type CadWallAxisFrame } from "./wall-openings";
 import { wallJoins } from "./wall-joins";
 import { wallSolidBodyLocalWithDiagnostics, type CadWallSolidOpening } from "./wall-solid";
+import { isCadRoomSpaceAnchor } from "./room-space";
 import type { CadWallOpeningCutDiagnostic } from "./wall-solid-diagnostics";
 
 type CadBoxEntity = Extract<CadEntity, { type: "box" }>;
@@ -292,6 +293,7 @@ export function cadFlatshotBodies(
       });
       continue;
     }
+    if (isCadRoomSpaceAnchor(entity)) continue;
     if (entity.type !== "box" && entity.type !== "station") {
       skipped.push({
         entityId: entity.id,

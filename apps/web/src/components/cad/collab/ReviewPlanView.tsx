@@ -43,9 +43,11 @@ import {
   cadPlanStrokePath,
   type CadPlanProjection,
 } from "@/lib/cad/collab/plan-projection";
+import type { CadReviewRoomArea } from "@/lib/cad/collab/review-room-areas";
 
 export interface ReviewPlanViewProps {
   projection: CadPlanProjection;
+  roomAreas: CadReviewRoomArea[];
   pins: CadCommentPin[];
   activeId: string | null;
   onSelect: (commentId: string | null) => void;
@@ -55,6 +57,7 @@ export interface ReviewPlanViewProps {
 
 export default function ReviewPlanView({
   projection,
+  roomAreas,
   pins,
   activeId,
   onSelect,
@@ -191,6 +194,17 @@ export default function ReviewPlanView({
     );
   }, [pins, view]);
 
+  const areaPlacements = useMemo(() => {
+    if (!view) return [];
+    return roomAreas.flatMap((area) => {
+      const position = cadViewWorldToScreen(view, area.at);
+      if (!Number.isFinite(position.x) || !Number.isFinite(position.y) ||
+          position.x <= 0 || position.y <= 0 ||
+          position.x >= view.widthPx || position.y >= view.heightPx) return [];
+      return [{ area, x: position.x, y: position.y + (area.nameFromDocument ? 28 : 0) }];
+    });
+  }, [roomAreas, view]);
+
   const viewBox = view
     ? `${view.centerX - view.widthPx / 2 / view.pixelsPerUnit} ${
         view.centerY - view.heightPx / 2 / view.pixelsPerUnit
@@ -270,6 +284,22 @@ export default function ReviewPlanView({
         </g>
       </svg>
 
+      {areaPlacements.map(({ area, x, y }) => (
+        <div
+          key={area.id}
+          data-testid="cad-review-room-area"
+          data-room-id={area.id}
+          role="note"
+          className="pointer-events-none absolute z-10 max-w-48 -translate-x-1/2 -translate-y-1/2 rounded-control border border-border bg-surface/90 px-2 py-1 text-center text-foreground shadow-resting"
+          style={{ left: x, top: y }}
+          aria-label={`Local ${area.id}: área entre ejes de muros ${area.axisArea}${area.clearArea ? `; área útil ${area.clearArea}` : ""}`}
+        >
+          {!area.nameFromDocument ? <div className="type-micro font-semibold">Local {area.id}</div> : null}
+          <div className="type-micro">A ejes · {area.axisArea}</div>
+          {area.clearArea ? <div className="type-micro">Útil · {area.clearArea}</div> : null}
+        </div>
+      ))}
+
       {placements.map((placement) => (
         <button
           key={placement.id}
@@ -283,7 +313,7 @@ export default function ReviewPlanView({
             onSelect(activeId === placement.id ? null : placement.id);
           }}
           style={{ transform: `translate3d(${placement.x}px, ${placement.y}px, 0)` }}
-          className={`absolute left-0 top-0 -ml-3 -mt-3 flex h-6 w-6 items-center justify-center rounded-full border type-micro font-bold shadow-lg ${
+          className={`absolute left-0 top-0 z-20 -ml-3 -mt-3 flex h-6 w-6 items-center justify-center rounded-full border type-micro font-bold shadow-lg ${
             placement.resolved
               ? "border-emerald-200/60 bg-success/15 text-success-ink"
               : "border-amber-200/70 bg-amber-400 text-gray-950"

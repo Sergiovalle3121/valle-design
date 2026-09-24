@@ -4594,7 +4594,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
-            /** @description Evento legitimo que aun no se puede atribuir a una organizacion (`event_not_correlated`); el proveedor debe reintentar. */
+            /** @description Evento legitimo que aun no se puede atribuir a una organizacion (`event_not_correlated`), o sesion pagada cuyo importe, moneda o estado no se puede aplicar con seguridad (`checkout_review_required`). El proveedor debe reintentar y el operador debe revisar el segundo caso antes de conceder acceso o devolver dinero. */
             409: {
                 headers: {
                     [name: string]: unknown;

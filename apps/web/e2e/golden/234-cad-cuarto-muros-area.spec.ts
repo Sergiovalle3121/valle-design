@@ -36,7 +36,7 @@ test("cuatro muros cerrados muestran aproximadamente 12 m² dentro del cuarto y 
   await page.keyboard.press("Enter");
 
   const overlay = page.getByTestId("cad-room-area-overlay");
-  const newRoom = overlay.getByText(/^Cuarto \d+$/).first().locator("..");
+  const newRoom = overlay.locator(":scope > div").filter({ has: page.getByText(/^Cuarto \d+$/) }).first();
   await expect(newRoom, "el cuarto se mide dentro del propio plano, sin abrir propiedades").toBeVisible({ timeout: 15_000 });
   const area = newRoom.getByText(/^\d+[.,]\d{2} m²$/);
   await expect(area).toBeVisible();

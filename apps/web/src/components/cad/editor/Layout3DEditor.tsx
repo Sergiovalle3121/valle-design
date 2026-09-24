@@ -101,6 +101,7 @@ import {
 } from "@/components/cad/editor/CadDiagnosticsReadout";
 import dynamic from "next/dynamic";
 import { CadToolPalette } from "@/components/cad/editor/CadToolPalette";
+import { syncCommittedNativeSelection } from "@/components/cad/editor/sync-committed-native-selection";
 import { CadLeftDockPanel } from "@/components/cad/editor/CadLeftDockPanel";
 import { CadShellFrame } from "@/components/cad/shell/CadShellFrame";
 import { CadDockRail } from "@/components/cad/shell/CadDockRail";
@@ -462,7 +463,7 @@ import { CadCommandLineDock } from "@/components/cad/command-line/CadCommandLine
 import { useCadCommandEngine } from "@/components/cad/command-line/use-command-engine";
 import { CAD_SHARED_CLIPBOARD } from "@/lib/cad/clipboard";
 import { formatCadPromptFor } from "@/lib/cad/engine/prompt-plain";
-import { useCadUiMode } from "@/components/cad/shell/ui-mode-host";
+import { cadUiModeHost, useCadUiMode } from "@/components/cad/shell/ui-mode-host";
 import { useCadStudioCommandEngine } from "@/components/cad/command-line/use-command-engine";
 import { cadStudioEngineBridges } from "@/components/cad/command-line/studio-engine-bridges";
 import { cadFacePickerFor, cadEdgePickerFor, cadHonorSnapOverride, CAD_FACE_PICK_BIT } from "@/lib/cad/pick3d/scene-ray";
@@ -586,7 +587,8 @@ import {
 } from "@/lib/cad/world-scale";
 import CadOverviewMinimap from "@/components/cad/viewport/CadOverviewMinimap";
 import { renderCadSheetSetPdf } from "./sheet-set-pdf";
-import { CadViewportMeasurements } from "./CadViewportMeasurements";
+import { CadViewportMeasurements, renameCadRoomSpace } from "./CadViewportMeasurements";
+import { cadEssentialRoomAssetLabelIds, cadEssentialRoomLabelIds } from "@/lib/cad/onboarding/essential-room-preview";
 import { mergeAnnotationLayers, syncLegacyTextShadow } from "./legacy-text-shadow-sync";
 import { useHatchPalette } from "./use-hatch-palette";
 import {
@@ -2147,12 +2149,15 @@ export default function Layout3DEditor({
     if (notesGroupRef.current) notesGroupRef.current.visible = L.notes;
     if (dxfGroupRef.current) dxfGroupRef.current.visible = L.dxf;
     if (gridGroupRef.current) gridGroupRef.current.visible = L.grid;
+    const hiddenRoomAssetLabels = cadUiModeHost.getSnapshot() === "esencial" && loadedCadDocumentRef.current
+      ? cadEssentialRoomAssetLabelIds(loadedCadDocumentRef.current) : null;
     sceneRef.current?.traverse((o) => {
       if (!o.userData?.isLabel) return;
       const labelFor = o.userData?.labelFor as string | undefined;
-      o.visible = labelFor
+      const roomAssetLabelId = o.userData?.cadRoomAssetLabelId as string | undefined;
+      o.visible = !(roomAssetLabelId && hiddenRoomAssetLabels?.has(roomAssetLabelId)) && (labelFor
         ? L.labels && L.stations && cadVisible(labelFor, "layout")
-        : L.labels;
+        : L.labels);
     });
   }, [defaultLayerForAsset]);
   useEffect(() => {
@@ -2903,6 +2908,8 @@ export default function Layout3DEditor({
       ctx,
       selectedAssetIds,
       validationHighlightRef.current,
+      cadUiModeHost.getSnapshot() === "esencial" && loadedCadDocumentRef.current
+        ? cadEssentialRoomAssetLabelIds(loadedCadDocumentRef.current) : new Set<string>(),
     );
   }, []);
 
@@ -2962,8 +2969,10 @@ export default function Layout3DEditor({
       disposeObject(o);
     }
     const { s, W, H } = ctx;
+    const hiddenRoomLabels = cadUiModeHost.getSnapshot() === "esencial" && loadedCadDocumentRef.current
+      ? cadEssentialRoomLabelIds(loadedCadDocumentRef.current) : new Set<string>();
     annotationsRef.current.forEach((a) => {
-      if (a.type !== "text" || !a.text) return;
+      if (a.type !== "text" || !a.text || hiddenRoomLabels.has(a.id)) return;
       const lab = makeNoteLabel(a.text);
       lab.position.set((a.x - W / 2) * s, 1.2, (a.y - H / 2) * s);
       lab.userData.noteId = a.id;
@@ -3051,6 +3060,8 @@ export default function Layout3DEditor({
         (insertBatches.userData.nativeBlockBatchInsertIds as
           string[] | undefined) ?? [],
       );
+      const roomLabelIds = cadUiModeHost.getSnapshot() === "esencial"
+        ? cadEssentialRoomLabelIds(document) : new Set<string>();
       const render = (entity: CadNativeEntity) => {
         const object = buildCadNativeObject(
           entity,
@@ -3066,6 +3077,7 @@ export default function Layout3DEditor({
           });
         }
         object.visible =
+          !roomLabelIds.has(entity.id) &&
           document.layers.find((layer) => layer.id === entity.layer)
             ?.visible !== false;
         group.add(object);
@@ -3093,20 +3105,12 @@ export default function Layout3DEditor({
         nativeIndexedDocumentRef.current = document;
       }
       /**
-       * PIPELINE POR LOTES. Cuando está encendido, el espacio modelo lo dibuja
-       * él entero y la proyección por entidad se reduce a la SELECCIÓN — que es
-       * lo único que aporta que el lote no tiene: grips y realce por encima.
-       *
-       * Sin presupuesto, sin muestreo y sin overview: ésa es toda la diferencia.
-       * `planCadNativeRenderBudget` existía para no morir dibujando 100.000
-       * objetos de escena; aquí no hay 100.000 objetos, hay lotes por tile.
-       *
-       * Un cambio de vista NO entra por aquí: el pipeline lo resuelve con
-       * `setView` en el bucle de cuadros. Reemplazar en cada paneo vaciaría la
-       * caché de teselado y convertiría el paneo en la reconstrucción completa
-       * que este camino existe para eliminar.
+       * Los lotes dibujan todo el modelo; los objetos por entidad sólo aportan
+       * grips y realce de selección. No hay presupuesto ni muestreo del dibujo.
+       * El paneo entra por `setView` para conservar la caché de teselado.
        */
       const shadedSolidIds = new Set(cadSolidEntityIds(document));
+      const excludedIds = new Set([...batchedInsertIds, ...shadedSolidIds, ...roomLabelIds]);
       const nativeSelectionSet = new Set(nativeSelectionIdsRef.current);
       nativeMassHostsRef.current?.sync(document, nativeSelectionSet);
       solidShadeHostRef.current?.sync(document, nativeSelectionSet);
@@ -3116,17 +3120,16 @@ export default function Layout3DEditor({
           batchedHost.invalidate(
             [...patch.upsert.map((entity) => entity.id), ...patch.remove],
             patch.upsert.filter(
-              (entity) =>
-                !batchedInsertIds.has(entity.id) &&
-                !shadedSolidIds.has(entity.id),
+              (entity) => !excludedIds.has(entity.id),
             ),
             // El documento de DESPUÉS: sin él, los vecinos de lo editado se
             // rederivan contra la vecindad de antes (uniones de muro).
             document,
+            excludedIds,
           );
-        else if (documentChanged || !batchedHost.loaded)
+        else if (documentChanged || !batchedHost.loaded || !batchedHost.exclusionsMatch(excludedIds))
           batchedHost.replace(document, {
-            excludeEntityIds: new Set([...batchedInsertIds, ...shadedSolidIds]),
+            excludeEntityIds: excludedIds,
           });
         batchedHost.setHiddenLayers(cadHiddenLayerIds(document.layers));
         setNativeRenderStats((current) =>
@@ -3246,6 +3249,7 @@ export default function Layout3DEditor({
     },
     [refreshNativeSelectionVisuals],
   );
+  useEffect(() => cadUiModeHost.subscribe(() => { rebuildNotes(); syncNativeScene(); }), [rebuildNotes, syncNativeScene]);
 
   // ---- (re)build the read-only DXF floor-plan overlay (lines on the floor) ----
   const rebuildDxf = useCallback(() => {
@@ -4621,8 +4625,7 @@ export default function Layout3DEditor({
       const selected = options.selection.filter((id) =>
         selectableById.has(id),
       );
-      nativeSelectionIdsRef.current = selected;
-      setNativeSelectionIds(selected);
+      syncCommittedNativeSelection(selected, nativeSelectionIdsRef, setNativeSelectionIds, recordProfessionalSelection);
       setNativeEntities(
         document.entities.filter((entity): entity is CadNativeEntity =>
           CAD_ENTITY_REGISTRY.supports(entity),
@@ -4636,7 +4639,7 @@ export default function Layout3DEditor({
         remove: options.remove ?? [],
       });
     },
-    [markDirty, recordHistoryDocument, syncNativeScene],
+    [markDirty, recordHistoryDocument, recordProfessionalSelection, syncNativeScene],
   );
 
   const commitNativeCommands = useCallback(
@@ -13427,31 +13430,9 @@ export default function Layout3DEditor({
       />
     ) : null;
 
-  // EL `quickAccess` DEL ARMAZÓN: cerrar + título, prop de `CadRibbon`.
+  // EL `quickAccess` DEL ARMAZÓN: título, prop de `CadRibbon`.
   const quickAccessContent = (
     <>
-      {/* Cierre persistente y SIEMPRE alcanzable, anclado al inicio de la
-          barra. Regla que no cambia: ninguna pantalla a foco total puede
-          atrapar al usuario.
-
-          LO QUE SÍ CAMBIA: era un botón ROJO con sombra máxima, es decir, el
-          elemento visualmente más fuerte de todo el estudio. En una
-          herramienta profesional, SALIR nunca es lo más llamativo — el rojo
-          es el color con el que se avisa de que algo se va a destruir, y
-          gastarlo en «volver al tablero» lo deja sin significado para cuando
-          de verdad haga falta. Ahora es un control discreto, del mismo peso
-          que el resto del chrome, y el peso visual vuelve a donde importa: el
-          nombre del documento. */}
-      <button
-          data-cad-readonly-allowed
-          onClick={onClose}
-          title="Cerrar el CAD — volver al dashboard (Esc)"
-          aria-label="Cerrar el CAD"
-          className="sticky left-0 z-20 inline-flex flex-shrink-0 items-center justify-center rounded-control p-1.5 text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <X className="w-4 h-4" />
-        </button>
-        <div className="w-px h-5 bg-border" />
         <BoxIcon className="w-4 h-4 text-primary" />
         <span className="min-w-0 truncate type-small font-semibold" title={`${cadTitle} — ${cadSubtitle}`}>{cadTitle}</span>
         {drawingReadOnly && (
@@ -14120,6 +14101,7 @@ export default function Layout3DEditor({
         </button>
         <button
           onClick={() => void closeEditor()}
+          data-cad-readonly-allowed
           className="p-1.5 rounded-lg hover:bg-muted ml-1"
           data-testid="cad-close-editor"
           aria-label="Cerrar editor"
@@ -14427,8 +14409,8 @@ export default function Layout3DEditor({
               ctxRef={ctxRef} cameraRef={cameraRef}
               controlsRef={controlsRef}
               mountRef={mountRef}
-              unit={(data?.footprint.unit ?? "mm") as WorldUnit}
-              document={loadedCadDocumentRef.current} viewControllerRef={viewControllerRef}
+              unit={(data?.footprint.unit ?? "mm") as WorldUnit} document={loadedCadDocumentRef.current}
+              viewControllerRef={viewControllerRef} essential={uiMode === "esencial"} canRenameRoom={tool === "select" && !engineBusy} onRenameRoom={(room, name) => renameCadRoomSpace(room, name, snapshotDocument, commitNativeCommands, newId)}
             />
             {(dxfWarnings.length > 0 || dxfImportPreview) && (
               <div className="absolute right-3 top-16 z-20 w-80 rounded-2xl border border-amber-400/20 bg-surface/80 p-3 shadow-2xl backdrop-blur">

@@ -69,7 +69,7 @@ function canonicalDocument(): CadDocument {
         id: "superficie-declarada",
         type: "mtext",
         insertion: { x: 2_000, y: 3_400, z: 0 },
-        // Es una anotación del documento; el visor no calcula ni inventa áreas.
+        // Es una anotación del documento; el visor la conserva sin sustituirla.
         text: "18 m²",
         height: 160,
         layer: "0",
@@ -89,13 +89,33 @@ function canonicalDocument(): CadDocument {
   };
 }
 
-function sharedBackend(): CadV1Backend {
+function wallRoomDocument(): CadDocument {
+  const document = canonicalDocument();
+  document.meta.schema = 7;
+  const wall = (id: string, start: [number, number], end: [number, number]) => ({
+    id, type: "wall" as const,
+    start: { x: start[0], y: start[1], z: 0 },
+    end: { x: end[0], y: end[1], z: 0 },
+    thickness: 250, height: 2_400, layer: "0",
+  });
+  document.entities = [
+    wall("sur", [0, 0], [5_000, 0]),
+    wall("este", [5_000, 0], [5_000, 4_000]),
+    wall("norte", [5_000, 4_000], [0, 4_000]),
+    wall("oeste", [0, 4_000], [0, 0]),
+    { id: "nombre-espacio", type: "text", x: 2_000, y: 1_500, text: "SALA", height: 180, layer: "0" },
+  ];
+  document.modelSpace.entityIds = document.entities.map((entity) => entity.id);
+  return document;
+}
+
+function sharedBackend(document: CadDocument = canonicalDocument()): CadV1Backend {
   return new CadV1Backend([
     {
       model: "AXOS-CAD-STUDIO",
       revision: "UNIVERSAL",
       document: seedFootprint(
-        canonicalDocument() as unknown as Record<string, unknown>,
+        document as unknown as Record<string, unknown>,
         FOOTPRINT,
       ),
       version: 1,
@@ -103,6 +123,50 @@ function sharedBackend(): CadV1Backend {
     },
   ]);
 }
+
+test("cuarto de cuatro muros muestra superficies derivadas en móvil sin duplicar rótulos ni desbordar", async ({
+  browser,
+  browserName,
+  context,
+  page,
+}, testInfo) => {
+  test.setTimeout(180_000);
+  const backend = sharedBackend(wallRoomDocument());
+  await installMockBackend(context);
+  await loginAsStandaloneOwner(context);
+  await backend.install(context);
+  await page.goto(`/studio/${DOCUMENT_ID}`);
+  await openCollabDock(page);
+  await page.getByTestId("cad-review-link-new").click();
+  const enlace = (await page.getByTestId("cad-review-link-url").textContent())?.trim() ?? "";
+
+  // Mismo reparto que el otro contexto móvil de este archivo: Firefox rechaza
+  // `isMobile` en newContext.
+  const guestContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 2,
+    hasTouch: true,
+    ...(browserName === "firefox" ? {} : { isMobile: true }),
+  });
+  await installGuest(guestContext, backend);
+  const guest = await guestContext.newPage();
+  await openReview(guest, enlace);
+  const area = guest.getByTestId("cad-review-room-area");
+  await expect(area).toHaveCount(1);
+  await expect(area).toContainText("A ejes · 20.00 m²");
+  await expect(area).toContainText("Útil · 17.81 m²");
+  await expect(guest.locator('[data-testid="cad-review-text"][data-entity-id="nombre-espacio"] text'))
+    .toHaveText("SALA");
+  await expect(guest.getByTestId("cad-review-plan").getByText("SALA")).toHaveCount(1);
+  await expect(area).not.toContainText("SALA");
+  expect(await guest.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    "el visor móvil no desborda horizontalmente").toBe(true);
+  await testInfo.attach("review-room-mobile.png", {
+    body: await guest.screenshot(),
+    contentType: "image/png",
+  });
+  await guestContext.close();
+});
 
 /**
  * El invitado: contexto limpio, SIN login. La frontera de identidad se instala
@@ -125,6 +189,7 @@ async function openReview(page: Page, url: string) {
 
 test("un tercero sin cuenta abre el enlace, ve el plano y comenta sobre un punto", async ({
   browser,
+  browserName,
   context,
   page,
 }) => {
@@ -179,11 +244,15 @@ test("un tercero sin cuenta abre el enlace, ve el plano y comenta sobre un punto
     .toHaveText("18 m²");
   await expect(cliente.locator('[data-testid="cad-review-text"][data-entity-id="texto-oculto"]'))
     .toHaveCount(0);
+  // Firefox rechaza `isMobile` en newContext (Playwright no emula ahí el
+  // meta-viewport): mismo reparto que `e2e/real/movil.spec.ts`. Lo que este
+  // paso defiende —texto y m² legibles en un plano de 390 px— vive en el
+  // ancho del viewport y en el táctil, que Firefox sí emula.
   const movilContexto = await browser.newContext({
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 2,
-    isMobile: true,
     hasTouch: true,
+    ...(browserName === "firefox" ? {} : { isMobile: true }),
   });
   await installGuest(movilContexto, backend);
   const movil = await movilContexto.newPage();
