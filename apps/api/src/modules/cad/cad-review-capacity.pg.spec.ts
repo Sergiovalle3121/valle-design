@@ -21,9 +21,14 @@ import {
   MAX_OPEN_SESSIONS_PER_DOCUMENT,
 } from './cad-review.repository';
 
-const ENTITIES = [CadDocument, CadDocumentVersion, CadReviewSession, CadComment];
+const ENTITIES = [
+  CadDocument,
+  CadDocumentVersion,
+  CadReviewSession,
+  CadComment,
+];
 
-describePostgres('CAD review capacity is atomic (PostgreSQL)', () => {
+describePostgres('CAD review capacity and delivery (PostgreSQL)', () => {
   jest.setTimeout(120_000);
 
   let harness: PostgresHarness;
@@ -171,5 +176,89 @@ describePostgres('CAD review capacity is atomic (PostgreSQL)', () => {
     await expect(comments.countBy({ documentId: document.id })).resolves.toBe(
       MAX_COMMENTS_PER_DOCUMENT,
     );
+  });
+
+  it('persists a frozen delivery version after the live document advances', async () => {
+    const documents = source.getRepository(CadDocument);
+    const versions = source.getRepository(CadDocumentVersion);
+    const first = {
+      meta: { schema: 3, version: 1, unit: 'mm' },
+      entities: [{ id: 'line-1' }],
+    };
+    const second = {
+      meta: { schema: 3, version: 1, unit: 'mm' },
+      entities: [{ id: 'line-2' }],
+    };
+    await versions.save(
+      versions.create({
+        tenant_id: tenantId,
+        organization_id: tenantId,
+        plant_id: null,
+        documentId: document.id,
+        version: 1,
+        cadDocument: first,
+        sha256: null,
+        label: null,
+        legacySourceId: null,
+        created_by: 'review-capacity@test.invalid',
+      }),
+    );
+    await documents.update(document.id, {
+      cadDocument: first,
+      cadDocumentVersion: 1,
+    });
+
+    const delivered = await tenant.run(context(), () =>
+      repository.createSession(document.id, {
+        shareLink: true,
+        allowComments: false,
+        delivery: true,
+      }),
+    );
+    expect(delivered.session.deliveredVersion).toBe(1);
+    expect(delivered.session.deliveredAt).toBeInstanceOf(Date);
+
+    await versions.save(
+      versions.create({
+        tenant_id: tenantId,
+        organization_id: tenantId,
+        plant_id: null,
+        documentId: document.id,
+        version: 2,
+        cadDocument: second,
+        sha256: null,
+        label: null,
+        legacySourceId: null,
+        created_by: 'review-capacity@test.invalid',
+      }),
+    );
+    await documents.update(document.id, {
+      cadDocument: second,
+      cadDocumentVersion: 2,
+    });
+    const live = await tenant.run(context(), () =>
+      repository.createSession(document.id, {
+        shareLink: true,
+        allowComments: false,
+      }),
+    );
+
+    const reloaded = await source
+      .getRepository(CadReviewSession)
+      .findOneByOrFail({
+        id: delivered.session.id,
+      });
+    const frozen = await versions.findOneByOrFail({
+      documentId: document.id,
+      version: reloaded.deliveredVersion!,
+    });
+    const current = await documents.findOneByOrFail({ id: document.id });
+    expect(reloaded.deliveredVersion).toBe(1);
+    expect(reloaded.deliveredAt).toEqual(delivered.session.deliveredAt);
+    expect(reloaded.allowComments).toBe(false);
+    expect(frozen.cadDocument).toEqual(first);
+    expect(current.cadDocumentVersion).toBe(2);
+    expect(current.cadDocument).toEqual(second);
+    expect(live.session.deliveredVersion).toBeNull();
   });
 });
