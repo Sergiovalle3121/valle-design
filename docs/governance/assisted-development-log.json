@@ -4472,6 +4472,68 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "ROBOT-ESTUDIANTE-20260923",
+      "date": "2026-09-23",
+      "initiative": "Versionar un protocolo reproducible de cuatro tareas de estudiante en /demo, con acciones exclusivamente visibles, evidencia de píxeles, textos y enlace móvil, más una guía para las cinco sesiones humanas de primer uso.",
+      "branch": "codex/qa-student-robot",
+      "assistants": [
+        "OpenAI Codex: diseño del protocolo, automatización, auditoría de su línea base y documentación"
+      ],
+      "authority": "Sergio pidió analizar el encargo de lanzamiento y ejecutarlo; el prompt del 2026-09-23 exige medir cuatro tareas de estudiante y preparar un protocolo humano antes de proclamar listo el producto.",
+      "firstPartyInputs": [
+        "Código actual de /demo y su modo Esencial, la regla visual de escala y los botones visibles",
+        "Medición pública del 2026-09-23: 0/4 tareas, 31 controles y 74.5 % de pantalla libre a 1440 × 769; 31 y 74 % a 1366 × 768",
+        "Capturas y JSON locales de la corrida en apps/web/e2e/.artifacts/medicion-versionado-base-23-09/"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa copiada.",
+      "derivedAreas": [
+        "scripts/qa/medir-tareas.mjs y README.md: robot de cuatro tareas con veredicto rojo honesto fuera de CI hasta que el producto lo resuelva",
+        "docs/pruebas/PROTOCOLO-ESTUDIANTES.md: instrucciones, criterios y tabla vacía para cinco estudiantes"
+      ],
+      "fixtures": "Contexto de navegador limpio contra /demo público; no se añadieron secretos, cuentas ni datos de estudiantes.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "node --check y ejecución real con Playwright sobre https://vallecad.com/demo. El script salió 1 como corresponde a una línea base 0/4: cuatro muros sin m², puerta y ventana sin conteos visibles, cota sin texto acreditable y botón Compartir ausente. No se declara verde ni se relaja la CI. Las cinco pruebas humanas quedan pendientes de Sergio."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "PUNTERO-SELECCION-MUROS-20260923",
+      "date": "2026-09-23",
+      "initiative": "Fase B: comprobar clic directo, toque, Escape y estabilidad de la vista al dibujar muros; sincronizar la selección profesional con los muros nativos recién creados.",
+      "branch": "codex/pointer-click-reliability",
+      "assistants": [
+        "OpenAI Codex: reproducción con Playwright, corrección de selección y verificación de regresiones"
+      ],
+      "authority": "Sergio Valle Zárate pidió completar la puerta de salida al mercado de VALLECAD, con prioridad a un dibujo confiable, y autorizó integrar los avances en main.",
+      "firstPartyInputs": [
+        "Prompt maestro del 2026-09-23, Fase B: clic directo, toque, cámara estable, primer tramo visible y selección al terminar",
+        "Código del motor de puntero y del commit canónico en apps/web/src/components/cad",
+        "Producción medida al inicio de la campaña: robot estudiante 0/4, 31 controles y 74.5 % de pantalla libre a 1440 × 769; después de esta PR aún no se ha medido un despliegue nuevo"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "Golden 251: cinco clics directos y cinco toques crean cuatro muros; Esc y reelección crean el primer tramo; bbox y coordenadas del mismo píxel de pantalla estables; píxeles del primer tramo; cuatro muros designados al terminar",
+        "sync-committed-native-selection.ts y Layout3DEditor.tsx: una sola sincronización del ref nativo, su estado React y la selección profesional tras el commit canónico; el monolito no crece"
+      ],
+      "fixtures": "Demo local con contexto nuevo; capturas y traza de la ejecución roja conservadas en e2e/.test-results; no se añadieron archivos de corpus.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Golden 251 rojo antes: cuatro muros dibujados y resaltados, pero 0 sel en la selección profesional; verde después: 3/3 en Chromium sobre build de producción local. Cinco clics sin mouse.move explícito, cinco touchscreen.tap, Esc/reelección, caja del lienzo y coordenada bajo el píxel inicial/final ya pasaban antes del fix; la hipótesis de salto por foco no se reprodujo en Esencial y no se cambió focus. Primer tramo supera 100 píxeles cambiados; build web, typecheck raíz 8/8, ESLint sin errores nuevos y presupuesto 16835 líneas/118 useState pasan en local. El robot 4/4 y el despliegue público son verificaciones posteriores, no logros de esta PR."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "ESPACIO-CUARTO-NOMBRE-20260923",
       "date": "2026-09-23",
       "initiative": "Vincular el cuarto cerrado a un espacio persistido y permitir editar su nombre en planta sin inventar un rectángulo ni una superficie.",
@@ -4501,37 +4563,6 @@
         "status": "proposed",
         "adopter": "Sergio Valle Zárate",
         "evidence": "Trasplante limpio sobre #253: room-space.spec, bim-schedule.spec (66 aserciones), dwg-native-writer.spec, typecheck web, ESLint focal (0 errores, 8 avisos previos del monolito), presupuesto de monolito y check:governance (11/11) PASS. Room-space cubre Deshacer/Rehacer, mover y borrar muro mediante comandos reales, abrir/cerrar/guardar/reabrir, plantilla, TEXT, área y cantidades BIM invariantes. Hashes SHA-256 DXF y DWG de documento anterior coinciden con origin/main antes de este cambio; agregar ancla y renombrar un cuarto con TEXT conservan bytes completos y manifiestos, y la plantilla conserva los bytes de la ruta DXF del editor. DWG público sigue cerrado: los tests del escritor usan gates explícitos sólo en laboratorio; no se declara compatibilidad general. El box original de plantilla y TEXT permanecen en Pro y exportaciones con su nombre anterior; Esencial debe mostrar sólo el nombre derivado del ancla, pendiente de verificación integrada con la rama de legibilidad. Build web, golden 255 exact-SHA, CI y producción pendientes."
-      },
-      "aiCoAuthorTrailers": false,
-      "aiClaimsAuthorship": false
-    },
-    {
-      "id": "ROBOT-ESTUDIANTE-20260923",
-      "date": "2026-09-23",
-      "initiative": "Versionar un protocolo reproducible de cuatro tareas de estudiante en /demo, con acciones exclusivamente visibles, evidencia de píxeles, textos y enlace móvil, más una guía para las cinco sesiones humanas de primer uso.",
-      "branch": "codex/qa-student-robot",
-      "assistants": [
-        "OpenAI Codex: diseño del protocolo, automatización, auditoría de su línea base y documentación"
-      ],
-      "authority": "Sergio pidió analizar el encargo de lanzamiento y ejecutarlo; el prompt del 2026-09-23 exige medir cuatro tareas de estudiante y preparar un protocolo humano antes de proclamar listo el producto.",
-      "firstPartyInputs": [
-        "Código actual de /demo y su modo Esencial, la regla visual de escala y los botones visibles",
-        "Medición pública del 2026-09-23: 0/4 tareas, 31 controles y 74.5 % de pantalla libre a 1440 × 769; 31 y 74 % a 1366 × 768",
-        "Capturas y JSON locales de la corrida en apps/web/e2e/.artifacts/medicion-versionado-base-23-09/"
-      ],
-      "externalSources": [],
-      "externalImplementationConsulted": "Ninguna implementación externa copiada.",
-      "derivedAreas": [
-        "scripts/qa/medir-tareas.mjs y README.md: robot de cuatro tareas con veredicto rojo honesto fuera de CI hasta que el producto lo resuelva",
-        "docs/pruebas/PROTOCOLO-ESTUDIANTES.md: instrucciones, criterios y tabla vacía para cinco estudiantes"
-      ],
-      "fixtures": "Contexto de navegador limpio contra /demo público; no se añadieron secretos, cuentas ni datos de estudiantes.",
-      "dependenciesAdded": [],
-      "adoption": {
-        "required": true,
-        "status": "proposed",
-        "adopter": "Sergio Valle Zárate",
-        "evidence": "node --check y ejecución real con Playwright sobre https://vallecad.com/demo. El script salió 1 como corresponde a una línea base 0/4: cuatro muros sin m², puerta y ventana sin conteos visibles, cota sin texto acreditable y botón Compartir ausente. No se declara verde ni se relaja la CI. Las cinco pruebas humanas quedan pendientes de Sergio."
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
