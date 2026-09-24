@@ -6,6 +6,28 @@ buzón que reciba los mensajes. El pie sólo enseña la dirección configurada e
 `NEXT_PUBLIC_BRAND_SUPPORT_EMAIL`; tampoco verifica su entrega. No marcar este
 canal como operativo hasta realizar la prueba de extremo a extremo de abajo.
 
+## Dirección y rutas que deben funcionar
+
+- Página pública prevista: `https://vallecad.com/support` (ruta interna
+  `/support`; `NEXT_PUBLIC_SUPPORT_URL` sólo si se decide otra URL operable).
+- Buzón previsto: `soporte@vallecad.com`. La API debe tener
+  `SUPPORT_EMAIL=soporte@vallecad.com`; la web, compilada con
+  `NEXT_PUBLIC_BRAND_SUPPORT_EMAIL=soporte@vallecad.com`. Mostrar la dirección
+  no demuestra que el correo llegue ni que Sergio pueda responder desde ella.
+- El botón autenticado llama a `POST https://api.vallecad.com/v1/support/incidents`.
+  Requiere sesión, CSRF y `cad:view`; el límite es 10 reportes por minuto por
+  `userId` verificado. El outbox deduplica un reintento de la misma carga en
+  el mismo minuto, sin confundirlo con un reporte cuyo contexto o permiso
+  para revisar el plano cambió. Un 202 acredita que se encoló, no que se
+  entregó el correo.
+
+El reporte presenta antes de enviar versión, navegador, modo de interfaz y
+comando activo. Sólo añade el identificador del plano si se marca la casilla;
+no envía la geometría. Los errores de la API no muestran mensajes internos en
+el cuadro: si hay demasiados reportes, informa que se espere y conserva el
+texto escrito. La recepción real de todo esto sigue pendiente de la prueba
+operativa descrita abajo.
+
 ## Activar `soporte@vallecad.com` en Cloudflare
 
 Según la [guía oficial de Cloudflare Email Routing](https://developers.cloudflare.com/email-service/get-started/route-emails/),

@@ -2,6 +2,7 @@ import {
   buildSupportIncidentPayload,
   supportIncidentIdempotencyKey,
 } from './support-incident.payload';
+import { createHash } from 'node:crypto';
 
 /**
  * Qué sale del navegador de una persona hacia el buzón de soporte.
@@ -117,7 +118,8 @@ describe('el reporte de «algo salió mal»', () => {
 });
 
 describe('la clave de idempotencia del reporte', () => {
-  const hash = (value: string) => `h${value.length}`;
+  const hash = (value: string) =>
+    createHash('sha256').update(value).digest('hex').slice(0, 16);
 
   it('un doble clic dentro del mismo minuto es UN reporte, con la MISMA carga', () => {
     const primero = buildSupportIncidentPayload(
@@ -166,6 +168,44 @@ describe('la clave de idempotencia del reporte', () => {
     );
   });
 
+  it('no confunde reintentos con reportes que cambian el contexto o el permiso del plano', () => {
+    const original = buildSupportIncidentPayload(
+      { ...BASE, documentAuthorized: false },
+      CONTEXTO,
+    );
+    const changed = [
+      buildSupportIncidentPayload(
+        { ...BASE, activeCommand: 'HATCH', documentAuthorized: false },
+        CONTEXTO,
+      ),
+      buildSupportIncidentPayload(
+        { ...BASE, appVersion: '2026.08.28', documentAuthorized: false },
+        CONTEXTO,
+      ),
+      buildSupportIncidentPayload(
+        {
+          ...BASE,
+          userAgent: 'Mozilla/5.0 Firefox',
+          documentAuthorized: false,
+        },
+        CONTEXTO,
+      ),
+      buildSupportIncidentPayload(
+        { ...BASE, documentAuthorized: true },
+        CONTEXTO,
+      ),
+      buildSupportIncidentPayload(
+        { ...BASE, documentAuthorized: false },
+        { ...CONTEXTO, organizationId: 'org-2' },
+      ),
+    ];
+    for (const next of changed) {
+      expect(supportIncidentIdempotencyKey(next, hash)).not.toBe(
+        supportIncidentIdempotencyKey(original, hash),
+      );
+    }
+  });
+
   it('y dos personas distintas nunca se pisan', () => {
     const una = buildSupportIncidentPayload(
       { ...BASE, documentAuthorized: false },
@@ -178,5 +218,16 @@ describe('la clave de idempotencia del reporte', () => {
     expect(supportIncidentIdempotencyKey(una, hash)).not.toBe(
       supportIncidentIdempotencyKey(otra, hash),
     );
+  });
+
+  it('no escribe correo, texto ni identificador de plano en claro en la clave', () => {
+    const payload = buildSupportIncidentPayload(
+      { ...BASE, documentAuthorized: true },
+      CONTEXTO,
+    );
+    const key = supportIncidentIdempotencyKey(payload, hash);
+    expect(key).not.toContain(CONTEXTO.reportedBy);
+    expect(key).not.toContain(payload.summary);
+    expect(key).not.toContain(BASE.documentId);
   });
 });

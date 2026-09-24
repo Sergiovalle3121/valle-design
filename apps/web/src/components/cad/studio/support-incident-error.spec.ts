@@ -11,4 +11,8 @@ assert.equal(
   "No se pudo enviar el reporte. Tu texto sigue aquí; inténtalo más tarde.",
 );
 assert.ok(!supportIncidentErrorMessage({ body: { message: internal } }).includes(internal));
-console.log("support-incident-error: 3 casos seguros");
+assert.equal(
+  supportIncidentErrorMessage({ body: { code: "rate_limited", message: internal, retryAfterSeconds: 37 } }),
+  "Has enviado demasiados reportes. Espera un minuto antes de volver a intentarlo; tu texto sigue aquí.",
+);
+console.log("support-incident-error: 4 casos seguros");

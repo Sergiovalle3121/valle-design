@@ -4271,10 +4271,10 @@
     {
       "id": "SOPORTE-MODO-RUTEO-20260923",
       "date": "2026-09-23",
-      "initiative": "Completar el contexto del reporte de fallos con modo Esencial/Pro, impedir que errores internos se muestren al usuario y documentar la recepción verificable de soporte sin fingir que el buzón ya existe.",
+      "initiative": "Completar el contexto del reporte de fallos con modo Esencial/Pro, impedir que errores internos se muestren al usuario, limitar abuso por cuenta verificada y deduplicar sólo cargas idénticas; documentar la recepción verificable sin fingir que el buzón ya existe.",
       "branch": "codex/support-route",
       "assistants": [
-        "OpenAI Codex: auditoría del flujo de soporte, implementación de modo y mensajes seguros, pruebas focales y guía de activación"
+        "OpenAI Codex: auditoría del flujo de soporte, implementación de modo, mensajes seguros y deduplicación exacta, pruebas focales y guía de activación"
       ],
       "authority": "Sergio pidió preparar VALLECAD para lanzamiento y que Reportar un fallo y el pie apunten a soporte real, con versión, navegador y modo; la activación de Cloudflare Email Routing y su Gmail queda a su cargo.",
       "firstPartyInputs": [
@@ -4296,18 +4296,18 @@
       ],
       "externalImplementationConsulted": "Ninguna implementación externa copiada; sólo se consultó documentación de operación de Cloudflare.",
       "derivedAreas": [
-        "apps/web/src/components/cad/studio/CadIncidentReporter.tsx y support-incident-error.ts: modo visible/enviado y errores públicos por código, sin mensaje interno",
-        "apps/api/src/modules/support y outbox-receiver/email-templates.ts: modo opcional compatible con clientes anteriores, correo con modo y 503 honesto sin buzón",
+        "apps/web/src/components/cad/studio/CadIncidentReporter.tsx y support-incident-error.ts: modo visible/enviado y errores públicos por código, incluidos 429 y 503, sin mensaje interno",
+        "apps/api/src/modules/support y outbox-receiver/email-templates.ts: modo opcional compatible con clientes anteriores, correo con modo, 503 honesto sin buzón, límite por userId verificado e idempotencia de la carga completa",
         "packages/contracts/specs/design-api.v1.yaml y packages/design-sdk/src/generated/design-api.ts: contrato de uiMode opcional",
-        "apps/web/e2e/real/primera-hora.spec.ts, specs focales web/API y docs/onboarding/SOPORTE-RECEPCION.md: evidencia y activación pendiente"
+        "apps/web/e2e/real/primera-hora.spec.ts, specs focales web/API y docs/onboarding/SOPORTE-RECEPCION.md: navegador visible, regresiones sintéticas, rutas y buzón exactos, política antiabuso y activación pendiente"
       ],
-      "fixtures": "Errores sintéticos con texto interno simulado y payloads Esencial/Pro; no se usó correo real ni credencial personal.",
+      "fixtures": "Errores sintéticos con texto interno simulado y payloads Esencial/Pro; la prueba de outbox usó la base PostgreSQL local aislada valle_support_g5_20260923_01 con datos sintéticos. No se usó correo real ni credencial personal.",
       "dependenciesAdded": [],
       "adoption": {
         "required": true,
         "status": "proposed",
         "adopter": "Sergio Valle Zárate",
-        "evidence": "Pruebas rojas antes del cambio: uiMode ausente y colisión de idempotencia Esencial/Pro; pruebas focales de payload 12/12, plantilla de correo 15/15, 503 sin buzón 1/1 y sanitización web 3/3 verdes después. Contrato OpenAPI y consola API 110 operaciones, typecheck completo del SDK, web y API, y check:governance 11/11 verdes. Recepción real, configuración Cloudflare/Railway, prueba de extremo a extremo y CI sobre SHA final pendientes; no se declara buzón operativo."
+        "evidence": "Pruebas rojas antes del primer cambio: uiMode ausente y colisión de idempotencia Esencial/Pro. En la revisión G5, fallaron primero la deduplicación de igual texto con distinto consentimiento/contexto, el 429 seguro y el límite identificado por userId; la prueba PostgreSQL reprodujo IdempotencyConflictError real. Tras corregir: payload/servicio 15/15, controlador 3/3, PostgreSQL aislado 8/8 y mensajes web 4/4 PASS; typecheck API, ESLint focal API/web y listado Playwright G5 PASS. Contrato OpenAPI y consola API 110 operaciones, typecheck completo del SDK, web y API y check:governance 11/11 habían pasado en el primer commit. Recepción real, configuración Cloudflare/Railway, ejecución E2E y CI sobre SHA final pendientes; no se declara buzón operativo."
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
