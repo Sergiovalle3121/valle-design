@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { Expand, Hand, MousePointer2 } from "lucide-react";
 import {
   CAD_TOOLBAR_ACTIONS,
@@ -8,6 +9,10 @@ import {
 } from "@/lib/cad/toolbar";
 import { cx } from "@/components/ui";
 import { useCadUiMode } from "@/components/cad/shell/ui-mode-host";
+import {
+  CAD_RIBBON_TOOLTIP_DELAY_MS,
+  cadRibbonFocusIsVisible,
+} from "@/components/cad/ribbon/ribbon-floating";
 
 /**
  * LA PALETA DE HERRAMIENTAS — podada a lo que NO es una orden (ola1-paleta,
@@ -91,10 +96,49 @@ function ToolButton({
   // (los tres controles de navegación); si alguien añade un cuarto sin
   // icono, `CadToolPalette.spec.ts` lo dice al iterar `CAD_TOOLBAR_ACTIONS`.
   const Icon = ICONS[action.id]!;
+  // La etiqueta se abre por EVENTOS, no por `group-hover`: en Tailwind v4
+  // toda variante `hover:` va dentro de `@media (hover: hover)`, y un
+  // navegador que no declara ratón (Firefox headless en CI, algunas
+  // tabletas con lápiz) no la mostraba nunca. Mismo contrato que
+  // `CadRibbonTooltip`: al detenerse el puntero o al llegar con el teclado;
+  // nunca con el dedo, y se cierra al salir, al perder el foco y al pulsar.
+  const [tipOpen, setTipOpen] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelTip = () => {
+    if (timerRef.current === null) return;
+    clearTimeout(timerRef.current);
+    timerRef.current = null;
+  };
+  const hideTip = () => {
+    cancelTip();
+    setTipOpen(false);
+  };
+  useEffect(
+    () => () => {
+      if (timerRef.current !== null) clearTimeout(timerRef.current);
+    },
+    [],
+  );
   return (
     <button
       type="button"
       onClick={() => onRun(action.id)}
+      onPointerEnter={(event) => {
+        if (event.pointerType === "touch") return;
+        cancelTip();
+        timerRef.current = setTimeout(() => {
+          timerRef.current = null;
+          setTipOpen(true);
+        }, CAD_RIBBON_TOOLTIP_DELAY_MS);
+      }}
+      onPointerLeave={hideTip}
+      onPointerDown={hideTip}
+      onFocus={(event) => {
+        if (!cadRibbonFocusIsVisible(event.currentTarget)) return;
+        cancelTip();
+        setTipOpen(true);
+      }}
+      onBlur={hideTip}
       // El `title` nativo se conserva ADEMÁS del tooltip dibujado: es lo que
       // lee un lector de pantalla y lo que sobrevive si el CSS no carga. Sin
       // paréntesis de una letra: `keyboard-alias-collisions.spec.ts` los lee
@@ -102,7 +146,7 @@ function ToolButton({
       // letra suelta de acad.pgp).
       title={`${action.label}${action.shortcut ? ` · ${action.shortcut}` : ""} — ${action.description}`}
       className={cx(
-        "group/tool relative flex h-7 w-7 shrink-0 items-center justify-center rounded-control",
+        "relative flex h-7 w-7 shrink-0 items-center justify-center rounded-control",
         "transition-colors duration-150",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         active
@@ -121,9 +165,9 @@ function ToolButton({
         role="tooltip"
         aria-hidden="true"
         className={cx(
-          "pointer-events-none absolute bottom-full right-0 z-50 mb-2 hidden w-max max-w-56 flex-col gap-0.5",
+          "pointer-events-none absolute bottom-full right-0 z-50 mb-2 w-max max-w-56 flex-col gap-0.5",
           "rounded-control border border-border bg-popover px-2.5 py-1.5 text-popover-foreground shadow-floating",
-          "group-hover/tool:flex group-focus-visible/tool:flex",
+          tipOpen ? "flex" : "hidden",
         )}
       >
         <span className="type-caption font-semibold">{action.label}</span>

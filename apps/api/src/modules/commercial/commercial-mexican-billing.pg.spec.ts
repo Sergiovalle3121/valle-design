@@ -9,6 +9,7 @@ import {
   STRIPE_TEST_WEBHOOK_SECRET as WEBHOOK_SECRET,
   authenticatedCommercialRequest as authenticated,
   memoryRateLimits,
+  paidCheckoutSessionFromForm,
 } from '../../common/testing/stripe-billing-fixture';
 import { User } from '../identity/entities/identity.entity';
 import {
@@ -84,10 +85,12 @@ describePostgres('Facturación mexicana: CFDI, OXXO y asientos', () => {
   let webhooks: BillingWebhookService;
   let seats: SeatEntitlementService;
   let stripeResponses: string[];
+  let stripeCalls: URLSearchParams[];
   let organizationId: string;
   let ownerId: string;
 
-  const httpClient: StripeHttpClient = () => {
+  const httpClient: StripeHttpClient = (_url, init) => {
+    stripeCalls.push(new URLSearchParams(init.body));
     const body = stripeResponses.shift() ?? '{}';
     return Promise.resolve({
       ok: true,
@@ -203,6 +206,7 @@ describePostgres('Facturación mexicana: CFDI, OXXO y asientos', () => {
 
   beforeEach(async () => {
     stripeResponses = [];
+    stripeCalls = [];
     await harness.truncateAll();
 
     const users = harness.dataSource.getRepository(User);
@@ -369,18 +373,33 @@ describePostgres('Facturación mexicana: CFDI, OXXO y asientos', () => {
       'https://payments.stripe.test/oxxo/voucher/abc',
     );
 
+    await expect(
+      process(
+        'evt_oxxo_sin_prueba',
+        'checkout.session.async_payment_succeeded',
+        {
+          id: 'cs_oxxo',
+          client_reference_id: intentId,
+          payment_status: 'unpaid',
+        },
+      ),
+    ).rejects.toMatchObject({
+      name: 'BillingWebhookUnsafeCheckoutError',
+      outcome: 'checkout_async_payment_unverified',
+    });
+    expect((await subscription()).status).toBe('trialing');
+
     // ── 2. Días después entra el dinero del mostrador ─────────────────────
     await expect(
-      process('evt_oxxo_pagado', 'checkout.session.async_payment_succeeded', {
-        id: 'cs_oxxo',
-        client_reference_id: intentId,
-        payment_status: 'paid',
-        customer: 'cus_oxxo',
-        // Stripe devuelve la sesión ENTERA, con la metadata que el adaptador
-        // puso al crearla. `period` es la única fuente del fin de período en
-        // un pago único: no hay suscripción del proveedor que consultar.
-        metadata: { period: 'monthly', paymentMethod: 'oxxo' },
-      }),
+      process(
+        'evt_oxxo_pagado',
+        'checkout.session.async_payment_succeeded',
+        paidCheckoutSessionFromForm(stripeCalls[0], {
+          id: 'cs_oxxo',
+          client_reference_id: intentId,
+          customer: 'cus_oxxo',
+        }),
+      ),
     ).resolves.toEqual({
       status: 'processed',
       outcome: 'subscription_activated',
@@ -478,7 +497,7 @@ describePostgres('Facturación mexicana: CFDI, OXXO y asientos', () => {
   });
 
   // ── E5. Límite de asientos ──────────────────────────────────────────────
-  it('los asientos pagados llegan a la suscripción desde el intent', async () => {
+  it('los asientos pagados llegan a la suscripción desde la sesión cobrada', async () => {
     await captureTaxProfile();
     stripeResponses.push(
       JSON.stringify({
@@ -495,12 +514,16 @@ describePostgres('Facturación mexicana: CFDI, OXXO y asientos', () => {
       },
       authenticated(organizationId, ownerId, 'owner'),
     );
-    await process('evt_despacho', 'checkout.session.completed', {
-      id: 'cs_despacho',
-      client_reference_id: checkout.intentId,
-      customer: 'cus_despacho',
-      subscription: 'sub_despacho',
-    });
+    await process(
+      'evt_despacho',
+      'checkout.session.completed',
+      paidCheckoutSessionFromForm(stripeCalls[0], {
+        id: 'cs_despacho',
+        client_reference_id: checkout.intentId,
+        customer: 'cus_despacho',
+        subscription: 'sub_despacho',
+      }),
+    );
 
     // Cinco asientos cobrados, cinco asientos disponibles. Antes de esta ola
     // el checkout cobraba cinco y la API no impedía meter cincuenta.
@@ -511,6 +534,75 @@ describePostgres('Facturación mexicana: CFDI, OXXO y asientos', () => {
       available: 4,
       denial: null,
     });
+  });
+
+  it('si se pide 3→5 con precio nuevo, pagar la sesión vieja sólo concede los tres pagados', async () => {
+    await captureTaxProfile();
+    stripeResponses.push(
+      JSON.stringify({ id: 'cs_3', url: 'https://checkout.stripe.test/3' }),
+      JSON.stringify({ id: 'cs_5', url: 'https://checkout.stripe.test/5' }),
+    );
+    const request = authenticated(organizationId, ownerId, 'owner');
+    const first = await billing.createCheckoutSession(
+      { planCode: 'despacho', currency: 'MXN', period: 'monthly', seats: 3 },
+      request,
+    );
+    const oldForm = stripeCalls[0];
+    // La lista cambió antes de la segunda sesión; la anterior conserva su
+    // propio importe. Ningún webhook debe consultar el catálogo NUEVO para
+    // reinterpretar lo que se pagó en el checkout viejo.
+    await harness.dataSource
+      .getRepository(PlanPrice)
+      .update(
+        { planCode: 'despacho', currency: 'MXN', period: 'monthly' },
+        { amountCents: 19_000 },
+      );
+    const second = await billing.createCheckoutSession(
+      { planCode: 'despacho', currency: 'MXN', period: 'monthly', seats: 5 },
+      request,
+    );
+    expect(second.intentId).toBe(first.intentId);
+    const newForm = stripeCalls[1];
+    expect(oldForm.get('line_items[0][price_data][unit_amount]')).toBe('16900');
+    expect(newForm.get('line_items[0][price_data][unit_amount]')).toBe('19000');
+
+    await expect(
+      process(
+        'evt_old_paid',
+        'checkout.session.completed',
+        paidCheckoutSessionFromForm(oldForm, {
+          id: 'cs_3',
+          customer: 'cus_old',
+          subscription: 'sub_old',
+        }),
+      ),
+    ).resolves.toMatchObject({ outcome: 'subscription_activated' });
+    expect((await subscription()).seats).toBe(3);
+    expect(
+      (
+        await harness.dataSource
+          .getRepository(SubscriptionUpgradeIntent)
+          .findOneByOrFail({ id: first.intentId })
+      ).requestedSeats,
+    ).toBe(3);
+
+    // Si además se paga la sesión de cinco, se exige revisión del segundo
+    // cobro; no se vuelve a otorgar acceso ni se aumenta el límite.
+    await expect(
+      process(
+        'evt_new_paid',
+        'checkout.session.completed',
+        paidCheckoutSessionFromForm(newForm, {
+          id: 'cs_5',
+          customer: 'cus_new',
+          subscription: 'sub_new',
+        }),
+      ),
+    ).rejects.toMatchObject({
+      name: 'BillingWebhookUnsafeCheckoutError',
+      outcome: 'checkout_intent_already_decided',
+    });
+    expect((await subscription()).seats).toBe(3);
   });
 
   it('las invitaciones vivas OCUPAN asiento y agotan el plan', async () => {
