@@ -428,6 +428,11 @@ for (const [dockerfile, required] of Object.entries(REQUIRED_COPIES)) {
     .replace(/^v/, '')
     .split('.')[0];
 
+  ok(
+    Number(nodeMajor) >= 22,
+    `.nvmrc debe fijar una linea LTS soportada; Node 20 termino soporte en marzo de 2026 (actual: ${nodeMajor})`,
+  );
+
   const webResult = validate(
     { path: 'apps/web/Dockerfile', name: 'Web (Next.js)', expectedPort: 3000 },
     nodeMajor,

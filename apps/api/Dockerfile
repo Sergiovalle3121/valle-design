@@ -26,14 +26,14 @@
 
 # La versión de Node sale de .nvmrc (fuente única, la misma que usa CI). Si
 # alguien la cambia allí y no aquí, el validador falla.
-ARG NODE_VERSION=20
-# Digest del manifest-list multi-arch de node:20-bookworm-slim: la etiqueta
+ARG NODE_VERSION=22
+# Digest del manifest-list multi-arch de node:22-bookworm-slim: la etiqueta
 # avanza con cada patch de Node y cada rebuild de Debian, así que dos builds
 # del mismo commit daban imágenes distintas — lo contrario del principio de
 # imagen DERIVABLE del commit que declara esta cabecera. Dependabot (docker)
 # propone el digest nuevo cuando la base publica; la etiqueta se conserva al
 # lado como documentación humana de qué es este digest.
-ARG NODE_DIGEST=sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0
+ARG NODE_DIGEST=sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 1 · build — árbol completo (dev incluidas), compila y luego poda
@@ -72,11 +72,9 @@ COPY packages/dwg-codec/package.json packages/dwg-codec/
 #   npm 10.9.7  → ejecuta `prepare` → TS5058          (la firma de Railway)
 #   npm 11.19.1 → no lo ejecuta     → added 1221 packages
 #
-# Se ancla a una versión EXACTA para que la imagen siga siendo DERIVABLE del
-# commit, que es el principio que gobierna este archivo. Y es npm 11, no 12:
-# npm 12 exige Node «^22.22.2 || ^24.15.0 || >=26.0.0», y la base anclada
-# arriba es Node 20.20.2, así que npm 12 ni siquiera arrancaría aquí. npm
-# 11.19.1 exige «^20.17.0 || >=22.9.0», que 20.20.2 sí satisface.
+# Se conserva npm 11.19.1 EXACTO: es la versión medida con este lockfile que
+# evita ejecutar `prepare` prematuramente. Node 22 satisface su engine; cambiar
+# npm requiere reproducir de nuevo el orden de COPY y el build de ambas imágenes.
 RUN npm i -g npm@11.19.1
 
 RUN npm ci --no-audit --no-fund --ignore-scripts

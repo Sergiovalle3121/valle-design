@@ -101,7 +101,7 @@ DATABASE_URL=postgres://...
 15 3 * * * RCLONE_REMOTE=r2:valle-backups /srv/valle/repo/scripts/ops/backup-cron.sh >> /var/log/valle-backup.log 2>&1
 ```
 
-Requisitos del host: Node 20+, cliente PostgreSQL 16 (`PG_BIN` si no está en
+Requisitos del host: Node 22.9+, cliente PostgreSQL 16 (`PG_BIN` si no está en
 PATH), el repo (o `scripts/ops/`) en `/srv/valle/repo`, y `rclone config`
 hecho si se define `RCLONE_REMOTE`. Sin `RCLONE_REMOTE` el script avisa: un
 backup en el mismo disco que la base muere con ella. Variables:

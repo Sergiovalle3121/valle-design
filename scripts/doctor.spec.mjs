@@ -46,11 +46,17 @@ async function main() {
     assert.deepEqual(readEnvFile(path.join(scratch, "no-existe.env")), {}, "archivo ausente = objeto vacío");
   }
 
-  // --- 2 · Node: FALTA por debajo de 22, OK en 22 y por encima -----------------
+  // --- 2 · Node: el mismo mínimo ≥22.9 que declaran los package engines -----
   {
     const root = fakeRoot();
     const old = await runDiagnostics({ root, env: {}, nodeVersion: "v18.20.0", devPorts: [] });
     assert.equal(statusOf(old, "Node"), "FALTA", "Node 18 es FALTA");
+    const obsolete = await runDiagnostics({ root, env: {}, nodeVersion: "v20.20.2", devPorts: [] });
+    assert.equal(statusOf(obsolete, "Node"), "FALTA", "Node 20 EOL es FALTA");
+    const early = await runDiagnostics({ root, env: {}, nodeVersion: "v22.8.0", devPorts: [] });
+    assert.equal(statusOf(early, "Node"), "FALTA", "Node 22 anterior al mínimo es FALTA");
+    const minimum = await runDiagnostics({ root, env: {}, nodeVersion: "v22.9.0", devPorts: [] });
+    assert.equal(statusOf(minimum, "Node"), "OK", "Node 22.9 cumple el mínimo");
     const current = await runDiagnostics({ root, env: {}, nodeVersion: "v22.18.0", devPorts: [] });
     assert.equal(statusOf(current, "Node"), "OK", "Node 22 es OK");
   }

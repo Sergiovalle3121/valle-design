@@ -328,6 +328,14 @@ en diez minutos.
 inerte —no falla, no avisa: simplemente no existe—, así que compruébalo
 provocando un error a propósito la primera vez. Un Sentry que nadie ha visto
 recibir un evento es un Sentry que no sabes si funciona.
+Un DSN escrito pero inválido impide arrancar la API en producción: la ausencia
+es optativa, la configuración falsa no se presenta como monitoreo activo.
+
+**Umbrales del outbox.** El workflow `monitor.yml` consulta `/metrics` cada
+15 minutos. Requiere `MONITOR_METRICS_URL` y `MONITOR_METRICS_TOKEN` en los
+secrets de GitHub Actions, con el segundo igual al `METRICS_TOKEN` de la API.
+Sin cualquiera de los dos, la corrida falla: no hay una medición que justifique
+un verde. El cron de GitHub es best-effort y no reemplaza el uptime externo.
 
 **Monitor de uptime.** Cualquiera sirve (UptimeRobot, Better Stack, Cronitor).
 Lo que importa es **qué se vigila**:

@@ -35,6 +35,21 @@ function fakeFetch(status = 200) {
   return { impl, calls };
 }
 
+function withoutGlobalFetch<T>(run: () => T): T {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'fetch');
+  Object.defineProperty(globalThis, 'fetch', {
+    configurable: true,
+    writable: true,
+    value: undefined,
+  });
+  try {
+    return run();
+  } finally {
+    if (original) Object.defineProperty(globalThis, 'fetch', original);
+    else Reflect.deleteProperty(globalThis, 'fetch');
+  }
+}
+
 describe('puerto ErrorReporter', () => {
   describe('adaptador nulo (por defecto)', () => {
     it('acepta reportes sin hacer nada observable fuera del proceso', () => {
@@ -74,6 +89,25 @@ describe('puerto ErrorReporter', () => {
       expect(warns.join(' ')).not.toContain('k3yPubl1ca');
     });
 
+    it('en produccion un DSN explicito invalido impide arrancar sin filtrar el secreto', () => {
+      const invalidDsn = 'https://clave-que-no-se-debe-registrar@host/proyecto';
+      expect(() =>
+        createErrorReporter({
+          env: { SENTRY_DSN: invalidDsn, NODE_ENV: 'production' },
+          logger: silent,
+        }),
+      ).toThrow('SENTRY_DSN');
+      try {
+        createErrorReporter({
+          env: { SENTRY_DSN: invalidDsn, NODE_ENV: 'production' },
+          logger: silent,
+        });
+      } catch (error) {
+        expect(String(error)).not.toContain(invalidDsn);
+        expect(String(error)).not.toContain('clave-que-no-se-debe-registrar');
+      }
+    });
+
     it('con DSN valido y fetch disponible activa el adaptador HTTP', () => {
       const reporter = createErrorReporter({
         env: { SENTRY_DSN: DSN, NODE_ENV: 'production' },
@@ -84,14 +118,24 @@ describe('puerto ErrorReporter', () => {
     });
 
     it('sin fetch en el runtime cae al adaptador inerte en vez de fallar', () => {
-      const reporter = createErrorReporter({
-        env: { SENTRY_DSN: DSN },
-        fetchImpl: undefined as unknown as FetchLike,
-        logger: silent,
+      withoutGlobalFetch(() => {
+        const reporter = createErrorReporter({
+          env: { SENTRY_DSN: DSN },
+          logger: silent,
+        });
+        expect(reporter).toBeInstanceOf(NullErrorReporter);
       });
-      // globalThis.fetch existe en Node 20; se fuerza el caso comprobando que
-      // la fabrica nunca lanza y siempre devuelve un reporter usable.
-      expect(typeof reporter.report).toBe('function');
+    });
+
+    it('en produccion un DSN valido sin transporte impide arrancar', () => {
+      withoutGlobalFetch(() => {
+        expect(() =>
+          createErrorReporter({
+            env: { SENTRY_DSN: DSN, NODE_ENV: 'production' },
+            logger: silent,
+          }),
+        ).toThrow('fetch');
+      });
     });
   });
 

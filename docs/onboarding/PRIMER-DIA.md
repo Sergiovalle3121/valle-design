@@ -14,8 +14,8 @@ autoritativa, no este párrafo).
 
 ## Requisitos
 
-- **Node 22.x** (el repo se desarrolla con 22.18; `@types/node` está alineado
-  a 22 y las herramientas asumen ≥22).
+- **Node 22.x actualizado** (mínimo 22.9; `.nvmrc`, CI y las imágenes de
+  producción comparten la línea 22; `@types/node` está alineado a ella).
 - **PostgreSQL 16** para la API con persistencia real. En desarrollo, sin
   `DATABASE_URL`, la API arranca con SQLite local (suficiente para el primer
   día).

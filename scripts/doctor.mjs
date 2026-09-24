@@ -83,13 +83,14 @@ export async function runDiagnostics(options = {}) {
   const report = (status, title, detail) => results.push({ status, title, detail });
 
   // 1 · Versión de Node.
-  const [major] = nodeVersion.replace(/^v/, "").split(".").map(Number);
-  if (major >= 22) report("OK", "Node", `${nodeVersion} (≥22 requerido)`);
+  const [major, minor] = nodeVersion.replace(/^v/, "").split(".").map(Number);
+  if (major > 22 || (major === 22 && minor >= 9))
+    report("OK", "Node", `${nodeVersion} (≥22.9 requerido)`);
   else
     report(
       "FALTA",
       "Node",
-      `${nodeVersion} es menor a 22 — el repo asume ≥22 (@types/node alineado). Instala Node 22.x antes de \`npm ci\`.`,
+      `${nodeVersion} no cumple ≥22.9 — el repo, CI y los Dockerfiles usan Node 22. Instala Node 22.x actualizado antes de \`npm ci\`.`,
     );
 
   // 2 · Workspaces instalados.

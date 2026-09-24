@@ -70,7 +70,8 @@ contrato HTTP.
 
 ## Requisitos
 
-- Node.js 20.x, como declara `.nvmrc` (el paquete exige al menos 20.9).
+- Node.js 22.x actualizado, como declara `.nvmrc` (mínimo 22.9; la imagen de
+  producción queda fijada por digest a Node 22.23.3).
 - npm 10; el lockfile fue generado con la versión indicada en `package.json`.
 - PostgreSQL 16 para migraciones, pruebas de concurrencia y cualquier
   despliegue. SQLite existe únicamente como comodidad local de un solo proceso.

@@ -20,7 +20,7 @@
 #      nunca se borra lo viejo antes de saber que lo nuevo sirve.
 #
 # Requisitos del host (no van en la imagen del API; esto corre EN el VPS):
-#   - Node 20+, binarios cliente de PostgreSQL 16 (PG_BIN si no están en PATH),
+#   - Node 22.9+, binarios cliente de PostgreSQL 16 (PG_BIN si no están en PATH),
 #   - una copia del repo (o al menos de scripts/ops/) junto a este script,
 #   - rclone configurado, sólo si se usa RCLONE_REMOTE.
 #

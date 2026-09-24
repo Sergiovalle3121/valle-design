@@ -15,10 +15,10 @@ import type { ErrorReporter } from './error-reporter.port';
  * hace red, así que los tests, el desarrollo local y cualquier despliegue que
  * no haya elegido proveedor se comportan igual y no dependen de Internet.
  *
- * Un DSN ilegible NO tumba el arranque: se registra el motivo y se cae al
- * adaptador nulo. Quedarse sin telemetría es malo; quedarse sin servicio
- * porque la telemetría estaba mal configurada es peor, y es exactamente el
- * fallo que ocurre a las 3 de la mañana cuando alguien rota un secreto.
+ * En desarrollo un DSN ilegible deja el adaptador inerte y registra el motivo.
+ * En producción, un DSN explícito pero inválido impide arrancar: publicar un
+ * servicio sin la telemetría que el operador cree haber configurado sería un
+ * verde falso. La ausencia de DSN sigue siendo una elección válida y explícita.
  */
 export interface ErrorReporterFactoryOptions {
   env?: NodeJS.ProcessEnv;
@@ -43,16 +43,26 @@ export function createErrorReporter(
   const dsn = parseSentryDsn(dsnRaw);
   if (!dsn) {
     // El DSN NO se imprime: lleva la clave pública del proyecto.
+    if (env.NODE_ENV === 'production') {
+      throw new Error(
+        'SENTRY_DSN configurado pero invalido: se detiene el arranque para no perder reportes en silencio.',
+      );
+    }
     logger.warn(
-      'SENTRY_DSN no tiene forma de DSN valido (https://<clave>@<host>/<proyecto>); se usa el reporter inerte.',
+      'SENTRY_DSN no tiene forma de DSN valido (https://<clave>@<host>/<proyecto>); en desarrollo se usa el reporter inerte.',
     );
     return new NullErrorReporter();
   }
 
   const fetchImpl = options.fetchImpl ?? globalThis.fetch;
   if (typeof fetchImpl !== 'function') {
+    if (env.NODE_ENV === 'production') {
+      throw new Error(
+        'SENTRY_DSN configurado pero fetch no esta disponible: se detiene el arranque para no perder reportes en silencio.',
+      );
+    }
     logger.warn(
-      'SENTRY_DSN configurado pero este runtime no ofrece fetch; se usa el reporter inerte.',
+      'SENTRY_DSN configurado pero este runtime no ofrece fetch; en desarrollo se usa el reporter inerte.',
     );
     return new NullErrorReporter();
   }

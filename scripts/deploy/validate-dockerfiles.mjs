@@ -358,7 +358,7 @@ export function validate(target, nodeMajor) {
   );
 
   // ── 3b · digest fijado ───────────────────────────────────────────────────
-  // `node:20-bookworm-slim` también es una etiqueta MÓVIL: avanza con cada
+  // `node:22-bookworm-slim` también es una etiqueta MÓVIL: avanza con cada
   // patch de Node y cada rebuild de Debian, así que dos builds del mismo
   // commit con un mes de diferencia producían imágenes distintas. Sólo el
   // digest hace a la base derivable del commit; Dependabot (docker) propone

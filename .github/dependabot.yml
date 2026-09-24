@@ -62,10 +62,9 @@ updates:
       # grupo semanal siguen entrando.
       - dependency-name: "next-intl"
         versions: [">= 4.14.0"]
-      # @nestjs 12 arrastra @angular-devkit@22.1.5, que exige Node ^22.22.3 y
-      # este repo fija 20 en .nvmrc y en ambos Dockerfiles. Medido el
-      # 2026-09-01 sobre el PR #144, que además NO instalaba: su lockfile
-      # seguía en 11.2.3 mientras su package.json pedía 12.0.1.
+      # El antiguo bloqueo de Node 20 terminó al fijar 22.23.3. El PR #144
+      # seguía sin instalar por lockfile incoherente (11.2.3 vs 12.0.1), y el
+      # mayor todavía requiere una ventana de compatibilidad y CI completa.
       - dependency-name: "@nestjs/common"
         update-types: ["version-update:semver-major"]
       - dependency-name: "@nestjs/core"
