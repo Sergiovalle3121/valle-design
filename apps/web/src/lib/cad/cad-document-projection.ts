@@ -13,6 +13,7 @@
 import type { CadDocument, CadEntity } from "./cad-document";
 import { migrateCadDocument } from "./cad-document-migrate";
 import { byId, CAD_DOCUMENT_SCHEMA, CONNECTOR_LAYER, preserveDrawOrder } from "./cad-document-shared";
+import { isCadRoomSpaceAnchor } from "./room-space";
 
 /**
  * Replace the legacy editor projection without dropping first-class entities,
@@ -26,7 +27,7 @@ export function replaceEditorProjection(
   const preserved = base
     ? base.entities.filter((entity) =>
         !projectionIds.has(entity.id)
-        && !["box", "station", "text", "connector"].includes(entity.type)
+        && (!["box", "station", "text", "connector"].includes(entity.type) || isCadRoomSpaceAnchor(entity))
         && (entity.type !== "dimension" || !!entity.dimensionKind)
         && (entity.type !== "circle" || !entity.legacy),
       )
