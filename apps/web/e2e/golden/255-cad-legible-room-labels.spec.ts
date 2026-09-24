@@ -38,8 +38,8 @@ test("Esencial muestra seis nombres y m² sin etiquetas montadas en el plano dem
     const top = Math.max(0, Math.floor(Math.min(...rects.map((r) => r.top)) - 20));
     return {
       left, top,
-      width: Math.ceil(Math.max(...rects.map((r) => r.right)) + 20 - left,
-      height: Math.ceil(Math.max(...rects.map((r) => r.bottom)) + 20 - top,
+      width: Math.ceil(Math.max(...rects.map((r) => r.right)) + 20 - left),
+      height: Math.ceil(Math.max(...rects.map((r) => r.bottom)) + 20 - top),
     };
   });
   const screenshot = await page.screenshot();
