@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import type { CadDocument } from "../cad-document";
 import { cadPointInBoundary } from "../hatch-associativity";
 import { projectCadPlan } from "./plan-projection";
-import { cadReviewRoomAreas } from "./review-room-areas";
+import { cadReviewRoomAreas, placeCadReviewRoomAreas, type CadReviewRoomArea } from "./review-room-areas";
 
 function wallRoom(): CadDocument {
   const wall = (id: string, start: [number, number], end: [number, number]) => ({
@@ -95,4 +95,38 @@ unknownUnit.meta.unit = "unknown";
 assert.deepEqual(cadReviewRoomAreas(unknownUnit, projectCadPlan(unknownUnit)), [],
   "an undeclared measurement system cannot be presented as a room area");
 
-console.log("ok review-room-areas: canonical walls, units, annotations, visibility and missing walls");
+// Colocación en pantalla: grande → etiqueta completa; pequeño → una línea;
+// choque → se omite antes que encimarse.
+const room = (id: string, x: number, y: number, side: number): CadReviewRoomArea => ({
+  id, at: { x, y }, nameFromDocument: true, axisArea: "12.00 m²", clearArea: "10.50 m²",
+  minSpan: side, boxArea: side * side,
+});
+const identity = (point: { x: number; y: number }) => point;
+const phone = { widthPx: 390, heightPx: 844, pixelsPerUnit: 1 };
+const big = placeCadReviewRoomAreas([room("L-01", 200, 300, 300)], identity, phone);
+assert.equal(big.length, 1);
+assert.equal(big[0].compact, false, "un local grande en pantalla lleva a ejes y útil");
+const small = placeCadReviewRoomAreas([room("L-02", 200, 300, 90)], identity, phone);
+assert.equal(small[0]?.compact, true, "un local pequeño en pantalla lleva sólo su cifra");
+const crowded = placeCadReviewRoomAreas(
+  [room("chico", 205, 300, 80), room("grande", 200, 300, 120), room("lejos", 100, 600, 80)],
+  identity,
+  phone,
+);
+assert.deepEqual(crowded.map((placement) => placement.area.id), ["grande", "lejos"],
+  "el grande se coloca primero y el que chocaría con él se omite");
+assert.equal(placeCadReviewRoomAreas([room("fuera", 500, 300, 80)], identity, phone).length, 0,
+  "fuera de la vista no se coloca");
+const labels = placeCadReviewRoomAreas(
+  Array.from({ length: 6 }, (_, index) => room(`L-${index}`, 60 + (index % 3) * 110, 300 + Math.floor(index / 3) * 60, 90)),
+  identity,
+  phone,
+);
+for (const [index, a] of labels.entries()) {
+  for (const b of labels.slice(index + 1)) {
+    assert.ok(Math.abs(a.x - b.x) >= 60 || Math.abs(a.y - b.y) >= 26,
+      `las etiquetas ${a.area.id} y ${b.area.id} no se enciman`);
+  }
+}
+
+console.log("ok review-room-areas: canonical walls, units, annotations, visibility, missing walls and collision-free placement");

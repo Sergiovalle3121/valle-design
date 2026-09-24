@@ -13,6 +13,10 @@ export interface CadReviewRoomArea {
   nameFromDocument: boolean;
   axisArea: string;
   clearArea?: string;
+  /** Lado menor de la caja del local, en unidades del dibujo: decide si cabe la etiqueta completa. */
+  minSpan: number;
+  /** Área de la caja del local, en unidades del dibujo²: los grandes se colocan primero. */
+  boxArea: number;
 }
 
 // An authored number with an area unit already occupies the room on the plan.
@@ -48,14 +52,86 @@ export function cadReviewRoomAreas(
     if (!(room.axisArea > 0) ||
         authoredAreas.some((point) => cadPointInBoundary(point, room.ring))) return [];
     const at = interiorPoint(room.ring);
+    const xs = room.ring.map((point) => point.x);
+    const ys = room.ring.map((point) => point.y);
+    const width = Math.max(...xs) - Math.min(...xs);
+    const height = Math.max(...ys) - Math.min(...ys);
     return [{
       id: room.id,
       at,
       nameFromDocument: Boolean(room.labelId),
+      minSpan: Math.min(width, height),
+      boxArea: width * height,
       axisArea: squareMetres(room.axisArea),
       ...(room.clearArea === undefined
         ? {}
         : { clearArea: squareMetres(room.clearArea) }),
     }];
+  });
+}
+
+export interface CadReviewRoomAreaPlacement {
+  area: CadReviewRoomArea;
+  x: number;
+  y: number;
+  /** Una sola línea con el área a ejes (la misma cifra que el estudio). */
+  compact: boolean;
+}
+
+/** Por debajo de este lado en pantalla, el local sólo lleva su cifra. */
+const FULL_LABEL_MIN_ROOM_PX = 140;
+const LINE_PX = 16;
+const CHAR_PX = 6.6;
+const PAD_PX = 20;
+
+/**
+ * DÓNDE VA CADA ETIQUETA DE m² EN EL VISOR DEL INVITADO.
+ *
+ * En un celular de 390 px una casa de seis locales deja cada cuarto en unos
+ * 80 px: las etiquetas de dos líneas («A ejes · …» / «Útil · …») se montaban
+ * unas sobre otras y ninguna se leía (medido por el robot estudiante el
+ * 2026-09-24). Reglas, en este orden:
+ *
+ * 1. Los locales grandes se colocan primero.
+ * 2. Un local pequeño en pantalla lleva UNA línea: su área a ejes, la misma
+ *    cifra que enseña el estudio. El detalle completo sigue en su
+ *    `aria-label`.
+ * 3. Si aun así chocaría con una etiqueta ya colocada, se omite: una etiqueta
+ *    ilegible no informa y tapa a la que sí se lee. Acercar la vista la trae.
+ */
+export function placeCadReviewRoomAreas(
+  areas: readonly CadReviewRoomArea[],
+  toScreen: (point: CadPoint2) => { x: number; y: number },
+  viewport: { widthPx: number; heightPx: number; pixelsPerUnit: number },
+): CadReviewRoomAreaPlacement[] {
+  const placed: Array<{ left: number; top: number; right: number; bottom: number }> = [];
+  const byBoxDescending = [...areas].sort((a, b) => b.boxArea - a.boxArea);
+  return byBoxDescending.flatMap((area) => {
+    const position = toScreen(area.at);
+    if (!Number.isFinite(position.x) || !Number.isFinite(position.y) ||
+        position.x <= 0 || position.y <= 0 ||
+        position.x >= viewport.widthPx || position.y >= viewport.heightPx) return [];
+    const x = position.x;
+    const y = position.y + (area.nameFromDocument ? 28 : 0);
+    const roomPx = area.minSpan * viewport.pixelsPerUnit;
+    const modes = roomPx >= FULL_LABEL_MIN_ROOM_PX ? [false, true] : [true];
+    for (const compact of modes) {
+      const lines = compact
+        ? [area.axisArea]
+        : [
+            ...(area.nameFromDocument ? [] : [`Local ${area.id}`]),
+            `A ejes · ${area.axisArea}`,
+            ...(area.clearArea ? [`Útil · ${area.clearArea}`] : []),
+          ];
+      const width = Math.max(...lines.map((line) => line.length)) * CHAR_PX + PAD_PX;
+      const height = lines.length * LINE_PX + 10;
+      const box = { left: x - width / 2, top: y - height / 2, right: x + width / 2, bottom: y + height / 2 };
+      const collides = placed.some((other) =>
+        box.left < other.right && box.right > other.left && box.top < other.bottom && box.bottom > other.top);
+      if (collides) continue;
+      placed.push(box);
+      return [{ area, x, y, compact }];
+    }
+    return [];
   });
 }

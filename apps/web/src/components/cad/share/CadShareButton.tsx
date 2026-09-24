@@ -74,6 +74,7 @@ type Phase =
 const TRIGGER =
   "inline-flex items-center gap-1.5 px-3 py-1 mr-1.5 rounded-xl text-sm font-medium border border-border text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [[data-cad-ui=pro]_&]:max-[1439px]:px-2";
 const TRIGGER_LABEL = "[[data-cad-ui=pro]_&]:max-[1439px]:sr-only";
+const PANEL_MAX_WIDTH = 352;
 const ACTION =
   "inline-flex items-center justify-center gap-1.5 rounded-control px-3 py-1.5 type-caption font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
 
@@ -81,7 +82,7 @@ export default function CadShareButton({ source }: { source: CadShareSource }) {
   const [open, setOpen] = useState(false);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [copied, setCopied] = useState(false);
-  const [position, setPosition] = useState<{ top: number; right: number } | null>(null);
+  const [position, setPosition] = useState<{ top: number; left: number; width: number } | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   // La sesión de revisión creada en esta visita: se reutiliza al reabrir.
@@ -138,15 +139,20 @@ export default function CadShareButton({ source }: { source: CadShareSource }) {
     void issue();
   };
 
-  // El panel se ancla bajo el botón, alineado a su borde derecho.
+  // El panel se ancla bajo el botón y SIEMPRE dentro de la ventana. En
+  // Esencial el botón vive a la izquierda: alinearlo por su borde derecho lo
+  // sacaba de la pantalla (medido por el robot estudiante el 2026-09-24).
   useLayoutEffect(() => {
     if (!open) return;
     const place = () => {
       const rect = triggerRef.current?.getBoundingClientRect();
       if (!rect) return;
+      const width = Math.min(PANEL_MAX_WIDTH, window.innerWidth - 16);
+      const preferred = rect.left + rect.width / 2 < window.innerWidth / 2 ? rect.left : rect.right - width;
       setPosition({
         top: Math.round(rect.bottom + 6),
-        right: Math.max(8, Math.round(window.innerWidth - rect.right)),
+        left: Math.round(Math.min(Math.max(8, preferred), window.innerWidth - width - 8)),
+        width,
       });
     };
     place();
@@ -210,8 +216,8 @@ export default function CadShareButton({ source }: { source: CadShareSource }) {
             role="dialog"
             aria-label="Compartir este plano"
             data-testid="cad-share-panel"
-            style={{ top: position.top, right: position.right }}
-            className="fixed z-[90] w-[min(22rem,calc(100vw-1rem))] rounded-card border border-border bg-popover p-3 text-popover-foreground shadow-floating"
+            style={{ top: position.top, left: position.left, width: position.width }}
+            className="fixed z-[90] max-h-[calc(100dvh-4rem)] overflow-y-auto rounded-card border border-border bg-popover p-3 text-popover-foreground shadow-floating"
           >
             <div className="flex items-start justify-between gap-2">
               <h2 className="type-small font-semibold text-foreground">Compartir este plano</h2>
@@ -313,7 +319,10 @@ function PanelBody({
           : "Quien lo abra ve el plano y puede comentarlo sin instalar nada ni crear cuenta."}
       </p>
       <div className="flex items-center gap-3">
-        <QrCode value={issued.url} label="Código QR del enlace para abrirlo en el celular" className="h-28 w-28 shrink-0" />
+        {/* `QrCode` ocupa todo el ancho de su caja: la caja fija su tamaño. */}
+        <div className="h-28 w-28 shrink-0">
+          <QrCode value={issued.url} label="Código QR del enlace para abrirlo en el celular" />
+        </div>
         <p className="type-micro text-muted-foreground">
           Escanéalo con la cámara del celular o manda el enlace por WhatsApp o correo.
         </p>
