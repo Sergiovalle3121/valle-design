@@ -34,6 +34,7 @@ import {
   useCadPaletteHost,
 } from "@/components/cad/palettes/use-palettes";
 import { summarizeCadLayers, type CadLayer, type CadLayerId } from "@/lib/cad/layers";
+import type { CadUiMode } from "@/lib/cad/ui-mode-preference";
 import type { DesignReport } from "@/lib/cad/design-checks";
 import type { CadValidationReport } from "@/lib/cad/validation-report";
 
@@ -150,6 +151,7 @@ export interface CadStatusBarMisc {
 }
 
 export interface CadStatusBarProps {
+  uiMode: CadUiMode;
   diagnostics: CadStatusBarDiagnostics;
   unit: string;
   cursorCoordinateRef: RefObject<HTMLSpanElement | null>;
@@ -213,6 +215,7 @@ function measureOverflowAnchor(trigger: HTMLButtonElement | null): CSSProperties
 }
 
 export function CadStatusBar({
+  uiMode,
   diagnostics,
   unit,
   cursorCoordinateRef,
@@ -231,6 +234,11 @@ export function CadStatusBar({
   // T-24·2: cuando el presupuesto de memoria —no las acciones— fija la
   // profundidad, el indicador lo dice en vez de quedarse mudo en U1/R0.
   const historyHint = cadHistoryDepthHint(diagnostics.historyUndo, diagnostics.nativeEntityCount);
+  const activeLayer = layersInfo.cadLayers.find((layer) => layer.id === layersInfo.activeCadLayer);
+  const activeLayerLabel =
+    uiMode === "esencial" && layersInfo.activeCadLayer === "layout" && activeLayer?.label === "Layout"
+      ? "Dibujo"
+      : (activeLayer?.label ?? layersInfo.activeCadLayer);
   const [overflowOpen, setOverflowOpen] = useState(false);
   const overflowTriggerRef = useRef<HTMLButtonElement | null>(null);
   const [overflowAnchor, setOverflowAnchor] = useState<CSSProperties | null>(null);
@@ -309,7 +317,9 @@ export function CadStatusBar({
     },
     {
       id: "document-info",
-      visible: true,
+      // Los IDs históricos y la versión CAS sólo ayudan en Pro. El pin
+      // persiste; al volver a Pro reaparece sin perder la preferencia.
+      visible: uiMode === "pro",
       node: (
         <span
           className="truncate"
@@ -529,8 +539,7 @@ export function CadStatusBar({
       )}
       <span data-testid="cad-current-layer">
         Capa{" "}
-        {layersInfo.cadLayers.find((layer) => layer.id === layersInfo.activeCadLayer)
-          ?.label ?? layersInfo.activeCadLayer}
+        {activeLayerLabel}
       </span>
       {layersInfo.cadLayerSummary.hiddenObjectCount > 0 && (
         <span className="text-warning-ink">

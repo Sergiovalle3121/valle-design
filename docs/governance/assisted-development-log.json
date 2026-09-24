@@ -4470,6 +4470,37 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "ESTADO-ESENCIAL-HUMANO-20260923",
+      "date": "2026-09-23",
+      "initiative": "Mostrar una capa comprensible y ocultar identificadores de modelo, revisión y versión interna en la barra Esencial, preservando la barra profesional.",
+      "branch": "codex/essential-status-human",
+      "assistants": [
+        "OpenAI Codex: auditoría, implementación y prueba de render de la barra de estado"
+      ],
+      "authority": "Sergio autorizó la campaña de salida al mercado y pidió revisar la redacción técnica visible en Esencial.",
+      "firstPartyInputs": [
+        "CadStatusBar, CadDiagnosticsReadout y el estado de modo Esencial/Pro existentes",
+        "Capas de fábrica y contrato de testids de la barra y de las pruebas E2E reales"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "La capa predeterminada layout conserva ID y nombre persistidos pero se muestra como Capa Dibujo sólo en Esencial; nombres personalizados permanecen visibles",
+        "El detalle de modelo, revisión y versión CAS no aparece en Esencial aunque esté fijado; en Pro vuelve con el mismo contenido",
+        "Guardado, coordenadas, escala y el acceso a Más siguen visibles"
+      ],
+      "fixtures": "Render estático local de la barra con la capa predeterminada, una capa personalizada y el aviso de documento fijado, en ambos modos.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Spec de render cad-status-human rojo antes del cambio por Capa Layout; luego verde con Esencial/Pro y capa personalizada. Pruebas focales de barra 46/46, idioma 27/27 y preferencias, typecheck web, monolith-budget y gobernanza verdes; ESLint focal 0 errores y 8 avisos previos del editor. CI, navegador y producción pendientes."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }

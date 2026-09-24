@@ -14636,7 +14636,7 @@ export default function Layout3DEditor({
     ) : null;
 
   const statusBarElement = hasContent ? (
-          <CadStatusBar
+          <CadStatusBar uiMode={uiMode}
             onAnnotationScale={(d) => cadApplyAnnotationScale(loadedCadDocumentRef.current, d, commitNativeCommands)}
             spaceTabs={{
               isModelActive: !showSheetPackage,
