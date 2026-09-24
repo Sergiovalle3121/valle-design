@@ -160,7 +160,7 @@ export class CadReviewRepository {
           tokenHash: generated?.tokenHash ?? null,
           expiresAt,
           revokedAt: null,
-          allowComments: input.allowComments !== false,
+          allowComments: input.allowComments === true,
           deliveredVersion,
           deliveredAt,
           created_by: this.actor(),

@@ -1355,9 +1355,10 @@ export interface paths {
          *     esta respuesta** (`shareToken`). No existe ningún otro endpoint que lo
          *     devuelva; perderlo obliga a abrir otra sesión o rotar el link. Los
          *     review links son SIEMPRE de solo lectura (`readOnly: true`); si la
-         *     sesión lo permite (`allowComments`, default true), el contexto de
-         *     review puede además crear/listar/resolver comentarios del hilo de SU
-         *     sesión. La expiración (`expiresAt`) la calcula el SERVIDOR: TTL
+         *     sesión lo permite (`allowComments`, default false), el contexto de
+         *     review puede además crear/listar comentarios del hilo de SU sesión;
+         *     resolver corresponde al autor con permiso `cad:review`. La expiración
+         *     (`expiresAt`) la calcula el SERVIDOR: TTL
          *     pedido (`shareLinkTtlMinutes`, acotado 5 min–90 días) o el default
          *     del despliegue (7 días), y se comprueba server-side en cada canje.
          *     Máximo 20 sesiones abiertas por documento.
@@ -1476,7 +1477,7 @@ export interface paths {
         put?: never;
         /**
          * Crea un comentario en la sesión del review link (si lo permite).
-         * @description Disponible solo si la sesión se creó con `allowComments` (default true); si no, `403` con `code: review_comments_disabled`. La sesión y el documento los fija el TOKEN (el cliente no elige ids). El autor del asiento es la identidad sintética `review-link:<sessionId>`.
+         * @description Disponible solo si la sesión se creó con `allowComments: true` (default false); si no, `403` con `code: review_comments_disabled`. La sesión y el documento los fija el TOKEN (el cliente no elige ids). El autor del asiento es la identidad sintética `review-link:<sessionId>`.
          */
         post: operations["createReviewLinkComment"];
         delete?: never;
@@ -1495,8 +1496,9 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Resuelve un comentario del hilo de la sesión del review link.
-         * @description Solo comentarios del hilo de LA sesión canjeada (cualquier otro id es `404`). Requiere `allowComments`; resolver dos veces es idempotente.
+         * Ruta heredada; el token invitado no puede resolver comentarios.
+         * @deprecated
+         * @description Resolver corresponde al autor por `/v1/cad/comments/{commentId}/resolve` con `cad:review`. Un token invitado recibe siempre `403 review_read_only`, aun cuando `allowComments` permita crear comentarios.
          */
         post: operations["resolveReviewLinkComment"];
         delete?: never;
@@ -2925,7 +2927,7 @@ export interface components {
             status: "open" | "closed";
             /** @description true si la sesión tiene review link. El token NUNCA se expone aquí: solo se persiste su hash (`token_hash`). */
             hasShareLink: boolean;
-            /** @description ¿El contexto de review link puede crear/resolver comentarios? (El dibujo es de solo lectura en cualquier caso.) */
+            /** @description ¿El contexto de review link puede crear comentarios? Resolver corresponde al autor con permiso `cad:review`. (El dibujo es de solo lectura en cualquier caso.) */
             allowComments: boolean;
             /** @description Versión CAS congelada; null = enlace a lo más reciente. */
             deliveredVersion?: number | null;
@@ -5648,8 +5650,8 @@ export interface operations {
                      */
                     delivery?: boolean;
                     /**
-                     * @description ¿El contexto de review puede crear/resolver comentarios? El dibujo es de solo lectura en cualquier caso.
-                     * @default true
+                     * @description ¿El contexto de review puede crear comentarios? Requiere autorización expresa; resolver corresponde al autor. El dibujo es de solo lectura en cualquier caso.
+                     * @default false
                      */
                     allowComments?: boolean;
                     /** @description Vigencia del link en minutos (solo con `shareLink: true`). Omitido = default del despliegue (7 días). El servidor acota el valor y siempre fija `expiresAt` él mismo. */
@@ -5888,7 +5890,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Comentario resuelto. */
+            /** @description Respuesta histórica; ya no se emite a tokens invitados. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5898,7 +5900,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ReviewTokenRejected"];
-            /** @description La sesión no admite comentarios (`code: review_comments_disabled`). */
+            /** @description Un token invitado no puede resolver (`code: review_read_only`). */
             403: {
                 headers: {
                     [name: string]: unknown;

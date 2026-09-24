@@ -37,6 +37,7 @@ import { TeamMessaging20260831090000 } from './20260831090000-TeamMessaging';
 import { CadPresenceBeats20260831092000 } from './20260831092000-CadPresenceBeats';
 import { CadPresenceBeatsRls20260831093000 } from './20260831093000-CadPresenceBeatsRls';
 import { FrozenCadReviewDelivery20260923180000 } from './20260923180000-FrozenCadReviewDelivery';
+import { ReviewCommentsOptIn20260923190000 } from './20260923190000-ReviewCommentsOptIn';
 
 const LEGACY_MIGRATIONS: Array<new () => MigrationInterface> = [
   AddCadBlocks20260706180000,
@@ -78,6 +79,7 @@ const ALL_MIGRATIONS: Array<new () => MigrationInterface> = [
   CadPresenceBeats20260831092000,
   CadPresenceBeatsRls20260831093000,
   FrozenCadReviewDelivery20260923180000,
+  ReviewCommentsOptIn20260923190000,
 ];
 
 /**

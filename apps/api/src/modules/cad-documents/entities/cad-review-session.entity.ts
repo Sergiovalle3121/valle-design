@@ -11,8 +11,8 @@ import { DATE_COLUMN_TYPE } from '../../../common/database/date-column-type';
  * respuesta de creación. El canje valida hash + expiración (`expires_at`,
  * comprobada server-side en CADA request) + revocación (`revoked_at`: cerrar
  * la sesión mata el link de inmediato). `allow_comments` decide si el contexto
- * de review (siempre de solo lectura sobre el dibujo) puede crear/resolver
- * comentarios.
+ * de review (siempre de solo lectura sobre el dibujo) puede crear comentarios.
+ * Sólo el autor con cad:review puede resolverlos.
  *
  * `created_at`/`created_by` vienen de TenantBaseEntity — NO redeclararlos.
  */
@@ -53,8 +53,8 @@ export class CadReviewSession extends TenantBaseEntity {
   @Column({ type: DATE_COLUMN_TYPE, nullable: true, name: 'revoked_at' })
   revokedAt: Date | null;
 
-  /** ¿El contexto de review puede crear/resolver comentarios? */
-  @Column({ type: 'boolean', default: true, name: 'allow_comments' })
+  /** ¿El contexto de review puede crear comentarios? Por defecto, no. */
+  @Column({ type: 'boolean', default: false, name: 'allow_comments' })
   allowComments: boolean;
 
   /** NULL = revisión viva; entero = versión CAS congelada al entregar. */

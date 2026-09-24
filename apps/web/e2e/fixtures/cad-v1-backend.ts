@@ -519,7 +519,7 @@ export class CadV1Backend {
           // persiste en ningún documento, igual que la API.
           token: `vdrl_e2e_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`,
           status: "open",
-          allowComments: dto.allowComments !== false,
+          allowComments: dto.allowComments === true,
           deliveredVersion: dto.delivery ? row.version : null,
           deliveredAt: dto.delivery ? "2026-09-30T23:58:00.000Z" : null,
           expiresAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),

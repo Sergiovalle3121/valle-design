@@ -3909,7 +3909,7 @@ export default function Layout3DEditor({
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ allowComments: true }),
+        body: JSON.stringify({ allowComments: false }),
       },
     );
     const body = (await res.json().catch(() => null)) as {

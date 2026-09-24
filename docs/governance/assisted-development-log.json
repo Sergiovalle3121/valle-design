@@ -4318,7 +4318,9 @@
       "derivedAreas": [
         "Emisor Pro: casilla explícita inicialmente desmarcada para autorizar comentarios por enlace; usa Checkbox y Button del sistema de diseño",
         "Cliente invitado: permiso de comentario falla cerrado si la respuesta omite allowComments",
-        "Golden #255: token de solo vista, permiso expreso, comentario táctil a 390 × 844 y observación visible en el estudio; prueba API de 403 al comentar o resolver sin permiso"
+        "Golden #255: token de solo vista, permiso expreso, comentario táctil a 390 × 844 y observación visible en el estudio; prueba API de 403 al comentar o resolver sin permiso",
+        "El servidor, la base de datos, el adaptador legado y el fixture de navegador dejan allowComments desactivado por defecto para sesiones nuevas; el guard rechaza resolver con cualquier token invitado, incluso si esa sesión puede crear comentarios. Los enlaces ya emitidos conservan su permiso.",
+        "El emisor legado de Pro pide solo vista; únicamente la casilla visible del emisor de revisión autoriza comentarios. El cambio mantiene intacto el conteo de líneas del editor monolítico."
       ],
       "fixtures": "Cuarto sintético de cuatro muros, tokens de revisión y comentarios de prueba; sin datos de clientes ni credenciales reales.",
       "dependenciesAdded": [],
@@ -4326,7 +4328,7 @@
         "required": true,
         "status": "proposed",
         "adopter": "Sergio Valle Zárate",
-        "evidence": "Golden #255 rojo inicialmente por ausencia de autorización visible y verde después en Chromium móvil 390 × 844; los cuatro casos focales de #255 y #56 pasaron. API 8/8, typecheck web, lint focal, design-system y gobernanza verdes. Falta CI de rama integrada y producción. La capacidad de comentar permanece acotada a una sesión emitida por el autor con allowComments verdadero; Esencial/demo/entrega/QR mantienen allowComments falso."
+        "evidence": "Golden #255 rojo inicialmente por ausencia de autorización visible y verde después en Chromium móvil 390 × 844; los cuatro casos focales de #255 y #56 pasaron antes de este refuerzo de backend. La prueba API quedó roja en tres casos por default true y resolución invitada, y volvió a 8/8 PASS tras exigir allowComments: true y reservar resolver al autor. La spec del adaptador legado quedó roja al omitir permiso y volvió a PASS; inventario de migraciones 1/1, presupuesto del monolito, check:surface, check:cad-contract (110 operaciones) y gobernanza PASS. El contrato OpenAPI regeneró el SDK con openapi-typescript 7.13.0. Los gates ESM usaron un import hook temporal hacia las dependencias del checkout principal, sin crear ni alterar junctions en este worktree. Migración PostgreSQL real y CI de rama integrada aún pendientes. El guard rechaza resolver con token invitado, la creación de comentarios exige permiso expreso, y Esencial/entrega/QR envían allowComments falso. La revisión móvil y el preflight /demo necesitan revalidación en la base integrada."
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false

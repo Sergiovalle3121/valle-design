@@ -158,7 +158,7 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
       documentId,
       status: 'open',
       hasShareLink: false,
-      allowComments: true,
+      allowComments: false,
       expiresAt: null,
     });
     expect(plain.body.shareToken).toBeUndefined();
@@ -168,6 +168,7 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
       .set(auth)
       .send({ shareLink: true, shareLinkTtlMinutes: 60 })
       .expect(201);
+    expect(withLink.body.session.allowComments).toBe(false);
     const shareToken = withLink.body.shareToken as string;
     expect(shareToken).toMatch(/^vdrl_[A-Za-z0-9_-]{43}$/);
     expect(withLink.body.session.hasShareLink).toBe(true);
@@ -425,7 +426,7 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
     const created = await request(server)
       .post(`/v1/cad/documents/${documentId}/review-sessions`)
       .set(auth)
-      .send({ shareLink: true })
+      .send({ shareLink: true, allowComments: true })
       .expect(201);
     const shareToken = created.body.shareToken as string;
     const sessionId = created.body.session.id as string;
@@ -560,8 +561,7 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
     expect(untouched.body.cadDocumentVersion).toBe(1);
     expect(untouched.body.name).toBe('Plano compartido');
 
-    // 4) COMENTAR desde el link (la sesión lo permite por default) + listar
-    //    + resolver dentro del hilo de la sesión.
+    // 4) COMENTAR desde el link autorizado + listar; resolver corresponde al autor.
     const guestComment = await request(server)
       .post('/v1/cad/review/comments')
       .set('X-Review-Token', shareToken)
@@ -578,10 +578,11 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
       .set('X-Review-Token', shareToken)
       .expect(200);
     expect(guestList.body.items).toHaveLength(1);
-    await request(server)
+    const deniedResolve = await request(server)
       .post(`/v1/cad/review/comments/${guestComment.body.id}/resolve`)
       .set('X-Review-Token', shareToken)
-      .expect(201);
+      .expect(403);
+    expect(deniedResolve.body.code).toBe('review_read_only');
 
     // El autor ve el comentario del invitado en el hilo del documento.
     const authorView = await request(server)
@@ -591,6 +592,10 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
       .expect(200);
     expect(authorView.body.items).toHaveLength(1);
     expect(authorView.body.items[0].author).toBe(`review-link:${sessionId}`);
+    await request(server)
+      .post(`/v1/cad/comments/${guestComment.body.id}/resolve`)
+      .set(auth)
+      .expect(201);
 
     // 5) REVOCAR: cerrar la sesión estampa revokedAt…
     const closed = await request(server)
@@ -706,7 +711,7 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
     expect(sessionRes.body.code).toBe('review_token_invalid');
   });
 
-  it('allowComments: false deja el link en solo-vista — comentar/resolver = 403 review_comments_disabled', async () => {
+  it('allowComments: false deja ver pero no comentar ni resolver con token invitado', async () => {
     const documentId = await createDocument('Plano solo vista');
     const created = await request(app.getHttpServer())
       .post(`/v1/cad/documents/${documentId}/review-sessions`)
@@ -728,9 +733,11 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
       .expect(403);
     expect(denied.body.code).toBe('review_comments_disabled');
     const deniedResolve = await request(app.getHttpServer())
-      .post('/v1/cad/review/comments/00000000-0000-4000-8000-000000000001/resolve')
+      .post(
+        '/v1/cad/review/comments/00000000-0000-4000-8000-000000000001/resolve',
+      )
       .set('X-Review-Token', shareToken)
       .expect(403);
-    expect(deniedResolve.body.code).toBe('review_comments_disabled');
+    expect(deniedResolve.body.code).toBe('review_read_only');
   });
 });

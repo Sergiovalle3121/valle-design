@@ -818,7 +818,7 @@ async function createReviewSessionRoute(
   }
   return v1Json("POST", `/v1/cad/documents/${id}/review-sessions`, {
     shareLink: true,
-    allowComments: payload.allowComments !== false,
+    allowComments: payload.allowComments === true,
     ...(typeof payload.shareLinkTtlMinutes === "number"
       ? { shareLinkTtlMinutes: payload.shareLinkTtlMinutes }
       : {}),

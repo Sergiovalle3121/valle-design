@@ -269,8 +269,8 @@ export default function ReviewLinkClient() {
           busy={comments.busy}
           activeId={activeId}
           onSelect={setActiveId}
-          // El invitado NO resuelve hilos ajenos: cerrar una observación es
-          // una decisión del autor del plano, y la superficie lo permitiría.
+          // Resolver corresponde al autor: se oculta aquí y el servidor
+          // rechaza cualquier intento con el token del invitado.
           onResolve={null}
           onSubmit={phase.review.allowComments ? (body) => void submit(body) : null}
           disabledReason="Quien compartió este plano dejó la revisión en solo lectura: puedes verlo, pero no comentar."
