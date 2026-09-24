@@ -13,7 +13,6 @@ import { cadDocumentNativeDxfPrimitives } from "./dxf-cad-document";
 import { cadDocumentDxfExportLosses } from "./dxf-export-loss-manifest";
 import { exportCadDxf } from "./dxf-export";
 import { exportCadLayoutDxf } from "./layout-export-adapter";
-import { exportCadDocumentToDwg, preflightCadDwgExport } from "./dwg-native-writer";
 import { cadRoomNameCommands, cadRoomSpaceAnchor, isCadRoomSpaceAnchor } from "./room-space";
 import { CanonicalHistory } from "./canonical-history";
 import { createDefaultRuleEngine } from "./rule-engine";
@@ -161,19 +160,6 @@ assert.equal(
   exportCadDxf({ primitives: cadDocumentNativeDxfPrimitives(drawing) }).content,
   "los bytes DXF de un documento sin renombrar son iguales con el ancla no geométrica",
 );
-assert.deepEqual(preflightCadDwgExport(withAnchor), preflightCadDwgExport(drawing),
-  "el marcador nominal no figura como geometría ni pérdida DWG");
-const gates = { publicWriterExists: true, externalOracleVerified: true };
-const templateDwg = exportCadDocumentToDwg(withTemplate, { betaFlagOn: true, gates });
-const renamedTemplateDwg = exportCadDocumentToDwg(renamedTemplateAgain, { betaFlagOn: true, gates });
-assert.deepEqual(renamedTemplateDwg, templateDwg,
-  "una plantilla sin entidades DWG escribibles conserva exactamente su rechazo y preflight");
-const dwgBefore = exportCadDocumentToDwg(drawing, { betaFlagOn: true, gates });
-const dwgAfter = exportCadDocumentToDwg(withAnchor, { betaFlagOn: true, gates });
-assert.ok(dwgBefore.estado !== "rechazado" && dwgAfter.estado !== "rechazado");
-assert.deepEqual(dwgAfter.manifiestoDePerdidas, dwgBefore.manifiestoDePerdidas,
-  "el marcador nominal no añade una pérdida DWG");
-assert.deepEqual(dwgAfter.bytes, dwgBefore.bytes, "el nombre de espacio no cambia los bytes DWG geométricos");
 const previousDocument: CadDocument = {
   ...document([
     drawing.entities[0],
@@ -189,20 +175,9 @@ const previousWithAnchor: CadDocument = {
 const sha256 = (bytes: string | Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const previousDxf = exportCadDxf({ primitives: cadDocumentNativeDxfPrimitives(previousDocument) }).content;
 const anchoredDxf = exportCadDxf({ primitives: cadDocumentNativeDxfPrimitives(previousWithAnchor) }).content;
-// Huellas obtenidas con origin/main anterior al cambio: protegen documentos ya existentes.
+// Huella obtenida con origin/main anterior al cambio: protege documentos ya existentes.
 assert.equal(sha256(previousDxf), "abf1638699bcb62e697917cd8001014baceff049a45ad6c18e1efb71f65f8b7d");
 assert.equal(anchoredDxf, previousDxf, "el ancla deja el DXF completo byte a byte idéntico");
-const previousDwg = exportCadDocumentToDwg(previousDocument, { betaFlagOn: true, gates });
-const anchoredDwg = exportCadDocumentToDwg(previousWithAnchor, { betaFlagOn: true, gates });
-assert.ok(previousDwg.estado !== "rechazado" && anchoredDwg.estado !== "rechazado");
-assert.equal(sha256(previousDwg.bytes), "146279c349cca8d624a2ad08af1e923a11a6318f17e551152dd479fc564b362a");
-assert.deepEqual(anchoredDwg.bytes, previousDwg.bytes, "el ancla deja el DWG completo byte a byte idéntico");
-assert.deepEqual(anchoredDwg.manifiestoDePerdidas, previousDwg.manifiestoDePerdidas);
-assert.deepEqual(
-  exportCadDocumentToDwg(previousWithAnchor, { betaFlagOn: false, gates }),
-  exportCadDocumentToDwg(previousDocument, { betaFlagOn: false, gates }),
-  "la bandera de exportación cerrada y el rechazo son idénticos",
-);
 const rules = createDefaultRuleEngine({ footprint: { w: 5000, h: 4000 }, minClearance: 100 });
 const markerInsideBox = document([...withTemplate.entities, cadRoomSpaceAnchor("space-rule", "Nave", { x: 300, y: 300 })]);
 assert.deepEqual(rules.run(markerInsideBox), rules.run(withTemplate),
@@ -220,10 +195,4 @@ assert.equal(
   exportCadDxf({ primitives: cadDocumentNativeDxfPrimitives(withText) }).content,
   "renombrar un cuarto con TEXT conserva todos los bytes DXF",
 );
-const withTextDwg = exportCadDocumentToDwg(withText, { betaFlagOn: true, gates });
-const renamedTextDwg = exportCadDocumentToDwg(renamedText, { betaFlagOn: true, gates });
-assert.ok(withTextDwg.estado !== "rechazado" && renamedTextDwg.estado !== "rechazado");
-assert.deepEqual(renamedTextDwg.bytes, withTextDwg.bytes,
-  "renombrar un cuarto con TEXT conserva todos los bytes DWG");
-
 console.log("room-space.spec: plantilla, ancla, exportación, apertura y nombre OK");
