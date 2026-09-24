@@ -39,10 +39,9 @@ import { CreateReviewLinkCommentDto } from './dto/cad.dto';
  *   intente.
  * - El alcance de datos es EXACTAMENTE el documento de la sesión: el tenant
  *   sale de la fila de la sesión (scoping TypeORM normal) y cada método usa
- *   `access.documentId`/`access.sessionId` — nunca ids del cliente, salvo el
- *   `commentId` a resolver, verificado contra el hilo de la sesión.
- * - Comentar/resolver solo si la sesión lo permite (`allowComments`), si no
- *   → `403 review_comments_disabled`.
+ *   `access.documentId`/`access.sessionId` — nunca ids del cliente.
+ * - Comentar solo si la sesión lo permite (`allowComments`), si no
+ *   → `403 review_comments_disabled`. Resolver es decisión del autor.
  */
 @Controller('v1/cad/review')
 export class CadReviewLinkController {
@@ -125,7 +124,8 @@ export class CadReviewLinkController {
   }
 
   @Post('comments/:commentId/resolve')
-  @ReviewLinkSurface()
+  // Sin @ReviewLinkSurface: PermissionsGuard deniega todos los tokens invitados
+  // con 403 review_read_only, incluso cuando pueden crear comentarios.
   async resolveComment(
     @Req() request: Request,
     @Param('commentId', ParseUUIDPipe) commentId: string,

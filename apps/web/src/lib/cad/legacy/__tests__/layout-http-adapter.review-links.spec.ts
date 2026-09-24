@@ -149,6 +149,25 @@ async function main(): Promise<void> {
     "no token is ever placed in the creation URL",
   );
 
+  await handleLegacyCadRequest(
+    `${BASE}/line-engineering/layout/review-sessions?${scope}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    },
+  );
+  const omittedPermission = calls
+    .filter(
+      (call) => call.url.includes("/review-sessions") && call.method === "POST",
+    )
+    .at(-1);
+  assert.equal(
+    JSON.parse(omittedPermission?.body ?? "{}").allowComments,
+    false,
+    "sin autorización expresa, el adaptador legado sólo permite ver",
+  );
+
   // ── CANJEAR: cabecera sí, query string jamás ───────────────────────────────
   const context = await handleLegacyCadRequest(
     `${BASE}/line-engineering/layout/review-context`,

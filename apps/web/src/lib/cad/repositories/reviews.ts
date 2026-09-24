@@ -10,10 +10,9 @@ import type { CadCommentAnchorPoint } from "@/lib/cad/collab/comment-anchor";
  *   por el token server-owned en `X-Review-Token`, y acotada por el BACKEND a
  *   UN documento —el de la sesión— con todo lo demás en 403 `review_read_only`.
  *
- * Comparten forma (`list`/`create`/`resolve`) porque el panel de hilos es el
- * mismo componente en el estudio y en la página pública. Lo que NO comparten
- * es el alcance, y por eso son dos objetos y no uno con una bandera: una
- * bandera se pasa mal una vez y el invitado acaba llamando a la ruta del
+ * Comparten el panel de hilos, pero resolver corresponde sólo al autor. El
+ * método legado `resolve` del SDK invitado recibe 403 del backend. Las dos
+ * superficies permanecen separadas para que el token no alcance la ruta del
  * autor.
  */
 export const reviewsRepository = {

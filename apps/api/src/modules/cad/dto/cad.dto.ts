@@ -257,7 +257,7 @@ export class CreateReviewSessionDto {
   @IsBoolean()
   delivery?: boolean;
 
-  /** ¿El contexto de review puede crear/resolver comentarios? Default true. */
+  /** ¿El enlace de review permite crear comentarios? Default false. */
   @IsOptional()
   @IsBoolean()
   allowComments?: boolean;
