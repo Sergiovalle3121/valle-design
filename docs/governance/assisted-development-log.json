@@ -4333,6 +4333,113 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "DEMO-VISITA-LIMPIA-RECUPERACION-20260923",
+      "date": "2026-09-23",
+      "initiative": "Cada nueva visita a /demo abre la casa de ejemplo limpia. Antes de reemplazar el autosave local anterior, conserva sus bytes en una clave de recuperación; si ese dibujo se puede leer, el visitante decide si lo restaura. La clave histórica valle_demo_document permanece activa para el registro y el guardado.",
+      "branch": "codex/demo-clean-recover",
+      "assistants": [
+        "OpenAI Codex: auditoría del ciclo de vida local de /demo, implementación y pruebas de regresión"
+      ],
+      "authority": "Sergio pidió corregir el arranque heredado de /demo sin borrar la clave ni el dibujo previo, como parte de la campaña para que la demostración sea utilizable y el avance llegue a main y vallecad.com.",
+      "firstPartyInputs": [
+        "Puerto de documentos de demostración y flujo de montaje de DemoStudio en origin/main",
+        "Contrato existente del autosave y adopción del dibujo en el registro",
+        "Prueba del protocolo estudiantil de 2026-09-23: /demo reutilizaba el dibujo local de una visita anterior"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "apps/web/src/components/cad/document-lifecycle/demo-port.ts y su spec: apertura limpia, copia de sobres anteriores incluso ilegibles, y restauración elegida conservando también lo dibujado en la visita actual",
+        "apps/web/src/app/demo/DemoStudio.tsx: botón de recuperación voluntaria y remontaje del editor con el dibujo elegido",
+        "apps/web/src/lib/cad/demo/demo-constants.ts: clave adicional de recuperación sin cambiar valle_demo_document",
+        "apps/web/e2e/public/demo-studio.spec.ts: recorrido en navegador que simula el sobre heredado sin la marca edited"
+      ],
+      "fixtures": "Almacenamiento en memoria con sobre heredado y entidad de línea propia; el E2E siembra el sobre mediante un dibujo real en /demo y elimina sólo el campo nuevo edited.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Spec del puerto, typecheck web, ESLint focalizado, check:governance y build de producción Next/Webpack verdes en local. E2E Chromium de recuperación heredada y golden 228 verdes contra ese build. Medición a los 3 s en /demo: a 1440×769, visita nueva 29 controles/76.56 % de pantalla libre/0 % de lienzo tapado y visita heredada 30/76.00 %/0.73 %; a 1366×768, nueva 29/76.26 %/0 % y heredada 30/75.70 %/0.74 %. La CI y la comprobación posterior en vallecad.com deben ejecutarse sobre el SHA fusionado; no se afirma todavía que el comportamiento esté desplegado."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "VALLE-FIRST-MINUTE-GATE-20260923",
+      "date": "2026-09-23",
+      "initiative": "Medir el primer minuto como se ve en producción y recuperar espacio para dibujar sin quitar la salida segura.",
+      "branch": "codex/first-minute-gate",
+      "assistants": [
+        "OpenAI Codex: auditoría de producción, golden, interfaz y verificación local"
+      ],
+      "authority": "Sergio autorizó ejecutar el prompt maestro del 23-09, fusionar el trabajo y medir vallecad.com; sección 2 exige hasta 30 controles y al menos 75 % libre a 1440×769.",
+      "firstPartyInputs": [
+        "Prompt maestro del titular del 23-09, secciones 2, 3, 4 y 5",
+        "Medición pública prod-24ad: 31 controles, 74.5 % libre a 1440×769, 74.0 % a 1366×768, robot 0/4",
+        "Código y golden existentes del editor en main 24ad085b"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "Golden 228 mide el canvas real sin saltar el recorrido, con tres segundos de reposo",
+        "Recorrido plegado flotante ocupa una fila; salida duplicada sin comprobación de guardado retirada",
+        "Encuadrar selección no se pinta en Esencial hasta existir selección; Pro conserva el control"
+      ],
+      "fixtures": "Sin cambios de corpus ni bytes DXF/DWG.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Golden 228 actualizado con línea base roja pública (31 controles y 74.5 %); build webpack 208 rutas, typecheck, lint 0 errores (8 avisos previos del monolito), presupuesto 16814 líneas, golden Chromium 2/2 y Firefox 2/2 PASS. Medición local de build productivo: 29 controles, 75.6 % libre y 1.2 % tapado a 1440×769; 29, 75.0 % y 1.6 % a 1366×768. Robot local 0/4 por funciones aún abiertas de otras PRs. check:cad completo PASS con VALLE_DWG_CORPUS_MIRROR (log work/first-minute-cad.log); el primer intento sin esa variable falló en check:dwg-evidence por falta del corpus local. CI exacta, merge y medición pública posteriores pendientes."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "STRIPE-PEDIDO-PAGADO-INMUTABLE-20260923",
+      "date": "2026-09-23",
+      "initiative": "Impedir que una sesión de Stripe vieja conceda más asientos que los cobrados tras reutilizar un intent pendiente; atar la idempotencia al formulario exacto y comprobar el total pagado antes de activar.",
+      "branch": "codex/checkout-idempotency-amount",
+      "assistants": [
+        "OpenAI Codex: auditoría de cobro, implementación API y pruebas de regresión"
+      ],
+      "authority": "Sergio Valle Zárate autorizó continuar VALLECAD hasta su lanzamiento y corregir el flujo de cobro; adopción condicionada a revisar y fusionar el diff y sus checks exactos.",
+      "firstPartyInputs": [
+        "Adaptador Stripe, BillingController, BillingWebhookService, catálogo de precios y suites comerciales del repositorio",
+        "Evidencia pública de api.vallecad.com: checkout external, CFDI manual e Individual 19900 céntimos MXN mensuales al 2026-09-23"
+      ],
+      "externalSources": [
+        {
+          "location": "https://docs.stripe.com/api/idempotent_requests",
+          "terms": "Documentación pública de Stripe; se usó como referencia factual y no se copió código.",
+          "fact": "Una misma clave idempotente con parámetros distintos produce error; reintentos idénticos comparten resultado y la clave admite hasta 255 caracteres."
+        },
+        {
+          "location": "https://docs.stripe.com/api/checkout/sessions/object",
+          "terms": "Documentación pública de Stripe; se usó como referencia factual y no se copió código.",
+          "fact": "La Checkout Session expone payment_status, amount_total, currency, mode y metadata para contrastar el pedido confirmado."
+        }
+      ],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "La clave de idempotencia de Checkout incorpora SHA-256 del formulario completo, estable para un reintento idéntico y distinta al cambiar asientos, periodo o importe.",
+        "El adaptador añade precio unitario y moneda a la metadata; el webhook exige estado paid y verifica el total y la moneda de la sesión firmada antes de otorgar acceso.",
+        "La cantidad otorgada y confirmada sale del pedido pagado, no del requestedSeats mutable; una segunda sesión pagada del mismo intent requiere revisión y no modifica la suscripción."
+      ],
+      "fixtures": "Pedidos sintéticos de 3 y 5 asientos, precio unitario anterior y nuevo, moneda/total inválidos; suite PostgreSQL de compra vieja pagada después de actualizar el intent.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pruebas locales, CI del SHA exacto, revisión y merge pendientes al crear esta entrada."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "REVISION-MOVIL-AREAS-MUROS-20260923",
       "date": "2026-09-23",
       "initiative": "Mostrar al invitado de un enlace de revisión móvil las superficies calculadas de un cuarto cerrado por muros canónicos visibles, distinguiendo área entre ejes y área útil. No duplicar una cifra TEXT/MTEXT existente ni suponer metros cuadrados si la unidad del documento falta o es desconocida.",
