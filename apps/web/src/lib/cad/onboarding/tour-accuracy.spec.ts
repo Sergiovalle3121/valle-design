@@ -4,8 +4,8 @@
  * ─── Por qué justo aquí ────────────────────────────────────────────────────
  *
  * El recorrido guiado no describe la interfaz: le dice a alguien que acaba de
- * registrarse EXACTAMENTE qué teclear. «Teclea WA», «Teclea DIM», «Teclea
- * PLOT». Es el único sitio del producto donde una instrucción equivocada no se
+ * registrarse EXACTAMENTE qué hacer. «Teclea WA», «pulsa Puerta», «Teclea
+ * DIM». Es el único sitio del producto donde una instrucción equivocada no se
  * descubre tarde: se descubre en el minuto dos, por la persona que todavía está
  * decidiendo si esto sirve.
  *
@@ -18,16 +18,16 @@
  *   · Cada comando que la prosa nombra entre comillas o en mayúsculas suelta
  *     también existe: un `hint` que menciona una orden inexistente es tan
  *     mentira como un `command` roto.
- *   · El paso de la puerta nombra un bloque que la biblioteca sabe fabricar.
+ *   · El paso de la puerta nombra el botón visible de Esencial y su orden.
  *   · Ningún paso promete DWG, que sigue apagado.
  *
  * No comprueba que los pasos sean BUENOS —eso lo decide quien los escribió—,
  * sino que lo que mandan hacer se pueda hacer.
  */
 import assert from "node:assert/strict";
+import { CAD_ESSENTIAL_TOOLS } from "@/components/cad/essential/essential-tools";
 import { CAD_GUIDED_TOUR_STEPS } from "./guided-tour";
 import { CAD_COMMAND_REGISTRY_V2 } from "../engine";
-import { CAD_DYNAMIC_BLOCKS } from "../dynamic-blocks";
 
 let checks = 0;
 const ok = (condition: boolean, message: string) => {
@@ -71,26 +71,22 @@ for (const step of CAD_GUIDED_TOUR_STEPS) {
   }
 }
 
-/* ── 3 · La puerta que manda colocar, la biblioteca sabe fabricarla ───────── */
+/* ── 3 · La puerta que manda colocar usa el botón visible ────────────────── */
 
 {
   const puerta = CAD_GUIDED_TOUR_STEPS.find((step) => step.id === "puerta");
+  const boton = CAD_ESSENTIAL_TOOLS.find((tool) => tool.id === "door");
   ok(!!puerta, "el recorrido tiene un paso de puerta");
-  const nombrada = /«([^»]+)»/u.exec(puerta!.instruction)?.[1] ?? "";
   ok(
-    nombrada.length > 0,
-    `el paso de la puerta nombra un bloque concreto entre comillas (dice: «${puerta!.instruction}»)`,
-  );
-  // El bloque se materializa con medidas en el nombre («Puerta abatible 0.90 m
-  // · 90°»), así que se compara por la parte estable.
-  const familia = nombrada.replace(/[\d.,]+\s*m.*$/u, "").trim().toLocaleLowerCase();
-  const existe = CAD_DYNAMIC_BLOCKS.some((definition) =>
-    definition.name.toLocaleLowerCase().includes(familia),
+    boton?.label === "Puerta" &&
+      "command" in boton.run &&
+      boton.run.command === puerta?.command,
+    "el paso usa la orden que despacha el botón visible Puerta de Esencial",
   );
   ok(
-    existe,
-    `la biblioteca sabe fabricar «${nombrada}» (familia «${familia}»): ` +
-      `hay ${CAD_DYNAMIC_BLOCKS.length} familias dinámicas`,
+    puerta!.instruction.includes("botón «Puerta»") &&
+      /haz clic sobre un muro/u.test(puerta!.instruction),
+    "la instrucción señala el botón visible y el muro, sin buscar una paleta",
   );
 }
 

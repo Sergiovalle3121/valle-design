@@ -7,14 +7,15 @@
  *     sobre el dibujo, no explicaciones.
  *  2. El progreso se lee del DIBUJO: un muro dibujado con WA y otro dibujado a
  *     mano en la capa de muros cuentan los dos, porque el recorrido premia el
- *     resultado. Una puerta cuenta si el INSERT apunta a un bloque de puerta —la
- *     sembrada o la dinámica—, no si el usuario pulsó cierto botón.
+ *     resultado. Una puerta alojada en un muro y un INSERT que apunta a un
+ *     bloque de puerta cuentan ambos, sin depender del botón pulsado.
  *  3. El paso ACTUAL es el primero sin hacer, no el siguiente al último hecho:
  *     quien acota antes de poner la puerta no se salta la puerta.
  *  4. Se puede SALTAR en cualquier momento, y saltado no reaparece.
  *  5. Se MIDE: el reloj entra por parámetro y la duración es exacta.
  */
 import { strict as assert } from "node:assert";
+import type { CadOpeningEntity } from "../cad-entities-v7";
 import type { CadCommandDocumentView } from "../engine/command-types";
 import {
   CAD_GUIDED_TOUR_STEPS,
@@ -80,6 +81,20 @@ const doorInsert = {
   rotation: 0,
   layer: "architecture",
 } as unknown as CadCommandDocumentView["entities"][number];
+
+const hostedDoor = {
+  id: "puerta-alojada-1",
+  type: "opening",
+  kind: "door",
+  hostId: wall.id,
+  position: 1_000,
+  width: 900,
+  height: 2_100,
+  sill: 0,
+  swing: "left",
+  hinge: "start",
+  layer: "MURO",
+} as const satisfies CadOpeningEntity;
 
 const dimension = {
   id: "cota-1",
@@ -159,6 +174,25 @@ const dimension = {
     }),
     true,
   );
+  // «Puerta» en Esencial crea un OPENING canónico alojado, sin bloque INSERT.
+  assert.equal(
+    cadTourStepDone("puerta", {
+      document: view({ entities: [wall, hostedDoor] }),
+    }),
+    true,
+  );
+  assert.equal(
+    cadGuidedTourProgress({ document: view({ entities: [wall, hostedDoor] }) }).currentStepId,
+    "cota",
+  );
+  // Una ventana o un hueco cuyo muro ya no existe no son una puerta visible.
+  assert.equal(
+    cadTourStepDone("puerta", {
+      document: view({ entities: [wall, { ...hostedDoor, kind: "window" }] }),
+    }),
+    false,
+  );
+  assert.equal(cadTourStepDone("puerta", { document: view({ entities: [hostedDoor] }) }), false);
   // Un bloque que no es puerta no cuela.
   const wcBlock = { ...doorBlock, id: "valle:arq:wc", name: "WC" };
   assert.equal(
@@ -178,6 +212,13 @@ const dimension = {
   );
   ok(cadTourBlockIsDoor({ id: "b-17", name: "PUERTA ACCESO" }), "la propia es puerta");
   ok(!cadTourBlockIsDoor({ id: "valle:arq:ventana-corrediza-120" }), "una ventana no");
+
+  const puertaStep = cadGuidedTourStep("puerta")!;
+  ok(
+    /botón «Puerta»/u.test(puertaStep.instruction) && /haz clic sobre un muro/u.test(puertaStep.instruction),
+    "el paso indica el botón visible y un clic sobre el muro",
+  );
+  ok(!/paleta de bloques|quicial/iu.test(`${puertaStep.instruction} ${puertaStep.hint}`), "sin jerga de bloques");
 
   // La cota: vale la cota y vale la directriz acotada.
   assert.equal(cadTourStepDone("cota", { document: view({ entities: [dimension] }) }), true);

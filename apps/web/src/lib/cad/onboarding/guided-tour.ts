@@ -3,7 +3,7 @@
  *
  * ## Qué tiene que pasar en cinco minutos
  *
- * Que el arquitecto DIBUJE UN MURO, COLOQUE UNA PUERTA de la biblioteca, ACOTE
+ * Que el arquitecto DIBUJE UN MURO, COLOQUE UNA PUERTA, ACOTE
  * y EXPORTE UN PDF. No que vea cinco globos explicando la interfaz. Un recorrido
  * que sólo señala botones enseña dónde están los botones; éste termina con un
  * archivo que se puede mandar por correo, y ése es el momento en el que alguien
@@ -11,11 +11,10 @@
  *
  * ## Por qué el progreso se lee del DIBUJO y no de los clics
  *
- * Porque hay tres caminos para colocar una puerta —la paleta de bloques, `I` en
- * la línea de comandos y arrastrarla del catálogo— y un recorrido que sólo
- * reconociera uno le diría «todavía no» a quien acaba de hacerlo bien. Se mira
- * el resultado: ¿hay un muro?, ¿hay una inserción de puerta?, ¿hay una cota? Da
- * igual por dónde entraron.
+ * Porque el botón «Puerta» crea un hueco alojado en un muro, y una inserción
+ * de bloque también puede representar una puerta. Se mira el resultado: ¿hay
+ * un muro?, ¿hay una puerta alojada o insertada?, ¿hay una cota? Da igual por
+ * dónde entraron.
  *
  * El trazado es la excepción y no puede ser de otra forma: **trazar no cambia el
  * dibujo**. Un PDF no deja rastro en el documento —y es correcto que no lo
@@ -73,9 +72,9 @@ export const CAD_GUIDED_TOUR_STEPS: readonly CadTourStep[] = [
     id: "puerta",
     title: "Coloca una puerta",
     instruction:
-      "Abre la paleta de bloques y elige «Puerta abatible 0.90 m». Se engancha por el quicial.",
-    command: "I",
-    hint: "El punto de inserción es el eje de giro: engánchalo al extremo del vano.",
+      "Elige el botón «Puerta» y haz clic sobre un muro para colocarla.",
+    command: "DOOR",
+    hint: "Si todavía no hay un muro, dibújalo primero. La puerta se coloca con un solo clic.",
   },
   {
     id: "cota",
@@ -137,6 +136,17 @@ function hasWall(document: CadCommandDocumentView): boolean {
 }
 
 function hasDoor(document: CadCommandDocumentView): boolean {
+  const walls = new Set(
+    document.entities.filter((entity) => entity.type === "wall").map((wall) => wall.id),
+  );
+  if (
+    document.entities.some(
+      (entity) =>
+        entity.type === "opening" && entity.kind === "door" && walls.has(entity.hostId),
+    )
+  )
+    return true;
+
   const doors = new Set(
     document.blocks.filter(cadTourBlockIsDoor).map((block) => block.id),
   );
