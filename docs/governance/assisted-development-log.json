@@ -4385,15 +4385,17 @@
         "apps/web/src/lib/commercial/checkout-quote.ts: precio de lista y asientos derivados del catálogo público, con fallo cerrado",
         "apps/web/src/app/precios/checkout/CheckoutStarter.tsx: precio, impuesto y desglose visibles antes de elegir medio de pago; ninguna apertura cuando el catálogo falla o el modo gratuito está activo",
         "apps/web/src/lib/commercial/checkout-quote.spec.ts: casos de plan individual, mínimo y aumento de asientos, moneda, pasarela y selección inválida",
-        "apps/web/e2e/commercial/legal-acceptance-gate.spec.ts: aceptación legal exacta y cierre de pago en el modo gratuito actual, incluida una visita posterior"
+        "apps/web/e2e/commercial/legal-acceptance-gate.spec.ts: aceptación legal exacta y cierre de pago en el modo gratuito actual, incluida una visita posterior",
+        "apps/web/e2e/commercial/paid-checkout.spec.ts y playwright.config.ts: golden comercial de navegador en build independiente, con aceptación legal, precio del plan correcto, orden y redirección simulada",
+        ".github/workflows/ci.yml: job comercial hermético unido al veredicto E2E requerido"
       ],
-      "fixtures": "Catálogo sintético en spec; sin credenciales ni cobros reales.",
+      "fixtures": "Catálogo sintético, sesión de checkout y destino del proveedor simulados; sin credenciales ni cobros reales.",
       "dependenciesAdded": [],
       "adoption": {
         "required": true,
         "status": "proposed",
         "adopter": "Sergio Valle Zárate",
-        "evidence": "Prueba local del cálculo de precio, commercial-surface, typecheck web, ESLint sin errores y check:governance 11/11 PASS; build web 208 páginas y legal-acceptance-gate Chromium 3/3 PASS en modo gratuito. Falta CI sobre el SHA exacto; no se afirma haber realizado un cobro Stripe ni abierto el lanzamiento."
+        "evidence": "Prueba local del cálculo de precio, commercial-surface, typecheck web, ESLint sin errores y check:governance 11/11 PASS; build web 208 páginas y legal-acceptance-gate Chromium 3/3 PASS en modo gratuito. Build comercial local con Webpack y TypeScript 208 páginas PASS; golden comercial Chromium 1/1 PASS con catálogo, orden y proveedor simulados. Falta CI sobre el SHA exacto y la integración en main; no se afirma haber realizado un cobro Stripe ni abierto el lanzamiento."
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false

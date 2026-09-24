@@ -44,7 +44,15 @@ export default defineConfig({
   // manda su README—. Sin esa variable no existen para Playwright, y sin esta
   // puerta tampoco existirían para quien va a arreglarlas: una carpeta que no se
   // puede correr no es un backlog ejecutable, es un archivo muerto.
-  testIgnore: process.env.E2E_AUDITORIA === "1" ? [] : ["auditoria/**"],
+  // El golden de compra pagada corre en su propio job con un build
+  // `NEXT_PUBLIC_LAUNCH_MODE=commercial`. El barrido habitual conserva el
+  // build gratuito y su cobertura de que no se puede abrir un cobro.
+  testIgnore: [
+    ...(process.env.E2E_AUDITORIA === "1" ? [] : ["auditoria/**"]),
+    ...(process.env.E2E_PAID_CHECKOUT === "1"
+      ? []
+      : ["commercial/paid-checkout.spec.ts"]),
+  ],
   outputDir: "./e2e/.test-results",
   fullyParallel: false,
   forbidOnly: !!process.env.CI,

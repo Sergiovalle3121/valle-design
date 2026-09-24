@@ -1111,6 +1111,72 @@ jobs:
         if: failure()
         run: cat /tmp/design-api.log || true
 
+  # La suite habitual compila el lanzamiento gratuito. Este job compila
+  # explícitamente el modo comercial en un runner aparte y prueba la ruta
+  # positiva de pago con catálogo, orden y proveedor simulados. Es hermético:
+  # no usa Stripe ni una base de datos y su resultado entra en el mismo check
+  # E2E requerido para fusionar. El coste adicional es un build web y una
+  # instalación/ejecución de Chromium por corrida; no se añade al barrido de
+  # cuatro fragmentos para no cambiarles el entorno de lanzamiento gratuito.
+  e2e-paid-checkout:
+    name: E2E checkout comercial (proveedor simulado)
+    runs-on: ubuntu-latest
+    needs: quality-gates
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Restaurar node_modules
+        id: deps
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            node_modules
+            apps/*/node_modules
+            packages/*/node_modules
+          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        if: steps.deps.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+
+      - name: Build web en modo comercial para el golden de pago
+        env:
+          NEXT_PUBLIC_LAUNCH_MODE: commercial
+          NEXT_PUBLIC_API_URL: http://localhost:4010
+          NEXT_PUBLIC_APP_VERSION: ci-${{ github.sha }}
+        run: npx turbo run build --filter=web
+
+      - name: Pago positivo en navegador, sin cobro real
+        working-directory: apps/web
+        env:
+          E2E_PROD: "1"
+          E2E_PAID_CHECKOUT: "1"
+          E2E_API_ORIGIN: http://localhost:4010
+        run: npx playwright test e2e/commercial/paid-checkout.spec.ts --project=chromium --retries=0
+
+      - name: Guardar evidencia del golden comercial si falla
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: paid-checkout-${{ github.sha }}
+          path: |
+            apps/web/e2e/.report
+            apps/web/e2e/.test-results
+          include-hidden-files: true
+          retention-days: 14
+
   # ───────────────────────────────────────────────────────────────────────────
   # El veredicto ÚNICO de la suite dorada, con el nombre de siempre.
   #
@@ -1137,15 +1203,17 @@ jobs:
   e2e:
     name: E2E Playwright (PostgreSQL · Chromium + Firefox)
     runs-on: ubuntu-latest
-    needs: e2e-shard
+    needs: [e2e-shard, e2e-paid-checkout]
     if: ${{ !cancelled() }}
     timeout-minutes: 5
     steps:
-      - name: Veredicto de los cuatro fragmentos
+      - name: Veredicto de los cuatro fragmentos y del checkout comercial
         env:
           RESULTADO: ${{ needs.e2e-shard.result }}
+          RESULTADO_PAGO: ${{ needs.e2e-paid-checkout.result }}
         run: |
           echo "Resultado agregado de e2e-shard: $RESULTADO"
+          echo "Resultado del checkout comercial: $RESULTADO_PAGO"
           # `success` es el único verde. `failure`, `cancelled` y `skipped` son
           # rojo: un fragmento que no llegó a dar veredicto NO es un fragmento
           # que pasó, y tratarlo como tal es el defecto original.
@@ -1153,7 +1221,11 @@ jobs:
             echo "::error::La suite dorada no terminó en verde (estado: $RESULTADO). Revise los cuatro fragmentos E2E Playwright n/4."
             exit 1
           fi
-          echo "Los cuatro fragmentos en verde."
+          if [ "$RESULTADO_PAGO" != "success" ]; then
+            echo "::error::El checkout comercial simulado no terminó en verde (estado: $RESULTADO_PAGO)."
+            exit 1
+          fi
+          echo "Los cuatro fragmentos y el checkout comercial en verde."
 
   # ───────────────────────────────────────────────────────────────────────────
   # La suite de RENDIMIENTO, en su propio carril acotado.

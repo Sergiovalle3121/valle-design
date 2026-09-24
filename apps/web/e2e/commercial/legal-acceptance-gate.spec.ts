@@ -89,8 +89,6 @@ test.describe("puerta legal del checkout", () => {
       { document: "terms", version: LEGAL_PAGE_VERSIONS.terms.version },
     ]);
     expect(checkoutRequests).toHaveLength(0);
-
-    expect(checkoutRequests).toHaveLength(0);
   });
 
   test("una visita nueva con aceptación registrada conserva el cierre del pago", async ({
