@@ -14,6 +14,7 @@ type Props = ComponentProps<typeof ScaleBar> & {
   document: CadDocument | null;
   viewControllerRef: MutableRefObject<CadViewController | null>;
   essential: boolean;
+  canRenameRoom: boolean;
   onRenameRoom?: (room: CadRoomAreaLabel, name: string) => boolean;
 };
 
@@ -21,14 +22,14 @@ type PlacedLabel = { room: CadRoomAreaLabel; x: number; y: number };
 type PlacedDimension = { dimension: CadVisibleDimension; x: number; y: number };
 
 /** Escala y áreas del plano, sin añadir trabajo de React al editor monolítico. */
-export function CadViewportMeasurements({ document, viewControllerRef, essential, onRenameRoom, ...scaleBar }: Props) {
+export function CadViewportMeasurements({ document, viewControllerRef, essential, canRenameRoom, onRenameRoom, ...scaleBar }: Props) {
   const metrics = useMemo(() => cadDrawingVisibleMetrics(document), [document]);
   const [placed, setPlaced] = useState<{ rooms: PlacedLabel[]; dimensions: PlacedDimension[] }>({ rooms: [], dimensions: [] });
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState("");
   const skipRenameBlurRef = useRef(false);
   const beginRename = (room: CadRoomAreaLabel) => {
-    if (!onRenameRoom) return;
+    if (!canRenameRoom || !onRenameRoom) return;
     skipRenameBlurRef.current = false;
     setDraftName(room.name);
     setEditingRoomId(room.id);
@@ -89,7 +90,7 @@ export function CadViewportMeasurements({ document, viewControllerRef, essential
                 data-testid="cad-room-name-input"
                 label="Nombre del cuarto"
                 hideLabel
-                wrapperClassName="pointer-events-auto w-32"
+                wrapperClassName={`${canRenameRoom ? "pointer-events-auto" : "pointer-events-none"} w-32`}
                 className="text-center"
                 value={draftName}
                 maxLength={80}
@@ -111,15 +112,16 @@ export function CadViewportMeasurements({ document, viewControllerRef, essential
               />
             ) : essential || !room.textLabelMatchesName ? (
               <div
-                className={`pointer-events-auto max-w-32 cursor-text type-micro font-semibold leading-tight ${essential ? "break-words" : "truncate"}`}
-                title="Doble clic para renombrar el cuarto"
+                data-testid="cad-room-name-hitbox"
+                className={`${canRenameRoom ? "pointer-events-auto cursor-text" : "pointer-events-none"} max-w-32 type-micro font-semibold leading-tight ${essential ? "break-words" : "truncate"}`}
+                title={canRenameRoom ? "Doble clic para renombrar el cuarto" : undefined}
                 onMouseDown={(event) => event.stopPropagation()}
                 onDoubleClick={(event) => { event.stopPropagation(); beginRename(room); }}
               >{room.name}</div>
             ) : null}
             <div className="type-caption font-bold leading-tight">{room.axisAreaText} m²</div>
             {!essential && !room.textLabelMatchesName && <div className="type-micro leading-tight text-muted-foreground">entre ejes</div>}
-            {!essential && room.textLabelMatchesName && onRenameRoom && (
+            {!essential && canRenameRoom && room.textLabelMatchesName && onRenameRoom && (
               <Button
                 variant="secondary"
                 size="sm"
