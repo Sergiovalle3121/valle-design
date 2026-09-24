@@ -4470,6 +4470,37 @@
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "ESENCIAL-AVISOS-LLANOS-D2-20260923",
+      "date": "2026-09-23",
+      "initiative": "Completar la redacción en lenguaje llano de Línea, Muro, Rectángulo y Puerta durante todos sus pasos en Esencial, y retirar nombres de órdenes y tooltips técnicos visibles de la línea de comandos.",
+      "branch": "codex/essential-copy-audit",
+      "assistants": [
+        "OpenAI Codex: auditoría de texto visible, implementación de segunda redacción y pruebas locales"
+      ],
+      "authority": "Sergio Valle Zárate encargó completar el PROMPT MAESTRO del 2026-09-23 y la salida al mercado de ValleCAD; la integración queda sujeta a revisión, CI exacta y merge.",
+      "firstPartyInputs": [
+        "Motor de comandos LINE, WALL, RECTANG y DOOR/WINDOW, barra Esencial, CadCommandLine y golden 230 del repositorio",
+        "Auditoría local D2 de texto visible, atributos title y nombres accesibles en build productivo; golden 230 rojo por tooltips técnicos en Esencial"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "prompt-plain.ts cubre pasos y avisos posteriores de las cuatro herramientas y Ventana con resguardo sin gramática técnica; Pro sigue usando formatCadPrompt sin cambio.",
+        "CadCommandLine y su menú muestran nombres y opciones legibles, ocultan el registro técnico a accesibilidad en Esencial y conservan atajos, dispatch y comandos persistidos.",
+        "La barra Esencial deja de incluir los códigos internos en los tooltips de sus herramientas; golden 230 verifica texto visible, título y nombre accesible."
+      ],
+      "fixtures": "Prompts reales de los descriptores del motor y navegador Chromium local sobre /demo; no se alteran entidades ni formatos de archivo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Golden 230 rojo antes del cambio: 2 fallos de Esencial por title técnico, Pro verde (work/d2-copy-golden-red.log). Pruebas focales, build productivo, golden verde y CI exacta por completar antes de integrar. La barra de estado y capas, incluido «Capa Layout», quedan fuera de esta tanda D2 y requieren revisión posterior."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
     }
   ]
 }

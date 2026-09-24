@@ -24,6 +24,7 @@ import React, { useEffect, useRef, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import type { CadPrompt } from "@/lib/cad/engine/command-types";
 import { formatCadKeyword } from "@/lib/cad/engine/prompt";
+import { cadPlainCommandName, cadPlainKeywordLabel, type CadPromptWording } from "@/lib/cad/engine/prompt-plain";
 
 /** Techo generoso del menú: repetir + 5-6 opciones + separadores. */
 const CONTEXT_MENU_WIDTH = 224;
@@ -47,6 +48,7 @@ export interface CadCommandContextMenuProps {
   prompt: CadPrompt | null;
   activeCommand?: string | null;
   lastCommand?: string | null;
+  wording: CadPromptWording;
   /** Repetir la última orden, o aceptar la que está en curso. Ya incluye cerrar el menú. */
   onRepeat(): void;
   /** Pulsar una opción de la orden activa. Ya incluye cerrar el menú. */
@@ -64,6 +66,7 @@ export function CadCommandContextMenu({
   prompt,
   activeCommand,
   lastCommand,
+  wording,
   onRepeat,
   onKeyword,
   onCancel,
@@ -91,7 +94,7 @@ export function CadCommandContextMenu({
       ref={menuRef}
       data-testid="cad-command-context-menu"
       role="menu"
-      aria-label="Menú de la línea de comandos"
+      aria-label={wording === "esencial" ? "Opciones de dibujo" : "Menú de la línea de comandos"}
       style={contextMenuStyle(point)}
       className="z-50 w-52 overflow-hidden rounded-xl border border-border bg-surface/80 p-1.5 type-micro text-foreground shadow-2xl backdrop-blur"
       onPointerDown={(event) => event.stopPropagation()}
@@ -107,14 +110,14 @@ export function CadCommandContextMenu({
         {prompt
           ? "Intro (aceptar)"
           : lastCommand
-            ? `Repetir última orden (${lastCommand})`
+            ? `Repetir última orden (${wording === "esencial" ? cadPlainCommandName(lastCommand) : lastCommand})`
             : "Repetir última orden"}
       </button>
       {prompt && prompt.options.length > 0 && (
         <>
           <div role="separator" className="my-1 border-t border-border" />
           <div className="px-2 py-1 type-micro text-muted-foreground">
-            {activeCommand ? `Opciones de «${activeCommand}»` : "Opciones de la orden en curso"}
+            {activeCommand ? `Opciones de «${wording === "esencial" ? cadPlainCommandName(activeCommand) : activeCommand}»` : "Opciones de la orden en curso"}
           </div>
           {prompt.options.map((option) => (
             <button
@@ -125,7 +128,7 @@ export function CadCommandContextMenu({
               onClick={() => onKeyword(option.shortcut)}
               className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-muted"
             >
-              {formatCadKeyword(option)}
+              {wording === "esencial" ? cadPlainKeywordLabel(option) : formatCadKeyword(option)}
             </button>
           ))}
         </>

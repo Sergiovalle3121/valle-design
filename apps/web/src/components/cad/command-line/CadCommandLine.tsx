@@ -52,7 +52,12 @@ import { createPortal } from "react-dom";
 import { ChevronDown, ChevronUp, History as HistoryIcon } from "lucide-react";
 import type { CadPrompt } from "@/lib/cad/engine/command-types";
 import { formatCadKeyword, formatCadPrompt } from "@/lib/cad/engine/prompt";
-import { formatCadPromptFor, type CadPromptWording } from "@/lib/cad/engine/prompt-plain";
+import {
+  cadPlainCommandName,
+  cadPlainKeywordLabel,
+  formatCadPromptFor,
+  type CadPromptWording,
+} from "@/lib/cad/engine/prompt-plain";
 // Lectura DIRECTA del catálogo, no `cadCommandIcon()`: una llamada a función
 // que DEVUELVE un componente dispara `react-hooks/static-components` («se
 // crea un componente durante el render») aunque el catálogo sea estático —
@@ -158,6 +163,7 @@ export function CadCommandLine({
   onRepeat,
   inputRef: externalInputRef,
 }: CadCommandLineProps) {
+  const isEssential = wording === "esencial";
   const [value, setValue] = useState("");
   const [recallIndex, setRecallIndex] = useState<number | null>(null);
   const [suggestionIndex, setSuggestionIndex] = useState(0);
@@ -193,9 +199,12 @@ export function CadCommandLine({
    * un píxel de alto al lienzo y sin desplegar nada.
    */
   const dichoPorElPrograma = history.filter(
-    (entry) => entry.level !== "input" && entry.text.trim().length > 0,
+    (entry) => entry.level !== "input" && entry.text.trim().length > 0
+      && (!isEssential || entry.level !== "prompt"),
   );
-  const ultimaRespuesta = dichoPorElPrograma.at(-1)?.text.trim() ?? "";
+  const respuesta = dichoPorElPrograma.at(-1)?.text.trim() ?? "";
+  const ultimaRespuesta = isEssential && /^(?:WALL|DOOR|RECTANG|LINE|WINDOW)$/.test(respuesta)
+    ? cadPlainCommandName(respuesta) : respuesta;
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const setLogExpanded = useCallback((next: boolean) => {
@@ -242,7 +251,7 @@ export function CadCommandLine({
   // plegados) así que flota — el mismo truco que ya usan sugerencias e
   // historial completo, sólo lectura y `pointer-events-none`: el ratón del
   // lienzo pasa a través como si no estuviera.
-  const showTranscriptPeek = !logExpanded && !historyOpen && suggestions.length === 0 && history.length > 0;
+  const showTranscriptPeek = !isEssential && !logExpanded && !historyOpen && suggestions.length === 0 && history.length > 0;
   const transcriptPeek = showTranscriptPeek ? history.slice(-3) : [];
 
   // T-«comando»: los desplegables (sugerencias, historial completo, el
@@ -301,6 +310,10 @@ export function CadCommandLine({
         return;
       }
       if (event.key === "F2") {
+        if (isEssential) {
+          event.preventDefault();
+          return;
+        }
         // Como en AutoCAD: F2 pliega/despliega el registro de la línea de
         // comandos. Al desplegarlo el foco se mueve al propio diálogo (ya es
         // `role="log"`, `tabIndex={0}`) para poder releerlo o desplazarlo con
@@ -388,6 +401,7 @@ export function CadCommandLine({
       activeSuggestionIndex,
       historyOpen,
       inputRef,
+      isEssential,
       logExpanded,
       menu,
       onCancel,
@@ -403,7 +417,12 @@ export function CadCommandLine({
 
   const line = prompt ? formatCadPromptFor(prompt, wording, activeCommand ?? null) : "";
   const suggestionListId = "cad-command-line-suggestions", historyListId = "cad-command-history", logId = "cad-command-line-log";
-  const idlePlaceholder = lastCommand ? `Comando: Espacio repite ${lastCommand}` : "Comando: escribe una orden (L, C, TR, MI…)";
+  const idlePlaceholder = isEssential
+    ? lastCommand
+      ? `Espacio: repetir ${cadPlainCommandName(lastCommand)}`
+      : "Escribe una herramienta o usa los botones de arriba"
+    : lastCommand ? `Comando: Espacio repite ${lastCommand}` : "Comando: escribe una orden (L, C, TR, MI…)";
+  const activeName = activeCommand && isEssential ? cadPlainCommandName(activeCommand) : activeCommand;
   // T-«comandos vivos»: qué orden está activa, SIN tener que leer el prompt
   // entero para adivinarlo — «Precise el punto siguiente» no dice si es
   // LINE o PLINE; este rótulo sí.
@@ -445,17 +464,17 @@ export function CadCommandLine({
         {prompt && activeCommand && (
           <span
             data-testid="cad-command-active"
-            title={`Orden activa: ${activeCommand}`}
+            title={`Orden activa: ${activeName}`}
             className="flex shrink-0 items-center gap-1 rounded-control border border-primary/30 bg-primary/15 px-1.5 py-0.5 font-mono type-micro font-semibold text-primary-ink"
           >
             {ActiveIcon && <ActiveIcon aria-hidden="true" className="h-3 w-3" />}
-            {activeCommand}
+            {activeName}
           </span>
         )}
         {prompt && (
           <span
             data-testid="cad-command-prompt"
-            title={formatCadPrompt(prompt)}
+            title={isEssential ? line : formatCadPrompt(prompt)}
             className="min-w-0 shrink truncate font-mono text-foreground"
           >
             {line}
@@ -474,9 +493,9 @@ export function CadCommandLine({
                   inputRef.current?.focus();
                 }}
                 className="shrink-0 rounded border border-border px-1.5 py-0.5 font-mono type-micro text-primary-ink transition-colors hover:bg-muted"
-                title={`Atajo: ${option.shortcut.toUpperCase()}`}
+                title={isEssential ? cadPlainKeywordLabel(option) : `Atajo: ${option.shortcut.toUpperCase()}`}
               >
-                {formatCadKeyword(option)}
+                {isEssential ? cadPlainKeywordLabel(option) : formatCadKeyword(option)}
               </button>
             ))}
           </span>
@@ -491,14 +510,14 @@ export function CadCommandLine({
           spellCheck={false}
           autoComplete="off"
           role="combobox"
-          aria-label="Línea de comandos CAD"
-          aria-describedby={logId}
+          aria-label={isEssential ? "Entrada de dibujo" : "Línea de comandos CAD"}
+          aria-describedby={isEssential ? undefined : logId}
           aria-autocomplete="list"
           aria-haspopup="listbox"
           aria-expanded={suggestions.length > 0}
           aria-controls={suggestions.length > 0 ? suggestionListId : undefined}
           aria-activedescendant={suggestions.length > 0 ? `${suggestionListId}-${activeSuggestionIndex}` : undefined}
-          placeholder={prompt ? "coordenada, distancia u opción" : idlePlaceholder}
+          placeholder={prompt ? isEssential ? "Escribe una medida o elige una opción" : "coordenada, distancia u opción" : idlePlaceholder}
           className="min-w-[9rem] flex-1 bg-transparent font-mono text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring placeholder:text-muted-foreground"
         />
         {!logExpanded && ultimaRespuesta ? (
@@ -544,10 +563,9 @@ export function CadCommandLine({
       </div>
 
       {/*
-        EL REGISTRO. Siempre montado —el `id`, el `role="log"` y el
-        `aria-live` que la caja ya describe (`aria-describedby`) no pueden
-        aparecer y desaparecer del documento sólo porque está plegado, o un
-        lector de pantalla perdería la región viva entera cada vez— pero su
+        EL REGISTRO. Siempre montado; en Pro conserva `role="log"`, `aria-live`
+        y la descripción de la caja aunque esté plegado, para no reiniciar la
+        región viva. En Esencial queda fuera del árbol accesible. Su
         alto lo decide `logExpanded`: 0 cuando está plegado (no gasta ni un
         píxel de la franja) y `LOG_EXPANDED_HEIGHT` cuando se despliega, que
         sumado al renglón de arriba da exactamente
@@ -557,13 +575,15 @@ export function CadCommandLine({
         ref={logRef}
         id={logId}
         data-testid="cad-command-line-log"
-        role="log"
-        aria-live="polite"
+        hidden={isEssential}
+        role={isEssential ? undefined : "log"}
+        aria-live={isEssential ? "off" : "polite"}
+        aria-hidden={isEssential ? true : undefined}
         aria-label="Diálogo de la línea de comandos"
         // T-73(h): sin `tabIndex` el diálogo no podía recibir foco — F2
         // lo despliega y manda el foco aquí para releerlo o desplazarlo con
         // las flechas. Escape lo devuelve a la caja.
-        tabIndex={0}
+        tabIndex={isEssential ? -1 : 0}
         onKeyDown={(event) => {
           if (event.key === "Escape") {
             event.preventDefault();
@@ -572,10 +592,10 @@ export function CadCommandLine({
         }}
         className="overflow-y-auto border-t border-border px-2 font-mono leading-snug type-micro"
         style={{
-          height: logExpanded ? LOG_EXPANDED_HEIGHT : 0,
-          paddingTop: logExpanded ? 4 : 0,
-          paddingBottom: logExpanded ? 4 : 0,
-          borderTopWidth: logExpanded ? 1 : 0,
+          height: logExpanded && !isEssential ? LOG_EXPANDED_HEIGHT : 0,
+          paddingTop: logExpanded && !isEssential ? 4 : 0,
+          paddingBottom: logExpanded && !isEssential ? 4 : 0,
+          borderTopWidth: logExpanded && !isEssential ? 1 : 0,
         }}
       >
         {history.map((entry) => (
@@ -633,8 +653,8 @@ export function CadCommandLine({
                       ) : (
                         <span aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
                       )}
-                      <span className="shrink-0 text-primary-ink">{s.nombre}</span>
-                      {s.alias && (
+                      <span className="shrink-0 text-primary-ink">{isEssential ? cadPlainCommandName(s.nombre) : s.nombre}</span>
+                      {s.alias && !isEssential && (
                         <span className="type-micro shrink-0 rounded border border-border px-1 text-muted-foreground">
                           {s.alias}
                         </span>
@@ -657,7 +677,7 @@ export function CadCommandLine({
         — un desplegable a la vez, así que abrir uno no exige cerrar el otro
         a mano: rara vez coinciden (el historial es un clic explícito).
       */}
-      {historyOpen && anchor && typeof document !== "undefined"
+      {historyOpen && !isEssential && anchor && typeof document !== "undefined"
         ? createPortal(
             <div
               id={historyListId}
@@ -741,6 +761,7 @@ export function CadCommandLine({
           prompt={prompt}
           activeCommand={activeCommand}
           lastCommand={lastCommand}
+          wording={wording}
           onClose={closeMenu}
           onRepeat={() => {
             onRepeat();

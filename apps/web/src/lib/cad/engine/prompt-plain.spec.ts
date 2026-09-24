@@ -14,7 +14,8 @@
  *      los prompts literales que fija command-engine.spec.ts y para el primer
  *      paso real de cada comando.
  *   4. En "esencial" el renglón no lleva corchetes, conserva el valor por
- *      defecto entre ángulos y cae al texto del motor cuando no hay llano.
+ *      defecto entre ángulos y evita texto técnico en los cuatro comandos
+ *      prioritarios aunque aparezca un paso nuevo sin traducción.
  *
  * Correr: npx tsx src/lib/cad/engine/prompt-plain.spec.ts
  */
@@ -22,7 +23,7 @@ import { strict as assert } from "node:assert";
 import type { CadCommandContext, CadCommandInput, CadPrompt } from "./command-types";
 import { CAD_COMMAND_REGISTRY_V2, loadCadCommand } from "./index";
 import { formatCadPrompt } from "./prompt";
-import { CAD_PLAIN_PROMPTS, cadPlainPromptMessage, formatCadPromptFor } from "./prompt-plain";
+import { CAD_PLAIN_PROMPTS, cadPlainCommandName, cadPlainKeywordLabel, cadPlainPromptMessage, formatCadPromptFor } from "./prompt-plain";
 
 let checks = 0;
 const ok = (condition: boolean, message: string): void => {
@@ -168,8 +169,8 @@ async function main(): Promise<void> {
       "esencial",
       "RECTANG",
     ),
-    "Calcule las dimensiones a partir de <Longitud>: ",
-    "sin llano cae al texto del motor, con su opción por defecto y sin corchetes",
+    "Elige si conoces el largo o el ancho <Longitud>: ",
+    "las opciones avanzadas de Rectángulo también hablan en llano",
   );
   eq(
     formatCadPromptFor(LITERAL_PROMPTS[0], "esencial", "TRIM"),
@@ -188,19 +189,63 @@ async function main(): Promise<void> {
   assert.ok(door, "DOOR arrancó");
   ok(/^Designe el muro donde alojar la puerta/.test(door.message), `DOOR arranca pidiendo el muro («${door.message}»)`);
   ok(
-    (cadPlainPromptMessage("DOOR", door) ?? "").startsWith("Primero dibuja un muro"),
-    "y en llano dice que primero hay que dibujar un muro (golden 229)",
+    (cadPlainPromptMessage("DOOR", door) ?? "").startsWith("Haz clic sobre el muro"),
+    "y en llano pide señalar el muro sin ocultar que puede ser necesario dibujarlo",
   );
-  // …pero un AVISO delante («Eso no es un muro…») cae al texto del motor, que es
-  // el que explica qué pasó; el llano no debe tragárselo.
-  eq(
-    cadPlainPromptMessage("DOOR", { ...door, message: `Eso no es un muro y un hueco sólo se aloja en un muro. ${door.message}` }),
-    null,
-    "con aviso delante no se sustituye",
-  );
+  // …y un aviso de error conserva el motivo sin devolver el verbo técnico.
+  eq(cadPlainPromptMessage("DOOR", { ...door, message: `Eso no es un muro y un hueco sólo se aloja en un muro. ${door.message}` }),
+    `Eso no es un muro. ${CAD_PLAIN_PROMPTS.DOOR[0].plain}`,
+    "el aviso de un muro inválido conserva el motivo en lenguaje llano");
+  eq(cadPlainPromptMessage("DOOR", { ...door, message: `El hueco empieza en 4 sobre el eje y el muro empieza en 0: no queda jamba en el arranque. ${door.message}` }),
+    `La puerta queda demasiado cerca del inicio del muro. Haz clic más hacia el centro. ${CAD_PLAIN_PROMPTS.DOOR[0].plain}`,
+    "la puerta no expone el diagnóstico de eje y jamba del motor");
+  eq(cadPlainPromptMessage("DOOR", { ...door, message: `Fallo interno nuevo. ${door.message}` }),
+    `La puerta no se pudo colocar. ${CAD_PLAIN_PROMPTS.DOOR[0].plain}`,
+    "un aviso nuevo tampoco filtra prosa técnica");
   const window = firstPrompts.get("WINDOW");
   assert.ok(window, "WINDOW arrancó");
-  ok((cadPlainPromptMessage("WINDOW", window) ?? "").endsWith("la ventana"), "WINDOW nombra la ventana, no la puerta");
+  ok((cadPlainPromptMessage("WINDOW", window) ?? "").includes("la ventana"), "WINDOW nombra la ventana, no la puerta");
+
+  // --- 5: todos los pasos alcanzables de las cuatro herramientas iniciales -----
+  const plainStep = (name: string, step: { prompt: CadPrompt }, reason: string) => {
+    if (!step.prompt.message) return;
+    ok(cadPlainPromptMessage(name, step.prompt) !== null, `${name}: ${reason} tiene traducción directa`);
+    const visible = formatCadPromptFor(step.prompt, "esencial", name);
+    ok(!/\b(?:Precise|Designe|Calcule)\b|\[/.test(visible), `${name}: ${reason} no filtra gramática técnica («${visible}»)`);
+  };
+  for (const name of ["LINE", "WALL", "RECTANG", "DOOR"] as const) {
+    const command = await loadCadCommand(name);
+    const initial = command.begin(context());
+    plainStep(name, initial, "inicio");
+    const nextPoint = command.step(initial.state, point(100, 100), context());
+    plainStep(name, nextPoint, "primer punto");
+    for (const option of initial.prompt.options) {
+      const chosen = command.step(initial.state, { kind: "keyword", keyword: option.keyword }, context());
+      plainStep(name, chosen, `opción ${option.keyword}`);
+    }
+    for (const option of nextPoint.prompt.options) {
+      const chosen = command.step(nextPoint.state, { kind: "keyword", keyword: option.keyword }, context());
+      plainStep(name, chosen, `opción posterior ${option.keyword}`);
+    }
+  }
+  for (const [name, message] of [
+    ["RECTANG", "Precise la segunda distancia de chaflán"],
+    ["RECTANG", "Calcule las dimensiones a partir de"],
+    ["RECTANG", "Precise la anchura del rectángulo"],
+    ["RECTANG", "Precise la esquina opuesta para elegir el cuadrante"],
+    ["DOOR", "Precise la anchura del hueco"],
+    ["DOOR", "Precise la altura del hueco"],
+    ["DOOR", "Precise el antepecho del hueco"],
+    ["DOOR", "Precise el tipo de la puerta"],
+  ] as const) plainStep(name, { prompt: { message, options: [] } }, message);
+  eq(formatCadPromptFor({ message: "Precise algo nuevo", options: [] }, "esencial", "WALL"),
+    "Elige una opción o presiona Esc para cancelar: ",
+    "un paso nuevo de Muro no filtra prosa técnica mientras se añade su traducción");
+  eq(cadPlainCommandName("WALL"), "Muro", "la identidad WALL no se anuncia en Esencial");
+  eq(cadPlainCommandName("RECTANG"), "Rectángulo", "el nombre no se trunca en Esencial");
+  eq(cadPlainKeywordLabel({ keyword: "alTura" }), "Altura", "el atajo no dicta mayúsculas internas");
+  eq(cadPlainKeywordLabel({ keyword: "Chaflán" }), "Cortar esquina", "la opción visible explica la operación");
+  eq(cadPlainKeywordLabel({ keyword: "Empalme" }), "Redondear esquina", "la opción visible evita jerga CAD");
 }
 
 main().then(() => console.log(`prompt-plain: ${checks}/${checks} comprobaciones verdes`));

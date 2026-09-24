@@ -1,5 +1,4 @@
 import { MousePointer2, type LucideIcon } from "lucide-react";
-import { cadRibbonButtonTitle } from "@/components/cad/ribbon/CadRibbonButton";
 import { CAD_COMMAND_ICONS } from "@/components/cad/ribbon/command-icons";
 import { findCadRibbonCommand } from "@/lib/cad/ribbon";
 
@@ -14,8 +13,8 @@ import { findCadRibbonCommand } from "@/lib/cad/ribbon";
  * Los rótulos son propios: `command-labels.ts` trunca «Rectáng» para que
  * quepa en la cinta (golden 214 lo mide) y aquí hay sitio para la palabra
  * entera. El icono sale de `command-icons.ts` (un dibujo por comando, con su
- * gate) y el `title` de `cadRibbonButtonTitle`, para que el nombre canónico y
- * su alias («LINE (L)») viajen con el botón igual que en la cinta.
+ * gate); el tooltip de Esencial usa sólo el nombre humano. Código y alias
+ * siguen disponibles en la cinta de Pro.
  *
  * Muro despacha WALL del motor, nunca el `toggleWall` heredado: aquél crea
  * activos sin `entity.type === "wall"` y deja a DOOR/WINDOW sin muro
@@ -47,7 +46,7 @@ export interface CadEssentialTool {
   readonly label: string;
   readonly run: CadEssentialRun;
   readonly icon: LucideIcon;
-  /** `title` nativo: «Rótulo · NOMBRE (alias) — resumen». */
+  /** `title` nativo de Esencial, sin código interno ni alias. */
   readonly title: string;
   /** Se apaga en sólo lectura: mismo criterio que la cinta (`mutates`). */
   readonly mutates: boolean;
@@ -66,7 +65,7 @@ function orden(
     // Sin reposo a propósito: `command-icons.spec.ts` garantiza un icono por
     // comando registrado y `CadEssentialBar.spec.ts` que estos once lo están.
     icon: CAD_COMMAND_ICONS[name],
-    title: ribbon ? cadRibbonButtonTitle(ribbon) : `${label} · ${name}`,
+    title: label,
     // Si el comando no estuviera en la cinta se apaga en sólo lectura: es
     // el lado seguro, y el spec impide que ocurra.
     mutates: ribbon?.mutates ?? true,

@@ -170,8 +170,8 @@ const ok = (condition: boolean, message: string) => {
     "el renglón único mide exactamente CAD_SHELL_METRICS.commandRow (26 px hoy)",
   );
   ok(
-    /logExpanded \? LOG_EXPANDED_HEIGHT : 0/.test(fuente),
-    "el registro plegado mide 0 px extra; desplegado suma hasta commandExpanded",
+    /logExpanded && !isEssential \? LOG_EXPANDED_HEIGHT : 0/.test(fuente),
+    "el registro plegado mide 0 px extra; sólo Pro puede desplegarlo hasta commandExpanded",
   );
   ok(
     fuente.includes("LOG_EXPANDED_HEIGHT = CAD_SHELL_METRICS.commandExpanded - CAD_SHELL_METRICS.commandRow"),
@@ -253,6 +253,48 @@ const ok = (condition: boolean, message: string) => {
     "con un comando en curso, su nombre canónico se ve sin tener que leer el prompt entero",
   );
 
+  const esencial = renderToStaticMarkup(
+    createElement(CadCommandLine, {
+      prompt: { message: "Precise el punto inicial del muro", options: [] },
+      history: [{ id: 1, text: "Precise el punto inicial del muro", level: "prompt" }],
+      activeCommand: "WALL",
+      lastCommand: "WALL",
+      wording: "esencial",
+      onSubmit: () => undefined,
+      onKeyword: () => undefined,
+      onCancel: () => undefined,
+      onRepeat: () => undefined,
+    }),
+  );
+  ok(esencial.includes('title="Orden activa: Muro"') && !esencial.includes('title="Orden activa: WALL"'),
+    "Esencial nombra la herramienta, no WALL");
+  ok(/data-testid="cad-command-prompt"[^>]*title="Haz clic donde empieza el muro: "/.test(esencial),
+    "el tooltip accesible usa el mismo aviso llano que el texto");
+  ok(/id="cad-command-line-log"[^>]*aria-hidden="true"/.test(esencial),
+    "el historial técnico no se anuncia por accesibilidad en Esencial");
+  ok(/id="cad-command-line-log"[^>]*hidden=""/.test(esencial),
+    "el historial técnico tampoco forma parte del texto visible de Esencial");
+  ok(/id="cad-command-line-log"[^>]*tabindex="-1"/.test(esencial),
+    "el historial técnico oculto no recibe foco en Esencial");
+  ok(!/id="cad-command-line-log"[^>]*role="log"/.test(esencial),
+    "el historial técnico oculto no anuncia una región viva en Esencial");
+  ok(esencial.includes('aria-label="Entrada de dibujo"'),
+    "el campo de Esencial anuncia su función sin acrónimo CAD");
+  const eco = renderToStaticMarkup(
+    createElement(CadCommandLine, {
+      prompt: { message: "Precise el punto inicial del muro", options: [] },
+      history: [{ id: 1, text: "WALL", level: "info" }],
+      activeCommand: "WALL",
+      wording: "esencial",
+      onSubmit: () => undefined,
+      onKeyword: () => undefined,
+      onCancel: () => undefined,
+      onRepeat: () => undefined,
+    }),
+  );
+  ok(/data-testid="cad-command-last-answer"[^>]*title="Muro"/.test(eco),
+    "el eco del alias en Esencial anuncia Muro en vez del código WALL");
+
   const sinOrden = renderToStaticMarkup(
     createElement(CadCommandLine, {
       prompt: null,
@@ -312,8 +354,8 @@ const ok = (condition: boolean, message: string) => {
     "existe el asomo del diálogo, separado del registro completo (F2)",
   );
   ok(
-    fuente.includes("showTranscriptPeek = !logExpanded && !historyOpen && suggestions.length === 0 && history.length > 0"),
-    "el asomo sólo se pinta plegado el registro y sin otro desplegable abierto encima",
+    fuente.includes("showTranscriptPeek = !isEssential && !logExpanded && !historyOpen && suggestions.length === 0 && history.length > 0"),
+    "el asomo técnico sólo se pinta en Pro, plegado el registro y sin otro desplegable abierto",
   );
   ok(
     fuente.includes("history.slice(-3)"),

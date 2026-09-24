@@ -13,7 +13,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { CAD_COMANDOS_AUN_NO_DISPONIBLES } from "@/lib/cad/engine/command-availability";
 import { CAD_COMMAND_REGISTRY_V2 } from "@/lib/cad/engine/index";
 import { cadRibbonExposedNames, findCadRibbonCommand } from "@/lib/cad/ribbon";
-import { cadRibbonButtonTitle } from "../ribbon/CadRibbonButton";
 import { cadCommandIcon } from "../ribbon/command-icons";
 import { CadEssentialBar } from "./CadEssentialBar";
 import { CAD_ESSENTIAL_TOOLS } from "./essential-tools";
@@ -115,8 +114,8 @@ for (const tool of CAD_ESSENTIAL_TOOLS.slice(1)) {
   ok(icon !== null && tool.icon === icon, `${name} lleva el icono del catálogo por comando`);
   const ribbon = findCadRibbonCommand(name);
   ok(
-    ribbon !== undefined && tool.title === cadRibbonButtonTitle(ribbon),
-    `${name}: title «rótulo · NOMBRE (alias) — resumen» como en la cinta`,
+    ribbon !== undefined && tool.title === tool.label,
+    `${name}: tooltip de Esencial muestra sólo el nombre humano`,
   );
   ok(
     ribbon !== undefined && tool.mutates === ribbon.mutates,
@@ -210,8 +209,8 @@ const props = {
     "icono a la izquierda y rótulo a la derecha, en una sola fila",
   );
   ok(
-    html.includes(`title="${cadRibbonButtonTitle(findCadRibbonCommand("LINE")!)}"`),
-    "el title de Línea trae LINE (L) y el resumen",
+    html.includes('title="Línea"') && !html.includes('title="Línea · LINE'),
+    "el tooltip de Línea no anuncia el código ni su alias",
   );
   ok(
     /data-testid="cad-essential-search"[^>]*aria-keyshortcuts="Control\+K"/.test(html),
