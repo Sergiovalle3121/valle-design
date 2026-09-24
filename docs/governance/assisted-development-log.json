@@ -4564,6 +4564,37 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "CI-FIREFOX-MAIN-ROJO-20260924",
+      "date": "2026-09-24",
+      "initiative": "main llevaba en rojo desde #224 porque dos goldens sólo fallaban en Firefox, que los PR no ejecutan sin [firefox]: el 56 pedía isMobile en un contexto que Firefox rechaza, y el 212 esperaba un tooltip que la barra de navegación sólo abría con group-hover, una variante que Tailwind v4 envuelve en @media (hover: hover) y que Firefox headless no cumple. La etiqueta pasa a abrirse por eventos de puntero y de foco, como la de la cinta.",
+      "branch": "claude/keen-cannon-nvm7x7",
+      "assistants": [
+        "Claude Code (Anthropic): diagnóstico desde los registros de CI de main, corrección del golden 56, apertura por eventos de la etiqueta de CadToolPalette y verificación local"
+      ],
+      "authority": "Sergio pidió el 2026-09-24 seguir construyendo VALLECAD y sacarlo al mercado, priorizar el primer uso y cerrar los PR de Codex, y autorizó que Claude fusione cada PR con CI verde sobre el SHA exacto.",
+      "firstPartyInputs": [
+        "Registros de CI de main 35955690281 (fragmentos 3/4 y 4/4), 35896668573 y 35769758812: golden 212 en Firefox rojo desde b039a09 (#224); golden 56 en Firefox rojo en 35955690281, con el isMobile que introdujo 31a2e94 (#239)",
+        "e2e/real/movil.spec.ts: reparto ya existente de emulación móvil para Firefox",
+        "components/cad/ribbon/CadRibbonTooltip.tsx: contrato de apertura por puntero y foco de la etiqueta de la cinta"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "apps/web/e2e/golden/56-cad-review-link-guest.spec.ts: isMobile sólo fuera de Firefox; viewport y táctil se conservan en ambos navegadores",
+        "apps/web/src/components/cad/editor/CadToolPalette.tsx: la etiqueta de ayuda se abre con puntero no táctil tras CAD_RIBBON_TOOLTIP_DELAY_MS o con foco visible, y se cierra al salir, al perder el foco y al pulsar"
+      ],
+      "fixtures": "Sin fixtures nuevos.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Goldens 212 y 56 en Chromium 8/8, CadToolPalette.spec (16), CadToolPaletteAncho.spec (15), design-system.spec y typecheck web verdes en local. Firefox no está instalado en el contenedor: el veredicto de Firefox lo da la CI del PR con [firefox]."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "CUARTO-NOMBRE-ROTULO-INTEGRADO-20260924",
       "date": "2026-09-24",
       "initiative": "Persistir el nombre del cuarto cerrado y mostrarlo con sus m² en un solo rótulo legible en Esencial, sin cambiar los archivos exportados.",
