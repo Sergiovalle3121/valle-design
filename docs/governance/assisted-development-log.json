@@ -4565,47 +4565,19 @@
       "aiClaimsAuthorship": false
     },
     {
-      "id": "COMPARTIR-ESENCIAL-20260923",
-      "date": "2026-09-23",
-      "initiative": "Hacer visible Compartir en el estudio Esencial y emitir en dos gestos un enlace de revisión server-owned para abrir el plano de solo lectura en un celular.",
-      "branch": "codex/share-essential-link",
+      "id": "COMPARTIR-ESENCIAL-DEMO-20260924",
+      "date": "2026-09-24",
+      "initiative": "Permitir compartir desde el estudio Esencial y desde /demo sin cuenta mediante un enlace móvil de lectura; la demo publica una copia temporal acotada y mantiene cerrado el permiso de comentarios y edición.",
+      "branch": "codex/share-phasef-integrated",
       "assistants": [
-        "OpenAI Codex: investigación del flujo de revisión existente, interfaz Esencial y golden de navegador móvil"
+        "OpenAI Codex: investigación del flujo de revisión existente, interfaz Esencial y golden de navegador móvil",
+        "OpenAI Codex: endpoint acotado, integración con el estudio demo, pruebas de abuso y contrato API"
       ],
-      "authority": "Sergio Valle Zárate pidió explícitamente que el plano se entregue por enlace desde Esencial y que el trabajo se integre en main con evidencia real.",
+      "authority": "Sergio Valle Zárate autorizó integrar los avances para lanzar VALLECAD y pidió que Compartir funcione desde /demo sin cuenta y en el flujo Esencial.",
       "firstPartyInputs": [
         "ReviewLinkIssuer, reviewsRepository, ReviewLinkService y ReviewLinkClient existentes",
         "CadStudioHost, ranura cad-essential-bar-tools y modo Esencial existentes",
-        "Prompt maestro del 23-09 y medición robot: tarea de compartir ausente en /demo"
-      ],
-      "externalSources": [],
-      "externalImplementationConsulted": "Ninguna implementación externa copiada.",
-      "derivedAreas": [
-        "EssentialShareAction: acción Esencial con el mismo servidor de sesiones y token de revisión que Pro, sin añadir líneas al editor monolítico",
-        "CadStudioHost: montaje limitado a documento en nube y permiso cad:review",
-        "Golden 253: emisión, copia, canje sin sesión, planta y área útil derivada a 390 × 844"
-      ],
-      "fixtures": "Cuatro muros sintéticos de 5 × 4 m con grosor 250 mm; sin área textual pregrabada ni credenciales reales.",
-      "dependenciesAdded": [],
-      "adoption": {
-        "required": true,
-        "status": "proposed",
-        "adopter": "Sergio Valle Zárate",
-        "evidence": "Golden #253 confirmó emisión y copia server-owned y apertura invitada en móvil; el área derivada permanece roja en este checkout hasta integrar la PR dependiente de review móvil y #242. Typecheck web y lint de archivos tocados sin errores. El enlace en /demo sin cuenta requiere una publicación anónima acotada separada; no se presenta como resuelto."
-      },
-      "aiCoAuthorTrailers": false,
-      "aiClaimsAuthorship": false
-    },
-    {
-      "id": "COMPARTIR-DEMO-CAPTURA-20260923",
-      "date": "2026-09-23",
-      "initiative": "Publicar desde /demo sin cuenta una copia temporal y de solo lectura del dibujo mediante el modelo de revisión existente.",
-      "branch": "codex/demo-share-snapshot",
-      "assistants": [
-        "OpenAI Codex: endpoint acotado, integración con el estudio demo, pruebas de abuso y contrato API"
-      ],
-      "authority": "Sergio Valle Zárate autorizó el trabajo para sacar VALLECAD al mercado; la prueba pública del prompt maestro exige compartir el plano desde /demo sin cuenta.",
-      "firstPartyInputs": [
+        "Prompt maestro del 23-09 y medición robot: tarea de compartir ausente en /demo",
         "createDemoDocumentPort, CadStudioHost y EssentialShareAction de la rama de compartir Esencial",
         "CadReviewSession, ReviewLinkService, validador del documento CAD y límites de identidad existentes",
         "Contrato OpenAPI design-api.v1 y superficie de revisión de solo lectura"
@@ -4613,17 +4585,20 @@
       "externalSources": [],
       "externalImplementationConsulted": "Ninguna implementación externa copiada.",
       "derivedAreas": [
+        "EssentialShareAction: acción Esencial con el mismo servidor de sesiones y token de revisión que Pro, sin añadir líneas al editor monolítico",
+        "CadStudioHost: montaje limitado a documento en nube y permiso cad:review",
+        "Golden 253: emisión, copia, canje sin sesión, planta y área útil derivada a 390 × 844",
         "Endpoint público /v1/cad/demo-shares con captura de hasta 256 KiB, token aleatorio con solo hash persistido, tenant reservado, expiración de 24 horas, presupuestos por IP/global y purga acotada",
         "El botón Compartir de /demo espera el autosave y publica una copia del momento; la interfaz indica que no refleja cambios futuros ni permite comentarios",
         "Contrato API, integración Nest con abusos y golden del navegador desde /demo sin cuenta"
       ],
-      "fixtures": "Planos CAD sintéticos y direcciones IP reservadas para documentación; sin cuentas ni credenciales reales.",
+      "fixtures": "Cuatro muros sintéticos de 5 × 4 m con grosor 250 mm; sin área textual pregrabada ni credenciales reales. Planos CAD sintéticos y direcciones IP reservadas para documentación; sin cuentas ni credenciales reales.",
       "dependenciesAdded": [],
       "adoption": {
         "required": true,
         "status": "proposed",
         "adopter": "Sergio Valle Zárate",
-        "evidence": "Prueba de integración API 3/3: token sin login, límite de tamaño/rate, vencimiento, aislamiento de otra organización y denegación de comentarios/escritura. Error público genérico con diagnóstico reducido fuera de pantalla; controles basados en primitivas compartidas. Golden /demo 1/1, typecheck API/web y check:cad-contract verdes en rama local antes de esta corrección; repetir sobre SHA final y tras integrar área derivada del visor. No se afirma despliegue productivo."
+        "evidence": "Sobre main #246 + candidata móvil #249: API Nest 3/3 prueba token, límite de tamaño/tasa, vencimiento, aislamiento de tenant y denegación de comentarios/escritura; HTTP real con PostgreSQL16 dedicado: crear 201, leer invitado 200 y comentar 403. Typecheck monorepo 8/8, contrato OpenAPI/SDK/router 111, gobernanza, superficie y build Webpack 208 rutas pasan. Goldens de compartir Esencial, visor móvil y /demo 7/7 Chromium pasan en build productivo; robot canónico local 4/4 con API real/PG16 y captura móvil 390x844 sin scroll horizontal. CI publicada, Railway y cinco estudiantes reales siguen pendientes; el plano móvil aún deja espacio vertical sin usar."
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
