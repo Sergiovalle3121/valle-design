@@ -44,6 +44,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { expectedFromOracle, parseOracleDxf } from "./dxf-oracle.mjs";
+import { compareLwPolylineFromDxf } from "./oda-roundtrip-lwpolyline.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(here, "../..");
@@ -238,41 +239,12 @@ function compareEntity(expected, normalized, mismatches, label) {
       if (!near(f.endAngle, e.endAngle)) push(`endAngle ${f.endAngle}`);
       return;
     case "lwpolyline":
-      // El helper del oráculo (importado sin modificar) no acumula los
-      // vértices 10/20 repetidos de una LWPOLYLINE; el conteo de vértices se
-      // verifica aparte contra el grupo 90 del DXF crudo, y la geometría de
-      // vértices queda cubierta por el round-trip del lector propio.
+      // dxf-oracle.mjs no acumula los grupos repetidos de LWPOLYLINE. El
+      // comparador focal lee el DXF crudo y coteja toda su geometría.
       return;
     default:
       push(`tipo sin comparador: ${expected.kind}`);
   }
-}
-
-/** Verificación suplementaria de la LWPOLYLINE contra el DXF CRUDO. */
-function checkLwPolylineRaw(dxfText, expected, mismatches, label) {
-  const lines = dxfText.split(/\r?\n/);
-  for (let index = 0; index < lines.length; index += 1) {
-    if (lines[index].trim() !== "LWPOLYLINE") continue;
-    // `index` es la LÍNEA DE VALOR del par (0, LWPOLYLINE); los pares
-    // código/valor de la entidad empiezan en la línea siguiente.
-    let vertexCount = null;
-    let closedFlag = null;
-    for (let scan = index + 1; scan < Math.min(index + 121, lines.length - 1); scan += 2) {
-      const code = lines[scan].trim();
-      const value = lines[scan + 1]?.trim();
-      if (code === "0") break;
-      if (code === "90") vertexCount = Number.parseInt(value, 10);
-      if (code === "70") closedFlag = Number.parseInt(value, 10);
-    }
-    if (vertexCount !== expected.entity.vertices.length) {
-      mismatches.push(`${label}: grupo 90 = ${vertexCount}, esperado ${expected.entity.vertices.length}`);
-    }
-    if (((closedFlag ?? 0) & 1) !== (expected.entity.closed ? 1 : 0)) {
-      mismatches.push(`${label}: bandera de cierre ${closedFlag}`);
-    }
-    return;
-  }
-  mismatches.push(`${label}: el DXF no contiene ninguna LWPOLYLINE`);
 }
 
 /**
@@ -305,7 +277,7 @@ function checkMTextRaw(dxfText, expected, mismatches, label) {
   mismatches.push(`${label}: el DXF no contiene ningún MTEXT`);
 }
 
-function compareCase(caseSpec, dxfText) {
+export function compareCase(caseSpec, dxfText) {
   const parsed = parseOracleDxf(dxfText);
   const mismatches = [];
   const layerReport = [];
@@ -343,7 +315,8 @@ function compareCase(caseSpec, dxfText) {
     } else {
       compareEntity(expected, candidate, mismatches, label);
       if (expected.kind === "lwpolyline") {
-        checkLwPolylineRaw(dxfText, expected, mismatches, label);
+        const ordinal = caseSpec.expectedEntities.slice(0, index).filter((item) => item.kind === "lwpolyline").length;
+        mismatches.push(...compareLwPolylineFromDxf(dxfText, expected, { section: "ENTITIES", ordinal, label }));
       }
       if (expected.kind === "mtext") {
         checkMTextRaw(dxfText, expected, mismatches, label);
@@ -379,6 +352,10 @@ function compareCase(caseSpec, dxfText) {
         return;
       }
       compareEntity(expected, candidate, mismatches, label);
+      if (expected.kind === "lwpolyline") {
+        const ordinal = expectedContent.slice(0, index).filter((item) => item.kind === "lwpolyline").length;
+        mismatches.push(...compareLwPolylineFromDxf(dxfText, expected, { section: "BLOCKS", block: blockName, ordinal, label }));
+      }
     });
     blockReport.push({
       nombre: blockName,
@@ -640,7 +617,7 @@ async function main() {
           : [],
     },
     limitaciones: [
-      "El helper del oráculo (dxf-oracle.mjs, importado sin modificar) no acumula los vértices 10/20 repetidos de una LWPOLYLINE: el conteo de vértices y el cierre se verifican contra los grupos 90/70 del DXF crudo y la geometría exacta de vértices queda cubierta por el round-trip del lector propio.",
+      "El helper del oráculo (dxf-oracle.mjs, importado sin modificar) no acumula los grupos repetidos de una LWPOLYLINE: un comparador focal lee del DXF crudo los grupos 90/70, las coordenadas 10/20, los bulges 42 y los anchos 40/41/43. La evidencia congelada anterior a este comparador no acredita esa geometría.",
       "Entidades de anotación (DIMENSION, HATCH, LEADER…) siguen siendo pendiente declarado del writer: el lector propio ya las decodifica, pero writeAc1015EntityBody aún no las emite. CORRECCIÓN 2026-09-01: esta lista incluía MTEXT y era FALSO — writeAc1015EntityBody sí la emite (`emitMText`, espejo campo a campo de `decodeMText`) desde antes de este corte. Lo que sigue sin llegar de MTEXT es el camino PÚBLICO: `canonical-to-dwg.ts` no la enruta, porque el documento canónico no transporta ni la alineación ni el interlineado que el producto sí modela, y enrutarla hoy los aplanaría en silencio.",
     ],
   };
@@ -662,4 +639,7 @@ async function main() {
   if (cleanRoundTrips !== ALL_CASES.length) process.exitCode = 1;
 }
 
-await main();
+const invokedDirectly =
+  process.argv[1] !== undefined &&
+  pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+if (invokedDirectly) await main();
