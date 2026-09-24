@@ -267,7 +267,7 @@ export function EssentialShareAction({
                 ? `Versión ${state.deliveredVersion ?? "guardada"} congelada. Quien tenga este enlace verá esta entrega aunque sigas dibujando, hasta que venza o lo revoques. No permite comentarios. Cópialo ahora; por seguridad no se volverá a mostrar.`
                 : snapshot
                   ? "Quien tenga este enlace puede ver una copia de este momento del plano durante 24 horas. No puede editarla ni comentar. Los cambios posteriores no se reflejan."
-                : "Quien tenga este enlace puede ver la versión más reciente del plano. No permite editar ni comentar. Cópialo ahora; por seguridad no se volverá a mostrar."}
+                  : "Quien tenga este enlace puede ver la versión más reciente del plano. No permite editar ni comentar. Cópialo ahora; por seguridad no se volverá a mostrar."}
             </p>
             {delivery && state.deliveredAt ? (
               <p

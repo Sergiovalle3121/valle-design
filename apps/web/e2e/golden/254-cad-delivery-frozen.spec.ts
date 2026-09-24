@@ -84,8 +84,8 @@ test("Entregar fija la versión y fecha; Compartir enseña la edición posterior
   const guest = await guestContext.newPage();
   await guest.goto(deliveryUrl);
   await expect(guest.getByTestId("cad-review-delivery-date")).toContainText("Entregado el");
-  await expect(guest.getByTestId("cad-review-text")).toContainText("SALA");
-  await expect(guest.getByTestId("cad-review-text")).not.toContainText("COCINA");
+  await expect(guest.getByTestId("cad-review-room-area")).toContainText("SALA");
+  await expect(guest.getByTestId("cad-review-room-area")).not.toContainText("COCINA");
   expect(await guest.evaluate(() => document.documentElement.scrollWidth)).toBe(
     await guest.evaluate(() => document.documentElement.clientWidth),
   );
@@ -93,10 +93,10 @@ test("Entregar fija la versión y fecha; Compartir enseña la edición posterior
   // pestaña no reinicia el canje, como exige la custodia efímera del token.
   const liveGuest = await guestContext.newPage();
   await liveGuest.goto(shareUrl);
-  await expect(liveGuest.getByTestId("cad-review-text")).toContainText("COCINA");
+  await expect(liveGuest.getByTestId("cad-review-room-area")).toContainText("COCINA");
   await expect(liveGuest.getByTestId("cad-review-delivery-date")).toHaveCount(0);
   const qrGuest = await guestContext.newPage();
   await qrGuest.goto(qrLiveUrl);
-  await expect(qrGuest.getByTestId("cad-review-text")).toContainText("COCINA");
+  await expect(qrGuest.getByTestId("cad-review-room-area")).toContainText("COCINA");
   await guestContext.close();
 });

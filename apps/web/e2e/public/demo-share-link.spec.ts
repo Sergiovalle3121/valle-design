@@ -22,6 +22,7 @@ test("el visitante comparte desde /demo una copia guardada del plano sin cuenta"
   await expect(page.getByTestId("cad-essential-bar")).toBeVisible({
     timeout: 60_000,
   });
+  await expect(page.getByTestId("cad-essential-deliver")).toHaveCount(0);
   const input = page.getByTestId("cad-command-input");
   for (const token of ["LINE", "123,456", "2345,456"]) {
     await input.click();
