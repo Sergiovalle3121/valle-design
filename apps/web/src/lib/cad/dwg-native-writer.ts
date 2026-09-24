@@ -22,6 +22,7 @@ import {
   type CanonicalLossEntry,
 } from "@valle-design/dwg-codec";
 import type { CadDocument } from "./cad-document";
+import { isCadRoomSpaceAnchor } from "./room-space";
 import {
   cadHatchPatternBaseAngle,
   cadHatchPatternDefinition,
@@ -265,6 +266,7 @@ export function preflightCadDwgExport(
   let writableCount = 0;
   const unwritableByType: Record<string, number> = {};
   for (const entity of document.entities) {
+    if (isCadRoomSpaceAnchor(entity)) continue;
     if (cadEntityIsDwgWritable(entity)) writableCount += 1;
     else unwritableByType[entity.type] = (unwritableByType[entity.type] ?? 0) + 1;
   }
@@ -373,6 +375,7 @@ function toCanonicalDocument(document: CadDocument): {
 } {
   const droppedLosses: CanonicalLossEntry[] = [];
   const paperSpaces = toCanonicalPaperSpaces(document, droppedLosses);
+  const anchorIds = new Set(document.entities.filter(isCadRoomSpaceAnchor).map((entity) => entity.id));
   const canonical: CanonicalCadDocumentJson = {
     meta: {
       version: document.meta.version,
@@ -394,9 +397,9 @@ function toCanonicalDocument(document: CadDocument): {
       ...(layer.frozen === undefined ? {} : { frozen: layer.frozen }),
       ...(layer.linetype === undefined ? {} : { linetype: layer.linetype }),
     })),
-    entities: document.entities.map(toCanonicalEntity),
+    entities: document.entities.filter((entity) => !anchorIds.has(entity.id)).map(toCanonicalEntity),
     history: [],
-    modelSpace: { entityIds: [...document.modelSpace.entityIds] },
+    modelSpace: { entityIds: document.modelSpace.entityIds.filter((id) => !anchorIds.has(id)) },
     paperSpaces,
     // LOS PATRONES DE TIPO DE LÍNEA DEL DOCUMENTO. Sin ellos el writer no
     // puede emitir la entrada LTYPE y toda capa cae a Continuous: el nombre
@@ -415,7 +418,7 @@ function toCanonicalDocument(document: CadDocument): {
       id: block.id,
       name: block.name,
       basePoint: { ...block.basePoint },
-      entities: block.entities.map(toCanonicalEntity),
+      entities: block.entities.filter((entity) => !isCadRoomSpaceAnchor(entity)).map(toCanonicalEntity),
     })),
     constraints: [],
     externalReferences: [],

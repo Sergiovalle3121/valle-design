@@ -14,6 +14,7 @@
  */
 
 import type { CadDocument } from "./cad-document";
+import { isCadRoomSpaceAnchor } from "./room-space";
 
 export type RuleLevel = "error" | "warning" | "info";
 
@@ -55,6 +56,7 @@ type GeomEntity = {
 };
 function boxes(doc: CadDocument): GeomEntity[] {
   return doc.entities.flatMap((entity): GeomEntity[] => {
+    if (isCadRoomSpaceAnchor(entity)) return [];
     if (entity.type === "box" || entity.type === "station") return [entity];
     if (entity.type === "circle" && entity.legacy) {
       return [{
