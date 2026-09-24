@@ -308,6 +308,11 @@ try {
     const task = record(4, 'Enlace móvil con plano y m²', 3);
     try {
       await clickButton(task, 'Compartir');
+      // Crear el enlace es una petición de red. Esperar su botón visible es el
+      // mismo gesto de quien aguarda el resultado; no suma acciones ni cambia
+      // los criterios para acreditar el plano móvil.
+      await page.getByRole('button', { name: 'Copiar enlace', exact: true })
+        .waitFor({ state: 'visible', timeout: 30_000 });
       await clickButton(task, 'Copiar enlace');
       let url = await page.evaluate(() => {
         const candidates = [...document.querySelectorAll('a[href], code')];
