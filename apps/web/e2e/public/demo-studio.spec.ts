@@ -69,6 +69,24 @@ async function measureOpening(page: Page) {
 }
 
 test.describe('Demostración sin cuenta', () => {
+  test('el demo anónimo no ofrece envíos protegidos de soporte o comentarios', async ({ page }) => {
+    const contactRequests: string[] = [];
+    page.on('request', (request) => {
+      if (/\/v1\/(?:support\/incidents|feedback)(?:[/?]|$)/u.test(request.url())) {
+        contactRequests.push(`${request.method()} ${request.url()}`);
+      }
+    });
+    await page.goto('/demo?cadUi=pro');
+    const reporter = page.getByTestId('cad-incident-open');
+    await expect(reporter).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByTestId('cad-feedback-open')).toBeHidden();
+    await reporter.click();
+    await expect(page.getByTestId('cad-incident-demo-auth')).toContainText(/inicia sesi.n o crea una cuenta/iu);
+    await expect(page.getByTestId('cad-incident-send')).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Iniciar sesión' })).toHaveAttribute('href', /\/login/);
+    expect(contactRequests).toHaveLength(0);
+  });
+
   test('abre el editor real, dibuja por comando y no toca la red de documentos', async ({
     page,
   }) => {

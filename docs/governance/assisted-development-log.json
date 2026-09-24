@@ -4272,7 +4272,7 @@
       "id": "SOPORTE-MODO-RUTEO-20260923",
       "date": "2026-09-23",
       "initiative": "Completar el contexto del reporte de fallos con modo Esencial/Pro, impedir que errores internos se muestren al usuario, limitar abuso por cuenta verificada y deduplicar sólo cargas idénticas; documentar la recepción verificable sin fingir que el buzón ya existe.",
-      "branch": "codex/support-route",
+      "branch": "codex/support-route-main3d7",
       "assistants": [
         "OpenAI Codex: auditoría del flujo de soporte, implementación de modo, mensajes seguros y deduplicación exacta, pruebas focales y guía de activación"
       ],
@@ -4296,10 +4296,10 @@
       ],
       "externalImplementationConsulted": "Ninguna implementación externa copiada; sólo se consultó documentación de operación de Cloudflare.",
       "derivedAreas": [
-        "apps/web/src/components/cad/studio/CadIncidentReporter.tsx y support-incident-error.ts: modo visible/enviado y errores públicos por código, incluidos 429 y 503, sin mensaje interno",
+        "apps/web/src/components/cad/studio/CadIncidentReporter.tsx, support-incident-error.ts y demo-support-draft.ts: modo visible/enviado, aviso de metadatos agregados por servidor, errores públicos por código y demo sin POST anónimo; borrador opcional sin plano cuando hay correo configurado",
         "apps/api/src/modules/support y outbox-receiver/email-templates.ts: modo opcional compatible con clientes anteriores, correo con modo, 503 honesto sin buzón, límite por userId verificado e idempotencia de la carga completa",
         "packages/contracts/specs/design-api.v1.yaml y packages/design-sdk/src/generated/design-api.ts: contrato de uiMode opcional",
-        "apps/web/e2e/real/primera-hora.spec.ts, specs focales web/API y docs/onboarding/SOPORTE-RECEPCION.md: navegador visible, regresiones sintéticas, rutas y buzón exactos, política antiabuso y activación pendiente"
+        "apps/web/e2e/real/primera-hora.spec.ts, e2e/public/demo-studio.spec.ts, specs focales web/API y docs/onboarding/SOPORTE-RECEPCION.md: navegador visible, anonimato/permiso/429, rutas y buzón exactos, política antiabuso y activación pendiente"
       ],
       "fixtures": "Errores sintéticos con texto interno simulado y payloads Esencial/Pro; la prueba de outbox usó la base PostgreSQL local aislada valle_support_g5_20260923_01 con datos sintéticos. No se usó correo real ni credencial personal.",
       "dependenciesAdded": [],
@@ -4307,7 +4307,7 @@
         "required": true,
         "status": "proposed",
         "adopter": "Sergio Valle Zárate",
-        "evidence": "Pruebas rojas antes del primer cambio: uiMode ausente y colisión de idempotencia Esencial/Pro. En la revisión G5, fallaron primero la deduplicación de igual texto con distinto consentimiento/contexto, el 429 seguro y el límite identificado por userId; la prueba PostgreSQL reprodujo IdempotencyConflictError real. Tras corregir: payload/servicio 15/15, controlador 3/3, PostgreSQL aislado 8/8 y mensajes web 4/4 PASS; typecheck API, ESLint focal API/web y listado Playwright G5 PASS. Contrato OpenAPI y consola API 110 operaciones, typecheck completo del SDK, web y API y check:governance 11/11 habían pasado en el primer commit. Recepción real, configuración Cloudflare/Railway, ejecución E2E y CI sobre SHA final pendientes; no se declara buzón operativo."
+        "evidence": "Pruebas rojas antes del primer cambio: uiMode ausente y colisión de idempotencia Esencial/Pro. En la revisión G5, fallaron primero la deduplicación de igual texto con distinto consentimiento/contexto, el 429 seguro y el límite identificado por userId; la prueba PostgreSQL reprodujo IdempotencyConflictError real. Tras reconciliar sobre main 3d7: cuatro suites API 34/34, PostgreSQL 16 local 8/8, metadato cad:view, ausencia de identidad, 429, borrador demo sin plano y mensajes web seguros PASS. Typecheck API, SDK y web contra el SDK de esta rama, SDK compat 9/9, ESLint focal API/web, consola OpenAPI 110 operaciones, check:governance 11/11 y presupuesto del monolito PASS. El E2E de demo anónimo y la primera hora autenticada están versionados y descubiertos por Playwright, pero su ejecución, CI y verificación pública sobre SHA final quedan pendientes. Recepción real y configuración Cloudflare/Railway también pendientes; no se declara buzón operativo."
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false

@@ -201,6 +201,13 @@ test.describe("La primera hora de un desconocido", () => {
   test("5 · «algo salió mal» llega al outbox, y el plano sólo con permiso", async () => {
     test.setTimeout(300_000);
 
+    // La cuenta real conserva el canal de comentarios en Pro; el cierre del
+    // demo anónimo no debe recortar los controles del estudio autenticado.
+    const modo = page.getByTestId("cad-ui-mode-switch");
+    if ((await modo.getAttribute("aria-checked")) !== "true") await modo.click();
+    await expect(modo).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByTestId("cad-feedback-open")).toBeVisible();
+
     // Sin autorizar: el reporte sale y el plano NO viaja.
     await page.getByTestId("cad-incident-open").click();
     await expect(page.getByTestId("cad-incident-dialog")).toBeVisible({
@@ -215,6 +222,9 @@ test.describe("La primera hora de un desconocido", () => {
     );
     await expect(page.getByTestId("cad-incident-payload")).toContainText(
       /Modo de interfaz: (Esencial|Pro)/u,
+    );
+    await expect(page.getByTestId("cad-incident-payload")).toContainText(
+      /correo de tu cuenta.*identificador de tu organizaci.n/iu,
     );
     await expect(page.getByTestId("cad-incident-payload")).toContainText(
       /Tu plano: no se env.a/iu,

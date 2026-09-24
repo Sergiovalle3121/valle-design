@@ -1,6 +1,7 @@
 "use client";
 
 import { createPortal } from "react-dom";
+import Link from "next/link";
 
 /**
  * «ALGO SALIÓ MAL» — el camino de vuelta.
@@ -16,8 +17,8 @@ import { createPortal } from "react-dom";
  *
  * ── La decisión que ordena el diseño: se ve TODO lo que se manda ───────────
  *
- * El cuadro enseña, campo por campo, exactamente lo que va a salir de este
- * navegador. Nada se recoge en segundo plano. La versión, el navegador, el
+ * El cuadro enseña los datos que salen de este navegador y avisa qué datos de
+ * la sesión añade el servidor. La versión, el navegador, el
  * modo y el comando en curso viajan siempre: sin ellos «no me funciona» no
  * se puede reproducir. El plano NO viaja nunca —ni su contenido ni su
  * identificador— salvo que la persona marque la casilla, que nace apagada.
@@ -33,11 +34,14 @@ import { createPortal } from "react-dom";
  */
 import { useState } from "react";
 import { APP_VERSION } from "@/config/launch";
+import { COMMERCIAL_CONTACTS } from "@/config/commercial";
 import { designClient } from "@/lib/cad/repositories/client";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
+import { Button, buttonClass } from "@/components/ui";
 import { useStudioTraySlot } from "@/components/cad/studio/use-studio-tray";
 import { useCadUiMode } from "@/components/cad/shell/ui-mode-host";
 import { supportIncidentErrorMessage } from "./support-incident-error";
+import { demoSupportDraftHref } from "./demo-support-draft";
 
 export interface CadIncidentReporterProps {
   /** Versión del estudio. Por defecto la del build, que es la que hace falta. */
@@ -46,6 +50,8 @@ export interface CadIncidentReporterProps {
   documentId?: string | null;
   /** El comando en curso cuando el usuario decidió que algo iba mal. */
   activeCommand?: string | null;
+  /** /demo usa un documento local sin sesión; el endpoint exige cad:view. */
+  localDemo?: boolean;
   className?: string;
 }
 
@@ -57,11 +63,13 @@ export function CadIncidentReporter({
   appVersion = APP_VERSION,
   documentId,
   activeCommand,
+  localDemo = false,
   className,
 }: CadIncidentReporterProps) {
   // En Esencial la bandeja deja sólo «Reportar un fallo»: quien abre por
   // primera vez no necesita dos buzones, y el de fallos es el que nos importa.
-  // «Comentarios» sigue en Pro y el diálogo no cambia.
+  // «Comentarios» sigue en Pro autenticado; el demo anónimo no tiene el permiso
+  // cad:view que exige su endpoint y no debe ofrecer un envío que dará 401.
   const modo = useCadUiMode();
   const [estado, setEstado] = useState<Estado>("cerrado");
   /** El centro de comentarios, que es el OTRO canal. Ver la nota de abajo. */
@@ -72,6 +80,9 @@ export function CadIncidentReporter({
 
   const userAgent =
     typeof navigator === "undefined" ? "desconocido" : navigator.userAgent;
+  const demoDraftHref = localDemo
+    ? demoSupportDraftHref(COMMERCIAL_CONTACTS.support, appVersion, userAgent, modo)
+    : null;
 
   const enviar = async () => {
     setEstado("enviando");
@@ -130,7 +141,7 @@ export function CadIncidentReporter({
       </button>
       <button
         type="button"
-        hidden={modo === "esencial"}
+        hidden={modo === "esencial" || localDemo}
         data-testid="cad-feedback-open"
         onClick={() => setComentarios(true)}
         title="Una idea, una duda o algo que podríamos hacer mejor"
@@ -157,6 +168,7 @@ export function CadIncidentReporter({
       <button
         type="button"
         data-testid="cad-feedback-open"
+        hidden={localDemo}
         onClick={() => setComentarios(true)}
         title="Una idea, una duda o algo que podríamos hacer mejor"
         className="rounded-lg border border-border bg-surface/80 px-2.5 py-1 type-micro text-muted-foreground shadow hover:text-foreground"
@@ -209,6 +221,51 @@ export function CadIncidentReporter({
           documentId={documentId}
         />
       </>
+    );
+  }
+
+  if (localDemo) {
+    return (
+      <div
+        data-testid="cad-incident-dialog"
+        role="dialog"
+        aria-label="Reportar un problema"
+        className="fixed inset-0 z-[95] grid place-items-center bg-black/55 p-4"
+        onClick={() => setEstado("cerrado")}
+      >
+        <div
+          onClick={(event) => event.stopPropagation()}
+          className="w-[34rem] max-w-full rounded-card border border-border bg-surface p-5 shadow-floating"
+        >
+          <h2 className="type-heading">Reportar un fallo</h2>
+          <p data-testid="cad-incident-demo-auth" className="type-small mt-3 text-foreground">
+            Este dibujo de demostración se guarda en tu navegador y no envía
+            reportes. Para reportar desde el editor, inicia sesión o crea una cuenta.
+          </p>
+          {demoDraftHref && (
+            <p className="type-small mt-3 text-muted-foreground">
+              También puedes abrir un borrador de correo con versión, navegador y
+              modo. Revísalo antes de enviarlo; no incluye tu plano.
+            </p>
+          )}
+          <div className="mt-5 flex flex-wrap justify-end gap-3">
+            <Button size="sm" variant="ghost" onClick={() => setEstado("cerrado")}>
+              Cerrar
+            </Button>
+            {demoDraftHref && (
+              <a href={demoDraftHref} className={buttonClass({ variant: "secondary", size: "sm" })}>
+                Abrir borrador de correo
+              </a>
+            )}
+            <Link href="/login?returnTo=%2Fdashboard" className={buttonClass({ variant: "secondary", size: "sm" })}>
+              Iniciar sesión
+            </Link>
+            <Link href="/register?returnTo=%2Fdashboard%3Fdemo%3D1" className={buttonClass({ variant: "primary", size: "sm" })}>
+              Crear cuenta
+            </Link>
+          </div>
+        </div>
+      </div>
     );
   }
 
@@ -271,6 +328,7 @@ export function CadIncidentReporter({
               <div className="truncate">Navegador: {userAgent}</div>
               <div>Modo de interfaz: {modo === "esencial" ? "Esencial" : "Pro"}</div>
               <div>Comando en curso: {activeCommand || "ninguno"}</div>
+              <div>El servidor añade el correo de tu cuenta (o su identificador) y el identificador de tu organización, si existe.</div>
               <div>
                 Tu plano:{" "}
                 {autorizado && documentId

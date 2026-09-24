@@ -29,6 +29,14 @@ const dto: ReportSupportIncidentDto = {
 describe('SupportController · antiabuso por cuenta autenticada', () => {
   const request = { user } as unknown as Request;
 
+  it('conserva el permiso cad:view en la ruta protegida', () => {
+    const handler = Object.getOwnPropertyDescriptor(
+      SupportController.prototype,
+      'report',
+    )?.value as object;
+    expect(Reflect.getMetadata('permissions', handler)).toEqual(['cad:view']);
+  });
+
   it('usa el userId estable del guard para el límite y conserva el correo como remitente', async () => {
     const enforce = jest.fn(async () => undefined);
     const report = jest.fn(async () => undefined);

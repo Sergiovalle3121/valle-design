@@ -23,10 +23,24 @@ canal como operativo hasta realizar la prueba de extremo a extremo de abajo.
 
 El reporte presenta antes de enviar versión, navegador, modo de interfaz y
 comando activo. Sólo añade el identificador del plano si se marca la casilla;
-no envía la geometría. Los errores de la API no muestran mensajes internos en
-el cuadro: si hay demasiados reportes, informa que se espere y conserva el
-texto escrito. La recepción real de todo esto sigue pendiente de la prueba
-operativa descrita abajo.
+no envía la geometría. El cuadro también avisa que el servidor agrega el correo
+de la cuenta (o su identificador) y el identificador de la organización, si
+existe. En `/demo`, donde el dibujo queda en el navegador sin sesión, «Reportar
+un fallo» explica que se requiere una cuenta y no llama a la API protegida. Si
+el correo público está configurado, ofrece abrir un borrador local con versión,
+navegador y modo, sin identificador ni contenido del plano. El borrador no se
+envía automáticamente ni acredita la recepción en el buzón. El control
+«Comentarios» también se oculta en el demo sin sesión, incluso si se elige
+Pro: su endpoint requiere la misma autorización y no debe conducir a un 401.
+En una cuenta autenticada el canal Pro se conserva. El identificador local
+`demo-local` nunca se presenta como si fuera un UUID de un plano en la nube.
+La lectura histórica del catálogo `GET /v1/cad/blocks` en `/demo` sigue siendo
+una excepción de la promesa de no llamar a rutas privadas; este cambio no la
+modifica.
+
+Los errores de la API no muestran mensajes internos en el cuadro: si hay
+demasiados reportes, informa que se espere y conserva el texto escrito. La
+recepción real sigue pendiente de la prueba operativa descrita abajo.
 
 ## Activar `soporte@vallecad.com` en Cloudflare
 

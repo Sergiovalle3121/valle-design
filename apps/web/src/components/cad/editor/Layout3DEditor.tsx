@@ -16778,7 +16778,7 @@ export default function Layout3DEditor({
       {/* Cuadros flotantes de las paletas. Su estado vive fuera de React
           (`components/cad/palettes`), así que abrirlos no cuesta un `useState`
           en una función que ya tiene demasiados. */}
-      <CadIncidentReporter documentId={documentId} activeCommand={engineCommand} />
+      <CadIncidentReporter documentId={demoBanner ? null : documentId} activeCommand={engineCommand} localDemo={Boolean(demoBanner) && !userId} />
       <CadPaletteOverlays
         open={activePalette}
         paletteHost={paletteHost}
