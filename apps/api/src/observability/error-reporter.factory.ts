@@ -34,6 +34,11 @@ export function createErrorReporter(
   const dsnRaw = (env.SENTRY_DSN ?? '').trim();
 
   if (!dsnRaw) {
+    if (env.NODE_ENV === 'production' && env.SENTRY_DSN !== undefined) {
+      throw new Error(
+        'SENTRY_DSN configurado pero vacio: se detiene el arranque para no perder reportes en silencio.',
+      );
+    }
     logger.log(
       'Sin SENTRY_DSN: reporte de errores INERTE (los errores siguen en el log del servidor).',
     );

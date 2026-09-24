@@ -68,6 +68,18 @@ describe('puerto ErrorReporter', () => {
       expect(reporter).toBeInstanceOf(NullErrorReporter);
     });
 
+    it.each(['', '   '])(
+      'en produccion un SENTRY_DSN presente pero vacio (%p) impide arrancar',
+      (dsn) => {
+        expect(() =>
+          createErrorReporter({
+            env: { SENTRY_DSN: dsn, NODE_ENV: 'production' },
+            logger: silent,
+          }),
+        ).toThrow('SENTRY_DSN');
+      },
+    );
+
     it.each([
       ['sin clave publica', 'https://o42.ingest.example.com/7654321'],
       ['sin proyecto', 'https://k3yPubl1ca@o42.ingest.example.com/'],

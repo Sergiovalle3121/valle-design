@@ -4555,7 +4555,7 @@
       "externalImplementationConsulted": "Ninguna implementación externa copiada; sólo metadatos oficiales de soporte e imagen base.",
       "derivedAreas": [
         "El workflow programado falla si faltan secrets y prueba el shell real sin secretos desde check:deploy",
-        "Un DSN explícito inválido impide el arranque en producción sin registrar su valor; el modo de desarrollo conserva el adaptador nulo",
+        "Un DSN explícito inválido o vacío impide el arranque en producción sin registrar su valor; el modo de desarrollo conserva el adaptador nulo",
         ".nvmrc, las dos imágenes Docker, los engines de seis paquetes y el lockfile generado apuntan a Node 22; doctor rechaza versiones menores de 22.9"
       ],
       "fixtures": "Variables vacías contra el paso Bash real del monitor; DSN ficticio sin red; metadatos de Node y Docker Hub para fijar el digest.",
@@ -4564,7 +4564,7 @@
         "required": true,
         "status": "proposed",
         "adopter": "Sergio Valle Zárate",
-        "evidence": "Candidato local sin push ni despliegue. monitor-workflow.spec pasó de rojo a verde ejecutando el shell real sin secretos; check:deploy: 40 comprobaciones de spec y 32 invariantes; check:doctor verde; ErrorReporter 24/24 y typecheck API verde; lint focalizado y check:governance 11/11 verde. El lockfile regenerado offline sólo cambió seis engines. CI exacta, build real de ambas imágenes y verificación pública siguen pendientes. No se afirma monitoreo externo configurado."
+        "evidence": "Candidato local sin push ni despliegue. monitor-workflow.spec pasó de rojo a verde ejecutando el shell real sin secretos; check:deploy: 40 comprobaciones de spec y 32 invariantes; check:doctor verde; ErrorReporter 26/26 (incluye variable vacía) y typecheck raíz 8/8 verde; lint focalizado y check:governance 11/11 verde. El lockfile regenerado offline sólo cambió seis engines. CI exacta, build real de ambas imágenes y verificación pública siguen pendientes. No se afirma monitoreo externo configurado."
       },
       "aiCoAuthorTrailers": false,
       "aiClaimsAuthorship": false
