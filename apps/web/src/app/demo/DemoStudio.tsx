@@ -89,7 +89,7 @@ export function DemoStudio() {
         className={buttonClass({ variant: "primary", size: "sm" })}
       >
         Crea tu cuenta
-        <ArrowRight aria-hidden="true" className="h-3.5 w-3.5" />
+        <ArrowRight aria-hidden="true" className="h-3.5 w-3.5 max-sm:hidden" />
       </Link>
     </aside>
   );

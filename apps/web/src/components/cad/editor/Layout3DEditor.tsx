@@ -6053,8 +6053,11 @@ export default function Layout3DEditor({
 
     const controls = new OrbitControls(camera, renderer.domElement);
     applyCadCameraPolicy(controls, viewModeRef.current);
-    applyInitialCameraFraming(camera, controls, W, H, lastCamRef.current, viewModeRef.current);
+    const restoredCamera = lastCamRef.current;
+    applyInitialCameraFraming(camera, controls, W, H, restoredCamera, viewModeRef.current);
     controlsRef.current = controls;
+    // En vertical (un teléfono) el encuadre por defecto, pensado apaisado, corta el plano por los lados.
+    if (!restoredCamera && camera.aspect < 1) requestAnimationFrame(() => fitView("all"));
     lastCamRef.current = snapshotCadCamera(camera.position, controls.target);
 
     const viewController = new CadViewController(
@@ -14101,8 +14104,8 @@ export default function Layout3DEditor({
           // botón se centraba en y = -0,5, medio píxel fuera de la ventana
           // (golden 215). Con 28 px respira dentro de la barra en vez de tocar
           // sus dos bordes.
-          // En Pro, por debajo de 1440 px, sólo el icono (ver `data-cad-ui` en CadRibbon).
-          className="inline-flex items-center gap-2 px-3.5 py-1 rounded-xl text-sm font-medium bg-brand-strong text-primary-foreground disabled:opacity-50 [[data-cad-ui=pro]_&]:max-[1439px]:px-2"
+          // En Pro por debajo de 1440 px, y en un teléfono, sólo el icono (ver `data-cad-ui` en CadRibbon).
+          className="inline-flex items-center gap-2 px-3.5 py-1 rounded-xl text-sm font-medium bg-brand-strong text-primary-foreground disabled:opacity-50 [[data-cad-ui=pro]_&]:max-[1439px]:px-2 max-sm:px-2"
           title="Guardar"
         >
           {saving ? (
@@ -14110,7 +14113,7 @@ export default function Layout3DEditor({
           ) : (
             <Save className="w-4 h-4" />
           )}{" "}
-          <span className="[[data-cad-ui=pro]_&]:max-[1439px]:sr-only">Guardar</span>
+          <span className="[[data-cad-ui=pro]_&]:max-[1439px]:sr-only max-sm:sr-only">Guardar</span>
         </button>
         <button
           onClick={() => void closeEditor()}
