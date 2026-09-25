@@ -37,11 +37,15 @@ function uploadedDocument(request: Request): { entities: Array<{ id: string }> }
 }
 
 test.describe("Compartir desde la demostración", () => {
-  test("el enlace lleva el dibujo actual y abre en un celular sin cuenta", async ({ page, browser }) => {
+  test("el enlace lleva el dibujo actual y abre en un celular sin cuenta", async ({ page, browser, browserName }) => {
     test.setTimeout(180_000);
     let shared: { entities: Array<{ id: string }> } | null = null;
     let deletedWith: string | null = null;
-    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+    // Firefox no conoce el permiso `clipboard-read` («Unknown permission») y su
+    // `writeText` no lo necesita tras un clic. Leer el portapapeles de vuelta
+    // sólo se puede en Chromium; en Firefox basta con que el botón confirme.
+    const canReadClipboard = browserName === "chromium";
+    if (canReadClipboard) await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.route(`${API_ORIGIN}/v1/cad/demo-shares**`, async (route) => {
       const request = route.request();
       if (request.method() === "POST") {
@@ -99,7 +103,7 @@ test.describe("Compartir desde la demostración", () => {
     await copy.click();
     // El rótulo cambia a «Copiado»: se sigue por su testid, no por el nombre.
     await expect(page.getByTestId("cad-share-copy")).toHaveText("Copiado");
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(url);
+    if (canReadClipboard) expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(url);
 
     // El celular: otro contexto, sin cookies ni almacenamiento del visitante.
     const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, locale: "es-MX" });
