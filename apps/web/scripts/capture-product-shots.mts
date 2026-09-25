@@ -768,6 +768,8 @@ async function main() {
         "| Archivo | Qué muestra |",
         "| ------- | ----------- |",
         ...taken.map((s) => `| \`${s.name}.png\` | ${s.note} |`),
+        // La de la portada y el acceso sale de `npm run capture:hero` (capture-hero-shot.mts).
+        "| `estudio-esencial-dark.png` / `-light.png` | la demostración en Esencial, lo que abre «Probar sin cuenta» (`npm run capture:hero`) |",
         "",
       ].join("\n"),
       "utf8",

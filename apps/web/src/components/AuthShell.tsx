@@ -129,7 +129,7 @@ export function AuthShell({
               Tu espacio de dibujo
             </p>
             <ProductFrame
-              src="/product/estudio-dark.png"
+              src="/product/estudio-esencial-dark.png"
               alt="Planta de ejemplo abierta en el editor de ValleCAD"
               caption="Dibuja, guarda y prepara tus entregables en un mismo espacio."
               float={false}
