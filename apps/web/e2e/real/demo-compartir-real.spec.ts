@@ -38,7 +38,6 @@ test.describe("Compartir desde la demostración, con la API real", () => {
 
   test.beforeAll(async ({ browser }) => {
     context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     page = await context.newPage();
   });
 
