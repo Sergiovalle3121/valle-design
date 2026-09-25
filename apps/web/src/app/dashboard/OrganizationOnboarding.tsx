@@ -52,7 +52,7 @@ export function OrganizationOnboarding({
   email: string | undefined;
   busy: boolean;
   error: string | null;
-  onCreate: (input: { name: string; slug: string }) => void;
+  onCreate: (input: { name: string; slug: string; custom?: boolean }) => void;
   onActivate: (organizationId: string) => void;
   onLogout: () => void;
 }) {
@@ -69,7 +69,7 @@ export function OrganizationOnboarding({
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (busy || !name.trim() || !slugOk) return;
-    onCreate({ name: name.trim(), slug });
+    onCreate({ name: name.trim(), slug, custom: customSlug !== null });
   };
 
   const workAlone = () => {

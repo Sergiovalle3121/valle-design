@@ -27,7 +27,8 @@ import { EmptyCanvasArt } from "@/components/brand/Illustration";
  *   3. IMPORTAR UN DXF, que es como llega quien ya tiene trabajo hecho.
  *
  * La vista previa NO es una ilustración: es la captura real del producto que
- * genera `npm run capture:product`. Si el editor cambiara, cambia ella.
+ * genera `npm run capture:hero` abriendo este mismo ejemplo con una cuenta
+ * nueva. Si el editor cambiara, cambia ella.
  */
 export function FirstMinute({
   canEdit,
@@ -88,8 +89,8 @@ export function FirstMinute({
         >
           <div className="relative border-b border-border bg-muted/40">
             <Image
-              src="/product/estudio-dark.png"
-              alt="Planta arquitectónica acotada, abierta en el editor"
+              src="/product/estudio-ejemplo-dark.png"
+              alt="La casa habitación de ejemplo abierta en el editor, con sus cuartos rotulados"
               width={2880}
               height={1800}
               sizes="(min-width: 1024px) 40rem, 100vw"

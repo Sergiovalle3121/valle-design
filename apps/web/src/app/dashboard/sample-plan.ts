@@ -1,5 +1,4 @@
 import { designClient } from "@/lib/cad/repositories/client";
-import SAMPLE_PLAN from "@/lib/cad/sample-plan.json";
 import type { CadDocumentInline, CadProject } from "@valle/design-sdk";
 
 /**
@@ -15,6 +14,17 @@ import type { CadDocumentInline, CadProject } from "@valle/design-sdk";
  *
  * Devuelve el proyecto creado —si lo hubo— para que quien llama actualice su
  * lista sin volver a pedirla.
+ *
+ * ## Por qué es la casa de la demostración
+ *
+ * Antes se abría `sample-plan.json`, un plano dibujado por el guion de
+ * capturas sobre una planta de 40 × 26 m: la casa salía diminuta en una
+ * esquina y sus rótulos de cuarto se cruzaban («BAÑO · 48 m²» encima de la
+ * sala; visto el 25-sep-2026 abriéndolo desde una cuenta nueva). Ahora es la
+ * MISMA casa que abre «Probar sin cuenta» y que enseña la portada: plantilla
+ * casa habitación con sus muros y vanos, 12 × 8 m, seis cuartos con nombre y
+ * m². Se importa al pulsar, no con el tablero: el catálogo de plantillas no
+ * tiene por qué viajar en la primera carga.
  */
 export async function abrirPlanoDeEjemplo(proyectoActual: string | undefined): Promise<{
   documentId: string;
@@ -30,9 +40,14 @@ export async function abrirPlanoDeEjemplo(proyectoActual: string | undefined): P
     name: "Planta de ejemplo",
     projectId,
   });
+  const [{ buildCadTemplateDocument }, { buildDemoVolumeDocument }] = await Promise.all([
+    import("@/lib/cad/template-document"),
+    import("@/lib/cad/demo/demo-volume"),
+  ]);
+  const casa = buildDemoVolumeDocument(buildCadTemplateDocument("casa-habitacion").document);
   await designClient.documents.saveContent(
     document.id,
-    SAMPLE_PLAN as unknown as CadDocumentInline,
+    casa as unknown as CadDocumentInline,
     0,
   );
   return { documentId: document.id, proyectoCreado };

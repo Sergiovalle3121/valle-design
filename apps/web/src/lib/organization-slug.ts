@@ -76,3 +76,59 @@ export function personalOrganizationName(email: string | undefined): string {
   const name = words.join(" ").slice(0, 160).trim();
   return name.length >= 2 ? name : "Mi despacho";
 }
+
+/**
+ * EL IDENTIFICADOR YA LO USA OTRO DESPACHO.
+ *
+ * Los identificadores son únicos en todo el producto, y los derivados chocan:
+ * `juan@gmail.com` y `juan@hotmail.com` dan los dos «juan» al pulsar «Trabajo
+ * por mi cuenta», y dos despachos llamados «Arquitectura» dan
+ * «arquitectura». La segunda persona se quedaba en el alta leyendo «El slug ya
+ * está en uso.» (visto el 25-sep-2026), sin nada que hacer más que adivinar.
+ *
+ * Si el identificador lo derivó el producto, se desempata solo con un sufijo
+ * corto y se vuelve a intentar; nadie lo tecleó, nadie lo echa de menos. Si lo
+ * escribió la persona a mano, se respeta y se le explica qué hacer.
+ */
+export function isOrganizationSlugTaken(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error as { status?: unknown }).status === 400 &&
+    /slug ya est[aá] en uso/iu.test(error.message)
+  );
+}
+
+/** «juan» → «juan-4k7q»: cuatro caracteres base 36, dentro del largo que acepta la API. */
+export function organizationSlugWithSuffix(
+  slug: string,
+  random: () => number = Math.random,
+): string {
+  const suffix = Math.floor(random() * 36 ** 4)
+    .toString(36)
+    .padStart(4, "0");
+  const base = slug
+    .slice(0, ORGANIZATION_SLUG_LIMITS.max - suffix.length - 1)
+    .replace(/-+$/, "");
+  return `${base}-${suffix}`;
+}
+
+export const ORGANIZATION_SLUG_TAKEN_MESSAGE =
+  "Ese identificador ya lo usa otro despacho. Pulsa «personalizar» y escribe otro.";
+
+export async function createOrganizationWithFreeSlug<T>(
+  input: { name: string; slug: string; custom?: boolean },
+  create: (input: { name: string; slug: string }) => Promise<T>,
+  random: () => number = Math.random,
+): Promise<T> {
+  let slug = input.slug;
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await create({ name: input.name, slug });
+    } catch (error) {
+      if (!isOrganizationSlugTaken(error)) throw error;
+      if (input.custom) throw new Error(ORGANIZATION_SLUG_TAKEN_MESSAGE);
+      if (attempt >= 3) throw error;
+      slug = organizationSlugWithSuffix(input.slug, random);
+    }
+  }
+}
