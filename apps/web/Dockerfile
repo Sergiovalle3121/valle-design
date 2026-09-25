@@ -96,6 +96,14 @@ ARG NEXT_PUBLIC_APP_VERSION
 ENV NEXT_PUBLIC_LAUNCH_MODE=${NEXT_PUBLIC_LAUNCH_MODE}
 ENV NEXT_PUBLIC_APP_VERSION=${NEXT_PUBLIC_APP_VERSION}
 
+# Reporte de errores del navegador (`src/lib/observability`). Sin DSN no se
+# envía nada; el DSN de navegador de Sentry es público por diseño (va en el
+# JavaScript), no es un secreto.
+ARG NEXT_PUBLIC_SENTRY_DSN
+ARG NEXT_PUBLIC_SENTRY_ENVIRONMENT
+ENV NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN}
+ENV NEXT_PUBLIC_SENTRY_ENVIRONMENT=${NEXT_PUBLIC_SENTRY_ENVIRONMENT}
+
 # Enlaces comerciales de la superficie pública (`apps/web/src/config/commercial.ts`).
 # Todos opcionales: cada uno cae a una página interna real si no se configura.
 ARG NEXT_PUBLIC_SALES_URL

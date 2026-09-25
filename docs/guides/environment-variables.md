@@ -222,6 +222,7 @@ arranque, sólo que use un valor no declarado.
 | `SENTRY_DSN`      | No        | Activa el adaptador HTTP compatible con Sentry (sin dependencia nueva; envío por `fetch`). **Sin él el reporte de errores es INERTE**: cero red, mismo comportamiento en specs y en desarrollo. Un DSN ilegible no tumba el arranque: se registra el motivo —nunca el DSN— y se cae al adaptador nulo. |
 | `RELEASE_VERSION` | No        | Etiqueta `release` de los reportes. Se acepta también `GIT_SHA`.                                                                                                                   |
 | `HOSTNAME`        | No        | `server_name` de los reportes; lo suele poner el orquestador.                                                                                                                     |
+| `NEXT_PUBLIC_SENTRY_DSN` (web) | No | El equivalente del navegador (`apps/web/src/lib/observability/client-error-reporter.ts`). Se incrusta al compilar. Sin él no hay listener ni red; con él, `connect-src` de la CSP incluye el host de ingesta. `NEXT_PUBLIC_SENTRY_ENVIRONMENT` (default `production`) y `NEXT_PUBLIC_APP_VERSION` (release) son opcionales. |
 
 Todo lo que sale por el reporter pasa por saneo (`observability/scrub.ts`):
 correos, URLs con credenciales, cabeceras `Authorization`/`Cookie`, JWT, UUID

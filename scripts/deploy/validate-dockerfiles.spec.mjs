@@ -284,6 +284,9 @@ FROM node:20-bookworm-slim AS runtime
 // ─── Los valores de lanzamiento deben llegar al build, en el mismo stage ──
 
 {
+  // El DSN del navegador viaja igual que el modo de lanzamiento; las fixtures
+  // que no lo declaran lo tienen que reportar como ausente.
+  const SENTRY = ['NEXT_PUBLIC_SENTRY_DSN', 'NEXT_PUBLIC_SENTRY_ENVIRONMENT'];
   const cases = [
     {
       name: 'ARG sin ENV',
@@ -291,7 +294,7 @@ FROM node:20-bookworm-slim AS runtime
 ARG NEXT_PUBLIC_LAUNCH_MODE
 ARG NEXT_PUBLIC_APP_VERSION
 RUN npm run build --workspace=web`,
-      missing: ['NEXT_PUBLIC_LAUNCH_MODE', 'NEXT_PUBLIC_APP_VERSION'],
+      missing: ['NEXT_PUBLIC_LAUNCH_MODE', 'NEXT_PUBLIC_APP_VERSION', ...SENTRY],
     },
     {
       name: 'ENV después del build',
@@ -301,7 +304,7 @@ ENV NEXT_PUBLIC_LAUNCH_MODE=\${NEXT_PUBLIC_LAUNCH_MODE}
 ARG NEXT_PUBLIC_APP_VERSION
 RUN npm run build --workspace=web
 ENV NEXT_PUBLIC_APP_VERSION=\${NEXT_PUBLIC_APP_VERSION}`,
-      missing: ['NEXT_PUBLIC_APP_VERSION'],
+      missing: ['NEXT_PUBLIC_APP_VERSION', ...SENTRY],
     },
     {
       name: 'ARG en otro stage',
@@ -312,15 +315,19 @@ ENV NEXT_PUBLIC_LAUNCH_MODE=\${NEXT_PUBLIC_LAUNCH_MODE}
 ARG NEXT_PUBLIC_APP_VERSION
 ENV NEXT_PUBLIC_APP_VERSION=\${NEXT_PUBLIC_APP_VERSION}
 RUN npm run build --workspace=web`,
-      missing: ['NEXT_PUBLIC_LAUNCH_MODE'],
+      missing: ['NEXT_PUBLIC_LAUNCH_MODE', ...SENTRY],
     },
     {
-      name: 'ambas variables antes del build',
+      name: 'todas las variables antes del build',
       source: `FROM node:20 AS build
 ARG NEXT_PUBLIC_LAUNCH_MODE
 ENV NEXT_PUBLIC_LAUNCH_MODE=\${NEXT_PUBLIC_LAUNCH_MODE}
 ARG NEXT_PUBLIC_APP_VERSION
 ENV NEXT_PUBLIC_APP_VERSION=\${NEXT_PUBLIC_APP_VERSION}
+ARG NEXT_PUBLIC_SENTRY_DSN
+ENV NEXT_PUBLIC_SENTRY_DSN=\${NEXT_PUBLIC_SENTRY_DSN}
+ARG NEXT_PUBLIC_SENTRY_ENVIRONMENT
+ENV NEXT_PUBLIC_SENTRY_ENVIRONMENT=\${NEXT_PUBLIC_SENTRY_ENVIRONMENT}
 RUN npm run build --workspace=web`,
       missing: [],
     },

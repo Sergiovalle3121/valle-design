@@ -25,6 +25,8 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
  *    concreto rompería cualquier build reutilizado en staging. El dato
  *    sensible no es a dónde conecta el cliente sino qué scripts corren — y
  *    esos sí quedan restringidos a 'self'.
+ *    Con `NEXT_PUBLIC_SENTRY_DSN`, también el origen de ingesta de Sentry: el
+ *    reporte de errores del navegador (`lib/observability`) lo necesita.
  *  - `worker-src blob:`: el teselado corre en workers creados desde blobs.
  *  - `frame-ancestors 'none'`: nadie embebe el editor (anti-clickjacking).
  * HSTS sólo tiene efecto sobre HTTPS; en local el navegador la ignora.
@@ -42,6 +44,9 @@ const securityHeaders = [
         const raw = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || "";
         if (!raw) return "";
         try { return new URL(raw).origin; } catch { return ""; }
+      })() + (() => {
+        const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN || "";
+        try { const url = new URL(dsn); return url.username ? " " + url.origin : ""; } catch { return ""; }
       })(),
       "worker-src 'self' blob:",
       "frame-ancestors 'none'",

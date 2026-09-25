@@ -160,6 +160,7 @@ por quien esté en la ruta.
 | `NEXT_PUBLIC_BRAND_NAME` | `VALLECAD` | Marca matriz visible. Se incrusta al compilar. |
 | `NEXT_PUBLIC_LAUNCH_MODE` | `free` | Es el **default**. El Dockerfile la pasa al build; `commercial` hace visible Checkout sólo después de un build nuevo. Mantén `free` hasta validar pagos de prueba y operación real. |
 | `NEXT_PUBLIC_APP_VERSION` | la fecha o el SHA del despliegue | El Dockerfile la pasa al build; si falta, los reportes dicen «desarrollo». Cambiarla exige un build nuevo. |
+| `NEXT_PUBLIC_SENTRY_DSN` | DSN de un proyecto Sentry de **navegador** (recomendado) | Sin él, los errores del navegador sólo llegan a la consola de quien los sufre. Con él, cada fallo de render, excepción o promesa rechazada llega saneado (sin correos, tokens, UUID ni query), máximo 10 por página. La CSP abre `connect-src` a ese host sola. Es público por diseño; cambiarlo exige un build nuevo. |
 | `PORT` | No fijarlo manualmente | Railway lo inyecta en el servicio |
 
 El modo `free` por defecto mantiene el checkout fuera de la superficie. El

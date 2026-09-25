@@ -4,6 +4,7 @@ import React from "react";
 import { RotateCcw } from "lucide-react";
 import { Button } from "./Button";
 import { cx } from "./styles";
+import { reportClientError } from "@/lib/observability/client-error-reporter";
 
 /**
  * FRONTERA DE ERROR POR ZONA.
@@ -75,6 +76,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
     // La consola es la única superficie de diagnóstico del navegador; el
     // `componentStack` es lo que dice QUÉ componente de la zona falló.
     console.error(`[${this.props.zona}] se cayó:`, error, info.componentStack);
+    reportClientError(error, "error-boundary", { zone: this.props.zona });
     try {
       this.props.onError?.(error, this.props.zona);
     } catch {

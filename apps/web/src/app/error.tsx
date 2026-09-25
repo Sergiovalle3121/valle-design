@@ -7,6 +7,7 @@ import { Logo } from "@/components/brand/Logo";
 import { BrokenLinkArt } from "@/components/brand/Illustration";
 import { Button, buttonClass } from "@/components/ui";
 import { COMMERCIAL_LINKS } from "@/config/commercial";
+import { reportClientError } from "@/lib/observability/client-error-reporter";
 
 /**
  * FRONTERA DE ERROR DE LA APLICACIÓN.
@@ -35,9 +36,11 @@ export default function AppError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // La consola del navegador es la única superficie de diagnóstico que
-    // tenemos aquí; el servidor ya registró el error con este mismo digest.
+    // La consola del navegador para quien depura en su equipo; el reporte
+    // (sólo con NEXT_PUBLIC_SENTRY_DSN) para que de este lado nos enteremos.
+    // Si el fallo fue en el servidor, lo registró con este mismo digest.
     console.error("Fallo de render en la aplicación:", error);
+    reportClientError(error, "error-boundary", { digest: error.digest });
   }, [error]);
 
   return (

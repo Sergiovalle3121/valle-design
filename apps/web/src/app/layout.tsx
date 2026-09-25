@@ -7,6 +7,7 @@ import { I18nProvider } from "@/components/I18nProvider";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { DesignAuthProvider } from "@/contexts/DesignAuthContext";
 import { ToastProvider } from "@/contexts/ToastContext";
+import { ClientErrorReporting } from "@/components/observability/ClientErrorReporting";
 import { BRAND } from "@/config/brand";
 import { PRELOAD_FONTS } from "@/config/fonts-generated";
 import { SITE_URL } from "@/config/site-routes";
@@ -154,6 +155,7 @@ export default async function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="min-h-full flex flex-col">
+        <ClientErrorReporting />
         <I18nProvider locale={locale} messages={messages}>
           <ThemeProvider>
             <DesignAuthProvider>
