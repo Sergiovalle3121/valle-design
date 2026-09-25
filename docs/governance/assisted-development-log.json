@@ -4956,6 +4956,46 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "ENDURECER-LANZAMIENTO-20260924",
+      "date": "2026-09-24",
+      "initiative": "Endurecer lo que ya existe antes del lanzamiento, sin funciones nuevas. El API contesta 403, no 500, a un origen que CORS rechaza (fue el 100 % de los 5xx de producción del 17 al 24 de septiembre). Una sesión nueva abre con el despacho que la persona ya tenía, verificado en el servidor: quien volvía a entrar directo a su plano leía «No tienes permiso». Las líneas de un píxel ya no desaparecen cuando caen en el borde entre dos píxeles: de un rectángulo de medidas redondas se veía un lado. En un teléfono la fila superior cabe y el plano abre entero. El visor de /revision es oscuro en los dos temas, con el token cad-canvas. El tablero dice el estado de la suscripción en español. La portada y el alta enseñan lo que abre «Probar sin cuenta» (la demostración en Esencial) en vez del estudio Pro sobre azul marino, y el plano de ejemplo del tablero es esa misma casa (el anterior salía diminuto y con rótulos de cuarto cruzados). Un identificador de despacho que ya existe se desempata solo en vez de detener el alta con «El slug ya está en uso.». Los errores del navegador llegan a Sentry, saneados y con techo por página, cuando el despliegue define NEXT_PUBLIC_SENTRY_DSN; sin él no hay listener ni red. Se agregan un e2e real de «Compartir» y del regreso al plano, y better-sqlite3 13 queda bloqueado en Dependabot.",
+      "branch": "claude/keen-cannon-nvm7x7-endurecer",
+      "assistants": [
+        "Claude Code (Anthropic): diagnóstico con los registros de Railway, arreglos, pruebas y barrido de rutas a 390 y 1280 px"
+      ],
+      "authority": "Sergio pidió el 24-09-2026 pulir y endurecer lo que ya existe para sacar VALLECAD al mercado antes de seguir con la paridad con AutoCAD.",
+      "firstPartyInputs": [
+        "Registros HTTP y de despliegue del servicio api en producción (Railway, 17–24 de septiembre de 2026): 5xx por ruta y el mensaje «Origin not allowed by CORS» del AllExceptionsFilter",
+        "Capturas del barrido local contra la pila real (API + PostgreSQL 16 + build de producción): /demo y /revision a 360 y 390 px",
+        "PR #241 cerrado: SIGSEGV de better-sqlite3 13 en 22 suites del API (corrida 35909579367)"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguno.",
+      "derivedAreas": [
+        "apps/api/src/bootstrap/cors-origin.ts (+ spec) y apps/api/src/main.ts",
+        "apps/web/src/components/cad/ribbon/CadRibbon.tsx, share/CadShareButton.tsx, editor/Layout3DEditor.tsx y app/demo/DemoStudio.tsx",
+        "apps/web/src/components/cad/collab/ReviewLinkClient.tsx, ReviewPlanView.tsx, app/revision/page.tsx y app/globals.css (token --cad-canvas)",
+        "apps/web/e2e/public/demo-studio.spec.ts y e2e/real/demo-compartir-real.spec.ts",
+        ".github/dependabot.yml y docs/deps-majors-bloqueados.md",
+        "apps/api/src/modules/identity/identity.service.ts (+ identity-active-organization.spec.ts)",
+        "apps/web/src/lib/cad/render/line-batch-three.ts y e2e/golden/257-cad-linea-fina-no-desaparece.spec.ts",
+        "apps/web/src/app/dashboard/DashboardHeader.tsx",
+        "apps/web/scripts/capture-hero-shot.mts, public/product/estudio-esencial-*.png, app/page.tsx y components/AuthShell.tsx",
+        "apps/web/src/app/dashboard/sample-plan.ts, FirstMinute.tsx y page.tsx; src/lib/organization-slug.ts (+ spec); se retira src/lib/cad/sample-plan.json",
+        "apps/web/src/lib/observability/client-error-reporter.ts (+ spec), components/observability/ClientErrorReporting.tsx, app/layout.tsx, app/error.tsx, app/global-error.tsx, components/ui/ErrorBoundary.tsx, next.config.ts (CSP), Dockerfile y scripts/deploy/validate-dockerfiles.mjs (+ spec)"
+      ],
+      "fixtures": "Sin fixtures nuevos.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Cada arreglo con su prueba roja antes y verde después: spec de CORS (4 de 10 → 10/10), spec de despacho activo (2 de 3 → 3/3), golden 257 (20 de 30 líneas → 30/30), golden de teléfono a 360 y 390 px; e2e real demo-compartir 3/3 contra la pila local; API test:pg 47/47 y npm test verdes; goldens 232, 256, 47, 80 y los 32 del estudio y la demo verdes."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

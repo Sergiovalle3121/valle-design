@@ -18,11 +18,22 @@
  * `renderOrder`, que es una ordenación por OBJETO. Con lotes no hay un objeto
  * por entidad, así que el orden de dibujo tiene que viajar dentro del lote: es
  * la profundidad NDC que escribe el vertex shader. Para que esa profundidad
- * signifique algo hace falta `depthTest` y `depthWrite` encendidos, y por eso el
- * borde suave se resuelve con descarte por cobertura en vez de con mezcla alfa
- * —una línea semitransparente sin escritura de profundidad volvería a depender
- * del orden de las llamadas de dibujo, que es justo lo que se quiere dejar de
- * mirar.
+ * signifique algo hace falta `depthTest` y `depthWrite` encendidos, y por eso no
+ * hay mezcla alfa en el borde —una línea semitransparente sin escritura de
+ * profundidad volvería a depender del orden de las llamadas de dibujo, que es
+ * justo lo que se quiere dejar de mirar—.
+ *
+ * ## Por qué el borde ya no se descarta
+ *
+ * El fragment shader descartaba lo que tuviera «cobertura» menor de 0,35, y en
+ * un trazo de un píxel eso dejaba pintada sólo la franja central de 0,65 px. Si
+ * el eje de la línea caía justo en el borde entre dos píxeles —las medidas
+ * redondas de un plano lo hacen sin parar: a 28,5 px/m, cada 2 m es un píxel
+ * entero—, los dos centros quedaban a medio píxel, fuera de la franja, y la
+ * línea no pintaba NADA. Visto el 24-sep-2026 en producción: de un rectángulo
+ * de 5 × 4 m se veía un lado (golden 257: de 30 líneas cada 250 mm se
+ * pintaban 20). Ahora el quad ES la línea: todo fragmento que el rasterizador
+ * le da se pinta, y la regla de relleno garantiza al menos un píxel por fila.
  */
 import * as THREE from "three";
 import type { CadThreeViewport } from "../entity-three";
@@ -63,8 +74,6 @@ uniform float cadDepthScale;
 varying vec3 vColor;
 varying float vDash;
 varying float vLinetype;
-varying float vSide;
-varying float vHalfWidthPx;
 
 vec3 cadUnpackColor(float packed) {
   float r = floor(packed / 65536.0);
@@ -102,8 +111,6 @@ void main() {
   vColor = cadUnpackColor(instanceStyle.x);
   vDash = instanceArc.x + position.x * instanceArc.y;
   vLinetype = instanceStyle.z;
-  vSide = position.y;
-  vHalfWidthPx = max(instanceStyle.y, 0.5);
 }`;
 
 export const CAD_LINE_BATCH_FRAGMENT_SHADER = `
@@ -123,8 +130,6 @@ uniform float cadOpacity;
 varying vec3 vColor;
 varying float vDash;
 varying float vLinetype;
-varying float vSide;
-varying float vHalfWidthPx;
 
 float cadDashElement(int slot, int element) {
   vec4 quad = cadLinetypeDash[slot * 2 + element / 4];
@@ -159,10 +164,7 @@ void main() {
     }
     if (!painted) discard;
   }
-  // Cobertura del borde: una línea de menos de un píxel no desaparece, se
-  // atenúa. El descarte mantiene la escritura de profundidad significativa.
-  float coverage = clamp((1.0 - abs(vSide)) * vHalfWidthPx * 2.0, 0.0, 1.0);
-  if (coverage < 0.35) discard;
+  // Sin descarte por cobertura: el quad ES la línea (ver la cabecera).
   gl_FragColor = vec4(vColor, cadOpacity);
 }`;
 

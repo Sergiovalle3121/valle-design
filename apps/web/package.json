@@ -19,7 +19,8 @@
     "benchmark:cad:walls": "tsx scripts/cad-wall-mass-render-benchmark.mts",
     "e2e": "playwright test",
     "benchmark:cad:baseline": "cross-env NODE_OPTIONS=\"--expose-gc --max-old-space-size=4096\" tsx scripts/cad-render-baseline.mts",
-    "capture:product": "tsx scripts/capture-product-shots.mts"
+    "capture:product": "tsx scripts/capture-product-shots.mts",
+    "capture:hero": "tsx scripts/capture-hero-shot.mts"
   },
   "dependencies": {
     "@valle-design/contracts": "*",

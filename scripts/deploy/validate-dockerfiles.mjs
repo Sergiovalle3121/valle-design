@@ -191,6 +191,10 @@ export const DWG_BUILD_FLAG_NAMES = [
 export const LAUNCH_BUILD_FLAG_NAMES = [
   'NEXT_PUBLIC_LAUNCH_MODE',
   'NEXT_PUBLIC_APP_VERSION',
+  // Reporte de errores del navegador: sin el ARG/ENV, el DSN puesto en Railway
+  // nunca llegaría al build y el reporte quedaría apagado sin avisar.
+  'NEXT_PUBLIC_SENTRY_DSN',
+  'NEXT_PUBLIC_SENTRY_ENVIRONMENT',
 ];
 
 /**

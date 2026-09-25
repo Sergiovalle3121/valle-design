@@ -1,8 +1,12 @@
 import { strict as assert } from "node:assert";
 import {
+  createOrganizationWithFreeSlug,
+  isOrganizationSlugTaken,
   isValidOrganizationSlug,
   ORGANIZATION_SLUG_LIMITS,
+  ORGANIZATION_SLUG_TAKEN_MESSAGE,
   organizationSlugFromName,
+  organizationSlugWithSuffix,
   personalOrganizationName,
 } from "./organization-slug";
 
@@ -74,6 +78,80 @@ assert.ok(
   "el nombre personal debe derivar un identificador válido",
 );
 
-console.log(
-  "organization-slug: derivación con acentos y ñ, recorte sin guion colgante y organización personal verificados",
+// ── El identificador ya lo usa otro despacho ───────────────────────────────
+// `juan@gmail.com` y `juan@hotmail.com` derivan el mismo «juan»: el segundo
+// alta no puede quedarse en «El slug ya está en uso.».
+function takenError(): Error {
+  return Object.assign(new Error("El slug ya está en uso."), { status: 400 });
+}
+assert.equal(isOrganizationSlugTaken(takenError()), true);
+assert.equal(
+  isOrganizationSlugTaken(Object.assign(new Error("El slug ya está en uso."), { status: 409 })),
+  false,
+  "sólo el 400 de la API es el choque de identificador",
 );
+assert.equal(isOrganizationSlugTaken(new Error("sin red")), false);
+
+const suffixed = organizationSlugWithSuffix("juan", () => 0.5);
+assert.match(suffixed, /^juan-[a-z0-9]{4}$/u);
+assert.ok(isValidOrganizationSlug(suffixed), "el identificador desempatado sigue siendo válido");
+const suffixedLong = organizationSlugWithSuffix("a".repeat(ORGANIZATION_SLUG_LIMITS.max), () => 0.1);
+assert.ok(
+  suffixedLong.length <= ORGANIZATION_SLUG_LIMITS.max && isValidOrganizationSlug(suffixedLong),
+  "cabe en el máximo",
+);
+
+void (async () => {
+  // Derivado y ocupado: se desempata solo y el alta sigue.
+  const tried: string[] = [];
+  const created = await createOrganizationWithFreeSlug(
+    { name: "Juan", slug: "juan" },
+    async (body) => {
+      tried.push(body.slug);
+      if (body.slug === "juan") throw takenError();
+      return body;
+    },
+    () => 0.25,
+  );
+  assert.equal(tried[0], "juan");
+  assert.equal(tried.length, 2);
+  assert.match(created.slug, /^juan-[a-z0-9]{4}$/u);
+  assert.equal(created.name, "Juan", "el nombre visible no cambia");
+
+  // Escrito a mano: no se toca, se explica.
+  await assert.rejects(
+    createOrganizationWithFreeSlug({ name: "Estudio", slug: "estudio", custom: true }, async () => {
+      throw takenError();
+    }),
+    new RegExp(ORGANIZATION_SLUG_TAKEN_MESSAGE.slice(0, 30)),
+  );
+
+  // Cualquier otro error pasa tal cual, sin reintentos.
+  let calls = 0;
+  await assert.rejects(
+    createOrganizationWithFreeSlug({ name: "X", slug: "xx" }, async () => {
+      calls += 1;
+      throw new Error("sin red");
+    }),
+    /sin red/u,
+  );
+  assert.equal(calls, 1);
+
+  // Y no reintenta para siempre.
+  let attempts = 0;
+  await assert.rejects(
+    createOrganizationWithFreeSlug({ name: "Y", slug: "yy" }, async () => {
+      attempts += 1;
+      throw takenError();
+    }),
+    /en uso/u,
+  );
+  assert.equal(attempts, 4);
+
+  console.log(
+    "organization-slug: derivación con acentos y ñ, recorte sin guion colgante, organización personal y desempate de identificadores verificados",
+  );
+})().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

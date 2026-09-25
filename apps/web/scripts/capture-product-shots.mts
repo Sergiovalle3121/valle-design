@@ -46,18 +46,6 @@ const diagnostics = createProductCaptureDiagnostics(
 
 /** Dónde caen las capturas. `public/product/` las sirve la portada. */
 const OUT_DIR = path.join(webRoot, "public", "product");
-/**
- * EL PLANO DE EJEMPLO — el mismo que sale en la portada.
- *
- * Que sean el mismo dibujo no es una economía: es una promesa cumplida. Quien
- * ve la captura del hero y pulsa «Abre un plano de ejemplo» abre EXACTAMENTE lo
- * que acaba de ver. La alternativa —una captura bonita y un ejemplo distinto—
- * es la primera decepción del producto, y llega en el primer minuto.
- *
- * El fixture se GENERA dibujando con los comandos reales, no se escribe a mano:
- * el día que el esquema del documento cambie, se regenera en vez de pudrirse.
- */
-const SAMPLE_PLAN = path.join(webRoot, "src", "lib", "cad", "sample-plan.json");
 /** Copia de referencia para el informe de la campaña (antes/después). */
 const DOC_DIR = path.resolve(
   webRoot,
@@ -617,14 +605,8 @@ async function main() {
       );
 
       if (theme === "dark") {
-        /* El plano de ejemplo, tal y como quedó dibujado. */
-        const { document: drawn } = snapshot();
-        await writeFile(
-          SAMPLE_PLAN,
-          `${JSON.stringify(drawn, null, 2)}\n`,
-          "utf8",
-        );
-        console.log("  · sample-plan.json — el plano que abre el tablero");
+        // El plano de ejemplo del tablero ya no sale de aquí: es la casa de la
+        // demostración (app/dashboard/sample-plan.ts), la misma de la portada.
 
         /* Acercamiento a la línea de comandos con un comando EN CURSO. */
         await type(page, "DLI");
@@ -768,6 +750,9 @@ async function main() {
         "| Archivo | Qué muestra |",
         "| ------- | ----------- |",
         ...taken.map((s) => `| \`${s.name}.png\` | ${s.note} |`),
+        // La de la portada y el acceso sale de `npm run capture:hero` (capture-hero-shot.mts).
+        "| `estudio-esencial-dark.png` / `-light.png` | la demostración en Esencial, lo que abre «Probar sin cuenta» (`npm run capture:hero`) |",
+        "| `estudio-ejemplo-dark.png` | el plano de ejemplo del tablero abierto por una cuenta nueva (`npm run capture:hero` con la pila real) |",
         "",
       ].join("\n"),
       "utf8",

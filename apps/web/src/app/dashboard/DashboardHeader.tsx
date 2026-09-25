@@ -5,6 +5,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button, buttonClass } from "@/components/ui";
 import { FeedbackButton } from "@/components/feedback/FeedbackDialog";
 import { formatRegionDate } from "@/lib/cad/region";
+import { subscriptionStatusLabel } from "@/lib/commercial/billing";
 import { getClientRegion } from "@/lib/cad/region/client";
 import type {
   CommercialSubscriptionResponse,
@@ -50,7 +51,9 @@ export function DashboardHeader({
             className="type-caption mt-2 text-muted-foreground"
             data-testid="subscription-status"
           >
-            Suscripción {subscription.status}
+            {/* Con las palabras del cliente: el estado del contrato («trialing»)
+                se leía tal cual en el tablero (visto el 24-sep-2026). */}
+            {subscriptionStatusLabel(subscription.status)}
             {subscription.status === "trialing" && subscription.trialEndsAt
               ? ` hasta ${formatRegionDate(new Date(subscription.trialEndsAt), getClientRegion())}`
               : ""}

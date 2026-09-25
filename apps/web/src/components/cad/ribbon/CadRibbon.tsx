@@ -448,12 +448,15 @@ export function CadRibbon({
           {trailing}
         </div>
       ) : null}
-      {/* El interruptor Esencial/Pro va en la cola FIJA, junto a Guardar: siempre a la vista en los dos modos. */}
+      {/* El interruptor Esencial/Pro va en la cola FIJA, junto a Guardar: siempre a la vista en los dos modos.
+          Salvo en un teléfono en Esencial: la cinta Pro no cabe en 390 px y el
+          interruptor empujaba «Cerrar» y «Crea tu cuenta» fuera de la pantalla
+          (medido el 24-sep-2026). En Pro sí se ve, para poder volver. */}
       {trailingFixed ? (
         // NO CEDE. Todo lo demás de esta fila se encoge o se desplaza cuando la
         // ventana aprieta; esto no, porque es «Guardar» y «Cerrar editor».
         <div className="flex shrink-0 items-center gap-1.5 border-l border-border pl-2">
-          <CadUiModeSwitch />
+          <CadUiModeSwitch className={esencial ? "max-sm:hidden" : undefined} />
           {trailingFixed}
         </div>
       ) : (

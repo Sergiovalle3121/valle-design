@@ -246,3 +246,62 @@ test.describe('Demostración sin cuenta', () => {
     });
   }
 });
+
+/**
+ * EN UN TELÉFONO, LA DEMOSTRACIÓN TIENE QUE CABER.
+ *
+ * Medido el 24-sep-2026 a 390 px: la fila superior medía 560 px, así que
+ * «Cerrar» y «Crea tu cuenta» —la salida de la demostración— quedaban fuera de
+ * la pantalla; y el encuadre inicial, pensado apaisado, cortaba la casa por los
+ * dos lados (Sala y Cocina a medias). Sin `isMobile` a propósito: Firefox lo
+ * rechaza (ver `e2e/real/movil.spec.ts`) y lo que se mide aquí depende del
+ * ancho y del toque, no del agente.
+ */
+test.describe('Demostración en un teléfono', () => {
+  for (const width of [360, 390]) {
+    test(`a ${width} px la fila superior cabe y la casa abre entera`, async ({ browser }) => {
+      test.setTimeout(120_000);
+      const context = await browser.newContext({ viewport: { width, height: 844 }, hasTouch: true, locale: 'es-MX' });
+      try {
+        const page = await context.newPage();
+        // Visita nueva: sin modo guardado, la demostración abre en Esencial.
+        await page.goto('/');
+        await page.evaluate(() => localStorage.removeItem('valle:cad:ui-mode:v1'));
+        await page.goto('/demo');
+        const canvas = page.getByTestId('cad-canvas');
+        await expect(canvas).toBeVisible({ timeout: 60_000 });
+        await expect(page.getByTestId('cad-essential-bar')).toBeVisible();
+
+        for (const testId of ['cad-share', 'cad-save', 'cad-close-editor', 'demo-register-cta']) {
+          const box = await page.getByTestId(testId).boundingBox();
+          expect(box, `${testId} está en la página`).not.toBeNull();
+          expect(box!.x, `${testId} empieza dentro de la pantalla`).toBeGreaterThanOrEqual(0);
+          expect(box!.x + box!.width, `${testId} acaba dentro de ${width} px`).toBeLessThanOrEqual(width);
+        }
+        // Los rótulos siguen diciendo qué hace cada botón aunque sólo se vea el icono.
+        await expect(page.getByRole('button', { name: 'Compartir', exact: true })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Guardar', exact: true })).toBeVisible();
+
+        // Los seis cuartos de la casa, con su nombre, dentro del lienzo.
+        const names = page.getByTestId('cad-room-name-hitbox');
+        await expect.poll(() => names.count(), { timeout: 30_000 }).toBe(6);
+        await expect.poll(async () => {
+          const area = await canvas.boundingBox();
+          if (!area) return ['sin lienzo'];
+          const fuera: string[] = [];
+          for (const name of await names.all()) {
+            const box = await name.boundingBox();
+            const cx = box ? box.x + box.width / 2 : -1;
+            const cy = box ? box.y + box.height / 2 : -1;
+            if (cx < area.x || cx > area.x + area.width || cy < area.y || cy > area.y + area.height) {
+              fuera.push((await name.innerText()).trim());
+            }
+          }
+          return fuera;
+        }, { timeout: 15_000, message: 'cuartos fuera del lienzo al abrir' }).toEqual([]);
+      } finally {
+        await context.close();
+      }
+    });
+  }
+});

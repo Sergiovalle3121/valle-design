@@ -1,10 +1,12 @@
 "use client";
 
+import { useEffect } from "react";
 import { BrandGlyph } from "@/components/brand/BrandGlyph";
 import {
   BRAND_INK,
 } from "@/components/brand/logo-geometry";
 import { PRODUCT_LABEL } from "@/config/brand";
+import { reportClientError } from "@/lib/observability/client-error-reporter";
 
 /**
  * EL ÚLTIMO RECURSO — cuando falla el propio `layout` raíz.
@@ -33,6 +35,11 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // El caso más grave —cayó el layout raíz— es justo el que más urge saber.
+  useEffect(() => {
+    reportClientError(error, "global-error", { digest: error.digest });
+  }, [error]);
+
   return (
     <html lang="es-MX">
       <body

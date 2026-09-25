@@ -29,6 +29,7 @@ import { ArchiveDocumentDialog, useArchiveDocument } from "./archive-document";
 import { EMPTY_CAD_STARTER_CHOICE } from "./starter-choice";
 import { Status } from "./Status";
 import { abrirPlanoDeEjemplo } from "./sample-plan";
+import { createOrganizationWithFreeSlug } from "@/lib/organization-slug";
 import { prefetchCadStudio } from "@/components/cad/prefetch-studio";
 
 import { ImportStatus, useImportDocument } from "./import-status";
@@ -178,15 +179,16 @@ export default function DashboardPage() {
 
   useEffect(() => void load(), [load]);
 
-  const createOrganization = async (input: { name: string; slug: string }) => {
+  const createOrganization = async (input: { name: string; slug: string; custom?: boolean }) => {
     if (!input.name.trim() || !input.slug.trim() || busy) return;
     setBusy(true);
     setOrganizationError(null);
     try {
-      await designClient.organizations.create({
-        name: input.name.trim(),
-        slug: input.slug.trim().toLowerCase(),
-      });
+      // Un identificador derivado que ya existe se desempata solo (ver organization-slug.ts).
+      await createOrganizationWithFreeSlug(
+        { name: input.name.trim(), slug: input.slug.trim().toLowerCase(), custom: input.custom },
+        (body) => designClient.organizations.create(body),
+      );
       await auth.refresh();
     } catch (error) {
       setOrganizationError(
@@ -314,9 +316,9 @@ export default function DashboardPage() {
    * dos escritores del mismo documento en la misma décima de segundo y el CAS
    * devolvería un 409.
    *
-   * El plano NO se escribe a mano en el código: `sample-plan.json` lo genera
-   * `npm run capture:product` dibujando con los comandos reales, y es
-   * literalmente el mismo dibujo que sale en la portada.
+   * El plano es la casa de la demostración (plantilla casa habitación con sus
+   * muros y vanos, `sample-plan.ts`): el mismo dibujo que abre «Probar sin
+   * cuenta» y que enseña la portada.
    */
   const openSamplePlan = async () => {
     if (!canEdit || busy) return;

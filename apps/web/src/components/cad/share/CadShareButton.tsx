@@ -72,8 +72,8 @@ type Phase =
  * quien empieza. `data-cad-ui` lo pone la fila (`CadRibbon`).
  */
 const TRIGGER =
-  "inline-flex items-center gap-1.5 px-3 py-1 mr-1.5 rounded-xl text-sm font-medium border border-border text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [[data-cad-ui=pro]_&]:max-[1439px]:px-2";
-const TRIGGER_LABEL = "[[data-cad-ui=pro]_&]:max-[1439px]:sr-only";
+  "inline-flex items-center gap-1.5 px-3 py-1 mr-1.5 rounded-xl text-sm font-medium border border-border text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [[data-cad-ui=pro]_&]:max-[1439px]:px-2 max-sm:mr-0 max-sm:px-2";
+const TRIGGER_LABEL = "[[data-cad-ui=pro]_&]:max-[1439px]:sr-only max-sm:sr-only";
 const PANEL_MAX_WIDTH = 352;
 const ACTION =
   "inline-flex items-center justify-center gap-1.5 rounded-control px-3 py-1.5 type-caption font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";

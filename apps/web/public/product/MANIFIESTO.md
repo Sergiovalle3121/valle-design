@@ -20,3 +20,5 @@ en silencio.
 | `paleta-propiedades.png` | la paleta de propiedades |
 | `espacio-papel.png` | la lámina con su cajetín |
 | `estudio-light.png` | el estudio completo en tema claro |
+| `estudio-esencial-dark.png` / `-light.png` | la demostración en Esencial, lo que abre «Probar sin cuenta» (`npm run capture:hero`) |
+| `estudio-ejemplo-dark.png` | el plano de ejemplo del tablero abierto por una cuenta nueva (`npm run capture:hero` con la pila real) |

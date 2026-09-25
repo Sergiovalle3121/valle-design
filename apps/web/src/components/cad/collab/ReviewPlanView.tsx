@@ -220,7 +220,7 @@ export default function ReviewPlanView({
       onPointerCancel={() => {
         drag.current = null;
       }}
-      className={`relative h-full w-full touch-none overflow-hidden bg-[#0b1020] ${
+      className={`relative h-full w-full touch-none overflow-hidden bg-cad-canvas ${
         placing ? "cursor-crosshair" : "cursor-grab"
       }`}
     >

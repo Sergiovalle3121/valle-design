@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, IsNull, Not, Repository } from 'typeorm';
 import { isUniqueViolation } from '../../common/database/unique-violation';
 import {
   EMAIL_SERVICE,
@@ -279,10 +279,44 @@ export class IdentityService {
         expiresAt: new Date(Date.now() + 30 * 86_400_000),
         ipAddress: ip || null,
         userAgent: userAgent?.slice(0, 500) || null,
+        activeOrganizationId: await this.defaultActiveOrganization(user.id),
       }),
     );
 
     return { session, user, cookie: `${session.id}.${secret}`, csrf };
+  }
+
+  /**
+   * El despacho con el que NACE una sesión: el último que la persona tuvo
+   * activo, si sigue siendo miembro; si no, el único al que pertenece.
+   *
+   * Antes toda sesión nacía sin despacho y sólo el tablero lo activaba, así
+   * que quien volvía a entrar por cualquier otra puerta —un marcador a su
+   * plano, el `returnTo` de una sesión caducada— leía «No tienes permiso
+   * suficiente para abrir este documento» sobre su propio plano (visto el
+   * 24-sep-2026). La membresía se verifica aquí, en el servidor, como exige
+   * activar un despacho; con varios y ninguno previo, se sigue eligiendo en el
+   * tablero.
+   */
+  private async defaultActiveOrganization(
+    userId: string,
+  ): Promise<string | null> {
+    const memberships = this.dataSource.getRepository(Membership);
+    const previous = await this.sessions.findOne({
+      where: { userId, activeOrganizationId: Not(IsNull()) },
+      order: { createdAt: 'DESC' },
+    });
+    if (
+      previous?.activeOrganizationId &&
+      (await memberships.existsBy({
+        userId,
+        organizationId: previous.activeOrganizationId,
+      }))
+    ) {
+      return previous.activeOrganizationId;
+    }
+    const own = await memberships.find({ where: { userId }, take: 2 });
+    return own.length === 1 ? own[0].organizationId : null;
   }
 
   async authenticate(

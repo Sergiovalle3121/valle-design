@@ -245,10 +245,14 @@ export default function ReviewLinkClient() {
   return (
     <main
       data-testid="cad-review-surface"
-      className="flex h-dvh w-full flex-col bg-[#070b16] text-foreground lg:flex-row"
+      // `dark`: el visor es una mesa de luz oscura en los dos temas. Sin la
+      // clase, en un navegador con el tema claro guardado (`valle_theme`) el
+      // título quedaba en tinta oscura sobre el fondo oscuro (visto el
+      // 24-sep-2026 en un celular de 390 px).
+      className="dark flex h-dvh w-full flex-col bg-background text-foreground lg:flex-row"
     >
       <div className="relative min-h-0 flex-1">
-        <header className="absolute left-0 right-0 top-0 z-10 flex flex-wrap items-center gap-2 bg-gradient-to-b from-[#070b16] to-transparent px-3 py-2">
+        <header className="absolute left-0 right-0 top-0 z-10 flex flex-wrap items-center gap-2 bg-gradient-to-b from-cad-canvas to-transparent px-3 py-2">
           <span
             data-testid="cad-review-banner"
             className="rounded-full border border-warning/30 bg-warning/15 px-2.5 py-0.5 type-micro font-semibold text-warning-ink"
@@ -396,7 +400,7 @@ function readTokenOnce(): string | null {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="grid min-h-dvh place-items-center bg-[#070b16] p-6">
+    <main className="dark grid min-h-dvh place-items-center bg-background p-6 text-foreground">
       {children}
     </main>
   );

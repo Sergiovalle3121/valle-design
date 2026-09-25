@@ -36,8 +36,8 @@ const ReviewLinkClient = dynamic(
   {
     ssr: false,
     loading: () => (
-      <main className="grid min-h-dvh place-items-center bg-[#070b16] p-6">
-        <p role="status" className="text-sm text-gray-400">
+      <main className="dark grid min-h-dvh place-items-center bg-background p-6">
+        <p role="status" className="text-sm text-muted-foreground">
           Cargando el visor de revisión…
         </p>
       </main>

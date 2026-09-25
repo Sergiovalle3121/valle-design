@@ -284,8 +284,8 @@ export default function LandingPage() {
               CAD. Sin halo ni flotación: el estudio tiene peso propio.
             */}
               <ProductFrame
-                src="/product/estudio-dark.png"
-                alt={`El estudio de ${PRODUCT_LABEL.design} con una planta arquitectónica acotada`}
+                src="/product/estudio-esencial-dark.png"
+                alt={`La demostración de ${PRODUCT_LABEL.design}: una casa habitación con sus cuartos rotulados y sus metros cuadrados`}
                 priority
                 float={false}
                 halo={false}

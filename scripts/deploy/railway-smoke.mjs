@@ -34,7 +34,7 @@
  * peor que no correrlo: da permiso para anunciar.
  *
  * Uso:
- *   npm run smoke:railway -- --web https://valledesign.mx --api https://api.valledesign.mx
+ *   npm run smoke:railway -- --web https://vallecad.com --api https://api.vallecad.com
  *   npm run smoke:railway -- --web … --api … --email tu-correo@dominio.mx
  */
 
