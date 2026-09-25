@@ -5,7 +5,10 @@ import {
 } from '../../common/testing/postgres-harness';
 import { EmailOutbox } from '../commercial/entities/commercial.entities';
 import { PostgresEmailService } from '../commercial/adapters/postgres.adapters';
-import { Organization } from '../organizations/entities/organization.entity';
+import {
+  Membership,
+  Organization,
+} from '../organizations/entities/organization.entity';
 import {
   Credential,
   IdentityAuditEvent,
@@ -56,6 +59,8 @@ describePostgres('segundo factor (PostgreSQL real)', () => {
         IdentityMfaFactor,
         IdentityBackupCode,
         Organization,
+        // El inicio de sesión elige el despacho activo por membresía.
+        Membership,
         EmailOutbox,
       ],
       { schemaPrefix: 'identity_mfa' },
