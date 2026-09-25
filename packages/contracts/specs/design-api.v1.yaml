@@ -68,7 +68,9 @@ info:
     `entitlement_required`, y los de review de Fase 5:
     `review_token_invalid`, `review_token_expired`, `review_token_revoked`,
     `review_session_closed`, `review_read_only`,
-    `review_comments_disabled`) es contractual. En el 409 CAS, `expected` y
+    `review_comments_disabled`, y los del enlace temporal de la demostración:
+    `demo_share_invalid`, `demo_share_expired`, `demo_share_too_large`,
+    `demo_share_paused`) es contractual. En el 409 CAS, `expected` y
     `current` viajan en el nivel superior del cuerpo (eco del backend real).
 
     Estado: **contrato v1 en vigor** — implementado por `apps/api` (R1),
@@ -2414,6 +2416,135 @@ paths:
                 $ref: "#/components/schemas/ReviewLinkContext"
         "401": { $ref: "#/components/responses/ReviewTokenRejected" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /v1/cad/demo-shares:
+    post:
+      operationId: createDemoShare
+      tags: [reviews]
+      summary: Crea un enlace temporal de sólo lectura desde la demostración, sin cuenta.
+      description: |
+        Quien dibuja en `/demo` —sin cuenta— manda una copia de su plano para
+        abrirla en un celular. El servidor guarda una copia SANEADA (sin
+        historial, publicaciones, referencias externas ni rásters, con los
+        secretos redactados) durante **7 días** en `cad_demo_shares`, una
+        tabla fuera de todo tenant, y devuelve dos tokens que sólo aparecen
+        en claro en ESTA respuesta: `shareToken` (lectura; viaja en el
+        fragmento `/revision#demoShare=…`) y `manageToken` (borrar o
+        reclamar). Sólo se persisten sus sha256; la IP no se guarda.
+
+        * `multipart/form-data`: el plano JSON comprimido con gzip en `file`
+          (≤ 1 048 576 bytes; ≤ 20 000 entidades) y un `name` opcional.
+        * Límites por IP (5 cada 10 min, 20 al día) con clave HMAC opaca, y
+          un tope global diario; `429` con `retryAfterSeconds`.
+        * `503 demo_share_paused` cuando el operador la pausa
+          (`CAD_DEMO_SHARES_ENABLED=false`).
+      security: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  contentMediaType: application/gzip
+                  description: Plano canónico JSON comprimido con gzip. Máximo 1 048 576 bytes.
+                name:
+                  type: string
+                  maxLength: 160
+                  description: Nombre visible del plano. Por defecto «Plano de la demostración».
+      responses:
+        "201":
+          description: Enlace creado. Única aparición de los dos tokens en claro.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DemoShareCreated"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "413":
+          description: "`demo_share_too_large`: el plano excede el tamaño o las entidades admitidas."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "503":
+          description: "`demo_share_paused`: el operador pausó los enlaces de la demostración."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /v1/cad/demo-shares/context:
+    get:
+      operationId: redeemDemoShare
+      tags: [reviews]
+      summary: Canje de sólo lectura de un enlace temporal de la demostración.
+      description: >-
+        Autenticado por el token de lectura en `X-Demo-Share-Token`; sin
+        sesión y sin comentarios. El servidor compara `expires_at` en cada
+        petición, aunque el barrido de caducados aún no haya pasado.
+        Desconocido, borrado o reclamado ⇒ `401 demo_share_invalid`;
+        caducado ⇒ `401 demo_share_expired`.
+      security:
+        - demoShareToken: []
+      responses:
+        "200":
+          description: Copia de sólo lectura del plano.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DemoShareContext"
+        "401": { $ref: "#/components/responses/DemoShareRejected" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+    delete:
+      operationId: deleteDemoShare
+      tags: [reviews]
+      summary: Borra antes de tiempo un enlace temporal de la demostración.
+      description: >-
+        Autenticado por el token de GESTIÓN en `X-Demo-Share-Manage-Token`.
+        Idempotente: borrar un enlace que ya no existe también responde 204.
+      security:
+        - demoShareManageToken: []
+      responses:
+        "204":
+          description: El enlace ya no existe.
+        "401": { $ref: "#/components/responses/DemoShareRejected" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+  /v1/cad/documents/{documentId}/demo-share-claims:
+    post:
+      operationId: claimDemoShare
+      tags: [reviews]
+      summary: Convierte un enlace de la demostración en un review link del documento.
+      description: >-
+        Quien creó el enlace en la demostración, ya con cuenta y con el
+        documento que nació de su dibujo, lo reclama con su `manageToken`: se
+        abre una sesión de revisión de ESE documento con el mismo hash de
+        token (90 días, comentarios permitidos) y la copia temporal se borra.
+        La URL que el destinatario ya tiene sigue abriendo, ahora el plano
+        vivo. Sin enlace vigente ⇒ `401 demo_share_expired`.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:review
+      parameters:
+        - $ref: "#/components/parameters/documentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DemoShareClaimRequest"
+      responses:
+        "201":
+          description: Sesión de revisión creada con el enlace existente.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CadReviewSession"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/DemoShareRejected" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
   /v1/cad/review/comments:
     get:
       operationId: listReviewLinkComments
@@ -2943,6 +3074,21 @@ components:
         organización activa, tenant y permisos desde la sesión y la membresía;
         ningún parámetro del cliente concede acceso. Toda mutación normal
         exige además `X-CSRF-Token`, igual a la cookie `valle_csrf`.
+    demoShareToken:
+      type: apiKey
+      in: header
+      name: X-Demo-Share-Token
+      description: >-
+        Token de LECTURA (`vdds_…`) de un enlace temporal de la demostración,
+        devuelto en claro sólo al crearlo. Autentica únicamente
+        `GET /v1/cad/demo-shares/context`.
+    demoShareManageToken:
+      type: apiKey
+      in: header
+      name: X-Demo-Share-Manage-Token
+      description: >-
+        Token de GESTIÓN (`vddm_…`) de un enlace temporal de la demostración.
+        Autentica únicamente su borrado; reclamarlo exige además sesión.
     reviewToken:
       type: apiKey
       in: header
@@ -3104,6 +3250,14 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/CadDocumentVersionConflictError"
+    DemoShareRejected:
+      description: >-
+        Token de enlace de la demostración desconocido, borrado, reclamado
+        (`demo_share_invalid`) o caducado (`demo_share_expired`).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
     ReviewTokenRejected:
       description: >-
         Review link rechazado: token desconocido/malformado
@@ -5615,6 +5769,56 @@ components:
             ÚNICA aparición del token en claro en toda la API. Presente solo
             si se pidió `shareLink: true`. El servidor persiste únicamente su
             hash; este valor no puede recuperarse después.
+    DemoShareCreated:
+      type: object
+      additionalProperties: false
+      required: [shareToken, manageToken, expiresAt]
+      properties:
+        shareToken:
+          type: string
+          minLength: 16
+          maxLength: 256
+          description: Token de lectura (`vdds_…`). Única aparición en claro.
+        manageToken:
+          type: string
+          minLength: 16
+          maxLength: 256
+          description: Token de gestión (`vddm_…`). Única aparición en claro.
+        expiresAt:
+          type: string
+          format: date-time
+    DemoShareContext:
+      type: object
+      additionalProperties: false
+      required: [readOnly, expiresAt, document]
+      properties:
+        readOnly:
+          type: boolean
+          const: true
+        expiresAt:
+          type: string
+          format: date-time
+        document:
+          type: object
+          additionalProperties: false
+          required: [name, cadDocument]
+          properties:
+            name:
+              type: string
+              maxLength: 160
+            cadDocument:
+              type: object
+              additionalProperties: true
+              description: Documento canónico saneado (sin historial, publicaciones, referencias externas ni rásters).
+    DemoShareClaimRequest:
+      type: object
+      additionalProperties: false
+      required: [manageToken]
+      properties:
+        manageToken:
+          type: string
+          minLength: 16
+          maxLength: 256
     ReviewLinkContext:
       type: object
       description: >-

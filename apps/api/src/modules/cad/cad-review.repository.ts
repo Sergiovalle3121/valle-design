@@ -101,7 +101,39 @@ export class CadReviewRepository {
     input: CreateReviewSessionInput,
   ): Promise<CreatedReviewSession> {
     const wantsLink = input.shareLink === true;
-    const generated = wantsLink ? generateReviewLinkToken() : null;
+    return this.openSession(
+      documentId,
+      input,
+      wantsLink ? generateReviewLinkToken() : null,
+    );
+  }
+
+  /**
+   * Abre una sesión con enlace cuyo token YA existe: el de un enlace temporal
+   * de la demostración que su autor reclama al crear cuenta. Sólo se guarda
+   * el hash —el claro nunca llega aquí— y la URL que el destinatario ya tiene
+   * pasa a abrir este documento. Es un método aparte, no un campo del DTO,
+   * para que ningún cliente pueda fijar el hash de una sesión.
+   */
+  async createSessionForExistingToken(
+    documentId: string,
+    tokenHash: string,
+    input: Omit<CreateReviewSessionInput, 'shareLink'>,
+  ): Promise<CadReviewSession> {
+    const { session } = await this.openSession(
+      documentId,
+      { ...input, shareLink: true },
+      { tokenHash },
+    );
+    return session;
+  }
+
+  private async openSession(
+    documentId: string,
+    input: CreateReviewSessionInput,
+    generated: { token?: string; tokenHash: string } | null,
+  ): Promise<CreatedReviewSession> {
+    const wantsLink = generated !== null;
     const expiresAt = wantsLink
       ? new Date(
           Date.now() +

@@ -28,16 +28,19 @@ export class ApiRateLimitService {
   ) {}
 
   /**
-   * Consume 1 del presupuesto `scope`+`identifiers` (ventana fija de 60 s) y
-   * lanza 429 si el techo ya se alcanzó.
+   * Consume 1 del presupuesto `scope`+`identifiers` y lanza 429 si el techo ya
+   * se alcanzó. La ventana es fija y por defecto de 60 s (`maxPerMinute`);
+   * una superficie anónima que necesita además un techo por hora o por día
+   * pasa `windowMs` y un `scope` propio para cada ventana.
    */
   async enforce(
     scope: string,
     identifiers: readonly string[],
     maxPerMinute: number,
+    windowMs = 60_000,
   ): Promise<void> {
     const key = createOpaqueRateLimitKey(scope, identifiers);
-    const decision = await this.store.consume(key, maxPerMinute, 60_000);
+    const decision = await this.store.consume(key, maxPerMinute, windowMs);
     if (!decision.allowed) {
       throw new HttpException(
         {

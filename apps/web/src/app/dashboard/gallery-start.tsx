@@ -79,19 +79,48 @@ export async function buildGalleryDocumentContent(id: string) {
  * promesa del banner («crea tu cuenta y llévatelo») cumplida con el mecanismo
  * de siempre: contenido escrito antes de abrir el estudio.
  */
-export function useDemoAdoption(): [boolean, () => void] {
+/**
+ * ¿El primer documento nace del dibujo de la demostración?
+ *
+ * Con `?demo=1` (el «Crea tu cuenta» de `/demo`) basta con que haya dibujo.
+ * Pero ese `returnTo` se pierde por el camino más común —verificar el correo
+ * abre el enlace en otra pestaña— y el dibujo se quedaba huérfano en el
+ * navegador. Por eso también se ofrece sin la bandera cuando la cuenta está
+ * VACÍA y el visitante dibujó algo propio (no la casa de arranque intacta).
+ */
+export function useDemoAdoption(accountEmpty: boolean): [boolean, () => void] {
   const [pending, setPending] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("demo") !== "1") return;
+    const flagged = new URLSearchParams(window.location.search).get("demo") === "1";
+    if (!flagged && !accountEmpty) return;
     let alive = true;
-    void import("@/components/cad/document-lifecycle/demo-port").then(({ storedDemoDocument }) => {
-      if (alive && storedDemoDocument()) setPending(true);
-    });
+    void import("@/components/cad/document-lifecycle/demo-port").then(
+      ({ storedDemoDocument, hasEditedDemoDocument }) => {
+        if (!alive) return;
+        if (flagged ? storedDemoDocument() : hasEditedDemoDocument()) setPending(true);
+      },
+    );
     return () => {
       alive = false;
     };
-  }, []);
-  return [pending, () => setPending(false)];
+  }, [accountEmpty]);
+  return [pending && !dismissed, () => setDismissed(true)];
+}
+
+/**
+ * Si el visitante compartió su dibujo desde la demostración, el enlace que ya
+ * mandó pasa a ser un enlace de revisión de este documento: la misma URL sigue
+ * abriendo, ahora con comentarios. Si falla, el enlace temporal sigue vivo
+ * hasta caducar y el documento ya está creado: no se detiene nada por esto.
+ */
+export async function claimDemoShareFor(documentId: string): Promise<void> {
+  try {
+    const { claimStoredDemoShare } = await import("@/lib/cad/share/demo-share-repository");
+    await claimStoredDemoShare(documentId);
+  } catch {
+    /* mejor esfuerzo: ver arriba */
+  }
 }
 
 /** El dibujo de la demo como contenido del documento; lo limpia tras leerlo. */

@@ -82,14 +82,18 @@ void (async () => {
   //   (GET /v1/organizations/{id}/audit-log).
   // + la de T-62c: exportar los datos personales propios
   //   (GET /v1/auth/export).
+  // + las 4 del enlace temporal de la demostración: crearlo sin cuenta
+  //   (POST /v1/cad/demo-shares), canjearlo y borrarlo
+  //   (GET/DELETE /v1/cad/demo-shares/context) y reclamarlo al crear el
+  //   primer documento (POST /v1/cad/documents/{documentId}/demo-share-claims).
   assert.equal(
     regenerated.operationCount,
-    110,
+    114,
     "cambió el número de operaciones del contrato; actualiza este spec Y los recuentos de check-design-contract.mjs / standalone-contract-router.spec.ts",
   );
   assert.equal(
     regenerated.cadOperationCount,
-    43,
+    47,
     "cambió el número de operaciones /v1/cad; el gate de contrato tiene su propio recuento que también hay que mover",
   );
 
@@ -135,6 +139,14 @@ void (async () => {
   // lleva su propio techo de peticiones. Las otras cinco rutas del segundo
   // factor (estado, alta, activación, baja y códigos de respaldo) y la
   // actividad reciente SÍ exigen sesión, y por eso no aparecen en esta lista.
+  //
+  // DECISIÓN VISTA (enlace temporal de la demostración, 2026-09-24):
+  // `createDemoShare` es «Compartir» desde `/demo`, donde por definición no
+  // hay cuenta. Lo acotan un límite por IP y otro global, un tope de tamaño,
+  // el saneado del dibujo y la caducidad a siete días; el interruptor
+  // `CAD_DEMO_SHARES_ENABLED` lo apaga sin desplegar. Canjear y borrar el
+  // enlace NO son anónimos: piden su token (`X-Demo-Share-Token` /
+  // `X-Demo-Share-Manage-Token`), como el review link.
   const anonymous = regenerated.operations.filter(
     (operation) => operation.authentication === "public",
   );
@@ -142,6 +154,7 @@ void (async () => {
     anonymous.map((operation) => operation.operationId).sort(),
     [
       "completeIdentityMfaLogin",
+      "createDemoShare",
       "listLegalDocuments",
       "listPublicCommercialPlans",
       "listSatTaxCatalogs",

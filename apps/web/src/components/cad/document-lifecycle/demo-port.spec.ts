@@ -65,6 +65,8 @@ const thisVisit = {
   },
 };
 await port.saveContent("demo-local", thisVisit, Number(first.cadDocumentVersion));
+assert.equal(port.currentDocument(), thisVisit,
+  "«Compartir» manda el último dibujo que el editor guardó, no la casa de arranque");
 assert.equal(port.restorePrevious(), true, "recuperar es una elección explícita");
 const restored = (await port.open("demo-local")).cadDocument as CadDocument;
 assert.equal(restored.entities.some(entity => entity.id === "mi-trazo-viejo"), true);
@@ -81,6 +83,7 @@ assert.equal(((await nextVisit.open("demo-local")).cadDocument as CadDocument)
 
 const firstTimer = createDemoDocumentPort(memoryStorage());
 assert.equal(firstTimer.hasRecoverableDocument, false);
+assert.equal(firstTimer.currentDocument(), null, "antes de abrir no hay dibujo que compartir");
 const untouched = await firstTimer.open("demo-local");
 assert.ok((untouched.cadDocument as CadDocument).entities.length > 0,
   "la visita nueva conserva la casa habitación de arranque");

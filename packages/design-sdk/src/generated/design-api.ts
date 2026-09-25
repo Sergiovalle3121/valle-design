@@ -1458,6 +1458,84 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/cad/demo-shares": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Crea un enlace temporal de sólo lectura desde la demostración, sin cuenta.
+         * @description Quien dibuja en `/demo` —sin cuenta— manda una copia de su plano para
+         *     abrirla en un celular. El servidor guarda una copia SANEADA (sin
+         *     historial, publicaciones, referencias externas ni rásters, con los
+         *     secretos redactados) durante **7 días** en `cad_demo_shares`, una
+         *     tabla fuera de todo tenant, y devuelve dos tokens que sólo aparecen
+         *     en claro en ESTA respuesta: `shareToken` (lectura; viaja en el
+         *     fragmento `/revision#demoShare=…`) y `manageToken` (borrar o
+         *     reclamar). Sólo se persisten sus sha256; la IP no se guarda.
+         *
+         *     * `multipart/form-data`: el plano JSON comprimido con gzip en `file`
+         *       (≤ 1 048 576 bytes; ≤ 20 000 entidades) y un `name` opcional.
+         *     * Límites por IP (5 cada 10 min, 20 al día) con clave HMAC opaca, y
+         *       un tope global diario; `429` con `retryAfterSeconds`.
+         *     * `503 demo_share_paused` cuando el operador la pausa
+         *       (`CAD_DEMO_SHARES_ENABLED=false`).
+         */
+        post: operations["createDemoShare"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/cad/demo-shares/context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Canje de sólo lectura de un enlace temporal de la demostración.
+         * @description Autenticado por el token de lectura en `X-Demo-Share-Token`; sin sesión y sin comentarios. El servidor compara `expires_at` en cada petición, aunque el barrido de caducados aún no haya pasado. Desconocido, borrado o reclamado ⇒ `401 demo_share_invalid`; caducado ⇒ `401 demo_share_expired`.
+         */
+        get: operations["redeemDemoShare"];
+        put?: never;
+        post?: never;
+        /**
+         * Borra antes de tiempo un enlace temporal de la demostración.
+         * @description Autenticado por el token de GESTIÓN en `X-Demo-Share-Manage-Token`. Idempotente: borrar un enlace que ya no existe también responde 204.
+         */
+        delete: operations["deleteDemoShare"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/cad/documents/{documentId}/demo-share-claims": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Convierte un enlace de la demostración en un review link del documento.
+         * @description Quien creó el enlace en la demostración, ya con cuenta y con el documento que nació de su dibujo, lo reclama con su `manageToken`: se abre una sesión de revisión de ESE documento con el mismo hash de token (90 días, comentarios permitidos) y la copia temporal se borra. La URL que el destinatario ya tiene sigue abriendo, ahora el plano vivo. Sin enlace vigente ⇒ `401 demo_share_expired`.
+         */
+        post: operations["claimDemoShare"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/cad/review/comments": {
         parameters: {
             query?: never;
@@ -2937,6 +3015,30 @@ export interface components {
             /** @description ÚNICA aparición del token en claro en toda la API. Presente solo si se pidió `shareLink: true`. El servidor persiste únicamente su hash; este valor no puede recuperarse después. */
             shareToken?: string;
         };
+        DemoShareCreated: {
+            /** @description Token de lectura (`vdds_…`). Única aparición en claro. */
+            shareToken: string;
+            /** @description Token de gestión (`vddm_…`). Única aparición en claro. */
+            manageToken: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        DemoShareContext: {
+            /** @constant */
+            readOnly: true;
+            /** Format: date-time */
+            expiresAt: string;
+            document: {
+                name: string;
+                /** @description Documento canónico saneado (sin historial, publicaciones, referencias externas ni rásters). */
+                cadDocument: {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        DemoShareClaimRequest: {
+            manageToken: string;
+        };
         /** @description Respuesta del canje del review link: contexto de SOLO LECTURA limitado al documento de la sesión. La proyección del documento es REDUCIDA a propósito (sin projectId, legacySourceId ni metadatos de auditoría del autor): el invitado ve el dibujo, no la organización interna. */
         ReviewLinkContext: {
             session: components["schemas"]["CadReviewSession"];
@@ -3226,6 +3328,15 @@ export interface components {
             };
             content: {
                 "application/json": components["schemas"]["CadDocumentVersionConflictError"];
+            };
+        };
+        /** @description Token de enlace de la demostración desconocido, borrado, reclamado (`demo_share_invalid`) o caducado (`demo_share_expired`). */
+        DemoShareRejected: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ApiError"];
             };
         };
         /** @description Review link rechazado: token desconocido/malformado (`review_token_invalid`), expirado (`review_token_expired`) o revocado/sesión cerrada (`review_token_revoked`). Las denegaciones atribuibles quedan auditadas server-side; el token jamás se registra. */
@@ -5801,6 +5912,128 @@ export interface operations {
             };
             401: components["responses"]["ReviewTokenRejected"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    createDemoShare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** @description Plano canónico JSON comprimido con gzip. Máximo 1 048 576 bytes. */
+                    file: string;
+                    /** @description Nombre visible del plano. Por defecto «Plano de la demostración». */
+                    name?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Enlace creado. Única aparición de los dos tokens en claro. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoShareCreated"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description `demo_share_too_large`: el plano excede el tamaño o las entidades admitidas. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description `demo_share_paused`: el operador pausó los enlaces de la demostración. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    redeemDemoShare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Copia de sólo lectura del plano. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoShareContext"];
+                };
+            };
+            401: components["responses"]["DemoShareRejected"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    deleteDemoShare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description El enlace ya no existe. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["DemoShareRejected"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    claimDemoShare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: components["parameters"]["documentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemoShareClaimRequest"];
+            };
+        };
+        responses: {
+            /** @description Sesión de revisión creada con el enlace existente. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CadReviewSession"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["DemoShareRejected"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     listReviewLinkComments: {

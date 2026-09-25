@@ -344,6 +344,15 @@ export const MATRIZ_SIN_RED: readonly FilaSinRed[] = [
     ],
   },
   {
+    id: "enlace-temporal-de-la-demo",
+    flujo: "Compartir el dibujo de la demostración sin cuenta y abrirlo en un celular",
+    veredicto: "requiere-backend",
+    endpoints: ["/v1/cad/demo-shares", "/v1/cad/demo-shares/context", "/v1/cad/documents/:id/demo-share-claims"],
+    porque: "La copia de sólo lectura vive siete días en el servidor y el enlace es su token: sin servidor no hay copia que mandar ni que abrir.",
+    seNota: "«Compartir» avisa que no pudo crear el enlace y quien abre uno ve que no está disponible. El dibujo sigue en el navegador.",
+    evidencia: ["packages/design-sdk/src/demo-shares.ts", "apps/web/src/lib/cad/share/demo-share-repository.ts"],
+  },
+  {
     id: "comentarios-sobre-el-plano",
     flujo: "Comentar sobre un punto del plano y darlo por resuelto",
     veredicto: "requiere-backend",

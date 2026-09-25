@@ -30,8 +30,8 @@
  */
 import * as THREE from "three";
 
-/** Color de reserva: el del tema oscuro, el de fábrica. */
-const CAD_FOG_FALLBACK = 0x0a0f1e;
+/** Color de reserva: el del tema de fábrica, «Estudio». */
+const CAD_FOG_FALLBACK = 0x202329;
 /** Dónde recuerda la escena el color de niebla del tema mientras está apagada. */
 const CAD_FOG_COLOR_KEY = "cadFogColor";
 

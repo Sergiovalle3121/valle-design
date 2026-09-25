@@ -42,7 +42,9 @@ import { CadModule } from './cad.module';
  *    la fila de la sesión) y su contexto no alcanza nada de B.
  * 3. Una sesión válida sin entitlement local recibe
  *    `403 entitlement_required` en TODOS los endpoints CAD — la superficie
- *    se barre PROGRAMÁTICAMENTE desde el router real, no a mano.
+ *    se barre PROGRAMÁTICAMENTE desde el router real, no a mano. Las dos
+ *    únicas superficies sin entitlement son las de token (review link y
+ *    enlace temporal de la demostración), y ahí la sesión recibe 400/401.
  */
 describePostgres(
   'Aislamiento multi-tenant /v1/cad (PostgreSQL + auth first-party)',
@@ -431,6 +433,19 @@ describePostgres(
           // jamás la abre (401), con o sin entitlement.
           expect(`${method} ${path} → ${res.status}`).toBe(
             `${method} ${path} → 401`,
+          );
+          continue;
+        }
+        if (path.startsWith('/v1/cad/demo-shares')) {
+          // El enlace temporal de la demostración es público a propósito (se
+          // crea SIN cuenta) y no toca datos de ningún tenant: la sesión no
+          // abre nada. Sin archivo, 400; sin token, 401; jamás 2xx.
+          const expected = method === 'post' ? 400 : 401;
+          expect(`${method} ${path} → ${res.status}`).toBe(
+            `${method} ${path} → ${expected}`,
+          );
+          expect((res.body as { code?: string }).code).not.toBe(
+            'entitlement_required',
           );
           continue;
         }
