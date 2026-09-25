@@ -4956,6 +4956,40 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "ENDURECER-LANZAMIENTO-20260924",
+      "date": "2026-09-24",
+      "initiative": "Endurecer lo que ya existe antes del lanzamiento, sin funciones nuevas: el API contesta 403 (no 500) a un origen que CORS rechaza —fue el 100 % de los 5xx de producción del 17 al 24 de septiembre—; en un teléfono la fila superior del estudio cabe (Compartir y Guardar en icono, el interruptor Pro fuera en Esencial) y el plano abre entero en vertical; el visor de /revision es oscuro en los dos temas y su lienzo usa el token cad-canvas; e2e real de «Compartir» de punta a punta; better-sqlite3 13 bloqueado en Dependabot.",
+      "branch": "claude/keen-cannon-nvm7x7-endurecer",
+      "assistants": [
+        "Claude Code (Anthropic): diagnóstico con los registros de Railway, arreglos, pruebas y barrido de rutas a 390 y 1280 px"
+      ],
+      "authority": "Sergio pidió el 24-09-2026 pulir y endurecer lo que ya existe para sacar VALLECAD al mercado antes de seguir con la paridad con AutoCAD.",
+      "firstPartyInputs": [
+        "Registros HTTP y de despliegue del servicio api en producción (Railway, 17–24 de septiembre de 2026): 5xx por ruta y el mensaje «Origin not allowed by CORS» del AllExceptionsFilter",
+        "Capturas del barrido local contra la pila real (API + PostgreSQL 16 + build de producción): /demo y /revision a 360 y 390 px",
+        "PR #241 cerrado: SIGSEGV de better-sqlite3 13 en 22 suites del API (corrida 35909579367)"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguno.",
+      "derivedAreas": [
+        "apps/api/src/bootstrap/cors-origin.ts (+ spec) y apps/api/src/main.ts",
+        "apps/web/src/components/cad/ribbon/CadRibbon.tsx, share/CadShareButton.tsx, editor/Layout3DEditor.tsx y app/demo/DemoStudio.tsx",
+        "apps/web/src/components/cad/collab/ReviewLinkClient.tsx, ReviewPlanView.tsx, app/revision/page.tsx y app/globals.css (token --cad-canvas)",
+        "apps/web/e2e/public/demo-studio.spec.ts y e2e/real/demo-compartir-real.spec.ts",
+        ".github/dependabot.yml y docs/deps-majors-bloqueados.md"
+      ],
+      "fixtures": "Sin fixtures nuevos.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Spec de CORS roja con el código anterior (4 de 10) y verde con el nuevo; golden de teléfono a 360 y 390; e2e real demo-compartir 2/2 contra la pila local; suites del API y del web verdes."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

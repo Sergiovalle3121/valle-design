@@ -44,6 +44,10 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # better-sqlite3 13 tumba con SIGSEGV los workers de Jest del API en
+      # Node 20 (medido sobre el PR #241, 2026-09-23). Ver la tabla.
+      - dependency-name: "better-sqlite3"
+        update-types: ["version-update:semver-major"]
       - dependency-name: "next"
         versions: [">= 16.3.0"]
       - dependency-name: "eslint-config-next"
