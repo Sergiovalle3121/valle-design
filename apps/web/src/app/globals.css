@@ -194,6 +194,12 @@
     --qr-dark: 0 0% 0%;
     --qr-light: 0 0% 100%;
 
+    /* El lienzo del plano FUERA del estudio (el visor de `/revision`): el
+       mismo gris «Estudio» (0x202329) con el que arranca el estudio, igual en
+       los dos temas porque las tintas del dibujo se leen contra él. Antes era
+       un azul marino suelto en el componente. */
+    --cad-canvas: 220 12% 14%;
+
     --ambient-tint: rgba(107, 77, 239, 0.07);
     --ambient-tint-deep: rgba(86, 55, 225, 0.05);
     --ambient-tint-soft: rgba(107, 77, 239, 0.04);
@@ -466,6 +472,7 @@
   --color-warning-foreground: hsl(var(--warning-foreground));
   --color-danger: hsl(var(--danger));
   --color-danger-foreground: hsl(var(--danger-foreground));
+  --color-cad-canvas: hsl(var(--cad-canvas));
 
   /* Las tintas AA de cada estado: `text-success-ink`, `text-danger-ink`,
      `text-warning-ink`, `text-primary-ink`. Se usan SIEMPRE que el color del
