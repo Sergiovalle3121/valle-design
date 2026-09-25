@@ -32,6 +32,7 @@ test.describe("Compartir desde la demostración, con la API real", () => {
   let page: Page;
   let shareUrl = "";
   let shareToken = "";
+  let studioPath = "";
   const runId = Date.now().toString(36);
   const email = `demo-comparte-${runId}@example.test`;
 
@@ -124,6 +125,11 @@ test.describe("Compartir desde la demostración, con la API real", () => {
     ]);
     await page.getByLabel("Nombre del despacho").fill(`Despacho ${runId}`);
     await page.getByRole("button", { name: "Crear organización" }).click();
+    // El estado de la suscripción con las palabras del cliente, no «trialing».
+    await expect(page.getByTestId("subscription-status")).toContainText(/En periodo de prueba hasta/u, {
+      timeout: 30_000,
+    });
+    await expect(page.getByTestId("subscription-status")).not.toContainText("trialing");
 
     await page.getByLabel("Nombre del proyecto").fill("Mi casa");
     await page.getByLabel("Crear proyecto").click();
@@ -141,6 +147,7 @@ test.describe("Compartir desde la demostración, con la API real", () => {
     const document = (await (await documentCreated).json()) as { id: string };
     expect((await claimed).status(), "el enlace temporal se reclama al crear el documento").toBe(201);
     await page.waitForURL((url) => url.pathname === `/studio/${document.id}`);
+    studioPath = `/studio/${document.id}`;
     expect(await page.evaluate((key) => localStorage.getItem(key), SHARE_STORAGE_KEY)).toBeNull();
 
     // La copia temporal ya no existe; el MISMO token es ahora el de una revisión
@@ -168,5 +175,23 @@ test.describe("Compartir desde la demostración, con la API real", () => {
     });
     await expect(guest.getByTestId("cad-demo-share-aside")).toHaveCount(0);
     await guest.context().close();
+  });
+
+  test("al volver a entrar directo a su plano, el estudio abre", async () => {
+    test.setTimeout(240_000);
+    // Un marcador, o el `returnTo` de una sesión caducada: se entra por el
+    // plano, no por el tablero. Antes la sesión nueva nacía sin despacho y el
+    // estudio decía «No tienes permiso suficiente para abrir este documento».
+    expect(studioPath).not.toBe("");
+    await context.clearCookies();
+    await page.goto(`/login?returnTo=${encodeURIComponent(studioPath)}`);
+    await page.getByLabel(/Correo electr.*nico/iu).fill(email);
+    await page.getByLabel(/^Contrase/iu).fill(E2E_PASSWORD);
+    await Promise.all([
+      page.waitForURL((url) => url.pathname === studioPath),
+      page.getByRole("button", { name: /Iniciar sesi.*n/iu }).click(),
+    ]);
+    await expect(page.getByTestId("cad-command-input")).toBeVisible({ timeout: 120_000 });
+    await expect(page.getByText(/No tienes permiso/iu)).toHaveCount(0);
   });
 });
