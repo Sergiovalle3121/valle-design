@@ -112,14 +112,14 @@
     "check:auditoria": "node scripts/cad/check-auditoria-manifest.mjs"
   },
   "devDependencies": {
-    "@lhci/cli": "^0.15.1",
-    "@redocly/cli": "2.53.3",
-    "@types/node": "^22.20.3",
+    "@lhci/cli": "^0.16.0",
+    "@redocly/cli": "2.76.0",
+    "@types/node": "^22.20.5",
     "eslint": "^9.18.0",
     "openapi-typescript": "7.13.0",
-    "prettier": "^3.9.8",
-    "tsx": "4.23.13",
-    "turbo": "^2.10.13",
+    "prettier": "^3.9.10",
+    "tsx": "4.23.15",
+    "turbo": "^2.11.10",
     "typescript": "5.9.3"
   },
   "workspaces": [
